@@ -14,8 +14,9 @@ fn resolve_asset_pair() -> Result<(PathBuf, PathBuf), MinimizeError> {
     let policy_name = Path::new("lib/minimize/POLICY.md");
     // Receipt validation is native. Bind receipts to the executable actually
     // performing it, so changing the implementation invalidates old receipts.
-    let validator = std::env::current_exe()
-        .map_err(|error| MinimizeError::new(format!("native minimize validator unavailable: {error}")))?;
+    let validator = std::env::current_exe().map_err(|error| {
+        MinimizeError::new(format!("native minimize validator unavailable: {error}"))
+    })?;
     let candidates = release_roots();
     for root in candidates {
         let policy = root.join(policy_name);

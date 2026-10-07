@@ -10,10 +10,19 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use serde_json::{json, Map, Value};
 
 use super::contracts::{
-    assert_artifact_binding, binding_from_plan, canonicalize, digest, evidence_rank, stable_id, Result,
+    assert_artifact_binding, binding_from_plan, canonicalize, digest, evidence_rank, stable_id,
+    Result,
 };
 
-const FACT_FIELDS: &[&str] = &["kind", "subject", "action", "object", "scope", "environment", "tenant"];
+const FACT_FIELDS: &[&str] = &[
+    "kind",
+    "subject",
+    "action",
+    "object",
+    "scope",
+    "environment",
+    "tenant",
+];
 
 pub const PATH_PRIORITY: &[&str] = &[
     "DIRECT_CROWN_JEWEL",
@@ -109,13 +118,17 @@ pub fn fact_matches(pattern: &Value, fact: &Value) -> bool {
 pub fn canonical_fact_key(fact: &Value) -> String {
     let mut normalized = Map::new();
     for key in FACT_FIELDS {
-        normalized.insert((*key).to_string(), fact.get(*key).cloned().unwrap_or(Value::Null));
+        normalized.insert(
+            (*key).to_string(),
+            fact.get(*key).cloned().unwrap_or(Value::Null),
+        );
     }
     normalized.insert(
         "attributes".to_string(),
         fact.get("attributes").cloned().unwrap_or_else(|| json!({})),
     );
-    serde_json::to_string(&canonicalize(&Value::Object(normalized))).expect("canonical JSON never fails")
+    serde_json::to_string(&canonicalize(&Value::Object(normalized)))
+        .expect("canonical JSON never fails")
 }
 
 fn bridge_pattern_matches(pattern: &Value, fact: &Value) -> bool {
@@ -130,27 +143,57 @@ struct MappedFact {
 fn map_bridge_fact(bridge: &Value, source_fact: &Value, model: &Value) -> Vec<MappedFact> {
     let to = bridge.get("to").cloned().unwrap_or_else(|| json!({}));
     let mut target = Map::new();
-    target.insert("kind".to_string(), to.get("kind").cloned().unwrap_or(Value::Null));
-    target.insert("subject".to_string(), to.get("subject").cloned().unwrap_or(Value::Null));
-    target.insert("action".to_string(), to.get("action").cloned().unwrap_or(Value::Null));
-    target.insert("object".to_string(), to.get("object").cloned().unwrap_or(Value::Null));
-    target.insert("scope".to_string(), to.get("scope").cloned().unwrap_or(Value::Null));
-    target.insert("environment".to_string(), to.get("environment").cloned().unwrap_or(Value::Null));
-    target.insert("tenant".to_string(), to.get("tenant").cloned().unwrap_or(Value::Null));
-    target.insert("attributes".to_string(), to.get("attributes").cloned().unwrap_or_else(|| json!({})));
+    target.insert(
+        "kind".to_string(),
+        to.get("kind").cloned().unwrap_or(Value::Null),
+    );
+    target.insert(
+        "subject".to_string(),
+        to.get("subject").cloned().unwrap_or(Value::Null),
+    );
+    target.insert(
+        "action".to_string(),
+        to.get("action").cloned().unwrap_or(Value::Null),
+    );
+    target.insert(
+        "object".to_string(),
+        to.get("object").cloned().unwrap_or(Value::Null),
+    );
+    target.insert(
+        "scope".to_string(),
+        to.get("scope").cloned().unwrap_or(Value::Null),
+    );
+    target.insert(
+        "environment".to_string(),
+        to.get("environment").cloned().unwrap_or(Value::Null),
+    );
+    target.insert(
+        "tenant".to_string(),
+        to.get("tenant").cloned().unwrap_or(Value::Null),
+    );
+    target.insert(
+        "attributes".to_string(),
+        to.get("attributes").cloned().unwrap_or_else(|| json!({})),
+    );
 
     if let Some(field_map) = bridge.get("fieldMap").and_then(Value::as_object) {
         for (target_field, source_field) in field_map {
             let source_field = source_field.as_str().unwrap_or("");
             target.insert(
                 target_field.clone(),
-                source_fact.get(source_field).cloned().unwrap_or(Value::Null),
+                source_fact
+                    .get(source_field)
+                    .cloned()
+                    .unwrap_or(Value::Null),
             );
         }
     }
 
     let bridge_id = bridge.get("id").cloned().unwrap_or(Value::Null);
-    let evidence_strength = bridge.get("evidenceStrength").cloned().unwrap_or(Value::Null);
+    let evidence_strength = bridge
+        .get("evidenceStrength")
+        .cloned()
+        .unwrap_or(Value::Null);
     let source_fact_id = source_fact.get("id").cloned().unwrap_or(Value::Null);
     let source_evidence_refs: BTreeSet<String> = source_fact
         .get("evidenceRefs")
@@ -170,7 +213,8 @@ fn map_bridge_fact(bridge: &Value, source_fact: &Value, model: &Value) -> Vec<Ma
             .flatten()
             .filter(|relation| {
                 relation.get("kind").and_then(Value::as_str) == Some(requires_relation)
-                    && (relation.get("from") == Some(&source_object) || relation.get("from") == Some(&source_subject))
+                    && (relation.get("from") == Some(&source_object)
+                        || relation.get("from") == Some(&source_subject))
             })
             .collect();
         if compatible.is_empty() {
@@ -196,13 +240,21 @@ fn map_bridge_fact(bridge: &Value, source_fact: &Value, model: &Value) -> Vec<Ma
                 });
                 let id = stable_id("bridged-security-fact", &id_content);
                 let mut evidence_refs: BTreeSet<String> = source_evidence_refs.clone();
-                for r in relation.get("evidenceRefs").and_then(Value::as_array).into_iter().flatten() {
+                for r in relation
+                    .get("evidenceRefs")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
                     if let Some(s) = r.as_str() {
                         evidence_refs.insert(s.to_string());
                     }
                 }
                 t.insert("id".to_string(), json!(id));
-                t.insert("evidenceRefs".to_string(), json!(evidence_refs.into_iter().collect::<Vec<_>>()));
+                t.insert(
+                    "evidenceRefs".to_string(),
+                    json!(evidence_refs.into_iter().collect::<Vec<_>>()),
+                );
                 MappedFact {
                     fact: Value::Object(t),
                     support: json!({
@@ -295,7 +347,12 @@ fn add_fact_with_change(map: &mut BTreeMap<String, Value>, fact: &Value) -> bool
 
 fn base_state(model: &Value) -> State {
     let mut facts = BTreeMap::new();
-    for fact in model.get("initialFacts").and_then(Value::as_array).into_iter().flatten() {
+    for fact in model
+        .get("initialFacts")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         add_fact(&mut facts, fact);
     }
     State {
@@ -307,7 +364,12 @@ fn base_state(model: &Value) -> State {
     }
 }
 
-fn augment_state_with_bridges(state: &State, bridges: &[Value], model: &Value, max_bridge_depth: u32) -> State {
+fn augment_state_with_bridges(
+    state: &State,
+    bridges: &[Value],
+    model: &Value,
+    max_bridge_depth: u32,
+) -> State {
     let mut facts = state.facts.clone();
     let mut frontier: Vec<(Value, u32)> = facts.values().map(|f| (f.clone(), 0)).collect();
     let mut expanded: BTreeSet<String> = BTreeSet::new();
@@ -330,13 +392,18 @@ fn augment_state_with_bridges(state: &State, bridges: &[Value], model: &Value, m
                     continue;
                 }
                 for generated in map_bridge_fact(bridge, fact, model) {
-                    let produced_by_step = fact.get("producedByStep").cloned().unwrap_or(Value::Null);
+                    let produced_by_step =
+                        fact.get("producedByStep").cloned().unwrap_or(Value::Null);
                     let source_fact_id = fact.get("id").cloned().unwrap_or(Value::Null);
                     let bridge_support = json!({
                         "bridgeId": generated.support.get("bridgeId").cloned().unwrap_or(Value::Null),
                         "relationId": generated.support.get("relationId").cloned().unwrap_or(Value::Null),
                     });
-                    let evidence_strength = generated.support.get("evidenceStrength").cloned().unwrap_or(Value::Null);
+                    let evidence_strength = generated
+                        .support
+                        .get("evidenceStrength")
+                        .cloned()
+                        .unwrap_or(Value::Null);
                     let mut refs: BTreeSet<String> = fact
                         .get("evidenceRefs")
                         .and_then(Value::as_array)
@@ -360,7 +427,10 @@ fn augment_state_with_bridges(state: &State, bridges: &[Value], model: &Value, m
                     bridged.insert("sourceFactId".to_string(), source_fact_id);
                     bridged.insert("bridgeSupport".to_string(), bridge_support);
                     bridged.insert("evidenceStrength".to_string(), evidence_strength);
-                    bridged.insert("evidenceRefs".to_string(), json!(refs.into_iter().collect::<Vec<_>>()));
+                    bridged.insert(
+                        "evidenceRefs".to_string(),
+                        json!(refs.into_iter().collect::<Vec<_>>()),
+                    );
                     let bridged_fact = Value::Object(bridged);
                     if add_fact_with_change(&mut facts, &bridged_fact) {
                         next_frontier.push((bridged_fact, depth + 1));
@@ -385,10 +455,15 @@ struct PreconditionMatch {
     fact: Value,
 }
 
-fn find_satisfied_preconditions(preconditions: &[Value], facts: &[Value]) -> Option<Vec<PreconditionMatch>> {
+fn find_satisfied_preconditions(
+    preconditions: &[Value],
+    facts: &[Value],
+) -> Option<Vec<PreconditionMatch>> {
     let mut matches = Vec::with_capacity(preconditions.len());
     for (index, pattern) in preconditions.iter().enumerate() {
-        let fact = facts.iter().find(|candidate| fact_matches(pattern, candidate))?;
+        let fact = facts
+            .iter()
+            .find(|candidate| fact_matches(pattern, candidate))?;
         matches.push(PreconditionMatch {
             precondition_index: index,
             fact: fact.clone(),
@@ -398,7 +473,11 @@ fn find_satisfied_preconditions(preconditions: &[Value], facts: &[Value]) -> Opt
 }
 
 fn candidate_applicability(candidate: &Value, state: &State) -> Option<Vec<PreconditionMatch>> {
-    let preconditions = candidate.get("preconditions").and_then(Value::as_array).cloned().unwrap_or_default();
+    let preconditions = candidate
+        .get("preconditions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let facts: Vec<Value> = state.facts.values().cloned().collect();
     find_satisfied_preconditions(&preconditions, &facts)
 }
@@ -414,10 +493,22 @@ fn apply_candidate(candidate: &Value, state: &State, matches: &[PreconditionMatc
             let from_step = m.fact.get("producedByStep").cloned().unwrap_or(Value::Null);
             let from_fact_id = m.fact.get("id").cloned().unwrap_or(Value::Null);
             let bridge_support = m.fact.get("bridgeSupport").cloned();
-            let relation = if bridge_support.is_some() { "bridged-satisfaction" } else { "satisfies" };
+            let relation = if bridge_support.is_some() {
+                "bridged-satisfaction"
+            } else {
+                "satisfies"
+            };
             let support = bridge_support.unwrap_or_else(|| json!({"kind": "direct-fact-match"}));
-            let evidence_strength = m.fact.get("evidenceStrength").cloned().unwrap_or_else(|| json!("possible"));
-            let evidence_refs = m.fact.get("evidenceRefs").cloned().unwrap_or_else(|| json!([]));
+            let evidence_strength = m
+                .fact
+                .get("evidenceStrength")
+                .cloned()
+                .unwrap_or_else(|| json!("possible"));
+            let evidence_refs = m
+                .fact
+                .get("evidenceRefs")
+                .cloned()
+                .unwrap_or_else(|| json!([]));
             let id_content = json!({
                 "candidateId": candidate_id,
                 "preconditionIndex": m.precondition_index,
@@ -464,7 +555,10 @@ fn apply_candidate(candidate: &Value, state: &State, matches: &[PreconditionMatc
             let mut out = effect.as_object().cloned().unwrap();
             out.insert("producedByStep".to_string(), json!(step_index));
             out.insert("evidenceStrength".to_string(), json!("possible"));
-            out.insert("evidenceRefs".to_string(), json!(refs.into_iter().collect::<Vec<_>>()));
+            out.insert(
+                "evidenceRefs".to_string(),
+                json!(refs.into_iter().collect::<Vec<_>>()),
+            );
             Value::Object(out)
         })
         .collect();
@@ -478,8 +572,14 @@ fn apply_candidate(candidate: &Value, state: &State, matches: &[PreconditionMatc
         used_candidates.insert(id.to_string());
     }
 
-    let requires: Vec<Value> = matches.iter().map(|m| m.fact.get("id").cloned().unwrap_or(Value::Null)).collect();
-    let produces: Vec<Value> = effects.iter().map(|e| e.get("id").cloned().unwrap_or(Value::Null)).collect();
+    let requires: Vec<Value> = matches
+        .iter()
+        .map(|m| m.fact.get("id").cloned().unwrap_or(Value::Null))
+        .collect();
+    let produces: Vec<Value> = effects
+        .iter()
+        .map(|e| e.get("id").cloned().unwrap_or(Value::Null))
+        .collect();
 
     let mut steps = state.steps.clone();
     steps.push(json!({
@@ -523,8 +623,15 @@ fn glob_token(pattern: &str, value: &str) -> bool {
     }
 }
 
-fn objective_matches_fact(objective: &Value, fact: &Value, entity_by_id: &BTreeMap<String, Value>) -> bool {
-    let rule = objective.get("matches").cloned().unwrap_or_else(|| json!({}));
+fn objective_matches_fact(
+    objective: &Value,
+    fact: &Value,
+    entity_by_id: &BTreeMap<String, Value>,
+) -> bool {
+    let rule = objective
+        .get("matches")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     if let Some(fact_kind) = rule.get("factKind").and_then(Value::as_str) {
         if fact.get("kind").and_then(Value::as_str) != Some(fact_kind) {
             return false;
@@ -571,7 +678,11 @@ fn match_objectives(facts: &[Value], model: &Value, objectives: &[Value]) -> Vec
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .filter_map(|e| e.get("id").and_then(Value::as_str).map(|id| (id.to_string(), e.clone())))
+        .filter_map(|e| {
+            e.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), e.clone()))
+        })
         .collect();
 
     let mut matches: Vec<Value> = Vec::new();
@@ -640,14 +751,27 @@ fn derive_controls(state: &State, candidate_by_id: &BTreeMap<String, Value>) -> 
     let mut required: BTreeSet<String> = BTreeSet::new();
     let mut observed: BTreeSet<String> = BTreeSet::new();
     for step in &state.steps {
-        let candidate_id = step.get("candidateId").and_then(Value::as_str).unwrap_or("");
+        let candidate_id = step
+            .get("candidateId")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if let Some(candidate) = candidate_by_id.get(candidate_id) {
-            for id in candidate.get("requiredControls").and_then(Value::as_array).into_iter().flatten() {
+            for id in candidate
+                .get("requiredControls")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 if let Some(s) = id.as_str() {
                     required.insert(s.to_string());
                 }
             }
-            for id in candidate.get("observedControls").and_then(Value::as_array).into_iter().flatten() {
+            for id in candidate
+                .get("observedControls")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 if let Some(s) = id.as_str() {
                     observed.insert(s.to_string());
                 }
@@ -671,7 +795,10 @@ fn build_hypothesis(
     candidate_by_id: &BTreeMap<String, Value>,
 ) -> Value {
     let start = derive_start(state);
-    let terminal_facts = objective.get("matchedFactIds").cloned().unwrap_or_else(|| json!([]));
+    let terminal_facts = objective
+        .get("matchedFactIds")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
     let content = json!({
         "start": start,
         "objective": objective,
@@ -726,20 +853,38 @@ fn hypothesis_signature(path: &Value) -> String {
 }
 
 fn weakest_join_rank(path: &Value) -> i64 {
-    let joins = path.get("joins").and_then(Value::as_array).cloned().unwrap_or_default();
+    let joins = path
+        .get("joins")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if joins.is_empty() {
         return evidence_rank("possible");
     }
     joins
         .iter()
-        .map(|j| evidence_rank(j.get("evidenceStrength").and_then(Value::as_str).unwrap_or("possible")))
+        .map(|j| {
+            evidence_rank(
+                j.get("evidenceStrength")
+                    .and_then(Value::as_str)
+                    .unwrap_or("possible"),
+            )
+        })
         .min()
         .unwrap_or_else(|| evidence_rank("possible"))
 }
 
 fn better_hypothesis(left: &Value, right: &Value) -> bool {
-    let left_unsupported = left.get("unsupportedAssertions").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
-    let right_unsupported = right.get("unsupportedAssertions").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+    let left_unsupported = left
+        .get("unsupportedAssertions")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let right_unsupported = right
+        .get("unsupportedAssertions")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
     if left_unsupported != right_unsupported {
         return left_unsupported < right_unsupported;
     }
@@ -748,12 +893,21 @@ fn better_hypothesis(left: &Value, right: &Value) -> bool {
     if left_rank != right_rank {
         return left_rank > right_rank;
     }
-    let left_steps = left.get("steps").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
-    let right_steps = right.get("steps").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+    let left_steps = left
+        .get("steps")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let right_steps = right
+        .get("steps")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
     if left_steps != right_steps {
         return left_steps < right_steps;
     }
-    left.get("id").and_then(Value::as_str).unwrap_or("") < right.get("id").and_then(Value::as_str).unwrap_or("")
+    left.get("id").and_then(Value::as_str).unwrap_or("")
+        < right.get("id").and_then(Value::as_str).unwrap_or("")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -785,8 +939,16 @@ fn finalize_hypotheses(
         if lp != rp {
             return lp.cmp(&rp);
         }
-        let ls = left.get("steps").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
-        let rs = right.get("steps").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+        let ls = left
+            .get("steps")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
+        let rs = right
+            .get("steps")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
         if ls != rs {
             return ls.cmp(&rs);
         }
@@ -802,8 +964,14 @@ fn finalize_hypotheses(
         path["synthesis"]["truncationReasons"] = json!(truncation_reasons);
     }
 
-    let model_complete = model.get("complete").and_then(Value::as_bool).unwrap_or(false);
-    let candidates_complete = candidates_artifact.get("complete").and_then(Value::as_bool).unwrap_or(false);
+    let model_complete = model
+        .get("complete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let candidates_complete = candidates_artifact
+        .get("complete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
 
     let mut coverage_gaps: Vec<Value> = Vec::new();
     if !model_complete {
@@ -821,7 +989,11 @@ fn finalize_hypotheses(
         .and_then(Value::as_array)
         .map(Vec::len)
         .unwrap_or(0);
-    let initial_fact_count = model.get("initialFacts").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+    let initial_fact_count = model
+        .get("initialFacts")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
 
     json!({
         "schemaVersion": 1,
@@ -871,7 +1043,11 @@ pub fn synthesize_attack_paths(
         .unwrap_or_default();
     let candidate_by_id: BTreeMap<String, Value> = candidates
         .iter()
-        .filter_map(|c| c.get("id").and_then(Value::as_str).map(|id| (id.to_string(), c.clone())))
+        .filter_map(|c| {
+            c.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), c.clone()))
+        })
         .collect();
 
     let mut queue: VecDeque<State> = VecDeque::new();
@@ -884,7 +1060,8 @@ pub fn synthesize_attack_paths(
         if hypotheses.len() >= limits.max_hypotheses {
             break;
         }
-        let state = augment_state_with_bridges(&queued_state, bridges, model, limits.max_bridge_depth);
+        let state =
+            augment_state_with_bridges(&queued_state, bridges, model, limits.max_bridge_depth);
         let key = state_key(&state);
         if seen.contains(&key) {
             continue;
@@ -897,7 +1074,14 @@ pub fn synthesize_attack_paths(
             if state.steps.is_empty() {
                 continue;
             }
-            hypotheses.push(build_hypothesis(&state, objective, &binding, &denominator_digest, limits, &candidate_by_id));
+            hypotheses.push(build_hypothesis(
+                &state,
+                objective,
+                &binding,
+                &denominator_digest,
+                limits,
+                &candidate_by_id,
+            ));
             if hypotheses.len() >= limits.max_hypotheses {
                 break;
             }
@@ -1015,7 +1199,15 @@ mod tests {
     fn no_candidates_produces_zero_hypotheses_and_complete_true() {
         let plan = plan_with();
         let model = model_with(json!([]), json!([]));
-        let result = synthesize_attack_paths(&plan, &model, &candidates_artifact(json!([])), &[], &objectives(), Limits::default()).unwrap();
+        let result = synthesize_attack_paths(
+            &plan,
+            &model,
+            &candidates_artifact(json!([])),
+            &[],
+            &objectives(),
+            Limits::default(),
+        )
+        .unwrap();
         assert_eq!(result["hypotheses"].as_array().unwrap().len(), 0);
         assert_eq!(result["complete"], true);
     }
@@ -1023,14 +1215,29 @@ mod tests {
     #[test]
     fn direct_primitive_reaches_a_crown_jewel() {
         let plan = plan_with();
-        let start = fact("object-access", json!({"subject": "actor:external", "action": "read", "object": "jewel-id", "scope": "cross-tenant"}), json!(["ev1"]));
-        let model = model_with(json!([start]), json!([{"id": "jewel-id", "kind": "crown-jewel"}]));
+        let start = fact(
+            "object-access",
+            json!({"subject": "actor:external", "action": "read", "object": "jewel-id", "scope": "cross-tenant"}),
+            json!(["ev1"]),
+        );
+        let model = model_with(
+            json!([start]),
+            json!([{"id": "jewel-id", "kind": "crown-jewel"}]),
+        );
         let attack = candidate(
             "c1",
             json!([{"kind": "object-access", "subject": "actor:external", "action": "read", "object": "jewel-id"}]),
             json!([{"kind": "data-access", "subject": "actor:external", "action": "read", "object": "jewel-id"}]),
         );
-        let result = synthesize_attack_paths(&plan, &model, &candidates_artifact(json!([attack])), &[], &objectives(), Limits::default()).unwrap();
+        let result = synthesize_attack_paths(
+            &plan,
+            &model,
+            &candidates_artifact(json!([attack])),
+            &[],
+            &objectives(),
+            Limits::default(),
+        )
+        .unwrap();
         let hyps = result["hypotheses"].as_array().unwrap();
         assert!(!hyps.is_empty());
         assert_eq!(hyps[0]["status"], "PROPOSED");
@@ -1039,60 +1246,120 @@ mod tests {
     #[test]
     fn tenant_mismatch_never_satisfies_a_precondition() {
         let plan = plan_with();
-        let start = fact("principal-access", json!({"subject": "actor:external", "action": "authenticate", "scope": "low", "tenant": "tenant-a"}), json!(["ev1"]));
+        let start = fact(
+            "principal-access",
+            json!({"subject": "actor:external", "action": "authenticate", "scope": "low", "tenant": "tenant-a"}),
+            json!(["ev1"]),
+        );
         let model = model_with(json!([start]), json!([]));
         let attack = candidate(
             "c1",
             json!([{"kind": "principal-access", "subject": "actor:external", "action": "authenticate", "tenant": "tenant-b"}]),
             json!([{"kind": "principal-access", "subject": "actor:external", "action": "authenticate", "scope": "admin", "tenant": "tenant-b"}]),
         );
-        let result = synthesize_attack_paths(&plan, &model, &candidates_artifact(json!([attack])), &[], &objectives(), Limits::default()).unwrap();
+        let result = synthesize_attack_paths(
+            &plan,
+            &model,
+            &candidates_artifact(json!([attack])),
+            &[],
+            &objectives(),
+            Limits::default(),
+        )
+        .unwrap();
         assert_eq!(result["hypotheses"].as_array().unwrap().len(), 0);
     }
 
     #[test]
     fn environment_mismatch_never_satisfies_without_a_bridge() {
         let plan = plan_with();
-        let start = fact("code-execution", json!({"subject": "actor:external", "action": "execute", "environment": "local-development"}), json!(["ev1"]));
+        let start = fact(
+            "code-execution",
+            json!({"subject": "actor:external", "action": "execute", "environment": "local-development"}),
+            json!(["ev1"]),
+        );
         let model = model_with(json!([start]), json!([]));
         let attack = candidate(
             "c1",
             json!([{"kind": "code-execution", "subject": "actor:external", "action": "execute", "environment": "production"}]),
             json!([{"kind": "principal-access", "subject": "actor:external", "action": "act-as", "scope": "admin"}]),
         );
-        let result = synthesize_attack_paths(&plan, &model, &candidates_artifact(json!([attack])), &[], &objectives(), Limits::default()).unwrap();
+        let result = synthesize_attack_paths(
+            &plan,
+            &model,
+            &candidates_artifact(json!([attack])),
+            &[],
+            &objectives(),
+            Limits::default(),
+        )
+        .unwrap();
         assert_eq!(result["hypotheses"].as_array().unwrap().len(), 0);
     }
 
     #[test]
     fn no_hidden_transformation_without_a_bridge() {
         let plan = plan_with();
-        let start = fact("knowledge", json!({"subject": "actor:external", "action": "possess", "object": "secret-material"}), json!(["ev1"]));
+        let start = fact(
+            "knowledge",
+            json!({"subject": "actor:external", "action": "possess", "object": "secret-material"}),
+            json!(["ev1"]),
+        );
         let model = model_with(json!([start]), json!([]));
         let attack = candidate(
             "c1",
             json!([{"kind": "credential-possession", "subject": "actor:external", "action": "possess"}]),
             json!([{"kind": "principal-access", "subject": "actor:external", "action": "authenticate", "scope": "admin"}]),
         );
-        let result = synthesize_attack_paths(&plan, &model, &candidates_artifact(json!([attack])), &[], &objectives(), Limits::default()).unwrap();
+        let result = synthesize_attack_paths(
+            &plan,
+            &model,
+            &candidates_artifact(json!([attack])),
+            &[],
+            &objectives(),
+            Limits::default(),
+        )
+        .unwrap();
         assert_eq!(result["hypotheses"].as_array().unwrap().len(), 0);
     }
 
     #[test]
     fn cycle_prevention_mutually_producing_candidates_terminate() {
         let plan = plan_with();
-        let start = fact("capability", json!({"subject": "actor:external", "action": "a"}), json!(["ev1"]));
+        let start = fact(
+            "capability",
+            json!({"subject": "actor:external", "action": "a"}),
+            json!(["ev1"]),
+        );
         let model = model_with(json!([start]), json!([]));
-        let a = candidate("a", json!([{"kind": "capability", "subject": "actor:external", "action": "a"}]), json!([{"kind": "capability", "subject": "actor:external", "action": "b"}]));
-        let b = candidate("b", json!([{"kind": "capability", "subject": "actor:external", "action": "b"}]), json!([{"kind": "capability", "subject": "actor:external", "action": "a"}]));
-        let result = synthesize_attack_paths(&plan, &model, &candidates_artifact(json!([a, b])), &[], &objectives(), Limits::default()).unwrap();
+        let a = candidate(
+            "a",
+            json!([{"kind": "capability", "subject": "actor:external", "action": "a"}]),
+            json!([{"kind": "capability", "subject": "actor:external", "action": "b"}]),
+        );
+        let b = candidate(
+            "b",
+            json!([{"kind": "capability", "subject": "actor:external", "action": "b"}]),
+            json!([{"kind": "capability", "subject": "actor:external", "action": "a"}]),
+        );
+        let result = synthesize_attack_paths(
+            &plan,
+            &model,
+            &candidates_artifact(json!([a, b])),
+            &[],
+            &objectives(),
+            Limits::default(),
+        )
+        .unwrap();
         assert!(result["hypotheses"].as_array().unwrap().len() < 1000);
     }
 
     #[test]
     fn hop_bound_truncates_and_reports_max_hops() {
         let plan = plan_with();
-        let start = fact("capability", json!({"subject": "a", "action": "s0"}), json!(["ev1"]));
+        let start = fact(
+            "capability",
+            json!({"subject": "a", "action": "s0"}),
+            json!(["ev1"]),
+        );
         let model = model_with(json!([start]), json!([]));
         let mut chain = Vec::new();
         for index in 0..5 {
@@ -1102,8 +1369,19 @@ mod tests {
                 json!([{"kind": "capability", "subject": "a", "action": format!("s{}", index + 1)}]),
             ));
         }
-        let limits = Limits { max_hops: 2, ..Limits::default() };
-        let result = synthesize_attack_paths(&plan, &model, &candidates_artifact(json!(chain)), &[], &objectives(), limits).unwrap();
+        let limits = Limits {
+            max_hops: 2,
+            ..Limits::default()
+        };
+        let result = synthesize_attack_paths(
+            &plan,
+            &model,
+            &candidates_artifact(json!(chain)),
+            &[],
+            &objectives(),
+            limits,
+        )
+        .unwrap();
         let has_gap = result["coverageGaps"]
             .as_array()
             .unwrap()
@@ -1116,10 +1394,29 @@ mod tests {
     #[test]
     fn no_numeric_score_exists_in_the_artifact() {
         let plan = plan_with();
-        let start = fact("object-access", json!({"subject": "a", "action": "read", "object": "jewel-id", "scope": "cross-tenant"}), json!(["ev1"]));
-        let model = model_with(json!([start]), json!([{"id": "jewel-id", "kind": "crown-jewel"}]));
-        let attack = candidate("c1", json!([{"kind": "object-access", "subject": "a", "action": "read", "object": "jewel-id"}]), json!([{"kind": "data-access", "subject": "a", "action": "read", "object": "jewel-id"}]));
-        let result = synthesize_attack_paths(&plan, &model, &candidates_artifact(json!([attack])), &[], &objectives(), Limits::default()).unwrap();
+        let start = fact(
+            "object-access",
+            json!({"subject": "a", "action": "read", "object": "jewel-id", "scope": "cross-tenant"}),
+            json!(["ev1"]),
+        );
+        let model = model_with(
+            json!([start]),
+            json!([{"id": "jewel-id", "kind": "crown-jewel"}]),
+        );
+        let attack = candidate(
+            "c1",
+            json!([{"kind": "object-access", "subject": "a", "action": "read", "object": "jewel-id"}]),
+            json!([{"kind": "data-access", "subject": "a", "action": "read", "object": "jewel-id"}]),
+        );
+        let result = synthesize_attack_paths(
+            &plan,
+            &model,
+            &candidates_artifact(json!([attack])),
+            &[],
+            &objectives(),
+            Limits::default(),
+        )
+        .unwrap();
         let text = serde_json::to_string(&result).unwrap();
         assert!(!text.contains("riskScore"));
         assert!(!text.contains("criticalPathScore"));
@@ -1131,21 +1428,39 @@ mod tests {
         let model = model_with(json!([]), json!([]));
         let mut wrong = candidates_artifact(json!([]));
         wrong["binding"]["repositoryRevision"] = json!("other");
-        let err = synthesize_attack_paths(&plan, &model, &wrong, &[], &objectives(), Limits::default()).unwrap_err();
+        let err =
+            synthesize_attack_paths(&plan, &model, &wrong, &[], &objectives(), Limits::default())
+                .unwrap_err();
         assert!(err.0.contains("does not match"));
     }
 
     #[test]
     fn fact_matches_is_exact_and_wildcard_aware() {
-        assert!(fact_matches(&json!({"kind": "capability", "subject": "*"}), &json!({"kind": "capability", "subject": "x"})));
-        assert!(!fact_matches(&json!({"kind": "capability", "subject": "*"}), &json!({"kind": "capability", "subject": null})));
-        assert!(!fact_matches(&json!({"kind": "capability", "tenant": "a"}), &json!({"kind": "capability", "tenant": "b"})));
-        assert!(fact_matches(&json!({"kind": "capability"}), &json!({"kind": "capability", "subject": "x"})));
+        assert!(fact_matches(
+            &json!({"kind": "capability", "subject": "*"}),
+            &json!({"kind": "capability", "subject": "x"})
+        ));
+        assert!(!fact_matches(
+            &json!({"kind": "capability", "subject": "*"}),
+            &json!({"kind": "capability", "subject": null})
+        ));
+        assert!(!fact_matches(
+            &json!({"kind": "capability", "tenant": "a"}),
+            &json!({"kind": "capability", "tenant": "b"})
+        ));
+        assert!(fact_matches(
+            &json!({"kind": "capability"}),
+            &json!({"kind": "capability", "subject": "x"})
+        ));
     }
 
     #[test]
     fn canonical_fact_key_is_deterministic() {
-        let a = fact("capability", json!({"subject": "x", "action": "y"}), json!([]));
+        let a = fact(
+            "capability",
+            json!({"subject": "x", "action": "y"}),
+            json!([]),
+        );
         let b = json!({"kind": "capability", "action": "y", "subject": "x"});
         assert_eq!(canonical_fact_key(&a), canonical_fact_key(&b));
     }

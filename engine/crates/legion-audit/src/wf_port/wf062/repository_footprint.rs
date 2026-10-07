@@ -101,7 +101,11 @@ fn matches_sourcemap_included(context: &Context) -> Vec<Match> {
         if !sourcemap_content().is_match(text) {
             continue;
         }
-        out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+        out.push(Match {
+            file: file.clone(),
+            line: 1,
+            snippet: file.clone(),
+        });
     }
     out
 }
@@ -111,7 +115,11 @@ fn matches_local_db_committed(context: &Context) -> Vec<Match> {
         .files
         .iter()
         .filter(|f| local_db_path().is_match(f))
-        .map(|f| Match { file: f.clone(), line: 1, snippet: f.clone() })
+        .map(|f| Match {
+            file: f.clone(),
+            line: 1,
+            snippet: f.clone(),
+        })
         .collect()
 }
 
@@ -123,7 +131,11 @@ fn matches_internal_endpoint_exposed(context: &Context) -> Vec<Match> {
             continue;
         }
         for m in internal_endpoint_pattern().find_iter(text) {
-            out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
+            out.push(Match {
+                file: file.clone(),
+                line: line_of(text, m.start()),
+                snippet: m.as_str().to_string(),
+            });
         }
     }
     out
@@ -134,7 +146,11 @@ fn matches_sensitive_file_committed(context: &Context) -> Vec<Match> {
         .files
         .iter()
         .filter(|f| sensitive_file_path().is_match(f))
-        .map(|f| Match { file: f.clone(), line: 1, snippet: f.clone() })
+        .map(|f| Match {
+            file: f.clone(),
+            line: 1,
+            snippet: f.clone(),
+        })
         .collect()
 }
 
@@ -142,13 +158,21 @@ fn matches_malicious_repository_boundary(context: &Context) -> Vec<Match> {
     let mut out = Vec::new();
     for file in &context.files {
         if auto_loaded_hook_path().is_match(file) {
-            out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+            out.push(Match {
+                file: file.clone(),
+                line: 1,
+                snippet: file.clone(),
+            });
             continue;
         }
         if devcontainer_path().is_match(file) {
             let text = context.read_file(file);
             if devcontainer_auto_run().is_match(text) {
-                out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+                out.push(Match {
+                    file: file.clone(),
+                    line: 1,
+                    snippet: file.clone(),
+                });
             }
         }
     }
@@ -272,7 +296,11 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
     for rule in rules() {
         for m in (rule.matches_in)(context) {
             let artifact = artifact_for(context, &m.file);
-            let gate_note = if rule.execution_chain { Some(sandbox_gate(context)) } else { None };
+            let gate_note = if rule.execution_chain {
+                Some(sandbox_gate(context))
+            } else {
+                None
+            };
             let mut uncertainty = vec![rule.uncertainty.to_string()];
             if let Some(note) = &gate_note {
                 uncertainty.push(note.clone());
@@ -296,7 +324,10 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 severity_hint: rule.severity_hint.to_string(),
                 sources: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
                 sinks: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
-                attacker_capabilities: vec!["read-repository".to_string(), "control-repository-content".to_string()],
+                attacker_capabilities: vec![
+                    "read-repository".to_string(),
+                    "control-repository-content".to_string(),
+                ],
                 preconditions: vec![hostile_precondition(&m.file)],
                 effects: vec![Fact {
                     kind: rule.effect_kind.to_string(),
@@ -312,7 +343,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 required_controls: Vec::new(),
                 observed_controls: Vec::new(),
                 chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                evidence_refs: artifact
+                    .map(|a| a.evidence_refs.clone())
+                    .unwrap_or_default(),
                 detector_metadata: metadata,
                 uncertainty,
             });
@@ -365,13 +398,21 @@ mod tests {
 
     #[test]
     fn malicious_repository_boundary_fires_on_an_auto_loaded_git_hook() {
-        let context = Context::new().with_file(".git/hooks/pre-commit", "#!/bin/sh\nexec malicious-payload\n");
+        let context = Context::new().with_file(
+            ".git/hooks/pre-commit",
+            "#!/bin/sh\nexec malicious-payload\n",
+        );
         let obs = analyze(&context);
         let candidate = find(&obs, "footprint.malicious-repository-boundary");
         assert!(candidate.is_some());
         let candidate = candidate.unwrap();
-        assert_eq!(candidate.detector_metadata["requiresSandboxReceipt"], json!(true));
-        assert!(candidate.uncertainty.iter().any(|u| u.contains("BLOCKED") && u.to_lowercase().contains("sandbox execution receipt")));
+        assert_eq!(
+            candidate.detector_metadata["requiresSandboxReceipt"],
+            json!(true)
+        );
+        assert!(candidate.uncertainty.iter().any(
+            |u| u.contains("BLOCKED") && u.to_lowercase().contains("sandbox execution receipt")
+        ));
     }
 
     #[test]
@@ -386,7 +427,8 @@ mod tests {
 
     #[test]
     fn a_devcontainer_with_no_auto_run_command_does_not_fire_the_boundary_rule() {
-        let context = Context::new().with_file(".devcontainer/devcontainer.json", r#"{"image": "node:20"}"#);
+        let context =
+            Context::new().with_file(".devcontainer/devcontainer.json", r#"{"image": "node:20"}"#);
         let obs = analyze(&context);
         assert!(find(&obs, "footprint.malicious-repository-boundary").is_none());
     }
@@ -395,7 +437,10 @@ mod tests {
     fn a_repository_with_no_hazards_produces_no_candidates() {
         let context = Context::new()
             .with_file("src/index.mjs", "export function main() { return 1; }")
-            .with_file("README.md", "This project has no sensitive material committed.")
+            .with_file(
+                "README.md",
+                "This project has no sensitive material committed.",
+            )
             .with_file(".devcontainer/devcontainer.json", r#"{"image": "node:20"}"#);
         assert!(analyze(&context).is_empty());
     }
@@ -407,7 +452,8 @@ mod tests {
     }
 
     #[test]
-    fn every_candidate_carries_a_repository_as_hostile_precondition_and_named_authority_execution_path() {
+    fn every_candidate_carries_a_repository_as_hostile_precondition_and_named_authority_execution_path(
+    ) {
         let context = Context::new().with_file(".env", "API_KEY=xxxx");
         for candidate in analyze(&context) {
             assert!(!candidate.preconditions.is_empty());
@@ -417,8 +463,13 @@ mod tests {
                 .find(|p| p.kind == "attacker-position" || p.kind == "knowledge")
                 .expect("hostile precondition");
             assert_eq!(hostile.subject, "actor:repository-content");
-            assert_eq!(candidate.detector_metadata["authority"], json!("repository-content"));
-            let execution_path = candidate.detector_metadata["executionPath"].as_str().unwrap();
+            assert_eq!(
+                candidate.detector_metadata["authority"],
+                json!("repository-content")
+            );
+            let execution_path = candidate.detector_metadata["executionPath"]
+                .as_str()
+                .unwrap();
             assert!(execution_path.contains('\u{2192}'));
         }
     }
@@ -426,15 +477,26 @@ mod tests {
     #[test]
     fn a_supplied_sandbox_receipt_still_never_upgrades_to_a_clean_claim() {
         let context = Context::new()
-            .with_file(".git/hooks/pre-commit", "#!/bin/sh\nexec malicious-payload\n")
+            .with_file(
+                ".git/hooks/pre-commit",
+                "#!/bin/sh\nexec malicious-payload\n",
+            )
             .with_audit_facts(super::super::AuditFacts {
-                sandbox_receipt: Some(json!({ "schemaVersion": 1, "kind": "remediation-sandbox-receipt" })),
+                sandbox_receipt: Some(
+                    json!({ "schemaVersion": 1, "kind": "remediation-sandbox-receipt" }),
+                ),
                 ..Default::default()
             });
         let obs = analyze(&context);
         let candidate = find(&obs, "footprint.malicious-repository-boundary").unwrap();
-        assert_eq!(candidate.detector_metadata["requiresSandboxReceipt"], json!(true));
-        assert!(candidate.uncertainty.iter().any(|u| u.to_lowercase().contains("independent adjudication")));
+        assert_eq!(
+            candidate.detector_metadata["requiresSandboxReceipt"],
+            json!(true)
+        );
+        assert!(candidate
+            .uncertainty
+            .iter()
+            .any(|u| u.to_lowercase().contains("independent adjudication")));
         assert!(!candidate.uncertainty.iter().any(|u| u.contains("BLOCKED")));
     }
 

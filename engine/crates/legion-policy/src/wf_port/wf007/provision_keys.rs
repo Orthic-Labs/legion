@@ -73,7 +73,11 @@ fn random_bytes_10() -> [u8; 10] {
 
     let mut seed_hasher = DefaultHasher::new();
     std::process::id().hash(&mut seed_hasher);
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().hash(&mut seed_hasher);
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+        .hash(&mut seed_hasher);
     let boxed = Box::new(0u8);
     (&*boxed as *const u8 as usize).hash(&mut seed_hasher);
 
@@ -99,7 +103,10 @@ pub fn ulid(now_ms: u64) -> String {
 
 fn now_ms() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 pub fn default_dir() -> PathBuf {
@@ -118,7 +125,10 @@ pub struct ProvisionOptions {
 
 impl Default for ProvisionOptions {
     fn default() -> Self {
-        Self { dir: default_dir(), rotate: false }
+        Self {
+            dir: default_dir(),
+            rotate: false,
+        }
     }
 }
 
@@ -151,7 +161,11 @@ fn read_status(meta_path: &Path) -> String {
     let Ok(content) = fs::read_to_string(meta_path) else {
         return "active".to_string();
     };
-    if let Some(status) = super::json_parse::parse(&content).as_ref().and_then(|v| v.get("status")).and_then(|v| v.as_str()) {
+    if let Some(status) = super::json_parse::parse(&content)
+        .as_ref()
+        .and_then(|v| v.get("status"))
+        .and_then(|v| v.as_str())
+    {
         status.to_string()
     } else {
         "active".to_string()
@@ -170,7 +184,11 @@ fn existing_active_key_id(dir: &Path) -> Option<String> {
         }
         let key_id = path.file_stem()?.to_str()?.to_string();
         let meta_path = dir.join(format!("{key_id}.json"));
-        let status = if meta_path.is_file() { read_status(&meta_path) } else { "active".to_string() };
+        let status = if meta_path.is_file() {
+            read_status(&meta_path)
+        } else {
+            "active".to_string()
+        };
         if status == "active" {
             return Some(key_id);
         }
@@ -217,7 +235,12 @@ pub fn provision_keys(options: &ProvisionOptions) -> io::Result<ProvisionResult>
         let _ = fs::set_permissions(&meta_path, fs::Permissions::from_mode(0o600));
     }
 
-    Ok(ProvisionResult { key_id, key_path, meta_path, created: true })
+    Ok(ProvisionResult {
+        key_id,
+        key_path,
+        meta_path,
+        created: true,
+    })
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
@@ -255,7 +278,10 @@ mod tests {
     #[test]
     fn provision_keys_creates_new_key_when_dir_empty() {
         let tmp = std::env::temp_dir().join(format!("wf007-provision-test-{}", ulid(now_ms())));
-        let opts = ProvisionOptions { dir: tmp.clone(), rotate: false };
+        let opts = ProvisionOptions {
+            dir: tmp.clone(),
+            rotate: false,
+        };
         let result = provision_keys(&opts).unwrap();
         assert!(result.created);
         assert!(result.key_path.is_file());
@@ -267,8 +293,12 @@ mod tests {
 
     #[test]
     fn provision_keys_is_idempotent_without_rotate() {
-        let tmp = std::env::temp_dir().join(format!("wf007-provision-test-idem-{}", ulid(now_ms())));
-        let opts = ProvisionOptions { dir: tmp.clone(), rotate: false };
+        let tmp =
+            std::env::temp_dir().join(format!("wf007-provision-test-idem-{}", ulid(now_ms())));
+        let opts = ProvisionOptions {
+            dir: tmp.clone(),
+            rotate: false,
+        };
         let first = provision_keys(&opts).unwrap();
         let second = provision_keys(&opts).unwrap();
         assert!(first.created);
@@ -279,10 +309,17 @@ mod tests {
 
     #[test]
     fn provision_keys_rotate_adds_a_new_key() {
-        let tmp = std::env::temp_dir().join(format!("wf007-provision-test-rotate-{}", ulid(now_ms())));
-        let opts_no_rotate = ProvisionOptions { dir: tmp.clone(), rotate: false };
+        let tmp =
+            std::env::temp_dir().join(format!("wf007-provision-test-rotate-{}", ulid(now_ms())));
+        let opts_no_rotate = ProvisionOptions {
+            dir: tmp.clone(),
+            rotate: false,
+        };
         let first = provision_keys(&opts_no_rotate).unwrap();
-        let opts_rotate = ProvisionOptions { dir: tmp.clone(), rotate: true };
+        let opts_rotate = ProvisionOptions {
+            dir: tmp.clone(),
+            rotate: true,
+        };
         let second = provision_keys(&opts_rotate).unwrap();
         assert!(second.created);
         assert_ne!(first.key_id, second.key_id);

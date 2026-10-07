@@ -219,7 +219,11 @@ pub fn raw_matches(re: &regex::Regex, text: &str, global: bool) -> Vec<RawMatch>
                 let groups = (1..caps.len())
                     .map(|i| caps.get(i).map(|m| m.as_str().to_string()))
                     .collect();
-                vec![RawMatch { index: whole.start(), whole: whole.as_str().to_string(), groups }]
+                vec![RawMatch {
+                    index: whole.start(),
+                    whole: whole.as_str().to_string(),
+                    groups,
+                }]
             }
             None => vec![],
         };

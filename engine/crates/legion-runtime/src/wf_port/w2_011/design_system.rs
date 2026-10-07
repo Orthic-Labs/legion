@@ -159,7 +159,12 @@ fn parse_yaml_subset(yaml: &str) -> HashMap<String, FrontmatterValue> {
         let parent_path = stack[stack.len() - 1].path.clone();
 
         if rest.is_empty() {
-            set_nested(&mut root, &parent_path, key.clone(), FrontmatterValue::Object(HashMap::new()));
+            set_nested(
+                &mut root,
+                &parent_path,
+                key.clone(),
+                FrontmatterValue::Object(HashMap::new()),
+            );
             let mut child_path = parent_path;
             child_path.push(key);
             stack.push(Frame {
@@ -421,7 +426,11 @@ fn parse_any_color(s: &str) -> Option<Rgba> {
         let mut rgb = oklch_to_rgb(l, c, h);
         if let Some(alpha_m) = m.get(5) {
             let alpha: f64 = alpha_m.as_str().parse().unwrap();
-            rgb.a = if m.get(6).is_some() { alpha / 100.0 } else { alpha };
+            rgb.a = if m.get(6).is_some() {
+                alpha / 100.0
+            } else {
+                alpha
+            };
         }
         return Some(rgb);
     }
@@ -451,7 +460,11 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64, alpha: f64) -> Rgba {
         }
         p
     };
-    let q = if l < 0.5 { l * (1.0 + s) } else { l + s - l * s };
+    let q = if l < 0.5 {
+        l * (1.0 + s)
+    } else {
+        l + s - l * s
+    };
     let p = 2.0 * l - q;
     Rgba {
         r: (hue2rgb(p, q, h + 1.0 / 3.0) * 255.0).round() as i32,
@@ -578,7 +591,11 @@ pub(crate) fn color_key(c: &Rgba) -> String {
 }
 
 fn colors_close(a: &Rgba, b: &Rgba) -> bool {
-    (a.r - b.r).abs().max((a.g - b.g).abs()).max((a.b - b.b).abs()) <= COLOR_CHANNEL_TOLERANCE
+    (a.r - b.r)
+        .abs()
+        .max((a.g - b.g).abs())
+        .max((a.b - b.b).abs())
+        <= COLOR_CHANNEL_TOLERANCE
 }
 
 pub(crate) fn css_color_label(raw: &str) -> String {
@@ -652,7 +669,10 @@ fn add_design_color(out: &mut DesignSystem, value: &str, label: &str) {
     let entry = out
         .allowed_color_keys
         .entry(key)
-        .or_insert_with(|| ColorEntry { color: parsed, labels: Vec::new() });
+        .or_insert_with(|| ColorEntry {
+            color: parsed,
+            labels: Vec::new(),
+        });
     let label = if label.is_empty() {
         css_color_label(value)
     } else {
@@ -869,9 +889,7 @@ fn font_js_re() -> &'static Regex {
 }
 fn google_font_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#"(?i)fonts\.googleapis\.com/css2?\?[^"'\s)<>]*"#).unwrap()
-    })
+    RE.get_or_init(|| Regex::new(r#"(?i)fonts\.googleapis\.com/css2?\?[^"'\s)<>]*"#).unwrap())
 }
 fn family_param_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -911,7 +929,9 @@ fn percent_decode(s: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(byte) = u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16) {
+            if let Ok(byte) =
+                u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+            {
                 out.push(byte);
                 i += 3;
                 continue;
@@ -957,7 +977,10 @@ fn style_context_re() -> &'static Regex {
 }
 fn css_function_context_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)(?:linear-gradient|radial-gradient|conic-gradient|color-mix)\([^)]*$").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)(?:linear-gradient|radial-gradient|conic-gradient|color-mix)\([^)]*$")
+            .unwrap()
+    })
 }
 fn js_color_key_context_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -1128,10 +1151,22 @@ pub fn check_source_design_system(
 
         if ds.has_radii {
             for m in border_radius_re().captures_iter(line) {
-                findings.extend(check_radius_value(&m[1], file, line_num, ds, "border-radius"));
+                findings.extend(check_radius_value(
+                    &m[1],
+                    file,
+                    line_num,
+                    ds,
+                    "border-radius",
+                ));
             }
             for m in border_radius_js_re().captures_iter(line) {
-                findings.extend(check_radius_value(&m[1], file, line_num, ds, "borderRadius"));
+                findings.extend(check_radius_value(
+                    &m[1],
+                    file,
+                    line_num,
+                    ds,
+                    "borderRadius",
+                ));
             }
         }
     }
@@ -1306,8 +1341,10 @@ mod tests {
         let ds = normalize_design_system(&m, None, None, false);
         let css = "body { font-family: 'Comic Sans MS', sans-serif; color: #ff00ff; }\n";
         let findings = check_source_design_system(css, "styles.css", Some(&ds));
-        assert!(findings.iter().any(|f| f.antipattern == "design-system-font"
-            && f.ignore_value.eq_ignore_ascii_case("Comic Sans Ms")));
+        assert!(findings
+            .iter()
+            .any(|f| f.antipattern == "design-system-font"
+                && f.ignore_value.eq_ignore_ascii_case("Comic Sans Ms")));
         assert!(findings
             .iter()
             .any(|f| f.antipattern == "design-system-color" && f.ignore_value == "#ff00ff"));

@@ -64,12 +64,18 @@ pub fn pairwise(
         let row_keys: Vec<&String> = row.keys().collect();
         let keys_ref: Vec<&String> = keys.iter().collect();
         if row_keys != keys_ref {
-            return Err("mandatory row must contain exactly one declared value for every dimension".to_string());
+            return Err(
+                "mandatory row must contain exactly one declared value for every dimension"
+                    .to_string(),
+            );
         }
         for key in &keys {
             let v = row.get(key).unwrap();
             if !values[key].contains(v) {
-                return Err("mandatory row must contain exactly one declared value for every dimension".to_string());
+                return Err(
+                    "mandatory row must contain exactly one declared value for every dimension"
+                        .to_string(),
+                );
             }
         }
     }
@@ -114,7 +120,11 @@ pub fn pairwise(
             if allowed(&row, constraints) {
                 candidates.push(row);
             } else {
-                omitted.push(OmittedCase { row, reason: "constraint".into(), mandatory: false });
+                omitted.push(OmittedCase {
+                    row,
+                    reason: "constraint".into(),
+                    mandatory: false,
+                });
             }
         }
     }
@@ -128,7 +138,11 @@ pub fn pairwise(
                     pair.insert(keys[right].clone(), b.clone());
                     match witness(&pair) {
                         Some(row) => candidates.push(row),
-                        None => omitted.push(OmittedCase { row: pair, reason: "constraint".into(), mandatory: false }),
+                        None => omitted.push(OmittedCase {
+                            row: pair,
+                            reason: "constraint".into(),
+                            mandatory: false,
+                        }),
                     }
                 }
             }
@@ -139,7 +153,11 @@ pub fn pairwise(
         if allowed(row, constraints) {
             candidates.push(row.clone());
         } else {
-            omitted.push(OmittedCase { row: row.clone(), reason: "constraint".into(), mandatory: true });
+            omitted.push(OmittedCase {
+                row: row.clone(),
+                reason: "constraint".into(),
+                mandatory: true,
+            });
         }
     }
 
@@ -154,11 +172,14 @@ pub fn pairwise(
         for right in (left + 1)..keys.len() {
             for a in &values[&keys[left]] {
                 for b in &values[&keys[right]] {
-                    let covered = valid
-                        .iter()
-                        .any(|row| row.get(&keys[left]) == Some(a) && row.get(&keys[right]) == Some(b));
+                    let covered = valid.iter().any(|row| {
+                        row.get(&keys[left]) == Some(a) && row.get(&keys[right]) == Some(b)
+                    });
                     if covered {
-                        let pair = vec![(keys[left].clone(), a.clone()), (keys[right].clone(), b.clone())];
+                        let pair = vec![
+                            (keys[left].clone(), a.clone()),
+                            (keys[right].clone(), b.clone()),
+                        ];
                         let pair_key = Value::Array(
                             pair.iter()
                                 .map(|(k, v)| Value::Array(vec![Value::str(k.clone()), v.clone()]))
@@ -232,7 +253,10 @@ pub fn pairwise(
 
 /// Port of `applyConstraints(cases, constraints)`.
 pub fn apply_constraints(cases: Vec<Row>, constraints: &[Constraint]) -> Vec<Row> {
-    cases.into_iter().filter(|row| allowed(row, constraints)).collect()
+    cases
+        .into_iter()
+        .filter(|row| allowed(row, constraints))
+        .collect()
 }
 
 #[cfg(test)]
@@ -270,7 +294,10 @@ mod tests {
         let mut bad_row = Row::new();
         bad_row.insert("bogus".to_string(), Value::str("x"));
         let err = pairwise(&d, &[], std::slice::from_ref(&bad_row)).unwrap_err();
-        assert_eq!(err, "mandatory row must contain exactly one declared value for every dimension");
+        assert_eq!(
+            err,
+            "mandatory row must contain exactly one declared value for every dimension"
+        );
     }
 
     #[test]
@@ -286,10 +313,17 @@ mod tests {
     #[test]
     fn constraint_filters_rows() {
         let d = dims(&[("os", &["mac", "win"])]);
-        let constraint: Constraint = Box::new(|row: &Row| row.get("os") != Some(&Value::str("win")));
+        let constraint: Constraint =
+            Box::new(|row: &Row| row.get("os") != Some(&Value::str("win")));
         let result = pairwise(&d, &[constraint], &[]).unwrap();
-        assert!(result.rows.iter().all(|r| r.get("os") != Some(&Value::str("win"))));
-        assert!(result.omitted.iter().any(|o| o.row.get("os") == Some(&Value::str("win"))));
+        assert!(result
+            .rows
+            .iter()
+            .all(|r| r.get("os") != Some(&Value::str("win"))));
+        assert!(result
+            .omitted
+            .iter()
+            .any(|o| o.row.get("os") == Some(&Value::str("win"))));
     }
 
     #[test]

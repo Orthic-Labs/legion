@@ -11,8 +11,8 @@ use std::time::{Duration, Instant};
 
 use super::args::{self, Args};
 use super::browser::{self, FsProbe};
-use super::profiles::{self, DirEntry, ProfileDir};
 use super::ports::{self, HttpAttempt, HttpProbe, PortProbe};
+use super::profiles::{self, DirEntry, ProfileDir};
 use super::session_client::BrowserSession;
 
 /// `abs(path)` (qa.mjs lines 206-208): resolve relative to `root` unless already absolute.
@@ -28,7 +28,11 @@ pub fn abs(root: &str, path: &str) -> PathBuf {
 /// `needsCdpShot` (qa.mjs line 749): any of throttle/cpu/mobile/session flags force the CDP
 /// screenshot path instead of the fast `--screenshot=` flag.
 pub fn needs_cdp_shot(args: &Args) -> bool {
-    args.throttle.is_some() || args.cpu.is_some() || args.mobile || args.load_session.is_some() || args.save_session.is_some()
+    args.throttle.is_some()
+        || args.cpu.is_some()
+        || args.mobile
+        || args.load_session.is_some()
+        || args.save_session.is_some()
 }
 
 /// Resolves the URL to open (qa.mjs line 746): `args.url` wins, else
@@ -38,22 +42,34 @@ pub fn resolve_url(args: &Args, server_port: Option<u32>) -> Result<String, Stri
         return Ok(u.clone());
     }
     let port = server_port.ok_or("resolve_url: server_port required when --url is absent")?;
-    Ok(format!("http://127.0.0.1:{port}{route}", route = args.route))
+    Ok(format!(
+        "http://127.0.0.1:{port}{route}",
+        route = args.route
+    ))
 }
 
 /// What `main()` decides to do for a given parsed `Args`, before touching any I/O. Mirrors the
 /// branch structure of qa.mjs lines 730-758 without performing the actions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Plan {
-    Sweep { older_than_ms: f64 },
+    Sweep {
+        older_than_ms: f64,
+    },
     Usage,
-    Run { needs_server: bool, needs_cdp_shot: bool, do_shot: bool, do_actions: bool },
+    Run {
+        needs_server: bool,
+        needs_cdp_shot: bool,
+        do_shot: bool,
+        do_actions: bool,
+    },
 }
 
 /// Port of the branch structure at the top of `main()` (qa.mjs lines 730-753).
 pub fn plan(args: &Args) -> Plan {
     if args.sweep {
-        return Plan::Sweep { older_than_ms: profiles::EXPLICIT_SWEEP_OLDER_THAN_MS };
+        return Plan::Sweep {
+            older_than_ms: profiles::EXPLICIT_SWEEP_OLDER_THAN_MS,
+        };
     }
     if args.help || (!args.shot && args.actions.is_none()) {
         return Plan::Usage;
@@ -92,7 +108,10 @@ impl HttpProbe for ReqwestHttpProbe {
     fn attempt(&mut self, url: &str) -> HttpAttempt {
         match reqwest::blocking::get(url) {
             Ok(res) if res.status().is_success() => HttpAttempt::Ok,
-            Ok(res) => HttpAttempt::NotOk { status: res.status().as_u16(), status_text: res.status().canonical_reason().unwrap_or("").to_string() },
+            Ok(res) => HttpAttempt::NotOk {
+                status: res.status().as_u16(),
+                status_text: res.status().canonical_reason().unwrap_or("").to_string(),
+            },
             Err(e) => HttpAttempt::Error(e.to_string()),
         }
     }
@@ -116,7 +135,12 @@ impl ProfileDir for CacheDirProbe {
                 Ok(m) => m,
                 Err(_) => continue,
             };
-            let mtime_ms = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as f64).unwrap_or(0.0);
+            let mtime_ms = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as f64)
+                .unwrap_or(0.0);
             out.push(DirEntry {
                 name: entry.file_name().to_string_lossy().to_string(),
                 is_dir: meta.is_dir(),
@@ -132,7 +156,10 @@ impl ProfileDir for CacheDirProbe {
 }
 
 fn now_ms() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as f64).unwrap_or(0.0)
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as f64)
+        .unwrap_or(0.0)
 }
 
 /// Port of `main()` (qa.mjs lines 728-764): parses argv, dispatches per `plan()`, and returns
@@ -148,12 +175,17 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
     };
     match plan(&args) {
         Plan::Sweep { older_than_ms } => {
-            let mut dir = CacheDirProbe { cache_dir: abs(repo_root, ".cache") };
+            let mut dir = CacheDirProbe {
+                cache_dir: abs(repo_root, ".cache"),
+            };
             let removed = profiles::sweep_stale_profiles(&mut dir, older_than_ms, now_ms(), &[]);
             if removed == 0 {
                 println!("[qa] no abandoned browser profiles under .cache");
             } else {
-                println!("[qa] swept {removed} abandoned browser profile{}", if removed == 1 { "" } else { "s" });
+                println!(
+                    "[qa] swept {removed} abandoned browser profile{}",
+                    if removed == 1 { "" } else { "s" }
+                );
             }
             0
         }
@@ -161,10 +193,22 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
             println!("{}", args::usage());
             0
         }
-        Plan::Run { needs_server, needs_cdp_shot, do_shot, do_actions } => {
+        Plan::Run {
+            needs_server,
+            needs_cdp_shot,
+            do_shot,
+            do_actions,
+        } => {
             // Startup sweep (qa.mjs `wireCleanup` -> `sweepStaleProfiles()` with the 1h default).
-            let mut dir = CacheDirProbe { cache_dir: abs(repo_root, ".cache") };
-            profiles::sweep_stale_profiles(&mut dir, profiles::STARTUP_OLDER_THAN_MS, now_ms(), &[]);
+            let mut dir = CacheDirProbe {
+                cache_dir: abs(repo_root, ".cache"),
+            };
+            profiles::sweep_stale_profiles(
+                &mut dir,
+                profiles::STARTUP_OLDER_THAN_MS,
+                now_ms(),
+                &[],
+            );
 
             let fs = StdFsProbe;
             let server_port = if needs_server {
@@ -206,7 +250,9 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
             };
             let mut exit_code = 0;
             if needs_server {
-                let mut probe = ReqwestHttpProbe { started: Instant::now() };
+                let mut probe = ReqwestHttpProbe {
+                    started: Instant::now(),
+                };
                 if let Err(e) = ports::wait_for_http(&mut probe, &url, 30000) {
                     eprintln!("[qa] {e}");
                     exit_code = 1;
@@ -228,7 +274,14 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
                     // constructed here via `headless_chrome`. See `chrome_session`'s module doc
                     // for the PORTED-PARTIAL gaps in that wiring (network throttling, cookies,
                     // synthetic vs. native input events).
-                    match run_cdp_session(&args, &url, &browser_path, repo_root, do_shot, do_actions) {
+                    match run_cdp_session(
+                        &args,
+                        &url,
+                        &browser_path,
+                        repo_root,
+                        do_shot,
+                        do_actions,
+                    ) {
                         Ok(()) => {}
                         Err(e) => {
                             eprintln!("[qa] {e}");
@@ -247,14 +300,22 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
     }
 }
 
-fn run_shot_fast(args: &Args, url: &str, browser_path: &str, repo_root: &str) -> Result<(), String> {
+fn run_shot_fast(
+    args: &Args,
+    url: &str,
+    browser_path: &str,
+    repo_root: &str,
+) -> Result<(), String> {
     // `runShot` (qa.mjs lines 602-622): headless one-shot screenshot via Chrome's own
     // `--screenshot=` flag, no CDP round-trip.
     let out = abs(repo_root, &args.out);
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let profile = abs(repo_root, &format!(".cache/qa-browser-profile-{}", now_ms() as u64));
+    let profile = abs(
+        repo_root,
+        &format!(".cache/qa-browser-profile-{}", now_ms() as u64),
+    );
     std::fs::create_dir_all(&profile).map_err(|e| e.to_string())?;
     let status = Command::new(browser_path)
         .args([
@@ -265,7 +326,10 @@ fn run_shot_fast(args: &Args, url: &str, browser_path: &str, repo_root: &str) ->
             "--force-device-scale-factor=1",
         ])
         .arg(format!("--user-data-dir={}", profile.display()))
-        .arg(format!("--window-size={},{}", args.width as i64, args.height as i64))
+        .arg(format!(
+            "--window-size={},{}",
+            args.width as i64, args.height as i64
+        ))
         .arg(format!("--screenshot={}", out.display()))
         .arg(url)
         .stdin(Stdio::null())
@@ -275,12 +339,22 @@ fn run_shot_fast(args: &Args, url: &str, browser_path: &str, repo_root: &str) ->
         .map_err(|e| e.to_string())?;
     let _ = std::fs::remove_dir_all(&profile);
     if !status.success() && !out.exists() {
-        return Err(format!("Headless screenshot failed with exit code {:?}.", status.code()));
+        return Err(format!(
+            "Headless screenshot failed with exit code {:?}.",
+            status.code()
+        ));
     }
     Ok(())
 }
 
-fn run_cdp_session(args: &Args, url: &str, browser_path: &str, repo_root: &str, do_shot: bool, do_actions: bool) -> Result<(), String> {
+fn run_cdp_session(
+    args: &Args,
+    url: &str,
+    browser_path: &str,
+    repo_root: &str,
+    do_shot: bool,
+    do_actions: bool,
+) -> Result<(), String> {
     use headless_chrome::{Browser, LaunchOptions};
     use std::ffi::OsStr;
 
@@ -288,7 +362,10 @@ fn run_cdp_session(args: &Args, url: &str, browser_path: &str, repo_root: &str, 
         .path(Some(PathBuf::from(browser_path)))
         .headless(true)
         .window_size(Some((args.width as u32, args.height as u32)))
-        .args(vec![OsStr::new("--no-default-browser-check"), OsStr::new("--no-first-run")])
+        .args(vec![
+            OsStr::new("--no-default-browser-check"),
+            OsStr::new("--no-first-run"),
+        ])
         .build()
         .map_err(|e| e.to_string())?;
     let browser = Browser::new(launch_options).map_err(|e| e.to_string())?;
@@ -305,7 +382,9 @@ fn run_cdp_session(args: &Args, url: &str, browser_path: &str, repo_root: &str, 
     };
     session.apply_conditions(&conditions)?;
     if let Some(load_path) = &args.load_session {
-        let mut fs = FsSessionFile { repo_root: repo_root.to_string() };
+        let mut fs = FsSessionFile {
+            repo_root: repo_root.to_string(),
+        };
         let data = super::session::read_session_file(&fs, load_path)?;
         session.load_session(&data)?;
         let _ = &mut fs;
@@ -345,7 +424,11 @@ fn run_cdp_session(args: &Args, url: &str, browser_path: &str, repo_root: &str, 
         }
         let _ = std::fs::write(&log_path, contents);
         if !console_errors.is_empty() {
-            println!("[qa] {} console error/warning(s) — see {}", console_errors.len(), log_path.display());
+            println!(
+                "[qa] {} console error/warning(s) — see {}",
+                console_errors.len(),
+                log_path.display()
+            );
             for e in console_errors.iter().take(20) {
                 println!("[qa]   {e}");
             }
@@ -356,7 +439,9 @@ fn run_cdp_session(args: &Args, url: &str, browser_path: &str, repo_root: &str, 
     }
     if let Some(save_path) = &args.save_session {
         let data = session.save_session()?;
-        let mut fs = FsSessionFile { repo_root: repo_root.to_string() };
+        let mut fs = FsSessionFile {
+            repo_root: repo_root.to_string(),
+        };
         super::session::write_session_file(&mut fs, save_path, &data)?;
         println!("[qa] session saved {}", abs(repo_root, save_path).display());
     }
@@ -379,7 +464,11 @@ impl super::session::SessionFile for FsSessionFile {
     }
 }
 
-fn start_server_process(args: &Args, repo_root: &str, port: u32) -> Result<std::process::Child, String> {
+fn start_server_process(
+    args: &Args,
+    repo_root: &str,
+    port: u32,
+) -> Result<std::process::Child, String> {
     // `startServer` (qa.mjs lines 300-324): `--start` runs as a shell command with `{port}`
     // substituted; otherwise the default Vite launch (argv-only, no shell).
     let mut cmd = if let Some(start) = &args.start {
@@ -404,7 +493,10 @@ fn start_server_process(args: &Args, repo_root: &str, port: u32) -> Result<std::
     if let Some((name, value)) = args::split_qa_env(&args.qa_env) {
         cmd.env(name, value);
     }
-    cmd.current_dir(repo_root).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    cmd.current_dir(repo_root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
     cmd.spawn().map_err(|e| e.to_string())
 }
 
@@ -419,7 +511,10 @@ mod tests {
 
     #[test]
     fn abs_resolves_relative_against_root() {
-        assert_eq!(abs("/repo", ".cache/x.png"), PathBuf::from("/repo/.cache/x.png"));
+        assert_eq!(
+            abs("/repo", ".cache/x.png"),
+            PathBuf::from("/repo/.cache/x.png")
+        );
     }
 
     #[test]
@@ -452,7 +547,10 @@ mod tests {
     #[test]
     fn resolve_url_builds_from_port_and_route() {
         let a = Args::default();
-        assert_eq!(resolve_url(&a, Some(1422)).unwrap(), "http://127.0.0.1:1422/?qa=1");
+        assert_eq!(
+            resolve_url(&a, Some(1422)).unwrap(),
+            "http://127.0.0.1:1422/?qa=1"
+        );
     }
 
     #[test]
@@ -466,7 +564,12 @@ mod tests {
         let mut a = Args::default();
         a.sweep = true;
         a.shot = true;
-        assert_eq!(plan(&a), Plan::Sweep { older_than_ms: profiles::EXPLICIT_SWEEP_OLDER_THAN_MS });
+        assert_eq!(
+            plan(&a),
+            Plan::Sweep {
+                older_than_ms: profiles::EXPLICIT_SWEEP_OLDER_THAN_MS
+            }
+        );
     }
 
     #[test]
@@ -487,8 +590,24 @@ mod tests {
         let mut a = Args::default();
         a.shot = true;
         a.mobile = true;
-        assert_eq!(plan(&a), Plan::Run { needs_server: true, needs_cdp_shot: true, do_shot: true, do_actions: false });
+        assert_eq!(
+            plan(&a),
+            Plan::Run {
+                needs_server: true,
+                needs_cdp_shot: true,
+                do_shot: true,
+                do_actions: false
+            }
+        );
         a.url = Some("http://x".into());
-        assert_eq!(plan(&a), Plan::Run { needs_server: false, needs_cdp_shot: true, do_shot: true, do_actions: false });
+        assert_eq!(
+            plan(&a),
+            Plan::Run {
+                needs_server: false,
+                needs_cdp_shot: true,
+                do_shot: true,
+                do_actions: false
+            }
+        );
     }
 }

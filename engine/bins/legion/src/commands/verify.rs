@@ -18,7 +18,9 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     let supplied = if args.run.is_absolute() {
         args.run
     } else {
-        std::env::current_dir().map_err(super::io_error)?.join(args.run)
+        std::env::current_dir()
+            .map_err(super::io_error)?
+            .join(args.run)
     };
     let (root, facts_path, plan_path) = if supplied.is_dir() {
         (
@@ -154,5 +156,7 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
             errors.push(error.message);
         }
     }
-    Ok(json!({"schemaVersion":1,"kind":"legion-verify","status":if errors.is_empty(){"complete"}else{"failed"},"repository":repository_id,"factsDigest":facts_digest,"planContentDigest":plan_digest,"valid":errors.is_empty(),"contentErrors":errors}))
+    Ok(
+        json!({"schemaVersion":1,"kind":"legion-verify","status":if errors.is_empty(){"complete"}else{"failed"},"repository":repository_id,"factsDigest":facts_digest,"planContentDigest":plan_digest,"valid":errors.is_empty(),"contentErrors":errors}),
+    )
 }

@@ -51,7 +51,10 @@ fn binding_assert_artifact_binding_guards_execution_receipts() {
     let matching = Plan {
         binding: Some(json!({"rev": "abc"})),
     };
-    assert!(assert_artifact_binding(Some(&matching), Some(&sealed_binding), "execution-receipt").is_ok());
+    assert!(
+        assert_artifact_binding(Some(&matching), Some(&sealed_binding), "execution-receipt")
+            .is_ok()
+    );
 
     let drifted = Plan {
         binding: Some(json!({"rev": "xyz"})),
@@ -97,10 +100,18 @@ fn run_ledger_stops_the_run_on_the_sixth_step() {
         ..RunLimits::default()
     });
     for _ in 0..5 {
-        ledger.reserve(Reservation { steps: 1.0, ..Default::default() }).unwrap();
+        ledger
+            .reserve(Reservation {
+                steps: 1.0,
+                ..Default::default()
+            })
+            .unwrap();
     }
     let err = ledger
-        .reserve(Reservation { steps: 1.0, ..Default::default() })
+        .reserve(Reservation {
+            steps: 1.0,
+            ..Default::default()
+        })
         .expect_err("6th step exceeds max_steps=5");
     assert_eq!(err.code, "LEGION_RUN_BUDGET");
     assert_eq!(err.reason.as_str(), "step-limit");

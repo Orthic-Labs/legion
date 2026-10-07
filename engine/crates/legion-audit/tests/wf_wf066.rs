@@ -23,7 +23,9 @@
 
 use serde_json::json;
 
-use legion_audit::wf_port::wf066::render_report::{clean_path, coverage_gate, quality_gate, render_report, RenderOptions};
+use legion_audit::wf_port::wf066::render_report::{
+    clean_path, coverage_gate, quality_gate, render_report, RenderOptions,
+};
 use legion_audit::wf_port::wf066::security_chain_pipeline::{
     finalize_chain_adjudication_bundle, prepare_chain_adjudication_bundle,
 };
@@ -58,7 +60,10 @@ fn adjudication_bundle_uses_separate_providers_and_contexts() {
     let bundle = prepare_adjudication_bundle(&candidate_report(), &options).unwrap();
     assert_eq!(bundle.packets[0].candidate.context_id, "generator");
     assert_eq!(bundle.packets[0].adjudicator.context_id, "adjudicator");
-    assert_ne!(bundle.packets[0].candidate.provider, bundle.packets[0].adjudicator.provider);
+    assert_ne!(
+        bundle.packets[0].candidate.provider,
+        bundle.packets[0].adjudicator.provider
+    );
 }
 
 #[test]
@@ -71,9 +76,16 @@ fn each_candidate_gets_its_own_fresh_adjudication_context() {
         "claim": "Input reaches a filesystem path.",
         "evidence": [{ "file": "src/files.ts", "line": 9 }],
     }));
-    let options = PrepareAdjudicationOptions { generator_context_id: Some("generator".into()), ..Default::default() };
+    let options = PrepareAdjudicationOptions {
+        generator_context_id: Some("generator".into()),
+        ..Default::default()
+    };
     let bundle = prepare_adjudication_bundle(&report, &options).unwrap();
-    let contexts: std::collections::HashSet<&str> = bundle.packets.iter().map(|p| p.adjudicator.context_id.as_str()).collect();
+    let contexts: std::collections::HashSet<&str> = bundle
+        .packets
+        .iter()
+        .map(|p| p.adjudicator.context_id.as_str())
+        .collect();
     assert_eq!(contexts.len(), 2);
     assert!(contexts.iter().all(|c| *c != "generator"));
 
@@ -139,12 +151,19 @@ fn true_positive_requires_severity_and_completed_matching_variant_receipt() {
         "impact": "arbitrary command execution", "proof": { "kind": "repro", "artifact": "tests/repro.ts" },
         "devilsAdvocate": "false positive excluded: attacker controls input and sink is reachable",
     });
-    let missing = finalize_adjudication_bundle(&bundle, &json!({ "verdicts": [verdict.clone()] }), &[]);
+    let missing =
+        finalize_adjudication_bundle(&bundle, &json!({ "verdicts": [verdict.clone()] }), &[]);
     assert_eq!(missing["complete"], json!(false));
-    assert_eq!(missing["missingVariantAnalysis"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        missing["missingVariantAnalysis"].as_array().unwrap().len(),
+        1
+    );
 
-    let receipts = vec![json!({ "findingId": "candidate-1", "ruleId": "security.command-injection", "complete": true, "matchesExamined": 4 })];
-    let complete = finalize_adjudication_bundle(&bundle, &json!({ "verdicts": [verdict] }), &receipts);
+    let receipts = vec![
+        json!({ "findingId": "candidate-1", "ruleId": "security.command-injection", "complete": true, "matchesExamined": 4 }),
+    ];
+    let complete =
+        finalize_adjudication_bundle(&bundle, &json!({ "verdicts": [verdict] }), &receipts);
     assert_eq!(complete["complete"], json!(true));
     assert_eq!(complete["status"], json!("findings"));
 }
@@ -216,7 +235,11 @@ fn each_path_gets_a_unique_context() {
         None,
     )
     .unwrap();
-    let contexts: std::collections::HashSet<&str> = bundle.packets.iter().map(|(_, p)| p.0["adjudicator"]["contextId"].as_str().unwrap()).collect();
+    let contexts: std::collections::HashSet<&str> = bundle
+        .packets
+        .iter()
+        .map(|(_, p)| p.0["adjudicator"]["contextId"].as_str().unwrap())
+        .collect();
     assert_eq!(contexts.len(), 2);
 }
 
@@ -243,9 +266,14 @@ fn duplicate_path_verdicts_are_invalid() {
     let (path_id, packet) = &bundle.packets[0];
     let context_id = packet.0["adjudicator"]["contextId"].as_str().unwrap();
     let raw = unproven_raw_for(path_id, context_id);
-    let result = finalize_chain_adjudication_bundle(&bundle, &json!({ "verdicts": [raw.clone(), raw] }));
+    let result =
+        finalize_chain_adjudication_bundle(&bundle, &json!({ "verdicts": [raw.clone(), raw] }));
     assert_eq!(result["complete"], json!(false));
-    assert!(result["invalidVerdicts"].as_array().unwrap().iter().any(|item| item["error"].as_str().unwrap().contains("duplicate")));
+    assert!(result["invalidVerdicts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["error"].as_str().unwrap().contains("duplicate")));
 }
 
 #[test]

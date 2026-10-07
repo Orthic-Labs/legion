@@ -29,12 +29,18 @@ fn parse_input(args: &AppleArgs) -> Result<Value, CommandError> {
     let raw = match (&args.input, &args.input_file) {
         (Some(raw), None) if raw.len() <= LIMIT as usize => raw.clone(),
         (None, Some(path)) => {
-            let file = File::open(path).map_err(|e| CommandError::usage(format!("Apple input: {e}")))?;
-            if !file.metadata().map_err(|e| CommandError::usage(e.to_string()))?.is_file() {
+            let file =
+                File::open(path).map_err(|e| CommandError::usage(format!("Apple input: {e}")))?;
+            if !file
+                .metadata()
+                .map_err(|e| CommandError::usage(e.to_string()))?
+                .is_file()
+            {
                 return Err(CommandError::usage("Apple input must be a regular file"));
             }
             let mut text = String::new();
-            file.take(LIMIT + 1).read_to_string(&mut text)
+            file.take(LIMIT + 1)
+                .read_to_string(&mut text)
                 .map_err(|e| CommandError::usage(format!("Apple input: {e}")))?;
             if text.len() > LIMIT as usize {
                 return Err(CommandError::usage("Apple input exceeds 1 MiB"));
@@ -42,11 +48,16 @@ fn parse_input(args: &AppleArgs) -> Result<Value, CommandError> {
             text
         }
         (None, None) => "{}".into(),
-        _ => return Err(CommandError::usage("provide at most 1 MiB through --input or --input-file")),
+        _ => {
+            return Err(CommandError::usage(
+                "provide at most 1 MiB through --input or --input-file",
+            ))
+        }
     };
     let mut value: Value = serde_json::from_str(&raw)
         .map_err(|e| CommandError::usage(format!("invalid Apple JSON input: {e}")))?;
-    let object = value.as_object_mut()
+    let object = value
+        .as_object_mut()
         .ok_or_else(|| CommandError::usage("Apple input must be a JSON object"))?;
     if args.execute {
         object.insert("execute".into(), Value::Bool(true));
@@ -56,8 +67,11 @@ fn parse_input(args: &AppleArgs) -> Result<Value, CommandError> {
 
 pub async fn run(args: AppleArgs, cancellation: CancellationToken) -> CommandResult {
     let arguments = parse_input(&args)?;
-    let policy_context = args.policy_context.as_deref()
-        .map(serde_json::from_str::<Value>).transpose()
+    let policy_context = args
+        .policy_context
+        .as_deref()
+        .map(serde_json::from_str::<Value>)
+        .transpose()
         .map_err(|e| CommandError::usage(format!("invalid Apple policy context: {e}")))?;
     // Host effect validation is shared with the MCP entrypoint.
     let request = json!({
@@ -82,8 +96,13 @@ pub async fn run(args: AppleArgs, cancellation: CancellationToken) -> CommandRes
 mod tests {
     use super::*;
     fn args(input: &str) -> AppleArgs {
-        AppleArgs { operation: "catalog".into(), input: Some(input.into()),
-            input_file: None, execute: false, policy_context: None }
+        AppleArgs {
+            operation: "catalog".into(),
+            input: Some(input.into()),
+            input_file: None,
+            execute: false,
+            policy_context: None,
+        }
     }
     #[test]
     fn input_is_structured_and_explicit_execution_is_preserved() {

@@ -17,9 +17,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use legion_policy::wf_port::wf002::minimize::{
-    build_review, staged_changes, MinimizeEnv,
-};
+use legion_policy::wf_port::wf002::minimize::{build_review, staged_changes, MinimizeEnv};
 use legion_policy::wf_port::wf002::policy_inject::{
     build_policy_injection, PolicyEnv, PolicyInjectionInput, PolicyPaths,
 };
@@ -66,10 +64,8 @@ fn policy_inject_end_to_end_with_real_policy_files() {
 
 #[test]
 fn minimize_review_on_a_real_temp_git_repo() {
-    let root = std::env::temp_dir().join(format!(
-        "legion-wf002-minimize-e2e-{}",
-        std::process::id()
-    ));
+    let root =
+        std::env::temp_dir().join(format!("legion-wf002-minimize-e2e-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("pkg/src")).unwrap();
 

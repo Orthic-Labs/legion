@@ -32,12 +32,12 @@ pub mod css_color;
 pub mod pure_checks;
 
 pub use css_color::{
-    css_color_alpha, css_color_is_transparent, colors_nearly_match, is_accent_color_impl,
+    colors_nearly_match, css_color_alpha, css_color_is_transparent, is_accent_color_impl,
     oklch_to_rgb, parse_any_color, shadow_layer_alpha, shadow_max_blur_px, Rgba,
 };
 pub use pure_checks::{
     border_colors_from_style, border_widths_from_style, check_gpt_thin_border_wide_shadow,
     check_italic_serif, check_oversized_h1, cream_from_class_list, is_accent_color,
-    is_card_like_from_props, is_cream_color, is_emoji_only_text, parse_radius_to_px,
-    resolve_serif, Finding, ItalicSerifInput, OversizedH1Input, ResolvedSerif,
+    is_card_like_from_props, is_cream_color, is_emoji_only_text, parse_radius_to_px, resolve_serif,
+    Finding, ItalicSerifInput, OversizedH1Input, ResolvedSerif,
 };

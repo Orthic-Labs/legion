@@ -239,8 +239,14 @@ pub fn changed_files_since_snapshot(
 ) -> Vec<ChangedFile> {
     let mut changed: Vec<(String, ChangedFile)> = Vec::new();
     let mut changed_index: HashMap<String, usize> = HashMap::new();
-    let mut push = |file: String, kind: &'static str, changed: &mut Vec<(String, ChangedFile)>, idx: &mut HashMap<String, usize>| {
-        let record = ChangedFile { file: file.clone(), kind };
+    let mut push = |file: String,
+                    kind: &'static str,
+                    changed: &mut Vec<(String, ChangedFile)>,
+                    idx: &mut HashMap<String, usize>| {
+        let record = ChangedFile {
+            file: file.clone(),
+            kind,
+        };
         if let Some(&i) = idx.get(&file) {
             changed[i] = (file, record);
         } else {
@@ -268,19 +274,34 @@ pub fn changed_files_since_snapshot(
         match before {
             SnapshotEntry::Missing => {
                 if absolute.exists() {
-                    push(relative_file.clone(), "added", &mut changed, &mut changed_index);
+                    push(
+                        relative_file.clone(),
+                        "added",
+                        &mut changed,
+                        &mut changed_index,
+                    );
                 }
                 continue;
             }
             SnapshotEntry::Existed { content } => {
                 if !absolute.exists() {
-                    push(relative_file.clone(), "deleted", &mut changed, &mut changed_index);
+                    push(
+                        relative_file.clone(),
+                        "deleted",
+                        &mut changed,
+                        &mut changed_index,
+                    );
                     continue;
                 }
                 match std::fs::read_to_string(&absolute) {
                     Ok(current) => {
                         if &current != content {
-                            push(relative_file.clone(), "modified", &mut changed, &mut changed_index);
+                            push(
+                                relative_file.clone(),
+                                "modified",
+                                &mut changed,
+                                &mut changed_index,
+                            );
                         }
                     }
                     Err(_) => continue,
@@ -290,7 +311,12 @@ pub fn changed_files_since_snapshot(
     }
     for relative_file in current_files.iter() {
         if !snapshot.contains_key(relative_file) {
-            push(relative_file.clone(), "unknown", &mut changed, &mut changed_index);
+            push(
+                relative_file.clone(),
+                "unknown",
+                &mut changed,
+                &mut changed_index,
+            );
         }
     }
     changed.into_iter().map(|(_, v)| v).collect()
@@ -468,11 +494,8 @@ mod tests {
 
     fn temp_dir() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
-            "legion-r18-rollback-{}-{}",
-            std::process::id(),
-            n
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("legion-r18-rollback-{}-{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -502,7 +525,10 @@ mod tests {
         let result = rollback_changed_files(&dir, &snapshot, &[], &scope);
         assert_eq!(result.rolled_back_files, vec!["a.ts".to_string()]);
         assert!(result.rollback_failures.is_empty());
-        assert_eq!(std::fs::read_to_string(dir.join("a.ts")).unwrap(), "original");
+        assert_eq!(
+            std::fs::read_to_string(dir.join("a.ts")).unwrap(),
+            "original"
+        );
     }
 
     #[test]
@@ -532,7 +558,8 @@ mod tests {
         let dir = temp_dir();
         std::fs::write(dir.join("a.ts"), "before").unwrap();
         std::fs::write(dir.join("b.ts"), "before").unwrap();
-        let snapshot = snapshot_rollback_files(&dir, Some(&["a.ts".to_string(), "b.ts".to_string()]));
+        let snapshot =
+            snapshot_rollback_files(&dir, Some(&["a.ts".to_string(), "b.ts".to_string()]));
         std::fs::write(dir.join("a.ts"), "after").unwrap();
         std::fs::write(dir.join("b.ts"), "after").unwrap();
         let scope = vec!["a.ts".to_string(), "b.ts".to_string()];

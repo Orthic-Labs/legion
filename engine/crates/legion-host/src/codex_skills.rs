@@ -843,11 +843,7 @@ fn safe_plain_id(id: &str) -> bool {
 fn codex_projection_present(input: &CodexSkillsInput) -> Result<bool, HostError> {
     let normalized = normalized_input(input)?;
     let root = codex_destination_root(&input.home);
-    for id in normalized
-        .current
-        .iter()
-        .chain(normalized.retired.iter())
-    {
+    for id in normalized.current.iter().chain(normalized.retired.iter()) {
         match fs::symlink_metadata(root.join(id)) {
             Ok(_) => return Ok(true),
             Err(error) if error.kind() == ErrorKind::NotFound => {}

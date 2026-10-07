@@ -549,8 +549,7 @@ fn render_read(
         .take(max_chunks)
     {
         let mut text = String::new();
-        let collected_truncated =
-            collect_text(section, &mut text, max_bytes.saturating_sub(used));
+        let collected_truncated = collect_text(section, &mut text, max_bytes.saturating_sub(used));
         let text = text.trim().to_string();
         if text.is_empty() {
             continue;

@@ -4,7 +4,10 @@ use serde_json::{json, Value};
 
 /// `exerciseReceipt(input)`.
 pub fn exercise_receipt(input: &Value) -> Value {
-    let executed = input.get("executed").and_then(Value::as_bool).unwrap_or(false);
+    let executed = input
+        .get("executed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let result = input.get("result").cloned().unwrap_or(Value::Null);
     let status = if executed && !result.is_null() && result != Value::Bool(false) {
         result

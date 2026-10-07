@@ -56,8 +56,15 @@ fn baseline_and_scenarios_compile_end_to_end_from_loaded_packs() {
     )]);
     let components = Value::object([("components", Value::array([]))]);
 
-    let baseline = compile_baseline(&packs, &portfolio, &components, &[], &Value::object([]), None)
-        .expect("baseline compiles");
+    let baseline = compile_baseline(
+        &packs,
+        &portfolio,
+        &components,
+        &[],
+        &Value::object([]),
+        None,
+    )
+    .expect("baseline compiles");
 
     let controls = get(&baseline, "controls").expect("controls field present");
     if let Value::Array(items) = controls {
@@ -92,7 +99,10 @@ fn baseline_and_scenarios_compile_end_to_end_from_loaded_packs() {
         // values, one scenario row each (evidence is satisfied).
         assert_eq!(rows.len(), 2);
         for row in rows {
-            assert_eq!(get(row, "controlId"), Some(&Value::str("ctl.readme-present")));
+            assert_eq!(
+                get(row, "controlId"),
+                Some(&Value::str("ctl.readme-present"))
+            );
             assert_eq!(get(row, "mandatory"), Some(&Value::Bool(true)));
         }
     } else {
@@ -103,10 +113,8 @@ fn baseline_and_scenarios_compile_end_to_end_from_loaded_packs() {
 
 #[test]
 fn missing_registry_index_is_a_reported_error_not_a_silent_empty_list() {
-    let empty_root = std::env::temp_dir().join(format!(
-        "w2_038_missing_registry_{}",
-        std::process::id()
-    ));
+    let empty_root =
+        std::env::temp_dir().join(format!("w2_038_missing_registry_{}", std::process::id()));
     let _ = std::fs::create_dir_all(&empty_root);
     let err = load_control_packs(&empty_root).unwrap_err();
     assert!(err.contains("index.json"));

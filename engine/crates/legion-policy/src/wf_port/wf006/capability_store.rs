@@ -14,7 +14,10 @@ use super::canonical::{canonical_json, digest, Json};
 use super::errors::{ArcCode, ArcaneError, Decision};
 
 fn now_millis() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
 }
 
 /// RFC3339 millisecond timestamp, matching JS `new Date(ms).toISOString()`
@@ -81,8 +84,17 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
 
 const BINDING_FIELDS: [&str; 5] = ["runId", "taskId", "workspace", "operation", "effectClass"];
 const B1_BINDING_FIELDS: [&str; 11] = [
-    "runId", "taskId", "workspace", "contractId", "contractVersion", "contractDigest",
-    "sourceRevision", "authority", "turnId", "operation", "effectClass",
+    "runId",
+    "taskId",
+    "workspace",
+    "contractId",
+    "contractVersion",
+    "contractDigest",
+    "sourceRevision",
+    "authority",
+    "turnId",
+    "operation",
+    "effectClass",
 ];
 
 #[derive(Debug, Clone, Default)]
@@ -175,7 +187,11 @@ impl CapabilityInput {
 }
 
 fn fail(code: ArcCode, capability_id: &str) -> Decision {
-    Decision::deny(code, format!("{code}: {capability_id}"), vec![("capabilityId".into(), capability_id.into())])
+    Decision::deny(
+        code,
+        format!("{code}: {capability_id}"),
+        vec![("capabilityId".into(), capability_id.into())],
+    )
 }
 
 /// In-memory legacy store (`root: None` in the JS constructor) plus the
@@ -188,13 +204,21 @@ pub struct CapabilityStore {
 
 impl CapabilityStore {
     pub fn new_in_memory() -> Self {
-        Self { root: None, memory: HashMap::new(), clock: now_millis }
+        Self {
+            root: None,
+            memory: HashMap::new(),
+            clock: now_millis,
+        }
     }
 
     pub fn new_file_backed(root: PathBuf) -> std::io::Result<Self> {
         fs::create_dir_all(root.join("grants"))?;
         fs::create_dir_all(root.join("transitions"))?;
-        Ok(Self { root: Some(root), memory: HashMap::new(), clock: now_millis })
+        Ok(Self {
+            root: Some(root),
+            memory: HashMap::new(),
+            clock: now_millis,
+        })
     }
 
     #[cfg(test)]
@@ -218,17 +242,26 @@ impl CapabilityStore {
     fn paths(&self, id: &str) -> Option<(PathBuf, PathBuf)> {
         let root = self.root.as_ref()?;
         let name = format!("{}.json", Self::key(id));
-        Some((root.join("grants").join(&name), root.join("transitions").join(&name)))
+        Some((
+            root.join("grants").join(&name),
+            root.join("transitions").join(&name),
+        ))
     }
 
     /// Legacy in-memory issue path.
     pub fn issue(&mut self, input: CapabilityInput) -> Result<String, ArcaneError> {
         if self.root.is_none() {
             let id = input.capability_id.clone();
-            let issued_at = input.issued_at.clone().unwrap_or_else(|| stamp((self.clock)()));
+            let issued_at = input
+                .issued_at
+                .clone()
+                .unwrap_or_else(|| stamp((self.clock)()));
             let record = CapabilityRecord {
                 capability_id: id.clone(),
-                fields: CapabilityInput { issued_at: Some(issued_at.clone()), ..input },
+                fields: CapabilityInput {
+                    issued_at: Some(issued_at.clone()),
+                    ..input
+                },
                 issued_at,
                 used_count: 0,
                 status: "active".into(),
@@ -239,15 +272,28 @@ impl CapabilityStore {
         }
 
         // B1 file-backed path: fixed TTL 900s, maxUses=1, delegable=false.
-        let issued_at = input.issued_at.clone().unwrap_or_else(|| stamp((self.clock)()));
-        let expires_at = input
-            .expires_at
+        let issued_at = input
+            .issued_at
             .clone()
-            .ok_or_else(|| ArcaneError::new(ArcCode::ArcStoreCorrupt, "invalid B1 capability ttl or use policy"))?;
-        let issued_ms = parse_iso_millis(&issued_at)
-            .ok_or_else(|| ArcaneError::new(ArcCode::ArcStoreCorrupt, "invalid B1 capability ttl or use policy"))?;
-        let expires_ms = parse_iso_millis(&expires_at)
-            .ok_or_else(|| ArcaneError::new(ArcCode::ArcStoreCorrupt, "invalid B1 capability ttl or use policy"))?;
+            .unwrap_or_else(|| stamp((self.clock)()));
+        let expires_at = input.expires_at.clone().ok_or_else(|| {
+            ArcaneError::new(
+                ArcCode::ArcStoreCorrupt,
+                "invalid B1 capability ttl or use policy",
+            )
+        })?;
+        let issued_ms = parse_iso_millis(&issued_at).ok_or_else(|| {
+            ArcaneError::new(
+                ArcCode::ArcStoreCorrupt,
+                "invalid B1 capability ttl or use policy",
+            )
+        })?;
+        let expires_ms = parse_iso_millis(&expires_at).ok_or_else(|| {
+            ArcaneError::new(
+                ArcCode::ArcStoreCorrupt,
+                "invalid B1 capability ttl or use policy",
+            )
+        })?;
         let ttl_seconds = (expires_ms - issued_ms) / 1000;
         let remainder = (expires_ms - issued_ms) % 1000;
         if remainder != 0
@@ -255,8 +301,11 @@ impl CapabilityStore {
             || input.max_uses.map(|v| v != 1).unwrap_or(false)
             || input.delegable.map(|v| v).unwrap_or(false)
         {
-            return Err(ArcaneError::new(ArcCode::ArcStoreCorrupt, "invalid B1 capability ttl or use policy")
-                .with_detail("capabilityId", input.capability_id.clone()));
+            return Err(ArcaneError::new(
+                ArcCode::ArcStoreCorrupt,
+                "invalid B1 capability ttl or use policy",
+            )
+            .with_detail("capabilityId", input.capability_id.clone()));
         }
 
         let id = input.capability_id.clone();
@@ -270,8 +319,11 @@ impl CapabilityStore {
             // through the higher-level gate, which re-checks bindings on use.
             return Ok(id);
         }
-        fs::write(&grant_file, format!("capabilityId={id}\nissuedAt={issued_at}\nexpiresAt={expires_at}\n"))
-            .map_err(|e| ArcaneError::new(ArcCode::ArcStoreCorrupt, e.to_string()))?;
+        fs::write(
+            &grant_file,
+            format!("capabilityId={id}\nissuedAt={issued_at}\nexpiresAt={expires_at}\n"),
+        )
+        .map_err(|e| ArcaneError::new(ArcCode::ArcStoreCorrupt, e.to_string()))?;
         Ok(id)
     }
 
@@ -319,7 +371,10 @@ impl CapabilityStore {
                     return Decision::deny(
                         ArcCode::ArcBindingMismatch,
                         capability_id,
-                        vec![("field".into(), "target".into()), ("actual".into(), target.clone())],
+                        vec![
+                            ("field".into(), "target".into()),
+                            ("actual".into(), target.clone()),
+                        ],
                     );
                 }
             }
@@ -334,7 +389,11 @@ impl CapabilityStore {
         &B1_BINDING_FIELDS
     }
 
-    pub fn consume(&mut self, capability_id: &str, ctx: &CheckCtx) -> Result<(i64, Option<i64>), ArcaneError> {
+    pub fn consume(
+        &mut self,
+        capability_id: &str,
+        ctx: &CheckCtx,
+    ) -> Result<(i64, Option<i64>), ArcaneError> {
         let d = self.check(capability_id, ctx);
         if !d.allowed {
             return Err(ArcaneError::new(d.code.unwrap(), d.message));
@@ -345,10 +404,10 @@ impl CapabilityStore {
     }
 
     pub fn revoke(&mut self, capability_id: &str, reason: &str) -> Result<(), ArcaneError> {
-        let record = self
-            .memory
-            .get_mut(capability_id)
-            .ok_or_else(|| ArcaneError::new(ArcCode::ArcCapabilityUnknown, "unknown capability").with_detail("capabilityId", capability_id))?;
+        let record = self.memory.get_mut(capability_id).ok_or_else(|| {
+            ArcaneError::new(ArcCode::ArcCapabilityUnknown, "unknown capability")
+                .with_detail("capabilityId", capability_id)
+        })?;
         record.status = "revoked".into();
         record.revoked_reason = Some(reason.to_string());
         Ok(())
@@ -360,7 +419,10 @@ mod tests {
     use super::*;
 
     fn input(id: &str) -> CapabilityInput {
-        CapabilityInput { capability_id: id.into(), ..Default::default() }
+        CapabilityInput {
+            capability_id: id.into(),
+            ..Default::default()
+        }
     }
 
     #[test]

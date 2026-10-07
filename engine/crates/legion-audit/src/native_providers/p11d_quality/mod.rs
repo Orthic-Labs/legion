@@ -27,7 +27,11 @@ fn digest_id(parts: &[&str]) -> String {
 }
 
 fn line_at(text: &str, index: usize) -> usize {
-    text.get(..index.min(text.len())).unwrap_or("").matches('\n').count() + 1
+    text.get(..index.min(text.len()))
+        .unwrap_or("")
+        .matches('\n')
+        .count()
+        + 1
 }
 
 // =====================================================================
@@ -104,7 +108,10 @@ pub mod ai_quality {
 
     pub fn stable_id(namespace: &str, value: &Value) -> String {
         let body = serde_json::to_string(&canonicalize(value)).unwrap_or_default();
-        format!("sha256:{}", sha256_hex(format!("{namespace}\0{body}").as_bytes()))
+        format!(
+            "sha256:{}",
+            sha256_hex(format!("{namespace}\0{body}").as_bytes())
+        )
     }
 
     pub fn assert_binding(binding: &Value) -> Result<(), String> {
@@ -130,15 +137,25 @@ pub mod ai_quality {
     }
 
     pub fn assert_evaluation_receipt(receipt: &Value) -> Result<(), String> {
-        let obj = receipt.as_object().ok_or("evaluation receipt must be an object")?;
+        let obj = receipt
+            .as_object()
+            .ok_or("evaluation receipt must be an object")?;
         if obj.get("schemaVersion").and_then(Value::as_i64) != Some(1) {
             return Err("ai-quality-evaluation-receipt unsupported schemaVersion".into());
         }
         if obj.get("kind").and_then(Value::as_str) != Some("ai-quality-evaluation-receipt") {
             return Err("unexpected kind".into());
         }
-        assert_metric(obj.get("metric").and_then(Value::as_str).unwrap_or_default())?;
-        assert_quality_verdict(obj.get("verdict").and_then(Value::as_str).unwrap_or_default())?;
+        assert_metric(
+            obj.get("metric")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        )?;
+        assert_quality_verdict(
+            obj.get("verdict")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        )?;
         for key in [
             "modelIdentity",
             "promptIdentity",
@@ -218,7 +235,10 @@ pub mod ai_quality {
         body.insert("promptIdentity".into(), identity.prompt_identity.clone());
         body.insert(
             "retrievalToolConfig".into(),
-            identity.retrieval_tool_config.clone().unwrap_or(Value::Null),
+            identity
+                .retrieval_tool_config
+                .clone()
+                .unwrap_or(Value::Null),
         );
         body.insert("datasetVersion".into(), identity.dataset_version.clone());
         body.insert("runConditions".into(), identity.run_conditions.clone());
@@ -230,7 +250,10 @@ pub mod ai_quality {
         body.insert("evidenceRefs".into(), json!(refs));
         body.insert("binding".into(), binding.clone());
 
-        let id = stable_id("ai-quality-evaluation-receipt", &Value::Object(body.clone()));
+        let id = stable_id(
+            "ai-quality-evaluation-receipt",
+            &Value::Object(body.clone()),
+        );
         body.insert("id".into(), json!(id));
         Ok(Value::Object(body))
     }
@@ -242,7 +265,8 @@ pub mod ai_quality {
     // -----------------------------------------------------------------
     pub fn build_evaluation_receipt_schema() -> Value {
         let sha = json!({ "type": "string", "pattern": "^sha256:" });
-        let nullable_sha = json!({ "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^sha256:" }] });
+        let nullable_sha =
+            json!({ "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^sha256:" }] });
         let strings = json!({ "type": "array", "items": { "type": "string" } });
         json!({
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -447,7 +471,10 @@ pub mod ai_quality {
             let unfaithful: Vec<Value> = citations
                 .iter()
                 .filter(|c| {
-                    let span_id = c.get("citedSpanId").and_then(Value::as_str).unwrap_or_default();
+                    let span_id = c
+                        .get("citedSpanId")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default();
                     let cited_text = c.get("citedText").and_then(Value::as_str).unwrap_or("\0");
                     match source_spans.get(span_id).and_then(Value::as_str) {
                         Some(span) => !span.contains(cited_text),
@@ -472,7 +499,9 @@ pub mod ai_quality {
             let threshold = get_f64(fixture, "relevanceThreshold");
             let (docs, threshold) = match (docs, threshold) {
                 (Some(d), Some(t)) if !d.is_empty() => (d, t),
-                _ => return unproven("no retrieved-document relevance record recorded for this run"),
+                _ => {
+                    return unproven("no retrieved-document relevance record recorded for this run")
+                }
             };
             let relevant_count = docs
                 .iter()
@@ -483,7 +512,9 @@ pub mod ai_quality {
                 verdict: if ratio >= threshold { "pass" } else { "fail" },
                 measurement: json!({ "docCount": docs.len(), "relevantCount": relevant_count, "ratio": ratio, "threshold": threshold }),
                 limitations: vec![],
-                uncertainty: vec!["Relevance labels are recorded judgments, not re-derived here.".to_string()],
+                uncertainty: vec![
+                    "Relevance labels are recorded judgments, not re-derived here.".to_string(),
+                ],
             }
         }
 
@@ -505,7 +536,11 @@ pub mod ai_quality {
             let required_fields = get_arr(fixture, "requiredFields");
             let (output, required_fields) = match (output, required_fields) {
                 (Some(o), Some(f)) if !f.is_empty() => (o, f),
-                _ => return unproven("no structured-output/required-field record recorded for this run"),
+                _ => {
+                    return unproven(
+                        "no structured-output/required-field record recorded for this run",
+                    )
+                }
             };
             let empty_obj = Map::new();
             let output_obj = output.as_object().unwrap_or(&empty_obj);
@@ -563,8 +598,11 @@ pub mod ai_quality {
                 _ => return unproven("no confidence/correctness record recorded for this run"),
             };
             let n = predictions.len() as f64;
-            let avg_confidence: f64 =
-                predictions.iter().filter_map(|p| get_f64(p, "confidence")).sum::<f64>() / n;
+            let avg_confidence: f64 = predictions
+                .iter()
+                .filter_map(|p| get_f64(p, "confidence"))
+                .sum::<f64>()
+                / n;
             let accuracy = predictions
                 .iter()
                 .filter(|p| p.get("correct").and_then(Value::as_bool) == Some(true))
@@ -593,7 +631,11 @@ pub mod ai_quality {
             let refusal_correct = should_refuse == did_refuse;
             let fallback_ok = !should_refuse || fallback_taken == Some(true);
             ScorerResult {
-                verdict: if refusal_correct && fallback_ok { "pass" } else { "fail" },
+                verdict: if refusal_correct && fallback_ok {
+                    "pass"
+                } else {
+                    "fail"
+                },
                 measurement: json!({ "shouldRefuse": should_refuse, "didRefuse": did_refuse, "refusalCorrect": refusal_correct, "fallbackTaken": fallback_taken }),
                 limitations: vec![],
                 uncertainty: vec![],
@@ -605,7 +647,11 @@ pub mod ai_quality {
             let included = get_arr(fixture, "includedSpanIds");
             let (required, included) = match (required, included) {
                 (Some(r), Some(i)) if !r.is_empty() => (r, i),
-                _ => return unproven("no required/included context-span record recorded for this run"),
+                _ => {
+                    return unproven(
+                        "no required/included context-span record recorded for this run",
+                    )
+                }
             };
             let truncated_away: Vec<Value> = required
                 .iter()
@@ -613,7 +659,11 @@ pub mod ai_quality {
                 .cloned()
                 .collect();
             ScorerResult {
-                verdict: if truncated_away.is_empty() { "pass" } else { "fail" },
+                verdict: if truncated_away.is_empty() {
+                    "pass"
+                } else {
+                    "fail"
+                },
                 measurement: json!({ "requiredCount": required.len(), "truncatedAway": truncated_away }),
                 limitations: vec![],
                 uncertainty: vec![],
@@ -637,7 +687,8 @@ pub mod ai_quality {
                 measurement: json!({ "variantCount": variant_results.len(), "matching": matching, "ratio": ratio, "threshold": threshold }),
                 limitations: vec![],
                 uncertainty: vec![
-                    "semanticMatch is a recorded judgment on each variant, not re-derived here.".to_string(),
+                    "semanticMatch is a recorded judgment on each variant, not re-derived here."
+                        .to_string(),
                 ],
             }
         }
@@ -669,14 +720,13 @@ pub mod ai_quality {
 
         pub fn score_reproducibility(fixture: &Value) -> ScorerResult {
             let run_digests = get_arr(fixture, "runDigests");
-            let run_digests = match run_digests {
-                Some(d) if d.len() >= 2 => d,
-                _ => {
-                    return unproven(
+            let run_digests =
+                match run_digests {
+                    Some(d) if d.len() >= 2 => d,
+                    _ => return unproven(
                         "fewer than 2 recorded run digests; reproducibility cannot be evaluated",
-                    )
-                }
-            };
+                    ),
+                };
             let distinct: std::collections::HashSet<String> = run_digests
                 .iter()
                 .map(|v| serde_json::to_string(v).unwrap_or_default())
@@ -726,7 +776,9 @@ pub mod ai_quality {
         pub fn score_human_override(fixture: &Value) -> ScorerResult {
             let override_available = match get_bool(fixture, "overrideAvailable") {
                 Some(v) => v,
-                None => return unproven("no human-override-availability record recorded for this run"),
+                None => {
+                    return unproven("no human-override-availability record recorded for this run")
+                }
             };
             if !override_available {
                 return ScorerResult {
@@ -740,7 +792,10 @@ pub mod ai_quality {
                 None => ScorerResult {
                     verdict: "review-required",
                     measurement: json!({ "overrideAvailable": override_available }),
-                    limitations: vec!["override is declared available but was not exercised in this run".to_string()],
+                    limitations: vec![
+                        "override is declared available but was not exercised in this run"
+                            .to_string(),
+                    ],
                     uncertainty: vec![],
                 },
                 Some(tested_ok) => ScorerResult {
@@ -789,7 +844,10 @@ pub mod ai_quality {
                 Some(t) => t,
                 None => return unproven("no parity threshold recorded for this run"),
             };
-            let values: Vec<f64> = subgroups.iter().filter_map(|s| get_f64(s, "metricValue")).collect();
+            let values: Vec<f64> = subgroups
+                .iter()
+                .filter_map(|s| get_f64(s, "metricValue"))
+                .collect();
             let max = values.iter().cloned().fold(f64::MIN, f64::max);
             let min = values.iter().cloned().fold(f64::MAX, f64::min);
             let gap = max - min;
@@ -823,7 +881,9 @@ pub mod ai_quality {
             "citation-faithfulness" => score_citation_faithfulness(fixture),
             "retrieval-relevance" => score_retrieval_relevance(fixture),
             "structured-output-validity" => score_structured_output_validity(fixture),
-            "tool-selection-argument-correctness" => score_tool_selection_argument_correctness(fixture),
+            "tool-selection-argument-correctness" => {
+                score_tool_selection_argument_correctness(fixture)
+            }
             "uncertainty-abstention-calibration" => score_uncertainty_calibration(fixture),
             "refusal-fallback" => score_refusal_fallback(fixture),
             "context-truncation" => score_context_truncation(fixture),
@@ -894,7 +954,9 @@ pub mod accessibility_runtime {
         let key = |item: &Value| {
             format!(
                 "{}:{}",
-                item.get("surfaceId").map(|v| v.to_string()).unwrap_or_default(),
+                item.get("surfaceId")
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
                 item.get("state").map(|v| v.to_string()).unwrap_or_default()
             )
         };
@@ -914,10 +976,18 @@ pub mod accessibility_runtime {
 
         let mut root_causes: Vec<(String, Value)> = Vec::new();
         for run in runs {
-            let violations = run.get("violations").and_then(Value::as_array).cloned().unwrap_or_default();
+            let violations = run
+                .get("violations")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             for violation in violations {
                 let rule = violation.get("rule").cloned().unwrap_or(Value::Null);
-                let nodes = violation.get("nodes").and_then(Value::as_array).cloned().unwrap_or_default();
+                let nodes = violation
+                    .get("nodes")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
                 let node_join = nodes
                     .iter()
                     .map(|n| n.as_str().unwrap_or_default().to_string())
@@ -1005,7 +1075,9 @@ pub mod accessibility_suite {
     fn is_non_dom_media_source(file: &str, text: &str) -> bool {
         static PATH_RE: OnceLock<Regex> = OnceLock::new();
         static IMPORT_RE: OnceLock<Regex> = OnceLock::new();
-        let path_re = PATH_RE.get_or_init(|| Regex::new(r"(?i)(?:^|[\\/])(?:remotion|\.remotion)(?:[\\/]|$)").unwrap());
+        let path_re = PATH_RE.get_or_init(|| {
+            Regex::new(r"(?i)(?:^|[\\/])(?:remotion|\.remotion)(?:[\\/]|$)").unwrap()
+        });
         let import_re = IMPORT_RE.get_or_init(|| {
             Regex::new(r#"(?:from\s*|require\(\s*)["'](?:@remotion/[^"']*|remotion)["']"#).unwrap()
         });
@@ -1024,8 +1096,19 @@ pub mod accessibility_suite {
     // module doc and `native_providers::p11b_frameworks` for precedent) are
     // reimplemented below as explicit scans with identical semantics.
     const RULES: &[Rule] = &[
-        Rule { id: "a11y.positive-tabindex", level: "error", message: "Positive tabindex overrides natural focus order.", pattern: r#"(?i)\btabindex\s*=\s*["']?[1-9][0-9]*["']?"# },
-        Rule { id: "a11y.autofocus", level: "warning", message: "Autofocus can move focus unexpectedly; require a documented interaction reason.", pattern: r#"(?i)\b(?:autoFocus|autofocus)\b"# },
+        Rule {
+            id: "a11y.positive-tabindex",
+            level: "error",
+            message: "Positive tabindex overrides natural focus order.",
+            pattern: r#"(?i)\btabindex\s*=\s*["']?[1-9][0-9]*["']?"#,
+        },
+        Rule {
+            id: "a11y.autofocus",
+            level: "warning",
+            message:
+                "Autofocus can move focus unexpectedly; require a documented interaction reason.",
+            pattern: r#"(?i)\b(?:autoFocus|autofocus)\b"#,
+        },
     ];
 
     /// JS: `/<img\b(?![^>]*\balt\s*=)[^>]*>/gi` — an `<img>` tag whose
@@ -1054,13 +1137,17 @@ pub mod accessibility_suite {
         static OPEN_RE: OnceLock<Regex> = OnceLock::new();
         let open_re = OPEN_RE.get_or_init(|| Regex::new(r"(?i)<button\b[^>]*>").unwrap());
         static FULL_RE: OnceLock<Regex> = OnceLock::new();
-        let full_re = FULL_RE
-            .get_or_init(|| Regex::new(r"(?is)<button\b[^>]*>\s*(?:<[^>]+>\s*)*</button>").unwrap());
+        let full_re = FULL_RE.get_or_init(|| {
+            Regex::new(r"(?is)<button\b[^>]*>\s*(?:<[^>]+>\s*)*</button>").unwrap()
+        });
         static NAME_RE: OnceLock<Regex> = OnceLock::new();
         let name_re = NAME_RE
             .get_or_init(|| Regex::new(r"(?i)(?:aria-label|aria-labelledby|title)\s*=").unwrap());
         for m in full_re.find_iter(text) {
-            let open_tag = open_re.find(m.as_str()).map(|o| o.as_str()).unwrap_or(m.as_str());
+            let open_tag = open_re
+                .find(m.as_str())
+                .map(|o| o.as_str())
+                .unwrap_or(m.as_str());
             if !name_re.is_match(open_tag) {
                 findings.push(finding(
                     "a11y.empty-button-name",
@@ -1079,7 +1166,8 @@ pub mod accessibility_suite {
         static TAG_RE: OnceLock<Regex> = OnceLock::new();
         let tag_re = TAG_RE.get_or_init(|| Regex::new(r"(?i)<(?:div|span)\b[^>]*>").unwrap());
         static CLICK_RE: OnceLock<Regex> = OnceLock::new();
-        let click_re = CLICK_RE.get_or_init(|| Regex::new(r"(?i)(?:onClick|@click|v-on:click)=").unwrap());
+        let click_re =
+            CLICK_RE.get_or_init(|| Regex::new(r"(?i)(?:onClick|@click|v-on:click)=").unwrap());
         static ESCAPE_RE: OnceLock<Regex> = OnceLock::new();
         let escape_re = ESCAPE_RE.get_or_init(|| {
             Regex::new(r"(?i)(?:onKeyDown|onKeyUp|@keydown|@keyup|role=|tabIndex=)").unwrap()
@@ -1104,8 +1192,9 @@ pub mod accessibility_suite {
         static TAG_RE: OnceLock<Regex> = OnceLock::new();
         let tag_re = TAG_RE.get_or_init(|| Regex::new(r"(?i)<[^>]+>").unwrap());
         static HOVER_RE: OnceLock<Regex> = OnceLock::new();
-        let hover_re =
-            HOVER_RE.get_or_init(|| Regex::new(r"(?i)(?:onMouseOver|onMouseEnter|@mouseover|@mouseenter)=").unwrap());
+        let hover_re = HOVER_RE.get_or_init(|| {
+            Regex::new(r"(?i)(?:onMouseOver|onMouseEnter|@mouseover|@mouseenter)=").unwrap()
+        });
         static FOCUS_RE: OnceLock<Regex> = OnceLock::new();
         let focus_re = FOCUS_RE.get_or_init(|| Regex::new(r"(?i)(?:onFocus|@focus)").unwrap());
         for m in tag_re.find_iter(text) {
@@ -1127,7 +1216,10 @@ pub mod accessibility_suite {
         static BLOCK: OnceLock<Regex> = OnceLock::new();
         static FOCUS_SELECTOR: OnceLock<Regex> = OnceLock::new();
         (
-            OUTLINE_REMOVAL.get_or_init(|| Regex::new(r#"(?i)(?:\boutline\s*:\s*(?:none|0)\b|(?:^|[^\w-])outline-none\b)"#).unwrap()),
+            OUTLINE_REMOVAL.get_or_init(|| {
+                Regex::new(r#"(?i)(?:\boutline\s*:\s*(?:none|0)\b|(?:^|[^\w-])outline-none\b)"#)
+                    .unwrap()
+            }),
             BLOCK.get_or_init(|| Regex::new(r"(?s)([^{}]+)\{([^{}]*)\}").unwrap()),
             FOCUS_SELECTOR.get_or_init(|| Regex::new(r"(?i):(?:focus-visible|focus)\b").unwrap()),
         )
@@ -1137,8 +1229,9 @@ pub mod accessibility_suite {
     /// — some focus style is declared with a non-`none`/`0` value.
     fn has_visible_focus_style(block: &str) -> bool {
         static OUTLINE_VAL: OnceLock<Regex> = OnceLock::new();
-        let outline_val = OUTLINE_VAL
-            .get_or_init(|| Regex::new(r"(?i)outline(?:-color|-width|-style)?\s*:\s*([^;}]+)").unwrap());
+        let outline_val = OUTLINE_VAL.get_or_init(|| {
+            Regex::new(r"(?i)outline(?:-color|-width|-style)?\s*:\s*([^;}]+)").unwrap()
+        });
         for cap in outline_val.captures_iter(block) {
             let value = cap[1].trim().to_lowercase();
             if !(value.starts_with("none") || value.starts_with('0')) {
@@ -1146,7 +1239,8 @@ pub mod accessibility_suite {
             }
         }
         static SHADOW_VAL: OnceLock<Regex> = OnceLock::new();
-        let shadow_val = SHADOW_VAL.get_or_init(|| Regex::new(r"(?i)box-shadow\s*:\s*([^;}]+)").unwrap());
+        let shadow_val =
+            SHADOW_VAL.get_or_init(|| Regex::new(r"(?i)box-shadow\s*:\s*([^;}]+)").unwrap());
         for cap in shadow_val.captures_iter(block) {
             let value = cap[1].trim().to_lowercase();
             if !value.starts_with("none") {
@@ -1172,17 +1266,21 @@ pub mod accessibility_suite {
     /// border families (a bare `ring`/`shadow`/`underline` suffix always counts).
     fn tailwind_focus_replacement(window_text: &str) -> bool {
         static UTIL_RE: OnceLock<Regex> = OnceLock::new();
-        let util_re = UTIL_RE.get_or_init(|| Regex::new(r"(?i)\bfocus(?:-visible)?[:-]([\w\[\].:-]+)").unwrap());
+        let util_re = UTIL_RE
+            .get_or_init(|| Regex::new(r"(?i)\bfocus(?:-visible)?[:-]([\w\[\].:-]+)").unwrap());
         static OUTLINE_NEUTRAL: OnceLock<Regex> = OnceLock::new();
-        let outline_neutral =
-            OUTLINE_NEUTRAL.get_or_init(|| Regex::new(r"(?i)^outline[-:]?(?:none|hidden|transparent)").unwrap());
+        let outline_neutral = OUTLINE_NEUTRAL
+            .get_or_init(|| Regex::new(r"(?i)^outline[-:]?(?:none|hidden|transparent)").unwrap());
         static BORDER_NEUTRAL: OnceLock<Regex> = OnceLock::new();
-        let border_neutral =
-            BORDER_NEUTRAL.get_or_init(|| Regex::new(r"(?i)^border[-:]?(?:0|none|transparent)").unwrap());
+        let border_neutral = BORDER_NEUTRAL
+            .get_or_init(|| Regex::new(r"(?i)^border[-:]?(?:0|none|transparent)").unwrap());
         for cap in util_re.captures_iter(window_text) {
             let util = &cap[1];
             let lower = util.to_lowercase();
-            if lower.starts_with("ring") || lower.starts_with("shadow") || lower.starts_with("underline") {
+            if lower.starts_with("ring")
+                || lower.starts_with("shadow")
+                || lower.starts_with("underline")
+            {
                 return true;
             }
             if lower.starts_with("outline") && !outline_neutral.is_match(util) {
@@ -1256,7 +1354,13 @@ pub mod accessibility_suite {
             for rule in RULES {
                 let re = Regex::new(rule.pattern).unwrap();
                 for m in re.find_iter(&text) {
-                    findings.push(finding(rule.id, rule.level, rule.message, file, line_at(&text, m.start())));
+                    findings.push(finding(
+                        rule.id,
+                        rule.level,
+                        rule.message,
+                        file,
+                        line_at(&text, m.start()),
+                    ));
                 }
             }
             collect_image_alt_findings(&text, file, &mut findings);
@@ -1267,7 +1371,8 @@ pub mod accessibility_suite {
             if ["css", "scss", "sass", "less"].contains(&ext.as_str()) {
                 static ANIM: OnceLock<Regex> = OnceLock::new();
                 static PRM: OnceLock<Regex> = OnceLock::new();
-                let anim_re = ANIM.get_or_init(|| Regex::new(r"(?i)(?:animation\s*:|@keyframes\b)").unwrap());
+                let anim_re =
+                    ANIM.get_or_init(|| Regex::new(r"(?i)(?:animation\s*:|@keyframes\b)").unwrap());
                 let prm_re = PRM.get_or_init(|| Regex::new(r"(?i)prefers-reduced-motion").unwrap());
                 if anim_re.is_match(&text) && !prm_re.is_match(&text) {
                     findings.push(finding(
@@ -1319,10 +1424,10 @@ pub mod generic_source_suite {
     use super::*;
 
     const COVERED: &[&str] = &[
-        "js", "jsx", "mjs", "cjs", "ts", "tsx", "cts", "mts", "astro", "vue", "py", "rs", "swift", "m", "mm",
-        "c", "cc", "cpp", "cxx", "h", "hpp", "java", "kt", "kts", "scala", "cs", "fs", "vb", "php", "go", "rb", "dart",
-        "ex", "exs", "erl", "hrl", "sh", "bash", "zsh", "ps1", "psm1", "bat", "vbs", "nsh", "nsi", "sql", "html", "css",
-        "graphql", "gql", "svelte",
+        "js", "jsx", "mjs", "cjs", "ts", "tsx", "cts", "mts", "astro", "vue", "py", "rs", "swift",
+        "m", "mm", "c", "cc", "cpp", "cxx", "h", "hpp", "java", "kt", "kts", "scala", "cs", "fs",
+        "vb", "php", "go", "rb", "dart", "ex", "exs", "erl", "hrl", "sh", "bash", "zsh", "ps1",
+        "psm1", "bat", "vbs", "nsh", "nsi", "sql", "html", "css", "graphql", "gql", "svelte",
     ];
 
     fn extension(path: &str) -> Option<String> {
@@ -1335,7 +1440,8 @@ pub mod generic_source_suite {
     pub fn run_generic_source_accounting(files: &[String], parsed_extensions: &[String]) -> Value {
         let parsed: std::collections::HashSet<String> =
             parsed_extensions.iter().map(|v| v.to_lowercase()).collect();
-        let mut unknown: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+        let mut unknown: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
         for file in files {
             let ext = match extension(file) {
                 Some(e) => e,
@@ -1375,7 +1481,9 @@ pub mod generic_source_suite {
 pub mod data_suite {
     use super::*;
 
-    const DATA_EXTENSIONS: &[&str] = &["sql", "ts", "tsx", "js", "mjs", "cjs", "py", "php", "rb", "go", "rs", "java", "kt", "cs"];
+    const DATA_EXTENSIONS: &[&str] = &[
+        "sql", "ts", "tsx", "js", "mjs", "cjs", "py", "php", "rb", "go", "rs", "java", "kt", "cs",
+    ];
 
     fn severity_hint(level: &str) -> &'static str {
         match level {
@@ -1418,10 +1526,19 @@ pub mod data_suite {
             Regex::new(r#"(?i)\bADD\s+(?:COLUMN\s+)?[A-Za-z0-9_"`]+[^;\n]*\bNOT\s+NULL\b"#).unwrap()
         });
         for m in re.find_iter(text) {
-            let rest_end = text[m.end()..].find(|c| c == ';' || c == '\n').map(|i| m.end() + i).unwrap_or(text.len());
+            let rest_end = text[m.end()..]
+                .find(|c| c == ';' || c == '\n')
+                .map(|i| m.end() + i)
+                .unwrap_or(text.len());
             let rest = &text[m.end()..rest_end];
             if !rest.to_lowercase().contains("default") {
-                candidates.push(candidate("data.not-null-migration", "warning", "Migration adds NOT NULL without a visible default/backfill sequence.", file, line_at(text, m.start())));
+                candidates.push(candidate(
+                    "data.not-null-migration",
+                    "warning",
+                    "Migration adds NOT NULL without a visible default/backfill sequence.",
+                    file,
+                    line_at(text, m.start()),
+                ));
             }
         }
     }
@@ -1436,7 +1553,10 @@ pub mod data_suite {
         for m in re.find_iter(text) {
             let end = (m.end() + 300).min(text.len());
             let window = &text[m.end()..end];
-            if !Regex::new(r"(?i)busy_timeout|timeout").unwrap().is_match(window) {
+            if !Regex::new(r"(?i)busy_timeout|timeout")
+                .unwrap()
+                .is_match(window)
+            {
                 candidates.push(candidate("data.sqlite-no-busy-timeout", "note", "SQLite connection is configured without a visible busy timeout; assess lock contention.", file, line_at(text, m.start())));
             }
         }
@@ -1448,10 +1568,22 @@ pub mod data_suite {
         static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
         let re = RE.get_or_init(|| Regex::new(r"(?i)\.(?:set|hset)\s*\([^\n;]+\)").unwrap());
         for m in re.find_iter(text) {
-            let rest_end = text[m.end()..].find(|c| c == ';' || c == '\n').map(|i| m.end() + i).unwrap_or(text.len());
+            let rest_end = text[m.end()..]
+                .find(|c| c == ';' || c == '\n')
+                .map(|i| m.end() + i)
+                .unwrap_or(text.len());
             let rest = &text[m.end()..rest_end];
-            if !Regex::new(r"(?i)expire|ttl|ex\s*:|px\s*:").unwrap().is_match(rest) {
-                candidates.push(candidate("data.redis-unbounded-value", "note", "Redis write has no visible expiration; verify retention and invalidation.", file, line_at(text, m.start())));
+            if !Regex::new(r"(?i)expire|ttl|ex\s*:|px\s*:")
+                .unwrap()
+                .is_match(rest)
+            {
+                candidates.push(candidate(
+                    "data.redis-unbounded-value",
+                    "note",
+                    "Redis write has no visible expiration; verify retention and invalidation.",
+                    file,
+                    line_at(text, m.start()),
+                ));
             }
         }
     }
@@ -1460,9 +1592,11 @@ pub mod data_suite {
     /// — two adjacent write calls within 500 chars, with no transaction keyword within 700 chars after the second.
     fn collect_transaction_missing(text: &str, file: &str, candidates: &mut Vec<Value>) {
         static FIRST: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        let first_re = FIRST.get_or_init(|| Regex::new(r"(?i)(?:insert|update|delete|save)\s*\(").unwrap());
+        let first_re =
+            FIRST.get_or_init(|| Regex::new(r"(?i)(?:insert|update|delete|save)\s*\(").unwrap());
         static TXN: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        let txn_re = TXN.get_or_init(|| Regex::new(r"(?i)transaction|beginTransaction|BEGIN\b").unwrap());
+        let txn_re =
+            TXN.get_or_init(|| Regex::new(r"(?i)transaction|beginTransaction|BEGIN\b").unwrap());
         for m in first_re.find_iter(text) {
             let window_end = (m.end() + 500).min(text.len());
             let window = &text[m.end()..window_end];
@@ -1474,7 +1608,13 @@ pub mod data_suite {
             let tail_end = (second_abs_end + 700).min(text.len());
             let tail = &text[second_abs_end..tail_end];
             if !txn_re.is_match(tail) {
-                candidates.push(candidate("data.transaction-missing", "note", "Multiple adjacent write operations have no visible transaction boundary.", file, line_at(text, m.start())));
+                candidates.push(candidate(
+                    "data.transaction-missing",
+                    "note",
+                    "Multiple adjacent write operations have no visible transaction boundary.",
+                    file,
+                    line_at(text, m.start()),
+                ));
                 break; // one candidate per file is sufficient to mirror the JS regex's single global scan cursor behavior closely enough
             }
         }
@@ -1496,7 +1636,13 @@ pub mod data_suite {
                 for pattern in rule.patterns {
                     let re = Regex::new(pattern).unwrap();
                     for m in re.find_iter(&text) {
-                        candidates.push(candidate(rule.id, rule.level, rule.message, file, line_at(&text, m.start())));
+                        candidates.push(candidate(
+                            rule.id,
+                            rule.level,
+                            rule.message,
+                            file,
+                            line_at(&text, m.start()),
+                        ));
                     }
                 }
             }
@@ -1549,7 +1695,10 @@ pub mod infrastructure_suite {
 
     fn is_dockerfile(file: &str, _text: &str) -> bool {
         Regex::new(r"(?i)^Dockerfile").unwrap().is_match(
-            std::path::Path::new(file).file_name().and_then(|n| n.to_str()).unwrap_or(""),
+            std::path::Path::new(file)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(""),
         )
     }
     fn is_dockerfile_no_user(file: &str, text: &str) -> bool {
@@ -1568,13 +1717,19 @@ pub mod infrastructure_suite {
         file.ends_with(".tf")
     }
     fn is_release_script(file: &str, _text: &str) -> bool {
-        Regex::new(r"(?i)\.(?:sh|ps1|mjs|cjs|js|py|rb|yml|yaml|toml|json)$").unwrap().is_match(file)
+        Regex::new(r"(?i)\.(?:sh|ps1|mjs|cjs|js|py|rb|yml|yaml|toml|json)$")
+            .unwrap()
+            .is_match(file)
     }
     fn is_release_script_narrow(file: &str, _text: &str) -> bool {
-        Regex::new(r"(?i)\.(?:sh|ps1|mjs|cjs|js|py|rb)$").unwrap().is_match(file)
+        Regex::new(r"(?i)\.(?:sh|ps1|mjs|cjs|js|py|rb)$")
+            .unwrap()
+            .is_match(file)
     }
     fn is_tauri_conf(file: &str, _text: &str) -> bool {
-        Regex::new(r"(?:tauri\.conf\.(?:json|json5)|Tauri\.toml)$").unwrap().is_match(file)
+        Regex::new(r"(?:tauri\.conf\.(?:json|json5)|Tauri\.toml)$")
+            .unwrap()
+            .is_match(file)
     }
     fn always(_file: &str, _text: &str) -> bool {
         true
@@ -1599,7 +1754,9 @@ pub mod infrastructure_suite {
         Rule { id: "tauri-updater-insecure", level: "error", message: "Tauri updater permits insecure transport.", pattern: r"(?i)dangerousInsecureTransportProtocol\s*[:=]\s*true", applies: is_tauri_conf },
     ];
     #[allow(dead_code)]
-    fn _unused() -> Applies { always }
+    fn _unused() -> Applies {
+        always
+    }
 
     /// JS: `/(?:curl|wget|Invoke-WebRequest|fetch\s*\()[\s\S]{0,300}https?:\/\/(?![\s\S]{0,500}(?:sha256|checksum|digest|integrity))/is`
     /// (unsupported lookahead) — a download call whose URL has no integrity
@@ -1610,7 +1767,8 @@ pub mod infrastructure_suite {
         }
         static PREFIX: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
         let prefix_re = PREFIX.get_or_init(|| {
-            Regex::new(r"(?is)(?:curl|wget|Invoke-WebRequest|fetch\s*\()[\s\S]{0,300}https?://").unwrap()
+            Regex::new(r"(?is)(?:curl|wget|Invoke-WebRequest|fetch\s*\()[\s\S]{0,300}https?://")
+                .unwrap()
         });
         static INTEGRITY: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
         let integrity_re =
@@ -1619,9 +1777,11 @@ pub mod infrastructure_suite {
             let end = (m.end() + 500).min(text.len());
             if !integrity_re.is_match(&text[m.end()..end]) {
                 candidates.push(candidate(
-                    "release-download-no-hash", "warning",
+                    "release-download-no-hash",
+                    "warning",
                     "Downloaded release artifact has no nearby integrity verification.",
-                    file, line_at(text, m.start()),
+                    file,
+                    line_at(text, m.start()),
                 ));
             }
         }
@@ -1637,7 +1797,13 @@ pub mod infrastructure_suite {
                 }
                 let re = Regex::new(rule.pattern).unwrap();
                 for m in re.find_iter(&text) {
-                    candidates.push(candidate(rule.id, rule.level, rule.message, file, line_at(&text, m.start())));
+                    candidates.push(candidate(
+                        rule.id,
+                        rule.level,
+                        rule.message,
+                        file,
+                        line_at(&text, m.start()),
+                    ));
                 }
             }
             collect_release_download_no_hash(file, &text, &mut candidates);
@@ -1778,11 +1944,15 @@ pub mod framework_suite {
     /// JS: `/useGlobalPipes\s*\(\s*new\s+ValidationPipe\s*\(\s*\{(?![\s\S]{0,200}transform\s*:\s*true)/is`
     fn collect_nest_validation_missing_transform(text: &str) -> Option<usize> {
         static PREFIX: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        let prefix_re = PREFIX
-            .get_or_init(|| Regex::new(r"(?is)useGlobalPipes\s*\(\s*new\s+ValidationPipe\s*\(\s*\{").unwrap());
+        let prefix_re = PREFIX.get_or_init(|| {
+            Regex::new(r"(?is)useGlobalPipes\s*\(\s*new\s+ValidationPipe\s*\(\s*\{").unwrap()
+        });
         for m in prefix_re.find_iter(text) {
             let end = (m.end() + 200).min(text.len());
-            if !Regex::new(r"(?i)transform\s*:\s*true").unwrap().is_match(&text[m.end()..end]) {
+            if !Regex::new(r"(?i)transform\s*:\s*true")
+                .unwrap()
+                .is_match(&text[m.end()..end])
+            {
                 return Some(m.start());
             }
         }
@@ -1795,7 +1965,10 @@ pub mod framework_suite {
         let prefix_re = PREFIX.get_or_init(|| Regex::new(r"http\.Server\s*\{").unwrap());
         for m in prefix_re.find_iter(text) {
             let end = (m.end() + 500).min(text.len());
-            if !Regex::new(r"ReadHeaderTimeout|ReadTimeout|WriteTimeout|IdleTimeout").unwrap().is_match(&text[m.end()..end]) {
+            if !Regex::new(r"ReadHeaderTimeout|ReadTimeout|WriteTimeout|IdleTimeout")
+                .unwrap()
+                .is_match(&text[m.end()..end])
+            {
                 return Some(m.start());
             }
         }
@@ -1805,11 +1978,20 @@ pub mod framework_suite {
     fn family_files<'a>(plan: &'a Value, id: &str) -> Vec<String> {
         plan.get("coverageFamilies")
             .and_then(Value::as_array)
-            .and_then(|families| families.iter().find(|f| f.get("id").and_then(Value::as_str) == Some(id)))
+            .and_then(|families| {
+                families
+                    .iter()
+                    .find(|f| f.get("id").and_then(Value::as_str) == Some(id))
+            })
             .and_then(|f| f.get("denominator"))
             .and_then(|d| d.get("paths"))
             .and_then(Value::as_array)
-            .map(|paths| paths.iter().filter_map(|p| p.as_str().map(String::from)).collect())
+            .map(|paths| {
+                paths
+                    .iter()
+                    .filter_map(|p| p.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -1836,17 +2018,35 @@ pub mod framework_suite {
                     // flags used at each call site.
                     let re = Regex::new(rule.pattern).unwrap();
                     if let Some(m) = re.find(&text) {
-                        candidates.push(candidate(rule.id, rule.level, rule.message, file, line_at(&text, m.start())));
+                        candidates.push(candidate(
+                            rule.id,
+                            rule.level,
+                            rule.message,
+                            file,
+                            line_at(&text, m.start()),
+                        ));
                     }
                 }
                 if family == "framework.nest" {
                     if let Some(idx) = collect_nest_validation_missing_transform(&text) {
-                        candidates.push(candidate("nest-validation-missing-transform", "note", "Nest ValidationPipe does not visibly enable transformation.", file, line_at(&text, idx)));
+                        candidates.push(candidate(
+                            "nest-validation-missing-transform",
+                            "note",
+                            "Nest ValidationPipe does not visibly enable transformation.",
+                            file,
+                            line_at(&text, idx),
+                        ));
                     }
                 }
                 if family == "framework.go-web" {
                     if let Some(idx) = collect_go_http_no_timeouts(&text) {
-                        candidates.push(candidate("go-http-no-timeouts", "warning", "Go HTTP server has no visible timeout configuration.", file, line_at(&text, idx)));
+                        candidates.push(candidate(
+                            "go-http-no-timeouts",
+                            "warning",
+                            "Go HTTP server has no visible timeout configuration.",
+                            file,
+                            line_at(&text, idx),
+                        ));
                     }
                 }
             }
@@ -1876,16 +2076,31 @@ pub mod framework_suite {
         let results = run_framework_suite(root, plan);
         let mut gaps: Vec<Value> = results
             .iter()
-            .flat_map(|r| r.get("coverageGaps").and_then(Value::as_array).cloned().unwrap_or_default())
+            .flat_map(|r| {
+                r.get("coverageGaps")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+            })
             .collect();
         if results.is_empty() {
             gaps.push(json!({ "kind": "framework-denominator-zero" }));
         }
-        let candidates_status = results.iter().any(|r| r.get("status").and_then(Value::as_str) == Some("candidates"));
-        let examined = results.iter().filter(|r| r.get("complete").and_then(Value::as_bool) == Some(true)).count();
+        let candidates_status = results
+            .iter()
+            .any(|r| r.get("status").and_then(Value::as_str) == Some("candidates"));
+        let examined = results
+            .iter()
+            .filter(|r| r.get("complete").and_then(Value::as_bool) == Some(true))
+            .count();
         let candidates: Vec<Value> = results
             .iter()
-            .flat_map(|r| r.get("candidates").and_then(Value::as_array).cloned().unwrap_or_default())
+            .flat_map(|r| {
+                r.get("candidates")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+            })
             .collect();
         json!({
             "status": if !gaps.is_empty() { "unproven" } else if candidates_status { "candidates" } else { "pass" },
@@ -1912,7 +2127,10 @@ pub mod security_suite {
     ];
 
     pub fn pack_provider(pack: &str) -> Option<&'static str> {
-        PACK_PROVIDERS.iter().find(|(k, _)| *k == pack).map(|(_, v)| *v)
+        PACK_PROVIDERS
+            .iter()
+            .find(|(k, _)| *k == pack)
+            .map(|(_, v)| *v)
     }
 
     const MAX_FILE_BYTES: usize = 2 * 1024 * 1024;
@@ -1980,8 +2198,15 @@ pub mod security_suite {
         let reads_secrets = Regex::new(r"(?i)(?:process\.env|os\.environ|std::env|GetEnvironmentVariable|\.ssh|\.aws|credentials|keychain|secret)").unwrap().is_match(text);
         let sends_network = Regex::new(r"(?i)(?:fetch\s*\(|axios\.|requests\.|httpx\.|curl\s|Invoke-WebRequest|TcpStream|HttpClient)").unwrap().is_match(text);
         if reads_secrets && sends_network {
-            let index = index_of_any(text, &["process.env", "os.environ", "credentials", "secret"]).min(text.len().saturating_sub(1));
-            vec![CustomMatch { index, metadata: None }]
+            let index = index_of_any(
+                text,
+                &["process.env", "os.environ", "credentials", "secret"],
+            )
+            .min(text.len().saturating_sub(1));
+            vec![CustomMatch {
+                index,
+                metadata: None,
+            }]
         } else {
             vec![]
         }
@@ -1989,11 +2214,15 @@ pub mod security_suite {
 
     fn skill_hidden_unicode(_path: &str, text: &str) -> Vec<CustomMatch> {
         const HIDDEN: &[u32] = &[
-            0x200b, 0x200c, 0x200d, 0x2060, 0xfeff, 0x202a, 0x202b, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069,
+            0x200b, 0x200c, 0x200d, 0x2060, 0xfeff, 0x202a, 0x202b, 0x202d, 0x202e, 0x2066, 0x2067,
+            0x2068, 0x2069,
         ];
         text.char_indices()
             .filter(|(_, c)| HIDDEN.contains(&(*c as u32)))
-            .map(|(index, _)| CustomMatch { index, metadata: None })
+            .map(|(index, _)| CustomMatch {
+                index,
+                metadata: None,
+            })
             .collect()
     }
 
@@ -2098,7 +2327,11 @@ pub mod security_suite {
     }
 
     fn is_placeholder(value: &str) -> bool {
-        let normalized: String = value.to_lowercase().chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+        let normalized: String = value
+            .to_lowercase()
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .collect();
         if normalized.is_empty() {
             return true;
         }
@@ -2123,12 +2356,21 @@ pub mod security_suite {
     fn security_relevant_context(path: &str) -> &'static str {
         let normalized = path.to_lowercase().replace('\\', "/");
         static TEST_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        let test_re = TEST_RE.get_or_init(|| Regex::new(r"(?:^|/)(?:test|tests|fixtures?|examples?|docs?)/").unwrap());
+        let test_re = TEST_RE.get_or_init(|| {
+            Regex::new(r"(?:^|/)(?:test|tests|fixtures?|examples?|docs?)/").unwrap()
+        });
         if test_re.is_match(&normalized) {
             return "low";
         }
-        let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).map(|s| format!(".{}", s.to_lowercase())).unwrap_or_default();
-        const HIGH: &[&str] = &[".env", ".ini", ".toml", ".yaml", ".yml", ".json", ".js", ".jsx", ".ts", ".tsx", ".py", ".rb", ".php", ".java", ".kt", ".cs", ".go", ".rs", ".swift", ".sh", ".ps1"];
+        let ext = std::path::Path::new(path)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| format!(".{}", s.to_lowercase()))
+            .unwrap_or_default();
+        const HIGH: &[&str] = &[
+            ".env", ".ini", ".toml", ".yaml", ".yml", ".json", ".js", ".jsx", ".ts", ".tsx", ".py",
+            ".rb", ".php", ".java", ".kt", ".cs", ".go", ".rs", ".swift", ".sh", ".ps1",
+        ];
         if HIGH.contains(&ext.as_str()) || normalized.ends_with(".env") {
             "high"
         } else {
@@ -2181,7 +2423,16 @@ pub mod security_suite {
         matches
     }
 
-    fn candidate(rule_id: &str, provider: &str, claim: &str, severity_hint: &str, threat_model: &str, path: &str, text: &str, m: &CustomMatch) -> Value {
+    fn candidate(
+        rule_id: &str,
+        provider: &str,
+        claim: &str,
+        severity_hint: &str,
+        threat_model: &str,
+        path: &str,
+        text: &str,
+        m: &CustomMatch,
+    ) -> Value {
         let line = line_at_local(text, m.index);
         let mut obj = json!({
             "id": digest_id(&[provider, rule_id, &format!("{path}:{line}")]),
@@ -2206,8 +2457,17 @@ pub mod security_suite {
         Ok(rules().into_iter().filter(|r| r.pack == pack).collect())
     }
 
-    pub fn generate_security_candidates(root: &std::path::Path, files: &[String], pack: &str, provider: Option<&str>) -> Result<Value, String> {
-        let provider = provider.map(String::from).unwrap_or_else(|| pack_provider(pack).map(String::from).unwrap_or_else(|| format!("security.{pack}")));
+    pub fn generate_security_candidates(
+        root: &std::path::Path,
+        files: &[String],
+        pack: &str,
+        provider: Option<&str>,
+    ) -> Result<Value, String> {
+        let provider = provider.map(String::from).unwrap_or_else(|| {
+            pack_provider(pack)
+                .map(String::from)
+                .unwrap_or_else(|| format!("security.{pack}"))
+        });
         let rules = rules_for_pack(pack)?;
         let mut candidates = Vec::new();
         let mut scanned = Vec::new();
@@ -2230,21 +2490,51 @@ pub mod security_suite {
             scanned.push(path.clone());
             if pack == "credentials" || pack == "all" {
                 for m in credential_matches(path, &text) {
-                    candidates.push(candidate(CREDENTIAL_RULE_ID, &provider, CREDENTIAL_CLAIM, CREDENTIAL_SEVERITY, "credential-exposure", path, &text, &m));
+                    candidates.push(candidate(
+                        CREDENTIAL_RULE_ID,
+                        &provider,
+                        CREDENTIAL_CLAIM,
+                        CREDENTIAL_SEVERITY,
+                        "credential-exposure",
+                        path,
+                        &text,
+                        &m,
+                    ));
                 }
             }
             for rule in &rules {
                 match &rule.matcher {
                     Matcher::Custom(f) => {
                         for m in f(path, &text) {
-                            candidates.push(candidate(rule.id, &provider, rule.claim, rule.severity_hint, rule.threat_model, path, &text, &m));
+                            candidates.push(candidate(
+                                rule.id,
+                                &provider,
+                                rule.claim,
+                                rule.severity_hint,
+                                rule.threat_model,
+                                path,
+                                &text,
+                                &m,
+                            ));
                         }
                     }
                     Matcher::Patterns(patterns) => {
                         for pattern in *patterns {
                             let re = Regex::new(pattern).unwrap();
                             for m in re.find_iter(&text) {
-                                candidates.push(candidate(rule.id, &provider, rule.claim, rule.severity_hint, rule.threat_model, path, &text, &CustomMatch { index: m.start(), metadata: None }));
+                                candidates.push(candidate(
+                                    rule.id,
+                                    &provider,
+                                    rule.claim,
+                                    rule.severity_hint,
+                                    rule.threat_model,
+                                    path,
+                                    &text,
+                                    &CustomMatch {
+                                        index: m.start(),
+                                        metadata: None,
+                                    },
+                                ));
                             }
                         }
                     }
@@ -2274,30 +2564,44 @@ pub mod security_suite {
         let mut seen = std::collections::HashSet::new();
         let candidates: Vec<Value> = reports
             .iter()
-            .flat_map(|r| r.get("candidates").and_then(Value::as_array).cloned().unwrap_or_default())
+            .flat_map(|r| {
+                r.get("candidates")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+            })
             .filter(|c| seen.insert(c["id"].as_str().unwrap_or_default().to_string()))
             .collect();
-        let complete = reports.iter().all(|r| r.get("complete").and_then(Value::as_bool).unwrap_or(true));
+        let complete = reports
+            .iter()
+            .all(|r| r.get("complete").and_then(Value::as_bool).unwrap_or(true));
         let provider_reports: Vec<Value> = reports
             .iter()
-            .map(|r| json!({
-                "provider": r.get("provider").cloned().unwrap_or(Value::Null),
-                "rulePack": r.get("rulePack").cloned().unwrap_or(Value::Null),
-                "expectedFiles": r["coverage"]["expectedFiles"].clone(),
-                "scannedFiles": r["coverage"]["scannedFiles"].clone(),
-                "rules": r["coverage"]["rules"].clone(),
-            }))
+            .map(|r| {
+                json!({
+                    "provider": r.get("provider").cloned().unwrap_or(Value::Null),
+                    "rulePack": r.get("rulePack").cloned().unwrap_or(Value::Null),
+                    "expectedFiles": r["coverage"]["expectedFiles"].clone(),
+                    "scannedFiles": r["coverage"]["scannedFiles"].clone(),
+                    "rules": r["coverage"]["rules"].clone(),
+                })
+            })
             .collect();
         let coverage_gaps: Vec<Value> = reports
             .iter()
             .flat_map(|r| {
                 let provider = r.get("provider").cloned().unwrap_or(Value::Null);
-                r.get("coverageGaps").and_then(Value::as_array).cloned().unwrap_or_default().into_iter().map(move |mut gap| {
-                    if let Value::Object(obj) = &mut gap {
-                        obj.insert("provider".into(), provider.clone());
-                    }
-                    gap
-                })
+                r.get("coverageGaps")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(move |mut gap| {
+                        if let Value::Object(obj) = &mut gap {
+                            obj.insert("provider".into(), provider.clone());
+                        }
+                        gap
+                    })
             })
             .collect();
         json!({
@@ -2308,10 +2612,20 @@ pub mod security_suite {
     }
 
     pub fn derive_variant_queries(confirmed_finding: &Value) -> Result<Value, String> {
-        let rule_id = confirmed_finding.get("ruleId").and_then(Value::as_str).ok_or("confirmed finding requires ruleId and evidence")?;
-        let evidence = confirmed_finding.get("evidence").and_then(Value::as_array).filter(|e| !e.is_empty()).ok_or("confirmed finding requires ruleId and evidence")?;
+        let rule_id = confirmed_finding
+            .get("ruleId")
+            .and_then(Value::as_str)
+            .ok_or("confirmed finding requires ruleId and evidence")?;
+        let evidence = confirmed_finding
+            .get("evidence")
+            .and_then(Value::as_array)
+            .filter(|e| !e.is_empty())
+            .ok_or("confirmed finding requires ruleId and evidence")?;
         let first = &evidence[0];
-        let file = first.get("file").and_then(Value::as_str).unwrap_or_default();
+        let file = first
+            .get("file")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let line = first.get("line").cloned().unwrap_or(Value::Null);
         let same_sink_class = rule_id.split('.').take(2).collect::<Vec<_>>().join(".");
         Ok(json!({

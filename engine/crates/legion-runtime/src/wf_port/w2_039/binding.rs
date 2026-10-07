@@ -185,6 +185,9 @@ mod tests {
         // the JS default doesn't silently diverge.
         let err: BindingMismatch =
             assert_artifact_binding::<Artifact>(None, None, "artifact").unwrap_err();
-        assert_eq!(err.to_string(), "artifact binding does not match sealed plan");
+        assert_eq!(
+            err.to_string(),
+            "artifact binding does not match sealed plan"
+        );
     }
 }

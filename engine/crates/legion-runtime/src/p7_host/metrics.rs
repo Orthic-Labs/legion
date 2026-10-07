@@ -29,7 +29,10 @@ pub fn economics_receipt(input: &EconomicsInputs) -> Value {
 
 pub fn run_summary(records: &[Value]) -> Value {
     let total = |field: &str| -> f64 {
-        records.iter().filter_map(|r| r.get(field).and_then(Value::as_f64)).sum()
+        records
+            .iter()
+            .filter_map(|r| r.get(field).and_then(Value::as_f64))
+            .sum()
     };
     json!({
         "schemaVersion": 1,
@@ -50,7 +53,11 @@ mod tests {
 
     #[test]
     fn economics_receipt_carries_fields_through() {
-        let receipt = economics_receipt(&EconomicsInputs { provider: "eslint".into(), duration_ms: 100.0, ..Default::default() });
+        let receipt = economics_receipt(&EconomicsInputs {
+            provider: "eslint".into(),
+            duration_ms: 100.0,
+            ..Default::default()
+        });
         assert_eq!(receipt["provider"], "eslint");
         assert_eq!(receipt["durationMs"], 100.0);
     }

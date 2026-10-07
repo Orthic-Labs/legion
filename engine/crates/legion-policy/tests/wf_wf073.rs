@@ -13,11 +13,11 @@
 
 use legion_policy::wf_port::wf073::{
     advisory_judgment_bindings, advisory_judgment_runtime_ids, evaluate_review_disposition_case,
-    review_disposition_policy_ids, validate_advisory_judgment_observation, validate_review_disposition_decision,
-    AdapterCapability, ArcaneError, CaseEvidence, Coverage, Dependency, DependencyLedger, EligibilityStatus,
-    ExploitChainEvidence, ExploitLink, Finding, HandoffEvidence, InMemoryProviderCapabilityStore,
-    PendingTerminalOperationStore, ProviderCapabilityRegistry, ReviewDispositionDecision,
-    ReviewReopenEvidence, Status,
+    review_disposition_policy_ids, validate_advisory_judgment_observation,
+    validate_review_disposition_decision, AdapterCapability, ArcaneError, CaseEvidence, Coverage,
+    Dependency, DependencyLedger, EligibilityStatus, ExploitChainEvidence, ExploitLink, Finding,
+    HandoffEvidence, InMemoryProviderCapabilityStore, PendingTerminalOperationStore,
+    ProviderCapabilityRegistry, ReviewDispositionDecision, ReviewReopenEvidence, Status,
 };
 
 // ---------------------------------------------------------------------
@@ -37,15 +37,27 @@ fn source_revision_change_cascades_exactly_once_and_leaves_unrelated_evidence_un
 
     ledger.register(
         "ev_A",
-        vec![Dependency { dimension: "git-revision".into(), reference: "repo:main".into(), digest: src_digest_1.clone() }],
+        vec![Dependency {
+            dimension: "git-revision".into(),
+            reference: "repo:main".into(),
+            digest: src_digest_1.clone(),
+        }],
     );
     ledger.register(
         "ev_B",
-        vec![Dependency { dimension: "evidence".into(), reference: "ev_A".into(), digest: format!("sha256:{}", "a".repeat(64)) }],
+        vec![Dependency {
+            dimension: "evidence".into(),
+            reference: "ev_A".into(),
+            digest: format!("sha256:{}", "a".repeat(64)),
+        }],
     );
     ledger.register(
         "ev_D",
-        vec![Dependency { dimension: "config-digest".into(), reference: "config:app".into(), digest: format!("sha256:{}", "d".repeat(64)) }],
+        vec![Dependency {
+            dimension: "config-digest".into(),
+            reference: "config:app".into(),
+            digest: format!("sha256:{}", "d".repeat(64)),
+        }],
     );
     ledger.link("ev_B", Some("AC-1"), Some("clm_1")).unwrap();
 
@@ -73,11 +85,36 @@ fn source_revision_change_cascades_exactly_once_and_leaves_unrelated_evidence_un
 #[test]
 fn changing_a_different_dimension_stales_exactly_the_bound_evidence() {
     let mut ledger = fixed_clock();
-    ledger.register("ev_1", vec![Dependency { dimension: "config-digest".into(), reference: "config:x".into(), digest: format!("sha256:{}", "1".repeat(64)) }]);
-    ledger.register("ev_2", vec![Dependency { dimension: "policy-version".into(), reference: "policy:y".into(), digest: format!("sha256:{}", "2".repeat(64)) }]);
-    ledger.register("ev_3", vec![Dependency { dimension: "config-digest".into(), reference: "config:other".into(), digest: format!("sha256:{}", "3".repeat(64)) }]);
+    ledger.register(
+        "ev_1",
+        vec![Dependency {
+            dimension: "config-digest".into(),
+            reference: "config:x".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+        }],
+    );
+    ledger.register(
+        "ev_2",
+        vec![Dependency {
+            dimension: "policy-version".into(),
+            reference: "policy:y".into(),
+            digest: format!("sha256:{}", "2".repeat(64)),
+        }],
+    );
+    ledger.register(
+        "ev_3",
+        vec![Dependency {
+            dimension: "config-digest".into(),
+            reference: "config:other".into(),
+            digest: format!("sha256:{}", "3".repeat(64)),
+        }],
+    );
 
-    let event = ledger.observe_change("config-digest", "config:x", &format!("sha256:{}", "f".repeat(64)));
+    let event = ledger.observe_change(
+        "config-digest",
+        "config:x",
+        &format!("sha256:{}", "f".repeat(64)),
+    );
 
     assert_eq!(event.staled_evidence, vec!["ev_1".to_string()]);
     assert!(event.cascaded_evidence.is_empty());
@@ -92,9 +129,20 @@ fn changing_a_different_dimension_stales_exactly_the_bound_evidence() {
 fn historical_preservation_original_digest_never_overwritten() {
     let mut ledger = fixed_clock();
     let original_digest = format!("sha256:{}", "7".repeat(64));
-    ledger.register("ev_hist", vec![Dependency { dimension: "source-digest".into(), reference: "file:a.js".into(), digest: original_digest.clone() }]);
+    ledger.register(
+        "ev_hist",
+        vec![Dependency {
+            dimension: "source-digest".into(),
+            reference: "file:a.js".into(),
+            digest: original_digest.clone(),
+        }],
+    );
 
-    ledger.observe_change("source-digest", "file:a.js", &format!("sha256:{}", "8".repeat(64)));
+    ledger.observe_change(
+        "source-digest",
+        "file:a.js",
+        &format!("sha256:{}", "8".repeat(64)),
+    );
 
     let rec = ledger.get_evidence("ev_hist").unwrap();
     assert!(rec.stale);
@@ -118,11 +166,23 @@ fn untrusted_legacy_evidence_can_never_become_proven() {
 #[test]
 fn corrupt_ledger_entry_blocks_strong_claims_and_reports_affected_ids() {
     let mut ledger = fixed_clock();
-    ledger.register("ev_ok", vec![Dependency { dimension: "config-digest".into(), reference: "config:z".into(), digest: format!("sha256:{}", "0".repeat(64)) }]);
+    ledger.register(
+        "ev_ok",
+        vec![Dependency {
+            dimension: "config-digest".into(),
+            reference: "config:z".into(),
+            digest: format!("sha256:{}", "0".repeat(64)),
+        }],
+    );
     ledger.link("ev_ok", Some("AC-corrupt"), None).unwrap();
-    assert_eq!(ledger.proof_eligibility("AC-corrupt").status, EligibilityStatus::Proven);
+    assert_eq!(
+        ledger.proof_eligibility("AC-corrupt").status,
+        EligibilityStatus::Proven
+    );
 
-    ledger.mark_corrupt("ev_ok", "digest chain broken at sequence 4").unwrap();
+    ledger
+        .mark_corrupt("ev_ok", "digest chain broken at sequence 4")
+        .unwrap();
 
     let eligibility = ledger.proof_eligibility("AC-corrupt");
     assert_eq!(eligibility.status, EligibilityStatus::Insufficient);
@@ -152,14 +212,26 @@ fn unknown_evidence_id_is_rejected_with_arc_dependency_unknown() {
 #[test]
 fn proof_eligibility_with_no_linked_evidence_is_insufficient() {
     let ledger = fixed_clock();
-    assert_eq!(ledger.proof_eligibility("AC-none").status, EligibilityStatus::Insufficient);
+    assert_eq!(
+        ledger.proof_eligibility("AC-none").status,
+        EligibilityStatus::Insufficient
+    );
 }
 
 #[test]
 fn snapshot_exposes_state_consistently_with_individual_accessors() {
     let mut ledger = fixed_clock();
-    ledger.register("ev_snap", vec![Dependency { dimension: "tool-version".into(), reference: "tool:node".into(), digest: format!("sha256:{}", "9".repeat(64)) }]);
-    ledger.link("ev_snap", Some("AC-snap"), Some("clm_snap")).unwrap();
+    ledger.register(
+        "ev_snap",
+        vec![Dependency {
+            dimension: "tool-version".into(),
+            reference: "tool:node".into(),
+            digest: format!("sha256:{}", "9".repeat(64)),
+        }],
+    );
+    ledger
+        .link("ev_snap", Some("AC-snap"), Some("clm_snap"))
+        .unwrap();
 
     let snap = ledger.snapshot();
     assert!(snap.evidence.iter().any(|e| e.evidence_id == "ev_snap"));
@@ -181,7 +253,9 @@ fn snapshot_exposes_state_consistently_with_individual_accessors() {
 #[test]
 fn mint_rejects_caller_supplied_authentication_or_claim_id() {
     let dir = std::env::temp_dir().join(format!("wf073-ptos-{}", std::process::id()));
-    let store = PendingTerminalOperationStore::new(dir, vec![1, 2, 3, 4], || "2026-01-01T00:00:00.000Z".to_string());
+    let store = PendingTerminalOperationStore::new(dir, vec![1, 2, 3, 4], || {
+        "2026-01-01T00:00:00.000Z".to_string()
+    });
     let mut fields = serde_json::Map::new();
     fields.insert("claimId".into(), serde_json::json!("sha256:deadbeef"));
     let err: ArcaneError = store.mint(fields).unwrap_err();
@@ -192,7 +266,9 @@ fn mint_rejects_caller_supplied_authentication_or_claim_id() {
 fn mint_append_matching_and_resolve_round_trip() {
     let dir = std::env::temp_dir().join(format!("wf073-ptos-rt-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let store = PendingTerminalOperationStore::new(dir, vec![9, 9, 9], || "2026-01-01T00:00:00.000Z".to_string());
+    let store = PendingTerminalOperationStore::new(dir, vec![9, 9, 9], || {
+        "2026-01-01T00:00:00.000Z".to_string()
+    });
 
     let digest = format!("sha256:{}", "a".repeat(64));
     let mut fields = serde_json::Map::new();
@@ -219,23 +295,42 @@ fn mint_append_matching_and_resolve_round_trip() {
     let appended_again = store.append(claim.clone());
     assert_eq!(appended_again.get("allowed").unwrap(), true);
     assert_eq!(
-        appended_again.get("detail").unwrap().get("idempotent").unwrap(),
+        appended_again
+            .get("detail")
+            .unwrap()
+            .get("idempotent")
+            .unwrap(),
         true
     );
 
-    let found = store.matching(claim.get("turnCorrelationDigest").unwrap().as_str().unwrap(), 1);
+    let found = store.matching(
+        claim
+            .get("turnCorrelationDigest")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+        1,
+    );
     assert!(found.is_some());
 
     let resolved = store.resolve(
         &claim_id,
         &format!("sha256:{}", "b".repeat(64)),
-        claim.get("turnCorrelationDigest").unwrap().as_str().unwrap(),
+        claim
+            .get("turnCorrelationDigest")
+            .unwrap()
+            .as_str()
+            .unwrap(),
         1,
         true,
     );
     assert_eq!(resolved.get("allowed").unwrap(), true);
     assert_eq!(
-        resolved.get("detail").unwrap().get("certification").unwrap(),
+        resolved
+            .get("detail")
+            .unwrap()
+            .get("certification")
+            .unwrap(),
         "genuine"
     );
 }
@@ -244,7 +339,9 @@ fn mint_append_matching_and_resolve_round_trip() {
 fn resolve_rejects_mismatched_stop_binding() {
     let dir = std::env::temp_dir().join(format!("wf073-ptos-mismatch-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let store = PendingTerminalOperationStore::new(dir, vec![4, 4, 4], || "2026-01-01T00:00:00.000Z".to_string());
+    let store = PendingTerminalOperationStore::new(dir, vec![4, 4, 4], || {
+        "2026-01-01T00:00:00.000Z".to_string()
+    });
     let digest = format!("sha256:{}", "c".repeat(64));
     let mut fields = serde_json::Map::new();
     fields.insert("invocationProofDigest".into(), serde_json::json!(digest));
@@ -288,7 +385,15 @@ fn record_rejects_an_incomplete_adapter() {
     let mut registry = ProviderCapabilityRegistry::new(InMemoryProviderCapabilityStore::default());
     let mut broken = full_adapter("adapter-1");
     broken.gateable = false;
-    let decision = registry.record("provider-1", &broken, "2026-01-01T00:00:00.000Z", None, "normal", None, None);
+    let decision = registry.record(
+        "provider-1",
+        &broken,
+        "2026-01-01T00:00:00.000Z",
+        None,
+        "normal",
+        None,
+        None,
+    );
     assert!(!decision.allowed);
     assert_eq!(decision.code, Some("ARC_UNSOUND_SEAL"));
     assert_eq!(decision.admission, Some("INFORMATIONAL_ONLY"));
@@ -298,7 +403,15 @@ fn record_rejects_an_incomplete_adapter() {
 fn record_rejects_sensitive_without_retention_or_deletion_owner() {
     let mut registry = ProviderCapabilityRegistry::new(InMemoryProviderCapabilityStore::default());
     let adapter = full_adapter("adapter-2");
-    let decision = registry.record("provider-2", &adapter, "2026-01-01T00:00:00.000Z", None, "sensitive", None, None);
+    let decision = registry.record(
+        "provider-2",
+        &adapter,
+        "2026-01-01T00:00:00.000Z",
+        None,
+        "sensitive",
+        None,
+        None,
+    );
     assert!(!decision.allowed);
     assert_eq!(decision.admission, Some("DENIED"));
 }
@@ -307,7 +420,15 @@ fn record_rejects_sensitive_without_retention_or_deletion_owner() {
 fn record_then_get_round_trips_through_the_adapter() {
     let mut registry = ProviderCapabilityRegistry::new(InMemoryProviderCapabilityStore::default());
     let adapter = full_adapter("adapter-3");
-    let decision = registry.record("provider-3", &adapter, "2026-01-01T00:00:00.000Z", None, "normal", None, None);
+    let decision = registry.record(
+        "provider-3",
+        &adapter,
+        "2026-01-01T00:00:00.000Z",
+        None,
+        "normal",
+        None,
+        None,
+    );
     assert!(decision.allowed);
     let stored = registry.get("provider-3").expect("stored");
     assert_eq!(stored.provider_id, "provider-3");
@@ -319,7 +440,15 @@ fn registry_without_store_always_reports_informational_only() {
     let mut registry: ProviderCapabilityRegistry<InMemoryProviderCapabilityStore> =
         ProviderCapabilityRegistry::without_store();
     let adapter = full_adapter("adapter-4");
-    let decision = registry.record("provider-4", &adapter, "2026-01-01T00:00:00.000Z", None, "normal", None, None);
+    let decision = registry.record(
+        "provider-4",
+        &adapter,
+        "2026-01-01T00:00:00.000Z",
+        None,
+        "normal",
+        None,
+        None,
+    );
     assert!(!decision.allowed);
     assert_eq!(decision.admission, Some("INFORMATIONAL_ONLY"));
 }
@@ -338,9 +467,14 @@ fn irreversible_uncertainty_after_exhausted_review_budget_needs_a_spike() {
         external_block: false,
         budget_stop: false,
     };
-    let decision = evaluate_review_disposition_case("AE-HANDOFF-004", CaseEvidence::Handoff(&evidence)).unwrap();
+    let decision =
+        evaluate_review_disposition_case("AE-HANDOFF-004", CaseEvidence::Handoff(&evidence))
+            .unwrap();
     assert_eq!(decision.disposition(), Some("NEEDS_SPIKE"));
-    assert!(validate_review_disposition_decision("AE-HANDOFF-004", &decision));
+    assert!(validate_review_disposition_decision(
+        "AE-HANDOFF-004",
+        &decision
+    ));
 }
 
 #[test]
@@ -358,9 +492,11 @@ fn unsupported_links_deny_exploit_chain_and_downgrade_coverage() {
             inspected_areas: vec!["entry".to_string(), "sink".to_string()],
         }),
     };
-    let decision =
-        evaluate_review_disposition_case("AE-REVIEW-VERDICT-SECURITY-002", CaseEvidence::ExploitChain(&evidence))
-            .unwrap();
+    let decision = evaluate_review_disposition_case(
+        "AE-REVIEW-VERDICT-SECURITY-002",
+        CaseEvidence::ExploitChain(&evidence),
+    )
+    .unwrap();
     assert_eq!(decision.disposition(), Some("NO_EXPLOIT_CHAIN"));
     if let ReviewDispositionDecision::ExploitChain { coverage, .. } = &decision {
         assert_eq!(coverage.disposition, "INCOMPLETE_COVERAGE");
@@ -383,9 +519,11 @@ fn closed_reviews_with_advisory_items_only_never_reopen() {
             disposition: "ADVISORY".to_string(),
         }],
     };
-    let decision =
-        evaluate_review_disposition_case("AE-REVIEW-VERDICT-SECURITY-005", CaseEvidence::ReviewReopen(&evidence))
-            .unwrap();
+    let decision = evaluate_review_disposition_case(
+        "AE-REVIEW-VERDICT-SECURITY-005",
+        CaseEvidence::ReviewReopen(&evidence),
+    )
+    .unwrap();
     assert_eq!(decision.disposition(), Some("NO_REOPEN"));
     assert!(validate_review_disposition_decision(
         "AE-REVIEW-VERDICT-SECURITY-005",
@@ -395,7 +533,8 @@ fn closed_reviews_with_advisory_items_only_never_reopen() {
 
 #[test]
 fn policy_rejects_malformed_or_contrary_evidence_instead_of_defaulting_to_success() {
-    let missing = evaluate_review_disposition_case("AE-HANDOFF-004", CaseEvidence::Missing).unwrap();
+    let missing =
+        evaluate_review_disposition_case("AE-HANDOFF-004", CaseEvidence::Missing).unwrap();
     assert_eq!(*missing.status(), Status::Deny);
 
     let reopen_required_evidence = ReviewReopenEvidence {
@@ -415,7 +554,11 @@ fn policy_rejects_malformed_or_contrary_evidence_instead_of_defaulting_to_succes
 
     assert_eq!(
         review_disposition_policy_ids(),
-        &["AE-HANDOFF-004", "AE-REVIEW-VERDICT-SECURITY-002", "AE-REVIEW-VERDICT-SECURITY-005"]
+        &[
+            "AE-HANDOFF-004",
+            "AE-REVIEW-VERDICT-SECURITY-002",
+            "AE-REVIEW-VERDICT-SECURITY-005"
+        ]
     );
 }
 

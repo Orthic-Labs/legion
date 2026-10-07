@@ -32,7 +32,12 @@ fn dedup_sorted(mut v: Vec<String>) -> Vec<String> {
 /// `sha256:[a-f0-9]{64}` without pulling in the `regex` crate.
 fn is_sha256_digest(value: &str) -> bool {
     match value.strip_prefix("sha256:") {
-        Some(rest) => rest.len() == 64 && rest.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
+        Some(rest) => {
+            rest.len() == 64
+                && rest
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        }
         None => false,
     }
 }
@@ -97,7 +102,9 @@ fn falsy(v: &Value) -> bool {
 /// `[...new Set(v)]`: de-duplicate while preserving first-occurrence order.
 fn dedup_preserve_order(v: Vec<String>) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
-    v.into_iter().filter(|item| seen.insert(item.clone())).collect()
+    v.into_iter()
+        .filter(|item| seen.insert(item.clone()))
+        .collect()
 }
 
 /// A very small case-insensitive substring search over ASCII text; mirrors
@@ -125,7 +132,9 @@ fn find_ci(haystack: &[u8], needle: &str) -> Option<usize> {
 /// `String(value)` coercion: use the raw text for a JSON string, otherwise
 /// its JSON representation (close enough for the log lines this checks).
 fn js_string_coerce(v: &Value) -> String {
-    v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())
+    v.as_str()
+        .map(str::to_string)
+        .unwrap_or_else(|| v.to_string())
 }
 
 fn looks_sensitive(value: &str) -> bool {
@@ -159,7 +168,14 @@ fn looks_sensitive(value: &str) -> bool {
                 end += 1;
             }
             let run = &value[start..end];
-            for marker in ["?token=", "&token=", "?signature=", "&signature=", "?sig=", "&sig="] {
+            for marker in [
+                "?token=",
+                "&token=",
+                "?signature=",
+                "&signature=",
+                "?sig=",
+                "&sig=",
+            ] {
                 if find_ci(run.as_bytes(), marker).is_some() {
                     return true;
                 }
@@ -180,22 +196,58 @@ fn looks_sensitive(value: &str) -> bool {
 const TERMINAL_STATUSES: &[&str] = &["pass", "fail", "partial", "unproven", "blocked", "error"];
 
 pub const FILE_CASES: &[&str] = &[
-    "empty", "zero-byte", "large", "malformed", "unsupported", "duplicate", "read-only", "network",
-    "cloud-synced", "externally-changed", "externally-deleted", "long-path", "unicode-rtl", "symlink",
-    "archive-bomb", "permission-boundary", "atomic-save", "cancellation", "disk-full", "temp-cleanup",
-    "corruption", "backup-restore", "os-user-isolation", "cloud-conflict", "deep-link", "clipboard",
-    "drag-drop", "open-save-dialog", "file-association",
+    "empty",
+    "zero-byte",
+    "large",
+    "malformed",
+    "unsupported",
+    "duplicate",
+    "read-only",
+    "network",
+    "cloud-synced",
+    "externally-changed",
+    "externally-deleted",
+    "long-path",
+    "unicode-rtl",
+    "symlink",
+    "archive-bomb",
+    "permission-boundary",
+    "atomic-save",
+    "cancellation",
+    "disk-full",
+    "temp-cleanup",
+    "corruption",
+    "backup-restore",
+    "os-user-isolation",
+    "cloud-conflict",
+    "deep-link",
+    "clipboard",
+    "drag-drop",
+    "open-save-dialog",
+    "file-association",
 ];
 
 pub fn evaluate_desktop_storage(input: &Value) -> Value {
     let cases: Vec<Value> = get_array(input, "cases").to_vec();
     let migrations: Vec<Value> = get_array(input, "migrations").to_vec();
     let locations = get(input, "locations").clone();
-    let locations = if locations.is_null() { json!({}) } else { locations };
+    let locations = if locations.is_null() {
+        json!({})
+    } else {
+        locations
+    };
     let evidence = get(input, "evidence").clone();
-    let evidence = if evidence.is_null() { json!({}) } else { evidence };
+    let evidence = if evidence.is_null() {
+        json!({})
+    } else {
+        evidence
+    };
 
-    let receipts: Vec<Value> = cases.iter().cloned().chain(migrations.iter().cloned()).collect();
+    let receipts: Vec<Value> = cases
+        .iter()
+        .cloned()
+        .chain(migrations.iter().cloned())
+        .collect();
     let mut gaps: Vec<String> = Vec::new();
 
     for item in &receipts {
@@ -208,7 +260,10 @@ pub fn evaluate_desktop_storage(input: &Value) -> Value {
     }
     for migration in &migrations {
         if get_str(migration, "status") != Some("pass") && !get_true(migration, "sourcePreserved") {
-            gaps.push(format!("migration-source-not-preserved:{}", id_of(migration)));
+            gaps.push(format!(
+                "migration-source-not-preserved:{}",
+                id_of(migration)
+            ));
         }
     }
 
@@ -243,7 +298,10 @@ pub fn evaluate_desktop_storage(input: &Value) -> Value {
         gaps.push("native-storage-receipt-missing".to_string());
     }
 
-    let status = if gaps.iter().any(|g| g.starts_with("migration-source-not-preserved")) {
+    let status = if gaps
+        .iter()
+        .any(|g| g.starts_with("migration-source-not-preserved"))
+    {
         "fail"
     } else if !gaps.is_empty() {
         "unproven"
@@ -309,7 +367,15 @@ pub fn execute_desktop_storage(host: Option<&dyn FilesHost>, migration_ids: &[St
 // ---------------------------------------------------------------------
 
 pub const REQUIRED_EVIDENCE_FAMILIES: &[&str] = &[
-    "process", "ipc", "files", "storage", "os", "performance", "installer", "updater", "platform",
+    "process",
+    "ipc",
+    "files",
+    "storage",
+    "os",
+    "performance",
+    "installer",
+    "updater",
+    "platform",
 ];
 
 struct Account {
@@ -327,8 +393,16 @@ fn account(expected: &[String], actual: &[String]) -> Account {
     ids.sort();
     ids.dedup();
     let present: std::collections::HashSet<&String> = actual.iter().collect();
-    let missing: Vec<String> = ids.iter().filter(|id| !present.contains(id)).cloned().collect();
-    Account { total: ids.len(), accounted: ids.len() - missing.len(), missing }
+    let missing: Vec<String> = ids
+        .iter()
+        .filter(|id| !present.contains(id))
+        .cloned()
+        .collect();
+    Account {
+        total: ids.len(),
+        accounted: ids.len() - missing.len(),
+        missing,
+    }
 }
 
 fn contains_ci(haystack: &str, needle: &str) -> bool {
@@ -337,7 +411,10 @@ fn contains_ci(haystack: &str, needle: &str) -> bool {
 
 fn families_for(receipt: &Value) -> Vec<String> {
     if let Some(arr) = get(receipt, "evidenceFamilies").as_array() {
-        return arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+        return arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect();
     }
     if let Some(family) = get_str(receipt, "evidenceFamily") {
         return vec![family.to_string()];
@@ -350,7 +427,9 @@ fn families_for(receipt: &Value) -> Vec<String> {
         Some("legion-desktop-performance") => vec!["performance".to_string()],
         Some("legion-desktop-installer-lifecycle") => vec!["installer".to_string()],
         Some("legion-desktop-updater") => vec!["updater".to_string()],
-        Some("legion-desktop-windows") | Some("legion-desktop-macos") | Some("legion-desktop-linux") => {
+        Some("legion-desktop-windows")
+        | Some("legion-desktop-macos")
+        | Some("legion-desktop-linux") => {
             vec!["platform".to_string()]
         }
         _ => vec![],
@@ -359,8 +438,14 @@ fn families_for(receipt: &Value) -> Vec<String> {
 
 pub fn integrate_desktop_evidence(input: &Value) -> Value {
     let target_id = get(input, "targetId").clone();
-    let controls: Vec<String> = get_array(input, "controls").iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
-    let scenarios: Vec<String> = get_array(input, "scenarios").iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+    let controls: Vec<String> = get_array(input, "controls")
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
+    let scenarios: Vec<String> = get_array(input, "scenarios")
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
     let receipts_in: Vec<Value> = get_array(input, "receipts").to_vec();
     let platform_matrices: Vec<Value> = get_array(input, "platformMatrices").to_vec();
 
@@ -372,7 +457,9 @@ pub fn integrate_desktop_evidence(input: &Value) -> Value {
             .or_else(|| get_str(receipt, "scenarioId"))
             .unwrap_or("unknown");
         if get(receipt, "targetId") != &target_id {
-            gaps.push(format!("target-binding-mismatch:{receipt_control_or_scenario}"));
+            gaps.push(format!(
+                "target-binding-mismatch:{receipt_control_or_scenario}"
+            ));
             continue;
         }
         if !get_true(receipt, "terminal") {
@@ -381,7 +468,8 @@ pub fn integrate_desktop_evidence(input: &Value) -> Value {
         }
         let control_id = get_str(receipt, "controlId").unwrap_or("");
         let source_regex_only = get_true(receipt, "sourceRegexOnly")
-            || (get_str(receipt, "claimLevel") == Some("source") && contains_ci(control_id, "release"));
+            || (get_str(receipt, "claimLevel") == Some("source")
+                && contains_ci(control_id, "release"));
         if source_regex_only {
             gaps.push(format!("native-release-evidence-missing:{control_id}"));
         }
@@ -393,38 +481,72 @@ pub fn integrate_desktop_evidence(input: &Value) -> Value {
         .filter(|item| {
             let control_id = get_str(item, "controlId").unwrap_or("");
             !(get_true(item, "sourceRegexOnly")
-                || (get_str(item, "claimLevel") == Some("source") && contains_ci(control_id, "release")))
+                || (get_str(item, "claimLevel") == Some("source")
+                    && contains_ci(control_id, "release")))
         })
         .collect();
 
-    let control_ids: Vec<String> = closure_receipts.iter().filter_map(|item| get_str(item, "controlId").map(str::to_string)).collect();
-    let scenario_ids: Vec<String> = closure_receipts.iter().filter_map(|item| get_str(item, "scenarioId").map(str::to_string)).collect();
+    let control_ids: Vec<String> = closure_receipts
+        .iter()
+        .filter_map(|item| get_str(item, "controlId").map(str::to_string))
+        .collect();
+    let scenario_ids: Vec<String> = closure_receipts
+        .iter()
+        .filter_map(|item| get_str(item, "scenarioId").map(str::to_string))
+        .collect();
     let control_counts = account(&controls, &control_ids);
     let scenario_counts = account(&scenarios, &scenario_ids);
 
     let mut present_families: Vec<String> = admitted.iter().flat_map(families_for).collect();
     present_families.sort();
     present_families.dedup();
-    let required_families: Vec<String> = REQUIRED_EVIDENCE_FAMILIES.iter().map(|s| s.to_string()).collect();
+    let required_families: Vec<String> = REQUIRED_EVIDENCE_FAMILIES
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let evidence_families = account(&required_families, &present_families);
 
-    gaps.extend(control_counts.missing.iter().map(|id| format!("control-missing:{id}")));
-    gaps.extend(scenario_counts.missing.iter().map(|id| format!("scenario-missing:{id}")));
-    gaps.extend(evidence_families.missing.iter().map(|id| format!("evidence-family-missing:{id}")));
+    gaps.extend(
+        control_counts
+            .missing
+            .iter()
+            .map(|id| format!("control-missing:{id}")),
+    );
+    gaps.extend(
+        scenario_counts
+            .missing
+            .iter()
+            .map(|id| format!("scenario-missing:{id}")),
+    );
+    gaps.extend(
+        evidence_families
+            .missing
+            .iter()
+            .map(|id| format!("evidence-family-missing:{id}")),
+    );
 
     for matrix in &platform_matrices {
         let os = get_str(matrix, "os");
         let status = get_str(matrix, "status");
-        let status_ok = status.is_some_and(|s| ["pass", "unsupported", "unproven", "partial", "fail"].contains(&s));
+        let status_ok = status
+            .is_some_and(|s| ["pass", "unsupported", "unproven", "partial", "fail"].contains(&s));
         if os.is_none() || !status_ok {
-            gaps.push(format!("platform-matrix-invalid:{}", os.unwrap_or("unknown")));
+            gaps.push(format!(
+                "platform-matrix-invalid:{}",
+                os.unwrap_or("unknown")
+            ));
         }
     }
 
     let stop_ship = gaps.iter().any(|g| {
-        contains_ci(g, "nonterminal") || contains_ci(g, "binding-mismatch") || contains_ci(g, "native-release")
+        contains_ci(g, "nonterminal")
+            || contains_ci(g, "binding-mismatch")
+            || contains_ci(g, "native-release")
     }) || admitted.iter().any(|item| {
-        matches!(get_str(item, "status"), Some("fail") | Some("error") | Some("blocked"))
+        matches!(
+            get_str(item, "status"),
+            Some("fail") | Some("error") | Some("blocked")
+        )
     });
 
     let status = if stop_ship {
@@ -460,11 +582,24 @@ pub fn integrate_desktop_evidence(input: &Value) -> Value {
 // ---------------------------------------------------------------------
 
 pub const INSTALLER_CASES: &[&str] = &[
-    "install", "repair", "upgrade", "downgrade", "rollback", "uninstall", "reinstall",
-    "interrupted-install", "offline-uninstall", "locked-files", "modes", "snapshots", "logs", "changes",
+    "install",
+    "repair",
+    "upgrade",
+    "downgrade",
+    "rollback",
+    "uninstall",
+    "reinstall",
+    "interrupted-install",
+    "offline-uninstall",
+    "locked-files",
+    "modes",
+    "snapshots",
+    "logs",
+    "changes",
     "cleanup",
 ];
-const NEGATIVE_INSTALLER_CASES: &[&str] = &["interrupted-install", "offline-uninstall", "locked-files"];
+const NEGATIVE_INSTALLER_CASES: &[&str] =
+    &["interrupted-install", "offline-uninstall", "locked-files"];
 const SIGNATURE_RECEIPT_REQUIRED: bool = true;
 
 /// Matches the JS `throw new Error(...)` for an unsafe destructive target.
@@ -476,16 +611,23 @@ pub fn evaluate_installer_lifecycle(input: &Value) -> Result<Value, String> {
             other => other.to_string(),
         };
         let normalized = raw.replace('\\', "/").to_lowercase();
-        let has_temp_segment = normalized.split('/').any(|seg| seg == "temp") || normalized == "temp";
+        let has_temp_segment =
+            normalized.split('/').any(|seg| seg == "temp") || normalized == "temp";
         if !has_temp_segment {
-            return Err("destructive installer scenarios require an isolated temp target".to_string());
+            return Err(
+                "destructive installer scenarios require an isolated temp target".to_string(),
+            );
         }
     }
 
     let pkg = get(input, "package").clone();
     let pkg = if pkg.is_null() { json!({}) } else { pkg };
     let capability = get(input, "capability").clone();
-    let capability = if capability.is_null() { json!({}) } else { capability };
+    let capability = if capability.is_null() {
+        json!({})
+    } else {
+        capability
+    };
     let scenarios: Vec<Value> = get_array(input, "scenarios").to_vec();
 
     let mut gaps: Vec<String> = Vec::new();
@@ -495,13 +637,16 @@ pub fn evaluate_installer_lifecycle(input: &Value) -> Result<Value, String> {
     }
     if SIGNATURE_RECEIPT_REQUIRED {
         let sig = get(&pkg, "signatureReceipt");
-        let sig_ok = get_str(sig, "status") == Some("pass") && get_str(sig, "artifactDigest") == get_str(&pkg, "digest");
+        let sig_ok = get_str(sig, "status") == Some("pass")
+            && get_str(sig, "artifactDigest") == get_str(&pkg, "digest");
         if !sig_ok {
             gaps.push("signature-receipt-unproven".to_string());
         }
     }
     if get_str(&capability, "status") != Some("available") {
-        let reason = get_str(&capability, "reason").or_else(|| get_str(&capability, "status")).unwrap_or("missing");
+        let reason = get_str(&capability, "reason")
+            .or_else(|| get_str(&capability, "status"))
+            .unwrap_or("missing");
         gaps.push(format!("installer-capability-{reason}"));
     }
     for scenario in &scenarios {
@@ -532,7 +677,10 @@ pub fn evaluate_installer_lifecycle(input: &Value) -> Result<Value, String> {
         }
     }
     for id in INSTALLER_CASES {
-        if !scenarios.iter().any(|s| get_str(s, "id") == Some(*id) && get_true(s, "terminal")) {
+        if !scenarios
+            .iter()
+            .any(|s| get_str(s, "id") == Some(*id) && get_true(s, "terminal"))
+        {
             gaps.push(format!("lifecycle-case-missing:{id}"));
         }
     }
@@ -600,9 +748,25 @@ pub fn execute_installer_lifecycle(
 // ipc/index.mjs
 // ---------------------------------------------------------------------
 
-pub const IPC_CASES: &[&str] = &["allowed", "denied", "malformed", "oversized", "replayed", "wrong-caller", "stale-session", "shutdown"];
+pub const IPC_CASES: &[&str] = &[
+    "allowed",
+    "denied",
+    "malformed",
+    "oversized",
+    "replayed",
+    "wrong-caller",
+    "stale-session",
+    "shutdown",
+];
 const IPC_INVENTORY: &[&str] = &["sockets", "plugins", "sidecars"];
-const IPC_BOUNDARIES: &[&str] = &["navigation", "remoteContent", "externalUrl", "shell", "process", "filesystem"];
+const IPC_BOUNDARIES: &[&str] = &[
+    "navigation",
+    "remoteContent",
+    "externalUrl",
+    "shell",
+    "process",
+    "filesystem",
+];
 
 fn is_denied_case(id: &str) -> bool {
     IPC_CASES.contains(&id) && id != "allowed"
@@ -617,11 +781,23 @@ pub fn evaluate_desktop_ipc(input: &Value) -> Value {
     let attempts: Vec<Value> = get_array(input, "attempts").to_vec();
     let helpers: Vec<Value> = get_array(input, "helpers").to_vec();
     let inventory = get(input, "inventory").clone();
-    let inventory = if inventory.is_null() { json!({}) } else { inventory };
+    let inventory = if inventory.is_null() {
+        json!({})
+    } else {
+        inventory
+    };
     let boundaries = get(input, "boundaries").clone();
-    let boundaries = if boundaries.is_null() { json!({}) } else { boundaries };
+    let boundaries = if boundaries.is_null() {
+        json!({})
+    } else {
+        boundaries
+    };
     let evidence = get(input, "evidence").clone();
-    let evidence = if evidence.is_null() { json!({}) } else { evidence };
+    let evidence = if evidence.is_null() {
+        json!({})
+    } else {
+        evidence
+    };
 
     let find_command = |command_id: &Value| commands.iter().find(|c| get(c, "id") == command_id);
 
@@ -677,7 +853,10 @@ pub fn evaluate_desktop_ipc(input: &Value) -> Value {
         }
     }
     for id in IPC_CASES {
-        if !attempts.iter().any(|a| get_str(a, "id") == Some(*id) && get_true(a, "terminal")) {
+        if !attempts
+            .iter()
+            .any(|a| get_str(a, "id") == Some(*id) && get_true(a, "terminal"))
+        {
             gaps.push(format!("ipc-case-missing:{id}"));
         }
     }
@@ -722,9 +901,17 @@ pub trait IpcHost {
     }
 }
 
-pub fn execute_desktop_ipc(host: Option<&dyn IpcHost>, commands: &Value, helpers: &Value, inventory: &Value, boundaries: &Value) -> Value {
+pub fn execute_desktop_ipc(
+    host: Option<&dyn IpcHost>,
+    commands: &Value,
+    helpers: &Value,
+    inventory: &Value,
+    boundaries: &Value,
+) -> Value {
     let Some(host) = host else {
-        return evaluate_desktop_ipc(&json!({ "commands": commands, "helpers": helpers, "inventory": inventory, "boundaries": boundaries }));
+        return evaluate_desktop_ipc(
+            &json!({ "commands": commands, "helpers": helpers, "inventory": inventory, "boundaries": boundaries }),
+        );
     };
     let attempts: Vec<Value> = IPC_CASES
         .iter()
@@ -741,13 +928,33 @@ pub fn execute_desktop_ipc(host: Option<&dyn IpcHost>, commands: &Value, helpers
 // ---------------------------------------------------------------------
 
 pub const LINUX_CASES: &[&str] = &[
-    "xdg", "x11-wayland", "libraries", "appimage", "flatpak", "snap", "deb-rpm", "desktop-entry",
-    "mime-protocol", "polkit", "sandbox", "distribution-desktop",
+    "xdg",
+    "x11-wayland",
+    "libraries",
+    "appimage",
+    "flatpak",
+    "snap",
+    "deb-rpm",
+    "desktop-entry",
+    "mime-protocol",
+    "polkit",
+    "sandbox",
+    "distribution-desktop",
 ];
 
 pub const MACOS_CASES: &[&str] = &[
-    "hardened-runtime", "notarization", "gatekeeper", "entitlements", "app-sandbox", "keychain", "tcc",
-    "app-translocation", "architectures", "login-items-helpers", "menus-windows", "residual-data",
+    "hardened-runtime",
+    "notarization",
+    "gatekeeper",
+    "entitlements",
+    "app-sandbox",
+    "keychain",
+    "tcc",
+    "app-translocation",
+    "architectures",
+    "login-items-helpers",
+    "menus-windows",
+    "residual-data",
 ];
 
 fn bound_matrix(os: &str, matrix: &Value) -> Value {
@@ -757,10 +964,18 @@ fn bound_matrix(os: &str, matrix: &Value) -> Value {
 pub fn evaluate_linux_platform(input: &Value) -> Value {
     let matrix = get(input, "matrix").clone();
     let artifact = get(input, "artifact").clone();
-    let artifact = if artifact.is_null() { json!({}) } else { artifact };
+    let artifact = if artifact.is_null() {
+        json!({})
+    } else {
+        artifact
+    };
     let checks: Vec<Value> = get_array(input, "checks").to_vec();
     let capability = get(input, "capability").clone();
-    let capability = if capability.is_null() { json!({}) } else { capability };
+    let capability = if capability.is_null() {
+        json!({})
+    } else {
+        capability
+    };
 
     let bound = bound_matrix("linux", &matrix);
     let mut gaps: Vec<String> = Vec::new();
@@ -769,7 +984,9 @@ pub fn evaluate_linux_platform(input: &Value) -> Value {
     }
     let capability_available = get_str(&capability, "status") == Some("available");
     if !capability_available {
-        let reason = get_str(&capability, "reason").or_else(|| get_str(&capability, "status")).unwrap_or("missing");
+        let reason = get_str(&capability, "reason")
+            .or_else(|| get_str(&capability, "status"))
+            .unwrap_or("missing");
         gaps.push(format!("linux-capability-unavailable:{reason}"));
     }
     for check in &checks {
@@ -779,7 +996,10 @@ pub fn evaluate_linux_platform(input: &Value) -> Value {
     }
     if capability_available {
         for id in LINUX_CASES {
-            if !checks.iter().any(|c| get_str(c, "id") == Some(*id) && get_true(c, "terminal")) {
+            if !checks
+                .iter()
+                .any(|c| get_str(c, "id") == Some(*id) && get_true(c, "terminal"))
+            {
                 gaps.push(format!("linux-case-missing:{id}"));
             }
         }
@@ -794,10 +1014,18 @@ pub fn evaluate_linux_platform(input: &Value) -> Value {
 pub fn evaluate_macos_platform(input: &Value) -> Value {
     let matrix = get(input, "matrix").clone();
     let artifact = get(input, "artifact").clone();
-    let artifact = if artifact.is_null() { json!({}) } else { artifact };
+    let artifact = if artifact.is_null() {
+        json!({})
+    } else {
+        artifact
+    };
     let checks: Vec<Value> = get_array(input, "checks").to_vec();
     let capability = get(input, "capability").clone();
-    let capability = if capability.is_null() { json!({}) } else { capability };
+    let capability = if capability.is_null() {
+        json!({})
+    } else {
+        capability
+    };
 
     let bound = bound_matrix("macos", &matrix);
     let mut gaps: Vec<String> = Vec::new();
@@ -806,7 +1034,9 @@ pub fn evaluate_macos_platform(input: &Value) -> Value {
     }
     let capability_available = get_str(&capability, "status") == Some("available");
     if !capability_available {
-        let reason = get_str(&capability, "reason").or_else(|| get_str(&capability, "status")).unwrap_or("missing");
+        let reason = get_str(&capability, "reason")
+            .or_else(|| get_str(&capability, "status"))
+            .unwrap_or("missing");
         gaps.push(format!("macos-capability-unavailable:{reason}"));
     }
     for check in &checks {
@@ -815,14 +1045,18 @@ pub fn evaluate_macos_platform(input: &Value) -> Value {
             gaps.push(format!("macos-check-nonterminal:{cid}"));
         }
         if (cid == "notarization" || cid == "gatekeeper")
-            && (!get_true(&artifact, "final") || get(check, "artifactDigest") != get(&artifact, "digest"))
+            && (!get_true(&artifact, "final")
+                || get(check, "artifactDigest") != get(&artifact, "digest"))
         {
             gaps.push(format!("macos-final-artifact-unproven:{cid}"));
         }
     }
     if capability_available {
         for id in MACOS_CASES {
-            if !checks.iter().any(|c| get_str(c, "id") == Some(*id) && get_true(c, "terminal")) {
+            if !checks
+                .iter()
+                .any(|c| get_str(c, "id") == Some(*id) && get_true(c, "terminal"))
+            {
                 gaps.push(format!("macos-case-missing:{id}"));
             }
         }
@@ -839,18 +1073,28 @@ pub trait PlatformCheckHost {
 }
 
 pub fn execute_linux_platform(host: Option<&dyn PlatformCheckHost>, input: &Value) -> Value {
-    let Some(host) = host else { return evaluate_linux_platform(input) };
+    let Some(host) = host else {
+        return evaluate_linux_platform(input);
+    };
     let artifact = get(input, "artifact");
-    let checks: Vec<Value> = LINUX_CASES.iter().map(|id| host.check(&json!({ "os": "linux", "id": id, "artifact": artifact }))).collect();
+    let checks: Vec<Value> = LINUX_CASES
+        .iter()
+        .map(|id| host.check(&json!({ "os": "linux", "id": id, "artifact": artifact })))
+        .collect();
     let mut merged = input.clone();
     merged["checks"] = json!(checks);
     evaluate_linux_platform(&merged)
 }
 
 pub fn execute_macos_platform(host: Option<&dyn PlatformCheckHost>, input: &Value) -> Value {
-    let Some(host) = host else { return evaluate_macos_platform(input) };
+    let Some(host) = host else {
+        return evaluate_macos_platform(input);
+    };
     let artifact = get(input, "artifact");
-    let checks: Vec<Value> = MACOS_CASES.iter().map(|id| host.check(&json!({ "os": "macos", "id": id, "artifact": artifact }))).collect();
+    let checks: Vec<Value> = MACOS_CASES
+        .iter()
+        .map(|id| host.check(&json!({ "os": "macos", "id": id, "artifact": artifact })))
+        .collect();
     let mut merged = input.clone();
     merged["checks"] = json!(checks);
     evaluate_macos_platform(&merged)
@@ -860,20 +1104,57 @@ pub fn execute_macos_platform(host: Option<&dyn PlatformCheckHost>, input: &Valu
 // os-integration/index.mjs
 // ---------------------------------------------------------------------
 
-const OS_ALLOWED_STATUSES: &[&str] = &["pass", "fail", "partial", "unproven", "blocked", "error", "unsupported"];
-const HOST_UNAVAILABLE_TYPES: &[&str] = &["remote-host", "device-not-present", "os-version-unavailable", "license-restricted"];
+const OS_ALLOWED_STATUSES: &[&str] = &[
+    "pass",
+    "fail",
+    "partial",
+    "unproven",
+    "blocked",
+    "error",
+    "unsupported",
+];
+const HOST_UNAVAILABLE_TYPES: &[&str] = &[
+    "remote-host",
+    "device-not-present",
+    "os-version-unavailable",
+    "license-restricted",
+];
 
 pub const DESKTOP_OS_CASES: &[&str] = &[
-    "single-instance", "multi-window", "focus-modal", "tray-menu", "autostart", "notifications", "shortcuts",
-    "exit", "window-restore", "missing-monitor", "mixed-dpi", "display-hotplug", "high-contrast",
-    "reduced-motion", "ime", "non-us-keyboard", "screen-reader", "keyboard-only", "installer-keyboard",
-    "updater-screen-reader", "sleep-resume", "permission-revocation", "non-admin",
+    "single-instance",
+    "multi-window",
+    "focus-modal",
+    "tray-menu",
+    "autostart",
+    "notifications",
+    "shortcuts",
+    "exit",
+    "window-restore",
+    "missing-monitor",
+    "mixed-dpi",
+    "display-hotplug",
+    "high-contrast",
+    "reduced-motion",
+    "ime",
+    "non-us-keyboard",
+    "screen-reader",
+    "keyboard-only",
+    "installer-keyboard",
+    "updater-screen-reader",
+    "sleep-resume",
+    "permission-revocation",
+    "non-admin",
 ];
 
 pub fn compile_desktop_os_matrix(input: &Value) -> Value {
     let required: Vec<String> = match get(input, "required").as_array() {
-        Some(arr) => arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
-        None if get(input, "required").is_null() => DESKTOP_OS_CASES.iter().map(|s| s.to_string()).collect(),
+        Some(arr) => arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect(),
+        None if get(input, "required").is_null() => {
+            DESKTOP_OS_CASES.iter().map(|s| s.to_string()).collect()
+        }
         None => vec![],
     };
     let requested = dedup_preserve_order(required);
@@ -884,7 +1165,9 @@ pub fn compile_desktop_os_matrix(input: &Value) -> Value {
         .iter()
         .map(|id| match find(id) {
             Some(v) => v.clone(),
-            None => json!({ "id": id, "status": "unproven", "terminal": true, "synthesized": true }),
+            None => {
+                json!({ "id": id, "status": "unproven", "terminal": true, "synthesized": true })
+            }
         })
         .collect();
 
@@ -901,10 +1184,12 @@ pub fn compile_desktop_os_matrix(input: &Value) -> Value {
     for item in &receipts {
         let iid = id_of(item);
         let status = get_str(item, "status");
-        if !get_true(item, "terminal") || !status.is_some_and(|s| OS_ALLOWED_STATUSES.contains(&s)) {
+        if !get_true(item, "terminal") || !status.is_some_and(|s| OS_ALLOWED_STATUSES.contains(&s))
+        {
             gaps.push(format!("terminal-status-invalid:{iid}"));
         }
-        if falsy(get(item, "os")) || falsy(get(item, "version")) || falsy(get(item, "architecture")) {
+        if falsy(get(item, "os")) || falsy(get(item, "version")) || falsy(get(item, "architecture"))
+        {
             gaps.push(format!("platform-binding-incomplete:{iid}"));
         }
         if !get(item, "state").is_object() {
@@ -920,7 +1205,9 @@ pub fn compile_desktop_os_matrix(input: &Value) -> Value {
             let host_unavailable = get(item, "hostUnavailable");
             if !host_unavailable.is_object() {
                 gaps.push(format!("host-unavailable-evidence-missing:{iid}"));
-            } else if !get_str(host_unavailable, "type").is_some_and(|t| HOST_UNAVAILABLE_TYPES.contains(&t)) {
+            } else if !get_str(host_unavailable, "type")
+                .is_some_and(|t| HOST_UNAVAILABLE_TYPES.contains(&t))
+            {
                 gaps.push(format!("host-unavailable-type-invalid:{iid}"));
             } else if falsy(get(host_unavailable, "detail")) {
                 gaps.push(format!("host-unavailable-detail-missing:{iid}"));
@@ -939,7 +1226,10 @@ pub fn compile_desktop_os_matrix(input: &Value) -> Value {
                 && get_str(item, "status").is_some_and(|s| OS_ALLOWED_STATUSES.contains(&s))
         })
         .count();
-    let synthesized = receipts.iter().filter(|item| get_true(item, "synthesized")).count();
+    let synthesized = receipts
+        .iter()
+        .filter(|item| get_true(item, "synthesized"))
+        .count();
 
     json!({
         "schemaVersion": 1, "kind": "legion-desktop-os-matrix",
@@ -955,13 +1245,19 @@ pub trait OsProbeHost {
 }
 
 pub fn execute_desktop_os_matrix(host: Option<&dyn OsProbeHost>, input: &Value) -> Value {
-    let Some(host) = host else { return compile_desktop_os_matrix(input) };
+    let Some(host) = host else {
+        return compile_desktop_os_matrix(input);
+    };
     let required: Vec<Value> = match get(input, "required").as_array() {
         Some(arr) => arr.clone(),
         None => DESKTOP_OS_CASES.iter().map(|s| json!(s)).collect(),
     };
     let binding = get(input, "binding").clone();
-    let binding_obj = if binding.is_object() { binding } else { json!({}) };
+    let binding_obj = if binding.is_object() {
+        binding
+    } else {
+        json!({})
+    };
     let mut receipts = Vec::new();
     for id in &required {
         let mut request = binding_obj.clone();
@@ -982,8 +1278,19 @@ pub fn execute_desktop_os_matrix(host: Option<&dyn OsProbeHost>, input: &Value) 
 // ---------------------------------------------------------------------
 
 pub const PERFORMANCE_CASES: &[&str] = &[
-    "cold-start", "first-usable", "input", "background-job", "memory-idle", "memory-peak", "cpu-wakeups",
-    "gpu-fallback", "disk-network", "energy", "duration", "low-end", "fault",
+    "cold-start",
+    "first-usable",
+    "input",
+    "background-job",
+    "memory-idle",
+    "memory-peak",
+    "cpu-wakeups",
+    "gpu-fallback",
+    "disk-network",
+    "energy",
+    "duration",
+    "low-end",
+    "fault",
 ];
 
 fn environment_gaps(environment: &Value) -> Vec<String> {
@@ -1026,21 +1333,36 @@ fn measurement_evidence(item: &Value) -> MeasurementEvidence {
     if falsy(get(item, "id")) || falsy(get(item, "unit")) || samples.len() < 3 || p95.is_none() {
         gaps.push(format!("measurement-incomplete:{id}"));
     }
-    if get_f64(item, "budget").is_none() || falsy(get(item, "profileArtifact")) || get_f64(item, "variance").is_none() {
+    if get_f64(item, "budget").is_none()
+        || falsy(get(item, "profileArtifact"))
+        || get_f64(item, "variance").is_none()
+    {
         gaps.push(format!("measurement-budget-missing:{id}"));
     }
     if !get_f64(item, "durationSeconds").is_some_and(|v| v >= 1.0) {
         gaps.push(format!("measurement-duration-missing:{id}"));
     }
     let repeat_count = samples.len();
-    MeasurementEvidence { gaps, samples, repeat_count }
+    MeasurementEvidence {
+        gaps,
+        samples,
+        repeat_count,
+    }
 }
 
 pub fn evaluate_desktop_performance(input: &Value) -> Value {
     let artifact = get(input, "artifact").clone();
-    let artifact = if artifact.is_null() { json!({}) } else { artifact };
+    let artifact = if artifact.is_null() {
+        json!({})
+    } else {
+        artifact
+    };
     let environment = get(input, "environment").clone();
-    let environment = if environment.is_null() { json!({}) } else { environment };
+    let environment = if environment.is_null() {
+        json!({})
+    } else {
+        environment
+    };
     let measurements: Vec<Value> = get_array(input, "measurements").to_vec();
     let soak = get(input, "soak").clone();
 
@@ -1063,7 +1385,10 @@ pub fn evaluate_desktop_performance(input: &Value) -> Value {
         gaps.push("measurement-denominator-empty".to_string());
     }
     for id in PERFORMANCE_CASES {
-        if !measurements.iter().any(|item| get_str(item, "id") == Some(*id)) {
+        if !measurements
+            .iter()
+            .any(|item| get_str(item, "id") == Some(*id))
+        {
             gaps.push(format!("measurement-case-missing:{id}"));
         }
     }
@@ -1074,7 +1399,9 @@ pub fn evaluate_desktop_performance(input: &Value) -> Value {
             gaps.push("soak-duration-incomplete".to_string());
         }
     } else {
-        let tag = get_str(&soak, "capabilityGap").or_else(|| get_str(&soak, "status")).unwrap_or("unproven");
+        let tag = get_str(&soak, "capabilityGap")
+            .or_else(|| get_str(&soak, "status"))
+            .unwrap_or("unproven");
         gaps.push(format!("soak-{tag}"));
     }
 
@@ -1107,32 +1434,52 @@ pub trait PerformanceHost {
     fn soak(&self, request: &Value) -> Value;
 }
 
-pub fn execute_desktop_performance(host: Option<&dyn PerformanceHost>, artifact: &Value, environment: &Value, budgets: &Value) -> Value {
+pub fn execute_desktop_performance(
+    host: Option<&dyn PerformanceHost>,
+    artifact: &Value,
+    environment: &Value,
+    budgets: &Value,
+) -> Value {
     let Some(host) = host else {
-        return evaluate_desktop_performance(&json!({ "artifact": artifact, "environment": environment }));
+        return evaluate_desktop_performance(
+            &json!({ "artifact": artifact, "environment": environment }),
+        );
     };
     let measurements: Vec<Value> = PERFORMANCE_CASES
         .iter()
         .map(|id| host.measure(&json!({ "id": id, "budget": get(budgets, id) })))
         .collect();
     let soak = host.soak(&json!({ "minimumHours": 8 }));
-    evaluate_desktop_performance(&json!({ "artifact": artifact, "environment": environment, "measurements": measurements, "soak": soak }))
+    evaluate_desktop_performance(
+        &json!({ "artifact": artifact, "environment": environment, "measurements": measurements, "soak": soak }),
+    )
 }
 
 // ---------------------------------------------------------------------
 // runner/index.mjs
 // ---------------------------------------------------------------------
 
-pub const DESKTOP_FRAMEWORKS: &[&str] = &["electron", "tauri", "apple", "dotnet", "qt-native", "flutter"];
+pub const DESKTOP_FRAMEWORKS: &[&str] = &[
+    "electron",
+    "tauri",
+    "apple",
+    "dotnet",
+    "qt-native",
+    "flutter",
+];
 
 fn desktop_adapter(framework: &str) -> Option<Value> {
     match framework {
-        "electron" => Some(json!({ "processRoles": ["main", "renderer"], "nativeSurface": "window" })),
+        "electron" => {
+            Some(json!({ "processRoles": ["main", "renderer"], "nativeSurface": "window" }))
+        }
         "tauri" => Some(json!({ "processRoles": ["main", "webview"], "nativeSurface": "window" })),
         "apple" => Some(json!({ "processRoles": ["application"], "nativeSurface": "nswindow" })),
         "dotnet" => Some(json!({ "processRoles": ["application"], "nativeSurface": "hwnd" })),
         "qt-native" => Some(json!({ "processRoles": ["application"], "nativeSurface": "qwindow" })),
-        "flutter" => Some(json!({ "processRoles": ["application"], "nativeSurface": "engine-view" })),
+        "flutter" => {
+            Some(json!({ "processRoles": ["application"], "nativeSurface": "engine-view" }))
+        }
         _ => None,
     }
 }
@@ -1145,11 +1492,23 @@ pub fn collect_desktop_runtime(input: &Value) -> Value {
     let target = get(input, "target").clone();
     let target = if target.is_null() { json!({}) } else { target };
     let artifact = get(input, "artifact").clone();
-    let artifact = if artifact.is_null() { json!({}) } else { artifact };
+    let artifact = if artifact.is_null() {
+        json!({})
+    } else {
+        artifact
+    };
     let capability = get(input, "capability").clone();
-    let capability = if capability.is_null() { json!({}) } else { capability };
+    let capability = if capability.is_null() {
+        json!({})
+    } else {
+        capability
+    };
     let observations = get(input, "observations").clone();
-    let observations = if observations.is_null() { json!({}) } else { observations };
+    let observations = if observations.is_null() {
+        json!({})
+    } else {
+        observations
+    };
 
     let mut gaps: Vec<String> = Vec::new();
     if falsy(get(&target, "id")) {
@@ -1164,7 +1523,9 @@ pub fn collect_desktop_runtime(input: &Value) -> Value {
         gaps.push("artifact-binding-incomplete".to_string());
     }
     let capability_receipt = get(&capability, "receipt");
-    if get_str(&capability, "status") != Some("available") || !get_true(capability_receipt, "cleanEnvironment") {
+    if get_str(&capability, "status") != Some("available")
+        || !get_true(capability_receipt, "cleanEnvironment")
+    {
         let status = get_str(&capability, "status").unwrap_or("missing");
         gaps.push(format!("native-capability-{status}"));
     }
@@ -1172,7 +1533,9 @@ pub fn collect_desktop_runtime(input: &Value) -> Value {
         gaps.push("native-surface-unproven".to_string());
     }
     let observations_receipt = get(&observations, "receipt");
-    if get_str(&observations, "source") != Some("native-host") || !get_true(observations_receipt, "terminal") {
+    if get_str(&observations, "source") != Some("native-host")
+        || !get_true(observations_receipt, "terminal")
+    {
         gaps.push("native-observation-receipt-missing".to_string());
     }
     let executable = get(&observations, "executable");
@@ -1243,7 +1606,13 @@ pub trait DesktopRuntimeHost {
     }
 }
 
-pub fn execute_desktop_runtime(host: Option<&dyn DesktopRuntimeHost>, target: &Value, artifact: &Value, capability: &Value, attach: bool) -> Value {
+pub fn execute_desktop_runtime(
+    host: Option<&dyn DesktopRuntimeHost>,
+    target: &Value,
+    artifact: &Value,
+    capability: &Value,
+    attach: bool,
+) -> Value {
     let usable = match (&host, attach) {
         (Some(h), true) => h.supports_attach(),
         (Some(h), false) => h.supports_launch(),
@@ -1273,8 +1642,14 @@ pub fn execute_desktop_runtime(host: Option<&dyn DesktopRuntimeHost>, target: &V
                     "webviews", "gpuProcesses", "startup", "firstUsable", "logs", "crashes", "orphans",
                     "shutdown", "environment", "receipt"],
     });
-    let observations = if attach { host.attach(&request) } else { host.launch(&request) };
-    collect_desktop_runtime(&json!({ "target": target, "artifact": artifact, "capability": capability, "observations": observations }))
+    let observations = if attach {
+        host.attach(&request)
+    } else {
+        host.launch(&request)
+    };
+    collect_desktop_runtime(
+        &json!({ "target": target, "artifact": artifact, "capability": capability, "observations": observations }),
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -1283,11 +1658,28 @@ pub fn execute_desktop_runtime(host: Option<&dyn DesktopRuntimeHost>, target: &V
 
 const UPDATER_CHECKS: &[&str] = &["application", "metadata", "payload", "timestamp"];
 pub const UPDATE_CASES: &[&str] = &[
-    "corrupt-manifest", "forged-payload", "redirect", "local-replacement", "insufficient-disk",
-    "locked-files", "interruption-resume", "updater-crash", "failed-install", "rollback",
-    "bad-release-pause", "staged-rollout", "kill-switch", "offline-grace", "self-update",
+    "corrupt-manifest",
+    "forged-payload",
+    "redirect",
+    "local-replacement",
+    "insufficient-disk",
+    "locked-files",
+    "interruption-resume",
+    "updater-crash",
+    "failed-install",
+    "rollback",
+    "bad-release-pause",
+    "staged-rollout",
+    "kill-switch",
+    "offline-grace",
+    "self-update",
 ];
-const FORGED_CALLER_BOOLS: &[&str] = &["forgedCaller", "fakeCaller", "spoofedCaller", "impersonatedCaller"];
+const FORGED_CALLER_BOOLS: &[&str] = &[
+    "forgedCaller",
+    "fakeCaller",
+    "spoofedCaller",
+    "impersonatedCaller",
+];
 
 fn verified(value: &Value, digest: &Value) -> bool {
     get_str(value, "status") == Some("pass") && get(value, "artifactDigest") == digest
@@ -1295,12 +1687,24 @@ fn verified(value: &Value, digest: &Value) -> bool {
 
 pub fn evaluate_updater_evidence(input: &Value) -> Value {
     let artifact = get(input, "artifact").clone();
-    let artifact = if artifact.is_null() { json!({}) } else { artifact };
+    let artifact = if artifact.is_null() {
+        json!({})
+    } else {
+        artifact
+    };
     let verification = get(input, "verification").clone();
-    let verification = if verification.is_null() { json!({}) } else { verification };
+    let verification = if verification.is_null() {
+        json!({})
+    } else {
+        verification
+    };
     let attempts: Vec<Value> = get_array(input, "attempts").to_vec();
     let promotion = get(input, "promotion").clone();
-    let promotion = if promotion.is_null() { json!({}) } else { promotion };
+    let promotion = if promotion.is_null() {
+        json!({})
+    } else {
+        promotion
+    };
 
     let mut gaps: Vec<String> = Vec::new();
     if let Some(map) = obj(&artifact) {
@@ -1319,7 +1723,9 @@ pub fn evaluate_updater_evidence(input: &Value) -> Value {
     if falsy(get(&artifact, "publisher")) {
         gaps.push("publisher-identity-unproven".to_string());
     }
-    let bypass = attempts.iter().any(|item| get_bool(item, "verificationPassed") == Some(false) && get_true(item, "executed"));
+    let bypass = attempts.iter().any(|item| {
+        get_bool(item, "verificationPassed") == Some(false) && get_true(item, "executed")
+    });
     if bypass {
         gaps.push("verification-bypass".to_string());
     }
@@ -1329,11 +1735,18 @@ pub fn evaluate_updater_evidence(input: &Value) -> Value {
         }
     }
     for id in UPDATE_CASES {
-        if !attempts.iter().any(|item| get_str(item, "id") == Some(*id) && get_true(item, "terminal")) {
+        if !attempts
+            .iter()
+            .any(|item| get_str(item, "id") == Some(*id) && get_true(item, "terminal"))
+        {
             gaps.push(format!("updater-case-missing:{id}"));
         }
     }
-    let digests = [get(&promotion, "qaDigest"), get(&promotion, "updateDigest"), get(&promotion, "distributedDigest")];
+    let digests = [
+        get(&promotion, "qaDigest"),
+        get(&promotion, "updateDigest"),
+        get(&promotion, "distributedDigest"),
+    ];
     let promotion_specified = digests.iter().any(|d| truthy(d));
     let promotion_equivalent = promotion_specified && digests.iter().all(|d| *d == digest);
     if !promotion_specified {
@@ -1355,7 +1768,9 @@ pub fn evaluate_updater_evidence(input: &Value) -> Value {
     if logs.iter().any(|v| looks_sensitive(&js_string_coerce(v))) {
         gaps.push("updater-log-sensitive".to_string());
     }
-    let verification_failed = UPDATER_CHECKS.iter().any(|check| get_str(get(&verification, check), "status") == Some("fail"));
+    let verification_failed = UPDATER_CHECKS
+        .iter()
+        .any(|check| get_str(get(&verification, check), "status") == Some("fail"));
     let has_forged_caller = gaps.iter().any(|g| g.starts_with("forged-caller-boolean:"));
     let stop_ship = verification_failed || bypass || has_forged_caller;
     let status = if stop_ship {
@@ -1377,15 +1792,24 @@ pub trait UpdaterHost {
     fn exercise(&self, request: &Value) -> Value;
 }
 
-pub fn execute_updater_evidence(host: Option<&dyn UpdaterHost>, artifact: &Value, verification: &Value, promotion: &Value) -> Value {
+pub fn execute_updater_evidence(
+    host: Option<&dyn UpdaterHost>,
+    artifact: &Value,
+    verification: &Value,
+    promotion: &Value,
+) -> Value {
     let Some(host) = host else {
-        return evaluate_updater_evidence(&json!({ "artifact": artifact, "verification": verification, "promotion": promotion }));
+        return evaluate_updater_evidence(
+            &json!({ "artifact": artifact, "verification": verification, "promotion": promotion }),
+        );
     };
     let attempts: Vec<Value> = UPDATE_CASES
         .iter()
         .map(|id| host.exercise(&json!({ "id": id, "artifact": artifact, "promotion": promotion })))
         .collect();
-    evaluate_updater_evidence(&json!({ "artifact": artifact, "verification": verification, "promotion": promotion, "attempts": attempts }))
+    evaluate_updater_evidence(
+        &json!({ "artifact": artifact, "verification": verification, "promotion": promotion, "attempts": attempts }),
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -1393,18 +1817,35 @@ pub fn execute_updater_evidence(host: Option<&dyn UpdaterHost>, artifact: &Value
 // ---------------------------------------------------------------------
 
 pub const WINDOWS_CASES: &[&str] = &[
-    "dpi-awareness", "unicode-long-path", "appdata-registry-acl", "authenticode", "smartscreen-defender",
-    "dll-search", "uac", "services-tasks", "quoted-registration", "installer", "remote-desktop",
+    "dpi-awareness",
+    "unicode-long-path",
+    "appdata-registry-acl",
+    "authenticode",
+    "smartscreen-defender",
+    "dll-search",
+    "uac",
+    "services-tasks",
+    "quoted-registration",
+    "installer",
+    "remote-desktop",
     "edr-assumptions",
 ];
 
 pub fn evaluate_windows_platform(input: &Value) -> Value {
     let matrix = get(input, "matrix").clone();
     let artifact = get(input, "artifact").clone();
-    let artifact = if artifact.is_null() { json!({}) } else { artifact };
+    let artifact = if artifact.is_null() {
+        json!({})
+    } else {
+        artifact
+    };
     let checks: Vec<Value> = get_array(input, "checks").to_vec();
     let capability = get(input, "capability").clone();
-    let capability = if capability.is_null() { json!({ "status": "available" }) } else { capability };
+    let capability = if capability.is_null() {
+        json!({ "status": "available" })
+    } else {
+        capability
+    };
 
     let bound = bound_matrix("windows", &matrix);
     let mut gaps: Vec<String> = Vec::new();
@@ -1412,7 +1853,9 @@ pub fn evaluate_windows_platform(input: &Value) -> Value {
         gaps.push("windows-matrix-incomplete".to_string());
     }
     if get_str(&capability, "status") != Some("available") {
-        let reason = get_str(&capability, "reason").or_else(|| get_str(&capability, "status")).unwrap_or("missing");
+        let reason = get_str(&capability, "reason")
+            .or_else(|| get_str(&capability, "status"))
+            .unwrap_or("missing");
         gaps.push(format!("windows-capability-{reason}"));
     }
     for check in &checks {
@@ -1421,13 +1864,17 @@ pub fn evaluate_windows_platform(input: &Value) -> Value {
             gaps.push(format!("windows-check-nonterminal:{cid}"));
         }
         if (cid == "authenticode" || cid == "installer")
-            && (!get_true(&artifact, "final") || get(check, "artifactDigest") != get(&artifact, "digest"))
+            && (!get_true(&artifact, "final")
+                || get(check, "artifactDigest") != get(&artifact, "digest"))
         {
             gaps.push(format!("windows-final-artifact-unproven:{cid}"));
         }
     }
     for id in WINDOWS_CASES {
-        if !checks.iter().any(|c| get_str(c, "id") == Some(*id) && get_true(c, "terminal")) {
+        if !checks
+            .iter()
+            .any(|c| get_str(c, "id") == Some(*id) && get_true(c, "terminal"))
+        {
             gaps.push(format!("windows-case-missing:{id}"));
         }
     }
@@ -1439,9 +1886,14 @@ pub fn evaluate_windows_platform(input: &Value) -> Value {
 }
 
 pub fn execute_windows_platform(host: Option<&dyn PlatformCheckHost>, input: &Value) -> Value {
-    let Some(host) = host else { return evaluate_windows_platform(input) };
+    let Some(host) = host else {
+        return evaluate_windows_platform(input);
+    };
     let artifact = get(input, "artifact");
-    let checks: Vec<Value> = WINDOWS_CASES.iter().map(|id| host.check(&json!({ "os": "windows", "id": id, "artifact": artifact }))).collect();
+    let checks: Vec<Value> = WINDOWS_CASES
+        .iter()
+        .map(|id| host.check(&json!({ "os": "windows", "id": id, "artifact": artifact })))
+        .collect();
     let mut merged = input.clone();
     merged["checks"] = json!(checks);
     evaluate_windows_platform(&merged)
@@ -1452,8 +1904,21 @@ pub fn execute_windows_platform(host: Option<&dyn PlatformCheckHost>, input: &Va
 // ---------------------------------------------------------------------
 
 pub const SERVICE_RUNTIME_SCENARIOS: &[&str] = &[
-    "api-contract", "identity-authorization", "data-effect", "timeout-retry", "idempotency",
-    "rate-cost-limit", "queue-ordering", "queue-duplicate", "poison-message", "backpressure",
-    "worker-restart", "graceful-shutdown", "health-readiness", "migration", "capacity",
-    "fault-recovery", "observability",
+    "api-contract",
+    "identity-authorization",
+    "data-effect",
+    "timeout-retry",
+    "idempotency",
+    "rate-cost-limit",
+    "queue-ordering",
+    "queue-duplicate",
+    "poison-message",
+    "backpressure",
+    "worker-restart",
+    "graceful-shutdown",
+    "health-readiness",
+    "migration",
+    "capacity",
+    "fault-recovery",
+    "observability",
 ];

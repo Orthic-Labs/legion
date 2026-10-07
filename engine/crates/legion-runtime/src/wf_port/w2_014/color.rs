@@ -356,8 +356,7 @@ pub fn parse_gradient_colors(bg_image: Option<&str>) -> Vec<Rgba> {
                     let s: String = [c, c].iter().collect();
                     u32::from_str_radix(&s, 16).ok()
                 };
-                if let (Some(r), Some(g), Some(b)) = (double(hc[0]), double(hc[1]), double(hc[2]))
-                {
+                if let (Some(r), Some(g), Some(b)) = (double(hc[0]), double(hc[1]), double(hc[2])) {
                     colors.push(Rgba {
                         r: r as f64,
                         g: g as f64,
@@ -436,7 +435,15 @@ mod tests {
     #[test]
     fn rgba_with_alpha_parses() {
         let c = parse_rgb(Some("rgba(10, 20, 30, 0.5)")).unwrap();
-        assert_eq!(c, Rgba { r: 10.0, g: 20.0, b: 30.0, a: 0.5 });
+        assert_eq!(
+            c,
+            Rgba {
+                r: 10.0,
+                g: 20.0,
+                b: 30.0,
+                a: 0.5
+            }
+        );
     }
 
     #[test]
@@ -496,16 +503,36 @@ mod tests {
 
     #[test]
     fn relative_luminance_black_and_white() {
-        let black = Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
-        let white = Rgba { r: 255.0, g: 255.0, b: 255.0, a: 1.0 };
+        let black = Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+        let white = Rgba {
+            r: 255.0,
+            g: 255.0,
+            b: 255.0,
+            a: 1.0,
+        };
         assert!((relative_luminance(black) - 0.0).abs() < 1e-9);
         assert!((relative_luminance(white) - 1.0).abs() < 1e-9);
     }
 
     #[test]
     fn contrast_ratio_black_white_is_21() {
-        let black = Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
-        let white = Rgba { r: 255.0, g: 255.0, b: 255.0, a: 1.0 };
+        let black = Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+        let white = Rgba {
+            r: 255.0,
+            g: 255.0,
+            b: 255.0,
+            a: 1.0,
+        };
         assert!((contrast_ratio(black, white) - 21.0).abs() < 1e-6);
         assert_eq!(contrast_ratio(black, white), contrast_ratio(white, black));
     }
@@ -515,9 +542,33 @@ mod tests {
         let bg = "linear-gradient(to right, rgb(255, 0, 0), #00ff00, #03f)";
         let colors = parse_gradient_colors(Some(bg));
         assert_eq!(colors.len(), 3);
-        assert_eq!(colors[0], Rgba { r: 255.0, g: 0.0, b: 0.0, a: 1.0 });
-        assert_eq!(colors[1], Rgba { r: 0.0, g: 255.0, b: 0.0, a: 1.0 });
-        assert_eq!(colors[2], Rgba { r: 0.0, g: 51.0, b: 255.0, a: 1.0 });
+        assert_eq!(
+            colors[0],
+            Rgba {
+                r: 255.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0
+            }
+        );
+        assert_eq!(
+            colors[1],
+            Rgba {
+                r: 0.0,
+                g: 255.0,
+                b: 0.0,
+                a: 1.0
+            }
+        );
+        assert_eq!(
+            colors[2],
+            Rgba {
+                r: 0.0,
+                g: 51.0,
+                b: 255.0,
+                a: 1.0
+            }
+        );
     }
 
     #[test]
@@ -528,8 +579,18 @@ mod tests {
 
     #[test]
     fn has_chroma_default_threshold() {
-        let gray = Rgba { r: 100.0, g: 100.0, b: 100.0, a: 1.0 };
-        let tinted = Rgba { r: 100.0, g: 100.0, b: 200.0, a: 1.0 };
+        let gray = Rgba {
+            r: 100.0,
+            g: 100.0,
+            b: 100.0,
+            a: 1.0,
+        };
+        let tinted = Rgba {
+            r: 100.0,
+            g: 100.0,
+            b: 200.0,
+            a: 1.0,
+        };
         assert!(!has_chroma(Some(gray), 30.0));
         assert!(has_chroma(Some(tinted), 30.0));
         assert!(!has_chroma(None, 30.0));
@@ -537,10 +598,30 @@ mod tests {
 
     #[test]
     fn get_hue_primary_colors() {
-        let red = Rgba { r: 255.0, g: 0.0, b: 0.0, a: 1.0 };
-        let green = Rgba { r: 0.0, g: 255.0, b: 0.0, a: 1.0 };
-        let blue = Rgba { r: 0.0, g: 0.0, b: 255.0, a: 1.0 };
-        let gray = Rgba { r: 50.0, g: 50.0, b: 50.0, a: 1.0 };
+        let red = Rgba {
+            r: 255.0,
+            g: 0.0,
+            b: 0.0,
+            a: 1.0,
+        };
+        let green = Rgba {
+            r: 0.0,
+            g: 255.0,
+            b: 0.0,
+            a: 1.0,
+        };
+        let blue = Rgba {
+            r: 0.0,
+            g: 0.0,
+            b: 255.0,
+            a: 1.0,
+        };
+        let gray = Rgba {
+            r: 50.0,
+            g: 50.0,
+            b: 50.0,
+            a: 1.0,
+        };
         assert_eq!(get_hue(Some(red)), 0.0);
         assert_eq!(get_hue(Some(green)), 120.0);
         assert_eq!(get_hue(Some(blue)), 240.0);
@@ -550,7 +631,12 @@ mod tests {
 
     #[test]
     fn color_to_hex_round_trips() {
-        let c = Rgba { r: 255.0, g: 0.0, b: 51.0, a: 1.0 };
+        let c = Rgba {
+            r: 255.0,
+            g: 0.0,
+            b: 51.0,
+            a: 1.0,
+        };
         assert_eq!(color_to_hex(Some(c)), "#ff0033");
         assert_eq!(color_to_hex(None), "?");
     }

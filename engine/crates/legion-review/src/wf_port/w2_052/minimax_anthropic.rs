@@ -59,7 +59,11 @@ impl MiniMaxConfig {
 
     /// `None if timeout_s <= 0 else timeout_s`.
     pub fn with_timeout_s(mut self, timeout_s: i64) -> Self {
-        self.timeout_s = if timeout_s <= 0 { None } else { Some(timeout_s) };
+        self.timeout_s = if timeout_s <= 0 {
+            None
+        } else {
+            Some(timeout_s)
+        };
         self
     }
 }
@@ -210,7 +214,10 @@ pub fn classify_http_error(
 
 /// Mirrors the `urllib.error.URLError` branch: always quota-retryable.
 pub fn classify_url_error(config: &MiniMaxConfig, model: &str, message: &str) -> ProviderError {
-    ProviderError::no_status(format!("{}/{model} URL error: {message}", config.name), true)
+    ProviderError::no_status(
+        format!("{}/{model} URL error: {message}", config.name),
+        true,
+    )
 }
 
 /// Mirrors the `(TimeoutError, socket.timeout)` branch: always
@@ -264,7 +271,10 @@ pub fn call_with_metadata(
     let key = resolve_key(config, env_lookup)?;
     let payload = build_payload(config, model, system, user, max_tokens, temperature, images);
     let body = serde_json::to_string(&payload).map_err(|e| {
-        ProviderError::new(format!("{}/{model}: payload encode error: {e}", config.name))
+        ProviderError::new(format!(
+            "{}/{model}: payload encode error: {e}",
+            config.name
+        ))
     })?;
     let url = format!("{}/messages", config.base_url);
 
@@ -285,7 +295,10 @@ pub fn call_with_metadata(
     match post(&body) {
         Ok(resp) if (200..300).contains(&resp.status) => {
             let data: Value = serde_json::from_str(&resp.body).map_err(|e| {
-                ProviderError::new(format!("{}/{model}: invalid JSON response: {e}", config.name))
+                ProviderError::new(format!(
+                    "{}/{model}: invalid JSON response: {e}",
+                    config.name
+                ))
             })?;
             let content_text = content_from_response(&data);
             require_non_empty_content(config, model, &content_text, &data)?;
@@ -296,9 +309,18 @@ pub fn call_with_metadata(
                     .and_then(Value::as_str)
                     .map(str::to_string)
                     .unwrap_or_else(|| model.to_string()),
-                stop_reason: data.get("stop_reason").and_then(Value::as_str).map(str::to_string),
-                stop_sequence: data.get("stop_sequence").and_then(Value::as_str).map(str::to_string),
-                usage: data.get("usage").cloned().unwrap_or(Value::Object(Default::default())),
+                stop_reason: data
+                    .get("stop_reason")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                stop_sequence: data
+                    .get("stop_sequence")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                usage: data
+                    .get("usage")
+                    .cloned()
+                    .unwrap_or(Value::Object(Default::default())),
             })
         }
         Ok(resp) => Err(classify_http_error(config, model, resp.status, &resp.body)),
@@ -319,8 +341,18 @@ pub fn call(
     temperature: f64,
     images: &[ProviderImage],
 ) -> Result<String, ProviderError> {
-    call_with_metadata(config, transport, env_lookup, model, system, user, max_tokens, temperature, images)
-        .map(|meta| meta.text)
+    call_with_metadata(
+        config,
+        transport,
+        env_lookup,
+        model,
+        system,
+        user,
+        max_tokens,
+        temperature,
+        images,
+    )
+    .map(|meta| meta.text)
 }
 
 use super::gemini;
@@ -335,7 +367,12 @@ mod call_tests {
     }
 
     impl HttpTransport for FakeTransport {
-        fn post_json(&self, url: &str, body: &str, timeout_s: i64) -> Result<gemini::HttpResponse, String> {
+        fn post_json(
+            &self,
+            url: &str,
+            body: &str,
+            timeout_s: i64,
+        ) -> Result<gemini::HttpResponse, String> {
             self.post_json_with_headers(url, body, timeout_s, &[])
         }
 
@@ -346,12 +383,21 @@ mod call_tests {
             _timeout_s: i64,
             _headers: &[(&str, &str)],
         ) -> Result<gemini::HttpResponse, String> {
-            self.response.borrow_mut().take().expect("fake transport called more than once in a test")
+            self.response
+                .borrow_mut()
+                .take()
+                .expect("fake transport called more than once in a test")
         }
     }
 
     fn env_with_key() -> impl Fn(&str) -> Option<String> {
-        |name: &str| if name == "MINIMAX_API_KEY" { Some("k".to_string()) } else { None }
+        |name: &str| {
+            if name == "MINIMAX_API_KEY" {
+                Some("k".to_string())
+            } else {
+                None
+            }
+        }
     }
 
     #[test]
@@ -369,7 +415,18 @@ mod call_tests {
                 .to_string(),
             }))),
         };
-        let out = call_with_metadata(&cfg, &transport, env_with_key(), "minimax-m3", "sys", "user", 512, 0.2, &[]).unwrap();
+        let out = call_with_metadata(
+            &cfg,
+            &transport,
+            env_with_key(),
+            "minimax-m3",
+            "sys",
+            "user",
+            512,
+            0.2,
+            &[],
+        )
+        .unwrap();
         assert_eq!(out.text, "hello");
         assert_eq!(out.model, "minimax-m3");
         assert_eq!(out.stop_reason.as_deref(), Some("end_turn"));
@@ -385,7 +442,18 @@ mod call_tests {
                 body: json!({"content": [], "stop_reason": "max_tokens"}).to_string(),
             }))),
         };
-        let err = call_with_metadata(&cfg, &transport, env_with_key(), "minimax-m3", "sys", "user", 512, 0.2, &[]).unwrap_err();
+        let err = call_with_metadata(
+            &cfg,
+            &transport,
+            env_with_key(),
+            "minimax-m3",
+            "sys",
+            "user",
+            512,
+            0.2,
+            &[],
+        )
+        .unwrap_err();
         assert!(err.message.contains("max_tokens"));
     }
 
@@ -398,7 +466,18 @@ mod call_tests {
                 body: "overloaded".to_string(),
             }))),
         };
-        let err = call_with_metadata(&cfg, &transport, env_with_key(), "minimax-m3", "sys", "user", 512, 0.2, &[]).unwrap_err();
+        let err = call_with_metadata(
+            &cfg,
+            &transport,
+            env_with_key(),
+            "minimax-m3",
+            "sys",
+            "user",
+            512,
+            0.2,
+            &[],
+        )
+        .unwrap_err();
         assert!(err.is_quota);
     }
 
@@ -411,7 +490,18 @@ mod call_tests {
                 body: json!({"content": [{"type": "text", "text": "ok"}]}).to_string(),
             }))),
         };
-        let out = call(&cfg, &transport, env_with_key(), "minimax-m3", "sys", "user", 512, 0.2, &[]).unwrap();
+        let out = call(
+            &cfg,
+            &transport,
+            env_with_key(),
+            "minimax-m3",
+            "sys",
+            "user",
+            512,
+            0.2,
+            &[],
+        )
+        .unwrap();
         assert_eq!(out, "ok");
     }
 }

@@ -16,7 +16,9 @@
 
 use std::collections::BTreeMap;
 
-use crate::wf_port::r64::gate_validity::{execute_validated_gate, validate_gate, CaseResult, Fixture, GateContract, GateMatch};
+use crate::wf_port::r64::gate_validity::{
+    execute_validated_gate, validate_gate, CaseResult, Fixture, GateContract, GateMatch,
+};
 
 pub const IDS: &[&str] = &[
     "AE-REVIEW-ADMISSION-001",
@@ -74,10 +76,34 @@ fn gate_contract() -> GateContract {
 /// Mirrors JS `gateFixtures()`.
 fn gate_fixtures() -> BTreeMap<&'static str, Fixture> {
     let mut m = BTreeMap::new();
-    m.insert("knownGood", Fixture { id: "known-good".into(), status: "PASS".into() });
-    m.insert("knownBad", Fixture { id: "known-bad".into(), status: "FAIL".into() });
-    m.insert("empty", Fixture { id: "empty".into(), status: "FAIL".into() });
-    m.insert("malformed", Fixture { id: "malformed".into(), status: "FAIL".into() });
+    m.insert(
+        "knownGood",
+        Fixture {
+            id: "known-good".into(),
+            status: "PASS".into(),
+        },
+    );
+    m.insert(
+        "knownBad",
+        Fixture {
+            id: "known-bad".into(),
+            status: "FAIL".into(),
+        },
+    );
+    m.insert(
+        "empty",
+        Fixture {
+            id: "empty".into(),
+            status: "FAIL".into(),
+        },
+    );
+    m.insert(
+        "malformed",
+        Fixture {
+            id: "malformed".into(),
+            status: "FAIL".into(),
+        },
+    );
     m
 }
 
@@ -85,7 +111,9 @@ fn gate_fixtures() -> BTreeMap<&'static str, Fixture> {
 /// zero inspected items, so `inspectionCount` is always `0`.
 fn admission() -> ReviewSecurityResult {
     let contract = gate_contract();
-    let validity = validate_gate(&contract, &gate_fixtures(), |f| CaseResult { status: f.status.clone() });
+    let validity = validate_gate(&contract, &gate_fixtures(), |f| CaseResult {
+        status: f.status.clone(),
+    });
     let result = execute_validated_gate(&contract, Some(&validity), &[], &[]);
     ReviewSecurityResult::Observed {
         id: "AE-REVIEW-ADMISSION-001",
@@ -93,7 +121,11 @@ fn admission() -> ReviewSecurityResult {
         consumer: "review admission gate",
         allowed: result.allowed,
         code: result.code,
-        inspection_count: result.detail.get("inspectionCount").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+        inspection_count: result
+            .detail
+            .get("inspectionCount")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize,
         configured_scope: None,
     }
 }
@@ -103,9 +135,15 @@ fn admission() -> ReviewSecurityResult {
 /// CLEAN.
 fn configured_scope() -> ReviewSecurityResult {
     let contract = gate_contract();
-    let validity = validate_gate(&contract, &gate_fixtures(), |f| CaseResult { status: f.status.clone() });
-    let inspected = vec![serde_json::json!({"subjectId": "src/lib/verification/arcane/gate-validity.mjs"})];
-    let matches = vec![GateMatch { rule_id: Some("UNINSPECTED_SCOPE".into()), reason: Some("outside configured scope".into()) }];
+    let validity = validate_gate(&contract, &gate_fixtures(), |f| CaseResult {
+        status: f.status.clone(),
+    });
+    let inspected =
+        vec![serde_json::json!({"subjectId": "src/lib/verification/arcane/gate-validity.mjs"})];
+    let matches = vec![GateMatch {
+        rule_id: Some("UNINSPECTED_SCOPE".into()),
+        reason: Some("outside configured scope".into()),
+    }];
     let result = execute_validated_gate(&contract, Some(&validity), &inspected, &matches);
     ReviewSecurityResult::Observed {
         id: "AE-REVIEW-VERDICT-SECURITY-006",
@@ -113,7 +151,11 @@ fn configured_scope() -> ReviewSecurityResult {
         consumer: "configured-scope verdict admission",
         allowed: result.allowed,
         code: result.code,
-        inspection_count: result.detail.get("inspectionCount").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+        inspection_count: result
+            .detail
+            .get("inspectionCount")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize,
         configured_scope: Some(contract.inspected_scope.clone()),
     }
 }
@@ -149,19 +191,36 @@ pub fn execute_review_security_binding(id: &str) -> ReviewSecurityResult {
 /// Mirrors JS `validateReviewSecurityObservation(id, observation)`.
 pub fn validate_review_security_observation(result: &ReviewSecurityResult) -> bool {
     match result {
-        ReviewSecurityResult::Observed { id: "AE-REVIEW-ADMISSION-001", producer, allowed, code, inspection_count, .. } => {
+        ReviewSecurityResult::Observed {
+            id: "AE-REVIEW-ADMISSION-001",
+            producer,
+            allowed,
+            code,
+            inspection_count,
+            ..
+        } => {
             *producer == "validateGate + executeValidatedGate"
                 && !*allowed
                 && *code == Some("ARC_EVIDENCE_INSUFFICIENT")
                 && *inspection_count == 0
         }
-        ReviewSecurityResult::Observed { id: "AE-REVIEW-VERDICT-SECURITY-006", producer, allowed, code, configured_scope, .. } => {
+        ReviewSecurityResult::Observed {
+            id: "AE-REVIEW-VERDICT-SECURITY-006",
+            producer,
+            allowed,
+            code,
+            configured_scope,
+            ..
+        } => {
             *producer == "validateGate + executeValidatedGate"
                 && !*allowed
                 && *code == Some("ARC_CLAIM_PREREQUISITE_UNMET")
                 && configured_scope.is_some()
         }
-        ReviewSecurityResult::Pending { producer: "advisory-judgment", .. } => true,
+        ReviewSecurityResult::Pending {
+            producer: "advisory-judgment",
+            ..
+        } => true,
         _ => false,
     }
 }
@@ -175,7 +234,12 @@ mod tests {
         let r001 = execute_review_security_binding("AE-REVIEW-ADMISSION-001");
         assert!(validate_review_security_observation(&r001));
         match &r001 {
-            ReviewSecurityResult::Observed { allowed, code, inspection_count, .. } => {
+            ReviewSecurityResult::Observed {
+                allowed,
+                code,
+                inspection_count,
+                ..
+            } => {
                 assert!(!allowed);
                 assert_eq!(*code, Some("ARC_EVIDENCE_INSUFFICIENT"));
                 assert_eq!(*inspection_count, 0);
@@ -185,7 +249,12 @@ mod tests {
         let r006 = execute_review_security_binding("AE-REVIEW-VERDICT-SECURITY-006");
         assert!(validate_review_security_observation(&r006));
         match &r006 {
-            ReviewSecurityResult::Observed { allowed, code, configured_scope, .. } => {
+            ReviewSecurityResult::Observed {
+                allowed,
+                code,
+                configured_scope,
+                ..
+            } => {
                 assert!(!allowed);
                 assert_eq!(*code, Some("ARC_CLAIM_PREREQUISITE_UNMET"));
                 assert!(configured_scope.is_some());
@@ -196,10 +265,15 @@ mod tests {
 
     #[test]
     fn security_002_and_005_are_pending_advisory_judgment() {
-        for id in ["AE-REVIEW-VERDICT-SECURITY-002", "AE-REVIEW-VERDICT-SECURITY-005"] {
+        for id in [
+            "AE-REVIEW-VERDICT-SECURITY-002",
+            "AE-REVIEW-VERDICT-SECURITY-005",
+        ] {
             let r = execute_review_security_binding(id);
             match &r {
-                ReviewSecurityResult::Pending { producer, consumer, .. } => {
+                ReviewSecurityResult::Pending {
+                    producer, consumer, ..
+                } => {
                     assert_eq!(*producer, "advisory-judgment");
                     assert_eq!(*consumer, "review verdict security admission");
                 }
@@ -212,7 +286,9 @@ mod tests {
     #[test]
     fn security_002_reason_mentions_exploit_chain() {
         match execute_review_security_binding("AE-REVIEW-VERDICT-SECURITY-002") {
-            ReviewSecurityResult::Pending { reason, .. } => assert!(reason.contains("exploit-chain")),
+            ReviewSecurityResult::Pending { reason, .. } => {
+                assert!(reason.contains("exploit-chain"))
+            }
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -235,7 +311,9 @@ mod tests {
 
     #[test]
     fn validator_rejects_unknown_case() {
-        assert!(!validate_review_security_observation(&execute_review_security_binding("AE-NOPE")));
+        assert!(!validate_review_security_observation(
+            &execute_review_security_binding("AE-NOPE")
+        ));
     }
 
     #[test]

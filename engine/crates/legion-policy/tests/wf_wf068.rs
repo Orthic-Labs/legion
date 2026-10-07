@@ -10,8 +10,8 @@
 //! the identical pre-wiring state.
 
 use legion_policy::wf_port::wf068::{
-    assert_valid, key_hex, state_file, state_paths, state_root, validate_against, validate_against_def,
-    RuntimeSchemaSet,
+    assert_valid, key_hex, state_file, state_paths, state_root, validate_against,
+    validate_against_def, RuntimeSchemaSet,
 };
 use serde_json::json;
 use std::path::Path;
@@ -31,14 +31,26 @@ fn state_paths_covers_all_named_subdirectories_from_js() {
     assert_eq!(sp.root, Path::new("/ws/.audit/arcane"));
     assert_eq!(sp.receipts, Path::new("/ws/.audit/arcane/receipts"));
     assert_eq!(sp.replay, Path::new("/ws/.audit/arcane/replay"));
-    assert_eq!(sp.capability_grants, Path::new("/ws/.audit/arcane/capabilities/grants"));
+    assert_eq!(
+        sp.capability_grants,
+        Path::new("/ws/.audit/arcane/capabilities/grants")
+    );
     assert_eq!(
         sp.capability_transitions,
         Path::new("/ws/.audit/arcane/capabilities/transitions")
     );
-    assert_eq!(sp.contract_seals, Path::new("/ws/.audit/arcane/contract-seals"));
-    assert_eq!(sp.authority_bindings, Path::new("/ws/.audit/arcane/authority-bindings"));
-    assert_eq!(sp.session_bindings, Path::new("/ws/.audit/arcane/session-bindings"));
+    assert_eq!(
+        sp.contract_seals,
+        Path::new("/ws/.audit/arcane/contract-seals")
+    );
+    assert_eq!(
+        sp.authority_bindings,
+        Path::new("/ws/.audit/arcane/authority-bindings")
+    );
+    assert_eq!(
+        sp.session_bindings,
+        Path::new("/ws/.audit/arcane/session-bindings")
+    );
     assert_eq!(
         sp.pre_effect_correlations,
         Path::new("/ws/.audit/arcane/pre-effect-correlations")
@@ -72,9 +84,7 @@ fn runtime_schema_set_loads_every_embedded_schema_id() {
     let set = RuntimeSchemaSet::new();
     // Every one of the 17 arcane-schemas/*.schema.json files JS's FILES
     // array names must be reachable by its own $id with no collision.
-    for id in [
-        "arcane-contract-seal-v1",
-    ] {
+    for id in ["arcane-contract-seal-v1"] {
         assert!(set.validate(id, &json!({})).is_ok() || set.validate(id, &json!({})).is_err());
         // The call above only proves `id` was indexed (didn't hit the
         // "unknown runtime schema" branch's early return via a panic on
@@ -114,7 +124,9 @@ fn runtime_schema_set_assert_rejects_bad_seal_and_accepts_good_one() {
 #[test]
 fn runtime_schema_is_rfc3339_matches_js_semantics() {
     assert!(RuntimeSchemaSet::is_rfc3339(&json!("2026-09-23T00:00:00Z")));
-    assert!(RuntimeSchemaSet::is_rfc3339(&json!("2026-09-23T00:00:00+05:30")));
+    assert!(RuntimeSchemaSet::is_rfc3339(&json!(
+        "2026-09-23T00:00:00+05:30"
+    )));
     assert!(!RuntimeSchemaSet::is_rfc3339(&json!("2026-09-23")));
     assert!(!RuntimeSchemaSet::is_rfc3339(&json!(1234)));
 }
@@ -132,7 +144,8 @@ fn validate_against_reports_issues_for_incomplete_blocker() {
 
 #[test]
 fn validate_against_def_errors_on_unknown_def_name() {
-    let err = validate_against_def("operation-envelope-v1", "DefinitelyNotADef", &json!({})).unwrap_err();
+    let err =
+        validate_against_def("operation-envelope-v1", "DefinitelyNotADef", &json!({})).unwrap_err();
     assert_eq!(err.code, "ARC_SCHEMA_INVALID");
 }
 
@@ -146,5 +159,7 @@ fn assert_valid_labels_the_error_with_the_value_label_not_schema_name() {
 #[test]
 fn assert_valid_defaults_label_to_schema_name() {
     let err = assert_valid("blocker-v1", &json!({}), None).unwrap_err();
-    assert!(err.message.starts_with("blocker-v1 does not satisfy blocker-v1"));
+    assert!(err
+        .message
+        .starts_with("blocker-v1 does not satisfy blocker-v1"));
 }

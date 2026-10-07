@@ -206,7 +206,10 @@ fn range_for(finding: &FindingInput) -> Value {
 }
 
 fn range_field_i64(range: &Value, field: &str) -> Option<i64> {
-    range.get("start").and_then(|s| s.get(field)).and_then(Value::as_i64)
+    range
+        .get("start")
+        .and_then(|s| s.get(field))
+        .and_then(Value::as_i64)
 }
 
 fn finding_diagnostic(finding: &FindingInput, run_dir: Option<&str>) -> Value {
@@ -305,10 +308,7 @@ fn finding_diagnostic(finding: &FindingInput, run_dir: Option<&str>) -> Value {
 
 fn gap_diagnostic(gap: &CoverageGapInput, run_dir: Option<&str>) -> Value {
     let kind_str = gap.kind.clone().unwrap_or_else(|| "undefined".to_string());
-    let fingerprint = gap
-        .id
-        .clone()
-        .unwrap_or_else(|| format!("gap:{kind_str}"));
+    let fingerprint = gap.id.clone().unwrap_or_else(|| format!("gap:{kind_str}"));
     let message = gap
         .detail
         .clone()
@@ -366,7 +366,14 @@ pub fn editor_diagnostics(input: &EditorInput) -> Vec<EditorDiagnostic> {
 mod tests {
     use super::*;
 
-    fn finding(id: &str, rule_id: &str, severity: &str, title: &str, file: &str, line: i64) -> FindingInput {
+    fn finding(
+        id: &str,
+        rule_id: &str,
+        severity: &str,
+        title: &str,
+        file: &str,
+        line: i64,
+    ) -> FindingInput {
         FindingInput {
             id: Some(id.to_string()),
             rule_id: Some(rule_id.to_string()),
@@ -406,13 +413,19 @@ mod tests {
         f1.fingerprint = Some("sha256:fp".to_string());
         let a = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f1], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f1],
+                coverage_gaps: vec![],
+            }),
         });
         let mut f1b = finding("f1", "r", "info", "T", "a.ts", 99);
         f1b.fingerprint = Some("sha256:fp".to_string());
         let b = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f1b], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f1b],
+                coverage_gaps: vec![],
+            }),
         });
         assert_eq!(a[0]["fingerprint"], b[0]["fingerprint"]);
         assert_ne!(a[0]["line"], b[0]["line"]);
@@ -429,14 +442,20 @@ mod tests {
         };
         let diagnostics = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f],
+                coverage_gaps: vec![],
+            }),
         });
         assert_eq!(diagnostics[0]["code"], "credentials.format");
     }
 
     #[test]
     fn missing_report_yields_no_diagnostics() {
-        let diagnostics = editor_diagnostics(&EditorInput { report: None, run_dir: None });
+        let diagnostics = editor_diagnostics(&EditorInput {
+            report: None,
+            run_dir: None,
+        });
         assert!(diagnostics.is_empty());
     }
 
@@ -459,7 +478,10 @@ mod tests {
                 },
             ],
         };
-        let diagnostics = editor_diagnostics(&EditorInput { report: Some(report), run_dir: Some("/run".to_string()) });
+        let diagnostics = editor_diagnostics(&EditorInput {
+            report: Some(report),
+            run_dir: Some("/run".to_string()),
+        });
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0]["fingerprint"], "g1");
         assert_eq!(diagnostics[0]["message"], "missing-provider");
@@ -479,7 +501,10 @@ mod tests {
                 family: None,
             }],
         };
-        let diagnostics = editor_diagnostics(&EditorInput { report: Some(report), run_dir: None });
+        let diagnostics = editor_diagnostics(&EditorInput {
+            report: Some(report),
+            run_dir: None,
+        });
         assert_eq!(diagnostics[0]["fingerprint"], "gap:stale");
     }
 
@@ -503,7 +528,10 @@ mod tests {
         };
         let diagnostics = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f],
+                coverage_gaps: vec![],
+            }),
         });
         let actions = diagnostics[0]["codeActions"].as_array().unwrap();
         assert_eq!(actions.len(), 2);
@@ -525,7 +553,10 @@ mod tests {
         };
         let diagnostics = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f],
+                coverage_gaps: vec![],
+            }),
         });
         let actions = diagnostics[0]["codeActions"].as_array().unwrap();
         assert_eq!(actions.len(), 1);
@@ -548,7 +579,10 @@ mod tests {
         };
         let diagnostics = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f],
+                coverage_gaps: vec![],
+            }),
         });
         let actions = diagnostics[0]["codeActions"].as_array().unwrap();
         assert_eq!(actions.len(), 1);
@@ -571,7 +605,10 @@ mod tests {
         };
         let diagnostics = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f],
+                coverage_gaps: vec![],
+            }),
         });
         let actions = diagnostics[0]["codeActions"].as_array().unwrap();
         assert_eq!(actions.len(), 1);
@@ -585,7 +622,10 @@ mod tests {
         };
         let diagnostics = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f],
+                coverage_gaps: vec![],
+            }),
         });
         let actions = diagnostics[0]["codeActions"].as_array().unwrap();
         assert!(actions.is_empty());
@@ -597,12 +637,17 @@ mod tests {
     fn explicit_range_is_passed_through_verbatim() {
         let f = FindingInput {
             id: Some("f1".to_string()),
-            range: Some(json!({"start": {"line": 5, "column": 2}, "end": {"line": 5, "column": 9}, "extra": "kept"})),
+            range: Some(
+                json!({"start": {"line": 5, "column": 2}, "end": {"line": 5, "column": 9}, "extra": "kept"}),
+            ),
             ..Default::default()
         };
         let diagnostics = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f],
+                coverage_gaps: vec![],
+            }),
         });
         assert_eq!(diagnostics[0]["range"]["extra"], "kept");
         assert_eq!(diagnostics[0]["line"], 5);
@@ -619,7 +664,10 @@ mod tests {
         };
         let diagnostics = editor_diagnostics(&EditorInput {
             run_dir: None,
-            report: Some(ReportInput { findings: vec![f], coverage_gaps: vec![] }),
+            report: Some(ReportInput {
+                findings: vec![f],
+                coverage_gaps: vec![],
+            }),
         });
         assert_eq!(diagnostics[0]["lineage"]["state"], "stale");
         assert_eq!(diagnostics[0]["lineage"]["priorContentId"], "prior-1");

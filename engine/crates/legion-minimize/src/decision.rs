@@ -23,7 +23,12 @@ pub fn validate_decision(
     let selected = value
         .get("selected_rung")
         .and_then(Value::as_str)
-        .ok_or_else(|| MinimizeError::new(format!("selected_rung must be one of: {}", RUNGS.join(", "))))?;
+        .ok_or_else(|| {
+            MinimizeError::new(format!(
+                "selected_rung must be one of: {}",
+                RUNGS.join(", ")
+            ))
+        })?;
     if !RUNGS.contains(&selected) {
         return Err(MinimizeError::new(format!(
             "selected_rung must be one of: {}",
@@ -34,10 +39,7 @@ pub fn validate_decision(
         .get("prior_rungs")
         .and_then(Value::as_array)
         .ok_or_else(|| MinimizeError::new("prior_rungs must be a list"))?;
-    let selected_index = RUNGS
-        .iter()
-        .position(|rung| *rung == selected)
-        .unwrap_or(0);
+    let selected_index = RUNGS.iter().position(|rung| *rung == selected).unwrap_or(0);
     let required = RUNGS[..selected_index].to_vec();
     let observed = prior
         .iter()

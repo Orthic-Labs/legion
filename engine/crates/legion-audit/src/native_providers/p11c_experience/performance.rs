@@ -3,7 +3,11 @@
 use serde_json::Value;
 
 fn arr<'a>(value: &'a Value, key: &str) -> Vec<&'a Value> {
-    value.get(key).and_then(Value::as_array).map(|items| items.iter().collect()).unwrap_or_default()
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|items| items.iter().collect())
+        .unwrap_or_default()
 }
 
 fn truthy(value: Option<&Value>) -> bool {
@@ -60,21 +64,36 @@ pub fn analyze_cache_evidence(input: &Value) -> Value {
     for entry in &entries {
         let id = entry.get("id").cloned().unwrap_or(Value::Null);
         let ttl = entry.get("ttl").and_then(Value::as_f64).unwrap_or(0.0);
-        let invalidation_evidence = entry.get("invalidationEvidence").cloned().unwrap_or(Value::Null);
-        if (truthy(entry.get("sensitive")) || truthy(entry.get("mutable"))) && ttl > 0.0 && !truthy(entry.get("invalidationEvidence")) {
+        let invalidation_evidence = entry
+            .get("invalidationEvidence")
+            .cloned()
+            .unwrap_or(Value::Null);
+        if (truthy(entry.get("sensitive")) || truthy(entry.get("mutable")))
+            && ttl > 0.0
+            && !truthy(entry.get("invalidationEvidence"))
+        {
             candidates.push(serde_json::json!({
                 "ruleId": "performance.cache-correctness-risk", "entryId": id, "kind": "correctness-risk",
                 "sensitive": truthy(entry.get("sensitive")), "mutable": truthy(entry.get("mutable")), "invalidationEvidence": Value::Null,
             }));
         }
-        if truthy(entry.get("opportunity")) && truthy(entry.get("invalidationEvidence")) && truthy(entry.get("correctnessAnalysis")) {
+        if truthy(entry.get("opportunity"))
+            && truthy(entry.get("invalidationEvidence"))
+            && truthy(entry.get("correctnessAnalysis"))
+        {
             recommendations.push(serde_json::json!({
                 "ruleId": "performance.cache-opportunity", "entryId": id, "invalidationEvidence": invalidation_evidence,
                 "correctnessAnalysis": entry.get("correctnessAnalysis").cloned().unwrap_or(Value::Null),
             }));
         }
     }
-    let status = if !candidates.is_empty() { "candidates" } else if !entries.is_empty() { "pass" } else { "unproven" };
+    let status = if !candidates.is_empty() {
+        "candidates"
+    } else if !entries.is_empty() {
+        "pass"
+    } else {
+        "unproven"
+    };
     serde_json::json!({
         "provider": "performance.cache", "status": status, "candidates": candidates, "recommendations": recommendations,
         "coverageGaps": if entries.is_empty() { vec![Value::String("cache-evidence-missing".into())] } else { vec![] },
@@ -90,8 +109,16 @@ pub fn assess_frontend_performance(measurements: &[Value], budgets: &Value) -> V
     let mut findings: Vec<Value> = Vec::new();
     for item in measurements {
         for (metric, limit) in &budget_map {
-            let Some(limit) = limit.as_f64() else { continue };
-            let Some(actual) = item.get(metric).and_then(Value::as_f64).filter(|v| v.is_finite()) else { continue };
+            let Some(limit) = limit.as_f64() else {
+                continue;
+            };
+            let Some(actual) = item
+                .get(metric)
+                .and_then(Value::as_f64)
+                .filter(|v| v.is_finite())
+            else {
+                continue;
+            };
             if actual > limit {
                 findings.push(serde_json::json!({ "surfaceId": item.get("surfaceId").cloned().unwrap_or(Value::Null), "metric": metric, "actual": actual, "limit": limit }));
             }
@@ -100,9 +127,22 @@ pub fn assess_frontend_performance(measurements: &[Value], budgets: &Value) -> V
     let gaps: Vec<Value> = measurements
         .iter()
         .filter(|item| !truthy(item.get("environment")) || !truthy(item.get("repeatCount")))
-        .map(|item| Value::String(format!("measurement-environment-missing:{}", item.get("surfaceId").and_then(Value::as_str).unwrap_or("unknown"))))
+        .map(|item| {
+            Value::String(format!(
+                "measurement-environment-missing:{}",
+                item.get("surfaceId")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown")
+            ))
+        })
         .collect();
-    let status = if !gaps.is_empty() { "partial" } else if !findings.is_empty() { "candidates" } else { "pass" };
+    let status = if !gaps.is_empty() {
+        "partial"
+    } else if !findings.is_empty() {
+        "candidates"
+    } else {
+        "pass"
+    };
     serde_json::json!({
         "schemaVersion": 1, "provider": "performance.frontend", "status": status, "findings": findings,
         "coverageGaps": gaps, "measurements": measurements,
@@ -119,11 +159,21 @@ pub fn analyze_network_evidence(input: &Value) -> Value {
     for request in &requests {
         let id = request.get("id").cloned().unwrap_or(Value::Null);
         let url = request.get("url").cloned().unwrap_or(Value::Null);
-        let evidence_class = if truthy(request.get("traceRef")) { "runtime-trace" } else { "runtime-observation" };
+        let evidence_class = if truthy(request.get("traceRef")) {
+            "runtime-trace"
+        } else {
+            "runtime-observation"
+        };
         let base = |rule_id: &str| serde_json::json!({ "requestId": id, "url": url, "evidenceClass": evidence_class, "ruleId": rule_id });
         if truthy(request.get("serializedBehind")) {
             let mut item = base("performance.network-independent-serialization");
-            item.as_object_mut().unwrap().insert("serializedBehind".into(), request.get("serializedBehind").cloned().unwrap_or(Value::Null));
+            item.as_object_mut().unwrap().insert(
+                "serializedBehind".into(),
+                request
+                    .get("serializedBehind")
+                    .cloned()
+                    .unwrap_or(Value::Null),
+            );
             candidates.push(item);
         }
         if truthy(request.get("duplicateConcurrent")) {
@@ -140,14 +190,23 @@ pub fn analyze_network_evidence(input: &Value) -> Value {
         }
         if truthy(request.get("payloadOversized")) {
             let mut item = base("performance.network-payload-size");
-            item.as_object_mut().unwrap().insert("bytes".into(), request.get("bytes").cloned().unwrap_or(Value::Null));
+            item.as_object_mut().unwrap().insert(
+                "bytes".into(),
+                request.get("bytes").cloned().unwrap_or(Value::Null),
+            );
             candidates.push(item);
         }
         if truthy(request.get("paginationMissing")) {
             candidates.push(base("performance.network-pagination-missing"));
         }
     }
-    let status = if !candidates.is_empty() { "candidates" } else if !requests.is_empty() { "pass" } else { "unproven" };
+    let status = if !candidates.is_empty() {
+        "candidates"
+    } else if !requests.is_empty() {
+        "pass"
+    } else {
+        "unproven"
+    };
     serde_json::json!({
         "provider": "performance.network", "status": status, "candidates": candidates,
         "coverageGaps": if requests.is_empty() { vec![Value::String("request-evidence-missing".into())] } else { vec![] },

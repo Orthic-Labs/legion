@@ -31,8 +31,16 @@ fn authority_for_agent_type(agent_type: &str) -> Option<&'static str> {
 }
 
 fn dig(domain: &str, values: &[Option<&str>]) -> String {
-    let arr = Json::Arr(values.iter().map(|v| v.map(Json::str).unwrap_or(Json::Null)).collect());
-    let obj = Json::Obj(vec![("domain".into(), Json::str(domain)), ("values".into(), arr)]);
+    let arr = Json::Arr(
+        values
+            .iter()
+            .map(|v| v.map(Json::str).unwrap_or(Json::Null))
+            .collect(),
+    );
+    let obj = Json::Obj(vec![
+        ("domain".into(), Json::str(domain)),
+        ("values".into(), arr),
+    ]);
     digest(canonical_json(&obj).unwrap().as_bytes())
 }
 
@@ -56,11 +64,20 @@ impl BindingRecord {
             ("schemaVersion".into(), Json::I64(self.schema_version)),
             ("kind".into(), Json::str(self.kind.clone())),
             ("adapter".into(), Json::str(self.adapter.clone())),
-            ("sessionIdDigest".into(), Json::str(self.session_id_digest.clone())),
-            ("agentIdDigest".into(), Json::str(self.agent_id_digest.clone())),
+            (
+                "sessionIdDigest".into(),
+                Json::str(self.session_id_digest.clone()),
+            ),
+            (
+                "agentIdDigest".into(),
+                Json::str(self.agent_id_digest.clone()),
+            ),
             ("agentType".into(), Json::str(self.agent_type.clone())),
             ("authority".into(), Json::str(self.authority.clone())),
-            ("observedEventId".into(), Json::str(self.observed_event_id.clone())),
+            (
+                "observedEventId".into(),
+                Json::str(self.observed_event_id.clone()),
+            ),
             ("observedAt".into(), Json::str(self.observed_at.clone())),
         ])
     }
@@ -114,7 +131,10 @@ fn random_hex(n: usize) -> String {
             }
         }
     }
-    let seed = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
     let mut x = seed as u64 ^ (&buf as *const _ as u64);
     for slot in buf.iter_mut() {
         x ^= x << 13;
@@ -131,31 +151,57 @@ pub struct AuthorityBindingStore {
 }
 
 impl AuthorityBindingStore {
-    pub fn new(root: impl Into<PathBuf>, clock: impl Fn() -> String + Send + Sync + 'static) -> Self {
-        Self { root: root.into(), clock: Box::new(clock) }
+    pub fn new(
+        root: impl Into<PathBuf>,
+        clock: impl Fn() -> String + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            root: root.into(),
+            clock: Box::new(clock),
+        }
     }
 
     /// Mirrors JS `key()`: the binding digest with the `sha256:` prefix
     /// stripped (7 bytes), used as the record's filename stem.
     pub fn key(&self, adapter: &str, session_id: &str, agent_id: Option<&str>) -> String {
-        dig("arcane.authority.binding-key.v1", &[Some(adapter), Some(session_id), agent_id])[7..].to_string()
+        dig(
+            "arcane.authority.binding-key.v1",
+            &[Some(adapter), Some(session_id), agent_id],
+        )[7..]
+            .to_string()
     }
 
     pub fn path(&self, adapter: &str, session_id: &str, agent_id: Option<&str>) -> PathBuf {
-        self.root.join(format!("{}.json", self.key(adapter, session_id, agent_id)))
+        self.root
+            .join(format!("{}.json", self.key(adapter, session_id, agent_id)))
     }
 
     /// Mirrors JS `observe()`: idempotent create of a binding record.
     pub fn observe(&self, input: ObserveInput<'_>) -> Result<ObserveResult, ArcaneError> {
         if input.agent_id.is_none() {
-            return Ok(ObserveResult { bound: false, created: false, reason: Some("missing-identity"), record: None });
+            return Ok(ObserveResult {
+                bound: false,
+                created: false,
+                reason: Some("missing-identity"),
+                record: None,
+            });
         }
         let agent_id = input.agent_id.unwrap();
         let Some(authority) = authority_for_agent_type(input.agent_type) else {
-            return Ok(ObserveResult { bound: false, created: false, reason: Some("unsupported-agent-type"), record: None });
+            return Ok(ObserveResult {
+                bound: false,
+                created: false,
+                reason: Some("unsupported-agent-type"),
+                record: None,
+            });
         };
         if input.agent_type == "legion" && !input.session_root {
-            return Ok(ObserveResult { bound: false, created: false, reason: Some("unsupported-agent-type"), record: None });
+            return Ok(ObserveResult {
+                bound: false,
+                created: false,
+                reason: Some("unsupported-agent-type"),
+                record: None,
+            });
         }
 
         let key = self.key(input.adapter, input.session_id, Some(agent_id));
@@ -164,8 +210,14 @@ impl AuthorityBindingStore {
             schema_version: 1,
             kind: "arcane-authority-binding".to_string(),
             adapter: input.adapter.to_string(),
-            session_id_digest: dig("arcane.authority.session.v1", &[Some(input.adapter), Some(input.session_id)]),
-            agent_id_digest: dig("arcane.authority.agent.v1", &[Some(input.adapter), Some(input.session_id), Some(agent_id)]),
+            session_id_digest: dig(
+                "arcane.authority.session.v1",
+                &[Some(input.adapter), Some(input.session_id)],
+            ),
+            agent_id_digest: dig(
+                "arcane.authority.agent.v1",
+                &[Some(input.adapter), Some(input.session_id), Some(agent_id)],
+            ),
             agent_type: input.agent_type.to_string(),
             authority: authority.to_string(),
             observed_event_id: input.event_id.to_string(),
@@ -174,14 +226,21 @@ impl AuthorityBindingStore {
 
         fs::create_dir_all(&self.root).map_err(|e| io_err(e, "creating binding store root"))?;
         let text = format!("{}\n", canonical_json(&record.to_json()).unwrap());
-        let temp = self.root.join(format!(".create-{}-{}", std::process::id(), random_hex(6)));
+        let temp = self
+            .root
+            .join(format!(".create-{}-{}", std::process::id(), random_hex(6)));
 
         let created_result = write_new_exclusive(&temp, text.as_bytes());
         match created_result {
             Ok(()) => match fs::hard_link(&temp, &path) {
                 Ok(()) => {
                     let _ = fs::remove_file(&temp);
-                    Ok(ObserveResult { bound: true, created: true, reason: None, record: Some(record) })
+                    Ok(ObserveResult {
+                        bound: true,
+                        created: true,
+                        reason: None,
+                        record: Some(record),
+                    })
                 }
                 Err(e) => {
                     let _ = fs::remove_file(&temp);
@@ -207,10 +266,15 @@ impl AuthorityBindingStore {
         // observer got there first (or the record already existed); anything
         // else propagates. `fs::hard_link` on an existing destination
         // surfaces as AlreadyExists on all supported platforms.
-        if matches!(error.kind(), io::ErrorKind::AlreadyExists) || error.raw_os_error() == Some(libc_eperm()) {
+        if matches!(error.kind(), io::ErrorKind::AlreadyExists)
+            || error.raw_os_error() == Some(libc_eperm())
+        {
             let existing = self.get(adapter, session_id, Some(agent_id))?;
             let Some(existing) = existing else {
-                return Err(ArcaneError::new(ArcCode::ArcStoreCorrupt, "binding record corrupt"));
+                return Err(ArcaneError::new(
+                    ArcCode::ArcStoreCorrupt,
+                    "binding record corrupt",
+                ));
             };
             if existing.adapter != record.adapter
                 || existing.session_id_digest != record.session_id_digest
@@ -218,17 +282,33 @@ impl AuthorityBindingStore {
                 || existing.agent_type != record.agent_type
                 || existing.authority != record.authority
             {
-                return Err(ArcaneError::new(ArcCode::ArcBindingMismatch, "binding identity conflict"));
+                return Err(ArcaneError::new(
+                    ArcCode::ArcBindingMismatch,
+                    "binding identity conflict",
+                ));
             }
             if existing.observed_event_id != record.observed_event_id {
-                return Err(ArcaneError::new(ArcCode::ArcBindingMismatch, "binding provenance is immutable"));
+                return Err(ArcaneError::new(
+                    ArcCode::ArcBindingMismatch,
+                    "binding provenance is immutable",
+                ));
             }
-            return Ok(ObserveResult { bound: true, created: false, reason: None, record: Some(existing) });
+            return Ok(ObserveResult {
+                bound: true,
+                created: false,
+                reason: None,
+                record: Some(existing),
+            });
         }
         Err(io_err(error, "creating binding record"))
     }
 
-    pub fn observe_legion_session(&self, adapter: &str, session_id: &str, event_id: &str) -> Result<ObserveResult, ArcaneError> {
+    pub fn observe_legion_session(
+        &self,
+        adapter: &str,
+        session_id: &str,
+        event_id: &str,
+    ) -> Result<ObserveResult, ArcaneError> {
         self.observe(ObserveInput {
             adapter,
             session_id,
@@ -261,22 +341,35 @@ impl AuthorityBindingStore {
             }
         };
         if mismatch {
-            return Err(ArcaneError::new(ArcCode::ArcBindingMismatch, "binding rollback provenance conflict"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcBindingMismatch,
+                "binding rollback provenance conflict",
+            ));
         }
         fs::remove_file(&path).map_err(|e| io_err(e, "rolling back binding"))?;
         Ok(true)
     }
 
     /// Mirrors JS `get()`.
-    pub fn get(&self, adapter: &str, session_id: &str, agent_id: Option<&str>) -> Result<Option<BindingRecord>, ArcaneError> {
+    pub fn get(
+        &self,
+        adapter: &str,
+        session_id: &str,
+        agent_id: Option<&str>,
+    ) -> Result<Option<BindingRecord>, ArcaneError> {
         let path = self.path(adapter, session_id, agent_id);
         match fs::read_to_string(&path) {
             Ok(text) => {
-                let value = json_parse::parse(&text).map_err(|_| ArcaneError::new(ArcCode::ArcStoreCorrupt, "binding record corrupt"))?;
+                let value = json_parse::parse(&text).map_err(|_| {
+                    ArcaneError::new(ArcCode::ArcStoreCorrupt, "binding record corrupt")
+                })?;
                 Ok(BindingRecord::from_json(&value))
             }
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(_) => Err(ArcaneError::new(ArcCode::ArcStoreCorrupt, "binding record corrupt")),
+            Err(_) => Err(ArcaneError::new(
+                ArcCode::ArcStoreCorrupt,
+                "binding record corrupt",
+            )),
         }
     }
 
@@ -291,7 +384,9 @@ impl AuthorityBindingStore {
         }
         let dest = self.root.join(format!(
             "{}.corrupt-{}",
-            path.file_name().and_then(|s| s.to_str()).unwrap_or("binding"),
+            path.file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("binding"),
             random_hex(6)
         ));
         fs::rename(&path, &dest).is_ok()
@@ -299,8 +394,16 @@ impl AuthorityBindingStore {
 
     /// Mirrors JS `findLatest()`: scan by session digest since the raw
     /// agentId is never stored, only its digest.
-    pub fn find_latest(&self, adapter: &str, session_id: &str, authority: Option<&str>) -> Result<Option<BindingRecord>, ArcaneError> {
-        let want = dig("arcane.authority.session.v1", &[Some(adapter), Some(session_id)]);
+    pub fn find_latest(
+        &self,
+        adapter: &str,
+        session_id: &str,
+        authority: Option<&str>,
+    ) -> Result<Option<BindingRecord>, ArcaneError> {
+        let want = dig(
+            "arcane.authority.session.v1",
+            &[Some(adapter), Some(session_id)],
+        );
         let entries = match fs::read_dir(&self.root) {
             Ok(e) => e,
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
@@ -312,9 +415,15 @@ impl AuthorityBindingStore {
             if path.extension().and_then(|e| e.to_str()) != Some("json") {
                 continue;
             }
-            let Ok(text) = fs::read_to_string(&path) else { continue };
-            let Ok(value) = json_parse::parse(&text) else { continue };
-            let Some(record) = BindingRecord::from_json(&value) else { continue };
+            let Ok(text) = fs::read_to_string(&path) else {
+                continue;
+            };
+            let Ok(value) = json_parse::parse(&text) else {
+                continue;
+            };
+            let Some(record) = BindingRecord::from_json(&value) else {
+                continue;
+            };
             if record.adapter != adapter || record.session_id_digest != want {
                 continue;
             }
@@ -348,15 +457,27 @@ impl AuthorityBindingStore {
         record: Option<&BindingRecord>,
     ) -> Result<Assertion, ArcaneError> {
         if authority.is_some() {
-            return Err(ArcaneError::new(ArcCode::ArcAuthorityModelClaimed, "caller authority forbidden"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcAuthorityModelClaimed,
+                "caller authority forbidden",
+            ));
         }
         let Some(key_id) = key_id else {
-            return Err(ArcaneError::new(ArcCode::ArcAuthKeyUnavailable, "key required"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcAuthKeyUnavailable,
+                "key required",
+            ));
         };
         if let Some(r) = record {
-            let expected_session_digest = dig("arcane.authority.session.v1", &[Some(adapter), Some(session_id)]);
+            let expected_session_digest = dig(
+                "arcane.authority.session.v1",
+                &[Some(adapter), Some(session_id)],
+            );
             if r.adapter != adapter || r.session_id_digest != expected_session_digest {
-                return Err(ArcaneError::new(ArcCode::ArcBindingMismatch, "binding identity conflict"));
+                return Err(ArcaneError::new(
+                    ArcCode::ArcBindingMismatch,
+                    "binding identity conflict",
+                ));
             }
         }
         let resolved = match record {
@@ -364,20 +485,24 @@ impl AuthorityBindingStore {
             None => self.get(adapter, session_id, agent_id)?,
         };
         let Some(rec) = resolved else {
-            return Err(ArcaneError::new(ArcCode::ArcAuthorityNotAsserted, "binding missing"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcAuthorityNotAsserted,
+                "binding missing",
+            ));
         };
-        ledger.assert_for_turn(AssertForTurnInput {
-            turn_id,
-            authority: &rec.authority,
-            asserted_by: &format!("{adapter}:{}", rec.agent_id_digest),
-            verification_method: "capability-signature",
-            per_message: true,
-            source: "host",
-        })
-        .and_then(|a| {
-            let _ = key_id; // key presence already validated above, matching JS (keyId is threaded to the caller's signer, not used by the ledger itself)
-            Ok(a)
-        })
+        ledger
+            .assert_for_turn(AssertForTurnInput {
+                turn_id,
+                authority: &rec.authority,
+                asserted_by: &format!("{adapter}:{}", rec.agent_id_digest),
+                verification_method: "capability-signature",
+                per_message: true,
+                source: "host",
+            })
+            .and_then(|a| {
+                let _ = key_id; // key presence already validated above, matching JS (keyId is threaded to the caller's signer, not used by the ledger itself)
+                Ok(a)
+            })
     }
 }
 
@@ -386,14 +511,21 @@ fn write_new_exclusive(path: &Path, bytes: &[u8]) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
-        let mut f = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
+        let mut f = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)?;
         f.write_all(bytes)?;
         f.sync_all()?;
         Ok(())
     }
     #[cfg(not(unix))]
     {
-        let mut f = fs::OpenOptions::new().write(true).create_new(true).open(path)?;
+        let mut f = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
         f.write_all(bytes)?;
         f.sync_all()?;
         Ok(())
@@ -422,7 +554,8 @@ mod tests {
 
     fn temp_root() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("wf067-binding-store-{}-{n}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("wf067-binding-store-{}-{n}", std::process::id()));
         dir
     }
 
@@ -434,7 +567,14 @@ mod tests {
     fn observe_missing_agent_id_is_unbound() {
         let s = store();
         let r = s
-            .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: None, agent_type: "alchemist", event_id: "e1", session_root: false })
+            .observe(ObserveInput {
+                adapter: "claude-code",
+                session_id: "s1",
+                agent_id: None,
+                agent_type: "alchemist",
+                event_id: "e1",
+                session_root: false,
+            })
             .unwrap();
         assert!(!r.bound);
         assert_eq!(r.reason, Some("missing-identity"));
@@ -444,7 +584,14 @@ mod tests {
     fn observe_unsupported_agent_type_is_unbound() {
         let s = store();
         let r = s
-            .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "operator", event_id: "e1", session_root: false })
+            .observe(ObserveInput {
+                adapter: "claude-code",
+                session_id: "s1",
+                agent_id: Some("a1"),
+                agent_type: "operator",
+                event_id: "e1",
+                session_root: false,
+            })
             .unwrap();
         assert!(!r.bound);
         assert_eq!(r.reason, Some("unsupported-agent-type"));
@@ -454,7 +601,14 @@ mod tests {
     fn observe_legion_requires_session_root() {
         let s = store();
         let r = s
-            .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "legion", event_id: "e1", session_root: false })
+            .observe(ObserveInput {
+                adapter: "claude-code",
+                session_id: "s1",
+                agent_id: Some("a1"),
+                agent_type: "legion",
+                event_id: "e1",
+                session_root: false,
+            })
             .unwrap();
         assert!(!r.bound);
         assert_eq!(r.reason, Some("unsupported-agent-type"));
@@ -464,12 +618,26 @@ mod tests {
     fn observe_creates_then_is_idempotent_on_replay() {
         let s = store();
         let first = s
-            .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e1", session_root: false })
+            .observe(ObserveInput {
+                adapter: "claude-code",
+                session_id: "s1",
+                agent_id: Some("a1"),
+                agent_type: "alchemist",
+                event_id: "e1",
+                session_root: false,
+            })
             .unwrap();
         assert!(first.bound && first.created);
 
         let second = s
-            .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e1", session_root: false })
+            .observe(ObserveInput {
+                adapter: "claude-code",
+                session_id: "s1",
+                agent_id: Some("a1"),
+                agent_type: "alchemist",
+                event_id: "e1",
+                session_root: false,
+            })
             .unwrap();
         assert!(second.bound && !second.created);
         assert_eq!(second.record.unwrap().observed_event_id, "e1");
@@ -478,9 +646,24 @@ mod tests {
     #[test]
     fn observe_conflicting_event_id_is_binding_mismatch() {
         let s = store();
-        s.observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e1", session_root: false }).unwrap();
+        s.observe(ObserveInput {
+            adapter: "claude-code",
+            session_id: "s1",
+            agent_id: Some("a1"),
+            agent_type: "alchemist",
+            event_id: "e1",
+            session_root: false,
+        })
+        .unwrap();
         let err = s
-            .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e2", session_root: false })
+            .observe(ObserveInput {
+                adapter: "claude-code",
+                session_id: "s1",
+                agent_id: Some("a1"),
+                agent_type: "alchemist",
+                event_id: "e2",
+                session_root: false,
+            })
             .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcBindingMismatch);
     }
@@ -488,9 +671,24 @@ mod tests {
     #[test]
     fn observe_conflicting_identity_is_binding_mismatch() {
         let s = store();
-        s.observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e1", session_root: false }).unwrap();
+        s.observe(ObserveInput {
+            adapter: "claude-code",
+            session_id: "s1",
+            agent_id: Some("a1"),
+            agent_type: "alchemist",
+            event_id: "e1",
+            session_root: false,
+        })
+        .unwrap();
         let err = s
-            .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "oracle", event_id: "e1", session_root: false })
+            .observe(ObserveInput {
+                adapter: "claude-code",
+                session_id: "s1",
+                agent_id: Some("a1"),
+                agent_type: "oracle",
+                event_id: "e1",
+                session_root: false,
+            })
             .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcBindingMismatch);
     }
@@ -505,12 +703,23 @@ mod tests {
     fn rollback_removes_matching_record_and_rejects_mismatch() {
         let s = store();
         let r = s
-            .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e1", session_root: false })
+            .observe(ObserveInput {
+                adapter: "claude-code",
+                session_id: "s1",
+                agent_id: Some("a1"),
+                agent_type: "alchemist",
+                event_id: "e1",
+                session_root: false,
+            })
             .unwrap();
         let record = r.record.unwrap();
-        let err = s.rollback("claude-code", "s1", Some("a1"), None).unwrap_err();
+        let err = s
+            .rollback("claude-code", "s1", Some("a1"), None)
+            .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcBindingMismatch);
-        assert!(s.rollback("claude-code", "s1", Some("a1"), Some(&record)).unwrap());
+        assert!(s
+            .rollback("claude-code", "s1", Some("a1"), Some(&record))
+            .unwrap());
         assert_eq!(s.get("claude-code", "s1", Some("a1")).unwrap(), None);
     }
 
@@ -523,10 +732,29 @@ mod tests {
     #[test]
     fn find_latest_scans_by_session_digest_and_filters_by_authority() {
         let s = store();
-        s.observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e1", session_root: false }).unwrap();
-        s.observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a2"), agent_type: "oracle", event_id: "e2", session_root: false }).unwrap();
+        s.observe(ObserveInput {
+            adapter: "claude-code",
+            session_id: "s1",
+            agent_id: Some("a1"),
+            agent_type: "alchemist",
+            event_id: "e1",
+            session_root: false,
+        })
+        .unwrap();
+        s.observe(ObserveInput {
+            adapter: "claude-code",
+            session_id: "s1",
+            agent_id: Some("a2"),
+            agent_type: "oracle",
+            event_id: "e2",
+            session_root: false,
+        })
+        .unwrap();
 
-        let alchemist = s.find_latest("claude-code", "s1", Some("alchemist")).unwrap().unwrap();
+        let alchemist = s
+            .find_latest("claude-code", "s1", Some("alchemist"))
+            .unwrap()
+            .unwrap();
         assert_eq!(alchemist.authority, "alchemist");
 
         let any = s.find_latest("claude-code", "s1", None).unwrap();
@@ -549,7 +777,16 @@ mod tests {
         let s = store();
         let mut ledger = AuthorityLedger::new(|| 0);
         let err = s
-            .assert_for_turn("claude-code", "s1", Some("a1"), "t1", &mut ledger, Some("k1"), Some("alchemist"), None)
+            .assert_for_turn(
+                "claude-code",
+                "s1",
+                Some("a1"),
+                "t1",
+                &mut ledger,
+                Some("k1"),
+                Some("alchemist"),
+                None,
+            )
             .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcAuthorityModelClaimed);
     }
@@ -558,7 +795,18 @@ mod tests {
     fn assert_for_turn_requires_key_id() {
         let s = store();
         let mut ledger = AuthorityLedger::new(|| 0);
-        let err = s.assert_for_turn("claude-code", "s1", Some("a1"), "t1", &mut ledger, None, None, None).unwrap_err();
+        let err = s
+            .assert_for_turn(
+                "claude-code",
+                "s1",
+                Some("a1"),
+                "t1",
+                &mut ledger,
+                None,
+                None,
+                None,
+            )
+            .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcAuthKeyUnavailable);
     }
 
@@ -566,16 +814,46 @@ mod tests {
     fn assert_for_turn_errors_when_binding_missing() {
         let s = store();
         let mut ledger = AuthorityLedger::new(|| 0);
-        let err = s.assert_for_turn("claude-code", "s1", Some("a1"), "t1", &mut ledger, Some("k1"), None, None).unwrap_err();
+        let err = s
+            .assert_for_turn(
+                "claude-code",
+                "s1",
+                Some("a1"),
+                "t1",
+                &mut ledger,
+                Some("k1"),
+                None,
+                None,
+            )
+            .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcAuthorityNotAsserted);
     }
 
     #[test]
     fn assert_for_turn_asserts_ledger_from_stored_binding() {
         let s = store();
-        s.observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e1", session_root: false }).unwrap();
+        s.observe(ObserveInput {
+            adapter: "claude-code",
+            session_id: "s1",
+            agent_id: Some("a1"),
+            agent_type: "alchemist",
+            event_id: "e1",
+            session_root: false,
+        })
+        .unwrap();
         let mut ledger = AuthorityLedger::new(|| 0);
-        let assertion = s.assert_for_turn("claude-code", "s1", Some("a1"), "t1", &mut ledger, Some("k1"), None, None).unwrap();
+        let assertion = s
+            .assert_for_turn(
+                "claude-code",
+                "s1",
+                Some("a1"),
+                "t1",
+                &mut ledger,
+                Some("k1"),
+                None,
+                None,
+            )
+            .unwrap();
         assert_eq!(assertion.authority, "alchemist");
         assert_eq!(ledger.current("t1").unwrap().authority, "alchemist");
     }

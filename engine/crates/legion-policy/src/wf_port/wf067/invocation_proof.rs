@@ -56,18 +56,51 @@ use super::json_parse;
 
 /// Mirrors JS `AUTHORITY_PROOF_FIELDS`.
 pub const AUTHORITY_PROOF_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "invocationId", "eventDigest", "eventSequence", "purpose", "role",
-    "sessionId", "runId", "taskId", "contractId", "contractVersion", "contractDigest",
-    "sourceRevision", "turnCorrelationDigest", "stopOrdinal", "domain", "issuedAt", "expiresAt", "nonce",
+    "schemaVersion",
+    "kind",
+    "invocationId",
+    "eventDigest",
+    "eventSequence",
+    "purpose",
+    "role",
+    "sessionId",
+    "runId",
+    "taskId",
+    "contractId",
+    "contractVersion",
+    "contractDigest",
+    "sourceRevision",
+    "turnCorrelationDigest",
+    "stopOrdinal",
+    "domain",
+    "issuedAt",
+    "expiresAt",
+    "nonce",
 ];
 
 /// Mirrors JS `HOST_EVENT_LEDGER_FIELDS` (host-event-ledger.mjs), needed
 /// here only to verify the caller-supplied ledger event's own signature
 /// before trusting it.
 pub const HOST_EVENT_LEDGER_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "eventId", "eventSequence", "previousDigest", "turnCorrelationDigest",
-    "stopOrdinal", "adapter", "eventType", "sessionId", "runId", "taskId", "contractId",
-    "contractVersion", "contractDigest", "sourceRevision", "observedAuthority", "payloadDigest", "observedAt",
+    "schemaVersion",
+    "kind",
+    "eventId",
+    "eventSequence",
+    "previousDigest",
+    "turnCorrelationDigest",
+    "stopOrdinal",
+    "adapter",
+    "eventType",
+    "sessionId",
+    "runId",
+    "taskId",
+    "contractId",
+    "contractVersion",
+    "contractDigest",
+    "sourceRevision",
+    "observedAuthority",
+    "payloadDigest",
+    "observedAt",
 ];
 
 const PURPOSES: &[&str] = &["completion-claim", "budget-amendment"];
@@ -146,7 +179,10 @@ fn binding_key_json(b: &BindingKey<'_>, session_id: &str) -> Json {
         ("runId".into(), Json::str(b.run_id)),
         ("taskId".into(), Json::str(b.task_id)),
         ("contractId".into(), Json::str(b.contract_id)),
-        ("contractVersion".into(), contract_version_json(b.contract_version)),
+        (
+            "contractVersion".into(),
+            contract_version_json(b.contract_version),
+        ),
         ("contractDigest".into(), Json::str(b.contract_digest)),
     ])
 }
@@ -187,54 +223,104 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
         ledger_store: &'a L,
         clock: impl Fn() -> String + Send + Sync + 'static,
     ) -> Self {
-        Self { root: root.into(), keyring, key_id: key_id.to_string(), ledger_store, clock: Box::new(clock) }
+        Self {
+            root: root.into(),
+            keyring,
+            key_id: key_id.to_string(),
+            ledger_store,
+            clock: Box::new(clock),
+        }
     }
 
     fn proof_path(&self, invocation_id: &str) -> PathBuf {
-        self.root.join("proofs").join(format!("{}.json", strip_digest_prefix(invocation_id)))
+        self.root
+            .join("proofs")
+            .join(format!("{}.json", strip_digest_prefix(invocation_id)))
     }
     fn transition_path(&self, invocation_id: &str, state: &str) -> PathBuf {
-        self.root.join("transitions").join(format!("{}-{}.json", strip_digest_prefix(invocation_id), state))
+        self.root.join("transitions").join(format!(
+            "{}-{}.json",
+            strip_digest_prefix(invocation_id),
+            state
+        ))
     }
 
     fn credentials(&mut self, role: &str, purpose: &str) -> Result<(String, String), ArcaneError> {
         let mac_domain = mac_domain_for(role, purpose);
         let key_id = key_id_for(&self.key_id, role, purpose);
         if !self.keyring.has(&key_id) {
-            let root_key = self
-                .keyring
-                .get(&self.key_id)
-                .ok_or_else(|| ArcaneError::new(ArcCode::ArcAuthKeyUnavailable, "root signing key is unavailable"))?;
-            let material = hmac_sha256(&root_key, format!("arcane-key-derivation:v1\0{mac_domain}").as_bytes());
+            let root_key = self.keyring.get(&self.key_id).ok_or_else(|| {
+                ArcaneError::new(
+                    ArcCode::ArcAuthKeyUnavailable,
+                    "root signing key is unavailable",
+                )
+            })?;
+            let material = hmac_sha256(
+                &root_key,
+                format!("arcane-key-derivation:v1\0{mac_domain}").as_bytes(),
+            );
             self.keyring.add(&key_id, material.to_vec());
         }
         Ok((key_id, mac_domain))
     }
 
     /// Mirrors JS `issue()`.
-    pub fn issue(&mut self, ledger: &Json, binding: &BindingKey<'_>, purpose: &str, role: &str) -> Result<IssueOutcome, ArcaneError> {
-        if !PURPOSES.contains(&purpose) || !ROLES.contains(&role) || !role_purpose_allowed(role, purpose) {
-            return Err(ArcaneError::new(ArcCode::ArcAuthForged, "invalid current invocation proof input"));
+    pub fn issue(
+        &mut self,
+        ledger: &Json,
+        binding: &BindingKey<'_>,
+        purpose: &str,
+        role: &str,
+    ) -> Result<IssueOutcome, ArcaneError> {
+        if !PURPOSES.contains(&purpose)
+            || !ROLES.contains(&role)
+            || !role_purpose_allowed(role, purpose)
+        {
+            return Err(ArcaneError::new(
+                ArcCode::ArcAuthForged,
+                "invalid current invocation proof input",
+            ));
         }
         if !self.ledger_store.verify_ok() {
-            return Err(ArcaneError::new(ArcCode::ArcAuthForged, "invalid current invocation proof input"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcAuthForged,
+                "invalid current invocation proof input",
+            ));
         }
         let records = self.ledger_store.records();
-        let last = records.last().ok_or_else(|| ArcaneError::new(ArcCode::ArcAuthForged, "invalid current invocation proof input"))?;
+        let last = records.last().ok_or_else(|| {
+            ArcaneError::new(
+                ArcCode::ArcAuthForged,
+                "invalid current invocation proof input",
+            )
+        })?;
         if digest_value(last).ok() != digest_value(ledger).ok() {
-            return Err(ArcaneError::new(ArcCode::ArcAuthForged, "invalid current invocation proof input"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcAuthForged,
+                "invalid current invocation proof input",
+            ));
         }
         if !verify_ledger_authentication(ledger) {
-            return Err(ArcaneError::new(ArcCode::ArcAuthForged, "invalid current invocation proof input"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcAuthForged,
+                "invalid current invocation proof input",
+            ));
         }
-        let observed_authority = ledger.get("observedAuthority").and_then(|v| v.as_str()).unwrap_or("");
+        let observed_authority = ledger
+            .get("observedAuthority")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         if observed_authority != role {
-            return Err(ArcaneError::new(ArcCode::ArcAuthForged, "invalid current invocation proof input"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcAuthForged,
+                "invalid current invocation proof input",
+            ));
         }
 
         let session_id = field_str(ledger, "sessionId");
         let (key_id, mac_domain) = self.credentials(role, purpose)?;
-        let event_digest = digest_value(ledger).map_err(|e| ArcaneError::new(ArcCode::ArcAuthForged, e.message))?;
+        let event_digest = digest_value(ledger)
+            .map_err(|e| ArcaneError::new(ArcCode::ArcAuthForged, e.message))?;
         let binding_key = binding_key_json(binding, &session_id);
         let invocation_id = digest_value(&Json::Obj(vec![
             ("eventDigest".into(), Json::str(event_digest.clone())),
@@ -247,10 +333,21 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
         let file = self.proof_path(&invocation_id);
         if let Ok(text) = fs::read_to_string(&file) {
             if let Ok(existing) = json_parse::parse(&text) {
-                let existing_key_id = existing.get("authentication").and_then(|a| a.get("keyId")).and_then(|v| v.as_str());
-                let existing_domain = existing.get("authentication").and_then(|a| a.get("macDomain")).and_then(|v| v.as_str());
-                if existing_key_id != Some(key_id.as_str()) || existing_domain != Some(mac_domain.as_str()) {
-                    return Err(ArcaneError::new(ArcCode::ArcAuthForged, "authority proof key domain mismatch"));
+                let existing_key_id = existing
+                    .get("authentication")
+                    .and_then(|a| a.get("keyId"))
+                    .and_then(|v| v.as_str());
+                let existing_domain = existing
+                    .get("authentication")
+                    .and_then(|a| a.get("macDomain"))
+                    .and_then(|v| v.as_str());
+                if existing_key_id != Some(key_id.as_str())
+                    || existing_domain != Some(mac_domain.as_str())
+                {
+                    return Err(ArcaneError::new(
+                        ArcCode::ArcAuthForged,
+                        "authority proof key domain mismatch",
+                    ));
                 }
                 return Ok(IssueOutcome::Issued(existing));
             }
@@ -265,12 +362,18 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
 
         let event_sequence = ledger.get("eventSequence").cloned().unwrap_or(Json::Null);
         let source_revision = ledger.get("sourceRevision").cloned().unwrap_or(Json::Null);
-        let turn_correlation_digest = ledger.get("turnCorrelationDigest").cloned().unwrap_or(Json::Null);
+        let turn_correlation_digest = ledger
+            .get("turnCorrelationDigest")
+            .cloned()
+            .unwrap_or(Json::Null);
         let stop_ordinal = ledger.get("stopOrdinal").cloned().unwrap_or(Json::Null);
 
         let unsigned = Json::Obj(vec![
             ("schemaVersion".into(), Json::I64(1)),
-            ("kind".into(), Json::str("arcane-authority-invocation-proof")),
+            (
+                "kind".into(),
+                Json::str("arcane-authority-invocation-proof"),
+            ),
             ("invocationId".into(), Json::str(invocation_id.clone())),
             ("eventDigest".into(), Json::str(event_digest)),
             ("eventSequence".into(), event_sequence),
@@ -280,7 +383,10 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
             ("runId".into(), Json::str(binding.run_id)),
             ("taskId".into(), Json::str(binding.task_id)),
             ("contractId".into(), Json::str(binding.contract_id)),
-            ("contractVersion".into(), contract_version_json(binding.contract_version)),
+            (
+                "contractVersion".into(),
+                contract_version_json(binding.contract_version),
+            ),
             ("contractDigest".into(), Json::str(binding.contract_digest)),
             ("sourceRevision".into(), source_revision),
             ("turnCorrelationDigest".into(), turn_correlation_digest),
@@ -291,10 +397,9 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
             ("nonce".into(), Json::str(nonce)),
         ]);
 
-        let key = self
-            .keyring
-            .get(&key_id)
-            .ok_or_else(|| ArcaneError::new(ArcCode::ArcAuthKeyUnavailable, "signing key is unavailable"))?;
+        let key = self.keyring.get(&key_id).ok_or_else(|| {
+            ArcaneError::new(ArcCode::ArcAuthKeyUnavailable, "signing key is unavailable")
+        })?;
         let mac = sign_over_fields(&unsigned, &key, AUTHORITY_PROOF_FIELDS, &mac_domain)?;
         let proof = with_authentication(unsigned, &key_id, &mac_domain, &mac);
 
@@ -303,15 +408,23 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
             Ok(()) => {
                 let transition = Json::Obj(vec![
                     ("state".into(), Json::str("ISSUED")),
-                    ("proofDigest".into(), Json::str(digest_value(&proof).unwrap())),
+                    (
+                        "proofDigest".into(),
+                        Json::str(digest_value(&proof).unwrap()),
+                    ),
                     ("at".into(), Json::str(issued_at)),
                 ]);
-                let _ = write_new(&self.transition_path(&invocation_id, "issued"), canonical_json(&transition).unwrap().as_bytes());
+                let _ = write_new(
+                    &self.transition_path(&invocation_id, "issued"),
+                    canonical_json(&transition).unwrap().as_bytes(),
+                );
                 Ok(IssueOutcome::Issued(proof))
             }
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
                 let text = fs::read_to_string(&file).map_err(io_err)?;
-                let existing = json_parse::parse(&text).map_err(|_| ArcaneError::new(ArcCode::ArcStoreCorrupt, "authority proof missing"))?;
+                let existing = json_parse::parse(&text).map_err(|_| {
+                    ArcaneError::new(ArcCode::ArcStoreCorrupt, "authority proof missing")
+                })?;
                 Ok(IssueOutcome::Issued(existing))
             }
             Err(e) => Err(io_err(e)),
@@ -336,64 +449,131 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
     /// Mirrors JS `verify()`: role must be `oracle`/`completion-claim`.
     pub fn verify(&mut self, proof: Option<&Json>, expected: &BTreeMap<&str, &str>) -> Decision {
         let Some(proof) = proof else {
-            return deny(ArcCode::ArcAuthForged, "Oracle completion authority proof is invalid");
+            return deny(
+                ArcCode::ArcAuthForged,
+                "Oracle completion authority proof is invalid",
+            );
         };
         let role = proof.get("role").and_then(|v| v.as_str()).unwrap_or("");
         let purpose = proof.get("purpose").and_then(|v| v.as_str()).unwrap_or("");
         if role != "oracle" || purpose != "completion-claim" {
-            return deny(ArcCode::ArcAuthForged, "Oracle completion authority proof is invalid");
+            return deny(
+                ArcCode::ArcAuthForged,
+                "Oracle completion authority proof is invalid",
+            );
         }
         let mac_domain = mac_domain_for(role, purpose);
         let suffix = format!(":authority-proof:{role}:{purpose}");
-        let presented_key_id = proof.get("authentication").and_then(|a| a.get("keyId")).and_then(|v| v.as_str()).unwrap_or("");
+        let presented_key_id = proof
+            .get("authentication")
+            .and_then(|a| a.get("keyId"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let Some(root_key_id) = presented_key_id.strip_suffix(suffix.as_str()) else {
-            return deny(ArcCode::ArcAuthForged, "authority proof key identifier is invalid");
+            return deny(
+                ArcCode::ArcAuthForged,
+                "authority proof key identifier is invalid",
+            );
         };
 
         if !self.keyring.has(presented_key_id) {
             let Some(root_key) = self.keyring.get(root_key_id) else {
-                return deny(ArcCode::ArcAuthKeyUnavailable, "authority proof root key is unavailable");
+                return deny(
+                    ArcCode::ArcAuthKeyUnavailable,
+                    "authority proof root key is unavailable",
+                );
             };
-            let material = hmac_sha256(&root_key, format!("arcane-key-derivation:v1\0{mac_domain}").as_bytes());
+            let material = hmac_sha256(
+                &root_key,
+                format!("arcane-key-derivation:v1\0{mac_domain}").as_bytes(),
+            );
             self.keyring.add(presented_key_id, material.to_vec());
         }
 
         let Some(key) = self.keyring.get(presented_key_id) else {
-            return deny(ArcCode::ArcAuthKeyUnavailable, "authority proof root key is unavailable");
+            return deny(
+                ArcCode::ArcAuthKeyUnavailable,
+                "authority proof root key is unavailable",
+            );
         };
-        let presented_mac = proof.get("authentication").and_then(|a| a.get("mac")).and_then(|v| v.as_str()).unwrap_or("");
-        let expected_mac = match sign_over_fields(proof, &key, AUTHORITY_PROOF_FIELDS, &mac_domain) {
+        let presented_mac = proof
+            .get("authentication")
+            .and_then(|a| a.get("mac"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let expected_mac = match sign_over_fields(proof, &key, AUTHORITY_PROOF_FIELDS, &mac_domain)
+        {
             Ok(m) => m,
-            Err(_) => return deny(ArcCode::ArcAuthForged, "authority proof authentication is invalid"),
+            Err(_) => {
+                return deny(
+                    ArcCode::ArcAuthForged,
+                    "authority proof authentication is invalid",
+                )
+            }
         };
         if presented_mac != expected_mac {
-            return deny(ArcCode::ArcAuthForged, "authority proof authentication is invalid");
+            return deny(
+                ArcCode::ArcAuthForged,
+                "authority proof authentication is invalid",
+            );
         }
         if presented_key_id != key_id_for(root_key_id, role, purpose) {
-            return deny(ArcCode::ArcAuthForged, "authority proof is expired or misbound");
+            return deny(
+                ArcCode::ArcAuthForged,
+                "authority proof is expired or misbound",
+            );
         }
-        let expires_at = proof.get("expiresAt").and_then(|v| v.as_str()).unwrap_or("");
+        let expires_at = proof
+            .get("expiresAt")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         if iso_before(expires_at, &(self.clock)()) {
-            return deny(ArcCode::ArcAuthForged, "authority proof is expired or misbound");
+            return deny(
+                ArcCode::ArcAuthForged,
+                "authority proof is expired or misbound",
+            );
         }
         for (key, value) in expected {
             let actual = proof.get(key).and_then(|v| v.as_str());
             if actual != Some(*value) {
-                return deny(ArcCode::ArcBindingMismatch, "authority proof does not bind this completion execution");
+                return deny(
+                    ArcCode::ArcBindingMismatch,
+                    "authority proof does not bind this completion execution",
+                );
             }
         }
-        let invocation_id = proof.get("invocationId").and_then(|v| v.as_str()).unwrap_or("");
-        let issued = match fs::read_to_string(self.proof_path(invocation_id)).ok().and_then(|t| json_parse::parse(&t).ok()) {
+        let invocation_id = proof
+            .get("invocationId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let issued = match fs::read_to_string(self.proof_path(invocation_id))
+            .ok()
+            .and_then(|t| json_parse::parse(&t).ok())
+        {
             Some(v) => v,
             None => return deny(ArcCode::ArcStoreCorrupt, "authority proof missing"),
         };
-        if digest_value(&issued).ok() != digest_value(proof).ok() || !self.ledger_store.verify_ok() {
-            return deny(ArcCode::ArcAuthForged, "authority proof persistence or host ledger is invalid");
+        if digest_value(&issued).ok() != digest_value(proof).ok() || !self.ledger_store.verify_ok()
+        {
+            return deny(
+                ArcCode::ArcAuthForged,
+                "authority proof persistence or host ledger is invalid",
+            );
         }
-        let event_digest = proof.get("eventDigest").and_then(|v| v.as_str()).unwrap_or("");
-        let event = self.ledger_store.records().into_iter().find(|r| digest_value(r).ok().as_deref() == Some(event_digest));
+        let event_digest = proof
+            .get("eventDigest")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let event = self
+            .ledger_store
+            .records()
+            .into_iter()
+            .find(|r| digest_value(r).ok().as_deref() == Some(event_digest));
         let Some(event) = event else {
-            return deny(ArcCode::ArcBindingMismatch, "authority proof host binding is unavailable");
+            return deny(
+                ArcCode::ArcBindingMismatch,
+                "authority proof host binding is unavailable",
+            );
         };
         let matches = event.get("observedAuthority").and_then(|v| v.as_str()) == Some("oracle")
             && event.get("sessionId") == proof.get("sessionId")
@@ -404,62 +584,115 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
             && event.get("contractDigest") == proof.get("contractDigest")
             && event.get("sourceRevision") == proof.get("sourceRevision");
         if !matches {
-            return deny(ArcCode::ArcBindingMismatch, "authority proof host binding is unavailable");
+            return deny(
+                ArcCode::ArcBindingMismatch,
+                "authority proof host binding is unavailable",
+            );
         }
         Decision::allow(vec![("invocationId".into(), invocation_id.into())])
     }
 
     /// Mirrors JS `consume()`.
-    pub fn consume(&mut self, proof: &Json, artifact_digest: Option<&str>) -> Result<Decision, ArcaneError> {
+    pub fn consume(
+        &mut self,
+        proof: &Json,
+        artifact_digest: Option<&str>,
+    ) -> Result<Decision, ArcaneError> {
         let role = proof.get("role").and_then(|v| v.as_str()).unwrap_or("");
         let purpose = proof.get("purpose").and_then(|v| v.as_str()).unwrap_or("");
         if !ROLES.contains(&role) || !PURPOSES.contains(&purpose) {
-            return Ok(deny(ArcCode::ArcAuthForged, "authority proof authentication is invalid"));
+            return Ok(deny(
+                ArcCode::ArcAuthForged,
+                "authority proof authentication is invalid",
+            ));
         }
         let mac_domain = mac_domain_for(role, purpose);
-        let presented_key_id = proof.get("authentication").and_then(|a| a.get("keyId")).and_then(|v| v.as_str()).unwrap_or("");
+        let presented_key_id = proof
+            .get("authentication")
+            .and_then(|a| a.get("keyId"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let expected_key_id = key_id_for(&self.key_id, role, purpose);
         let Some(key) = self.keyring.get(presented_key_id) else {
-            return Ok(deny(ArcCode::ArcAuthForged, "authority proof authentication is invalid"));
+            return Ok(deny(
+                ArcCode::ArcAuthForged,
+                "authority proof authentication is invalid",
+            ));
         };
-        let presented_mac = proof.get("authentication").and_then(|a| a.get("mac")).and_then(|v| v.as_str()).unwrap_or("");
+        let presented_mac = proof
+            .get("authentication")
+            .and_then(|a| a.get("mac"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let expected_mac = sign_over_fields(proof, &key, AUTHORITY_PROOF_FIELDS, &mac_domain)
             .map_err(|e| ArcaneError::new(ArcCode::ArcAuthForged, e.message))?;
         if presented_mac != expected_mac {
-            return Ok(deny(ArcCode::ArcAuthForged, "authority proof authentication is invalid"));
+            return Ok(deny(
+                ArcCode::ArcAuthForged,
+                "authority proof authentication is invalid",
+            ));
         }
         if presented_key_id != expected_key_id {
-            return Ok(deny(ArcCode::ArcAuthForged, "authority proof key identifier does not match role and purpose"));
+            return Ok(deny(
+                ArcCode::ArcAuthForged,
+                "authority proof key identifier does not match role and purpose",
+            ));
         }
-        let expires_at = proof.get("expiresAt").and_then(|v| v.as_str()).unwrap_or("");
+        let expires_at = proof
+            .get("expiresAt")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         if iso_before(expires_at, &(self.clock)()) {
-            return Ok(deny(ArcCode::ArcClaimPrerequisiteUnmet, "authority proof expired"));
+            return Ok(deny(
+                ArcCode::ArcClaimPrerequisiteUnmet,
+                "authority proof expired",
+            ));
         }
-        let invocation_id = proof.get("invocationId").and_then(|v| v.as_str()).unwrap_or("");
-        let issued = match fs::read_to_string(self.proof_path(invocation_id)).ok().and_then(|t| json_parse::parse(&t).ok()) {
+        let invocation_id = proof
+            .get("invocationId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let issued = match fs::read_to_string(self.proof_path(invocation_id))
+            .ok()
+            .and_then(|t| json_parse::parse(&t).ok())
+        {
             Some(v) => v,
             None => return Ok(deny(ArcCode::ArcStoreCorrupt, "authority proof missing")),
         };
         if digest_value(&issued).ok() != digest_value(proof).ok() {
-            return Ok(deny(ArcCode::ArcAuthForged, "authority proof does not match issued record"));
+            return Ok(deny(
+                ArcCode::ArcAuthForged,
+                "authority proof does not match issued record",
+            ));
         }
         let file = self.transition_path(invocation_id, "consumed");
         let transition = Json::Obj(vec![
             ("state".into(), Json::str("CONSUMED")),
-            ("proofDigest".into(), Json::str(digest_value(proof).unwrap())),
-            ("artifactDigest".into(), artifact_digest.map(Json::str).unwrap_or(Json::Null)),
+            (
+                "proofDigest".into(),
+                Json::str(digest_value(proof).unwrap()),
+            ),
+            (
+                "artifactDigest".into(),
+                artifact_digest.map(Json::str).unwrap_or(Json::Null),
+            ),
             ("at".into(), Json::str((self.clock)())),
         ]);
         match write_new(&file, canonical_json(&transition).unwrap().as_bytes()) {
             Ok(()) => Ok(Decision::allow(vec![("state".into(), "CONSUMED".into())])),
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
                 let text = fs::read_to_string(&file).map_err(io_err)?;
-                let prior = json_parse::parse(&text).map_err(|_| ArcaneError::new(ArcCode::ArcStoreCorrupt, "authority proof missing"))?;
+                let prior = json_parse::parse(&text).map_err(|_| {
+                    ArcaneError::new(ArcCode::ArcStoreCorrupt, "authority proof missing")
+                })?;
                 let prior_artifact = prior.get("artifactDigest").and_then(|v| v.as_str());
                 if prior_artifact == artifact_digest {
                     Ok(Decision::allow(vec![("idempotent".into(), "true".into())]))
                 } else {
-                    Ok(deny(ArcCode::ArcReplayNonceSeen, "authority proof already consumed"))
+                    Ok(deny(
+                        ArcCode::ArcReplayNonceSeen,
+                        "authority proof already consumed",
+                    ))
                 }
             }
             Err(e) => Err(io_err(e)),
@@ -472,14 +705,22 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
 // ---------------------------------------------------------------------
 
 fn field_str(v: &Json, key: &str) -> String {
-    v.get(key).and_then(|j| j.as_str()).unwrap_or("").to_string()
+    v.get(key)
+        .and_then(|j| j.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 fn strip_digest_prefix(id: &str) -> &str {
     id.strip_prefix("sha256:").unwrap_or(id)
 }
 
-fn sign_over_fields(record: &Json, key: &[u8], fields: &[&str], mac_domain: &str) -> Result<String, ArcaneError> {
+fn sign_over_fields(
+    record: &Json,
+    key: &[u8],
+    fields: &[&str],
+    mac_domain: &str,
+) -> Result<String, ArcaneError> {
     let mut projected = Vec::new();
     for f in fields {
         let v = record.get(f).cloned().unwrap_or(Json::Null);
@@ -489,12 +730,15 @@ fn sign_over_fields(record: &Json, key: &[u8], fields: &[&str], mac_domain: &str
         ("macDomain".into(), Json::str(mac_domain)),
         ("subject".into(), Json::Obj(projected)),
     ]);
-    let text = canonical_json(&message).map_err(|e| ArcaneError::new(ArcCode::ArcAuthForged, e.message))?;
+    let text = canonical_json(&message)
+        .map_err(|e| ArcaneError::new(ArcCode::ArcAuthForged, e.message))?;
     Ok(hmac_sha256_hex(key, text.as_bytes()))
 }
 
 fn with_authentication(unsigned: Json, key_id: &str, mac_domain: &str, mac: &str) -> Json {
-    let Json::Obj(mut pairs) = unsigned else { unreachable!() };
+    let Json::Obj(mut pairs) = unsigned else {
+        unreachable!()
+    };
     pairs.push((
         "authentication".into(),
         Json::Obj(vec![
@@ -593,7 +837,10 @@ fn format_iso_millis(ms: i64) -> String {
 
 fn write_new(path: &std::path::Path, bytes: &[u8]) -> io::Result<()> {
     use std::io::Write;
-    let mut f = fs::OpenOptions::new().write(true).create_new(true).open(path)?;
+    let mut f = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)?;
     f.write_all(bytes)?;
     Ok(())
 }
@@ -613,7 +860,10 @@ fn random_hex(n: usize) -> String {
             }
         }
     }
-    let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
     let mut x = seed as u64 ^ (&buf as *const _ as u64);
     for slot in buf.iter_mut() {
         x ^= x << 13;
@@ -670,29 +920,73 @@ mod tests {
             ("observedAuthority".into(), Json::str(observed_authority)),
             ("payloadDigest".into(), Json::str("sha256:def")),
             ("observedAt".into(), Json::str("2026-01-01T00:00:00.000Z")),
-            ("authentication".into(), Json::Obj(vec![("keyId".into(), Json::str("root")), ("mac".into(), Json::str("x"))])),
+            (
+                "authentication".into(),
+                Json::Obj(vec![
+                    ("keyId".into(), Json::str("root")),
+                    ("mac".into(), Json::str("x")),
+                ]),
+            ),
         ])
     }
 
     fn binding() -> BindingKey<'static> {
-        BindingKey { run_id: "run-1", task_id: "task-1", contract_id: "EC-1", contract_version: "1", contract_digest: "sha256:abc" }
+        BindingKey {
+            run_id: "run-1",
+            task_id: "task-1",
+            contract_id: "EC-1",
+            contract_version: "1",
+            contract_digest: "sha256:abc",
+        }
     }
 
     #[test]
     fn issue_rejects_role_purpose_mismatch() {
         let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
-        let ledger_store = FixedLedgerStore { records: vec![sample_ledger("oracle")], ok: true };
-        let mut issuer = AuthorityInvocationProofIssuer::new(temp_root(), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
-        let err = issuer.issue(&sample_ledger("oracle"), &binding(), "budget-amendment", "oracle").unwrap_err();
+        let ledger_store = FixedLedgerStore {
+            records: vec![sample_ledger("oracle")],
+            ok: true,
+        };
+        let mut issuer = AuthorityInvocationProofIssuer::new(
+            temp_root(),
+            &mut keyring,
+            "root",
+            &ledger_store,
+            || "2026-01-01T00:00:00.000Z".to_string(),
+        );
+        let err = issuer
+            .issue(
+                &sample_ledger("oracle"),
+                &binding(),
+                "budget-amendment",
+                "oracle",
+            )
+            .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcAuthForged);
     }
 
     #[test]
     fn issue_rejects_when_ledger_store_verify_fails() {
         let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
-        let ledger_store = FixedLedgerStore { records: vec![sample_ledger("oracle")], ok: false };
-        let mut issuer = AuthorityInvocationProofIssuer::new(temp_root(), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
-        let err = issuer.issue(&sample_ledger("oracle"), &binding(), "completion-claim", "oracle").unwrap_err();
+        let ledger_store = FixedLedgerStore {
+            records: vec![sample_ledger("oracle")],
+            ok: false,
+        };
+        let mut issuer = AuthorityInvocationProofIssuer::new(
+            temp_root(),
+            &mut keyring,
+            "root",
+            &ledger_store,
+            || "2026-01-01T00:00:00.000Z".to_string(),
+        );
+        let err = issuer
+            .issue(
+                &sample_ledger("oracle"),
+                &binding(),
+                "completion-claim",
+                "oracle",
+            )
+            .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcAuthForged);
     }
 
@@ -700,10 +994,21 @@ mod tests {
     fn issue_then_verify_then_consume_round_trips() {
         let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
         let ledger = sample_ledger("oracle");
-        let ledger_store = FixedLedgerStore { records: vec![ledger.clone()], ok: true };
-        let mut issuer = AuthorityInvocationProofIssuer::new(temp_root(), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
+        let ledger_store = FixedLedgerStore {
+            records: vec![ledger.clone()],
+            ok: true,
+        };
+        let mut issuer = AuthorityInvocationProofIssuer::new(
+            temp_root(),
+            &mut keyring,
+            "root",
+            &ledger_store,
+            || "2026-01-01T00:00:00.000Z".to_string(),
+        );
 
-        let IssueOutcome::Issued(proof) = issuer.issue(&ledger, &binding(), "completion-claim", "oracle").unwrap();
+        let IssueOutcome::Issued(proof) = issuer
+            .issue(&ledger, &binding(), "completion-claim", "oracle")
+            .unwrap();
         assert_eq!(proof.get("role").and_then(|v| v.as_str()), Some("oracle"));
 
         let expected = BTreeMap::new();
@@ -726,19 +1031,47 @@ mod tests {
     fn issue_is_idempotent_for_the_same_event_purpose_role_binding() {
         let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
         let ledger = sample_ledger("oracle");
-        let ledger_store = FixedLedgerStore { records: vec![ledger.clone()], ok: true };
-        let mut issuer = AuthorityInvocationProofIssuer::new(temp_root(), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
-        let IssueOutcome::Issued(first) = issuer.issue(&ledger, &binding(), "completion-claim", "oracle").unwrap();
-        let IssueOutcome::Issued(second) = issuer.issue(&ledger, &binding(), "completion-claim", "oracle").unwrap();
-        assert_eq!(digest_value(&first).unwrap(), digest_value(&second).unwrap());
+        let ledger_store = FixedLedgerStore {
+            records: vec![ledger.clone()],
+            ok: true,
+        };
+        let mut issuer = AuthorityInvocationProofIssuer::new(
+            temp_root(),
+            &mut keyring,
+            "root",
+            &ledger_store,
+            || "2026-01-01T00:00:00.000Z".to_string(),
+        );
+        let IssueOutcome::Issued(first) = issuer
+            .issue(&ledger, &binding(), "completion-claim", "oracle")
+            .unwrap();
+        let IssueOutcome::Issued(second) = issuer
+            .issue(&ledger, &binding(), "completion-claim", "oracle")
+            .unwrap();
+        assert_eq!(
+            digest_value(&first).unwrap(),
+            digest_value(&second).unwrap()
+        );
     }
 
     #[test]
     fn verify_rejects_non_oracle_completion_proof() {
         let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
-        let ledger_store = FixedLedgerStore { records: vec![], ok: true };
-        let mut issuer = AuthorityInvocationProofIssuer::new(temp_root(), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
-        let proof = Json::Obj(vec![("role".into(), Json::str("alchemist")), ("purpose".into(), Json::str("completion-claim"))]);
+        let ledger_store = FixedLedgerStore {
+            records: vec![],
+            ok: true,
+        };
+        let mut issuer = AuthorityInvocationProofIssuer::new(
+            temp_root(),
+            &mut keyring,
+            "root",
+            &ledger_store,
+            || "2026-01-01T00:00:00.000Z".to_string(),
+        );
+        let proof = Json::Obj(vec![
+            ("role".into(), Json::str("alchemist")),
+            ("purpose".into(), Json::str("completion-claim")),
+        ]);
         let d = issuer.verify(Some(&proof), &BTreeMap::new());
         assert_eq!(d.code, Some(ArcCode::ArcAuthForged));
     }
@@ -746,8 +1079,17 @@ mod tests {
     #[test]
     fn verify_none_is_forged() {
         let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
-        let ledger_store = FixedLedgerStore { records: vec![], ok: true };
-        let mut issuer = AuthorityInvocationProofIssuer::new(temp_root(), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
+        let ledger_store = FixedLedgerStore {
+            records: vec![],
+            ok: true,
+        };
+        let mut issuer = AuthorityInvocationProofIssuer::new(
+            temp_root(),
+            &mut keyring,
+            "root",
+            &ledger_store,
+            || "2026-01-01T00:00:00.000Z".to_string(),
+        );
         let d = issuer.verify(None, &BTreeMap::new());
         assert_eq!(d.code, Some(ArcCode::ArcAuthForged));
     }
@@ -764,20 +1106,39 @@ mod tests {
     fn expired_proof_is_denied_by_verify_and_consume() {
         let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
         let ledger = sample_ledger("oracle");
-        let ledger_store = FixedLedgerStore { records: vec![ledger.clone()], ok: true };
-        let mut issuer = AuthorityInvocationProofIssuer::new(temp_root(), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
-        let IssueOutcome::Issued(proof) = issuer.issue(&ledger, &binding(), "completion-claim", "oracle").unwrap();
+        let ledger_store = FixedLedgerStore {
+            records: vec![ledger.clone()],
+            ok: true,
+        };
+        let mut issuer = AuthorityInvocationProofIssuer::new(
+            temp_root(),
+            &mut keyring,
+            "root",
+            &ledger_store,
+            || "2026-01-01T00:00:00.000Z".to_string(),
+        );
+        let IssueOutcome::Issued(proof) = issuer
+            .issue(&ledger, &binding(), "completion-claim", "oracle")
+            .unwrap();
 
         // Re-open with a clock 10 minutes later (proof lifetime is 5 minutes).
         let mut keyring2 = StaticKeyRing::new().with_key("root", b"root-secret");
-        let mut later = AuthorityInvocationProofIssuer::new(issuer_root(&issuer), &mut keyring2, "root", &ledger_store, || "2026-01-01T00:10:00.000Z".to_string());
+        let mut later = AuthorityInvocationProofIssuer::new(
+            issuer_root(&issuer),
+            &mut keyring2,
+            "root",
+            &ledger_store,
+            || "2026-01-01T00:10:00.000Z".to_string(),
+        );
         let d = later.verify(Some(&proof), &BTreeMap::new());
         assert_eq!(d.code, Some(ArcCode::ArcAuthForged));
         let c = later.consume(&proof, None).unwrap();
         assert_eq!(c.code, Some(ArcCode::ArcClaimPrerequisiteUnmet));
     }
 
-    fn issuer_root<K: KeyRing, L: LedgerStore>(issuer: &AuthorityInvocationProofIssuer<'_, K, L>) -> PathBuf {
+    fn issuer_root<K: KeyRing, L: LedgerStore>(
+        issuer: &AuthorityInvocationProofIssuer<'_, K, L>,
+    ) -> PathBuf {
         issuer.root.clone()
     }
 }

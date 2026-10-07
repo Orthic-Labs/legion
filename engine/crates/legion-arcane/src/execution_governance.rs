@@ -297,15 +297,15 @@ pub fn deny_stale_continuation(
         );
     }
     if token.is_none() || current.is_none() {
-        return terminal("STALE_CONTINUATION", "CONTINUATION_BINDING_MISSING", json!({}));
+        return terminal(
+            "STALE_CONTINUATION",
+            "CONTINUATION_BINDING_MISSING",
+            json!({}),
+        );
     }
     let token = token.unwrap();
     let current = current.unwrap();
-    let fields = [
-        "objective_lineage_id",
-        "intent_epoch",
-        "continuation_epoch",
-    ];
+    let fields = ["objective_lineage_id", "intent_epoch", "continuation_epoch"];
     let mismatches = fields
         .iter()
         .filter(|field| token.get(*field) != current.get(*field))
@@ -334,7 +334,11 @@ pub fn classify_rehydrated_input(input: &Value) -> Value {
             "effect_downgrade_allowed": false,
             "data": rehydrated["data"],
         }),
-        None => terminal("REHYDRATION_REJECTED", "INVALID_REHYDRATION_ENVELOPE", json!({})),
+        None => terminal(
+            "REHYDRATION_REJECTED",
+            "INVALID_REHYDRATION_ENVELOPE",
+            json!({}),
+        ),
     }
 }
 

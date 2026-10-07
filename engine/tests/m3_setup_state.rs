@@ -659,7 +659,10 @@ fn host_mcp_registration_round_trips_codex_toml_without_duplicating_blocks() {
         1,
         "repair must replace, not duplicate, the owned TOML block"
     );
-    assert_eq!(after_second, after_apply, "codex config is byte-identical on repeat repair");
+    assert_eq!(
+        after_second, after_apply,
+        "codex config is byte-identical on repeat repair"
+    );
 
     let removed = remove_client_projection(&input).expect("remove codex projection");
     assert!(removed.preserved.is_empty());

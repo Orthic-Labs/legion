@@ -8,7 +8,9 @@
 //! Python test file; their tests here exercise the pure logic ported from
 //! each script's documented behaviour (docstrings + branch bodies).
 
-use legion_runtime::wf_port::w2_031::{indexing_notify, indexnow, keyword_planner, nlp_analyze, page_engine};
+use legion_runtime::wf_port::w2_031::{
+    indexing_notify, indexnow, keyword_planner, nlp_analyze, page_engine,
+};
 use serde_json::json;
 
 fn page_engine_config() -> page_engine::PageEngineConfig {
@@ -74,7 +76,12 @@ fn test_expand_requires_real_information_gain() {
     });
     let result = page_engine::assess(&cfg, &bundle);
     assert_eq!(result["status"], "fail");
-    let errors: Vec<&str> = result["errors"].as_array().unwrap().iter().map(|e| e.as_str().unwrap()).collect();
+    let errors: Vec<&str> = result["errors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e.as_str().unwrap())
+        .collect();
     assert!(errors.contains(&"EXPAND requires demonstrated information gain"));
 }
 
@@ -152,7 +159,9 @@ fn page_engine_missing_contract_field_is_investigate() {
 fn indexnow_genkey_is_32_lowercase_hex_chars() {
     let key = indexnow::genkey();
     assert_eq!(key.len(), 32);
-    assert!(key.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+    assert!(key
+        .chars()
+        .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
     // Two calls should not collide.
     assert_ne!(key, indexnow::genkey());
 }
@@ -168,7 +177,12 @@ fn indexnow_default_key_location_matches_python_fstring() {
 #[test]
 fn indexnow_build_submit_body_includes_key_location_when_given() {
     let urls = vec!["https://example.com/a".to_string()];
-    let body = indexnow::build_submit_body("example.com", &urls, "thekey", Some("https://example.com/thekey.txt"));
+    let body = indexnow::build_submit_body(
+        "example.com",
+        &urls,
+        "thekey",
+        Some("https://example.com/thekey.txt"),
+    );
     assert_eq!(body["host"], "example.com");
     assert_eq!(body["key"], "thekey");
     assert_eq!(body["urlList"][0], "https://example.com/a");
@@ -187,7 +201,11 @@ fn indexnow_parse_urls_file_skips_blank_lines() {
     let contents = "https://a\n\n  https://b  \n\nhttps://c\n";
     assert_eq!(
         indexnow::parse_urls_file(contents),
-        vec!["https://a".to_string(), "https://b".to_string(), "https://c".to_string()]
+        vec![
+            "https://a".to_string(),
+            "https://b".to_string(),
+            "https://c".to_string()
+        ]
     );
 }
 
@@ -203,7 +221,9 @@ impl indexnow::Transport for FakeTransport {
 
 #[test]
 fn indexnow_submit_with_success_status_is_accepted() {
-    let transport = FakeTransport { response: Ok((202, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((202, String::new())),
+    };
     let urls = vec!["https://example.com/a".to_string()];
     let result = indexnow::submit_with(&transport, "example.com", &urls, "key", None);
     assert_eq!(result.status, 202);
@@ -214,7 +234,9 @@ fn indexnow_submit_with_success_status_is_accepted() {
 
 #[test]
 fn indexnow_submit_with_http_error_reports_zero_submitted() {
-    let transport = FakeTransport { response: Ok((403, "forbidden body".to_string())) };
+    let transport = FakeTransport {
+        response: Ok((403, "forbidden body".to_string())),
+    };
     let urls = vec!["https://example.com/a".to_string()];
     let result = indexnow::submit_with(&transport, "example.com", &urls, "key", None);
     assert_eq!(result.status, 403);
@@ -225,7 +247,9 @@ fn indexnow_submit_with_http_error_reports_zero_submitted() {
 
 #[test]
 fn indexnow_submit_with_transport_failure_has_zero_status() {
-    let transport = FakeTransport { response: Err("connection refused".to_string()) };
+    let transport = FakeTransport {
+        response: Err("connection refused".to_string()),
+    };
     let urls = vec!["https://example.com/a".to_string()];
     let result = indexnow::submit_with(&transport, "example.com", &urls, "key", None);
     assert_eq!(result.status, 0);
@@ -239,15 +263,27 @@ fn indexnow_submit_with_transport_failure_has_zero_status() {
 
 #[test]
 fn indexing_notify_action_round_trips() {
-    assert_eq!(indexing_notify::NotifyAction::UrlUpdated.as_str(), "URL_UPDATED");
-    assert_eq!(indexing_notify::NotifyAction::UrlDeleted.as_str(), "URL_DELETED");
-    assert_eq!(indexing_notify::NotifyAction::parse("URL_UPDATED"), Some(indexing_notify::NotifyAction::UrlUpdated));
+    assert_eq!(
+        indexing_notify::NotifyAction::UrlUpdated.as_str(),
+        "URL_UPDATED"
+    );
+    assert_eq!(
+        indexing_notify::NotifyAction::UrlDeleted.as_str(),
+        "URL_DELETED"
+    );
+    assert_eq!(
+        indexing_notify::NotifyAction::parse("URL_UPDATED"),
+        Some(indexing_notify::NotifyAction::UrlUpdated)
+    );
     assert_eq!(indexing_notify::NotifyAction::parse("bogus"), None);
 }
 
 #[test]
 fn indexing_notify_build_body_matches_python_shape() {
-    let body = indexing_notify::build_notify_body("https://example.com/jobs/1", indexing_notify::NotifyAction::UrlDeleted);
+    let body = indexing_notify::build_notify_body(
+        "https://example.com/jobs/1",
+        indexing_notify::NotifyAction::UrlDeleted,
+    );
     assert_eq!(body["url"], "https://example.com/jobs/1");
     assert_eq!(body["type"], "URL_DELETED");
 }
@@ -282,7 +318,10 @@ fn indexing_notify_categorize_metadata_error_404_vs_other() {
         indexing_notify::categorize_metadata_error("404 not found"),
         "No notification metadata found for this URL."
     );
-    assert_eq!(indexing_notify::categorize_metadata_error("boom"), "Error fetching metadata: boom");
+    assert_eq!(
+        indexing_notify::categorize_metadata_error("boom"),
+        "Error fetching metadata: boom"
+    );
 }
 
 #[test]
@@ -343,7 +382,11 @@ fn indexing_notify_url_with_success_extracts_notify_time() {
             "urlNotificationMetadata": {"latestUpdate": {"url": "https://e/1", "type": "URL_UPDATED", "notifyTime": "2026-01-01T00:00:00Z"}}
         }))]),
     };
-    let result = indexing_notify::notify_url_with(&client, "https://e/1", indexing_notify::NotifyAction::UrlUpdated);
+    let result = indexing_notify::notify_url_with(
+        &client,
+        "https://e/1",
+        indexing_notify::NotifyAction::UrlUpdated,
+    );
     assert_eq!(result.notify_time.as_deref(), Some("2026-01-01T00:00:00Z"));
     assert!(result.error.is_none());
 }
@@ -365,9 +408,16 @@ fn indexing_notify_batch_notify_does_not_actually_stop_on_quota_error() {
             Ok(json!({"urlNotificationMetadata": {"latestUpdate": {"notifyTime": "t3"}}})),
         ]),
     };
-    let urls = vec!["https://e/1".to_string(), "https://e/2".to_string(), "https://e/3".to_string()];
-    let (results, summary, _warning, stop_error) =
-        indexing_notify::batch_notify_with(&client, &urls, indexing_notify::NotifyAction::UrlUpdated);
+    let urls = vec![
+        "https://e/1".to_string(),
+        "https://e/2".to_string(),
+        "https://e/3".to_string(),
+    ];
+    let (results, summary, _warning, stop_error) = indexing_notify::batch_notify_with(
+        &client,
+        &urls,
+        indexing_notify::NotifyAction::UrlUpdated,
+    );
     assert_eq!(results.len(), 3);
     assert_eq!(summary.success, 2);
     assert_eq!(summary.error, 1);
@@ -380,20 +430,30 @@ fn indexing_notify_batch_notify_does_not_actually_stop_on_quota_error() {
 
 #[test]
 fn keyword_planner_normalize_customer_id_strips_dashes() {
-    assert_eq!(keyword_planner::normalize_customer_id("123-456-7890"), "1234567890");
+    assert_eq!(
+        keyword_planner::normalize_customer_id("123-456-7890"),
+        "1234567890"
+    );
 }
 
 #[test]
 fn keyword_planner_split_keywords_trims_each() {
     assert_eq!(
         keyword_planner::split_keywords(" seo tools , seo audit ,seo checker"),
-        vec!["seo tools".to_string(), "seo audit".to_string(), "seo checker".to_string()]
+        vec![
+            "seo tools".to_string(),
+            "seo audit".to_string(),
+            "seo checker".to_string()
+        ]
     );
 }
 
 #[test]
 fn keyword_planner_micros_to_currency() {
-    assert_eq!(keyword_planner::micros_to_currency(Some(2_500_000)), Some(2.5));
+    assert_eq!(
+        keyword_planner::micros_to_currency(Some(2_500_000)),
+        Some(2.5)
+    );
     assert_eq!(keyword_planner::micros_to_currency(Some(0)), None);
     assert_eq!(keyword_planner::micros_to_currency(None), None);
 }
@@ -421,7 +481,11 @@ fn keyword_planner_sort_ideas_desc_treats_none_as_zero() {
 #[test]
 fn keyword_planner_last_12_months_keeps_tail() {
     let volumes: Vec<_> = (1..=15)
-        .map(|m| keyword_planner::MonthlyVolume { year: 2026, month: m, volume: m as i64 * 10 })
+        .map(|m| keyword_planner::MonthlyVolume {
+            year: 2026,
+            month: m,
+            volume: m as i64 * 10,
+        })
         .collect();
     let kept = keyword_planner::last_12_months(volumes);
     assert_eq!(kept.len(), 12);
@@ -431,14 +495,23 @@ fn keyword_planner_last_12_months_keeps_tail() {
 
 #[test]
 fn keyword_planner_format_bid_str() {
-    assert_eq!(keyword_planner::format_bid_str(Some(1.5), Some(3.25)), "$1.50-$3.25");
+    assert_eq!(
+        keyword_planner::format_bid_str(Some(1.5), Some(3.25)),
+        "$1.50-$3.25"
+    );
     assert_eq!(keyword_planner::format_bid_str(None, Some(3.25)), "N/A");
-    assert_eq!(keyword_planner::format_bid_str(Some(0.0), Some(3.25)), "N/A");
+    assert_eq!(
+        keyword_planner::format_bid_str(Some(0.0), Some(3.25)),
+        "N/A"
+    );
 }
 
 #[test]
 fn keyword_planner_join_ads_error_messages() {
-    let msgs = vec!["invalid customer id".to_string(), "quota exceeded".to_string()];
+    let msgs = vec![
+        "invalid customer id".to_string(),
+        "quota exceeded".to_string(),
+    ];
     assert_eq!(
         keyword_planner::join_ads_error_messages(&msgs),
         "Google Ads API error: invalid customer id; quota exceeded"
@@ -451,15 +524,28 @@ fn keyword_planner_join_ads_error_messages() {
 
 #[test]
 fn nlp_analyze_feature_api_name_maps_classify_and_categories_together() {
-    assert_eq!(nlp_analyze::feature_api_name("entities"), Some("extractEntities"));
-    assert_eq!(nlp_analyze::feature_api_name("classify"), Some("classifyText"));
-    assert_eq!(nlp_analyze::feature_api_name("categories"), Some("classifyText"));
+    assert_eq!(
+        nlp_analyze::feature_api_name("entities"),
+        Some("extractEntities")
+    );
+    assert_eq!(
+        nlp_analyze::feature_api_name("classify"),
+        Some("classifyText")
+    );
+    assert_eq!(
+        nlp_analyze::feature_api_name("categories"),
+        Some("classifyText")
+    );
     assert_eq!(nlp_analyze::feature_api_name("bogus"), None);
 }
 
 #[test]
 fn nlp_analyze_build_feature_map_dedupes_classify_categories() {
-    let features = vec!["classify".to_string(), "categories".to_string(), "sentiment".to_string()];
+    let features = vec![
+        "classify".to_string(),
+        "categories".to_string(),
+        "sentiment".to_string(),
+    ];
     let map = nlp_analyze::build_feature_map(&features);
     assert_eq!(map.len(), 2);
     assert!(map.contains(&("classifyText".to_string(), true)));
@@ -468,8 +554,13 @@ fn nlp_analyze_build_feature_map_dedupes_classify_categories() {
 
 #[test]
 fn nlp_analyze_categorize_http_status() {
-    assert!(nlp_analyze::categorize_http_status(403).unwrap().starts_with("Cloud Natural Language API access denied."));
-    assert_eq!(nlp_analyze::categorize_http_status(429).unwrap(), "NLP API quota exceeded. Free tier: 5,000 units/month.");
+    assert!(nlp_analyze::categorize_http_status(403)
+        .unwrap()
+        .starts_with("Cloud Natural Language API access denied."));
+    assert_eq!(
+        nlp_analyze::categorize_http_status(429).unwrap(),
+        "NLP API quota exceeded. Free tier: 5,000 units/month."
+    );
     assert_eq!(nlp_analyze::categorize_http_status(200), None);
 }
 
@@ -484,7 +575,10 @@ fn nlp_analyze_sentiment_tone_thresholds() {
 #[test]
 fn nlp_analyze_sentiment_interpretation_format() {
     let text = nlp_analyze::sentiment_interpretation(0.42, 3.1);
-    assert_eq!(text, "Positive (score: 0.42) with high emotional content (magnitude: 3.10)");
+    assert_eq!(
+        text,
+        "Positive (score: 0.42) with high emotional content (magnitude: 3.10)"
+    );
 }
 
 #[test]
@@ -496,7 +590,10 @@ fn nlp_analyze_build_sentiment_none_when_empty() {
 fn nlp_analyze_build_sentiment_computes_sentence_extremes() {
     let sentiment = nlp_analyze::build_sentiment(
         &json!({"score": 0.5, "magnitude": 1.2}),
-        &[json!({"sentiment": {"score": 0.9}}), json!({"sentiment": {"score": -0.3}})],
+        &[
+            json!({"sentiment": {"score": 0.9}}),
+            json!({"sentiment": {"score": -0.3}}),
+        ],
     )
     .unwrap();
     assert_eq!(sentiment.tone, "positive");
@@ -509,7 +606,9 @@ fn nlp_analyze_build_sentiment_computes_sentence_extremes() {
 fn nlp_analyze_parse_entity_and_sort_by_salience() {
     let mut entities = vec![
         nlp_analyze::parse_entity(&json!({"name": "low", "type": "PERSON", "salience": 0.1})),
-        nlp_analyze::parse_entity(&json!({"name": "high", "type": "ORGANIZATION", "salience": 0.9})),
+        nlp_analyze::parse_entity(
+            &json!({"name": "high", "type": "ORGANIZATION", "salience": 0.9}),
+        ),
     ];
     nlp_analyze::sort_entities_by_salience(&mut entities);
     assert_eq!(entities[0].name, "high");
@@ -518,7 +617,10 @@ fn nlp_analyze_parse_entity_and_sort_by_salience() {
 
 #[test]
 fn nlp_analyze_parse_moderation_filters_low_confidence() {
-    let raw = vec![json!({"name": "Violence", "confidence": 0.9}), json!({"name": "Mild", "confidence": 0.4})];
+    let raw = vec![
+        json!({"name": "Violence", "confidence": 0.9}),
+        json!({"name": "Mild", "confidence": 0.4}),
+    ];
     let mods = nlp_analyze::parse_moderation(&raw);
     assert_eq!(mods.len(), 1);
     assert_eq!(mods[0].name, "Violence");
@@ -593,11 +695,20 @@ impl keyword_planner::AdsClient for FakeAdsClient {
 
 #[test]
 fn keyword_planner_run_ideas_json_success() {
-    let client = FakeAdsClient { ideas: Ok(vec![idea("seo tools", Some(1000)), idea("seo audit", Some(2000))]) };
+    let client = FakeAdsClient {
+        ideas: Ok(vec![
+            idea("seo tools", Some(1000)),
+            idea("seo audit", Some(2000)),
+        ]),
+    };
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
     let code = keyword_planner::run(
-        &["ideas".to_string(), "seo tools,seo audit".to_string(), "--json".to_string()],
+        &[
+            "ideas".to_string(),
+            "seo tools,seo audit".to_string(),
+            "--json".to_string(),
+        ],
         &client,
         "1234567890",
         &mut stdout,
@@ -612,7 +723,9 @@ fn keyword_planner_run_ideas_json_success() {
 
 #[test]
 fn keyword_planner_run_volume_error_text_mode_exits_1() {
-    let client = FakeAdsClient { ideas: Err(keyword_planner::AdsError::Other("boom".to_string())) };
+    let client = FakeAdsClient {
+        ideas: Err(keyword_planner::AdsError::Other("boom".to_string())),
+    };
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
     let code = keyword_planner::run(
@@ -623,7 +736,9 @@ fn keyword_planner_run_volume_error_text_mode_exits_1() {
         &mut stderr,
     );
     assert_eq!(code, 1);
-    assert!(String::from_utf8(stderr).unwrap().contains("Keyword volume error: boom"));
+    assert!(String::from_utf8(stderr)
+        .unwrap()
+        .contains("Keyword volume error: boom"));
 }
 
 #[test]
@@ -685,7 +800,11 @@ struct FakeNlpTransport {
 }
 
 impl nlp_analyze::NlpTransport for FakeNlpTransport {
-    fn post_annotate(&self, _key: &str, _body: &serde_json::Value) -> Result<(u16, serde_json::Value), String> {
+    fn post_annotate(
+        &self,
+        _key: &str,
+        _body: &serde_json::Value,
+    ) -> Result<(u16, serde_json::Value), String> {
         self.post.clone()
     }
 
@@ -696,7 +815,10 @@ impl nlp_analyze::NlpTransport for FakeNlpTransport {
 
 #[test]
 fn nlp_analyze_text_with_no_api_key_errors() {
-    let transport = FakeNlpTransport { post: Ok((200, json!({}))), html: Ok(String::new()) };
+    let transport = FakeNlpTransport {
+        post: Ok((200, json!({}))),
+        html: Ok(String::new()),
+    };
     let result = nlp_analyze::analyze_text_with(&transport, "hello world", &[], None, "en");
     assert_eq!(
         result.error.as_deref(),
@@ -710,8 +832,12 @@ fn nlp_analyze_text_with_success() {
         "entities": [{"name": "Acme", "type": "ORGANIZATION", "salience": 0.5}],
         "documentSentiment": {"score": 0.1, "magnitude": 0.2},
     });
-    let transport = FakeNlpTransport { post: Ok((200, body)), html: Ok(String::new()) };
-    let result = nlp_analyze::analyze_text_with(&transport, "hello world", &[], Some("key123"), "en");
+    let transport = FakeNlpTransport {
+        post: Ok((200, body)),
+        html: Ok(String::new()),
+    };
+    let result =
+        nlp_analyze::analyze_text_with(&transport, "hello world", &[], Some("key123"), "en");
     assert!(result.error.is_none());
     assert_eq!(result.entities[0].name, "Acme");
     assert_eq!(result.sentiment.unwrap().tone, "neutral");
@@ -719,15 +845,26 @@ fn nlp_analyze_text_with_success() {
 
 #[test]
 fn nlp_analyze_text_with_403_maps_access_denied() {
-    let transport = FakeNlpTransport { post: Ok((403, json!({}))), html: Ok(String::new()) };
-    let result = nlp_analyze::analyze_text_with(&transport, "hello world", &[], Some("key123"), "en");
-    assert!(result.error.unwrap().contains("Cloud Natural Language API access denied"));
+    let transport = FakeNlpTransport {
+        post: Ok((403, json!({}))),
+        html: Ok(String::new()),
+    };
+    let result =
+        nlp_analyze::analyze_text_with(&transport, "hello world", &[], Some("key123"), "en");
+    assert!(result
+        .error
+        .unwrap()
+        .contains("Cloud Natural Language API access denied"));
 }
 
 #[test]
 fn nlp_analyze_url_with_rejects_invalid_url() {
-    let transport = FakeNlpTransport { post: Ok((200, json!({}))), html: Ok(String::new()) };
-    let result = nlp_analyze::analyze_url_with(&transport, "http://localhost/x", &[], Some("key123"));
+    let transport = FakeNlpTransport {
+        post: Ok((200, json!({}))),
+        html: Ok(String::new()),
+    };
+    let result =
+        nlp_analyze::analyze_url_with(&transport, "http://localhost/x", &[], Some("key123"));
     assert!(result.error.unwrap().contains("Invalid URL"));
 }
 
@@ -735,10 +872,17 @@ fn nlp_analyze_url_with_rejects_invalid_url() {
 fn nlp_analyze_url_with_end_to_end() {
     let html = "<html><body><script>bad()</script><nav>Nav</nav><p>Real content here that is long enough to pass the fifty character floor.</p></body></html>";
     let body = json!({"entities": [], "documentSentiment": {}});
-    let transport = FakeNlpTransport { post: Ok((200, body)), html: Ok(html.to_string()) };
-    let result = nlp_analyze::analyze_url_with(&transport, "https://example.com/page", &[], Some("key123"));
+    let transport = FakeNlpTransport {
+        post: Ok((200, body)),
+        html: Ok(html.to_string()),
+    };
+    let result =
+        nlp_analyze::analyze_url_with(&transport, "https://example.com/page", &[], Some("key123"));
     assert!(result.error.is_none());
-    assert_eq!(result.source_url.as_deref(), Some("https://example.com/page"));
+    assert_eq!(
+        result.source_url.as_deref(),
+        Some("https://example.com/page")
+    );
     assert!(result.extracted_text_length.unwrap() > 0);
 }
 
@@ -757,11 +901,20 @@ fn nlp_analyze_extract_text_scraper_strips_dropped_tags() {
 #[test]
 fn nlp_analyze_run_json_mode_text() {
     let body = json!({"entities": [], "documentSentiment": {}});
-    let transport = FakeNlpTransport { post: Ok((200, body)), html: Ok(String::new()) };
+    let transport = FakeNlpTransport {
+        post: Ok((200, body)),
+        html: Ok(String::new()),
+    };
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
     let code = nlp_analyze::run(
-        &["--text".to_string(), "hello world".to_string(), "--api-key".to_string(), "k".to_string(), "--json".to_string()],
+        &[
+            "--text".to_string(),
+            "hello world".to_string(),
+            "--api-key".to_string(),
+            "k".to_string(),
+            "--json".to_string(),
+        ],
         &transport,
         &mut stdout,
         &mut stderr,
@@ -773,10 +926,15 @@ fn nlp_analyze_run_json_mode_text() {
 
 #[test]
 fn nlp_analyze_run_requires_text_or_url() {
-    let transport = FakeNlpTransport { post: Ok((200, json!({}))), html: Ok(String::new()) };
+    let transport = FakeNlpTransport {
+        post: Ok((200, json!({}))),
+        html: Ok(String::new()),
+    };
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
     let code = nlp_analyze::run(&[], &transport, &mut stdout, &mut stderr);
     assert_eq!(code, 1);
-    assert!(String::from_utf8(stderr).unwrap().contains("Provide --text or --url"));
+    assert!(String::from_utf8(stderr)
+        .unwrap()
+        .contains("Provide --text or --url"));
 }

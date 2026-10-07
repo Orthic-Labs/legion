@@ -4,7 +4,7 @@
 pub mod forges;
 
 pub use forges::{
-    action_summary, azure_devops_adapter, bitbucket_adapter, gitlab_ci_adapter,
-    install_preview, mcp_install_config, sarif_upload_command, AzureDevopsAdapter,
-    BitbucketAdapter, GitlabCiAdapter,
+    action_summary, azure_devops_adapter, bitbucket_adapter, gitlab_ci_adapter, install_preview,
+    mcp_install_config, sarif_upload_command, AzureDevopsAdapter, BitbucketAdapter,
+    GitlabCiAdapter,
 };

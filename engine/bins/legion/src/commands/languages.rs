@@ -37,7 +37,9 @@ pub fn run(args: CommonArgs) -> CommandResult {
         })
         .collect::<Vec<_>>();
     if text.is_empty() {
-        return Ok(json!({"json": false, "text": ["no recognised language or framework manifest found"]}));
+        return Ok(
+            json!({"json": false, "text": ["no recognised language or framework manifest found"]}),
+        );
     }
     Ok(json!({"json": false, "text": text}))
 }

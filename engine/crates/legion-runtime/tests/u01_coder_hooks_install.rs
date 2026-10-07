@@ -17,9 +17,10 @@ impl FakeFs {
     fn with(files: &[(&str, Value)]) -> Self {
         let fs = FakeFs::default();
         for (path, value) in files {
-            fs.files
-                .borrow_mut()
-                .insert(PathBuf::from(path), serde_json::to_string_pretty(value).unwrap());
+            fs.files.borrow_mut().insert(
+                PathBuf::from(path),
+                serde_json::to_string_pretty(value).unwrap(),
+            );
         }
         fs
     }
@@ -31,14 +32,14 @@ impl FakeFs {
 
 impl InstallIo for FakeFs {
     fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-        self.files
-            .borrow()
-            .get(path)
-            .cloned()
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, path.display().to_string()))
+        self.files.borrow().get(path).cloned().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, path.display().to_string())
+        })
     }
     fn write_string(&self, path: &Path, contents: &str) -> std::io::Result<()> {
-        self.files.borrow_mut().insert(path.to_path_buf(), contents.to_string());
+        self.files
+            .borrow_mut()
+            .insert(path.to_path_buf(), contents.to_string());
         Ok(())
     }
     fn exists(&self, path: &Path) -> bool {
@@ -74,8 +75,13 @@ fn install_registers_hook_in_settings_and_manifest() {
     let summary = install(Path::new("/repo/skills/coder/hooks"), &layout, &fs).unwrap();
 
     assert_eq!(summary.registered.len(), 1);
-    assert_eq!(summary.registered[0].id, "coder.enforce-cheap-review-routing");
-    assert!(summary.registered[0].command.ends_with("enforce_cheap_review_routing.py"));
+    assert_eq!(
+        summary.registered[0].id,
+        "coder.enforce-cheap-review-routing"
+    );
+    assert!(summary.registered[0]
+        .command
+        .ends_with("enforce_cheap_review_routing.py"));
 
     let settings = fs.get("/home/u/.claude/settings.json");
     let entry = &settings["hooks"]["PreToolUse"][0];
@@ -88,10 +94,15 @@ fn install_registers_hook_in_settings_and_manifest() {
 
     let manifest = fs.get("/home/u/.claude/hooks/hooks-manifest.json");
     assert_eq!(manifest["hooks"].as_array().unwrap().len(), 1);
-    assert_eq!(manifest["hooks"][0]["id"], "coder.enforce-cheap-review-routing");
+    assert_eq!(
+        manifest["hooks"][0]["id"],
+        "coder.enforce-cheap-review-routing"
+    );
 
     // Backup was written before mutation.
-    assert!(fs.files.borrow().contains_key(Path::new("/home/u/.claude/settings.json.pre-synced-hooks.bak")));
+    assert!(fs.files.borrow().contains_key(Path::new(
+        "/home/u/.claude/settings.json.pre-synced-hooks.bak"
+    )));
 }
 
 #[test]
@@ -105,7 +116,13 @@ fn install_is_idempotent_and_dedupes_by_basename_and_id() {
     install(Path::new("/repo/skills/coder/hooks"), &layout, &fs).unwrap();
 
     let settings = fs.get("/home/u/.claude/settings.json");
-    assert_eq!(settings["hooks"]["PreToolUse"][0]["hooks"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        settings["hooks"]["PreToolUse"][0]["hooks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     let manifest = fs.get("/home/u/.claude/hooks/hooks-manifest.json");
     assert_eq!(manifest["hooks"].as_array().unwrap().len(), 1);
 }
@@ -130,5 +147,7 @@ fn install_preserves_other_hooks_in_the_same_event_matcher() {
         .map(|h| h["command"].as_str().unwrap().to_string())
         .collect();
     assert!(commands.iter().any(|c| c == "python3 /other/hook.py"));
-    assert!(commands.iter().any(|c| c.ends_with("enforce_cheap_review_routing.py")));
+    assert!(commands
+        .iter()
+        .any(|c| c.ends_with("enforce_cheap_review_routing.py")));
 }

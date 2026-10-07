@@ -18,7 +18,10 @@ fn attempt(id: &str, diagnosis: &str) -> serde_json::Value {
 #[test]
 fn retry_semantics_require_diagnosis_delta() {
     assert_eq!(
-        require_diagnosis_delta(&[attempt("a", "diagnosis:one")], &attempt("b", "diagnosis:one"))["terminal"]["code"],
+        require_diagnosis_delta(
+            &[attempt("a", "diagnosis:one")],
+            &attempt("b", "diagnosis:one")
+        )["terminal"]["code"],
         "IDENTICAL_RETRY"
     );
     assert_eq!(
@@ -101,5 +104,8 @@ fn stale_continuation_and_retry_classification() {
     );
     let denied = classify_retry_failure(&json!({ "failure_class": "AUTHENTICATION" }));
     assert_eq!(denied["retryable"], false);
-    assert_eq!(denied["terminal"]["detail"]["blocker"], "AUTHENTICATION_REQUIRED");
+    assert_eq!(
+        denied["terminal"]["detail"]["blocker"],
+        "AUTHENTICATION_REQUIRED"
+    );
 }

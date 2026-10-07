@@ -116,7 +116,9 @@ pub fn ingest_imported_artifact(
 ) -> Result<Value, ExecutorPortError> {
     let artifact_binding = artifact.get("binding");
     if artifact.is_null() || !same_binding(artifact_binding, Some(binding)) {
-        return Err(ExecutorPortError::BindingMismatch("imported artifact".into()));
+        return Err(ExecutorPortError::BindingMismatch(
+            "imported artifact".into(),
+        ));
     }
     Ok(artifact.clone())
 }
@@ -326,10 +328,7 @@ mod tests {
     #[test]
     fn normalize_executor_action_rejects_non_object() {
         let error = normalize_executor_action(&Value::Array(vec![])).unwrap_err();
-        assert_eq!(
-            error,
-            malformed("executor action must be an object", "$")
-        );
+        assert_eq!(error, malformed("executor action must be an object", "$"));
     }
 
     #[test]

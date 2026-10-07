@@ -66,8 +66,17 @@ fn full_report_writes_html_pdf_and_xlsx_with_charts() {
         Some(&mut renderer),
     );
 
-    assert!(result.error.is_none(), "unexpected error: {:?}", result.error);
-    assert_eq!(result.files.len(), 3, "expected html+pdf+xlsx: {:?}", result.files);
+    assert!(
+        result.error.is_none(),
+        "unexpected error: {:?}",
+        result.error
+    );
+    assert_eq!(
+        result.files.len(),
+        3,
+        "expected html+pdf+xlsx: {:?}",
+        result.files
+    );
     assert!(result.files.iter().any(|f| f.ends_with(".html")));
     assert!(result.files.iter().any(|f| f.ends_with(".pdf")));
     assert!(result.files.iter().any(|f| f.ends_with(".xlsx")));
@@ -89,7 +98,13 @@ fn full_report_writes_html_pdf_and_xlsx_with_charts() {
 fn cwv_audit_report_omits_absent_sections() {
     let data = json!({"psi": {"lighthouse_scores": {"performance": 42}}});
     let chart_paths = ChartPaths::new();
-    let html = build_report_html(ReportType::CwvAudit, &data, "site.com", &chart_paths, "Jan 1, 2026");
+    let html = build_report_html(
+        ReportType::CwvAudit,
+        &data,
+        "site.com",
+        &chart_paths,
+        "Jan 1, 2026",
+    );
     assert!(html.contains("Core Web Vitals Audit"));
     assert!(!html.contains("Search Console Performance"));
 }

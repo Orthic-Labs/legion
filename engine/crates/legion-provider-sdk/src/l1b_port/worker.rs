@@ -38,11 +38,18 @@ pub const PAID_MODELS: &[&str] = &[
 ];
 
 pub fn free_models() -> Vec<&'static str> {
-    FREE_PRIMARY_MODELS.iter().chain(FREE_FALLBACK_MODELS).copied().collect()
+    FREE_PRIMARY_MODELS
+        .iter()
+        .chain(FREE_FALLBACK_MODELS)
+        .copied()
+        .collect()
 }
 
 pub fn model_catalog() -> BTreeSet<&'static str> {
-    free_models().into_iter().chain(PAID_MODELS.iter().copied()).collect()
+    free_models()
+        .into_iter()
+        .chain(PAID_MODELS.iter().copied())
+        .collect()
 }
 
 /// Fallback chain by name: "free"/"bulk"/"code"/"fast" all resolve to the
@@ -68,7 +75,8 @@ fn secret_markers() -> &'static [Regex] {
     static RE: LazyLock<Vec<Regex>> = LazyLock::new(|| {
         vec![
             Regex::new(r"(?i)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----").unwrap(),
-            Regex::new(r"(?i)\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|password)\s*[:=]").unwrap(),
+            Regex::new(r"(?i)\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|password)\s*[:=]")
+                .unwrap(),
             Regex::new(r"(?i)(?:^|[\\/])\.env(?:$|[\\/])").unwrap(),
         ]
     });
@@ -76,7 +84,8 @@ fn secret_markers() -> &'static [Regex] {
 }
 
 fn think_re() -> &'static Regex {
-    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?s)^\s*<think>.*?</think>\s*").unwrap());
+    static RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?s)^\s*<think>.*?</think>\s*").unwrap());
     &RE
 }
 
@@ -88,7 +97,10 @@ pub struct WorkerFailure {
 
 impl WorkerFailure {
     pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { code: code.into(), message: message.into() }
+        Self {
+            code: code.into(),
+            message: message.into(),
+        }
     }
 }
 
@@ -124,7 +136,10 @@ pub fn validate_model(model: &str) -> Result<String, WorkerFailure> {
 
 pub fn validate_prompt(prompt: &str) -> Result<String, WorkerFailure> {
     if prompt.trim().is_empty() {
-        return Err(WorkerFailure::new("invalid_prompt", "a non-empty prompt is required"));
+        return Err(WorkerFailure::new(
+            "invalid_prompt",
+            "a non-empty prompt is required",
+        ));
     }
     if prompt.chars().count() > MAX_PROMPT_CHARS {
         return Err(WorkerFailure::new(
@@ -195,14 +210,20 @@ pub fn models_for_item(
     has_unsupported_route: bool,
 ) -> Result<Vec<String>, WorkerFailure> {
     if has_unsupported_route {
-        return Err(WorkerFailure::new("unsupported_route", "only Pi CLI execution is supported"));
+        return Err(WorkerFailure::new(
+            "unsupported_route",
+            "only Pi CLI execution is supported",
+        ));
     }
     match selector {
         ModelSelector::Model(model) => Ok(vec![validate_model(model)?]),
         ModelSelector::Tier(tier) => match tier.as_str() {
             "free" => Ok(vec![FREE_PRIMARY_MODELS[0].to_string()]),
             "paid" => Ok(vec![PAID_MODELS[0].to_string()]),
-            other => Err(WorkerFailure::new("invalid_tier", format!("unknown Pi tier: {other}"))),
+            other => Err(WorkerFailure::new(
+                "invalid_tier",
+                format!("unknown Pi tier: {other}"),
+            )),
         },
         ModelSelector::Fallback(name) => match fallback_chain(name) {
             Some(chain) => Ok(chain
@@ -210,7 +231,10 @@ pub fn models_for_item(
                 .take(MAX_FALLBACK_ATTEMPTS)
                 .map(str::to_string)
                 .collect()),
-            None => Err(WorkerFailure::new("invalid_fallback", format!("unknown Pi fallback: {name}"))),
+            None => Err(WorkerFailure::new(
+                "invalid_fallback",
+                format!("unknown Pi fallback: {name}"),
+            )),
         },
         ModelSelector::Default => Ok(vec![FREE_PRIMARY_MODELS[0].to_string()]),
     }
@@ -219,7 +243,11 @@ pub fn models_for_item(
 /// Port of `_prepare_prompt`: wraps the caller's prompt in the read-only
 /// directive, system preamble, and a soft token-budget hint, then re-runs
 /// prompt validation on the assembled text.
-pub fn prepare_prompt(prompt: &str, system: &str, max_tokens: i64) -> Result<String, WorkerFailure> {
+pub fn prepare_prompt(
+    prompt: &str,
+    system: &str,
+    max_tokens: i64,
+) -> Result<String, WorkerFailure> {
     let max_tokens = max_tokens.clamp(128, 16_384);
     let assembled = format!(
         "{READ_ONLY_DIRECTIVE}\n{system}\nKeep response within roughly {max_tokens} tokens.\n\n{prompt}"

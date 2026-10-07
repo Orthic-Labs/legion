@@ -19,9 +19,9 @@ use legion_runtime::wf_port::w2_017::commit_edits::{
     all_entry_ids, arg_val, build_repair_batch, candidates_for_entry, count_ops, escape_regexp,
     line_has_object_key, line_matches_manual_edit_locator, line_shows_applied_op,
     merge_failed_entries, merge_unique_strings, normalize_failed_entries,
-    normalize_verification_text, op_has_locator, repair_attempt_limit,
-    summarize_applied_entries, summarize_repair_failures, unique_strings,
-    verification_target_passes_lines, window_shows_applied_op, ArgVal, Op, VerificationTarget,
+    normalize_verification_text, op_has_locator, repair_attempt_limit, summarize_applied_entries,
+    summarize_repair_failures, unique_strings, verification_target_passes_lines,
+    window_shows_applied_op, ArgVal, Op, VerificationTarget,
 };
 use legion_runtime::wf_port::w2_017::complete::{
     build_event, parse_args, server_poll_type, usage_exit_code, CompletionEvent, Status,
@@ -53,7 +53,10 @@ fn browser_dom_desc_matches_js_precedence() {
 #[test]
 fn browser_dom_rect_and_css_id() {
     assert!(!rect_is_usable_anchor(None));
-    assert!(rect_is_usable_anchor(Some(&Rect { width: 20.0, height: 20.0 })));
+    assert!(rect_is_usable_anchor(Some(&Rect {
+        width: 20.0,
+        height: 20.0
+    })));
     assert_eq!(css_id_fallback("id with space"), "id\\ with\\ space");
 }
 
@@ -102,7 +105,10 @@ fn commit_edits_arg_and_count_helpers() {
     assert_eq!(arg_val(&args, "--page-url"), ArgVal::Str("/home".into()));
     assert_eq!(arg_val(&args, "--nope"), ArgVal::None);
 
-    let entries = vec![json!({"id": "a", "ops": [1, 2]}), json!({"id": "b", "ops": [1]})];
+    let entries = vec![
+        json!({"id": "a", "ops": [1, 2]}),
+        json!({"id": "b", "ops": [1]}),
+    ];
     assert_eq!(count_ops(&entries), 3);
     assert_eq!(all_entry_ids(&json!({"entries": entries})), vec!["a", "b"]);
 }
@@ -140,13 +146,17 @@ fn commit_edits_entry_summarization_and_failures() {
         merge_unique_strings(&[&[json!("a"), json!("")], &[json!("a"), json!("b")]]),
         vec!["a", "b"]
     );
-    assert_eq!(unique_strings(&[json!("a"), json!(1), json!(" ")]), vec!["a"]);
+    assert_eq!(
+        unique_strings(&[json!("a"), json!(1), json!(" ")]),
+        vec!["a"]
+    );
 
     let repaired = build_repair_batch(&batch, json!({"attempt": 1}));
     assert_eq!(repaired["repair"]["attempt"], 1);
     assert_eq!(repaired["entries"], batch["entries"]);
 
-    let repair_failures = vec![json!({"entryId": "e1", "detail": "still stale", "file": "src/a.tsx"})];
+    let repair_failures =
+        vec![json!({"entryId": "e1", "detail": "still stale", "file": "src/a.tsx"})];
     let summarized = summarize_repair_failures(&repair_failures);
     assert_eq!(summarized[0]["reason"], "still stale");
     assert_eq!(summarized[0]["file"], "src/a.tsx");
@@ -169,7 +179,10 @@ fn commit_edits_op_matching_helpers() {
         deleted: false,
         ..Default::default()
     };
-    assert!(line_shows_applied_op("<button>Save changes</button>", &insertion));
+    assert!(line_shows_applied_op(
+        "<button>Save changes</button>",
+        &insertion
+    ));
     assert!(!line_shows_applied_op("<button>Save</button>", &insertion));
 
     let deletion = Op {
@@ -178,7 +191,10 @@ fn commit_edits_op_matching_helpers() {
         ..Default::default()
     };
     assert!(line_shows_applied_op("<span>New label</span>", &deletion));
-    assert!(!line_shows_applied_op("<span>Legacy label</span>", &deletion));
+    assert!(!line_shows_applied_op(
+        "<span>Legacy label</span>",
+        &deletion
+    ));
 
     let locator = Op {
         tag: Some("button".into()),
@@ -219,13 +235,32 @@ fn commit_edits_verification_target_window_search() {
         "line 3",
         "line 4",
     ];
-    let direct = VerificationTarget { line: 3, kind: "text_match".into(), reported: false };
+    let direct = VerificationTarget {
+        line: 3,
+        kind: "text_match".into(),
+        reported: false,
+    };
     assert!(verification_target_passes_lines(&lines, &direct, &op));
 
-    let far_lines = vec!["a", "still Draft here", "b", "c", "d", "e", "Published elsewhere", "f"];
-    let reported = VerificationTarget { line: 2, kind: "reported_locator_match".into(), reported: true };
+    let far_lines = vec![
+        "a",
+        "still Draft here",
+        "b",
+        "c",
+        "d",
+        "e",
+        "Published elsewhere",
+        "f",
+    ];
+    let reported = VerificationTarget {
+        line: 2,
+        kind: "reported_locator_match".into(),
+        reported: true,
+    };
     // direct line still shows original text -> fails without a window search fallback bailing early
-    assert!(!verification_target_passes_lines(&far_lines, &reported, &op));
+    assert!(!verification_target_passes_lines(
+        &far_lines, &reported, &op
+    ));
 }
 
 // ---- live-complete.mjs ----
@@ -235,7 +270,12 @@ fn complete_parses_and_builds_events_like_js() {
     let id_args = vec!["--id".to_string(), "sess-9".to_string()];
     let parsed = parse_args(&id_args);
     assert_eq!(usage_exit_code(&parsed), None);
-    assert_eq!(build_event("sess-9", &parsed.status), CompletionEvent::Complete { id: "sess-9".into() });
+    assert_eq!(
+        build_event("sess-9", &parsed.status),
+        CompletionEvent::Complete {
+            id: "sess-9".into()
+        }
+    );
     assert_eq!(server_poll_type(&parsed.status), "complete");
 
     let discard_args = vec!["--id=sess-9".to_string(), "--discard".to_string()];
@@ -243,11 +283,18 @@ fn complete_parses_and_builds_events_like_js() {
     assert_eq!(parsed_discard.status, Status::Discarded);
     assert_eq!(server_poll_type(&parsed_discard.status), "discarded");
 
-    let error_args = vec!["--id".to_string(), "sess-9".to_string(), "--error".to_string()];
+    let error_args = vec![
+        "--id".to_string(),
+        "sess-9".to_string(),
+        "--error".to_string(),
+    ];
     let parsed_error = parse_args(&error_args);
     assert_eq!(
         build_event("sess-9", &parsed_error.status),
-        CompletionEvent::AgentError { id: "sess-9".into(), message: "unknown error".into() }
+        CompletionEvent::AgentError {
+            id: "sess-9".into(),
+            message: "unknown error".into()
+        }
     );
 
     let help_only = parse_args(&["--help".to_string()]);

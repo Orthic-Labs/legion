@@ -45,12 +45,18 @@ fn type_matches(value: &Value, ty: &Value) -> bool {
     if let Some(list) = ty.as_array() {
         return list.iter().any(|candidate| type_matches(value, candidate));
     }
-    let Some(name) = ty.as_str() else { return false };
+    let Some(name) = ty.as_str() else {
+        return false;
+    };
     match name {
         "null" => value.is_null(),
         "array" => value.is_array(),
         "object" => value.is_object(),
-        "integer" => value.is_i64() || value.is_u64() || matches!(value, Value::Number(n) if n.is_f64() && n.as_f64().is_some_and(|f| f.fract() == 0.0)),
+        "integer" => {
+            value.is_i64()
+                || value.is_u64()
+                || matches!(value, Value::Number(n) if n.is_f64() && n.as_f64().is_some_and(|f| f.fract() == 0.0))
+        }
         "string" => value.is_string(),
         "boolean" => value.is_boolean(),
         "number" => value.is_number(),
@@ -67,8 +73,8 @@ fn type_matches(value: &Value, ty: &Value) -> bool {
 /// appear in a qualification receipt — see wf014 report for detail).
 fn date_time_matches(value: &str) -> bool {
     let has_t = value.contains('T');
-    let ends_with_offset = value.ends_with('Z')
-        || Regex::new(r"[+-]\d{2}:\d{2}$").unwrap().is_match(value);
+    let ends_with_offset =
+        value.ends_with('Z') || Regex::new(r"[+-]\d{2}:\d{2}$").unwrap().is_match(value);
     has_t && ends_with_offset && chrono_free_parse_ok(value)
 }
 
@@ -78,10 +84,8 @@ fn date_time_matches(value: &str) -> bool {
 /// only to reject obviously-garbage strings that still pass the trailing
 /// regex (e.g. `"not-a-dateT00:00:00Z"`).
 fn chrono_free_parse_ok(value: &str) -> bool {
-    let re = Regex::new(
-        r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$",
-    )
-    .unwrap();
+    let re = Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
+        .unwrap();
     re.is_match(value)
 }
 
@@ -140,12 +144,15 @@ fn validate_schema_at(schema: &Value, value: &Value, path: &str, root: &Value) -
             }
         }
         if let Some(pattern) = schema.get("pattern").and_then(Value::as_str) {
-            let re = Regex::new(pattern).unwrap_or_else(|e| panic!("invalid pattern {pattern}: {e}"));
+            let re =
+                Regex::new(pattern).unwrap_or_else(|e| panic!("invalid pattern {pattern}: {e}"));
             if !re.is_match(s) {
                 issues.push(format!("{path}:pattern"));
             }
         }
-        if schema.get("format").and_then(Value::as_str) == Some("date-time") && !date_time_matches(s) {
+        if schema.get("format").and_then(Value::as_str) == Some("date-time")
+            && !date_time_matches(s)
+        {
             issues.push(format!("{path}:format"));
         }
     }
@@ -210,7 +217,12 @@ fn validate_schema_at(schema: &Value, value: &Value, path: &str, root: &Value) -
             for (key, child_schema) in props {
                 if let Some(child_value) = obj.get(key) {
                     let child_path = format!("{path}.{key}");
-                    issues.extend(validate_schema_at(child_schema, child_value, &child_path, root));
+                    issues.extend(validate_schema_at(
+                        child_schema,
+                        child_value,
+                        &child_path,
+                        root,
+                    ));
                 }
             }
         }

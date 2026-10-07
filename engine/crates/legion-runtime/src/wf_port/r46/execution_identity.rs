@@ -62,8 +62,7 @@ pub fn execution_identity_errors(text: &str, allow_template: bool) -> Vec<String
         || !path_re().is_match(&preflight)
     {
         errors.push(
-            "**Lifecycle preflight:** requires exact action/command plus evidence path"
-                .to_string(),
+            "**Lifecycle preflight:** requires exact action/command plus evidence path".to_string(),
         );
     }
     errors
@@ -99,12 +98,11 @@ mod tests {
     #[test]
     fn flags_missing_lifecycle_chain_arrows() {
         let mut text = valid_text();
-        text = text.replace(
-            "LIFECYCLE: A -> B -> C -> D -> E",
-            "LIFECYCLE: A -> B",
-        );
+        text = text.replace("LIFECYCLE: A -> B -> C -> D -> E", "LIFECYCLE: A -> B");
         let errors = execution_identity_errors(&text, false);
-        assert!(errors.iter().any(|e| e.contains("Required lifecycle chain")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("Required lifecycle chain")));
     }
 
     #[test]

@@ -6,7 +6,10 @@ pub fn state_root(workspace: &Path) -> PathBuf {
     workspace.join(".audit").join("arcane")
 }
 
-pub fn key_hex(domain: &str, values: &[String]) -> Result<String, legion_contracts::canonical::CanonicalError> {
+pub fn key_hex(
+    domain: &str,
+    values: &[String],
+) -> Result<String, legion_contracts::canonical::CanonicalError> {
     let digest = canonical_digest(&json!({ "domain": domain, "values": values }))?;
     Ok(digest
         .strip_prefix("sha256:")

@@ -23,11 +23,7 @@ const SHARED_TOPICS: [&str; 8] = [
 ];
 // Build, release & UI guidance share file coverage, but Xcode destinations,
 // App Store platform values & UI APIs differ between iOS & macOS bundles.
-const BYTE_IDENTICAL_TOPICS: [&str; 3] = [
-    "architecture",
-    "concurrency",
-    "profiling",
-];
+const BYTE_IDENTICAL_TOPICS: [&str; 3] = ["architecture", "concurrency", "profiling"];
 
 fn repository_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -37,7 +33,8 @@ fn repository_root() -> PathBuf {
 }
 
 fn read_json(path: &Path) -> Value {
-    let text = fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let text =
+        fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
     serde_json::from_str(&text).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
@@ -86,7 +83,8 @@ fn prose(text: &str) -> String {
 }
 
 fn anchors(path: &Path) -> HashSet<String> {
-    let text = fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let text =
+        fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
     let text = prose(&text);
     let heading = Regex::new(r"^#{1,6}\s+(.+?)\s*#*\s*$").unwrap();
     let html = Regex::new(r#"<a\s+(?:id|name)=["']([^"']+)"#).unwrap();
@@ -97,7 +95,12 @@ fn anchors(path: &Path) -> HashSet<String> {
             let mut slug = capture[1]
                 .to_lowercase()
                 .chars()
-                .filter(|character| character.is_alphanumeric() || *character == '_' || *character == '-' || *character == ' ')
+                .filter(|character| {
+                    character.is_alphanumeric()
+                        || *character == '_'
+                        || *character == '-'
+                        || *character == ' '
+                })
                 .collect::<String>();
             slug = slug.replace(' ', "-");
             let suffix = counts.entry(slug.clone()).or_insert(0);
@@ -117,14 +120,18 @@ fn anchors(path: &Path) -> HashSet<String> {
 }
 
 fn local_links(path: &Path) -> Vec<(PathBuf, String)> {
-    let text = fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let text =
+        fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
     let text = prose(&text);
     let code_spans = inline_code_spans(&text);
     let links = Regex::new(r"\[[^\]]+\]\(([^)\s]+)").unwrap();
     links
         .captures_iter(&text)
         .filter_map(|capture| {
-            if code_spans.iter().any(|span| span.contains(&capture.get(0).unwrap().start())) {
+            if code_spans
+                .iter()
+                .any(|span| span.contains(&capture.get(0).unwrap().start()))
+            {
                 return None;
             }
             let raw = capture[1].trim_start_matches('<').trim_end_matches('>');
@@ -147,15 +154,25 @@ fn inline_code_spans(text: &str) -> Vec<std::ops::Range<usize>> {
     let mut spans = Vec::new();
     let mut index = 0;
     while index < bytes.len() {
-        if bytes[index] != b'`' { index += 1; continue; }
+        if bytes[index] != b'`' {
+            index += 1;
+            continue;
+        }
         let start = index;
-        while index < bytes.len() && bytes[index] == b'`' { index += 1; }
+        while index < bytes.len() && bytes[index] == b'`' {
+            index += 1;
+        }
         let width = index - start;
         let mut cursor = index;
         while cursor < bytes.len() {
-            if bytes[cursor] != b'`' { cursor += 1; continue; }
+            if bytes[cursor] != b'`' {
+                cursor += 1;
+                continue;
+            }
             let close = cursor;
-            while cursor < bytes.len() && bytes[cursor] == b'`' { cursor += 1; }
+            while cursor < bytes.len() && bytes[cursor] == b'`' {
+                cursor += 1;
+            }
             if cursor - close == width {
                 spans.push(start..cursor);
                 index = cursor;
@@ -173,7 +190,9 @@ fn reference_closure_issues(root: &Path, bundle: &str) -> Vec<String> {
     let mut visited = HashSet::new();
     let mut issues = Vec::new();
     while let Some(path) = queue.pop_front() {
-        let path = path.canonicalize().unwrap_or_else(|error| panic!("{bundle}: missing {}: {error}", path.display()));
+        let path = path
+            .canonicalize()
+            .unwrap_or_else(|error| panic!("{bundle}: missing {}: {error}", path.display()));
         if !visited.insert(path.clone()) {
             continue;
         }
@@ -181,20 +200,41 @@ fn reference_closure_issues(root: &Path, bundle: &str) -> Vec<String> {
             let resolved = match target.canonicalize() {
                 Ok(resolved) => resolved,
                 Err(error) => {
-                    issues.push(format!("unresolved link {} in {}: {error}", target.display(), path.display()));
+                    issues.push(format!(
+                        "unresolved link {} in {}: {error}",
+                        target.display(),
+                        path.display()
+                    ));
                     continue;
                 }
             };
             if !resolved.starts_with(&bundle_root) {
-                issues.push(format!("link escapes bundle: {} in {}", target.display(), path.display()));
+                issues.push(format!(
+                    "link escapes bundle: {} in {}",
+                    target.display(),
+                    path.display()
+                ));
                 continue;
             }
-            if !fragment.is_empty() && resolved.extension().and_then(|extension| extension.to_str()) == Some("md") {
+            if !fragment.is_empty()
+                && resolved
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    == Some("md")
+            {
                 if !anchors(&resolved).contains(&fragment) {
-                    issues.push(format!("broken anchor {}#{fragment} in {}", resolved.display(), path.display()));
+                    issues.push(format!(
+                        "broken anchor {}#{fragment} in {}",
+                        resolved.display(),
+                        path.display()
+                    ));
                 }
             }
-            if resolved.extension().and_then(|extension| extension.to_str()) == Some("md") {
+            if resolved
+                .extension()
+                .and_then(|extension| extension.to_str())
+                == Some("md")
+            {
                 queue.push_back(resolved);
             }
         }
@@ -205,13 +245,24 @@ fn reference_closure_issues(root: &Path, bundle: &str) -> Vec<String> {
         if entry.file_type().is_symlink() {
             issues.push(format!("symlink cannot ship: {}", entry.path().display()));
         }
-        if entry.path().extension().and_then(|extension| extension.to_str()) == Some("md") {
+        if entry
+            .path()
+            .extension()
+            .and_then(|extension| extension.to_str())
+            == Some("md")
+        {
             if !visited.contains(&entry.path().canonicalize().unwrap()) {
-                issues.push(format!("unreachable Markdown reference {}", entry.path().display()));
+                issues.push(format!(
+                    "unreachable Markdown reference {}",
+                    entry.path().display()
+                ));
             }
         }
     }
-    issues.into_iter().map(|issue| format!("{bundle}: {issue}")).collect()
+    issues
+        .into_iter()
+        .map(|issue| format!("{bundle}: {issue}"))
+        .collect()
 }
 
 fn relative_files(path: &Path) -> HashSet<String> {
@@ -219,7 +270,14 @@ fn relative_files(path: &Path) -> HashSet<String> {
         .into_iter()
         .filter_map(Result::ok)
         .filter(|entry| entry.file_type().is_file())
-        .map(|entry| entry.path().strip_prefix(path).unwrap().to_string_lossy().replace('\\', "/"))
+        .map(|entry| {
+            entry
+                .path()
+                .strip_prefix(path)
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/")
+        })
         .collect()
 }
 
@@ -243,14 +301,20 @@ fn assert_source_ledgers(root: &Path) {
             let path = file["path"].as_str().unwrap().to_string();
             let hash = file["sha256"].as_str().map(str::to_string);
             if let Some(hash) = &hash {
-                assert!(valid_hash(hash), "invalid inventory hash: {source_id}:{path}");
+                assert!(
+                    valid_hash(hash),
+                    "invalid inventory hash: {source_id}:{path}"
+                );
             }
             let duplicate = expected.iter().any(|other| {
                 other.source_id == source_id
                     && other.path == path
                     && (source_id != "public-architecture-synthesis" || other.hash == hash)
             });
-            assert!(!duplicate, "duplicate inventory file identity: {source_id}:{path}");
+            assert!(
+                !duplicate,
+                "duplicate inventory file identity: {source_id}:{path}"
+            );
             expected.push(InventoryFile {
                 source_id: source_id.clone(),
                 path,
@@ -285,7 +349,10 @@ fn assert_source_ledgers(root: &Path) {
                 let source_path = file["path"].as_str().unwrap();
                 let ledger_hash = file["sha256"].as_str().map(str::to_string);
                 if let Some(hash) = &ledger_hash {
-                    assert!(valid_hash(hash), "invalid ledger hash: {source_id}:{source_path}");
+                    assert!(
+                        valid_hash(hash),
+                        "invalid ledger hash: {source_id}:{source_path}"
+                    );
                 }
                 ledgers.push((
                     source_id.to_string(),
@@ -301,14 +368,11 @@ fn assert_source_ledgers(root: &Path) {
     let mut destination_issues = Vec::new();
     for (source_id, source_path, ledger_hash, file) in &ledgers {
         let identity = format!("{source_id}:{source_path}");
-        let inventory_match = expected
-            .iter()
-            .enumerate()
-            .find(|(_, expected)| {
-                expected.source_id == *source_id
-                    && expected.path == *source_path
-                    && expected.hash.as_ref() == ledger_hash.as_ref()
-            });
+        let inventory_match = expected.iter().enumerate().find(|(_, expected)| {
+            expected.source_id == *source_id
+                && expected.path == *source_path
+                && expected.hash.as_ref() == ledger_hash.as_ref()
+        });
         if let Some((index, _)) = inventory_match {
             assert!(seen.insert(index), "duplicate ledger file: {identity}");
         }
@@ -392,14 +456,18 @@ fn assert_source_ledgers(root: &Path) {
                     }
                 };
                 if !target.starts_with(root) {
-                    destination_issues.push(format!("{identity}: destination escapes repository: {destination}"));
+                    destination_issues.push(format!(
+                        "{identity}: destination escapes repository: {destination}"
+                    ));
                     continue;
                 }
                 if !fragment.is_empty()
                     && target.extension().and_then(|extension| extension.to_str()) == Some("md")
                 {
                     if !anchors(&target).contains(fragment) {
-                        destination_issues.push(format!("{identity}: broken destination anchor: {destination}"));
+                        destination_issues.push(format!(
+                            "{identity}: broken destination anchor: {destination}"
+                        ));
                     }
                 }
             }
@@ -430,8 +498,16 @@ fn assert_source_ledgers(root: &Path) {
             wrapper.path
         );
     }
-    assert_eq!(seen.len(), expected.len(), "source inventory has undispositioned files");
-    assert!(destination_issues.is_empty(), "Source ledger destinations:\n{}", destination_issues.join("\n"));
+    assert_eq!(
+        seen.len(),
+        expected.len(),
+        "source inventory has undispositioned files"
+    );
+    assert!(
+        destination_issues.is_empty(),
+        "Source ledger destinations:\n{}",
+        destination_issues.join("\n")
+    );
 }
 
 fn assert_native_app_store_ledger(root: &Path) {
@@ -444,7 +520,10 @@ fn assert_native_app_store_ledger(root: &Path) {
     for destination in destinations {
         let relative = destination.as_str().unwrap();
         let resolved = root.join(relative).canonicalize().unwrap();
-        assert!(resolved.starts_with(root) && resolved.is_file(), "invalid native destination: {relative}");
+        assert!(
+            resolved.starts_with(root) && resolved.is_file(),
+            "invalid native destination: {relative}"
+        );
     }
     for rule in ledger["nativeRules"].as_array().unwrap() {
         for field in ["sourceLines", "destinationLines"] {
@@ -456,21 +535,25 @@ fn assert_native_app_store_ledger(root: &Path) {
             );
         }
         assert_eq!(rule["disposition"], "merged");
-        assert!(
-            rule["summary"]
-                .as_str()
-                .is_some_and(|value| !value.trim().is_empty())
-        );
+        assert!(rule["summary"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()));
     }
     for mapping in ledger["operationMapping"].as_array().unwrap() {
-        assert!(mapping["alias"].as_str().is_some_and(|value| !value.is_empty()));
+        assert!(mapping["alias"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
         assert!(!mapping["operations"].as_array().unwrap().is_empty());
         assert!(!mapping["routes"].as_array().unwrap().is_empty());
         assert_eq!(mapping["destinationLines"].as_array().unwrap().len(), 2);
     }
     for source in ledger["sources"].as_array().unwrap() {
-        assert!(source["repository"].as_str().is_some_and(|value| !value.is_empty()));
-        assert!(source["commit"].as_str().is_some_and(|value| !value.is_empty()));
+        assert!(source["repository"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
+        assert!(source["commit"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
         for file in source["files"].as_array().unwrap() {
             assert!(file["path"].as_str().is_some_and(|value| !value.is_empty()));
             assert!(valid_hash(file["sha256"].as_str().unwrap()));
@@ -491,7 +574,9 @@ fn assert_native_app_store_ledger(root: &Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generators::{codex_skill_sidecars, host_projection, refresh_local_skill_manifests, skill_catalog};
+    use crate::generators::{
+        codex_skill_sidecars, host_projection, refresh_local_skill_manifests, skill_catalog,
+    };
     use crate::shared::skill_frontmatter::parse_skill_frontmatter_map;
 
     #[test]
@@ -499,9 +584,15 @@ mod tests {
         let text = "`Text(\"^[count item](inflect: true)\")` & [`guide`](guide.md) & ``[sample](fake.md)``";
         let spans = inline_code_spans(text);
         assert_eq!(spans.len(), 3);
-        assert!(spans.iter().any(|span| span.contains(&text.find("[count").unwrap())));
-        assert!(!spans.iter().any(|span| span.contains(&text.find("[`guide").unwrap())));
-        assert!(spans.iter().any(|span| span.contains(&text.find("[sample").unwrap())));
+        assert!(spans
+            .iter()
+            .any(|span| span.contains(&text.find("[count").unwrap())));
+        assert!(!spans
+            .iter()
+            .any(|span| span.contains(&text.find("[`guide").unwrap())));
+        assert!(spans
+            .iter()
+            .any(|span| span.contains(&text.find("[sample").unwrap())));
     }
 
     #[test]
@@ -511,7 +602,11 @@ mod tests {
         for bundle in APPLE_SKILLS {
             issues.extend(reference_closure_issues(&root, bundle));
         }
-        assert!(issues.is_empty(), "Apple reference closure:\n{}", issues.join("\n"));
+        assert!(
+            issues.is_empty(),
+            "Apple reference closure:\n{}",
+            issues.join("\n")
+        );
     }
 
     #[test]
@@ -520,14 +615,30 @@ mod tests {
         for topic in SHARED_TOPICS {
             let left = root.join("skills/ios-development/references").join(topic);
             let right = root.join("skills/macos-development/references").join(topic);
-            assert_eq!(relative_files(&left), relative_files(&right), "shared topic inventory differs: {topic}");
+            assert_eq!(
+                relative_files(&left),
+                relative_files(&right),
+                "shared topic inventory differs: {topic}"
+            );
             if BYTE_IDENTICAL_TOPICS.contains(&topic) {
                 for relative in relative_files(&left) {
-                    assert_eq!(fs::read(left.join(&relative)).unwrap(), fs::read(right.join(&relative)).unwrap(), "shared topic content differs: {topic}/{relative}");
+                    assert_eq!(
+                        fs::read(left.join(&relative)).unwrap(),
+                        fs::read(right.join(&relative)).unwrap(),
+                        "shared topic content differs: {topic}/{relative}"
+                    );
                 }
             }
-            assert!(fs::metadata(root.join("skills/ios-development/references").join(format!("{topic}.md"))).is_ok());
-            assert!(fs::metadata(root.join("skills/macos-development/references").join(format!("{topic}.md"))).is_ok());
+            assert!(fs::metadata(
+                root.join("skills/ios-development/references")
+                    .join(format!("{topic}.md"))
+            )
+            .is_ok());
+            assert!(fs::metadata(
+                root.join("skills/macos-development/references")
+                    .join(format!("{topic}.md"))
+            )
+            .is_ok());
         }
     }
 
@@ -545,14 +656,21 @@ mod tests {
     fn generated_apple_manifests_match_payload_hashes() {
         let root = repository_root();
         for bundle in APPLE_SKILLS {
-            let generated = refresh_local_skill_manifests::build_local_skill_manifest(&root, bundle).unwrap();
+            let generated =
+                refresh_local_skill_manifests::build_local_skill_manifest(&root, bundle).unwrap();
             let current = read_json(&generated.manifest_path);
             assert_eq!(current, generated.manifest, "manifest drift: {bundle}");
             assert_eq!(current["licenseState"], "licensed");
-            assert_eq!(current["rightsReceipt"]["sourceManifest"], "config/source-manifest.json");
+            assert_eq!(
+                current["rightsReceipt"]["sourceManifest"],
+                "config/source-manifest.json"
+            );
             for file in current["files"].as_array().unwrap() {
                 let relative = file["path"].as_str().unwrap();
-                let expected_digest = format!("sha256:{}", sha256(&root.join("skills").join(bundle).join(relative)));
+                let expected_digest = format!(
+                    "sha256:{}",
+                    sha256(&root.join("skills").join(bundle).join(relative))
+                );
                 assert_eq!(file["digest"].as_str(), Some(expected_digest.as_str()));
             }
         }
@@ -565,24 +683,60 @@ mod tests {
         let projection = host_projection::build_projection(&root).unwrap();
         let mcp_schema = read_json(&root.join("src/registry/mcp-tools.json"));
         assert_eq!(projection["mcpTools"], mcp_schema["tools"]);
-        assert!(projection["mcpTools"].as_array().unwrap().iter().any(|tool| tool["name"] == "legion_apple"));
+        assert!(projection["mcpTools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|tool| tool["name"] == "legion_apple"));
         let sidecars = codex_skill_sidecars::expected_codex_sidecars(&root).unwrap();
-        let engineering = domains["domains"].as_array().unwrap().iter().find(|domain| domain["id"] == "engineering").unwrap();
+        let engineering = domains["domains"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|domain| domain["id"] == "engineering")
+            .unwrap();
         for bundle in APPLE_SKILLS {
             let root_path = root.join("skills").join(bundle);
-            let frontmatter = parse_skill_frontmatter_map(&fs::read_to_string(root_path.join("SKILL.md")).unwrap(), &format!("skills/{bundle}/SKILL.md")).unwrap();
+            let frontmatter = parse_skill_frontmatter_map(
+                &fs::read_to_string(root_path.join("SKILL.md")).unwrap(),
+                &format!("skills/{bundle}/SKILL.md"),
+            )
+            .unwrap();
             assert_eq!(frontmatter["kind"], "capability");
             assert_eq!(frontmatter["discoverability"], "public");
             assert!(root_path.join("references/release/contract.md").is_file());
             assert!(root_path.join("references/profiling/capture.md").is_file());
             assert!(root_path.join("references/profiling/export.md").is_file());
             assert!(root_path.join("references/profiling/hotspots.md").is_file());
-            assert!(!root_path.join("scripts/tool_preflight.py").exists(), "Python preflight must not remain in {bundle}");
-            let skill = catalog["bundles"].as_array().unwrap().iter().find(|item| item["id"] == bundle).unwrap();
+            assert!(
+                !root_path.join("scripts/tool_preflight.py").exists(),
+                "Python preflight must not remain in {bundle}"
+            );
+            let skill = catalog["bundles"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|item| item["id"] == bundle)
+                .unwrap();
             assert!(skill["hostRequirements"].as_array().unwrap().is_empty());
-            assert!(engineering["children"].as_array().unwrap().iter().any(|child| child["id"] == bundle));
-            assert!(skill["scopedRequirementDetails"].as_array().unwrap().iter().all(|item| item["degradation"].as_str().is_some_and(|value| !value.is_empty())));
-            let host = projection["capabilities"].as_array().unwrap().iter().find(|item| item["id"] == bundle).unwrap();
+            assert!(engineering["children"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|child| child["id"] == bundle));
+            assert!(skill["scopedRequirementDetails"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|item| item["degradation"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())));
+            let host = projection["capabilities"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|item| item["id"] == bundle)
+                .unwrap();
             assert_eq!(host["invocation"]["user"], true);
             assert_eq!(host["invocation"]["model"], true);
             let (_, sidecar) = sidecars.iter().find(|(name, _)| name == bundle).unwrap();

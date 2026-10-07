@@ -57,10 +57,7 @@ mod tests {
 
     #[test]
     fn tray_tooltip_text_matches_tray_ps1_format() {
-        assert_eq!(
-            tray_tooltip_text(false),
-            "Alchemist - Citadel down"
-        );
+        assert_eq!(tray_tooltip_text(false), "Alchemist - Citadel down");
     }
 
     #[test]

@@ -188,7 +188,10 @@ mod tests {
     fn strip_html_tags_basic() {
         assert_eq!(strip_html_tags("<a href=\"x\">Jane Doe</a>"), "Jane Doe");
         assert_eq!(strip_html_tags("plain text"), "plain text");
-        assert_eq!(strip_html_tags("<b>bold</b> and <i>italic</i>"), "bold and italic");
+        assert_eq!(
+            strip_html_tags("<b>bold</b> and <i>italic</i>"),
+            "bold and italic"
+        );
     }
 
     #[test]
@@ -203,7 +206,10 @@ mod tests {
     fn thumb_extension_defaults_to_jpg() {
         // Python's os.path.splitext matches the dot in the host here, so only a
         // dot-free URL falls back to ".jpg".
-        assert_eq!(thumb_extension("https://upload.wikimedia.org/x/noext"), ".org/x/noext");
+        assert_eq!(
+            thumb_extension("https://upload.wikimedia.org/x/noext"),
+            ".org/x/noext"
+        );
         assert_eq!(thumb_extension("noext"), ".jpg");
     }
 

@@ -14,7 +14,9 @@ use std::collections::BTreeMap;
 use legion_runtime::wf_port::w2_040::execution_receipt::{
     blocked, execution_receipt, BlockedSpec, ExecutionReceiptInput, SPAWN_STATUS,
 };
-use legion_runtime::wf_port::w2_040::kernel_binding::{KernelBinding, KernelPrimitives, ARCANE_NAMESPACE};
+use legion_runtime::wf_port::w2_040::kernel_binding::{
+    KernelBinding, KernelPrimitives, ARCANE_NAMESPACE,
+};
 use serde_json::json;
 
 // ---- execution-receipt.mjs --------------------------------------------
@@ -106,7 +108,9 @@ fn unbound_kernel_fails_closed_on_every_canonical_write() {
     let err = binding.read_object(ARCANE_NAMESPACE, "run_x").unwrap_err();
     assert_eq!(err.code, "ARC_KERNEL_PRIMITIVE_UNAVAILABLE");
 
-    let err = binding.put_object(ARCANE_NAMESPACE, "run_x", &record).unwrap_err();
+    let err = binding
+        .put_object(ARCANE_NAMESPACE, "run_x", &record)
+        .unwrap_err();
     assert_eq!(err.code, "ARC_KERNEL_PRIMITIVE_UNAVAILABLE");
 }
 

@@ -82,7 +82,11 @@ pub fn walk_dir(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Port of `resolveImport(specifier, fromDir, fileSet)`.
-pub fn resolve_import(specifier: &str, from_dir: &Path, file_set: &HashSet<PathBuf>) -> Option<PathBuf> {
+pub fn resolve_import(
+    specifier: &str,
+    from_dir: &Path,
+    file_set: &HashSet<PathBuf>,
+) -> Option<PathBuf> {
     if !(specifier.starts_with('.') || specifier.starts_with('/')) {
         return None; // skip bare specifiers
     }
@@ -134,7 +138,8 @@ pub fn build_import_graph(files: &[PathBuf]) -> HashMap<PathBuf, HashSet<PathBuf
     let mut graph = HashMap::new();
 
     let es_re = regex::Regex::new(r#"import\s+(?:[\s\S]*?from\s+)?['"]([^'"]+)['"]"#).unwrap();
-    let css_re = regex::Regex::new(r#"@import\s+(?:url\(\s*)?['"]?([^'");\s]+)['"]?\s*\)?"#).unwrap();
+    let css_re =
+        regex::Regex::new(r#"@import\s+(?:url\(\s*)?['"]?([^'");\s]+)['"]?\s*\)?"#).unwrap();
     let scss_re = regex::Regex::new(r#"@(?:use|forward)\s+['"]([^'"]+)['"]"#).unwrap();
 
     for file in files {
@@ -328,26 +333,44 @@ pub fn is_port_listening_http(
     let addr = format!("127.0.0.1:{port}");
     let sock_addr = match addr.parse::<std::net::SocketAddr>() {
         Ok(a) => a,
-        Err(_) => return PortListenStatus { listening: false, matched: None },
+        Err(_) => {
+            return PortListenStatus {
+                listening: false,
+                matched: None,
+            }
+        }
     };
     let mut stream = match TcpStream::connect_timeout(&sock_addr, Duration::from_millis(2000)) {
         Ok(s) => s,
-        Err(_) => return PortListenStatus { listening: false, matched: None },
+        Err(_) => {
+            return PortListenStatus {
+                listening: false,
+                matched: None,
+            }
+        }
     };
     let _ = stream.set_read_timeout(Some(Duration::from_millis(2000)));
     let _ = stream.set_write_timeout(Some(Duration::from_millis(2000)));
 
     let request = format!("GET / HTTP/1.1\r\nHost: localhost:{port}\r\nConnection: close\r\n\r\n");
     if stream.write_all(request.as_bytes()).is_err() {
-        return PortListenStatus { listening: false, matched: None };
+        return PortListenStatus {
+            listening: false,
+            matched: None,
+        };
     }
 
     let mut raw = Vec::new();
     if stream.read_to_end(&mut raw).is_err() && raw.is_empty() {
-        return PortListenStatus { listening: false, matched: None };
+        return PortListenStatus {
+            listening: false,
+            matched: None,
+        };
     }
     let response = String::from_utf8_lossy(&raw);
-    let (headers_part, body_part) = response.split_once("\r\n\r\n").unwrap_or((response.as_ref(), ""));
+    let (headers_part, body_part) = response
+        .split_once("\r\n\r\n")
+        .unwrap_or((response.as_ref(), ""));
 
     if let Some((header_name, value_re)) = fingerprint_header {
         let wanted = header_name.to_lowercase();
@@ -360,7 +383,10 @@ pub fn is_port_listening_http(
                         None => true,
                     };
                     if !value.is_empty() && ok {
-                        return PortListenStatus { listening: true, matched: Some(true) };
+                        return PortListenStatus {
+                            listening: true,
+                            matched: Some(true),
+                        };
                     }
                 }
             }
@@ -369,11 +395,17 @@ pub fn is_port_listening_http(
 
     if let Some(body_re) = fingerprint_body {
         if body_re.is_match(body_part) {
-            return PortListenStatus { listening: true, matched: Some(true) };
+            return PortListenStatus {
+                listening: true,
+                matched: Some(true),
+            };
         }
     }
 
-    PortListenStatus { listening: true, matched: Some(false) }
+    PortListenStatus {
+        listening: true,
+        matched: Some(false),
+    }
 }
 
 #[cfg(test)]
@@ -381,7 +413,8 @@ mod tests {
     use super::*;
 
     fn tmpdir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("w2_013_file_system_{name}_{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("w2_013_file_system_{name}_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -407,14 +440,20 @@ mod tests {
             })
             .collect();
         files.sort();
-        assert_eq!(files, vec!["index.html".to_string(), "src/app.tsx".to_string()]);
+        assert_eq!(
+            files,
+            vec!["index.html".to_string(), "src/app.tsx".to_string()]
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
     fn resolve_import_skips_bare_specifiers() {
         let files: HashSet<PathBuf> = HashSet::new();
-        assert_eq!(resolve_import("react", Path::new("/proj/src"), &files), None);
+        assert_eq!(
+            resolve_import("react", Path::new("/proj/src"), &files),
+            None
+        );
     }
 
     #[test]
@@ -450,7 +489,10 @@ mod tests {
     #[test]
     fn resolve_import_returns_none_when_unresolvable() {
         let files: HashSet<PathBuf> = HashSet::new();
-        assert_eq!(resolve_import("./missing", Path::new("/proj/src"), &files), None);
+        assert_eq!(
+            resolve_import("./missing", Path::new("/proj/src"), &files),
+            None
+        );
     }
 
     #[test]
@@ -476,7 +518,11 @@ mod tests {
     fn detect_framework_config_reads_configured_port() {
         let root = tmpdir("framework");
         let mut f = std::fs::File::create(root.join("vite.config.ts")).unwrap();
-        writeln!(f, "export default defineConfig({{ server: {{ port: 4123 }} }})").unwrap();
+        writeln!(
+            f,
+            "export default defineConfig({{ server: {{ port: 4123 }} }})"
+        )
+        .unwrap();
         let detected = detect_framework_config(&root).unwrap();
         assert_eq!(detected.name, "Vite");
         assert_eq!(detected.port, 4123);

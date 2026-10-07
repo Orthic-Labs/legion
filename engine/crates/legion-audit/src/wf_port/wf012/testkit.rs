@@ -106,7 +106,11 @@ pub fn path_denominator(paths: &[String], exclude: &[String]) -> PathDenominator
     }
     let mut normalized: Vec<String> = deduped
         .into_iter()
-        .filter(|path| !exclude.iter().any(|pattern| path.contains(pattern.as_str())))
+        .filter(|path| {
+            !exclude
+                .iter()
+                .any(|pattern| path.contains(pattern.as_str()))
+        })
         .collect();
     normalized.sort();
 
@@ -149,8 +153,16 @@ pub fn validate_provider_record(record: &Value) -> bool {
 
 /// `PROVIDER_STATUS` from `src/registry/provider-contracts.mjs`.
 pub const PROVIDER_STATUS: &[&str] = &[
-    "pass", "fail", "partial", "unproven", "skipped", "error", "pending", "missing",
-    "candidates", "blocked",
+    "pass",
+    "fail",
+    "partial",
+    "unproven",
+    "skipped",
+    "error",
+    "pending",
+    "missing",
+    "candidates",
+    "blocked",
 ];
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -321,7 +333,10 @@ pub fn normalize_provider_result(
         .unwrap_or("unknown")
         .to_string();
 
-    let applicable = raw_obj.get("applicable").cloned().unwrap_or(Value::Bool(true));
+    let applicable = raw_obj
+        .get("applicable")
+        .cloned()
+        .unwrap_or(Value::Bool(true));
 
     let required = plan_obj
         .get("benchmark")
@@ -335,7 +350,10 @@ pub fn normalize_provider_result(
         .cloned()
         .unwrap_or_else(|| Value::String("unproven".to_string()));
 
-    let complete = raw_obj.get("complete").cloned().unwrap_or(Value::Bool(false));
+    let complete = raw_obj
+        .get("complete")
+        .cloned()
+        .unwrap_or(Value::Bool(false));
 
     let raw_coverage = raw_obj
         .get("coverage")
@@ -365,16 +383,34 @@ pub fn normalize_provider_result(
     normalized.insert("status".to_string(), status);
     normalized.insert("complete".to_string(), complete);
     normalized.insert("coverage".to_string(), Value::Object(coverage));
-    normalized.insert("commands".to_string(), get_or(raw_obj, "commands", &empty_array));
-    normalized.insert("receipts".to_string(), get_or(raw_obj, "receipts", &empty_array));
-    normalized.insert("inventory".to_string(), get_or(raw_obj, "inventory", &empty_array));
-    normalized.insert("candidates".to_string(), get_or(raw_obj, "candidates", &empty_array));
-    normalized.insert("findings".to_string(), get_or(raw_obj, "findings", &empty_array));
+    normalized.insert(
+        "commands".to_string(),
+        get_or(raw_obj, "commands", &empty_array),
+    );
+    normalized.insert(
+        "receipts".to_string(),
+        get_or(raw_obj, "receipts", &empty_array),
+    );
+    normalized.insert(
+        "inventory".to_string(),
+        get_or(raw_obj, "inventory", &empty_array),
+    );
+    normalized.insert(
+        "candidates".to_string(),
+        get_or(raw_obj, "candidates", &empty_array),
+    );
+    normalized.insert(
+        "findings".to_string(),
+        get_or(raw_obj, "findings", &empty_array),
+    );
     normalized.insert(
         "coverageGaps".to_string(),
         get_or(raw_obj, "coverageGaps", &empty_array),
     );
-    normalized.insert("artifacts".to_string(), get_or(raw_obj, "artifacts", &empty_array));
+    normalized.insert(
+        "artifacts".to_string(),
+        get_or(raw_obj, "artifacts", &empty_array),
+    );
     normalized.insert(
         "degradation".to_string(),
         get_or(raw_obj, "degradation", &empty_array),

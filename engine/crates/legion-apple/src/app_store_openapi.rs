@@ -38,8 +38,10 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
         .and_then(Value::as_str)
         .unwrap_or("discover")
         .to_ascii_lowercase();
-    if matches!(action.as_str(), "discover" | "catalog" | "openapi" | "operations")
-        && !has_selector(object)
+    if matches!(
+        action.as_str(),
+        "discover" | "catalog" | "openapi" | "operations"
+    ) && !has_selector(object)
     {
         return Ok(discovery(spec_path, &operations));
     }
@@ -72,7 +74,8 @@ fn read_spec(path: &str) -> Result<Value, String> {
         return Err("spec_path is empty or exceeds path limit".to_string());
     }
     let path = Path::new(path);
-    let metadata = fs::metadata(path).map_err(|_| "could not read local OpenAPI spec".to_string())?;
+    let metadata =
+        fs::metadata(path).map_err(|_| "could not read local OpenAPI spec".to_string())?;
     if !metadata.is_file() || metadata.len() > MAX_SPEC_BYTES {
         return Err("local OpenAPI spec exceeds file limit".to_string());
     }
@@ -80,8 +83,10 @@ fn read_spec(path: &str) -> Result<Value, String> {
     if bytes.len() as u64 > MAX_SPEC_BYTES {
         return Err("local OpenAPI spec exceeds file limit".to_string());
     }
-    let value = serde_json::from_slice::<Value>(&bytes)
-        .map_err(|_| "OpenAPI spec must be bounded JSON; YAML is unsupported without a parser dependency".to_string())?;
+    let value = serde_json::from_slice::<Value>(&bytes).map_err(|_| {
+        "OpenAPI spec must be bounded JSON; YAML is unsupported without a parser dependency"
+            .to_string()
+    })?;
     if !value.get("paths").map(Value::is_object).unwrap_or(false) {
         return Err("OpenAPI spec must contain a paths object".to_string());
     }
@@ -126,7 +131,10 @@ fn operations(spec: &Value) -> Result<Vec<Operation>, String> {
             .as_object()
             .ok_or_else(|| format!("OpenAPI path {path} must be an object"))?;
         for (method, value) in methods {
-            if !matches!(method.to_ascii_lowercase().as_str(), "get" | "post" | "patch" | "delete") {
+            if !matches!(
+                method.to_ascii_lowercase().as_str(),
+                "get" | "post" | "patch" | "delete"
+            ) {
                 continue;
             }
             let mut operation = resolve_bounded(value, spec)?;
@@ -156,7 +164,10 @@ fn operations(spec: &Value) -> Result<Vec<Operation>, String> {
     Ok(result)
 }
 
-fn select_operation<'a>(object: &Map<String, Value>, operations: &'a [Operation]) -> Result<Operation, String> {
+fn select_operation<'a>(
+    object: &Map<String, Value>,
+    operations: &'a [Operation],
+) -> Result<Operation, String> {
     let selector = object
         .get("operationId")
         .or_else(|| object.get("operation_id"))
@@ -170,7 +181,11 @@ fn select_operation<'a>(object: &Map<String, Value>, operations: &'a [Operation]
         .ok_or_else(|| format!("unknown OpenAPI operationId: {selector}"))
 }
 
-fn build_request(object: &Map<String, Value>, spec: &Value, operation: &Operation) -> Result<Value, String> {
+fn build_request(
+    object: &Map<String, Value>,
+    spec: &Value,
+    operation: &Operation,
+) -> Result<Value, String> {
     let mut path = operation.path.clone();
     let parameters = operation_parameters(spec, &operation.value)?;
     let path_params = object
@@ -186,10 +201,25 @@ fn build_request(object: &Map<String, Value>, spec: &Value, operation: &Operatio
         if name.is_empty() || !matches!(location, "path" | "query") {
             continue;
         }
-        let source = if location == "path" { path_params } else { query };
-        let value = source.and_then(|values| values.get(name)).or_else(|| parameter.get("schema").and_then(|schema| schema.get("default")));
-        if parameter.get("required").and_then(Value::as_bool).unwrap_or(false) && value.is_none() {
-            return Err(format!("required OpenAPI {location} parameter is missing: {name}"));
+        let source = if location == "path" {
+            path_params
+        } else {
+            query
+        };
+        let value = source.and_then(|values| values.get(name)).or_else(|| {
+            parameter
+                .get("schema")
+                .and_then(|schema| schema.get("default"))
+        });
+        if parameter
+            .get("required")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            && value.is_none()
+        {
+            return Err(format!(
+                "required OpenAPI {location} parameter is missing: {name}"
+            ));
         }
         let Some(value) = value else { continue };
         if location == "path" {
@@ -205,7 +235,10 @@ fn build_request(object: &Map<String, Value>, spec: &Value, operation: &Operatio
     let body = object.get("body").cloned();
     for parameter in &parameters {
         if parameter.get("in").and_then(Value::as_str) == Some("body") {
-            let required = parameter.get("required").and_then(Value::as_bool).unwrap_or(false);
+            let required = parameter
+                .get("required")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             if required && body.is_none() {
                 return Err("required OpenAPI request body is missing".to_string());
             }
@@ -216,7 +249,10 @@ fn build_request(object: &Map<String, Value>, spec: &Value, operation: &Operatio
     }
     if let Some(request_body) = operation.value.get("requestBody") {
         let request_body = resolve_bounded(request_body, spec)?;
-        let required = request_body.get("required").and_then(Value::as_bool).unwrap_or(false);
+        let required = request_body
+            .get("required")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         if required && body.is_none() {
             return Err("required OpenAPI request body is missing".to_string());
         }
@@ -224,7 +260,11 @@ fn build_request(object: &Map<String, Value>, spec: &Value, operation: &Operatio
             let schema = request_body
                 .get("content")
                 .and_then(Value::as_object)
-                .and_then(|content| content.get("application/json").or_else(|| content.values().next()))
+                .and_then(|content| {
+                    content
+                        .get("application/json")
+                        .or_else(|| content.values().next())
+                })
                 .and_then(|content| content.get("schema"));
             if let Some(schema) = schema {
                 let schema = resolve_bounded(schema, spec)?;
@@ -242,7 +282,10 @@ fn build_request(object: &Map<String, Value>, spec: &Value, operation: &Operatio
     if let Some(body) = body {
         request.insert("body".into(), body);
     }
-    request.insert("execute".into(), object.get("execute").cloned().unwrap_or(Value::Bool(false)));
+    request.insert(
+        "execute".into(),
+        object.get("execute").cloned().unwrap_or(Value::Bool(false)),
+    );
     Ok(Value::Object(request))
 }
 
@@ -341,7 +384,13 @@ fn resolve_bounded(value: &Value, root: &Value) -> Result<Value, String> {
     resolve(value, root, &mut Vec::new(), 0, &mut refs)
 }
 
-fn resolve(value: &Value, root: &Value, stack: &mut Vec<String>, depth: usize, refs: &mut usize) -> Result<Value, String> {
+fn resolve(
+    value: &Value,
+    root: &Value,
+    stack: &mut Vec<String>,
+    depth: usize,
+    refs: &mut usize,
+) -> Result<Value, String> {
     if depth > MAX_REF_DEPTH {
         return Err("OpenAPI local reference depth exceeds limit".to_string());
     }
@@ -356,7 +405,8 @@ fn resolve(value: &Value, root: &Value, stack: &mut Vec<String>, depth: usize, r
         if *refs > MAX_REFS {
             return Err("OpenAPI reference count exceeds limit".to_string());
         }
-        let target = pointer(root, reference).ok_or_else(|| format!("OpenAPI reference not found: {reference}"))?;
+        let target = pointer(root, reference)
+            .ok_or_else(|| format!("OpenAPI reference not found: {reference}"))?;
         stack.push(reference.to_string());
         let result = resolve(target, root, stack, depth + 1, refs);
         stack.pop();
@@ -371,7 +421,10 @@ fn resolve(value: &Value, root: &Value, stack: &mut Vec<String>, depth: usize, r
             Ok(Value::Object(result))
         }
         Value::Array(values) => Ok(Value::Array(
-            values.iter().map(|value| resolve(value, root, stack, depth + 1, refs)).collect::<Result<Vec<_>, _>>()?,
+            values
+                .iter()
+                .map(|value| resolve(value, root, stack, depth + 1, refs))
+                .collect::<Result<Vec<_>, _>>()?,
         )),
         _ => Ok(value.clone()),
     }

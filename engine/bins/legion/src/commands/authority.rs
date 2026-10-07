@@ -21,7 +21,9 @@ pub fn run(args: CommonArgs) -> CommandResult {
         }));
     }
     if sub != Some("inspect") {
-        return Err(super::CommandError::usage("authority proof requires inspect"));
+        return Err(super::CommandError::usage(
+            "authority proof requires inspect",
+        ));
     }
     index += 1;
     let invocation_id = if argv.get(index) == Some(&"--invocation".to_string()) {

@@ -33,7 +33,8 @@ fn end_to_end_portfolio_components_and_stacks_are_consistent() {
         .expect("component extraction should succeed for a consistent portfolio");
     assert_eq!(graph["kind"], "legion-component-graph");
 
-    let stack_graph = stacks::build_stack_graph(&portfolio, &graph, &projection, &serde_json::Value::Null);
+    let stack_graph =
+        stacks::build_stack_graph(&portfolio, &graph, &projection, &serde_json::Value::Null);
     assert_eq!(stack_graph["kind"], "legion-stack-graph");
     let known: Vec<_> = stack_graph["stacks"]
         .as_array()
@@ -41,14 +42,18 @@ fn end_to_end_portfolio_components_and_stacks_are_consistent() {
         .iter()
         .filter(|s| s["known"] == true)
         .collect();
-    assert!(!known.is_empty(), "rust/stripe dependencies should classify as known stacks");
+    assert!(
+        !known.is_empty(),
+        "rust/stripe dependencies should classify as known stacks"
+    );
 }
 
 #[test]
 fn journeys_are_scoped_per_target() {
     let portfolio = json!({"targets": [{"id": "target:a"}, {"id": "target:b"}]});
     let contract = json!({"declared": {"criticalJourneys": ["sign-up", "checkout"]}});
-    let result = journeys::build_journeys(&portfolio, &contract, &json!({}), &serde_json::Value::Null);
+    let result =
+        journeys::build_journeys(&portfolio, &contract, &json!({}), &serde_json::Value::Null);
     assert_eq!(result["journeys"].as_array().unwrap().len(), 4);
     assert!(result["complete"].as_bool().unwrap());
 }

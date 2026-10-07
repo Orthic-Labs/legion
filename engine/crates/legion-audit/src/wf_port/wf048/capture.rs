@@ -21,8 +21,22 @@ use std::collections::HashSet;
 use super::sanitize::sanitize_sensitive_value;
 use super::shared::{binding_missing_gaps, finalize, same_binding, sort_by_id, unique_sorted};
 
-const REQUIRED: &[&str] = &["screenshot", "dom", "accessibilityTree", "style", "geometry", "trace", "performance"];
-const PERFORMANCE_REQUIRED: &[&str] = &["longTasks", "layoutShifts", "paints", "memory", "userTimings"];
+const REQUIRED: &[&str] = &[
+    "screenshot",
+    "dom",
+    "accessibilityTree",
+    "style",
+    "geometry",
+    "trace",
+    "performance",
+];
+const PERFORMANCE_REQUIRED: &[&str] = &[
+    "longTasks",
+    "layoutShifts",
+    "paints",
+    "memory",
+    "userTimings",
+];
 
 fn nonnegative_metric(value: &Value) -> bool {
     match value {
@@ -98,7 +112,10 @@ pub fn capture_web_evidence(
         .iter()
         .map(|item| {
             let mut obj = item.as_object().cloned().unwrap_or_default();
-            let repeat_str = obj.get("repeat").map(value_to_id_string).unwrap_or_else(|| "undefined".to_string());
+            let repeat_str = obj
+                .get("repeat")
+                .map(value_to_id_string)
+                .unwrap_or_else(|| "undefined".to_string());
             obj.insert("id".to_string(), Value::String(repeat_str));
             Value::Object(obj)
         })
@@ -107,14 +124,28 @@ pub fn capture_web_evidence(
 
     let mut gaps = binding_missing_gaps(binding);
 
-    let sanitized = sanitize_sensitive_value(&json!({"binding": binding, "surface": surface, "tool": tool, "captures": ordered}));
+    let sanitized = sanitize_sensitive_value(
+        &json!({"binding": binding, "surface": surface, "tool": tool, "captures": ordered}),
+    );
     if sanitized.sensitive {
         gaps.push("capture-sensitive-data-sanitized".to_string());
     }
-    let sanitized_binding = sanitized.value.get("binding").cloned().unwrap_or(Value::Null);
-    let sanitized_surface = sanitized.value.get("surface").cloned().unwrap_or(Value::Null);
+    let sanitized_binding = sanitized
+        .value
+        .get("binding")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let sanitized_surface = sanitized
+        .value
+        .get("surface")
+        .cloned()
+        .unwrap_or(Value::Null);
     let sanitized_tool = sanitized.value.get("tool").cloned().unwrap_or(Value::Null);
-    let sanitized_captures = sanitized.value.get("captures").cloned().unwrap_or(json!([]));
+    let sanitized_captures = sanitized
+        .value
+        .get("captures")
+        .cloned()
+        .unwrap_or(json!([]));
 
     let component_ids_nonempty = surface
         .get("componentIds")
@@ -146,7 +177,9 @@ pub fn capture_web_evidence(
     let state_id = surface.get("stateId").and_then(Value::as_str);
     if route.map(|s| !s.is_empty()).unwrap_or(false)
         && state_id.map(|s| !s.is_empty()).unwrap_or(false)
-        && matrix_combination_id.map(|s| !s.is_empty()).unwrap_or(false)
+        && matrix_combination_id
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
         && !journey_surface_matches(surface)
     {
         gaps.push("capture-journey-binding-unplanned".to_string());
@@ -177,7 +210,10 @@ pub fn capture_web_evidence(
             gaps.push("capture-action-binding-mismatch".to_string());
         }
         let protocol_id = surface.get("protocolId").and_then(Value::as_str);
-        if !protocol_id.map(|p| journey.protocol_ids.contains(&p)).unwrap_or(false) {
+        if !protocol_id
+            .map(|p| journey.protocol_ids.contains(&p))
+            .unwrap_or(false)
+        {
             gaps.push("capture-protocol-binding-mismatch".to_string());
         }
         if surface.get("directApplicable") != Some(&Value::Bool(journey.direct_applicable)) {
@@ -186,7 +222,9 @@ pub fn capture_web_evidence(
         if surface.get("deepApplicable") != Some(&Value::Bool(journey.deep_applicable)) {
             gaps.push("capture-deep-applicability-mismatch".to_string());
         }
-        if surface.get("matrixCombinationId").and_then(Value::as_str) != Some(journey.matrix_combination_id) {
+        if surface.get("matrixCombinationId").and_then(Value::as_str)
+            != Some(journey.matrix_combination_id)
+        {
             gaps.push("capture-matrix-combination-binding-mismatch".to_string());
         }
         let surface_binding = surface.get("binding").cloned().unwrap_or_else(|| json!({}));
@@ -195,11 +233,16 @@ pub fn capture_web_evidence(
         }
     }
 
-    if !is_nonempty_string(tool.get("name").unwrap_or(&Value::Null)) || !is_nonempty_string(tool.get("version").unwrap_or(&Value::Null)) {
+    if !is_nonempty_string(tool.get("name").unwrap_or(&Value::Null))
+        || !is_nonempty_string(tool.get("version").unwrap_or(&Value::Null))
+    {
         gaps.push("capture-tool-unversioned".to_string());
     }
     if !is_nonempty_string(tool.get("accessibilityEngine").unwrap_or(&Value::Null))
-        || !is_nonempty_string(tool.get("accessibilityEngineVersion").unwrap_or(&Value::Null))
+        || !is_nonempty_string(
+            tool.get("accessibilityEngineVersion")
+                .unwrap_or(&Value::Null),
+        )
     {
         gaps.push("accessibility-engine-unversioned".to_string());
     }
@@ -219,7 +262,10 @@ pub fn capture_web_evidence(
     }
 
     for capture in &ordered {
-        let id = capture.get("id").and_then(Value::as_str).unwrap_or_default();
+        let id = capture
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         for key in REQUIRED.iter().filter(|k| **k != "performance") {
             if !is_nonempty_string(capture.get(*key).unwrap_or(&Value::Null)) {
                 gaps.push(format!("capture-{key}-invalid:{id}"));
@@ -233,15 +279,21 @@ pub fn capture_web_evidence(
         for key in PERFORMANCE_REQUIRED.iter().filter(|k| **k != "memory") {
             let value = performance.and_then(|p| p.get(*key));
             match value {
-                None | Some(Value::Null) => gaps.push(format!("capture-performance-{key}-missing:{id}")),
-                Some(v) if !nonnegative_metric(v) => gaps.push(format!("capture-performance-{key}-invalid:{id}")),
+                None | Some(Value::Null) => {
+                    gaps.push(format!("capture-performance-{key}-missing:{id}"))
+                }
+                Some(v) if !nonnegative_metric(v) => {
+                    gaps.push(format!("capture-performance-{key}-invalid:{id}"))
+                }
                 _ => {}
             }
         }
         for key in ["memory", "lcp"] {
             let value = performance.and_then(|p| p.get(key));
             match value {
-                None | Some(Value::Null) => gaps.push(format!("capture-performance-{key}-missing:{id}")),
+                None | Some(Value::Null) => {
+                    gaps.push(format!("capture-performance-{key}-missing:{id}"))
+                }
                 Some(v) if !matches!(v, Value::Number(_)) || !nonnegative_metric(v) => {
                     gaps.push(format!("capture-performance-{key}-invalid:{id}"))
                 }
@@ -253,10 +305,18 @@ pub fn capture_web_evidence(
     let evidence_ids: Vec<String> = ordered
         .iter()
         .map(|item| {
-            let fields: Vec<Value> = ["screenshot", "dom", "accessibilityTree", "style", "geometry", "trace", "performance"]
-                .iter()
-                .map(|k| item.get(*k).cloned().unwrap_or(Value::Null))
-                .collect();
+            let fields: Vec<Value> = [
+                "screenshot",
+                "dom",
+                "accessibilityTree",
+                "style",
+                "geometry",
+                "trace",
+                "performance",
+            ]
+            .iter()
+            .map(|k| item.get(*k).cloned().unwrap_or(Value::Null))
+            .collect();
             serde_json::to_string(&Value::Array(fields)).unwrap_or_default()
         })
         .collect();
@@ -267,7 +327,11 @@ pub fn capture_web_evidence(
 
     let mut p75_inputs: Vec<f64> = ordered
         .iter()
-        .filter_map(|item| item.get("performance").and_then(|p| p.get("lcp")).and_then(Value::as_f64))
+        .filter_map(|item| {
+            item.get("performance")
+                .and_then(|p| p.get("lcp"))
+                .and_then(Value::as_f64)
+        })
         .filter(|f| f.is_finite())
         .collect();
     p75_inputs.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -280,7 +344,10 @@ pub fn capture_web_evidence(
     let variance = if p75_inputs.is_empty() {
         None
     } else {
-        Some(p75_inputs.iter().cloned().fold(f64::MIN, f64::max) - p75_inputs.iter().cloned().fold(f64::MAX, f64::min))
+        Some(
+            p75_inputs.iter().cloned().fold(f64::MIN, f64::max)
+                - p75_inputs.iter().cloned().fold(f64::MAX, f64::min),
+        )
     };
     if p75.is_none() {
         gaps.push("capture-performance-p75-missing".to_string());
@@ -289,9 +356,18 @@ pub fn capture_web_evidence(
     let gaps = unique_sorted(gaps);
     let status = if gaps.is_empty() { "pass" } else { "partial" };
 
-    let route_val = sanitized_surface.get("route").cloned().unwrap_or(Value::Null);
-    let state_id_val = sanitized_surface.get("stateId").cloned().unwrap_or(Value::Null);
-    let matrix_id_val = sanitized_surface.get("matrixCombinationId").cloned().unwrap_or(Value::Null);
+    let route_val = sanitized_surface
+        .get("route")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let state_id_val = sanitized_surface
+        .get("stateId")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let matrix_id_val = sanitized_surface
+        .get("matrixCombinationId")
+        .cloned()
+        .unwrap_or(Value::Null);
     let mut capture_binding = Map::new();
     capture_binding.insert("route".to_string(), route_val);
     capture_binding.insert("stateId".to_string(), state_id_val);
@@ -330,8 +406,15 @@ fn value_to_id_string(value: &Value) -> String {
 /// `wf049::matrix`) instead of requiring the caller to inject fixtures for
 /// them. `capture_web_evidence` above remains available directly for
 /// tests/fixture injection.
-pub fn capture_web_evidence_production(binding: &Value, surface: &Value, tool: &Value, captures: &Value) -> Value {
-    use crate::wf_port::wf049::journey_plan::{web_journey_surface_matches, web_journeys, WebJourneySurfaceMatchesInput};
+pub fn capture_web_evidence_production(
+    binding: &Value,
+    surface: &Value,
+    tool: &Value,
+    captures: &Value,
+) -> Value {
+    use crate::wf_port::wf049::journey_plan::{
+        web_journey_surface_matches, web_journeys, WebJourneySurfaceMatchesInput,
+    };
     use crate::wf_port::wf049::matrix::is_web_matrix_combination_id;
 
     fn str_field<'a>(row: &'a Value, key: &str) -> &'a str {
@@ -350,8 +433,10 @@ pub fn capture_web_evidence_production(binding: &Value, surface: &Value, tool: &
         .collect();
 
     // `protocol_ids` need owned storage since `WebJourneyRow` borrows `&[&str]`.
-    let protocol_id_storage: Vec<Vec<&str>> =
-        applicable_rows.iter().map(|&row| str_vec_field(row, "protocolIds")).collect();
+    let protocol_id_storage: Vec<Vec<&str>> = applicable_rows
+        .iter()
+        .map(|&row| str_vec_field(row, "protocolIds"))
+        .collect();
 
     let journeys: Vec<WebJourneyRow<'_>> = applicable_rows
         .iter()
@@ -394,7 +479,8 @@ mod production_tests {
 
     #[test]
     fn production_entry_point_runs_against_real_journey_plan_and_matrix() {
-        let out = capture_web_evidence_production(&Value::Null, &Value::Null, &Value::Null, &Value::Null);
+        let out =
+            capture_web_evidence_production(&Value::Null, &Value::Null, &Value::Null, &Value::Null);
         // Empty surface/tool are invalid objects -> deterministic error
         // path, but the call must not panic while resolving the real
         // journey-plan/matrix data.

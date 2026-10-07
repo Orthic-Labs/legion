@@ -117,8 +117,8 @@ impl Scan {
             }
             "package.json" => {
                 self.note("language.javascript", relative);
-                let manifest = manifest_text(path)
-                    .and_then(|text| serde_json::from_str::<Value>(&text).ok());
+                let manifest =
+                    manifest_text(path).and_then(|text| serde_json::from_str::<Value>(&text).ok());
                 if let Some(manifest) = manifest {
                     let mut dependencies = BTreeSet::new();
                     for key in ["dependencies", "devDependencies", "peerDependencies"] {
@@ -350,7 +350,12 @@ pub fn provider_selection(root: &Path, scan: &Scan) -> Value {
     };
     let source = match super::audit_inventory_source(root) {
         Ok(source) => source,
-        Err(error) => return not_computed(format!("repository inventory unavailable: {}", error.message)),
+        Err(error) => {
+            return not_computed(format!(
+                "repository inventory unavailable: {}",
+                error.message
+            ))
+        }
     };
     let inventory = match source.inventory(&root.to_string_lossy()) {
         Ok(inventory) => inventory,
@@ -403,10 +408,8 @@ mod tests {
     use super::*;
 
     fn temp_repo(label: &str) -> std::path::PathBuf {
-        let root = std::env::temp_dir().join(format!(
-            "legion-coverage-{label}-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("legion-coverage-{label}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
         root
@@ -415,7 +418,11 @@ mod tests {
     #[test]
     fn manifests_drive_language_and_framework_detection() {
         let root = temp_repo("manifests");
-        std::fs::write(root.join("Cargo.toml"), "[package]\nname = \"x\"\n[dependencies]\ntauri = \"2\"\n").unwrap();
+        std::fs::write(
+            root.join("Cargo.toml"),
+            "[package]\nname = \"x\"\n[dependencies]\ntauri = \"2\"\n",
+        )
+        .unwrap();
         std::fs::write(
             root.join("package.json"),
             r#"{"dependencies":{"react":"18"},"devDependencies":{"typescript":"5"}}"#,
@@ -453,7 +460,10 @@ mod tests {
         let registry = registry_ids().unwrap();
         for (id, _, providers) in FAMILIES {
             for provider in *providers {
-                assert!(registry.contains(*provider), "{id}: {provider} missing from the registry");
+                assert!(
+                    registry.contains(*provider),
+                    "{id}: {provider} missing from the registry"
+                );
             }
         }
     }

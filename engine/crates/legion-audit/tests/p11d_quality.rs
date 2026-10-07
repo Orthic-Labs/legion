@@ -52,7 +52,10 @@ fn ai_quality_groundedness_flags_ungrounded_claims() {
         ]
     }));
     assert_eq!(result.verdict, "fail");
-    assert_eq!(result.measurement["ungroundedClaims"], json!(["ungrounded"]));
+    assert_eq!(
+        result.measurement["ungroundedClaims"],
+        json!(["ungrounded"])
+    );
 }
 
 #[test]
@@ -63,7 +66,8 @@ fn ai_quality_subgroup_fairness_requires_policy_selection() {
 
 #[test]
 fn ai_quality_human_override_review_required_when_untested() {
-    let result = ai_quality::evaluators::score_human_override(&json!({ "overrideAvailable": true }));
+    let result =
+        ai_quality::evaluators::score_human_override(&json!({ "overrideAvailable": true }));
     assert_eq!(result.verdict, "review-required");
 }
 
@@ -106,9 +110,15 @@ fn ai_quality_build_evaluation_receipt_sorts_and_dedupes_evidence_refs() {
         "blueprintGenerationId": "g1", "blueprintManifestDigest": "sha256:bb", "registryDigest": "sha256:cc",
     });
     let receipt = ai_quality::build_evaluation_receipt(
-        "latency", "1.0.0", &scorer_result, &identity, &json!({}), &binding,
+        "latency",
+        "1.0.0",
+        &scorer_result,
+        &identity,
+        &json!({}),
+        &binding,
         &["z".into(), "a".into(), "a".into()],
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(receipt["evidenceRefs"], json!(["a", "z"]));
     assert_eq!(receipt["limitations"], json!(["a", "b"]));
     assert!(receipt["id"].as_str().unwrap().starts_with("sha256:"));
@@ -120,9 +130,13 @@ fn ai_quality_build_evaluation_receipt_sorts_and_dedupes_evidence_refs() {
 
 #[test]
 fn accessibility_runtime_zero_denominator_is_unproven() {
-    let result = accessibility_runtime::analyze_runtime_accessibility(Some(&json!({})), &[], &[], &[], &[]);
+    let result =
+        accessibility_runtime::analyze_runtime_accessibility(Some(&json!({})), &[], &[], &[], &[]);
     assert_eq!(result["status"], "unproven");
-    assert_eq!(result["coverageGaps"], json!(["zero-accessibility-denominator"]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!(["zero-accessibility-denominator"])
+    );
 }
 
 #[test]
@@ -133,7 +147,13 @@ fn accessibility_runtime_groups_findings_by_root_cause() {
         "surfaceId": "s1", "state": "default",
         "violations": [{ "rule": "r1", "nodes": ["n1"] }],
     })];
-    let result = accessibility_runtime::analyze_runtime_accessibility(Some(&engine), &required_cases, &runs, &[], &[]);
+    let result = accessibility_runtime::analyze_runtime_accessibility(
+        Some(&engine),
+        &required_cases,
+        &runs,
+        &[],
+        &[],
+    );
     assert_eq!(result["status"], "candidates");
     assert_eq!(result["findings"].as_array().unwrap().len(), 1);
     assert!(result["coverageGaps"].as_array().unwrap().is_empty());
@@ -152,7 +172,11 @@ fn accessibility_suite_flags_missing_alt_text() {
 #[test]
 fn accessibility_suite_skips_remotion_sources() {
     let dir = tmp_dir("a11y-remotion");
-    fs::write(dir.join("scene.tsx"), "import { X } from '@remotion/core';\n<img src=\"x.png\">").unwrap();
+    fs::write(
+        dir.join("scene.tsx"),
+        "import { X } from '@remotion/core';\n<img src=\"x.png\">",
+    )
+    .unwrap();
     let result = accessibility_suite::run_accessibility_suite(&dir, &["scene.tsx".to_string()]);
     assert_eq!(result["coverage"]["scannedFiles"], 0);
     assert_eq!(result["status"], "pass");
@@ -163,7 +187,10 @@ fn accessibility_suite_analyze_zero_denominator() {
     let dir = tmp_dir("a11y-zero");
     let result = accessibility_suite::analyze(&dir, &[]);
     assert_eq!(result["status"], "unproven");
-    assert_eq!(result["coverageGaps"], json!([{ "kind": "accessibility-denominator-zero" }]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!([{ "kind": "accessibility-denominator-zero" }])
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -198,11 +225,17 @@ fn generic_source_suite_all_covered_passes() {
 #[test]
 fn data_suite_flags_sql_interpolation() {
     let dir = tmp_dir("data-sql");
-    fs::write(dir.join("q.ts"), "const q = `SELECT * FROM users WHERE id = ${id}`;").unwrap();
+    fs::write(
+        dir.join("q.ts"),
+        "const q = `SELECT * FROM users WHERE id = ${id}`;",
+    )
+    .unwrap();
     let result = data_suite::run_data_suite(&dir, &["q.ts".to_string()]);
     assert_eq!(result["status"], "candidates");
     let candidates = result["candidates"].as_array().unwrap();
-    assert!(candidates.iter().any(|c| c["ruleId"] == "data.sql-interpolation"));
+    assert!(candidates
+        .iter()
+        .any(|c| c["ruleId"] == "data.sql-interpolation"));
 }
 
 #[test]
@@ -223,8 +256,12 @@ fn infrastructure_suite_flags_dockerfile_latest_tag() {
     fs::write(dir.join("Dockerfile"), "FROM node\n").unwrap();
     let result = infrastructure_suite::run_infrastructure_suite(&dir, &["Dockerfile".to_string()]);
     let candidates = result["candidates"].as_array().unwrap();
-    assert!(candidates.iter().any(|c| c["ruleId"] == "container.latest-tag"));
-    assert!(candidates.iter().any(|c| c["ruleId"] == "container-root-user"));
+    assert!(candidates
+        .iter()
+        .any(|c| c["ruleId"] == "container.latest-tag"));
+    assert!(candidates
+        .iter()
+        .any(|c| c["ruleId"] == "container-root-user"));
 }
 
 #[test]
@@ -243,7 +280,11 @@ fn infrastructure_suite_flags_privileged_k8s() {
 #[test]
 fn framework_suite_flags_electron_node_integration() {
     let dir = tmp_dir("fw-electron");
-    fs::write(dir.join("main.js"), "new BrowserWindow({ webPreferences: { nodeIntegration: true } })").unwrap();
+    fs::write(
+        dir.join("main.js"),
+        "new BrowserWindow({ webPreferences: { nodeIntegration: true } })",
+    )
+    .unwrap();
     let plan = json!({
         "coverageFamilies": [
             { "id": "framework.electron", "denominator": { "paths": ["main.js"] } }
@@ -252,7 +293,9 @@ fn framework_suite_flags_electron_node_integration() {
     let results = framework_suite::run_framework_suite(&dir, &plan);
     assert_eq!(results.len(), 1);
     let candidates = results[0]["candidates"].as_array().unwrap();
-    assert!(candidates.iter().any(|c| c["ruleId"] == "electron-node-integration"));
+    assert!(candidates
+        .iter()
+        .any(|c| c["ruleId"] == "electron-node-integration"));
 }
 
 #[test]
@@ -261,7 +304,10 @@ fn framework_suite_analyze_zero_families_is_unproven() {
     let plan = json!({ "coverageFamilies": [] });
     let result = framework_suite::analyze(&dir, &plan);
     assert_eq!(result["status"], "unproven");
-    assert_eq!(result["coverageGaps"], json!([{ "kind": "framework-denominator-zero" }]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!([{ "kind": "framework-denominator-zero" }])
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -271,12 +317,22 @@ fn framework_suite_analyze_zero_families_is_unproven() {
 #[test]
 fn security_suite_flags_disabled_tls_verification() {
     let dir = tmp_dir("sec-tls");
-    fs::write(dir.join("client.js"), "https.request({ rejectUnauthorized: false })").unwrap();
+    fs::write(
+        dir.join("client.js"),
+        "https.request({ rejectUnauthorized: false })",
+    )
+    .unwrap();
     let result = security_suite::generate_security_candidates(
-        &dir, &["client.js".to_string()], "insecure-defaults", None,
-    ).unwrap();
+        &dir,
+        &["client.js".to_string()],
+        "insecure-defaults",
+        None,
+    )
+    .unwrap();
     let candidates = result["candidates"].as_array().unwrap();
-    assert!(candidates.iter().any(|c| c["ruleId"] == "security.tls-verification-disabled"));
+    assert!(candidates
+        .iter()
+        .any(|c| c["ruleId"] == "security.tls-verification-disabled"));
     assert!(candidates.iter().all(|c| c["verdict"] == "UNADJUDICATED"));
 }
 
@@ -286,10 +342,15 @@ fn security_suite_credential_scan_skips_placeholders() {
     fs::write(
         dir.join("config.env"),
         "API_KEY=\"changeme\"\nSECRET=\"correct-horse-battery-staple-9f8e7d6c\"\n",
-    ).unwrap();
+    )
+    .unwrap();
     let result = security_suite::generate_security_candidates(
-        &dir, &["config.env".to_string()], "credentials", None,
-    ).unwrap();
+        &dir,
+        &["config.env".to_string()],
+        "credentials",
+        None,
+    )
+    .unwrap();
     let candidates = result["candidates"].as_array().unwrap();
     // The placeholder ("changeme") must be rejected; the higher-entropy value
     // in a high-context file (.env) must be flagged.

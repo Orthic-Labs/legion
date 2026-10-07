@@ -362,11 +362,9 @@ impl M1Application {
                 M1CapabilityStatus {
                     capability_id: entry.canonical_id.clone(),
                     degraded: availability != M1Availability::Available
-                        || scoped_requirements
-                            .iter()
-                            .any(|requirement| {
-                                requirement.requirement.availability != M1Availability::Available
-                            }),
+                        || scoped_requirements.iter().any(|requirement| {
+                            requirement.requirement.availability != M1Availability::Available
+                        }),
                     availability,
                     requirements,
                     scoped_requirements,
@@ -812,8 +810,9 @@ impl NativeApplicationConfig {
                 "standalone Audit requires selected provider specifications".into(),
             ));
         }
-        let frozen_plan = AuditPlan::compile_with_root(root.as_deref(), &inventory, &provider_specs)
-            .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
+        let frozen_plan =
+            AuditPlan::compile_with_root(root.as_deref(), &inventory, &provider_specs)
+                .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
         let mut results = BTreeMap::new();
         for result in provider_results {
             result
@@ -1775,7 +1774,10 @@ mod canonical_effect_policy_tests {
         // publish, an install, an outbound request and a spawned process are
         // ordinary reversible work: denying them stopped the work and offered
         // no way to proceed.
-        for effect_class in [EffectClass::CREDENTIAL_ACCESS, EffectClass::EXTERNAL_SIDE_EFFECT] {
+        for effect_class in [
+            EffectClass::CREDENTIAL_ACCESS,
+            EffectClass::EXTERNAL_SIDE_EFFECT,
+        ] {
             policy
                 .authorize(&request(effect_class, "target", "op"))
                 .expect_err(&format!("{effect_class:?} must deny by default"));
@@ -1794,7 +1796,6 @@ mod canonical_effect_policy_tests {
                 });
         }
     }
-
 
     #[test]
     fn operation_field_defaults_to_wildcard_for_backward_compatible_rules() {
@@ -1911,11 +1912,24 @@ impl NativeApplication {
         let plan_inventory = self.inventory_source.inventory(&repository_id)?;
         let pending =
             AuditPlan::compile_with_root(self.root.as_deref(), &plan_inventory, &providers)?;
-        let plan = match signing_key.as_deref() { Some(key) => pending.freeze(Some(key))?, None => pending.freeze_source_diagnostic()? };
+        let plan = match signing_key.as_deref() {
+            Some(key) => pending.freeze(Some(key))?,
+            None => pending.freeze_source_diagnostic()?,
+        };
         let execution_inventory = self.inventory_source.inventory(&repository_id)?;
         verify_binding(&plan, &execution_inventory, signing_key.as_deref())?;
-        let report = legion_audit::execute_with_cancellation(&plan, &execution_inventory, self.provider_executor.as_ref(), cancellation).await?;
-        if signing_key.is_some() { verify_execution(&report)?; } else { legion_audit::verify_source_diagnostic(&report, &plan)?; }
+        let report = legion_audit::execute_with_cancellation(
+            &plan,
+            &execution_inventory,
+            self.provider_executor.as_ref(),
+            cancellation,
+        )
+        .await?;
+        if signing_key.is_some() {
+            verify_execution(&report)?;
+        } else {
+            legion_audit::verify_source_diagnostic(&report, &plan)?;
+        }
         Ok(NativeOperationResult::Audit(report))
     }
 
@@ -1995,8 +2009,11 @@ impl NativeApplication {
             } => {
                 let plan_inventory: InventoryEnvelope =
                     self.inventory_source.inventory(&repository_id)?;
-                let pending =
-                    AuditPlan::compile_with_root(self.root.as_deref(), &plan_inventory, &providers)?;
+                let pending = AuditPlan::compile_with_root(
+                    self.root.as_deref(),
+                    &plan_inventory,
+                    &providers,
+                )?;
                 let plan = match signing_key.as_deref() {
                     Some(key) => pending.freeze(Some(key))?,
                     None => pending.freeze_source_diagnostic()?,
@@ -2004,9 +2021,12 @@ impl NativeApplication {
                 let execution_inventory = self.inventory_source.inventory(&repository_id)?;
                 verify_binding(&plan, &execution_inventory, signing_key.as_deref())?;
                 let report = legion_audit::execute_with_cancellation(
-                    &plan, &execution_inventory, self.provider_executor.as_ref(),
+                    &plan,
+                    &execution_inventory,
+                    self.provider_executor.as_ref(),
                     tokio_util::sync::CancellationToken::new(),
-                ).await?;
+                )
+                .await?;
                 if signing_key.is_some() {
                     verify_execution(&report)?;
                 } else {
@@ -2086,8 +2106,14 @@ impl NativeApplication {
             // Runtime owns provider cancellation and bounded cleanup. Keeping this future
             // awaited lets its scheduler retain terminal provider evidence.
             self.invoke(operation).await
-        } else if let NativeOperation::Audit { repository_id, providers, signing_key } = operation {
-            self.invoke_audit_with_cancellation(repository_id, providers, signing_key, cancellation).await
+        } else if let NativeOperation::Audit {
+            repository_id,
+            providers,
+            signing_key,
+        } = operation
+        {
+            self.invoke_audit_with_cancellation(repository_id, providers, signing_key, cancellation)
+                .await
         } else if cancellation.is_cancelled() {
             Err(NativeApplicationError::Runtime(RuntimeError::Cancelled))
         } else {
@@ -2265,11 +2291,7 @@ mod m1_tests {
         )
     }
 
-    fn inputs_with_catalog(
-        root: &Path,
-        write_body: bool,
-        catalog: &str,
-    ) -> M1ApplicationInputs {
+    fn inputs_with_catalog(root: &Path, write_body: bool, catalog: &str) -> M1ApplicationInputs {
         fs::write(root.join("registry/index.json"), catalog).expect("compact catalog");
         if write_body {
             fs::create_dir_all(root.join("skills/demo")).expect("skill directory");
@@ -2412,10 +2434,7 @@ mod m1_tests {
             capability.scoped_requirements[0].scope,
             "adapter:demo-worker"
         );
-        assert_eq!(
-            capability.scoped_requirements[0].scope_kind,
-            "adapter"
-        );
+        assert_eq!(capability.scoped_requirements[0].scope_kind, "adapter");
         assert_eq!(
             capability.scoped_requirements[0].requirement.availability,
             M1Availability::Unavailable

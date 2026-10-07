@@ -28,8 +28,12 @@ pub async fn invoke(operation: &str, arguments: &Value) -> Result<Value, String>
         "docs" => docs::invoke(arguments),
         "build-analysis" => build_analysis::invoke(arguments),
         "app-store" => app_store::invoke(arguments).await,
-        "flamegraph" | "memgraph" | "memgraph.parse" | "build-log" => diagnostics::invoke(operation, arguments).await,
-        "profile.parse" | "profile_parse" | "profile.symbols" | "profile_symbols" => profiling::invoke(operation, arguments),
+        "flamegraph" | "memgraph" | "memgraph.parse" | "build-log" => {
+            diagnostics::invoke(operation, arguments).await
+        }
+        "profile.parse" | "profile_parse" | "profile.symbols" | "profile_symbols" => {
+            profiling::invoke(operation, arguments)
+        }
         "swiftui-trace" => swiftui_trace::invoke(arguments),
         _ => mobile::invoke(operation, arguments).await,
     }

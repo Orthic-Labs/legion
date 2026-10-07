@@ -9,7 +9,11 @@ use std::collections::BTreeSet;
 pub fn parse_dependency_contract(
     value: &str,
 ) -> Option<(BTreeSet<String>, BTreeSet<(String, String)>)> {
-    let compact: String = value.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase();
+    let compact: String = value
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>()
+        .to_uppercase();
     if compact.is_empty() {
         return None;
     }
@@ -47,7 +51,10 @@ pub fn parse_dependency_contract(
     if roots.is_empty() {
         let targets: BTreeSet<&str> = edges.iter().map(|(_, t)| t.as_str()).collect();
         let sources: BTreeSet<&str> = edges.iter().map(|(s, _)| s.as_str()).collect();
-        roots = sources.difference(&targets).map(|s| s.to_string()).collect();
+        roots = sources
+            .difference(&targets)
+            .map(|s| s.to_string())
+            .collect();
     }
     Some((roots, edges))
 }
@@ -72,7 +79,10 @@ mod tests {
         assert_eq!(roots, BTreeSet::from(["A".to_string()]));
         assert_eq!(
             edges,
-            BTreeSet::from([("A".to_string(), "B".to_string()), ("B".to_string(), "C".to_string())])
+            BTreeSet::from([
+                ("A".to_string(), "B".to_string()),
+                ("B".to_string(), "C".to_string())
+            ])
         );
     }
 
@@ -82,7 +92,10 @@ mod tests {
         assert_eq!(roots, BTreeSet::from(["A".to_string()]));
         assert_eq!(
             edges,
-            BTreeSet::from([("A".to_string(), "B".to_string()), ("A".to_string(), "C".to_string())])
+            BTreeSet::from([
+                ("A".to_string(), "B".to_string()),
+                ("A".to_string(), "C".to_string())
+            ])
         );
     }
 

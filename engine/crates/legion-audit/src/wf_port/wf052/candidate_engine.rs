@@ -86,9 +86,17 @@ fn validate_fact_pattern(pattern: &Value, label: &str) -> Result<Value> {
 /// `attributes` (an object) is excluded, matching JS `Object.values` on the
 /// 7 scalar-only fields the JS spread produces for `base`.
 fn has_wildcard_scalar(fact: &Value) -> bool {
-    ["kind", "subject", "action", "object", "scope", "environment", "tenant"]
-        .iter()
-        .any(|key| fact.get(*key).and_then(Value::as_str) == Some("*"))
+    [
+        "kind",
+        "subject",
+        "action",
+        "object",
+        "scope",
+        "environment",
+        "tenant",
+    ]
+    .iter()
+    .any(|key| fact.get(*key).and_then(Value::as_str) == Some("*"))
 }
 
 fn concrete_fact(raw: &Value, candidate_namespace: &str) -> Result<Value> {
@@ -169,11 +177,17 @@ pub fn create_security_candidate_v2(
     assert_model_references(model, &controls, "requiredControls")?;
     assert_model_references(model, &observed_controls, "observedControls")?;
 
-    let preconditions_raw = observation.get("preconditions").cloned().unwrap_or(json!([]));
+    let preconditions_raw = observation
+        .get("preconditions")
+        .cloned()
+        .unwrap_or(json!([]));
     let preconditions_arr = require_array(&preconditions_raw, "preconditions")?;
     let mut preconditions = Vec::with_capacity(preconditions_arr.len());
     for (index, item) in preconditions_arr.iter().enumerate() {
-        preconditions.push(validate_fact_pattern(item, &format!("preconditions[{index}]"))?);
+        preconditions.push(validate_fact_pattern(
+            item,
+            &format!("preconditions[{index}]"),
+        )?);
     }
 
     let rule_id = observation["ruleId"].as_str().unwrap();
@@ -185,7 +199,9 @@ pub fn create_security_candidate_v2(
         effects.push(concrete_fact(item, &namespace)?);
     }
     if effects.is_empty() {
-        return Err(Error::new("security candidate must declare at least one effect"));
+        return Err(Error::new(
+            "security candidate must declare at least one effect",
+        ));
     }
 
     let chain_roles = unique_sorted_strings(observation.get("chainRoles"));
@@ -253,24 +269,39 @@ pub fn validate_security_candidate_v2(
             .get("schemaVersion")
             .map(|v| v.to_string())
             .unwrap_or_else(|| "undefined".to_string());
-        return Err(Error::new(format!("candidate schemaVersion must be 2; got {got}")));
+        return Err(Error::new(format!(
+            "candidate schemaVersion must be 2; got {got}"
+        )));
     }
-    let verdict = candidate.get("verdict").and_then(Value::as_str).unwrap_or("");
+    let verdict = candidate
+        .get("verdict")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if verdict != "UNADJUDICATED" {
         return Err(Error::new(format!(
             "candidate verdict must be UNADJUDICATED; got {verdict}"
         )));
     }
-    if candidate.get("adjudicationRequired").and_then(Value::as_bool) != Some(true) {
+    if candidate
+        .get("adjudicationRequired")
+        .and_then(Value::as_bool)
+        != Some(true)
+    {
         return Err(Error::new("candidate must require adjudication"));
     }
     if candidate.get("severity").is_some() {
         return Err(Error::new("candidate must not carry a final severity"));
     }
     if candidate.get("evidenceStrength").is_some() {
-        return Err(Error::new("candidate must not carry a final evidence verdict"));
+        return Err(Error::new(
+            "candidate must not carry a final evidence verdict",
+        ));
     }
-    let effects = candidate.get("effects").and_then(Value::as_array).cloned().unwrap_or_default();
+    let effects = candidate
+        .get("effects")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if effects.is_empty() {
         return Err(Error::new("candidate must declare at least one effect"));
     }
@@ -332,7 +363,10 @@ impl<'a> PackContext<'a> {
         self.entity_by_id.get(id)
     }
     pub fn relations_from(&self, id: &str) -> &[Value] {
-        self.relations_from.get(id).map(Vec::as_slice).unwrap_or(&[])
+        self.relations_from
+            .get(id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
     }
     pub fn relations_to(&self, id: &str) -> &[Value] {
         self.relations_to.get(id).map(Vec::as_slice).unwrap_or(&[])
@@ -341,7 +375,9 @@ impl<'a> PackContext<'a> {
     /// out-of-denominator path.
     pub fn read_file(&self, path: &str) -> Result<Option<String>> {
         if !self.allowed.contains(path) {
-            return Err(Error::new(format!("pack attempted to read out-of-denominator path {path}")));
+            return Err(Error::new(format!(
+                "pack attempted to read out-of-denominator path {path}"
+            )));
         }
         Ok(self
             .projection
@@ -369,12 +405,22 @@ pub fn run_security_pack(
     let denominator_paths: Vec<String> = provider_plan
         .pointer("/denominator/paths")
         .and_then(Value::as_array)
-        .map(|items| items.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_else(|| {
             projection
                 .get("files")
                 .and_then(Value::as_array)
-                .map(|items| items.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|v| v.as_str().map(str::to_string))
+                        .collect()
+                })
                 .unwrap_or_default()
         });
     let allowed: BTreeSet<String> = denominator_paths.into_iter().collect();
@@ -384,24 +430,43 @@ pub fn run_security_pack(
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .filter_map(|item| item.get("id").and_then(Value::as_str).map(|id| (id.to_string(), item.clone())))
+        .filter_map(|item| {
+            item.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), item.clone()))
+        })
         .collect();
     let entity_by_id: BTreeMap<String, Value> = model
         .get("entities")
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .filter_map(|item| item.get("id").and_then(Value::as_str).map(|id| (id.to_string(), item.clone())))
+        .filter_map(|item| {
+            item.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), item.clone()))
+        })
         .collect();
 
     let mut relations_from: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     let mut relations_to: BTreeMap<String, Vec<Value>> = BTreeMap::new();
-    for relation in model.get("relations").and_then(Value::as_array).into_iter().flatten() {
+    for relation in model
+        .get("relations")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if let Some(from) = relation.get("from").and_then(Value::as_str) {
-            relations_from.entry(from.to_string()).or_default().push(relation.clone());
+            relations_from
+                .entry(from.to_string())
+                .or_default()
+                .push(relation.clone());
         }
         if let Some(to) = relation.get("to").and_then(Value::as_str) {
-            relations_to.entry(to.to_string()).or_default().push(relation.clone());
+            relations_to
+                .entry(to.to_string())
+                .or_default()
+                .push(relation.clone());
         }
     }
 
@@ -510,13 +575,29 @@ mod tests {
     fn creates_candidate_with_stable_id() {
         let plan = plan_with();
         let model = model_with(json!([]));
-        let out = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &observation()).unwrap();
+        let out = create_security_candidate_v2(
+            &plan,
+            &model,
+            "prov",
+            "1",
+            "sha256:denom",
+            &observation(),
+        )
+        .unwrap();
         assert_eq!(out["schemaVersion"], 2);
         assert_eq!(out["verdict"], "UNADJUDICATED");
         assert_eq!(out["adjudicationRequired"], true);
         assert!(out["id"].as_str().unwrap().starts_with("sha256:"));
 
-        let again = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &observation()).unwrap();
+        let again = create_security_candidate_v2(
+            &plan,
+            &model,
+            "prov",
+            "1",
+            "sha256:denom",
+            &observation(),
+        )
+        .unwrap();
         assert_eq!(out["id"], again["id"]);
     }
 
@@ -526,7 +607,8 @@ mod tests {
         let model = model_with(json!([]));
         let mut obs = observation();
         obs["severityHint"] = json!("not-a-severity");
-        let err = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs).unwrap_err();
+        let err = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs)
+            .unwrap_err();
         assert!(err.0.contains("invalid severity hint"));
     }
 
@@ -536,7 +618,8 @@ mod tests {
         let model = model_with(json!([]));
         let mut obs = observation();
         obs["effects"] = json!([]);
-        let err = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs).unwrap_err();
+        let err = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs)
+            .unwrap_err();
         assert!(err.0.contains("at least one effect"));
     }
 
@@ -546,7 +629,8 @@ mod tests {
         let model = model_with(json!([]));
         let mut obs = observation();
         obs["sources"] = json!(["unknown-entity"]);
-        let err = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs).unwrap_err();
+        let err = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs)
+            .unwrap_err();
         assert!(err.0.contains("references unknown security-model entity"));
     }
 
@@ -556,7 +640,9 @@ mod tests {
         let model = model_with(json!([{"id": "asset-1", "kind": "asset"}]));
         let mut obs = observation();
         obs["sources"] = json!(["asset-1"]);
-        assert!(create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs).is_ok());
+        assert!(
+            create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs).is_ok()
+        );
     }
 
     #[test]
@@ -565,7 +651,8 @@ mod tests {
         let model = model_with(json!([]));
         let mut obs = observation();
         obs["chainRoles"] = json!(["not-a-role"]);
-        let err = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs).unwrap_err();
+        let err = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &obs)
+            .unwrap_err();
         assert!(err.0.contains("unsupported chain role"));
     }
 
@@ -573,7 +660,15 @@ mod tests {
     fn validate_accepts_well_formed_candidate() {
         let plan = plan_with();
         let model = model_with(json!([]));
-        let candidate = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &observation()).unwrap();
+        let candidate = create_security_candidate_v2(
+            &plan,
+            &model,
+            "prov",
+            "1",
+            "sha256:denom",
+            &observation(),
+        )
+        .unwrap();
         assert!(validate_security_candidate_v2(&candidate, Some((&plan, &model))).unwrap());
     }
 
@@ -581,7 +676,15 @@ mod tests {
     fn validate_rejects_final_severity() {
         let plan = plan_with();
         let model = model_with(json!([]));
-        let mut candidate = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &observation()).unwrap();
+        let mut candidate = create_security_candidate_v2(
+            &plan,
+            &model,
+            "prov",
+            "1",
+            "sha256:denom",
+            &observation(),
+        )
+        .unwrap();
         candidate["severity"] = json!("high");
         let err = validate_security_candidate_v2(&candidate, None).unwrap_err();
         assert!(err.0.contains("must not carry a final severity"));
@@ -591,7 +694,15 @@ mod tests {
     fn validate_rejects_no_evidence_refs() {
         let plan = plan_with();
         let model = model_with(json!([]));
-        let mut candidate = create_security_candidate_v2(&plan, &model, "prov", "1", "sha256:denom", &observation()).unwrap();
+        let mut candidate = create_security_candidate_v2(
+            &plan,
+            &model,
+            "prov",
+            "1",
+            "sha256:denom",
+            &observation(),
+        )
+        .unwrap();
         candidate["evidenceRefs"] = json!([]);
         let err = validate_security_candidate_v2(&candidate, None).unwrap_err();
         assert!(err.0.contains("must declare evidence refs"));
@@ -627,7 +738,8 @@ mod tests {
     fn run_security_pack_requires_frozen_denominator() {
         let plan = plan_with();
         let model = model_with(json!([]));
-        let err = run_security_pack(&NoopPack, &json!({}), &plan, &json!({}), &model, &json!({})).unwrap_err();
+        let err = run_security_pack(&NoopPack, &json!({}), &plan, &json!({}), &model, &json!({}))
+            .unwrap_err();
         assert!(err.0.contains("has no frozen denominator"));
     }
 
@@ -635,8 +747,17 @@ mod tests {
     fn run_security_pack_pass_with_no_candidates() {
         let plan = plan_with();
         let model = model_with(json!([]));
-        let provider_plan = json!({"denominator": {"pathDigest": "sha256:denom", "paths": ["a.js"]}});
-        let out = run_security_pack(&NoopPack, &json!({}), &plan, &json!({"files": []}), &model, &provider_plan).unwrap();
+        let provider_plan =
+            json!({"denominator": {"pathDigest": "sha256:denom", "paths": ["a.js"]}});
+        let out = run_security_pack(
+            &NoopPack,
+            &json!({}),
+            &plan,
+            &json!({"files": []}),
+            &model,
+            &provider_plan,
+        )
+        .unwrap();
         assert_eq!(out["status"], "pass");
         assert_eq!(out["candidates"].as_array().unwrap().len(), 0);
     }
@@ -645,8 +766,17 @@ mod tests {
     fn run_security_pack_produces_candidates() {
         let plan = plan_with();
         let model = model_with(json!([]));
-        let provider_plan = json!({"denominator": {"pathDigest": "sha256:denom", "paths": ["a.js"]}});
-        let out = run_security_pack(&FindingPack, &json!({}), &plan, &json!({"files": []}), &model, &provider_plan).unwrap();
+        let provider_plan =
+            json!({"denominator": {"pathDigest": "sha256:denom", "paths": ["a.js"]}});
+        let out = run_security_pack(
+            &FindingPack,
+            &json!({}),
+            &plan,
+            &json!({"files": []}),
+            &model,
+            &provider_plan,
+        )
+        .unwrap();
         assert_eq!(out["status"], "candidates");
         assert_eq!(out["candidates"].as_array().unwrap().len(), 1);
     }

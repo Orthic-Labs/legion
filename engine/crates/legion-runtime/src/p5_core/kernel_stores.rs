@@ -76,7 +76,10 @@ fn civil_from_unix(unix_secs: i64) -> (i64, u32, u32, u32, u32, u32) {
 /// `canonical()` helper used for event digesting.
 fn canonical(value: &Value) -> String {
     match value {
-        Value::Array(items) => format!("[{}]", items.iter().map(canonical).collect::<Vec<_>>().join(",")),
+        Value::Array(items) => format!(
+            "[{}]",
+            items.iter().map(canonical).collect::<Vec<_>>().join(",")
+        ),
         Value::Object(map) => {
             let sorted: BTreeMap<&String, &Value> = map.iter().collect();
             let body = sorted
@@ -114,7 +117,10 @@ impl EventStore {
         let journal = JsonlJournal::open(file_path)?;
         let mut previous: Option<String> = None;
         for event in journal.all() {
-            let previous_digest = event.get("previousEventDigest").and_then(Value::as_str).map(str::to_string);
+            let previous_digest = event
+                .get("previousEventDigest")
+                .and_then(Value::as_str)
+                .map(str::to_string);
             if previous_digest != previous {
                 let sequence = event.get("sequence").cloned().unwrap_or(Value::Null);
                 return Err(integrity_error(
@@ -123,7 +129,10 @@ impl EventStore {
                 ));
             }
             let actual = event_digest(&event);
-            let stated = event.get("eventDigest").and_then(Value::as_str).unwrap_or_default();
+            let stated = event
+                .get("eventDigest")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
             if stated != actual {
                 let sequence = event.get("sequence").cloned().unwrap_or(Value::Null);
                 return Err(integrity_error(
@@ -142,18 +151,33 @@ impl EventStore {
 
     /// Port of `append(event)` / `appendNow(event)`.
     pub fn append(&mut self, event: Value) -> Result<Value, KernelError> {
-        let run_id = event.get("runId").and_then(Value::as_str).unwrap_or_default();
+        let run_id = event
+            .get("runId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         validate_id("run", run_id)?;
         if let Some(task_id) = event.get("taskId").and_then(Value::as_str) {
             validate_id("task", task_id)?;
         }
-        let event_type_ok = event.get("type").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
-        let actor_ok = event.get("actor").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
+        let event_type_ok = event
+            .get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|s| !s.is_empty());
+        let actor_ok = event
+            .get("actor")
+            .and_then(Value::as_str)
+            .is_some_and(|s| !s.is_empty());
         if !event_type_ok || !actor_ok {
             return Err(usage_error("event type and actor are required"));
         }
 
-        let previous = self.journal.records.last().and_then(|r| r.get("eventDigest")).cloned().unwrap_or(Value::Null);
+        let previous = self
+            .journal
+            .records
+            .last()
+            .and_then(|r| r.get("eventDigest"))
+            .cloned()
+            .unwrap_or(Value::Null);
 
         let mut record = json::json!({
             "schemaVersion": 1,
@@ -210,7 +234,11 @@ impl ArtifactStore {
         for entry in journal.all() {
             let artifact = entry.get("artifact").cloned().unwrap_or(Value::Null);
             assert_contract("artifact-v1", &artifact, Some("artifact record"))?;
-            let artifact_id = artifact.get("artifactId").and_then(Value::as_str).unwrap_or_default().to_string();
+            let artifact_id = artifact
+                .get("artifactId")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
             if records.contains_key(&artifact_id) {
                 return Err(integrity_error(
                     "ARTIFACT_INDEX_CORRUPT",
@@ -219,25 +247,42 @@ impl ArtifactStore {
             }
             records.insert(artifact_id, artifact);
         }
-        Ok(ArtifactStore { root, journal, records })
+        Ok(ArtifactStore {
+            root,
+            journal,
+            records,
+        })
     }
 
     /// Port of `put(record, content)` / `putNow(record, bytes)`.
     pub fn put(&mut self, record: Value, content: &[u8]) -> Result<Value, KernelError> {
         let actual_digest = digest_content(content);
-        let stated_digest = record.get("digest").and_then(Value::as_str).unwrap_or_default();
+        let stated_digest = record
+            .get("digest")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if stated_digest != actual_digest {
-            return Err(integrity_error("ARTIFACT_DIGEST_MISMATCH", "artifact digest mismatch"));
+            return Err(integrity_error(
+                "ARTIFACT_DIGEST_MISMATCH",
+                "artifact digest mismatch",
+            ));
         }
         let stated_bytes = record.get("bytes").and_then(Value::as_u64);
         if stated_bytes != Some(content.len() as u64) {
-            return Err(integrity_error("ARTIFACT_SIZE_MISMATCH", "artifact byte count mismatch"));
+            return Err(integrity_error(
+                "ARTIFACT_SIZE_MISMATCH",
+                "artifact byte count mismatch",
+            ));
         }
         assert_contract("artifact-v1", &record, Some("artifact record"))?;
         if record.get("immutable") != Some(&Value::Bool(true)) {
             return Err(usage_error("artifact must be immutable"));
         }
-        let artifact_id = record.get("artifactId").and_then(Value::as_str).unwrap_or_default().to_string();
+        let artifact_id = record
+            .get("artifactId")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
         if self.records.contains_key(&artifact_id) {
             return Err(KernelError::new(
                 "SCOPE_CONFLICT",
@@ -248,7 +293,9 @@ impl ArtifactStore {
                 },
             ));
         }
-        let hex = actual_digest.strip_prefix("sha256:").unwrap_or(&actual_digest);
+        let hex = actual_digest
+            .strip_prefix("sha256:")
+            .unwrap_or(&actual_digest);
         let target = self.root.join("blobs").join(hex);
         if !exists(&target) {
             let temporary = self.root.join("blobs").join(format!(
@@ -298,7 +345,10 @@ impl ArtifactStore {
 
     pub fn get_content(&self, artifact_id: &str) -> Result<Vec<u8>, KernelError> {
         let record = self.get(artifact_id)?;
-        let digest = record.get("digest").and_then(Value::as_str).unwrap_or_default();
+        let digest = record
+            .get("digest")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let hex = digest.strip_prefix("sha256:").unwrap_or(digest);
         let content = fs::read(self.root.join("blobs").join(hex)).map_err(|cause| {
             KernelError::new(
@@ -328,7 +378,11 @@ mod tests {
     fn nonce() -> u128 {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
-        (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() ^ (std::process::id() as u128))
+        (SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            ^ (std::process::id() as u128))
             .wrapping_add(NEXT_ID.fetch_add(1, Ordering::Relaxed) as u128)
     }
 
@@ -422,7 +476,12 @@ mod tests {
         let reopened = ArtifactStore::open(&dir).unwrap();
         let fetched = reopened.get("art_01ARZ3NDEKTSV4RRFFQ69G5FAV").unwrap();
         assert_eq!(fetched["digest"], digest);
-        assert_eq!(reopened.get_content("art_01ARZ3NDEKTSV4RRFFQ69G5FAV").unwrap(), content);
+        assert_eq!(
+            reopened
+                .get_content("art_01ARZ3NDEKTSV4RRFFQ69G5FAV")
+                .unwrap(),
+            content
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

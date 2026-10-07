@@ -75,7 +75,11 @@ impl NamingIssue {
         }
     }
 
-    fn with_token(path: impl Into<String>, token: impl Into<String>, reason: impl Into<String>) -> Self {
+    fn with_token(
+        path: impl Into<String>,
+        token: impl Into<String>,
+        reason: impl Into<String>,
+    ) -> Self {
         NamingIssue {
             path: path.into(),
             line: None,
@@ -112,7 +116,10 @@ pub struct AllowlistRule {
 
 impl AllowlistRule {
     fn from_value(value: &Value) -> Self {
-        let path = value.get("path").and_then(Value::as_str).map(str::to_string);
+        let path = value
+            .get("path")
+            .and_then(Value::as_str)
+            .map(str::to_string);
         let path_prefix = value
             .get("pathPrefix")
             .and_then(Value::as_str)
@@ -127,8 +134,14 @@ impl AllowlistRule {
                     .collect()
             })
             .unwrap_or_default();
-        let class = value.get("class").and_then(Value::as_str).map(str::to_string);
-        let reason = value.get("reason").and_then(Value::as_str).map(str::to_string);
+        let class = value
+            .get("class")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let reason = value
+            .get("reason")
+            .and_then(Value::as_str)
+            .map(str::to_string);
         let mut occurrences = BTreeMap::new();
         if let Some(obj) = value.get("occurrences").and_then(Value::as_object) {
             for (k, v) in obj {
@@ -157,7 +170,11 @@ impl AllowlistRule {
 }
 
 /// Port of `matchingRule`.
-fn matching_rule<'a>(rules: &'a [AllowlistRule], path: &str, token: &str) -> Option<&'a AllowlistRule> {
+fn matching_rule<'a>(
+    rules: &'a [AllowlistRule],
+    path: &str,
+    token: &str,
+) -> Option<&'a AllowlistRule> {
     rules
         .iter()
         .find(|rule| rule.matches_path(path) && rule.tokens.iter().any(|t| t == token))
@@ -292,8 +309,15 @@ fn allowlist_issues(root: &Path, rules: &[AllowlistRule], files: &[String]) -> V
             ));
             continue;
         }
-        let candidates: Vec<&String> = files.iter().filter(|path| rule.matches_path(path)).collect();
-        let target = rule.path.clone().or_else(|| rule.path_prefix.clone()).unwrap_or_default();
+        let candidates: Vec<&String> = files
+            .iter()
+            .filter(|path| rule.matches_path(path))
+            .collect();
+        let target = rule
+            .path
+            .clone()
+            .or_else(|| rule.path_prefix.clone())
+            .unwrap_or_default();
         if candidates.is_empty() {
             issues.push(NamingIssue::new(
                 target,
@@ -375,7 +399,8 @@ fn semantic_issues(root: &Path, registry: &NamingRegistry) -> Vec<NamingIssue> {
         .and_then(Value::as_object)
         .map(|obj| obj.keys().cloned().collect())
         .unwrap_or_default();
-    let mut runtime_expected_set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut runtime_expected_set: std::collections::BTreeSet<String> =
+        std::collections::BTreeSet::new();
     runtime_expected_set.insert(product_id);
     for id in &expected {
         runtime_expected_set.insert(id.clone());
@@ -406,7 +431,13 @@ fn semantic_issues(root: &Path, registry: &NamingRegistry) -> Vec<NamingIssue> {
     }
 
     let roster_sorted = sorted(ROSTER_ROLE_IDS.iter().map(|s| s.to_string()).collect());
-    if roster_sorted != vec!["alchemist".to_string(), "oracle".to_string(), "sage".to_string()] {
+    if roster_sorted
+        != vec![
+            "alchemist".to_string(),
+            "oracle".to_string(),
+            "sage".to_string(),
+        ]
+    {
         issues.push(NamingIssue::new(
             "src/lib/roster/index.mjs",
             "runtime roster differs from naming registry",
@@ -414,7 +445,14 @@ fn semantic_issues(root: &Path, registry: &NamingRegistry) -> Vec<NamingIssue> {
     }
 
     if let Ok(readme) = fs::read_to_string(root.join("README.md")) {
-        for display in ["Legion", "Sage", "Alchemist", "Oracle", "Arcane", "Covenant"] {
+        for display in [
+            "Legion",
+            "Sage",
+            "Alchemist",
+            "Oracle",
+            "Arcane",
+            "Covenant",
+        ] {
             if !readme.contains(&format!("| **{display}** |")) {
                 issues.push(NamingIssue::new(
                     "README.md",
@@ -467,10 +505,16 @@ fn semantic_issues(root: &Path, registry: &NamingRegistry) -> Vec<NamingIssue> {
 
     for path in [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"] {
         if let Some(manifest) = read_json(&root.join(path)) {
-            let description = manifest.get("description").and_then(Value::as_str).unwrap_or("");
+            let description = manifest
+                .get("description")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             for display in ["Legion", "Sage", "Alchemist", "Oracle", "Arcane"] {
                 if !description.contains(display) {
-                    issues.push(NamingIssue::new(path, format!("description missing {display}")));
+                    issues.push(NamingIssue::new(
+                        path,
+                        format!("description missing {display}"),
+                    ));
                 }
             }
         }
@@ -497,7 +541,15 @@ fn semantic_issues(root: &Path, registry: &NamingRegistry) -> Vec<NamingIssue> {
             "src/lib/verification/arcane/architecture-event-store.mjs",
             r"const ACTOR_ROLES\s*=\s*new Set\((\[[^\]]+\])\)",
             r"['\x22]([^'\x22]+)['\x22]",
-            vec!["alchemist", "covenant", "host", "legion", "oracle", "sage", "worker"],
+            vec![
+                "alchemist",
+                "covenant",
+                "host",
+                "legion",
+                "oracle",
+                "sage",
+                "worker",
+            ],
         ),
         (
             "src/lib/contracts/arcane/authority-binding-store.mjs",

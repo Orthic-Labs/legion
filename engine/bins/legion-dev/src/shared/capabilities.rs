@@ -119,7 +119,10 @@ pub fn validate_capability_registry(registry: &Value, path: &str) -> Result<(), 
             .map(|s| !s.is_empty())
             .unwrap_or(false);
         if !ok {
-            return Err(invalid(path, &format!("registry does not document {klass}")));
+            return Err(invalid(
+                path,
+                &format!("registry does not document {klass}"),
+            ));
         }
     }
     let capabilities = registry
@@ -142,7 +145,10 @@ pub fn validate_capability_registry(registry: &Value, path: &str) -> Result<(), 
                 .map(|s| !s.is_empty())
                 .unwrap_or(false);
             if !ok {
-                return Err(invalid(&entry_path, &format!("capability declares no {field}")));
+                return Err(invalid(
+                    &entry_path,
+                    &format!("capability declares no {field}"),
+                ));
             }
         }
         validate_probe(entry.get("probe"), &entry_path)?;
@@ -179,7 +185,11 @@ pub fn command_capability_map(registry: &Value) -> Result<HashMap<String, String
         let mut aliases: Vec<String> = entry
             .get("commands")
             .and_then(|v| v.as_array())
-            .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
         if let Some(probe) = entry.get("probe") {
             if probe.get("kind").and_then(|v| v.as_str()) == Some("command") {

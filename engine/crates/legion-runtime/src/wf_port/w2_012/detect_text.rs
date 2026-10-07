@@ -71,7 +71,8 @@ fn border_radius_re() -> &'static Regex {
 fn safe_element_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?i)<(?:blockquote|nav[\s>]|pre[\s>]|code[\s>]|a\s|input[\s>]|span[\s>])").unwrap()
+        Regex::new(r"(?i)<(?:blockquote|nav[\s>]|pre[\s>]|code[\s>]|a\s|input[\s>]|span[\s>])")
+            .unwrap()
     })
 }
 
@@ -90,7 +91,15 @@ pub fn is_safe_element(line: &str) -> bool {
     safe_element_re().is_match(line)
 }
 
-const NEUTRAL_KEYWORDS: &[&str] = &["gray", "grey", "silver", "white", "black", "transparent", "currentcolor"];
+const NEUTRAL_KEYWORDS: &[&str] = &[
+    "gray",
+    "grey",
+    "silver",
+    "white",
+    "black",
+    "transparent",
+    "currentcolor",
+];
 
 fn border_color_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -121,7 +130,9 @@ fn functional_color_re() -> &'static Regex {
 /// spread as non-neutral, the same conservative default `isNeutralColor`
 /// documents for unrecognized input (see this file's module doc).
 pub fn is_neutral_border_color(str_val: &str) -> bool {
-    let Some(caps) = border_color_re().captures(str_val) else { return false };
+    let Some(caps) = border_color_re().captures(str_val) else {
+        return false;
+    };
     let c = caps[1].to_lowercase();
     if NEUTRAL_KEYWORDS.contains(&c.as_str()) {
         return true;
@@ -203,9 +214,23 @@ pub struct TextFinding {
 }
 
 const GENERIC_FONTS: &[&str] = &[
-    "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui",
-    "ui-sans-serif", "ui-serif", "ui-monospace", "ui-rounded", "math", "emoji",
-    "fangsong", "inherit", "initial", "unset", "revert",
+    "serif",
+    "sans-serif",
+    "monospace",
+    "cursive",
+    "fantasy",
+    "system-ui",
+    "ui-sans-serif",
+    "ui-serif",
+    "ui-monospace",
+    "ui-rounded",
+    "math",
+    "emoji",
+    "fangsong",
+    "inherit",
+    "initial",
+    "unset",
+    "revert",
 ];
 
 fn font_family_re() -> &'static Regex {
@@ -215,7 +240,9 @@ fn font_family_re() -> &'static Regex {
 
 fn gf_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r#"(?i)fonts\.googleapis\.com/css2?\?family=([^&"'\s]+)"#).unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r#"(?i)fonts\.googleapis\.com/css2?\?family=([^&"'\s]+)"#).unwrap()
+    })
 }
 
 /// Port of the "Single font" `REGEX_ANALYZERS` entry.
@@ -223,7 +250,10 @@ pub fn analyze_single_font(content: &str, generic_fonts: &[&str]) -> Option<Text
     let mut fonts = std::collections::BTreeSet::new();
     for caps in font_family_re().captures_iter(content) {
         for f in caps[1].split(',') {
-            let f = f.trim().trim_matches(|c| c == '\'' || c == '"').to_lowercase();
+            let f = f
+                .trim()
+                .trim_matches(|c| c == '\'' || c == '"')
+                .to_lowercase();
             if !f.is_empty() && !generic_fonts.contains(&f.as_str()) {
                 fonts.insert(f);
             }
@@ -231,7 +261,12 @@ pub fn analyze_single_font(content: &str, generic_fonts: &[&str]) -> Option<Text
     }
     for caps in gf_re().captures_iter(content) {
         for f in caps[1].split('|') {
-            let name = f.split(':').next().unwrap_or("").replace('+', " ").to_lowercase();
+            let name = f
+                .split(':')
+                .next()
+                .unwrap_or("")
+                .replace('+', " ")
+                .to_lowercase();
             fonts.insert(name);
         }
     }
@@ -268,9 +303,18 @@ fn clamp_re() -> &'static Regex {
 }
 
 const TAILWIND_TEXT_SIZES: &[(&str, f64)] = &[
-    ("text-xs", 12.0), ("text-sm", 14.0), ("text-base", 16.0), ("text-lg", 18.0),
-    ("text-xl", 20.0), ("text-2xl", 24.0), ("text-3xl", 30.0), ("text-4xl", 36.0),
-    ("text-5xl", 48.0), ("text-6xl", 60.0), ("text-7xl", 72.0), ("text-8xl", 96.0),
+    ("text-xs", 12.0),
+    ("text-sm", 14.0),
+    ("text-base", 16.0),
+    ("text-lg", 18.0),
+    ("text-xl", 20.0),
+    ("text-2xl", 24.0),
+    ("text-3xl", 30.0),
+    ("text-4xl", 36.0),
+    ("text-5xl", 48.0),
+    ("text-6xl", 60.0),
+    ("text-7xl", 72.0),
+    ("text-8xl", 96.0),
     ("text-9xl", 128.0),
 ];
 
@@ -284,7 +328,11 @@ pub fn analyze_flat_type_hierarchy(content: &str) -> Option<TextFinding> {
     let mut sizes = std::collections::BTreeSet::new();
     let px_of = |s: &str, unit: &str| -> f64 {
         let v: f64 = s.parse().unwrap_or(0.0);
-        if unit.eq_ignore_ascii_case("px") { v } else { v * REM }
+        if unit.eq_ignore_ascii_case("px") {
+            v
+        } else {
+            v * REM
+        }
     };
     for caps in font_size_re().captures_iter(content) {
         let px = px_of(&caps[1], &caps[2]);
@@ -320,7 +368,11 @@ pub fn analyze_flat_type_hierarchy(content: &str) -> Option<TextFinding> {
             break;
         }
     }
-    let sizes_str = sorted.iter().map(|s| format!("{s}px")).collect::<Vec<_>>().join(", ");
+    let sizes_str = sorted
+        .iter()
+        .map(|s| format!("{s}px"))
+        .collect::<Vec<_>>()
+        .join(", ");
     Some(TextFinding {
         antipattern: "flat-type-hierarchy",
         detail: format!("Sizes: {sizes_str} (ratio {ratio:.1}:1)"),
@@ -330,12 +382,17 @@ pub fn analyze_flat_type_hierarchy(content: &str) -> Option<TextFinding> {
 
 fn spacing_px_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*(\d+)px").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*(\d+)px").unwrap()
+    })
 }
 
 fn spacing_rem_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([\d.]+)rem").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([\d.]+)rem")
+            .unwrap()
+    })
 }
 
 fn gap_re() -> &'static Regex {
@@ -345,7 +402,9 @@ fn gap_re() -> &'static Regex {
 
 fn tw_spacing_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"\b(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap)-(\d+)\b").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"\b(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap)-(\d+)\b").unwrap()
+    })
 }
 
 /// Port of the "Monotonous spacing (regex)" `REGEX_ANALYZERS` entry.
@@ -369,7 +428,10 @@ pub fn analyze_monotonous_spacing(content: &str) -> Option<TextFinding> {
     for caps in tw_spacing_re().captures_iter(content) {
         vals.push(caps[1].parse::<i64>().unwrap_or(0) * 4);
     }
-    let rounded: Vec<i64> = vals.iter().map(|v| ((*v as f64 / 4.0).round() as i64) * 4).collect();
+    let rounded: Vec<i64> = vals
+        .iter()
+        .map(|v| ((*v as f64 / 4.0).round() as i64) * 4)
+        .collect();
     if rounded.len() < 10 {
         return None;
     }
@@ -379,7 +441,8 @@ pub fn analyze_monotonous_spacing(content: &str) -> Option<TextFinding> {
     }
     let max_count = *counts.values().max().unwrap();
     let pct = max_count as f64 / rounded.len() as f64;
-    let unique: std::collections::BTreeSet<i64> = rounded.iter().copied().filter(|v| *v > 0).collect();
+    let unique: std::collections::BTreeSet<i64> =
+        rounded.iter().copied().filter(|v| *v > 0).collect();
     if pct <= 0.6 || unique.len() > 3 {
         return None;
     }
@@ -388,7 +451,11 @@ pub fn analyze_monotonous_spacing(content: &str) -> Option<TextFinding> {
     // built by first occurrence order closely enough that a stable max-by
     // over ascending keys reproduces the same choice for the fixtures this
     // analyzer is exercised against).
-    let dominant = counts.iter().max_by_key(|(_, c)| **c).map(|(k, _)| *k).unwrap();
+    let dominant = counts
+        .iter()
+        .max_by_key(|(_, c)| **c)
+        .map(|(k, _)| *k)
+        .unwrap();
     Some(TextFinding {
         antipattern: "monotonous-spacing",
         detail: format!(
@@ -441,15 +508,34 @@ pub fn analyze_em_dash_overuse(content: &str) -> Option<TextFinding> {
 }
 
 const BUZZWORDS: &[&str] = &[
-    "streamline your", "empower your", "supercharge your",
-    "unleash your", "unleash the power", "leverage the power",
-    "built for the modern", "trusted by leading", "trusted by the world",
-    "best-in-class", "industry-leading", "world-class", "enterprise-grade",
-    "next-generation", "cutting-edge", "transform your business",
-    "revolutionize", "game-changer", "game changing",
-    "mission-critical", "best of breed", "future-proof", "future proof",
-    "seamless experience", "seamlessly integrate",
-    "drive engagement", "drive growth", "drive results",
+    "streamline your",
+    "empower your",
+    "supercharge your",
+    "unleash your",
+    "unleash the power",
+    "leverage the power",
+    "built for the modern",
+    "trusted by leading",
+    "trusted by the world",
+    "best-in-class",
+    "industry-leading",
+    "world-class",
+    "enterprise-grade",
+    "next-generation",
+    "cutting-edge",
+    "transform your business",
+    "revolutionize",
+    "game-changer",
+    "game changing",
+    "mission-critical",
+    "best of breed",
+    "future-proof",
+    "future proof",
+    "seamless experience",
+    "seamlessly integrate",
+    "drive engagement",
+    "drive growth",
+    "drive results",
     "harness the power",
 ];
 
@@ -529,7 +615,12 @@ pub fn analyze_numbered_section_markers(content: &str) -> Option<TextFinding> {
     if sequential < 2 {
         return None;
     }
-    let sample = sorted.iter().take(6).cloned().collect::<Vec<_>>().join(", ");
+    let sample = sorted
+        .iter()
+        .take(6)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
     Some(TextFinding {
         antipattern: "numbered-section-markers",
         detail: format!("Sequence: {sample}"),
@@ -590,7 +681,9 @@ fn dark_bg_re() -> &'static Regex {
 
 fn tw_dark_bg_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b").unwrap()
+    })
 }
 
 fn box_shadow_re() -> &'static Regex {
@@ -622,7 +715,9 @@ pub fn analyze_dark_glow(content: &str) -> Option<TextFinding> {
     }
     for caps in box_shadow_re().captures_iter(content) {
         let val = &caps[1];
-        let Some(color) = shadow_color_re().captures(val) else { continue };
+        let Some(color) = shadow_color_re().captures(val) else {
+            continue;
+        };
         let r: i32 = color[1].parse().unwrap();
         let g: i32 = color[2].parse().unwrap();
         let b: i32 = color[3].parse().unwrap();
@@ -695,7 +790,11 @@ pub const TEXT_CONTENT_ANALYZER_IDS: &[&str] = &[
 
 /// Port of `runTextContentAnalyzers`'s selection (the four analyzers only,
 /// gated on `should_run_page_analyzers`).
-pub fn run_text_content_analyzers(content: &str, is_full_page: bool, file_path: &str) -> Vec<TextFinding> {
+pub fn run_text_content_analyzers(
+    content: &str,
+    is_full_page: bool,
+    file_path: &str,
+) -> Vec<TextFinding> {
     if !should_run_page_analyzers(is_full_page, file_path) {
         return Vec::new();
     }
@@ -753,7 +852,8 @@ mod tests {
 
     #[test]
     fn strip_html_to_text_drops_script_style_comments_tags() {
-        let html = "<style>.a{color:red}</style><script>alert(1)</script><!-- c --><p>Hi  there</p>";
+        let html =
+            "<style>.a{color:red}</style><script>alert(1)</script><!-- c --><p>Hi  there</p>";
         assert_eq!(strip_html_to_text(html), " Hi there ");
     }
 
@@ -770,7 +870,8 @@ mod tests {
 
     #[test]
     fn analyze_single_font_none_when_too_short_or_multiple_fonts() {
-        assert!(analyze_single_font("font-family: Inter;", GENERIC_FONTS).is_none()); // < 20 lines
+        assert!(analyze_single_font("font-family: Inter;", GENERIC_FONTS).is_none());
+        // < 20 lines
     }
 
     #[test]
@@ -789,7 +890,10 @@ mod tests {
 
     #[test]
     fn analyze_monotonous_spacing_fires_on_dominant_repeated_value() {
-        let css: String = (0..12).map(|_| "div{padding:16px}").collect::<Vec<_>>().join("");
+        let css: String = (0..12)
+            .map(|_| "div{padding:16px}")
+            .collect::<Vec<_>>()
+            .join("");
         let out = analyze_monotonous_spacing(&css).unwrap();
         assert_eq!(out.antipattern, "monotonous-spacing");
         assert!(out.detail.starts_with("~16px"));
@@ -827,14 +931,16 @@ mod tests {
         // original text here only produced 2 matches, below the count<3
         // threshold). Use a third genuine "Not a X. A Y." construction so
         // the finding actually fires.
-        let text = "Not a bug. A feature. Not a hack. A design choice. Not a flaw. A design decision.";
+        let text =
+            "Not a bug. A feature. Not a hack. A design choice. Not a flaw. A design decision.";
         let out = analyze_aphoristic_cadence(text);
         assert!(out.is_some());
     }
 
     #[test]
     fn analyze_dark_glow_needs_dark_bg_and_colored_blurred_shadow() {
-        let css = "body{background-color:#111111}.card{box-shadow: 0 0 20px rgba(120, 40, 200, 0.5);}";
+        let css =
+            "body{background-color:#111111}.card{box-shadow: 0 0 20px rgba(120, 40, 200, 0.5);}";
         let out = analyze_dark_glow(css).unwrap();
         assert_eq!(out.antipattern, "dark-glow");
         let light = ".card{box-shadow: 0 0 20px rgba(120, 40, 200, 0.5);}";

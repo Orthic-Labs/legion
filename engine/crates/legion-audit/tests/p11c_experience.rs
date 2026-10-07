@@ -2,7 +2,9 @@
 //! visual, ux, safety, performance}` — ports of
 //! `src/providers/{visual/**,visual-core.mjs,ux/**,safety/**,performance/**}`.
 
-use legion_audit::native_providers::p11c_experience::{performance, safety, ux, visual, visual_core};
+use legion_audit::native_providers::p11c_experience::{
+    performance, safety, ux, visual, visual_core,
+};
 use serde_json::json;
 
 // ---------------------------------------------------------------------
@@ -74,7 +76,8 @@ fn contrast_ratio_matches_wcag_black_on_white() {
 
 #[test]
 fn analyze_color_pairs_flags_low_contrast() {
-    let result = visual::analyze_color_pairs(&[json!({ "foreground": "#777777", "background": "#888888" })]);
+    let result =
+        visual::analyze_color_pairs(&[json!({ "foreground": "#777777", "background": "#888888" })]);
     assert_eq!(result["status"], "candidates");
     assert_eq!(result["findings"].as_array().unwrap().len(), 1);
 }
@@ -87,7 +90,10 @@ fn analyze_geometry_evidence_flags_viewport_overflow() {
     });
     let result = visual::analyze_geometry_evidence(&input);
     assert_eq!(result["status"], "candidates");
-    assert_eq!(result["findings"][0]["ruleId"], "visual.geometry-viewport-overflow");
+    assert_eq!(
+        result["findings"][0]["ruleId"],
+        "visual.geometry-viewport-overflow"
+    );
 }
 
 #[test]
@@ -109,7 +115,10 @@ fn analyze_hierarchy_flags_rank_mismatch() {
     let input = json!({ "signals": [{ "component": "Btn", "source": "s", "semanticRank": 1, "visualRank": 2 }] });
     let result = visual::analyze_hierarchy(&input);
     assert_eq!(result["status"], "candidates");
-    assert_eq!(result["findings"][0]["ruleId"], "visual.hierarchy-rank-mismatch");
+    assert_eq!(
+        result["findings"][0]["ruleId"],
+        "visual.hierarchy-rank-mismatch"
+    );
 }
 
 #[test]
@@ -128,7 +137,12 @@ fn analyze_responsive_flags_overflow_and_untested_viewport() {
     });
     let result = visual::analyze_responsive(&input);
     assert_eq!(result["status"], "candidates");
-    let gaps: Vec<String> = result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"viewport-untested:tablet".to_string()));
 }
 
@@ -155,7 +169,10 @@ fn analyze_typography_flags_clipped_text() {
     let input = json!({ "textItems": [{ "id": "t1", "clipped": true, "viewport": "mobile", "locale": "en" }], "fontEvidence": {} });
     let result = visual::analyze_typography(&input);
     assert_eq!(result["status"], "candidates");
-    assert_eq!(result["findings"][0]["ruleId"], "visual.typography-text-layout");
+    assert_eq!(
+        result["findings"][0]["ruleId"],
+        "visual.typography-text-layout"
+    );
 }
 
 #[test]
@@ -229,7 +246,10 @@ fn analyze_recovery_flags_missing_confirmation() {
     let input = json!({ "actions": [{ "id": "a1", "risk": "high", "confirmation": false }] });
     let result = ux::analyze_recovery(&input);
     assert_eq!(result["status"], "candidates");
-    assert_eq!(result["findings"][0]["ruleId"], "ux.recovery-confirmation-missing");
+    assert_eq!(
+        result["findings"][0]["ruleId"],
+        "ux.recovery-confirmation-missing"
+    );
 }
 
 #[test]
@@ -253,7 +273,10 @@ fn analyze_system_states_flags_blank_screen() {
 
 #[test]
 fn safety_scanner_flags_unmitigated_destructive_action() {
-    let files = vec![("app.js".to_string(), "function run() { hardDelete(userId); }".to_string())];
+    let files = vec![(
+        "app.js".to_string(),
+        "function run() { hardDelete(userId); }".to_string(),
+    )];
     let hazards = safety::scan_safety_hazards(&files, &json!("digest-a")).expect("scan");
     assert_eq!(hazards.len(), 1);
     assert_eq!(hazards[0]["disposition"], "positive");
@@ -263,7 +286,10 @@ fn safety_scanner_flags_unmitigated_destructive_action() {
 
 #[test]
 fn safety_scanner_recognizes_mitigation_signal() {
-    let files = vec![("app.js".to_string(), "if (interlockEnforced()) { factoryReset(deviceId); }".to_string())];
+    let files = vec![(
+        "app.js".to_string(),
+        "if (interlockEnforced()) { factoryReset(deviceId); }".to_string(),
+    )];
     let hazards = safety::scan_safety_hazards(&files, &json!("digest-b")).expect("scan");
     assert_eq!(hazards.len(), 1);
     assert_eq!(hazards[0]["disposition"], "mitigated");
@@ -273,16 +299,33 @@ fn safety_scanner_recognizes_mitigation_signal() {
 fn close_hazard_rejects_non_human_closure() {
     let files = vec![("app.js".to_string(), "truncateTable(name);".to_string())];
     let hazards = safety::scan_safety_hazards(&files, &json!("digest-c")).expect("scan");
-    let error = safety::close_hazard(&hazards[0], "model-verdict", "reviewer", "closed", "looked fine").unwrap_err();
+    let error = safety::close_hazard(
+        &hazards[0],
+        "model-verdict",
+        "reviewer",
+        "closed",
+        "looked fine",
+    )
+    .unwrap_err();
     assert!(error.contains("human-decision"));
-    let closed = safety::close_hazard(&hazards[0], "human-decision", "reviewer", "closed", "manually verified").expect("close");
+    let closed = safety::close_hazard(
+        &hazards[0],
+        "human-decision",
+        "reviewer",
+        "closed",
+        "manually verified",
+    )
+    .expect("close");
     assert_eq!(closed["method"], "human-decision");
 }
 
 #[test]
 fn hazard_model_schema_matches_generated_enums() {
     let schema = safety::build_hazard_model_schema();
-    assert_eq!(schema["properties"]["reasoningRequirement"]["const"], "human-decision");
+    assert_eq!(
+        schema["properties"]["reasoningRequirement"]["const"],
+        "human-decision"
+    );
     assert_eq!(schema["properties"]["certifiable"]["const"], false);
 }
 
@@ -308,12 +351,16 @@ fn analyze_cache_evidence_flags_correctness_risk() {
     let input = json!({ "entries": [{ "id": "c1", "sensitive": true, "ttl": 60 }] });
     let result = performance::analyze_cache_evidence(&input);
     assert_eq!(result["status"], "candidates");
-    assert_eq!(result["candidates"][0]["ruleId"], "performance.cache-correctness-risk");
+    assert_eq!(
+        result["candidates"][0]["ruleId"],
+        "performance.cache-correctness-risk"
+    );
 }
 
 #[test]
 fn assess_frontend_performance_flags_budget_breach() {
-    let measurements = vec![json!({ "surfaceId": "s1", "lcp": 4000, "environment": "lab", "repeatCount": 3 })];
+    let measurements =
+        vec![json!({ "surfaceId": "s1", "lcp": 4000, "environment": "lab", "repeatCount": 3 })];
     let budgets = json!({ "lcp": 2500 });
     let result = performance::assess_frontend_performance(&measurements, &budgets);
     assert_eq!(result["status"], "candidates");
@@ -325,5 +372,8 @@ fn analyze_network_evidence_flags_missing_timeout() {
     let input = json!({ "requests": [{ "id": "r1", "url": "/api", "timeoutMissing": true }] });
     let result = performance::analyze_network_evidence(&input);
     assert_eq!(result["status"], "candidates");
-    assert_eq!(result["candidates"][0]["ruleId"], "performance.network-timeout-missing");
+    assert_eq!(
+        result["candidates"][0]["ruleId"],
+        "performance.network-timeout-missing"
+    );
 }

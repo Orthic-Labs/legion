@@ -17,15 +17,22 @@ static PATH_TRAVERSAL_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 static ZIP_SLIP_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(fs\.writeFile(?:Sync)?|fs\.createWriteStream|path\.join)\s*\(\s*([^()\n]*\b(?:entry|zipEntry|file)\.(?:path|fileName|name)\b[^()\n]*)\)").unwrap()
 });
-static SYMLINK_UNCHECKED_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\b(followSymlinks\s*:\s*true|dereference\s*:\s*true)\b").unwrap());
+static SYMLINK_UNCHECKED_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b(followSymlinks\s*:\s*true|dereference\s*:\s*true)\b").unwrap()
+});
 
-static PATH_TRAVERSAL_DOWNGRADE_LEXICAL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)path\.normalize|path\.resolve|\.startsWith\(|sanitize-filename|sanitizeFilename|path\.basename").unwrap());
-static ZIP_SLIP_DOWNGRADE_LEXICAL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)path\.normalize|\.startsWith\(|resolvedPath|isInsideDir|zip-slip|sanitizeEntry").unwrap());
-static SYMLINK_DOWNGRADE_LEXICAL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)isSymbolicLink\(\)|lstat|realpath.{0,80}startsWith").unwrap());
+static PATH_TRAVERSAL_DOWNGRADE_LEXICAL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)path\.normalize|path\.resolve|\.startsWith\(|sanitize-filename|sanitizeFilename|path\.basename").unwrap()
+});
+static ZIP_SLIP_DOWNGRADE_LEXICAL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)path\.normalize|\.startsWith\(|resolvedPath|isInsideDir|zip-slip|sanitizeEntry",
+    )
+    .unwrap()
+});
+static SYMLINK_DOWNGRADE_LEXICAL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)isSymbolicLink\(\)|lstat|realpath.{0,80}startsWith").unwrap()
+});
 
 struct Rule {
     id: &'static str,
@@ -99,7 +106,10 @@ const RULE_SYMLINK: Rule = Rule {
     uncertainty: "Whether the archive/file source can be attacker-controlled, and whether a symlink-containment check exists elsewhere in the extraction pipeline, must be adjudicated.",
 };
 
-fn matches_for(rule: &Rule, ctx: &Context) -> Vec<(String, usize, usize, usize, String, String, String)> {
+fn matches_for(
+    rule: &Rule,
+    ctx: &Context,
+) -> Vec<(String, usize, usize, usize, String, String, String)> {
     let mut out = Vec::new();
     for file in &ctx.files {
         let text = ctx.read_file(file);
@@ -110,25 +120,32 @@ fn matches_for(rule: &Rule, ctx: &Context) -> Vec<(String, usize, usize, usize, 
             fn(&regex::Captures<'_>) -> String,
             fn(&regex::Captures<'_>) -> String,
             Vec<regex::Captures<'_>>,
-        ) =
-            match rule.id {
-                "file.path-traversal-unvalidated" => (
-                    |c| c.get(2).map(|g| g.as_str().trim().to_string()).unwrap_or_default(),
-                    |c| c.get(1).map(|g| g.as_str().to_string()).unwrap_or_default(),
-                    PATH_TRAVERSAL_PATTERN.captures_iter(text).collect(),
-                ),
-                "file.archive-zip-slip" => (
-                    |c| c.get(2).map(|g| g.as_str().trim().to_string()).unwrap_or_default(),
-                    |c| c.get(1).map(|g| g.as_str().to_string()).unwrap_or_default(),
-                    ZIP_SLIP_PATTERN.captures_iter(text).collect(),
-                ),
-                "file.symlink-unchecked" => (
-                    |c| c.get(1).map(|g| g.as_str().to_string()).unwrap_or_default(),
-                    |_| "archive-extraction-symlink-option".to_string(),
-                    SYMLINK_UNCHECKED_PATTERN.captures_iter(text).collect(),
-                ),
-                _ => (|_| String::new(), |_| String::new(), Vec::new()),
-            };
+        ) = match rule.id {
+            "file.path-traversal-unvalidated" => (
+                |c| {
+                    c.get(2)
+                        .map(|g| g.as_str().trim().to_string())
+                        .unwrap_or_default()
+                },
+                |c| c.get(1).map(|g| g.as_str().to_string()).unwrap_or_default(),
+                PATH_TRAVERSAL_PATTERN.captures_iter(text).collect(),
+            ),
+            "file.archive-zip-slip" => (
+                |c| {
+                    c.get(2)
+                        .map(|g| g.as_str().trim().to_string())
+                        .unwrap_or_default()
+                },
+                |c| c.get(1).map(|g| g.as_str().to_string()).unwrap_or_default(),
+                ZIP_SLIP_PATTERN.captures_iter(text).collect(),
+            ),
+            "file.symlink-unchecked" => (
+                |c| c.get(1).map(|g| g.as_str().to_string()).unwrap_or_default(),
+                |_| "archive-extraction-symlink-option".to_string(),
+                SYMLINK_UNCHECKED_PATTERN.captures_iter(text).collect(),
+            ),
+            _ => (|_| String::new(), |_| String::new(), Vec::new()),
+        };
         for m in captures {
             let whole = m.get(0).unwrap();
             out.push((
@@ -158,25 +175,27 @@ pub fn analyze(ctx: &Context) -> Vec<Observation> {
             let mut control_observed: Option<String> = None;
             let mut uncertainty = vec![rule.uncertainty.to_string()];
 
-            let control = artifact.and_then(|a| {
-                ctx.relations_to(&a.id)
-                    .filter(|r| r.kind == "protects")
-                    .find_map(|r| {
-                        ctx.entity_by_id(&r.from).filter(|c| {
-                            c.kind == "control"
-                                && c.attr_str("controlType")
-                                    .map(|t| rule.downgrade_control_types.contains(&t))
-                                    .unwrap_or(false)
+            let control = artifact
+                .and_then(|a| {
+                    ctx.relations_to(&a.id)
+                        .filter(|r| r.kind == "protects")
+                        .find_map(|r| {
+                            ctx.entity_by_id(&r.from).filter(|c| {
+                                c.kind == "control"
+                                    && c.attr_str("controlType")
+                                        .map(|t| rule.downgrade_control_types.contains(&t))
+                                        .unwrap_or(false)
+                            })
                         })
-                    })
-            }).or_else(|| {
-                ctx.entities.iter().find(|e| {
-                    e.kind == "control"
-                        && e.attr_str("controlType")
-                            .map(|t| rule.downgrade_control_types.contains(&t))
-                            .unwrap_or(false)
                 })
-            });
+                .or_else(|| {
+                    ctx.entities.iter().find(|e| {
+                        e.kind == "control"
+                            && e.attr_str("controlType")
+                                .map(|t| rule.downgrade_control_types.contains(&t))
+                                .unwrap_or(false)
+                    })
+                });
 
             if let Some(control) = control {
                 severity_hint = rule.downgrade_severity_hint.to_string();
@@ -187,7 +206,12 @@ pub fn analyze(ctx: &Context) -> Vec<Observation> {
                 uncertainty.push(format!(
                     "Observed {control_type} control ({control_name}) on this path; downgraded pending adjudication of coverage completeness."
                 ));
-            } else if rule.downgrade_lexical.is_match(window_around(text, index, len, rule.downgrade_radius)) {
+            } else if rule.downgrade_lexical.is_match(window_around(
+                text,
+                index,
+                len,
+                rule.downgrade_radius,
+            )) {
                 severity_hint = rule.downgrade_severity_hint.to_string();
                 control_observed = Some("lexical-signal".to_string());
                 uncertainty.push(rule.downgrade_note.to_string());
@@ -200,7 +224,11 @@ pub fn analyze(ctx: &Context) -> Vec<Observation> {
                 severity_hint,
                 sources: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
                 sinks: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
-                attacker_capabilities: rule.attacker_capabilities.iter().map(|s| s.to_string()).collect(),
+                attacker_capabilities: rule
+                    .attacker_capabilities
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
                 preconditions: vec![Fact {
                     kind: "attacker-position".to_string(),
                     subject: "actor:external".to_string(),

@@ -20,9 +20,8 @@ use std::collections::BTreeMap;
 
 #[test]
 fn citecheck_flags_unsupported_numeric_claim_in_a_realistic_draft() {
-    let evidence = vec![
-        json!({"id": "E1", "quote_or_paraphrase": "Vendor X lists a monthly seat price"}),
-    ];
+    let evidence =
+        vec![json!({"id": "E1", "quote_or_paraphrase": "Vendor X lists a monthly seat price"})];
     let markdown = "\
 Vendor X charges 49 dollars per seat per month. [+E1]
 Vendor X was founded in 2004 and is privately held.
@@ -82,7 +81,10 @@ struct MockManifest {
 
 impl RunManifest for MockManifest {
     fn load_run(&self, run_id: &str) -> Result<RunRecord, String> {
-        self.runs.get(run_id).cloned().ok_or_else(|| format!("no such run: {run_id}"))
+        self.runs
+            .get(run_id)
+            .cloned()
+            .ok_or_else(|| format!("no such run: {run_id}"))
     }
     fn candidate_run_ids(&self) -> Vec<String> {
         self.runs.keys().cloned().collect()
@@ -97,7 +99,9 @@ impl RunManifest for MockManifest {
         *self.pointer.borrow_mut() = None;
     }
     fn record_event(&self, run_id: &str, kind: &str, detail: Value) {
-        self.events.borrow_mut().push((run_id.to_string(), kind.to_string(), detail));
+        self.events
+            .borrow_mut()
+            .push((run_id.to_string(), kind.to_string(), detail));
     }
 }
 
@@ -114,10 +118,16 @@ impl ControlManifest for MockManifest {
     }
     fn set_acquire_stage(&self, _run_id: &str, _status: &str, _detail: Option<&str>) {}
     fn load_shard_plan(&self, run_id: &str) -> Result<ShardPlan, String> {
-        self.plans.borrow().get(run_id).cloned().ok_or_else(|| "no plan".to_string())
+        self.plans
+            .borrow()
+            .get(run_id)
+            .cloned()
+            .ok_or_else(|| "no plan".to_string())
     }
     fn save_shard_plan(&self, run_id: &str, plan: &ShardPlan) {
-        self.plans.borrow_mut().insert(run_id.to_string(), plan.clone());
+        self.plans
+            .borrow_mut()
+            .insert(run_id.to_string(), plan.clone());
     }
 }
 
@@ -160,8 +170,14 @@ fn a_run_selected_by_active_run_can_then_drive_control_stop_and_shard_flow() {
         &store,
         &run_id,
         &[
-            WorkItem { key: "pricing".into(), payload: json!({"query": "price"}) },
-            WorkItem { key: "privacy".into(), payload: json!({"query": "privacy"}) },
+            WorkItem {
+                key: "pricing".into(),
+                payload: json!({"query": "price"}),
+            },
+            WorkItem {
+                key: "privacy".into(),
+                payload: json!({"query": "privacy"}),
+            },
         ],
     )
     .unwrap();

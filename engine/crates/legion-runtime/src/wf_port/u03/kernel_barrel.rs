@@ -34,6 +34,9 @@ mod tests {
         assert_eq!(decision["executionTaskId"], json!("T-#.#"));
         assert_eq!(decision["kernelTaskId"], json!("ktask_<ulid>"));
         assert_eq!(decision["field"], json!("kernelTaskId"));
-        assert!(decision["rationale"].as_str().unwrap().contains("opaque durable runtime handle"));
+        assert!(decision["rationale"]
+            .as_str()
+            .unwrap()
+            .contains("opaque durable runtime handle"));
     }
 }

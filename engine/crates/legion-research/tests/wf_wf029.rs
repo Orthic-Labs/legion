@@ -39,7 +39,11 @@ fn end_to_end_general_route_resolves_grants_and_acquires() {
 
 #[test]
 fn medical_self_route_blocks_grant_until_history_and_gate_approved() {
-    let route = resolve("what dose of a drug should i take for my condition", &Default::default()).unwrap();
+    let route = resolve(
+        "what dose of a drug should i take for my condition",
+        &Default::default(),
+    )
+    .unwrap();
     assert_eq!(route["domain"], "medical");
     assert_eq!(route["subject"]["patient"]["kind"], "self");
 
@@ -55,8 +59,13 @@ fn medical_self_route_blocks_grant_until_history_and_gate_approved() {
         json!({"text": "operator confirms"}),
     );
     let (still_ungranted, verdicts2) = grant_effects(&route, Some(&approvals)).unwrap();
-    assert!(still_ungranted["allowed_effects"].as_array().unwrap().is_empty());
-    assert!(verdicts2.iter().any(|v| v["gate"] == "medical.history-available" && v["verdict"] == "block"));
+    assert!(still_ungranted["allowed_effects"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert!(verdicts2
+        .iter()
+        .any(|v| v["gate"] == "medical.history-available" && v["verdict"] == "block"));
 }
 
 #[test]
@@ -76,8 +85,12 @@ fn legal_india_consumer_procedure_reaches_grant_once_facts_supplied() {
 
     let (granted, verdicts) = grant_effects(&route, None).unwrap();
     assert!(verdicts.iter().all(|v| v["verdict"] == "ok"));
-    let effects: Vec<String> =
-        granted["allowed_effects"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let effects: Vec<String> = granted["allowed_effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     // assurance is 'verified' for legal/procedure -> retraction-check + patch-sourced-draft granted.
     assert!(effects.contains(&"retraction-check".to_string()));
     assert!(effects.contains(&"patch-sourced-draft".to_string()));
@@ -100,6 +113,10 @@ fn gate_verdicts_matches_resolve_output_for_ungated_general_route() {
     let route = resolve("api latency benchmark comparison", &Default::default()).unwrap();
     let verdicts = gate_verdicts(&route, None);
     // Baseline verdicts always present regardless of domain.
-    assert!(verdicts.iter().any(|v| v["gate"] == "notebooklm.answer-not-ledger" && v["verdict"] == "ok"));
-    assert!(verdicts.iter().any(|v| v["gate"] == "discovery.provenance" && v["verdict"] == "ok"));
+    assert!(verdicts
+        .iter()
+        .any(|v| v["gate"] == "notebooklm.answer-not-ledger" && v["verdict"] == "ok"));
+    assert!(verdicts
+        .iter()
+        .any(|v| v["gate"] == "discovery.provenance" && v["verdict"] == "ok"));
 }

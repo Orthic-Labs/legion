@@ -22,7 +22,9 @@ use std::collections::BTreeSet;
 
 use serde_json::{json, Map, Value};
 
-use crate::p5_core::exit_taxonomy::{exit_code_for_report as taxonomy_exit_code_for_report, Exit, ExitReport};
+use crate::p5_core::exit_taxonomy::{
+    exit_code_for_report as taxonomy_exit_code_for_report, Exit, ExitReport,
+};
 
 const SURVIVING_VERDICTS: [&str; 2] = ["TRUE_POSITIVE", "LIKELY_TRUE_POSITIVE"];
 
@@ -30,7 +32,10 @@ fn get<'a>(v: &'a Value, key: &str) -> Option<&'a Value> {
     v.as_object().and_then(|m| m.get(key))
 }
 fn arr<'a>(v: &'a Value, key: &str) -> &'a [Value] {
-    get(v, key).and_then(|x| x.as_array()).map(|a| a.as_slice()).unwrap_or(&[])
+    get(v, key)
+        .and_then(|x| x.as_array())
+        .map(|a| a.as_slice())
+        .unwrap_or(&[])
 }
 fn s(v: &Value) -> Option<&str> {
     v.as_str()
@@ -39,16 +44,20 @@ fn s(v: &Value) -> Option<&str> {
 /// Mirrors `requiredLenses(facts)`.
 fn required_lenses(facts: &Value) -> Vec<String> {
     let plan = get(facts, "plan").cloned().unwrap_or(Value::Null);
-    let mut set: BTreeSet<String> =
-        arr(&plan, "reasoningProviders").iter().filter_map(|v| s(v).map(|x| x.to_string())).collect();
+    let mut set: BTreeSet<String> = arr(&plan, "reasoningProviders")
+        .iter()
+        .filter_map(|v| s(v).map(|x| x.to_string()))
+        .collect();
     let out: Vec<String> = std::mem::take(&mut set).into_iter().collect();
     out
 }
 
 /// Mirrors `ranLenses(facts)`.
 fn ran_lenses(facts: &Value) -> Vec<String> {
-    let mut set: BTreeSet<String> =
-        arr(facts, "lenses_ran").iter().filter_map(|v| s(v).map(|x| x.to_string())).collect();
+    let mut set: BTreeSet<String> = arr(facts, "lenses_ran")
+        .iter()
+        .filter_map(|v| s(v).map(|x| x.to_string()))
+        .collect();
     let out: Vec<String> = std::mem::take(&mut set).into_iter().collect();
     out
 }
@@ -58,22 +67,34 @@ fn candidate_generator_ids(facts: &Value) -> BTreeSet<String> {
     let plan = get(facts, "plan").cloned().unwrap_or(Value::Null);
     arr(&plan, "providers")
         .iter()
-        .filter(|p| get(p, "producesSecurityCandidates").and_then(|v| v.as_bool()).unwrap_or(false))
+        .filter(|p| {
+            get(p, "producesSecurityCandidates")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+        })
         .filter_map(|p| get(p, "id").and_then(s).map(|x| x.to_string()))
         .collect()
 }
 
 /// Mirrors `isCandidateGenerator(facts, provider)`.
 fn is_candidate_generator(ids: &BTreeSet<String>, provider: &Value) -> bool {
-    let by_provider = get(provider, "provider").and_then(s).map(|x| ids.contains(x)).unwrap_or(false);
-    let by_owner = get(provider, "ownerProvider").and_then(s).map(|x| ids.contains(x)).unwrap_or(false);
+    let by_provider = get(provider, "provider")
+        .and_then(s)
+        .map(|x| ids.contains(x))
+        .unwrap_or(false);
+    let by_owner = get(provider, "ownerProvider")
+        .and_then(s)
+        .map(|x| ids.contains(x))
+        .unwrap_or(false);
     by_provider || by_owner
 }
 
 /// Mirrors `providerFindings(facts)`.
 fn provider_findings(facts: &Value) -> Vec<Value> {
     let ids = candidate_generator_ids(facts);
-    let reconciliation = get(facts, "provider_reconciliation").cloned().unwrap_or(Value::Null);
+    let reconciliation = get(facts, "provider_reconciliation")
+        .cloned()
+        .unwrap_or(Value::Null);
     let mut out = Vec::new();
     for provider in arr(&reconciliation, "providerResults") {
         if is_candidate_generator(&ids, provider) {
@@ -85,16 +106,24 @@ fn provider_findings(facts: &Value) -> Vec<Value> {
             let file = get(finding, "file").and_then(s);
             let surface = get(finding, "surface").and_then(s);
             let line = get(finding, "line").and_then(|v| v.as_i64()).unwrap_or(1);
-            let id = get(finding, "id").and_then(s).map(|x| x.to_string()).unwrap_or_else(|| {
-                format!(
-                    "{}:{}:{}:{}",
-                    provider_name,
-                    rule_id.unwrap_or(provider_name),
-                    file.or(surface).unwrap_or("unknown"),
-                    line
-                )
-            });
-            let category = rule_id.unwrap_or(provider_name).split('.').next().unwrap_or("").to_string();
+            let id = get(finding, "id")
+                .and_then(s)
+                .map(|x| x.to_string())
+                .unwrap_or_else(|| {
+                    format!(
+                        "{}:{}:{}:{}",
+                        provider_name,
+                        rule_id.unwrap_or(provider_name),
+                        file.or(surface).unwrap_or("unknown"),
+                        line
+                    )
+                });
+            let category = rule_id
+                .unwrap_or(provider_name)
+                .split('.')
+                .next()
+                .unwrap_or("")
+                .to_string();
             let severity = get(finding, "severity")
                 .and_then(s)
                 .map(|x| x.to_string())
@@ -103,7 +132,11 @@ fn provider_findings(facts: &Value) -> Vec<Value> {
                     Some("warning") => "medium".to_string(),
                     _ => "low".to_string(),
                 });
-            let title = get(finding, "title").and_then(s).or(rule_id).unwrap_or(provider_name).to_string();
+            let title = get(finding, "title")
+                .and_then(s)
+                .or(rule_id)
+                .unwrap_or(provider_name)
+                .to_string();
             let detail = get(finding, "detail")
                 .and_then(s)
                 .or_else(|| get(finding, "message").and_then(s))
@@ -116,9 +149,14 @@ fn provider_findings(facts: &Value) -> Vec<Value> {
                     json!([])
                 }
             });
-            let evidence_strength =
-                get(finding, "evidence_strength").and_then(s).unwrap_or("observed").to_string();
-            let tier = get(finding, "tier").and_then(s).unwrap_or("GUIDED").to_string();
+            let evidence_strength = get(finding, "evidence_strength")
+                .and_then(s)
+                .unwrap_or("observed")
+                .to_string();
+            let tier = get(finding, "tier")
+                .and_then(s)
+                .unwrap_or("GUIDED")
+                .to_string();
             out.push(json!({
                 "id": id, "category": category, "ruleId": rule_id.unwrap_or(provider_name),
                 "severity": severity, "title": title, "detail": detail,
@@ -131,8 +169,14 @@ fn provider_findings(facts: &Value) -> Vec<Value> {
     out
 }
 
-const SECRET_CARRIER_KEYS: [&str; 6] =
-    ["match", "secretDigest", "secretType", "mode", "classification", "validity"];
+const SECRET_CARRIER_KEYS: [&str; 6] = [
+    "match",
+    "secretDigest",
+    "secretType",
+    "mode",
+    "classification",
+    "validity",
+];
 
 /// Mirrors `redactedSecretCarrier(candidate)`. Note: the JS `SECRET_CARRIER_KEYS`
 /// also includes `'commit'`, kept here too.
@@ -154,11 +198,18 @@ fn redacted_secret_carrier(candidate: &Value) -> Option<Value> {
 
 /// Mirrors `orphanSecurityVerdicts(adjudication, candidates)`.
 pub fn orphan_security_verdicts(adjudication: &Value, candidates: &Value) -> Vec<Value> {
-    let known: BTreeSet<&str> =
-        arr(candidates, "candidates").iter().filter_map(|c| get(c, "id").and_then(s)).collect();
+    let known: BTreeSet<&str> = arr(candidates, "candidates")
+        .iter()
+        .filter_map(|c| get(c, "id").and_then(s))
+        .collect();
     arr(adjudication, "verdicts")
         .iter()
-        .filter(|v| get(v, "candidateId").and_then(s).map(|id| !known.contains(id)).unwrap_or(true))
+        .filter(|v| {
+            get(v, "candidateId")
+                .and_then(s)
+                .map(|id| !known.contains(id))
+                .unwrap_or(true)
+        })
         .map(|v| json!({"candidateId": get(v, "candidateId").cloned().unwrap_or(Value::Null)}))
         .collect()
 }
@@ -206,8 +257,13 @@ fn security_findings(adjudication: &Value, candidates: &Value) -> Vec<Value> {
 /// Mirrors `nonSecurityGaps(facts)`.
 fn non_security_gaps(facts: &Value) -> Vec<Value> {
     let mut gaps = Vec::new();
-    let plan_binding_verification = get(facts, "plan_binding_verification").cloned().unwrap_or(Value::Null);
-    if !get(&plan_binding_verification, "valid").and_then(|v| v.as_bool()).unwrap_or(false) {
+    let plan_binding_verification = get(facts, "plan_binding_verification")
+        .cloned()
+        .unwrap_or(Value::Null);
+    if !get(&plan_binding_verification, "valid")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         gaps.push(json!({
             "kind": "plan-binding",
             "detail": get(&plan_binding_verification, "drift").cloned().unwrap_or(json!([])),
@@ -217,7 +273,9 @@ fn non_security_gaps(facts: &Value) -> Vec<Value> {
     for gap in arr(&plan, "coverageGaps") {
         gaps.push(json!({"kind": "plan-coverage", "detail": gap}));
     }
-    let reconciliation = get(facts, "provider_reconciliation").cloned().unwrap_or(Value::Null);
+    let reconciliation = get(facts, "provider_reconciliation")
+        .cloned()
+        .unwrap_or(Value::Null);
     for check in arr(&reconciliation, "missingChecks") {
         gaps.push(json!({"kind": "missing-check", "check": check}));
     }
@@ -234,7 +292,8 @@ fn non_security_gaps(facts: &Value) -> Vec<Value> {
         }
         let complete_false = get(provider, "complete").and_then(|v| v.as_bool()) == Some(false);
         let status = get(provider, "status").and_then(s).unwrap_or("");
-        let bad_status = ["missing", "skipped", "error", "unproven", "pending", "fail"].contains(&status);
+        let bad_status =
+            ["missing", "skipped", "error", "unproven", "pending", "fail"].contains(&status);
         if complete_false || bad_status {
             gaps.push(json!({"kind": "provider-incomplete", "provider": name, "status": status}));
         }
@@ -251,11 +310,15 @@ fn non_security_gaps(facts: &Value) -> Vec<Value> {
             gaps.push(json!({"kind": "missing-reasoning-lens", "lens": lens}));
         }
     }
-    let network_mode = get(facts, "network_policy").and_then(|v| get(v, "mode")).and_then(s);
+    let network_mode = get(facts, "network_policy")
+        .and_then(|v| get(v, "mode"))
+        .and_then(s);
     if network_mode != Some("deny") {
         gaps.push(json!({"kind": "network-policy", "detail": get(facts, "network_policy").cloned().unwrap_or(Value::Null)}));
     }
-    let incomplete = get(facts, "incomplete").and_then(|v| v.as_bool()).unwrap_or(false);
+    let incomplete = get(facts, "incomplete")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     if incomplete && gaps.is_empty() {
         gaps.push(json!({
             "kind": "facts-incomplete",
@@ -266,8 +329,17 @@ fn non_security_gaps(facts: &Value) -> Vec<Value> {
 }
 
 /// Mirrors `canonicalCounts(...)`.
-fn canonical_counts(facts: &Value, findings: &[Value], candidates: &Value, adjudication: &Value, lenses: &[String], required_lens_list: &[String]) -> Value {
-    let reconciliation = get(facts, "provider_reconciliation").cloned().unwrap_or(Value::Null);
+fn canonical_counts(
+    facts: &Value,
+    findings: &[Value],
+    candidates: &Value,
+    adjudication: &Value,
+    lenses: &[String],
+    required_lens_list: &[String],
+) -> Value {
+    let reconciliation = get(facts, "provider_reconciliation")
+        .cloned()
+        .unwrap_or(Value::Null);
     let provider_results = arr(&reconciliation, "providerResults");
     let mut by_severity = json!({"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0});
     for finding in findings {
@@ -279,15 +351,21 @@ fn canonical_counts(facts: &Value, findings: &[Value], candidates: &Value, adjud
     }
     let plan = get(facts, "plan").cloned().unwrap_or(Value::Null);
     let selected_provider_ids = arr(&plan, "selectedProviderIds");
-    let ran_providers: BTreeSet<&str> =
-        provider_results.iter().filter_map(|p| get(p, "provider").and_then(s)).collect();
+    let ran_providers: BTreeSet<&str> = provider_results
+        .iter()
+        .filter_map(|p| get(p, "provider").and_then(s))
+        .collect();
     let providers_ran = provider_results
         .iter()
         .filter(|p| get(p, "status").and_then(s) != Some("pending"))
         .count();
     let providers_missing = selected_provider_ids
         .iter()
-        .filter(|id| id.as_str().map(|x| !ran_providers.contains(x)).unwrap_or(true))
+        .filter(|id| {
+            id.as_str()
+                .map(|x| !ran_providers.contains(x))
+                .unwrap_or(true)
+        })
         .count();
     json!({
         "schemaVersion": 1,
@@ -309,10 +387,17 @@ fn canonical_counts(facts: &Value, findings: &[Value], candidates: &Value, adjud
 /// mirrors `new Date().toISOString()` in JS: this port takes it as a caller
 /// argument (host clock) rather than reading a wall clock directly, matching
 /// how `finalize_run` below supplies `host.clock.now()`.
-pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value, generated_at: &str) -> Value {
+pub fn finalize_audit(
+    facts: &Value,
+    candidates: &Value,
+    adjudication: &Value,
+    generated_at: &str,
+) -> Value {
     let plan = get(facts, "plan").cloned().unwrap_or(Value::Null);
     let mut gaps = non_security_gaps(facts);
-    let adjudication_complete = get(adjudication, "complete").and_then(|v| v.as_bool()).unwrap_or(false);
+    let adjudication_complete = get(adjudication, "complete")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     if !adjudication_complete {
         gaps.push(json!({"kind": "security-adjudication", "detail": adjudication}));
     }
@@ -321,7 +406,9 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value, g
     }
 
     let ids = candidate_generator_ids(facts);
-    let reconciliation = get(facts, "provider_reconciliation").cloned().unwrap_or(Value::Null);
+    let reconciliation = get(facts, "provider_reconciliation")
+        .cloned()
+        .unwrap_or(Value::Null);
     for provider in arr(&reconciliation, "providerResults") {
         if is_candidate_generator(&ids, provider) {
             let count = arr(provider, "findings").len();
@@ -366,13 +453,30 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value, g
 
     let lenses = ran_lenses(facts);
     let required_lens_list = required_lenses(facts);
-    let summary = canonical_counts(facts, &findings, candidates, adjudication, &lenses, &required_lens_list);
+    let summary = canonical_counts(
+        facts,
+        &findings,
+        candidates,
+        adjudication,
+        &lenses,
+        &required_lens_list,
+    );
 
-    let incomplete = get(facts, "incomplete").and_then(|v| v.as_bool()).unwrap_or(false) || !gaps.is_empty();
+    let incomplete = get(facts, "incomplete")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+        || !gaps.is_empty();
     let execution_failed = arr(facts, "checks").iter().any(|check| {
-        let verdict = get(check, "verdict").and_then(s).map(|x| x.to_string()).unwrap_or_else(|| {
-            if get(check, "status").and_then(s) == Some("ran") { "pass".to_string() } else { "unproven".to_string() }
-        });
+        let verdict = get(check, "verdict")
+            .and_then(s)
+            .map(|x| x.to_string())
+            .unwrap_or_else(|| {
+                if get(check, "status").and_then(s) == Some("ran") {
+                    "pass".to_string()
+                } else {
+                    "unproven".to_string()
+                }
+            });
         verdict == "fail"
     });
     let audit_status = if incomplete {
@@ -386,7 +490,12 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value, g
     };
     let quality_gate = if incomplete {
         "unproven"
-    } else if findings.iter().any(|f| matches!(get(f, "severity").and_then(s), Some("critical") | Some("high"))) {
+    } else if findings.iter().any(|f| {
+        matches!(
+            get(f, "severity").and_then(s),
+            Some("critical") | Some("high")
+        )
+    }) {
         "blocked"
     } else if !findings.is_empty() {
         "attention"
@@ -395,11 +504,16 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value, g
     };
 
     let deterministic_checks_pass = arr(facts, "checks").iter().all(|check| {
-        let exec = get(check, "execution_status").and_then(s).or_else(|| get(check, "status").and_then(s));
+        let exec = get(check, "execution_status")
+            .and_then(s)
+            .or_else(|| get(check, "status").and_then(s));
         let verdict = get(check, "verdict").and_then(s).unwrap_or("pass");
         exec == Some("ran") && verdict == "pass"
     });
-    let provider_reconciliation_gate = if gaps.iter().any(|g| get(g, "kind").and_then(s) != Some("security-adjudication")) {
+    let provider_reconciliation_gate = if gaps
+        .iter()
+        .any(|g| get(g, "kind").and_then(s) != Some("security-adjudication"))
+    {
         "unproven"
     } else {
         "pass"
@@ -455,11 +569,20 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value, g
 /// point, not a second reimplementation.
 pub fn exit_code_for_report(report: &Value) -> Exit {
     let exit_report = ExitReport {
-        integrity_valid: get(report, "integrity").and_then(|i| get(i, "valid")).and_then(|v| v.as_bool()),
-        gates_plan_binding: get(report, "gates").and_then(|g| get(g, "plan_binding")).and_then(s).map(|x| x.to_string()),
+        integrity_valid: get(report, "integrity")
+            .and_then(|i| get(i, "valid"))
+            .and_then(|v| v.as_bool()),
+        gates_plan_binding: get(report, "gates")
+            .and_then(|g| get(g, "plan_binding"))
+            .and_then(s)
+            .map(|x| x.to_string()),
         incomplete: get(report, "incomplete").and_then(|v| v.as_bool()),
-        audit_status: get(report, "audit_status").and_then(s).map(|x| x.to_string()),
-        quality_gate: get(report, "quality_gate").and_then(s).map(|x| x.to_string()),
+        audit_status: get(report, "audit_status")
+            .and_then(s)
+            .map(|x| x.to_string()),
+        quality_gate: get(report, "quality_gate")
+            .and_then(s)
+            .map(|x| x.to_string()),
     };
     taxonomy_exit_code_for_report(&exit_report)
 }
@@ -482,8 +605,11 @@ pub fn finalize_run(
     if let Value::Object(obj) = &mut merged_facts {
         obj.insert("plan".to_string(), plan.clone());
     }
-    let candidates = json!({"candidates": results_security_candidates.cloned().unwrap_or(json!([]))});
-    let adjudication = results_adjudication.cloned().unwrap_or(json!({"complete": true, "verdicts": []}));
+    let candidates =
+        json!({"candidates": results_security_candidates.cloned().unwrap_or(json!([]))});
+    let adjudication = results_adjudication
+        .cloned()
+        .unwrap_or(json!({"complete": true, "verdicts": []}));
 
     let mut report = finalize_audit(&merged_facts, &candidates, &adjudication, now);
     let exit_code = exit_code_for_report(&report).code();
@@ -515,7 +641,12 @@ mod tests {
     #[test]
     fn clean_run_passes() {
         let facts = base_facts();
-        let report = finalize_audit(&facts, &json!({"candidates": []}), &json!({"complete": true, "verdicts": []}), "t0");
+        let report = finalize_audit(
+            &facts,
+            &json!({"candidates": []}),
+            &json!({"complete": true, "verdicts": []}),
+            "t0",
+        );
         assert_eq!(report["audit_status"], "pass");
         assert_eq!(report["quality_gate"], "pass");
         assert_eq!(report["incomplete"], false);
@@ -526,7 +657,12 @@ mod tests {
     fn open_network_policy_is_a_gap_and_incomplete() {
         let mut facts = base_facts();
         facts["network_policy"] = json!({"mode": "allow"});
-        let report = finalize_audit(&facts, &json!({"candidates": []}), &json!({"complete": true, "verdicts": []}), "t0");
+        let report = finalize_audit(
+            &facts,
+            &json!({"candidates": []}),
+            &json!({"complete": true, "verdicts": []}),
+            "t0",
+        );
         assert_eq!(report["audit_status"], "incomplete");
         assert_eq!(exit_code_for_report(&report), Exit::Incomplete);
     }
@@ -534,7 +670,12 @@ mod tests {
     #[test]
     fn incomplete_adjudication_is_a_gap() {
         let facts = base_facts();
-        let report = finalize_audit(&facts, &json!({"candidates": []}), &json!({"complete": false, "verdicts": []}), "t0");
+        let report = finalize_audit(
+            &facts,
+            &json!({"candidates": []}),
+            &json!({"complete": false, "verdicts": []}),
+            "t0",
+        );
         assert_eq!(report["audit_status"], "incomplete");
         assert_eq!(report["gates"]["security_adjudication"], "unproven");
     }

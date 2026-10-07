@@ -245,7 +245,10 @@ fn zero_len_re() -> &'static Regex {
 
 fn style_token_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)^(none|hidden|solid|dashed|dotted|double|groove|ridge|inset|outset)$").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)^(none|hidden|solid|dashed|dotted|double|groove|ridge|inset|outset)$")
+            .unwrap()
+    })
 }
 
 fn gradient_or_url_re() -> &'static Regex {
@@ -255,7 +258,9 @@ fn gradient_or_url_re() -> &'static Regex {
 
 fn gradient_split_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)(?:repeating-)?(?:linear|radial|conic)-gradient\(|url\(").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)(?:repeating-)?(?:linear|radial|conic)-gradient\(|url\(").unwrap()
+    })
 }
 
 fn border_side_re() -> &'static Regex {
@@ -415,7 +420,9 @@ pub fn expand_static_declaration(prop: &str, value: &str) -> Vec<ExpandedDecl> {
         return out;
     }
     let mapped = css_prop_to_camel(&p);
-    if static_default_style().contains_key(mapped.as_str()) || static_inherited_props().contains(mapped.as_str()) {
+    if static_default_style().contains_key(mapped.as_str())
+        || static_inherited_props().contains(mapped.as_str())
+    {
         return vec![(mapped, v.to_string())];
     }
     Vec::new()
@@ -453,7 +460,11 @@ pub fn apply_static_declaration<N: std::hash::Hash + Eq + Clone>(
         if compare_static_priority(existing.map(|d| &d.meta), &next_meta) {
             map.insert(
                 expanded_prop.clone(),
-                SpecifiedDecl { meta: next_meta, prop: expanded_prop, value: expanded_value },
+                SpecifiedDecl {
+                    meta: next_meta,
+                    prop: expanded_prop,
+                    value: expanded_value,
+                },
             );
         }
     }
@@ -496,7 +507,8 @@ pub fn resolve_var_refs(raw: &str, custom_props: &HashMap<String, String>, depth
 fn parse_float_prefix(value: &str) -> Option<f64> {
     static RE: OnceLock<Regex> = OnceLock::new();
     let re = RE.get_or_init(|| Regex::new(r"^\s*-?\d+(?:\.\d+)?").unwrap());
-    re.find(value).and_then(|m| m.as_str().trim().parse::<f64>().ok())
+    re.find(value)
+        .and_then(|m| m.as_str().trim().parse::<f64>().ok())
 }
 
 fn modern_border_color_re() -> &'static Regex {
@@ -529,7 +541,8 @@ pub fn normalize_static_css_value(
     let is_modern_border_color =
         modern_border_color_re().is_match(prop) && modern_color_fn_re().is_match(&resolved);
     let lower = prop.to_lowercase();
-    if !is_modern_border_color && (lower.ends_with("color") || prop == "color" || prop == "backgroundColor")
+    if !is_modern_border_color
+        && (lower.ends_with("color") || prop == "color" || prop == "backgroundColor")
     {
         if let Some((r, g, b, a)) = parse_static_color(&resolved) {
             resolved = static_color_to_css(r, g, b, a);
@@ -869,7 +882,10 @@ pub fn collect_static_css_text(html: &scraper::Html, file_dir: &Path) -> String 
         for el in html.select(&link_sel) {
             let rel = el.value().attr("rel").unwrap_or("");
             let href = el.value().attr("href").unwrap_or("");
-            if !stylesheet_rel_re().is_match(rel) || href.is_empty() || protocol_relative_re().is_match(href) {
+            if !stylesheet_rel_re().is_match(rel)
+                || href.is_empty()
+                || protocol_relative_re().is_match(href)
+            {
                 continue;
             }
             let css_path = file_dir.join(href);
@@ -905,9 +921,13 @@ pub fn build_static_style_map<'a>(html: &'a scraper::Html, css_text: &str) -> St
     let mut specified: HashMap<usize, HashMap<String, SpecifiedDecl>> = HashMap::new();
 
     for rule in &rules {
-        let Ok(selector) = scraper::Selector::parse(&rule.selector) else { continue };
+        let Ok(selector) = scraper::Selector::parse(&rule.selector) else {
+            continue;
+        };
         for el in html.select(&selector) {
-            let Some(&idx) = index_of.get(&el.id()) else { continue };
+            let Some(&idx) = index_of.get(&el.id()) else {
+                continue;
+            };
             for (prop, value, important) in &rule.declarations {
                 apply_static_declaration(
                     &mut specified,
@@ -954,8 +974,11 @@ pub fn build_static_style_map<'a>(html: &'a scraper::Html, css_text: &str) -> St
     // and pushed for their children) before their children, so inheritance
     // sees a fully computed parent style regardless of stack order among
     // siblings.
-    let mut stack: Vec<(scraper::ElementRef<'a>, Option<ComputedStyle>, HashMap<String, String>)> =
-        vec![(html.root_element(), None, HashMap::new())];
+    let mut stack: Vec<(
+        scraper::ElementRef<'a>,
+        Option<ComputedStyle>,
+        HashMap<String, String>,
+    )> = vec![(html.root_element(), None, HashMap::new())];
 
     while let Some((el, parent_style, parent_custom)) = stack.pop() {
         let idx_opt = index_of.get(&el.id()).copied();
@@ -965,7 +988,10 @@ pub fn build_static_style_map<'a>(html: &'a scraper::Html, css_text: &str) -> St
         if let Some(map) = specified_map {
             for (prop, decl) in map {
                 if prop.starts_with("--") {
-                    custom_props.insert(prop.clone(), resolve_var_refs(&decl.value, &custom_props, 0));
+                    custom_props.insert(
+                        prop.clone(),
+                        resolve_var_refs(&decl.value, &custom_props, 0),
+                    );
                 }
             }
         }
@@ -1012,7 +1038,11 @@ pub fn build_static_style_map<'a>(html: &'a scraper::Html, css_text: &str) -> St
         .map(|s| s.unwrap_or_else(|| make_static_style(HashMap::new())))
         .collect();
 
-    StaticDocument { html, elements, styles }
+    StaticDocument {
+        html,
+        elements,
+        styles,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1047,7 +1077,10 @@ fn resolve_root_var(value: &str, root_props: &HashMap<String, String>, depth: u3
         let m = caps.get(0).unwrap();
         out.push_str(&value[last..m.start()]);
         let name = &caps[1];
-        let v = root_props.get(name).map(|s| s.trim().to_string()).unwrap_or_default();
+        let v = root_props
+            .get(name)
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
         let replacement = if !v.is_empty() {
             resolve_root_var(&v, root_props, depth + 1)
         } else if let Some(fallback) = caps.get(2) {
@@ -1104,17 +1137,27 @@ pub fn build_border_override_map<'a>(
                 continue;
             }
             if let Some(side) = border_side_shorthand_prop(&lower) {
-                if let Some(parsed) = parse_border_shorthand_side(&resolve_root_var(value, &root_props, 0)) {
+                if let Some(parsed) =
+                    parse_border_shorthand_side(&resolve_root_var(value, &root_props, 0))
+                {
                     per_side.insert(side.to_string(), parsed);
                 }
             }
         }
 
-        if let Some((_, value, _)) = rule.declarations.iter().find(|(p, _, _)| p.eq_ignore_ascii_case("border")) {
+        if let Some((_, value, _)) = rule
+            .declarations
+            .iter()
+            .find(|(p, _, _)| p.eq_ignore_ascii_case("border"))
+        {
             if value.contains("var(") {
-                if let Some(parsed) = parse_border_shorthand_side(&resolve_root_var(value, &root_props, 0)) {
+                if let Some(parsed) =
+                    parse_border_shorthand_side(&resolve_root_var(value, &root_props, 0))
+                {
                     for side in ["Top", "Right", "Bottom", "Left"] {
-                        per_side.entry(side.to_string()).or_insert_with(|| parsed.clone());
+                        per_side
+                            .entry(side.to_string())
+                            .or_insert_with(|| parsed.clone());
                     }
                 }
             }
@@ -1126,14 +1169,20 @@ pub fn build_border_override_map<'a>(
             ("border-top-color", "Top"),
             ("border-bottom-color", "Bottom"),
         ] {
-            if let Some((_, value, _)) = rule.declarations.iter().find(|(p, _, _)| p.eq_ignore_ascii_case(js_prop)) {
+            if let Some((_, value, _)) = rule
+                .declarations
+                .iter()
+                .find(|(p, _, _)| p.eq_ignore_ascii_case(js_prop))
+            {
                 if value.contains("var(") {
                     let resolved = resolve_root_var(value, &root_props, 0).trim().to_string();
                     if !resolved.is_empty() {
-                        per_side.entry(side.to_string()).or_insert_with(|| BorderOverride {
-                            width: 0.0,
-                            color: normalize_color_for_check(&resolved),
-                        });
+                        per_side
+                            .entry(side.to_string())
+                            .or_insert_with(|| BorderOverride {
+                                width: 0.0,
+                                color: normalize_color_for_check(&resolved),
+                            });
                     }
                 }
             }
@@ -1143,7 +1192,9 @@ pub fn build_border_override_map<'a>(
             continue;
         }
 
-        let Ok(selector) = scraper::Selector::parse(&rule.selector) else { continue };
+        let Ok(selector) = scraper::Selector::parse(&rule.selector) else {
+            continue;
+        };
         for el in html.select(&selector) {
             if let Some((_, existing)) = results.iter_mut().find(|(e, _)| e.id() == el.id()) {
                 for (k, v) in &per_side {
@@ -1165,10 +1216,19 @@ mod tests {
     #[test]
     fn expand_background_splits_image_and_color() {
         let out = expand_static_declaration("background", "linear-gradient(red, blue)");
-        assert_eq!(out, vec![("backgroundImage".to_string(), "linear-gradient(red, blue)".to_string())]);
+        assert_eq!(
+            out,
+            vec![(
+                "backgroundImage".to_string(),
+                "linear-gradient(red, blue)".to_string()
+            )]
+        );
 
         let out = expand_static_declaration("background", "#ff0000");
-        assert_eq!(out, vec![("backgroundColor".to_string(), "#ff0000".to_string())]);
+        assert_eq!(
+            out,
+            vec![("backgroundColor".to_string(), "#ff0000".to_string())]
+        );
     }
 
     #[test]
@@ -1239,14 +1299,24 @@ mod tests {
             &node,
             "color",
             "red",
-            DeclMeta { important: false, inline: false, specificity: [0, 1, 0], order: 0 },
+            DeclMeta {
+                important: false,
+                inline: false,
+                specificity: [0, 1, 0],
+                order: 0,
+            },
         );
         apply_static_declaration(
             &mut specified,
             &node,
             "color",
             "blue",
-            DeclMeta { important: false, inline: false, specificity: [0, 0, 1], order: 1 },
+            DeclMeta {
+                important: false,
+                inline: false,
+                specificity: [0, 0, 1],
+                order: 1,
+            },
         );
         // Lower specificity, later order: must NOT overwrite.
         assert_eq!(specified[&node]["color"].value, "red");
@@ -1256,7 +1326,12 @@ mod tests {
             &node,
             "color",
             "green",
-            DeclMeta { important: true, inline: false, specificity: [0, 0, 0], order: 2 },
+            DeclMeta {
+                important: true,
+                inline: false,
+                specificity: [0, 0, 0],
+                order: 2,
+            },
         );
         // !important always wins.
         assert_eq!(specified[&node]["color"].value, "green");
@@ -1272,19 +1347,33 @@ mod tests {
 
     #[test]
     fn static_prop_map_matches_source_table() {
-        assert_eq!(static_prop_map().get("background-color"), Some(&"backgroundColor"));
-        assert_eq!(static_prop_map().get("-webkit-hyphens"), Some(&"webkitHyphens"));
+        assert_eq!(
+            static_prop_map().get("background-color"),
+            Some(&"backgroundColor")
+        );
+        assert_eq!(
+            static_prop_map().get("-webkit-hyphens"),
+            Some(&"webkitHyphens")
+        );
     }
 
     #[test]
     fn static_named_colors_table() {
-        assert_eq!(static_named_colors().get("transparent"), Some(&(0, 0, 0, 0.0)));
-        assert_eq!(static_named_colors().get("white"), Some(&(255, 255, 255, 1.0)));
+        assert_eq!(
+            static_named_colors().get("transparent"),
+            Some(&(0, 0, 0, 0.0))
+        );
+        assert_eq!(
+            static_named_colors().get("white"),
+            Some(&(255, 255, 255, 1.0))
+        );
     }
 
     #[test]
     fn border_shorthand_regex_matches_expected_shape() {
-        let caps = border_shorthand_re().captures("5px solid var(--brand)").unwrap();
+        let caps = border_shorthand_re()
+            .captures("5px solid var(--brand)")
+            .unwrap();
         assert_eq!(&caps[1], "5");
         assert_eq!(&caps[2], "solid");
         assert_eq!(&caps[3], "var(--brand)");
@@ -1306,7 +1395,10 @@ mod tests {
         let props = HashMap::new();
         assert_eq!(resolve_var_refs("var(--missing, red)", &props, 0), "red");
         // No custom prop and no fallback: literal var() passes through.
-        assert_eq!(resolve_var_refs("var(--missing)", &props, 0), "var(--missing)");
+        assert_eq!(
+            resolve_var_refs("var(--missing)", &props, 0),
+            "var(--missing)"
+        );
     }
 
     // -- normalizeStaticCssValue --------------------------------------------
@@ -1348,15 +1440,23 @@ mod tests {
         assert!(selectors.contains(&".card"));
         assert!(selectors.contains(&".plain"));
         assert!(selectors.contains(&".also"));
-        assert!(!selectors.iter().any(|s| s.contains("from") || s.contains("to")));
+        assert!(!selectors
+            .iter()
+            .any(|s| s.contains("from") || s.contains("to")));
         let card = rules.iter().find(|r| r.selector == ".card").unwrap();
-        assert_eq!(card.declarations, vec![("color".to_string(), "red".to_string(), false)]);
+        assert_eq!(
+            card.declarations,
+            vec![("color".to_string(), "red".to_string(), false)]
+        );
     }
 
     #[test]
     fn collect_static_css_rules_detects_important() {
         let rules = collect_static_css_rules(".x { color: red !important; }");
-        assert_eq!(rules[0].declarations, vec![("color".to_string(), "red".to_string(), true)]);
+        assert_eq!(
+            rules[0].declarations,
+            vec![("color".to_string(), "red".to_string(), true)]
+        );
     }
 
     // -- buildStaticStyleMap / StaticDocument / buildStaticWindow -----------
@@ -1385,12 +1485,17 @@ mod tests {
         let div_style = doc.get_style(&div);
         // Inline style="" wins for borderLeftWidth/-Color.
         assert_eq!(div_style.0.get("borderLeftWidth"), Some(&"5px".to_string()));
-        assert_eq!(div_style.0.get("borderLeftColor"), Some(&"rgb(135, 168, 255)".to_string()));
+        assert_eq!(
+            div_style.0.get("borderLeftColor"),
+            Some(&"rgb(135, 168, 255)".to_string())
+        );
     }
 
     #[test]
     fn collect_static_css_text_reads_inline_style_tags() {
-        let html = scraper::Html::parse_document("<html><head><style>.a{color:red}</style></head><body></body></html>");
+        let html = scraper::Html::parse_document(
+            "<html><head><style>.a{color:red}</style></head><body></body></html>",
+        );
         let text = collect_static_css_text(&html, std::path::Path::new("."));
         assert!(text.contains(".a{color:red}"));
     }
@@ -1413,7 +1518,9 @@ mod tests {
 
     #[test]
     fn build_border_override_map_ignores_non_var_borders() {
-        let html = scraper::Html::parse_document(r#"<html><body><div class="plain">no var</div></body></html>"#);
+        let html = scraper::Html::parse_document(
+            r#"<html><body><div class="plain">no var</div></body></html>"#,
+        );
         let css = ".plain { border: 1px solid red; }";
         let overrides = build_border_override_map(&html, css);
         assert!(overrides.is_empty());

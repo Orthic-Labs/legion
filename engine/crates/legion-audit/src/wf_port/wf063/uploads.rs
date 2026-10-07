@@ -19,13 +19,18 @@ pub const CANDIDATE_CLASS: &str = "uploads";
 
 fn upload_middleware() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\b(multer|formidable|busboy)\s*\(\s*(\{[^{}]*\})?\s*\)").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)\b(multer|formidable|busboy)\s*\(\s*(\{[^{}]*\})?\s*\)").unwrap()
+    })
 }
 
 fn storage_in_webroot() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r#"(?i)\bdestination\s*:\s*['"`]([^'"`]*(?:public|static|www|assets)[^'"`]*)['"`]"#).unwrap()
+        Regex::new(
+            r#"(?i)\bdestination\s*:\s*['"`]([^'"`]*(?:public|static|www|assets)[^'"`]*)['"`]"#,
+        )
+        .unwrap()
     })
 }
 
@@ -39,7 +44,9 @@ fn filename_unsanitized() -> &'static Regex {
 
 fn executable_content_served() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\bexpress\.static\s*\(\s*([^()\n]*upload[^()\n]*)\)").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)\bexpress\.static\s*\(\s*([^()\n]*upload[^()\n]*)\)").unwrap()
+    })
 }
 
 fn content_type_suppress() -> &'static Regex {
@@ -218,7 +225,11 @@ const RULES: &[Rule] = &[
 ];
 
 /// Faithful port of `findRelatedControl(context, artifactId, controlTypes)`.
-fn find_related_control<'a>(context: &'a Context, artifact_id: Option<&str>, control_types: &[&str]) -> Option<&'a Entity> {
+fn find_related_control<'a>(
+    context: &'a Context,
+    artifact_id: Option<&str>,
+    control_types: &[&str],
+) -> Option<&'a Entity> {
     if let Some(artifact_id) = artifact_id {
         for rel in context.relations_to(artifact_id) {
             if rel.kind != "protects" {
@@ -236,7 +247,9 @@ fn find_related_control<'a>(context: &'a Context, artifact_id: Option<&str>, con
         }
     }
     context.entities.iter().find(|e| {
-        e.kind == "control" && e.attr_str("controlType").is_some_and(|ct| control_types.contains(&ct))
+        e.kind == "control"
+            && e.attr_str("controlType")
+                .is_some_and(|ct| control_types.contains(&ct))
     })
 }
 
@@ -263,8 +276,19 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 let mut control_observed: Option<String> = None;
                 let mut uncertainty = vec![rule.uncertainty.to_string()];
 
-                if let Downgrade::Some { control_types, severity_hint: dg_severity, lexical_pattern, lexical_note, radius } = &rule.downgrade {
-                    let control = find_related_control(context, artifact.map(|a| a.id.as_str()), *control_types);
+                if let Downgrade::Some {
+                    control_types,
+                    severity_hint: dg_severity,
+                    lexical_pattern,
+                    lexical_note,
+                    radius,
+                } = &rule.downgrade
+                {
+                    let control = find_related_control(
+                        context,
+                        artifact.map(|a| a.id.as_str()),
+                        *control_types,
+                    );
                     if let Some(control) = control {
                         severity_hint = (*dg_severity).to_string();
                         observed_controls = vec![control.id.clone()];
@@ -315,7 +339,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                     required_controls: vec![],
                     observed_controls,
                     chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                    evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                    evidence_refs: artifact
+                        .map(|a| a.evidence_refs.clone())
+                        .unwrap_or_default(),
                     detector_metadata: json!({
                         "file": file,
                         "line": line_of(text, m.index),

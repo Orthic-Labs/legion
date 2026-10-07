@@ -9,8 +9,12 @@ use serde_json::{json, Value};
 use legion_runtime::wf_port::w2_030::gsc_inspect::{
     batch_inspect_with, inspect_url_with, InspectionTransport,
 };
-use legion_runtime::wf_port::w2_030::gsc_query::{list_sitemaps_with, list_sites_with, SitesTransport};
-use legion_runtime::wf_port::w2_030::gsc_query_v2::{encode_path_segment, query_with, SearchAnalyticsTransport};
+use legion_runtime::wf_port::w2_030::gsc_query::{
+    list_sitemaps_with, list_sites_with, SitesTransport,
+};
+use legion_runtime::wf_port::w2_030::gsc_query_v2::{
+    encode_path_segment, query_with, SearchAnalyticsTransport,
+};
 
 struct FakeInspection {
     status: u16,
@@ -40,7 +44,13 @@ fn gsc_inspect_url_inspection_end_to_end() {
             }
         }),
     };
-    let out = inspect_url_with(&transport, "test-bearer", "https://example.com/", "sc-domain:example.com", "en");
+    let out = inspect_url_with(
+        &transport,
+        "test-bearer",
+        "https://example.com/",
+        "sc-domain:example.com",
+        "en",
+    );
     assert_eq!(out["verdict"], "PASS");
     assert_eq!(out["canonical"]["match"], true);
     assert_eq!(out["error"], Value::Null);
@@ -50,16 +60,32 @@ fn gsc_inspect_url_inspection_end_to_end() {
 fn gsc_inspect_batch_reports_total_before_truncation() {
     struct AlwaysNeutral;
     impl InspectionTransport for AlwaysNeutral {
-        fn post_json(&self, _url: &str, _bearer: &str, _body: &Value) -> Result<(u16, String), String> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _bearer: &str,
+            _body: &Value,
+        ) -> Result<(u16, String), String> {
             Ok((200, json!({"inspectionResult": {}}).to_string()))
         }
     }
-    let urls: Vec<String> = (0..2005).map(|i| format!("https://example.com/{i}")).collect();
-    let out = batch_inspect_with(&AlwaysNeutral, "test-bearer", urls, "sc-domain:example.com", "en");
+    let urls: Vec<String> = (0..2005)
+        .map(|i| format!("https://example.com/{i}"))
+        .collect();
+    let out = batch_inspect_with(
+        &AlwaysNeutral,
+        "test-bearer",
+        urls,
+        "sc-domain:example.com",
+        "en",
+    );
     // python's batch_inspect() sets result['total'] = len(urls) BEFORE the DAILY_LIMIT truncation.
     assert_eq!(out["total"], 2005);
     assert_eq!(out["summary"]["neutral"], 2000);
-    assert!(out["error"].as_str().unwrap().contains("exceeds daily limit"));
+    assert!(out["error"]
+        .as_str()
+        .unwrap()
+        .contains("exceeds daily limit"));
 }
 
 struct FakeSearchAnalytics {
@@ -72,7 +98,11 @@ impl SearchAnalyticsTransport for FakeSearchAnalytics {
         assert_eq!(bearer, "test-bearer");
         assert!(url.contains(&encode_path_segment("sc-domain:example.com")));
         assert!(url.ends_with("/searchAnalytics/query"));
-        let body = self.responses.borrow_mut().pop_front().expect("no more fake responses");
+        let body = self
+            .responses
+            .borrow_mut()
+            .pop_front()
+            .expect("no more fake responses");
         Ok((200, body.to_string()))
     }
 }
@@ -145,6 +175,9 @@ fn gsc_query_sites_and_sitemaps_end_to_end() {
     };
     let sitemaps_result = list_sitemaps_with(&sitemaps, "test-bearer", "sc-domain:example.com");
     assert_eq!(sitemaps_result["property"], "sc-domain:example.com");
-    assert_eq!(sitemaps_result["sitemaps"][0]["path"], "https://example.com/sitemap.xml");
+    assert_eq!(
+        sitemaps_result["sitemaps"][0]["path"],
+        "https://example.com/sitemap.xml"
+    );
     assert_eq!(sitemaps_result["error"], Value::Null);
 }

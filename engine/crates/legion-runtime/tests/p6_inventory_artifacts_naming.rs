@@ -6,7 +6,9 @@
 
 use std::path::Path;
 
-use legion_runtime::p6_inventory::artifacts::{digest_bytes, safe_artifact_path, ArtifactPathError};
+use legion_runtime::p6_inventory::artifacts::{
+    digest_bytes, safe_artifact_path, ArtifactPathError,
+};
 use legion_runtime::p6_inventory::naming::{
     authority_aliases, canonical_authority, canonical_authority_ids, canonical_product,
     canonicalize_authority_record, equivalent_mcp_binding, inspect_mcp_naming,
@@ -129,7 +131,10 @@ fn authority_aliases_maps_legacy_ids_to_canonical() {
     let registry = fixture_registry();
     let aliases = authority_aliases(&registry);
     assert_eq!(aliases.get("forge").map(String::as_str), Some("alchemist"));
-    assert_eq!(aliases.get("sorcerer").map(String::as_str), Some("alchemist"));
+    assert_eq!(
+        aliases.get("sorcerer").map(String::as_str),
+        Some("alchemist")
+    );
     assert_eq!(aliases.get("seer").map(String::as_str), Some("oracle"));
     assert_eq!(aliases.get("sentinel").map(String::as_str), Some("arcane"));
 }
@@ -139,7 +144,10 @@ fn canonical_authority_normalizes_and_resolves_aliases() {
     let registry = fixture_registry();
     assert_eq!(canonical_authority("Seer", &registry), "oracle");
     assert_eq!(canonical_authority("  SORCERER ", &registry), "alchemist");
-    assert_eq!(canonical_authority("legion_arcane", &registry), "legion-arcane");
+    assert_eq!(
+        canonical_authority("legion_arcane", &registry),
+        "legion-arcane"
+    );
     assert_eq!(canonical_authority("oracle", &registry), "oracle");
 }
 
@@ -196,7 +204,8 @@ fn is_legion_owned_assurance_binding_matches_module_flag() {
     let wrong_module = json!({"command": "python3", "args": ["-m", "other.module"]});
     assert!(!is_legion_owned_assurance_binding(&wrong_module));
 
-    let wrong_command = json!({"command": "node", "args": ["-m", "legion_kernel.adapters.mcp_server"]});
+    let wrong_command =
+        json!({"command": "node", "args": ["-m", "legion_kernel.adapters.mcp_server"]});
     assert!(!is_legion_owned_assurance_binding(&wrong_command));
 }
 
@@ -217,7 +226,8 @@ fn migrate_mcp_servers_renames_owned_legacy_seer_entry_to_oracle() {
 #[test]
 fn migrate_mcp_servers_drops_legacy_when_equivalent_oracle_already_present() {
     let registry = fixture_registry();
-    let binding = json!({"command": "python3", "args": ["-m", "legion_kernel.adapters.mcp_server"]});
+    let binding =
+        json!({"command": "python3", "args": ["-m", "legion_kernel.adapters.mcp_server"]});
     let input = json!({
         "mcp_servers": {
             "seer": binding.clone(),
@@ -258,7 +268,10 @@ fn inspect_mcp_naming_reports_absent_legacy_present_and_canonical() {
     assert!(!status.legacy[0].owned);
 
     let canonical = json!({"mcp_servers": {"oracle": {"command": "node"}}});
-    assert_eq!(inspect_mcp_naming(&canonical, &registry).status, "canonical");
+    assert_eq!(
+        inspect_mcp_naming(&canonical, &registry).status,
+        "canonical"
+    );
 }
 
 #[test]

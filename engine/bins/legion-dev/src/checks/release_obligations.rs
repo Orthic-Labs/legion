@@ -10,7 +10,11 @@ use regex::Regex;
 use std::collections::HashSet;
 use std::path::Path;
 
-const GRANTS: &[&str] = &["BUILD_AUTHORIZED", "SIGNING_AUTHORIZED", "RELEASE_AUTHORIZED"];
+const GRANTS: &[&str] = &[
+    "BUILD_AUTHORIZED",
+    "SIGNING_AUTHORIZED",
+    "RELEASE_AUTHORIZED",
+];
 
 pub struct Report {
     pub ok: bool,
@@ -48,7 +52,10 @@ pub fn check(root: &Path) -> Report {
     }
 
     let empty = Vec::new();
-    let gates = manifest.get("gates").and_then(|v| v.as_array()).unwrap_or(&empty);
+    let gates = manifest
+        .get("gates")
+        .and_then(|v| v.as_array())
+        .unwrap_or(&empty);
     if gates.is_empty() {
         issues.push("release obligations manifest declares no gates".to_string());
         return Report { ok: false, issues };
@@ -58,9 +65,7 @@ pub fn check(root: &Path) -> Report {
         Ok(v) => v.get("scripts").cloned().unwrap_or(serde_json::json!({})),
         Err(_) => serde_json::json!({}),
     };
-    let has_script = |name: &str| -> bool {
-        scripts.get(name).and_then(|v| v.as_str()).is_some()
-    };
+    let has_script = |name: &str| -> bool { scripts.get(name).and_then(|v| v.as_str()).is_some() };
 
     let mut seen_gates: HashSet<String> = HashSet::new();
     let mut seen_obligations: HashSet<String> = HashSet::new();
@@ -105,7 +110,9 @@ pub fn check(root: &Path) -> Report {
             let (ob_id, _req) = match (ob_id, requirement) {
                 (Some(i), Some(r)) => (i, r),
                 _ => {
-                    issues.push(format!("gate {gate_id} has an obligation missing id or requirement"));
+                    issues.push(format!(
+                        "gate {gate_id} has an obligation missing id or requirement"
+                    ));
                     continue;
                 }
             };
@@ -117,14 +124,18 @@ pub fn check(root: &Path) -> Report {
                     .map(|s| !s.is_empty())
                     .unwrap_or(false);
                 if !has_gap {
-                    issues.push(format!("obligation {ob_id} is unimplemented but names no gap"));
+                    issues.push(format!(
+                        "obligation {ob_id} is unimplemented but names no gap"
+                    ));
                 }
                 if obligation
                     .get("evidence")
                     .map(|v| !v.is_null())
                     .unwrap_or(false)
                 {
-                    issues.push(format!("obligation {ob_id} is unimplemented but names evidence"));
+                    issues.push(format!(
+                        "obligation {ob_id} is unimplemented but names evidence"
+                    ));
                 }
                 if !seen_obligations.insert(ob_id.to_string()) {
                     issues.push(format!("duplicate obligation id: {ob_id}"));
@@ -166,11 +177,16 @@ pub fn check(root: &Path) -> Report {
             .filter(|g| g.get("grant").and_then(|v| v.as_str()) == Some(*grant))
             .count();
         if owners != 1 {
-            issues.push(format!("grant {grant} must be owned by exactly one gate, found {owners}"));
+            issues.push(format!(
+                "grant {grant} must be owned by exactly one gate, found {owners}"
+            ));
         }
     }
 
-    Report { ok: issues.is_empty(), issues }
+    Report {
+        ok: issues.is_empty(),
+        issues,
+    }
 }
 
 pub fn run(root: &Path) -> bool {

@@ -187,21 +187,41 @@ fn parse_number(input: &str, chars: &mut Chars) -> Option<Value> {
     if chars.peek()?.1 == '-' {
         chars.next();
     }
-    while chars.peek().map(|&(_, c)| c.is_ascii_digit()).unwrap_or(false) {
+    while chars
+        .peek()
+        .map(|&(_, c)| c.is_ascii_digit())
+        .unwrap_or(false)
+    {
         chars.next();
     }
     if chars.peek().map(|&(_, c)| c == '.').unwrap_or(false) {
         chars.next();
-        while chars.peek().map(|&(_, c)| c.is_ascii_digit()).unwrap_or(false) {
+        while chars
+            .peek()
+            .map(|&(_, c)| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
             chars.next();
         }
     }
-    if chars.peek().map(|&(_, c)| c == 'e' || c == 'E').unwrap_or(false) {
+    if chars
+        .peek()
+        .map(|&(_, c)| c == 'e' || c == 'E')
+        .unwrap_or(false)
+    {
         chars.next();
-        if chars.peek().map(|&(_, c)| c == '+' || c == '-').unwrap_or(false) {
+        if chars
+            .peek()
+            .map(|&(_, c)| c == '+' || c == '-')
+            .unwrap_or(false)
+        {
             chars.next();
         }
-        while chars.peek().map(|&(_, c)| c.is_ascii_digit()).unwrap_or(false) {
+        while chars
+            .peek()
+            .map(|&(_, c)| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
             chars.next();
         }
     }
@@ -217,7 +237,10 @@ mod tests {
     fn parses_object_with_nested_array_and_string_escapes() {
         let v = parse(r#"{"a":1,"b":["x\n","y"],"c":null,"d":true}"#).unwrap();
         assert_eq!(v.get("a"), Some(&Value::Number(1.0)));
-        assert_eq!(v.get("b").unwrap().as_array().unwrap()[0], Value::String("x\n".into()));
+        assert_eq!(
+            v.get("b").unwrap().as_array().unwrap()[0],
+            Value::String("x\n".into())
+        );
         assert_eq!(v.get("c"), Some(&Value::Null));
         assert_eq!(v.get("d"), Some(&Value::Bool(true)));
     }

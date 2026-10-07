@@ -103,7 +103,10 @@ fn pick_environment_only_carries_allowlisted_keys() {
     let picked = pick_environment(&env, &["PATH".to_string(), "HOME".to_string()]);
     assert_eq!(
         picked,
-        vec![("PATH".to_string(), "/a".to_string()), ("HOME".to_string(), "/b".to_string())]
+        vec![
+            ("PATH".to_string(), "/a".to_string()),
+            ("HOME".to_string(), "/b".to_string())
+        ]
     );
 }
 
@@ -136,7 +139,10 @@ async fn external_process_runner_blocks_non_allowlisted_executables() {
     let receipt = run_external(&spec, &host).await;
     assert_eq!(receipt.spawn_status, "blocked");
     assert_eq!(receipt.provider_result.status, "blocked");
-    assert_eq!(receipt.provider_result.coverage_gaps[0].reason.as_deref(), Some("executable-not-allowlisted"));
+    assert_eq!(
+        receipt.provider_result.coverage_gaps[0].reason.as_deref(),
+        Some("executable-not-allowlisted")
+    );
 }
 
 #[tokio::test]
@@ -165,11 +171,17 @@ async fn external_process_runs_with_sanitized_environment() {
     };
     let mut env = BTreeMap::new();
     env.insert("SECRET".to_string(), "leak".to_string());
-    env.insert("PATH".to_string(), std::env::var("PATH").unwrap_or_default());
+    env.insert(
+        "PATH".to_string(),
+        std::env::var("PATH").unwrap_or_default(),
+    );
     let spec = RunExternalSpec {
         provider: Some("probe".to_string()),
         executable: exe.clone(),
-        args: vec!["-e".to_string(), "process.exit(process.env.SECRET ? 1 : 0)".to_string()],
+        args: vec![
+            "-e".to_string(),
+            "process.exit(process.env.SECRET ? 1 : 0)".to_string(),
+        ],
         cwd: Some(".".to_string()),
         environment_keys: vec!["PATH".to_string(), "HOME".to_string()],
         ..Default::default()
@@ -195,7 +207,10 @@ async fn timeout_aborts_the_child_and_reports_timeout() {
         return;
     };
     let mut env = BTreeMap::new();
-    env.insert("PATH".to_string(), std::env::var("PATH").unwrap_or_default());
+    env.insert(
+        "PATH".to_string(),
+        std::env::var("PATH").unwrap_or_default(),
+    );
     let spec = RunExternalSpec {
         provider: Some("slow".to_string()),
         executable: exe.clone(),
@@ -205,7 +220,11 @@ async fn timeout_aborts_the_child_and_reports_timeout() {
         environment_keys: vec!["PATH".to_string(), "HOME".to_string()],
         ..Default::default()
     };
-    let host = RunExternalHost { allowed_executables: Some(vec![exe]), env, ..Default::default() };
+    let host = RunExternalHost {
+        allowed_executables: Some(vec![exe]),
+        env,
+        ..Default::default()
+    };
     let receipt = run_external(&spec, &host).await;
     assert_eq!(receipt.spawn_status, "timeout");
     assert!(receipt.timed_out);
@@ -234,11 +253,15 @@ fn resolve_repository_module_rejects_absolute_external_paths() {
     let root = PathBuf::from("/repo/root");
     assert_eq!(
         resolve_repository_module("/etc/evil.mjs", &root),
-        Err(RepositoryModuleError::NotRepositoryRelative { script: "/etc/evil.mjs".to_string() })
+        Err(RepositoryModuleError::NotRepositoryRelative {
+            script: "/etc/evil.mjs".to_string()
+        })
     );
     assert_eq!(
         resolve_repository_module("C:\\evil.mjs", &root),
-        Err(RepositoryModuleError::NotRepositoryRelative { script: "C:\\evil.mjs".to_string() })
+        Err(RepositoryModuleError::NotRepositoryRelative {
+            script: "C:\\evil.mjs".to_string()
+        })
     );
     let resolved = resolve_repository_module("src/providers/security-suite.mjs", &root).unwrap();
     assert!(resolved.ends_with("src/providers/security-suite.mjs"));
@@ -249,7 +272,10 @@ fn reasoning_contract_providers_remain_unproven_when_reviewer_is_unavailable() {
     let outcome = host_hook_unavailable("security.adjudication", "reasoning-reviewer-unavailable");
     assert_eq!(outcome.status, "unproven");
     assert!(!outcome.complete);
-    assert_eq!(outcome.coverage_gaps, vec![serde_json::json!({"kind": "reasoning-reviewer-unavailable"})]);
+    assert_eq!(
+        outcome.coverage_gaps,
+        vec![serde_json::json!({"kind": "reasoning-reviewer-unavailable"})]
+    );
 }
 
 #[test]
@@ -306,7 +332,10 @@ fn verify_sealed_runtime_module_rejects_digest_mismatch() {
         &PathBuf::from("/pkg/root"),
         b"module body",
     );
-    assert!(matches!(err, Err(RuntimeModuleError::DigestMismatch { .. })));
+    assert!(matches!(
+        err,
+        Err(RuntimeModuleError::DigestMismatch { .. })
+    ));
 }
 
 #[test]
@@ -329,10 +358,15 @@ fn verify_sealed_runtime_module_accepts_matching_digest_within_root() {
 #[test]
 fn verify_module_provider_id_rejects_mismatch_only_when_declared() {
     assert_eq!(verify_module_provider_id(None, "provider.x"), Ok(()));
-    assert_eq!(verify_module_provider_id(Some("provider.x"), "provider.x"), Ok(()));
+    assert_eq!(
+        verify_module_provider_id(Some("provider.x"), "provider.x"),
+        Ok(())
+    );
     assert_eq!(
         verify_module_provider_id(Some("provider.y"), "provider.x"),
-        Err(RuntimeModuleError::ProviderMismatch { provider_id: "provider.x".to_string() })
+        Err(RuntimeModuleError::ProviderMismatch {
+            provider_id: "provider.x".to_string()
+        })
     );
 }
 
@@ -348,10 +382,15 @@ fn registry_resolve_follows_aliases_then_requires_a_known_provider() {
     aliases.insert("creds".to_string(), "security.credentials".to_string());
 
     assert_eq!(*resolve(&by_id, &aliases, "creds").unwrap(), "provider-a");
-    assert_eq!(*resolve(&by_id, &aliases, "security.credentials").unwrap(), "provider-a");
+    assert_eq!(
+        *resolve(&by_id, &aliases, "security.credentials").unwrap(),
+        "provider-a"
+    );
     assert_eq!(
         resolve(&by_id, &aliases, "unknown.provider"),
-        Err(RegistryError::UnknownProvider { id: "unknown.provider".to_string() })
+        Err(RegistryError::UnknownProvider {
+            id: "unknown.provider".to_string()
+        })
     );
 }
 
@@ -362,7 +401,13 @@ fn registry_select_filters_out_non_selectable_providers() {
     by_id.insert("b".to_string(), (2, false));
     let aliases = BTreeMap::new();
 
-    let selected = select(&by_id, &aliases, &["a".to_string(), "b".to_string()], |(_, selectable)| *selectable).unwrap();
+    let selected = select(
+        &by_id,
+        &aliases,
+        &["a".to_string(), "b".to_string()],
+        |(_, selectable)| *selectable,
+    )
+    .unwrap();
     assert_eq!(selected.len(), 1);
     assert_eq!(selected[0], &(1, true));
 }
@@ -372,5 +417,10 @@ fn registry_select_propagates_unknown_provider_error() {
     let by_id: BTreeMap<String, bool> = BTreeMap::new();
     let aliases = BTreeMap::new();
     let err = select(&by_id, &aliases, &["ghost".to_string()], |_| true);
-    assert_eq!(err, Err(RegistryError::UnknownProvider { id: "ghost".to_string() }));
+    assert_eq!(
+        err,
+        Err(RegistryError::UnknownProvider {
+            id: "ghost".to_string()
+        })
+    );
 }

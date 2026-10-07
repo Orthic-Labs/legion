@@ -214,7 +214,11 @@ fn wire_signature(record: &Value) -> Option<String> {
         .map(|m| m.as_str())
         .take(8)
         .collect();
-    let head_tokens: Vec<&str> = word_re.find_iter(&head).map(|m| m.as_str()).take(12).collect();
+    let head_tokens: Vec<&str> = word_re
+        .find_iter(&head)
+        .map(|m| m.as_str())
+        .take(12)
+        .collect();
     let tokens = if title_tokens.is_empty() {
         head_tokens
     } else {
@@ -287,10 +291,10 @@ pub fn cluster_with_threshold(evidence: &[Value], near_duplicate_threshold: f64)
     let mut reasons: HashMap<(String, String), HashSet<String>> = HashMap::new();
 
     let mut merge = |uf: &mut UnionFind,
-                      reasons: &mut HashMap<(String, String), HashSet<String>>,
-                      a: &str,
-                      b: &str,
-                      reason: &str| {
+                     reasons: &mut HashMap<(String, String), HashSet<String>>,
+                     a: &str,
+                     b: &str,
+                     reason: &str| {
         if a == b || !by_id.contains_key(a) || !by_id.contains_key(b) {
             return;
         }
@@ -356,7 +360,10 @@ pub fn cluster_with_threshold(evidence: &[Value], near_duplicate_threshold: f64)
             }
         }
         if !body_hash.is_empty() {
-            idx_body_hash.entry(body_hash).or_default().push(eid.clone());
+            idx_body_hash
+                .entry(body_hash)
+                .or_default()
+                .push(eid.clone());
         }
         if let Some(sig) = wire_signature(record) {
             idx_wire.entry(sig).or_default().push(eid.clone());
@@ -400,7 +407,13 @@ pub fn cluster_with_threshold(evidence: &[Value], near_duplicate_threshold: f64)
             }
             let score = jaccard(&shingle_map[a], &shingle_map[b]);
             if score >= near_duplicate_threshold {
-                merge(&mut uf, &mut reasons, a, b, &format!("near-body:{score:.3}"));
+                merge(
+                    &mut uf,
+                    &mut reasons,
+                    a,
+                    b,
+                    &format!("near-body:{score:.3}"),
+                );
             }
         }
     }
@@ -532,7 +545,9 @@ mod tests {
         ];
         let result = cluster(&evidence);
         assert_eq!(result.unique_voices, 1);
-        assert!(result.clusters[0].reasons.contains(&"explicit-origin".to_string()));
+        assert!(result.clusters[0]
+            .reasons
+            .contains(&"explicit-origin".to_string()));
     }
 
     #[test]

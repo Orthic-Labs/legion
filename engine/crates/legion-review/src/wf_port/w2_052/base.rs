@@ -67,7 +67,11 @@ fn default_true() -> bool {
 impl JurorResult {
     /// New result with only the three Python-required (non-default)
     /// fields set; every other field takes its dataclass default.
-    pub fn new(juror_id: impl Into<String>, provider: impl Into<String>, model: impl Into<String>) -> Self {
+    pub fn new(
+        juror_id: impl Into<String>,
+        provider: impl Into<String>,
+        model: impl Into<String>,
+    ) -> Self {
         Self {
             juror_id: juror_id.into(),
             provider: provider.into(),

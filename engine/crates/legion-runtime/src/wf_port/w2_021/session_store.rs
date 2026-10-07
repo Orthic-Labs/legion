@@ -82,12 +82,7 @@ fn rebuild_snapshot_from_journal(journal_path: &Path, id: &str) -> Rebuilt {
     let mut next_seq: i64 = 1;
     let contents = match fs::read_to_string(journal_path) {
         Ok(c) => c,
-        Err(_) => {
-            return Rebuilt {
-                snapshot,
-                next_seq,
-            }
-        }
+        Err(_) => return Rebuilt { snapshot, next_seq },
     };
     for (i, line) in contents.split('\n').enumerate() {
         if line.trim().is_empty() {
@@ -112,7 +107,10 @@ fn rebuild_snapshot_from_journal(journal_path: &Path, id: &str) -> Rebuilt {
             })),
         }
     }
-    if let Some(arr) = snapshot.get_mut("diagnostics").and_then(Value::as_array_mut) {
+    if let Some(arr) = snapshot
+        .get_mut("diagnostics")
+        .and_then(Value::as_array_mut)
+    {
         arr.extend(diagnostics);
     }
     Rebuilt { snapshot, next_seq }
@@ -207,7 +205,11 @@ fn apply_event(snapshot: &Value, entry: &Value, inherited_diagnostics: &[Value])
             let carbonize = event.get("carbonize") == Some(&Value::Bool(true));
             obj.insert(
                 "phase".into(),
-                json!(if carbonize { "carbonize_required" } else { "variants_ready" }),
+                json!(if carbonize {
+                    "carbonize_required"
+                } else {
+                    "variants_ready"
+                }),
             );
             let source_file = event
                 .get("sourceFile")
@@ -365,7 +367,10 @@ fn apply_event(snapshot: &Value, entry: &Value, inherited_diagnostics: &[Value])
         }
     }
 
-    obj.insert("annotationArtifacts".into(), Value::Array(annotation_artifacts));
+    obj.insert(
+        "annotationArtifacts".into(),
+        Value::Array(annotation_artifacts),
+    );
     obj.insert("diagnostics".into(), Value::Array(diagnostics));
     next
 }
@@ -424,7 +429,11 @@ impl LiveSessionStore {
 
     /// Normalizes `event`, appends it to the journal, applies it, writes the
     /// refreshed snapshot, and returns the new snapshot.
-    pub fn append_event(&mut self, mut event: Value, fallback_id: Option<&str>) -> Result<Value, String> {
+    pub fn append_event(
+        &mut self,
+        mut event: Value,
+        fallback_id: Option<&str>,
+    ) -> Result<Value, String> {
         if !event.is_object() {
             return Err("event object required".into());
         }
@@ -483,7 +492,11 @@ impl LiveSessionStore {
 
     /// Returns `None` when the session is completed/discarded and
     /// `include_completed` is false, matching `getSnapshot`.
-    pub fn get_snapshot(&mut self, id: Option<&str>, include_completed: bool) -> Result<Option<Value>, String> {
+    pub fn get_snapshot(
+        &mut self,
+        id: Option<&str>,
+        include_completed: bool,
+    ) -> Result<Option<Value>, String> {
         let id = id
             .map(str::to_string)
             .or_else(|| self.session_id.clone())

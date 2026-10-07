@@ -30,29 +30,67 @@ pub const DOMAIN: &str = "arcane.current-user-risk-acceptance.v1";
 pub const TTL_MS: i64 = 300_000;
 
 pub const CURRENT_USER_RISK_ACCEPTANCE_BOUND_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "acceptanceId", "riskId", "riskDigest", "acceptanceLedgerFingerprint",
-    "integratedStateIdentity", "sourceSetDigest", "userPromptEventDigest", "acceptanceChallengeDigest",
-    "disposition", "issuedAt", "expiresAt", "nonce",
+    "schemaVersion",
+    "kind",
+    "acceptanceId",
+    "riskId",
+    "riskDigest",
+    "acceptanceLedgerFingerprint",
+    "integratedStateIdentity",
+    "sourceSetDigest",
+    "userPromptEventDigest",
+    "acceptanceChallengeDigest",
+    "disposition",
+    "issuedAt",
+    "expiresAt",
+    "nonce",
 ];
 
 /// Mirrors JS `HOST_EVENT_LEDGER_FIELDS` from
 /// `src/lib/host/arcane/host-event-ledger.mjs` (not this packet's file;
 /// value reproduced as-is, see module doc).
 const HOST_EVENT_LEDGER_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "eventId", "eventSequence", "previousDigest", "turnCorrelationDigest",
-    "stopOrdinal", "adapter", "eventType", "sessionId", "runId", "taskId", "contractId",
-    "contractVersion", "contractDigest", "sourceRevision", "observedAuthority", "payloadDigest",
+    "schemaVersion",
+    "kind",
+    "eventId",
+    "eventSequence",
+    "previousDigest",
+    "turnCorrelationDigest",
+    "stopOrdinal",
+    "adapter",
+    "eventType",
+    "sessionId",
+    "runId",
+    "taskId",
+    "contractId",
+    "contractVersion",
+    "contractDigest",
+    "sourceRevision",
+    "observedAuthority",
+    "payloadDigest",
     "observedAt",
 ];
 
 const INGRESS_FIELDS: &[&str] = &[
-    "riskId", "riskDigest", "acceptanceLedgerFingerprint", "integratedStateIdentity", "sourceSetDigest",
-    "challengeToken", "hostEvent", "hostEventPayload", "disposition",
+    "riskId",
+    "riskDigest",
+    "acceptanceLedgerFingerprint",
+    "integratedStateIdentity",
+    "sourceSetDigest",
+    "challengeToken",
+    "hostEvent",
+    "hostEventPayload",
+    "disposition",
 ];
 
 const EXPECTED_FIELDS: &[&str] = &[
-    "riskId", "riskDigest", "acceptanceLedgerFingerprint", "integratedStateIdentity", "sourceSetDigest",
-    "userPromptEventDigest", "challengeToken",
+    "riskId",
+    "riskDigest",
+    "acceptanceLedgerFingerprint",
+    "integratedStateIdentity",
+    "sourceSetDigest",
+    "userPromptEventDigest",
+    "challengeToken",
 ];
 
 fn digest_value(v: &Value) -> String {
@@ -60,9 +98,15 @@ fn digest_value(v: &Value) -> String {
 }
 
 fn is_digest(v: &Value) -> bool {
-    v.as_str().map(|s| {
-        s.starts_with("sha256:") && s.len() == 71 && s[7..].chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
-    }).unwrap_or(false)
+    v.as_str()
+        .map(|s| {
+            s.starts_with("sha256:")
+                && s.len() == 71
+                && s[7..]
+                    .chars()
+                    .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        })
+        .unwrap_or(false)
 }
 
 fn deny(code: &'static str, message: impl Into<String>) -> Decision {
@@ -70,7 +114,10 @@ fn deny(code: &'static str, message: impl Into<String>) -> Decision {
 }
 
 fn missing() -> Decision {
-    decision_full_strong_no_fail("ACCEPTANCE_AUTHORITY_MISSING", "current-user risk acceptance is missing")
+    decision_full_strong_no_fail(
+        "ACCEPTANCE_AUTHORITY_MISSING",
+        "current-user risk acceptance is missing",
+    )
 }
 
 fn decision_full_strong_no_fail(code: &'static str, message: &str) -> Decision {
@@ -113,7 +160,9 @@ fn fresh(record: &Value, now_ms: i64) -> bool {
     let issued = str_field(record, "issuedAt").and_then(parse_iso_millis);
     let expires = str_field(record, "expiresAt").and_then(parse_iso_millis);
     match (issued, expires) {
-        (Some(issued), Some(expires)) => issued <= now_ms && expires > now_ms && expires - issued <= TTL_MS,
+        (Some(issued), Some(expires)) => {
+            issued <= now_ms && expires > now_ms && expires - issued <= TTL_MS
+        }
         _ => false,
     }
 }
@@ -131,12 +180,20 @@ fn valid_record(record: &Value) -> bool {
     if str_field(record, "kind") != Some("arcane-current-user-risk-acceptance") {
         return false;
     }
-    if str_field(record, "riskId").map(|s| s.is_empty()).unwrap_or(true) {
+    if str_field(record, "riskId")
+        .map(|s| s.is_empty())
+        .unwrap_or(true)
+    {
         return false;
     }
     for field in [
-        "riskDigest", "acceptanceLedgerFingerprint", "integratedStateIdentity", "sourceSetDigest",
-        "userPromptEventDigest", "acceptanceChallengeDigest", "acceptanceId",
+        "riskDigest",
+        "acceptanceLedgerFingerprint",
+        "integratedStateIdentity",
+        "sourceSetDigest",
+        "userPromptEventDigest",
+        "acceptanceChallengeDigest",
+        "acceptanceId",
     ] {
         if !is_digest(get(record, field)) {
             return false;
@@ -147,7 +204,10 @@ fn valid_record(record: &Value) -> bool {
         return false;
     }
     let nonce = str_field(record, "nonce").unwrap_or("");
-    nonce.len() == 32 && nonce.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    nonce.len() == 32
+        && nonce
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
 }
 
 /// Mirrors JS `identity(record)`: digest of the record with `acceptanceId`
@@ -175,7 +235,8 @@ pub trait LedgerStore {
 /// (`../../guard/compat/audit/receipt-auth.mjs`).
 pub trait RecordAuthenticator {
     fn sign(&self, record: &Value, bound_fields: &[&str], mac_domain: &str, key_id: &str) -> Value;
-    fn verify(&self, record: &Value, auth: &Value, bound_fields: &[&str], mac_domain: &str) -> bool;
+    fn verify(&self, record: &Value, auth: &Value, bound_fields: &[&str], mac_domain: &str)
+        -> bool;
 }
 
 /// Mirrors JS `currentUserPrompt(ledgerStore, event, keyRing)`.
@@ -249,26 +310,42 @@ pub fn mint_current_user_risk_acceptance(
         || !is_digest(&json!(input.source_set_digest))
         || (input.disposition != "ACCEPT" && input.disposition != "REJECT")
     {
-        return Err(MintError { code: "ARC_SCHEMA_INVALID", message: "invalid current-user risk acceptance binding".into() });
+        return Err(MintError {
+            code: "ARC_SCHEMA_INVALID",
+            message: "invalid current-user risk acceptance binding".into(),
+        });
     }
     if !current_user_prompt(ledger, Some(&input.host_event), authenticator) {
-        return Err(MintError { code: "ARC_AUTHORITY_NOT_ASSERTED", message: "current authenticated user prompt is unavailable".into() });
+        return Err(MintError {
+            code: "ARC_AUTHORITY_NOT_ASSERTED",
+            message: "current authenticated user prompt is unavailable".into(),
+        });
     }
-    let payload_digest_matches = get(&input.host_event, "payloadDigest") == &json!(digest_value(&input.host_event_payload));
-    let prompt_matches = exact_prompt(&input.host_event_payload) == Some(input.challenge_token.as_str());
+    let payload_digest_matches =
+        get(&input.host_event, "payloadDigest") == &json!(digest_value(&input.host_event_payload));
+    let prompt_matches =
+        exact_prompt(&input.host_event_payload) == Some(input.challenge_token.as_str());
     if !payload_digest_matches || !prompt_matches {
-        return Err(MintError { code: "ARC_BINDING_MISMATCH", message: "user challenge does not match authenticated prompt".into() });
+        return Err(MintError {
+            code: "ARC_BINDING_MISMATCH",
+            message: "user challenge does not match authenticated prompt".into(),
+        });
     }
     let user_prompt_event_digest = digest_value(&input.host_event);
     let replay = receipts.list().into_iter().any(|record| {
         str_field(&record, "kind") == Some("arcane-current-user-risk-acceptance")
             && str_field(&record, "riskId") == Some(input.risk_id.as_str())
-            && str_field(&record, "integratedStateIdentity") == Some(input.integrated_state_identity.as_str())
-            && str_field(&record, "acceptanceLedgerFingerprint") == Some(input.acceptance_ledger_fingerprint.as_str())
+            && str_field(&record, "integratedStateIdentity")
+                == Some(input.integrated_state_identity.as_str())
+            && str_field(&record, "acceptanceLedgerFingerprint")
+                == Some(input.acceptance_ledger_fingerprint.as_str())
             && str_field(&record, "sourceSetDigest") == Some(input.source_set_digest.as_str())
     });
     if replay {
-        return Err(MintError { code: "ARC_REPLAY_NONCE_SEEN", message: "risk/state/ledger/source acceptance already exists".into() });
+        return Err(MintError {
+            code: "ARC_REPLAY_NONCE_SEEN",
+            message: "risk/state/ledger/source acceptance already exists".into(),
+        });
     }
     let issued_at = clock();
     let issued_ms = parse_iso_millis(&issued_at).unwrap_or(0);
@@ -290,7 +367,12 @@ pub fn mint_current_user_risk_acceptance(
     });
     let mut record = unsigned.clone();
     record["acceptanceId"] = json!(digest_value(&unsigned));
-    let auth = authenticator.sign(&record, CURRENT_USER_RISK_ACCEPTANCE_BOUND_FIELDS, DOMAIN, key_id);
+    let auth = authenticator.sign(
+        &record,
+        CURRENT_USER_RISK_ACCEPTANCE_BOUND_FIELDS,
+        DOMAIN,
+        key_id,
+    );
     record["authentication"] = auth;
     receipts.append(record.clone());
     Ok(record)
@@ -332,9 +414,15 @@ pub fn verify_current_user_risk_acceptance(
     if !exact_keys(&expected_json, EXPECTED_FIELDS)
         || expected.risk_id.is_empty()
         || expected.challenge_token.is_empty()
-        || !["riskDigest", "acceptanceLedgerFingerprint", "integratedStateIdentity", "sourceSetDigest", "userPromptEventDigest"]
-            .iter()
-            .all(|f| is_digest(get(&expected_json, f)))
+        || ![
+            "riskDigest",
+            "acceptanceLedgerFingerprint",
+            "integratedStateIdentity",
+            "sourceSetDigest",
+            "userPromptEventDigest",
+        ]
+        .iter()
+        .all(|f| is_digest(get(&expected_json, f)))
     {
         return missing();
     }
@@ -344,8 +432,10 @@ pub fn verify_current_user_risk_acceptance(
         .filter(|record| {
             str_field(record, "kind") == Some("arcane-current-user-risk-acceptance")
                 && str_field(record, "riskId") == Some(expected.risk_id.as_str())
-                && str_field(record, "integratedStateIdentity") == Some(expected.integrated_state_identity.as_str())
-                && str_field(record, "acceptanceLedgerFingerprint") == Some(expected.acceptance_ledger_fingerprint.as_str())
+                && str_field(record, "integratedStateIdentity")
+                    == Some(expected.integrated_state_identity.as_str())
+                && str_field(record, "acceptanceLedgerFingerprint")
+                    == Some(expected.acceptance_ledger_fingerprint.as_str())
                 && str_field(record, "sourceSetDigest") == Some(expected.source_set_digest.as_str())
         })
         .collect();
@@ -353,36 +443,68 @@ pub fn verify_current_user_risk_acceptance(
         Some(r) => r,
         None => return missing(),
     };
-    if !valid_record(record) || str_field(record, "acceptanceId") != Some(identity(record).as_str()) {
+    if !valid_record(record) || str_field(record, "acceptanceId") != Some(identity(record).as_str())
+    {
         return deny("ARC_AUTH_FORGED", "risk acceptance record is malformed");
     }
     let auth = get(record, "authentication");
-    if !authenticator.verify(record, auth, CURRENT_USER_RISK_ACCEPTANCE_BOUND_FIELDS, DOMAIN) {
-        return deny("ARC_AUTH_FORGED", "risk acceptance authentication does not verify");
+    if !authenticator.verify(
+        record,
+        auth,
+        CURRENT_USER_RISK_ACCEPTANCE_BOUND_FIELDS,
+        DOMAIN,
+    ) {
+        return deny(
+            "ARC_AUTH_FORGED",
+            "risk acceptance authentication does not verify",
+        );
     }
     if !fresh(record, now_ms) {
         return deny("ARC_REPLAY_STALE", "risk acceptance is stale");
     }
     let field_checks: [(&str, &str); 5] = [
         ("riskDigest", &expected.risk_digest),
-        ("acceptanceLedgerFingerprint", &expected.acceptance_ledger_fingerprint),
-        ("integratedStateIdentity", &expected.integrated_state_identity),
+        (
+            "acceptanceLedgerFingerprint",
+            &expected.acceptance_ledger_fingerprint,
+        ),
+        (
+            "integratedStateIdentity",
+            &expected.integrated_state_identity,
+        ),
         ("sourceSetDigest", &expected.source_set_digest),
         ("userPromptEventDigest", &expected.user_prompt_event_digest),
     ];
     for (field, value) in field_checks {
         if str_field(record, field) != Some(value) {
-            return decision(false, Some("ARC_BINDING_MISMATCH"), "risk acceptance differs from current state", json!({"field": field}));
+            return decision(
+                false,
+                Some("ARC_BINDING_MISMATCH"),
+                "risk acceptance differs from current state",
+                json!({"field": field}),
+            );
         }
     }
-    let expected_challenge = acceptance_challenge_digest_for(&expected.risk_id, &expected.challenge_token);
+    let expected_challenge =
+        acceptance_challenge_digest_for(&expected.risk_id, &expected.challenge_token);
     if str_field(record, "acceptanceChallengeDigest") != Some(expected_challenge.as_str()) {
-        return decision(false, Some("ARC_BINDING_MISMATCH"), "risk acceptance differs from current state", json!({"field": "acceptanceChallengeDigest"}));
+        return decision(
+            false,
+            Some("ARC_BINDING_MISMATCH"),
+            "risk acceptance differs from current state",
+            json!({"field": "acceptanceChallengeDigest"}),
+        );
     }
     let prompt_digest = str_field(record, "userPromptEventDigest").unwrap_or("");
-    let prompt_event = ledger.records().into_iter().find(|e| digest_value(e) == prompt_digest);
+    let prompt_event = ledger
+        .records()
+        .into_iter()
+        .find(|e| digest_value(e) == prompt_digest);
     if !current_user_prompt(ledger, prompt_event.as_ref(), authenticator) {
-        return deny("ARC_AUTHORITY_NOT_ASSERTED", "current signed user prompt is unavailable");
+        return deny(
+            "ARC_AUTHORITY_NOT_ASSERTED",
+            "current signed user prompt is unavailable",
+        );
     }
     if str_field(record, "disposition") != Some("ACCEPT") {
         return missing();
@@ -393,7 +515,10 @@ pub fn verify_current_user_risk_acceptance(
             && str_field(&entry, "acceptanceId") == Some(acceptance_id.as_str())
     });
     if already_consumed {
-        return deny("ARC_REPLAY_NONCE_SEEN", "risk acceptance was already consumed");
+        return deny(
+            "ARC_REPLAY_NONCE_SEEN",
+            "risk acceptance was already consumed",
+        );
     }
     decision(
         true,
@@ -415,7 +540,8 @@ pub fn evaluate_residual_risk_close_admission(
     authenticator: &dyn RecordAuthenticator,
     now_ms: i64,
 ) -> Value {
-    let verified = verify_current_user_risk_acceptance(expected, ledger, receipts, authenticator, now_ms);
+    let verified =
+        verify_current_user_risk_acceptance(expected, ledger, receipts, authenticator, now_ms);
     if !verified.allowed {
         return json!({
             "allowed": false,
@@ -449,11 +575,17 @@ pub fn consume_current_user_risk_acceptance(
     now_ms: i64,
     consumed_at: &str,
 ) -> Decision {
-    let verified = verify_current_user_risk_acceptance(expected, ledger, receipts, authenticator, now_ms);
+    let verified =
+        verify_current_user_risk_acceptance(expected, ledger, receipts, authenticator, now_ms);
     if !verified.allowed {
         return verified;
     }
-    let acceptance_id = verified.detail.get("acceptanceId").and_then(Value::as_str).unwrap_or("").to_string();
+    let acceptance_id = verified
+        .detail
+        .get("acceptanceId")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let record = receipts.list().into_iter().find(|entry| {
         str_field(entry, "kind") == Some("arcane-current-user-risk-acceptance")
             && str_field(entry, "acceptanceId") == Some(acceptance_id.as_str())
@@ -504,10 +636,22 @@ mod tests {
 
     struct AlwaysAuthentic;
     impl RecordAuthenticator for AlwaysAuthentic {
-        fn sign(&self, _record: &Value, _bound_fields: &[&str], _mac_domain: &str, _key_id: &str) -> Value {
+        fn sign(
+            &self,
+            _record: &Value,
+            _bound_fields: &[&str],
+            _mac_domain: &str,
+            _key_id: &str,
+        ) -> Value {
             json!({"alg": "HMAC-SHA256", "keyId": "k1", "mac": "fake"})
         }
-        fn verify(&self, _record: &Value, _auth: &Value, _bound_fields: &[&str], _mac_domain: &str) -> bool {
+        fn verify(
+            &self,
+            _record: &Value,
+            _auth: &Value,
+            _bound_fields: &[&str],
+            _mac_domain: &str,
+        ) -> bool {
             true
         }
     }
@@ -553,9 +697,13 @@ mod tests {
     #[test]
     fn missing_record_is_authority_missing() {
         let exp = expected();
-        let ledger = FakeLedger { verify_allowed: true, records: vec![] };
+        let ledger = FakeLedger {
+            verify_allowed: true,
+            records: vec![],
+        };
         let receipts = FakeReceipts(RefCell::new(vec![]));
-        let result = verify_current_user_risk_acceptance(&exp, &ledger, &receipts, &AlwaysAuthentic, 0);
+        let result =
+            verify_current_user_risk_acceptance(&exp, &ledger, &receipts, &AlwaysAuthentic, 0);
         assert!(!result.allowed);
         assert_eq!(result.code, Some("ACCEPTANCE_AUTHORITY_MISSING"));
     }
@@ -565,15 +713,25 @@ mod tests {
         let exp = expected();
         let issued_ms = 1_735_689_600_000;
         let record = valid_acceptance_record(&exp, issued_ms);
-        let prompt_event = json!({"eventType": "UserPromptSubmit", "observedAuthority": "current-user"});
+        let prompt_event =
+            json!({"eventType": "UserPromptSubmit", "observedAuthority": "current-user"});
         // The prompt event's digest must equal exp.user_prompt_event_digest,
         // which is digest("prompt-event") here — so construct the ledger's
         // last record to be exactly that value's preimage isn't required by
         // this fake digest function (it hashes the whole JSON value), so
         // instead assert the digest-mismatch path denies as expected.
-        let ledger = FakeLedger { verify_allowed: true, records: vec![prompt_event] };
+        let ledger = FakeLedger {
+            verify_allowed: true,
+            records: vec![prompt_event],
+        };
         let receipts = FakeReceipts(RefCell::new(vec![record]));
-        let result = verify_current_user_risk_acceptance(&exp, &ledger, &receipts, &AlwaysAuthentic, issued_ms + 1000);
+        let result = verify_current_user_risk_acceptance(
+            &exp,
+            &ledger,
+            &receipts,
+            &AlwaysAuthentic,
+            issued_ms + 1000,
+        );
         // userPromptEventDigest won't match any ledger record's digest here,
         // so authority is not asserted — this exercises that exact JS branch.
         assert!(!result.allowed);
@@ -585,9 +743,18 @@ mod tests {
         let exp = expected();
         let issued_ms = 1_735_689_600_000;
         let record = valid_acceptance_record(&exp, issued_ms);
-        let ledger = FakeLedger { verify_allowed: true, records: vec![] };
+        let ledger = FakeLedger {
+            verify_allowed: true,
+            records: vec![],
+        };
         let receipts = FakeReceipts(RefCell::new(vec![record]));
-        let result = verify_current_user_risk_acceptance(&exp, &ledger, &receipts, &AlwaysAuthentic, issued_ms + TTL_MS + 10_000);
+        let result = verify_current_user_risk_acceptance(
+            &exp,
+            &ledger,
+            &receipts,
+            &AlwaysAuthentic,
+            issued_ms + TTL_MS + 10_000,
+        );
         assert!(!result.allowed);
         assert_eq!(result.code, Some("ARC_REPLAY_STALE"));
     }
@@ -602,9 +769,18 @@ mod tests {
         // tampered field too, so this also exercises ARC_AUTH_FORGED first —
         // that is the correct JS order (`valid(record)` checked before
         // field-by-field binding comparison).
-        let ledger = FakeLedger { verify_allowed: true, records: vec![] };
+        let ledger = FakeLedger {
+            verify_allowed: true,
+            records: vec![],
+        };
         let receipts = FakeReceipts(RefCell::new(vec![record]));
-        let result = verify_current_user_risk_acceptance(&exp, &ledger, &receipts, &AlwaysAuthentic, issued_ms + 1000);
+        let result = verify_current_user_risk_acceptance(
+            &exp,
+            &ledger,
+            &receipts,
+            &AlwaysAuthentic,
+            issued_ms + 1000,
+        );
         assert!(!result.allowed);
     }
 }

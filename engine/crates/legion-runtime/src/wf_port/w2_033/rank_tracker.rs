@@ -316,7 +316,11 @@ fn parse_csv(text: &str) -> Vec<Value> {
         rows.push(row);
     }
     // Drop a single trailing fully-empty row (final newline).
-    if rows.last().map(|r| r.len() == 1 && r[0].is_empty()).unwrap_or(false) {
+    if rows
+        .last()
+        .map(|r| r.len() == 1 && r[0].is_empty())
+        .unwrap_or(false)
+    {
         rows.pop();
     }
 
@@ -410,7 +414,10 @@ pub fn ingest(
 fn load_observations(path: &Path) -> Result<Vec<NormalizedObservation>, String> {
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-    let obs = value.get("observations").cloned().unwrap_or(Value::Array(vec![]));
+    let obs = value
+        .get("observations")
+        .cloned()
+        .unwrap_or(Value::Array(vec![]));
     serde_json::from_value(obs).map_err(|e| e.to_string())
 }
 
@@ -432,11 +439,23 @@ pub fn compare_root(root: &Path) -> Result<Value, String> {
     if let Value::Object(ref mut obj) = value {
         obj.insert(
             "previous_snapshot".to_string(),
-            Value::String(snaps[snaps.len() - 2].file_name().unwrap().to_string_lossy().into_owned()),
+            Value::String(
+                snaps[snaps.len() - 2]
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
         );
         obj.insert(
             "current_snapshot".to_string(),
-            Value::String(snaps[snaps.len() - 1].file_name().unwrap().to_string_lossy().into_owned()),
+            Value::String(
+                snaps[snaps.len() - 1]
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
         );
     }
     Ok(value)
@@ -489,7 +508,10 @@ pub fn run(root: &Path, command: Command) -> (i32, String) {
             Err(e) => return (1, format!("Error: {e}\n")),
         },
     };
-    let status_ok = matches!(out.get("status").and_then(|s| s.as_str()), Some("ok") | Some("not_testable"));
+    let status_ok = matches!(
+        out.get("status").and_then(|s| s.as_str()),
+        Some("ok") | Some("not_testable")
+    );
     let text = serde_json::to_string_pretty(&out).unwrap_or_default();
     (if status_ok { 0 } else { 1 }, text)
 }
@@ -656,7 +678,9 @@ mod tests {
             other => panic!("expected Tracked, got {other:?}"),
         }
         match &result.changes[1] {
-            RankChange::New { change_type, .. } => assert_eq!(*change_type, "new_keyword_observation"),
+            RankChange::New { change_type, .. } => {
+                assert_eq!(*change_type, "new_keyword_observation")
+            }
             other => panic!("expected New, got {other:?}"),
         }
     }
@@ -664,7 +688,8 @@ mod tests {
     static TEST_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     fn temp_root() -> PathBuf {
         let id = TEST_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("r42-rank-tracker-{}-{}", std::process::id(), id));
+        let dir =
+            std::env::temp_dir().join(format!("r42-rank-tracker-{}-{}", std::process::id(), id));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -687,11 +712,13 @@ mod tests {
             provider: Some("acme".into()),
             collected_at: None,
         };
-        let rows1 = vec![json!({"keyword": "k1", "position": 5, "observed_url": "https://a.example/x"})];
+        let rows1 =
+            vec![json!({"keyword": "k1", "position": 5, "observed_url": "https://a.example/x"})];
         let p1 = ingest(&root, &rows1, &defaults, Some("snap1")).unwrap();
         assert!(p1.ends_with("snap1.json"));
 
-        let rows2 = vec![json!({"keyword": "k1", "position": 3, "observed_url": "https://a.example/y"})];
+        let rows2 =
+            vec![json!({"keyword": "k1", "position": 3, "observed_url": "https://a.example/y"})];
         ingest(&root, &rows2, &defaults, Some("snap2")).unwrap();
 
         let cmp = compare_root(&root).unwrap();
@@ -711,20 +738,46 @@ mod tests {
         let root = temp_root();
         let root_str = root.to_string_lossy().to_string();
         let input1 = root.join("in1.json");
-        std::fs::write(&input1, r#"[{"keyword":"k1","position":5,"observed_url":"https://a.example/x"}]"#).unwrap();
+        std::fs::write(
+            &input1,
+            r#"[{"keyword":"k1","position":5,"observed_url":"https://a.example/x"}]"#,
+        )
+        .unwrap();
         let code = run_argv(&[
-            "--root".into(), root_str.clone(), "ingest".into(), input1.to_string_lossy().into_owned(),
-            "--market".into(), "US".into(), "--language".into(), "en".into(),
-            "--provider".into(), "acme".into(), "--snapshot".into(), "snap1".into(),
+            "--root".into(),
+            root_str.clone(),
+            "ingest".into(),
+            input1.to_string_lossy().into_owned(),
+            "--market".into(),
+            "US".into(),
+            "--language".into(),
+            "en".into(),
+            "--provider".into(),
+            "acme".into(),
+            "--snapshot".into(),
+            "snap1".into(),
         ]);
         assert_eq!(code, 0);
 
         let input2 = root.join("in2.json");
-        std::fs::write(&input2, r#"[{"keyword":"k1","position":3,"observed_url":"https://a.example/y"}]"#).unwrap();
+        std::fs::write(
+            &input2,
+            r#"[{"keyword":"k1","position":3,"observed_url":"https://a.example/y"}]"#,
+        )
+        .unwrap();
         let code = run_argv(&[
-            "--root".into(), root_str.clone(), "ingest".into(), input2.to_string_lossy().into_owned(),
-            "--market".into(), "US".into(), "--language".into(), "en".into(),
-            "--provider".into(), "acme".into(), "--snapshot".into(), "snap2".into(),
+            "--root".into(),
+            root_str.clone(),
+            "ingest".into(),
+            input2.to_string_lossy().into_owned(),
+            "--market".into(),
+            "US".into(),
+            "--language".into(),
+            "en".into(),
+            "--provider".into(),
+            "acme".into(),
+            "--snapshot".into(),
+            "snap2".into(),
         ]);
         assert_eq!(code, 0);
 

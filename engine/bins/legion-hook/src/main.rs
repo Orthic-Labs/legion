@@ -10,14 +10,14 @@ use std::{
 use legion_application::{NativeApplication, NativeApplicationConfig};
 use legion_contracts::{
     AgentId, AuthorityKind, CapabilityUsage, ChallengePass, ComputePosture, ContextUsage,
-    CostUsage, EffectClass, EffectRequest, OutcomeResult, RequestId, RoleDecision,
-    Route, RouteOutcomeTrace, SemanticRequirement, TaskId, TraceId,
+    CostUsage, EffectClass, EffectRequest, OutcomeResult, RequestId, RoleDecision, Route,
+    RouteOutcomeTrace, SemanticRequirement, TaskId, TraceId,
 };
 use serde_json::{Map, Value};
 
+mod codex;
 mod error;
 mod protocol;
-mod codex;
 
 use error::HookError;
 use protocol::{HookRequest, HookResponse};
@@ -661,7 +661,10 @@ fn authorize_effect(
 ) -> HookResponse {
     match application.authorize_hook(effect) {
         Ok(()) => {
-            if matches!(effect.effect_class, EffectClass::MCP_UNCLASSIFIED_OBSERVATION) {
+            if matches!(
+                effect.effect_class,
+                EffectClass::MCP_UNCLASSIFIED_OBSERVATION
+            ) {
                 // Name the tool and say plainly that classification failed,
                 // even on the allow path, so an operator reviewing receipts
                 // can see and act on it (tighten the pack, or fix the
@@ -829,7 +832,9 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
         return Err(format!(
             "effect class is missing or unsupported (tool {:?}, command {:?})",
             tool_name.as_deref().unwrap_or("<none>"),
-            command.as_deref().map(|value| &value[..value.len().min(60)]),
+            command
+                .as_deref()
+                .map(|value| &value[..value.len().min(60)]),
         ));
     };
 
@@ -1238,9 +1243,7 @@ fn push_arguments(command: &str) -> Option<&str> {
         return None;
     }
     let rest = &command[start + "push".len()..];
-    let end = rest
-        .find(['|', ';', '&', '>', '<'])
-        .unwrap_or(rest.len());
+    let end = rest.find(['|', ';', '&', '>', '<']).unwrap_or(rest.len());
     Some(&rest[..end])
 }
 
@@ -1385,9 +1388,12 @@ fn is_destructive_command(payload: &Value) -> bool {
         // Windows recursive deletes are the same class as `rm -r`, and this
         // product ships Windows first: `rmdir /s` and `del /s` were admitted
         // while `rm -rf` was denied.
-        let windows_recursive_delete = (segment.starts_with("rmdir ") || segment.starts_with("rd ")
+        let windows_recursive_delete = (segment.starts_with("rmdir ")
+            || segment.starts_with("rd ")
             || segment.starts_with("del "))
-            && segment.split_whitespace().any(|token| token == "/s" || token == "-s");
+            && segment
+                .split_whitespace()
+                .any(|token| token == "/s" || token == "-s");
         // Discarding the working tree destroys uncommitted work with no undo,
         // which is exactly what this class is for. `git reset --hard` and
         // `git checkout -- .` were both admitted.
@@ -1958,24 +1964,20 @@ fn route_trace_from_request(
         .and_then(|value| serde_json::from_value::<ChallengePass>(value.clone()).ok())?;
     // Role lifecycle data is optional and host/lead supplied. Absent data
     // preserves legacy v1 emission; invalid supplied data is rejected.
-    let role_decisions = match trace_value(source, payload, &["roleDecisions", "role_decisions"])
-    {
+    let role_decisions = match trace_value(source, payload, &["roleDecisions", "role_decisions"]) {
         None => None,
         Some(value) => Some(serde_json::from_value::<Vec<RoleDecision>>(value.clone()).ok()?),
     };
-    let supplied_trace_version = match trace_value(
-        source,
-        payload,
-        &["schema_version", "schemaVersion"],
-    ) {
-        None => None,
-        Some(Value::Number(version)) => Some(
-            version
-                .as_u64()
-                .and_then(|value| u32::try_from(value).ok())?,
-        ),
-        Some(_) => return None,
-    };
+    let supplied_trace_version =
+        match trace_value(source, payload, &["schema_version", "schemaVersion"]) {
+            None => None,
+            Some(Value::Number(version)) => Some(
+                version
+                    .as_u64()
+                    .and_then(|value| u32::try_from(value).ok())?,
+            ),
+            Some(_) => return None,
+        };
     if let Some(version) = supplied_trace_version {
         if !matches!(version, 1 | 2)
             || (role_decisions.is_some() && version != 2)
@@ -2220,8 +2222,11 @@ fn receipt_root(payload: &Value) -> Option<PathBuf> {
     // No explicit state root: keep receipts in one per-user directory keyed by
     // repository identity (the payload cwd), never beneath whatever directory
     // this process happened to start in.
-    let identity = first_string(object, &["cwd", "workspace"])
-        .or_else(|| std::env::current_dir().ok().map(|dir| dir.to_string_lossy().into_owned()))?;
+    let identity = first_string(object, &["cwd", "workspace"]).or_else(|| {
+        std::env::current_dir()
+            .ok()
+            .map(|dir| dir.to_string_lossy().into_owned())
+    })?;
     let digest = legion_contracts::canonical_digest(&identity).ok()?;
     let key = digest.trim_start_matches("sha256:");
     let key = key.get(..16).unwrap_or(key);
@@ -2330,8 +2335,8 @@ fn response_value(response: &HookResponse) -> Value {
 }
 
 fn write_response(value: Value) -> Result<(), HookError> {
-    let bytes = serde_json::to_vec(&value)
-        .map_err(|error| HookError::Serialization(error.to_string()))?;
+    let bytes =
+        serde_json::to_vec(&value).map_err(|error| HookError::Serialization(error.to_string()))?;
     let mut stdout = io::BufWriter::new(io::stdout().lock());
     stdout
         .write_all(&bytes)
@@ -2439,7 +2444,10 @@ fn message_cites_evidence(message: &str) -> bool {
     }
     message.split_whitespace().any(|raw| {
         let token = raw.trim_matches(|character: char| {
-            matches!(character, '`' | '(' | ')' | ',' | '.' | ';' | '"' | '\'' | '[' | ']')
+            matches!(
+                character,
+                '`' | '(' | ')' | ',' | '.' | ';' | '"' | '\'' | '[' | ']'
+            )
         });
         let pieces: Vec<&str> = token.split(':').collect();
         pieces.windows(2).any(|pair| {
@@ -2508,9 +2516,10 @@ fn main() {
         if response.allowed {
             observe_session_edit(request);
         }
-        if let (Some(notice), Some(object)) =
-            (stop_evidence_reminder(request, &response), value.as_object_mut())
-        {
+        if let (Some(notice), Some(object)) = (
+            stop_evidence_reminder(request, &response),
+            value.as_object_mut(),
+        ) {
             object.insert("systemMessage".into(), Value::String(notice));
         }
     }
@@ -2884,8 +2893,10 @@ mod tests {
             payload: invalid,
         };
         let response = dispatch_inner(request.clone());
-        assert!(route_trace_from_request(&request, &response, Duration::from_millis(1), None)
-            .is_none(), "invalid supplied extension must not downgrade to v1");
+        assert!(
+            route_trace_from_request(&request, &response, Duration::from_millis(1), None).is_none(),
+            "invalid supplied extension must not downgrade to v1"
+        );
 
         for supplied_version in [
             json!(9),
@@ -3040,7 +3051,10 @@ mod tests {
         let effect = effect_request(&unclassified)
             .expect("unrecognized MCP tool classification should succeed")
             .expect("unrecognized MCP tool must carry an effect to adjudicate, not be skipped");
-        assert_eq!(effect.effect_class, EffectClass::MCP_UNCLASSIFIED_OBSERVATION);
+        assert_eq!(
+            effect.effect_class,
+            EffectClass::MCP_UNCLASSIFIED_OBSERVATION
+        );
         let response = dispatch(unclassified);
         assert!(
             response.allowed,
@@ -3112,7 +3126,10 @@ mod tests {
             "mcp__Claude_Browser__javascript_tool",
             "mcp__Claude_Browser__browser_batch",
         ] {
-            assert!(is_first_party_host_tool(tool), "{tool} must be recognised as host");
+            assert!(
+                is_first_party_host_tool(tool),
+                "{tool} must be recognised as host"
+            );
             let request = HookRequest {
                 schema_version: protocol::SCHEMA_VERSION,
                 kind: protocol::REQUEST_KIND.into(),
@@ -3124,10 +3141,16 @@ mod tests {
                 .expect("host session tool yields an effect");
             assert_eq!(effect.effect_class, EffectClass::COMMAND_EXEC, "{tool}");
             let response = dispatch(request);
-            assert!(response.allowed, "{tool} must not fail closed: {}", response.reason);
+            assert!(
+                response.allowed,
+                "{tool} must not fail closed: {}",
+                response.reason
+            );
         }
         assert!(!is_first_party_host_tool("mcp__ccdfake__spawn_task"));
-        assert!(!is_first_party_host_tool("mcp__Claude_Browser_fake__navigate"));
+        assert!(!is_first_party_host_tool(
+            "mcp__Claude_Browser_fake__navigate"
+        ));
         assert!(!is_first_party_host_tool("mcp__docs__query"));
     }
 
@@ -3213,7 +3236,9 @@ mod tests {
             assert_eq!(effect.effect_class, EffectClass::MCP_KNOWN_OBSERVATION);
             assert!(dispatch(request).allowed, "{tool}");
         }
-        assert!(!is_known_read_only_tool("mcp__scheduled-tasks__delete_task"));
+        assert!(!is_known_read_only_tool(
+            "mcp__scheduled-tasks__delete_task"
+        ));
         assert!(!is_known_read_only_tool("mcp__membrane__membrane_write"));
         assert!(
             !is_known_read_only_tool("mcp__legion__legion_m1_invoke"),
@@ -3234,7 +3259,10 @@ mod tests {
             &effect(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
             &application,
         );
-        assert!(unknown.allowed, "an unknown MCP tool must follow host permissions");
+        assert!(
+            unknown.allowed,
+            "an unknown MCP tool must follow host permissions"
+        );
     }
 
     #[test]
@@ -3251,7 +3279,10 @@ mod tests {
         ] {
             let response =
                 authorize_effect("PreToolUse".into(), &effect(effect_class), &application);
-            assert!(response.allowed, "reversible effect denied: {effect_class:?}");
+            assert!(
+                response.allowed,
+                "reversible effect denied: {effect_class:?}"
+            );
         }
     }
 
@@ -3430,7 +3461,10 @@ mod tests {
                 "sourceRevision": "0123456789abcdef0123456789abcdef01234567",
             },
         })));
-        assert!(response.allowed, "re-entry cap must end optional verification repair loops");
+        assert!(
+            response.allowed,
+            "re-entry cap must end optional verification repair loops"
+        );
         assert_eq!(response.reason, "stop re-entry cap reached");
     }
 
@@ -3628,17 +3662,13 @@ mod tests {
             Some(PathBuf::from("/Users/a/.local/state/legion/receipts"))
         );
         assert_eq!(
-            user_state_receipts_root(
-                false,
-                false,
-                home,
-                None,
-                None,
-                Some(PathBuf::from("/xdg"))
-            ),
+            user_state_receipts_root(false, false, home, None, None, Some(PathBuf::from("/xdg"))),
             Some(PathBuf::from("/xdg/legion/receipts"))
         );
-        assert_eq!(user_state_receipts_root(false, false, None, None, None, None), None);
+        assert_eq!(
+            user_state_receipts_root(false, false, None, None, None, None),
+            None
+        );
     }
 
     #[test]
@@ -3694,8 +3724,15 @@ mod tests {
         ] {
             assert!(message_cites_evidence(message), "missed: {message}");
         }
-        for message in ["Done.", "I updated the file and it works.", "Meet at 10:30 today."] {
-            assert!(!message_cites_evidence(message), "false evidence: {message}");
+        for message in [
+            "Done.",
+            "I updated the file and it works.",
+            "Meet at 10:30 today.",
+        ] {
+            assert!(
+                !message_cites_evidence(message),
+                "false evidence: {message}"
+            );
         }
     }
 

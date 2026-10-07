@@ -3,7 +3,7 @@
 //! `sha256`). Every `tools/audit/audit-*.mjs` module ported under `wf064`
 //! depends on these exact semantics for plan sealing and stable ids.
 
-use hmac::{Hmac, Mac, digest::KeyInit};
+use hmac::{digest::KeyInit, Hmac, Mac};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -51,8 +51,8 @@ type HmacSha256 = Hmac<Sha256>;
 
 /// Mirrors JS `createHmac('sha256', signingKey).update(message).digest('hex')`.
 pub fn hmac_sha256_hex(signing_key: &str, message: &str) -> String {
-    let mut mac =
-        HmacSha256::new_from_slice(signing_key.as_bytes()).expect("HMAC accepts a key of any length");
+    let mut mac = HmacSha256::new_from_slice(signing_key.as_bytes())
+        .expect("HMAC accepts a key of any length");
     mac.update(message.as_bytes());
     hex::encode(mac.finalize().into_bytes())
 }

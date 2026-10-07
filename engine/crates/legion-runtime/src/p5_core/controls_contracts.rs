@@ -9,27 +9,76 @@ use super::controls_support::{digest, Value};
 use std::collections::BTreeSet;
 
 const CONTROL_KEYS: &[&str] = &[
-    "id", "version", "selector", "denominator", "evidence", "families", "lenses", "providers",
-    "rules", "scenarios", "decisionMode", "missingEvidenceEffect", "claimLevels",
-    "remediationOwner", "sourceConcepts", "benchmark", "provenance", "stopShip", "unimplemented",
+    "id",
+    "version",
+    "selector",
+    "denominator",
+    "evidence",
+    "families",
+    "lenses",
+    "providers",
+    "rules",
+    "scenarios",
+    "decisionMode",
+    "missingEvidenceEffect",
+    "claimLevels",
+    "remediationOwner",
+    "sourceConcepts",
+    "benchmark",
+    "provenance",
+    "stopShip",
+    "unimplemented",
 ];
 const PACK_KEYS: &[&str] = &[
-    "id", "version", "class", "dependencies", "source", "qualification", "controls",
+    "id",
+    "version",
+    "class",
+    "dependencies",
+    "source",
+    "qualification",
+    "controls",
 ];
 const PACK_CLASSES: &[&str] = &[
-    "universal", "target", "component", "stack", "environment", "conditional", "policy",
+    "universal",
+    "target",
+    "component",
+    "stack",
+    "environment",
+    "conditional",
+    "policy",
 ];
 const DECISIONS: &[&str] = &["deterministic", "measured", "reasoning", "human"];
 const EFFECTS: &[&str] = &["unproven", "fail", "not-applicable"];
 const OWNERS: &[&str] = &["code", "design", "writing", "architecture", "manual"];
 const QUALIFICATIONS: &[&str] = &["unproven", "source-tested", "measured"];
 const REQUIRED_CONTROL_KEYS: &[&str] = &[
-    "id", "version", "selector", "denominator", "evidence", "families", "lenses", "providers",
-    "rules", "scenarios", "decisionMode", "missingEvidenceEffect", "claimLevels",
-    "remediationOwner", "sourceConcepts", "stopShip", "benchmark", "provenance",
+    "id",
+    "version",
+    "selector",
+    "denominator",
+    "evidence",
+    "families",
+    "lenses",
+    "providers",
+    "rules",
+    "scenarios",
+    "decisionMode",
+    "missingEvidenceEffect",
+    "claimLevels",
+    "remediationOwner",
+    "sourceConcepts",
+    "stopShip",
+    "benchmark",
+    "provenance",
 ];
 const NON_EMPTY_ARRAY_KEYS: &[&str] = &[
-    "evidence", "families", "lenses", "rules", "scenarios", "claimLevels", "sourceConcepts",
+    "evidence",
+    "families",
+    "lenses",
+    "rules",
+    "scenarios",
+    "claimLevels",
+    "sourceConcepts",
 ];
 
 fn as_object(value: &Value) -> Result<&std::collections::BTreeMap<String, Value>, String> {
@@ -180,7 +229,11 @@ pub fn validate_pack(pack: &Value) -> Result<(), String> {
     let mut ids = BTreeSet::new();
     for control in controls.unwrap() {
         validate_control(control)?;
-        if let Some(control_id) = as_object(control).ok().and_then(|m| get(m, "id")).and_then(as_str) {
+        if let Some(control_id) = as_object(control)
+            .ok()
+            .and_then(|m| get(m, "id"))
+            .and_then(as_str)
+        {
             if !ids.insert(control_id.to_string()) {
                 return Err(format!("duplicate control in pack: {control_id}"));
             }
@@ -224,10 +277,7 @@ mod tests {
             ),
             (
                 "provenance",
-                Value::object([
-                    ("source", Value::str("src")),
-                    ("lineage", Value::array([])),
-                ]),
+                Value::object([("source", Value::str("src")), ("lineage", Value::array([]))]),
             ),
         ])
     }
@@ -253,7 +303,10 @@ mod tests {
         if let Value::Object(map) = &mut control {
             map.remove("stopShip");
         }
-        assert_eq!(validate_control(&control).unwrap_err(), "control missing stopShip");
+        assert_eq!(
+            validate_control(&control).unwrap_err(),
+            "control missing stopShip"
+        );
     }
 
     #[test]
@@ -303,7 +356,10 @@ mod tests {
             ("dependencies", Value::array([])),
             (
                 "source",
-                Value::object([("kind", Value::str("internal")), ("rights", Value::str("cleared"))]),
+                Value::object([
+                    ("kind", Value::str("internal")),
+                    ("rights", Value::str("cleared")),
+                ]),
             ),
             ("qualification", Value::str("unproven")),
             ("controls", Value::array([valid_control()])),

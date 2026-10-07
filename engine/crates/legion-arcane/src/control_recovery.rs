@@ -13,11 +13,15 @@ pub fn recover_control_state(
         .get("controlId")
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| ArcaneError::typed("ARC_SCHEMA_INVALID", "controlId must be a non-empty string"))?;
+        .ok_or_else(|| {
+            ArcaneError::typed("ARC_SCHEMA_INVALID", "controlId must be a non-empty string")
+        })?;
     let authorization = input
         .get("authorization")
         .and_then(Value::as_object)
-        .ok_or_else(|| ArcaneError::typed("ARC_SCHEMA_INVALID", "authorization must be an object"))?;
+        .ok_or_else(|| {
+            ArcaneError::typed("ARC_SCHEMA_INVALID", "authorization must be an object")
+        })?;
     if authorization.get("controlId").and_then(Value::as_str) != Some(control_id)
         || authorization.get("operation").and_then(Value::as_str) != Some("RECOVER_CONTROL_STATE")
     {

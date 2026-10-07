@@ -36,13 +36,17 @@ fn string_array(value: &Value, key: &str) -> Vec<String> {
 /// Returns the artifact -> owning-provider-id map (JS `Map`, here a
 /// `BTreeMap` for a deterministic, testable iteration order — the JS `Map`'s
 /// insertion order is never observed by any caller of this function).
-pub fn validate_artifact_authority(providers: &[Value]) -> Result<BTreeMap<String, String>, SdkError> {
+pub fn validate_artifact_authority(
+    providers: &[Value],
+) -> Result<BTreeMap<String, String>, SdkError> {
     let mut owners: BTreeMap<String, String> = BTreeMap::new();
     for provider in providers {
         let id = provider.get("id").and_then(Value::as_str).unwrap_or("");
         for artifact in string_array(provider, "produces") {
             if owners.contains_key(&artifact) {
-                return Err(SdkError::new(format!("duplicate artifact producer: {artifact}")));
+                return Err(SdkError::new(format!(
+                    "duplicate artifact producer: {artifact}"
+                )));
             }
             owners.insert(artifact, id.to_owned());
         }
@@ -68,19 +72,18 @@ mod tests {
 
     #[test]
     fn owners_map_records_producer_per_artifact() {
-        let owners = validate_artifact_authority(&[
-            p("a", vec!["x"], vec![]),
-            p("b", vec!["y"], vec!["x"]),
-        ])
-        .unwrap();
+        let owners =
+            validate_artifact_authority(&[p("a", vec!["x"], vec![]), p("b", vec!["y"], vec!["x"])])
+                .unwrap();
         assert_eq!(owners.get("x").map(String::as_str), Some("a"));
         assert_eq!(owners.get("y").map(String::as_str), Some("b"));
     }
 
     #[test]
     fn duplicate_producer_is_rejected() {
-        let err = validate_artifact_authority(&[p("a", vec!["x"], vec![]), p("b", vec!["x"], vec![])])
-            .unwrap_err();
+        let err =
+            validate_artifact_authority(&[p("a", vec!["x"], vec![]), p("b", vec!["x"], vec![])])
+                .unwrap_err();
         assert_eq!(err.0, "duplicate artifact producer: x");
     }
 

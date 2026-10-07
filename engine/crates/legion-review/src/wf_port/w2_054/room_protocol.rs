@@ -258,9 +258,7 @@ impl RoomProtocol {
             return Err(ProtocolError::new("invalid_at_budget_behavior", at_budget));
         }
         let workspace_root = workspace_root.into();
-        let workspace_root = workspace_root
-            .canonicalize()
-            .unwrap_or(workspace_root);
+        let workspace_root = workspace_root.canonicalize().unwrap_or(workspace_root);
         Ok(RoomProtocol {
             room_id: room_id.into(),
             workspace_root,
@@ -295,7 +293,10 @@ impl RoomProtocol {
             .and_then(Value::as_str)
             .unwrap_or("");
         if !roles.contains(&role) {
-            return Err(ProtocolError::new("role_forbidden", format!("{actor}:{role}")));
+            return Err(ProtocolError::new(
+                "role_forbidden",
+                format!("{actor}:{role}"),
+            ));
         }
         Ok(())
     }
@@ -337,7 +338,13 @@ impl RoomProtocol {
         Ok(result)
     }
 
-    fn push_event(&mut self, actor: &str, request_id: &str, kind: &str, mut fields: Value) -> Value {
+    fn push_event(
+        &mut self,
+        actor: &str,
+        request_id: &str,
+        kind: &str,
+        mut fields: Value,
+    ) -> Value {
         let seq = self.events.len() as u64 + 1;
         let mut event = json!({
             "seq": seq,
@@ -347,7 +354,8 @@ impl RoomProtocol {
             "request_id": request_id,
             "kind": kind,
         });
-        if let (Some(event_obj), Some(field_obj)) = (event.as_object_mut(), fields.as_object_mut()) {
+        if let (Some(event_obj), Some(field_obj)) = (event.as_object_mut(), fields.as_object_mut())
+        {
             for (k, v) in field_obj.iter() {
                 event_obj.insert(k.clone(), v.clone());
             }
@@ -385,7 +393,10 @@ impl RoomProtocol {
             return Err(ProtocolError::new("unknown_phase", target));
         }
         if matches!(target, "Voting" | "Verdict") && !self.open_finding_ids().is_empty() {
-            return Err(ProtocolError::new("open_findings", self.open_finding_ids().join(",")));
+            return Err(ProtocolError::new(
+                "open_findings",
+                self.open_finding_ids().join(","),
+            ));
         }
         let payload = json!({"target": target});
         let target = target.to_string();
@@ -417,7 +428,10 @@ impl RoomProtocol {
             return Err(ProtocolError::new("invalid_post_kind", kind));
         }
         if kind == "position" && self.phase != "Positions" {
-            return Err(ProtocolError::new("phase_forbidden", format!("position in {}", self.phase)));
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("position in {}", self.phase),
+            ));
         }
         let payload = json!({
             "kind": kind,
@@ -483,7 +497,10 @@ impl RoomProtocol {
     ) -> Result<Value> {
         self.require_capability("findings")?;
         if !matches!(self.phase.as_str(), "PeerDebate" | "Dispositions") {
-            return Err(ProtocolError::new("phase_forbidden", format!("finding in {}", self.phase)));
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("finding in {}", self.phase),
+            ));
         }
         let payload = json!({
             "claim": claim,
@@ -514,7 +531,12 @@ impl RoomProtocol {
                 "status": "Open",
             });
             this.findings.insert(finding_id.clone(), finding.clone());
-            this.push_event(actor, request_id, "finding", json!({"finding_id": finding_id}));
+            this.push_event(
+                actor,
+                request_id,
+                "finding",
+                json!({"finding_id": finding_id}),
+            );
             Ok(finding)
         })
     }
@@ -528,7 +550,10 @@ impl RoomProtocol {
             .map(|f| {
                 let mut out = serde_json::Map::new();
                 for field in PEER_FINDING_FIELDS {
-                    out.insert(field.to_string(), f.get(field).cloned().unwrap_or(Value::Null));
+                    out.insert(
+                        field.to_string(),
+                        f.get(field).cloned().unwrap_or(Value::Null),
+                    );
                 }
                 Value::Object(out)
             })
@@ -622,11 +647,18 @@ impl RoomProtocol {
         request_id: &str,
         digest: Option<&str>,
     ) -> Result<Value> {
-        if !matches!(kind, "file" | "artifact" | "measurement" | "web" | "scope_motion") {
+        if !matches!(
+            kind,
+            "file" | "artifact" | "measurement" | "web" | "scope_motion"
+        ) {
             return Err(ProtocolError::new("invalid_receipt_kind", kind));
         }
         let payload = json!({"kind": kind, "locator": locator, "digest": digest});
-        let (kind, locator, digest) = (kind.to_string(), locator.to_string(), digest.map(str::to_string));
+        let (kind, locator, digest) = (
+            kind.to_string(),
+            locator.to_string(),
+            digest.map(str::to_string),
+        );
         let room_id = self.room_id.clone();
         self.idempotent(actor, request_id, "add_receipt", &payload, move |this| {
             match kind.as_str() {
@@ -640,7 +672,10 @@ impl RoomProtocol {
                     })?;
                     let actual = sha256_hex(&bytes);
                     if digest.as_deref() != Some(actual.as_str()) {
-                        return Err(ProtocolError::new("receipt_digest_mismatch", locator.clone()));
+                        return Err(ProtocolError::new(
+                            "receipt_digest_mismatch",
+                            locator.clone(),
+                        ));
                     }
                 }
                 "web" => {
@@ -661,7 +696,9 @@ impl RoomProtocol {
                         {
                             m
                         }
-                        _ => return Err(ProtocolError::new("unknown_scope_motion", locator.clone())),
+                        _ => {
+                            return Err(ProtocolError::new("unknown_scope_motion", locator.clone()))
+                        }
                     };
                     if digest.is_none()
                         || digest.as_deref() != motion.get("scope_digest").and_then(Value::as_str)
@@ -679,7 +716,12 @@ impl RoomProtocol {
                 "digest": digest,
             });
             this.receipts.insert(receipt_id.clone(), receipt.clone());
-            this.push_event(actor, request_id, "receipt", json!({"receipt_id": receipt_id}));
+            this.push_event(
+                actor,
+                request_id,
+                "receipt",
+                json!({"receipt_id": receipt_id}),
+            );
             Ok(receipt)
         })
     }
@@ -697,7 +739,10 @@ impl RoomProtocol {
         self.require_capability("dispositions")?;
         self.require_role(actor, &["implementer"])?;
         if !matches!(self.phase.as_str(), "Dispositions" | "AuthorReview") {
-            return Err(ProtocolError::new("phase_forbidden", format!("dispose in {}", self.phase)));
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("dispose in {}", self.phase),
+            ));
         }
         let finding = self
             .findings
@@ -729,7 +774,10 @@ impl RoomProtocol {
             return Err(ProtocolError::new("fold_artifact_required", finding_id));
         }
         if reason_code == Some("out_of_scope") {
-            let initial = self.motions.values().find(|m| m.get("kind").and_then(Value::as_str) == Some("review_scope"));
+            let initial = self
+                .motions
+                .values()
+                .find(|m| m.get("kind").and_then(Value::as_str) == Some("review_scope"));
             let matching = initial
                 .map(|initial_motion| {
                     let motion_id = initial_motion.get("motion_id").and_then(Value::as_str);
@@ -769,8 +817,13 @@ impl RoomProtocol {
                 "receipt_refs": receipt_refs,
                 "status": "Proposed",
             });
-            this.dispositions.insert(disposition_id.clone(), disposition.clone());
-            let new_status = if action == "folded" { "FoldProposed" } else { "RefuteProposed" };
+            this.dispositions
+                .insert(disposition_id.clone(), disposition.clone());
+            let new_status = if action == "folded" {
+                "FoldProposed"
+            } else {
+                "RefuteProposed"
+            };
             if let Some(f) = this.findings.get_mut(&finding_id) {
                 f["status"] = json!(new_status);
             }
@@ -823,16 +876,25 @@ impl RoomProtocol {
             .get(&finding_id)
             .cloned()
             .ok_or_else(|| ProtocolError::new("unknown_finding", finding_id.clone()))?;
-        let author_seat = finding.get("author_seat").and_then(Value::as_str).unwrap_or("");
+        let author_seat = finding
+            .get("author_seat")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if actor != author_seat {
             return Err(ProtocolError::new("author_required", actor));
         }
-        let implementer_seat = disposition.get("implementer_seat").and_then(Value::as_str).unwrap_or("");
+        let implementer_seat = disposition
+            .get("implementer_seat")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if actor == implementer_seat {
             return Err(ProtocolError::new("self_resolution_forbidden", actor));
         }
         if !matches!(self.phase.as_str(), "AuthorReview" | "Escalation") {
-            return Err(ProtocolError::new("phase_forbidden", format!("resolve in {}", self.phase)));
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("resolve in {}", self.phase),
+            ));
         }
         if !matches!(choice, "accept" | "recontest") {
             return Err(ProtocolError::new("invalid_resolution", choice));
@@ -847,18 +909,36 @@ impl RoomProtocol {
         self.idempotent(actor, request_id, "resolve", &payload, move |this| {
             let disposition = this.dispositions.get(&disposition_id).cloned().unwrap();
             if disposition.get("status").and_then(Value::as_str) != Some("Proposed") {
-                return Err(ProtocolError::new("disposition_not_proposed", disposition_id.clone()));
+                return Err(ProtocolError::new(
+                    "disposition_not_proposed",
+                    disposition_id.clone(),
+                ));
             }
-            let finding_id = disposition.get("finding_id").and_then(Value::as_str).unwrap_or("").to_string();
+            let finding_id = disposition
+                .get("finding_id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             if choice == "accept" {
-                let action = disposition.get("action").and_then(Value::as_str).unwrap_or("").to_string();
-                let receipt_refs = disposition.get("receipt_refs").cloned().unwrap_or(json!([]));
+                let action = disposition
+                    .get("action")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string();
+                let receipt_refs = disposition
+                    .get("receipt_refs")
+                    .cloned()
+                    .unwrap_or(json!([]));
                 if let Some(d) = this.dispositions.get_mut(&disposition_id) {
                     d["status"] = json!("Accepted");
                     d["final_action"] = json!(action);
                     d["final_receipt_refs"] = receipt_refs;
                 }
-                let new_status = if action == "folded" { "Folded" } else { "Refuted" };
+                let new_status = if action == "folded" {
+                    "Folded"
+                } else {
+                    "Refuted"
+                };
                 if let Some(f) = this.findings.get_mut(&finding_id) {
                     f["status"] = json!(new_status);
                 }
@@ -901,7 +981,10 @@ impl RoomProtocol {
             .cloned()
             .ok_or_else(|| ProtocolError::new("unknown_disposition", disposition_id))?;
         if disposition.get("status").and_then(Value::as_str) != Some("Recontested") {
-            return Err(ProtocolError::new("disposition_not_recontested", disposition_id));
+            return Err(ProtocolError::new(
+                "disposition_not_recontested",
+                disposition_id,
+            ));
         }
         if !matches!(action, "folded" | "refuted") {
             return Err(ProtocolError::new("invalid_ruling", action));
@@ -910,9 +993,13 @@ impl RoomProtocol {
             return Err(ProtocolError::new("receipt_required", disposition_id));
         }
         if action == "folded"
-            && !receipt_refs
-                .iter()
-                .any(|r| self.receipts.get(r).and_then(|rr| rr.get("kind")).and_then(Value::as_str) == Some("artifact"))
+            && !receipt_refs.iter().any(|r| {
+                self.receipts
+                    .get(r)
+                    .and_then(|rr| rr.get("kind"))
+                    .and_then(Value::as_str)
+                    == Some("artifact")
+            })
         {
             return Err(ProtocolError::new("fold_artifact_required", disposition_id));
         }
@@ -922,7 +1009,11 @@ impl RoomProtocol {
             "reason": reason,
             "receipt_refs": receipt_refs,
         });
-        let (disposition_id, action, reason) = (disposition_id.to_string(), action.to_string(), reason.to_string());
+        let (disposition_id, action, reason) = (
+            disposition_id.to_string(),
+            action.to_string(),
+            reason.to_string(),
+        );
         let receipt_refs = receipt_refs.to_vec();
         self.idempotent(actor, request_id, "rule", &payload, move |this| {
             let finding_id = this
@@ -943,7 +1034,11 @@ impl RoomProtocol {
                 d["final_action"] = json!(action.clone());
                 d["final_receipt_refs"] = json!(receipt_refs);
             }
-            let new_status = if action == "folded" { "Folded" } else { "Refuted" };
+            let new_status = if action == "folded" {
+                "Folded"
+            } else {
+                "Refuted"
+            };
             if let Some(f) = this.findings.get_mut(&finding_id) {
                 f["status"] = json!(new_status);
             }
@@ -967,9 +1062,16 @@ impl RoomProtocol {
         self.require_capability("motions")?;
         self.require_role(actor, &["moderator"])?;
         if self.phase != "Open" {
-            return Err(ProtocolError::new("phase_forbidden", format!("review_scope in {}", self.phase)));
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("review_scope in {}", self.phase),
+            ));
         }
-        if self.motions.values().any(|m| m.get("kind").and_then(Value::as_str) == Some("review_scope")) {
+        if self
+            .motions
+            .values()
+            .any(|m| m.get("kind").and_then(Value::as_str) == Some("review_scope"))
+        {
             return Err(ProtocolError::code_only("review_scope_exists"));
         }
         let derived = derive_review_scope(disposition, deferred);
@@ -1005,9 +1107,16 @@ impl RoomProtocol {
         self.require_capability("motions")?;
         self.require_role(actor, &["moderator"])?;
         if self.phase != "Open" {
-            return Err(ProtocolError::new("phase_forbidden", format!("review_scope in {}", self.phase)));
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("review_scope in {}", self.phase),
+            ));
         }
-        if self.motions.values().any(|m| m.get("kind").and_then(Value::as_str) == Some("review_scope")) {
+        if self
+            .motions
+            .values()
+            .any(|m| m.get("kind").and_then(Value::as_str) == Some("review_scope"))
+        {
             return Err(ProtocolError::code_only("review_scope_exists"));
         }
         let disposition_file = self.workspace_root.join(disposition_path);
@@ -1049,7 +1158,8 @@ impl RoomProtocol {
             json!({"path": disposition_path, "sha256": sha256_hex(&disposition_bytes)}),
             json!({"path": deferred_path, "sha256": sha256_hex(&deferred_bytes)}),
         ];
-        let digest_source = json!({"source": derived.get("source"), "source_artifacts": source_artifacts.clone()});
+        let digest_source =
+            json!({"source": derived.get("source"), "source_artifacts": source_artifacts.clone()});
         let scope_digest = sha256_hex(canonical(&digest_source).as_bytes());
         let mut derived = derived;
         derived["scope_digest"] = json!(scope_digest.clone());
@@ -1064,28 +1174,47 @@ impl RoomProtocol {
             "supplied_digest": supplied_digest,
         });
         let room_id = self.room_id.clone();
-        self.idempotent(actor, request_id, "review_scope_artifacts", &payload, move |this| {
-            let motion_id = stable_id("motion", &[&room_id, actor, request_id]);
-            let mut motion = derived.clone();
-            motion["motion_id"] = json!(motion_id.clone());
-            motion["moderator_seat"] = json!(actor);
-            motion["status"] = json!("Open");
-            this.motions.insert(motion_id.clone(), motion.clone());
-            this.push_event(actor, request_id, "motion", json!({"motion_id": motion_id}));
-            Ok(motion)
-        })
+        self.idempotent(
+            actor,
+            request_id,
+            "review_scope_artifacts",
+            &payload,
+            move |this| {
+                let motion_id = stable_id("motion", &[&room_id, actor, request_id]);
+                let mut motion = derived.clone();
+                motion["motion_id"] = json!(motion_id.clone());
+                motion["moderator_seat"] = json!(actor);
+                motion["status"] = json!("Open");
+                this.motions.insert(motion_id.clone(), motion.clone());
+                this.push_event(actor, request_id, "motion", json!({"motion_id": motion_id}));
+                Ok(motion)
+            },
+        )
     }
 
-    pub fn vote(&mut self, actor: &str, motion_id: &str, choice: &str, reason: &str, request_id: &str) -> Result<Value> {
+    pub fn vote(
+        &mut self,
+        actor: &str,
+        motion_id: &str,
+        choice: &str,
+        reason: &str,
+        request_id: &str,
+    ) -> Result<Value> {
         self.require_capability("votes")?;
         if !self.motions.contains_key(motion_id) {
             return Err(ProtocolError::new("unknown_motion", motion_id));
         }
         if self.phase != "Voting" {
-            return Err(ProtocolError::new("phase_forbidden", format!("vote in {}", self.phase)));
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("vote in {}", self.phase),
+            ));
         }
         if !self.open_finding_ids().is_empty() {
-            return Err(ProtocolError::new("open_findings", self.open_finding_ids().join(",")));
+            return Err(ProtocolError::new(
+                "open_findings",
+                self.open_finding_ids().join(","),
+            ));
         }
         let payload = json!({"motion_id": motion_id, "choice": choice, "reason": reason});
         let (motion_id, choice) = (motion_id.to_string(), choice.to_string());
@@ -1114,13 +1243,24 @@ impl RoomProtocol {
     ) -> Result<Value> {
         self.require_capability("motions")?;
         self.require_role(actor, &["human"])?;
-        if matches!(self.phase.as_str(), "Open" | "Positions" | "Verdict" | "AbortedFallback") {
-            return Err(ProtocolError::new("phase_forbidden", format!("scope amendment in {}", self.phase)));
+        if matches!(
+            self.phase.as_str(),
+            "Open" | "Positions" | "Verdict" | "AbortedFallback"
+        ) {
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("scope amendment in {}", self.phase),
+            ));
         }
         let scope_chain: Vec<&Value> = self
             .motions
             .values()
-            .filter(|m| matches!(m.get("kind").and_then(Value::as_str), Some("review_scope") | Some("scope_amendment")))
+            .filter(|m| {
+                matches!(
+                    m.get("kind").and_then(Value::as_str),
+                    Some("review_scope") | Some("scope_amendment")
+                )
+            })
             .collect();
         let current = scope_chain
             .last()
@@ -1128,27 +1268,37 @@ impl RoomProtocol {
         if Some(parent_digest) != current.get("scope_digest").and_then(Value::as_str) {
             return Err(ProtocolError::code_only("scope_digest_mismatch"));
         }
-        let payload = json!({"text": text, "scope_refs": scope_refs, "parent_digest": parent_digest});
+        let payload =
+            json!({"text": text, "scope_refs": scope_refs, "parent_digest": parent_digest});
         let (text, parent_digest) = (text.to_string(), parent_digest.to_string());
         let scope_refs = scope_refs.to_vec();
         let room_id = self.room_id.clone();
-        self.idempotent(actor, request_id, "scope_amendment", &payload, move |this| {
-            let scope_digest = sha256_hex(canonical(&payload_for_amendment(&text, &scope_refs, &parent_digest)).as_bytes());
-            let motion_id = stable_id("motion", &[&room_id, actor, request_id]);
-            let motion = json!({
-                "motion_id": motion_id.clone(),
-                "kind": "scope_amendment",
-                "text": text,
-                "scope_refs": scope_refs,
-                "parent_digest": parent_digest,
-                "scope_digest": scope_digest,
-                "human_seat": actor,
-                "status": "Ruled",
-            });
-            this.motions.insert(motion_id.clone(), motion.clone());
-            this.push_event(actor, request_id, "motion", json!({"motion_id": motion_id}));
-            Ok(motion)
-        })
+        self.idempotent(
+            actor,
+            request_id,
+            "scope_amendment",
+            &payload,
+            move |this| {
+                let scope_digest = sha256_hex(
+                    canonical(&payload_for_amendment(&text, &scope_refs, &parent_digest))
+                        .as_bytes(),
+                );
+                let motion_id = stable_id("motion", &[&room_id, actor, request_id]);
+                let motion = json!({
+                    "motion_id": motion_id.clone(),
+                    "kind": "scope_amendment",
+                    "text": text,
+                    "scope_refs": scope_refs,
+                    "parent_digest": parent_digest,
+                    "scope_digest": scope_digest,
+                    "human_seat": actor,
+                    "status": "Ruled",
+                });
+                this.motions.insert(motion_id.clone(), motion.clone());
+                this.push_event(actor, request_id, "motion", json!({"motion_id": motion_id}));
+                Ok(motion)
+            },
+        )
     }
 
     pub fn tasks(&mut self, actor: &str, action: &str, request_id: &str) -> Result<Value> {
@@ -1160,7 +1310,12 @@ impl RoomProtocol {
         })
     }
 
-    pub fn record_timeout(&mut self, actor: &str, seat_id: &str, request_id: &str) -> Result<Value> {
+    pub fn record_timeout(
+        &mut self,
+        actor: &str,
+        seat_id: &str,
+        request_id: &str,
+    ) -> Result<Value> {
         self.require_role(actor, &["moderator", "human"])?;
         let seat = self.seat(seat_id)?.clone();
         let payload = json!({"seat_id": seat_id});
@@ -1190,7 +1345,10 @@ impl RoomProtocol {
                 .map(|(id, _)| id.clone())
                 .collect();
             if pending.is_empty() {
-                return Err(ProtocolError::new("no_pending_author_review", seat_id.clone()));
+                return Err(ProtocolError::new(
+                    "no_pending_author_review",
+                    seat_id.clone(),
+                ));
             }
             let wakes = *this.author_rewakes.get(&seat_id).unwrap_or(&0);
             let status = if wakes == 0 {
@@ -1264,7 +1422,11 @@ impl RoomProtocol {
     pub fn status(&self, seat_id: &str) -> Result<Value> {
         self.seat(seat_id)?;
         let visible = self.visible_events(seat_id, 0)?;
-        let cursor = visible.iter().filter_map(|e| e.get("seq").and_then(Value::as_u64)).max().unwrap_or(0);
+        let cursor = visible
+            .iter()
+            .filter_map(|e| e.get("seq").and_then(Value::as_u64))
+            .max()
+            .unwrap_or(0);
         Ok(json!({
             "room_id": self.room_id,
             "seat_id": seat_id,
@@ -1279,10 +1441,16 @@ impl RoomProtocol {
     pub fn seal(&mut self, actor: &str, request_id: &str) -> Result<Value> {
         self.require_role(actor, &["moderator", "human"])?;
         if !self.open_finding_ids().is_empty() {
-            return Err(ProtocolError::new("open_findings", self.open_finding_ids().join(",")));
+            return Err(ProtocolError::new(
+                "open_findings",
+                self.open_finding_ids().join(","),
+            ));
         }
         if self.phase != "Verdict" {
-            return Err(ProtocolError::new("phase_forbidden", format!("seal in {}", self.phase)));
+            return Err(ProtocolError::new(
+                "phase_forbidden",
+                format!("seal in {}", self.phase),
+            ));
         }
         self.idempotent(actor, request_id, "seal", &json!({}), move |this| {
             this.sealed = true;
@@ -1344,7 +1512,8 @@ mod tests {
         room.advance("mod", "PeerDebate", "req2").unwrap();
         room.advance("mod", "Dispositions", "req3").unwrap();
 
-        room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "rf1").unwrap();
+        room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "rf1")
+            .unwrap();
         // Cannot advance to Voting/Verdict with an open finding.
         let err = room.advance("mod", "AuthorReview", "req4");
         assert!(err.is_ok()); // Dispositions -> AuthorReview is allowed regardless of open findings.
@@ -1366,8 +1535,11 @@ mod tests {
         // raise_finding is only permitted in PeerDebate/Dispositions; advance there first.
         room.advance("mod", "Positions", "a1").unwrap();
         room.advance("mod", "PeerDebate", "a2").unwrap();
-        room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "req1").unwrap();
-        let err = room.raise_finding("author", "different", "P1", "why", &[], "fix", 0.5, "req1").unwrap_err();
+        room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "req1")
+            .unwrap();
+        let err = room
+            .raise_finding("author", "different", "P1", "why", &[], "fix", 0.5, "req1")
+            .unwrap_err();
         assert_eq!(err.code, "request_id_conflict");
     }
 
@@ -1376,8 +1548,26 @@ mod tests {
         let root = tempdir();
         let mut room = RoomProtocol::new("r1", root, seats(), "review", "abstain").unwrap();
         room.advance("mod", "Positions", "req1").unwrap();
-        room.post("author", "position", "my position", "p1", None, &[], &json!({})).unwrap();
-        room.post("impl", "position", "other position", "p2", None, &[], &json!({})).unwrap();
+        room.post(
+            "author",
+            "position",
+            "my position",
+            "p1",
+            None,
+            &[],
+            &json!({}),
+        )
+        .unwrap();
+        room.post(
+            "impl",
+            "position",
+            "other position",
+            "p2",
+            None,
+            &[],
+            &json!({}),
+        )
+        .unwrap();
         // Cursor 1 skips the moderator's phase-advance event (seq 1), which is
         // always visible regardless of phase; only "position" events are
         // filtered by seat during the Positions phase.
@@ -1393,7 +1583,9 @@ mod tests {
         room.advance("mod", "Positions", "a1").unwrap();
         room.advance("mod", "PeerDebate", "a2").unwrap();
         room.advance("mod", "Dispositions", "a3").unwrap();
-        let finding = room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "rf1").unwrap();
+        let finding = room
+            .raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "rf1")
+            .unwrap();
         let finding_id = finding["finding_id"].as_str().unwrap().to_string();
 
         // measurement receipt only, no artifact — fold should be rejected.
@@ -1404,11 +1596,20 @@ mod tests {
             .unwrap();
         let receipt_id = receipt["receipt_id"].as_str().unwrap().to_string();
         let err = room
-            .dispose("impl", &finding_id, "folded", &[receipt_id.clone()], "d1", None)
+            .dispose(
+                "impl",
+                &finding_id,
+                "folded",
+                &[receipt_id.clone()],
+                "d1",
+                None,
+            )
             .unwrap_err();
         assert_eq!(err.code, "fold_artifact_required");
 
-        let ok = room.dispose("impl", &finding_id, "refuted", &[receipt_id], "d2", None).unwrap();
+        let ok = room
+            .dispose("impl", &finding_id, "refuted", &[receipt_id], "d2", None)
+            .unwrap();
         assert_eq!(ok["status"], json!("Proposed"));
     }
 
@@ -1422,13 +1623,25 @@ mod tests {
         // self_resolution_forbidden only fires once the `author_required` check
         // (actor == finding.author_seat) already passes, so the same seat must
         // both raise the finding and dispose of it to reach that branch.
-        let finding = room.raise_finding("impl", "claim", "P1", "why", &[], "fix", 0.5, "rf1").unwrap();
+        let finding = room
+            .raise_finding("impl", "claim", "P1", "why", &[], "fix", 0.5, "rf1")
+            .unwrap();
         let finding_id = finding["finding_id"].as_str().unwrap().to_string();
         let file = root.join("out.txt");
         fs::write(&file, b"data").unwrap();
-        let receipt = room.add_receipt("impl", "artifact", "out.txt", "r1", None).unwrap();
+        let receipt = room
+            .add_receipt("impl", "artifact", "out.txt", "r1", None)
+            .unwrap();
         let receipt_id = receipt["receipt_id"].as_str().unwrap().to_string();
-        room.dispose("impl", &finding_id, "folded", &[receipt_id.clone()], "d1", None).unwrap();
+        room.dispose(
+            "impl",
+            &finding_id,
+            "folded",
+            &[receipt_id.clone()],
+            "d1",
+            None,
+        )
+        .unwrap();
         let disposition_id = room.dispositions.keys().next().unwrap().clone();
         let err = room
             .resolve("impl", &disposition_id, "accept", "ok", &[], "res1")
@@ -1442,7 +1655,8 @@ mod tests {
         let mut room = RoomProtocol::new("r1", root, seats(), "review", "abstain").unwrap();
         room.advance("mod", "Positions", "a1").unwrap();
         room.advance("mod", "PeerDebate", "a2").unwrap();
-        room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "rf1").unwrap();
+        room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "rf1")
+            .unwrap();
         assert_eq!(room.open_finding_ids().len(), 1);
     }
 

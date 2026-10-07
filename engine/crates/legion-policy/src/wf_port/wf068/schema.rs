@@ -44,7 +44,9 @@ fn type_matches(value: &Value, ty: &Value) -> bool {
     if let Some(list) = ty.as_array() {
         return list.iter().any(|candidate| type_matches(value, candidate));
     }
-    let Some(name) = ty.as_str() else { return false };
+    let Some(name) = ty.as_str() else {
+        return false;
+    };
     match name {
         "null" => value.is_null(),
         "array" => value.is_array(),
@@ -53,7 +55,8 @@ fn type_matches(value: &Value, ty: &Value) -> bool {
             Value::Number(n) => {
                 n.as_i64().is_some()
                     || n.as_u64().is_some()
-                    || n.as_f64().is_some_and(|f| f.is_finite() && f.fract() == 0.0)
+                    || n.as_f64()
+                        .is_some_and(|f| f.is_finite() && f.fract() == 0.0)
             }
             _ => false,
         },
@@ -71,7 +74,8 @@ fn type_matches(value: &Value, ty: &Value) -> bool {
 fn date_time_matches(value: &str) -> bool {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
-        Regex::new(r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$").unwrap()
+        Regex::new(r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$")
+            .unwrap()
     });
     re.is_match(value)
 }
@@ -131,12 +135,15 @@ fn validate_schema_at(schema: &Value, value: &Value, path: &str, root: &Value) -
             }
         }
         if let Some(pattern) = schema.get("pattern").and_then(Value::as_str) {
-            let re = Regex::new(pattern).unwrap_or_else(|e| panic!("invalid pattern {pattern}: {e}"));
+            let re =
+                Regex::new(pattern).unwrap_or_else(|e| panic!("invalid pattern {pattern}: {e}"));
             if !re.is_match(s) {
                 issues.push(format!("{path}:pattern"));
             }
         }
-        if schema.get("format").and_then(Value::as_str) == Some("date-time") && !date_time_matches(s) {
+        if schema.get("format").and_then(Value::as_str) == Some("date-time")
+            && !date_time_matches(s)
+        {
             issues.push(format!("{path}:format"));
         }
     }
@@ -200,7 +207,12 @@ fn validate_schema_at(schema: &Value, value: &Value, path: &str, root: &Value) -
             for (key, child_schema) in props {
                 if let Some(child_value) = obj.get(key) {
                     let child_path = format!("{path}.{key}");
-                    issues.extend(validate_schema_at(child_schema, child_value, &child_path, root));
+                    issues.extend(validate_schema_at(
+                        child_schema,
+                        child_value,
+                        &child_path,
+                        root,
+                    ));
                 }
             }
         }
@@ -240,6 +252,9 @@ mod tests {
     fn date_time_format() {
         let schema = json!({ "type": "string", "format": "date-time" });
         assert!(validate_schema(&schema, &json!("2026-09-23T00:00:00Z")).is_empty());
-        assert_eq!(validate_schema(&schema, &json!("not-a-date")), vec!["$:format"]);
+        assert_eq!(
+            validate_schema(&schema, &json!("not-a-date")),
+            vec!["$:format"]
+        );
     }
 }

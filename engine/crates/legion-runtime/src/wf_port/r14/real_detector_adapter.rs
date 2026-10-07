@@ -54,7 +54,12 @@ impl RealHookDetector {
 }
 
 impl R14Detector for RealHookDetector {
-    fn detect_text(&self, content: &str, file_path: &str, scan_options: &ScanOptions) -> Vec<Finding> {
+    fn detect_text(
+        &self,
+        content: &str,
+        file_path: &str,
+        scan_options: &ScanOptions,
+    ) -> Vec<Finding> {
         let design_system = if scan_options.design_system.is_some() {
             self.cached.borrow().clone()
         } else {
@@ -83,6 +88,8 @@ impl R14Detector for RealHookDetector {
         let ds = load_design_system_for_cwd(project_cwd);
         let found = ds.is_some();
         *self.cached.borrow_mut() = ds;
-        found.then_some(DesignSystemInfo { md_newer_than_json: false })
+        found.then_some(DesignSystemInfo {
+            md_newer_than_json: false,
+        })
     }
 }

@@ -112,7 +112,9 @@ pub fn strip_verbatim(path: PathBuf) -> PathBuf {
 pub fn canonical_path(path: &Path) -> PathBuf {
     // realpath() spelling: no Windows `\\?\` verbatim prefix, which external
     // tools (Inno Setup, the installed product) reject.
-    fs::canonicalize(path).map(strip_verbatim).unwrap_or_else(|_| lexical_resolve(path))
+    fs::canonicalize(path)
+        .map(strip_verbatim)
+        .unwrap_or_else(|_| lexical_resolve(path))
 }
 
 fn lexical_resolve(path: &Path) -> PathBuf {
@@ -136,7 +138,10 @@ fn lexical_resolve(path: &Path) -> PathBuf {
 }
 
 fn normalized_slashes_lower(path: &Path) -> String {
-    lexical_resolve(path).to_string_lossy().replace('\\', "/").to_lowercase()
+    lexical_resolve(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+        .to_lowercase()
 }
 
 /// Mirrors `pathsEqual` in `package-windows-release.mjs` (lexical, not
@@ -144,7 +149,9 @@ fn normalized_slashes_lower(path: &Path) -> String {
 /// normalized forms match.
 pub fn paths_equal(left: Option<&str>, right: Option<&str>) -> bool {
     match (left, right) {
-        (Some(l), Some(r)) => normalized_slashes_lower(Path::new(l)) == normalized_slashes_lower(Path::new(r)),
+        (Some(l), Some(r)) => {
+            normalized_slashes_lower(Path::new(l)) == normalized_slashes_lower(Path::new(r))
+        }
         _ => false,
     }
 }
@@ -159,7 +166,10 @@ pub fn canonical_paths_equal(left: Option<&str>, right: Option<&str>) -> bool {
             // realpath() spelling: drop the Windows verbatim prefix so a
             // resolved and an unresolved path compare equal.
             let spell = |p: &str| {
-                let s = canonical_path(Path::new(p)).to_string_lossy().replace('\\', "/").to_lowercase();
+                let s = canonical_path(Path::new(p))
+                    .to_string_lossy()
+                    .replace('\\', "/")
+                    .to_lowercase();
                 s.strip_prefix("//?/").map(str::to_string).unwrap_or(s)
             };
             spell(l) == spell(r)
@@ -184,14 +194,21 @@ pub fn path_inside(root: Option<&str>, candidate: Option<&str>) -> bool {
 }
 
 /// Mirrors `versionRootMatches`.
-pub fn version_root_matches(root: Option<&str>, version: Option<&str>, archive_digest: Option<&str>) -> bool {
+pub fn version_root_matches(
+    root: Option<&str>,
+    version: Option<&str>,
+    archive_digest: Option<&str>,
+) -> bool {
     let (root, version) = match (root, version) {
         (Some(r), Some(v)) => (r, v),
         _ => return false,
     };
     let prefix = format!(
         "{version}-{}",
-        &bare_digest_opt(archive_digest).chars().take(12).collect::<String>()
+        &bare_digest_opt(archive_digest)
+            .chars()
+            .take(12)
+            .collect::<String>()
     )
     .to_lowercase();
     let name = Path::new(&root.replace('\\', "/"))
@@ -202,7 +219,8 @@ pub fn version_root_matches(root: Option<&str>, version: Option<&str>, archive_d
 }
 
 pub fn assert_regular_file(path: &Path, label: &str) -> Result<(), String> {
-    let metadata = fs::symlink_metadata(path).map_err(|_| format!("{label} is missing: {}", path.display()))?;
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| format!("{label} is missing: {}", path.display()))?;
     if !metadata.is_file() || metadata.file_type().is_symlink() {
         return Err(format!("{label} is not a regular file: {}", path.display()));
     }
@@ -219,7 +237,11 @@ pub fn assert_version(value: Option<&str>, label: &str) -> Result<String, String
     let value = value.unwrap_or_default();
     let valid = !value.is_empty()
         && value.split('.').count() == 3
-        && value.split('.').all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()) && (part == "0" || !part.starts_with('0')));
+        && value.split('.').all(|part| {
+            !part.is_empty()
+                && part.chars().all(|c| c.is_ascii_digit())
+                && (part == "0" || !part.starts_with('0'))
+        });
     if !valid {
         return Err(format!("invalid {label}: {value}"));
     }

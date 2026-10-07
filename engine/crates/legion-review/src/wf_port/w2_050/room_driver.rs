@@ -126,7 +126,11 @@ pub struct PassedValueGate {
 /// Verifier for a candidate value-gate result directory. Corresponds to
 /// `review_evidence.verify_run_evidence`.
 pub trait RunsEvidence {
-    fn verify_run_evidence(&self, run_dir: &Path, runs_root: &Path) -> Result<bool, RoomDriverError>;
+    fn verify_run_evidence(
+        &self,
+        run_dir: &Path,
+        runs_root: &Path,
+    ) -> Result<bool, RoomDriverError>;
     fn persist_finding_ledger(
         &self,
         output: &Path,
@@ -181,7 +185,10 @@ pub fn discover_passed_value_gate(
         };
         let run_dir = result_path.parent().unwrap_or(&root);
         let verified = evidence.verify_run_evidence(run_dir, &root)?;
-        let passed = result.get("passed").and_then(Value::as_bool).unwrap_or(false);
+        let passed = result
+            .get("passed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         if passed && verified {
             return Ok(PassedValueGate {
                 path: result_path.to_string_lossy().into_owned(),
@@ -218,8 +225,20 @@ pub fn resolve_room_binary(
     if let Some(found) = which_room() {
         candidates.push(found);
     }
-    candidates.push(engine_dir.join("rightkit").join("target").join("debug").join("room.exe"));
-    candidates.push(engine_dir.join("rightkit").join("target").join("debug").join("room"));
+    candidates.push(
+        engine_dir
+            .join("rightkit")
+            .join("target")
+            .join("debug")
+            .join("room.exe"),
+    );
+    candidates.push(
+        engine_dir
+            .join("rightkit")
+            .join("target")
+            .join("debug")
+            .join("room"),
+    );
 
     for candidate in candidates {
         if candidate.is_file() {
@@ -257,7 +276,13 @@ pub fn room_id(out_dir: &Path) -> String {
         .unwrap_or_default();
     let safe: String = name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect();
     let trimmed = safe.trim_matches('-');
     format!("council-{trimmed}")
@@ -328,7 +353,11 @@ pub fn safe_diagnostic(room_dir: &Path, returncode: i32) -> Value {
     } else {
         "Agent Room launcher did not publish durable readiness evidence"
     };
-    let code = if returncode != 0 { "launch_failed" } else { "readiness_evidence_missing" };
+    let code = if returncode != 0 {
+        "launch_failed"
+    } else {
+        "readiness_evidence_missing"
+    };
     json!({
         "schema_version": 1,
         "status": "aborted",
@@ -356,8 +385,14 @@ pub fn readiness_complete(room_dir: &Path) -> bool {
     if let Some(seats) = readiness.get("seats").and_then(Value::as_array) {
         for seat in seats {
             let status_ready = seat.get("status").and_then(Value::as_str) == Some("ready");
-            let has_seq = seat.get("ready_event_seq").map(Value::is_i64).unwrap_or(false)
-                || seat.get("ready_event_seq").map(Value::is_u64).unwrap_or(false);
+            let has_seq = seat
+                .get("ready_event_seq")
+                .map(Value::is_i64)
+                .unwrap_or(false)
+                || seat
+                    .get("ready_event_seq")
+                    .map(Value::is_u64)
+                    .unwrap_or(false);
             if status_ready && has_seq {
                 let seat_id = seat.get("seat_id").and_then(Value::as_str).unwrap_or("");
                 let stripped = seat_id.strip_prefix("seat-").unwrap_or(seat_id);
@@ -445,7 +480,10 @@ pub fn run_room_advisory(
     let binary = resolve_room_binary(room_binary, engine_dir)?;
 
     let lane = state.get("lane").and_then(Value::as_str).unwrap_or("");
-    let input_hash = state.get("input_hash").and_then(Value::as_str).unwrap_or("");
+    let input_hash = state
+        .get("input_hash")
+        .and_then(Value::as_str)
+        .unwrap_or("");
 
     if lane == "room-fallback" && input_hash == packet_digest {
         let partial = state
@@ -472,7 +510,10 @@ pub fn run_room_advisory(
     if resuming_active_room {
         let delivery = state["room"].get("link_delivery").cloned();
         if !matches!(delivery, Some(Value::Object(_))) {
-            let watch_url = state["room"]["watch_url"].as_str().unwrap_or("").to_string();
+            let watch_url = state["room"]["watch_url"]
+                .as_str()
+                .unwrap_or("")
+                .to_string();
             state["room"]["link_delivery"] = pending_link_delivery(&watch_url);
             write_json(&state_path, &state)?;
             return Ok(active_result(&state));
@@ -490,7 +531,10 @@ pub fn run_room_advisory(
     }
 
     let lane = state.get("lane").and_then(Value::as_str).unwrap_or("");
-    let input_hash = state.get("input_hash").and_then(Value::as_str).unwrap_or("");
+    let input_hash = state
+        .get("input_hash")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if lane != "room" || input_hash != packet_digest {
         if room_dir.exists() {
             return Err(RoomDriverError(
@@ -561,7 +605,13 @@ pub fn run_room_advisory(
                 ]);
             }
             let diagnostic = safe_diagnostic(&room_dir, returncode);
-            return enter_room_fallback(&room_dir, &state_path, &packet_digest, &diagnostic, evidence);
+            return enter_room_fallback(
+                &room_dir,
+                &state_path,
+                &packet_digest,
+                &diagnostic,
+                evidence,
+            );
         }
         let runtime_path = room_dir.join("runtime.json");
         if !runtime_path.is_file() {
@@ -572,11 +622,23 @@ pub fn run_room_advisory(
                 room_dir.to_string_lossy().into_owned(),
             ]);
             let diagnostic = safe_diagnostic(&room_dir, 0);
-            return enter_room_fallback(&room_dir, &state_path, &packet_digest, &diagnostic, evidence);
+            return enter_room_fallback(
+                &room_dir,
+                &state_path,
+                &packet_digest,
+                &diagnostic,
+                evidence,
+            );
         }
         let runtime = read_json(&runtime_path)?;
-        let base_url = runtime.get("base_url").and_then(Value::as_str).unwrap_or("");
-        let pairing_code = runtime.get("pairing_code").and_then(Value::as_str).unwrap_or("");
+        let base_url = runtime
+            .get("base_url")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let pairing_code = runtime
+            .get("pairing_code")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let watch_url = format!("{base_url}/join/{pairing_code}");
         let active_room_id = runtime.get("room_id").cloned().unwrap_or(json!(rid));
         let active_state = json!({
@@ -675,7 +737,8 @@ fn enter_room_fallback(
         .collect();
     entries.sort();
     for path in entries {
-        if path.is_file() && path.file_name().and_then(|n| n.to_str()) != Some("partial-room.json") {
+        if path.is_file() && path.file_name().and_then(|n| n.to_str()) != Some("partial-room.json")
+        {
             artifacts.push(json!({
                 "path": format!("room/{}", path.file_name().unwrap().to_string_lossy()),
                 "sha256": sha256_file(&path)?,
@@ -713,7 +776,10 @@ mod tests {
         p.push(format!(
             "legion-review-wf_w2_050-room-{label}-{}-{}",
             std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir_all(&p).unwrap();
         p
@@ -724,7 +790,10 @@ mod tests {
         // Spec (src/lib/review/agent_room_driver.py:77-79) maps each
         // character individually to '-' with no run-collapsing, then only
         // strips leading/trailing '-': "!!" becomes two dashes, not one.
-        assert_eq!(room_id(Path::new("/tmp/My Run!!2024")), "council-my-run--2024");
+        assert_eq!(
+            room_id(Path::new("/tmp/My Run!!2024")),
+            "council-my-run--2024"
+        );
         assert_eq!(room_id(Path::new("---weird---")), "council-weird");
         assert_eq!(room_id(Path::new("plain")), "council-plain");
     }
@@ -734,7 +803,10 @@ mod tests {
         let v = pending_link_delivery("https://example/join/abc");
         assert_eq!(v["required"], json!(true));
         assert_eq!(v["status"], json!("pending"));
-        assert_eq!(v["watch_url_sha256"], json!(sha256_str("https://example/join/abc")));
+        assert_eq!(
+            v["watch_url_sha256"],
+            json!(sha256_str("https://example/join/abc"))
+        );
     }
 
     #[test]
@@ -803,7 +875,10 @@ mod tests {
     fn safe_diagnostic_synthesizes_when_missing_zero_returncode() {
         let dir = tmp_dir("diag-missing-zero");
         let got = safe_diagnostic(&dir, 0);
-        assert_eq!(got["seat_failures"][0]["code"], json!("readiness_evidence_missing"));
+        assert_eq!(
+            got["seat_failures"][0]["code"],
+            json!("readiness_evidence_missing")
+        );
         fs::remove_dir_all(&dir).ok();
     }
 
@@ -902,7 +977,11 @@ mod tests {
         verified: bool,
     }
     impl RunsEvidence for NoopEvidence {
-        fn verify_run_evidence(&self, _run_dir: &Path, _runs_root: &Path) -> Result<bool, RoomDriverError> {
+        fn verify_run_evidence(
+            &self,
+            _run_dir: &Path,
+            _runs_root: &Path,
+        ) -> Result<bool, RoomDriverError> {
             Ok(self.verified)
         }
         fn persist_finding_ledger(
@@ -927,7 +1006,11 @@ mod tests {
         ) -> Result<Value, RoomDriverError> {
             Ok(json!({}))
         }
-        fn pin_run_evidence(&self, _output: &Path, _runs_root: &Path) -> Result<(), RoomDriverError> {
+        fn pin_run_evidence(
+            &self,
+            _output: &Path,
+            _runs_root: &Path,
+        ) -> Result<(), RoomDriverError> {
             Ok(())
         }
     }
@@ -944,7 +1027,8 @@ mod tests {
             fs::create_dir_all(&dir).unwrap();
             fs::write(
                 dir.join("value-gate.result.json"),
-                json!({"passed": passed, "denominator": 10, "material_change_count": 2}).to_string(),
+                json!({"passed": passed, "denominator": 10, "material_change_count": 2})
+                    .to_string(),
             )
             .unwrap();
         }
@@ -959,7 +1043,8 @@ mod tests {
         let root = tmp_dir("gate-root-none");
         fs::create_dir_all(root.join("value-gate-final-0001")).unwrap();
         fs::write(
-            root.join("value-gate-final-0001").join("value-gate.result.json"),
+            root.join("value-gate-final-0001")
+                .join("value-gate.result.json"),
             json!({"passed": false}).to_string(),
         )
         .unwrap();
@@ -974,7 +1059,8 @@ mod tests {
         let root = tmp_dir("gate-root-unverified");
         fs::create_dir_all(root.join("value-gate-final-0001")).unwrap();
         fs::write(
-            root.join("value-gate-final-0001").join("value-gate.result.json"),
+            root.join("value-gate-final-0001")
+                .join("value-gate.result.json"),
             json!({"passed": true}).to_string(),
         )
         .unwrap();

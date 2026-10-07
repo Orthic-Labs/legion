@@ -54,16 +54,12 @@ pub struct SlideAttrs {
 /// per slide in document order, whatever `data-screen-label` /
 /// `data-om-validate` the section already had (`None` when the attribute was
 /// absent, matching `!slide.hasAttribute(...)`).
-pub fn collect_slide_attrs(
-    existing: &[(Option<String>, Option<String>)],
-) -> Vec<SlideAttrs> {
+pub fn collect_slide_attrs(existing: &[(Option<String>, Option<String>)]) -> Vec<SlideAttrs> {
     existing
         .iter()
         .enumerate()
         .map(|(idx, (label, om_validate))| SlideAttrs {
-            screen_label: label
-                .clone()
-                .unwrap_or_else(|| format!("{:02}", idx + 1)),
+            screen_label: label.clone().unwrap_or_else(|| format!("{:02}", idx + 1)),
             om_validate: om_validate.clone().unwrap_or_default(),
         })
         .collect()
@@ -252,10 +248,7 @@ mod tests {
 
     #[test]
     fn storage_key_uses_pathname_or_default() {
-        assert_eq!(
-            storage_key(Some("/decks/q3")),
-            "deck-stage-slide-/decks/q3"
-        );
+        assert_eq!(storage_key(Some("/decks/q3")), "deck-stage-slide-/decks/q3");
         assert_eq!(storage_key(Some("")), "deck-stage-slide-default");
         assert_eq!(storage_key(None), "deck-stage-slide-default");
     }

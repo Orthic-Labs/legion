@@ -162,8 +162,8 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
 fn ensure_action(action: &str) -> Result<(), String> {
     match action {
         "discover" | "catalog" | "template" | "dry-run" | "request" | "paginate" | "openapi"
-        | "operations" | "upload" | "apps" | "builds" | "testflight" | "metadata" | "submission"
-        | "signing" => Ok(()),
+        | "operations" | "upload" | "apps" | "builds" | "testflight" | "metadata"
+        | "submission" | "signing" => Ok(()),
         other => Err(format!("unknown action: {other}")),
     }
 }
@@ -200,7 +200,11 @@ fn default_alias_method(operation: &str) -> &'static str {
     }
 }
 
-fn alias_path(action: &str, operation: &str, object: &Map<String, Value>) -> Result<String, String> {
+fn alias_path(
+    action: &str,
+    operation: &str,
+    object: &Map<String, Value>,
+) -> Result<String, String> {
     let id = safe_segment(object, "id")?.unwrap_or_default();
     let parent_id = if object.contains_key("parentId") {
         safe_segment(object, "parentId")?
@@ -219,10 +223,18 @@ fn alias_path(action: &str, operation: &str, object: &Map<String, Value>) -> Res
         .to_ascii_lowercase();
     let base = match (action, resource.as_str()) {
         ("testflight", "tester" | "testers" | "betatester" | "betatesters") => "/v1/betaTesters",
-        ("testflight", "prerelease" | "prereleases" | "prereleaseversion" | "prereleaseversions") => "/v1/preReleaseVersions",
+        (
+            "testflight",
+            "prerelease" | "prereleases" | "prereleaseversion" | "prereleaseversions",
+        ) => "/v1/preReleaseVersions",
         ("metadata", "version" | "versions") => "/v1/appStoreVersions",
-        ("metadata", "localization" | "localizations" | "versionlocalization" | "versionlocalizations") => "/v1/appStoreVersionLocalizations",
-        ("metadata", "appinfo" | "appinfos" | "appinfolocalization" | "appinfolocalizations") => "/v1/appInfoLocalizations",
+        (
+            "metadata",
+            "localization" | "localizations" | "versionlocalization" | "versionlocalizations",
+        ) => "/v1/appStoreVersionLocalizations",
+        ("metadata", "appinfo" | "appinfos" | "appinfolocalization" | "appinfolocalizations") => {
+            "/v1/appInfoLocalizations"
+        }
         ("submission", "version" | "versions") => "/v1/appStoreVersions",
         ("signing", "certificate" | "certificates") => "/v1/certificates",
         ("signing", "profile" | "profiles") => "/v1/profiles",
@@ -236,24 +248,29 @@ fn alias_path(action: &str, operation: &str, object: &Map<String, Value>) -> Res
         _ => "/v1/apps",
     };
     let relationship = match (action, resource.as_str()) {
-        ("testflight", "group" | "groups" | "betagroup" | "betagroups") => {
-            parent_id.as_deref().map(|value| format!("/v1/apps/{value}/betaGroups"))
-        }
-        ("testflight", "tester" | "testers" | "betatester" | "betatesters") => {
-            parent_id.as_deref().map(|value| format!("/v1/betaGroups/{value}/betaTesters"))
-        }
-        ("metadata", "localization" | "localizations" | "versionlocalization" | "versionlocalizations") => {
-            parent_id.as_deref().map(|value| format!("/v1/appStoreVersions/{value}/appStoreVersionLocalizations"))
-        }
+        ("testflight", "group" | "groups" | "betagroup" | "betagroups") => parent_id
+            .as_deref()
+            .map(|value| format!("/v1/apps/{value}/betaGroups")),
+        ("testflight", "tester" | "testers" | "betatester" | "betatesters") => parent_id
+            .as_deref()
+            .map(|value| format!("/v1/betaGroups/{value}/betaTesters")),
+        (
+            "metadata",
+            "localization" | "localizations" | "versionlocalization" | "versionlocalizations",
+        ) => parent_id
+            .as_deref()
+            .map(|value| format!("/v1/appStoreVersions/{value}/appStoreVersionLocalizations")),
         ("metadata", "appinfo" | "appinfos" | "appinfolocalization" | "appinfolocalizations") => {
-            parent_id.as_deref().map(|value| format!("/v1/appInfos/{value}/appInfoLocalizations"))
+            parent_id
+                .as_deref()
+                .map(|value| format!("/v1/appInfos/{value}/appInfoLocalizations"))
         }
-        ("submission", "version" | "versions") => {
-            parent_id.as_deref().map(|value| format!("/v1/appStoreVersions/{value}/appStoreVersionSubmission"))
-        }
-        ("submission", _) if parent_id.is_some() => {
-            parent_id.as_deref().map(|value| format!("/v1/appStoreVersions/{value}/appStoreVersionSubmission"))
-        }
+        ("submission", "version" | "versions") => parent_id
+            .as_deref()
+            .map(|value| format!("/v1/appStoreVersions/{value}/appStoreVersionSubmission")),
+        ("submission", _) if parent_id.is_some() => parent_id
+            .as_deref()
+            .map(|value| format!("/v1/appStoreVersions/{value}/appStoreVersionSubmission")),
         _ => None,
     };
     let base = relationship.as_deref().unwrap_or(base);
@@ -269,14 +286,20 @@ fn alias_path(action: &str, operation: &str, object: &Map<String, Value>) -> Res
 }
 
 fn safe_segment(object: &Map<String, Value>, key: &str) -> Result<Option<String>, String> {
-    let Some(value) = object.get(key) else { return Ok(None) };
-    let Some(value) = value.as_str() else { return Err(format!("{key} must be a string")) };
+    let Some(value) = object.get(key) else {
+        return Ok(None);
+    };
+    let Some(value) = value.as_str() else {
+        return Err(format!("{key} must be a string"));
+    };
     if value.is_empty() {
         return Ok(None);
     }
     if value == "."
         || value == ".."
-        || value.chars().any(|character| character.is_control() || matches!(character, '/' | '\\' | '?' | '#'))
+        || value
+            .chars()
+            .any(|character| character.is_control() || matches!(character, '/' | '\\' | '?' | '#'))
     {
         return Err(format!("{key} contains an unsafe path segment"));
     }
@@ -335,7 +358,10 @@ async fn invoke_paginate(object: &Map<String, Value>) -> Result<Value, String> {
             }
             return Ok(failure);
         }
-        let next_url = response.get("next").and_then(Value::as_str).map(str::to_string);
+        let next_url = response
+            .get("next")
+            .and_then(Value::as_str)
+            .map(str::to_string);
         pages.push(response);
         next = match next_url {
             Some(raw) => Some(same_origin_next(&raw)?),
@@ -353,17 +379,19 @@ async fn invoke_paginate(object: &Map<String, Value>) -> Result<Value, String> {
 }
 
 fn plan_for(object: &Map<String, Value>, allow_missing_path: bool) -> Result<RequestPlan, String> {
-    let method = parse_method(object.get("method").and_then(Value::as_str).unwrap_or("GET"))?;
-    let raw_path = object
-        .get("path")
-        .and_then(Value::as_str)
-        .ok_or_else(|| {
-            if allow_missing_path {
-                "path is required for request".to_string()
-            } else {
-                "path is required for template".to_string()
-            }
-        })?;
+    let method = parse_method(
+        object
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or("GET"),
+    )?;
+    let raw_path = object.get("path").and_then(Value::as_str).ok_or_else(|| {
+        if allow_missing_path {
+            "path is required for request".to_string()
+        } else {
+            "path is required for template".to_string()
+        }
+    })?;
     let path = normalize_path(raw_path)?;
     let mut url = Url::parse(&format!("{API_ORIGIN}{path}"))
         .map_err(|_| "invalid App Store Connect path".to_string())?;
@@ -374,9 +402,12 @@ fn plan_for(object: &Map<String, Value>, allow_missing_path: bool) -> Result<Req
         return Err("GET requests cannot include body".to_string());
     }
     if let Some(body) = &body {
-        let bytes = serde_json::to_vec(body).map_err(|_| "request body is not serializable".to_string())?;
+        let bytes =
+            serde_json::to_vec(body).map_err(|_| "request body is not serializable".to_string())?;
         if bytes.len() > MAX_REQUEST_BODY_BYTES {
-            return Err(format!("request body exceeds {MAX_REQUEST_BODY_BYTES} bytes"));
+            return Err(format!(
+                "request body exceeds {MAX_REQUEST_BODY_BYTES} bytes"
+            ));
         }
     }
     Ok(RequestPlan { method, url, body })
@@ -440,7 +471,9 @@ fn scalar_string(value: &Value) -> Result<String, String> {
         Value::Number(value) => Ok(value.to_string()),
         Value::Bool(value) => Ok(value.to_string()),
         Value::Null => Ok(String::new()),
-        _ => Err("query values must be strings, numbers, booleans, null, or arrays of these".into()),
+        _ => {
+            Err("query values must be strings, numbers, booleans, null, or arrays of these".into())
+        }
     }
 }
 
@@ -497,11 +530,13 @@ fn authorization_header() -> Result<Option<String>, String> {
     let issuer = bounded_env("ASC_ISSUER_ID", MAX_CREDENTIAL_BYTES)?;
     let key_id = bounded_env("ASC_KEY_ID", MAX_CREDENTIAL_BYTES)?;
     let path = bounded_env("ASC_PRIVATE_KEY_PATH", MAX_CREDENTIAL_BYTES)?;
-    let metadata = fs::metadata(&path).map_err(|_| "could not read App Store Connect private key".to_string())?;
+    let metadata = fs::metadata(&path)
+        .map_err(|_| "could not read App Store Connect private key".to_string())?;
     if !metadata.is_file() || metadata.len() > MAX_PRIVATE_KEY_BYTES {
         return Err("App Store Connect private key exceeds file size limit".to_string());
     }
-    let pem = fs::read(&path).map_err(|_| "could not read App Store Connect private key".to_string())?;
+    let pem =
+        fs::read(&path).map_err(|_| "could not read App Store Connect private key".to_string())?;
     if pem.len() as u64 > MAX_PRIVATE_KEY_BYTES {
         return Err("App Store Connect private key exceeds file size limit".to_string());
     }
@@ -511,7 +546,8 @@ fn authorization_header() -> Result<Option<String>, String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|_| "system clock is before Unix epoch".to_string())?
         .as_secs();
-    let claims = json!({"iss": issuer, "iat": now, "exp": now + 60 * 18, "aud": "appstoreconnect-v1"});
+    let claims =
+        json!({"iss": issuer, "iat": now, "exp": now + 60 * 18, "aud": "appstoreconnect-v1"});
     let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::ES256);
     header.kid = Some(key_id);
     header.typ = Some("JWT".to_string());
@@ -533,7 +569,8 @@ fn bounded_env(name: &str, max_bytes: usize) -> Result<String, String> {
 
 async fn execute_plan(plan: &RequestPlan) -> Result<Value, String> {
     let client = http_client()?;
-    let auth = authorization_header()?.ok_or_else(|| "missing App Store Connect credentials".to_string())?;
+    let auth = authorization_header()?
+        .ok_or_else(|| "missing App Store Connect credentials".to_string())?;
     let mut request = client.request(plan.method.clone(), plan.url.clone());
     request = request.header(reqwest::header::AUTHORIZATION, auth);
     if let Some(body) = &plan.body {
@@ -566,7 +603,9 @@ async fn decode_response(mut response: reqwest::Response) -> Result<Value, Strin
         .content_length()
         .is_some_and(|length| length > MAX_RESPONSE_BYTES as u64)
     {
-        return Err(format!("App Store Connect response exceeds {MAX_RESPONSE_BYTES} bytes"));
+        return Err(format!(
+            "App Store Connect response exceeds {MAX_RESPONSE_BYTES} bytes"
+        ));
     }
     let mut bytes = Vec::new();
     while let Some(chunk) = response
@@ -575,7 +614,9 @@ async fn decode_response(mut response: reqwest::Response) -> Result<Value, Strin
         .map_err(|_| "could not read App Store Connect response".to_string())?
     {
         if bytes.len().saturating_add(chunk.len()) > MAX_RESPONSE_BYTES {
-            return Err(format!("App Store Connect response exceeds {MAX_RESPONSE_BYTES} bytes"));
+            return Err(format!(
+                "App Store Connect response exceeds {MAX_RESPONSE_BYTES} bytes"
+            ));
         }
         bytes.extend_from_slice(&chunk);
     }
@@ -583,9 +624,8 @@ async fn decode_response(mut response: reqwest::Response) -> Result<Value, Strin
 }
 
 fn decode_payload(status: u16, bytes: &[u8]) -> Value {
-    let body = serde_json::from_slice::<Value>(bytes).unwrap_or_else(|_| {
-        json!({"rawBodyAvailable": true, "byteLength": bytes.len()})
-    });
+    let body = serde_json::from_slice::<Value>(bytes)
+        .unwrap_or_else(|_| json!({"rawBodyAvailable": true, "byteLength": bytes.len()}));
     let mut result = json!({
         "ok": (200..300).contains(&status),
         "status": status,
@@ -594,7 +634,11 @@ fn decode_payload(status: u16, bytes: &[u8]) -> Value {
     if let Some(state) = find_processing_state(&body) {
         result["processingState"] = Value::String(state);
     }
-    if let Some(next) = body.get("links").and_then(|links| links.get("next")).and_then(Value::as_str) {
+    if let Some(next) = body
+        .get("links")
+        .and_then(|links| links.get("next"))
+        .and_then(Value::as_str)
+    {
         result["next"] = Value::String(next.to_string());
     }
     result
@@ -605,8 +649,15 @@ fn find_processing_state(value: &Value) -> Option<String> {
         Value::Object(map) => {
             for key in ["processingState", "processingStateValue", "state"] {
                 if let Some(value) = map.get(key).and_then(Value::as_str) {
-                    if ["PROCESSING", "VALID", "INVALID", "FAILED", "COMPLETE", "COMPLETE_WITH_ERRORS"]
-                        .contains(&value)
+                    if [
+                        "PROCESSING",
+                        "VALID",
+                        "INVALID",
+                        "FAILED",
+                        "COMPLETE",
+                        "COMPLETE_WITH_ERRORS",
+                    ]
+                    .contains(&value)
                     {
                         return Some(value.to_string());
                     }
@@ -639,7 +690,8 @@ fn same_origin_next(raw: &str) -> Result<Url, String> {
             .map_err(|_| "pagination next link is not a URL".to_string())?,
         Err(_) => return Err("pagination next link is not a URL".to_string()),
     };
-    validate_origin(&url).map_err(|_| "pagination next link is outside App Store Connect origin".to_string())?;
+    validate_origin(&url)
+        .map_err(|_| "pagination next link is outside App Store Connect origin".to_string())?;
     if (!url.path().starts_with("/v1/") && !url.path().starts_with("/v2/"))
         || url.path().contains("//")
         || url.path().contains("..")
@@ -682,14 +734,19 @@ mod tests {
 
     #[test]
     fn query_is_sorted_and_arrays_repeat() {
-        let args = json!({"action":"request","path":"/v1/apps","query":{"filter":["b","a"],"limit":2}});
+        let args =
+            json!({"action":"request","path":"/v1/apps","query":{"filter":["b","a"],"limit":2}});
         let plan = plan_for(args.as_object().unwrap(), true).unwrap();
-        assert_eq!(plan.url.as_str(), "https://api.appstoreconnect.apple.com/v1/apps?filter=a&filter=b&limit=2");
+        assert_eq!(
+            plan.url.as_str(),
+            "https://api.appstoreconnect.apple.com/v1/apps?filter=a&filter=b&limit=2"
+        );
     }
 
     #[test]
     fn next_links_are_same_origin_and_bounded() {
-        let url = same_origin_next("https://api.appstoreconnect.apple.com/v1/apps?cursor=1").unwrap();
+        let url =
+            same_origin_next("https://api.appstoreconnect.apple.com/v1/apps?cursor=1").unwrap();
         assert_eq!(url.path(), "/v1/apps");
         assert!(same_origin_next("https://evil.example/v1/apps").is_err());
         assert!(same_origin_next("https://api.appstoreconnect.apple.com:8443/v1/apps").is_err());
@@ -702,7 +759,10 @@ mod tests {
         let args = json!({"action":"builds","operation":"view","id":"build-1"});
         let mut object = args.as_object().unwrap().clone();
         object.insert("action".into(), Value::String("request".into()));
-        object.insert("path".into(), Value::String(alias_path("builds", "view", args.as_object().unwrap()).unwrap()));
+        object.insert(
+            "path".into(),
+            Value::String(alias_path("builds", "view", args.as_object().unwrap()).unwrap()),
+        );
         let plan = plan_for(&object, true).unwrap();
         assert_eq!(plan.url.path(), "/v1/builds/build-1");
     }
@@ -710,9 +770,15 @@ mod tests {
     #[test]
     fn relationship_aliases_use_actual_store_connect_routes() {
         let args = json!({"action":"metadata","resource":"localization","operation":"list","parentId":"version-1"});
-        assert_eq!(alias_path("metadata", "list", args.as_object().unwrap()).unwrap(), "/v1/appStoreVersions/version-1/appStoreVersionLocalizations");
+        assert_eq!(
+            alias_path("metadata", "list", args.as_object().unwrap()).unwrap(),
+            "/v1/appStoreVersions/version-1/appStoreVersionLocalizations"
+        );
         let args = json!({"action":"testflight","resource":"tester","operation":"list","parentId":"group-1"});
-        assert_eq!(alias_path("testflight", "list", args.as_object().unwrap()).unwrap(), "/v1/betaGroups/group-1/betaTesters");
+        assert_eq!(
+            alias_path("testflight", "list", args.as_object().unwrap()).unwrap(),
+            "/v1/betaGroups/group-1/betaTesters"
+        );
     }
 
     #[test]

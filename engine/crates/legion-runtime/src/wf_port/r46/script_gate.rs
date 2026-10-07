@@ -22,7 +22,10 @@ pub fn script_gate_values(text: &str) -> std::collections::HashMap<String, Strin
         Some(i) => i,
         None => return std::collections::HashMap::new(),
     };
-    let end = match text.get(start..).and_then(|rest| rest.find("## 6. Failure Decision & Recovery Matrix")) {
+    let end = match text
+        .get(start..)
+        .and_then(|rest| rest.find("## 6. Failure Decision & Recovery Matrix"))
+    {
         Some(i) => start + i,
         None => return std::collections::HashMap::new(),
     };

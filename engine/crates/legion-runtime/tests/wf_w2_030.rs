@@ -17,7 +17,9 @@ use legion_runtime::wf_port::w2_030::google_auth::{
 use legion_runtime::wf_port::w2_030::gsc_inspect::{
     apply_daily_limit, parse_inspection_result, tally_batch_summary,
 };
-use legion_runtime::wf_port::w2_030::gsc_query_v2::{build_filters, normalize_result, NormalizeParams};
+use legion_runtime::wf_port::w2_030::gsc_query_v2::{
+    build_filters, normalize_result, NormalizeParams,
+};
 use serde_json::{json, Value};
 
 #[test]
@@ -25,7 +27,10 @@ fn google_auth_full_credential_lifecycle() {
     // Config loaded purely from environment (no file present), matching a fresh dev machine.
     let mut env = BTreeMap::new();
     env.insert("GOOGLE_API_KEY".to_string(), "AIzaTest".to_string());
-    env.insert("GA4_PROPERTY_ID".to_string(), "properties/12345".to_string());
+    env.insert(
+        "GA4_PROPERTY_ID".to_string(),
+        "properties/12345".to_string(),
+    );
     let cfg = merge_config(None, &env);
     assert_eq!(cfg.api_key.as_deref(), Some("AIzaTest"));
 
@@ -56,7 +61,10 @@ fn google_auth_full_credential_lifecycle() {
 
     let gsc_check2 = check_credentials("gsc", &cfg, &authenticated);
     assert!(gsc_check2.available);
-    assert_eq!(gsc_check2.client_email.as_deref(), Some("svc@project.iam.gserviceaccount.com"));
+    assert_eq!(
+        gsc_check2.client_email.as_deref(),
+        Some("svc@project.iam.gserviceaccount.com")
+    );
 
     let ga4_check = check_credentials("ga4", &cfg, &authenticated);
     assert!(ga4_check.available);
@@ -65,7 +73,10 @@ fn google_auth_full_credential_lifecycle() {
 #[test]
 fn google_auth_config_default_property_feeds_gsc_query_defaults() {
     let mut env = BTreeMap::new();
-    env.insert("GSC_PROPERTY".to_string(), "sc-domain:example.com".to_string());
+    env.insert(
+        "GSC_PROPERTY".to_string(),
+        "sc-domain:example.com".to_string(),
+    );
     let cfg = merge_config(None, &env);
     let prop = cfg.default_property.expect("default_property from env");
     assert_eq!(prop, "sc-domain:example.com");
@@ -140,7 +151,9 @@ fn gsc_inspect_single_and_batch_pipeline() {
     assert_eq!(summary.fail_count, 1);
     assert_eq!(summary.error_count, 0);
 
-    let urls: Vec<String> = (0..2005).map(|i| format!("https://example.com/{i}")).collect();
+    let urls: Vec<String> = (0..2005)
+        .map(|i| format!("https://example.com/{i}"))
+        .collect();
     let (truncated, warning) = apply_daily_limit(urls);
     assert_eq!(truncated.len(), 2000);
     assert!(warning.unwrap().contains("2005"));
@@ -148,7 +161,9 @@ fn gsc_inspect_single_and_batch_pipeline() {
 
 #[test]
 fn google_auth_validate_url_blocks_metadata_and_link_local() {
-    assert!(!validate_url("http://metadata.google.internal/computeMetadata/v1/"));
+    assert!(!validate_url(
+        "http://metadata.google.internal/computeMetadata/v1/"
+    ));
     assert!(!validate_url("https://169.254.169.254/latest/meta-data"));
     assert!(validate_url("https://searchconsole.googleapis.com/v1/"));
 }

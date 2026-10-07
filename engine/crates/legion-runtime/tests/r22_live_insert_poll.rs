@@ -6,8 +6,8 @@
 //! correctly.
 
 use legion_runtime::wf_port::r22::live_insert::{
-    arg_val, build_insert_wrapper_lines, compute_insert_line, is_insert_position,
-    CommentSyntax, InsertWrapperArgs,
+    arg_val, build_insert_wrapper_lines, compute_insert_line, is_insert_position, CommentSyntax,
+    InsertWrapperArgs,
 };
 use legion_runtime::wf_port::r22::live_poll::{
     build_accept_script_args, build_poll_reply_payload, is_event_pending, manual_apply_poll_banner,
@@ -50,13 +50,9 @@ fn live_poll_public_api_roundtrip() {
     let status = json!({ "pendingEvents": [{"id": "ev1"}] });
     assert!(is_event_pending(&status, "ev1"));
 
-    let parsed = parse_reply_args(&[
-        "--reply".to_string(),
-        "ev1".to_string(),
-        "done".to_string(),
-    ])
-    .unwrap()
-    .unwrap();
+    let parsed = parse_reply_args(&["--reply".to_string(), "ev1".to_string(), "done".to_string()])
+        .unwrap()
+        .unwrap();
     assert_eq!(parsed.id, "ev1");
 
     let event = AcceptEvent {

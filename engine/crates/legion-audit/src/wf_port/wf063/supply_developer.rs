@@ -27,7 +27,9 @@ fn download_execute_unverified() -> &'static Regex {
 
 fn mutable_container_tag() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)(?:image:|FROM)\s+[^\s@]+:(?:latest|main|master)\b").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)(?:image:|FROM)\s+[^\s@]+:(?:latest|main|master)\b").unwrap()
+    })
 }
 
 fn global_config_write() -> &'static Regex {
@@ -122,9 +124,14 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 required_controls: vec![],
                 observed_controls: vec![],
                 chain_roles: vec!["starter".to_string(), "impact".to_string()],
-                evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                evidence_refs: artifact
+                    .map(|a| a.evidence_refs.clone())
+                    .unwrap_or_default(),
                 detector_metadata: json!({ "file": file, "patternFamily": CANDIDATE_CLASS }),
-                uncertainty: vec!["Reachability and compensating controls require independent adjudication.".to_string()],
+                uncertainty: vec![
+                    "Reachability and compensating controls require independent adjudication."
+                        .to_string(),
+                ],
             });
         }
     }

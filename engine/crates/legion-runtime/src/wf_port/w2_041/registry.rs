@@ -34,7 +34,12 @@ pub trait PlanStage {
 /// reads it off `options`; it is taken as an explicit parameter here so
 /// callers are not required to round-trip it through a JSON `options`
 /// object). Returns `{ status, complete, artifacts, gaps }`.
-pub fn run_planning_stages(stages: &[&dyn PlanStage], options: &Value, host: &Value, claim_level: &str) -> Value {
+pub fn run_planning_stages(
+    stages: &[&dyn PlanStage],
+    options: &Value,
+    host: &Value,
+    claim_level: &str,
+) -> Value {
     let by_id: std::collections::HashMap<&str, &dyn PlanStage> =
         stages.iter().map(|s| (s.id(), *s)).collect();
     let required = required_stages_for(claim_level);
@@ -62,7 +67,10 @@ pub fn run_planning_stages(stages: &[&dyn PlanStage], options: &Value, host: &Va
                         artifacts.insert((*id).to_string(), artifact.clone());
                     }
                 }
-                let complete = result.get("complete").and_then(Value::as_bool).unwrap_or(false);
+                let complete = result
+                    .get("complete")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
                 if !complete {
                     let status = result
                         .get("status")
@@ -126,7 +134,9 @@ mod tests {
         let gaps = result["gaps"].as_array().unwrap();
         assert_eq!(gaps.len(), 2);
         assert!(gaps.iter().any(|g| g["stage"] == json!("blueprint-packet")));
-        assert!(gaps.iter().any(|g| g["stage"] == json!("product-portfolio")));
+        assert!(gaps
+            .iter()
+            .any(|g| g["stage"] == json!("product-portfolio")));
     }
 
     #[test]
@@ -137,7 +147,10 @@ mod tests {
                 "blueprint-packet"
             }
             fn run(&self, options: &Value, _host: &Value) -> Value {
-                let seen = options.get("artifacts").and_then(|a| a.get("repository-binding")).cloned();
+                let seen = options
+                    .get("artifacts")
+                    .and_then(|a| a.get("repository-binding"))
+                    .cloned();
                 json!({"complete": true, "artifact": {"sawPrior": seen}})
             }
         }
@@ -178,6 +191,9 @@ mod tests {
     fn runtime_claim_level_requires_every_planning_stage() {
         let stages: Vec<&dyn PlanStage> = Vec::new();
         let result = run_planning_stages(&stages, &json!({}), &json!({}), "runtime");
-        assert_eq!(result["gaps"].as_array().unwrap().len(), PLANNING_STAGE_IDS.len());
+        assert_eq!(
+            result["gaps"].as_array().unwrap().len(),
+            PLANNING_STAGE_IDS.len()
+        );
     }
 }

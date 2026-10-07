@@ -170,7 +170,10 @@ pub fn collect_static_design_system_findings(
         if ds.has_fonts && el.has_direct_text {
             if let Some(stack) = el.font_family.as_deref() {
                 let font = primary_font(stack);
-                if !font.is_empty() && !seen_fonts.contains(&font) && !is_allowed_font(&font, Some(ds)) {
+                if !font.is_empty()
+                    && !seen_fonts.contains(&font)
+                    && !is_allowed_font(&font, Some(ds))
+                {
                     seen_fonts.insert(font.clone());
                     findings.push(DesignFinding {
                         antipattern: "design-system-font".to_string(),
@@ -334,7 +337,13 @@ mod tests {
             ..Default::default()
         };
         let evaluator = FakeEvaluator(vec![el]);
-        let findings = collect_static_design_system_findings(&evaluator, "<div>Sign up</div>", "index.html", Some(&ds)).unwrap();
+        let findings = collect_static_design_system_findings(
+            &evaluator,
+            "<div>Sign up</div>",
+            "index.html",
+            Some(&ds),
+        )
+        .unwrap();
         assert!(findings
             .iter()
             .any(|f| f.antipattern == "design-system-font" && f.ignore_value == "comic sans ms"));
@@ -351,8 +360,16 @@ mod tests {
             ..Default::default()
         };
         let evaluator = FakeEvaluator(vec![el]);
-        let findings = collect_static_design_system_findings(&evaluator, "<div></div>", "index.html", Some(&ds)).unwrap();
-        assert!(findings.iter().any(|f| f.antipattern == "design-system-color"));
+        let findings = collect_static_design_system_findings(
+            &evaluator,
+            "<div></div>",
+            "index.html",
+            Some(&ds),
+        )
+        .unwrap();
+        assert!(findings
+            .iter()
+            .any(|f| f.antipattern == "design-system-color"));
     }
 
     #[test]
@@ -364,7 +381,13 @@ mod tests {
             ..Default::default()
         };
         let evaluator = FakeEvaluator(vec![el]);
-        let findings = collect_static_design_system_findings(&evaluator, "<div></div>", "index.html", Some(&ds)).unwrap();
+        let findings = collect_static_design_system_findings(
+            &evaluator,
+            "<div></div>",
+            "index.html",
+            Some(&ds),
+        )
+        .unwrap();
         assert!(findings.is_empty());
     }
 
@@ -377,8 +400,16 @@ mod tests {
             ..Default::default()
         };
         let evaluator = FakeEvaluator(vec![el]);
-        let findings = collect_static_design_system_findings(&evaluator, "<button></button>", "index.html", Some(&ds)).unwrap();
-        assert!(findings.iter().any(|f| f.antipattern == "design-system-radius" && f.ignore_value == "13px"));
+        let findings = collect_static_design_system_findings(
+            &evaluator,
+            "<button></button>",
+            "index.html",
+            Some(&ds),
+        )
+        .unwrap();
+        assert!(findings
+            .iter()
+            .any(|f| f.antipattern == "design-system-radius" && f.ignore_value == "13px"));
     }
 
     #[test]
@@ -391,14 +422,28 @@ mod tests {
             ..Default::default()
         };
         let evaluator = FakeEvaluator(vec![el.clone(), el]);
-        let findings = collect_static_design_system_findings(&evaluator, "<div></div>", "index.html", Some(&ds)).unwrap();
-        assert_eq!(findings.iter().filter(|f| f.antipattern == "design-system-font").count(), 1);
+        let findings = collect_static_design_system_findings(
+            &evaluator,
+            "<div></div>",
+            "index.html",
+            Some(&ds),
+        )
+        .unwrap();
+        assert_eq!(
+            findings
+                .iter()
+                .filter(|f| f.antipattern == "design-system-font")
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn empty_without_design_system() {
         let evaluator = FakeEvaluator(vec![]);
-        let findings = collect_static_design_system_findings(&evaluator, "<div></div>", "index.html", None).unwrap();
+        let findings =
+            collect_static_design_system_findings(&evaluator, "<div></div>", "index.html", None)
+                .unwrap();
         assert!(findings.is_empty());
     }
 
@@ -411,7 +456,13 @@ mod tests {
             }
         }
         let ds = ds();
-        let err = collect_static_design_system_findings(&FailEvaluator, "<div></div>", "index.html", Some(&ds)).unwrap_err();
+        let err = collect_static_design_system_findings(
+            &FailEvaluator,
+            "<div></div>",
+            "index.html",
+            Some(&ds),
+        )
+        .unwrap_err();
         assert_eq!(err, "no browser");
     }
 }

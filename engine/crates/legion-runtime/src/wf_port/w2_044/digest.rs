@@ -24,7 +24,12 @@ pub fn sha256_digest(bytes: &[u8]) -> String {
 
 fn is_sha256_digest(value: &str) -> bool {
     match value.strip_prefix("sha256:") {
-        Some(hex) => hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
+        Some(hex) => {
+            hex.len() == 64
+                && hex
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        }
         None => false,
     }
 }
@@ -122,7 +127,10 @@ mod tests {
         let bad = serde_json::json!({"path": file.to_string_lossy(), "digest": "sha256:00"});
         let mut errors = vec![];
         digest_path(&bad, &dir.join("packet.json"), "label", &mut errors);
-        assert_eq!(errors, vec!["label requires path and sha256 digest".to_string()]);
+        assert_eq!(
+            errors,
+            vec!["label requires path and sha256 digest".to_string()]
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 }

@@ -202,7 +202,10 @@ pub fn status_block(
     if let Some(bgm) = &opts.bgm {
         lines.push(format!("  BGM:         {bgm}"));
     }
-    lines.push(format!("  \u{6700}\u{7ec8}\u{8f93}\u{51fa}:    {}", paths.out.display()));
+    lines.push(format!(
+        "  \u{6700}\u{7ec8}\u{8f93}\u{51fa}:    {}",
+        paths.out.display()
+    ));
     lines.join("\n")
 }
 
@@ -236,7 +239,10 @@ mod tests {
 
     #[test]
     fn unknown_flag_errors() {
-        assert_eq!(parse_args(["--bogus"]).unwrap_err(), UnknownFlag("--bogus".to_string()));
+        assert_eq!(
+            parse_args(["--bogus"]).unwrap_err(),
+            UnknownFlag("--bogus".to_string())
+        );
     }
 
     #[test]

@@ -1,6 +1,4 @@
-use legion_arcane::{
-    dispatch_governance_judgment, JudgmentControlCapability, ReceiptStore,
-};
+use legion_arcane::{dispatch_governance_judgment, JudgmentControlCapability, ReceiptStore};
 use serde_json::json;
 use std::path::PathBuf;
 
@@ -11,7 +9,12 @@ fn temp_cwd(name: &str) -> PathBuf {
         ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+            .as_nanos())
+        .wrapping_shl(20)
+            | ({
+                static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+            }))
     ));
     std::fs::create_dir_all(&path).expect("temp cwd");
     path
@@ -73,7 +76,9 @@ fn finding_upsert_persists_across_invocations() {
     );
     assert_eq!(second["allowed"], true);
     assert_eq!(
-        second["detail"]["records"].as_array().map(|items| items.len()),
+        second["detail"]["records"]
+            .as_array()
+            .map(|items| items.len()),
         Some(1)
     );
     let receipt_root = cwd.join(".audit").join("arcane").join("receipts");
@@ -87,13 +92,13 @@ fn finding_upsert_persists_across_invocations() {
         Some(&reloaded),
     );
     assert_eq!(
-        third["detail"]["records"].as_array().map(|items| items.len()),
+        third["detail"]["records"]
+            .as_array()
+            .map(|items| items.len()),
         Some(1)
     );
-    assert!(
-        store
-            .list()
-            .iter()
-            .any(|record| record.get("kind") == Some(&json!("arcane-governance-finding-state")))
-    );
+    assert!(store
+        .list()
+        .iter()
+        .any(|record| record.get("kind") == Some(&json!("arcane-governance-finding-state"))));
 }

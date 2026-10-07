@@ -15,7 +15,9 @@ use std::net::IpAddr;
 use regex::Regex;
 use serde_json::Map;
 
-use super::support::{data_only_envelope, locate_text, publisher_from_url, seed_id, stable_hit_id, today, WfError};
+use super::support::{
+    data_only_envelope, locate_text, publisher_from_url, seed_id, stable_hit_id, today, WfError,
+};
 use super::types::{LocatedPassage, OpenedSource, Provider, SearchHit};
 
 pub const USER_AGENT: &str = "LegionResearch/1.0 (+https://github.com/orthic-labs/legion)";
@@ -201,7 +203,9 @@ fn urlencode_path(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -294,7 +298,11 @@ fn is_global_ip(addr: &IpAddr) -> bool {
 /// Port of `_document_text`.
 pub fn document_text(raw: &[u8], content_type: &str) -> (String, String) {
     let decoded = String::from_utf8_lossy(raw).to_string();
-    let head: String = decoded.chars().take(1000).collect::<String>().to_ascii_lowercase();
+    let head: String = decoded
+        .chars()
+        .take(1000)
+        .collect::<String>()
+        .to_ascii_lowercase();
     let looks_html = content_type == "text/html"
         || content_type == "application/xhtml+xml"
         || head.contains("<html");
@@ -310,7 +318,8 @@ fn extract_visible_text(html: &str) -> (String, String) {
     // expanded into one non-backreferenced alternative per tag name.
     let mut without_skipped = html.to_string();
     for tag in ["script", "style", "noscript", "svg"] {
-        let skip_re = Regex::new(&format!(r"(?is)<{tag}\b[^>]*>.*?</{tag}>")).expect("static regex");
+        let skip_re =
+            Regex::new(&format!(r"(?is)<{tag}\b[^>]*>.*?</{tag}>")).expect("static regex");
         without_skipped = skip_re.replace_all(&without_skipped, " ").into_owned();
     }
     let title_re = Regex::new(r"(?is)<title[^>]*>(.*?)</title>").expect("static regex");
@@ -355,7 +364,10 @@ fn html_unescape(s: &str) -> String {
 
 fn strip_cdata(s: &str) -> String {
     let t = s.trim();
-    if let Some(inner) = t.strip_prefix("<![CDATA[").and_then(|r| r.strip_suffix("]]>")) {
+    if let Some(inner) = t
+        .strip_prefix("<![CDATA[")
+        .and_then(|r| r.strip_suffix("]]>"))
+    {
         inner.trim().to_string()
     } else {
         t.to_string()
@@ -398,7 +410,10 @@ pub fn rss_hits(
             .map(|c| strip_cdata(&c[1]))
             .unwrap_or_else(|| url.clone());
         let title = html_unescape(&title_raw);
-        let desc_raw = desc_re.captures(item).map(|c| strip_cdata(&c[1])).unwrap_or_default();
+        let desc_raw = desc_re
+            .captures(item)
+            .map(|c| strip_cdata(&c[1]))
+            .unwrap_or_default();
         let desc_stripped = tag_re.replace_all(&desc_raw, " ").to_string();
         let snippet = html_unescape(&collapse_ws(&desc_stripped));
         let mut metadata = Map::new();
@@ -488,11 +503,15 @@ impl<T: HttpTransport> Provider for HttpBrowserProvider<T> {
             }]);
         }
         let count = limit.clamp(1, 50);
-        let endpoint =
-            format!("https://www.bing.com/search?q={}&format=rss&count={count}", urlencode(query));
-        let resp = self
-            .transport
-            .get(&endpoint, "application/rss+xml,application/xml,text/xml", 45)?;
+        let endpoint = format!(
+            "https://www.bing.com/search?q={}&format=rss&count={count}",
+            urlencode(query)
+        );
+        let resp = self.transport.get(
+            &endpoint,
+            "application/rss+xml,application/xml,text/xml",
+            45,
+        )?;
         Ok(rss_hits(&resp.body, Self::NAME, query, limit, seed_chain))
     }
 
@@ -524,15 +543,21 @@ impl<T: HttpTransport> Provider for HttpBrowserProvider<T> {
         })
     }
 
-    fn find(&self, opened: &OpenedSource, pattern: &str) -> Result<Option<LocatedPassage>, WfError> {
-        Ok(locate_text(&opened.content, pattern, 300).map(|(locator, text)| LocatedPassage {
-            url: opened.url.clone(),
-            locator,
-            text,
-            is_paraphrase: false,
-            provider: Self::NAME.to_string(),
-            metadata: Map::new(),
-        }))
+    fn find(
+        &self,
+        opened: &OpenedSource,
+        pattern: &str,
+    ) -> Result<Option<LocatedPassage>, WfError> {
+        Ok(
+            locate_text(&opened.content, pattern, 300).map(|(locator, text)| LocatedPassage {
+                url: opened.url.clone(),
+                locator,
+                text,
+                is_paraphrase: false,
+                provider: Self::NAME.to_string(),
+                metadata: Map::new(),
+            }),
+        )
     }
 }
 

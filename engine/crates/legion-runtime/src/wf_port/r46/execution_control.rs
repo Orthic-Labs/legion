@@ -40,7 +40,8 @@ pub fn execution_control_errors(text: &str, allow_template: bool) -> Vec<String>
     }
     let mut errors = Vec::new();
 
-    let invariants = label_value(text, "**Critical discriminating invariants:**").unwrap_or_default();
+    let invariants =
+        label_value(text, "**Critical discriminating invariants:**").unwrap_or_default();
     if invariants.matches("INVARIANT:").count() < 3 {
         errors.push(
             "**Critical discriminating invariants:** requires at least three embedded INVARIANT entries"
@@ -51,12 +52,15 @@ pub fn execution_control_errors(text: &str, allow_template: bool) -> Vec<String>
     for (label, pattern) in rules() {
         let value = label_value(text, label).unwrap_or_default();
         if !rule_re(pattern).is_match(&value) {
-            errors.push(format!("{label} lacks enforceable execution-control contract"));
+            errors.push(format!(
+                "{label} lacks enforceable execution-control contract"
+            ));
         }
     }
 
     let production_path = label_value(text, "**Production path chain:**").unwrap_or_default();
-    if !production_path.starts_with("PRODUCTION_PATH:") || production_path.matches("->").count() < 4 {
+    if !production_path.starts_with("PRODUCTION_PATH:") || production_path.matches("->").count() < 4
+    {
         errors.push(
             "**Production path chain:** requires PRODUCTION_PATH plus at least five ordered stages"
                 .to_string(),
@@ -76,8 +80,13 @@ pub fn execution_control_errors(text: &str, allow_template: bool) -> Vec<String>
         "**Canary / one-unit preflight:**",
     ] {
         let command = fenced_value_after(text, label).unwrap_or_default();
-        if !is_concrete(&command) || !action_re().is_match(&command) || !path_re().is_match(&command) {
-            errors.push(format!("{label} requires exact action/command plus evidence path"));
+        if !is_concrete(&command)
+            || !action_re().is_match(&command)
+            || !path_re().is_match(&command)
+        {
+            errors.push(format!(
+                "{label} requires exact action/command plus evidence path"
+            ));
         }
     }
     errors
@@ -116,11 +125,10 @@ mod tests {
 
     #[test]
     fn flags_insufficient_invariants() {
-        let text = valid_text().replace(
-            "INVARIANT: a INVARIANT: b INVARIANT: c",
-            "INVARIANT: a",
-        );
+        let text = valid_text().replace("INVARIANT: a INVARIANT: b INVARIANT: c", "INVARIANT: a");
         let errors = execution_control_errors(&text, false);
-        assert!(errors.iter().any(|e| e.contains("Critical discriminating invariants")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("Critical discriminating invariants")));
     }
 }

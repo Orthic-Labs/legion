@@ -39,8 +39,18 @@ fn parse_rgb_extracts_channels_and_alpha() {
 
 #[test]
 fn contrast_ratio_is_symmetric_and_bounded() {
-    let black = Rgba { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
-    let white = Rgba { r: 255.0, g: 255.0, b: 255.0, a: 1.0 };
+    let black = Rgba {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    };
+    let white = Rgba {
+        r: 255.0,
+        g: 255.0,
+        b: 255.0,
+        a: 1.0,
+    };
     let ratio = contrast_ratio(black, white);
     assert!((ratio - 21.0).abs() < 1e-6);
     assert_eq!(ratio, contrast_ratio(white, black));
@@ -49,16 +59,27 @@ fn contrast_ratio_is_symmetric_and_bounded() {
 
 #[test]
 fn parse_gradient_colors_reads_rgb_and_hex_stops() {
-    let stops = parse_gradient_colors(Some(
-        "linear-gradient(90deg, rgba(1,2,3,0.5), #abcdef)",
-    ));
+    let stops = parse_gradient_colors(Some("linear-gradient(90deg, rgba(1,2,3,0.5), #abcdef)"));
     assert_eq!(stops.len(), 2);
-    assert_eq!(stops[0], Rgba { r: 1.0, g: 2.0, b: 3.0, a: 0.5 });
+    assert_eq!(
+        stops[0],
+        Rgba {
+            r: 1.0,
+            g: 2.0,
+            b: 3.0,
+            a: 0.5
+        }
+    );
 }
 
 #[test]
 fn has_chroma_and_get_hue_and_hex_roundtrip() {
-    let tinted = Rgba { r: 200.0, g: 50.0, b: 50.0, a: 1.0 };
+    let tinted = Rgba {
+        r: 200.0,
+        g: 50.0,
+        b: 50.0,
+        a: 1.0,
+    };
     assert!(has_chroma(Some(tinted), 30.0));
     assert_eq!(get_hue(Some(tinted)), 0.0);
     assert_eq!(color_to_hex(Some(tinted)), "#c83232");
@@ -128,9 +149,15 @@ impl HasAntipatternId for Finding {
 #[test]
 fn filter_by_providers_keeps_ungated_and_matching_gated_only() {
     let findings = vec![
-        Finding { antipattern: "low-contrast".into() },
-        Finding { antipattern: "gpt-thin-border-wide-shadow".into() },
-        Finding { antipattern: "image-hover-transform".into() },
+        Finding {
+            antipattern: "low-contrast".into(),
+        },
+        Finding {
+            antipattern: "gpt-thin-border-wide-shadow".into(),
+        },
+        Finding {
+            antipattern: "image-hover-transform".into(),
+        },
     ];
     let kept = filter_by_providers(findings, &["gemini"]);
     let ids: Vec<&str> = kept.iter().map(|f| f.antipattern.as_str()).collect();

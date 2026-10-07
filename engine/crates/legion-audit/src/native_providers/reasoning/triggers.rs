@@ -85,8 +85,19 @@ fn evaluate_a11y(paths: &[String]) -> TriggerEvaluation {
 /// scope, per `manual.md` line 273.
 fn evaluate_data_safety(paths: &[String]) -> TriggerEvaluation {
     let needles = [
-        "migration", "migrations", ".sql", "/schema", "schema.rs", "schema.ts", "schema.py",
-        "localstorage", "asyncstorage", "sqlite", "keychain", "keystore", "telemetry",
+        "migration",
+        "migrations",
+        ".sql",
+        "/schema",
+        "schema.rs",
+        "schema.ts",
+        "schema.py",
+        "localstorage",
+        "asyncstorage",
+        "sqlite",
+        "keychain",
+        "keystore",
+        "telemetry",
         "analytics",
     ];
     let hits: Vec<String> = paths
@@ -116,20 +127,35 @@ fn evaluate_data_safety(paths: &[String]) -> TriggerEvaluation {
 /// path alone under-fires ("server.rs" is common but a raw spawn call
 /// inside an unrelated file would be missed by path alone).
 fn evaluate_resilience(root: &Path, paths: &[String]) -> TriggerEvaluation {
-    let path_needles = ["sidecar", "child_process", "daemon", "worker", "queue", "/server"];
+    let path_needles = [
+        "sidecar",
+        "child_process",
+        "daemon",
+        "worker",
+        "queue",
+        "/server",
+    ];
     let mut hits: Vec<String> = paths
         .iter()
         .filter(|path| contains_any(&path.to_ascii_lowercase(), &path_needles))
         .cloned()
         .collect();
     let content_extensions = [".rs", ".ts", ".tsx", ".js", ".py"];
-    let content_needles = ["Command::new(", "spawn_sidecar", "child_process.spawn", "subprocess.Popen"];
+    let content_needles = [
+        "Command::new(",
+        "spawn_sidecar",
+        "child_process.spawn",
+        "subprocess.Popen",
+    ];
     for path in paths {
         if hits.contains(path) || !has_extension(path, &content_extensions) {
             continue;
         }
         if let Some(content) = read_head(root, path) {
-            if content_needles.iter().any(|needle| content.contains(needle)) {
+            if content_needles
+                .iter()
+                .any(|needle| content.contains(needle))
+            {
                 hits.push(path.clone());
             }
         }
@@ -139,9 +165,13 @@ fn evaluate_resilience(root: &Path, paths: &[String]) -> TriggerEvaluation {
         lens: "resilience",
         fired,
         reason: if fired {
-            format!("sidecar/child-process/server/queue code present: {} matching file(s)", hits.len())
+            format!(
+                "sidecar/child-process/server/queue code present: {} matching file(s)",
+                hits.len()
+            )
         } else {
-            "checked sidecar/child-process/server/queue path and spawn-site signatures; zero hits".into()
+            "checked sidecar/child-process/server/queue path and spawn-site signatures; zero hits"
+                .into()
         },
         evidence_paths: hits,
     }
@@ -170,7 +200,10 @@ fn evaluate_platform_parity(root: &Path, paths: &[String]) -> TriggerEvaluation 
         lens: "platform-parity",
         fired,
         reason: if fired {
-            format!("cfg(target_os or usePlatform present: {} matching file(s)", hits.len())
+            format!(
+                "cfg(target_os or usePlatform present: {} matching file(s)",
+                hits.len()
+            )
         } else {
             "checked cfg(target_os / usePlatform content signature across .rs/.ts/.tsx/.js/.jsx; zero hits".into()
         },
@@ -182,7 +215,13 @@ fn evaluate_platform_parity(root: &Path, paths: &[String]) -> TriggerEvaluation 
 /// `tauri.conf.json` bundle config, per `manual.md` line 276.
 fn evaluate_release_readiness(paths: &[String]) -> TriggerEvaluation {
     let needles = [
-        "tauri.conf", "release", "sign", "notariz", "installer", "updater", "entitlements",
+        "tauri.conf",
+        "release",
+        "sign",
+        "notariz",
+        "installer",
+        "updater",
+        "entitlements",
     ];
     let hits: Vec<String> = paths
         .iter()
@@ -225,10 +264,16 @@ pub fn evaluate_trigger(root: &Path, lens: &str, paths: &[String]) -> Option<Tri
 /// Evaluates every conditional lens's trigger at once (the plan-freeze use
 /// case: decide, for each conditional lens, whether it belongs in the run).
 pub fn evaluate_all_conditional_triggers(root: &Path, paths: &[String]) -> Vec<TriggerEvaluation> {
-    ["a11y", "data-safety", "resilience", "platform-parity", "release-readiness"]
-        .iter()
-        .filter_map(|lens| evaluate_trigger(root, lens, paths))
-        .collect()
+    [
+        "a11y",
+        "data-safety",
+        "resilience",
+        "platform-parity",
+        "release-readiness",
+    ]
+    .iter()
+    .filter_map(|lens| evaluate_trigger(root, lens, paths))
+    .collect()
 }
 
 #[cfg(test)]
@@ -293,7 +338,11 @@ mod tests {
     fn platform_parity_needs_content_signature_not_just_extension() {
         let dir = ScratchDir::new();
         write(dir.path(), "src/os.rs", "fn plain() {}\n");
-        write(dir.path(), "src/os2.rs", "#[cfg(target_os = \"macos\")]\nfn mac() {}\n");
+        write(
+            dir.path(),
+            "src/os2.rs",
+            "#[cfg(target_os = \"macos\")]\nfn mac() {}\n",
+        );
         let paths = vec!["src/os.rs".to_string(), "src/os2.rs".to_string()];
         let evaluation = evaluate_trigger(dir.path(), "platform-parity", &paths).unwrap();
         assert!(evaluation.fired);
@@ -303,7 +352,11 @@ mod tests {
     #[test]
     fn resilience_fires_on_spawn_site_content() {
         let dir = ScratchDir::new();
-        write(dir.path(), "src/run.rs", "std::process::Command::new(\"x\");\n");
+        write(
+            dir.path(),
+            "src/run.rs",
+            "std::process::Command::new(\"x\");\n",
+        );
         let paths = vec!["src/run.rs".to_string()];
         let evaluation = evaluate_trigger(dir.path(), "resilience", &paths).unwrap();
         assert!(evaluation.fired);
@@ -318,10 +371,19 @@ mod tests {
     fn evaluate_all_covers_exactly_the_five_conditional_lenses() {
         let dir = ScratchDir::new();
         let evaluations = evaluate_all_conditional_triggers(dir.path(), &[]);
-        let lenses: Vec<&str> = evaluations.iter().map(|evaluation| evaluation.lens).collect();
+        let lenses: Vec<&str> = evaluations
+            .iter()
+            .map(|evaluation| evaluation.lens)
+            .collect();
         assert_eq!(
             lenses,
-            vec!["a11y", "data-safety", "resilience", "platform-parity", "release-readiness"]
+            vec![
+                "a11y",
+                "data-safety",
+                "resilience",
+                "platform-parity",
+                "release-readiness"
+            ]
         );
         assert!(evaluations.iter().all(|evaluation| !evaluation.fired));
     }

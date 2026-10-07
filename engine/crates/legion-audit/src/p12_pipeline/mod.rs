@@ -217,7 +217,8 @@ pub fn verify_plan_signature(plan: &Value, signing_key: Option<&str>) -> bool {
     unsigned.remove("seal");
     let unsigned_value = Value::Object(unsigned);
 
-    let key_id_ok = matches!(seal.get("keyId"), Some(Value::String(k)) if *k == signing_key_id(signing_key));
+    let key_id_ok =
+        matches!(seal.get("keyId"), Some(Value::String(k)) if *k == signing_key_id(signing_key));
     key_id_ok && signature == plan_signature(&unsigned_value, signing_key)
 }
 
@@ -270,8 +271,9 @@ pub fn derive_finding_id(
     if norm_rule.is_empty() {
         return Err("ruleId is required for stable finding ID".to_string());
     }
-    let first = first_locus
-        .ok_or_else(|| "at least one evidence locus is required for stable finding ID".to_string())?;
+    let first = first_locus.ok_or_else(|| {
+        "at least one evidence locus is required for stable finding ID".to_string()
+    })?;
 
     let locus_hash = locus_content_hash(&first.path, first.start_line, first.end_line);
     let norm_path = normalize_locus_path(&first.path);
@@ -384,7 +386,11 @@ mod tests {
 
     #[test]
     fn derive_finding_id_is_stable_and_prefixed() {
-        let locus = FindingLocus { path: "src/foo.rs".into(), start_line: 10, end_line: 20 };
+        let locus = FindingLocus {
+            path: "src/foo.rs".into(),
+            start_line: 10,
+            end_line: 20,
+        };
         let id = derive_finding_id("legion-audit/opengrep", "rule-001", Some(&locus)).unwrap();
         assert!(id.starts_with("audit:rule:"));
         assert!(id.contains("rule-001"));
@@ -393,7 +399,11 @@ mod tests {
             id,
             derive_finding_id("legion-audit/opengrep", "rule-001", Some(&locus)).unwrap()
         );
-        let other = FindingLocus { path: "src/foo.rs".into(), start_line: 10, end_line: 21 };
+        let other = FindingLocus {
+            path: "src/foo.rs".into(),
+            start_line: 10,
+            end_line: 21,
+        };
         assert_ne!(
             id,
             derive_finding_id("legion-audit/opengrep", "rule-001", Some(&other)).unwrap()
@@ -402,7 +412,11 @@ mod tests {
 
     #[test]
     fn derive_finding_id_rejects_empty_identity_inputs() {
-        let locus = FindingLocus { path: "src/foo.rs".into(), start_line: 1, end_line: 2 };
+        let locus = FindingLocus {
+            path: "src/foo.rs".into(),
+            start_line: 1,
+            end_line: 2,
+        };
         assert!(derive_finding_id("", "rule-001", Some(&locus)).is_err());
         assert!(derive_finding_id("repo", "", Some(&locus)).is_err());
         assert!(derive_finding_id("repo", "rule-001", None).is_err());

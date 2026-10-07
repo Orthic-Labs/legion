@@ -55,7 +55,11 @@ fn language_for(path: &str) -> &'static str {
         "rust"
     } else if lower.ends_with(".ts") || lower.ends_with(".tsx") {
         "typescript"
-    } else if lower.ends_with(".js") || lower.ends_with(".jsx") || lower.ends_with(".mjs") || lower.ends_with(".cjs") {
+    } else if lower.ends_with(".js")
+        || lower.ends_with(".jsx")
+        || lower.ends_with(".mjs")
+        || lower.ends_with(".cjs")
+    {
         "javascript"
     } else if lower.ends_with(".swift") {
         "swift"
@@ -74,17 +78,29 @@ fn language_for(path: &str) -> &'static str {
 /// while a false positive only costs a little excerpt fidelity.
 fn redact_secrets(line: &str) -> (String, bool) {
     const SECRET_NAME_HINTS: &[&str] = &[
-        "secret", "token", "apikey", "api_key", "password", "passwd", "private_key",
-        "privatekey", "access_key", "accesskey", "client_secret", "auth",
+        "secret",
+        "token",
+        "apikey",
+        "api_key",
+        "password",
+        "passwd",
+        "private_key",
+        "privatekey",
+        "access_key",
+        "accesskey",
+        "client_secret",
+        "auth",
     ];
-    const KEY_MATERIAL_MARKERS: &[&str] =
-        &["-----BEGIN", "AKIA", "ghp_", "sk-", "xox", "AIza"];
+    const KEY_MATERIAL_MARKERS: &[&str] = &["-----BEGIN", "AKIA", "ghp_", "sk-", "xox", "AIza"];
 
     let lower = line.to_ascii_lowercase();
     let mut redacted = false;
     let mut out = line.to_string();
 
-    if KEY_MATERIAL_MARKERS.iter().any(|marker| line.contains(marker)) {
+    if KEY_MATERIAL_MARKERS
+        .iter()
+        .any(|marker| line.contains(marker))
+    {
         out = "[REDACTED: key material]".into();
         return (out, true);
     }
@@ -92,11 +108,15 @@ fn redact_secrets(line: &str) -> (String, bool) {
     if let Some(equals) = line.find(['=', ':']) {
         let (name, rest) = line.split_at(equals);
         let name_lower = name.to_ascii_lowercase();
-        let looks_like_secret_name = SECRET_NAME_HINTS.iter().any(|hint| name_lower.contains(hint));
+        let looks_like_secret_name = SECRET_NAME_HINTS
+            .iter()
+            .any(|hint| name_lower.contains(hint));
         let value = &rest[1..];
         let value_trimmed = value.trim().trim_matches(['"', '\'', ';', ',']);
         let looks_like_opaque_value = value_trimmed.len() >= 16
-            && value_trimmed.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/'));
+            && value_trimmed
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/'));
         if looks_like_secret_name && looks_like_opaque_value {
             out = format!("{name}={}", "[REDACTED]");
             redacted = true;
@@ -313,7 +333,10 @@ mod tests {
             let path = std::env::temp_dir().join(format!(
                 "legion-audit-excerpts-test-{}-{}-{id}",
                 std::process::id(),
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
             ));
             fs::create_dir_all(&path).unwrap();
             Self(path)
@@ -344,7 +367,10 @@ mod tests {
         write(
             dir.path(),
             "src/x.rs",
-            &format!("fn a() {{}}\nlet API_KEY = \"{}\";\nfn b() {{}}\n", fake_key),
+            &format!(
+                "fn a() {{}}\nlet API_KEY = \"{}\";\nfn b() {{}}\n",
+                fake_key
+            ),
         );
         let excerpt = build_excerpt(dir.path(), "src/x.rs", ExcerptMode::Raw).unwrap();
         assert_eq!(excerpt.mode, ExcerptMode::Raw);
@@ -373,7 +399,11 @@ mod tests {
     #[test]
     fn skeleton_covers_ts_swift_python() {
         let dir = ScratchDir::new();
-        write(dir.path(), "a.ts", "export function f(x: number) {\n  return x + 1;\n}\n");
+        write(
+            dir.path(),
+            "a.ts",
+            "export function f(x: number) {\n  return x + 1;\n}\n",
+        );
         write(dir.path(), "b.swift", "func f() {\n  let y = 1\n}\n");
         write(dir.path(), "c.py", "def f():\n    return 1\n");
         for (path, keep, drop) in [

@@ -76,7 +76,9 @@ pub fn check_ssrf(resolved_ip: Option<IpAddr>) -> Result<(), String> {
         IpAddr::V6(v6) => v6.is_loopback() || is_reserved_v6(v6),
     };
     if blocked {
-        return Err(format!("Blocked: URL resolves to private/internal IP ({ip})"));
+        return Err(format!(
+            "Blocked: URL resolves to private/internal IP ({ip})"
+        ));
     }
     Ok(())
 }
@@ -259,7 +261,11 @@ pub fn fetch_page(
         .split("://")
         .nth(1)
         .and_then(|rest| rest.split(['/', '?', '#']).next())
-        .and_then(|authority| authority.rsplit_once('@').map_or(Some(authority), |(_, h)| Some(h)))
+        .and_then(|authority| {
+            authority
+                .rsplit_once('@')
+                .map_or(Some(authority), |(_, h)| Some(h))
+        })
         .and_then(|host_port| {
             if let Some(stripped) = host_port.strip_prefix('[') {
                 stripped.split(']').next()
@@ -326,7 +332,9 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
         }
         i += 1;
     }
-    out.url.clone().ok_or("the following arguments are required: url")?;
+    out.url
+        .clone()
+        .ok_or("the following arguments are required: url")?;
     Ok(out)
 }
 

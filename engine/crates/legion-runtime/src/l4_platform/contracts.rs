@@ -4,8 +4,14 @@
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-pub const PLATFORM_CAPABILITY_STATUS: &[&str] =
-    &["available", "unavailable", "unsupported", "permission-denied", "stale", "partial"];
+pub const PLATFORM_CAPABILITY_STATUS: &[&str] = &[
+    "available",
+    "unavailable",
+    "unsupported",
+    "permission-denied",
+    "stale",
+    "partial",
+];
 
 pub const SCENARIO_STATUS: &[&str] = &["pass", "fail", "partial", "unproven", "blocked", "error"];
 
@@ -30,7 +36,10 @@ pub fn sha256_bytes(bytes: &[u8]) -> String {
 /// is not one of `PLATFORM_CAPABILITY_STATUS`; callers that need a
 /// non-panicking path should validate the status first.
 pub fn capability_receipt(input: &Value) -> Value {
-    let status = input.get("status").and_then(Value::as_str).unwrap_or("unavailable");
+    let status = input
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("unavailable");
     if !PLATFORM_CAPABILITY_STATUS.contains(&status) {
         panic!("unknown platform capability status: {status}");
     }
@@ -52,7 +61,10 @@ pub fn capability_receipt(input: &Value) -> Value {
 
 /// `terminalScenarioReceipt(input)`.
 pub fn terminal_scenario_receipt(input: &Value) -> Value {
-    let status = input.get("status").and_then(Value::as_str).unwrap_or("unproven");
+    let status = input
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("unproven");
     if !SCENARIO_STATUS.contains(&status) {
         panic!("unknown scenario status: {status}");
     }
@@ -86,10 +98,15 @@ pub struct CapabilityCheck {
 /// `requireCapability(capability, operation)`. `destructive` mirrors
 /// `operation.destructive`.
 pub fn require_capability(capability: Option<&Value>, destructive: bool) -> CapabilityCheck {
-    let status = capability.and_then(|c| c.get("status")).and_then(Value::as_str);
+    let status = capability
+        .and_then(|c| c.get("status"))
+        .and_then(Value::as_str);
     if status != Some("available") {
         let status_label = status.unwrap_or("missing");
-        return CapabilityCheck { ok: false, reason: Some(format!("capability-{status_label}")) };
+        return CapabilityCheck {
+            ok: false,
+            reason: Some(format!("capability-{status_label}")),
+        };
     }
     if destructive {
         let allowed = capability
@@ -97,10 +114,16 @@ pub fn require_capability(capability: Option<&Value>, destructive: bool) -> Capa
             .and_then(Value::as_bool)
             .unwrap_or(false);
         if !allowed {
-            return CapabilityCheck { ok: false, reason: Some("destructive-action-forbidden".to_string()) };
+            return CapabilityCheck {
+                ok: false,
+                reason: Some("destructive-action-forbidden".to_string()),
+            };
         }
     }
-    CapabilityCheck { ok: true, reason: None }
+    CapabilityCheck {
+        ok: true,
+        reason: None,
+    }
 }
 
 #[cfg(test)]
@@ -126,7 +149,10 @@ mod tests {
         let cap = json!({"status": "available", "destructiveActionsAllowed": false});
         let check = require_capability(Some(&cap), true);
         assert!(!check.ok);
-        assert_eq!(check.reason.as_deref(), Some("destructive-action-forbidden"));
+        assert_eq!(
+            check.reason.as_deref(),
+            Some("destructive-action-forbidden")
+        );
     }
 
     #[test]

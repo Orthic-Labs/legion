@@ -22,7 +22,9 @@ fn word_re() -> Regex {
     Regex::new(r"[a-z0-9]{3,}").expect("static regex")
 }
 
-const TARGET_STOP_WORDS: &[&str] = &["this", "that", "with", "from", "than", "into", "does", "have"];
+const TARGET_STOP_WORDS: &[&str] = &[
+    "this", "that", "with", "from", "than", "into", "does", "have",
+];
 
 /// A scope is the claim's `scope` map, restricted to non-empty values and
 /// sorted, matching Python's `tuple(sorted(...))` grouping key.
@@ -33,11 +35,20 @@ fn target(claim: &Value) -> String {
         .get("stance_target")
         .and_then(Value::as_str)
         .filter(|s| !s.trim().is_empty())
-        .or_else(|| claim.get("metric").and_then(Value::as_str).filter(|s| !s.trim().is_empty()));
+        .or_else(|| {
+            claim
+                .get("metric")
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+        });
     if let Some(explicit) = explicit {
         return explicit.trim().to_lowercase();
     }
-    let text = claim.get("text").and_then(Value::as_str).unwrap_or("").to_lowercase();
+    let text = claim
+        .get("text")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_lowercase();
     let stripped = bracket_re().replace_all(&text, " ").to_string();
     let words: Vec<&str> = word_re()
         .find_iter(&stripped)
@@ -90,11 +101,17 @@ fn stance(claim: &Value) -> String {
 
 fn numbers(claim: &Value) -> Vec<String> {
     let text = claim.get("text").and_then(Value::as_str).unwrap_or("");
-    number_re().find_iter(text).map(|m| m.as_str().to_string()).collect()
+    number_re()
+        .find_iter(text)
+        .map(|m| m.as_str().to_string())
+        .collect()
 }
 
 fn claim_id(claim: &Value) -> String {
-    claim.get("id").map(value_to_scope_string).unwrap_or_default()
+    claim
+        .get("id")
+        .map(value_to_scope_string)
+        .unwrap_or_default()
 }
 
 /// A stance-or-numeric contradiction, mirroring the Python dict shape.
@@ -188,7 +205,11 @@ pub fn derive(claims: &[Value], evidence: &[Value]) -> DeriveResult {
                 target: tgt.clone(),
                 scope: scp.clone(),
                 claim_ids: rows.iter().map(|r| claim_id(r)).collect(),
-                kind: if genuine_stance_conflict { "stance" } else { "numeric" },
+                kind: if genuine_stance_conflict {
+                    "stance"
+                } else {
+                    "numeric"
+                },
                 positions: sides.into_iter().collect(),
                 numeric_values,
                 resolution_status: "unresolved",
@@ -215,7 +236,10 @@ pub fn derive(claims: &[Value], evidence: &[Value]) -> DeriveResult {
             }
         }
         let all_supported = rows.iter().all(|r| {
-            r.get("status").and_then(Value::as_str).unwrap_or("supported") == "supported"
+            r.get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("supported")
+                == "supported"
         });
         if clusters.len() >= 2 && all_supported {
             consensus.push(Consensus {
@@ -228,7 +252,10 @@ pub fn derive(claims: &[Value], evidence: &[Value]) -> DeriveResult {
         }
     }
 
-    DeriveResult { contradictions, consensus }
+    DeriveResult {
+        contradictions,
+        consensus,
+    }
 }
 
 #[cfg(test)]
@@ -277,7 +304,8 @@ mod tests {
 
     #[test]
     fn single_claim_group_produces_neither() {
-        let claims = vec![json!({"id": "c1", "stance_target": "price", "text": "Costs 10 dollars"})];
+        let claims =
+            vec![json!({"id": "c1", "stance_target": "price", "text": "Costs 10 dollars"})];
         let result = derive(&claims, &[]);
         assert!(result.contradictions.is_empty());
         assert!(result.consensus.is_empty());

@@ -15,12 +15,12 @@ use serde_json::Value;
 use legion_runtime::wf_port::w2_034::date_math::Date;
 use legion_runtime::wf_port::w2_034::site_audit::{
     audit, build_report, discover_sitemaps, extract_sitemap_locs, is_asset_url, is_sitemap_index,
-    normalize, parse, run, urljoin, BrokenLink, Fetcher, FetchedPage, GetResponse, PageSignals,
+    normalize, parse, run, urljoin, BrokenLink, FetchedPage, Fetcher, GetResponse, PageSignals,
 };
 use legion_runtime::wf_port::w2_034::source_freshness::{assess, exit_code};
 use legion_runtime::wf_port::w2_034::templated_metadata::{analyze, rows_from_payload};
 use legion_runtime::wf_port::w2_034::youtube_search::{
-    classify_search_error, clamp_max_results, shape_channel_info, shape_comment,
+    clamp_max_results, classify_search_error, shape_channel_info, shape_comment,
     shape_search_video, shape_video_details, video_stats_from_item, VideoStats,
 };
 
@@ -42,9 +42,18 @@ fn load_fixture(name: &str) -> Value {
 fn site_audit_normalize_matches_python_semantics() {
     assert_eq!(normalize("https://example.com"), "https://example.com/");
     assert_eq!(normalize("https://example.com/a"), "https://example.com/a/");
-    assert_eq!(normalize("https://example.com/a/"), "https://example.com/a/");
-    assert_eq!(normalize("https://example.com/a.html"), "https://example.com/a.html");
-    assert_eq!(normalize("https://example.com/a?x=1"), "https://example.com/a?x=1");
+    assert_eq!(
+        normalize("https://example.com/a/"),
+        "https://example.com/a/"
+    );
+    assert_eq!(
+        normalize("https://example.com/a.html"),
+        "https://example.com/a.html"
+    );
+    assert_eq!(
+        normalize("https://example.com/a?x=1"),
+        "https://example.com/a?x=1"
+    );
 }
 
 #[test]
@@ -67,7 +76,10 @@ fn site_audit_parse_extracts_signals_from_fixture_html() {
     assert_eq!(sig.title, "Fixture Page Title");
     assert_eq!(sig.meta_desc, "A fixture meta description for testing.");
     assert_eq!(sig.h1, vec!["Fixture Heading".to_string()]);
-    assert_eq!(sig.canonical.as_deref(), Some("https://example.com/fixture"));
+    assert_eq!(
+        sig.canonical.as_deref(),
+        Some("https://example.com/fixture")
+    );
     assert!(sig.viewport);
     assert!(!sig.noindex);
     assert_eq!(sig.imgs, 2);
@@ -119,12 +131,30 @@ fn site_audit_build_report_flags_expected_issues_end_to_end() {
     let sitemap: HashSet<String> = HashSet::new();
     let inlinks = HashMap::new();
     let mut broken = HashMap::new();
-    broken.insert("https://example.com/dead".to_string(), BrokenLink { status: 404, inlinks: 2 });
+    broken.insert(
+        "https://example.com/dead".to_string(),
+        BrokenLink {
+            status: 404,
+            inlinks: 2,
+        },
+    );
     let redirects = HashMap::new();
 
-    let report = build_report(&pages, &sitemap, "example.com", &inlinks, &broken, &redirects, |u| {
-        u.split("://").nth(1).and_then(|r| r.split('/').next()).unwrap_or("").to_string()
-    });
+    let report = build_report(
+        &pages,
+        &sitemap,
+        "example.com",
+        &inlinks,
+        &broken,
+        &redirects,
+        |u| {
+            u.split("://")
+                .nth(1)
+                .and_then(|r| r.split('/').next())
+                .unwrap_or("")
+                .to_string()
+        },
+    );
 
     assert!(report.issues["thin_content"][0].contains("(50w)"));
     assert!(report.issues["img_missing_alt"][0].contains("(1/1)"));
@@ -149,7 +179,12 @@ impl Fetcher for FakeFetcher {
                 body: body.clone(),
                 headers: HashMap::new(),
             },
-            None => GetResponse { status: 404, final_url: url.to_string(), body: String::new(), headers: HashMap::new() },
+            None => GetResponse {
+                status: 404,
+                final_url: url.to_string(),
+                body: String::new(),
+                headers: HashMap::new(),
+            },
         }
     }
     fn status_only(&self, url: &str) -> (i32, Option<String>) {
@@ -162,11 +197,20 @@ impl Fetcher for FakeFetcher {
 #[test]
 fn site_audit_run_crawls_via_fetcher_and_reports_errors() {
     let mut routes = HashMap::new();
-    routes.insert("https://example.com/robots.txt".to_string(), (404, String::new()));
-    routes.insert("https://example.com/sitemap.xml".to_string(), (404, String::new()));
+    routes.insert(
+        "https://example.com/robots.txt".to_string(),
+        (404, String::new()),
+    );
+    routes.insert(
+        "https://example.com/sitemap.xml".to_string(),
+        (404, String::new()),
+    );
     routes.insert(
         "https://example.com/".to_string(),
-        (200, "<html><body>no title, no meta, nothing here</body></html>".to_string()),
+        (
+            200,
+            "<html><body>no title, no meta, nothing here</body></html>".to_string(),
+        ),
     );
     let fetcher = FakeFetcher { routes };
 
@@ -175,15 +219,24 @@ fn site_audit_run_crawls_via_fetcher_and_reports_errors() {
     assert!(report.report.issues.contains_key("missing_title"));
     assert!(report.report.severity.errors.contains(&"missing_title"));
 
-    let args: Vec<String> = ["--url", "https://example.com", "--summary"].iter().map(|s| s.to_string()).collect();
+    let args: Vec<String> = ["--url", "https://example.com", "--summary"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     assert_eq!(run(&fetcher, &args), 1);
     assert_eq!(run(&fetcher, &[]), 2);
 }
 
 #[test]
 fn site_audit_urljoin_resolves_relative_links() {
-    assert_eq!(urljoin("https://example.com/a/b", "../c"), "https://example.com/c");
-    assert_eq!(urljoin("https://example.com/a/", "/root"), "https://example.com/root");
+    assert_eq!(
+        urljoin("https://example.com/a/b", "../c"),
+        "https://example.com/c"
+    );
+    assert_eq!(
+        urljoin("https://example.com/a/", "/root"),
+        "https://example.com/root"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +250,10 @@ fn source_freshness_assess_from_fixture_register() {
     let report = assess(&register, as_of);
     assert_eq!(report.status, "fail");
     assert_eq!(exit_code(&report), 1);
-    assert_eq!(report.due.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), vec!["stale-source"]);
+    assert_eq!(
+        report.due.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+        vec!["stale-source"]
+    );
     assert_eq!(report.invalid.len(), 1);
     assert_eq!(report.invalid[0].id.as_deref(), Some("bad-row"));
     assert_eq!(report.current_count, 1);
@@ -215,7 +271,10 @@ fn templated_metadata_analyzes_fixture_pages() {
     assert_eq!(result.pages_checked, 4);
     assert_eq!(result.templated_pages, 3);
     assert_eq!(result.site_risk, "high");
-    assert!(result.shared_cta_phrases.iter().any(|(phrase, _)| phrase == "learn more"));
+    assert!(result
+        .shared_cta_phrases
+        .iter()
+        .any(|(phrase, _)| phrase == "learn more"));
 }
 
 // ---------------------------------------------------------------------------

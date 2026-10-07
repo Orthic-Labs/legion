@@ -293,8 +293,8 @@ fn resolve_project(cwd: &Path, options: &TargetOptions) -> ProjectResolution {
             is_monorepo: false,
         },
         Some(repo_root) => {
-            let project_root =
-                resolve_workspace_project_root(&repo_root, &target_dir).unwrap_or_else(|| repo_root.clone());
+            let project_root = resolve_workspace_project_root(&repo_root, &target_dir)
+                .unwrap_or_else(|| repo_root.clone());
             ProjectResolution {
                 target_dir,
                 project_root,
@@ -386,10 +386,7 @@ fn is_monorepo_root(dir: &Path) -> bool {
     {
         return true;
     }
-    if !MONOREPO_MARKER_FILES
-        .iter()
-        .any(|f| dir.join(f).exists())
-    {
+    if !MONOREPO_MARKER_FILES.iter().any(|f| dir.join(f).exists()) {
         return false;
     }
     has_fallback_workspace_children(dir)
@@ -427,7 +424,10 @@ fn discover_target_candidates(repo_root: &Path) -> Vec<TargetCandidate> {
             roots.insert(rel, root);
         }
     }
-    if MONOREPO_MARKER_FILES.iter().any(|f| repo_root.join(f).exists()) {
+    if MONOREPO_MARKER_FILES
+        .iter()
+        .any(|f| repo_root.join(f).exists())
+    {
         for name in MONOREPO_FALLBACK_PROJECT_DIRS {
             let base = repo_root.join(name);
             let entries = match fs::read_dir(&base) {
@@ -576,7 +576,12 @@ fn expand_simple_pattern(
     }
     let segment = pattern_segments[index];
     if !segment.contains('*') {
-        return expand_simple_pattern(repo_root, pattern_segments, index + 1, &current.join(segment));
+        return expand_simple_pattern(
+            repo_root,
+            pattern_segments,
+            index + 1,
+            &current.join(segment),
+        );
     }
     let entries = match fs::read_dir(current) {
         Ok(e) => e,
@@ -680,7 +685,9 @@ fn resolve_workspace_project_root(repo_root: &Path, target_dir: &Path) -> Option
     let excluded = is_excluded_by_workspace_pattern(&rel_seg_refs, &patterns);
     if !excluded {
         for pattern in &patterns {
-            if let Some(root) = project_root_from_workspace_pattern(repo_root, &rel_seg_refs, pattern) {
+            if let Some(root) =
+                project_root_from_workspace_pattern(repo_root, &rel_seg_refs, pattern)
+            {
                 return Some(root);
             }
         }
@@ -688,7 +695,8 @@ fn resolve_workspace_project_root(repo_root: &Path, target_dir: &Path) -> Option
     if excluded {
         return Some(repo_root.to_path_buf());
     }
-    if rel_segments.len() >= 2 && MONOREPO_FALLBACK_PROJECT_DIRS.contains(&rel_segments[0].as_str()) {
+    if rel_segments.len() >= 2 && MONOREPO_FALLBACK_PROJECT_DIRS.contains(&rel_segments[0].as_str())
+    {
         return Some(repo_root.join(&rel_segments[0]).join(&rel_segments[1]));
     }
     if let Some(nearest) = nearest_project_like_root(repo_root, target_dir) {
@@ -725,7 +733,11 @@ fn nearest_project_like_root(repo_root: &Path, target_dir: &Path) -> Option<Path
     None
 }
 
-fn nearest_package_root_between(repo_root: &Path, target_dir: &Path, stop_dir: &Path) -> Option<PathBuf> {
+fn nearest_package_root_between(
+    repo_root: &Path,
+    target_dir: &Path,
+    stop_dir: &Path,
+) -> Option<PathBuf> {
     let mut dir = absolute(target_dir);
     let stop = absolute(stop_dir);
     let root = absolute(repo_root);
@@ -878,7 +890,11 @@ fn strip_yaml_inline_comment(line: &str) -> &str {
     for i in 0..chars.len() {
         let ch = chars[i];
         if (ch == '"' || ch == '\'') && (i == 0 || chars[i - 1] != '\\') {
-            quote = if quote == Some(ch) { None } else { Some(quote.unwrap_or(ch)) };
+            quote = if quote == Some(ch) {
+                None
+            } else {
+                Some(quote.unwrap_or(ch))
+            };
             continue;
         }
         if ch == '#' && quote.is_none() {
@@ -898,7 +914,11 @@ fn parse_yaml_flow_list(body: &str) -> Vec<String> {
     for i in 0..chars.len() {
         let ch = chars[i];
         if (ch == '"' || ch == '\'') && (i == 0 || chars[i - 1] != '\\') {
-            quote = if quote == Some(ch) { None } else { Some(quote.unwrap_or(ch)) };
+            quote = if quote == Some(ch) {
+                None
+            } else {
+                Some(quote.unwrap_or(ch))
+            };
             current.push(ch);
             continue;
         }
@@ -1103,10 +1123,8 @@ mod tests {
     use std::fs;
 
     fn tmp_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "legion_w2010_ctx_{name}_{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("legion_w2010_ctx_{name}_{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -1138,7 +1156,10 @@ mod tests {
         assert!(ctx.has_product);
         assert_eq!(ctx.product_path.as_deref(), Some("PRODUCT.md"));
         assert!(!ctx.is_monorepo);
-        assert_eq!(extract_register(ctx.product.as_deref()), Some("product".to_string()));
+        assert_eq!(
+            extract_register(ctx.product.as_deref()),
+            Some("product".to_string())
+        );
     }
 
     #[test]
@@ -1148,7 +1169,10 @@ mod tests {
         fs::write(root.join(".agents/context/PRODUCT.md"), "# Hello").unwrap();
         let ctx = load_context(&root, &TargetOptions::none());
         assert!(ctx.has_product);
-        assert_eq!(ctx.product_path.as_deref(), Some(".agents/context/PRODUCT.md"));
+        assert_eq!(
+            ctx.product_path.as_deref(),
+            Some(".agents/context/PRODUCT.md")
+        );
     }
 
     #[test]

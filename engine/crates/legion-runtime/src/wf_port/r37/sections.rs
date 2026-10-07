@@ -127,7 +127,9 @@ pub fn build_toc(sections: &[TocSection]) -> String {
             sec.num, sec.title
         ));
         for sub in &sec.subs {
-            items.push(format!(r#"    <li class="toc-sub"><span>{sub}</span></li>"#));
+            items.push(format!(
+                r#"    <li class="toc-sub"><span>{sub}</span></li>"#
+            ));
         }
     }
     let items_html = items.join("\n");
@@ -145,7 +147,10 @@ fn resolve_mobile(psi: &Value) -> Value {
         return Value::Object(Default::default());
     }
     let inner_psi = obj(psi, "psi");
-    inner_psi.get("mobile").cloned().unwrap_or_else(|| psi.clone())
+    inner_psi
+        .get("mobile")
+        .cloned()
+        .unwrap_or_else(|| psi.clone())
 }
 
 /// Port of `_build_executive_summary`.
@@ -203,7 +208,12 @@ pub fn build_executive_summary(domain: &str, timestamp: &str, data: &Value) -> S
             color: BRAND.primary.to_string(),
         });
         cards.push(Card {
-            value: thousands(totals.get("impressions").and_then(|v| v.as_i64()).unwrap_or(0)),
+            value: thousands(
+                totals
+                    .get("impressions")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0),
+            ),
             label: "Impressions",
             color: BRAND.secondary.to_string(),
         });
@@ -222,7 +232,11 @@ pub fn build_executive_summary(domain: &str, timestamp: &str, data: &Value) -> S
     }
 
     if !cards.is_empty() {
-        let col_class = if cards.len() >= 4 { "four-col" } else { "two-col" };
+        let col_class = if cards.len() >= 4 {
+            "four-col"
+        } else {
+            "two-col"
+        };
         lines.push(format!("  <div class=\"{col_class}\">"));
         for c in cards.iter().take(5) {
             lines.push("    <div class=\"col\">".into());
@@ -267,7 +281,9 @@ pub fn build_executive_summary(domain: &str, timestamp: &str, data: &Value) -> S
 
     let inspect_fails = get_f64_or(summary, "fail", 0.0);
     if inspect_fails > 0.0 {
-        issues.push(format!("<strong>{inspect_fails:.0} URL(s)</strong> not indexed"));
+        issues.push(format!(
+            "<strong>{inspect_fails:.0} URL(s)</strong> not indexed"
+        ));
     }
 
     if !issues.is_empty() {
@@ -368,7 +384,11 @@ pub fn build_cwv_section(
         lines.push(chart_html(
             &gauges_path,
             "Lighthouse audit scores across Performance, Accessibility, Best Practices, and SEO.",
-            { let f = fig; fig += 1; f },
+            {
+                let f = fig;
+                fig += 1;
+                f
+            },
             "Lighthouse gauge scores",
         ));
 
@@ -414,7 +434,9 @@ pub fn build_cwv_section(
     let lab = obj(mobile, "lab_metrics");
     if let Some(lab_obj) = lab.as_object() {
         if !lab_obj.is_empty() {
-            lines.push(format!("  <h3>{section_num}.2 Lab Metrics (Simulated)</h3>"));
+            lines.push(format!(
+                "  <h3>{section_num}.2 Lab Metrics (Simulated)</h3>"
+            ));
             lines.push("  <table>".into());
             lines.push("    <thead>".into());
             lines.push(
@@ -465,7 +487,9 @@ pub fn build_cwv_section(
 
     // 2.3 CrUX Field Data.
     let crux_metrics = obj(crux_data, "metrics");
-    let has_crux_history_metric = history_data.map(|h| h.get("error").is_none()).unwrap_or(false);
+    let has_crux_history_metric = history_data
+        .map(|h| h.get("error").is_none())
+        .unwrap_or(false);
     if let Some(cm) = crux_metrics.as_object() {
         if !cm.is_empty() {
             lines.push(format!(
@@ -511,12 +535,21 @@ pub fn build_cwv_section(
                     "      <tr><td>{}</td><td>{display_val}</td>",
                     get_str_or(m, "label", name)
                 ));
-                lines.push(format!("      <td class=\"{cls}\">{}</td>", rating.to_uppercase()));
+                lines.push(format!(
+                    "      <td class=\"{cls}\">{}</td>",
+                    rating.to_uppercase()
+                ));
                 lines.push(format!(
                     "      <td>{}%</td><td>{}%</td><td>{}%</td></tr>",
-                    dist.get("good").map(json_display).unwrap_or_else(|| "N/A".into()),
-                    dist.get("needs_improvement").map(json_display).unwrap_or_else(|| "N/A".into()),
-                    dist.get("poor").map(json_display).unwrap_or_else(|| "N/A".into()),
+                    dist.get("good")
+                        .map(json_display)
+                        .unwrap_or_else(|| "N/A".into()),
+                    dist.get("needs_improvement")
+                        .map(json_display)
+                        .unwrap_or_else(|| "N/A".into()),
+                    dist.get("poor")
+                        .map(json_display)
+                        .unwrap_or_else(|| "N/A".into()),
                 ));
             }
             lines.push("    </tbody>".into());
@@ -547,11 +580,18 @@ pub fn build_cwv_section(
             lines.push(format!(
                 "  <h3>{section_num}.4 Core Web Vitals Trends (25-week)</h3>"
             ));
-            let timeline_path = chart_paths.get("timeline_path").cloned().unwrap_or_default();
+            let timeline_path = chart_paths
+                .get("timeline_path")
+                .cloned()
+                .unwrap_or_default();
             lines.push(chart_html(
                 &timeline_path,
                 "CrUX p75 values over 25 weeks with Good/Poor threshold bands.",
-                { let f = fig; fig += 1; f },
+                {
+                    let f = fig;
+                    fig += 1;
+                    f
+                },
                 "CWV timeline trends",
             ));
 
@@ -582,8 +622,12 @@ pub fn build_cwv_section(
                         ));
                         lines.push(format!(
                             "      <td>{sign}{change:.1}%</td><td>{}</td><td>{}</td></tr>",
-                            t.get("earliest_avg").map(json_display).unwrap_or_else(|| "?".into()),
-                            t.get("latest_avg").map(json_display).unwrap_or_else(|| "?".into()),
+                            t.get("earliest_avg")
+                                .map(json_display)
+                                .unwrap_or_else(|| "?".into()),
+                            t.get("latest_avg")
+                                .map(json_display)
+                                .unwrap_or_else(|| "?".into()),
                         ));
                     }
                     lines.push("    </tbody>".into());
@@ -602,7 +646,10 @@ pub fn build_cwv_section(
         } else {
             format!("{section_num}.4")
         };
-        lines.push(format!("  <h3>{sub} Failed / Warning Audits ({})</h3>", failed.len()));
+        lines.push(format!(
+            "  <h3>{sub} Failed / Warning Audits ({})</h3>",
+            failed.len()
+        ));
         lines.push("  <table>".into());
         lines.push("    <thead>".into());
         lines.push("      <tr><th>Audit</th><th>Score</th><th>Details</th></tr>".into());
@@ -630,7 +677,10 @@ pub fn build_cwv_section(
             .copied()
             .collect();
         if !seo_failed.is_empty() {
-            lines.push(format!("  <h3>SEO Audit Issues ({})</h3>", seo_failed.len()));
+            lines.push(format!(
+                "  <h3>SEO Audit Issues ({})</h3>",
+                seo_failed.len()
+            ));
             for a in &seo_failed {
                 lines.push("  <div class=\"action-item critical\">".into());
                 lines.push(format!("    <h4>{}</h4>", get_str(a, "title")));
@@ -669,7 +719,10 @@ pub fn build_cwv_section(
     // Opportunities.
     let opps = arr(mobile, "opportunities");
     if !opps.is_empty() {
-        lines.push(format!("  <h3>Optimization Opportunities ({})</h3>", opps.len()));
+        lines.push(format!(
+            "  <h3>Optimization Opportunities ({})</h3>",
+            opps.len()
+        ));
         lines.push("  <table>".into());
         lines.push("    <thead>".into());
         lines.push("      <tr><th>Opportunity</th><th>Estimated Savings</th></tr>".into());
@@ -707,7 +760,9 @@ pub fn build_gsc_section(
     ));
     lines.push("<div class=\"section\">".into());
     lines.push("  <div class=\"section-header\">".into());
-    lines.push(format!("    <h2>{section_num}. Search Console Performance</h2>"));
+    lines.push(format!(
+        "    <h2>{section_num}. Search Console Performance</h2>"
+    ));
     lines.push("  </div>".into());
     lines.push(String::new());
 
@@ -722,7 +777,10 @@ pub fn build_gsc_section(
             get_str_or(dr, "end", "?"),
         ));
         let queries_count = get_f64_or(gsc_data, "row_count", 0.0);
-        let impr_total = totals.get("impressions").and_then(|v| v.as_i64()).unwrap_or(0);
+        let impr_total = totals
+            .get("impressions")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
         lines.push(format!(
             "  <p><strong>{domain}</strong> appeared in <strong>{queries_count:.0}</strong> unique search queries with <strong>{}</strong> total impressions during this period.</p>",
             thousands(impr_total)
@@ -731,7 +789,13 @@ pub fn build_gsc_section(
 
         let clicks_val = thousands(totals.get("clicks").and_then(|v| v.as_i64()).unwrap_or(0));
         let impr_val = thousands(impr_total);
-        let ctr_val = format!("{}%", totals.get("ctr").map(json_display).unwrap_or_else(|| "0".into()));
+        let ctr_val = format!(
+            "{}%",
+            totals
+                .get("ctr")
+                .map(json_display)
+                .unwrap_or_else(|| "0".into())
+        );
         let rows_val = format!("{:.0}", get_f64_or(gsc_data, "row_count", 0.0));
 
         lines.push(format!("  <h3>{section_num}.1 Key Metrics</h3>"));
@@ -757,9 +821,14 @@ pub fn build_gsc_section(
         lines.push(String::new());
     }
 
-    let queries_path = chart_paths.get("top_queries_path").cloned().unwrap_or_default();
+    let queries_path = chart_paths
+        .get("top_queries_path")
+        .cloned()
+        .unwrap_or_default();
     if !queries_path.is_empty() {
-        lines.push(format!("  <h3>{section_num}.2 Top Queries by Impressions</h3>"));
+        lines.push(format!(
+            "  <h3>{section_num}.2 Top Queries by Impressions</h3>"
+        ));
         lines.push(chart_html(
             &queries_path,
             "Top search queries ranked by impression volume from Google Search Console (28-day period).",
@@ -791,7 +860,11 @@ pub fn build_gsc_section(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| {
-                    arr(r, "keys").first().and_then(|v| v.as_str()).unwrap_or("?").to_string()
+                    arr(r, "keys")
+                        .first()
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("?")
+                        .to_string()
                 });
             let pos = get_f64_or(r, "position", 0.0);
             let pos_cls = if pos <= 3.0 {
@@ -818,16 +891,35 @@ pub fn build_gsc_section(
     }
 
     if !rows.is_empty() {
-        let top3 = rows.iter().filter(|r| get_f64_or(r, "position", 99.0) <= 3.0).count();
-        let top10 = rows.iter().filter(|r| get_f64_or(r, "position", 99.0) <= 10.0).count();
-        let beyond = rows.iter().filter(|r| get_f64_or(r, "position", 99.0) > 10.0).count();
-        lines.push(format!("  <h3>{section_num}.4 Query Position Analysis</h3>"));
+        let top3 = rows
+            .iter()
+            .filter(|r| get_f64_or(r, "position", 99.0) <= 3.0)
+            .count();
+        let top10 = rows
+            .iter()
+            .filter(|r| get_f64_or(r, "position", 99.0) <= 10.0)
+            .count();
+        let beyond = rows
+            .iter()
+            .filter(|r| get_f64_or(r, "position", 99.0) > 10.0)
+            .count();
+        lines.push(format!(
+            "  <h3>{section_num}.4 Query Position Analysis</h3>"
+        ));
         lines.push("  <div class=\"two-col\">".into());
         lines.push("    <div class=\"col\">".into());
-        lines.push(metric_card(&top3.to_string(), "Queries in Top 3", Some(BRAND.success)));
+        lines.push(metric_card(
+            &top3.to_string(),
+            "Queries in Top 3",
+            Some(BRAND.success),
+        ));
         lines.push("    </div>".into());
         lines.push("    <div class=\"col\">".into());
-        lines.push(metric_card(&top10.to_string(), "Queries in Top 10", Some(BRAND.warning)));
+        lines.push(metric_card(
+            &top10.to_string(),
+            "Queries in Top 10",
+            Some(BRAND.warning),
+        ));
         lines.push("    </div>".into());
         lines.push("  </div>".into());
         if beyond > 0 {
@@ -840,12 +932,16 @@ pub fn build_gsc_section(
 
     let qw = arr(gsc_data, "quick_wins");
     if !qw.is_empty() {
-        lines.push(format!("  <h3>{section_num}.5 Quick Wins ({} opportunities)</h3>", qw.len()));
+        lines.push(format!(
+            "  <h3>{section_num}.5 Quick Wins ({} opportunities)</h3>",
+            qw.len()
+        ));
         lines.push("  <div class=\"highlight\">These queries rank at position 4-10 with high impressions. A small ranking improvement could yield significant traffic gains.</div>".into());
         lines.push("  <table>".into());
         lines.push("    <thead>".into());
         lines.push(
-            "      <tr><th>Query</th><th>Position</th><th>Impressions</th><th>Clicks</th></tr>".into(),
+            "      <tr><th>Query</th><th>Position</th><th>Impressions</th><th>Clicks</th></tr>"
+                .into(),
         );
         lines.push("    </thead>".into());
         lines.push("    <tbody>".into());
@@ -897,10 +993,19 @@ pub fn build_indexation_section(
     let total = get_f64_or(inspect_data, "total", 0.0);
 
     if !summary.as_object().map(|m| m.is_empty()).unwrap_or(true) {
-        let idx_path = chart_paths.get("index_status_path").cloned().unwrap_or_default();
+        let idx_path = chart_paths
+            .get("index_status_path")
+            .cloned()
+            .unwrap_or_default();
         if !idx_path.is_empty() {
-            let fig_n = { let f = fig; fig += 1; f };
-            lines.push(format!("  <h3>{section_num}.1 Index Coverage Overview</h3>"));
+            let fig_n = {
+                let f = fig;
+                fig += 1;
+                f
+            };
+            lines.push(format!(
+                "  <h3>{section_num}.1 Index Coverage Overview</h3>"
+            ));
             lines.push("    <div class=\"chart-container\">".into());
             lines.push(format!(
                 "      <img src=\"file://{idx_path}\" style=\"width: 70%;\" alt=\"Index status donut chart\">"
@@ -911,7 +1016,9 @@ pub fn build_indexation_section(
             lines.push("    </div>".into());
         }
 
-        lines.push(format!("  <p>Total URLs inspected: <strong>{total:.0}</strong></p>"));
+        lines.push(format!(
+            "  <p>Total URLs inspected: <strong>{total:.0}</strong></p>"
+        ));
         lines.push("  <div class=\"two-col\">".into());
         lines.push("    <div class=\"col\">".into());
         lines.push(metric_card(
@@ -1014,7 +1121,10 @@ pub fn build_indexation_section(
         lines.push(String::new());
     }
 
-    lines.push("  <p class=\"data-freshness\">URL Inspection API: 2,000 inspections/day per property.</p>".into());
+    lines.push(
+        "  <p class=\"data-freshness\">URL Inspection API: 2,000 inspections/day per property.</p>"
+            .into(),
+    );
     lines.push("</div>".into());
     (lines.join("\n"), fig)
 }
@@ -1139,7 +1249,10 @@ pub fn build_recommendations(data: &Value, section_num: u32) -> String {
     }
 
     if !high_items.is_empty() {
-        lines.push("  <h3><span class=\"priority-tag priority-high\">HIGH</span> Fix Within 1 Week</h3>".into());
+        lines.push(
+            "  <h3><span class=\"priority-tag priority-high\">HIGH</span> Fix Within 1 Week</h3>"
+                .into(),
+        );
         for (title, effort, desc) in &high_items {
             item_num += 1;
             lines.push("  <div class=\"action-item high\">".into());
@@ -1212,7 +1325,10 @@ pub fn build_recommendations(data: &Value, section_num: u32) -> String {
         lines.push("      <li>Fix failing Lighthouse SEO checks</li>".into());
     }
     if !a11y.is_empty() {
-        lines.push(format!("      <li>Address {} accessibility issue(s)</li>", a11y.len()));
+        lines.push(format!(
+            "      <li>Address {} accessibility issue(s)</li>",
+            a11y.len()
+        ));
     }
     let bp_score_val = bp_score;
     if let Some(bp) = bp_score_val {
@@ -1220,10 +1336,7 @@ pub fn build_recommendations(data: &Value, section_num: u32) -> String {
             lines.push("      <li>Review and fix Best Practices issues</li>".into());
         }
     }
-    if seo_failed.is_empty()
-        && a11y.is_empty()
-        && bp_score_val.map(|v| v >= 90.0).unwrap_or(true)
-    {
+    if seo_failed.is_empty() && a11y.is_empty() && bp_score_val.map(|v| v >= 90.0).unwrap_or(true) {
         lines.push("      <li>Verify all monitoring dashboards are active</li>".into());
     }
     lines.push("    </ul>".into());
@@ -1232,13 +1345,20 @@ pub fn build_recommendations(data: &Value, section_num: u32) -> String {
     lines.push("    <h4>Week 2&ndash;3 &mdash; Performance &amp; Indexation</h4>".into());
     lines.push("    <ul>".into());
     if perf.map(|p| p < 50.0).unwrap_or(false) {
-        lines.push("      <li>Optimize Largest Contentful Paint and Total Blocking Time</li>".into());
+        lines.push(
+            "      <li>Optimize Largest Contentful Paint and Total Blocking Time</li>".into(),
+        );
     }
     if not_indexed != 0 {
-        lines.push(format!("      <li>Resolve {not_indexed} non-indexed URL(s)</li>"));
+        lines.push(format!(
+            "      <li>Resolve {not_indexed} non-indexed URL(s)</li>"
+        ));
     }
     if !opps.is_empty() {
-        lines.push(format!("      <li>Implement {} performance optimization(s)</li>", opps.len()));
+        lines.push(format!(
+            "      <li>Implement {} performance optimization(s)</li>",
+            opps.len()
+        ));
     }
     if perf.map(|p| p >= 50.0).unwrap_or(true) && not_indexed == 0 && opps.is_empty() {
         lines.push("      <li>Maintain current performance levels and monitor trends</li>".into());
@@ -1249,7 +1369,10 @@ pub fn build_recommendations(data: &Value, section_num: u32) -> String {
     lines.push("    <h4>Week 4 &mdash; Content &amp; Search Optimization</h4>".into());
     lines.push("    <ul>".into());
     if !qw.is_empty() {
-        lines.push(format!("      <li>Optimize {} quick-win queries for top-3 rankings</li>", qw.len()));
+        lines.push(format!(
+            "      <li>Optimize {} quick-win queries for top-3 rankings</li>",
+            qw.len()
+        ));
     }
     lines.push("      <li>Review and improve content depth for underperforming pages</li>".into());
     lines.push("      <li>Set up ongoing monitoring and reporting cadence</li>".into());

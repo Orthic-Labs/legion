@@ -66,10 +66,20 @@ pub struct LedgerDecision {
 
 impl LedgerDecision {
     fn allow(event_count: usize) -> Self {
-        Self { allowed: true, code: None, message: String::new(), event_count }
+        Self {
+            allowed: true,
+            code: None,
+            message: String::new(),
+            event_count,
+        }
     }
     fn deny(message: impl Into<String>) -> Self {
-        Self { allowed: false, code: Some("ARC_STORE_CORRUPT"), message: message.into(), event_count: 0 }
+        Self {
+            allowed: false,
+            code: Some("ARC_STORE_CORRUPT"),
+            message: message.into(),
+            event_count: 0,
+        }
     }
 }
 
@@ -137,13 +147,20 @@ fn is_record_filename(name: &str) -> bool {
 
 impl<S: LedgerSigner> HostEventLedger<S> {
     pub fn new(root: impl Into<PathBuf>, signer: S) -> Self {
-        Self::with_clock(root, signer, || {
-            humantime_iso_now()
-        })
+        Self::with_clock(root, signer, || humantime_iso_now())
     }
 
-    pub fn with_clock(root: impl Into<PathBuf>, signer: S, clock: impl Fn() -> String + 'static) -> Self {
-        Self { root: root.into(), signer, clock: Box::new(clock), pid: std::process::id() }
+    pub fn with_clock(
+        root: impl Into<PathBuf>,
+        signer: S,
+        clock: impl Fn() -> String + 'static,
+    ) -> Self {
+        Self {
+            root: root.into(),
+            signer,
+            clock: Box::new(clock),
+            pid: std::process::id(),
+        }
     }
 
     fn head_path(&self) -> PathBuf {
@@ -158,7 +175,9 @@ impl<S: LedgerSigner> HostEventLedger<S> {
 
     fn owner_is_alive(owner: Option<&Json>) -> bool {
         let Some(owner) = owner else { return false };
-        let Some(pid) = owner.get("pid").and_then(Json::as_i64) else { return false };
+        let Some(pid) = owner.get("pid").and_then(Json::as_i64) else {
+            return false;
+        };
         if pid <= 0 {
             return false;
         }
@@ -179,11 +198,17 @@ impl<S: LedgerSigner> HostEventLedger<S> {
             .duration_since(meta.modified().unwrap_or(SystemTime::now()))
             .unwrap_or(Duration::ZERO)
             .as_millis();
-        let owner: Option<Json> = fs::read(self.lock_owner_path()).ok().and_then(|b| serde_json::from_slice(&b).ok());
-        if Self::owner_is_alive(owner.as_ref()) || (owner.is_none() && age_ms < APPEND_LOCK_STALE_MS) {
+        let owner: Option<Json> = fs::read(self.lock_owner_path())
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok());
+        if Self::owner_is_alive(owner.as_ref())
+            || (owner.is_none() && age_ms < APPEND_LOCK_STALE_MS)
+        {
             return Ok(false);
         }
-        let stale = self.root.join(format!(".append.lock.stale-{}-{}", self.pid, now_millis()));
+        let stale = self
+            .root
+            .join(format!(".append.lock.stale-{}-{}", self.pid, now_millis()));
         match fs::rename(&lock, &stale) {
             Ok(()) => {}
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(true),
@@ -204,7 +229,10 @@ impl<S: LedgerSigner> HostEventLedger<S> {
                 Ok(()) => {
                     let tok = format!("{}-{}-{}", self.pid, now_millis(), attempt);
                     let owner = json!({"pid": self.pid, "token": tok});
-                    match write_new_file(&self.lock_owner_path(), &serde_json::to_vec(&owner).unwrap()) {
+                    match write_new_file(
+                        &self.lock_owner_path(),
+                        &serde_json::to_vec(&owner).unwrap(),
+                    ) {
                         Ok(()) => {
                             token = Some(tok);
                             break;
@@ -222,7 +250,9 @@ impl<S: LedgerSigner> HostEventLedger<S> {
                 Err(e) => return Err(e.into()),
             }
         }
-        let Some(token) = token else { return Err(LedgerError::LockUnavailable) };
+        let Some(token) = token else {
+            return Err(LedgerError::LockUnavailable);
+        };
         let result = f();
         // Release: only if we still own it (mirrors JS re-reading owner.json
         // and comparing tokens before removing).
@@ -238,7 +268,9 @@ impl<S: LedgerSigner> HostEventLedger<S> {
 
     /// Mirrors `records()`.
     pub fn records(&self) -> Vec<Json> {
-        let Ok(entries) = fs::read_dir(&self.root) else { return Vec::new() };
+        let Ok(entries) = fs::read_dir(&self.root) else {
+            return Vec::new();
+        };
         let mut names: Vec<String> = entries
             .filter_map(|e| e.ok())
             .filter_map(|e| e.file_name().into_string().ok())
@@ -259,32 +291,52 @@ impl<S: LedgerSigner> HostEventLedger<S> {
         let mut prior: Option<&Json> = None;
         for record in &records {
             let auth = record.get("authentication").cloned().unwrap_or(Json::Null);
-            let expected_seq = prior.and_then(|p| p.get("eventSequence")).and_then(Json::as_i64).unwrap_or(0) + 1;
+            let expected_seq = prior
+                .and_then(|p| p.get("eventSequence"))
+                .and_then(Json::as_i64)
+                .unwrap_or(0)
+                + 1;
             let expected_prev_digest = prior.map(digest_value);
             let seq_ok = record.get("eventSequence").and_then(Json::as_i64) == Some(expected_seq);
             let prev_ok = record.get("previousDigest").cloned().unwrap_or(Json::Null)
                 == expected_prev_digest.map(Json::String).unwrap_or(Json::Null);
             if !self.signer.verify(record, &auth, HOST_EVENT_LEDGER_FIELDS) || !seq_ok || !prev_ok {
-                return (LedgerDecision::deny("host event ledger continuity is invalid"), records);
+                return (
+                    LedgerDecision::deny("host event ledger continuity is invalid"),
+                    records,
+                );
             }
             prior = Some(record);
         }
         let head_exists = self.head_path().exists();
         if !records.is_empty() != head_exists {
-            return (LedgerDecision::deny("host event ledger head is missing or unanchored"), records);
+            return (
+                LedgerDecision::deny("host event ledger head is missing or unanchored"),
+                records,
+            );
         }
         if let Some(prior) = prior {
             let Ok(head_bytes) = fs::read(self.head_path()) else {
-                return (LedgerDecision::deny("host event ledger head is missing or unanchored"), records);
+                return (
+                    LedgerDecision::deny("host event ledger head is missing or unanchored"),
+                    records,
+                );
             };
             let Ok(head) = serde_json::from_slice::<Json>(&head_bytes) else {
-                return (LedgerDecision::deny("host event ledger head is missing or unanchored"), records);
+                return (
+                    LedgerDecision::deny("host event ledger head is missing or unanchored"),
+                    records,
+                );
             };
             let auth = head.get("authentication").cloned().unwrap_or(Json::Null);
             let seq_ok = head.get("eventSequence") == prior.get("eventSequence");
-            let digest_ok = head.get("digest").and_then(Json::as_str) == Some(digest_value(prior).as_str());
+            let digest_ok =
+                head.get("digest").and_then(Json::as_str) == Some(digest_value(prior).as_str());
             if !self.signer.verify(&head, &auth, HEAD_FIELDS) || !seq_ok || !digest_ok {
-                return (LedgerDecision::deny("host event ledger is truncated or forked"), records);
+                return (
+                    LedgerDecision::deny("host event ledger is truncated or forked"),
+                    records,
+                );
             }
         }
         let n = records.len();
@@ -421,14 +473,19 @@ fn write_new_file(path: &Path, data: &[u8]) -> io::Result<()> {
 }
 
 fn now_millis() -> u128 {
-    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or(Duration::ZERO).as_millis()
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or(Duration::ZERO)
+        .as_millis()
 }
 
 /// Minimal RFC3339 "now" with millisecond precision, matching
 /// `new Date().toISOString()`'s shape closely enough for an append-log
 /// timestamp (not itself security-relevant — only `observedAt` display).
 fn humantime_iso_now() -> String {
-    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or(Duration::ZERO);
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or(Duration::ZERO);
     let secs = now.as_secs();
     let millis = now.subsec_millis();
     let days = secs / 86_400;
@@ -494,16 +551,23 @@ mod tests {
     impl LedgerSigner for FakeSigner {
         fn sign(&self, record: &Json, bound_fields: &[&str]) -> Result<Json, String> {
             let projected: Json = Json::Object(
-                bound_fields.iter().map(|f| (f.to_string(), record.get(*f).cloned().unwrap_or(Json::Null))).collect(),
+                bound_fields
+                    .iter()
+                    .map(|f| (f.to_string(), record.get(*f).cloned().unwrap_or(Json::Null)))
+                    .collect(),
             );
             let mac = digest_value(&projected);
             Ok(json!({"alg": "FAKE", "keyId": "k1", "mac": mac}))
         }
         fn verify(&self, record: &Json, authentication: &Json, bound_fields: &[&str]) -> bool {
             let projected: Json = Json::Object(
-                bound_fields.iter().map(|f| (f.to_string(), record.get(*f).cloned().unwrap_or(Json::Null))).collect(),
+                bound_fields
+                    .iter()
+                    .map(|f| (f.to_string(), record.get(*f).cloned().unwrap_or(Json::Null)))
+                    .collect(),
             );
-            authentication.get("mac").and_then(Json::as_str) == Some(digest_value(&projected).as_str())
+            authentication.get("mac").and_then(Json::as_str)
+                == Some(digest_value(&projected).as_str())
         }
     }
 
@@ -542,7 +606,10 @@ mod tests {
         assert_eq!(r1.get("eventSequence"), Some(&Json::from(1)));
         assert_eq!(r1.get("previousDigest"), Some(&Json::Null));
 
-        let binding = AppendBinding { run_id: Some("run1".into()), ..Default::default() };
+        let binding = AppendBinding {
+            run_id: Some("run1".into()),
+            ..Default::default()
+        };
         let r2 = ledger
             .append(AppendInput {
                 event_id: "hev_2".into(),
@@ -585,11 +652,14 @@ mod tests {
             })
             .unwrap();
         // Corrupt the sole record file directly.
-        let entry = fs::read_dir(&root).unwrap().find_map(|e| {
-            let e = e.ok()?;
-            let name = e.file_name().into_string().ok()?;
-            is_record_filename(&name).then_some(e.path())
-        }).unwrap();
+        let entry = fs::read_dir(&root)
+            .unwrap()
+            .find_map(|e| {
+                let e = e.ok()?;
+                let name = e.file_name().into_string().ok()?;
+                is_record_filename(&name).then_some(e.path())
+            })
+            .unwrap();
         let mut v: Json = serde_json::from_slice(&fs::read(&entry).unwrap()).unwrap();
         v["eventType"] = Json::String("tampered".into());
         fs::write(&entry, serde_json::to_vec(&v).unwrap()).unwrap();
@@ -630,7 +700,10 @@ mod tests {
                 payload: json!({}),
             })
             .unwrap();
-        assert_eq!(r2.get("turnCorrelationDigest"), r1.get("turnCorrelationDigest"));
+        assert_eq!(
+            r2.get("turnCorrelationDigest"),
+            r1.get("turnCorrelationDigest")
+        );
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -641,7 +714,12 @@ mod tests {
             fn sign(&self, _record: &Json, _bound_fields: &[&str]) -> Result<Json, String> {
                 Err("key unavailable".into())
             }
-            fn verify(&self, _record: &Json, _authentication: &Json, _bound_fields: &[&str]) -> bool {
+            fn verify(
+                &self,
+                _record: &Json,
+                _authentication: &Json,
+                _bound_fields: &[&str],
+            ) -> bool {
                 false
             }
         }
@@ -659,7 +737,13 @@ mod tests {
                 payload: json!({}),
             })
             .unwrap_err();
-        assert!(matches!(err, LedgerError::Denied { code: "ARC_AUTH_KEY_UNAVAILABLE", .. }));
+        assert!(matches!(
+            err,
+            LedgerError::Denied {
+                code: "ARC_AUTH_KEY_UNAVAILABLE",
+                ..
+            }
+        ));
         let _ = fs::remove_dir_all(&root);
     }
 }

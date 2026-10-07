@@ -40,11 +40,27 @@ pub enum GauntletError {
 /// substitutes a trivially-passing empty layer rather than skipping the
 /// key in the output.
 pub fn disabled_mutation_layer() -> MutationLayer {
-    MutationLayer { passed: 0, failed: 0, skipped: 0, total: 0, ok: true, results: Vec::new() }
+    MutationLayer {
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        total: 0,
+        ok: true,
+        results: Vec::new(),
+    }
 }
 
 pub fn disabled_coverage_layer() -> CoverageLayer {
-    CoverageLayer { ok: true, passed: 0, failed: 0, total: 0, percent: None, error: None, stderr_tail: None, results: Vec::new() }
+    CoverageLayer {
+        ok: true,
+        passed: 0,
+        failed: 0,
+        total: 0,
+        percent: None,
+        error: None,
+        stderr_tail: None,
+        results: Vec::new(),
+    }
 }
 
 /// The `order` layer's shape from gauntlet.mjs's disabled branch
@@ -108,7 +124,10 @@ pub fn run_gauntlet(opts: RunGauntletOptions<'_>) -> Result<GauntletRun, Gauntle
             layers,
         });
         let check = build_check(&receipt);
-        return Ok(GauntletRun { exit_code: receipt.exit_code, check });
+        return Ok(GauntletRun {
+            exit_code: receipt.exit_code,
+            check,
+        });
     }
 
     let mutation_layer = if opts.run_mutation {
@@ -122,7 +141,10 @@ pub fn run_gauntlet(opts: RunGauntletOptions<'_>) -> Result<GauntletRun, Gauntle
         disabled_coverage_layer()
     };
     let order_layer = opts.order_layer.clone();
-    let order_ok = order_layer.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    let order_ok = order_layer
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
 
     let diff_summary = summarise(&files);
     let ok = mutation_layer.ok && coverage_layer.ok && order_ok;
@@ -143,9 +165,18 @@ pub fn run_gauntlet(opts: RunGauntletOptions<'_>) -> Result<GauntletRun, Gauntle
     });
 
     let completed_at = now_iso8601();
-    let receipt = build_receipt(BuildReceiptInput { started_at, completed_at, command, summary, layers });
+    let receipt = build_receipt(BuildReceiptInput {
+        started_at,
+        completed_at,
+        command,
+        summary,
+        layers,
+    });
     let check = build_check(&receipt);
-    Ok(GauntletRun { exit_code: receipt.exit_code, check })
+    Ok(GauntletRun {
+        exit_code: receipt.exit_code,
+        check,
+    })
 }
 
 /// Mirrors `pickMetrics(layer)` from gauntlet.mjs.
@@ -164,7 +195,9 @@ fn pick_metrics(layer: &Value) -> Value {
 /// (`YYYY-MM-DDTHH:MM:SS.mmmZ`), without depending on `chrono` (not a
 /// workspace dependency).
 fn now_iso8601() -> String {
-    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let dur = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = dur.as_secs();
     let millis = dur.subsec_millis();
     let (y, mo, d) = civil_from_days((secs / 86_400) as i64);

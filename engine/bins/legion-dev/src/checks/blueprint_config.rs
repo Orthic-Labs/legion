@@ -35,7 +35,10 @@ pub fn report(root: &Path) -> Report {
                 path: ".agent/config.json".to_string(),
                 reason: "blueprint config is not a regular file".to_string(),
             });
-            return Report { status: "fail", issues };
+            return Report {
+                status: "fail",
+                issues,
+            };
         }
         Ok(_) => {}
         Err(_) => {
@@ -43,7 +46,10 @@ pub fn report(root: &Path) -> Report {
                 path: ".agent/config.json".to_string(),
                 reason: "blueprint config is missing or invalid".to_string(),
             });
-            return Report { status: "fail", issues };
+            return Report {
+                status: "fail",
+                issues,
+            };
         }
     }
 
@@ -54,7 +60,10 @@ pub fn report(root: &Path) -> Report {
                 path: ".agent/config.json".to_string(),
                 reason: format!("blueprint config is missing or invalid: {e}"),
             });
-            return Report { status: "fail", issues };
+            return Report {
+                status: "fail",
+                issues,
+            };
         }
     };
 
@@ -69,7 +78,9 @@ pub fn report(root: &Path) -> Report {
                 if !present.contains(prefix) {
                     issues.push(Issue {
                         path: ".agent/config.json".to_string(),
-                        reason: format!("ignoredPrefixes must exclude {prefix} from Blueprint indexing"),
+                        reason: format!(
+                            "ignoredPrefixes must exclude {prefix} from Blueprint indexing"
+                        ),
                     });
                 }
             }

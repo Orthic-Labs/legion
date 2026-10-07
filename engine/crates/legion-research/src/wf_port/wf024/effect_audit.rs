@@ -159,7 +159,8 @@ pub fn audit(manifest_doc: &Value, events: &[Value]) -> Value {
         "workers_active": over_workers_active,
     });
 
-    let ok = malformed.is_empty() && mismatches.is_empty() && !over_external && !over_workers_active;
+    let ok =
+        malformed.is_empty() && mismatches.is_empty() && !over_external && !over_workers_active;
 
     json!({
         "ok": ok,

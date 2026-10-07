@@ -1,10 +1,10 @@
 #![forbid(unsafe_code)]
 
+pub mod arcane_port;
 pub mod error;
 pub mod evaluator;
 pub mod explanation;
 pub mod precedence;
-pub mod arcane_port;
 pub mod wf_port;
 
 pub use error::PolicyEvaluationError;

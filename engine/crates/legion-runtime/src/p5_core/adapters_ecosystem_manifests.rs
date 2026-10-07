@@ -95,12 +95,13 @@ fn parse_json(root: &Path, path: &str, ecosystem: &str, sections: &[&str]) -> Ec
 }
 
 fn parse_pyproject(root: &Path, path: &str) -> EcosystemManifest {
-    static DEPS_ARRAY: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?m)(?:^|\n)\s*dependencies\s*=\s*\[([\s\S]*?)\]").unwrap()
-    });
+    static DEPS_ARRAY: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)(?:^|\n)\s*dependencies\s*=\s*\[([\s\S]*?)\]").unwrap());
     static QUOTED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"['"]([^'"]+)['"]"#).unwrap());
-    static SECTION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*\[([^\]]+)\]\s*$").unwrap());
-    static KEY: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*([A-Za-z0-9_.-]+)\s*=").unwrap());
+    static SECTION: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^\s*\[([^\]]+)\]\s*$").unwrap());
+    static KEY: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^\s*([A-Za-z0-9_.-]+)\s*=").unwrap());
 
     let text = read(root, path);
     let mut dependencies = Vec::new();
@@ -115,7 +116,9 @@ fn parse_pyproject(root: &Path, path: &str) -> EcosystemManifest {
         if let Some(caps) = SECTION.captures(line) {
             section = caps[1].to_string();
         }
-        if !(section == "tool.poetry.dependencies" || section == "tool.poetry.group.dev.dependencies") {
+        if !(section == "tool.poetry.dependencies"
+            || section == "tool.poetry.group.dev.dependencies")
+        {
             continue;
         }
         if let Some(caps) = KEY.captures(line) {
@@ -165,7 +168,8 @@ fn parse_gradle(root: &Path, path: &str) -> EcosystemManifest {
         )
         .unwrap()
     });
-    static PLUGIN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"id\s*(?:\(|\s)\s*['"]([^'"]+)['"]"#).unwrap());
+    static PLUGIN: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"id\s*(?:\(|\s)\s*['"]([^'"]+)['"]"#).unwrap());
     let text = read(root, path);
     let mut dependencies = Vec::new();
     for caps in DEP.captures_iter(&text) {
@@ -185,9 +189,11 @@ fn parse_gradle(root: &Path, path: &str) -> EcosystemManifest {
 
 fn parse_dotnet(root: &Path, path: &str) -> EcosystemManifest {
     static PACKAGE_REF: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r#"<(?:PackageReference|FrameworkReference)\s+Include=['"]([^'"]+)['"]"#).unwrap()
+        Regex::new(r#"<(?:PackageReference|FrameworkReference)\s+Include=['"]([^'"]+)['"]"#)
+            .unwrap()
     });
-    static SDK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"<Project\s+Sdk=['"]([^'"]+)['"]"#).unwrap());
+    static SDK: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"<Project\s+Sdk=['"]([^'"]+)['"]"#).unwrap());
     let text = read(root, path);
     let mut dependencies = Vec::new();
     for caps in PACKAGE_REF.captures_iter(&text) {
@@ -200,8 +206,10 @@ fn parse_dotnet(root: &Path, path: &str) -> EcosystemManifest {
 }
 
 fn parse_go(root: &Path, path: &str) -> EcosystemManifest {
-    static REQUIRE_LINE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?m)^\s*require\s+([^\s(]+)\s+").unwrap());
-    static REQUIRE_BLOCK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?s)require\s*\(([\s\S]*?)\)").unwrap());
+    static REQUIRE_LINE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)^\s*require\s+([^\s(]+)\s+").unwrap());
+    static REQUIRE_BLOCK: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?s)require\s*\(([\s\S]*?)\)").unwrap());
     static MODULE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([^\s]+)\s+v").unwrap());
     let text = read(root, path);
     let mut dependencies = Vec::new();
@@ -228,9 +236,12 @@ fn parse_keyed(root: &Path, path: &str, ecosystem: &str, pattern: &Regex) -> Eco
 }
 
 fn parse_pubspec(root: &Path, path: &str) -> EcosystemManifest {
-    static TOP_LEVEL_DEPS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(dependencies|dev_dependencies):\s*$").unwrap());
-    static OTHER_TOP_LEVEL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[A-Za-z_][^:]*:\s*$").unwrap());
-    static NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s{2}([A-Za-z0-9_.-]+):").unwrap());
+    static TOP_LEVEL_DEPS: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^(dependencies|dev_dependencies):\s*$").unwrap());
+    static OTHER_TOP_LEVEL: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^[A-Za-z_][^:]*:\s*$").unwrap());
+    static NAME: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^\s{2}([A-Za-z0-9_.-]+):").unwrap());
     let text = read(root, path);
     let mut dependencies = Vec::new();
     let mut active = false;
@@ -259,7 +270,8 @@ fn parse_pubspec(root: &Path, path: &str) -> EcosystemManifest {
 
 fn parse_cargo(root: &Path, path: &str) -> EcosystemManifest {
     static SECTION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*\[([^\]]+)\]").unwrap());
-    static NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*([A-Za-z0-9_-]+)\s*=").unwrap());
+    static NAME: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^\s*([A-Za-z0-9_-]+)\s*=").unwrap());
     let text = read(root, path);
     let mut dependencies = Vec::new();
     let mut section = String::new();
@@ -283,12 +295,18 @@ fn basename(path: &str) -> &str {
 
 /// Port of `readEcosystemManifests(root, files)`.
 pub fn read_ecosystem_manifests(root: &Path, files: &[String]) -> Vec<EcosystemManifest> {
-    static REQUIREMENTS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^requirements(?:[-_.].*)?\.txt$").unwrap());
-    static GRADLE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^build\.gradle(?:\.kts)?$").unwrap());
-    static DOTNET_PROJECT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\.(csproj|fsproj|vbproj)$").unwrap());
-    static GEM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"^\s*gem\s+['"]([^'"]+)['"]"#).unwrap());
-    static MIX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{\s*:([A-Za-z0-9_]+)\s*,").unwrap());
-    static SWIFT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"\.product\s*\(\s*name:\s*['"]([^'"]+)['"]"#).unwrap());
+    static REQUIREMENTS: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)^requirements(?:[-_.].*)?\.txt$").unwrap());
+    static GRADLE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^build\.gradle(?:\.kts)?$").unwrap());
+    static DOTNET_PROJECT: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\.(csproj|fsproj|vbproj)$").unwrap());
+    static GEM: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"^\s*gem\s+['"]([^'"]+)['"]"#).unwrap());
+    static MIX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\{\s*:([A-Za-z0-9_]+)\s*,").unwrap());
+    static SWIFT: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"\.product\s*\(\s*name:\s*['"]([^'"]+)['"]"#).unwrap());
 
     let mut records = Vec::new();
     for path in files {
@@ -298,10 +316,20 @@ pub fn read_ecosystem_manifests(root: &Path, files: &[String]) -> Vec<EcosystemM
                 root,
                 path,
                 "node",
-                &["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"],
+                &[
+                    "dependencies",
+                    "devDependencies",
+                    "peerDependencies",
+                    "optionalDependencies",
+                ],
             ))
         } else if base == "composer.json" {
-            Some(parse_json(root, path, "composer", &["require", "require-dev"]))
+            Some(parse_json(
+                root,
+                path,
+                "composer",
+                &["require", "require-dev"],
+            ))
         } else if base == "pyproject.toml" {
             Some(parse_pyproject(root, path))
         } else if REQUIREMENTS.is_match(base) {
@@ -414,7 +442,11 @@ mod tests {
     #[test]
     fn parses_requirements_txt_and_strips_comments() {
         let dir = tempfile_dir();
-        write(dir.path(), "requirements.txt", "Flask==2.0  # web\n-e .\nrequests>=2\n");
+        write(
+            dir.path(),
+            "requirements.txt",
+            "Flask==2.0  # web\n-e .\nrequests>=2\n",
+        );
         let manifests = read_ecosystem_manifests(dir.path(), &["requirements.txt".to_string()]);
         assert_eq!(manifests[0].dependencies, vec!["flask", "requests"]);
     }

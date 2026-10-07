@@ -12,7 +12,8 @@ use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use legion_policy::wf_port::wf067::authority::{
-    payload_claims_authority, require_authority, AssertForTurnInput, AuthorityLedger, RequireAuthorityOpts,
+    payload_claims_authority, require_authority, AssertForTurnInput, AuthorityLedger,
+    RequireAuthorityOpts,
 };
 use legion_policy::wf_port::wf067::binding_store::{AuthorityBindingStore, ObserveInput};
 use legion_policy::wf_port::wf067::canonical::{canonical_json, digest_value, is_digest, Json};
@@ -88,7 +89,12 @@ fn authority_ledger_end_to_end_gate() {
     let allowed = require_authority(&ledger, "t1", &["oracle"], RequireAuthorityOpts::default());
     assert!(allowed.allowed);
 
-    let denied = require_authority(&ledger, "t1", &["alchemist"], RequireAuthorityOpts::default());
+    let denied = require_authority(
+        &ledger,
+        "t1",
+        &["alchemist"],
+        RequireAuthorityOpts::default(),
+    );
     assert_eq!(denied.code, Some(ArcCode::ArcAuthorityNotAsserted));
 }
 
@@ -115,35 +121,77 @@ fn authority_model_source_and_payload_claims_are_refused() {
 
 #[test]
 fn binding_store_observe_get_find_latest_rollback_lifecycle() {
-    let store = AuthorityBindingStore::new(temp_root("binding"), || "2026-01-01T00:00:00.000Z".to_string());
+    let store = AuthorityBindingStore::new(temp_root("binding"), || {
+        "2026-01-01T00:00:00.000Z".to_string()
+    });
 
     let observed = store
-        .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "alchemist", event_id: "e1", session_root: false })
+        .observe(ObserveInput {
+            adapter: "claude-code",
+            session_id: "s1",
+            agent_id: Some("a1"),
+            agent_type: "alchemist",
+            event_id: "e1",
+            session_root: false,
+        })
         .unwrap();
     assert!(observed.bound && observed.created);
 
     let fetched = store.get("claude-code", "s1", Some("a1")).unwrap().unwrap();
     assert_eq!(fetched.authority, "alchemist");
 
-    let found = store.find_latest("claude-code", "s1", Some("alchemist")).unwrap().unwrap();
+    let found = store
+        .find_latest("claude-code", "s1", Some("alchemist"))
+        .unwrap()
+        .unwrap();
     assert_eq!(found.observed_event_id, "e1");
 
-    assert!(store.rollback("claude-code", "s1", Some("a1"), Some(&fetched)).unwrap());
-    assert!(store.get("claude-code", "s1", Some("a1")).unwrap().is_none());
+    assert!(store
+        .rollback("claude-code", "s1", Some("a1"), Some(&fetched))
+        .unwrap());
+    assert!(store
+        .get("claude-code", "s1", Some("a1"))
+        .unwrap()
+        .is_none());
 }
 
 #[test]
 fn binding_store_assert_for_turn_produces_matching_ledger_assertion() {
-    let store = AuthorityBindingStore::new(temp_root("binding-assert"), || "2026-01-01T00:00:00.000Z".to_string());
+    let store = AuthorityBindingStore::new(temp_root("binding-assert"), || {
+        "2026-01-01T00:00:00.000Z".to_string()
+    });
     store
-        .observe(ObserveInput { adapter: "claude-code", session_id: "s1", agent_id: Some("a1"), agent_type: "oracle", event_id: "e1", session_root: false })
+        .observe(ObserveInput {
+            adapter: "claude-code",
+            session_id: "s1",
+            agent_id: Some("a1"),
+            agent_type: "oracle",
+            event_id: "e1",
+            session_root: false,
+        })
         .unwrap();
 
     let mut ledger = AuthorityLedger::new(|| 0);
-    let assertion = store.assert_for_turn("claude-code", "s1", Some("a1"), "turn-1", &mut ledger, Some("k1"), None, None).unwrap();
+    let assertion = store
+        .assert_for_turn(
+            "claude-code",
+            "s1",
+            Some("a1"),
+            "turn-1",
+            &mut ledger,
+            Some("k1"),
+            None,
+            None,
+        )
+        .unwrap();
     assert_eq!(assertion.authority, "oracle");
 
-    let gate = require_authority(&ledger, "turn-1", &["oracle"], RequireAuthorityOpts::default());
+    let gate = require_authority(
+        &ledger,
+        "turn-1",
+        &["oracle"],
+        RequireAuthorityOpts::default(),
+    );
     assert!(gate.allowed, "{gate:?}");
 }
 
@@ -184,7 +232,13 @@ fn sample_ledger() -> Json {
         ("observedAuthority".into(), Json::str("oracle")),
         ("payloadDigest".into(), Json::str("sha256:def")),
         ("observedAt".into(), Json::str("2026-01-01T00:00:00.000Z")),
-        ("authentication".into(), Json::Obj(vec![("keyId".into(), Json::str("root")), ("mac".into(), Json::str("x"))])),
+        (
+            "authentication".into(),
+            Json::Obj(vec![
+                ("keyId".into(), Json::str("root")),
+                ("mac".into(), Json::str("x")),
+            ]),
+        ),
     ])
 }
 
@@ -192,12 +246,27 @@ fn sample_ledger() -> Json {
 fn invocation_proof_issue_verify_consume_end_to_end() {
     let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
     let ledger = sample_ledger();
-    let ledger_store = FixedLedgerStore { records: vec![ledger.clone()] };
-    let binding = BindingKey { run_id: "run-1", task_id: "task-1", contract_id: "EC-1", contract_version: "1", contract_digest: "sha256:abc" };
-    let mut issuer =
-        AuthorityInvocationProofIssuer::new(temp_root("proof"), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
+    let ledger_store = FixedLedgerStore {
+        records: vec![ledger.clone()],
+    };
+    let binding = BindingKey {
+        run_id: "run-1",
+        task_id: "task-1",
+        contract_id: "EC-1",
+        contract_version: "1",
+        contract_digest: "sha256:abc",
+    };
+    let mut issuer = AuthorityInvocationProofIssuer::new(
+        temp_root("proof"),
+        &mut keyring,
+        "root",
+        &ledger_store,
+        || "2026-01-01T00:00:00.000Z".to_string(),
+    );
 
-    let IssueOutcome::Issued(proof) = issuer.issue(&ledger, &binding, "completion-claim", "oracle").unwrap();
+    let IssueOutcome::Issued(proof) = issuer
+        .issue(&ledger, &binding, "completion-claim", "oracle")
+        .unwrap();
     let verified = issuer.verify(Some(&proof), &BTreeMap::new());
     assert!(verified.allowed, "{verified:?}");
     let consumed = issuer.consume(&proof, Some("sha256:artifact")).unwrap();
@@ -208,10 +277,25 @@ fn invocation_proof_issue_verify_consume_end_to_end() {
 fn invocation_proof_rejects_role_not_authorized_for_purpose() {
     let mut keyring = StaticKeyRing::new().with_key("root", b"root-secret");
     let ledger = sample_ledger();
-    let ledger_store = FixedLedgerStore { records: vec![ledger.clone()] };
-    let binding = BindingKey { run_id: "run-1", task_id: "task-1", contract_id: "EC-1", contract_version: "1", contract_digest: "sha256:abc" };
-    let mut issuer =
-        AuthorityInvocationProofIssuer::new(temp_root("proof-reject"), &mut keyring, "root", &ledger_store, || "2026-01-01T00:00:00.000Z".to_string());
-    let err = issuer.issue(&ledger, &binding, "budget-amendment", "oracle").unwrap_err();
+    let ledger_store = FixedLedgerStore {
+        records: vec![ledger.clone()],
+    };
+    let binding = BindingKey {
+        run_id: "run-1",
+        task_id: "task-1",
+        contract_id: "EC-1",
+        contract_version: "1",
+        contract_digest: "sha256:abc",
+    };
+    let mut issuer = AuthorityInvocationProofIssuer::new(
+        temp_root("proof-reject"),
+        &mut keyring,
+        "root",
+        &ledger_store,
+        || "2026-01-01T00:00:00.000Z".to_string(),
+    );
+    let err = issuer
+        .issue(&ledger, &binding, "budget-amendment", "oracle")
+        .unwrap_err();
     assert_eq!(err.code, ArcCode::ArcAuthForged);
 }

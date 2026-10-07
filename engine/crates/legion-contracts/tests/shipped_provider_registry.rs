@@ -12,7 +12,9 @@ fn every_shipped_provider_deserializes_and_validates() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../src/registry/providers.json");
     let bytes = std::fs::read(&path).expect("read shipped provider registry");
     let value: serde_json::Value = serde_json::from_slice(&bytes).expect("registry is JSON");
-    let providers = value["providers"].as_array().expect("registry has providers");
+    let providers = value["providers"]
+        .as_array()
+        .expect("registry has providers");
     assert!(!providers.is_empty());
     for provider in providers {
         let id = provider["id"].as_str().unwrap_or("<no id>");

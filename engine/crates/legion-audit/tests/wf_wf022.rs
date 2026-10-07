@@ -19,8 +19,14 @@ fn sarif_primitive_result_references_candidate_and_variant_receipt() {
     let sarif = render_sarif_report(&report);
     let result = &sarif["runs"][0]["results"][0];
     assert_eq!(result["properties"]["candidateId"], json!("c1"));
-    assert_eq!(result["properties"]["variantReceiptId"], json!("sha256:receipt"));
-    assert_eq!(result["properties"]["relatedAttackPathIds"], json!(["path-1"]));
+    assert_eq!(
+        result["properties"]["variantReceiptId"],
+        json!("sha256:receipt")
+    );
+    assert_eq!(
+        result["properties"]["relatedAttackPathIds"],
+        json!(["path-1"])
+    );
 }
 
 #[test]
@@ -44,9 +50,17 @@ fn sarif_emits_ordered_code_flow_for_proven_path() {
     let results = sarif["runs"][0]["results"].as_array().unwrap();
     let path_result = results
         .iter()
-        .find(|r| r["ruleId"].as_str().unwrap_or_default().starts_with("security.attack-path"))
+        .find(|r| {
+            r["ruleId"]
+                .as_str()
+                .unwrap_or_default()
+                .starts_with("security.attack-path")
+        })
         .expect("path result present");
-    assert_eq!(path_result["partialFingerprints"]["legionPath/v1"], json!("path-1"));
+    assert_eq!(
+        path_result["partialFingerprints"]["legionPath/v1"],
+        json!("path-1")
+    );
     let locations = path_result["codeFlows"][0]["threadFlows"][0]["locations"]
         .as_array()
         .unwrap();
@@ -66,9 +80,10 @@ fn partial_paths_are_never_emitted_as_failing_sarif_results() {
     });
     let sarif = render_sarif_report(&report);
     let results = sarif["runs"][0]["results"].as_array().unwrap();
-    assert!(!results
-        .iter()
-        .any(|r| r["ruleId"].as_str().unwrap_or_default().starts_with("security.attack-path")));
+    assert!(!results.iter().any(|r| r["ruleId"]
+        .as_str()
+        .unwrap_or_default()
+        .starts_with("security.attack-path")));
 }
 
 #[test]
@@ -94,13 +109,21 @@ fn path_identity_is_stable_across_line_shifts() {
             .as_array()
             .unwrap()
             .iter()
-            .find(|r| r["ruleId"].as_str().unwrap_or_default().starts_with("security.attack-path"))
+            .find(|r| {
+                r["ruleId"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .starts_with("security.attack-path")
+            })
             .cloned()
             .unwrap()
     };
     let pa = find_path(&a);
     let pb = find_path(&b);
-    assert_eq!(pa["partialFingerprints"]["legionPath/v1"], pb["partialFingerprints"]["legionPath/v1"]);
+    assert_eq!(
+        pa["partialFingerprints"]["legionPath/v1"],
+        pb["partialFingerprints"]["legionPath/v1"]
+    );
 }
 
 #[test]
@@ -119,10 +142,18 @@ fn no_double_counted_vulnerability_total_paths_and_primitives_counted_separately
     });
     let sarif = render_sarif_report(&report);
     let results = sarif["runs"][0]["results"].as_array().unwrap();
-    let primitive: Vec<_> = results.iter().filter(|r| r["ruleId"] == json!("r")).collect();
+    let primitive: Vec<_> = results
+        .iter()
+        .filter(|r| r["ruleId"] == json!("r"))
+        .collect();
     let paths: Vec<_> = results
         .iter()
-        .filter(|r| r["ruleId"].as_str().unwrap_or_default().starts_with("security.attack-path"))
+        .filter(|r| {
+            r["ruleId"]
+                .as_str()
+                .unwrap_or_default()
+                .starts_with("security.attack-path")
+        })
         .collect();
     assert_eq!(primitive.len(), 1);
     assert_eq!(paths.len(), 1);

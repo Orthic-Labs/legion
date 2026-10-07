@@ -1,6 +1,8 @@
 use crate::command_verifier::verify_command_result;
 use crate::decision::decision;
-use crate::evidence_authority::{classify_technology_requirement, resolve_latency_target, EvidenceAuthorityRegistry};
+use crate::evidence_authority::{
+    classify_technology_requirement, resolve_latency_target, EvidenceAuthorityRegistry,
+};
 use crate::execution_governance::{
     admit_convergence_pass, admit_retry, classify_rehydrated_input, classify_retry_failure,
     deny_stale_continuation, record_attempt, settle_flaky_retry, EventStoreAccept,
@@ -128,7 +130,11 @@ pub fn dispatch_execution_control(
         if trusted {
             output(Some(operation_name), result, true)
         } else {
-            output(Some(operation_name), diagnostic(operation_name, &result), false)
+            output(
+                Some(operation_name),
+                diagnostic(operation_name, &result),
+                false,
+            )
         }
     };
 

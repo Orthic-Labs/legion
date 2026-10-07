@@ -76,7 +76,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://designer/SKILL.md",
-      "digest": "sha256:54bf412ece9e034f1dedfa311a23fa067dc5865db2aaca10c4ed7951ea20728f"
+      "digest": "sha256:8ff9d8c69f3ea540a4b5cd6618bb11c200085207cdfcd2089bbfbd554ac40b8f"
     },
     {
       "path": "agents/openai.yaml",
@@ -86,12 +86,12 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://designer/dependencies.json",
-      "digest": "sha256:fe72207c01cd0eeb0f130f24dd79e8d71fa3c8d84a3a419cc951ab97ab7fa59a"
+      "digest": "sha256:d69ef748bd2d8c16977dbe3836e9b5dcac246ffdc71cea44552ca48e89d7a198"
     },
     {
       "path": "engine/GUIDE.md",
       "uri": "legion-skill://designer/engine/GUIDE.md",
-      "digest": "sha256:b604a5e86e4cfc0afa49efb23c7e119fa9b7e4b2cd520895df9ebb2fe75ba29c"
+      "digest": "sha256:af1bacaeee573eeb96b3097eeaee50754e4abf261a9e6e551ca03ae51512d2c6"
     },
     {
       "path": "engine/agents/impeccable-asset-producer.md",
@@ -101,12 +101,12 @@
     {
       "path": "engine/agents/impeccable-manual-edit-applier.md",
       "uri": "legion-skill://designer/engine/agents/impeccable-manual-edit-applier.md",
-      "digest": "sha256:d908d31d936466bcdf20633c1f78ee5a80c90308da797086c0c9e90c83211995"
+      "digest": "sha256:7291c824464ab9ffab92248fdffc34d832c5d25bf9cb367947ed343f671b4f50"
     },
     {
       "path": "engine/huashu/GUIDE.md",
       "uri": "legion-skill://designer/engine/huashu/GUIDE.md",
-      "digest": "sha256:2c7c2f6ffdfeda7c0a59a774dcb9a557c1739a2292a81d67bbb45165d8d1004c"
+      "digest": "sha256:491c3d7c45ab845082612876f08090666884ab9f64e59bdcb8eb2349189b5edb"
     },
     {
       "path": "engine/huashu/assets/android_frame.jsx",
@@ -171,7 +171,7 @@
     {
       "path": "engine/huashu/references/animation-pitfalls.md",
       "uri": "legion-skill://designer/engine/huashu/references/animation-pitfalls.md",
-      "digest": "sha256:f137b6555dfb1f902f5dc93eb025a47dcd053134aad3d80530fca4e44e94b1ef"
+      "digest": "sha256:d246112a300515b5fb8611fd277ac4a1b79267663b317aa63838f7a9beed7d09"
     },
     {
       "path": "engine/huashu/references/animations.md",
@@ -196,7 +196,7 @@
     {
       "path": "engine/huashu/references/cinematic-patterns.md",
       "uri": "legion-skill://designer/engine/huashu/references/cinematic-patterns.md",
-      "digest": "sha256:1266cb4feb14e44997b6abcc33091991565402ec6a7b22698628b31a4da472b8"
+      "digest": "sha256:491374e3bad997783b24113d8fad85289ef1dd2f0b4a6c843fa1d95b6080f3c4"
     },
     {
       "path": "engine/huashu/references/content-guidelines.md",
@@ -221,7 +221,7 @@
     {
       "path": "engine/huashu/references/editable-pptx.md",
       "uri": "legion-skill://designer/engine/huashu/references/editable-pptx.md",
-      "digest": "sha256:9180a8bafc11677aba5d4cae8112bb757a53fd832840fc5eddb158a1f53b2607"
+      "digest": "sha256:5dbfcb51ccb3d9deb837d990141867ed45f0045b5d1df51f0d34af12a1d95a26"
     },
     {
       "path": "engine/huashu/references/hero-animation-case-study.md",
@@ -231,12 +231,12 @@
     {
       "path": "engine/huashu/references/launch-film-director-notes.md",
       "uri": "legion-skill://designer/engine/huashu/references/launch-film-director-notes.md",
-      "digest": "sha256:fdcbcf1b0f7918e282c216611f0b0e97a970758985eeaee6eaf845bcc54f59fb"
+      "digest": "sha256:5e1044d7024cde5f4ec8125cde17511350db841bf32acc7fd177f02d9e16dfa4"
     },
     {
       "path": "engine/huashu/references/multi-perspective-parallel-case-study.md",
       "uri": "legion-skill://designer/engine/huashu/references/multi-perspective-parallel-case-study.md",
-      "digest": "sha256:e1f80cc2e3e12d04405f897f3da49b371dbc7782c5ba23152a956c2780e738da"
+      "digest": "sha256:567ab07fb63d959e518f3f8b81624a66850a0a6aa6058feb2e49dd2a3f78d6d4"
     },
     {
       "path": "engine/huashu/references/react-setup.md",
@@ -256,7 +256,7 @@
     {
       "path": "engine/huashu/references/slide-decks.md",
       "uri": "legion-skill://designer/engine/huashu/references/slide-decks.md",
-      "digest": "sha256:767d05db0daeb7d2e035bc32ccc4ab72aacac0e130d1c6a709f6a20d1e7ea6d2"
+      "digest": "sha256:80edd5bbd7075dea1a14831cb619350213afa4ba5b7063803a6dda3a6a644035"
     },
     {
       "path": "engine/huashu/references/tweaks-system.md",
@@ -266,17 +266,17 @@
     {
       "path": "engine/huashu/references/verification.md",
       "uri": "legion-skill://designer/engine/huashu/references/verification.md",
-      "digest": "sha256:906573de5a4f0f63cdd4d925de9a5c5e6b42338e200e4ee2480fb745c3c3fd2c"
+      "digest": "sha256:1aa2b1867c845fbc663493c2b2cf915d6faa7fac10b4d280d088a5c68685f324"
     },
     {
       "path": "engine/huashu/references/video-export.md",
       "uri": "legion-skill://designer/engine/huashu/references/video-export.md",
-      "digest": "sha256:42ddb34ed49b3d1fb3a004dede7a3df10ab789379cc8527bb3fbb606bfb11e10"
+      "digest": "sha256:ae7ba1e076255dd2fbf3d02559a36d604795db4c149d640a303d2a0f8dec97c1"
     },
     {
       "path": "engine/huashu/references/voiceover-pipeline.md",
       "uri": "legion-skill://designer/engine/huashu/references/voiceover-pipeline.md",
-      "digest": "sha256:aef8ef327611f18cb573c16e6c699defe7efc6a7fe7128dfd5b01f72c55307a4"
+      "digest": "sha256:3bc0aaf44e8d8a5401dabb0e8f8525af25291b9c6e7ea8dc52e1edbd9cdd8360"
     },
     {
       "path": "engine/huashu/references/workflow.md",
@@ -331,12 +331,12 @@
     {
       "path": "engine/reference/craft.md",
       "uri": "legion-skill://designer/engine/reference/craft.md",
-      "digest": "sha256:af7c1ef49ea273f8046d70f68fde191d1b6f962830c2494f1330045897fb78ca"
+      "digest": "sha256:5c1c854ccf3c07ba3f2d8848e979225e424aba878767987b02da70437fe1ba43"
     },
     {
       "path": "engine/reference/critique.md",
       "uri": "legion-skill://designer/engine/reference/critique.md",
-      "digest": "sha256:7b79e59c14f3e56493fe32d95e5e87bbc47bff70456085b1e8e834fdd7a75b2b"
+      "digest": "sha256:0cf770793989fd25926e742aecb09a453d3bf23a88283e6f9382523f83e6d9e7"
     },
     {
       "path": "engine/reference/delight.md",
@@ -366,7 +366,7 @@
     {
       "path": "engine/reference/hooks.md",
       "uri": "legion-skill://designer/engine/reference/hooks.md",
-      "digest": "sha256:25c93bcd164232e00e2d3523dd91a3bcbacc6d917ce30841255b7e482b538e0a"
+      "digest": "sha256:6dcfb8b186e85c1d6db68df274d0d22f64c30bd4b2414e9435e4e99d36cda8f7"
     },
     {
       "path": "engine/reference/init.md",
@@ -386,7 +386,7 @@
     {
       "path": "engine/reference/live.md",
       "uri": "legion-skill://designer/engine/reference/live.md",
-      "digest": "sha256:c314179051cb82a7a232c137d4f7276a06afb5a08cf0176c1526a364ad95c341"
+      "digest": "sha256:df0a812c3c5c28eb8ae03834ddd8a46a03d0e0d0885ce38adf3196aa93efad16"
     },
     {
       "path": "engine/reference/onboard.md",
@@ -486,7 +486,7 @@
     {
       "path": "references/app.md",
       "uri": "legion-skill://designer/references/app.md",
-      "digest": "sha256:17270c59480f8e405fb1fc25895be403b0dd9c829bc00ed3fa1d06a8af80c27f"
+      "digest": "sha256:09eb08f4366865073f1821e9e300091858ff39b34b71fb389f1bd91e9557c1cc"
     },
     {
       "path": "references/banned-words.md",
@@ -556,7 +556,7 @@
     {
       "path": "references/design-slop.md",
       "uri": "legion-skill://designer/references/design-slop.md",
-      "digest": "sha256:5e25b3b51b300a4db3045c3f392ae4e479d6de5a821b27b1e1dd90f25789df67"
+      "digest": "sha256:d151f6cb4324825a2001aa9dcb19ce37d08f5ad83c4e64f7e8709e5499931712"
     },
     {
       "path": "references/manual.md",
@@ -566,12 +566,12 @@
     {
       "path": "references/motion-standards.md",
       "uri": "legion-skill://designer/references/motion-standards.md",
-      "digest": "sha256:9233f265123b67a4dbd643a55bc5407b73923dda1199870ec84d50ce90da9b1c"
+      "digest": "sha256:cfecd903bf18bda710790b893e6709bf5cb545e135b881820d9061d53e501b64"
     },
     {
       "path": "references/native-app.md",
       "uri": "legion-skill://designer/references/native-app.md",
-      "digest": "sha256:518d9980586762acc43d36718f9dc2c6ef353b3ab591e5b4deb7ee573491294b"
+      "digest": "sha256:0cae2c0470b984a3f83193b6156124705882ae21d417d03d8ab4ba9a94aa098f"
     },
     {
       "path": "references/native-feedback.md",
@@ -586,7 +586,7 @@
     {
       "path": "references/reference-capture-template.md",
       "uri": "legion-skill://designer/references/reference-capture-template.md",
-      "digest": "sha256:3769415f4e2977fc29a910da0cdbcef8569d8c28b6ad90c225981f6c3f471955"
+      "digest": "sha256:ba794bcefc6801a4044cc78a707a9e1b5710f9038a666c5a2d8702126a760a91"
     },
     {
       "path": "references/specialist-lenses.md",
@@ -611,7 +611,7 @@
     {
       "path": "references/website-conversion-standards.md",
       "uri": "legion-skill://designer/references/website-conversion-standards.md",
-      "digest": "sha256:a584a649cf0188fdf10f60377633a75d9af1a59985a598bf13b88cf28f3bbddf"
+      "digest": "sha256:15849fc92d7f2297b8d8f064f49c475e177713711c3214cdc9e24fc5fb91ee62"
     },
     {
       "path": "references/website-regression-gotchas.md",
@@ -736,7 +736,7 @@
     {
       "path": "specialists/static-creative/GUIDE.md",
       "uri": "legion-skill://designer/specialists/static-creative/GUIDE.md",
-      "digest": "sha256:2a1befa1b28dab100a62c25e1edfc10e08a375f238c2c7321bbb95e00ab78992"
+      "digest": "sha256:4e0b173ea60214f73cfa2427d82feb3c220754dae31a7a6562456e4a10fcfe36"
     },
     {
       "path": "specialists/static-creative/evals/evals.json",
@@ -756,17 +756,17 @@
     {
       "path": "specialists/static-creative/references/marketing.md",
       "uri": "legion-skill://designer/specialists/static-creative/references/marketing.md",
-      "digest": "sha256:a9b884cc51dd53ec3b058f7226567d99aa69e163640b439262dc573b29dad6f4"
+      "digest": "sha256:032f7ce5727bcc0a1299ab48731a9eba5dc8acaf0b262df0d031ff8b1bd453cc"
     },
     {
       "path": "specialists/static-creative/references/ui-ux-pro-max/reference.md",
       "uri": "legion-skill://designer/specialists/static-creative/references/ui-ux-pro-max/reference.md",
-      "digest": "sha256:3025e08876cc9992246a75a3e5152f504a0661fb27a9b9d75f0e303ef9300794"
+      "digest": "sha256:5c37dfcdeec53222364cbdad6a3db628f349f248b30b1b9a83aebbc15013a3d4"
     },
     {
       "path": "specialists/surface-design/GUIDE.md",
       "uri": "legion-skill://designer/specialists/surface-design/GUIDE.md",
-      "digest": "sha256:ac45f51aa17b62984c250cdb014eda47f5bf24a05804cdd910ef7b096586119a"
+      "digest": "sha256:6b9fe975ba7940702d244f6677e42b1b3fd4509db1d9f29816f1ce60cd9bbb37"
     }
   ]
 }

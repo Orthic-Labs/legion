@@ -4,13 +4,19 @@
 //! `src/lib/platform/**` in the JS legacy spec.
 
 use legion_runtime::l4_platform::artifact_sanitize::sanitize_produced_artifact;
-use legion_runtime::l4_platform::contracts::{capability_receipt, sha256_bytes, terminal_scenario_receipt};
+use legion_runtime::l4_platform::contracts::{
+    capability_receipt, sha256_bytes, terminal_scenario_receipt,
+};
 use legion_runtime::l4_platform::external::{validate_external_evidence, ExpectedEvidence};
-use legion_runtime::l4_platform::faults::{orchestrate_fault, validate_fault_injection, FaultAdapter};
+use legion_runtime::l4_platform::faults::{
+    orchestrate_fault, validate_fault_injection, FaultAdapter,
+};
 use legion_runtime::l4_platform::journeys::{run_journey, JourneyAdapter};
 use legion_runtime::l4_platform::lifecycle::{run_lifecycle_action, LifecycleAdapter};
 use legion_runtime::l4_platform::promotion_equivalence::promotion_equivalence;
-use legion_runtime::l4_platform::release_candidate::{create_release_candidate, verify_candidate_artifact};
+use legion_runtime::l4_platform::release_candidate::{
+    create_release_candidate, verify_candidate_artifact,
+};
 use serde_json::{json, Value};
 
 #[test]
@@ -31,12 +37,18 @@ fn promotion_equivalence_and_release_candidate_are_consistent() {
         "artifacts": [{"path": "dist/pkg", "digest": "sha256:x"}],
     }));
     assert_eq!(candidate["complete"], true);
-    let verified = verify_candidate_artifact(&candidate, &json!({"path": "dist/pkg", "digest": "sha256:x"}));
+    let verified = verify_candidate_artifact(
+        &candidate,
+        &json!({"path": "dist/pkg", "digest": "sha256:x"}),
+    );
     assert_eq!(verified["status"], "pass");
 
     let qa = json!({"digest": "sha256:qa", "artifacts": [{"id": "a1", "digest": "sha256:x"}]});
     let promoted = vec![json!({"sourceArtifactId": "a1", "digest": "sha256:x"})];
-    assert_eq!(promotion_equivalence(Some(&qa), &promoted)["status"], "pass");
+    assert_eq!(
+        promotion_equivalence(Some(&qa), &promoted)["status"],
+        "pass"
+    );
 }
 
 #[test]
@@ -52,16 +64,26 @@ fn produced_artifact_sanitization_round_trips() {
 fn external_evidence_without_producer_is_unproven() {
     let result = validate_external_evidence(None, &ExpectedEvidence::default());
     assert_eq!(result["status"], "unproven");
-    assert!(result["gaps"].as_array().unwrap().iter().any(|g| g == "missing-producer"));
+    assert!(result["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g == "missing-producer"));
 }
 
 #[test]
 fn fault_injection_requires_bounded_duration() {
     let cap = json!({"status": "available"});
     let unbounded = json!({"id": "f1"});
-    assert_eq!(validate_fault_injection(Some(&unbounded), Some(&cap)).status, "blocked");
+    assert_eq!(
+        validate_fault_injection(Some(&unbounded), Some(&cap)).status,
+        "blocked"
+    );
     let bounded = json!({"id": "f1", "durationMs": 50});
-    assert_eq!(validate_fault_injection(Some(&bounded), Some(&cap)).status, "pass");
+    assert_eq!(
+        validate_fault_injection(Some(&bounded), Some(&cap)).status,
+        "pass"
+    );
 }
 
 struct PassingFaultAdapter;
@@ -82,7 +104,14 @@ impl FaultAdapter for PassingFaultAdapter {
 async fn fault_orchestration_passes_on_clean_recovery() {
     let cap = json!({"status": "available"});
     let fault = json!({"id": "f1", "durationMs": 100});
-    let result = orchestrate_fault(Some(&fault), &PassingFaultAdapter, Some(&cap), Some(&json!("scenario-1")), &[]).await;
+    let result = orchestrate_fault(
+        Some(&fault),
+        &PassingFaultAdapter,
+        Some(&cap),
+        Some(&json!("scenario-1")),
+        &[],
+    )
+    .await;
     assert_eq!(result["status"], "pass");
 }
 
@@ -90,7 +119,9 @@ struct PassingJourneyAdapter;
 #[async_trait::async_trait]
 impl JourneyAdapter for PassingJourneyAdapter {
     async fn execute(&self, _step: &Value) -> Option<Value> {
-        Some(json!({"status": "pass", "terminal": true, "durableState": {"ok": true}, "observedState": {"ready": true}}))
+        Some(
+            json!({"status": "pass", "terminal": true, "durableState": {"ok": true}, "observedState": {"ready": true}}),
+        )
     }
 }
 
@@ -103,7 +134,13 @@ async fn journey_runs_to_completion_through_state_machine() {
         "machine": {"transitions": [{"from": "idle", "event": "go", "to": "done"}]},
         "steps": [{"id": "step1", "event": "go", "invariant": {"path": "ready", "equals": true}}],
     });
-    let result = run_journey(Some(&scenario), Some(&PassingJourneyAdapter), Some(&cap), json!({})).await;
+    let result = run_journey(
+        Some(&scenario),
+        Some(&PassingJourneyAdapter),
+        Some(&cap),
+        json!({}),
+    )
+    .await;
     assert_eq!(result["status"], "pass");
 }
 
@@ -117,10 +154,26 @@ impl LifecycleAdapter for PassingLifecycleAdapter {
 
 #[tokio::test]
 async fn lifecycle_action_requires_available_capability() {
-    let result = run_lifecycle_action("launch", Some(&PassingLifecycleAdapter), None, Value::Null, json!({}), false).await;
+    let result = run_lifecycle_action(
+        "launch",
+        Some(&PassingLifecycleAdapter),
+        None,
+        Value::Null,
+        json!({}),
+        false,
+    )
+    .await;
     assert_eq!(result["status"], "blocked");
 
     let cap = json!({"status": "available"});
-    let result = run_lifecycle_action("launch", Some(&PassingLifecycleAdapter), Some(&cap), Value::Null, json!({}), false).await;
+    let result = run_lifecycle_action(
+        "launch",
+        Some(&PassingLifecycleAdapter),
+        Some(&cap),
+        Value::Null,
+        json!({}),
+        false,
+    )
+    .await;
     assert_eq!(result["status"], "pass");
 }

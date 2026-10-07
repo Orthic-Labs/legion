@@ -156,5 +156,7 @@ pub static STRUCTURAL_PRODUCERS: &[StructuralProducer] = &[
 ];
 
 pub fn find_producer(id: &str) -> Option<&'static StructuralProducer> {
-    STRUCTURAL_PRODUCERS.iter().find(|producer| producer.id == id)
+    STRUCTURAL_PRODUCERS
+        .iter()
+        .find(|producer| producer.id == id)
 }

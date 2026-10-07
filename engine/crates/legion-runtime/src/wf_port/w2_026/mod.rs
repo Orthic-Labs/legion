@@ -140,7 +140,9 @@ pub fn remove_entry(settings: &mut Value) -> bool {
     if !settings.is_object() {
         *settings = json!({});
     }
-    let obj = settings.as_object_mut().expect("settings coerced to object");
+    let obj = settings
+        .as_object_mut()
+        .expect("settings coerced to object");
     let Some(servers) = obj.get_mut("mcpServers").and_then(Value::as_object_mut) else {
         return false;
     };
@@ -159,7 +161,9 @@ pub fn apply_entry(settings: &mut Value, api_key: &str) -> Result<(), SetupError
     if !settings.is_object() {
         *settings = json!({});
     }
-    let obj = settings.as_object_mut().expect("settings coerced to object");
+    let obj = settings
+        .as_object_mut()
+        .expect("settings coerced to object");
     let needs_new_servers = match obj.get("mcpServers") {
         Some(value) => !value.is_object(),
         None => true,
@@ -281,7 +285,11 @@ pub fn check_package_correct(settings: &Value) -> CheckResult {
     let has_pkg = args.iter().any(|a| a == MCP_PACKAGE);
     // Python renders the list with repr-style quoting; `{:?}` on a Vec<String>
     // produces the same `["a", "b"]` shape.
-    CheckResult::new("Package is @ycse/nanobanana-mcp", has_pkg, format!("{args:?}"))
+    CheckResult::new(
+        "Package is @ycse/nanobanana-mcp",
+        has_pkg,
+        format!("{args:?}"),
+    )
 }
 
 /// Check 6: `bool(env.get("GOOGLE_AI_API_KEY", ""))`.

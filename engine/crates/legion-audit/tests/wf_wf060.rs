@@ -25,7 +25,9 @@
 //! it) into `legion_audit`'s crate root.
 
 use legion_audit::wf_port::wf060::common::{Context, Entity, Relation};
-use legion_audit::wf_port::wf060::{high_consequence, http_protocol_cache, ics_ot, injection, insecure_defaults};
+use legion_audit::wf_port::wf060::{
+    high_consequence, http_protocol_cache, ics_ot, injection, insecure_defaults,
+};
 use serde_json::json;
 
 // ---------------------------------------------------------------------
@@ -37,7 +39,9 @@ fn insecure_defaults_hazard_fixture_matches() {
     let ctx = Context::new().with_file("app.mjs", "const tls = { rejectUnauthorized: false };");
     let obs = insecure_defaults::analyze(&ctx);
     assert!(!obs.is_empty());
-    assert!(obs.iter().any(|o| o.rule_id == "defaults.tls-verification-disabled"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "defaults.tls-verification-disabled"));
     assert!(obs.iter().all(|o| !o.evidence_refs.is_empty()));
     assert!(obs.iter().all(|o| o.candidate_class == "insecure-defaults"));
 }
@@ -52,7 +56,10 @@ fn insecure_defaults_neutral_fixture_is_silent() {
 fn insecure_defaults_debug_enabled_defaults_to_medium_severity() {
     let ctx = Context::new().with_file("app.mjs", "DEBUG: true");
     let obs = insecure_defaults::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "defaults.debug-enabled").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "defaults.debug-enabled")
+        .unwrap();
     assert_eq!(hit.severity_hint, "medium");
 }
 
@@ -60,7 +67,10 @@ fn insecure_defaults_debug_enabled_defaults_to_medium_severity() {
 fn insecure_defaults_authentication_optional_is_high_severity() {
     let ctx = Context::new().with_file("app.mjs", "ALLOW_ANONYMOUS: true");
     let obs = insecure_defaults::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "defaults.authentication-optional").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "defaults.authentication-optional")
+        .unwrap();
     assert_eq!(hit.severity_hint, "high");
 }
 
@@ -73,7 +83,9 @@ fn high_consequence_hazard_fixture_matches() {
     let ctx = Context::new().with_file("Contract.sol", "require(tx.origin == owner)");
     let obs = high_consequence::analyze(&ctx);
     assert!(!obs.is_empty());
-    assert!(obs.iter().any(|o| o.rule_id == "smart-contract.tx-origin-auth"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "smart-contract.tx-origin-auth"));
     assert!(obs.iter().all(|o| !o.evidence_refs.is_empty()));
 }
 
@@ -87,28 +99,39 @@ fn high_consequence_neutral_fixture_is_silent() {
 fn high_consequence_firmware_update_without_verification_flags() {
     let ctx = Context::new().with_file("ota.mjs", "firmware download and apply now, no checks");
     let obs = high_consequence::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "embedded.update-without-verification"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "embedded.update-without-verification"));
 }
 
 #[test]
 fn high_consequence_firmware_update_with_verification_is_suppressed() {
-    let ctx = Context::new().with_file("ota.mjs", "firmware download then apply after signature verify");
+    let ctx = Context::new().with_file(
+        "ota.mjs",
+        "firmware download then apply after signature verify",
+    );
     let obs = high_consequence::analyze(&ctx);
-    assert!(!obs.iter().any(|o| o.rule_id == "embedded.update-without-verification"));
+    assert!(!obs
+        .iter()
+        .any(|o| o.rule_id == "embedded.update-without-verification"));
 }
 
 #[test]
 fn high_consequence_actuator_without_interlock_flags() {
     let ctx = Context::new().with_file("plc.mjs", "actuator.start(pin)");
     let obs = high_consequence::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "safety.command-without-interlock"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "safety.command-without-interlock"));
 }
 
 #[test]
 fn high_consequence_actuator_with_interlock_is_suppressed() {
     let ctx = Context::new().with_file("plc.mjs", "actuator.start(interlock)");
     let obs = high_consequence::analyze(&ctx);
-    assert!(!obs.iter().any(|o| o.rule_id == "safety.command-without-interlock"));
+    assert!(!obs
+        .iter()
+        .any(|o| o.rule_id == "safety.command-without-interlock"));
 }
 
 // ---------------------------------------------------------------------
@@ -119,18 +142,27 @@ fn high_consequence_actuator_with_interlock_is_suppressed() {
 fn ics_ot_unauthenticated_write_command_flags_on_scanned_extension() {
     let ctx = Context::new().with_file("plc-driver.js", "client.writeCoil(1, true);");
     let obs = ics_ot::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "ics-ot.authorization.unauthenticated-write-command"));
-    let hit = obs.iter().find(|o| o.rule_id == "ics-ot.authorization.unauthenticated-write-command").unwrap();
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "ics-ot.authorization.unauthenticated-write-command"));
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "ics-ot.authorization.unauthenticated-write-command")
+        .unwrap();
     assert_eq!(hit.severity_hint, "critical");
     assert_eq!(hit.candidate_class, "ics-ot");
 }
 
 #[test]
 fn ics_ot_unauthenticated_write_command_suppressed_with_role_check() {
-    let ctx = Context::new()
-        .with_file("plc-driver.js", "if (isAuthorized(user)) client.writeCoil(1, true);");
+    let ctx = Context::new().with_file(
+        "plc-driver.js",
+        "if (isAuthorized(user)) client.writeCoil(1, true);",
+    );
     let obs = ics_ot::analyze(&ctx);
-    assert!(!obs.iter().any(|o| o.rule_id == "ics-ot.authorization.unauthenticated-write-command"));
+    assert!(!obs
+        .iter()
+        .any(|o| o.rule_id == "ics-ot.authorization.unauthenticated-write-command"));
 }
 
 #[test]
@@ -141,17 +173,23 @@ fn ics_ot_ignores_files_outside_the_scanned_extension_set() {
 
 #[test]
 fn ics_ot_bridged_network_flags_without_segmentation_marker() {
-    let ctx = Context::new()
-        .with_file("network.yaml", "scada gateway is exposed to the corporate network directly");
+    let ctx = Context::new().with_file(
+        "network.yaml",
+        "scada gateway is exposed to the corporate network directly",
+    );
     let obs = ics_ot::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "ics-ot.segmentation.ot-bridged-to-corporate-network"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "ics-ot.segmentation.ot-bridged-to-corporate-network"));
 }
 
 #[test]
 fn ics_ot_unsigned_firmware_push_flags() {
     let ctx = Context::new().with_file("update.js", "plc firmware push to device over the wire");
     let obs = ics_ot::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "ics-ot.update-policy.unsigned-plc-firmware-push"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "ics-ot.update-policy.unsigned-plc-firmware-push"));
 }
 
 // ---------------------------------------------------------------------
@@ -160,9 +198,15 @@ fn ics_ot_unsigned_firmware_push_flags() {
 
 #[test]
 fn injection_sql_dynamic_query_flags() {
-    let ctx = Context::new().with_file("db.mjs", "db.query(`SELECT * FROM t WHERE id = ${request.query.id}`)");
+    let ctx = Context::new().with_file(
+        "db.mjs",
+        "db.query(`SELECT * FROM t WHERE id = ${request.query.id}`)",
+    );
     let obs = injection::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "injection.sql.dynamic-query").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "injection.sql.dynamic-query")
+        .unwrap();
     assert_eq!(hit.severity_hint, "high");
     assert_eq!(hit.candidate_class, "injection");
     assert_eq!(hit.detector_metadata["sinkClass"], "sql");
@@ -172,7 +216,9 @@ fn injection_sql_dynamic_query_flags() {
 fn injection_sql_parameterized_query_is_suppressed() {
     let ctx = Context::new().with_file("db.mjs", "db.query(`SELECT * FROM t WHERE id = ?`, [id])");
     let obs = injection::analyze(&ctx);
-    assert!(!obs.iter().any(|o| o.rule_id == "injection.sql.dynamic-query"));
+    assert!(!obs
+        .iter()
+        .any(|o| o.rule_id == "injection.sql.dynamic-query"));
 }
 
 #[test]
@@ -182,16 +228,25 @@ fn injection_sql_escaping_helper_downgrades_severity() {
         "db.query(`SELECT * FROM t WHERE id = ${request.query.id}`); mysql.escape(id);",
     );
     let obs = injection::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "injection.sql.dynamic-query").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "injection.sql.dynamic-query")
+        .unwrap();
     assert_eq!(hit.severity_hint, "low");
-    assert!(hit.uncertainty.iter().any(|u| u.contains("mitigating signal")));
+    assert!(hit
+        .uncertainty
+        .iter()
+        .any(|u| u.contains("mitigating signal")));
 }
 
 #[test]
 fn injection_sql_control_entity_downgrades_and_records_observed_control() {
     let file = "db.mjs";
     let ctx = Context::new()
-        .with_file(file, "db.query(`SELECT * FROM t WHERE id = ${request.query.id}`)")
+        .with_file(
+            file,
+            "db.query(`SELECT * FROM t WHERE id = ${request.query.id}`)",
+        )
         .with_entity(Entity {
             id: "control:1".to_string(),
             kind: "control".to_string(),
@@ -205,7 +260,10 @@ fn injection_sql_control_entity_downgrades_and_records_observed_control() {
             to: format!("artifact:{file}"),
         });
     let obs = injection::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "injection.sql.dynamic-query").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "injection.sql.dynamic-query")
+        .unwrap();
     assert_eq!(hit.severity_hint, "low");
     assert_eq!(hit.observed_controls, vec!["control:1".to_string()]);
 }
@@ -214,7 +272,10 @@ fn injection_sql_control_entity_downgrades_and_records_observed_control() {
 fn injection_command_shell_exec_flags_with_shell_sink_kind() {
     let ctx = Context::new().with_file("cli.mjs", "exec(request.query.cmd)");
     let obs = injection::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "injection.command.shell-exec").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "injection.command.shell-exec")
+        .unwrap();
     assert_eq!(hit.detector_metadata["sinkKind"], "shell");
     assert!(hit
         .uncertainty
@@ -228,7 +289,9 @@ fn injection_ldap_filter_requires_file_guard() {
     // means it must not fire even though the risky pattern would match.
     let ctx = Context::new().with_file("search.mjs", "filter = '(' + request.query.q");
     let obs = injection::analyze(&ctx);
-    assert!(!obs.iter().any(|o| o.rule_id == "injection.ldap.filter-injection"));
+    assert!(!obs
+        .iter()
+        .any(|o| o.rule_id == "injection.ldap.filter-injection"));
 }
 
 #[test]
@@ -238,21 +301,28 @@ fn injection_ldap_filter_flags_when_file_guard_satisfied() {
         "const client = ldap.createClient(url); filter = '(' + request.query.q",
     );
     let obs = injection::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "injection.ldap.filter-injection"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "injection.ldap.filter-injection"));
 }
 
 #[test]
 fn injection_xxe_flags_when_guard_and_toggle_present() {
     let ctx = Context::new().with_file("parse.mjs", "libxmljs.parseXml(xml, { noent: true })");
     let obs = injection::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "injection.xxe.external-entity-enabled"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "injection.xxe.external-entity-enabled"));
 }
 
 #[test]
 fn injection_redos_flags_nested_quantifier() {
     let ctx = Context::new().with_file("validate.mjs", "const re = /(a+)+b/;");
     let obs = injection::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "injection.regex.redos").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "injection.regex.redos")
+        .unwrap();
     assert_eq!(hit.severity_hint, "medium");
 }
 
@@ -260,7 +330,9 @@ fn injection_redos_flags_nested_quantifier() {
 fn injection_prototype_pollution_flags_bracket_assignment() {
     let ctx = Context::new().with_file("merge.mjs", "obj[request.body.key] = value;");
     let obs = injection::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "injection.prototype-pollution.unsafe-key-assignment"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "injection.prototype-pollution.unsafe-key-assignment"));
 }
 
 #[test]
@@ -270,7 +342,9 @@ fn injection_formula_flags_unescaped_csv_export() {
         "// csv export\n    sheet.addRow([request.body.name, request.body.amount])",
     );
     let obs = injection::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "injection.formula.csv-export-unescaped"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "injection.formula.csv-export-unescaped"));
 }
 
 #[test]
@@ -294,7 +368,10 @@ fn http_protocol_cache_hsts_missing_flags_repository_wide() {
 
 #[test]
 fn http_protocol_cache_hsts_present_is_silent() {
-    let ctx = Context::new().with_file("server.mjs", "res.setHeader('Strict-Transport-Security', 'max-age=1')");
+    let ctx = Context::new().with_file(
+        "server.mjs",
+        "res.setHeader('Strict-Transport-Security', 'max-age=1')",
+    );
     let obs = http_protocol_cache::analyze(&ctx);
     assert!(!obs.iter().any(|o| o.rule_id == "hsts.missing"));
 }
@@ -303,7 +380,10 @@ fn http_protocol_cache_hsts_present_is_silent() {
 fn http_protocol_cache_https_not_enforced_flags_plain_http_server() {
     let ctx = Context::new().with_file("server.mjs", "const server = http.createServer(handler);");
     let obs = http_protocol_cache::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "https.not-enforced").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "https.not-enforced")
+        .unwrap();
     // With no runtime/deployment evidence, `capSeverity` clamps the rule's
     // own 'high' hint down to the deployment-assumption cap of 'medium'.
     assert_eq!(hit.severity_hint, "medium");
@@ -311,8 +391,10 @@ fn http_protocol_cache_https_not_enforced_flags_plain_http_server() {
 
 #[test]
 fn http_protocol_cache_https_enforced_marker_suppresses() {
-    let ctx = Context::new()
-        .with_file("server.mjs", "const server = http.createServer(handler); app.use(helmet());");
+    let ctx = Context::new().with_file(
+        "server.mjs",
+        "const server = http.createServer(handler); app.use(helmet());",
+    );
     let obs = http_protocol_cache::analyze(&ctx);
     assert!(!obs.iter().any(|o| o.rule_id == "https.not-enforced"));
 }
@@ -324,7 +406,10 @@ fn http_protocol_cache_sensitive_route_without_no_store_flags() {
         "app.get('/profile', (req, res) => { res.json(req.session.user); })",
     );
     let obs = http_protocol_cache::analyze(&ctx);
-    let hit = obs.iter().find(|o| o.rule_id == "cache.sensitive-content-cacheable").unwrap();
+    let hit = obs
+        .iter()
+        .find(|o| o.rule_id == "cache.sensitive-content-cacheable")
+        .unwrap();
     // With no runtime/deployment evidence, `capSeverity` clamps the rule's
     // own 'high' hint down to the deployment-assumption cap of 'medium'.
     assert_eq!(hit.severity_hint, "medium");
@@ -337,7 +422,9 @@ fn http_protocol_cache_sensitive_route_with_no_store_is_silent() {
         "app.get('/profile', (req, res) => { res.set('Cache-Control', 'no-store'); res.json(req.session.user); })",
     );
     let obs = http_protocol_cache::analyze(&ctx);
-    assert!(!obs.iter().any(|o| o.rule_id == "cache.sensitive-content-cacheable"));
+    assert!(!obs
+        .iter()
+        .any(|o| o.rule_id == "cache.sensitive-content-cacheable"));
 }
 
 #[test]
@@ -366,7 +453,9 @@ fn http_protocol_cache_ambiguous_proxy_chain_flags_naive_split() {
         "const ip = headers['X-Forwarded-For'].split(',')[0];",
     );
     let obs = http_protocol_cache::analyze(&ctx);
-    assert!(obs.iter().any(|o| o.rule_id == "smuggling.ambiguous-proxy-chain"));
+    assert!(obs
+        .iter()
+        .any(|o| o.rule_id == "smuggling.ambiguous-proxy-chain"));
 }
 
 #[test]
@@ -378,5 +467,7 @@ fn http_protocol_cache_per_file_rules_require_evidence_refs() {
         "app.get('/profile', (req, res) => { res.json(req.session.user); })",
     );
     let obs = http_protocol_cache::analyze(&ctx);
-    assert!(!obs.iter().any(|o| o.rule_id == "cache.sensitive-content-cacheable"));
+    assert!(!obs
+        .iter()
+        .any(|o| o.rule_id == "cache.sensitive-content-cacheable"));
 }

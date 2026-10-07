@@ -120,7 +120,9 @@ impl ManualEditRoutesDeps for LiveServerManualEditDeps<'_> {
     fn write_transaction(&self, page_url: Option<&str>, batch: &Value) -> Value {
         self.controller
             .write_transaction(page_url, batch)
-            .unwrap_or_else(|e| json!({ "error": "transaction_write_failed", "message": e.to_string() }))
+            .unwrap_or_else(
+                |e| json!({ "error": "transaction_write_failed", "message": e.to_string() }),
+            )
     }
 
     fn clear_transaction(&self, transaction_id: &str) {
@@ -128,7 +130,8 @@ impl ManualEditRoutesDeps for LiveServerManualEditDeps<'_> {
     }
 
     fn cancel_pending_events(&self, page_url: Option<&str>) -> Vec<Value> {
-        self.controller.cancel_pending_events(page_url, "manual_edit_commit")
+        self.controller
+            .cancel_pending_events(page_url, "manual_edit_commit")
     }
 
     fn build_manual_edit_evidence(&self, _page_url: Option<&str>) -> Value {

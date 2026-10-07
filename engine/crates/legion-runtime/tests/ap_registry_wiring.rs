@@ -13,7 +13,9 @@ use serde_json::{json, Value};
 use legion_runtime::wf_port::r05::cli::{Detectors, UrlScanOptions};
 use legion_runtime::wf_port::r05::real_detectors::RealDetectors;
 use legion_runtime::wf_port::r07::browser::ChromeDriver;
-use legion_runtime::wf_port::r07::findings::{finding, finding_at_line, filter_by_providers, Finding};
+use legion_runtime::wf_port::r07::findings::{
+    filter_by_providers, finding, finding_at_line, Finding,
+};
 use legion_runtime::wf_port::r07::RegistryLookup;
 use legion_runtime::wf_port::r08::sweep_live::PageFetcher;
 
@@ -118,4 +120,3 @@ fn real_detectors_url_scan_uses_the_same_registry() {
     let findings = detectors.detect_url("https://example.com", &opts).unwrap();
     assert!(findings.is_empty());
 }
-

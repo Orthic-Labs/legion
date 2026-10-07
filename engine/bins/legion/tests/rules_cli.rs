@@ -421,9 +421,14 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
     assert_eq!(summary["processExecution"], "complete");
     assert!(out.join("report.json").is_file());
     assert!(out.join("execution.json").is_file());
-    assert!(summary["gaps"].as_array().unwrap().iter().any(|gap| gap == "unsigned-plan"));
+    assert!(summary["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap == "unsigned-plan"));
     assert!(summary["planSignature"].is_null());
-    let plan: serde_json::Value = serde_json::from_slice(&std::fs::read(out.join("plan.json")).unwrap()).unwrap();
+    let plan: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(out.join("plan.json")).unwrap()).unwrap();
     assert_eq!(plan["seal"]["authenticity"], "unsigned");
     std::fs::remove_dir_all(root).unwrap();
 }

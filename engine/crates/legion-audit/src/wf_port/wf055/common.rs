@@ -40,7 +40,11 @@ pub fn entity(
     body.insert("name".into(), Value::String(name.into()));
     body.insert(
         "attributes".into(),
-        if attributes.is_null() { json!({}) } else { attributes },
+        if attributes.is_null() {
+            json!({})
+        } else {
+            attributes
+        },
     );
     body.insert(
         "assertion".into(),
@@ -50,7 +54,10 @@ pub fn entity(
         "evidenceStrength".into(),
         Value::String(evidence_strength.unwrap_or("verified").into()),
     );
-    body.insert("evidenceRefs".into(), Value::Array(dedup_sorted(evidence_refs)));
+    body.insert(
+        "evidenceRefs".into(),
+        Value::Array(dedup_sorted(evidence_refs)),
+    );
 
     let body_value = Value::Object(body.clone());
     let id = stable_id("security-model-entity", &body_value);
@@ -74,7 +81,11 @@ pub fn relation(
     body.insert("to".into(), Value::String(to.into()));
     body.insert(
         "attributes".into(),
-        if attributes.is_null() { json!({}) } else { attributes },
+        if attributes.is_null() {
+            json!({})
+        } else {
+            attributes
+        },
     );
     body.insert(
         "assertion".into(),
@@ -84,7 +95,10 @@ pub fn relation(
         "evidenceStrength".into(),
         Value::String(evidence_strength.unwrap_or("verified").into()),
     );
-    body.insert("evidenceRefs".into(), Value::Array(dedup_sorted(evidence_refs)));
+    body.insert(
+        "evidenceRefs".into(),
+        Value::Array(dedup_sorted(evidence_refs)),
+    );
 
     let body_value = Value::Object(body.clone());
     let id = stable_id("security-model-relation", &body_value);
@@ -127,7 +141,10 @@ pub fn fact(kind: &str, fields: FactFields, evidence_refs: &[String]) -> Value {
         "attributes".into(),
         fields.attributes.unwrap_or_else(|| json!({})),
     );
-    body.insert("evidenceRefs".into(), Value::Array(dedup_sorted(evidence_refs)));
+    body.insert(
+        "evidenceRefs".into(),
+        Value::Array(dedup_sorted(evidence_refs)),
+    );
 
     let body_value = Value::Object(body.clone());
     let id = stable_id("security-fact", &body_value);
@@ -152,7 +169,14 @@ pub fn control_entity(
         }
     };
     merged.insert("controlType".into(), Value::String(control_type.into()));
-    entity("control", name, Value::Object(merged), evidence_refs, None, None)
+    entity(
+        "control",
+        name,
+        Value::Object(merged),
+        evidence_refs,
+        None,
+        None,
+    )
 }
 
 #[cfg(test)]
@@ -185,7 +209,12 @@ mod tests {
 
     #[test]
     fn control_entity_merges_control_type_into_attributes() {
-        let c = control_entity("data-backup", "backup policy", &[], json!({"controlState": "absent"}));
+        let c = control_entity(
+            "data-backup",
+            "backup policy",
+            &[],
+            json!({"controlState": "absent"}),
+        );
         assert_eq!(c["kind"], "control");
         assert_eq!(c["attributes"]["controlType"], "data-backup");
         assert_eq!(c["attributes"]["controlState"], "absent");

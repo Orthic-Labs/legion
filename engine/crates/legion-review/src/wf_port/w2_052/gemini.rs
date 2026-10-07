@@ -33,7 +33,12 @@ pub struct GeminiConfig {
 impl GeminiConfig {
     /// `base_url` is stored with any trailing `/` stripped
     /// (`config["base_url"].rstrip("/")`).
-    pub fn new(name: impl Into<String>, base_url: &str, key_env_names: Vec<String>, timeout_s: i64) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        base_url: &str,
+        key_env_names: Vec<String>,
+        timeout_s: i64,
+    ) -> Self {
         Self {
             name: name.into(),
             base_url: base_url.trim_end_matches('/').to_string(),
@@ -70,7 +75,10 @@ pub fn resolve_key(
 /// Mirrors the request-URL construction inside `call`:
 /// `f"{base_url}/models/{model}:generateContent?key={key}"`.
 pub fn build_request_url(config: &GeminiConfig, model: &str, key: &str) -> String {
-    format!("{}/models/{model}:generateContent?key={key}", config.base_url)
+    format!(
+        "{}/models/{model}:generateContent?key={key}",
+        config.base_url
+    )
 }
 
 /// Mirrors the `payload` dict built by `call`, before JSON-encoding.
@@ -218,7 +226,10 @@ impl HttpTransport for ReqwestTransport {
         for (name, value) in headers {
             req = req.header(*name, *value);
         }
-        let resp = req.body(body.to_string()).send().map_err(|e| e.to_string())?;
+        let resp = req
+            .body(body.to_string())
+            .send()
+            .map_err(|e| e.to_string())?;
         let status = resp.status().as_u16() as i32;
         let body = resp.text().map_err(|e| e.to_string())?;
         Ok(HttpResponse { status, body })
@@ -267,7 +278,12 @@ mod tests {
     }
 
     impl HttpTransport for FakeTransport {
-        fn post_json(&self, _url: &str, _body: &str, _timeout_s: i64) -> Result<HttpResponse, String> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _body: &str,
+            _timeout_s: i64,
+        ) -> Result<HttpResponse, String> {
             self.response
                 .borrow_mut()
                 .take()
@@ -276,11 +292,22 @@ mod tests {
     }
 
     fn config() -> GeminiConfig {
-        GeminiConfig::new("gemini", "https://generativelanguage.googleapis.com/v1", vec!["GEMINI_API_KEY".to_string()], 30)
+        GeminiConfig::new(
+            "gemini",
+            "https://generativelanguage.googleapis.com/v1",
+            vec!["GEMINI_API_KEY".to_string()],
+            30,
+        )
     }
 
     fn env_with_key() -> impl Fn(&str) -> Option<String> {
-        |name: &str| if name == "GEMINI_API_KEY" { Some("k".to_string()) } else { None }
+        |name: &str| {
+            if name == "GEMINI_API_KEY" {
+                Some("k".to_string())
+            } else {
+                None
+            }
+        }
     }
 
     #[test]
@@ -295,7 +322,17 @@ mod tests {
                 .to_string(),
             }))),
         };
-        let out = call(&cfg, &transport, env_with_key(), "gemini-2.5-flash", "sys", "user", 512, &[]).unwrap();
+        let out = call(
+            &cfg,
+            &transport,
+            env_with_key(),
+            "gemini-2.5-flash",
+            "sys",
+            "user",
+            512,
+            &[],
+        )
+        .unwrap();
         assert_eq!(out, "hi");
     }
 
@@ -308,7 +345,17 @@ mod tests {
                 body: "rate limited".to_string(),
             }))),
         };
-        let err = call(&cfg, &transport, env_with_key(), "gemini-2.5-flash", "sys", "user", 512, &[]).unwrap_err();
+        let err = call(
+            &cfg,
+            &transport,
+            env_with_key(),
+            "gemini-2.5-flash",
+            "sys",
+            "user",
+            512,
+            &[],
+        )
+        .unwrap_err();
         assert!(err.is_quota);
         assert_eq!(err.status, Some(429));
     }
@@ -319,7 +366,17 @@ mod tests {
         let transport = FakeTransport {
             response: RefCell::new(Some(Err("connection refused".to_string()))),
         };
-        let err = call(&cfg, &transport, env_with_key(), "gemini-2.5-flash", "sys", "user", 512, &[]).unwrap_err();
+        let err = call(
+            &cfg,
+            &transport,
+            env_with_key(),
+            "gemini-2.5-flash",
+            "sys",
+            "user",
+            512,
+            &[],
+        )
+        .unwrap_err();
         assert!(err.is_quota);
         assert_eq!(err.status, None);
     }
@@ -327,8 +384,20 @@ mod tests {
     #[test]
     fn call_missing_key_errors_before_transport() {
         let cfg = config();
-        let transport = FakeTransport { response: RefCell::new(None) };
-        let err = call(&cfg, &transport, |_| None, "gemini-2.5-flash", "sys", "user", 512, &[]).unwrap_err();
+        let transport = FakeTransport {
+            response: RefCell::new(None),
+        };
+        let err = call(
+            &cfg,
+            &transport,
+            |_| None,
+            "gemini-2.5-flash",
+            "sys",
+            "user",
+            512,
+            &[],
+        )
+        .unwrap_err();
         assert!(err.message.contains("no key in env"));
     }
 }

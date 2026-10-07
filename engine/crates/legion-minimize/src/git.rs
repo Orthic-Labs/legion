@@ -32,13 +32,11 @@ impl GitContext {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stderr = stderr.trim();
-            return Err(MinimizeError::new(
-                if stderr.is_empty() {
-                    format!("git {} failed", args.join(" "))
-                } else {
-                    stderr.to_string()
-                },
-            ));
+            return Err(MinimizeError::new(if stderr.is_empty() {
+                format!("git {} failed", args.join(" "))
+            } else {
+                stderr.to_string()
+            }));
         }
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
@@ -101,12 +99,7 @@ impl GitContext {
         if let Some(base) = &self.minimize_base_ref {
             args.push(base);
         }
-        args.extend([
-            "-M",
-            "--name-status",
-            "-z",
-            "--diff-filter=ACMRD",
-        ]);
+        args.extend(["-M", "--name-status", "-z", "--diff-filter=ACMRD"]);
         let raw = self.git_at(&self.cwd, &args)?;
         let mut fields = raw.split('\0').collect::<Vec<_>>();
         if fields.last() == Some(&"") {

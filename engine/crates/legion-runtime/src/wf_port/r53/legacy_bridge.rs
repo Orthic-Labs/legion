@@ -21,28 +21,68 @@ const OPERATION_MAP_JSON: &str = include_str!("assets/operation-map.json");
 const LEGACY_ENVELOPE_SCHEMA_JSON: &str = include_str!("assets/legacy-envelope-v1.schema.json");
 
 const FIXTURE_NAMES_AND_BODIES: &[(&str, &str)] = &[
-    ("01-assess-response.json", include_str!("assets/fixtures/01-assess-response.json")),
-    ("02-checkpoint-response.json", include_str!("assets/fixtures/02-checkpoint-response.json")),
-    ("03-checkpoint-failure-response.json", include_str!("assets/fixtures/03-checkpoint-failure-response.json")),
-    ("04-checkpoint-host-check-response.json", include_str!("assets/fixtures/04-checkpoint-host-check-response.json")),
-    ("05-verify-signoff-blocked-response.json", include_str!("assets/fixtures/05-verify-signoff-blocked-response.json")),
-    ("06-verify-high-risk-blocked-response.json", include_str!("assets/fixtures/06-verify-high-risk-blocked-response.json")),
-    ("07-close-blocked-response.json", include_str!("assets/fixtures/07-close-blocked-response.json")),
-    ("08-store-snapshot-scoped.json", include_str!("assets/fixtures/08-store-snapshot-scoped.json")),
-    ("09-resolve-session-response.json", include_str!("assets/fixtures/09-resolve-session-response.json")),
-    ("10-verify-signoff-passing-response.json", include_str!("assets/fixtures/10-verify-signoff-passing-response.json")),
-    ("11-close-success-response.json", include_str!("assets/fixtures/11-close-success-response.json")),
-    ("12-close-idempotent-response.json", include_str!("assets/fixtures/12-close-idempotent-response.json")),
+    (
+        "01-assess-response.json",
+        include_str!("assets/fixtures/01-assess-response.json"),
+    ),
+    (
+        "02-checkpoint-response.json",
+        include_str!("assets/fixtures/02-checkpoint-response.json"),
+    ),
+    (
+        "03-checkpoint-failure-response.json",
+        include_str!("assets/fixtures/03-checkpoint-failure-response.json"),
+    ),
+    (
+        "04-checkpoint-host-check-response.json",
+        include_str!("assets/fixtures/04-checkpoint-host-check-response.json"),
+    ),
+    (
+        "05-verify-signoff-blocked-response.json",
+        include_str!("assets/fixtures/05-verify-signoff-blocked-response.json"),
+    ),
+    (
+        "06-verify-high-risk-blocked-response.json",
+        include_str!("assets/fixtures/06-verify-high-risk-blocked-response.json"),
+    ),
+    (
+        "07-close-blocked-response.json",
+        include_str!("assets/fixtures/07-close-blocked-response.json"),
+    ),
+    (
+        "08-store-snapshot-scoped.json",
+        include_str!("assets/fixtures/08-store-snapshot-scoped.json"),
+    ),
+    (
+        "09-resolve-session-response.json",
+        include_str!("assets/fixtures/09-resolve-session-response.json"),
+    ),
+    (
+        "10-verify-signoff-passing-response.json",
+        include_str!("assets/fixtures/10-verify-signoff-passing-response.json"),
+    ),
+    (
+        "11-close-success-response.json",
+        include_str!("assets/fixtures/11-close-success-response.json"),
+    ),
+    (
+        "12-close-idempotent-response.json",
+        include_str!("assets/fixtures/12-close-idempotent-response.json"),
+    ),
 ];
 
 fn schema_map() -> &'static Value {
     static V: OnceLock<Value> = OnceLock::new();
-    V.get_or_init(|| serde_json::from_str(SCHEMA_MAP_JSON).expect("bundled schema-map.json is valid JSON"))
+    V.get_or_init(|| {
+        serde_json::from_str(SCHEMA_MAP_JSON).expect("bundled schema-map.json is valid JSON")
+    })
 }
 
 fn operation_map() -> &'static Value {
     static V: OnceLock<Value> = OnceLock::new();
-    V.get_or_init(|| serde_json::from_str(OPERATION_MAP_JSON).expect("bundled operation-map.json is valid JSON"))
+    V.get_or_init(|| {
+        serde_json::from_str(OPERATION_MAP_JSON).expect("bundled operation-map.json is valid JSON")
+    })
 }
 
 const LEGACY_INVENTORY_REF: &str = "src/lib/host/arcane-compatibility/forge/schema-map.json";
@@ -76,7 +116,12 @@ const OPERATION_RESPONSE_KINDS: &[&str] = &[
 /// Mirrors `REJECTION_CODE`.
 fn rejection_code_table(field: &str) -> Option<&'static str> {
     Some(match field {
-        "authority" | "executor" | "origin" | "issuer_id" | "issuer_capability_digest" | "fingerprint"
+        "authority"
+        | "executor"
+        | "origin"
+        | "issuer_id"
+        | "issuer_capability_digest"
+        | "fingerprint"
         | "error_fingerprint" => "ARC_AUTHORITY_MODEL_CLAIMED",
         "signature_or_mac" => "ARC_AUTH_LEGACY_DIGEST",
         "trust_class" | "attested" => "ARC_EVIDENCE_INSUFFICIENT",
@@ -95,13 +140,17 @@ fn resolve_rejection_code(legacy_kind: &str, legacy_field: &str) -> &'static str
 }
 
 fn record_types() -> &'static Vec<Value> {
-    schema_map()["recordTypes"].as_array().expect("recordTypes is an array")
+    schema_map()["recordTypes"]
+        .as_array()
+        .expect("recordTypes is an array")
 }
 
 /// Mirrors `BY_KIND.get(...)` / `recordTypeFor(legacyKind)`.
 fn record_type_for(legacy_kind: &str) -> Option<&'static Value> {
     let key = table_alias(legacy_kind).unwrap_or(legacy_kind);
-    record_types().iter().find(|rt| rt["legacyKind"].as_str() == Some(key))
+    record_types()
+        .iter()
+        .find(|rt| rt["legacyKind"].as_str() == Some(key))
 }
 
 fn known_kinds() -> &'static BTreeSet<String> {
@@ -166,7 +215,14 @@ fn assert_valid_legacy_envelope(envelope: &Value) -> Result<(), ArcaneError> {
     let _schema_anchor = LEGACY_ENVELOPE_SCHEMA_JSON; // frozen contract this mirrors
     let mut issues = Vec::new();
     let obj = envelope.as_object();
-    let required = ["schemaVersion", "kind", "legacyKind", "payload", "provenance", "provisionalMappingRef"];
+    let required = [
+        "schemaVersion",
+        "kind",
+        "legacyKind",
+        "payload",
+        "provenance",
+        "provisionalMappingRef",
+    ];
     for field in required {
         if obj.map(|o| !o.contains_key(field)).unwrap_or(true) {
             issues.push(format!("$:required:{field}"));
@@ -208,7 +264,11 @@ fn assert_valid_legacy_envelope(envelope: &Value) -> Result<(), ArcaneError> {
 }
 
 /// Port of `envelopeFor(legacyKind, payload, provenance)`.
-pub fn envelope_for(legacy_kind: &str, payload: Value, provenance: &ProvenanceInput) -> Result<Value, ArcaneError> {
+pub fn envelope_for(
+    legacy_kind: &str,
+    payload: Value,
+    provenance: &ProvenanceInput,
+) -> Result<Value, ArcaneError> {
     if !known_kinds().contains(legacy_kind) {
         let mut detail: Detail = BTreeMap::new();
         detail.insert("legacyKind".to_string(), legacy_kind.to_string());
@@ -227,24 +287,53 @@ pub fn envelope_for(legacy_kind: &str, payload: Value, provenance: &ProvenanceIn
         .unwrap_or(Value::Null);
 
     let mut provenance_obj = Map::new();
-    provenance_obj.insert("source".to_string(), Value::String(provenance.source.clone().unwrap_or_else(|| "forge".to_string())));
-    provenance_obj.insert("capturedAt".to_string(), Value::String(provenance.captured_at.clone()));
+    provenance_obj.insert(
+        "source".to_string(),
+        Value::String(
+            provenance
+                .source
+                .clone()
+                .unwrap_or_else(|| "forge".to_string()),
+        ),
+    );
+    provenance_obj.insert(
+        "capturedAt".to_string(),
+        Value::String(provenance.captured_at.clone()),
+    );
     provenance_obj.insert(
         "sourceRevision".to_string(),
-        provenance.source_revision.clone().map(Value::String).unwrap_or(Value::Null),
+        provenance
+            .source_revision
+            .clone()
+            .map(Value::String)
+            .unwrap_or(Value::Null),
     );
     provenance_obj.insert(
         "importedBy".to_string(),
-        Value::String(provenance.imported_by.clone().unwrap_or_else(|| "arcane/legacy-bridge@1".to_string())),
+        Value::String(
+            provenance
+                .imported_by
+                .clone()
+                .unwrap_or_else(|| "arcane/legacy-bridge@1".to_string()),
+        ),
     );
-    provenance_obj.insert("legacyInventoryRef".to_string(), Value::String(LEGACY_INVENTORY_REF.to_string()));
+    provenance_obj.insert(
+        "legacyInventoryRef".to_string(),
+        Value::String(LEGACY_INVENTORY_REF.to_string()),
+    );
     provenance_obj.insert("legacyInventoryRecordType".to_string(), inventory_type);
     provenance_obj.insert("authenticated".to_string(), Value::Bool(false));
 
     let mut envelope = Map::new();
     envelope.insert("schemaVersion".to_string(), Value::from(1));
-    envelope.insert("kind".to_string(), Value::String("legion-legacy-envelope".to_string()));
-    envelope.insert("legacyKind".to_string(), Value::String(legacy_kind.to_string()));
+    envelope.insert(
+        "kind".to_string(),
+        Value::String("legion-legacy-envelope".to_string()),
+    );
+    envelope.insert(
+        "legacyKind".to_string(),
+        Value::String(legacy_kind.to_string()),
+    );
     envelope.insert("payload".to_string(), payload);
     envelope.insert("provenance".to_string(), Value::Object(provenance_obj));
     envelope.insert("provisionalMappingRef".to_string(), Value::Null);
@@ -257,7 +346,10 @@ pub fn envelope_for(legacy_kind: &str, payload: Value, provenance: &ProvenanceIn
 /// Port of `reverseEnvelope(envelope)`.
 pub fn reverse_envelope(envelope: &Value) -> (String, Value) {
     (
-        envelope["legacyKind"].as_str().unwrap_or_default().to_string(),
+        envelope["legacyKind"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string(),
         envelope["payload"].clone(),
     )
 }
@@ -275,14 +367,22 @@ pub struct Rejection {
 }
 
 fn collect_rejections(legacy_kind: &str, payload: &Value) -> Vec<Rejection> {
-    let Some(rt) = record_type_for(legacy_kind) else { return Vec::new() };
+    let Some(rt) = record_type_for(legacy_kind) else {
+        return Vec::new();
+    };
     let mut out = Vec::new();
     for f in rt["fields"].as_array().into_iter().flatten() {
         if f["disposition"].as_str() != Some("rejected") {
             continue;
         }
-        let Some(field_name) = f["legacyField"].as_str() else { continue };
-        if payload.as_object().map(|o| !o.contains_key(field_name)).unwrap_or(true) {
+        let Some(field_name) = f["legacyField"].as_str() else {
+            continue;
+        };
+        if payload
+            .as_object()
+            .map(|o| !o.contains_key(field_name))
+            .unwrap_or(true)
+        {
             continue;
         }
         out.push(Rejection {
@@ -290,7 +390,11 @@ fn collect_rejections(legacy_kind: &str, payload: &Value) -> Vec<Rejection> {
             legacy_field: field_name.to_string(),
             code: resolve_rejection_code(legacy_kind, field_name),
             reason: f.get("reason").cloned().unwrap_or(Value::Null),
-            affects: f.get("affects").and_then(Value::as_array).cloned().unwrap_or_default(),
+            affects: f
+                .get("affects")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
             quarantined_in_payload: true,
         });
     }
@@ -307,7 +411,11 @@ pub struct Correspondence {
     pub allocator: &'static str,
 }
 
-fn correspondence_for(legacy_kind: &str, payload: &Value, kernel: &KernelBinding) -> Vec<Correspondence> {
+fn correspondence_for(
+    legacy_kind: &str,
+    payload: &Value,
+    kernel: &KernelBinding,
+) -> Vec<Correspondence> {
     let mut out = Vec::new();
     let status = kernel.kernel_status();
     let legacy_id = if legacy_kind == "runs" {
@@ -321,7 +429,11 @@ fn correspondence_for(legacy_kind: &str, payload: &Value, kernel: &KernelBinding
             legacy_id: legacy_id.to_string(),
             legacy_kind: legacy_kind.to_string(),
             canonical_id: None,
-            allocator: if status.identity { "kernel" } else { "kernel-unbound" },
+            allocator: if status.identity {
+                "kernel"
+            } else {
+                "kernel-unbound"
+            },
         });
     }
     out
@@ -352,14 +464,21 @@ pub fn bridge_store_snapshot(
     let mut tables: Vec<&String> = snapshot.keys().collect();
     tables.sort();
     for table in tables {
-        let Some(rows) = snapshot[table].as_array() else { continue };
+        let Some(rows) = snapshot[table].as_array() else {
+            continue;
+        };
         for row in rows {
             envelopes.push(envelope_for(table, row.clone(), provenance)?);
             rejections.extend(collect_rejections(table, row));
             correspondence.extend(correspondence_for(table, row, kernel));
         }
     }
-    Ok(StoreSnapshotBridge { envelopes, rejections, correspondence, kernel: kernel.kernel_status() })
+    Ok(StoreSnapshotBridge {
+        envelopes,
+        rejections,
+        correspondence,
+        kernel: kernel.kernel_status(),
+    })
 }
 
 /// Port of `classifyOperationResponse(body)`.
@@ -394,7 +513,10 @@ pub struct OperationResponseBridge {
 }
 
 /// Port of `bridgeOperationResponse(body, provenance)`.
-pub fn bridge_operation_response(body: &Value, provenance: &ProvenanceInput) -> Result<OperationResponseBridge, ArcaneError> {
+pub fn bridge_operation_response(
+    body: &Value,
+    provenance: &ProvenanceInput,
+) -> Result<OperationResponseBridge, ArcaneError> {
     let legacy_operation = classify_operation_response(body);
     let entry = operation_map()["operations"]
         .as_array()
@@ -422,10 +544,19 @@ pub fn bridge_operation_response(body: &Value, provenance: &ProvenanceInput) -> 
 
     Ok(OperationResponseBridge {
         legacy_operation,
-        canonical_operation_id: entry.and_then(|e| e["canonicalOperationId"].as_str()).map(String::from),
-        canonical_operation_version: entry.and_then(|e| e["canonicalOperationVersion"].as_str()).map(String::from),
-        disposition: entry.and_then(|e| e["disposition"].as_str()).map(String::from),
-        conflicts: entry.and_then(|e| e["conflicts"].as_array()).cloned().unwrap_or_default(),
+        canonical_operation_id: entry
+            .and_then(|e| e["canonicalOperationId"].as_str())
+            .map(String::from),
+        canonical_operation_version: entry
+            .and_then(|e| e["canonicalOperationVersion"].as_str())
+            .map(String::from),
+        disposition: entry
+            .and_then(|e| e["disposition"].as_str())
+            .map(String::from),
+        conflicts: entry
+            .and_then(|e| e["conflicts"].as_array())
+            .cloned()
+            .unwrap_or_default(),
         envelope,
         rejections,
     })
@@ -443,7 +574,10 @@ pub fn migration_dry_run(captured_at: &str, kernel: &KernelBinding) -> Result<Va
     let provenance = ProvenanceInput {
         source: Some("forge".to_string()),
         captured_at: captured_at.to_string(),
-        source_revision: baseline.get("forgeCommit").and_then(Value::as_str).map(String::from),
+        source_revision: baseline
+            .get("forgeCommit")
+            .and_then(Value::as_str)
+            .map(String::from),
         imported_by: Some("arcane/legacy-bridge@1".to_string()),
     };
 
@@ -498,7 +632,10 @@ pub fn migration_dry_run(captured_at: &str, kernel: &KernelBinding) -> Result<Va
         .iter()
         .filter(|e| e["provenance"]["authenticated"] != Value::Bool(false))
         .count();
-    let canonical_ids_allocated = correspondence.iter().filter(|c| c.canonical_id.is_some()).count();
+    let canonical_ids_allocated = correspondence
+        .iter()
+        .filter(|c| c.canonical_id.is_some())
+        .count();
 
     let mut rejected_fields: BTreeSet<String> = BTreeSet::new();
     for r in &rejections {
@@ -555,10 +692,16 @@ fn kernel_status_json(status: &KernelStatus) -> Value {
 /// Port of `parityReport()`.
 pub fn parity_report() -> Value {
     let dispositions = dispositions();
-    let mut totals: Map<String, Value> = dispositions.iter().map(|d| (d.clone(), Value::from(0))).collect();
+    let mut totals: Map<String, Value> = dispositions
+        .iter()
+        .map(|d| (d.clone(), Value::from(0)))
+        .collect();
     let mut record_types_out = Vec::new();
     for rt in record_types() {
-        let mut counts: Map<String, Value> = dispositions.iter().map(|d| (d.clone(), Value::from(0))).collect();
+        let mut counts: Map<String, Value> = dispositions
+            .iter()
+            .map(|d| (d.clone(), Value::from(0)))
+            .collect();
         let mut trust_bearing_rejected = Vec::new();
         for f in rt["fields"].as_array().into_iter().flatten() {
             if let Some(d) = f["disposition"].as_str() {
@@ -599,7 +742,12 @@ mod tests {
     use super::*;
 
     fn provenance() -> ProvenanceInput {
-        ProvenanceInput { source: None, captured_at: "2026-01-01T00:00:00Z".to_string(), source_revision: None, imported_by: None }
+        ProvenanceInput {
+            source: None,
+            captured_at: "2026-01-01T00:00:00Z".to_string(),
+            source_revision: None,
+            imported_by: None,
+        }
     }
 
     #[test]
@@ -641,23 +789,49 @@ mod tests {
     fn collect_rejections_flags_rejected_fields_present_in_payload() {
         let payload = serde_json::json!({"id": "r1", "authority": "model"});
         let rejections = collect_rejections("runs", &payload);
-        assert!(rejections.iter().any(|r| r.legacy_field == "authority" && r.code == "ARC_AUTHORITY_MODEL_CLAIMED"));
+        assert!(rejections
+            .iter()
+            .any(|r| r.legacy_field == "authority" && r.code == "ARC_AUTHORITY_MODEL_CLAIMED"));
     }
 
     #[test]
     fn resolve_rejection_code_special_cases_claims_status() {
-        assert_eq!(resolve_rejection_code("claims", "status"), "ARC_CLAIM_PREREQUISITE_UNMET");
-        assert_eq!(resolve_rejection_code("runs", "status"), "ARC_HOST_EVENT_UNTRUSTED");
+        assert_eq!(
+            resolve_rejection_code("claims", "status"),
+            "ARC_CLAIM_PREREQUISITE_UNMET"
+        );
+        assert_eq!(
+            resolve_rejection_code("runs", "status"),
+            "ARC_HOST_EVENT_UNTRUSTED"
+        );
     }
 
     #[test]
     fn classify_operation_response_matches_js_discriminators() {
-        assert_eq!(classify_operation_response(&serde_json::json!({"via": "x"})), "resolveSession");
-        assert_eq!(classify_operation_response(&serde_json::json!({"trigger_score": 1})), "assess");
-        assert_eq!(classify_operation_response(&serde_json::json!({"rubric_id": "x"})), "verify");
-        assert_eq!(classify_operation_response(&serde_json::json!({"gate": "signoff"})), "close");
-        assert_eq!(classify_operation_response(&serde_json::json!({"decision": "closed"})), "close");
-        assert_eq!(classify_operation_response(&serde_json::json!({})), "checkpoint");
+        assert_eq!(
+            classify_operation_response(&serde_json::json!({"via": "x"})),
+            "resolveSession"
+        );
+        assert_eq!(
+            classify_operation_response(&serde_json::json!({"trigger_score": 1})),
+            "assess"
+        );
+        assert_eq!(
+            classify_operation_response(&serde_json::json!({"rubric_id": "x"})),
+            "verify"
+        );
+        assert_eq!(
+            classify_operation_response(&serde_json::json!({"gate": "signoff"})),
+            "close"
+        );
+        assert_eq!(
+            classify_operation_response(&serde_json::json!({"decision": "closed"})),
+            "close"
+        );
+        assert_eq!(
+            classify_operation_response(&serde_json::json!({})),
+            "checkpoint"
+        );
     }
 
     #[test]
@@ -685,7 +859,10 @@ mod tests {
     fn migration_dry_run_reproduces_all_bundled_fixtures_losslessly() {
         let kernel = KernelBinding::new();
         let report = migration_dry_run("2026-01-01T00:00:00Z", &kernel).unwrap();
-        assert_eq!(report["parity"]["payloadsPreservedByteForByte"], Value::Bool(true));
+        assert_eq!(
+            report["parity"]["payloadsPreservedByteForByte"],
+            Value::Bool(true)
+        );
         assert_eq!(report["source"]["fixtureCount"], Value::from(12));
         assert_eq!(report["parity"]["recordCountMatches"], Value::Bool(true));
     }
@@ -695,7 +872,10 @@ mod tests {
         let report = parity_report();
         let totals = report["totals"].as_object().unwrap();
         let sum: i64 = totals.values().map(|v| v.as_i64().unwrap_or(0)).sum();
-        let field_count: usize = record_types().iter().map(|rt| rt["fields"].as_array().map(|a| a.len()).unwrap_or(0)).sum();
+        let field_count: usize = record_types()
+            .iter()
+            .map(|rt| rt["fields"].as_array().map(|a| a.len()).unwrap_or(0))
+            .sum();
         assert_eq!(sum as usize, field_count);
     }
 }

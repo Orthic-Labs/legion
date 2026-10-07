@@ -126,7 +126,10 @@ pub fn managed_rust_route_errors(
         if line.starts_with('|') {
             let trimmed = line.trim().trim_matches('|');
             for (cell_number, cell) in trimmed.split('|').enumerate() {
-                check(cell.trim(), &format!("table cell {line_number}:{}", cell_number + 1));
+                check(
+                    cell.trim(),
+                    &format!("table cell {line_number}:{}", cell_number + 1),
+                );
             }
         }
         if let Some(caps) = label_line_re().captures(line) {
@@ -149,7 +152,8 @@ pub fn managed_rust_route_errors(
     } else {
         None
     };
-    let route_document: Option<&serde_json::Value> = route_document.or(owned_route_document.as_ref());
+    let route_document: Option<&serde_json::Value> =
+        route_document.or(owned_route_document.as_ref());
 
     if let Some(route_document) = route_document.and_then(|v| v.as_object()) {
         if let Some(proofs) = route_document
@@ -160,7 +164,10 @@ pub fn managed_rust_route_errors(
         {
             for (index, proof) in proofs.iter().enumerate() {
                 if let Some(command) = proof.get("command").and_then(|v| v.as_str()) {
-                    check(command, &format!("GoalRoute state_b.proof[{}].command", index + 1));
+                    check(
+                        command,
+                        &format!("GoalRoute state_b.proof[{}].command", index + 1),
+                    );
                 }
             }
         }
@@ -179,7 +186,10 @@ mod tests {
         let errors = managed_rust_route_errors(text, None, None);
         assert_eq!(errors.len(), 1, "{errors:?}");
         assert!(errors[0].contains("fenced block 1"), "{errors:?}");
-        assert!(errors[0].contains("direct cargo invocation must use rightkit cargo"), "{errors:?}");
+        assert!(
+            errors[0].contains("direct cargo invocation must use rightkit cargo"),
+            "{errors:?}"
+        );
     }
 
     #[test]
@@ -219,9 +229,15 @@ Use `cargo build` here.
 ";
         let errors = managed_rust_route_errors(text, None, None);
         assert_eq!(errors.len(), 3, "{errors:?}");
-        assert!(errors.iter().any(|e| e.contains("inline code 1") && e.contains("cargo")));
-        assert!(errors.iter().any(|e| e.contains("table cell") && e.contains("rustc")));
-        assert!(errors.iter().any(|e| e.contains("label value") && e.contains("rustdoc")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("inline code 1") && e.contains("cargo")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("table cell") && e.contains("rustc")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("label value") && e.contains("rustdoc")));
     }
 
     #[test]
@@ -236,7 +252,10 @@ Use `cargo build` here.
         });
         let errors = managed_rust_route_errors(text, None, Some(&route));
         assert_eq!(errors.len(), 1, "{errors:?}");
-        assert!(errors[0].contains("GoalRoute state_b.proof[1].command"), "{errors:?}");
+        assert!(
+            errors[0].contains("GoalRoute state_b.proof[1].command"),
+            "{errors:?}"
+        );
     }
 
     #[test]

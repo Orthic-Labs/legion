@@ -253,7 +253,10 @@ fn selected_lenses_must_reconcile_with_completed_providers() {
         vec!["architecture", "correctness"]
     );
     assert!(complete.lenses_ran.is_empty());
-    assert!(complete.gaps.iter().any(|gap| gap.contains("authenticated plan-bound executor")));
+    assert!(complete
+        .gaps
+        .iter()
+        .any(|gap| gap.contains("authenticated plan-bound executor")));
 }
 
 #[test]
@@ -668,7 +671,11 @@ fn unsigned_diagnostic_runs_providers_but_never_certifies() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     struct Counting(AtomicUsize);
     impl ProviderExecutor for Counting {
-        fn execute(&self, provider: &AuditProvider, _: &InventoryEnvelope) -> Result<ProviderResult, legion_audit::AuditError> {
+        fn execute(
+            &self,
+            provider: &AuditProvider,
+            _: &InventoryEnvelope,
+        ) -> Result<ProviderResult, legion_audit::AuditError> {
             self.0.fetch_add(1, Ordering::SeqCst);
             Ok(ProviderResult {
                 schema_version: 1,
@@ -690,11 +697,24 @@ fn unsigned_diagnostic_runs_providers_but_never_certifies() {
     // legion-audit/tests/audit_applicability_and_lenses.rs; a typed external
     // tool needs a terminal receipt, so the unsigned run is exercised here with
     // an in-process provider.
-    let pending = AuditPlan::compile(&inventory, &[spec("local", "deterministic", "built-in", serde_json::json!({"op":"always"}))]).unwrap();
+    let pending = AuditPlan::compile(
+        &inventory,
+        &[spec(
+            "local",
+            "deterministic",
+            "built-in",
+            serde_json::json!({"op":"always"}),
+        )],
+    )
+    .unwrap();
     let plan = pending.freeze_source_diagnostic().unwrap();
     let executor = Counting(AtomicUsize::new(0));
     let report = execute(&plan, &inventory, &executor).unwrap();
-    assert_eq!(executor.0.load(Ordering::SeqCst), 1, "unsigned plans still execute providers");
+    assert_eq!(
+        executor.0.load(Ordering::SeqCst),
+        1,
+        "unsigned plans still execute providers"
+    );
     assert!(report.plan_signature.is_none());
     assert!(report.gaps.iter().any(|gap| gap == "unsigned-plan"));
     assert!(!report.results[0].skipped);

@@ -13,14 +13,19 @@ use std::path::Path;
 use std::sync::Arc;
 
 use legion_runtime::wf_port::r02::render_video_seek::{
-    parse_args, round_robin_buckets, total_frames, run, BrowserDriver, DriverError, FfmpegEncoder,
+    parse_args, round_robin_buckets, run, total_frames, BrowserDriver, DriverError, FfmpegEncoder,
     PageHandle, SeekArgs, HIDE_CHROME_CSS,
 };
 
 struct FakeDriver;
 
 impl BrowserDriver for FakeDriver {
-    fn open_page(&self, _url: &str, _keep_chrome: bool, _ready_timeout: f64) -> Result<PageHandle, DriverError> {
+    fn open_page(
+        &self,
+        _url: &str,
+        _keep_chrome: bool,
+        _ready_timeout: f64,
+    ) -> Result<PageHandle, DriverError> {
         Ok(PageHandle(Arc::new(())))
     }
 
@@ -62,10 +67,16 @@ fn frame_math_matches_source() {
 
 #[test]
 fn parse_args_from_process_argv_shape() {
-    let argv: Vec<String> = ["node", "render-video-seek.js", "anim.html", "--fps=30", "--duration=2"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+    let argv: Vec<String> = [
+        "node",
+        "render-video-seek.js",
+        "anim.html",
+        "--fps=30",
+        "--duration=2",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
     let args = parse_args(&argv).unwrap();
     assert_eq!(args.html_file, "anim.html");
     assert_eq!(args.fps, 30.0);
@@ -107,4 +118,3 @@ fn full_orchestration_runs_against_fakes() {
 
     std::fs::remove_dir_all(&tmp).ok();
 }
-

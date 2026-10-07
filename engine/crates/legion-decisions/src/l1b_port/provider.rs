@@ -236,7 +236,11 @@ fn now_utc_seconds() -> String {
         .unwrap_or(0);
     let days = secs / 86_400;
     let time_of_day = secs % 86_400;
-    let (h, m, s) = (time_of_day / 3600, (time_of_day % 3600) / 60, time_of_day % 60);
+    let (h, m, s) = (
+        time_of_day / 3600,
+        (time_of_day % 3600) / 60,
+        time_of_day % 60,
+    );
     // Civil-from-days (Howard Hinnant's algorithm), UTC, no external crate.
     let z = days as i64 + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
@@ -263,13 +267,21 @@ fn index_active(
         if record.repository_id != repository_id {
             continue;
         }
-        siblings.entry(record.id.clone()).or_default().push(record.clone());
+        siblings
+            .entry(record.id.clone())
+            .or_default()
+            .push(record.clone());
     }
     let mut current: BTreeMap<String, DecisionRecord> = BTreeMap::new();
     for (stable_id, group) in &siblings {
-        let has_superseded = group.iter().any(|r| r.current_status == DecisionStatus::Superseded);
+        let has_superseded = group
+            .iter()
+            .any(|r| r.current_status == DecisionStatus::Superseded);
         let has_accepted_or_implemented = group.iter().any(|r| {
-            matches!(r.current_status, DecisionStatus::Accepted | DecisionStatus::Implemented)
+            matches!(
+                r.current_status,
+                DecisionStatus::Accepted | DecisionStatus::Implemented
+            )
         });
         if has_superseded && !has_accepted_or_implemented {
             continue;
@@ -379,10 +391,19 @@ pub fn produce_candidate_set(
         let sb = b["providerScore"].as_f64().unwrap_or(0.0);
         sb.partial_cmp(&sa)
             .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a["id"].as_str().unwrap_or("").cmp(b["id"].as_str().unwrap_or("")))
+            .then_with(|| {
+                a["id"]
+                    .as_str()
+                    .unwrap_or("")
+                    .cmp(b["id"].as_str().unwrap_or(""))
+            })
     });
 
-    let ceiling_candidates: Vec<Value> = candidates.iter().take(spec.max_candidates).cloned().collect();
+    let ceiling_candidates: Vec<Value> = candidates
+        .iter()
+        .take(spec.max_candidates)
+        .cloned()
+        .collect();
     if candidates.len() > spec.max_candidates {
         for dropped in candidates.iter().skip(spec.max_candidates) {
             omissions.push(json!({
@@ -457,7 +478,12 @@ fn sha256_hex(input: &[u8]) -> String {
     for block in data.chunks_exact(64) {
         let mut w = [0u32; 64];
         for (i, word) in w.iter_mut().take(16).enumerate() {
-            *word = u32::from_be_bytes([block[i * 4], block[i * 4 + 1], block[i * 4 + 2], block[i * 4 + 3]]);
+            *word = u32::from_be_bytes([
+                block[i * 4],
+                block[i * 4 + 1],
+                block[i * 4 + 2],
+                block[i * 4 + 3],
+            ]);
         }
         for i in 16..64 {
             let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);

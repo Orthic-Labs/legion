@@ -128,7 +128,14 @@ pub fn validate_evidence(evidence: &[Value]) -> Vec<EvidenceVerdict> {
             errors.push("missing or duplicate id".to_string());
         }
         seen.insert(eid.clone());
-        for key in ["url", "publisher", "retrieved_at", "locator", "suggested_by", "seed_chain"] {
+        for key in [
+            "url",
+            "publisher",
+            "retrieved_at",
+            "locator",
+            "suggested_by",
+            "seed_chain",
+        ] {
             if is_empty_value(row.get(key)) {
                 errors.push(format!("missing {key}"));
             }
@@ -187,7 +194,10 @@ pub fn validate_evidence(evidence: &[Value]) -> Vec<EvidenceVerdict> {
     verdicts
 }
 
-fn independent_clusters(source_ids: &[String], by_id: &std::collections::HashMap<String, &Value>) -> HashSet<String> {
+fn independent_clusters(
+    source_ids: &[String],
+    by_id: &std::collections::HashMap<String, &Value>,
+) -> HashSet<String> {
     source_ids
         .iter()
         .filter_map(|sid| by_id.get(sid))
@@ -203,7 +213,10 @@ fn independent_clusters(source_ids: &[String], by_id: &std::collections::HashMap
 }
 
 fn is_primary_for(claim_type: &str, ev: &Value) -> bool {
-    if is_empty_value(ev.get("url")) || is_empty_value(ev.get("retrieved_at")) || is_empty_value(ev.get("locator")) {
+    if is_empty_value(ev.get("url"))
+        || is_empty_value(ev.get("retrieved_at"))
+        || is_empty_value(ev.get("locator"))
+    {
         return false;
     }
     if ev.get("is_primary") == Some(&Value::Bool(true)) {
@@ -213,7 +226,10 @@ fn is_primary_for(claim_type: &str, ev: &Value) -> bool {
     match claim_type {
         "price" | "feature" => role == "vendor-official" || role == "publisher-of-record",
         "legal" | "regulatory" | "guideline" => {
-            role == "statute" || role == "regulator" || role == "official-guideline" || role == "official"
+            role == "statute"
+                || role == "regulator"
+                || role == "official-guideline"
+                || role == "official"
         }
         "case-law" => role == "court" || role == "official-judgment",
         "benchmark" => role == "measurement" || role == "benchmark-owner" || role == "study",
@@ -335,7 +351,11 @@ pub fn check(evidence: &[Value], claims: &[Value]) -> LedgerCheck {
         let source_ids = claim
             .get("source_ids")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect::<Vec<_>>())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str().map(str::to_string))
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         let missing_sources: Vec<String> = source_ids
             .iter()
@@ -362,11 +382,15 @@ pub fn check(evidence: &[Value], claims: &[Value]) -> LedgerCheck {
             reasons.push("primary-source fetch missing".to_string());
         }
 
-        let evidence_source_ids: Vec<String> = evidence_sources.iter().map(|ev| str_field(ev, "id")).collect();
+        let evidence_source_ids: Vec<String> = evidence_sources
+            .iter()
+            .map(|ev| str_field(ev, "id"))
+            .collect();
         let clusters = independent_clusters(&evidence_source_ids, &ev_by_id);
         let declared = confidence.clone();
 
-        if MULTI_SOURCE_HIGH.contains(&ctype.as_str()) && confidence == "high" && clusters.len() < 2 {
+        if MULTI_SOURCE_HIGH.contains(&ctype.as_str()) && confidence == "high" && clusters.len() < 2
+        {
             confidence = "medium".to_string();
             verdicts.push(ClaimVerdict {
                 id: cid.clone(),
@@ -413,7 +437,8 @@ pub fn check(evidence: &[Value], claims: &[Value]) -> LedgerCheck {
                     kind: "downgrade",
                     reasons: Vec::new(),
                     reason: Some(
-                        "case-law currentness/negative-treatment verification incomplete".to_string(),
+                        "case-law currentness/negative-treatment verification incomplete"
+                            .to_string(),
                     ),
                     confidence: None,
                     independent_clusters: None,
@@ -422,8 +447,13 @@ pub fn check(evidence: &[Value], claims: &[Value]) -> LedgerCheck {
                 });
             }
         }
-        if (ctype == "effect-size" || ctype == "adverse-event" || ctype == "dosing") && confidence == "high" {
-            let primary_ids: Vec<String> = primary_sources.iter().map(|ev| str_field(ev, "id")).collect();
+        if (ctype == "effect-size" || ctype == "adverse-event" || ctype == "dosing")
+            && confidence == "high"
+        {
+            let primary_ids: Vec<String> = primary_sources
+                .iter()
+                .map(|ev| str_field(ev, "id"))
+                .collect();
             let primary_clusters = independent_clusters(&primary_ids, &ev_by_id);
             if primary_clusters.len() < 2 {
                 confidence = "medium".to_string();
@@ -432,7 +462,8 @@ pub fn check(evidence: &[Value], claims: &[Value]) -> LedgerCheck {
                     kind: "downgrade",
                     reasons: Vec::new(),
                     reason: Some(
-                        "medical high confidence requires 2+ independent primary studies".to_string(),
+                        "medical high confidence requires 2+ independent primary studies"
+                            .to_string(),
                     ),
                     confidence: None,
                     independent_clusters: None,
@@ -519,8 +550,11 @@ pub fn render(evidence: &[Value], claims: &[Value], title: &str) -> Result<Strin
     if !checked.overall_ok {
         return Err("ledger contains blocking violations".to_string());
     }
-    let ev_by_id: std::collections::HashMap<String, &Value> =
-        checked.evidence.iter().map(|e| (str_field(e, "id"), e)).collect();
+    let ev_by_id: std::collections::HashMap<String, &Value> = checked
+        .evidence
+        .iter()
+        .map(|e| (str_field(e, "id"), e))
+        .collect();
 
     let today_str = super::iso_date::today_iso_date();
 
@@ -655,10 +689,7 @@ mod tests {
         let checked = check(&evidence, &claims);
         assert!(checked.overall_ok);
         assert_eq!(checked.claims[0]["confidence"], "medium");
-        assert!(checked
-            .verdicts
-            .iter()
-            .any(|v| v.kind == "downgrade"));
+        assert!(checked.verdicts.iter().any(|v| v.kind == "downgrade"));
     }
 
     #[test]

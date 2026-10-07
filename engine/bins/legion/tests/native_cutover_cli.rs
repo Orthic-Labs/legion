@@ -66,11 +66,48 @@ fn json(output: &Output) -> Value {
 }
 
 const ROOT_COMMANDS: &[&str] = &[
-    "apple", "status", "serve", "init", "doctor", "bind", "inspect", "targets", "components",
-    "stacks", "controls", "governance", "skills", "languages", "providers", "rules", "schedule",
-    "plan", "audit", "verify", "explain", "report", "fix", "hooks", "mcp", "run", "budget",
-    "contract", "completion", "host", "harness", "authority", "state", "minimize", "catalog",
-    "policy", "decision", "handoff", "research", "review", "setup", "script",
+    "apple",
+    "status",
+    "serve",
+    "init",
+    "doctor",
+    "bind",
+    "inspect",
+    "targets",
+    "components",
+    "stacks",
+    "controls",
+    "governance",
+    "skills",
+    "languages",
+    "providers",
+    "rules",
+    "schedule",
+    "plan",
+    "audit",
+    "verify",
+    "explain",
+    "report",
+    "fix",
+    "hooks",
+    "mcp",
+    "run",
+    "budget",
+    "contract",
+    "completion",
+    "host",
+    "harness",
+    "authority",
+    "state",
+    "minimize",
+    "catalog",
+    "policy",
+    "decision",
+    "handoff",
+    "research",
+    "review",
+    "setup",
+    "script",
 ];
 
 #[test]
@@ -85,7 +122,10 @@ fn every_command_answers_help_natively() {
             stdout.contains(&format!("Usage: legion {command}")),
             "{command} --help lacks a usage line: {stdout}"
         );
-        assert!(stderr.is_empty(), "{command} --help wrote to stderr: {stderr}");
+        assert!(
+            stderr.is_empty(),
+            "{command} --help wrote to stderr: {stderr}"
+        );
         assert!(!stdout.contains("Unknown option"), "{command}: {stdout}");
     }
 }

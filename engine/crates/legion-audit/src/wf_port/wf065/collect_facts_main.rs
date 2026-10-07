@@ -68,30 +68,179 @@ pub fn doctor_rows(
                 "skipped"
             } else {
                 match c.check {
-                    "secrets" => if which("gitleaks") { "ready" } else { "missing-tool" },
-                    "sast" => if which("semgrep") { "ready" } else { "missing-tool" },
-                    "ci_lint" => if which("actionlint") { "ready" } else { "missing-tool" },
-                    "docker" => if which("hadolint") { "ready" } else { "missing-tool" },
-                    "cargo_audit" => if !d.rust { "not-configured" } else if which("cargo-audit") { "ready" } else { "missing-tool" },
-                    "cargo_deny" => if !d.rust { "not-configured" } else if which("cargo-deny") { "ready" } else { "missing-tool" },
-                    "cargo_unused_deps" => if !d.rust { "not-configured" } else if which("cargo-machete") { "ready" } else { "missing-tool" },
-                    "cargo_unsafe" => if !d.rust { "not-configured" } else if which("cargo-geiger") { "ready" } else { "missing-tool" },
-                    "py_deps_cve" => if !d.py { "not-configured" } else if which("pip-audit") { "ready" } else { "missing-tool" },
-                    "tauri_capabilities" => if d.tauri { "ready" } else { "not-configured" },
-                    "apple_platform" => if any_tracked_swift { "ready" } else { "not-configured" },
-                    "react_hooks" => if d.node && has_dep("react") { "ready" } else { "not-configured" },
-                    "swift_lint" => if !(d.swift || any_tracked_swift) { "not-configured" } else if which("swiftlint") { "ready" } else { "missing-tool" },
-                    "js_licenses" => if d.node { if has_dep("license-checker") { "ready" } else { "missing-dep" } } else { "not-configured" },
-                    "cargo_outdated" => if !d.rust { "not-configured" } else if which("cargo-outdated") { "ready" } else { "missing-tool" },
-                    "dead_code" => if has_dep("knip") { "ready" } else { "missing-dep" },
-                    "duplication" => if has_dep("jscpd") { "ready" } else { "missing-dep" },
-                    "types" => if d.ts && has_dep("typescript") { "ready" } else if d.py { if which("basedpyright") || which("mypy") { "ready" } else { "missing-tool" } } else { "not-configured" },
-                    "lint" => if d.biome || d.eslint || d.py || d.rust { "ready" } else { "not-configured" },
-                    "build" => if d.build_script || d.rust { "ready" } else { "not-configured" },
+                    "secrets" => {
+                        if which("gitleaks") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "sast" => {
+                        if which("semgrep") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "ci_lint" => {
+                        if which("actionlint") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "docker" => {
+                        if which("hadolint") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "cargo_audit" => {
+                        if !d.rust {
+                            "not-configured"
+                        } else if which("cargo-audit") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "cargo_deny" => {
+                        if !d.rust {
+                            "not-configured"
+                        } else if which("cargo-deny") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "cargo_unused_deps" => {
+                        if !d.rust {
+                            "not-configured"
+                        } else if which("cargo-machete") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "cargo_unsafe" => {
+                        if !d.rust {
+                            "not-configured"
+                        } else if which("cargo-geiger") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "py_deps_cve" => {
+                        if !d.py {
+                            "not-configured"
+                        } else if which("pip-audit") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "tauri_capabilities" => {
+                        if d.tauri {
+                            "ready"
+                        } else {
+                            "not-configured"
+                        }
+                    }
+                    "apple_platform" => {
+                        if any_tracked_swift {
+                            "ready"
+                        } else {
+                            "not-configured"
+                        }
+                    }
+                    "react_hooks" => {
+                        if d.node && has_dep("react") {
+                            "ready"
+                        } else {
+                            "not-configured"
+                        }
+                    }
+                    "swift_lint" => {
+                        if !(d.swift || any_tracked_swift) {
+                            "not-configured"
+                        } else if which("swiftlint") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "js_licenses" => {
+                        if d.node {
+                            if has_dep("license-checker") {
+                                "ready"
+                            } else {
+                                "missing-dep"
+                            }
+                        } else {
+                            "not-configured"
+                        }
+                    }
+                    "cargo_outdated" => {
+                        if !d.rust {
+                            "not-configured"
+                        } else if which("cargo-outdated") {
+                            "ready"
+                        } else {
+                            "missing-tool"
+                        }
+                    }
+                    "dead_code" => {
+                        if has_dep("knip") {
+                            "ready"
+                        } else {
+                            "missing-dep"
+                        }
+                    }
+                    "duplication" => {
+                        if has_dep("jscpd") {
+                            "ready"
+                        } else {
+                            "missing-dep"
+                        }
+                    }
+                    "types" => {
+                        if d.ts && has_dep("typescript") {
+                            "ready"
+                        } else if d.py {
+                            if which("basedpyright") || which("mypy") {
+                                "ready"
+                            } else {
+                                "missing-tool"
+                            }
+                        } else {
+                            "not-configured"
+                        }
+                    }
+                    "lint" => {
+                        if d.biome || d.eslint || d.py || d.rust {
+                            "ready"
+                        } else {
+                            "not-configured"
+                        }
+                    }
+                    "build" => {
+                        if d.build_script || d.rust {
+                            "ready"
+                        } else {
+                            "not-configured"
+                        }
+                    }
                     _ => "configured",
                 }
             };
-            DoctorRow { check: c.check.to_string(), tool: c.tool.map(str::to_string), required: c.required, ready }
+            DoctorRow {
+                check: c.check.to_string(),
+                tool: c.tool.map(str::to_string),
+                required: c.required,
+                ready,
+            }
         })
         .collect()
 }
@@ -126,7 +275,11 @@ impl ExecutedCheck {
         if self.status == "ran" {
             let exit_fail = self.exit_code.is_some_and(|c| c > 0);
             let findings_fail = self.findings_count.is_some_and(|c| c > 0);
-            if exit_fail || findings_fail { "fail" } else { "pass" }
+            if exit_fail || findings_fail {
+                "fail"
+            } else {
+                "pass"
+            }
         } else {
             "unproven"
         }
@@ -158,12 +311,19 @@ pub fn assemble_facts(
     generated_at: &str,
 ) -> AssembledFacts {
     let incomplete = results.iter().any(|r| r.required && r.status != "ran");
-    let secrets_unscanned = results.iter().any(|r| r.check == "secrets" && r.status != "ran");
+    let secrets_unscanned = results
+        .iter()
+        .any(|r| r.check == "secrets" && r.status != "ran");
 
     let manifest_drift = declared_manifest_checks.map(|declared| {
         let declared_set: std::collections::BTreeSet<&String> = declared.iter().collect();
-        let runtime_set: std::collections::BTreeSet<&String> = results.iter().map(|r| &r.check).collect();
-        let missing_from_manifest: Vec<&String> = runtime_set.iter().filter(|c| !declared_set.contains(**c)).copied().collect();
+        let runtime_set: std::collections::BTreeSet<&String> =
+            results.iter().map(|r| &r.check).collect();
+        let missing_from_manifest: Vec<&String> = runtime_set
+            .iter()
+            .filter(|c| !declared_set.contains(**c))
+            .copied()
+            .collect();
         let stale_in_manifest: Vec<&String> = declared_set
             .iter()
             .filter(|c| !runtime_set.contains(**c) && c.as_str() != "runtime")
@@ -221,7 +381,12 @@ pub fn assemble_facts(
         "detectionDisagreement": detection_disagreement,
     });
 
-    AssembledFacts { facts, incomplete, secrets_unscanned, manifest_drift: manifest_drift_value }
+    AssembledFacts {
+        facts,
+        incomplete,
+        secrets_unscanned,
+        manifest_drift: manifest_drift_value,
+    }
 }
 
 #[cfg(test)]
@@ -230,16 +395,33 @@ mod tests {
 
     fn stack() -> DetectedStack {
         DetectedStack {
-            git: true, node: true, pkg: None, pkg_mgr: "pnpm", ts: true, py: false,
-            rust: true, rust_dir: Some(".".to_string()), swift: false, tauri: false,
-            build_script: true, eslint: true, biome: false, workflows: true, dockerfile: false,
+            git: true,
+            node: true,
+            pkg: None,
+            pkg_mgr: "pnpm",
+            ts: true,
+            py: false,
+            rust: true,
+            rust_dir: Some(".".to_string()),
+            swift: false,
+            tauri: false,
+            build_script: true,
+            eslint: true,
+            biome: false,
+            workflows: true,
+            dockerfile: false,
         }
     }
 
     #[test]
     fn doctor_rows_classify_cargo_audit_by_rust_and_tool_presence() {
         let d = stack();
-        let checks = [DoctorInput { check: "cargo_audit", tool: Some("cargo-audit"), required: false, force_skip: false }];
+        let checks = [DoctorInput {
+            check: "cargo_audit",
+            tool: Some("cargo-audit"),
+            required: false,
+            force_skip: false,
+        }];
         let rows = doctor_rows(&d, &checks, |bin| bin == "cargo-audit", |_| false, false);
         assert_eq!(rows[0].ready, "ready");
 
@@ -252,7 +434,12 @@ mod tests {
     #[test]
     fn doctor_rows_force_skip_wins_over_every_other_rule() {
         let d = stack();
-        let checks = [DoctorInput { check: "secrets", tool: Some("gitleaks"), required: true, force_skip: true }];
+        let checks = [DoctorInput {
+            check: "secrets",
+            tool: Some("gitleaks"),
+            required: true,
+            force_skip: true,
+        }];
         let rows = doctor_rows(&d, &checks, |_| true, |_| true, true);
         assert_eq!(rows[0].ready, "skipped");
     }
@@ -261,23 +448,53 @@ mod tests {
     fn doctor_rows_swift_lint_gates_on_root_flag_or_any_tracked_swift() {
         let mut d = stack();
         d.swift = false;
-        let checks = [DoctorInput { check: "swift_lint", tool: Some("swiftlint"), required: false, force_skip: false }];
+        let checks = [DoctorInput {
+            check: "swift_lint",
+            tool: Some("swiftlint"),
+            required: false,
+            force_skip: false,
+        }];
         let rows = doctor_rows(&d, &checks, |_| false, |_| false, true); // tracked .swift in a subdir
         assert_eq!(rows[0].ready, "missing-tool"); // configured (tracked swift found) but tool absent
     }
 
-    fn exec(check: &str, required: bool, status: &str, exit_code: Option<i64>, findings: Option<i64>) -> ExecutedCheck {
+    fn exec(
+        check: &str,
+        required: bool,
+        status: &str,
+        exit_code: Option<i64>,
+        findings: Option<i64>,
+    ) -> ExecutedCheck {
         ExecutedCheck {
-            check: check.to_string(), tool: None, required, tier: "core".to_string(),
-            status: status.to_string(), skip_reason: None, exit_code, findings_count: findings, meta: None,
+            check: check.to_string(),
+            tool: None,
+            required,
+            tier: "core".to_string(),
+            status: status.to_string(),
+            skip_reason: None,
+            exit_code,
+            findings_count: findings,
+            meta: None,
         }
     }
 
     #[test]
     fn assemble_facts_flags_incomplete_when_a_required_check_did_not_run() {
         let d = stack();
-        let results = vec![exec("lint", true, "error", Some(1), None), exec("types", false, "ran", Some(0), Some(0))];
-        let out = assemble_facts("/repo", "/repo/.audit/out", &d, 6, json!({}), &results, None, "2026-01-01T00:00:00.000Z");
+        let results = vec![
+            exec("lint", true, "error", Some(1), None),
+            exec("types", false, "ran", Some(0), Some(0)),
+        ];
+        let out = assemble_facts(
+            "/repo",
+            "/repo/.audit/out",
+            &d,
+            6,
+            json!({}),
+            &results,
+            None,
+            "2026-01-01T00:00:00.000Z",
+        );
         assert!(out.incomplete);
         assert!(!out.secrets_unscanned);
     }
@@ -286,7 +503,16 @@ mod tests {
     fn assemble_facts_flags_secrets_unscanned_when_secrets_check_did_not_run() {
         let d = stack();
         let results = vec![exec("secrets", false, "unproven", None, None)];
-        let out = assemble_facts("/repo", "/repo/.audit/out", &d, 6, json!({}), &results, None, "2026-01-01T00:00:00.000Z");
+        let out = assemble_facts(
+            "/repo",
+            "/repo/.audit/out",
+            &d,
+            6,
+            json!({}),
+            &results,
+            None,
+            "2026-01-01T00:00:00.000Z",
+        );
         assert!(out.secrets_unscanned);
     }
 
@@ -310,9 +536,25 @@ mod tests {
     #[test]
     fn assemble_facts_manifest_drift_reports_missing_and_stale_names() {
         let d = stack();
-        let results = vec![exec("lint", false, "ran", Some(0), Some(0)), exec("new_check", false, "ran", Some(0), Some(0))];
-        let declared = vec!["lint".to_string(), "retired_check".to_string(), "runtime".to_string()];
-        let out = assemble_facts("/repo", "/o", &d, 6, json!({}), &results, Some(&declared), "t");
+        let results = vec![
+            exec("lint", false, "ran", Some(0), Some(0)),
+            exec("new_check", false, "ran", Some(0), Some(0)),
+        ];
+        let declared = vec![
+            "lint".to_string(),
+            "retired_check".to_string(),
+            "runtime".to_string(),
+        ];
+        let out = assemble_facts(
+            "/repo",
+            "/o",
+            &d,
+            6,
+            json!({}),
+            &results,
+            Some(&declared),
+            "t",
+        );
         let drift = out.manifest_drift.unwrap();
         assert_eq!(drift["missing_from_manifest"], json!(["new_check"]));
         assert_eq!(drift["stale_in_manifest"], json!(["retired_check"]));
@@ -323,7 +565,16 @@ mod tests {
         let d = stack();
         let results = vec![exec("lint", false, "ran", Some(0), Some(0))];
         let declared = vec!["lint".to_string(), "runtime".to_string()];
-        let out = assemble_facts("/repo", "/o", &d, 6, json!({}), &results, Some(&declared), "t");
+        let out = assemble_facts(
+            "/repo",
+            "/o",
+            &d,
+            6,
+            json!({}),
+            &results,
+            Some(&declared),
+            "t",
+        );
         assert!(out.manifest_drift.is_none());
     }
 

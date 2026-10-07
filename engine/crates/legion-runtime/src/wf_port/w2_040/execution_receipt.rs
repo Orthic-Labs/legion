@@ -88,7 +88,9 @@ fn as_object(value: &Value) -> Map<String, Value> {
 }
 
 /// Port of `executionReceipt({...})`.
-pub fn execution_receipt(input: ExecutionReceiptInput) -> Result<Value, ExecutionReceiptInputError> {
+pub fn execution_receipt(
+    input: ExecutionReceiptInput,
+) -> Result<Value, ExecutionReceiptInputError> {
     if input.provider.is_empty() || !SPAWN_STATUS.contains(&input.spawn_status.as_str()) {
         return Err(ExecutionReceiptInputError);
     }
@@ -107,7 +109,8 @@ pub fn execution_receipt(input: ExecutionReceiptInput) -> Result<Value, Executio
     let coverage_denominator = coverage.get("denominatorDigest").cloned();
     coverage.insert(
         "denominatorDigest".to_string(),
-        coverage_denominator.unwrap_or_else(|| input.denominator_digest.clone().unwrap_or(Value::Null)),
+        coverage_denominator
+            .unwrap_or_else(|| input.denominator_digest.clone().unwrap_or(Value::Null)),
     );
 
     // normalizedResult = {...providerResult, provider: providerResult?.provider ?? provider, complete: providerResult?.complete === true, coverage}
@@ -122,7 +125,9 @@ pub fn execution_receipt(input: ExecutionReceiptInput) -> Result<Value, Executio
     normalized_result.insert("complete".to_string(), Value::Bool(complete));
     normalized_result.insert("coverage".to_string(), Value::Object(coverage));
 
-    let command = input.command.unwrap_or_else(|| json!({"executable": null, "args": [], "cwd": null}));
+    let command = input
+        .command
+        .unwrap_or_else(|| json!({"executable": null, "args": [], "cwd": null}));
     let duration_ms = match (input.started_at, input.completed_at) {
         (Some(started), Some(completed)) => Value::from(completed - started),
         _ => Value::Null,
@@ -196,7 +201,10 @@ pub struct BlockedSpec {
 pub fn blocked(spec: Option<&BlockedSpec>, reason: &str) -> Value {
     let empty = BlockedSpec::default();
     let spec = spec.unwrap_or(&empty);
-    let provider = spec.provider.clone().unwrap_or_else(|| "unknown".to_string());
+    let provider = spec
+        .provider
+        .clone()
+        .unwrap_or_else(|| "unknown".to_string());
     let command = json!({
         "executable": spec.executable.clone(),
         "args": spec.args.clone().unwrap_or_default(),
@@ -279,7 +287,10 @@ mod tests {
         assert_eq!(receipt["binding"], Value::Null);
         assert_eq!(receipt["denominatorDigest"], Value::Null);
         assert_eq!(receipt["complete"], false);
-        assert_eq!(receipt["command"], json!({"executable": null, "args": [], "cwd": null}));
+        assert_eq!(
+            receipt["command"],
+            json!({"executable": null, "args": [], "cwd": null})
+        );
         assert_eq!(receipt["startedAt"], Value::Null);
         assert_eq!(receipt["completedAt"], Value::Null);
         assert_eq!(receipt["durationMs"], Value::Null);
@@ -306,7 +317,10 @@ mod tests {
 
         assert_eq!(receipt["providerResult"]["provider"], "codex");
         assert_eq!(receipt["providerResult"]["complete"], false);
-        assert_eq!(receipt["providerResult"]["coverage"]["denominatorDigest"], Value::Null);
+        assert_eq!(
+            receipt["providerResult"]["coverage"]["denominatorDigest"],
+            Value::Null
+        );
     }
 
     #[test]
@@ -337,11 +351,16 @@ mod tests {
             provider: "codex".to_string(),
             spawn_status: "completed".to_string(),
             denominator_digest: Some(json!("sha256:top-level")),
-            provider_result: Some(json!({"coverage": {"denominatorDigest": "sha256:from-provider", "checks": 3}})),
+            provider_result: Some(
+                json!({"coverage": {"denominatorDigest": "sha256:from-provider", "checks": 3}}),
+            ),
             ..Default::default()
         })
         .unwrap();
-        assert_eq!(receipt["providerResult"]["coverage"]["denominatorDigest"], "sha256:from-provider");
+        assert_eq!(
+            receipt["providerResult"]["coverage"]["denominatorDigest"],
+            "sha256:from-provider"
+        );
         assert_eq!(receipt["providerResult"]["coverage"]["checks"], 3);
         // Top-level denominatorDigest is independent of providerResult.coverage.
         assert_eq!(receipt["denominatorDigest"], "sha256:top-level");

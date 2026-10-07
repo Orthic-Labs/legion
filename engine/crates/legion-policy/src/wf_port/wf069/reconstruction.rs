@@ -132,7 +132,9 @@ pub struct Fallback {
 fn valid_fallback(value: Option<&Fallback>) -> bool {
     match value {
         Some(v) => {
-            non_empty(v.mode.as_deref()) && non_empty(v.owner.as_deref()) && iso_time(v.tested_at.as_deref())
+            non_empty(v.mode.as_deref())
+                && non_empty(v.owner.as_deref())
+                && iso_time(v.tested_at.as_deref())
         }
         None => false,
     }
@@ -182,7 +184,8 @@ pub struct AiReadinessResult {
 /// a named human authority must each be present in caller-supplied evidence.
 pub fn assess_ai_readiness(input: &AiReadinessInput) -> AiReadinessResult {
     let mut missing = Vec::new();
-    let provenance_ok = !input.provenance.is_empty() && input.provenance.iter().all(valid_provenance);
+    let provenance_ok =
+        !input.provenance.is_empty() && input.provenance.iter().all(valid_provenance);
     if !provenance_ok {
         missing.push("provenance");
     }
@@ -205,7 +208,11 @@ pub fn assess_ai_readiness(input: &AiReadinessInput) -> AiReadinessResult {
         disposition: if readiness { "READY" } else { "NOT_READY" },
         readiness,
         missing,
-        provenance_records: input.provenance.iter().filter(|e| valid_provenance(e)).count(),
+        provenance_records: input
+            .provenance
+            .iter()
+            .filter(|e| valid_provenance(e))
+            .count(),
         evaluation_verified: evaluation_ok,
         fallback_tested: fallback_ok,
         human_authority_bound: human_ok,
@@ -257,7 +264,11 @@ pub fn assess_architecture_reconstruction(
     input: &ArchitectureReconstructionInput,
 ) -> ArchitectureReconstructionResult {
     let as_of_valid = input.as_of.as_deref().map(iso_time_str).unwrap_or(false);
-    let as_of = if as_of_valid { input.as_of.clone() } else { None };
+    let as_of = if as_of_valid {
+        input.as_of.clone()
+    } else {
+        None
+    };
     let as_of_millis = as_of.as_deref().and_then(parse_iso);
 
     let required_scopes: BTreeSet<String> = if !input.required_scopes.is_empty() {
@@ -268,7 +279,10 @@ pub fn assess_architecture_reconstruction(
             .cloned()
             .collect()
     } else {
-        RECONSTRUCTION_REQUIRED.iter().map(|s| s.to_string()).collect()
+        RECONSTRUCTION_REQUIRED
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
     };
     let mut required_scopes: Vec<String> = required_scopes.into_iter().collect();
     required_scopes.sort();
@@ -305,7 +319,11 @@ pub fn assess_architecture_reconstruction(
 
     ArchitectureReconstructionResult {
         as_of,
-        disposition: if uncertainty { "UNCERTAINTY_REPORTED" } else { "RECONSTRUCTION_READY" },
+        disposition: if uncertainty {
+            "UNCERTAINTY_REPORTED"
+        } else {
+            "RECONSTRUCTION_READY"
+        },
         conclusion_allowed: !uncertainty,
         clean_allowed: !uncertainty,
         required_scopes,
@@ -370,7 +388,10 @@ impl OrDefaultRef<ArchitectureReconstructionInput> for Option<&ArchitectureRecon
 
 /// Validate output by recalculating it from recorded structured input. This
 /// rejects a forged verdict even if its text resembles expected corpus prose.
-pub fn validate_ai_readiness_observation(input: &AiReadinessInput, observed: &AiReadinessResult) -> bool {
+pub fn validate_ai_readiness_observation(
+    input: &AiReadinessInput,
+    observed: &AiReadinessResult,
+) -> bool {
     &assess_ai_readiness(input) == observed
 }
 
@@ -388,7 +409,10 @@ mod tests {
     fn ready_input() -> AiReadinessInput {
         AiReadinessInput {
             system_id: Some("sys-1".into()),
-            provenance: vec![ProvenanceEntry { source_ref: Some("repo@sha".into()), digest: Some("sha256:aa".into()) }],
+            provenance: vec![ProvenanceEntry {
+                source_ref: Some("repo@sha".into()),
+                digest: Some("sha256:aa".into()),
+            }],
             evaluation: Some(Evaluation {
                 status: Some("PASS".into()),
                 report_ref: Some("report-1".into()),
@@ -422,7 +446,10 @@ mod tests {
         let result = assess_ai_readiness(&AiReadinessInput::default());
         assert!(!result.readiness);
         assert_eq!(result.disposition, "NOT_READY");
-        assert_eq!(result.missing, vec!["provenance", "evaluation", "fallback", "humanAuthority"]);
+        assert_eq!(
+            result.missing,
+            vec!["provenance", "evaluation", "fallback", "humanAuthority"]
+        );
     }
 
     #[test]
@@ -435,7 +462,10 @@ mod tests {
         let mut bad_input = input.clone();
         bad_input.human_authority = None;
         assert!(!validate_ai_readiness_observation(&bad_input, &forged));
-        assert!(validate_ai_readiness_observation(&input, &assess_ai_readiness(&input)));
+        assert!(validate_ai_readiness_observation(
+            &input,
+            &assess_ai_readiness(&input)
+        ));
     }
 
     fn evidence(scope: &str, observed_at: &str, expires_at: &str) -> EvidenceEntry {
@@ -468,7 +498,11 @@ mod tests {
 
     #[test]
     fn reconstruction_uncertain_when_as_of_invalid() {
-        let input = ArchitectureReconstructionInput { as_of: None, required_scopes: vec![], evidence: vec![] };
+        let input = ArchitectureReconstructionInput {
+            as_of: None,
+            required_scopes: vec![],
+            evidence: vec![],
+        };
         let result = assess_architecture_reconstruction(&input);
         assert_eq!(result.disposition, "UNCERTAINTY_REPORTED");
         assert!(!result.conclusion_allowed);
@@ -480,11 +514,18 @@ mod tests {
         let input = ArchitectureReconstructionInput {
             as_of: Some("2026-06-01T00:00:00Z".into()),
             required_scopes: vec!["topology".into()],
-            evidence: vec![evidence("topology", "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z")],
+            evidence: vec![evidence(
+                "topology",
+                "2026-01-01T00:00:00Z",
+                "2026-02-01T00:00:00Z",
+            )],
         };
         let result = assess_architecture_reconstruction(&input);
         assert_eq!(result.disposition, "UNCERTAINTY_REPORTED");
-        assert_eq!(result.uncertainty_reason, Some("INCOMPLETE_OR_STALE_EVIDENCE"));
+        assert_eq!(
+            result.uncertainty_reason,
+            Some("INCOMPLETE_OR_STALE_EVIDENCE")
+        );
         assert_eq!(result.stale_scopes, vec!["topology".to_string()]);
         assert_eq!(result.missing_scopes, vec!["topology".to_string()]);
     }
@@ -504,6 +545,9 @@ mod tests {
 
     #[test]
     fn binding_ids_match_js_constant() {
-        assert_eq!(AI_RECONSTRUCTION_BINDING_IDS, ["AE-ADVERSARIAL-009", "AE-ADVERSARIAL-010"]);
+        assert_eq!(
+            AI_RECONSTRUCTION_BINDING_IDS,
+            ["AE-ADVERSARIAL-009", "AE-ADVERSARIAL-010"]
+        );
     }
 }

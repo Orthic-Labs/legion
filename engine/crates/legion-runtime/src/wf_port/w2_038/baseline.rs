@@ -199,7 +199,10 @@ pub fn compile_baseline(
     let mut definitions: BTreeMap<String, Value> = BTreeMap::new();
     for pack in packs {
         for control in get(pack, "controls").map(arr).unwrap_or(&[]) {
-            let cid = get(control, "id").and_then(as_str).unwrap_or("").to_string();
+            let cid = get(control, "id")
+                .and_then(as_str)
+                .unwrap_or("")
+                .to_string();
             match definitions.get(&cid) {
                 Some(prior) if !compatible(prior, control) => {
                     return Err(format!("incompatible duplicate control: {cid}"));
@@ -223,13 +226,21 @@ pub fn compile_baseline(
     }
     let mut contexts: Vec<Context> = Vec::new();
     for target in targets {
-        contexts.push(Context { subject: target, target, component: None });
+        contexts.push(Context {
+            subject: target,
+            target,
+            component: None,
+        });
     }
     for component in get(components, "components").map(arr).unwrap_or(&[]) {
         for target_id_value in get(component, "targetIds").map(arr).unwrap_or(&[]) {
             if let Some(target_id) = as_str(target_id_value) {
                 if let Some(&target) = target_by_id.get(target_id) {
-                    contexts.push(Context { subject: component, target, component: Some(component) });
+                    contexts.push(Context {
+                        subject: component,
+                        target,
+                        component: Some(component),
+                    });
                 }
             }
         }
@@ -274,8 +285,13 @@ pub fn compile_baseline(
     for &pack in &sorted_packs {
         let pack_id = get(pack, "id").and_then(as_str).unwrap_or("").to_string();
         for control in get(pack, "controls").map(arr).unwrap_or(&[]) {
-            let control_id = get(control, "id").and_then(as_str).unwrap_or("").to_string();
-            let selector = get(control, "selector").cloned().unwrap_or_else(|| Value::Object(BTreeMap::new()));
+            let control_id = get(control, "id")
+                .and_then(as_str)
+                .unwrap_or("")
+                .to_string();
+            let selector = get(control, "selector")
+                .cloned()
+                .unwrap_or_else(|| Value::Object(BTreeMap::new()));
             for ctx in &contexts {
                 let target_facets = str_list(get(ctx.target, "facets"));
                 let sel_ctx = SelectorContext {
@@ -289,8 +305,12 @@ pub fn compile_baseline(
                 let selected_now = matches_selector(&selector, &sel_ctx)?;
 
                 let subject_id = get(ctx.subject, "id").and_then(as_str);
-                let target_id = get(ctx.target, "id").and_then(as_str).unwrap_or("").to_string();
-                let mut trace = selection_trace(&control_id, selector.clone(), subject_id, selected_now);
+                let target_id = get(ctx.target, "id")
+                    .and_then(as_str)
+                    .unwrap_or("")
+                    .to_string();
+                let mut trace =
+                    selection_trace(&control_id, selector.clone(), subject_id, selected_now);
                 if let Value::Object(map) = &mut trace {
                     map.insert("targetId".to_string(), Value::str(target_id.clone()));
                 }
@@ -299,12 +319,14 @@ pub fn compile_baseline(
                 if !selected_now {
                     continue;
                 }
-                let entry = selected.entry(control_id.clone()).or_insert_with(|| SelectedEntry {
-                    control: control.clone(),
-                    target_ids: Vec::new(),
-                    component_ids: Vec::new(),
-                    pack_ids: Vec::new(),
-                });
+                let entry = selected
+                    .entry(control_id.clone())
+                    .or_insert_with(|| SelectedEntry {
+                        control: control.clone(),
+                        target_ids: Vec::new(),
+                        component_ids: Vec::new(),
+                        pack_ids: Vec::new(),
+                    });
                 entry.target_ids.push(target_id);
                 if let Some(component) = ctx.component {
                     if let Some(cid) = get(component, "id").and_then(as_str) {
@@ -331,11 +353,21 @@ pub fn compile_baseline(
         let mut pack_ids_used = entry.pack_ids.clone();
         pack_ids_used.sort();
         pack_ids_used.dedup();
-        let unimplemented = !matches!(map.get("providers"), Some(Value::Array(items)) if !items.is_empty());
+        let unimplemented =
+            !matches!(map.get("providers"), Some(Value::Array(items)) if !items.is_empty());
 
-        map.insert("targetIds".to_string(), Value::Array(target_ids.into_iter().map(Value::str).collect()));
-        map.insert("componentIds".to_string(), Value::Array(component_ids.into_iter().map(Value::str).collect()));
-        map.insert("packIds".to_string(), Value::Array(pack_ids_used.into_iter().map(Value::str).collect()));
+        map.insert(
+            "targetIds".to_string(),
+            Value::Array(target_ids.into_iter().map(Value::str).collect()),
+        );
+        map.insert(
+            "componentIds".to_string(),
+            Value::Array(component_ids.into_iter().map(Value::str).collect()),
+        );
+        map.insert(
+            "packIds".to_string(),
+            Value::Array(pack_ids_used.into_iter().map(Value::str).collect()),
+        );
         map.insert("unimplemented".to_string(), Value::Bool(unimplemented));
         controls_out.push(Value::Object(map));
     }
@@ -364,8 +396,14 @@ pub fn compile_baseline(
     value_map.insert("kind".to_string(), Value::str("legion-control-baseline"));
     value_map.insert("controls".to_string(), Value::Array(controls_out));
     value_map.insert("traces".to_string(), Value::Array(traces));
-    value_map.insert("binding".to_string(), binding.cloned().unwrap_or(Value::Null));
-    value_map.insert("denominator".to_string(), Value::Array(denominator.into_iter().map(Value::str).collect()));
+    value_map.insert(
+        "binding".to_string(),
+        binding.cloned().unwrap_or(Value::Null),
+    );
+    value_map.insert(
+        "denominator".to_string(),
+        Value::Array(denominator.into_iter().map(Value::str).collect()),
+    );
     value_map.insert(
         "unimplemented".to_string(),
         Value::Array(unimplemented_ids.into_iter().map(Value::str).collect()),
@@ -399,13 +437,19 @@ mod tests {
     fn pack(id: &str, deps: Vec<&str>, controls: Vec<Value>) -> Value {
         Value::object([
             ("id", Value::str(id)),
-            ("dependencies", Value::array(deps.into_iter().map(Value::str))),
+            (
+                "dependencies",
+                Value::array(deps.into_iter().map(Value::str)),
+            ),
             ("controls", Value::array(controls)),
         ])
     }
 
     fn portfolio_one_target() -> Value {
-        Value::object([("targets", Value::array([Value::object([("id", Value::str("t1"))])]))])
+        Value::object([(
+            "targets",
+            Value::array([Value::object([("id", Value::str("t1"))])]),
+        )])
     }
 
     fn empty_components() -> Value {
@@ -415,24 +459,48 @@ mod tests {
     #[test]
     fn duplicate_pack_id_errors() {
         let packs = vec![pack("p1", vec![], vec![]), pack("p1", vec![], vec![])];
-        let err = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None)
-            .unwrap_err();
+        let err = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap_err();
         assert_eq!(err, "duplicate control pack ID");
     }
 
     #[test]
     fn missing_dependency_errors() {
         let packs = vec![pack("p1", vec!["p2"], vec![])];
-        let err = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None)
-            .unwrap_err();
+        let err = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap_err();
         assert_eq!(err, "missing pack dependency: p1:p2");
     }
 
     #[test]
     fn dependency_cycle_errors() {
-        let packs = vec![pack("p1", vec!["p2"], vec![]), pack("p2", vec!["p1"], vec![])];
-        let err = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None)
-            .unwrap_err();
+        let packs = vec![
+            pack("p1", vec!["p2"], vec![]),
+            pack("p2", vec!["p1"], vec![]),
+        ];
+        let err = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap_err();
         assert_eq!(err, "control pack dependency cycle: p1");
     }
 
@@ -440,18 +508,36 @@ mod tests {
     fn incompatible_duplicate_control_errors() {
         let packs = vec![
             pack("p1", vec![], vec![control("c1", vec![])]),
-            pack("p2", vec![], vec![control("c1", vec![Value::str("prov.x")])]),
+            pack(
+                "p2",
+                vec![],
+                vec![control("c1", vec![Value::str("prov.x")])],
+            ),
         ];
-        let err = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None)
-            .unwrap_err();
+        let err = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap_err();
         assert_eq!(err, "incompatible duplicate control: c1");
     }
 
     #[test]
     fn selected_control_gets_target_and_pack_ids_and_unimplemented_flag() {
         let packs = vec![pack("p1", vec![], vec![control("c1", vec![])])];
-        let result = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None)
-            .unwrap();
+        let result = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap();
         let controls = get(&result, "controls").unwrap();
         if let Value::Array(items) = controls {
             assert_eq!(items.len(), 1);
@@ -462,15 +548,32 @@ mod tests {
         } else {
             panic!("expected controls array");
         }
-        assert_eq!(get(&result, "denominator"), Some(&Value::array([Value::str("c1")])));
-        assert_eq!(get(&result, "unimplemented"), Some(&Value::array([Value::str("c1")])));
+        assert_eq!(
+            get(&result, "denominator"),
+            Some(&Value::array([Value::str("c1")]))
+        );
+        assert_eq!(
+            get(&result, "unimplemented"),
+            Some(&Value::array([Value::str("c1")]))
+        );
     }
 
     #[test]
     fn control_with_providers_is_not_unimplemented() {
-        let packs = vec![pack("p1", vec![], vec![control("c1", vec![Value::str("prov.x")])])];
-        let result = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None)
-            .unwrap();
+        let packs = vec![pack(
+            "p1",
+            vec![],
+            vec![control("c1", vec![Value::str("prov.x")])],
+        )];
+        let result = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap();
         if let Value::Array(items) = get(&result, "controls").unwrap() {
             assert_eq!(get(&items[0], "unimplemented"), Some(&Value::Bool(false)));
         } else {
@@ -488,8 +591,15 @@ mod tests {
             ("providers", Value::array([])),
         ]);
         let packs = vec![pack("p1", vec![], vec![ctl])];
-        let result = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None)
-            .unwrap();
+        let result = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap();
         assert_eq!(get(&result, "controls"), Some(&Value::array([])));
         if let Value::Array(traces) = get(&result, "traces").unwrap() {
             assert_eq!(traces.len(), 1);
@@ -503,8 +613,24 @@ mod tests {
     #[test]
     fn digest_is_present_and_stable() {
         let packs = vec![pack("p1", vec![], vec![control("c1", vec![])])];
-        let a = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None).unwrap();
-        let b = compile_baseline(&packs, &portfolio_one_target(), &empty_components(), &[], &Value::object([]), None).unwrap();
+        let a = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap();
+        let b = compile_baseline(
+            &packs,
+            &portfolio_one_target(),
+            &empty_components(),
+            &[],
+            &Value::object([]),
+            None,
+        )
+        .unwrap();
         assert_eq!(get(&a, "digest"), get(&b, "digest"));
         if let Some(Value::String(d)) = get(&a, "digest") {
             assert!(d.starts_with("sha256:"));

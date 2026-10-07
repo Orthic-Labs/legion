@@ -49,7 +49,10 @@ fn javascript_commands_adds_types_only_for_ts_files_and_build_only_with_manifest
     let ids: Vec<&str> = cmds.iter().map(|c| c.id).collect();
     assert_eq!(ids, vec!["js.types", "js.test", "js.build"]);
     let test_cmd = cmds.iter().find(|c| c.id == "js.test").unwrap();
-    assert_eq!(test_cmd.args, vec!["--test".to_string(), "b.test.ts".to_string()]);
+    assert_eq!(
+        test_cmd.args,
+        vec!["--test".to_string(), "b.test.ts".to_string()]
+    );
 
     let no_ts = javascript::commands(&inputs("/repo", &["c.js"], &["package.json"], None));
     assert!(!no_ts.iter().any(|c| c.id == "js.types"));
@@ -63,12 +66,24 @@ fn javascript_commands_adds_types_only_for_ts_files_and_build_only_with_manifest
 
 #[test]
 fn javascript_normalize_and_coverage() {
-    let ok = javascript::normalize("js.test", Some(&ExecutionResult { exit_code: Some(0), tool_version: Some("22".into()) }));
+    let ok = javascript::normalize(
+        "js.test",
+        Some(&ExecutionResult {
+            exit_code: Some(0),
+            tool_version: Some("22".into()),
+        }),
+    );
     assert_eq!(ok.status, "pass");
     assert!(ok.complete);
     assert!(ok.coverage_gaps.is_empty());
 
-    let err = javascript::normalize("js.test", Some(&ExecutionResult { exit_code: Some(1), tool_version: None }));
+    let err = javascript::normalize(
+        "js.test",
+        Some(&ExecutionResult {
+            exit_code: Some(1),
+            tool_version: None,
+        }),
+    );
     assert_eq!(err.status, "error");
     assert!(!err.complete);
     assert_eq!(err.coverage_gaps.len(), 1);
@@ -119,13 +134,18 @@ fn jvm_commands_prefers_gradle_over_maven_and_gates_test_on_profile() {
     assert!(!fast.iter().any(|c| c.id == "jvm.test"));
 
     let neither = jvm::commands(&inputs("/repo", &[], &[], None));
-    assert!(neither.iter().all(|c| c.id != "jvm.gradle-wrapper" && c.id != "jvm.maven-wrapper"));
+    assert!(neither
+        .iter()
+        .all(|c| c.id != "jvm.gradle-wrapper" && c.id != "jvm.maven-wrapper"));
 }
 
 #[test]
 fn jvm_coverage_examines_java_kt_scala_only() {
     let cov = jvm::coverage(&projection(&["java", "kt", "scala", "js"], &[]));
-    assert_eq!(cov.examined, vec!["java".to_string(), "kt".to_string(), "scala".to_string()]);
+    assert_eq!(
+        cov.examined,
+        vec!["java".to_string(), "kt".to_string(), "scala".to_string()]
+    );
 }
 
 // -- php -------------------------------------------------------------------

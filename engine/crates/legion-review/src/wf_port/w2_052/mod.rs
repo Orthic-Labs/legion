@@ -14,6 +14,6 @@ pub mod registry;
 
 pub use base::{JurorResult, ProviderError, ProviderImage};
 pub use packet::{
-    extract_packet, render_packet_skeleton, validate_packet, PacketValidation,
-    NO_PACKET_FENCE, PACKET_REQUIRED_SECTIONS, SKELETON_TEMPLATE,
+    extract_packet, render_packet_skeleton, validate_packet, PacketValidation, NO_PACKET_FENCE,
+    PACKET_REQUIRED_SECTIONS, SKELETON_TEMPLATE,
 };

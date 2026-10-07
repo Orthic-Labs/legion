@@ -31,7 +31,11 @@ pub struct ReqwestSitesTransport;
 impl SitesTransport for ReqwestSitesTransport {
     fn get_json(&self, url: &str, bearer: &str) -> Result<(u16, String), String> {
         let client = reqwest::blocking::Client::new();
-        let resp = client.get(url).bearer_auth(bearer).send().map_err(|e| e.to_string())?;
+        let resp = client
+            .get(url)
+            .bearer_auth(bearer)
+            .send()
+            .map_err(|e| e.to_string())?;
         let status = resp.status().as_u16();
         let text = resp.text().map_err(|e| e.to_string())?;
         Ok((status, text))
@@ -70,7 +74,10 @@ pub fn list_sites_with<T: SitesTransport>(transport: &T, bearer: &str) -> Value 
 
 /// Faithful port of `list_sitemaps()`.
 pub fn list_sitemaps_with<T: SitesTransport>(transport: &T, bearer: &str, site_url: &str) -> Value {
-    let url = format!("{WEBMASTERS_ENDPOINT}/sites/{}/sitemaps", encode_path_segment(site_url));
+    let url = format!(
+        "{WEBMASTERS_ENDPOINT}/sites/{}/sitemaps",
+        encode_path_segment(site_url)
+    );
     let (status, body) = match transport.get_json(&url, bearer) {
         Ok(ok) => ok,
         Err(e) => return json!({"property": site_url, "sitemaps": [], "error": e}),
@@ -193,21 +200,37 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
         Ok(b) => b,
         Err(e) => {
             let result = json!({"error": e});
-            let _ = writeln!(out, "{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            let _ = writeln!(
+                out,
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_default()
+            );
             return 1;
         }
     };
 
     let result = match command.as_str() {
         "sites" => list_sites_with(&ReqwestSitesTransport, &bearer),
-        "sitemaps" => list_sitemaps_with(&ReqwestSitesTransport, &bearer, prop.as_deref().unwrap_or_default()),
+        "sitemaps" => list_sitemaps_with(
+            &ReqwestSitesTransport,
+            &bearer,
+            prop.as_deref().unwrap_or_default(),
+        ),
         _ => {
             let now = super::date_util::civil_now();
-            let (start, end) =
-                super::date_util::default_date_range(now, days, start_date.as_deref(), end_date.as_deref());
+            let (start, end) = super::date_util::default_date_range(
+                now,
+                days,
+                start_date.as_deref(),
+                end_date.as_deref(),
+            );
             let filters = super::gsc_query_v2::build_filters(device.as_deref(), country.as_deref());
-            let dims: Vec<String> =
-                dimensions.split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect();
+            let dims: Vec<String> = dimensions
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect();
             super::gsc_query_v2::query_with(
                 &super::gsc_query_v2::ReqwestSearchAnalyticsTransport,
                 &bearer,
@@ -218,14 +241,26 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                 &search_type,
                 page_size,
                 limit,
-                if filters.is_empty() { None } else { Some(filters.as_slice()) },
+                if filters.is_empty() {
+                    None
+                } else {
+                    Some(filters.as_slice())
+                },
                 "final",
             )
         }
     };
 
-    let _ = writeln!(out, "{}", serde_json::to_string_pretty(&result).unwrap_or_default());
-    if result.get("error").map(|e| !e.is_null()).unwrap_or(false) { 1 } else { 0 }
+    let _ = writeln!(
+        out,
+        "{}",
+        serde_json::to_string_pretty(&result).unwrap_or_default()
+    );
+    if result.get("error").map(|e| !e.is_null()).unwrap_or(false) {
+        1
+    } else {
+        0
+    }
 }
 
 #[cfg(test)]
@@ -257,7 +292,10 @@ mod tests {
 
     #[test]
     fn list_sites_with_reports_http_error() {
-        let transport = FakeSitesTransport { status: 403, body: json!("nope") };
+        let transport = FakeSitesTransport {
+            status: 403,
+            body: json!("nope"),
+        };
         let out = list_sites_with(&transport, "tok");
         assert!(out["error"].as_str().unwrap().contains("403"));
         assert_eq!(out["sites"].as_array().unwrap().len(), 0);
@@ -270,7 +308,10 @@ mod tests {
             body: json!({"sitemap": [{"path": "https://example.com/sitemap.xml", "isPending": false, "warnings": 0, "errors": 0}]}),
         };
         let out = list_sitemaps_with(&transport, "tok", "sc-domain:example.com");
-        assert_eq!(out["sitemaps"][0]["path"], "https://example.com/sitemap.xml");
+        assert_eq!(
+            out["sitemaps"][0]["path"],
+            "https://example.com/sitemap.xml"
+        );
         assert_eq!(out["property"], "sc-domain:example.com");
     }
 }

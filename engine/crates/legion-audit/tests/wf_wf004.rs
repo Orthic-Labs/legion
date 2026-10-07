@@ -44,7 +44,10 @@ fn run_order_is_deterministic_for_a_fixed_seed() {
     assert_eq!(report_b.total, 3);
     let orders_a: Vec<_> = report_a.results.iter().map(|r| r.order.clone()).collect();
     let orders_b: Vec<_> = report_b.results.iter().map(|r| r.order.clone()).collect();
-    assert_eq!(orders_a, orders_b, "same seed must reproduce the same shuffle sequence");
+    assert_eq!(
+        orders_a, orders_b,
+        "same seed must reproduce the same shuffle sequence"
+    );
 }
 
 /// A zero seed falls back to `1` internally (`seed >>> 0 || 1` in the JS
@@ -66,7 +69,11 @@ fn run_order_zero_seed_falls_back_like_js_or_operator() {
     opts_one.seed = Some(1);
     let report_one = run_order(opts_one);
 
-    let orders_zero: Vec<_> = report_zero.results.iter().map(|r| r.order.clone()).collect();
+    let orders_zero: Vec<_> = report_zero
+        .results
+        .iter()
+        .map(|r| r.order.clone())
+        .collect();
     let orders_one: Vec<_> = report_one.results.iter().map(|r| r.order.clone()).collect();
     assert_eq!(
         orders_zero, orders_one,
@@ -171,7 +178,10 @@ fn run_order_passes_shuffled_order_via_env_var() {
     opts.runs = 1;
     let report = run_order(opts);
 
-    assert!(report.ok, "GAUNTLET_TEST_ORDER should equal the single discovered test file's relative path");
+    assert!(
+        report.ok,
+        "GAUNTLET_TEST_ORDER should equal the single discovered test file's relative path"
+    );
     assert_eq!(report.results[0].order, vec!["sum.test.mjs".to_string()]);
 }
 
@@ -199,7 +209,8 @@ fn fixture_sample_diff_base_sum_js_matches_js_original() {
 
 #[test]
 fn fixture_sample_diff_changed_sum_js_adds_mean() {
-    let ported = fs::read_to_string(fixtures_root().join("sample-diff/changed/src/sum.js")).unwrap();
+    let ported =
+        fs::read_to_string(fixtures_root().join("sample-diff/changed/src/sum.js")).unwrap();
     assert!(ported.contains("export function sum(values) {"));
     assert!(ported.contains("export function mean(values) {"));
     assert!(ported.contains("if (values.length === 0) return 0;"));

@@ -55,11 +55,15 @@ fn cap_severity(base: &str, cap: &str) -> String {
 /// (lexical-only inference) rather than throwing.
 fn observed_classification(ctx: &Context, file: Option<&str>) -> Option<String> {
     for e in &ctx.entities {
-        if (e.kind == "data-store" || e.kind == "asset") && e.attributes.get("dataClass").is_some() {
+        if (e.kind == "data-store" || e.kind == "asset") && e.attributes.get("dataClass").is_some()
+        {
             let touches_file = if let Some(file) = file {
                 let related_touches = ctx.relations_to(&e.id).any(|r| {
                     ctx.entity_by_id(&r.from)
-                        .map(|from| from.kind == "repository-artifact" && from.attr_str("path") == Some(file))
+                        .map(|from| {
+                            from.kind == "repository-artifact"
+                                && from.attr_str("path") == Some(file)
+                        })
                         .unwrap_or(false)
                 });
                 related_touches || e.attr_str("file") == Some(file)
@@ -89,14 +93,31 @@ struct Gate {
 }
 
 /// Port of `classificationGate`.
-fn classification_gate(ctx: &Context, file: Option<&str>, lexical_text: &str, base_severity: &str) -> Gate {
+fn classification_gate(
+    ctx: &Context,
+    file: Option<&str>,
+    lexical_text: &str,
+    base_severity: &str,
+) -> Gate {
     let observed = observed_classification(ctx, file);
-    let data_class = observed.clone().unwrap_or_else(|| classify_data_class(lexical_text).to_string());
+    let data_class = observed
+        .clone()
+        .unwrap_or_else(|| classify_data_class(lexical_text).to_string());
     if severity_rank(base_severity) < severity_rank("high") {
-        return Gate { severity_hint: base_severity.to_string(), data_class, classification_observed: observed.is_some(), uncertainty: vec![] };
+        return Gate {
+            severity_hint: base_severity.to_string(),
+            data_class,
+            classification_observed: observed.is_some(),
+            uncertainty: vec![],
+        };
     }
     if observed.is_some() {
-        return Gate { severity_hint: base_severity.to_string(), data_class, classification_observed: true, uncertainty: vec![] };
+        return Gate {
+            severity_hint: base_severity.to_string(),
+            data_class,
+            classification_observed: true,
+            uncertainty: vec![],
+        };
     }
     Gate {
         severity_hint: cap_severity(base_severity, "medium"),
@@ -106,44 +127,70 @@ fn classification_gate(ctx: &Context, file: Option<&str>, lexical_text: &str, ba
     }
 }
 
-static LOG_CALL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(?:console|logger)\.(?:log|info|warn|debug|error)\s*\(([^;\n]{0,200})\)").unwrap());
+static LOG_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:console|logger)\.(?:log|info|warn|debug|error)\s*\(([^;\n]{0,200})\)")
+        .unwrap()
+});
 static LOG_SENSITIVE_FIELD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\.(email|phone|address|ssn|password|token|apiKey|api_key|secret|creditCard|card_?number)\b").unwrap()
 });
-static REDACTION_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)redact|mask\(|sanitize|scrub|anonymiz").unwrap());
+static REDACTION_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)redact|mask\(|sanitize|scrub|anonymiz").unwrap());
 
 static CONSENT_DESTRUCTURE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:const|let)\s*\{[^}]*\b(?:email|phone|ssn|address)\b[^}]*\}\s*=\s*(?:req|request)\.body").unwrap()
 });
-static CONSENT_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)consent|opt[_-]?in|agree(?:d)?ToTerms").unwrap());
+static CONSENT_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)consent|opt[_-]?in|agree(?:d)?ToTerms").unwrap());
 
-static STORE_CALL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.(?:save|insert|create|put)\s*\(\s*\{([^}]{0,200})\}").unwrap());
-static ENCRYPTION_FIELD_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)encrypt|cipher|kms\.|sealField").unwrap());
+static STORE_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\.(?:save|insert|create|put)\s*\(\s*\{([^}]{0,200})\}").unwrap()
+});
+static ENCRYPTION_FIELD_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)encrypt|cipher|kms\.|sealField").unwrap());
 
-static HTTP_SEND_CALL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)(?:fetch|axios\.\w+|http\.request)\s*\(\s*['"]http://[^'"]+['"][^;\n]{0,200}"#).unwrap());
+static HTTP_SEND_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?i)(?:fetch|axios\.\w+|http\.request)\s*\(\s*['"]http://[^'"]+['"][^;\n]{0,200}"#,
+    )
+    .unwrap()
+});
 
 static BACKUP_FILE_GUARD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)backup").unwrap());
 
-static EXPORT_FUNCTION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(?:export|download)\w*\s*\([^)]{0,120}\)\s*\{[^}]{0,200}").unwrap());
-static EXPORT_CONTROL_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)authorize|requireRole|redact|mask\(").unwrap());
+static EXPORT_FUNCTION: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:export|download)\w*\s*\([^)]{0,120}\)\s*\{[^}]{0,200}").unwrap()
+});
+static EXPORT_CONTROL_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)authorize|requireRole|redact|mask\(").unwrap());
 
-static RETENTION_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)retention[_-]?period|\bttl\b|expiresAt|purgeAfter|deleteAfter|retention[_-]?policy").unwrap());
+static RETENTION_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)retention[_-]?period|\bttl\b|expiresAt|purgeAfter|deleteAfter|retention[_-]?policy",
+    )
+    .unwrap()
+});
 
-static ERASURE_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)deleteUser|eraseUser|purgeUser|anonymizeUser|dataErasure|rightToErasure").unwrap());
+static ERASURE_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)deleteUser|eraseUser|purgeUser|anonymizeUser|dataErasure|rightToErasure")
+        .unwrap()
+});
 
-static TENANT_QUERY_CALL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.(?:find|findOne|findAll|query)\s*\(\s*\{([^}]{0,150})\}").unwrap());
-static TENANT_SCOPE_FIELD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)tenant[_-]?id|organization[_-]?id|org[_-]?id").unwrap());
-static MULTI_TENANT_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)tenant[_-]?id|organization[_-]?id|org[_-]?id").unwrap());
+static TENANT_QUERY_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\.(?:find|findOne|findAll|query)\s*\(\s*\{([^}]{0,150})\}").unwrap()
+});
+static TENANT_SCOPE_FIELD: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)tenant[_-]?id|organization[_-]?id|org[_-]?id").unwrap());
+static MULTI_TENANT_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)tenant[_-]?id|organization[_-]?id|org[_-]?id").unwrap());
 
 static PII_STORAGE_MARKER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\.(?:save|insert|create|put)\s*\(\s*\{[^}]{0,200}\b(?:email|phone|address|ssn|creditCard)\b").unwrap()
 });
 
-static PRIVACY_CLAIM: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)we\s+(?:do\s+not|don't|never)\s+(sell|share|store|track|collect|retain)\b[^.\n]{0,80}").unwrap());
+static PRIVACY_CLAIM: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)we\s+(?:do\s+not|don't|never)\s+(sell|share|store|track|collect|retain)\b[^.\n]{0,80}").unwrap()
+});
 
 fn contradiction_pattern(verb: &str) -> Option<Regex> {
     let src = match verb {
@@ -206,7 +253,10 @@ fn make_observation(rule_id: &str, ctx: &Context, f: RawFinding) -> Observation 
         severity_hint: f.gate_severity,
         sources: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
         sinks: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
-        attacker_capabilities: vec!["read-repository".to_string(), "observe-application-output".to_string()],
+        attacker_capabilities: vec![
+            "read-repository".to_string(),
+            "observe-application-output".to_string(),
+        ],
         preconditions: vec![Fact {
             kind: "attacker-position".to_string(),
             subject: "actor:external".to_string(),
@@ -246,7 +296,9 @@ fn detect_log_sensitive(ctx: &Context) -> Vec<RawFinding> {
         for m in LOG_CALL.captures_iter(text) {
             let whole = m.get(0).unwrap();
             let args = m.get(1).map(|g| g.as_str()).unwrap_or("");
-            let Some(field_m) = LOG_SENSITIVE_FIELD.captures(args) else { continue };
+            let Some(field_m) = LOG_SENSITIVE_FIELD.captures(args) else {
+                continue;
+            };
             if REDACTION_MARKER.is_match(whole.as_str()) {
                 continue;
             }
@@ -310,8 +362,9 @@ fn detect_pii_without_consent(ctx: &Context) -> Vec<RawFinding> {
     out
 }
 
-static STORE_SENSITIVE_FIELD: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\b(?:email|phone|address|ssn|creditCard|card_?number|password)\b").unwrap());
+static STORE_SENSITIVE_FIELD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:email|phone|address|ssn|creditCard|card_?number|password)\b").unwrap()
+});
 
 fn detect_unencrypted_pii_storage(ctx: &Context) -> Vec<RawFinding> {
     let mut out = Vec::new();
@@ -326,7 +379,12 @@ fn detect_unencrypted_pii_storage(ctx: &Context) -> Vec<RawFinding> {
             if !STORE_SENSITIVE_FIELD.is_match(fields) {
                 continue;
             }
-            if ENCRYPTION_FIELD_MARKER.is_match(window_around(text, whole.start(), whole.len(), 150)) {
+            if ENCRYPTION_FIELD_MARKER.is_match(window_around(
+                text,
+                whole.start(),
+                whole.len(),
+                150,
+            )) {
                 continue;
             }
             let gate = classification_gate(ctx, Some(file.as_str()), fields, "high");
@@ -352,7 +410,8 @@ fn detect_unencrypted_pii_storage(ctx: &Context) -> Vec<RawFinding> {
     out
 }
 
-static HTTP_SEND_SENSITIVE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\b(?:email|phone|address|ssn|password|token)\b").unwrap());
+static HTTP_SEND_SENSITIVE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\b(?:email|phone|address|ssn|password|token)\b").unwrap());
 
 fn detect_unencrypted_transmission(ctx: &Context) -> Vec<RawFinding> {
     let mut out = Vec::new();
@@ -371,7 +430,8 @@ fn detect_unencrypted_transmission(ctx: &Context) -> Vec<RawFinding> {
             out.push(RawFinding {
                 file: Some(file.clone()),
                 line: Some(line_of(text, m.start())),
-                claim: "Sensitive data appears to be sent over a plaintext http:// channel.".to_string(),
+                claim: "Sensitive data appears to be sent over a plaintext http:// channel."
+                    .to_string(),
                 gate_severity: gate.severity_hint,
                 gate_data_class: gate.data_class,
                 gate_classification_observed: gate.classification_observed,
@@ -389,7 +449,12 @@ fn detect_unencrypted_transmission(ctx: &Context) -> Vec<RawFinding> {
 }
 
 fn detect_unbounded_retention(ctx: &Context) -> Vec<RawFinding> {
-    let combined: String = ctx.files.iter().map(|f| ctx.read_file(f)).collect::<Vec<_>>().join("\n");
+    let combined: String = ctx
+        .files
+        .iter()
+        .map(|f| ctx.read_file(f))
+        .collect::<Vec<_>>()
+        .join("\n");
     if !PII_STORAGE_MARKER.is_match(&combined) {
         return vec![];
     }
@@ -440,7 +505,9 @@ fn detect_backup_unencrypted(ctx: &Context) -> Vec<RawFinding> {
         out.push(RawFinding {
             file: Some(file.clone()),
             line: Some(1),
-            claim: "A backup artifact references sensitive fields with no visible encryption marker.".to_string(),
+            claim:
+                "A backup artifact references sensitive fields with no visible encryption marker."
+                    .to_string(),
             gate_severity: gate.severity_hint,
             gate_data_class: gate.data_class,
             gate_classification_observed: gate.classification_observed,
@@ -456,7 +523,8 @@ fn detect_backup_unencrypted(ctx: &Context) -> Vec<RawFinding> {
     out
 }
 
-static EXPORT_PII_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\b(?:email|phone|address|ssn|creditCard|users?)\b").unwrap());
+static EXPORT_PII_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\b(?:email|phone|address|ssn|creditCard|users?)\b").unwrap());
 
 fn detect_unrestricted_export(ctx: &Context) -> Vec<RawFinding> {
     let mut out = Vec::new();
@@ -496,7 +564,12 @@ fn detect_unrestricted_export(ctx: &Context) -> Vec<RawFinding> {
 }
 
 fn detect_no_erasure_path(ctx: &Context) -> Vec<RawFinding> {
-    let combined: String = ctx.files.iter().map(|f| ctx.read_file(f)).collect::<Vec<_>>().join("\n");
+    let combined: String = ctx
+        .files
+        .iter()
+        .map(|f| ctx.read_file(f))
+        .collect::<Vec<_>>()
+        .join("\n");
     if !PII_STORAGE_MARKER.is_match(&combined) {
         return vec![];
     }
@@ -526,7 +599,12 @@ fn detect_no_erasure_path(ctx: &Context) -> Vec<RawFinding> {
 }
 
 fn detect_tenant_crossover(ctx: &Context) -> Vec<RawFinding> {
-    let combined: String = ctx.files.iter().map(|f| ctx.read_file(f)).collect::<Vec<_>>().join("\n");
+    let combined: String = ctx
+        .files
+        .iter()
+        .map(|f| ctx.read_file(f))
+        .collect::<Vec<_>>()
+        .join("\n");
     if !MULTI_TENANT_MARKER.is_match(&combined) {
         return vec![];
     }
@@ -542,7 +620,11 @@ fn detect_tenant_crossover(ctx: &Context) -> Vec<RawFinding> {
             if TENANT_SCOPE_FIELD.is_match(fields) {
                 continue;
             }
-            let lexical = if fields.is_empty() { "tenant-scoped-data" } else { fields };
+            let lexical = if fields.is_empty() {
+                "tenant-scoped-data"
+            } else {
+                fields
+            };
             let gate = classification_gate(ctx, Some(file.as_str()), lexical, "high");
             let mut uncertainty = vec!["Tenant scoping enforced by a query middleware/interceptor rather than inline in this call is not visible from this call site alone.".to_string()];
             uncertainty.extend(gate.uncertainty.clone());
@@ -567,7 +649,12 @@ fn detect_tenant_crossover(ctx: &Context) -> Vec<RawFinding> {
 }
 
 fn detect_marketing_mismatch(ctx: &Context) -> Vec<RawFinding> {
-    let combined: String = ctx.files.iter().map(|f| ctx.read_file(f)).collect::<Vec<_>>().join("\n");
+    let combined: String = ctx
+        .files
+        .iter()
+        .map(|f| ctx.read_file(f))
+        .collect::<Vec<_>>()
+        .join("\n");
     let mut out = Vec::new();
     for file in &ctx.files {
         let text = ctx.read_file(file);
@@ -577,7 +664,9 @@ fn detect_marketing_mismatch(ctx: &Context) -> Vec<RawFinding> {
         for m in PRIVACY_CLAIM.captures_iter(text) {
             let whole = m.get(0).unwrap();
             let verb = m.get(1).unwrap().as_str().to_lowercase();
-            let Some(contradiction) = contradiction_pattern(&verb) else { continue };
+            let Some(contradiction) = contradiction_pattern(&verb) else {
+                continue;
+            };
             if !contradiction.is_match(&combined) {
                 continue;
             }
@@ -618,31 +707,59 @@ fn detect_marketing_mismatch(ctx: &Context) -> Vec<RawFinding> {
 pub fn analyze(ctx: &Context) -> Vec<Observation> {
     let mut out = Vec::new();
     for f in detect_log_sensitive(ctx) {
-        out.push(make_observation("privacy.log.sensitive-data-unredacted", ctx, f));
+        out.push(make_observation(
+            "privacy.log.sensitive-data-unredacted",
+            ctx,
+            f,
+        ));
     }
     for f in detect_pii_without_consent(ctx) {
-        out.push(make_observation("privacy.collect.pii-without-consent", ctx, f));
+        out.push(make_observation(
+            "privacy.collect.pii-without-consent",
+            ctx,
+            f,
+        ));
     }
     for f in detect_unencrypted_pii_storage(ctx) {
         out.push(make_observation("privacy.store.unencrypted-pii", ctx, f));
     }
     for f in detect_unencrypted_transmission(ctx) {
-        out.push(make_observation("privacy.transmit.unencrypted-channel", ctx, f));
+        out.push(make_observation(
+            "privacy.transmit.unencrypted-channel",
+            ctx,
+            f,
+        ));
     }
     for f in detect_unbounded_retention(ctx) {
-        out.push(make_observation("privacy.retain.unbounded-retention", ctx, f));
+        out.push(make_observation(
+            "privacy.retain.unbounded-retention",
+            ctx,
+            f,
+        ));
     }
     for f in detect_backup_unencrypted(ctx) {
-        out.push(make_observation("privacy.retain.backup-unencrypted", ctx, f));
+        out.push(make_observation(
+            "privacy.retain.backup-unencrypted",
+            ctx,
+            f,
+        ));
     }
     for f in detect_unrestricted_export(ctx) {
-        out.push(make_observation("privacy.export.unrestricted-data-export", ctx, f));
+        out.push(make_observation(
+            "privacy.export.unrestricted-data-export",
+            ctx,
+            f,
+        ));
     }
     for f in detect_no_erasure_path(ctx) {
         out.push(make_observation("privacy.delete.no-erasure-path", ctx, f));
     }
     for f in detect_tenant_crossover(ctx) {
-        out.push(make_observation("privacy.process.tenant-data-crossover", ctx, f));
+        out.push(make_observation(
+            "privacy.process.tenant-data-crossover",
+            ctx,
+            f,
+        ));
     }
     for f in detect_marketing_mismatch(ctx) {
         out.push(make_observation("privacy.claim.marketing-mismatch", ctx, f));

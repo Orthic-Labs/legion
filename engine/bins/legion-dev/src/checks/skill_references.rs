@@ -26,7 +26,11 @@ pub struct Failure {
 }
 
 fn fail(file: &str, line: usize, message: String) -> Failure {
-    Failure { file: file.to_string(), line, message }
+    Failure {
+        file: file.to_string(),
+        line,
+        message,
+    }
 }
 
 /// Names registered in the `TABLE` of the `legion script` dispatcher.
@@ -55,7 +59,10 @@ fn bundle_root(root: &Path, rel: &str) -> PathBuf {
 }
 
 fn strip_inline_code(line: &str) -> String {
-    Regex::new(r"`[^`]*`").unwrap().replace_all(line, "").into_owned()
+    Regex::new(r"`[^`]*`")
+        .unwrap()
+        .replace_all(line, "")
+        .into_owned()
 }
 
 fn link_target_is_checkable(target: &str) -> bool {
@@ -94,10 +101,9 @@ pub fn scan_file(
     let mut failures = Vec::new();
     let link_re = Regex::new(r#"\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)"#).unwrap();
     let script_cmd_re = Regex::new(r"legion script\s+([A-Za-z0-9_./<>-]+)").unwrap();
-    let script_path_re = Regex::new(
-        r"[A-Za-z0-9_.\-/]*scripts/[A-Za-z0-9_.\-/]*[A-Za-z0-9_\-]\.(?:py|mjs|sh|js)\b",
-    )
-    .unwrap();
+    let script_path_re =
+        Regex::new(r"[A-Za-z0-9_.\-/]*scripts/[A-Za-z0-9_.\-/]*[A-Za-z0-9_\-]\.(?:py|mjs|sh|js)\b")
+            .unwrap();
     let interp_re = Regex::new(
         r"\b(?:node|python3?)\s+((?:\./|\.\./)?[A-Za-z0-9_.\-/]*[A-Za-z0-9_\-]\.(?:mjs|js|py))\b",
     )
@@ -120,7 +126,11 @@ pub fn scan_file(
                 if !link_target_is_checkable(raw) {
                     continue;
                 }
-                let path_part = raw.split(['#', '?']).next().unwrap_or("").replace("%20", " ");
+                let path_part = raw
+                    .split(['#', '?'])
+                    .next()
+                    .unwrap_or("")
+                    .replace("%20", " ");
                 if path_part.is_empty() {
                     continue;
                 }
@@ -137,7 +147,8 @@ pub fn scan_file(
 
         for cap in script_cmd_re.captures_iter(line) {
             let name = cap[1].trim_end_matches(['.', ',', ':', ';']);
-            if name.is_empty() || name.starts_with('-') || name.contains('<') || name.contains('>') {
+            if name.is_empty() || name.starts_with('-') || name.contains('<') || name.contains('>')
+            {
                 continue;
             }
             if !script_table.contains(name) {
@@ -194,7 +205,11 @@ fn check_host_requirements(root: &Path, rel: &str, text: &str) -> Vec<Failure> {
     let declared = match declared_capabilities(root) {
         Ok(d) => d,
         Err(e) => {
-            failures.push(fail(rel, 1, format!("cannot read capability registry: {e}")));
+            failures.push(fail(
+                rel,
+                1,
+                format!("cannot read capability registry: {e}"),
+            ));
             return failures;
         }
     };
@@ -243,13 +258,19 @@ pub fn run(root: &Path) -> bool {
     let checked = files.iter().filter(|f| is_skill_markdown(f)).count();
     let failures = check_files(root, &files, &table);
     if failures.is_empty() {
-        println!("skill references ok: {checked} markdown files, {} dispatch entries", table.len());
+        println!(
+            "skill references ok: {checked} markdown files, {} dispatch entries",
+            table.len()
+        );
         return true;
     }
     for f in &failures {
         eprintln!("{}:{}: {}", f.file, f.line, f.message);
     }
-    eprintln!("\ncheck-skill-references failed: {} reference(s) across {checked} files", failures.len());
+    eprintln!(
+        "\ncheck-skill-references failed: {} reference(s) across {checked} files",
+        failures.len()
+    );
     false
 }
 
@@ -266,8 +287,10 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_nanos())
                 .unwrap_or(0);
-            let dir = std::env::temp_dir()
-                .join(format!("legion-skillrefs-{label}-{}-{nonce}", std::process::id()));
+            let dir = std::env::temp_dir().join(format!(
+                "legion-skillrefs-{label}-{}-{nonce}",
+                std::process::id()
+            ));
             fs::create_dir_all(&dir).unwrap();
             Self(dir)
         }

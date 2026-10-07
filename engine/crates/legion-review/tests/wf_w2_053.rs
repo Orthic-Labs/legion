@@ -14,8 +14,9 @@
 
 use legion_review::wf_port::w2_053::{
     openai_compat::{
-        build_user_content, is_empty_content, is_quota_status, order_keys, parse_nonstream_response,
-        read_sse_stream, stream_for, ImageAttachment, ROTATION_FAILOVER, ROTATION_ROUND_ROBIN,
+        build_user_content, is_empty_content, is_quota_status, order_keys,
+        parse_nonstream_response, read_sse_stream, stream_for, ImageAttachment, ROTATION_FAILOVER,
+        ROTATION_ROUND_ROBIN,
     },
     quick_ask::{
         codex_command_template, format_result_block, gemini_command_template, selected_jurors,
@@ -36,7 +37,11 @@ fn openai_compat_per_model_stream_override() {
     model_stream.insert("deepseek-ai/deepseek-v4-flash".to_string(), false);
     model_stream.insert("z-ai/glm-5.2".to_string(), true);
 
-    assert!(!stream_for(&model_stream, true, "deepseek-ai/deepseek-v4-flash"));
+    assert!(!stream_for(
+        &model_stream,
+        true,
+        "deepseek-ai/deepseek-v4-flash"
+    ));
     assert!(stream_for(&model_stream, true, "z-ai/glm-5.2"));
     assert!(stream_for(&model_stream, true, "other"));
 }
@@ -94,9 +99,18 @@ fn minimax_anthropic_provider_is_out_of_chunk_scope_gap() {
 fn openai_compat_key_rotation_failover_vs_round_robin() {
     let keys = vec!["A", "B", "C"];
     let mut rr = 0u64;
-    assert_eq!(order_keys(&keys, ROTATION_FAILOVER, &mut rr), vec!["A", "B", "C"]);
-    assert_eq!(order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr), vec!["A", "B", "C"]);
-    assert_eq!(order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr), vec!["B", "C", "A"]);
+    assert_eq!(
+        order_keys(&keys, ROTATION_FAILOVER, &mut rr),
+        vec!["A", "B", "C"]
+    );
+    assert_eq!(
+        order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr),
+        vec!["A", "B", "C"]
+    );
+    assert_eq!(
+        order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr),
+        vec!["B", "C", "A"]
+    );
 }
 
 #[test]
@@ -121,7 +135,10 @@ fn openai_compat_sse_stream_round_trip() {
 
 #[test]
 fn openai_compat_image_first_user_content() {
-    let images = vec![ImageAttachment { mime: "image/png".into(), b64: "AAAA".into() }];
+    let images = vec![ImageAttachment {
+        mime: "image/png".into(),
+        b64: "AAAA".into(),
+    }];
     let content = build_user_content("describe", &images);
     let arr = content.as_array().unwrap();
     assert_eq!(arr[0]["type"], "image_url");
@@ -146,7 +163,13 @@ fn subprocess_cli_command_and_stdin_routing() {
 fn subprocess_cli_windows_executable_fallback_order() {
     assert_eq!(
         windows_executable_candidates("gemini"),
-        vec!["gemini", "gemini.cmd", "gemini.exe", "gemini.bat", "gemini.ps1"],
+        vec![
+            "gemini",
+            "gemini.cmd",
+            "gemini.exe",
+            "gemini.bat",
+            "gemini.ps1"
+        ],
     );
 }
 
@@ -164,17 +187,33 @@ fn subprocess_cli_exit_error_message_caps_and_prefers_stderr() {
 fn quick_ask_config_matches_python_constants() {
     assert_eq!(
         codex_command_template(),
-        vec!["codex", "exec", "--skip-git-repo-check", "-m", "{model}", "-"],
+        vec![
+            "codex",
+            "exec",
+            "--skip-git-repo-check",
+            "-m",
+            "{model}",
+            "-"
+        ],
     );
-    assert_eq!(gemini_command_template(), vec!["gemini", "-m", "{model}", "-y"]);
+    assert_eq!(
+        gemini_command_template(),
+        vec!["gemini", "-m", "{model}", "-y"]
+    );
     assert_eq!(DEFAULT_CODEX_MODEL, "gpt-5.5");
     assert_eq!(DEFAULT_GEMINI_MODEL, "gemini-2.5-flash");
 }
 
 #[test]
 fn quick_ask_only_flag_selects_expected_jurors() {
-    assert_eq!(selected_jurors(JurorSelection::parse("codex").unwrap()), vec!["codex"]);
-    assert_eq!(selected_jurors(JurorSelection::parse("gemini").unwrap()), vec!["gemini"]);
+    assert_eq!(
+        selected_jurors(JurorSelection::parse("codex").unwrap()),
+        vec!["codex"]
+    );
+    assert_eq!(
+        selected_jurors(JurorSelection::parse("gemini").unwrap()),
+        vec!["gemini"]
+    );
     assert_eq!(
         selected_jurors(JurorSelection::parse("both").unwrap()),
         vec!["codex", "gemini"],
@@ -194,7 +233,12 @@ fn quick_ask_directive_prefix_and_result_formatting() {
     assert_eq!(with_directive("DIRECTIVE", "Q"), "DIRECTIVE\n\n---\n\nQ");
 
     let results = vec![
-        JurorOutcome { name: "gemini".into(), output: "g out".into(), elapsed_s: 1.2, error: None },
+        JurorOutcome {
+            name: "gemini".into(),
+            output: "g out".into(),
+            elapsed_s: 1.2,
+            error: None,
+        },
         JurorOutcome {
             name: "codex".into(),
             output: String::new(),
@@ -204,6 +248,12 @@ fn quick_ask_directive_prefix_and_result_formatting() {
     ];
     let sorted = sort_results(results);
     assert_eq!(sorted[0].name, "codex");
-    assert_eq!(format_result_block(&sorted[0]), "\n========== CODEX (0.4s) ==========\nERROR: timeout");
-    assert_eq!(format_result_block(&sorted[1]), "\n========== GEMINI (1.2s) ==========\ng out");
+    assert_eq!(
+        format_result_block(&sorted[0]),
+        "\n========== CODEX (0.4s) ==========\nERROR: timeout"
+    );
+    assert_eq!(
+        format_result_block(&sorted[1]),
+        "\n========== GEMINI (1.2s) ==========\ng out"
+    );
 }

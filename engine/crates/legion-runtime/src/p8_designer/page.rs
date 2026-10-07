@@ -6,7 +6,9 @@
 pub fn is_full_page(content: &str) -> bool {
     let stripped = strip_html_comments(content);
     let lower = stripped.to_ascii_lowercase();
-    contains_doctype(&lower) || contains_open_tag(&lower, "html") || contains_open_tag(&lower, "head")
+    contains_doctype(&lower)
+        || contains_open_tag(&lower, "html")
+        || contains_open_tag(&lower, "head")
 }
 
 fn strip_html_comments(content: &str) -> String {
@@ -35,9 +37,9 @@ fn strip_html_comments(content: &str) -> String {
 
 fn contains_doctype(lower: &str) -> bool {
     // /<!doctype\s/i
-    lower
-        .match_indices("<!doctype")
-        .any(|(idx, _)| matches!(lower.as_bytes().get(idx + 9), Some(b) if (*b as char).is_whitespace()))
+    lower.match_indices("<!doctype").any(
+        |(idx, _)| matches!(lower.as_bytes().get(idx + 9), Some(b) if (*b as char).is_whitespace()),
+    )
 }
 
 fn contains_open_tag(lower: &str, tag: &str) -> bool {

@@ -24,26 +24,50 @@ fn bare_command(command: Option<&str>) -> Option<String> {
     let value = command?.trim();
     let ok = !value.is_empty()
         && value.as_bytes()[0].is_ascii_alphanumeric()
-        && value.bytes().all(|b| (b as char).is_ascii_alphanumeric() || b == b'.' || b == b'_' || b == b'-');
-    if ok { Some(value.to_string()) } else { None }
+        && value
+            .bytes()
+            .all(|b| (b as char).is_ascii_alphanumeric() || b == b'.' || b == b'_' || b == b'-');
+    if ok {
+        Some(value.to_string())
+    } else {
+        None
+    }
 }
 
 fn executable_on_path(command: &str) -> Option<String> {
     let path_value = std::env::var("PATH").unwrap_or_default();
-    let entries: Vec<&str> = path_value.split(if cfg!(windows) { ';' } else { ':' }).collect();
+    let entries: Vec<&str> = path_value
+        .split(if cfg!(windows) { ';' } else { ':' })
+        .collect();
     let extensions: Vec<String> = if cfg!(windows) {
-        let pathext = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
-        std::iter::once(String::new()).chain(pathext.split(';').filter(|s| !s.is_empty()).map(String::from)).collect()
+        let pathext =
+            std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
+        std::iter::once(String::new())
+            .chain(
+                pathext
+                    .split(';')
+                    .filter(|s| !s.is_empty())
+                    .map(String::from),
+            )
+            .collect()
     } else {
         vec![String::new()]
     };
     let mut seen = BTreeSet::new();
-    let candidates: Vec<String> = extensions.into_iter().map(|ext| format!("{command}{ext}")).filter(|c| seen.insert(c.clone())).collect();
+    let candidates: Vec<String> = extensions
+        .into_iter()
+        .map(|ext| format!("{command}{ext}"))
+        .filter(|c| seen.insert(c.clone()))
+        .collect();
 
     let cwd = std::env::current_dir().unwrap_or_default();
     for entry in entries {
         for candidate in &candidates {
-            let base = if entry.is_empty() { cwd.clone() } else { std::path::PathBuf::from(entry) };
+            let base = if entry.is_empty() {
+                cwd.clone()
+            } else {
+                std::path::PathBuf::from(entry)
+            };
             let path = base.join(candidate);
             if let Ok(meta) = fs::metadata(&path) {
                 if meta.is_file() {
@@ -71,17 +95,34 @@ pub fn active_bootstrap(root: &Path) -> Option<String> {
     let channels = read_json(&root.join(CHANNELS_FILE)).ok();
 
     let native_release = contract.as_ref().and_then(|c| c.get("nativeRelease"));
-    let direct_channel = channels.as_ref().and_then(|c| c.get("channels")).and_then(|c| c.get("direct-bootstrap"));
+    let direct_channel = channels
+        .as_ref()
+        .and_then(|c| c.get("channels"))
+        .and_then(|c| c.get("direct-bootstrap"));
 
-    if native_release.and_then(|n| n.get("status")).and_then(Value::as_str) != Some("available")
-        || direct_channel.and_then(|d| d.get("status")).and_then(Value::as_str) != Some("available")
+    if native_release
+        .and_then(|n| n.get("status"))
+        .and_then(Value::as_str)
+        != Some("available")
+        || direct_channel
+            .and_then(|d| d.get("status"))
+            .and_then(Value::as_str)
+            != Some("available")
     {
         return None;
     }
 
-    let contract_url = native_release.and_then(|n| n.get("bootstrapAuthority")).and_then(Value::as_str);
-    let channel_url = channels.as_ref().and_then(|c| c.get("bootstrap")).and_then(|b| b.get("stableUrl")).and_then(Value::as_str);
-    let direct_url = direct_channel.and_then(|d| d.get("stableUrl")).and_then(Value::as_str);
+    let contract_url = native_release
+        .and_then(|n| n.get("bootstrapAuthority"))
+        .and_then(Value::as_str);
+    let channel_url = channels
+        .as_ref()
+        .and_then(|c| c.get("bootstrap"))
+        .and_then(|b| b.get("stableUrl"))
+        .and_then(Value::as_str);
+    let direct_url = direct_channel
+        .and_then(|d| d.get("stableUrl"))
+        .and_then(Value::as_str);
 
     match contract_url {
         Some(c) if Some(c) == channel_url && Some(c) == direct_url => Some(c.to_string()),
@@ -102,19 +143,37 @@ fn declared_path_binaries(manifest: &Value, hooks: &Value) -> Vec<(String, Vec<S
     };
     if let Some(servers) = manifest.get("mcpServers").and_then(Value::as_object) {
         for (id, server) in servers {
-            add(server.get("command").and_then(Value::as_str), format!(".claude-plugin/plugin.json mcpServers.{id}"));
+            add(
+                server.get("command").and_then(Value::as_str),
+                format!(".claude-plugin/plugin.json mcpServers.{id}"),
+            );
         }
     }
     if let Some(events) = hooks.get("hooks").and_then(Value::as_object) {
         for (event, entries) in events {
             for entry in entries.as_array().into_iter().flatten() {
-                for (index, hook) in entry.get("hooks").and_then(Value::as_array).into_iter().flatten().enumerate() {
-                    add(hook.get("command").and_then(Value::as_str), format!("hooks/hooks.json {event}[{index}]"));
+                for (index, hook) in entry
+                    .get("hooks")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .enumerate()
+                {
+                    add(
+                        hook.get("command").and_then(Value::as_str),
+                        format!("hooks/hooks.json {event}[{index}]"),
+                    );
                 }
             }
         }
     }
-    order.into_iter().map(|b| { let s = map.remove(&b).unwrap_or_default(); (b, s) }).collect()
+    order
+        .into_iter()
+        .map(|b| {
+            let s = map.remove(&b).unwrap_or_default();
+            (b, s)
+        })
+        .collect()
 }
 
 pub struct PathBinaryReport {
@@ -127,7 +186,9 @@ pub fn check_path_binaries(root: &Path, manifest: &Value, hooks: &Value) -> Path
     for (binary, sources) in declared_path_binaries(manifest, hooks) {
         let resolved = executable_on_path(&binary);
         if resolved.is_none() && bootstrap.is_none() {
-            let bootstrap_note = format!("Install via the published direct bootstrap, then rerun '{ACTIVATION_PREFLIGHT}'.");
+            let bootstrap_note = format!(
+                "Install via the published direct bootstrap, then rerun '{ACTIVATION_PREFLIGHT}'."
+            );
             problems.push(format!(
                 "plugin binary '{binary}' is not reachable on PATH (required by {}). {bootstrap_note}",
                 sources.join(", ")
@@ -190,7 +251,11 @@ pub fn collect_surface(root: &Path, check_installed_binaries: bool) -> Result<Su
     let mut mcp_servers = Vec::new();
     if let Some(servers) = manifest.get("mcpServers").and_then(Value::as_object) {
         for (id, server) in servers {
-            let args: Vec<Value> = server.get("args").and_then(Value::as_array).cloned().unwrap_or_default();
+            let args: Vec<Value> = server
+                .get("args")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             let native = server.get("command").and_then(Value::as_str) == Some("legion")
                 && args == vec![Value::from("serve"), Value::from("--stdio")];
             let entry = args
@@ -207,25 +272,43 @@ pub fn collect_surface(root: &Path, check_installed_binaries: bool) -> Result<Su
             }
             let mut o = Map::new();
             o.insert("id".into(), Value::from(id.clone()));
-            o.insert("command".into(), server.get("command").cloned().unwrap_or(Value::Null));
+            o.insert(
+                "command".into(),
+                server.get("command").cloned().unwrap_or(Value::Null),
+            );
             o.insert("args".into(), Value::Array(args));
-            o.insert("entry".into(), entry.map(Value::from).unwrap_or(Value::Null));
+            o.insert(
+                "entry".into(),
+                entry.map(Value::from).unwrap_or(Value::Null),
+            );
             mcp_servers.push(Value::Object(o));
         }
     }
 
     let hooks = read_json(&root.join("hooks/hooks.json"))?;
-    let mut hook_events: Vec<String> = hooks.get("hooks").and_then(Value::as_object).map(|o| o.keys().cloned().collect()).unwrap_or_default();
+    let mut hook_events: Vec<String> = hooks
+        .get("hooks")
+        .and_then(Value::as_object)
+        .map(|o| o.keys().cloned().collect())
+        .unwrap_or_default();
     hook_events.sort();
     let mut hook_targets: BTreeSet<String> = BTreeSet::new();
     if let Some(events) = hooks.get("hooks").and_then(Value::as_object) {
         for entries in events.values() {
             for entry in entries.as_array().into_iter().flatten() {
-                for hook in entry.get("hooks").and_then(Value::as_array).into_iter().flatten() {
+                for hook in entry
+                    .get("hooks")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
                     if let Some(cmd) = hook.get("command").and_then(Value::as_str) {
                         if let Some(idx) = cmd.find("${CLAUDE_PLUGIN_ROOT}/") {
                             let rest = &cmd[idx + "${CLAUDE_PLUGIN_ROOT}/".len()..];
-                            let target: String = rest.chars().take_while(|c| !c.is_whitespace() && *c != '"').collect();
+                            let target: String = rest
+                                .chars()
+                                .take_while(|c| !c.is_whitespace() && *c != '"')
+                                .collect();
                             if !target.is_empty() {
                                 hook_targets.insert(target);
                             }
@@ -259,7 +342,11 @@ pub fn collect_surface(root: &Path, check_installed_binaries: bool) -> Result<Su
 /// Faithful port of `surfaceDigest(surface)`. `JSON.stringify` (default,
 /// no whitespace) is matched by `serde_json::to_string` (compact).
 pub fn surface_digest(surface: &Surface) -> String {
-    let agent_names: Vec<Value> = surface.agents.iter().map(|a| a.get("name").cloned().unwrap_or(Value::Null)).collect();
+    let agent_names: Vec<Value> = surface
+        .agents
+        .iter()
+        .map(|a| a.get("name").cloned().unwrap_or(Value::Null))
+        .collect();
     let mcp_shape: Vec<Value> = surface
         .mcp_servers
         .iter()
@@ -293,13 +380,39 @@ pub fn build_surface_record(root: &Path, check_installed_binaries: bool) -> Resu
     counts.insert("hookEvents".into(), Value::from(surface.hook_events.len()));
 
     let mut hooks_out = Map::new();
-    hooks_out.insert("events".into(), Value::Array(surface.hook_events.iter().cloned().map(Value::from).collect()));
-    hooks_out.insert("targets".into(), Value::Array(surface.hook_targets.iter().cloned().map(Value::from).collect()));
+    hooks_out.insert(
+        "events".into(),
+        Value::Array(
+            surface
+                .hook_events
+                .iter()
+                .cloned()
+                .map(Value::from)
+                .collect(),
+        ),
+    );
+    hooks_out.insert(
+        "targets".into(),
+        Value::Array(
+            surface
+                .hook_targets
+                .iter()
+                .cloned()
+                .map(Value::from)
+                .collect(),
+        ),
+    );
 
     let mut surface_out = Map::new();
-    surface_out.insert("skills".into(), Value::Array(surface.skills.iter().cloned().map(Value::from).collect()));
+    surface_out.insert(
+        "skills".into(),
+        Value::Array(surface.skills.iter().cloned().map(Value::from).collect()),
+    );
     surface_out.insert("agents".into(), Value::Array(surface.agents.clone()));
-    surface_out.insert("mcpServers".into(), Value::Array(surface.mcp_servers.clone()));
+    surface_out.insert(
+        "mcpServers".into(),
+        Value::Array(surface.mcp_servers.clone()),
+    );
     surface_out.insert("hooks".into(), Value::Object(hooks_out));
 
     let mut record = Map::new();
@@ -309,7 +422,10 @@ pub fn build_surface_record(root: &Path, check_installed_binaries: bool) -> Resu
     record.insert("digest".into(), Value::from(digest));
     record.insert("counts".into(), Value::Object(counts));
     record.insert("surface".into(), Value::Object(surface_out));
-    record.insert("problems".into(), Value::Array(surface.problems.iter().cloned().map(Value::from).collect()));
+    record.insert(
+        "problems".into(),
+        Value::Array(surface.problems.iter().cloned().map(Value::from).collect()),
+    );
     Ok(Value::Object(record))
 }
 
@@ -325,18 +441,30 @@ pub fn run_opts(root: &Path, check: bool, structural_only: bool) -> bool {
             return false;
         }
     };
-    let problems = record.get("problems").and_then(Value::as_array).cloned().unwrap_or_default();
+    let problems = record
+        .get("problems")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let target = root.join(SURFACE_FILE);
     let rendered = format!("{}\n", serde_json::to_string_pretty(&record).unwrap());
 
     if !problems.is_empty() {
-        let lines: Vec<String> = problems.iter().filter_map(|p| p.as_str().map(String::from)).collect();
-        eprintln!("plugin surface does not resolve:\n  - {}", lines.join("\n  - "));
+        let lines: Vec<String> = problems
+            .iter()
+            .filter_map(|p| p.as_str().map(String::from))
+            .collect();
+        eprintln!(
+            "plugin surface does not resolve:\n  - {}",
+            lines.join("\n  - ")
+        );
         return false;
     }
 
     if check {
-        let current: Option<Value> = fs::read_to_string(&target).ok().and_then(|s| serde_json::from_str(&s).ok());
+        let current: Option<Value> = fs::read_to_string(&target)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok());
         let current = match current {
             Some(c) => c,
             None => {
@@ -344,8 +472,14 @@ pub fn run_opts(root: &Path, check: bool, structural_only: bool) -> bool {
                 return false;
             }
         };
-        let current_digest = current.get("digest").and_then(Value::as_str).unwrap_or_default();
-        let record_digest = record.get("digest").and_then(Value::as_str).unwrap_or_default();
+        let current_digest = current
+            .get("digest")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let record_digest = record
+            .get("digest")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let current_version = current.get("version").cloned().unwrap_or(Value::Null);
         let record_version = record.get("version").cloned().unwrap_or(Value::Null);
         if current_digest != record_digest && current_version == record_version {
@@ -361,7 +495,10 @@ pub fn run_opts(root: &Path, check: bool, structural_only: bool) -> bool {
         let counts = &record["counts"];
         println!(
             "plugin surface: resolves, {} skills / {} agents / {} mcp / {} hook events, digest {}…",
-            counts["skills"], counts["agents"], counts["mcpServers"], counts["hookEvents"],
+            counts["skills"],
+            counts["agents"],
+            counts["mcpServers"],
+            counts["hookEvents"],
             &record_digest.chars().take(19).collect::<String>()
         );
         return true;

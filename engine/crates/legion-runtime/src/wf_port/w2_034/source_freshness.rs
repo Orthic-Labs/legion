@@ -44,7 +44,9 @@ pub struct FreshnessReport {
 /// Reads `src["id"]` as a string when present, matching Python's `src.get('id')` used in
 /// the invalid-row error dict (which can hold `None`).
 fn opt_id(src: &Value) -> Option<String> {
-    src.get("id").and_then(|v| v.as_str()).map(|s| s.to_string())
+    src.get("id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
 }
 
 /// Port of `assess(as_of=None)`. `as_of` mirrors the Python default of "today" — the
@@ -65,9 +67,7 @@ pub fn assess(register: &Value, as_of: Date) -> FreshnessReport {
 
     for src in &sources {
         let checked_at_str = src.get("checked_at").and_then(|v| v.as_str());
-        let interval = src
-            .get("review_interval_days")
-            .and_then(value_as_i64);
+        let interval = src.get("review_interval_days").and_then(value_as_i64);
 
         let (checked_at_str, interval) = match (checked_at_str, interval) {
             (Some(c), Some(i)) => (c, i),
@@ -96,7 +96,9 @@ pub fn assess(register: &Value, as_of: Date) -> FreshnessReport {
         // `except Exception` around the date/interval parse); a missing/absent key here
         // is treated the same way — as an invalid row — rather than panicking.
         let (Some(id), Some(authority), Some(url)) = (
-            src.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            src.get("id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             src.get("authority").cloned(),
             src.get("url").cloned(),
         ) else {

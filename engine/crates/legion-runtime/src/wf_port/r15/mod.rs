@@ -118,7 +118,12 @@ fn parse_yaml_subset(yaml: &str) -> Result<BTreeMap<String, YamlValue>, ()> {
         let parent_path = stack.last().unwrap().path.clone();
 
         if rest.is_empty() {
-            insert_at_path(&mut root_map, &parent_path, &key, YamlValue::Map(BTreeMap::new()));
+            insert_at_path(
+                &mut root_map,
+                &parent_path,
+                &key,
+                YamlValue::Map(BTreeMap::new()),
+            );
             let mut new_path = parent_path.clone();
             new_path.push(key);
             stack.push(Frame {
@@ -821,7 +826,8 @@ fn collect_hex_colors(s: &str) -> Vec<String> {
             let len = j - (i + 1);
             if (3..=8).contains(&len) {
                 // `\b` after: next char (if any) must not be a word char.
-                let boundary_ok = j >= bytes.len() || !(bytes[j].is_alphanumeric() || bytes[j] == '_');
+                let boundary_ok =
+                    j >= bytes.len() || !(bytes[j].is_alphanumeric() || bytes[j] == '_');
                 if boundary_ok {
                     out.push(bytes[i..j].iter().collect());
                     i = j;
@@ -885,7 +891,10 @@ fn detect_format(v: &str) -> &'static str {
 
 fn build_color(name: Option<&str>, raw_value: &str, description: &str) -> Color {
     let values = collect_color_values(raw_value);
-    let primary = values.first().cloned().unwrap_or_else(|| raw_value.trim().to_string());
+    let primary = values
+        .first()
+        .cloned()
+        .unwrap_or_else(|| raw_value.trim().to_string());
     let format = detect_format(&primary).to_string();
     let desc = strip_bold(description).trim().to_string();
     Color {
@@ -1017,7 +1026,10 @@ fn extract_colors(section: Option<&Section>) -> Option<Colors> {
         }
 
         let bullets = collect_bullets(&sub.lines);
-        let parsed: Vec<Color> = bullets.iter().filter_map(|b| parse_color_bullet(b)).collect();
+        let parsed: Vec<Color> = bullets
+            .iter()
+            .filter_map(|b| parse_color_bullet(b))
+            .collect();
         if parsed.is_empty() {
             continue;
         }
@@ -1101,7 +1113,10 @@ fn extract_named_rules(lines: &[String]) -> Vec<NamedRule> {
             // `\*\*(The [^*]+?Rule)\.\*\*` — name is non-greedy up to "Rule.**"
             if let Some(name_and_rest) = joined[start + 2..].find("**") {
                 let candidate = &joined[start + 2..start + 2 + name_and_rest];
-                if candidate.starts_with("The ") && candidate.ends_with("Rule.") && !candidate[..candidate.len() - 1].contains('*') {
+                if candidate.starts_with("The ")
+                    && candidate.ends_with("Rule.")
+                    && !candidate[..candidate.len() - 1].contains('*')
+                {
                     let name = candidate[..candidate.len() - 1].to_string();
                     let end = start + 2 + name_and_rest + 2;
                     inline_matches.push((name, start, end));
@@ -1239,9 +1254,11 @@ fn is_the_x_rule_header_strict(s: &str) -> bool {
     if !starts_with_word(&lower, "the") {
         return false;
     }
-    ["rule", "fallback", "principle"]
-        .iter()
-        .any(|kw| lower.ends_with(kw) && (lower.len() == kw.len() || !is_word_char(lower.as_bytes()[lower.len() - kw.len() - 1] as char)))
+    ["rule", "fallback", "principle"].iter().any(|kw| {
+        lower.ends_with(kw)
+            && (lower.len() == kw.len()
+                || !is_word_char(lower.as_bytes()[lower.len() - kw.len() - 1] as char))
+    })
 }
 
 fn starts_with_word(lower: &str, word: &str) -> bool {
@@ -1298,7 +1315,10 @@ fn extract_typography(section: Option<&Section>) -> Option<Typography> {
 
     // Pattern A: **Display Font:** Family (with fallback)
     for (raw_role, family, fallback) in scan_font_line_a(&text) {
-        let role_key = raw_role.trim().to_lowercase().replace(char::is_whitespace, "-");
+        let role_key = raw_role
+            .trim()
+            .to_lowercase()
+            .replace(char::is_whitespace, "-");
         let role = normalize_font_role(&role_key).unwrap_or_else(|| "display".to_string());
         fonts.insert(
             role,
@@ -1341,7 +1361,10 @@ fn extract_typography(section: Option<&Section>) -> Option<Typography> {
             .is_some_and(|n| n.to_lowercase().contains("hierarch"))
     }) {
         let bullets = collect_bullets(&hier_sub.lines);
-        hierarchy = bullets.iter().filter_map(|b| parse_type_bullet(b)).collect();
+        hierarchy = bullets
+            .iter()
+            .filter_map(|b| parse_type_bullet(b))
+            .collect();
     }
 
     Some(Typography {
@@ -1370,7 +1393,10 @@ fn scan_font_line_a(text: &str) -> Vec<(String, String, Option<String>)> {
             None => continue,
         };
         let role = &rest[..font_idx];
-        if !role.chars().all(|c| c.is_alphanumeric() || c.is_whitespace() || c == '_' || c == '/') {
+        if !role
+            .chars()
+            .all(|c| c.is_alphanumeric() || c.is_whitespace() || c == '_' || c == '/')
+        {
             continue;
         }
         let after = rest[font_idx + "Font:**".len()..].trim_start();
@@ -1380,7 +1406,11 @@ fn scan_font_line_a(text: &str) -> Vec<(String, String, Option<String>)> {
             let paren_content = &after[paren_idx..];
             if let Some(inner) = paren_content.strip_prefix("(with ") {
                 if let Some(inner) = inner.strip_suffix(')') {
-                    out.push((role.to_string(), before_paren.to_string(), Some(inner.to_string())));
+                    out.push((
+                        role.to_string(),
+                        before_paren.to_string(),
+                        Some(inner.to_string()),
+                    ));
                     continue;
                 }
             }
@@ -1404,7 +1434,11 @@ fn scan_font_line_b(text: &str) -> Vec<(String, String, String)> {
             None => break,
         };
         let head = rest[..open].trim_end();
-        if head.is_empty() || !head.chars().all(|c| c.is_alphanumeric() || c.is_whitespace() || c == '&' || c == '/' || c == '_') {
+        if head.is_empty()
+            || !head.chars().all(|c| {
+                c.is_alphanumeric() || c.is_whitespace() || c == '&' || c == '/' || c == '_'
+            })
+        {
             search_from = start + 2;
             continue;
         }
@@ -1432,7 +1466,11 @@ fn scan_font_line_b(text: &str) -> Vec<(String, String, String)> {
         }
         // description is `.+` (no newline) — cut at first '\n'
         let purpose_line = purpose.split('\n').next().unwrap_or(purpose);
-        out.push((head.to_string(), inner.to_string(), purpose_line.to_string()));
+        out.push((
+            head.to_string(),
+            inner.to_string(),
+            purpose_line.to_string(),
+        ));
         search_from = start + 2 + open + 1 + close + 1;
     }
     out
@@ -1454,12 +1492,15 @@ fn extract_character_labeled(text: &str) -> Option<String> {
     let marker = "**Character:**";
     let idx = text.find(marker)?;
     let rest = &text[idx + marker.len()..];
-    let rest = rest.strip_prefix(char::is_whitespace).map(|r| {
-        // consume all leading whitespace except we must keep at least the
-        // first non-blank line; JS `\s*` before the capture consumes runs of
-        // whitespace including newlines.
-        rest.trim_start()
-    }).unwrap_or(rest);
+    let rest = rest
+        .strip_prefix(char::is_whitespace)
+        .map(|r| {
+            // consume all leading whitespace except we must keep at least the
+            // first non-blank line; JS `\s*` before the capture consumes runs of
+            // whitespace including newlines.
+            rest.trim_start()
+        })
+        .unwrap_or(rest);
     let end = find_first_of(rest, &["\n\n", "\n###", "\n##"]).unwrap_or(rest.len());
     let captured = &rest[..end];
     if captured.trim().is_empty() {
@@ -1472,7 +1513,11 @@ fn extract_character_labeled(text: &str) -> Option<String> {
 fn looks_like_font_line(p: &str) -> bool {
     // `/^\*\*[\w\s/&]+Font/i` or `/^\*\*[\w\s/&]+\([^)]+\)/`
     if let Some(rest) = p.strip_prefix("**") {
-        let head_end = rest.find(|c: char| !(c.is_alphanumeric() || c.is_whitespace() || c == '/' || c == '&' || c == '_')).unwrap_or(rest.len());
+        let head_end = rest
+            .find(|c: char| {
+                !(c.is_alphanumeric() || c.is_whitespace() || c == '/' || c == '&' || c == '_')
+            })
+            .unwrap_or(rest.len());
         let head = &rest[..head_end];
         if !head.is_empty() {
             let after = &rest[head_end..];
@@ -1547,7 +1592,11 @@ fn extract_elevation(section: Option<&Section>) -> Option<Elevation> {
     let mut shadows: Vec<Shadow> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut dedupe = |entry: Shadow, shadows: &mut Vec<Shadow>| {
-        let key = format!("{}::{}", entry.name.clone().unwrap_or_default(), entry.value);
+        let key = format!(
+            "{}::{}",
+            entry.name.clone().unwrap_or_default(),
+            entry.value
+        );
         if seen.insert(key) {
             shadows.push(entry);
         }
@@ -1599,8 +1648,16 @@ fn extract_inline_shadows(text: &str) -> Vec<Shadow> {
             .find(['`', ';', '\n'])
             .unwrap_or(value_region.len());
         let raw_value = &value_region[..end];
-        let value = raw_value.trim_end_matches(['`', '.', ')']).trim().to_string();
-        let match_end_byte = start + "box-shadow".len() + consumed_ws + 1 + (after_colon.len() - value_region.len()) + end;
+        let value = raw_value
+            .trim_end_matches(['`', '.', ')'])
+            .trim()
+            .to_string();
+        let match_end_byte = start
+            + "box-shadow".len()
+            + consumed_ws
+            + 1
+            + (after_colon.len() - value_region.len())
+            + end;
         if !value.is_empty() {
             let before = &text[..start];
             let name = derive_shadow_name(before);
@@ -1647,7 +1704,11 @@ fn derive_shadow_name(before: &str) -> Option<String> {
     if candidate.len() < 3 || candidate.len() > 41 {
         return None;
     }
-    if !candidate.chars().next().is_some_and(|c| c.is_ascii_alphabetic()) {
+    if !candidate
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic())
+    {
         return None;
     }
     let _ = trailer_len;
@@ -1663,12 +1724,24 @@ fn derive_shadow_name(before: &str) -> Option<String> {
 
 fn strip_shadow_name_prefix(s: &str) -> String {
     let lower = s.to_lowercase();
-    let verbs = ["use", "using", "apply", "applying", "is", "are", "looks like", "look like"];
+    let verbs = [
+        "use",
+        "using",
+        "apply",
+        "applying",
+        "is",
+        "are",
+        "looks like",
+        "look like",
+    ];
     let mut rest = s;
     for v in verbs {
         if lower.starts_with(v) {
             let boundary_idx = v.len();
-            if s.as_bytes().get(boundary_idx).is_some_and(|b| b.is_ascii_whitespace()) {
+            if s.as_bytes()
+                .get(boundary_idx)
+                .is_some_and(|b| b.is_ascii_whitespace())
+            {
                 rest = s[boundary_idx..].trim_start();
                 break;
             }
@@ -1696,7 +1769,9 @@ fn parse_shadow_bullet(bullet: &str) -> Option<Shadow> {
     inner = inner.strip_suffix('`').unwrap_or(inner);
     let purpose = colon_after.trim_start();
 
-    let raw_value = strip_prefix_case_insensitive(inner, "box-shadow:").trim().to_string();
+    let raw_value = strip_prefix_case_insensitive(inner, "box-shadow:")
+        .trim()
+        .to_string();
     let looks_like_shadow = looks_like_shadow_value(&raw_value);
     if !looks_like_shadow {
         return None;
@@ -1748,7 +1823,9 @@ fn looks_like_shadow_value(raw_value: &str) -> bool {
     }
     let trimmed = raw_value.trim_start();
     let after_sign = trimmed.strip_prefix('-').unwrap_or(trimmed);
-    let digit_end = after_sign.find(|c: char| !c.is_ascii_digit()).unwrap_or(after_sign.len());
+    let digit_end = after_sign
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(after_sign.len());
     if digit_end > 0 {
         if let Some(rest) = after_sign.get(digit_end..) {
             if rest.starts_with(char::is_whitespace) {
@@ -1779,7 +1856,10 @@ fn extract_components(section: Option<&Section>) -> Option<Components> {
 
         for b in &bullets {
             if let Some((key, value)) = match_key_value_bullet(b) {
-                let first_token = key.split(|c: char| c.is_whitespace() || c == '/').next().unwrap_or("");
+                let first_token = key
+                    .split(|c: char| c.is_whitespace() || c == '/')
+                    .next()
+                    .unwrap_or("");
                 if is_variant_key(first_token) {
                     variants.push(NamedRule {
                         name: key,
@@ -1829,14 +1909,28 @@ fn match_key_value_bullet(b: &str) -> Option<(String, String)> {
     if after.is_empty() {
         return None;
     }
-    Some((strip_bold(key).trim().to_string(), strip_bold(after).trim().to_string()))
+    Some((
+        strip_bold(key).trim().to_string(),
+        strip_bold(after).trim().to_string(),
+    ))
 }
 
 fn is_variant_key(first_token: &str) -> bool {
     matches!(
         first_token.to_lowercase().as_str(),
-        "primary" | "secondary" | "tertiary" | "ghost" | "hover" | "focus" | "active"
-            | "disabled" | "default" | "error" | "selected" | "unselected" | "state"
+        "primary"
+            | "secondary"
+            | "tertiary"
+            | "ghost"
+            | "hover"
+            | "focus"
+            | "active"
+            | "disabled"
+            | "default"
+            | "error"
+            | "selected"
+            | "unselected"
+            | "state"
     )
 }
 

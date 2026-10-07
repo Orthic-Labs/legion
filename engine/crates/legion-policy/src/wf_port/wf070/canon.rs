@@ -156,7 +156,9 @@ pub fn digest_value(value: &CanonVal) -> String {
 pub fn is_digest(value: &str) -> bool {
     value.len() == 71
         && value.starts_with("sha256:")
-        && value[7..].bytes().all(|b| b.is_ascii_hexdigit() && !(b as char).is_ascii_uppercase())
+        && value[7..]
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !(b as char).is_ascii_uppercase())
 }
 
 /// Constant-time comparison of two byte strings. Mirrors `constantTimeEqual`:
@@ -278,7 +280,9 @@ mod tests {
 
     #[test]
     fn canonical_json_sorts_keys() {
-        let value = CanonVal::obj().set("b", CanonVal::Int(1)).set("a", CanonVal::Int(2));
+        let value = CanonVal::obj()
+            .set("b", CanonVal::Int(1))
+            .set("a", CanonVal::Int(2));
         assert_eq!(canonical_json(&value), r#"{"a":2,"b":1}"#);
     }
 
@@ -302,8 +306,12 @@ mod tests {
 
     #[test]
     fn digest_is_stable_across_key_insertion_order() {
-        let a = CanonVal::obj().set("a", CanonVal::Int(1)).set("b", CanonVal::Int(2));
-        let b = CanonVal::obj().set("b", CanonVal::Int(2)).set("a", CanonVal::Int(1));
+        let a = CanonVal::obj()
+            .set("a", CanonVal::Int(1))
+            .set("b", CanonVal::Int(2));
+        let b = CanonVal::obj()
+            .set("b", CanonVal::Int(2))
+            .set("a", CanonVal::Int(1));
         assert_eq!(digest_value(&a), digest_value(&b));
     }
 

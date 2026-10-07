@@ -130,7 +130,11 @@ pub struct CoverageResult {
     pub complete: bool,
 }
 
-fn coverage_for(provider: &'static str, projection: &Projection, allowed: &[&str]) -> CoverageResult {
+fn coverage_for(
+    provider: &'static str,
+    projection: &Projection,
+    allowed: &[&str],
+) -> CoverageResult {
     CoverageResult {
         provider,
         examined: projection
@@ -163,7 +167,9 @@ fn files_contains(files: &[String], exact: &str) -> bool {
 /// Case-sensitive suffix match, mirroring a JS `/\.(a|b|c)$/.test(file)`
 /// regex (none of these five source files pass a case-insensitive flag).
 fn ext_matches(file: &str, extensions: &[&str]) -> bool {
-    extensions.iter().any(|ext| file.ends_with(&format!(".{ext}")))
+    extensions
+        .iter()
+        .any(|ext| file.ends_with(&format!(".{ext}")))
 }
 
 /// Case-sensitive suffix match against a fixed set of literal filename

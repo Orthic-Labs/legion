@@ -38,9 +38,8 @@ use crate::wf_port::w2_017::commit_edits::{
     summarize_applied_entries, summarize_repair_failures, unique_strings, ArgVal,
 };
 use crate::wf_port::w2_018::copy_edit_agent::{
-    choose_copy_edit_agent, command_exists, describe_no_provider_error,
-    run_copy_edit_batch_agent, run_copy_edit_post_apply_checks, Provider, ProcessRunner,
-    SystemProcessRunner,
+    choose_copy_edit_agent, command_exists, describe_no_provider_error, run_copy_edit_batch_agent,
+    run_copy_edit_post_apply_checks, ProcessRunner, Provider, SystemProcessRunner,
 };
 use crate::wf_port::w2_018::evidence::build_manual_edit_evidence;
 use crate::wf_port::w2_021::manual_edits_buffer::{self, count_by_page};
@@ -112,7 +111,11 @@ fn run_agent(
     timeout_ms: Option<u64>,
 ) -> Result<Value, String> {
     let provider = provider.ok_or_else(|| {
-        describe_no_provider_error(command_exists, || false, env.contains_key("CLAUDE_CODE_OAUTH_TOKEN"))
+        describe_no_provider_error(
+            command_exists,
+            || false,
+            env.contains_key("CLAUDE_CODE_OAUTH_TOKEN"),
+        )
     })?;
     let result_dir = std::env::temp_dir().join(format!(
         "impeccable-copy-batch-{}-{}",
@@ -261,8 +264,7 @@ fn repair_post_apply_validation(
             continue;
         }
 
-        let repaired_checks =
-            run_copy_edit_post_apply_checks(cwd, &current_files, runner);
+        let repaired_checks = run_copy_edit_post_apply_checks(cwd, &current_files, runner);
         current_warnings.extend(repaired_checks.warnings.iter().cloned());
         if !repaired_checks.ok {
             current_failures = repaired_checks.failures;
@@ -552,13 +554,19 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
             })
             .cloned()
             .collect();
-        let mut failed = verification_failures_for_entries(&conflicting_entries, "conflicting_apply_result");
-        failed.extend(ai_failed.iter().filter(|item| {
-            item.get("id")
-                .and_then(Value::as_str)
-                .map(|id| !conflicting_set.contains(id))
-                .unwrap_or(true)
-        }).cloned());
+        let mut failed =
+            verification_failures_for_entries(&conflicting_entries, "conflicting_apply_result");
+        failed.extend(
+            ai_failed
+                .iter()
+                .filter(|item| {
+                    item.get("id")
+                        .and_then(Value::as_str)
+                        .map(|id| !conflicting_set.contains(id))
+                        .unwrap_or(true)
+                })
+                .cloned(),
+        );
         let counts = count_by_page_json(cwd);
         let mut out = json!({
             "applied": Vec::<Value>::new(),
@@ -603,7 +611,9 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
         return out;
     }
 
-    if result.get("status").and_then(Value::as_str) == Some("done") && reported_applied_ids.is_empty() {
+    if result.get("status").and_then(Value::as_str) == Some("done")
+        && reported_applied_ids.is_empty()
+    {
         let rollback =
             rollback_changed_files(cwd, &rollback_snapshot, &result_files, &rollback_scope);
         let failed = verification_failures_for_entries(&entries, "missing_applied_entry_ids");
@@ -637,7 +647,8 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
         .collect();
 
     if !reported_applied_ids.is_empty() && reported_files.is_empty() {
-        let repair_failures = verification_failures_for_entries(&reported_applied_entries, "missing_touched_files");
+        let repair_failures =
+            verification_failures_for_entries(&reported_applied_entries, "missing_touched_files");
         return repair_post_apply_validation(
             &batch,
             cwd,
@@ -703,7 +714,8 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
     } else {
         Vec::new()
     };
-    let mut non_repair_failed = verification_failures_for_entries(&unreported_entries, "not_reported_applied");
+    let mut non_repair_failed =
+        verification_failures_for_entries(&unreported_entries, "not_reported_applied");
     non_repair_failed.extend(ai_failed.iter().cloned());
 
     let mut failed: Vec<Value> = verification_failed.clone();
@@ -719,8 +731,13 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
         })
         .cloned()
         .collect();
-    let leaked_unapplied =
-        find_unapplied_entry_source_changes(&batch, &unapplied_entries, &reported_files, cwd, &rollback_snapshot);
+    let leaked_unapplied = find_unapplied_entry_source_changes(
+        &batch,
+        &unapplied_entries,
+        &reported_files,
+        cwd,
+        &rollback_snapshot,
+    );
     if !leaked_unapplied.is_empty() {
         let leaked_ids: HashSet<String> = leaked_unapplied
             .iter()
@@ -747,12 +764,17 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
         let rollback =
             rollback_changed_files(cwd, &rollback_snapshot, &result_files, &rollback_scope);
         let mut combined = leaked_unapplied.clone();
-        combined.extend(failed.iter().filter(|item| {
-            item.get("id")
-                .and_then(Value::as_str)
-                .map(|id| !leaked_ids.contains(id))
-                .unwrap_or(true)
-        }).cloned());
+        combined.extend(
+            failed
+                .iter()
+                .filter(|item| {
+                    item.get("id")
+                        .and_then(Value::as_str)
+                        .map(|id| !leaked_ids.contains(id))
+                        .unwrap_or(true)
+                })
+                .cloned(),
+        );
         combined.extend(rolled_back_verified);
         let counts = count_by_page_json(cwd);
         let mut out = json!({
@@ -804,7 +826,8 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
     let post_checks = run_copy_edit_post_apply_checks(cwd, &result_files, runner);
     if !post_checks.ok {
         let post_check_entries = if !verified_applied_ids.is_empty() {
-            let verified_set: HashSet<&str> = verified_applied_ids.iter().map(String::as_str).collect();
+            let verified_set: HashSet<&str> =
+                verified_applied_ids.iter().map(String::as_str).collect();
             reported_applied_entries
                 .iter()
                 .filter(|e| {
@@ -911,7 +934,10 @@ fn find_unapplied_entry_source_changes(
                     .get("deleted")
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
-                tag: raw_op.get("tag").and_then(Value::as_str).map(str::to_string),
+                tag: raw_op
+                    .get("tag")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
                 element_id: raw_op
                     .get("elementId")
                     .and_then(Value::as_str)
@@ -993,7 +1019,10 @@ fn snapshot_target_passes(
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_string(),
-            reported: target.get("reported").and_then(Value::as_bool).unwrap_or(false),
+            reported: target
+                .get("reported")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
         },
         op,
     )

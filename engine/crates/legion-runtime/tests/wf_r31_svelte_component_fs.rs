@@ -68,7 +68,10 @@ fn scaffold_session_writes_manifest_and_variant_stubs() {
 
     assert_eq!(result.prop_contract.len(), 1);
     assert_eq!(result.prop_contract[0].prop, "name");
-    assert_eq!(result.component_dir, format!("{SVELTE_COMPONENT_ROOT}/sess1"));
+    assert_eq!(
+        result.component_dir,
+        format!("{SVELTE_COMPONENT_ROOT}/sess1")
+    );
 
     let manifest_path = manifest_path_for_session("sess1", &cwd);
     assert!(manifest_path.exists());
@@ -164,7 +167,10 @@ fn inline_accept_rewrites_source_and_removes_session() {
     assert!(result.handled, "accept failed: {:?}", result.error);
 
     let new_source = std::fs::read_to_string(&route).unwrap();
-    assert!(new_source.contains("{user.name}"), "expr restored: {new_source}");
+    assert!(
+        new_source.contains("{user.name}"),
+        "expr restored: {new_source}"
+    );
     assert!(new_source.contains("class=\"row\""));
     assert!(new_source.contains("padding: 4px;"));
 
@@ -229,7 +235,10 @@ fn remove_session_and_remove_all_sessions() {
     remove_all_svelte_component_sessions(&cwd);
     assert!(!component_session_dir("s2", &cwd).exists());
     // __runtime.js (the `__`-prefixed entry) survives a "remove all" pass.
-    assert!(cwd.join(SVELTE_COMPONENT_ROOT).join("__runtime.js").exists());
+    assert!(cwd
+        .join(SVELTE_COMPONENT_ROOT)
+        .join("__runtime.js")
+        .exists());
 }
 
 #[test]

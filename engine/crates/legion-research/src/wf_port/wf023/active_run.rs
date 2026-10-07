@@ -83,7 +83,11 @@ pub fn activate(store: &impl RunManifest, run_id: &str) -> Result<PointerValue, 
         activated_at: utc_now(),
     };
     store.write_pointer(&value);
-    store.record_event(run_id, "run.activated", json!({"pointer": "active-run-pointer"}));
+    store.record_event(
+        run_id,
+        "run.activated",
+        json!({"pointer": "active-run-pointer"}),
+    );
     Ok(value)
 }
 
@@ -102,7 +106,12 @@ pub fn executable_runs(store: &impl RunManifest) -> Vec<String> {
     let mut candidates: Vec<String> = store
         .candidate_run_ids()
         .into_iter()
-        .filter(|run_id| store.load_run(run_id).map(|r| executable(&r)).unwrap_or(false))
+        .filter(|run_id| {
+            store
+                .load_run(run_id)
+                .map(|r| executable(&r))
+                .unwrap_or(false)
+        })
         .collect();
     // `glob` returns paths in filesystem order which, per `sorted(...)` in
     // the Python, is normalized to sorted order before filtering.
@@ -139,7 +148,12 @@ pub fn selection(store: &impl RunManifest) -> Selection {
         };
     }
     let ambiguous = candidates.len() > 1;
-    Selection { run_id: None, ambiguous, candidates, source: "none" }
+    Selection {
+        run_id: None,
+        ambiguous,
+        candidates,
+        source: "none",
+    }
 }
 
 /// `current`.
@@ -186,7 +200,10 @@ pub fn run_cli(store: &impl RunManifest, args: &[String]) -> (i32, Value) {
         },
         Some("current") => (0, selection_json(&selection(store))),
         Some(other) => (2, json!({"error": format!("unknown command: {other}")})),
-        None => (2, json!({"error": "command is required (activate|clear|current)"})),
+        None => (
+            2,
+            json!({"error": "command is required (activate|clear|current)"}),
+        ),
     }
 }
 
@@ -200,7 +217,11 @@ pub fn clear(store: &impl RunManifest, run_id: &str) -> bool {
         return false;
     }
     store.delete_pointer();
-    store.record_event(run_id, "run.deactivated", json!({"pointer": "active-run-pointer"}));
+    store.record_event(
+        run_id,
+        "run.deactivated",
+        json!({"pointer": "active-run-pointer"}),
+    );
     true
 }
 
@@ -219,7 +240,10 @@ mod tests {
 
     impl RunManifest for MockStore {
         fn load_run(&self, run_id: &str) -> Result<RunRecord, String> {
-            self.runs.get(run_id).cloned().ok_or_else(|| format!("no such run: {run_id}"))
+            self.runs
+                .get(run_id)
+                .cloned()
+                .ok_or_else(|| format!("no such run: {run_id}"))
         }
         fn candidate_run_ids(&self) -> Vec<String> {
             self.runs.keys().cloned().collect()
@@ -234,7 +258,9 @@ mod tests {
             *self.pointer.borrow_mut() = None;
         }
         fn record_event(&self, run_id: &str, kind: &str, detail: Value) {
-            self.events.borrow_mut().push((run_id.to_string(), kind.to_string(), detail));
+            self.events
+                .borrow_mut()
+                .push((run_id.to_string(), kind.to_string(), detail));
         }
     }
 
@@ -252,10 +278,18 @@ mod tests {
         let mut store = MockStore::default();
         store.runs.insert(
             "run-1".into(),
-            RunRecord { run_id: "run-1".into(), status: "done".into(), route_sha256: "sha".into(), route_allows_effects: true },
+            RunRecord {
+                run_id: "run-1".into(),
+                status: "done".into(),
+                route_sha256: "sha".into(),
+                route_allows_effects: true,
+            },
         );
         let err = activate(&store, "run-1").unwrap_err();
-        assert_eq!(err, "Research run is not executable or route effects are not granted");
+        assert_eq!(
+            err,
+            "Research run is not executable or route effects are not granted"
+        );
     }
 
     #[test]
@@ -263,7 +297,12 @@ mod tests {
         let mut store = MockStore::default();
         store.runs.insert(
             "run-1".into(),
-            RunRecord { run_id: "run-1".into(), status: "acquiring".into(), route_sha256: "sha".into(), route_allows_effects: false },
+            RunRecord {
+                run_id: "run-1".into(),
+                status: "acquiring".into(),
+                route_sha256: "sha".into(),
+                route_allows_effects: false,
+            },
         );
         assert!(activate(&store, "run-1").is_err());
     }
@@ -271,7 +310,9 @@ mod tests {
     #[test]
     fn activate_writes_pointer_and_records_event() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
         let value = activate(&store, "run-1").unwrap();
         assert_eq!(value.run_id, "run-1");
         assert_eq!(value.route_sha256, "sha-1");
@@ -282,8 +323,12 @@ mod tests {
     #[test]
     fn selection_prefers_a_valid_pointer_over_candidates() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
-        store.runs.insert("run-2".into(), executable_run("run-2", "sha-2"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-2".into(), executable_run("run-2", "sha-2"));
         activate(&store, "run-1").unwrap();
         let sel = selection(&store);
         assert_eq!(sel.run_id.as_deref(), Some("run-1"));
@@ -294,7 +339,9 @@ mod tests {
     #[test]
     fn selection_falls_back_to_single_candidate_when_pointer_is_stale() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
         // Pointer references a route sha that no longer matches the run.
         *store.pointer.borrow_mut() = Some(("run-1".into(), "stale-sha".into()));
         let sel = selection(&store);
@@ -305,12 +352,19 @@ mod tests {
     #[test]
     fn selection_is_ambiguous_with_multiple_executable_candidates_and_no_pointer() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
-        store.runs.insert("run-2".into(), executable_run("run-2", "sha-2"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-2".into(), executable_run("run-2", "sha-2"));
         let sel = selection(&store);
         assert_eq!(sel.run_id, None);
         assert!(sel.ambiguous);
-        assert_eq!(sel.candidates, vec!["run-1".to_string(), "run-2".to_string()]);
+        assert_eq!(
+            sel.candidates,
+            vec!["run-1".to_string(), "run-2".to_string()]
+        );
         assert_eq!(sel.source, "none");
     }
 
@@ -319,7 +373,12 @@ mod tests {
         let mut store = MockStore::default();
         store.runs.insert(
             "run-1".into(),
-            RunRecord { run_id: "run-1".into(), status: "done".into(), route_sha256: "sha".into(), route_allows_effects: true },
+            RunRecord {
+                run_id: "run-1".into(),
+                status: "done".into(),
+                route_sha256: "sha".into(),
+                route_allows_effects: true,
+            },
         );
         let sel = selection(&store);
         assert_eq!(sel.run_id, None);
@@ -331,7 +390,9 @@ mod tests {
     #[test]
     fn clear_removes_matching_pointer_and_reports_false_otherwise() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
         activate(&store, "run-1").unwrap();
         assert!(!clear(&store, "run-2"));
         assert!(store.read_pointer().is_some());
@@ -343,14 +404,18 @@ mod tests {
     #[test]
     fn current_delegates_to_selection() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
         assert_eq!(current(&store), Some("run-1".to_string()));
     }
 
     #[test]
     fn run_cli_activate_prints_the_pointer_and_exits_zero() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
         let (code, value) = run_cli(&store, &["activate".to_string(), "run-1".to_string()]);
         assert_eq!(code, 0);
         assert_eq!(value["run_id"], json!("run-1"));
@@ -362,7 +427,12 @@ mod tests {
         let mut store = MockStore::default();
         store.runs.insert(
             "run-1".into(),
-            RunRecord { run_id: "run-1".into(), status: "done".into(), route_sha256: "sha".into(), route_allows_effects: true },
+            RunRecord {
+                run_id: "run-1".into(),
+                status: "done".into(),
+                route_sha256: "sha".into(),
+                route_allows_effects: true,
+            },
         );
         let (code, value) = run_cli(&store, &["activate".to_string(), "run-1".to_string()]);
         assert_eq!(code, 1);
@@ -372,7 +442,9 @@ mod tests {
     #[test]
     fn run_cli_clear_reports_whether_it_cleared() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
         activate(&store, "run-1").unwrap();
         let (code, value) = run_cli(&store, &["clear".to_string(), "run-1".to_string()]);
         assert_eq!(code, 0);
@@ -382,7 +454,9 @@ mod tests {
     #[test]
     fn run_cli_current_prints_the_selection() {
         let mut store = MockStore::default();
-        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        store
+            .runs
+            .insert("run-1".into(), executable_run("run-1", "sha-1"));
         let (code, value) = run_cli(&store, &["current".to_string()]);
         assert_eq!(code, 0);
         assert_eq!(value["run_id"], json!("run-1"));

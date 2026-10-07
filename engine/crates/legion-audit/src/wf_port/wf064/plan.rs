@@ -160,7 +160,8 @@ pub fn verify_plan_signature(plan: &Map<String, Value>, signing_key: Option<&str
     let key_id = seal.and_then(|s| s.get("keyId")).and_then(|k| k.as_str());
     let unsigned = without_seal(plan);
     let expected_signature = plan_signature(&Value::Object(unsigned), signing_key);
-    key_id == Some(signing_key_id(signing_key).as_str()) && signature == Some(expected_signature.as_str())
+    key_id == Some(signing_key_id(signing_key).as_str())
+        && signature == Some(expected_signature.as_str())
 }
 
 /// Faithful port of `verifyPlanBinding`. Returns `{valid, drift}` exactly as
@@ -200,7 +201,12 @@ pub fn verify_plan_binding(
         .get("repositoryRevision")
         .cloned()
         .unwrap_or(Value::Null);
-    field_eq("repositoryRevision", "/repositoryRevision", &cur_rev, &mut drift);
+    field_eq(
+        "repositoryRevision",
+        "/repositoryRevision",
+        &cur_rev,
+        &mut drift,
+    );
     let cur_dirty = current_repository_binding
         .get("dirty")
         .cloned()
@@ -221,7 +227,9 @@ pub fn verify_plan_binding(
         .get("state")
         .and_then(|v| v.as_str());
     if current_state != Some("ready") {
-        let observed = current_state.map(Value::from).unwrap_or_else(|| json!("unproven"));
+        let observed = current_state
+            .map(Value::from)
+            .unwrap_or_else(|| json!("unproven"));
         drift.push(json!({"field": "blueprint", "expected": "ready", "observed": observed}));
     } else {
         let plan_gen_id = binding
@@ -239,7 +247,9 @@ pub fn verify_plan_binding(
         let cur_manifest_digest = current_blueprint_binding.get("manifestDigest");
         if let (Some(p), Some(c)) = (plan_manifest_digest, cur_manifest_digest) {
             if !p.is_null() && !c.is_null() && p != c {
-                drift.push(json!({"field": "blueprint.manifestDigest", "expected": p, "observed": c}));
+                drift.push(
+                    json!({"field": "blueprint.manifestDigest", "expected": p, "observed": c}),
+                );
             }
         }
         let plan_status_digest = binding
@@ -277,7 +287,11 @@ pub fn reconcile_plan_with_facts(plan: &Map<String, Value>, facts: &Value) -> Va
         .get("denominator")
         .and_then(|v| v.get("expectedChecks"))
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     let checks: Vec<Value> = facts
         .get("checks")
@@ -286,7 +300,11 @@ pub fn reconcile_plan_with_facts(plan: &Map<String, Value>, facts: &Value) -> Va
         .unwrap_or_default();
     let observed: std::collections::BTreeMap<String, &Value> = checks
         .iter()
-        .filter_map(|c| c.get("check").and_then(|v| v.as_str()).map(|k| (k.to_string(), c)))
+        .filter_map(|c| {
+            c.get("check")
+                .and_then(|v| v.as_str())
+                .map(|k| (k.to_string(), c))
+        })
         .collect();
     let mut missing: Vec<String> = expected
         .iter()
@@ -449,7 +467,8 @@ mod tests {
             })),
             None,
         );
-        let current_repo = json!({"repositoryRevision": "rev2", "dirty": false, "dirtyPatchDigest": null});
+        let current_repo =
+            json!({"repositoryRevision": "rev2", "dirty": false, "dirtyPatchDigest": null});
         let current_blueprint = json!({
             "state": "ready", "generationId": "gen1", "manifestDigest": "md1",
             "sourceObservation": {"statusDigest": "sd1", "head": "head1"},
@@ -457,7 +476,9 @@ mod tests {
         let result = verify_plan_binding(&plan, &current_repo, &current_blueprint, None);
         assert_eq!(result["valid"], json!(false));
         let drift = result["drift"].as_array().unwrap();
-        assert!(drift.iter().any(|d| d["field"] == json!("repositoryRevision")));
+        assert!(drift
+            .iter()
+            .any(|d| d["field"] == json!("repositoryRevision")));
     }
 
     #[test]
@@ -471,7 +492,8 @@ mod tests {
             })),
             Some("k"),
         );
-        let current_repo = json!({"repositoryRevision": "rev1", "dirty": false, "dirtyPatchDigest": null});
+        let current_repo =
+            json!({"repositoryRevision": "rev1", "dirty": false, "dirtyPatchDigest": null});
         let current_blueprint = json!({
             "state": "ready", "generationId": "gen1", "manifestDigest": "md1",
             "sourceObservation": {"statusDigest": "sd1", "head": "head1"},
@@ -501,16 +523,23 @@ mod tests {
         assert_eq!(out["unplannedChecks"], json!(["extra_check"]));
         let providers = out["providerResults"].as_array().unwrap();
         assert_eq!(providers.len(), 3);
-        let types_result = providers.iter().find(|p| p["provider"] == json!("p.types")).unwrap();
+        let types_result = providers
+            .iter()
+            .find(|p| p["provider"] == json!("p.types"))
+            .unwrap();
         assert_eq!(types_result["complete"], json!(true));
-        let reasoning_result = providers.iter().find(|p| p["provider"] == json!("p.reasoning")).unwrap();
+        let reasoning_result = providers
+            .iter()
+            .find(|p| p["provider"] == json!("p.reasoning"))
+            .unwrap();
         assert_eq!(reasoning_result["status"], json!("pending"));
     }
 
     #[test]
     fn reconcile_plan_with_facts_supplemental_checks_are_not_unplanned() {
         let plan = obj(json!({"denominator": {"expectedChecks": []}, "providers": []}));
-        let facts = json!({"checks": [{"check": "extra", "status": "ran", "tier": "supplemental"}]});
+        let facts =
+            json!({"checks": [{"check": "extra", "status": "ran", "tier": "supplemental"}]});
         let out = reconcile_plan_with_facts(&plan, &facts);
         assert_eq!(out["unplannedChecks"], json!([]));
         assert_eq!(out["valid"], json!(true));

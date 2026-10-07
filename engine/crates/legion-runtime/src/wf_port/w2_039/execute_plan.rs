@@ -50,8 +50,16 @@ use super::run_ledger::{Reservation, RunLedger, RunLimits, SystemClock};
 /// `src/lib/providers/sdk/result.mjs`. Pure, no dependency of its own.
 pub fn normalize_provider_result(provider_id: &str, family: &str, result: &Value) -> Value {
     const TERMINAL: &[&str] = &[
-        "pass", "fail", "partial", "unproven", "skipped", "error", "pending", "missing",
-        "candidates", "blocked",
+        "pass",
+        "fail",
+        "partial",
+        "unproven",
+        "skipped",
+        "error",
+        "pending",
+        "missing",
+        "candidates",
+        "blocked",
     ];
     let gaps = result
         .get("coverageGaps")
@@ -143,7 +151,8 @@ pub struct PlannedProvider {
 /// from whatever raw shape it holds (JSON, a DB row, ...).
 impl PlannedProvider {
     pub fn scheduler_provider(&self) -> SchedulerProvider {
-        let mut sp = SchedulerProvider::new(self.id.clone()).with_dependencies(self.dependencies.clone());
+        let mut sp =
+            SchedulerProvider::new(self.id.clone()).with_dependencies(self.dependencies.clone());
         if !self.resources.is_empty() {
             sp = sp.with_resources(self.resources.clone());
         }
@@ -293,7 +302,11 @@ pub fn as_receipt(
 /// [`execution_receipt`], mirroring `executionReceipt({...result, ...})`.
 fn execution_receipt_input_from_value(result: &Value) -> ExecutionReceiptInput {
     ExecutionReceiptInput {
-        provider: result.get("provider").and_then(Value::as_str).unwrap_or_default().to_string(),
+        provider: result
+            .get("provider")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
         binding: result.get("binding").cloned(),
         denominator_digest: result.get("denominatorDigest").cloned(),
         command: result.get("command").cloned(),
@@ -312,7 +325,11 @@ fn execution_receipt_input_from_value(result: &Value) -> ExecutionReceiptInput {
         environment_keys: result
             .get("environmentKeys")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default(),
         sandbox_receipt: result.get("sandboxReceipt").cloned(),
         process_tree_receipt: result.get("processTreeReceipt").cloned(),
@@ -375,7 +392,13 @@ pub struct ExecutePlanResult {
 
 /// Optional replan callback, mirrors `host.replan(...)`.
 pub trait Replan {
-    fn replan(&mut self, failed_provider: &str, error: &str, completed: &Value, remaining: &[PlannedProvider]);
+    fn replan(
+        &mut self,
+        failed_provider: &str,
+        error: &str,
+        completed: &Value,
+        remaining: &[PlannedProvider],
+    );
 }
 
 /// Mirrors `executePlan(plan, host)`.
@@ -398,8 +421,11 @@ pub fn execute_plan(
         .map(|p| (p.id.clone(), p.clone()))
         .collect();
 
-    let scheduler_providers: Vec<SchedulerProvider> =
-        plan.providers.iter().map(PlannedProvider::scheduler_provider).collect();
+    let scheduler_providers: Vec<SchedulerProvider> = plan
+        .providers
+        .iter()
+        .map(PlannedProvider::scheduler_provider)
+        .collect();
     let schedule = schedule_providers(
         &scheduler_providers,
         &ScheduleOptions {
@@ -517,7 +543,11 @@ pub fn execute_plan(
     ExecutePlanResult {
         receipts,
         run_ledger_snapshot: ledger.snapshot(),
-        runtime_state: if admission.quiescing { "STOPPED" } else { "RUNNING" },
+        runtime_state: if admission.quiescing {
+            "STOPPED"
+        } else {
+            "RUNNING"
+        },
     }
 }
 
@@ -550,7 +580,11 @@ mod tests {
 
     struct AlwaysPass;
     impl ProviderExecutor for AlwaysPass {
-        fn execute(&self, provider: &PlannedProvider, _plan: &ExecutionPlan) -> Result<ProviderOutcome, String> {
+        fn execute(
+            &self,
+            provider: &PlannedProvider,
+            _plan: &ExecutionPlan,
+        ) -> Result<ProviderOutcome, String> {
             Ok(ProviderOutcome::ProviderResult {
                 family: provider.family.clone(),
                 value: json!({"status": "pass", "complete": true}),
@@ -560,14 +594,19 @@ mod tests {
 
     struct AlwaysFail;
     impl ProviderExecutor for AlwaysFail {
-        fn execute(&self, _provider: &PlannedProvider, _plan: &ExecutionPlan) -> Result<ProviderOutcome, String> {
+        fn execute(
+            &self,
+            _provider: &PlannedProvider,
+            _plan: &ExecutionPlan,
+        ) -> Result<ProviderOutcome, String> {
             Err("boom".to_string())
         }
     }
 
     #[test]
     fn normalize_provider_result_marks_complete_on_pass_with_no_gaps() {
-        let result = normalize_provider_result("p1", "family", &json!({"status": "pass", "complete": true}));
+        let result =
+            normalize_provider_result("p1", "family", &json!({"status": "pass", "complete": true}));
         assert_eq!(result["complete"], json!(true));
         assert_eq!(result["status"], json!("pass"));
         assert_eq!(result["provider"], json!("p1"));
@@ -575,14 +614,22 @@ mod tests {
 
     #[test]
     fn normalize_provider_result_forces_unproven_on_unknown_status() {
-        let result = normalize_provider_result("p1", "family", &json!({"status": "bogus", "complete": true}));
+        let result = normalize_provider_result(
+            "p1",
+            "family",
+            &json!({"status": "bogus", "complete": true}),
+        );
         assert_eq!(result["status"], json!("unproven"));
         assert_eq!(result["complete"], json!(false));
     }
 
     #[test]
     fn normalize_provider_result_treats_measured_as_pass() {
-        let result = normalize_provider_result("p1", "family", &json!({"status": "measured", "complete": true}));
+        let result = normalize_provider_result(
+            "p1",
+            "family",
+            &json!({"status": "measured", "complete": true}),
+        );
         assert_eq!(result["status"], json!("pass"));
     }
 
@@ -618,7 +665,11 @@ mod tests {
         };
         let result = execute_plan(&plan, &AlwaysFail, &FixedClock(1000), None);
         assert_eq!(result.receipts.len(), 2);
-        let p2 = result.receipts.iter().find(|r| r["provider"] == json!("p2")).unwrap();
+        let p2 = result
+            .receipts
+            .iter()
+            .find(|r| r["provider"] == json!("p2"))
+            .unwrap();
         assert_eq!(p2["spawnStatus"], json!("blocked"));
         assert!(p2["providerResult"]["coverageGaps"][0]["reason"]
             .as_str()
@@ -641,10 +692,12 @@ mod tests {
         let result = execute_plan(&plan, &AlwaysFail, &FixedClock(1000), None);
         assert_eq!(result.receipts.len(), 1);
         assert_eq!(result.receipts[0]["spawnStatus"], json!("blocked"));
-        assert!(result.receipts[0]["providerResult"]["coverageGaps"][0]["reason"]
-            .as_str()
-            .unwrap()
-            .starts_with("provider-execution-error:boom"));
+        assert!(
+            result.receipts[0]["providerResult"]["coverageGaps"][0]["reason"]
+                .as_str()
+                .unwrap()
+                .starts_with("provider-execution-error:boom")
+        );
     }
 
     #[test]

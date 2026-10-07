@@ -187,7 +187,11 @@ pub struct AcceptEvent {
 /// Port of `buildAcceptScriptArgs(event)`.
 pub fn build_accept_script_args(event: &AcceptEvent) -> Vec<String> {
     let mut args = if event.event_type == "discard" {
-        vec!["--id".to_string(), event.id.clone(), "--discard".to_string()]
+        vec![
+            "--id".to_string(),
+            event.id.clone(),
+            "--discard".to_string(),
+        ]
     } else {
         vec![
             "--id".to_string(),

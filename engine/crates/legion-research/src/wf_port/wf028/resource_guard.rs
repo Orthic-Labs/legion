@@ -141,7 +141,11 @@ fn glob_match(pattern: &str, text: &str) -> bool {
             (Some('['), _) if p.len() > 1 => {
                 if let Some(close) = p.iter().position(|&c| c == ']') {
                     if close > 0 {
-                        let (negate, set_start) = if p.get(1) == Some(&'!') { (true, 2) } else { (false, 1) };
+                        let (negate, set_start) = if p.get(1) == Some(&'!') {
+                            (true, 2)
+                        } else {
+                            (false, 1)
+                        };
                         let set: &[char] = &p[set_start..close];
                         let matched = t.first().map(|c| set.contains(c)).unwrap_or(false);
                         if matched != negate && !t.is_empty() {
@@ -182,7 +186,10 @@ pub fn authorize(
         }
     };
 
-    if let Some(matched) = forbidden_resources.iter().find(|pattern| matches(&relative, pattern)) {
+    if let Some(matched) = forbidden_resources
+        .iter()
+        .find(|pattern| matches(&relative, pattern))
+    {
         return Verdict {
             ok: false,
             reason: Some(format!("resource denied by frozen route: {matched}")),
@@ -234,7 +241,11 @@ impl From<IoError> for ResourceError {
 /// `manifest.load_run`); this port takes it directly, mirroring
 /// `super::wf026`'s `meter::consume` boundary choice, since
 /// `manifest.py`'s run-root/run-id derivation is a different file's scope.
-pub fn read_resource(run_dir: &Path, requested: &str, workspace: &Path) -> Result<Value, ResourceError> {
+pub fn read_resource(
+    run_dir: &Path,
+    requested: &str,
+    workspace: &Path,
+) -> Result<Value, ResourceError> {
     let manifest = support::read_json(&run_dir.join("manifest.json"))?;
     let route = manifest.get("route").cloned().unwrap_or_else(|| json!({}));
     let route_sha256 = manifest
@@ -245,19 +256,26 @@ pub fn read_resource(run_dir: &Path, requested: &str, workspace: &Path) -> Resul
     let forbidden: Vec<String> = route
         .get("forbidden_resources")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
 
     let verdict = authorize(&forbidden, requested, workspace, true);
     if !verdict.ok {
         record_event(run_dir, "resource.denied", &verdict.to_json())?;
         return Err(ResourceError::Denied(
-            verdict.reason.unwrap_or_else(|| "resource denied".to_string()),
+            verdict
+                .reason
+                .unwrap_or_else(|| "resource denied".to_string()),
         ));
     }
 
     let path = verdict.absolute_path.unwrap();
-    let content = std::fs::read_to_string(&path).map_err(|e| IoError(format!("cannot read {}: {e}", path.display())))?;
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| IoError(format!("cannot read {}: {e}", path.display())))?;
     let digest = support::sha256_hex(&content);
     let receipt = json!({
         "receipt_version": 1,
@@ -272,7 +290,10 @@ pub fn read_resource(run_dir: &Path, requested: &str, workspace: &Path) -> Resul
 }
 
 fn record_event(run_dir: &Path, event_type: &str, payload: &Value) -> Result<(), IoError> {
-    let _lock = support::FileLock::acquire(&run_dir.join("events.jsonl"), std::time::Duration::from_secs(10))?;
+    let _lock = support::FileLock::acquire(
+        &run_dir.join("events.jsonl"),
+        std::time::Duration::from_secs(10),
+    )?;
     let mut event = json!({"at": support::utc_now(), "type": event_type});
     if let (Value::Object(base), Value::Object(extra)) = (&mut event, payload) {
         for (k, v) in extra {
@@ -288,7 +309,10 @@ mod tests {
     use std::fs;
 
     fn tmp_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("legion-wf028-resource-guard-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "legion-wf028-resource-guard-{name}-{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -328,7 +352,10 @@ mod tests {
         let workspace = tmp_dir("authorize-missing");
         let verdict = authorize(&[], "missing.txt", &workspace, true);
         assert!(!verdict.ok);
-        assert_eq!(verdict.reason.as_deref(), Some("resource is not a readable file"));
+        assert_eq!(
+            verdict.reason.as_deref(),
+            Some("resource is not a readable file")
+        );
     }
 
     #[test]

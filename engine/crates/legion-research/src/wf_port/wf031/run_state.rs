@@ -83,10 +83,16 @@ fn canonical_json(value: &Value) -> String {
 
 /// Port of `common.utc_now`: RFC3339 UTC seconds with a `Z` suffix.
 fn utc_now() -> String {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let days = (now.as_secs() / 86_400) as i64;
     let secs_of_day = now.as_secs() % 86_400;
-    let (h, m, s) = (secs_of_day / 3600, (secs_of_day % 3600) / 60, secs_of_day % 60);
+    let (h, m, s) = (
+        secs_of_day / 3600,
+        (secs_of_day % 3600) / 60,
+        secs_of_day % 60,
+    );
     let (y, mo, d) = civil_from_days(days);
     format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}Z")
 }
@@ -135,7 +141,8 @@ fn default_run_root() -> PathBuf {
 
 /// Port of `manifest.run_dir`.
 fn run_dir(run_id: &str, root: Option<&Path>) -> Result<PathBuf, RunStateError> {
-    if run_id.is_empty() || run_id.contains('/') || run_id.contains('\\') || run_id.starts_with('.') {
+    if run_id.is_empty() || run_id.contains('/') || run_id.contains('\\') || run_id.starts_with('.')
+    {
         return Err(msg(format!("invalid run id: {run_id:?}")));
     }
     let base = root.map(Path::to_path_buf).unwrap_or_else(default_run_root);
@@ -147,16 +154,20 @@ fn manifest_path(run_id: &str, root: Option<&Path>) -> Result<PathBuf, RunStateE
 }
 
 fn read_json(path: &Path) -> Result<Value, RunStateError> {
-    let text = std::fs::read_to_string(path).map_err(|e| RunStateError::Io(format!("cannot read {}: {e}", path.display())))?;
-    serde_json::from_str(&text).map_err(|e| RunStateError::Io(format!("invalid JSON in {}: {e}", path.display())))
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| RunStateError::Io(format!("cannot read {}: {e}", path.display())))?;
+    serde_json::from_str(&text)
+        .map_err(|e| RunStateError::Io(format!("invalid JSON in {}: {e}", path.display())))
 }
 
 fn atomic_write_json(path: &Path, value: &Value) -> Result<(), RunStateError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| RunStateError::Io(e.to_string()))?;
     }
-    let text = serde_json::to_string_pretty(value).map_err(|e| RunStateError::Io(e.to_string()))? + "\n";
-    std::fs::write(path, text).map_err(|e| RunStateError::Io(format!("cannot write {}: {e}", path.display())))
+    let text =
+        serde_json::to_string_pretty(value).map_err(|e| RunStateError::Io(e.to_string()))? + "\n";
+    std::fs::write(path, text)
+        .map_err(|e| RunStateError::Io(format!("cannot write {}: {e}", path.display())))
 }
 
 /// Port of `manifest.load_run`.
@@ -195,7 +206,11 @@ pub struct InitRunResult {
 /// contract alongside the run) is not ported: it is orthogonal plumbing
 /// this test does not exercise and touches no state `grant`/`acquire`/
 /// `record_evidence` read back.
-pub fn init_run(intent: &str, context: &Context, root: Option<&Path>) -> Result<InitRunResult, RunStateError> {
+pub fn init_run(
+    intent: &str,
+    context: &Context,
+    root: Option<&Path>,
+) -> Result<InitRunResult, RunStateError> {
     let route = route_resolve::resolve(intent, context).map_err(msg)?;
     let scale = route.get("scale").and_then(Value::as_str).unwrap_or("");
     let context_budget = context.get("budget");
@@ -204,16 +219,23 @@ pub fn init_run(intent: &str, context: &Context, root: Option<&Path>) -> Result<
     let run_id = new_run_id(intent);
     let directory = run_dir(&run_id, root)?;
     if directory.exists() {
-        return Err(RunStateError::Io(format!("run directory already exists: {}", directory.display())));
+        return Err(RunStateError::Io(format!(
+            "run directory already exists: {}",
+            directory.display()
+        )));
     }
     std::fs::create_dir_all(&directory).map_err(|e| RunStateError::Io(e.to_string()))?;
     let query_text = format!("{}\n", intent.trim_end());
-    std::fs::write(directory.join("query.md"), &query_text).map_err(|e| RunStateError::Io(e.to_string()))?;
+    std::fs::write(directory.join("query.md"), &query_text)
+        .map_err(|e| RunStateError::Io(e.to_string()))?;
 
     let now = utc_now();
     let query_sha256 = sha256_text(&query_text);
     let route_sha256 = sha256_canonical_json(&route);
-    let external_requests = budget.get("external_requests").and_then(Value::as_i64).unwrap_or(12);
+    let external_requests = budget
+        .get("external_requests")
+        .and_then(Value::as_i64)
+        .unwrap_or(12);
     let workers = budget.get("workers").and_then(Value::as_i64).unwrap_or(1);
     let manifest = json!({
         "manifest_version": MANIFEST_VERSION,
@@ -242,7 +264,11 @@ pub fn init_run(intent: &str, context: &Context, root: Option<&Path>) -> Result<
     .map_err(|e| RunStateError::Io(e.to_string()))?;
 
     let gate_verdicts = route_resolve::gate_verdicts(&route, None);
-    Ok(InitRunResult { run: manifest, route, gate_verdicts })
+    Ok(InitRunResult {
+        run: manifest,
+        route,
+        gate_verdicts,
+    })
 }
 
 /// Result of [`grant`], mirroring `run.grant`'s returned dict.
@@ -257,8 +283,12 @@ pub struct GrantResult {
 pub fn grant(run_id: &str, root: Option<&Path>) -> Result<GrantResult, RunStateError> {
     let mut manifest = load_run(run_id, root)?;
     let route = manifest.get("route").cloned().unwrap_or(Value::Null);
-    let approvals = manifest.get("approvals").and_then(Value::as_object).cloned();
-    let (granted, verdicts) = route_resolve::grant_effects(&route, approvals.as_ref()).map_err(msg)?;
+    let approvals = manifest
+        .get("approvals")
+        .and_then(Value::as_object)
+        .cloned();
+    let (granted, verdicts) =
+        route_resolve::grant_effects(&route, approvals.as_ref()).map_err(msg)?;
 
     let allowed_empty = granted
         .get("allowed_effects")
@@ -271,7 +301,12 @@ pub fn grant(run_id: &str, root: Option<&Path>) -> Result<GrantResult, RunStateE
             .filter(|v| v.get("verdict").and_then(Value::as_str) != Some("ok"))
             .filter_map(|v| v.get("gate").and_then(Value::as_str).map(str::to_string))
             .collect();
-        return Ok(GrantResult { ready: false, route: granted, gate_verdicts: verdicts, pending });
+        return Ok(GrantResult {
+            ready: false,
+            route: granted,
+            gate_verdicts: verdicts,
+            pending,
+        });
     }
 
     manifest["route"] = granted.clone();
@@ -288,15 +323,25 @@ pub fn grant(run_id: &str, root: Option<&Path>) -> Result<GrantResult, RunStateE
     let route_path = run_dir(run_id, root)?.join("route.json");
     std::fs::write(
         &route_path,
-        serde_json::to_string_pretty(&granted).map_err(|e| RunStateError::Io(e.to_string()))? + "\n",
+        serde_json::to_string_pretty(&granted).map_err(|e| RunStateError::Io(e.to_string()))?
+            + "\n",
     )
     .map_err(|e| RunStateError::Io(e.to_string()))?;
 
-    Ok(GrantResult { ready: true, route: granted, gate_verdicts: verdicts, pending: Vec::new() })
+    Ok(GrantResult {
+        ready: true,
+        route: granted,
+        gate_verdicts: verdicts,
+        pending: Vec::new(),
+    })
 }
 
 /// Port of `run._require_granted`.
-fn require_granted(run_id: &str, effects: &[&str], root: Option<&Path>) -> Result<Value, RunStateError> {
+fn require_granted(
+    run_id: &str,
+    effects: &[&str],
+    root: Option<&Path>,
+) -> Result<Value, RunStateError> {
     let run = load_run(run_id, root)?;
     let route = run.get("route").cloned().unwrap_or(Value::Null);
     let allowed_present = route
@@ -315,14 +360,21 @@ fn require_granted(run_id: &str, effects: &[&str], root: Option<&Path>) -> Resul
 /// [`ledger::validate_evidence`] (already ported at `wf_port::wf025`); the
 /// on-disk `evidence.jsonl` append and duplicate-id check this test does
 /// not exercise are not ported here.
-pub fn record_evidence(run_id: &str, row: &Value, root: Option<&Path>) -> Result<Value, RunStateError> {
+pub fn record_evidence(
+    run_id: &str,
+    row: &Value,
+    root: Option<&Path>,
+) -> Result<Value, RunStateError> {
     require_granted(run_id, &["extract"], root)?;
     let verdict = ledger::validate_evidence(std::slice::from_ref(row))
         .into_iter()
         .next()
         .expect("validate_evidence returns one verdict per input row");
     if verdict.blocked {
-        return Err(msg(format!("evidence record blocked: {:?}", verdict.reasons)));
+        return Err(msg(format!(
+            "evidence record blocked: {:?}",
+            verdict.reasons
+        )));
     }
     Ok(row.clone())
 }
@@ -391,7 +443,8 @@ mod tests {
 
         let err = record_evidence(&run_id, &valid_evidence(), Some(&root)).unwrap_err();
         assert!(
-            err.to_string().contains("route effects have not been granted"),
+            err.to_string()
+                .contains("route effects have not been granted"),
             "{err}"
         );
 
@@ -400,7 +453,8 @@ mod tests {
 
         let err = acquire_resolve_provider(&run_id, Some("browser"), Some(&root)).unwrap_err();
         assert!(
-            err.to_string().contains("not authorized by frozen route provider"),
+            err.to_string()
+                .contains("not authorized by frozen route provider"),
             "{err}"
         );
 
@@ -411,7 +465,10 @@ mod tests {
         assert_eq!(ok["id"], json!("ev1"));
 
         let mut missing_policy = valid_evidence();
-        missing_policy.as_object_mut().unwrap().remove("instructionPolicy");
+        missing_policy
+            .as_object_mut()
+            .unwrap()
+            .remove("instructionPolicy");
         let err = record_evidence(&run_id, &missing_policy, Some(&root)).unwrap_err();
         assert!(err.to_string().contains("evidence record blocked"), "{err}");
 

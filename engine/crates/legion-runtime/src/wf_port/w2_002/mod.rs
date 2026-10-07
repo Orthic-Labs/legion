@@ -137,7 +137,10 @@ pub fn classify(event: &Value) -> (String, String) {
     let lowered = kind_str.to_lowercase();
 
     if lowered.contains("reason") {
-        return ("reasoning".to_string(), truncate_chars(&first_text(payload), 400));
+        return (
+            "reasoning".to_string(),
+            truncate_chars(&first_text(payload), 400),
+        );
     }
     if lowered.contains("command") || lowered.contains("exec") || lowered.contains("shell") {
         let cmd = payload_obj
@@ -150,12 +153,20 @@ pub fn classify(event: &Value) -> (String, String) {
         return ("command".to_string(), truncate_chars(&detail, 400));
     }
     if lowered.contains("patch") || lowered.contains("diff") || lowered.contains("apply") {
-        return ("patch".to_string(), truncate_chars(&first_text(payload), 400));
+        return (
+            "patch".to_string(),
+            truncate_chars(&first_text(payload), 400),
+        );
     }
-    let event_error = event_obj.and_then(|m| m.get("error")).filter(|v| !v.is_null());
+    let event_error = event_obj
+        .and_then(|m| m.get("error"))
+        .filter(|v| !v.is_null());
     if lowered.contains("error") || event_error.is_some() {
         let source = event_error.unwrap_or(payload);
-        return ("error".to_string(), truncate_chars(&first_text(source), 400));
+        return (
+            "error".to_string(),
+            truncate_chars(&first_text(source), 400),
+        );
     }
     if lowered.contains("message") || lowered.contains("agent") || lowered.contains("assistant") {
         return ("assistant".to_string(), first_text(payload));
@@ -252,9 +263,17 @@ pub fn list_runs(runs_dir: &Path) -> Vec<RunInfo> {
                 .count(),
             Err(_) => 0,
         };
-        runs.push(RunInfo { name, events, mtime });
+        runs.push(RunInfo {
+            name,
+            events,
+            mtime,
+        });
     }
-    runs.sort_by(|a, b| b.mtime.partial_cmp(&a.mtime).unwrap_or(std::cmp::Ordering::Equal));
+    runs.sort_by(|a, b| {
+        b.mtime
+            .partial_cmp(&a.mtime)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     runs
 }
 
@@ -361,7 +380,10 @@ fn percent_decode(s: &str) -> String {
 }
 
 fn query_get<'a>(pairs: &'a [(String, String)], key: &str) -> Option<&'a str> {
-    pairs.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
+    pairs
+        .iter()
+        .find(|(k, _)| k == key)
+        .map(|(_, v)| v.as_str())
 }
 
 fn write_response(stream: &mut TcpStream, status: u16, ctype: &str, body: &[u8]) -> io::Result<()> {
@@ -403,25 +425,43 @@ fn handle_connection(mut stream: TcpStream, runs_dir: &Path) -> io::Result<()> {
     let (path, query) = split_path_query(target);
 
     match path {
-        "/" => write_response(&mut stream, 200, "text/html; charset=utf-8", PAGE.as_bytes()),
+        "/" => write_response(
+            &mut stream,
+            200,
+            "text/html; charset=utf-8",
+            PAGE.as_bytes(),
+        ),
         "/api/runs" => {
             let runs = list_runs(runs_dir);
             let body = json!(runs
                 .iter()
                 .map(|r| json!({"name": r.name, "events": r.events, "mtime": r.mtime}))
                 .collect::<Vec<_>>());
-            write_response(&mut stream, 200, "application/json", body.to_string().as_bytes())
+            write_response(
+                &mut stream,
+                200,
+                "application/json",
+                body.to_string().as_bytes(),
+            )
         }
         "/api/events" => {
             let pairs = parse_query(query);
             let name = query_get(&pairs, "run").unwrap_or("");
-            let from: usize = query_get(&pairs, "from").unwrap_or("0").parse().unwrap_or(0);
+            let from: usize = query_get(&pairs, "from")
+                .unwrap_or("0")
+                .parse()
+                .unwrap_or(0);
             let events = events_from(runs_dir, name, from);
             let body = json!(events
                 .iter()
                 .map(|(kind, detail)| json!({"kind": kind, "detail": detail}))
                 .collect::<Vec<_>>());
-            write_response(&mut stream, 200, "application/json", body.to_string().as_bytes())
+            write_response(
+                &mut stream,
+                200,
+                "application/json",
+                body.to_string().as_bytes(),
+            )
         }
         _ => write_response(&mut stream, 404, "text/plain", b"not found"),
     }

@@ -6,10 +6,10 @@
 //! w2_047;` (the integrator wires that, per the chunk assignment). This file
 //! compiles once that wiring lands.
 
-use legion_runtime::wf_port::w2_047::host_event::{classify_observation, normalize_host_event};
 use legion_runtime::wf_port::w2_047::hook_adapter_pure::{
     classify_vcs_push, command_of, is_destructive_command, vcs_rewrite_approval_key,
 };
+use legion_runtime::wf_port::w2_047::host_event::{classify_observation, normalize_host_event};
 use legion_runtime::wf_port::w2_047::host_runtime_output::{
     render_host_runtime_output, serialize_host_runtime_output, DecisionEnvelope,
 };
@@ -53,7 +53,13 @@ fn destructive_command_pipeline_shape() {
         "client": {"name": "claude-code", "version": "1.0.0"},
         "host": {"platform": "darwin", "version": "24.0.0"},
     });
-    let event = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+    let event = normalize_host_event(
+        &raw,
+        None,
+        || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(),
+        || "2026-01-01T00:00:00Z".to_string(),
+    )
+    .unwrap();
     assert_eq!(event["eventType"], "pre-effect");
 
     let output = render_host_runtime_output("PreToolUse", false, false, deny_envelope).unwrap();
@@ -95,7 +101,13 @@ fn file_write_observation_classifies_as_mutation() {
         "effect": {"effectClass": "FILE_WRITE", "target": "/repo/a.txt", "operation": "write"},
         "result": {"outcome": "success", "exitCode": 0, "terminal": true, "observedDigest": null},
     });
-    let event = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+    let event = normalize_host_event(
+        &raw,
+        None,
+        || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(),
+        || "2026-01-01T00:00:00Z".to_string(),
+    )
+    .unwrap();
     assert_eq!(event["eventType"], "post-effect");
     assert_eq!(classify_observation(&event, None), "mutation-observation");
 }
@@ -113,7 +125,13 @@ fn failed_effect_is_failure_not_mutation() {
         "effect": {"effectClass": "FILE_WRITE", "target": "/repo/a.txt", "operation": "write"},
         "result": {"outcome": "failure", "exitCode": 1, "terminal": true, "observedDigest": null},
     });
-    let event = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+    let event = normalize_host_event(
+        &raw,
+        None,
+        || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(),
+        || "2026-01-01T00:00:00Z".to_string(),
+    )
+    .unwrap();
     assert_eq!(classify_observation(&event, None), "failure");
 }
 
@@ -126,13 +144,20 @@ fn observation_outbox_round_trip() {
     std::fs::create_dir_all(&dir).unwrap();
     let outbox = ObservationOutbox::new(&dir).unwrap();
 
-    let (event_id, dup) = outbox.enqueue(json!({"runId": "r1", "usage": {"calls": 1}}), Some("ev-1".to_string())).unwrap();
+    let (event_id, dup) = outbox
+        .enqueue(
+            json!({"runId": "r1", "usage": {"calls": 1}}),
+            Some("ev-1".to_string()),
+        )
+        .unwrap();
     assert!(!dup);
     let batch = outbox.next_batch(10, usize::MAX).unwrap();
     assert_eq!(batch.len(), 1);
     assert_eq!(batch[0].event_id, event_id);
 
-    let delivered = outbox.acknowledge(&[event_id], Some(json!({"ok": true}))).unwrap();
+    let delivered = outbox
+        .acknowledge(&[event_id], Some(json!({"ok": true})))
+        .unwrap();
     assert_eq!(delivered, 1);
     let (pending, delivered_count, dead) = outbox.inspect().unwrap();
     assert_eq!((pending, delivered_count, dead), (0, 1, 0));

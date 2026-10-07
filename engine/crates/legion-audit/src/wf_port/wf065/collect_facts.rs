@@ -83,9 +83,7 @@ pub fn git_ref(ref_value: Option<&str>) -> Result<Option<String>, String> {
     }
     let valid = {
         let mut chars = s.chars();
-        let first_ok = chars
-            .next()
-            .is_some_and(|c| c.is_ascii_alphanumeric());
+        let first_ok = chars.next().is_some_and(|c| c.is_ascii_alphanumeric());
         first_ok
             && s.chars()
                 .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '/' | '@' | '-'))
@@ -302,7 +300,9 @@ pub fn decomposition_review_loc(
         if !configured.is_null() {
             // `Number(configured)` then `Number.isInteger(...)`: accept any
             // JSON number (int- or float-stored) that is integral and >= 100.
-            let integral = configured.as_f64().filter(|f| f.fract() == 0.0 && *f >= 100.0);
+            let integral = configured
+                .as_f64()
+                .filter(|f| f.fract() == 0.0 && *f >= 100.0);
             match integral {
                 Some(f) => {
                     return DecompositionReviewLoc {
@@ -332,7 +332,15 @@ pub fn decomposition_review_loc(
 /// root. Mirrors the closure at the top of `collect-facts.mjs` that fixed a
 /// real bug (`--only apple_platform` used to be misread as the root).
 pub fn resolve_root_positional(args: &[String]) -> Option<String> {
-    const VALUE_FLAGS: &[&str] = &["--base", "--base-commit", "--dir", "--only", "--out", "--skip", "--type"];
+    const VALUE_FLAGS: &[&str] = &[
+        "--base",
+        "--base-commit",
+        "--dir",
+        "--only",
+        "--out",
+        "--skip",
+        "--type",
+    ];
     let mut i = 0;
     while i < args.len() {
         let arg = &args[i];
@@ -364,8 +372,8 @@ pub struct GitleaksCandidate {
 /// to identity-only candidates. Errors (not a JSON array) mirror the JS
 /// `throw`.
 pub fn gitleaks_candidates(json_text: &str) -> Result<Vec<GitleaksCandidate>, String> {
-    let parsed: serde_json::Value =
-        serde_json::from_str(json_text).map_err(|_| "gitleaks report is not valid JSON".to_string())?;
+    let parsed: serde_json::Value = serde_json::from_str(json_text)
+        .map_err(|_| "gitleaks report is not valid JSON".to_string())?;
     let items = parsed
         .as_array()
         .ok_or_else(|| "gitleaks report is not a JSON array".to_string())?;
@@ -468,7 +476,11 @@ pub fn mechanical_splits(files: &[FileLoc], threshold: u64) -> Vec<MechanicalSpl
             continue;
         }
         let base = segs.last().copied().unwrap_or("");
-        let parent = if segs.len() >= 2 { segs[segs.len() - 2] } else { "" };
+        let parent = if segs.len() >= 2 {
+            segs[segs.len() - 2]
+        } else {
+            ""
+        };
         let is_dir_split = is_parts_dir.is_match(parent);
         let is_file_split = is_part_file.is_match(base);
         if !is_dir_split && !is_file_split {
@@ -483,11 +495,16 @@ pub fn mechanical_splits(files: &[FileLoc], threshold: u64) -> Vec<MechanicalSpl
         if gfiles.len() < 2 {
             continue;
         }
-        let logical_loc: u64 = gfiles.iter().map(|f| *loc_by_file.get(f.as_str()).unwrap_or(&0)).sum();
+        let logical_loc: u64 = gfiles
+            .iter()
+            .map(|f| *loc_by_file.get(f.as_str()).unwrap_or(&0))
+            .sum();
         if logical_loc <= threshold {
             continue;
         }
-        let any_runtime = gfiles.iter().any(|f| classify_file(f) == FileClass::Runtime);
+        let any_runtime = gfiles
+            .iter()
+            .any(|f| classify_file(f) == FileClass::Runtime);
         let any_test = gfiles.iter().any(|f| classify_file(f) == FileClass::Test);
         let class = if any_runtime {
             FileClass::Runtime
@@ -609,8 +626,12 @@ pub fn detect(root: &Path) -> DetectedStack {
         "eslint.config.cjs",
     ];
     let eslint = eslint_configs.iter().any(|f| file_exists(root, f))
-        || pkg.as_ref().is_some_and(|p| p.get("eslintConfig").is_some());
-    let biome = ["biome.json", "biome.jsonc"].iter().any(|f| file_exists(root, f));
+        || pkg
+            .as_ref()
+            .is_some_and(|p| p.get("eslintConfig").is_some());
+    let biome = ["biome.json", "biome.jsonc"]
+        .iter()
+        .any(|f| file_exists(root, f));
     let build_script = pkg
         .as_ref()
         .and_then(|p| p.get("scripts"))
@@ -622,7 +643,9 @@ pub fn detect(root: &Path) -> DetectedStack {
         node: pkg.is_some(),
         pkg_mgr,
         ts: file_exists(root, "tsconfig.json"),
-        py: file_exists(root, "pyproject.toml") || file_exists(root, "setup.py") || file_exists(root, "requirements.txt"),
+        py: file_exists(root, "pyproject.toml")
+            || file_exists(root, "setup.py")
+            || file_exists(root, "requirements.txt"),
         rust: rust_dir.is_some(),
         rust_dir,
         swift,

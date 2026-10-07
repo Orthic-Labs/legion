@@ -13,10 +13,7 @@ fn marker_re() -> &'static Regex {
 }
 
 pub fn marker_block(content: &str) -> String {
-    format!(
-        "{MARKER_START}\n{}\n{MARKER_END}",
-        content.trim()
-    )
+    format!("{MARKER_START}\n{}\n{MARKER_END}", content.trim())
 }
 
 pub fn upsert_marker_block(existing: &str, content: &str) -> String {
@@ -27,7 +24,11 @@ pub fn upsert_marker_block(existing: &str, content: &str) -> String {
     if existing.is_empty() {
         return format!("{block}\n");
     }
-    let sep = if existing.ends_with('\n') { "\n" } else { "\n\n" };
+    let sep = if existing.ends_with('\n') {
+        "\n"
+    } else {
+        "\n\n"
+    };
     format!("{existing}{sep}{block}\n")
 }
 

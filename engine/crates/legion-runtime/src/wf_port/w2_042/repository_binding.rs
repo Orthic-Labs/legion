@@ -16,9 +16,16 @@ use crate::l3_inventory::binding::digest as binding_digest;
 /// paths) skipped by the manual walk used when a repository is not
 /// Git-backed.
 fn fallback_directory_exclusions() -> BTreeSet<&'static str> {
-    [".agent", ".audit", ".git", ".legion", "dist", "node_modules"]
-        .into_iter()
-        .collect()
+    [
+        ".agent",
+        ".audit",
+        ".git",
+        ".legion",
+        "dist",
+        "node_modules",
+    ]
+    .into_iter()
+    .collect()
 }
 
 /// Mirrors JS `FALLBACK_PATH_EXCLUSIONS`: root-relative paths (forward
@@ -111,7 +118,9 @@ fn walk_files(root: &Path, current: &Path, output: &mut Vec<String>) -> io::Resu
         let path = current.join(&name);
 
         if file_type.is_dir() {
-            if directory_exclusions.contains(name.as_str()) || path_exclusions.contains(path_name.as_str()) {
+            if directory_exclusions.contains(name.as_str())
+                || path_exclusions.contains(path_name.as_str())
+            {
                 continue;
             }
             walk_files(root, &path, output)?;
@@ -150,7 +159,11 @@ fn hash_repository_entry(
         return Ok(());
     }
     if !file_type.is_file() {
-        let kind = if file_type.is_dir() { "directory" } else { "other" };
+        let kind = if file_type.is_dir() {
+            "directory"
+        } else {
+            "other"
+        };
         hash.update(format!("non-file:{kind}\0").as_bytes());
         return Ok(());
     }
@@ -326,10 +339,14 @@ mod tests {
     }
 
     #[test]
-    fn git_repository_binding_tracks_tracked_and_ordinary_untracked_source_while_honoring_nested_ignores() {
+    fn git_repository_binding_tracks_tracked_and_ordinary_untracked_source_while_honoring_nested_ignores(
+    ) {
         let root = tempdir("legion-repository-binding-git");
         run(&root, &["init", "--quiet"]);
-        run(&root, &["config", "user.email", "legion-tests@example.invalid"]);
+        run(
+            &root,
+            &["config", "user.email", "legion-tests@example.invalid"],
+        );
         run(&root, &["config", "user.name", "Legion Tests"]);
         fs::create_dir_all(root.join("src")).unwrap();
         fs::write(
@@ -341,19 +358,31 @@ mod tests {
         run(&root, &["add", ".gitignore", "src/tracked.mjs"]);
         run(&root, &["commit", "--quiet", "-m", "baseline"]);
 
-        fs::write(root.join("src/untracked.mjs"), "export const untracked = 1;\n").unwrap();
+        fs::write(
+            root.join("src/untracked.mjs"),
+            "export const untracked = 1;\n",
+        )
+        .unwrap();
         fs::create_dir_all(root.join("src/.audit")).unwrap();
         fs::create_dir_all(root.join("src/.agent")).unwrap();
         fs::create_dir_all(root.join("engine/target")).unwrap();
         fs::write(root.join("src/.audit/report.json"), "audit output 1\n").unwrap();
         fs::write(root.join("src/.agent/state.sqlite"), "runtime state 1\n").unwrap();
-        fs::write(root.join("engine/target/generated.bin"), "generated output 1\n").unwrap();
+        fs::write(
+            root.join("engine/target/generated.bin"),
+            "generated output 1\n",
+        )
+        .unwrap();
 
         let initial = bind_repository(&root, BindOptions::default()).unwrap();
 
         fs::write(root.join("src/.audit/report.json"), "audit output 2\n").unwrap();
         fs::write(root.join("src/.agent/state.sqlite"), "runtime state 2\n").unwrap();
-        fs::write(root.join("engine/target/generated.bin"), "generated output 2\n").unwrap();
+        fs::write(
+            root.join("engine/target/generated.bin"),
+            "generated output 2\n",
+        )
+        .unwrap();
         let after_ignored_mutation = bind_repository(&root, BindOptions::default()).unwrap();
         assert_eq!(
             after_ignored_mutation.dirty_overlay_digest,
@@ -370,13 +399,20 @@ mod tests {
         );
         assert_ne!(after_tracked_mutation.digest, after_ignored_mutation.digest);
 
-        fs::write(root.join("src/untracked.mjs"), "export const untracked = 2;\n").unwrap();
+        fs::write(
+            root.join("src/untracked.mjs"),
+            "export const untracked = 2;\n",
+        )
+        .unwrap();
         let after_untracked_mutation = bind_repository(&root, BindOptions::default()).unwrap();
         assert_ne!(
             after_untracked_mutation.dirty_overlay_digest,
             after_tracked_mutation.dirty_overlay_digest
         );
-        assert_ne!(after_untracked_mutation.digest, after_tracked_mutation.digest);
+        assert_ne!(
+            after_untracked_mutation.digest,
+            after_tracked_mutation.digest
+        );
 
         fs::remove_dir_all(&root).ok();
     }

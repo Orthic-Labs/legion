@@ -79,7 +79,7 @@
 //!   chunk once `contracts/arcane/{validate,canonical}.mjs` and
 //!   `core/kernel-binding.mjs` have Rust ports to build on.
 
-pub mod host_event;
 pub mod hook_adapter_pure;
+pub mod host_event;
 pub mod host_runtime_output;
 pub mod observation_outbox;

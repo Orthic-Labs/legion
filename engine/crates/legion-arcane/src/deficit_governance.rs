@@ -62,7 +62,10 @@ pub fn classify_acceptance_deficits(input: &Value) -> Value {
         .filter(|item| item.get("result").and_then(Value::as_str) != Some(PASS))
         .map(|item| {
             let obligation = item["obligationClass"].as_str().unwrap_or_default();
-            let debt_eligible = matches!(obligation, "OPTIONAL" | "QUALITY" | "PERFORMANCE" | "USABILITY");
+            let debt_eligible = matches!(
+                obligation,
+                "OPTIONAL" | "QUALITY" | "PERFORMANCE" | "USABILITY"
+            );
             let protected = matches!(obligation, "CORRECTNESS" | "SAFETY");
             let disposition = if debt_eligible { "DEBT" } else { "BLOCKING" };
             json!({
@@ -112,7 +115,11 @@ pub fn convert_deficits_to_debt(input: &Value) -> Value {
         return classified;
     }
     let detail = classified.get("detail").cloned().unwrap_or(Value::Null);
-    let deficits = detail.get("deficits").and_then(Value::as_array).cloned().unwrap_or_default();
+    let deficits = detail
+        .get("deficits")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let protected = deficits
         .iter()
         .filter(|deficit| deficit.get("protected") == Some(&json!(true)))

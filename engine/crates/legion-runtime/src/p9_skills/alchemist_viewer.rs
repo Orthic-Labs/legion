@@ -189,7 +189,9 @@ pub fn handle_request(
             let runs: Vec<Value> = runs_dir
                 .list_runs()
                 .into_iter()
-                .map(|(name, events, mtime)| json!({"name": name, "events": events, "mtime": mtime}))
+                .map(
+                    |(name, events, mtime)| json!({"name": name, "events": events, "mtime": mtime}),
+                )
                 .collect();
             json_response(Value::Array(runs))
         }
@@ -286,7 +288,11 @@ pub fn run(argv: &[String], home_dir: &Path, env_run_dir: Option<&str>) -> i32 {
             return 1;
         }
     };
-    println!("Citadel: http://127.0.0.1:{}   runs: {}", args.port, dir.display());
+    println!(
+        "Citadel: http://127.0.0.1:{}   runs: {}",
+        args.port,
+        dir.display()
+    );
     for stream in listener.incoming().flatten() {
         serve_one(stream, &runs_dir);
     }
@@ -412,7 +418,12 @@ mod tests {
 
     #[test]
     fn parse_args_reads_port_and_runs_dir() {
-        let args = parse_args(&["--port".to_string(), "9000".to_string(), "--runs-dir".to_string(), "/tmp/x".to_string()]);
+        let args = parse_args(&[
+            "--port".to_string(),
+            "9000".to_string(),
+            "--runs-dir".to_string(),
+            "/tmp/x".to_string(),
+        ]);
         assert_eq!(args.port, 9000);
         assert_eq!(args.runs_dir.as_deref(), Some("/tmp/x"));
     }
@@ -431,6 +442,9 @@ mod tests {
             RealRunsDir::default_dir(Some("/custom/runs"), home),
             PathBuf::from("/custom/runs")
         );
-        assert_eq!(RealRunsDir::default_dir(None, home), home.join(".alchemist").join("runs"));
+        assert_eq!(
+            RealRunsDir::default_dir(None, home),
+            home.join(".alchemist").join("runs")
+        );
     }
 }

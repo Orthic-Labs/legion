@@ -298,11 +298,18 @@ pub struct RouteOutcomeTrace {
     pub challenge: ChallengePass,
     /// Present only for schema v2. Omitted from v1 serialization so all v1
     /// fields and canonical digests remain unchanged.
-    #[serde(default, rename = "roleDecisions", skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_role_decisions")]
+    #[serde(
+        default,
+        rename = "roleDecisions",
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_role_decisions"
+    )]
     pub role_decisions: Option<Vec<RoleDecision>>,
 }
 
-fn deserialize_role_decisions<'de, D>(deserializer: D) -> Result<Option<Vec<RoleDecision>>, D::Error>
+fn deserialize_role_decisions<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<RoleDecision>>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -392,10 +399,13 @@ impl RouteOutcomeTrace {
             });
         }
         if self.schema_version == 2 {
-            let decisions = self.role_decisions.as_ref().ok_or_else(|| ContractError::InvalidContract {
-                path: "role_decisions".into(),
-                reason: "v2 trace must contain role decisions".into(),
-            })?;
+            let decisions =
+                self.role_decisions
+                    .as_ref()
+                    .ok_or_else(|| ContractError::InvalidContract {
+                        path: "role_decisions".into(),
+                        reason: "v2 trace must contain role decisions".into(),
+                    })?;
             let mut roles = Vec::new();
             for decision in decisions {
                 decision.validate()?;
@@ -435,7 +445,10 @@ mod tests {
             route: Route::Deliberate,
             semantic_requirement: SemanticRequirement::REQUIRED,
             context: ContextUsage {
-                sources: vec!["docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md".into()],
+                sources: vec![
+                    "docs/provenance/migrations/2026-08-29-pending/PENDING-WORK-2026-08-29.md"
+                        .into(),
+                ],
                 size_bytes: 4096,
             },
             capabilities: CapabilityUsage {
@@ -489,7 +502,9 @@ mod tests {
         assert_eq!(parsed.legion_canon_digest, None);
         assert_eq!(parsed.skill_catalog_digest, None);
         assert_eq!(parsed.guard_policy_digest, None);
-        parsed.validate().expect("trace without provenance is valid");
+        parsed
+            .validate()
+            .expect("trace without provenance is valid");
     }
 
     #[test]
@@ -555,10 +570,9 @@ mod tests {
             reason: Some("host launched bounded implementation".into()),
         }]);
         trace.validate().expect("v2 trace is valid");
-        let parsed: RouteOutcomeTrace = serde_json::from_str(
-            &serde_json::to_string(&trace).expect("serialize v2"),
-        )
-        .expect("deserialize v2");
+        let parsed: RouteOutcomeTrace =
+            serde_json::from_str(&serde_json::to_string(&trace).expect("serialize v2"))
+                .expect("deserialize v2");
         assert_eq!(parsed, trace);
     }
 

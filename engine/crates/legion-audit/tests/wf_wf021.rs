@@ -65,7 +65,8 @@ fn render_html_report_produces_a_self_contained_document() {
 
 #[test]
 fn render_html_report_handles_empty_reports() {
-    let html = render_html_report(&json!({ "audit_status": "pass", "findings": [], "coverage_gaps": [] }));
+    let html =
+        render_html_report(&json!({ "audit_status": "pass", "findings": [], "coverage_gaps": [] }));
     assert!(html.contains("No findings"));
     assert!(html.contains("None"));
 }
@@ -97,7 +98,10 @@ fn render_html_report_dedupes_evidence_by_id_keeping_first_position_last_value()
 
 #[test]
 fn escape_markdown_escapes_pipes_backslashes_and_newlines() {
-    assert_eq!(escape_markdown(&json!("a|b\\c\nd<e>&f")), "a\\|b\\\\c d&lt;e&gt;&amp;f");
+    assert_eq!(
+        escape_markdown(&json!("a|b\\c\nd<e>&f")),
+        "a\\|b\\\\c d&lt;e&gt;&amp;f"
+    );
     assert_eq!(escape_markdown(&json!(null)), "");
 }
 
@@ -166,7 +170,10 @@ fn build_report_model_defaults_empty_input() {
     assert_eq!(model["auditStatus"], "incomplete");
     assert_eq!(model["integrity"], json!({"valid": false}));
     assert_eq!(model["completeness"], json!({"complete": false}));
-    assert_eq!(model["denominators"], json!({"targets": [], "controls": []}));
+    assert_eq!(
+        model["denominators"],
+        json!({"targets": [], "controls": []})
+    );
 }
 
 #[test]
@@ -305,7 +312,9 @@ fn build_family_summary_flags_missing_required_provider() {
     assert_eq!(summary["status"], "incomplete");
     assert_eq!(summary["clean"], false);
     let gaps = summary["gaps"].as_array().unwrap();
-    assert!(gaps.iter().any(|g| g["kind"] == "required-provider-missing" && g["providerId"] == "p2"));
+    assert!(gaps
+        .iter()
+        .any(|g| g["kind"] == "required-provider-missing" && g["providerId"] == "p2"));
     assert_eq!(summary["incompleteProviders"], json!(["p2"]));
 }
 
@@ -331,7 +340,9 @@ fn build_family_summary_incomplete_provider_result_flagged() {
     let summary = build_family_summary(&results, Some("supply-chain"), &opts);
     assert_eq!(summary["clean"], false);
     let gaps = summary["gaps"].as_array().unwrap();
-    assert!(gaps.iter().any(|g| g["kind"] == "provider-result-incomplete" && g["providerId"] == "p1"));
+    assert!(gaps
+        .iter()
+        .any(|g| g["kind"] == "provider-result-incomplete" && g["providerId"] == "p1"));
     assert_eq!(summary["incompleteProviders"], json!(["p1"]));
 }
 
@@ -346,7 +357,9 @@ fn build_family_summary_selected_provider_ids_narrow_selection_and_flag_selected
     };
     let summary = build_family_summary(&results, Some("supply-chain"), &opts);
     let gaps = summary["gaps"].as_array().unwrap();
-    assert!(gaps.iter().any(|g| g["kind"] == "selected-provider-result-missing" && g["providerId"] == "p2"));
+    assert!(gaps
+        .iter()
+        .any(|g| g["kind"] == "selected-provider-result-missing" && g["providerId"] == "p2"));
 }
 
 #[test]

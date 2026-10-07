@@ -278,7 +278,10 @@ mod tests {
         assert!(injection.additional_context.contains("Brief is default"));
         assert!(injection.additional_context.contains("MINIMIZE"));
         assert_eq!(injection.system_message.as_deref(), Some("MINIMIZE:ON"));
-        assert_eq!(injection.additional_context.matches("# MINIMIZE").count(), 1);
+        assert_eq!(
+            injection.additional_context.matches("# MINIMIZE").count(),
+            1
+        );
         let _ = fs::remove_dir_all(&workspace);
     }
 
@@ -301,7 +304,9 @@ mod tests {
             &PolicyEnv::default(),
         )
         .unwrap();
-        assert!(injection.additional_context.contains("CUSTOM BRIEF TEXT FROM TOML"));
+        assert!(injection
+            .additional_context
+            .contains("CUSTOM BRIEF TEXT FROM TOML"));
         let _ = fs::remove_dir_all(&workspace);
     }
 
@@ -309,7 +314,11 @@ mod tests {
     fn policy_toml_missing_content_key_falls_back() {
         let workspace = tmp_dir("toml-no-key");
         fs::create_dir_all(workspace.join("tools/lib")).unwrap();
-        fs::write(workspace.join("tools/lib/policy.toml"), "[other]\nkey = \"value\"\n").unwrap();
+        fs::write(
+            workspace.join("tools/lib/policy.toml"),
+            "[other]\nkey = \"value\"\n",
+        )
+        .unwrap();
         let paths = policy_source_paths();
         let injection = build_policy_injection(
             &PolicyInjectionInput {
@@ -465,7 +474,9 @@ mod tests {
         )
         .unwrap();
         assert!(out.additional_context.contains("Archive safely"));
-        assert!(out.additional_context.contains("prove commit reachability first"));
+        assert!(out
+            .additional_context
+            .contains("prove commit reachability first"));
         assert!(!out.additional_context.contains("Commit serially"));
         assert!(!out.additional_context.contains("Unrelated"));
         let _ = fs::remove_dir_all(&workspace);

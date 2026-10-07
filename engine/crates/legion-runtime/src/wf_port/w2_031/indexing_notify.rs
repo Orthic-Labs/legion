@@ -107,19 +107,34 @@ increase at https://developers.google.com/search/apis/indexing-api/v3/quota-incr
 }
 
 /// `notify_url(url, action)`, generalized over an [`IndexingClient`].
-pub fn notify_url_with<C: IndexingClient>(client: &C, url: &str, action: NotifyAction) -> NotifyResult {
+pub fn notify_url_with<C: IndexingClient>(
+    client: &C,
+    url: &str,
+    action: NotifyAction,
+) -> NotifyResult {
     let body = build_notify_body(url, action);
     match client.publish(&body) {
         Ok(response) => {
-            let metadata = response.get("urlNotificationMetadata").cloned().unwrap_or(json!({}));
+            let metadata = response
+                .get("urlNotificationMetadata")
+                .cloned()
+                .unwrap_or(json!({}));
             let latest = metadata
                 .get("latestUpdate")
                 .filter(|v| !v.is_null())
                 .or_else(|| metadata.get("latestRemove"))
                 .cloned()
                 .unwrap_or(json!({}));
-            let notify_time = latest.get("notifyTime").and_then(Value::as_str).map(str::to_string);
-            NotifyResult { url: url.to_string(), action, notify_time, error: None }
+            let notify_time = latest
+                .get("notifyTime")
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            NotifyResult {
+                url: url.to_string(),
+                action,
+                notify_time,
+                error: None,
+            }
         }
         Err(e) => NotifyResult {
             url: url.to_string(),
@@ -189,7 +204,12 @@ pub fn batch_notify_with<C: IndexingClient>(
     client: &C,
     urls: &[String],
     action: NotifyAction,
-) -> (Vec<NotifyResult>, BatchSummary, Option<String>, Option<String>) {
+) -> (
+    Vec<NotifyResult>,
+    BatchSummary,
+    Option<String>,
+    Option<String>,
+) {
     let (planned, quota_warning) = plan_batch(urls.to_vec());
     let mut results = Vec::new();
     let mut summary = BatchSummary::default();
@@ -267,7 +287,8 @@ impl IndexingClient for ReqwestIndexingClient {
         if status >= 400 {
             return Err(format!("{status} {text}"));
         }
-        serde_json::from_str::<Value>(&text).map_err(|e| format!("invalid Indexing API JSON response: {e}"))
+        serde_json::from_str::<Value>(&text)
+            .map_err(|e| format!("invalid Indexing API JSON response: {e}"))
     }
 
     fn get_metadata(&self, url: &str) -> Result<Value, String> {
@@ -283,7 +304,8 @@ impl IndexingClient for ReqwestIndexingClient {
         if status >= 400 {
             return Err(format!("{status} {text}"));
         }
-        serde_json::from_str::<Value>(&text).map_err(|e| format!("invalid Indexing API JSON response: {e}"))
+        serde_json::from_str::<Value>(&text)
+            .map_err(|e| format!("invalid Indexing API JSON response: {e}"))
     }
 }
 
@@ -300,8 +322,14 @@ pub struct MetadataResult {
 pub fn get_notification_metadata_with<C: IndexingClient>(client: &C, url: &str) -> MetadataResult {
     match client.get_metadata(url) {
         Ok(response) => {
-            let update = response.get("latestUpdate").filter(|v| !v.is_null()).cloned();
-            let remove = response.get("latestRemove").filter(|v| !v.is_null()).cloned();
+            let update = response
+                .get("latestUpdate")
+                .filter(|v| !v.is_null())
+                .cloned();
+            let remove = response
+                .get("latestRemove")
+                .filter(|v| !v.is_null())
+                .cloned();
             MetadataResult {
                 url: url.to_string(),
                 latest_update: update.map(|u| {
@@ -372,21 +400,32 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         match args[i].as_str() {
             "--action" | "-a" => {
                 i += 1;
-                let v = args.get(i).ok_or("argument --action/-a: expected one argument")?;
+                let v = args
+                    .get(i)
+                    .ok_or("argument --action/-a: expected one argument")?;
                 out.action = NotifyAction::parse(v)
                     .ok_or_else(|| format!("argument --action/-a: invalid choice: '{v}'"))?;
             }
             "--batch" | "-b" => {
                 i += 1;
-                out.batch = Some(args.get(i).ok_or("argument --batch/-b: expected one argument")?.clone());
+                out.batch = Some(
+                    args.get(i)
+                        .ok_or("argument --batch/-b: expected one argument")?
+                        .clone(),
+                );
             }
             "--status" => {
                 i += 1;
-                out.status = Some(args.get(i).ok_or("argument --status: expected one argument")?.clone());
+                out.status = Some(
+                    args.get(i)
+                        .ok_or("argument --status: expected one argument")?
+                        .clone(),
+                );
             }
             "--delay" => {
                 i += 1;
-                args.get(i).ok_or("argument --delay: expected one argument")?;
+                args.get(i)
+                    .ok_or("argument --delay: expected one argument")?;
                 // Delay is accepted for CLI compatibility but not used:
                 // `time.sleep(delay)` pacing is left to callers (see
                 // `batch_notify_with`'s doc comment).
@@ -404,7 +443,11 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
 
 /// `main()`, generalized over an [`IndexingClient`] and a
 /// [`BatchFileReader`] (for `--batch FILE`).
-pub fn run<C: IndexingClient, F: BatchFileReader>(args: &[String], client: &C, files: &F) -> CliOutcome {
+pub fn run<C: IndexingClient, F: BatchFileReader>(
+    args: &[String],
+    client: &C,
+    files: &F,
+) -> CliOutcome {
     let parsed = match parse_args(args) {
         Ok(p) => p,
         Err(e) => {
@@ -421,7 +464,9 @@ pub fn run<C: IndexingClient, F: BatchFileReader>(args: &[String], client: &C, f
         let mut stdout = String::new();
         let mut stderr = String::new();
         if parsed.json {
-            stdout.push_str(&serde_json::to_string_pretty(&metadata_result_json(&result)).unwrap_or_default());
+            stdout.push_str(
+                &serde_json::to_string_pretty(&metadata_result_json(&result)).unwrap_or_default(),
+            );
             stdout.push('\n');
         } else {
             if let Some(e) = &result.error {
@@ -442,11 +487,18 @@ pub fn run<C: IndexingClient, F: BatchFileReader>(args: &[String], client: &C, f
                     r.get("type").and_then(Value::as_str).unwrap_or("")
                 ));
             }
-            if result.latest_update.is_none() && result.latest_remove.is_none() && result.error.is_none() {
+            if result.latest_update.is_none()
+                && result.latest_remove.is_none()
+                && result.error.is_none()
+            {
                 stdout.push_str("  No notifications found.\n");
             }
         }
-        return CliOutcome { exit_code: 0, stdout, stderr };
+        return CliOutcome {
+            exit_code: 0,
+            stdout,
+            stderr,
+        };
     }
 
     if let Some(batch_path) = &parsed.batch {
@@ -460,8 +512,14 @@ pub fn run<C: IndexingClient, F: BatchFileReader>(args: &[String], client: &C, f
                 }
             }
         };
-        let urls: Vec<String> = contents.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_string).collect();
-        let (results, summary, quota_warning, stop_error) = batch_notify_with(client, &urls, parsed.action);
+        let urls: Vec<String> = contents
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .map(str::to_string)
+            .collect();
+        let (results, summary, quota_warning, stop_error) =
+            batch_notify_with(client, &urls, parsed.action);
         let remaining = estimated_remaining_quota(summary.success);
 
         let mut stdout = String::new();
@@ -495,7 +553,11 @@ pub fn run<C: IndexingClient, F: BatchFileReader>(args: &[String], client: &C, f
                 stdout.push_str(&format!("Warning: {w}\n"));
             }
         }
-        return CliOutcome { exit_code: 0, stdout, stderr };
+        return CliOutcome {
+            exit_code: 0,
+            stdout,
+            stderr,
+        };
     }
 
     if let Some(url) = &parsed.url {
@@ -506,14 +568,29 @@ pub fn run<C: IndexingClient, F: BatchFileReader>(args: &[String], client: &C, f
             stderr.push_str(&format!("Error: {e}\n"));
         }
         if parsed.json {
-            stdout.push_str(&serde_json::to_string_pretty(&notify_result_json(&result)).unwrap_or_default());
+            stdout.push_str(
+                &serde_json::to_string_pretty(&notify_result_json(&result)).unwrap_or_default(),
+            );
             stdout.push('\n');
         } else if let Some(t) = &result.notify_time {
-            stdout.push_str(&format!("Notified: {} ({}) at {}\n", result.url, result.action.as_str(), t));
+            stdout.push_str(&format!(
+                "Notified: {} ({}) at {}\n",
+                result.url,
+                result.action.as_str(),
+                t
+            ));
         } else if result.error.is_none() {
-            stdout.push_str(&format!("Notification sent for: {} ({})\n", result.url, result.action.as_str()));
+            stdout.push_str(&format!(
+                "Notification sent for: {} ({})\n",
+                result.url,
+                result.action.as_str()
+            ));
         }
-        return CliOutcome { exit_code: 0, stdout, stderr };
+        return CliOutcome {
+            exit_code: 0,
+            stdout,
+            stderr,
+        };
     }
 
     // `parser.print_help(); sys.exit(1)` when none of url/batch/status given.

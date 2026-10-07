@@ -45,7 +45,11 @@ fn adr_canon_clarify_ids_match_js_corpus() {
 fn adr_admission_002_rejects_with_two_alternatives_recorded() {
     let out = execute_adr_canon_clarify_case("AE-ADR-ADMISSION-002").unwrap();
     match out {
-        EvalOutcome::AdrAdmission { status, alternatives, .. } => {
+        EvalOutcome::AdrAdmission {
+            status,
+            alternatives,
+            ..
+        } => {
             assert_eq!(status, "REJECT");
             assert_eq!(alternatives, Some(2));
         }
@@ -71,7 +75,11 @@ fn admit_requires_architecture_worth_true() {
 fn canon_owner_drift_with_empty_owner_string_is_pending() {
     let out = evaluate_canon_owner_drift(&["a", ""]);
     match out {
-        EvalOutcome::CanonOwnerDrift { status, missing_producer, .. } => {
+        EvalOutcome::CanonOwnerDrift {
+            status,
+            missing_producer,
+            ..
+        } => {
             assert_eq!(status, "PENDING");
             assert_eq!(missing_producer, Some("canonical owner registry"));
         }
@@ -83,8 +91,14 @@ fn canon_owner_drift_with_empty_owner_string_is_pending() {
 fn generated_source_drift_round_trips_through_execute_case() {
     let out = execute_adr_canon_clarify_case("AE-CANON-DRIFT-002").unwrap();
     let via_direct = evaluate_generated_source_drift(
-        &legion_policy::wf_port::wf074::Json::obj([("rule", legion_policy::wf_port::wf074::Json::str("source"))]),
-        &legion_policy::wf_port::wf074::Json::obj([("rule", legion_policy::wf_port::wf074::Json::str("drift"))]),
+        &legion_policy::wf_port::wf074::Json::obj([(
+            "rule",
+            legion_policy::wf_port::wf074::Json::str("source"),
+        )]),
+        &legion_policy::wf_port::wf074::Json::obj([(
+            "rule",
+            legion_policy::wf_port::wf074::Json::str("drift"),
+        )]),
     );
     assert_eq!(out, via_direct);
 }
@@ -92,16 +106,29 @@ fn generated_source_drift_round_trips_through_execute_case() {
 #[test]
 fn clarification_convergence_stops_only_when_nothing_affected_and_recorded() {
     let stops = evaluate_clarification_convergence(&ClarificationImpact::default(), true);
-    assert!(matches!(stops, EvalOutcome::ClarificationConvergence { status: "STOP", .. }));
+    assert!(matches!(
+        stops,
+        EvalOutcome::ClarificationConvergence { status: "STOP", .. }
+    ));
 
-    let continues_unrecorded = evaluate_clarification_convergence(&ClarificationImpact::default(), false);
-    assert!(matches!(continues_unrecorded, EvalOutcome::ClarificationConvergence { status: "CONTINUE", .. }));
+    let continues_unrecorded =
+        evaluate_clarification_convergence(&ClarificationImpact::default(), false);
+    assert!(matches!(
+        continues_unrecorded,
+        EvalOutcome::ClarificationConvergence {
+            status: "CONTINUE",
+            ..
+        }
+    ));
 }
 
 #[test]
 fn fog_metadata_ready_requires_both_fields_nonblank() {
     let half_blank = evaluate_fog_metadata("a question", "");
-    assert!(matches!(half_blank, EvalOutcome::FogMetadata { status: "FOG", .. }));
+    assert!(matches!(
+        half_blank,
+        EvalOutcome::FogMetadata { status: "FOG", .. }
+    ));
 }
 
 #[test]
@@ -156,7 +183,10 @@ fn scheduler_backed_cases_now_run_the_real_scheduler() {
     // R64 ported `scheduler.mjs` in full, so these two cases run the real
     // scheduler against the fixtures the JS source builds inline, rather
     // than reporting BlockedOnDependency.
-    for id in ["AE-CONCURRENCY-ATTENTION-002", "AE-CONCURRENCY-ATTENTION-006"] {
+    for id in [
+        "AE-CONCURRENCY-ATTENTION-002",
+        "AE-CONCURRENCY-ATTENTION-006",
+    ] {
         assert!(matches!(
             execute_concurrency_convergence_case(id),
             ConcurrencyConvergenceResult::Observed { .. }
@@ -178,8 +208,15 @@ fn pure_pending_cases_carry_their_js_reason_text() {
 fn validator_accepts_only_the_two_scheduler_backed_cases() {
     for id in concurrency_convergence_binding_ids() {
         let r = execute_concurrency_convergence_case(id);
-        let expect_valid = matches!(*id, "AE-CONCURRENCY-ATTENTION-002" | "AE-CONCURRENCY-ATTENTION-006");
-        assert_eq!(validate_concurrency_convergence_observation(&r), expect_valid, "{id}");
+        let expect_valid = matches!(
+            *id,
+            "AE-CONCURRENCY-ATTENTION-002" | "AE-CONCURRENCY-ATTENTION-006"
+        );
+        assert_eq!(
+            validate_concurrency_convergence_observation(&r),
+            expect_valid,
+            "{id}"
+        );
     }
 }
 
@@ -208,7 +245,10 @@ fn gate_backed_cases_now_run_the_real_gate_validator() {
 
 #[test]
 fn advisory_judgment_cases_validate_true() {
-    for id in ["AE-REVIEW-VERDICT-SECURITY-002", "AE-REVIEW-VERDICT-SECURITY-005"] {
+    for id in [
+        "AE-REVIEW-VERDICT-SECURITY-002",
+        "AE-REVIEW-VERDICT-SECURITY-005",
+    ] {
         let r = execute_review_security_binding(id);
         assert!(validate_review_security_observation(&r), "{id}");
     }
@@ -241,7 +281,9 @@ fn evidence_closure_supported_ids_all_accepted() {
 #[test]
 fn evidence_closure_unsupported_ids_carry_missing_capability_text() {
     match execute_evidence_closure_runtime_case("AE-FINDING-LIFECYCLE-002") {
-        EvidenceClosureResult::Pending { missing_capability, .. } => {
+        EvidenceClosureResult::Pending {
+            missing_capability, ..
+        } => {
             assert_eq!(
                 missing_capability,
                 "independent finding-closure verifier that rejects fix-author certification"

@@ -111,7 +111,9 @@ mod tests {
     fn relative_artifact_path_flagged() {
         let text = "- **Validated artifact path:** dispatch.md\n- **Receipt path:** dispatch.receipt.json\n";
         let errors = storage_errors(text, Path::new("dispatch.md"), None, None);
-        assert!(errors.iter().any(|e| e.contains("absolute dispatch file path")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("absolute dispatch file path")));
     }
 
     #[test]
@@ -119,7 +121,9 @@ mod tests {
         let artifact = Path::new("/repo/dispatch.md");
         let text = "- **Validated artifact path:** /repo/dispatch.md\n- **Receipt path:** /repo/dispatch.receipt.json\n";
         let errors = storage_errors(text, artifact, None, None);
-        assert!(errors.iter().any(|e| e.contains("write or verify sidecar receipt")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("write or verify sidecar receipt")));
     }
 
     #[test]

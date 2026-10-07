@@ -86,7 +86,14 @@ pub fn op_label(idx: usize, total: usize) -> String {
 pub fn party_block(doc: &mut Doc, case: &Value) {
     let cm = yc::get(case, "complainant");
     doc.para(para("IN THE MATTER OF:").bold(true).space_after(8));
-    doc.para(para(format!("{}, aged {} years,", yc::s(cm, "name"), yc::s(cm, "age"))).space_after(0));
+    doc.para(
+        para(format!(
+            "{}, aged {} years,",
+            yc::s(cm, "name"),
+            yc::s(cm, "age")
+        ))
+        .space_after(0),
+    );
     doc.para(para(format!("S/o Mr. {}", yc::s(cm, "father_name"))).space_after(0));
     doc.para(para(format!("R/o {}", yc::s(cm, "address"))).space_after(0));
     doc.para(
@@ -179,7 +186,12 @@ pub fn annexure_range(case: &Value) -> Option<String> {
 /// Mirrors `build_index(doc, case)`.
 pub fn build_index(doc: &mut Doc, case: &Value) {
     cause_title(doc, case);
-    doc.para(para("INDEX").bold(true).align(Align::Center).space_after(10));
+    doc.para(
+        para("INDEX")
+            .bold(true)
+            .align(Align::Center)
+            .space_after(10),
+    );
     let mut rows = vec![
         vec!["1".to_string(), "Index".to_string(), IndexPageRanges::get("index").to_string()],
         vec![
@@ -210,7 +222,11 @@ pub fn build_index(doc: &mut Doc, case: &Value) {
         rows.push(vec!["ANNEXURES".to_string(), String::new(), String::new()]);
     }
     for anx in &annexures {
-        rows.push(vec![yc::s(anx, "id"), yc::s(anx, "description"), String::new()]);
+        rows.push(vec![
+            yc::s(anx, "id"),
+            yc::s(anx, "description"),
+            String::new(),
+        ]);
     }
     doc.table(
         Some(vec![
@@ -236,7 +252,9 @@ pub fn build_proforma(doc: &mut Doc, case: &Value) {
     let cm = yc::get(case, "complainant");
     let m = yc::get(case, "money");
     let ops = yc::seq(case, "opposite_parties");
-    let op1 = ops.first().expect("opposite_parties is non-empty (validated)");
+    let op1 = ops
+        .first()
+        .expect("opposite_parties is non-empty (validated)");
 
     let mut pairs: Vec<(String, String)> = vec![
         ("Name of the Complainant".to_string(), yc::s(cm, "name")),
@@ -347,7 +365,11 @@ pub fn build_proforma(doc: &mut Doc, case: &Value) {
         .map(|(i, (label, value))| vec![(i + 1).to_string(), label, value])
         .collect();
     doc.table(
-        Some(vec!["S.NO.".to_string(), "PARTICULARS".to_string(), "DETAILS".to_string()]),
+        Some(vec![
+            "S.NO.".to_string(),
+            "PARTICULARS".to_string(),
+            "DETAILS".to_string(),
+        ]),
         rows,
     );
     doc.para(para("").space_after(2));
@@ -357,7 +379,12 @@ pub fn build_proforma(doc: &mut Doc, case: &Value) {
 /// Mirrors `build_synopsis(doc, case)`.
 pub fn build_synopsis(doc: &mut Doc, case: &Value) {
     cause_title(doc, case);
-    doc.para(para("SYNOPSIS").bold(true).align(Align::Center).space_after(10));
+    doc.para(
+        para("SYNOPSIS")
+            .bold(true)
+            .align(Align::Center)
+            .space_after(10),
+    );
     doc.para(
         para(yc::s(case, "synopsis"))
             .align(Align::Justify)
@@ -437,7 +464,10 @@ pub fn build_complaint_affidavit(doc: &mut Doc, case: &Value) {
     );
     doc.para(para(format!("{}. {}", n, grounds_intro)).align(Align::Justify));
     for (gi, ground) in yc::seq(case, "grounds").iter().enumerate() {
-        let marker = ROMAN.get(gi).map(|s| s.to_string()).unwrap_or_else(|| (gi + 1).to_string());
+        let marker = ROMAN
+            .get(gi)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| (gi + 1).to_string());
         doc.para(para(format!("({}) {}", marker, yc::scalar_pub(ground))).align(Align::Justify));
     }
 
@@ -454,8 +484,12 @@ pub fn build_complaint_affidavit(doc: &mut Doc, case: &Value) {
     );
     for (pi, prayer) in yc::seq(case, "prayer").iter().enumerate() {
         doc.para(
-            para(format!("({}) {}", (b'a' + pi as u8) as char, yc::scalar_pub(prayer)))
-                .align(Align::Justify),
+            para(format!(
+                "({}) {}",
+                (b'a' + pi as u8) as char,
+                yc::scalar_pub(prayer)
+            ))
+            .align(Align::Justify),
         );
     }
     doc.para(

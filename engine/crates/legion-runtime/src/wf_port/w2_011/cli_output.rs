@@ -46,10 +46,7 @@ pub fn format_finding_summary(count: usize) -> String {
 pub fn format_findings(findings: &[Finding], json_mode: bool) -> String {
     if json_mode {
         return serde_json::to_string_pretty(
-            &findings
-                .iter()
-                .map(finding_to_json)
-                .collect::<Vec<_>>(),
+            &findings.iter().map(finding_to_json).collect::<Vec<_>>(),
         )
         .expect("Finding -> JSON is infallible for these field types");
     }
@@ -171,13 +168,33 @@ mod tests {
     #[test]
     fn text_mode_groups_by_file_and_appends_summary() {
         let findings = vec![
-            f("a.html", 3, "shadow-spam", "box-shadow: ...", "too many shadows"),
-            f("a.html", 0, "gradient-overuse", "background: linear-gradient", "gradient overuse"),
-            f("b.html", 10, "border-glow", "border: 1px solid", "glow border"),
+            f(
+                "a.html",
+                3,
+                "shadow-spam",
+                "box-shadow: ...",
+                "too many shadows",
+            ),
+            f(
+                "a.html",
+                0,
+                "gradient-overuse",
+                "background: linear-gradient",
+                "gradient overuse",
+            ),
+            f(
+                "b.html",
+                10,
+                "border-glow",
+                "border: 1px solid",
+                "glow border",
+            ),
         ];
         let out = format_findings(&findings, false);
         assert!(out.contains("\na.html"));
-        assert!(out.contains("  line 3: [shadow-spam] box-shadow: ...\n    \u{2192} too many shadows"));
+        assert!(
+            out.contains("  line 3: [shadow-spam] box-shadow: ...\n    \u{2192} too many shadows")
+        );
         // line == 0 must omit the "line N: " prefix (JS falsy check).
         assert!(out.contains("  [gradient-overuse] background: linear-gradient"));
         assert!(out.contains("\nb.html"));

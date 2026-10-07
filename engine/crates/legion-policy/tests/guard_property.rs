@@ -19,7 +19,7 @@ use legion_policy::{
     PolicyEvaluator,
 };
 use legion_policy_model::{
-    ApprovalState, CapabilityCeiling, CapabilityGrant, CanonicalPath, ContractVersion,
+    ApprovalState, CanonicalPath, CapabilityCeiling, CapabilityGrant, ContractVersion,
     DecisionOutcome, EffectClass, EnforcementLevel, HostEnforcement, LeasePolicy, PathOperation,
     PathScope, PolicyContext, PolicyPack, PolicyRule, ReceiptRequirements, ReceiptState,
     RuleDecision, RulePredicate, SymlinkState, TrustLevel, TrustMinima, UnclassifiedEffect,

@@ -98,8 +98,7 @@ pub fn calculate(controls: &[Value]) -> CoverageResult {
             tested += 1;
         }
         if status == "partial" {
-            if !truthy_field(control, "tested_scope") || !truthy_field(control, "untested_scope")
-            {
+            if !truthy_field(control, "tested_scope") || !truthy_field(control, "untested_scope") {
                 errors.push(format!(
                     "{cid}: Partial requires tested_scope and untested_scope"
                 ));

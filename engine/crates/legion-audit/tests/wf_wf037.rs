@@ -30,7 +30,9 @@ fn native_provider_matrix_covers_wave_0_families() {
         "native.jvm",
         "native.dotnet",
     ] {
-        let provider = native_providers().get(id).unwrap_or_else(|| panic!("native provider {id}"));
+        let provider = native_providers()
+            .get(id)
+            .unwrap_or_else(|| panic!("native provider {id}"));
         assert_eq!(provider.role, "deterministic");
         assert!(provider.commands.lint.is_some(), "{id} has a lint command");
         assert!(provider.commands.test.is_some(), "{id} has a test command");
@@ -65,7 +67,11 @@ fn native_provider_maps_every_documented_extension() {
         ("fs", "native.dotnet"),
         ("vb", "native.dotnet"),
     ] {
-        assert_eq!(native_provider_for(ext).unwrap().id, family, "extension {ext}");
+        assert_eq!(
+            native_provider_for(ext).unwrap().id,
+            family,
+            "extension {ext}"
+        );
     }
 }
 
@@ -76,7 +82,10 @@ fn native_go_and_jvm_and_dotnet_have_no_build_command() {
     assert!(native_providers()["native.go"].commands.build.is_none());
     assert!(native_providers()["native.jvm"].commands.build.is_none());
     assert!(native_providers()["native.dotnet"].commands.build.is_none());
-    assert!(native_providers()["native.javascript"].commands.build.is_some());
+    assert!(native_providers()["native.javascript"]
+        .commands
+        .build
+        .is_some());
     assert!(native_providers()["native.python"].commands.build.is_some());
     assert!(native_providers()["native.rust"].commands.build.is_some());
 }
@@ -128,7 +137,12 @@ fn c_family_commands_falls_back_to_cmake_build() {
 
 #[test]
 fn c_family_commands_fast_profile_skips_lint() {
-    let cmds = c_family::commands("/repo", &[], &strv(&["compile_commands.json"]), Profile::Fast);
+    let cmds = c_family::commands(
+        "/repo",
+        &[],
+        &strv(&["compile_commands.json"]),
+        Profile::Fast,
+    );
     assert_eq!(cmds.len(), 1);
     assert_eq!(cmds[0].id, "c-family.syntax");
 }
@@ -189,7 +203,10 @@ fn c_family_coverage_filters_examinable_extensions() {
 fn c_family_unsafe_memory_patterns_flags_libc_and_allocation() {
     let files = strv(&["a.c", "b.c", "c.c"]);
     let sources = std::collections::HashMap::from([
-        ("a.c".to_string(), "int main() { strcpy(dst, src); return 0; }".to_string()),
+        (
+            "a.c".to_string(),
+            "int main() { strcpy(dst, src); return 0; }".to_string(),
+        ),
         (
             // The port's unchecked-allocation regex is a faithful copy of
             // `src/providers/native/c-family/index.mjs:55`

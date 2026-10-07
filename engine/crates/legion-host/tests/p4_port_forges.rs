@@ -78,7 +78,12 @@ fn sarif_upload_command_with_token() {
     assert_eq!(out["executable"], "gh");
     assert_eq!(
         out["args"],
-        json!(["api", "repos/{owner}/{repo}/code-scanning/sarifs", "-f", "sarif=@out.sarif"])
+        json!([
+            "api",
+            "repos/{owner}/{repo}/code-scanning/sarifs",
+            "-f",
+            "sarif=@out.sarif"
+        ])
     );
     assert_eq!(out["env"], json!({"GH_TOKEN": "tok"}));
 }

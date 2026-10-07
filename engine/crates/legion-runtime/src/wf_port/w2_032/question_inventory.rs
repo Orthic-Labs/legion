@@ -35,8 +35,8 @@ pub fn rows_from_payload(payload: &Value) -> Result<Vec<Row>, String> {
 /// Mirrors `QUESTION_RE`: a leading interrogative word (case-insensitive).
 fn starts_with_question_word(s: &str) -> bool {
     const WORDS: &[&str] = &[
-        "who", "what", "when", "where", "why", "how", "can", "could", "does", "do", "did",
-        "is", "are", "should", "which", "will", "would",
+        "who", "what", "when", "where", "why", "how", "can", "could", "does", "do", "did", "is",
+        "are", "should", "which", "will", "would",
     ];
     let lower = s.to_lowercase();
     WORDS.iter().any(|w| {
@@ -56,15 +56,24 @@ pub fn is_question(q: &str) -> bool {
 pub fn intent(q: &str) -> &'static str {
     let s = q.to_lowercase();
     let s = s.trim();
-    if ["price", "pricing", "cost", "buy", "book", "download", "signup", "sign up"]
-        .iter()
-        .any(|x| s.contains(*x))
+    if [
+        "price", "pricing", "cost", "buy", "book", "download", "signup", "sign up",
+    ]
+    .iter()
+    .any(|x| s.contains(*x))
     {
         return "transactional";
     }
-    if ["best ", " vs ", " versus ", "alternative", "compare", "review"]
-        .iter()
-        .any(|x| s.contains(*x))
+    if [
+        "best ",
+        " vs ",
+        " versus ",
+        "alternative",
+        "compare",
+        "review",
+    ]
+    .iter()
+    .any(|x| s.contains(*x))
     {
         return "commercial";
     }
@@ -172,7 +181,8 @@ pub fn build(rows: &[Row], extras: &[String]) -> Vec<QuestionEntry> {
         );
     }
 
-    let mut items: Vec<QuestionEntry> = order.into_iter().filter_map(|k| found.remove(&k)).collect();
+    let mut items: Vec<QuestionEntry> =
+        order.into_iter().filter_map(|k| found.remove(&k)).collect();
     items.sort_by(|a, b| {
         let ia = -(a.impressions.unwrap_or(0.0));
         let ib = -(b.impressions.unwrap_or(0.0));
@@ -362,12 +372,19 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "legion-w2032-qi-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("in.json");
         let out = dir.join("out.json");
-        std::fs::write(&input, r#"[{"query":"what is seo?","clicks":1,"impressions":10}]"#).unwrap();
+        std::fs::write(
+            &input,
+            r#"[{"query":"what is seo?","clicks":1,"impressions":10}]"#,
+        )
+        .unwrap();
         let code = run(&[
             input.to_str().unwrap().to_string(),
             "--out".to_string(),

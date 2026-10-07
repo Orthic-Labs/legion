@@ -155,10 +155,7 @@ pub fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
         }
     }
 
-    let cleaned: Vec<u8> = input
-        .bytes()
-        .filter(|b| !b.is_ascii_whitespace())
-        .collect();
+    let cleaned: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
     if cleaned.is_empty() {
         return Ok(Vec::new());
     }

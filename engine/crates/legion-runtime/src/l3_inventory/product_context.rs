@@ -6,7 +6,12 @@ use serde_json::{json, Value};
 
 fn str_set(a: &Value, key: &str, b: &Value, sub_key: &str) -> Vec<Value> {
     let mut set: BTreeSet<String> = BTreeSet::new();
-    for v in a.get(key).and_then(Value::as_array).cloned().unwrap_or_default() {
+    for v in a
+        .get(key)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
         if let Some(s) = v.as_str() {
             set.insert(s.to_string());
         }
@@ -92,7 +97,9 @@ pub fn build_product_context(projection: &Value, contract: &Value) -> Value {
         .unwrap_or_default()
         .into_iter()
         .map(|item| match item {
-            Value::String(id) => json!({"id": id, "roleIds": [], "scope": "unknown", "evidenceRefs": []}),
+            Value::String(id) => {
+                json!({"id": id, "roleIds": [], "scope": "unknown", "evidenceRefs": []})
+            }
             other => other,
         })
         .collect();

@@ -144,8 +144,7 @@ fn mime_type_for(suffix: &str) -> &'static str {
 /// Minimal standard-alphabet base64 encoder (RFC 4648, with `=` padding),
 /// equivalent to `base64.b64encode(...).decode("utf-8")`.
 pub fn encode_base64(input: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
     for chunk in input.chunks(3) {
         let b0 = chunk[0];
@@ -249,8 +248,7 @@ pub fn edit_image(
     output_dir: &Path,
     now: SystemTime,
 ) -> Result<EditResult, EditError> {
-    let image_path = fs::canonicalize(image_path)
-        .unwrap_or_else(|_| PathBuf::from(image_path));
+    let image_path = fs::canonicalize(image_path).unwrap_or_else(|_| PathBuf::from(image_path));
     if !image_path.exists() {
         return Err(EditError::ImageNotFound(format!(
             "Image not found: {}",
@@ -351,7 +349,8 @@ pub fn edit_image(
 
     let decoded = decode_base64(&image_data).map_err(EditError::Io)?;
     let mut f = fs::File::create(&output_path).map_err(|e| EditError::Io(e.to_string()))?;
-    f.write_all(&decoded).map_err(|e| EditError::Io(e.to_string()))?;
+    f.write_all(&decoded)
+        .map_err(|e| EditError::Io(e.to_string()))?;
 
     Ok(EditResult {
         path: output_path.display().to_string(),
@@ -366,7 +365,9 @@ pub fn default_output_dir() -> PathBuf {
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join("Documents").join("nanobanana_generated")
+    PathBuf::from(home)
+        .join("Documents")
+        .join("nanobanana_generated")
 }
 
 /// Mirrors `argparse` parsing in `main()`. Returns `Err(message)` for a
@@ -453,7 +454,10 @@ pub fn run(args: &[String]) -> i32 {
         SystemTime::now(),
     ) {
         Ok(result) => {
-            println!("{}", serde_json::to_string_pretty(&result.to_json()).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result.to_json()).unwrap()
+            );
             0
         }
         Err(err) => {
@@ -505,7 +509,9 @@ mod tests {
     fn tiny_png_bytes() -> Vec<u8> {
         // Not a real PNG, just deterministic bytes to round-trip through
         // base64 encode -> decode.
-        vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5]
+        vec![
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5,
+        ]
     }
 
     #[test]
@@ -732,7 +738,8 @@ mod tests {
     fn format_timestamp_matches_known_unix_time() {
         // 2024-01-02T03:04:05.123456Z
         let secs = 1_704_164_645u64;
-        let ts = SystemTime::UNIX_EPOCH + Duration::from_secs(secs) + Duration::from_micros(123_456);
+        let ts =
+            SystemTime::UNIX_EPOCH + Duration::from_secs(secs) + Duration::from_micros(123_456);
         assert_eq!(format_timestamp(ts), "20240102_030405_123456");
     }
 

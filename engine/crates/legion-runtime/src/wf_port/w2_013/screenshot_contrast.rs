@@ -47,7 +47,12 @@ pub fn sanitize_screenshot_clip(clip: Option<Clip>, viewport_width: Option<i64>)
     if width < 1 || height < 1 {
         return None;
     }
-    Some(Clip { x, y, width, height })
+    Some(Clip {
+        x,
+        y,
+        width,
+        height,
+    })
 }
 
 /// A single RGB sample, matching the `{ r, g, b }` objects passed to the
@@ -149,7 +154,8 @@ pub fn compare_screenshot_contrast(
         return None;
     }
 
-    let css_text_color = if candidate.text_color.is_some() && !candidate.prefer_rendered_foreground {
+    let css_text_color = if candidate.text_color.is_some() && !candidate.prefer_rendered_foreground
+    {
         candidate.text_color
     } else {
         None
@@ -273,7 +279,13 @@ pub fn capture_visual_contrast_candidate(
     let reason_label = if candidate.reasons.is_empty() {
         "visual background".to_string()
     } else {
-        candidate.reasons.iter().take(3).cloned().collect::<Vec<_>>().join(", ")
+        candidate
+            .reasons
+            .iter()
+            .take(3)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ")
     };
     let median = metrics.median_ratio.unwrap_or(0.0);
     Some(ContrastFinding {
@@ -301,7 +313,10 @@ impl ChromeContrastCapture {
     /// runs against the live page under test (already opened elsewhere in
     /// the detector pipeline), so this takes an existing tab/browser pair
     /// rather than launching a fresh one.
-    pub fn new(tab: std::sync::Arc<headless_chrome::Tab>, browser: headless_chrome::Browser) -> Self {
+    pub fn new(
+        tab: std::sync::Arc<headless_chrome::Tab>,
+        browser: headless_chrome::Browser,
+    ) -> Self {
         Self {
             tab,
             _browser: browser,
@@ -338,7 +353,11 @@ impl PageCapture for ChromeContrastCapture {
             std::process::id()
         );
         let selector_json = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_string());
-        let bgclip = if background_clip_text { "true" } else { "false" };
+        let bgclip = if background_clip_text {
+            "true"
+        } else {
+            "false"
+        };
         let expression = format!(
             r#"(() => {{
   let el;
@@ -365,8 +384,14 @@ impl PageCapture for ChromeContrastCapture {
   return true;
 }})()"#
         );
-        let remote_object = self.tab.evaluate(&expression, false).map_err(|e| e.to_string())?;
-        Ok(matches!(remote_object.value, Some(serde_json::Value::Bool(true))))
+        let remote_object = self
+            .tab
+            .evaluate(&expression, false)
+            .map_err(|e| e.to_string())?;
+        Ok(matches!(
+            remote_object.value,
+            Some(serde_json::Value::Bool(true))
+        ))
     }
 
     fn remove_hide(&mut self, selector: &str) {
@@ -397,21 +422,44 @@ mod tests {
 
     #[test]
     fn sanitize_clip_clamps_width_to_viewport_and_height_to_320() {
-        let clip = Clip { x: -5, y: -3, width: 5000, height: 500 };
+        let clip = Clip {
+            x: -5,
+            y: -3,
+            width: 5000,
+            height: 500,
+        };
         let sanitized = sanitize_screenshot_clip(Some(clip), Some(1200)).unwrap();
-        assert_eq!(sanitized, Clip { x: 0, y: 0, width: 1200, height: 320 });
+        assert_eq!(
+            sanitized,
+            Clip {
+                x: 0,
+                y: 0,
+                width: 1200,
+                height: 320
+            }
+        );
     }
 
     #[test]
     fn sanitize_clip_defaults_viewport_width_to_1600() {
-        let clip = Clip { x: 0, y: 0, width: 9999, height: 10 };
+        let clip = Clip {
+            x: 0,
+            y: 0,
+            width: 9999,
+            height: 10,
+        };
         let sanitized = sanitize_screenshot_clip(Some(clip), None).unwrap();
         assert_eq!(sanitized.width, 1600);
     }
 
     #[test]
     fn sanitize_clip_floors_dimensions_to_at_least_one() {
-        let clip = Clip { x: 1, y: 1, width: 0, height: 0 };
+        let clip = Clip {
+            x: 1,
+            y: 1,
+            width: 0,
+            height: 0,
+        };
         let sanitized = sanitize_screenshot_clip(Some(clip), Some(1600)).unwrap();
         assert_eq!(sanitized.width, 1);
         assert_eq!(sanitized.height, 1);
@@ -419,21 +467,52 @@ mod tests {
 
     #[test]
     fn relative_luminance_of_black_is_zero_and_white_is_one() {
-        assert_eq!(relative_luminance(Rgb { r: 0.0, g: 0.0, b: 0.0 }), 0.0);
-        assert!((relative_luminance(Rgb { r: 255.0, g: 255.0, b: 255.0 }) - 1.0).abs() < 1e-9);
+        assert_eq!(
+            relative_luminance(Rgb {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0
+            }),
+            0.0
+        );
+        assert!(
+            (relative_luminance(Rgb {
+                r: 255.0,
+                g: 255.0,
+                b: 255.0
+            }) - 1.0)
+                .abs()
+                < 1e-9
+        );
     }
 
     #[test]
     fn contrast_ratio_of_black_on_white_is_21_to_1() {
-        let black = Rgb { r: 0.0, g: 0.0, b: 0.0 };
-        let white = Rgb { r: 255.0, g: 255.0, b: 255.0 };
+        let black = Rgb {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+        };
+        let white = Rgb {
+            r: 255.0,
+            g: 255.0,
+            b: 255.0,
+        };
         assert!((contrast_ratio(black, white) - 21.0).abs() < 1e-6);
     }
 
     #[test]
     fn contrast_ratio_is_symmetric() {
-        let a = Rgb { r: 10.0, g: 200.0, b: 50.0 };
-        let b = Rgb { r: 240.0, g: 30.0, b: 90.0 };
+        let a = Rgb {
+            r: 10.0,
+            g: 200.0,
+            b: 50.0,
+        };
+        let b = Rgb {
+            r: 240.0,
+            g: 30.0,
+            b: 90.0,
+        };
         assert!((contrast_ratio(a, b) - contrast_ratio(b, a)).abs() < 1e-9);
     }
 
@@ -468,7 +547,12 @@ mod tests {
     fn base_candidate() -> ContrastCandidate {
         ContrastCandidate {
             selector: ".target".to_string(),
-            clip: Some(Clip { x: 0, y: 0, width: 4, height: 4 }),
+            clip: Some(Clip {
+                x: 0,
+                y: 0,
+                width: 4,
+                height: 4,
+            }),
             text_color: None,
             prefer_rendered_foreground: false,
             background_clip_text: false,
@@ -510,7 +594,11 @@ mod tests {
         let mut candidate = base_candidate();
         // Same "before" color, so the CSS-vs-rendered choice doesn't change
         // this particular ratio, but exercises the branch.
-        candidate.text_color = Some(Rgb { r: 0.0, g: 0.0, b: 0.0 });
+        candidate.text_color = Some(Rgb {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+        });
         candidate.prefer_rendered_foreground = false;
         let metrics = compare_screenshot_contrast(&before, &after, &candidate).unwrap();
         assert!((metrics.worst_ratio.unwrap() - 21.0).abs() < 1e-6);
@@ -535,7 +623,11 @@ mod tests {
             }
         }
 
-        fn apply_hide(&mut self, _selector: &str, _background_clip_text: bool) -> Result<bool, String> {
+        fn apply_hide(
+            &mut self,
+            _selector: &str,
+            _background_clip_text: bool,
+        ) -> Result<bool, String> {
             self.hide_applied = true;
             Ok(self.apply_hide_result)
         }
@@ -557,7 +649,10 @@ mod tests {
             hide_removed: false,
             apply_hide_result: true,
         };
-        assert_eq!(capture_visual_contrast_candidate(&mut capture, &candidate, None), None);
+        assert_eq!(
+            capture_visual_contrast_candidate(&mut capture, &candidate, None),
+            None
+        );
         assert!(!capture.hide_applied);
     }
 
@@ -573,7 +668,10 @@ mod tests {
             hide_removed: false,
             apply_hide_result: false,
         };
-        assert_eq!(capture_visual_contrast_candidate(&mut capture, &candidate, None), None);
+        assert_eq!(
+            capture_visual_contrast_candidate(&mut capture, &candidate, None),
+            None
+        );
         assert!(capture.hide_applied);
         // Cleanup only runs after a successful apply_hide (mirrors the JS:
         // `if (!applied) return null;` happens before the try/finally).
@@ -583,7 +681,12 @@ mod tests {
     #[test]
     fn capture_visual_contrast_candidate_flags_low_contrast_below_threshold() {
         let mut candidate = base_candidate();
-        candidate.clip = Some(Clip { x: 0, y: 0, width: 4, height: 4 });
+        candidate.clip = Some(Clip {
+            x: 0,
+            y: 0,
+            width: 4,
+            height: 4,
+        });
         candidate.threshold = 4.5;
         candidate.text = Some("Read more".to_string());
         candidate.reasons = vec!["low contrast background".to_string()];
@@ -600,7 +703,10 @@ mod tests {
         // Black-on-white is 21:1, well above the 4.5:1 threshold, so this
         // should NOT be flagged -- exercises the "measured >= threshold"
         // short circuit.
-        assert_eq!(capture_visual_contrast_candidate(&mut capture, &candidate, None), None);
+        assert_eq!(
+            capture_visual_contrast_candidate(&mut capture, &candidate, None),
+            None
+        );
         assert!(capture.hide_removed);
     }
 
@@ -609,7 +715,12 @@ mod tests {
         let mut candidate = base_candidate();
         candidate.threshold = 25.0; // above the achievable 21:1 max
         candidate.text = Some("Read more".to_string());
-        candidate.reasons = vec!["low contrast background".to_string(), "extra".to_string(), "dropped".to_string(), "also-dropped".to_string()];
+        candidate.reasons = vec![
+            "low contrast background".to_string(),
+            "extra".to_string(),
+            "dropped".to_string(),
+            "also-dropped".to_string(),
+        ];
         let before = encode_png(&[[0, 0, 0, 255]; 16], 4, 4);
         let after = encode_png(&[[255, 255, 255, 255]; 16], 4, 4);
         let mut capture = FakeCapture {
@@ -624,7 +735,9 @@ mod tests {
         assert_eq!(finding.id, "low-contrast");
         assert!(finding.snippet.contains("21.0:1"));
         assert!(finding.snippet.contains("need 25:1"));
-        assert!(finding.snippet.contains("low contrast background, extra, dropped"));
+        assert!(finding
+            .snippet
+            .contains("low contrast background, extra, dropped"));
         assert!(!finding.snippet.contains("also-dropped"));
         assert!(finding.snippet.contains("\"Read more\""));
         assert!(capture.hide_removed);

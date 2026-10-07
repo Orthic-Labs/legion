@@ -31,7 +31,10 @@ pub struct Projection {
 
 pub fn evaluate_selector(selector: &Selector, projection: &Projection) -> bool {
     let paths: HashSet<&str> = projection.files.iter().map(String::as_str).collect();
-    let paths_match = selector.paths.iter().all(|path| paths.contains(path.as_str()));
+    let paths_match = selector
+        .paths
+        .iter()
+        .all(|path| paths.contains(path.as_str()));
     let extensions_match = selector
         .extensions
         .iter()

@@ -50,7 +50,13 @@ fn resolve_path(root: &Path, rel: &str) -> PathBuf {
 }
 
 /// JS `validateFileRecord`.
-fn validate_file_record(record: &Value, root: &Path, task_id: &str, kind: &str, needle: Option<&str>) -> Vec<String> {
+fn validate_file_record(
+    record: &Value,
+    root: &Path,
+    task_id: &str,
+    kind: &str,
+    needle: Option<&str>,
+) -> Vec<String> {
     let path = record.get("path").and_then(Value::as_str).unwrap_or("");
     let resolved = resolve_path(root, path);
     if path.is_empty() || !resolved.exists() {
@@ -71,7 +77,11 @@ fn validate_file_record(record: &Value, root: &Path, task_id: &str, kind: &str, 
     }
     if let Some(needle) = needle {
         if !needle.is_empty() && !String::from_utf8_lossy(&bytes).contains(needle) {
-            let label = if kind == "test" { "assertion" } else { "symbol" };
+            let label = if kind == "test" {
+                "assertion"
+            } else {
+                "symbol"
+            };
             issues.push(format!("{task_id}:{kind}:{label}-absent"));
         }
     }
@@ -84,7 +94,11 @@ fn summary(bytes: &[u8]) -> Value {
     let text = String::from_utf8_lossy(bytes);
     let pick = |name: &str| -> Value {
         let re = Regex::new(&format!(r"(?:\x{{2139}}|#) {name} (\d+)")).unwrap();
-        match re.captures(&text).and_then(|c| c.get(1)).and_then(|m| m.as_str().parse::<i64>().ok()) {
+        match re
+            .captures(&text)
+            .and_then(|c| c.get(1))
+            .and_then(|m| m.as_str().parse::<i64>().ok())
+        {
             Some(value) => json!(value),
             None => Value::Null,
         }
@@ -122,11 +136,19 @@ fn assertion_status(text: &str, assertion: &str) -> Option<&'static str> {
 /// JS `validateV1`.
 fn validate_v1(receipt: &Value, root: &Path) -> Vec<String> {
     let mut issues = Vec::new();
-    let decision = receipt.get("decision").and_then(Value::as_str).unwrap_or("");
+    let decision = receipt
+        .get("decision")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if !V1_DECISIONS.contains(&decision) {
         issues.push("invalid-decision".to_string());
     }
-    for task in receipt.get("tasks").and_then(Value::as_array).cloned().unwrap_or_default() {
+    for task in receipt
+        .get("tasks")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
         let id = task.get("id").and_then(Value::as_str).unwrap_or("");
         let evidence = task.get("evidence").and_then(Value::as_array);
         let mapping_empty = task
@@ -188,14 +210,26 @@ pub fn validate_book_receipt(receipt: &Value, options: &BookReceiptOptions) -> V
         issues.extend(validate_schema(&schema_v2(), receipt));
     }
 
-    let tasks: Vec<Value> = receipt.get("tasks").and_then(Value::as_array).cloned().unwrap_or_default();
-    let expected_task_count = receipt.get("expectedTaskCount").and_then(Value::as_i64).unwrap_or(0);
+    let tasks: Vec<Value> = receipt
+        .get("tasks")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let expected_task_count = receipt
+        .get("expectedTaskCount")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
     let expected: Vec<String> = (0..expected_task_count)
         .map(|index| format!("B{}-{:03}", book.unwrap_or(0), index + 1))
         .collect();
     let ids: Vec<String> = tasks
         .iter()
-        .map(|task| task.get("id").and_then(Value::as_str).unwrap_or("").to_string())
+        .map(|task| {
+            task.get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string()
+        })
         .collect();
     let unique_ids: HashSet<&String> = ids.iter().collect();
     if unique_ids.len() != ids.len() {
@@ -215,8 +249,15 @@ pub fn validate_book_receipt(receipt: &Value, options: &BookReceiptOptions) -> V
             continue;
         }
         let mut seen_dependencies: HashSet<String> = HashSet::new();
-        for dependency in task.get("dependsOn").and_then(Value::as_array).cloned().unwrap_or_default() {
-            let Some(dependency) = dependency.as_str() else { continue };
+        for dependency in task
+            .get("dependsOn")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let Some(dependency) = dependency.as_str() else {
+                continue;
+            };
             if seen_dependencies.contains(dependency) {
                 issues.push(format!("{task_id}:duplicate-dependency:{dependency}"));
             }
@@ -248,16 +289,39 @@ pub fn validate_book_receipt(receipt: &Value, options: &BookReceiptOptions) -> V
         };
         let test = evidence.get("test").cloned().unwrap_or(Value::Null);
         let test_assertion = test.get("assertion").and_then(Value::as_str);
-        issues.extend(validate_file_record(&test, root, task_id, "test", test_assertion));
-        for implementation in evidence.get("implementation").and_then(Value::as_array).cloned().unwrap_or_default() {
+        issues.extend(validate_file_record(
+            &test,
+            root,
+            task_id,
+            "test",
+            test_assertion,
+        ));
+        for implementation in evidence
+            .get("implementation")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
             let symbol = implementation.get("symbol").and_then(Value::as_str);
-            issues.extend(validate_file_record(&implementation, root, task_id, "implementation", symbol));
+            issues.extend(validate_file_record(
+                &implementation,
+                root,
+                task_id,
+                "implementation",
+                symbol,
+            ));
         }
         for color in ["red", "green"] {
             let Some(proof) = evidence.get("proof").and_then(|p| p.get(color)) else {
                 continue;
             };
-            issues.extend(validate_file_record(proof, root, task_id, &format!("{color}-proof"), None));
+            issues.extend(validate_file_record(
+                proof,
+                root,
+                task_id,
+                &format!("{color}-proof"),
+                None,
+            ));
             let proof_path = proof.get("path").and_then(Value::as_str).unwrap_or("");
             let resolved = resolve_path(root, proof_path);
             if !proof_path.is_empty() && resolved.exists() {
@@ -268,14 +332,23 @@ pub fn validate_book_receipt(receipt: &Value, options: &BookReceiptOptions) -> V
                         issues.push(format!("{task_id}:{color}-proof:tap-counts-mismatch"));
                     }
                     let text = String::from_utf8_lossy(&bytes);
-                    let status = test_assertion.and_then(|assertion| assertion_status(&text, assertion));
+                    let status =
+                        test_assertion.and_then(|assertion| assertion_status(&text, assertion));
                     match status {
-                        None => issues.push(format!("{task_id}:{color}-proof:task-assertion-absent")),
+                        None => {
+                            issues.push(format!("{task_id}:{color}-proof:task-assertion-absent"))
+                        }
                         Some(status) => {
                             let expected_status = if color == "red" { "fail" } else { "pass" };
                             if status != expected_status {
-                                let label = if color == "red" { "not-failed" } else { "not-passed" };
-                                issues.push(format!("{task_id}:{color}-proof:task-assertion-{label}"));
+                                let label = if color == "red" {
+                                    "not-failed"
+                                } else {
+                                    "not-passed"
+                                };
+                                issues.push(format!(
+                                    "{task_id}:{color}-proof:task-assertion-{label}"
+                                ));
                             }
                         }
                     }
@@ -284,18 +357,34 @@ pub fn validate_book_receipt(receipt: &Value, options: &BookReceiptOptions) -> V
         }
     }
 
-    let implemented = tasks.iter().filter(|t| t.get("status").and_then(Value::as_str) == Some("implemented")).count();
-    let mapped = tasks.iter().filter(|t| t.get("status").and_then(Value::as_str) == Some("mapped")).count();
-    let source_blocked = tasks.iter().filter(|t| t.get("status").and_then(Value::as_str) == Some("source-blocked")).count();
-    let counts = json!({ "implemented": implemented, "mapped": mapped, "sourceBlocked": source_blocked });
+    let implemented = tasks
+        .iter()
+        .filter(|t| t.get("status").and_then(Value::as_str) == Some("implemented"))
+        .count();
+    let mapped = tasks
+        .iter()
+        .filter(|t| t.get("status").and_then(Value::as_str) == Some("mapped"))
+        .count();
+    let source_blocked = tasks
+        .iter()
+        .filter(|t| t.get("status").and_then(Value::as_str) == Some("source-blocked"))
+        .count();
+    let counts =
+        json!({ "implemented": implemented, "mapped": mapped, "sourceBlocked": source_blocked });
 
     if version == Some(2) {
         let observed_source_revision = current_source_revision(root);
-        let receipt_source_revision = receipt.get("sourceRevision").and_then(Value::as_str).unwrap_or("");
+        let receipt_source_revision = receipt
+            .get("sourceRevision")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if receipt_source_revision != observed_source_revision {
             issues.push("source-revision-mismatch".to_string());
         }
-        let receipt_accounting = receipt.get("sourceAccounting").cloned().unwrap_or(Value::Null);
+        let receipt_accounting = receipt
+            .get("sourceAccounting")
+            .cloned()
+            .unwrap_or(Value::Null);
         if receipt_accounting != counts {
             issues.push("source-accounting-mismatch".to_string());
         }
@@ -303,14 +392,25 @@ pub fn validate_book_receipt(receipt: &Value, options: &BookReceiptOptions) -> V
         if decision == Some("SOURCE_IMPLEMENTED") && (mapped != 0 || source_blocked != 0) {
             issues.push("source-implemented-with-source-gaps".to_string());
         }
-        for check in receipt.get("checks").and_then(Value::as_array).cloned().unwrap_or_default() {
+        for check in receipt
+            .get("checks")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
             let check_id = check.get("id").and_then(Value::as_str).unwrap_or("");
             let file_record = json!({
                 "path": check.get("log").cloned().unwrap_or(Value::Null),
                 "digest": check.get("digest").cloned().unwrap_or(Value::Null),
                 "bytes": check.get("bytes").cloned().unwrap_or(Value::Null),
             });
-            issues.extend(validate_file_record(&file_record, root, check_id, "check-log", None));
+            issues.extend(validate_file_record(
+                &file_record,
+                root,
+                check_id,
+                "check-log",
+                None,
+            ));
             let log_path = check.get("log").and_then(Value::as_str).unwrap_or("");
             let resolved = resolve_path(root, log_path);
             if !log_path.is_empty() && resolved.exists() {
@@ -326,7 +426,10 @@ pub fn validate_book_receipt(receipt: &Value, options: &BookReceiptOptions) -> V
     // JS `[...new Set(issues)]`: first-seen order preserved, duplicates
     // dropped.
     let mut seen = HashSet::new();
-    let deduped: Vec<String> = issues.into_iter().filter(|issue| seen.insert(issue.clone())).collect();
+    let deduped: Vec<String> = issues
+        .into_iter()
+        .filter(|issue| seen.insert(issue.clone()))
+        .collect();
 
     json!({
         "valid": deduped.is_empty(),

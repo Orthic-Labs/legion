@@ -10,7 +10,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use super::live_resume::{manual_apply_resume_hint, parse_args, ManualApplyEvent, ChunkRef};
+use super::live_resume::{manual_apply_resume_hint, parse_args, ChunkRef, ManualApplyEvent};
 use crate::wf_port::w2_021::session_store::LiveSessionStore;
 
 /// Converts a raw `pendingEvent` JSON value into a [`ManualApplyEvent`] for
@@ -23,7 +23,10 @@ fn to_manual_apply_event(pending: &Value) -> ManualApplyEvent {
         Some(ChunkRef { index, total })
     });
     ManualApplyEvent {
-        id: pending.get("id").and_then(Value::as_str).map(str::to_string),
+        id: pending
+            .get("id")
+            .and_then(Value::as_str)
+            .map(str::to_string),
         page_url: pending
             .get("pageUrl")
             .and_then(Value::as_str)
@@ -53,13 +56,13 @@ pub fn compute_next_action(snapshot: &Value) -> String {
     match phase {
         "carbonize_required" => {
             let source_file = snapshot.get("sourceFile").and_then(Value::as_str);
-            let suffix = source_file
-                .map(|f| format!(" in {f}"))
-                .unwrap_or_default();
+            let suffix = source_file.map(|f| format!(" in {f}")).unwrap_or_default();
             format!("Finish carbonize cleanup{suffix}, then run live-complete.mjs --id {id}.")
         }
         "accept_requested" => {
-            format!("Run live-complete.mjs --id {id} after verifying the accepted variant is written.")
+            format!(
+                "Run live-complete.mjs --id {id} after verifying the accepted variant is written."
+            )
         }
         _ => format!("Inspect {id}; no pending agent event is currently queued."),
     }
@@ -68,7 +71,8 @@ pub fn compute_next_action(snapshot: &Value) -> String {
 /// Port of `resumeCli()`'s snapshot lookup: `args.id ? store.getSnapshot(args.id)
 /// : store.listActiveSessions()[0] || null`.
 pub fn load_snapshot(cwd: &Path, id: Option<&str>) -> Result<Option<Value>, String> {
-    let mut store = LiveSessionStore::new(cwd, id.map(str::to_string)).map_err(|e| e.to_string())?;
+    let mut store =
+        LiveSessionStore::new(cwd, id.map(str::to_string)).map_err(|e| e.to_string())?;
     if let Some(id) = id {
         store.get_snapshot(Some(id), false)
     } else {
@@ -150,7 +154,10 @@ mod tests {
         let dir = temp_dir();
         let out = resume_output(&dir, None).unwrap();
         assert_eq!(out["active"], json!(false));
-        assert_eq!(out["nextAction"], json!("No active durable live session found."));
+        assert_eq!(
+            out["nextAction"],
+            json!("No active durable live session found.")
+        );
     }
 
     #[test]
@@ -193,7 +200,10 @@ mod tests {
         let dir = temp_dir();
         let mut store = LiveSessionStore::new(&dir, None).unwrap();
         store
-            .append_event(json!({ "id": "sess2", "type": "generate", "count": 1 }), None)
+            .append_event(
+                json!({ "id": "sess2", "type": "generate", "count": 1 }),
+                None,
+            )
             .unwrap();
         let out = resume_output(&dir, Some("sess2")).unwrap();
         assert_eq!(
@@ -218,7 +228,8 @@ mod tests {
 
     #[test]
     fn carbonize_required_no_source_file() {
-        let snapshot = json!({ "id": "sess4", "phase": "carbonize_required", "pendingEvent": null });
+        let snapshot =
+            json!({ "id": "sess4", "phase": "carbonize_required", "pendingEvent": null });
         assert_eq!(
             compute_next_action(&snapshot),
             "Finish carbonize cleanup, then run live-complete.mjs --id sess4."
@@ -265,7 +276,10 @@ mod tests {
         let dir = temp_dir();
         let mut store = LiveSessionStore::new(&dir, None).unwrap();
         store
-            .append_event(json!({ "id": "sessA", "type": "generate", "count": 1 }), None)
+            .append_event(
+                json!({ "id": "sessA", "type": "generate", "count": 1 }),
+                None,
+            )
             .unwrap();
         let (code, text) = run(&dir, &["--id".to_string(), "sessA".to_string()]);
         assert_eq!(code, 0);
@@ -279,7 +293,10 @@ mod tests {
         let dir = temp_dir();
         let mut store = LiveSessionStore::new(&dir, None).unwrap();
         store
-            .append_event(json!({ "id": "sessB", "type": "generate", "count": 1 }), None)
+            .append_event(
+                json!({ "id": "sessB", "type": "generate", "count": 1 }),
+                None,
+            )
             .unwrap();
         let out = resume_output(&dir, None).unwrap();
         assert_eq!(out["active"], json!(true));

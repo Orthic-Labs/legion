@@ -38,7 +38,9 @@ mod tests {
 
     #[test]
     fn requires_exactly_one_status_line() {
-        assert!(status_errors("no status here").iter().any(|e| e.contains("exactly one STATUS")));
+        assert!(status_errors("no status here")
+            .iter()
+            .any(|e| e.contains("exactly one STATUS")));
         assert!(status_errors("STATUS: COMPLETE\nSTATUS: TRUE_BLOCKER\n")
             .iter()
             .any(|e| e.contains("exactly one STATUS")));
@@ -47,7 +49,9 @@ mod tests {
     #[test]
     fn rejects_unknown_status_value() {
         let errors = status_errors("STATUS: MAYBE\n");
-        assert!(errors.iter().any(|e| e == "forbidden terminal status: MAYBE"));
+        assert!(errors
+            .iter()
+            .any(|e| e == "forbidden terminal status: MAYBE"));
     }
 
     #[test]

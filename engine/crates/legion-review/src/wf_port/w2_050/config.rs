@@ -296,6 +296,9 @@ skills:
     #[test]
     fn default_config_path_matches_python_layout() {
         let dir = Path::new("/some/dir");
-        assert_eq!(default_config_path(dir), PathBuf::from("/some/dir/models.yaml"));
+        assert_eq!(
+            default_config_path(dir),
+            PathBuf::from("/some/dir/models.yaml")
+        );
     }
 }

@@ -71,7 +71,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://handoff/evals/evals.json",
-      "digest": "sha256:dae3fdecf04b3ca0dd07618f08418a77f84954e43766fd0aba7469fbbb16bf08"
+      "digest": "sha256:2df12ca2c0739a23d8160f699d556204c7ac741efaaad3a53ed7720f42feb714"
     },
     {
       "path": "examples/validated-forward-test.md",

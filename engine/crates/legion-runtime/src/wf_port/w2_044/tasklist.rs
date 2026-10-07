@@ -209,7 +209,9 @@ fn parse_args(args: &[String]) -> Result<CliArgs, String> {
         match arg.as_str() {
             "--packet-type" => {
                 i += 1;
-                let v = args.get(i).ok_or("argument --packet-type: expected one argument")?;
+                let v = args
+                    .get(i)
+                    .ok_or("argument --packet-type: expected one argument")?;
                 if v != "authority" && v != "worker" {
                     return Err(format!(
                         "argument --packet-type: invalid choice: '{v}' (choose from 'authority', 'worker')"
@@ -219,7 +221,9 @@ fn parse_args(args: &[String]) -> Result<CliArgs, String> {
             }
             "--receipt-mode" => {
                 i += 1;
-                let v = args.get(i).ok_or("argument --receipt-mode: expected one argument")?;
+                let v = args
+                    .get(i)
+                    .ok_or("argument --receipt-mode: expected one argument")?;
                 if v != "write" && v != "verify" {
                     return Err(format!(
                         "argument --receipt-mode: invalid choice: '{v}' (choose from 'write', 'verify')"
@@ -229,7 +233,9 @@ fn parse_args(args: &[String]) -> Result<CliArgs, String> {
             }
             "--receipt-dir" => {
                 i += 1;
-                let v = args.get(i).ok_or("argument --receipt-dir: expected one argument")?;
+                let v = args
+                    .get(i)
+                    .ok_or("argument --receipt-dir: expected one argument")?;
                 receipt_dir = Some(PathBuf::from(v));
             }
             other => packets.push(PathBuf::from(other)),
@@ -280,8 +286,15 @@ pub fn run_cli(
     for packet in &parsed.packets {
         let packet = resolve_path(packet);
         if !packet.is_file() {
-            stderr.push_str(&format!("FAIL: packet file not found: {}\n", packet.display()));
-            return CliOutcome { code: 2, stdout, stderr };
+            stderr.push_str(&format!(
+                "FAIL: packet file not found: {}\n",
+                packet.display()
+            ));
+            return CliOutcome {
+                code: 2,
+                stdout,
+                stderr,
+            };
         }
         let receipt_dir = match &parsed.receipt_dir {
             Some(d) => resolve_path(d),
@@ -311,17 +324,29 @@ pub fn run_cli(
             Ok(o) => o,
             Err(err) => {
                 stderr.push_str(&format!("FAIL: could not launch validator: {err}\n"));
-                return CliOutcome { code: 2, stdout, stderr };
+                return CliOutcome {
+                    code: 2,
+                    stdout,
+                    stderr,
+                };
             }
         };
         stdout.push_str(&output.stdout);
         stderr.push_str(&output.stderr);
         if output.code != 0 {
-            return CliOutcome { code: output.code, stdout, stderr };
+            return CliOutcome {
+                code: output.code,
+                stdout,
+                stderr,
+            };
         }
     }
 
-    CliOutcome { code: 0, stdout, stderr }
+    CliOutcome {
+        code: 0,
+        stdout,
+        stderr,
+    }
 }
 
 #[cfg(test)]
@@ -345,7 +370,9 @@ mod cli_tests {
 
     impl CommandRunner for FakeRunner {
         fn run(&self, program: &str, args: &[String]) -> std::io::Result<ProcessOutput> {
-            self.calls.borrow_mut().push((program.to_string(), args.to_vec()));
+            self.calls
+                .borrow_mut()
+                .push((program.to_string(), args.to_vec()));
             Ok(self.outputs.borrow_mut().pop().unwrap_or_default())
         }
     }

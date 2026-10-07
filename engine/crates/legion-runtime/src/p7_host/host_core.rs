@@ -9,8 +9,9 @@ use serde_json::{json, Value};
 /// caller passes it explicitly here (no default-arg sugar in Rust).
 pub fn require_capability(host: &Value, name: &str, effect: &str) -> Value {
     let capability = host.get("capabilities").and_then(|c| c.get(name));
-    let is_active = capability
-        .is_some_and(|c| c.as_bool() == Some(true) || c.get("active").and_then(Value::as_bool) == Some(true));
+    let is_active = capability.is_some_and(|c| {
+        c.as_bool() == Some(true) || c.get("active").and_then(Value::as_bool) == Some(true)
+    });
     let receipt = capability
         .and_then(|c| c.get("receipt"))
         .cloned()
@@ -41,7 +42,10 @@ pub fn require_filesystem_host(has_read_file: bool) -> Result<(), FilesystemHost
     }
 }
 
-pub fn process_run_allowed(executable: &str, allowed_executables: &std::collections::HashSet<String>) -> Option<Value> {
+pub fn process_run_allowed(
+    executable: &str,
+    allowed_executables: &std::collections::HashSet<String>,
+) -> Option<Value> {
     if allowed_executables.contains(executable) {
         None
     } else {
@@ -90,11 +94,11 @@ pub fn create_host_capabilities(overrides: &Value) -> Value {
     });
     let mut merged = defaults;
     if let Some(over) = overrides.get("capabilities").and_then(Value::as_object) {
-      if let Value::Object(base) = &mut merged {
-        for (k, v) in over {
-            base.insert(k.clone(), v.clone());
+        if let Value::Object(base) = &mut merged {
+            for (k, v) in over {
+                base.insert(k.clone(), v.clone());
+            }
         }
-      }
     }
     merged
 }
@@ -109,7 +113,10 @@ pub struct ProviderBlockedError {
 }
 
 /// Port of `requireProjectExecutionSandbox`.
-pub fn require_project_execution_sandbox(provider: &Value, host: &Value) -> Result<(), ProviderBlockedError> {
+pub fn require_project_execution_sandbox(
+    provider: &Value,
+    host: &Value,
+) -> Result<(), ProviderBlockedError> {
     let has_project_execution = provider
         .get("hostCapabilities")
         .and_then(Value::as_array)
@@ -117,14 +124,23 @@ pub fn require_project_execution_sandbox(provider: &Value, host: &Value) -> Resu
     if !has_project_execution {
         return Ok(());
     }
-    let network_sandbox = host.get("capabilities").and_then(|c| c.get("networkSandbox"));
-    let active = network_sandbox.and_then(|n| n.get("active")).and_then(Value::as_bool) == Some(true);
+    let network_sandbox = host
+        .get("capabilities")
+        .and_then(|c| c.get("networkSandbox"));
+    let active = network_sandbox
+        .and_then(|n| n.get("active"))
+        .and_then(Value::as_bool)
+        == Some(true);
     let has_receipt = network_sandbox
         .and_then(|n| n.get("receipt"))
         .is_some_and(|r| !r.is_null());
     if !active || !has_receipt {
         return Err(ProviderBlockedError {
-            provider: provider.get("id").and_then(Value::as_str).unwrap_or_default().to_string(),
+            provider: provider
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
             reason: "network-sandbox-receipt-missing".to_string(),
         });
     }
@@ -140,7 +156,10 @@ pub fn assert_fidelity(value: &str, where_: &str) -> Result<(), String> {
     if FIDELITY.contains(&value) {
         Ok(())
     } else {
-        Err(format!("{where_}: fidelity must be one of {}, got {value}", FIDELITY.join("|")))
+        Err(format!(
+            "{where_}: fidelity must be one of {}, got {value}",
+            FIDELITY.join("|")
+        ))
     }
 }
 
@@ -231,9 +250,18 @@ mod tests {
     #[test]
     fn enforcement_fidelity_maps_mechanisms() {
         assert_eq!(enforcement_fidelity(None), "unsupported");
-        assert_eq!(enforcement_fidelity(Some(&json!({"kind": "none"}))), "unsupported");
-        assert_eq!(enforcement_fidelity(Some(&json!({"kind": "blocking-hook"}))), "strong");
-        assert_eq!(enforcement_fidelity(Some(&json!({"kind": "advisory"}))), "degraded");
+        assert_eq!(
+            enforcement_fidelity(Some(&json!({"kind": "none"}))),
+            "unsupported"
+        );
+        assert_eq!(
+            enforcement_fidelity(Some(&json!({"kind": "blocking-hook"}))),
+            "strong"
+        );
+        assert_eq!(
+            enforcement_fidelity(Some(&json!({"kind": "advisory"}))),
+            "degraded"
+        );
     }
 
     #[test]

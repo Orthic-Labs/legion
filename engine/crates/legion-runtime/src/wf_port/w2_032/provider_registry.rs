@@ -35,7 +35,10 @@ pub struct Registry {
 }
 
 /// Mirrors `availability()`: 'available' | 'manual' | 'unknown' | 'partial' | 'unavailable'.
-pub fn availability(provider: &ProviderDef, host_tools: &std::collections::HashSet<String>) -> String {
+pub fn availability(
+    provider: &ProviderDef,
+    host_tools: &std::collections::HashSet<String>,
+) -> String {
     let kind = provider.availability.as_deref().unwrap_or("");
     let envs = provider.env.clone().unwrap_or_default();
     match kind {
@@ -252,7 +255,10 @@ pub fn run(argv: &[String], registry_json: &str) -> i32 {
     match command {
         "discover" => {
             let result = discover(&registry, &host_tools);
-            println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_default()
+            );
             0
         }
         "choose" => {
@@ -265,7 +271,10 @@ pub fn run(argv: &[String], registry_json: &str) -> i32 {
             };
             let result = choose(&registry, cap, &host_tools, allow_paid, !no_manual);
             let selected = result.is_selected();
-            println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_default()
+            );
             if selected {
                 0
             } else {

@@ -134,11 +134,16 @@ pub fn wrap_cli(args: &[String], cwd: &Path, env: &HashMap<String, String>) -> (
     let page_url = arg_val(args, "--page-url");
 
     if element_id.is_none() && classes.is_none() && query.is_none() {
-        return (1, "Need at least one of: --element-id, --classes, --query".to_string());
+        return (
+            1,
+            "Need at least one of: --element-id, --classes, --query".to_string(),
+        );
     }
 
     let queries = build_search_queries(element_id, classes, tag, query);
-    let gen_opts = IsGeneratedOptions { cwd: Some(cwd.to_path_buf()) };
+    let gen_opts = IsGeneratedOptions {
+        cwd: Some(cwd.to_path_buf()),
+    };
 
     let mut target_file: Option<PathBuf> = file_path.map(|f| cwd.join(f));
     if target_file.is_none() {
@@ -185,7 +190,11 @@ pub fn wrap_cli(args: &[String], cwd: &Path, env: &HashMap<String, String>) -> (
 
     let content = match std::fs::read_to_string(&target_file) {
         Ok(c) => c,
-        Err(err) => return err_json(json!({ "error": format!("failed to read {}: {err}", target_file.display()) })),
+        Err(err) => {
+            return err_json(
+                json!({ "error": format!("failed to read {}: {err}", target_file.display()) }),
+            )
+        }
     };
     let lines: Vec<String> = content.split('\n').map(str::to_string).collect();
 
@@ -257,7 +266,10 @@ pub fn wrap_cli(args: &[String], cwd: &Path, env: &HashMap<String, String>) -> (
     let comment_syntax = detect_comment_syntax(&target_file_str);
     let style_mode = detect_style_mode(&target_file_str);
     let is_jsx = comment_syntax.open == "{/*";
-    let indent: String = lines[start_line].chars().take_while(|c| c.is_whitespace()).collect();
+    let indent: String = lines[start_line]
+        .chars()
+        .take_while(|c| c.is_whitespace())
+        .collect();
 
     let mut original_lines: Vec<String> = lines[start_line..=end_line].to_vec();
 
@@ -287,8 +299,15 @@ pub fn wrap_cli(args: &[String], cwd: &Path, env: &HashMap<String, String>) -> (
                 continue;
             }
             for op in &entry.ops {
-                let may_affect = manual_edit_may_affect_wrap(op, &target_file, &original_lines, start_line as i64, cwd);
-                let (new_lines, changed) = apply_buffered_manual_edit_to_lines(&original_lines, start_line as i64, op);
+                let may_affect = manual_edit_may_affect_wrap(
+                    op,
+                    &target_file,
+                    &original_lines,
+                    start_line as i64,
+                    cwd,
+                );
+                let (new_lines, changed) =
+                    apply_buffered_manual_edit_to_lines(&original_lines, start_line as i64, op);
                 if changed {
                     original_lines = new_lines;
                     continue;
@@ -383,7 +402,9 @@ pub fn wrap_cli(args: &[String], cwd: &Path, env: &HashMap<String, String>) -> (
         let session = match scaffold_svelte_component_session(input, cwd) {
             Ok(s) => s,
             Err(err) => {
-                return err_json(json!({ "error": format!("failed to scaffold svelte component session: {err}") }));
+                return err_json(
+                    json!({ "error": format!("failed to scaffold svelte component session: {err}") }),
+                );
             }
         };
         output_file = cwd.join(&session.manifest_file);
@@ -404,7 +425,9 @@ pub fn wrap_cli(args: &[String], cwd: &Path, env: &HashMap<String, String>) -> (
         new_lines.extend(wrapper_lines.iter().cloned());
         new_lines.extend(lines[end_line + 1..].iter().cloned());
         if let Err(err) = std::fs::write(&target_file, new_lines.join("\n")) {
-            return err_json(json!({ "error": format!("failed to write {}: {err}", target_file.display()) }));
+            return err_json(
+                json!({ "error": format!("failed to write {}: {err}", target_file.display()) }),
+            );
         }
         insert_line = start_line + 6 + (original_lines.len() - 1) + 1;
     }
@@ -471,7 +494,8 @@ mod tests {
 
     fn temp_dir() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("legion-wrap-cli-{}-{}", std::process::id(), n));
+        let dir =
+            std::env::temp_dir().join(format!("legion-wrap-cli-{}-{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -487,7 +511,11 @@ mod tests {
     #[test]
     fn missing_id_errors() {
         let env = HashMap::new();
-        let (code, out) = wrap_cli(&["--query".to_string(), "hero".to_string()], Path::new("."), &env);
+        let (code, out) = wrap_cli(
+            &["--query".to_string(), "hero".to_string()],
+            Path::new("."),
+            &env,
+        );
         assert_eq!(code, 1);
         assert_eq!(out, "Missing --id");
     }
@@ -495,7 +523,11 @@ mod tests {
     #[test]
     fn missing_locator_errors() {
         let env = HashMap::new();
-        let (code, out) = wrap_cli(&["--id".to_string(), "s1".to_string()], Path::new("."), &env);
+        let (code, out) = wrap_cli(
+            &["--id".to_string(), "s1".to_string()],
+            Path::new("."),
+            &env,
+        );
         assert_eq!(code, 1);
         assert!(out.contains("Need at least one of"));
     }
@@ -547,6 +579,9 @@ mod tests {
         let (code, out) = wrap_cli(&args, &dir, &env);
         assert_eq!(code, 1);
         let parsed: Value = serde_json::from_str(&out).unwrap();
-        assert!(parsed["error"].as_str().unwrap().contains("could not locate element"));
+        assert!(parsed["error"]
+            .as_str()
+            .unwrap()
+            .contains("could not locate element"));
     }
 }

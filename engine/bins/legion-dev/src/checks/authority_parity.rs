@@ -25,7 +25,8 @@ fn frontmatter(path: &Path) -> Result<Frontmatter, String> {
 
 fn field(frontmatter_body: &str, name: &str) -> Option<String> {
     let re = Regex::new(&format!(r"(?m)^{name}:[ \t]*(.+)$")).unwrap();
-    re.captures(frontmatter_body).map(|c| c[1].trim().to_string())
+    re.captures(frontmatter_body)
+        .map(|c| c[1].trim().to_string())
 }
 
 struct Description {

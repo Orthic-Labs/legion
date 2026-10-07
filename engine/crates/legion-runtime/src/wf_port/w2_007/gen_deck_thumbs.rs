@@ -85,8 +85,15 @@ pub const NO_HTML_FILES_MESSAGE: &str = "slides 目录里没有 .html";
 /// filesystem I/O itself; sorting is byte/codepoint order, matching
 /// JS `Array#sort()`'s default string comparison for this ASCII-filename
 /// use case.
-pub fn discover_html_files(slides_dir: &str, entries: &[String]) -> Result<Vec<String>, DiscoverError> {
-    let mut files: Vec<String> = entries.iter().filter(|f| f.ends_with(".html")).cloned().collect();
+pub fn discover_html_files(
+    slides_dir: &str,
+    entries: &[String],
+) -> Result<Vec<String>, DiscoverError> {
+    let mut files: Vec<String> = entries
+        .iter()
+        .filter(|f| f.ends_with(".html"))
+        .cloned()
+        .collect();
     files.sort();
     if files.is_empty() {
         return Err(DiscoverError::NoHtmlFiles);
@@ -171,8 +178,18 @@ mod tests {
     #[test]
     fn options_from_argv_overrides_all() {
         let a = argv(&[
-            "--slides", "src", "--out", "dst", "--width", "800", "--quality", "70",
-            "--canvas-w", "1280", "--canvas-h", "720",
+            "--slides",
+            "src",
+            "--out",
+            "dst",
+            "--width",
+            "800",
+            "--quality",
+            "70",
+            "--canvas-w",
+            "1280",
+            "--canvas-h",
+            "720",
         ]);
         let opts = Options::from_argv(&a);
         assert_eq!(opts.slides_dir, "src");
@@ -192,10 +209,7 @@ mod tests {
             "02-body.html".to_string(),
         ];
         let files = discover_html_files("slides", &entries).unwrap();
-        assert_eq!(
-            files,
-            vec!["01-cover.html", "02-body.html", "03-end.html"]
-        );
+        assert_eq!(files, vec!["01-cover.html", "02-body.html", "03-end.html"]);
     }
 
     #[test]

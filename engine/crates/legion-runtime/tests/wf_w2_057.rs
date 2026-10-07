@@ -28,7 +28,12 @@ fn fixture_dir() -> PathBuf {
             ((std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+                .as_nanos())
+            .wrapping_shl(20)
+                | ({
+                    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                    u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+                }))
         ));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::canonicalize(&dir).unwrap_or(dir)
@@ -172,7 +177,9 @@ fn valid_tasklist_and_route_produce_no_errors() {
     let dir = fixture_dir();
     write_route(&dir);
     let tasklist_path = dir.join("plan.tasklist.md");
-    let canonical = std::fs::canonicalize(&dir).unwrap_or(dir.clone()).join("plan.tasklist.md");
+    let canonical = std::fs::canonicalize(&dir)
+        .unwrap_or(dir.clone())
+        .join("plan.tasklist.md");
     let text = tasklist_text(&dir, &canonical);
     std::fs::write(&tasklist_path, &text).unwrap();
     write_minimize_sidecars(&tasklist_path);
@@ -191,7 +198,9 @@ fn missing_headings_are_reported() {
     let dir = fixture_dir();
     let path = dir.join("broken.md");
     let (errors, context) = validate(&path, "not a tasklist at all");
-    assert!(errors.iter().any(|e| e.contains("missing heading: ## 0. Control")));
+    assert!(errors
+        .iter()
+        .any(|e| e.contains("missing heading: ## 0. Control")));
     assert!(!context.have_route);
 }
 
@@ -211,7 +220,9 @@ fn mismatched_time_span_basis_is_rejected() {
     let dir = fixture_dir();
     write_route(&dir);
     let tasklist_path = dir.join("plan.tasklist.md");
-    let canonical = std::fs::canonicalize(&dir).unwrap_or(dir.clone()).join("plan.tasklist.md");
+    let canonical = std::fs::canonicalize(&dir)
+        .unwrap_or(dir.clone())
+        .join("plan.tasklist.md");
     let mut text = tasklist_text(&dir, &canonical);
     // Basis (5) no longer matches the (now 0-9) span length (9).
     text = text.replace("**Time span:** minute 0-5", "**Time span:** minute 0-9");
@@ -230,7 +241,9 @@ fn banned_basis_label_is_rejected() {
     let dir = fixture_dir();
     write_route(&dir);
     let tasklist_path = dir.join("plan.tasklist.md");
-    let canonical = std::fs::canonicalize(&dir).unwrap_or(dir.clone()).join("plan.tasklist.md");
+    let canonical = std::fs::canonicalize(&dir)
+        .unwrap_or(dir.clone())
+        .join("plan.tasklist.md");
     let mut text = tasklist_text(&dir, &canonical);
     text = text.replace("**Basis:** compile=5", "**Basis:** overhead=5");
     std::fs::write(&tasklist_path, &text).unwrap();
@@ -248,7 +261,9 @@ fn implausibly_slow_rate_is_rejected() {
     let dir = fixture_dir();
     write_route(&dir);
     let tasklist_path = dir.join("plan.tasklist.md");
-    let canonical = std::fs::canonicalize(&dir).unwrap_or(dir.clone()).join("plan.tasklist.md");
+    let canonical = std::fs::canonicalize(&dir)
+        .unwrap_or(dir.clone())
+        .join("plan.tasklist.md");
     let mut text = tasklist_text(&dir, &canonical);
     text = text.replace("LINES_PER_MINUTE:20", "LINES_PER_MINUTE:2");
     std::fs::write(&tasklist_path, &text).unwrap();

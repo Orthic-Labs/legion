@@ -67,7 +67,10 @@ fn validate_policy_bundle_accepts_the_real_fixture() {
     let raw = std::fs::read_to_string(fixture_bundle_path()).unwrap();
     let bundle: serde_json::Value = serde_json::from_str(&raw).unwrap();
     let (valid, issues) = validate_policy_bundle(&bundle);
-    assert!(valid, "fixture bundle should validate cleanly, issues: {issues:?}");
+    assert!(
+        valid,
+        "fixture bundle should validate cleanly, issues: {issues:?}"
+    );
 }
 
 #[test]
@@ -94,7 +97,10 @@ fn load_policy_fails_closed_on_unknown_field() {
         .as_object_mut()
         .unwrap()
         .insert("notAKnownField".to_string(), serde_json::json!(true));
-    let path = write_temp("unknown-field.json", &serde_json::to_string(&bundle).unwrap());
+    let path = write_temp(
+        "unknown-field.json",
+        &serde_json::to_string(&bundle).unwrap(),
+    );
     let err = load_policy(&path).expect_err("unknown field must fail closed");
     assert_eq!(err.code, "ARC_POLICY_MALFORMED");
     assert!(!err.issues.is_empty());
@@ -102,7 +108,10 @@ fn load_policy_fails_closed_on_unknown_field() {
 
 #[test]
 fn policy_duplication_audit_flags_a_minted_allow_decision() {
-    let clean = write_temp("clean-adapter.mjs", "export function check(x) { return gateDecision(x); }\n");
+    let clean = write_temp(
+        "clean-adapter.mjs",
+        "export function check(x) { return gateDecision(x); }\n",
+    );
     let dirty = write_temp(
         "dirty-adapter.mjs",
         "export function check(x) { return { allowed: true, code: null }; }\n",
@@ -116,26 +125,43 @@ fn policy_duplication_audit_flags_a_minted_allow_decision() {
 
 #[test]
 fn policy_duplication_audit_flags_direct_rule_table_reads_and_rank_redeclaration() {
-    let a = write_temp("reads-effect-rules.mjs", "const rule = bundle.effectRules.find(r => r.effectClass === x);\n");
-    let b = write_temp("redeclares-rank.mjs", "const ENFORCEMENT_RANK = { unsupported: 0 };\n");
+    let a = write_temp(
+        "reads-effect-rules.mjs",
+        "const rule = bundle.effectRules.find(r => r.effectClass === x);\n",
+    );
+    let b = write_temp(
+        "redeclares-rank.mjs",
+        "const ENFORCEMENT_RANK = { unsupported: 0 };\n",
+    );
     let result = policy_duplication_audit(&[a.as_path(), b.as_path()]);
     assert_eq!(result.violations.len(), 2);
 }
 
 #[test]
 fn capability_issuance_audit_allows_the_two_trusted_modules() {
-    let gate = write_temp_exact_basename("preeffect-gate.mjs", "export function authorize(x) { return store.issue(x); }\n");
-    let receipts = write_temp_exact_basename("receipt-store.mjs", "export function record(x) { return ledger.issue(x); }\n");
+    let gate = write_temp_exact_basename(
+        "preeffect-gate.mjs",
+        "export function authorize(x) { return store.issue(x); }\n",
+    );
+    let receipts = write_temp_exact_basename(
+        "receipt-store.mjs",
+        "export function record(x) { return ledger.issue(x); }\n",
+    );
     let result = capability_issuance_audit(&[gate.as_path(), receipts.as_path()]);
     assert!(result.violations.is_empty());
 }
 
 #[test]
 fn capability_issuance_audit_flags_an_unrelated_module_minting_a_capability() {
-    let rogue = write_temp("rogue-adapter.mjs", "export function sneak(x) { return capabilityStore.issue(x); }\n");
+    let rogue = write_temp(
+        "rogue-adapter.mjs",
+        "export function sneak(x) { return capabilityStore.issue(x); }\n",
+    );
     let result = capability_issuance_audit(&[rogue.as_path()]);
     assert_eq!(result.violations.len(), 1);
-    assert!(result.violations[0].why.contains("mints a capability outside"));
+    assert!(result.violations[0]
+        .why
+        .contains("mints a capability outside"));
 }
 
 #[test]
@@ -144,7 +170,11 @@ fn capability_issuance_audit_exempts_a_const_bound_authority_invocation_proof_is
                export function prove(x) { return proofIssuer.issue(x); }\n";
     let path = write_temp("proof-issuer-user.mjs", src);
     let result = capability_issuance_audit(&[path.as_path()]);
-    assert!(result.violations.is_empty(), "exempted receiver must not be flagged: {:?}", result.violations);
+    assert!(
+        result.violations.is_empty(),
+        "exempted receiver must not be flagged: {:?}",
+        result.violations
+    );
 }
 
 #[test]

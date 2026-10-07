@@ -45,9 +45,13 @@ pub fn scoped_host_capabilities(skill_root: &Path) -> HashSet<String> {
         return scoped;
     };
     for table in sections.values() {
-        let Some(table) = table.as_object() else { continue };
+        let Some(table) = table.as_object() else {
+            continue;
+        };
         for entries in table.values() {
-            let Some(entries) = entries.as_array() else { continue };
+            let Some(entries) = entries.as_array() else {
+                continue;
+            };
             for entry in entries {
                 if entry.get("class").and_then(|v| v.as_str()) == Some("HOST_CAPABILITY") {
                     if let Some(cap) = entry.get("capability").and_then(|v| v.as_str()) {
@@ -65,7 +69,11 @@ pub fn scoped_host_capabilities(skill_root: &Path) -> HashSet<String> {
 /// `adapter:demo-worker`); `scopeKind` is the section singular.
 ///
 /// Faithful port of `scopedRequirementDetails(skillRoot, registry, { id })`.
-pub fn scoped_requirement_details(skill_root: &Path, registry: &Value, id: &str) -> Result<Vec<Value>, String> {
+pub fn scoped_requirement_details(
+    skill_root: &Path,
+    registry: &Value,
+    id: &str,
+) -> Result<Vec<Value>, String> {
     let document = match route_resource_table(skill_root) {
         Some(d) => d,
         None => return Ok(vec![]),
@@ -90,7 +98,9 @@ pub fn scoped_requirement_details(skill_root: &Path, registry: &Value, id: &str)
                     continue;
                 }
                 let capability_id = capability_id.unwrap();
-                let capability = registry.get("capabilities").and_then(|c| c.get(capability_id));
+                let capability = registry
+                    .get("capabilities")
+                    .and_then(|c| c.get(capability_id));
                 let capability = match capability {
                     Some(c) if !c.is_null() => c,
                     _ => {
@@ -103,11 +113,29 @@ pub fn scoped_requirement_details(skill_root: &Path, registry: &Value, id: &str)
                 out.insert("scope".into(), Value::from(format!("{kind}:{key}")));
                 out.insert("scopeKind".into(), Value::from(kind.clone()));
                 out.insert("id".into(), Value::from(capability_id));
-                out.insert("kind".into(), capability.get("kind").cloned().unwrap_or(Value::Null));
-                out.insert("summary".into(), capability.get("summary").cloned().unwrap_or(Value::Null));
-                out.insert("degradation".into(), capability.get("degradation").cloned().unwrap_or(Value::Null));
-                out.insert("remedy".into(), capability.get("remedy").cloned().unwrap_or(Value::Null));
-                out.insert("probe".into(), capability.get("probe").cloned().unwrap_or(Value::Null));
+                out.insert(
+                    "kind".into(),
+                    capability.get("kind").cloned().unwrap_or(Value::Null),
+                );
+                out.insert(
+                    "summary".into(),
+                    capability.get("summary").cloned().unwrap_or(Value::Null),
+                );
+                out.insert(
+                    "degradation".into(),
+                    capability
+                        .get("degradation")
+                        .cloned()
+                        .unwrap_or(Value::Null),
+                );
+                out.insert(
+                    "remedy".into(),
+                    capability.get("remedy").cloned().unwrap_or(Value::Null),
+                );
+                out.insert(
+                    "probe".into(),
+                    capability.get("probe").cloned().unwrap_or(Value::Null),
+                );
                 scoped.push(Value::Object(out));
             }
         }
@@ -115,7 +143,12 @@ pub fn scoped_requirement_details(skill_root: &Path, registry: &Value, id: &str)
     scoped.sort_by(|a, b| {
         let sa = a["scope"].as_str().unwrap_or_default();
         let sb = b["scope"].as_str().unwrap_or_default();
-        sa.cmp(sb).then_with(|| a["id"].as_str().unwrap_or_default().cmp(b["id"].as_str().unwrap_or_default()))
+        sa.cmp(sb).then_with(|| {
+            a["id"]
+                .as_str()
+                .unwrap_or_default()
+                .cmp(b["id"].as_str().unwrap_or_default())
+        })
     });
     Ok(scoped)
 }

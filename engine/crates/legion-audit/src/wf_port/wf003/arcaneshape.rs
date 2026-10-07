@@ -57,10 +57,19 @@ pub fn build_receipt(input: BuildReceiptInput) -> Receipt {
     let counts = |name: &str, extra: &[&str]| -> Value {
         let layer = input.layers.get(name).cloned().unwrap_or(Value::Null);
         let mut obj = serde_json::Map::new();
-        obj.insert("passed".to_string(), layer.get("passed").cloned().unwrap_or(json!(0)));
-        obj.insert("failed".to_string(), layer.get("failed").cloned().unwrap_or(json!(0)));
+        obj.insert(
+            "passed".to_string(),
+            layer.get("passed").cloned().unwrap_or(json!(0)),
+        );
+        obj.insert(
+            "failed".to_string(),
+            layer.get("failed").cloned().unwrap_or(json!(0)),
+        );
         for key in extra {
-            obj.insert((*key).to_string(), layer.get(*key).cloned().unwrap_or(json!(0)));
+            obj.insert(
+                (*key).to_string(),
+                layer.get(*key).cloned().unwrap_or(json!(0)),
+            );
         }
         Value::Object(obj)
     };
@@ -182,7 +191,16 @@ mod tests {
         for id in [&a, &b] {
             let parts: Vec<&str> = id.split('-').collect();
             assert_eq!(parts.len(), 5);
-            assert_eq!([parts[0].len(), parts[1].len(), parts[2].len(), parts[3].len(), parts[4].len()], [8, 4, 4, 4, 12]);
+            assert_eq!(
+                [
+                    parts[0].len(),
+                    parts[1].len(),
+                    parts[2].len(),
+                    parts[3].len(),
+                    parts[4].len()
+                ],
+                [8, 4, 4, 4, 12]
+            );
             assert!(parts[2].starts_with('4'));
         }
     }

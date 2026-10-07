@@ -145,10 +145,7 @@ pub fn classify(rows: &[Row]) -> Vec<QueryOwnership> {
 
         let mut period_winners: Vec<String> = Vec::new();
         for (_, scores) in &periods {
-            if let Some((winner, _)) = scores
-                .iter()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            {
+            if let Some((winner, _)) = scores.iter().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()) {
                 period_winners.push(winner.clone());
             }
         }
@@ -158,7 +155,11 @@ pub fn classify(rows: &[Row]) -> Vec<QueryOwnership> {
         let unique_winners: HashSet<&String> = period_winners.iter().collect();
 
         let (stability, classification, reason): (&str, &str, &str) = if evidence.len() == 1 {
-            ("high", "stable owner", "only one observed URL owns the query")
+            (
+                "high",
+                "stable owner",
+                "only one observed URL owns the query",
+            )
         } else if period_winners.len() >= 2 && unique_winners.len() > 1 && winner_changes > 0 {
             (
                 "low",
@@ -386,7 +387,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "legion-w2032-qo-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("in.json");

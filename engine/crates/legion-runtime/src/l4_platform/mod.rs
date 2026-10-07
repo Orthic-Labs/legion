@@ -14,7 +14,8 @@ pub mod promotion_equivalence;
 pub mod release_candidate;
 
 pub use artifact_sanitize::{
-    is_canonical_base64, sanitize_artifact_content, sanitize_produced_artifact, sanitize_sensitive_value,
+    is_canonical_base64, sanitize_artifact_content, sanitize_produced_artifact,
+    sanitize_sensitive_value,
 };
 pub use contracts::{capability_receipt, require_capability, sha256, terminal_scenario_receipt};
 pub use promotion_equivalence::promotion_equivalence;

@@ -120,11 +120,14 @@ pub struct PackRegistry<'a> {
 
 impl<'a> PackRegistry<'a> {
     pub fn new() -> Self {
-        Self { strategies: HashMap::new() }
+        Self {
+            strategies: HashMap::new(),
+        }
     }
 
     fn insert(&mut self, provider: &str, rule_id: &'static str, strategy: PackStrategy<'a>) {
-        self.strategies.insert((provider.to_string(), rule_id.to_string()), strategy);
+        self.strategies
+            .insert((provider.to_string(), rule_id.to_string()), strategy);
     }
 
     /// Registers every `security.injection` rule's strategy
@@ -141,7 +144,8 @@ impl<'a> PackRegistry<'a> {
                             .get("detectorMetadata")
                             .and_then(|d| d.get("sinkEngine"))
                             .and_then(Value::as_str);
-                        wf060::injection::root_cause(rule_id, sink_engine).map(injection_root_cause_to_value)
+                        wf060::injection::root_cause(rule_id, sink_engine)
+                            .map(injection_root_cause_to_value)
                     }),
                     enumerate_fn: Box::new(move || {
                         wf060::injection::enumerate(ctx, rule_id).map(injection_enumerate_to_value)
@@ -154,14 +158,22 @@ impl<'a> PackRegistry<'a> {
 
     /// Registers `security.http-protocol-cache`'s three strategy rules.
     pub fn with_http_protocol_cache(mut self, context: &'a wf060::common::Context) -> Self {
-        for rule_id in ["hsts.missing", "cache.sensitive-content-cacheable", "proxy.trust-misconfigured"] {
+        for rule_id in [
+            "hsts.missing",
+            "cache.sensitive-content-cacheable",
+            "proxy.trust-misconfigured",
+        ] {
             let ctx = context;
             self.insert(
                 wf060::http_protocol_cache::ID,
                 rule_id,
                 PackStrategy {
-                    root_cause_fn: Box::new(move |_candidate: &Value| wf060::http_protocol_cache::variant_root_cause(rule_id)),
-                    enumerate_fn: Box::new(move || wf060::http_protocol_cache::variant_enumerate(ctx, rule_id)),
+                    root_cause_fn: Box::new(move |_candidate: &Value| {
+                        wf060::http_protocol_cache::variant_root_cause(rule_id)
+                    }),
+                    enumerate_fn: Box::new(move || {
+                        wf060::http_protocol_cache::variant_enumerate(ctx, rule_id)
+                    }),
                 },
             );
         }
@@ -177,7 +189,10 @@ impl<'a> PackRegistry<'a> {
                 rule_id,
                 PackStrategy {
                     root_cause_fn: Box::new(move |candidate: &Value| {
-                        let file = candidate.get("detectorMetadata").and_then(|d| d.get("file")).and_then(Value::as_str);
+                        let file = candidate
+                            .get("detectorMetadata")
+                            .and_then(|d| d.get("file"))
+                            .and_then(Value::as_str);
                         wf060::ics_ot::variant_root_cause(rule_id, file)
                     }),
                     enumerate_fn: Box::new(move || wf060::ics_ot::variant_enumerate(ctx, rule_id)),
@@ -195,8 +210,12 @@ impl<'a> PackRegistry<'a> {
                 super::supply_chain::ID,
                 rule_id,
                 PackStrategy {
-                    root_cause_fn: Box::new(move |_candidate: &Value| super::supply_chain::variant_root_cause(rule_id)),
-                    enumerate_fn: Box::new(move || super::supply_chain::variant_enumerate(ctx, rule_id)),
+                    root_cause_fn: Box::new(move |_candidate: &Value| {
+                        super::supply_chain::variant_root_cause(rule_id)
+                    }),
+                    enumerate_fn: Box::new(move || {
+                        super::supply_chain::variant_enumerate(ctx, rule_id)
+                    }),
                 },
             );
         }
@@ -212,7 +231,10 @@ impl<'a> PackRegistry<'a> {
                 rule_id,
                 PackStrategy {
                     root_cause_fn: Box::new(move |candidate: &Value| {
-                        let sink_api = candidate.get("detectorMetadata").and_then(|d| d.get("sinkApi")).and_then(Value::as_str);
+                        let sink_api = candidate
+                            .get("detectorMetadata")
+                            .and_then(|d| d.get("sinkApi"))
+                            .and_then(Value::as_str);
                         super::uploads::variant_root_cause(rule_id, sink_api)
                     }),
                     enumerate_fn: Box::new(move || super::uploads::variant_enumerate(ctx, rule_id)),
@@ -231,10 +253,15 @@ impl<'a> PackRegistry<'a> {
                 rule_id,
                 PackStrategy {
                     root_cause_fn: Box::new(move |candidate: &Value| {
-                        let sink = candidate.get("detectorMetadata").and_then(|d| d.get("sink")).and_then(Value::as_str);
+                        let sink = candidate
+                            .get("detectorMetadata")
+                            .and_then(|d| d.get("sink"))
+                            .and_then(Value::as_str);
                         r66::ai_prompt_injection::variant_root_cause(rule_id, sink)
                     }),
-                    enumerate_fn: Box::new(move || r66::ai_prompt_injection::variant_enumerate(ctx, rule_id)),
+                    enumerate_fn: Box::new(move || {
+                        r66::ai_prompt_injection::variant_enumerate(ctx, rule_id)
+                    }),
                 },
             );
         }
@@ -250,11 +277,19 @@ impl<'a> PackRegistry<'a> {
             rule_id,
             PackStrategy {
                 root_cause_fn: Box::new(move |candidate: &Value| {
-                    let source_kind = candidate.get("detectorMetadata").and_then(|d| d.get("sourceKind")).and_then(Value::as_str);
-                    let sink_kind = candidate.get("detectorMetadata").and_then(|d| d.get("sinkKind")).and_then(Value::as_str);
+                    let source_kind = candidate
+                        .get("detectorMetadata")
+                        .and_then(|d| d.get("sourceKind"))
+                        .and_then(Value::as_str);
+                    let sink_kind = candidate
+                        .get("detectorMetadata")
+                        .and_then(|d| d.get("sinkKind"))
+                        .and_then(Value::as_str);
                     r66::authorization_tenant::variant_root_cause(rule_id, source_kind, sink_kind)
                 }),
-                enumerate_fn: Box::new(move || r66::authorization_tenant::variant_enumerate(ctx, rule_id)),
+                enumerate_fn: Box::new(move || {
+                    r66::authorization_tenant::variant_enumerate(ctx, rule_id)
+                }),
             },
         );
         self
@@ -272,8 +307,12 @@ impl<'a> PackRegistry<'a> {
                 r66::browser_client::ID,
                 rule_id,
                 PackStrategy {
-                    root_cause_fn: Box::new(move |_candidate: &Value| r66::browser_client::variant_root_cause(rule_id)),
-                    enumerate_fn: Box::new(move || r66::browser_client::variant_enumerate(ctx, rule_id)),
+                    root_cause_fn: Box::new(move |_candidate: &Value| {
+                        r66::browser_client::variant_root_cause(rule_id)
+                    }),
+                    enumerate_fn: Box::new(move || {
+                        r66::browser_client::variant_enumerate(ctx, rule_id)
+                    }),
                 },
             );
         }
@@ -297,21 +336,37 @@ mod tests {
     fn resolves_a_registered_supply_chain_rule() {
         let ctx = crate::wf_port::wf063::common::Context::new().with_file("package.json", "{}");
         let registry = PackRegistry::new().with_supply_chain(&ctx);
-        assert!(registry.strategy_for("security.supply-chain", "supply-chain.lockfile.missing").is_some());
+        assert!(registry
+            .strategy_for("security.supply-chain", "supply-chain.lockfile.missing")
+            .is_some());
     }
 
     #[test]
     fn unregistered_provider_resolves_to_none() {
         let registry = PackRegistry::new();
-        assert!(registry.strategy_for("security.unknown", "some.rule").is_none());
+        assert!(registry
+            .strategy_for("security.unknown", "some.rule")
+            .is_none());
     }
 
     #[test]
     fn ics_ot_enumerate_never_reports_matches_mirroring_the_js_source() {
         let ctx = wf060::common::Context::new().with_file("plc.py", "client.writeCoil(1, true)");
         let registry = PackRegistry::new().with_ics_ot(&ctx);
-        let strategy = registry.strategy_for("security.ics-ot", "ics-ot.authorization.unauthenticated-write-command").unwrap();
-        let result = strategy.enumerate(&Value::Null, &Value::Null, &Value::Null, &Value::Null, &Value::Null, &Value::Null);
+        let strategy = registry
+            .strategy_for(
+                "security.ics-ot",
+                "ics-ot.authorization.unauthenticated-write-command",
+            )
+            .unwrap();
+        let result = strategy.enumerate(
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+        );
         assert_eq!(result["matches"].as_array().unwrap().len(), 0);
     }
 }

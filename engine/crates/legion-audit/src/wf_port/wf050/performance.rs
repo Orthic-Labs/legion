@@ -43,7 +43,10 @@ fn is_numeric_array(value: Option<&Value>) -> bool {
 }
 
 fn finite_nonneg(value: Option<&Value>) -> bool {
-    value.and_then(Value::as_f64).map(|f| f.is_finite() && f >= 0.0).unwrap_or(false)
+    value
+        .and_then(Value::as_f64)
+        .map(|f| f.is_finite() && f >= 0.0)
+        .unwrap_or(false)
 }
 
 /// Port of `verifyWebPerformance(input)`. `capture` stands in for the
@@ -76,7 +79,10 @@ pub fn verify_web_performance(input: &Value, capture: &CaptureEvidence) -> Value
         );
     }
 
-    let samples = captures_val.and_then(Value::as_array).cloned().unwrap_or_default();
+    let samples = captures_val
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut gaps = capture.coverage_gaps.clone();
 
     for sample in &samples {
@@ -114,7 +120,11 @@ pub fn verify_web_performance(input: &Value, capture: &CaptureEvidence) -> Value
 
     let lcp_values: Vec<f64> = samples
         .iter()
-        .filter_map(|item| item.get("performance").and_then(|p| p.get("lcp")).and_then(Value::as_f64))
+        .filter_map(|item| {
+            item.get("performance")
+                .and_then(|p| p.get("lcp"))
+                .and_then(Value::as_f64)
+        })
         .filter(|v| v.is_finite() && *v >= 0.0)
         .collect();
     let long_tasks_values: Vec<f64> = samples
@@ -135,7 +145,12 @@ pub fn verify_web_performance(input: &Value, capture: &CaptureEvidence) -> Value
             let perf = item.get("performance");
             let ls = perf.and_then(|p| p.get("layoutShifts"));
             if is_numeric_array(ls) {
-                let sum: f64 = ls.and_then(Value::as_array).unwrap().iter().filter_map(Value::as_f64).sum();
+                let sum: f64 = ls
+                    .and_then(Value::as_array)
+                    .unwrap()
+                    .iter()
+                    .filter_map(Value::as_f64)
+                    .sum();
                 Some(sum)
             } else {
                 None

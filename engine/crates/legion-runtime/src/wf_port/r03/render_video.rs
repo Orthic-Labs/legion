@@ -243,7 +243,13 @@ pub struct RecordCapture {
 /// optional chrome-hide injection, `goto`, ready-signal wait, optional
 /// `__seek(0)`, then frame capture for `duration_secs` at `fps`).
 pub trait Recorder {
-    fn warmup(&mut self, file_url: &str, width: u32, height: u32, font_wait_secs: f64) -> Result<(), String>;
+    fn warmup(
+        &mut self,
+        file_url: &str,
+        width: u32,
+        height: u32,
+        font_wait_secs: f64,
+    ) -> Result<(), String>;
     #[allow(clippy::too_many_arguments)]
     fn record(
         &mut self,
@@ -319,14 +325,12 @@ pub fn run(
     let _ = writeln!(
         stdout,
         "  size: {}x{} · duration: {}s · hide-chrome: {}",
-        args.width,
-        args.height,
-        args.duration,
-        !args.keep_chrome
+        args.width, args.height, args.duration, !args.keep_chrome
     );
     let _ = writeln!(stdout, "  output: {}", paths.mp4_out.to_string_lossy());
 
-    fs.create_dir_all(&tmp_dir).map_err(|e| RunError::Io(e.to_string()))?;
+    fs.create_dir_all(&tmp_dir)
+        .map_err(|e| RunError::Io(e.to_string()))?;
 
     let _ = writeln!(stdout, "▸ Warmup (caching fonts)…");
     recorder
@@ -457,7 +461,13 @@ impl ChromeRecorder {
 }
 
 impl Recorder for ChromeRecorder {
-    fn warmup(&mut self, file_url: &str, width: u32, height: u32, font_wait_secs: f64) -> Result<(), String> {
+    fn warmup(
+        &mut self,
+        file_url: &str,
+        width: u32,
+        height: u32,
+        font_wait_secs: f64,
+    ) -> Result<(), String> {
         let tab = self.browser.new_tab().map_err(|e| e.to_string())?;
         Self::set_bounds(&tab, width, height);
         tab.navigate_to(file_url).map_err(|e| e.to_string())?;
@@ -486,7 +496,8 @@ impl Recorder for ChromeRecorder {
         tab.navigate_to(file_url).map_err(|e| e.to_string())?;
         tab.wait_until_navigated().map_err(|e| e.to_string())?;
 
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs_f64(ready_timeout_secs);
+        let deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs_f64(ready_timeout_secs);
         let mut has_ready = false;
         while std::time::Instant::now() < deadline {
             if let Ok(remote) = tab.evaluate(READY_PROBE_JS, false) {
@@ -559,7 +570,14 @@ impl FfmpegRunner for RealFfmpeg {
             .map_err(|e| e.to_string())?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            let tail: String = stderr.chars().rev().take(2000).collect::<Vec<_>>().into_iter().rev().collect();
+            let tail: String = stderr
+                .chars()
+                .rev()
+                .take(2000)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect();
             return Err(tail);
         }
         Ok(())
@@ -717,7 +735,9 @@ mod tests {
             Ok(())
         }
         fn write(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-            self.writes.borrow_mut().insert(path.to_path_buf(), bytes.to_vec());
+            self.writes
+                .borrow_mut()
+                .insert(path.to_path_buf(), bytes.to_vec());
             Ok(())
         }
         fn remove_dir_all(&self, _path: &Path) -> std::io::Result<()> {
@@ -853,7 +873,16 @@ mod tests {
             sizes: HashMap::new(),
         };
         let mut stdout = Vec::new();
-        let err = run(&[], Path::new("/root"), "test", &mut recorder, &ffmpeg, &fs, &mut stdout).unwrap_err();
+        let err = run(
+            &[],
+            Path::new("/root"),
+            "test",
+            &mut recorder,
+            &ffmpeg,
+            &fs,
+            &mut stdout,
+        )
+        .unwrap_err();
         assert_eq!(err, RunError::Usage);
     }
 

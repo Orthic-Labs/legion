@@ -30,10 +30,7 @@ pub struct ChainAdjudicationBundle {
 #[derive(Debug, thiserror::Error)]
 pub enum SecurityChainPipelineError {
     #[error(transparent)]
-    Chain(
-        #[from]
-        legion_runtime::p5_core::adapters_chain_adjudication::ChainAdjudicationError,
-    ),
+    Chain(#[from] legion_runtime::p5_core::adapters_chain_adjudication::ChainAdjudicationError),
     #[error("hypothesis is missing a path id")]
     MissingPathId,
 }
@@ -66,7 +63,10 @@ pub fn prepare_chain_adjudication_bundle(
     let mut packets = Vec::with_capacity(eligible.len());
     let mut packet_values = Vec::with_capacity(eligible.len());
     for path in &eligible {
-        let path_id = path.get("id").and_then(Value::as_str).ok_or(SecurityChainPipelineError::MissingPathId)?;
+        let path_id = path
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or(SecurityChainPipelineError::MissingPathId)?;
         let mut path_with_synthesis = (*path).clone();
         if let Value::Object(map) = &mut path_with_synthesis {
             map.insert("synthesisContextId".into(), json!(synthesizer_context_id));
@@ -88,7 +88,10 @@ pub fn prepare_chain_adjudication_bundle(
         packets.push((path_id.to_string(), packet));
     }
 
-    let binding = reconciled_paths.get("binding").cloned().unwrap_or(Value::Null);
+    let binding = reconciled_paths
+        .get("binding")
+        .cloned()
+        .unwrap_or(Value::Null);
     let envelope = json!({
         "schemaVersion": 1,
         "kind": "security-chain-adjudication-bundle",
@@ -112,14 +115,18 @@ pub fn prepare_chain_adjudication_bundle(
 /// even when the bundle has no packet for that path), then in the per-packet
 /// loop skips any packet whose path already has a "duplicate" entry. This
 /// port keeps the same two-pass structure and duplicate-suppression rule.
-pub fn finalize_chain_adjudication_bundle(bundle: &ChainAdjudicationBundle, raw_results: &Value) -> Value {
+pub fn finalize_chain_adjudication_bundle(
+    bundle: &ChainAdjudicationBundle,
+    raw_results: &Value,
+) -> Value {
     let empty = Vec::new();
     let raw_verdicts = raw_results
         .get("verdicts")
         .and_then(Value::as_array)
         .unwrap_or(&empty);
 
-    let mut result_by_path: std::collections::HashMap<&str, &Value> = std::collections::HashMap::new();
+    let mut result_by_path: std::collections::HashMap<&str, &Value> =
+        std::collections::HashMap::new();
     for raw in raw_verdicts {
         if let Some(path_id) = raw.get("pathId").and_then(Value::as_str) {
             result_by_path.entry(path_id).or_insert(raw);
@@ -132,7 +139,8 @@ pub fn finalize_chain_adjudication_bundle(bundle: &ChainAdjudicationBundle, raw_
     let mut seen_paths: HashSet<String> = HashSet::new();
 
     // Pass 1: duplicate path verdicts are invalid — never let the last value win.
-    let mut count_by_path: std::collections::HashMap<Option<&str>, u32> = std::collections::HashMap::new();
+    let mut count_by_path: std::collections::HashMap<Option<&str>, u32> =
+        std::collections::HashMap::new();
     for raw in raw_verdicts {
         let path_id = raw.get("pathId").and_then(Value::as_str);
         *count_by_path.entry(path_id).or_insert(0) += 1;
@@ -165,7 +173,9 @@ pub fn finalize_chain_adjudication_bundle(bundle: &ChainAdjudicationBundle, raw_
         seen_paths.insert(path_id.clone());
         match finalize_chain_verdict(packet, raw) {
             Ok(verdict) => verdicts.push(verdict.0),
-            Err(error) => invalid_verdicts.push(json!({ "pathId": path_id, "error": error.to_string() })),
+            Err(error) => {
+                invalid_verdicts.push(json!({ "pathId": path_id, "error": error.to_string() }))
+            }
         }
     }
 
@@ -337,10 +347,13 @@ mod tests {
         raw_a["contextId"] = context_id.clone();
         let mut raw_b = proven_raw_verdict();
         raw_b["contextId"] = context_id;
-        let result = finalize_chain_adjudication_bundle(&bundle, &json!({ "verdicts": [raw_a, raw_b] }));
+        let result =
+            finalize_chain_adjudication_bundle(&bundle, &json!({ "verdicts": [raw_a, raw_b] }));
         assert_eq!(result["complete"], json!(false));
         let invalid = result["invalidVerdicts"].as_array().unwrap();
-        assert!(invalid.iter().any(|item| item["error"] == json!("duplicate path verdict")));
+        assert!(invalid
+            .iter()
+            .any(|item| item["error"] == json!("duplicate path verdict")));
         // The duplicate suppresses finalization for that path entirely.
         assert!(result["verdicts"].as_array().unwrap().is_empty());
     }

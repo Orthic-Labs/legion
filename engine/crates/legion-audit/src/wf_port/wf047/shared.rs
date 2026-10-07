@@ -131,7 +131,9 @@ const SENSITIVE_SUFFIXES: &[&str] = &[
 fn sensitive_key(key: &str) -> bool {
     let normalized = normalized_key(key);
     SENSITIVE_KEYS.contains(&normalized.as_str())
-        || SENSITIVE_SUFFIXES.iter().any(|suffix| normalized.ends_with(suffix))
+        || SENSITIVE_SUFFIXES
+            .iter()
+            .any(|suffix| normalized.ends_with(suffix))
 }
 
 /// Port of `exactBinding(binding)`.
@@ -146,9 +148,8 @@ fn is_valid_binding_value(value: &Value) -> bool {
             let mut chars = s.chars();
             let first = chars.next().unwrap();
             let first_ok = first.is_ascii_alphanumeric();
-            let rest_ok = chars.all(|c| {
-                c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '/' | '-')
-            });
+            let rest_ok = chars
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '/' | '-'));
             first_ok && rest_ok
         }
         _ => false,
@@ -156,7 +157,11 @@ fn is_valid_binding_value(value: &Value) -> bool {
 }
 
 pub fn exact_binding(binding: &Value) -> ExactBinding {
-    let source = if binding.is_object() { binding.clone() } else { Value::Object(Map::new()) };
+    let source = if binding.is_object() {
+        binding.clone()
+    } else {
+        Value::Object(Map::new())
+    };
     let source_map = source.as_object().cloned().unwrap_or_default();
 
     let mut invalid: Vec<&str> = BINDING_KEYS
@@ -194,7 +199,10 @@ pub fn exact_binding(binding: &Value) -> ExactBinding {
         gaps.push("binding-extra-undeclared".to_string());
     }
 
-    ExactBinding { binding: Value::Object(normalized), gaps }
+    ExactBinding {
+        binding: Value::Object(normalized),
+        gaps,
+    }
 }
 
 /// Port of `sameBinding(expected, actual)`.
@@ -250,7 +258,11 @@ pub struct Denominator {
     pub expected_ids: Vec<String>,
 }
 
-pub fn denominator(expected: &[String], receipt_ids: &[String], omitted_ids: &[String]) -> Denominator {
+pub fn denominator(
+    expected: &[String],
+    receipt_ids: &[String],
+    omitted_ids: &[String],
+) -> Denominator {
     let mut expected_ids: Vec<String> = expected.to_vec();
     expected_ids.sort();
     expected_ids.dedup();
@@ -301,9 +313,12 @@ pub fn finalize(kind: &str, value: Value) -> Value {
             return result.binding;
         }
         match current {
-            Value::Array(items) => {
-                Value::Array(items.iter().map(|item| normalize_bindings(item, "", binding_gaps)).collect())
-            }
+            Value::Array(items) => Value::Array(
+                items
+                    .iter()
+                    .map(|item| normalize_bindings(item, "", binding_gaps))
+                    .collect(),
+            ),
             Value::Object(map) => {
                 let mut keys: Vec<&String> = map.keys().collect();
                 keys.sort();
@@ -320,7 +335,9 @@ pub fn finalize(kind: &str, value: Value) -> Value {
     let mut safe_value = normalize_bindings(&value, "", &mut binding_gaps);
 
     if !binding_gaps.is_empty() {
-        let obj = safe_value.as_object_mut().expect("finalize value must be an object");
+        let obj = safe_value
+            .as_object_mut()
+            .expect("finalize value must be an object");
         obj.insert("status".to_string(), Value::String("error".to_string()));
         obj.insert("terminal".to_string(), Value::Bool(true));
         if obj.contains_key("complete") {
@@ -332,7 +349,11 @@ pub fn finalize(kind: &str, value: Value) -> Value {
         let existing: Vec<String> = obj
             .get("coverageGaps")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default();
         let mut all_gaps: Vec<String> = existing;
         for gap in &binding_gaps {
@@ -415,7 +436,10 @@ mod tests {
 
     #[test]
     fn finalize_marks_error_on_binding_gap() {
-        let out = finalize("kind.test", serde_json::json!({"binding": {}, "status": "pass", "terminal": true}));
+        let out = finalize(
+            "kind.test",
+            serde_json::json!({"binding": {}, "status": "pass", "terminal": true}),
+        );
         assert_eq!(out["status"], "error");
         assert_eq!(out["terminal"], true);
     }

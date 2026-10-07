@@ -189,7 +189,9 @@ pub const SECURITY_SCHEMA_VERSIONS: &[(&str, &[i64])] = &[
 
 pub fn assert_enum(label: &str, values: &[&str], value: &str) -> Result<()> {
     if !values.contains(&value) {
-        return Err(SecurityContractError::new(format!("unknown {label}: {value}")));
+        return Err(SecurityContractError::new(format!(
+            "unknown {label}: {value}"
+        )));
     }
     Ok(())
 }
@@ -215,7 +217,9 @@ pub fn assert_security_schema_version(kind: &str, version: i64) -> Result<i64> {
         .iter()
         .find(|(k, _)| *k == kind)
         .map(|(_, versions)| *versions)
-        .ok_or_else(|| SecurityContractError::new(format!("unknown security artifact kind: {kind}")))?;
+        .ok_or_else(|| {
+            SecurityContractError::new(format!("unknown security artifact kind: {kind}"))
+        })?;
     if !supported.contains(&version) {
         return Err(SecurityContractError::new(format!(
             "{kind} unsupported schema version: {version}"
@@ -244,7 +248,8 @@ pub fn canonicalize(value: &Value) -> Value {
 
 /// Faithful port of `stableId`: `sha256:<hex(sha256("<namespace>\0<canonical-json>"))>`.
 pub fn stable_id(namespace: &str, value: &Value) -> String {
-    let body = serde_json::to_string(&canonicalize(value)).expect("canonical JSON never fails to serialize");
+    let body = serde_json::to_string(&canonicalize(value))
+        .expect("canonical JSON never fails to serialize");
     let mut hasher = Sha256::new();
     hasher.update(namespace.as_bytes());
     hasher.update(b"\0");
@@ -266,7 +271,9 @@ pub fn require_object<'a>(value: &'a Value, label: &str) -> Result<&'a Map<Strin
 pub fn require_string<'a>(value: &'a Value, label: &str) -> Result<&'a str> {
     match value.as_str() {
         Some(s) if !s.is_empty() => Ok(s),
-        _ => Err(SecurityContractError::new(format!("{label} must be a non-empty string"))),
+        _ => Err(SecurityContractError::new(format!(
+            "{label} must be a non-empty string"
+        ))),
     }
 }
 
@@ -317,11 +324,16 @@ pub fn binding_from_plan(plan: &Value) -> Result<Value> {
 
 /// Faithful port of `sameBinding`: canonical-JSON string equality.
 pub fn same_binding(left: &Value, right: &Value) -> bool {
-    serde_json::to_string(&canonicalize(left)).ok() == serde_json::to_string(&canonicalize(right)).ok()
+    serde_json::to_string(&canonicalize(left)).ok()
+        == serde_json::to_string(&canonicalize(right)).ok()
 }
 
 /// Faithful port of `assertArtifactBinding`.
-pub fn assert_artifact_binding(artifact: &Value, expected_binding: &Value, label: &str) -> Result<()> {
+pub fn assert_artifact_binding(
+    artifact: &Value,
+    expected_binding: &Value,
+    label: &str,
+) -> Result<()> {
     let binding = artifact.get("binding").cloned().unwrap_or(Value::Null);
     assert_binding(&binding)?;
     if !same_binding(&binding, expected_binding) {
@@ -338,10 +350,15 @@ pub fn assert_security_artifact<'a>(artifact: &'a Value, kind: &str) -> Result<&
     let schema_version = artifact
         .get("schemaVersion")
         .and_then(Value::as_i64)
-        .ok_or_else(|| SecurityContractError::new(format!("{kind} unsupported schema version: null")))?;
+        .ok_or_else(|| {
+            SecurityContractError::new(format!("{kind} unsupported schema version: null"))
+        })?;
     assert_security_schema_version(kind, schema_version)?;
     assert_binding(&artifact["binding"])?;
-    require_string(&artifact["denominatorDigest"], &format!("{kind}.denominatorDigest"))?;
+    require_string(
+        &artifact["denominatorDigest"],
+        &format!("{kind}.denominatorDigest"),
+    )?;
     Ok(artifact)
 }
 
@@ -358,19 +375,29 @@ pub fn security_artifact_record(
     denominator_digest: &str,
 ) -> Result<Value> {
     if path.is_empty() {
-        return Err(SecurityContractError::new("artifact.path must be a non-empty string"));
+        return Err(SecurityContractError::new(
+            "artifact.path must be a non-empty string",
+        ));
     }
     if content_digest.is_empty() {
-        return Err(SecurityContractError::new("artifact.digest must be a non-empty string"));
+        return Err(SecurityContractError::new(
+            "artifact.digest must be a non-empty string",
+        ));
     }
     if bytes < 0 {
-        return Err(SecurityContractError::new("artifact.bytes must be a non-negative integer"));
+        return Err(SecurityContractError::new(
+            "artifact.bytes must be a non-negative integer",
+        ));
     }
     if producer.is_empty() {
-        return Err(SecurityContractError::new("artifact.producer must be a non-empty string"));
+        return Err(SecurityContractError::new(
+            "artifact.producer must be a non-empty string",
+        ));
     }
     if producer_version.is_empty() {
-        return Err(SecurityContractError::new("artifact.producerVersion must be a non-empty string"));
+        return Err(SecurityContractError::new(
+            "artifact.producerVersion must be a non-empty string",
+        ));
     }
     if denominator_digest.is_empty() {
         return Err(SecurityContractError::new(
@@ -487,7 +514,14 @@ mod tests {
     fn security_artifact_record_requires_non_negative_bytes() {
         let binding = binding_from_plan(&plan_with()).unwrap();
         let err = security_artifact_record(
-            "p", "sha256:x", -1, "prod", "1", None, &binding, "sha256:denom",
+            "p",
+            "sha256:x",
+            -1,
+            "prod",
+            "1",
+            None,
+            &binding,
+            "sha256:denom",
         )
         .unwrap_err();
         assert!(err.0.contains("non-negative"));

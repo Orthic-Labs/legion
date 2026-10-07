@@ -25,11 +25,26 @@ fn fail<T>(message: impl Into<String>) -> Result<T, ScopedAcceptanceError> {
 /// Mirrors `ITEM_FIELDS`: the exact key set `pick()` projects out of an
 /// acceptance item before fingerprinting it.
 const ITEM_FIELDS: &[&str] = &[
-    "acceptance_id", "id", "disposition", "source", "requirement", "outcome",
-    "source_files", "owner", "producer", "dependencies",
-    "observable_acceptance_surface", "observable_surface", "observable_exit",
-    "positive_test", "negative_test", "evidence_producer", "exclusions",
-    "adoption_stage", "verification_method", "revisit_trigger",
+    "acceptance_id",
+    "id",
+    "disposition",
+    "source",
+    "requirement",
+    "outcome",
+    "source_files",
+    "owner",
+    "producer",
+    "dependencies",
+    "observable_acceptance_surface",
+    "observable_surface",
+    "observable_exit",
+    "positive_test",
+    "negative_test",
+    "evidence_producer",
+    "exclusions",
+    "adoption_stage",
+    "verification_method",
+    "revisit_trigger",
 ];
 
 /// Mirrors `pick(value, fields)`: keeps a field only when the source object
@@ -53,7 +68,9 @@ fn pick(value: &CanonVal, fields: &[&str]) -> CanonVal {
 /// `id`.
 fn item_id(item: &CanonVal) -> Option<String> {
     let obj = item.as_obj()?;
-    let acceptance_id = obj.get("acceptance_id").filter(|v| !matches!(v, CanonVal::Null));
+    let acceptance_id = obj
+        .get("acceptance_id")
+        .filter(|v| !matches!(v, CanonVal::Null));
     let candidate = acceptance_id.or_else(|| obj.get("id"));
     candidate.and_then(CanonVal::as_str).map(str::to_string)
 }
@@ -67,15 +84,27 @@ pub fn fingerprint_acceptance_item(item: &CanonVal) -> Result<String, ScopedAcce
 }
 
 fn stage_id(stage: &CanonVal) -> Option<String> {
-    stage.get("stage_id").and_then(CanonVal::as_str).filter(|s| !s.is_empty()).map(str::to_string)
+    stage
+        .get("stage_id")
+        .and_then(CanonVal::as_str)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 fn required_items(stage: &CanonVal) -> Vec<CanonVal> {
-    stage.get("required_items").and_then(CanonVal::as_arr).cloned().unwrap_or_default()
+    stage
+        .get("required_items")
+        .and_then(CanonVal::as_arr)
+        .cloned()
+        .unwrap_or_default()
 }
 
 fn dependencies(stage: &CanonVal) -> Vec<CanonVal> {
-    stage.get("dependencies").and_then(CanonVal::as_arr).cloned().unwrap_or_default()
+    stage
+        .get("dependencies")
+        .and_then(CanonVal::as_arr)
+        .cloned()
+        .unwrap_or_default()
 }
 
 /// Mirrors `fingerprintAcceptanceStage`.
@@ -90,7 +119,9 @@ pub fn fingerprint_acceptance_stage(stage: &CanonVal) -> Result<String, ScopedAc
         };
         let fp = fingerprint_acceptance_item(&item)?;
         required_item_fps.push(
-            CanonVal::obj().set("acceptance_id", CanonVal::Str(id)).set("contract_fingerprint", CanonVal::Str(fp)),
+            CanonVal::obj()
+                .set("acceptance_id", CanonVal::Str(id))
+                .set("contract_fingerprint", CanonVal::Str(fp)),
         );
     }
     let owner = stage.get("owner").cloned().unwrap_or(CanonVal::Null);
@@ -104,9 +135,16 @@ pub fn fingerprint_acceptance_stage(stage: &CanonVal) -> Result<String, ScopedAc
 
 /// Mirrors `fingerprintExecutionSchedule`.
 pub fn fingerprint_execution_schedule(schedule: &CanonVal) -> String {
-    let schedule_version = schedule.get("schedule_version").cloned().unwrap_or(CanonVal::Null);
+    let schedule_version = schedule
+        .get("schedule_version")
+        .cloned()
+        .unwrap_or(CanonVal::Null);
     let waves = schedule.get("waves").cloned().unwrap_or(CanonVal::Null);
-    digest_value(&CanonVal::obj().set("schedule_version", schedule_version).set("waves", waves))
+    digest_value(
+        &CanonVal::obj()
+            .set("schedule_version", schedule_version)
+            .set("waves", waves),
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -129,7 +167,10 @@ pub fn compile_scoped_acceptance(
         stage_fingerprints.insert(sid, fingerprint_acceptance_stage(stage)?);
     }
     let manifest_value = CanonVal::Obj(
-        stage_fingerprints.iter().map(|(k, v)| (k.clone(), CanonVal::Str(v.clone()))).collect(),
+        stage_fingerprints
+            .iter()
+            .map(|(k, v)| (k.clone(), CanonVal::Str(v.clone())))
+            .collect(),
     );
     Ok(CompiledScopedAcceptance {
         acceptance_manifest_fingerprint: digest_value(&manifest_value),
@@ -149,8 +190,11 @@ fn descendants(stages: &[CanonVal], changed_ids: &BTreeSet<String>) -> BTreeSet<
             if affected.contains(&sid) {
                 continue;
             }
-            let deps: BTreeSet<String> =
-                dependencies(stage).iter().filter_map(CanonVal::as_str).map(str::to_string).collect();
+            let deps: BTreeSet<String> = dependencies(stage)
+                .iter()
+                .filter_map(CanonVal::as_str)
+                .map(str::to_string)
+                .collect();
             if deps.iter().any(|d| affected.contains(d)) {
                 affected.insert(sid);
                 grew = true;
@@ -197,10 +241,15 @@ pub fn diff_scoped_acceptance(
         .cloned()
         .collect();
 
-    let mut invalidated: BTreeSet<String> = descendants(previous.stages, &directly_changed_stage_ids);
+    let mut invalidated: BTreeSet<String> =
+        descendants(previous.stages, &directly_changed_stage_ids);
     invalidated.extend(descendants(next.stages, &directly_changed_stage_ids));
 
-    let preserved: Vec<String> = all_ids.iter().filter(|id| !invalidated.contains(*id)).cloned().collect();
+    let preserved: Vec<String> = all_ids
+        .iter()
+        .filter(|id| !invalidated.contains(*id))
+        .cloned()
+        .collect();
 
     Ok(ScopedAcceptanceDiff {
         schedule_changed: before.schedule_fingerprint != after.schedule_fingerprint,
@@ -218,19 +267,29 @@ mod tests {
     use super::*;
 
     fn item(id: &str) -> CanonVal {
-        CanonVal::obj().set("id", CanonVal::Str(id.to_string())).set("disposition", CanonVal::Str("accepted".into()))
+        CanonVal::obj()
+            .set("id", CanonVal::Str(id.to_string()))
+            .set("disposition", CanonVal::Str("accepted".into()))
     }
 
     fn stage(id: &str, deps: &[&str], items: &[&str]) -> CanonVal {
         CanonVal::obj()
             .set("stage_id", CanonVal::Str(id.to_string()))
             .set("owner", CanonVal::Str("owner-a".to_string()))
-            .set("dependencies", CanonVal::Arr(deps.iter().map(|d| CanonVal::Str(d.to_string())).collect()))
-            .set("required_items", CanonVal::Arr(items.iter().map(|i| item(i)).collect()))
+            .set(
+                "dependencies",
+                CanonVal::Arr(deps.iter().map(|d| CanonVal::Str(d.to_string())).collect()),
+            )
+            .set(
+                "required_items",
+                CanonVal::Arr(items.iter().map(|i| item(i)).collect()),
+            )
     }
 
     fn schedule(version: i64) -> CanonVal {
-        CanonVal::obj().set("schedule_version", CanonVal::Int(version)).set("waves", CanonVal::Arr(vec![]))
+        CanonVal::obj()
+            .set("schedule_version", CanonVal::Int(version))
+            .set("waves", CanonVal::Arr(vec![]))
     }
 
     #[test]
@@ -250,7 +309,10 @@ mod tests {
     fn compile_and_diff_no_change() {
         let stages = vec![stage("s1", &[], &["i1"])];
         let sched = schedule(1);
-        let spec = ScopedAcceptanceSpec { stages: &stages, schedule: &sched };
+        let spec = ScopedAcceptanceSpec {
+            stages: &stages,
+            schedule: &sched,
+        };
         let diff = diff_scoped_acceptance(&spec, &spec).unwrap();
         assert!(!diff.acceptance_changed);
         assert!(!diff.schedule_changed);
@@ -262,23 +324,41 @@ mod tests {
     #[test]
     fn diff_propagates_to_dependents() {
         let prev_stages = vec![stage("s1", &[], &["i1"]), stage("s2", &["s1"], &["i2"])];
-        let next_stages = vec![stage("s1", &[], &["i1-changed"]), stage("s2", &["s1"], &["i2"])];
+        let next_stages = vec![
+            stage("s1", &[], &["i1-changed"]),
+            stage("s2", &["s1"], &["i2"]),
+        ];
         let sched = schedule(1);
-        let prev = ScopedAcceptanceSpec { stages: &prev_stages, schedule: &sched };
-        let next = ScopedAcceptanceSpec { stages: &next_stages, schedule: &sched };
+        let prev = ScopedAcceptanceSpec {
+            stages: &prev_stages,
+            schedule: &sched,
+        };
+        let next = ScopedAcceptanceSpec {
+            stages: &next_stages,
+            schedule: &sched,
+        };
         let diff = diff_scoped_acceptance(&prev, &next).unwrap();
         assert!(diff.acceptance_changed);
         assert_eq!(diff.directly_changed_stage_ids, vec!["s1".to_string()]);
-        assert_eq!(diff.invalidated_stage_ids, vec!["s1".to_string(), "s2".to_string()]);
+        assert_eq!(
+            diff.invalidated_stage_ids,
+            vec!["s1".to_string(), "s2".to_string()]
+        );
         assert!(diff.preserved_stage_ids.is_empty());
     }
 
     #[test]
     fn diff_detects_schedule_change_only() {
         let stages = vec![stage("s1", &[], &["i1"])];
-        let prev = ScopedAcceptanceSpec { stages: &stages, schedule: &schedule(1) };
+        let prev = ScopedAcceptanceSpec {
+            stages: &stages,
+            schedule: &schedule(1),
+        };
         let sched2 = schedule(2);
-        let next = ScopedAcceptanceSpec { stages: &stages, schedule: &sched2 };
+        let next = ScopedAcceptanceSpec {
+            stages: &stages,
+            schedule: &sched2,
+        };
         let diff = diff_scoped_acceptance(&prev, &next).unwrap();
         assert!(diff.schedule_changed);
         assert!(!diff.acceptance_changed);

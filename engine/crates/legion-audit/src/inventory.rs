@@ -96,7 +96,10 @@ impl InventorySource for FilesystemInventorySource {
                 AuditError::Invalid(format!("inventory path escaped Audit root: {error}"))
             })?;
             let path = relative.to_string_lossy().replace('\\', "/");
-            if git_files.as_ref().is_some_and(|files| !files.contains(&path)) {
+            if git_files
+                .as_ref()
+                .is_some_and(|files| !files.contains(&path))
+            {
                 continue;
             }
             let bytes = if file_type.is_symlink() {
@@ -191,7 +194,10 @@ fn package_json_dependencies(text: &str) -> BTreeSet<String> {
 }
 
 fn dependency_key(raw: &str) -> Option<String> {
-    let name = raw.trim().trim_matches(|c: char| c =='"' || c == '\'').trim();
+    let name = raw
+        .trim()
+        .trim_matches(|c: char| c == '"' || c == '\'')
+        .trim();
     (!name.is_empty()
         && name
             .chars()
@@ -292,7 +298,11 @@ fn pyproject_dependencies(text: &str) -> BTreeSet<String> {
                 line
             };
             if !body.contains("include-group") {
-                names.extend(quoted_strings(body).iter().filter_map(|item| pep508_name(item)));
+                names.extend(
+                    quoted_strings(body)
+                        .iter()
+                        .filter_map(|item| pep508_name(item)),
+                );
             }
             if starts || collecting {
                 collecting = !body.trim_end().trim_end_matches(',').ends_with(']');
@@ -337,7 +347,11 @@ fn swift_package_dependencies(text: &str) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     if let Ok(url) = regex::Regex::new(r#"url:\s*"([^"]+)""#) {
         for capture in url.captures_iter(text) {
-            let last = capture[1].trim_end_matches('/').rsplit('/').next().unwrap_or_default();
+            let last = capture[1]
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or_default();
             let name = last.trim_end_matches(".git");
             if !name.is_empty() {
                 names.insert(name.to_owned());
@@ -359,7 +373,13 @@ fn git_project_files(root: &Path) -> Option<std::collections::HashSet<String>> {
     let output = std::process::Command::new("git")
         .arg("-C")
         .arg(root)
-        .args(["ls-files", "-z", "--cached", "--others", "--exclude-standard"])
+        .args([
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+        ])
         .stdin(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .output()
@@ -949,14 +969,21 @@ mod tests {
         let paths: Vec<_> = inventory.paths().collect();
         assert!(paths.contains(&"src/lib.rs"), "{paths:?}");
         assert!(paths.contains(&".gitignore"), "{paths:?}");
-        assert!(!paths.iter().any(|path| path.starts_with("dist/")), "{paths:?}");
+        assert!(
+            !paths.iter().any(|path| path.starts_with("dist/")),
+            "{paths:?}"
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
     fn manifest_dependencies_are_extracted_sorted_and_unique() {
-        let package = br#"{"dependencies":{"react":"1"},"devDependencies":{"vite":"1","react":"1"}}"#;
-        assert_eq!(manifest_dependencies("package.json", package), ["react", "vite"]);
+        let package =
+            br#"{"dependencies":{"react":"1"},"devDependencies":{"vite":"1","react":"1"}}"#;
+        assert_eq!(
+            manifest_dependencies("package.json", package),
+            ["react", "vite"]
+        );
 
         let cargo = b"[package]\nname = \"x\"\n[dependencies]\nserde = \"1\"\ntokio = { version = \"1\" }\n[dev-dependencies]\ntempfile.workspace = true\n[dependencies.regex]\nversion = \"1\"\n[workspace.dependencies]\nhex = \"0.4\"\n";
         assert_eq!(
@@ -987,10 +1014,8 @@ mod tests {
 
     #[test]
     fn filesystem_inventory_populates_dependencies_for_any_dependency_selectors() {
-        let root = std::env::temp_dir().join(format!(
-            "legion-inventory-deps-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("legion-inventory-deps-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("src")).unwrap();
         std::fs::write(

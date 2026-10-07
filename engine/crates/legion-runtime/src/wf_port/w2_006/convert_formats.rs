@@ -207,10 +207,7 @@ mod tests {
     #[test]
     fn parse_args_requires_input() {
         assert_eq!(parse_args::<_, &str>([]), Err(ArgError::MissingInput));
-        assert_eq!(
-            parse_args(["--minterpolate"]),
-            Err(ArgError::MissingInput)
-        );
+        assert_eq!(parse_args(["--minterpolate"]), Err(ArgError::MissingInput));
     }
 
     #[test]
@@ -232,18 +229,32 @@ mod tests {
 
     #[test]
     fn ffmpeg_60fps_args_match_script() {
-        let args = ffmpeg_60fps_args(
-            Path::new("in.mp4"),
-            Path::new("in-60fps.mp4"),
-            false,
-        );
+        let args = ffmpeg_60fps_args(Path::new("in.mp4"), Path::new("in-60fps.mp4"), false);
         assert_eq!(
             args,
             vec![
-                "-y", "-loglevel", "error", "-i", "in.mp4", "-vf", "fps=60",
-                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high",
-                "-level", "4.0", "-crf", "18", "-preset", "medium",
-                "-movflags", "+faststart", "in-60fps.mp4",
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                "in.mp4",
+                "-vf",
+                "fps=60",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-profile:v",
+                "high",
+                "-level",
+                "4.0",
+                "-crf",
+                "18",
+                "-preset",
+                "medium",
+                "-movflags",
+                "+faststart",
+                "in-60fps.mp4",
             ]
         );
     }
@@ -254,7 +265,12 @@ mod tests {
         assert_eq!(
             gen,
             vec![
-                "-y", "-loglevel", "error", "-i", "in.mp4", "-vf",
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                "in.mp4",
+                "-vf",
                 "fps=15,scale=960:-1:flags=lanczos,palettegen=stats_mode=diff",
                 ".palette-in.png",
             ]

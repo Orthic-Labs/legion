@@ -148,10 +148,7 @@ fn blocker_list(juror: &Value) -> String {
             ));
         }
     }
-    if let Some(discarded) = juror
-        .get("discarded_adoptions")
-        .and_then(Value::as_array)
-    {
+    if let Some(discarded) = juror.get("discarded_adoptions").and_then(Value::as_array) {
         for text in discarded {
             let text = text.as_str().unwrap_or("");
             rows.push(format!(
@@ -170,7 +167,10 @@ fn blocker_list(juror: &Value) -> String {
 
 /// One message bubble in the thread. Mirrors `_msg`.
 fn msg(seat: &str, phase: &str, juror: &Value, meta: &str) -> String {
-    let parsed_ok = juror.get("parsed_ok").and_then(Value::as_bool).unwrap_or(false);
+    let parsed_ok = juror
+        .get("parsed_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if !parsed_ok {
         let err = juror
             .get("error")
@@ -246,7 +246,10 @@ footer{margin-top:2rem;color:var(--muted);font-size:.78rem;border-top:1px solid 
 "#;
 
 fn text_upper_starts_contest(blocker: &Value) -> bool {
-    blocker_text(blocker).trim().to_uppercase().starts_with("CONTEST:")
+    blocker_text(blocker)
+        .trim()
+        .to_uppercase()
+        .starts_with("CONTEST:")
 }
 
 /// Use the persisted audit; recompute for runs predating it. Mirrors
@@ -329,12 +332,22 @@ pub fn render_html(payload: &Value, review_dir_name: &str) -> String {
     let n_blind: i64 = blind
         .iter()
         .filter(|j| j.get("parsed_ok").and_then(Value::as_bool).unwrap_or(false))
-        .map(|j| j.get("blockers").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0) as i64)
+        .map(|j| {
+            j.get("blockers")
+                .and_then(Value::as_array)
+                .map(|a| a.len())
+                .unwrap_or(0) as i64
+        })
         .sum();
     let n_reb: i64 = reb
         .iter()
         .filter(|j| j.get("parsed_ok").and_then(Value::as_bool).unwrap_or(false))
-        .map(|j| j.get("blockers").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0) as i64)
+        .map(|j| {
+            j.get("blockers")
+                .and_then(Value::as_array)
+                .map(|a| a.len())
+                .unwrap_or(0) as i64
+        })
         .sum();
     let inflation = if n_blind != 0 {
         n_reb as f64 / n_blind as f64
@@ -370,7 +383,11 @@ pub fn render_html(payload: &Value, review_dir_name: &str) -> String {
                 display_or_q(audit_v.get("answering_seats")),
             ),
             note: "seats that contested a peer".into(),
-            cls: if audit_v.get("herding_suspected").and_then(Value::as_bool).unwrap_or(false) {
+            cls: if audit_v
+                .get("herding_suspected")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
                 Some("flag")
             } else {
                 Some("good")
@@ -428,10 +445,7 @@ pub fn render_html(payload: &Value, review_dir_name: &str) -> String {
     let strip: String = metrics
         .iter()
         .map(|m| {
-            let cls_attr = m
-                .cls
-                .map(|c| format!(" {c}"))
-                .unwrap_or_default();
+            let cls_attr = m.cls.map(|c| format!(" {c}")).unwrap_or_default();
             format!(
                 "<div class=\"metric{cls_attr}\"><b>{}</b><span>{} — {}</span></div>",
                 m.value, m.label, m.note
@@ -449,8 +463,7 @@ pub fn render_html(payload: &Value, review_dir_name: &str) -> String {
 
     if !reb.is_empty() {
         thread.push("<h2>Round 2 — PeerDebate (peers revealed)</h2>".to_string());
-        let blind_ids: std::collections::HashSet<String> =
-            blind.iter().map(juror_id_str).collect();
+        let blind_ids: std::collections::HashSet<String> = blind.iter().map(juror_id_str).collect();
         for j in &blind {
             let seat = juror_id_str(j);
             if let Some(rj) = reb_by.get(&seat) {
@@ -471,20 +484,22 @@ pub fn render_html(payload: &Value, review_dir_name: &str) -> String {
             let targets = j
                 .get("answering_contests")
                 .and_then(Value::as_array)
-                .map(|a| {
-                    a.iter()
-                        .map(value_str)
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
+                .map(|a| a.iter().map(value_str).collect::<Vec<_>>().join(", "))
                 .unwrap_or_default();
             let badge = if !targets.is_empty() {
-                format!("<span class=\"badge to\">answering {}</span>", esc(&targets))
+                format!(
+                    "<span class=\"badge to\">answering {}</span>",
+                    esc(&targets)
+                )
             } else {
                 String::new()
             };
             let rendered = msg(&juror_id_str(j), "PeerDebateReply", j, &badge);
-            let rendered = replace_once(&rendered, "<article class=\"msg\"", "<article class=\"msg reply\"");
+            let rendered = replace_once(
+                &rendered,
+                "<article class=\"msg\"",
+                "<article class=\"msg reply\"",
+            );
             let rendered = replace_once(
                 &rendered,
                 "<article class=\"msg failed\"",

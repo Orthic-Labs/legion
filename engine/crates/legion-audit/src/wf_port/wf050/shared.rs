@@ -48,7 +48,12 @@ fn canonicalize_inner(value: &Value, seen: &mut Vec<*const Value>) -> Value {
                 return Value::String(opaque("cycle", &format!("{:p}", ptr)));
             }
             seen.push(ptr);
-            let out = Value::Array(items.iter().map(|item| canonicalize_inner(item, seen)).collect());
+            let out = Value::Array(
+                items
+                    .iter()
+                    .map(|item| canonicalize_inner(item, seen))
+                    .collect(),
+            );
             seen.pop();
             out
         }
@@ -115,7 +120,10 @@ fn valid_binding_value(value: &str) -> bool {
 }
 
 fn normalized_sensitive_key(key: &str) -> String {
-    key.chars().filter(|c| c.is_ascii_alphanumeric()).flat_map(|c| c.to_lowercase()).collect()
+    key.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .flat_map(|c| c.to_lowercase())
+        .collect()
 }
 
 const SENSITIVE_KEYS: &[&str] = &[
@@ -137,12 +145,24 @@ const SENSITIVE_KEYS: &[&str] = &[
     "accesstoken",
     "refreshtoken",
 ];
-const SENSITIVE_SUFFIXES: &[&str] =
-    &["apikey", "authorization", "cookie", "password", "passwd", "privatekey", "secret", "secretkey", "token"];
+const SENSITIVE_SUFFIXES: &[&str] = &[
+    "apikey",
+    "authorization",
+    "cookie",
+    "password",
+    "passwd",
+    "privatekey",
+    "secret",
+    "secretkey",
+    "token",
+];
 
 pub fn is_sensitive_key(key: &str) -> bool {
     let normalized = normalized_sensitive_key(key);
-    SENSITIVE_KEYS.contains(&normalized.as_str()) || SENSITIVE_SUFFIXES.iter().any(|suffix| normalized.ends_with(suffix))
+    SENSITIVE_KEYS.contains(&normalized.as_str())
+        || SENSITIVE_SUFFIXES
+            .iter()
+            .any(|suffix| normalized.ends_with(suffix))
 }
 
 pub struct ExactBindingResult {
@@ -152,7 +172,11 @@ pub struct ExactBindingResult {
 
 /// Port of `exactBinding(binding)`.
 pub fn exact_binding(binding: &Value) -> ExactBindingResult {
-    let source = if binding.is_object() { binding.clone() } else { Value::Object(Map::new()) };
+    let source = if binding.is_object() {
+        binding.clone()
+    } else {
+        Value::Object(Map::new())
+    };
     let obj = source.as_object().cloned().unwrap_or_default();
     let mut invalid: Vec<&str> = Vec::new();
     for key in BINDING_KEYS {
@@ -161,14 +185,20 @@ pub fn exact_binding(binding: &Value) -> ExactBindingResult {
             _ => invalid.push(key),
         }
     }
-    let extras: Vec<&String> = obj.keys().filter(|k| !BINDING_KEYS.contains(&k.as_str())).collect();
+    let extras: Vec<&String> = obj
+        .keys()
+        .filter(|k| !BINDING_KEYS.contains(&k.as_str()))
+        .collect();
     let mut sorted_keys: Vec<&str> = BINDING_KEYS.to_vec();
     sorted_keys.sort_unstable();
     let mut normalized = Map::new();
     for key in sorted_keys {
         let value = if invalid.contains(&key) {
             let raw = obj.get(key).cloned().unwrap_or(Value::Null);
-            Value::String(opaque("binding", &serde_json::to_string(&canonicalize(&raw)).unwrap_or_default()))
+            Value::String(opaque(
+                "binding",
+                &serde_json::to_string(&canonicalize(&raw)).unwrap_or_default(),
+            ))
         } else {
             obj.get(key).cloned().unwrap_or(Value::Null)
         };
@@ -181,12 +211,17 @@ pub fn exact_binding(binding: &Value) -> ExactBindingResult {
     if extras.iter().any(|k| !is_sensitive_key(k)) {
         gaps.push("binding-extra-undeclared".to_string());
     }
-    ExactBindingResult { binding: Value::Object(normalized), gaps }
+    ExactBindingResult {
+        binding: Value::Object(normalized),
+        gaps,
+    }
 }
 
 /// Port of `sameBinding(expected, actual)`.
 pub fn same_binding(expected: &Value, actual: &Value) -> bool {
-    BINDING_KEYS.iter().all(|key| expected.get(*key) == actual.get(*key))
+    BINDING_KEYS
+        .iter()
+        .all(|key| expected.get(*key) == actual.get(*key))
 }
 
 /// Port of `redact(value, key)`.
@@ -199,7 +234,9 @@ fn redact_inner(value: &Value, key: &str) -> Value {
         return Value::String("[REDACTED]".to_string());
     }
     match value {
-        Value::Array(items) => Value::Array(items.iter().map(|item| redact_inner(item, "")).collect()),
+        Value::Array(items) => {
+            Value::Array(items.iter().map(|item| redact_inner(item, "")).collect())
+        }
         Value::Object(map) => {
             let mut out = Map::new();
             for (k, v) in map {
@@ -241,7 +278,10 @@ fn match_bearer(chars: &[char], start: usize) -> Option<usize> {
     if start + word.len() > chars.len() {
         return None;
     }
-    let candidate: String = chars[start..start + word.len()].iter().collect::<String>().to_lowercase();
+    let candidate: String = chars[start..start + word.len()]
+        .iter()
+        .collect::<String>()
+        .to_lowercase();
     if candidate != word {
         return None;
     }
@@ -318,14 +358,25 @@ impl DenominatorCounts {
 }
 
 /// Port of `denominator(expected, receipts, omitted)`.
-pub fn denominator(expected: &[String], receipt_ids: &[String], omitted_ids: &[String]) -> DenominatorCounts {
-    let mut expected_ids: Vec<String> =
-        expected.iter().cloned().collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+pub fn denominator(
+    expected: &[String],
+    receipt_ids: &[String],
+    omitted_ids: &[String],
+) -> DenominatorCounts {
+    let mut expected_ids: Vec<String> = expected
+        .iter()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     expected_ids.sort();
     let receipt_set: std::collections::HashSet<&String> = receipt_ids.iter().collect();
     let omitted_set: std::collections::HashSet<&String> = omitted_ids.iter().collect();
-    let missing: Vec<String> =
-        expected_ids.iter().filter(|id| !receipt_set.contains(id) && !omitted_set.contains(id)).cloned().collect();
+    let missing: Vec<String> = expected_ids
+        .iter()
+        .filter(|id| !receipt_set.contains(id) && !omitted_set.contains(id))
+        .cloned()
+        .collect();
     DenominatorCounts {
         total: expected_ids.len(),
         accounted: expected_ids.len() - missing.len(),
@@ -358,16 +409,27 @@ pub fn finalize(kind: &str, value: Value) -> Value {
             let mut gaps: Vec<String> = map
                 .get("coverageGaps")
                 .and_then(Value::as_array)
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(str::to_string))
+                        .collect()
+                })
                 .unwrap_or_default();
             for gap in &binding_gaps {
-                let full = if gap.starts_with("binding-extra-") { gap.clone() } else { format!("binding-invalid:{gap}") };
+                let full = if gap.starts_with("binding-extra-") {
+                    gap.clone()
+                } else {
+                    format!("binding-invalid:{gap}")
+                };
                 if !gaps.contains(&full) {
                     gaps.push(full);
                 }
             }
             gaps.sort();
-            map.insert("coverageGaps".to_string(), Value::Array(gaps.into_iter().map(Value::String).collect()));
+            map.insert(
+                "coverageGaps".to_string(),
+                Value::Array(gaps.into_iter().map(Value::String).collect()),
+            );
         }
     }
     let mut envelope = Map::new();
@@ -385,7 +447,12 @@ pub fn finalize(kind: &str, value: Value) -> Value {
     Value::Object(out)
 }
 
-fn normalize_bindings(current: &Value, key: &str, binding_gaps: &mut Vec<String>, seen: &mut Vec<*const Value>) -> Value {
+fn normalize_bindings(
+    current: &Value,
+    key: &str,
+    binding_gaps: &mut Vec<String>,
+    seen: &mut Vec<*const Value>,
+) -> Value {
     if key == "binding" {
         let result = exact_binding(current);
         binding_gaps.extend(result.gaps);
@@ -398,7 +465,12 @@ fn normalize_bindings(current: &Value, key: &str, binding_gaps: &mut Vec<String>
                 return Value::String(opaque("cycle", &format!("{:p}", ptr)));
             }
             seen.push(ptr);
-            let out = Value::Array(items.iter().map(|item| normalize_bindings(item, "", binding_gaps, seen)).collect());
+            let out = Value::Array(
+                items
+                    .iter()
+                    .map(|item| normalize_bindings(item, "", binding_gaps, seen))
+                    .collect(),
+            );
             seen.pop();
             out
         }
@@ -412,7 +484,10 @@ fn normalize_bindings(current: &Value, key: &str, binding_gaps: &mut Vec<String>
             keys.sort();
             let mut out = Map::new();
             for k in keys {
-                out.insert(k.clone(), normalize_bindings(&map[k], k, binding_gaps, seen));
+                out.insert(
+                    k.clone(),
+                    normalize_bindings(&map[k], k, binding_gaps, seen),
+                );
             }
             seen.pop();
             Value::Object(out)
@@ -422,7 +497,11 @@ fn normalize_bindings(current: &Value, key: &str, binding_gaps: &mut Vec<String>
 }
 
 pub fn binding_missing_gaps(binding: &Value) -> Vec<String> {
-    exact_binding(binding).gaps.into_iter().map(|k| format!("binding-missing:{k}")).collect()
+    exact_binding(binding)
+        .gaps
+        .into_iter()
+        .map(|k| format!("binding-missing:{k}"))
+        .collect()
 }
 
 /// Small convenience used by callers building sorted, de-duplicated gap

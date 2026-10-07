@@ -17,7 +17,9 @@ use std::process::Command;
 use serde_json::{json, Value as Json};
 
 use crate::wf_port::w2_046::codex_escalation::evaluate_codex_escalation;
-use crate::wf_port::w2_046::discipline_controls::{DisciplinePayload, pre_effect_discipline_prefix};
+use crate::wf_port::w2_046::discipline_controls::{
+    pre_effect_discipline_prefix, DisciplinePayload,
+};
 use crate::wf_port::w2_047::hook_adapter_pure::{
     classify_vcs_push, command_of, is_destructive_command, vcs_rewrite_approval_key,
 };
@@ -30,7 +32,14 @@ use crate::wf_port::w2_048::stop_disposition::{stop_outcome, StopDispositionInpu
 /// caller-visible shape needs verbatim; a `serde_json::Value` keeps this
 /// pipeline decoupled from whichever concrete `Decision` type an integrator
 /// eventually standardizes on.
-pub fn decision(allowed: bool, code: Option<&str>, message: impl Into<String>, detail: Json, enforcement_health: &str, escalate: bool) -> Json {
+pub fn decision(
+    allowed: bool,
+    code: Option<&str>,
+    message: impl Into<String>,
+    detail: Json,
+    enforcement_health: &str,
+    escalate: bool,
+) -> Json {
     json!({
         "allowed": allowed,
         "code": code,
@@ -41,7 +50,13 @@ pub fn decision(allowed: bool, code: Option<&str>, message: impl Into<String>, d
     })
 }
 
-fn decision_simple(allowed: bool, code: Option<&str>, message: impl Into<String>, detail: Json, enforcement_health: &str) -> Json {
+fn decision_simple(
+    allowed: bool,
+    code: Option<&str>,
+    message: impl Into<String>,
+    detail: Json,
+    enforcement_health: &str,
+) -> Json {
     decision(allowed, code, message, detail, enforcement_health, false)
 }
 
@@ -63,7 +78,11 @@ pub trait GitHeadResolver {
     /// `Option<String>` return of `resolve_fast`.
     fn resolve_fast(&self, workspace: &str) -> Option<Option<String>>;
     fn resolve_via_subprocess(&self, workspace: &str) -> Option<String> {
-        let output = Command::new("git").args(["rev-parse", "HEAD"]).current_dir(workspace).output().ok()?;
+        let output = Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(workspace)
+            .output()
+            .ok()?;
         if !output.status.success() {
             return None;
         }
@@ -82,7 +101,10 @@ impl GitHeadResolver for SubprocessOnlyGitHeadResolver {
     }
 }
 
-pub fn resolve_source_revision(workspace: Option<&str>, resolver: &dyn GitHeadResolver) -> Option<String> {
+pub fn resolve_source_revision(
+    workspace: Option<&str>,
+    resolver: &dyn GitHeadResolver,
+) -> Option<String> {
     let workspace = workspace?;
     if workspace.is_empty() {
         return None;
@@ -121,9 +143,16 @@ pub struct SignHostEventOutcome {
 
 /// Mirrors `signHostEvent(hostEvent, keyRing)`. `key_ring` is `None` for
 /// JS's `if (!keyRing)` branch.
-pub fn sign_host_event(host_event: &Json, key_ring: Option<&dyn HostEventSigner>) -> SignHostEventOutcome {
+pub fn sign_host_event(
+    host_event: &Json,
+    key_ring: Option<&dyn HostEventSigner>,
+) -> SignHostEventOutcome {
     let Some(key_ring) = key_ring else {
-        return SignHostEventOutcome { authority_assertion: None, enforcement_health: "degraded", sign_error_message: None };
+        return SignHostEventOutcome {
+            authority_assertion: None,
+            enforcement_health: "degraded",
+            sign_error_message: None,
+        };
     };
     match key_ring.sign(host_event) {
         Ok(receipt) => SignHostEventOutcome {
@@ -131,7 +160,11 @@ pub fn sign_host_event(host_event: &Json, key_ring: Option<&dyn HostEventSigner>
             enforcement_health: "strong",
             sign_error_message: None,
         },
-        Err(message) => SignHostEventOutcome { authority_assertion: None, enforcement_health: "degraded", sign_error_message: Some(message) },
+        Err(message) => SignHostEventOutcome {
+            authority_assertion: None,
+            enforcement_health: "degraded",
+            sign_error_message: Some(message),
+        },
     }
 }
 
@@ -179,7 +212,12 @@ pub trait ApprovalStore {
 }
 
 pub trait AuditSink {
-    fn audit_successful_commit(&mut self, hook_payload: &Json, host_event: &Json, workspace: Option<&str>);
+    fn audit_successful_commit(
+        &mut self,
+        hook_payload: &Json,
+        host_event: &Json,
+        workspace: Option<&str>,
+    );
 }
 
 /// Mirrors JS `POST_EFFECT_TYPES` (`verification/arcane/ingest.mjs`).
@@ -215,12 +253,27 @@ pub struct HandleHookEventResult {
     pub decision: Json,
 }
 
-fn early_refusal(host_event: Json, observation_class: &'static str, enforcement_health: &'static str, dec: Json) -> HandleHookEventResult {
-    HandleHookEventResult { host_event, observation_class, enforcement_health, accepted: false, receipt: None, decision: dec }
+fn early_refusal(
+    host_event: Json,
+    observation_class: &'static str,
+    enforcement_health: &'static str,
+    dec: Json,
+) -> HandleHookEventResult {
+    HandleHookEventResult {
+        host_event,
+        observation_class,
+        enforcement_health,
+        accepted: false,
+        receipt: None,
+        decision: dec,
+    }
 }
 
 /// Mirrors `handleHookEvent(hookPayload, deps)`.
-pub fn handle_hook_event(hook_payload: &Json, deps: HandleHookEventDeps<'_>) -> HandleHookEventResult {
+pub fn handle_hook_event(
+    hook_payload: &Json,
+    deps: HandleHookEventDeps<'_>,
+) -> HandleHookEventResult {
     let HandleHookEventDeps {
         normalize,
         classify,
@@ -236,7 +289,11 @@ pub fn handle_hook_event(hook_payload: &Json, deps: HandleHookEventDeps<'_>) -> 
 
     let mut host_event = normalize(hook_payload);
     let observation_class = classify(&host_event);
-    let event_type = host_event.get("eventType").and_then(Json::as_str).unwrap_or("").to_string();
+    let event_type = host_event
+        .get("eventType")
+        .and_then(Json::as_str)
+        .unwrap_or("")
+        .to_string();
     let command = command_of(hook_payload).map(str::to_string);
 
     if event_type == "pre-effect" && is_destructive_command(command.as_deref()) {
@@ -255,7 +312,8 @@ pub fn handle_hook_event(hook_payload: &Json, deps: HandleHookEventDeps<'_>) -> 
     }
 
     if event_type == "pre-effect" {
-        let escalation = evaluate_codex_escalation(command.as_deref().unwrap_or(""), |p| read_file_to_string(p));
+        let escalation =
+            evaluate_codex_escalation(command.as_deref().unwrap_or(""), |p| read_file_to_string(p));
         if !escalation.allowed {
             return early_refusal(
                 host_event,
@@ -321,7 +379,11 @@ pub fn handle_hook_event(hook_payload: &Json, deps: HandleHookEventDeps<'_>) -> 
 
     // EC-5 items 2+4 — ambient run/task/contract binding.
     if let Some(store) = session_binding.as_deref_mut() {
-        if let Some(session_id) = host_event.get("sessionId").and_then(Json::as_str).map(str::to_string) {
+        if let Some(session_id) = host_event
+            .get("sessionId")
+            .and_then(Json::as_str)
+            .map(str::to_string)
+        {
             let binding = if event_type == "session-start" {
                 store.ensure_binding(&session_id)
             } else {
@@ -329,16 +391,29 @@ pub fn handle_hook_event(hook_payload: &Json, deps: HandleHookEventDeps<'_>) -> 
             };
             if let Some(binding) = binding {
                 if let Json::Object(map) = &mut host_event {
-                    map.insert("runId".into(), binding.get("runId").cloned().unwrap_or(Json::Null));
-                    map.insert("taskId".into(), binding.get("taskId").cloned().unwrap_or(Json::Null));
-                    map.insert("contractId".into(), binding.get("contractId").cloned().unwrap_or(Json::Null));
+                    map.insert(
+                        "runId".into(),
+                        binding.get("runId").cloned().unwrap_or(Json::Null),
+                    );
+                    map.insert(
+                        "taskId".into(),
+                        binding.get("taskId").cloned().unwrap_or(Json::Null),
+                    );
+                    map.insert(
+                        "contractId".into(),
+                        binding.get("contractId").cloned().unwrap_or(Json::Null),
+                    );
                 }
             }
         }
     }
 
     if event_type == "pre-effect" {
-        let workspace = host_event.get("workspace").and_then(Json::as_str).map(str::to_string).unwrap_or_default();
+        let workspace = host_event
+            .get("workspace")
+            .and_then(Json::as_str)
+            .map(str::to_string)
+            .unwrap_or_default();
         let contracted = !matches!(host_event.get("contractId"), None | Some(Json::Null));
         let payload = discipline_payload_of(hook_payload);
         if let Some(denial) = pre_effect_discipline_prefix(&payload) {
@@ -347,29 +422,50 @@ pub fn handle_hook_event(hook_payload: &Json, deps: HandleHookEventDeps<'_>) -> 
                 host_event,
                 observation_class,
                 "strong",
-                decision_simple(false, Some(denial.code), denial.message, json!({}), "strong"),
+                decision_simple(
+                    false,
+                    Some(denial.code),
+                    denial.message,
+                    json!({}),
+                    "strong",
+                ),
             );
         }
     }
 
     // EC-5 item 5 — honest sourceRevision: only fills a gap normalize() left null.
     if matches!(host_event.get("sourceRevision"), None | Some(Json::Null)) {
-        let workspace = host_event.get("workspace").and_then(Json::as_str).map(str::to_string);
+        let workspace = host_event
+            .get("workspace")
+            .and_then(Json::as_str)
+            .map(str::to_string);
         let resolved = resolve_source_revision(workspace.as_deref(), git_resolver);
         if let Json::Object(map) = &mut host_event {
-            map.insert("sourceRevision".into(), resolved.map(Json::String).unwrap_or(Json::Null));
+            map.insert(
+                "sourceRevision".into(),
+                resolved.map(Json::String).unwrap_or(Json::Null),
+            );
         }
     }
 
     // EC-5 item 5 — pre-effect/post-effect correlation.
     if let Some(store) = pre_effect_correlation.as_deref_mut() {
-        if let Some(idempotency_key) = host_event.get("idempotencyKey").and_then(Json::as_str).map(str::to_string) {
+        if let Some(idempotency_key) = host_event
+            .get("idempotencyKey")
+            .and_then(Json::as_str)
+            .map(str::to_string)
+        {
             if event_type == "pre-effect" {
                 store.ensure_request_id(&idempotency_key);
             } else if POST_EFFECT_TYPES.contains(&event_type.as_str()) {
                 let finalized = store.get_finalized(&idempotency_key);
-                let request_id = if finalized.is_some() { None } else { store.get_request_id(&idempotency_key) };
-                let contract_is_null = matches!(host_event.get("contractId"), None | Some(Json::Null));
+                let request_id = if finalized.is_some() {
+                    None
+                } else {
+                    store.get_request_id(&idempotency_key)
+                };
+                let contract_is_null =
+                    matches!(host_event.get("contractId"), None | Some(Json::Null));
                 let prior_correlation = if let Some(finalized) = finalized {
                     let mut m = match finalized {
                         Json::Object(m) => m,
@@ -402,7 +498,9 @@ pub fn handle_hook_event(hook_payload: &Json, deps: HandleHookEventDeps<'_>) -> 
             decision_simple(
                 false,
                 Some("ARC_AUTH_KEY_UNAVAILABLE"),
-                signed.sign_error_message.unwrap_or_else(|| "no key ring available to sign the host event".to_string()),
+                signed
+                    .sign_error_message
+                    .unwrap_or_else(|| "no key ring available to sign the host event".to_string()),
                 json!({"eventId": host_event.get("eventId"), "observationClass": observation_class}),
                 "degraded",
             ),
@@ -427,18 +525,45 @@ pub fn handle_hook_event(hook_payload: &Json, deps: HandleHookEventDeps<'_>) -> 
 }
 
 fn discipline_payload_of(hook_payload: &Json) -> DisciplinePayload {
-    let s = |k: &str| hook_payload.get(k).and_then(Json::as_str).map(str::to_string);
+    let s = |k: &str| {
+        hook_payload
+            .get(k)
+            .and_then(Json::as_str)
+            .map(str::to_string)
+    };
     let tool_input = hook_payload.get("tool_input");
     DisciplinePayload {
         command: s("command"),
-        tool_input_command: tool_input.and_then(|t| t.get("command")).and_then(Json::as_str).map(str::to_string),
-        workdir: tool_input.and_then(|t| t.get("workdir")).and_then(Json::as_str).map(str::to_string),
+        tool_input_command: tool_input
+            .and_then(|t| t.get("command"))
+            .and_then(Json::as_str)
+            .map(str::to_string),
+        workdir: tool_input
+            .and_then(|t| t.get("workdir"))
+            .and_then(Json::as_str)
+            .map(str::to_string),
         cwd: s("cwd"),
-        payload_cwd: hook_payload.get("payload").and_then(|p| p.get("cwd")).and_then(Json::as_str).map(str::to_string),
-        file_path: tool_input.and_then(|t| t.get("file_path")).and_then(Json::as_str).map(str::to_string),
-        path: tool_input.and_then(|t| t.get("path")).and_then(Json::as_str).map(str::to_string),
-        patch: tool_input.and_then(|t| t.get("patch")).and_then(Json::as_str).map(str::to_string),
-        input: tool_input.and_then(|t| t.get("input")).and_then(Json::as_str).map(str::to_string),
+        payload_cwd: hook_payload
+            .get("payload")
+            .and_then(|p| p.get("cwd"))
+            .and_then(Json::as_str)
+            .map(str::to_string),
+        file_path: tool_input
+            .and_then(|t| t.get("file_path"))
+            .and_then(Json::as_str)
+            .map(str::to_string),
+        path: tool_input
+            .and_then(|t| t.get("path"))
+            .and_then(Json::as_str)
+            .map(str::to_string),
+        patch: tool_input
+            .and_then(|t| t.get("patch"))
+            .and_then(Json::as_str)
+            .map(str::to_string),
+        input: tool_input
+            .and_then(|t| t.get("input"))
+            .and_then(Json::as_str)
+            .map(str::to_string),
     }
 }
 
@@ -448,11 +573,20 @@ fn discipline_payload_of(hook_payload: &Json) -> DisciplinePayload {
 
 /// Mirrors `deriveTouchedPaths(receiptStore, runId)`. `list_by_run` mirrors
 /// `receiptStore.list({runId})`.
-pub fn derive_touched_paths(run_id: Option<&str>, list_by_run: impl Fn(&str) -> Vec<Json>) -> Vec<String> {
-    let Some(run_id) = run_id else { return Vec::new() };
+pub fn derive_touched_paths(
+    run_id: Option<&str>,
+    list_by_run: impl Fn(&str) -> Vec<Json>,
+) -> Vec<String> {
+    let Some(run_id) = run_id else {
+        return Vec::new();
+    };
     let mut seen = std::collections::BTreeSet::new();
     for record in list_by_run(run_id) {
-        if let Some(target) = record.get("observed").and_then(|o| o.get("target")).and_then(Json::as_str) {
+        if let Some(target) = record
+            .get("observed")
+            .and_then(|o| o.get("target"))
+            .and_then(Json::as_str)
+        {
             if !target.is_empty() {
                 seen.insert(target.to_string());
             }
@@ -498,7 +632,10 @@ pub fn evaluate_host_stop(input: EvaluateHostStopInput<'_>) -> Json {
     let terminal = if input.disposition.is_none() && input.claimed_level.is_some() {
         None
     } else {
-        Some(stop_outcome(&StopDispositionInput { authenticated_claim: input.authenticated_claim, intent: input.intent }))
+        Some(stop_outcome(&StopDispositionInput {
+            authenticated_claim: input.authenticated_claim,
+            intent: input.intent,
+        }))
     };
 
     if let Some(t) = &terminal {
@@ -516,7 +653,9 @@ pub fn evaluate_host_stop(input: EvaluateHostStopInput<'_>) -> Json {
     let host_contract_id = input.host_event.get("contractId").and_then(Json::as_str);
     if run_id.is_none() && input.execution_contract_id.is_none() && host_contract_id.is_none() {
         let detail = match &terminal {
-            Some(t) => json!({"disposition": t.disposition, "terminationAllowed": t.termination_allowed, "certification": t.certification, "governed": false}),
+            Some(t) => {
+                json!({"disposition": t.disposition, "terminationAllowed": t.termination_allowed, "certification": t.certification, "governed": false})
+            }
             None => json!({"governed": false}),
         };
         return json!({
@@ -529,25 +668,58 @@ pub fn evaluate_host_stop(input: EvaluateHostStopInput<'_>) -> Json {
 
     let touched_paths = derive_touched_paths(run_id, input.receipt_list_by_run);
     let task_id = input.host_event.get("taskId").and_then(Json::as_str);
-    let require_acceptance_evidence = terminal.as_ref().map(|t| t.certification == "genuine").unwrap_or(false);
-    let mut certification = input.completion_gate.evaluate_completion(CompletionClaimInput {
-        run_id,
-        task_id,
-        claimed_level: input.claimed_level,
-        touched_paths,
-        contract_id: input.execution_contract_id.or(host_contract_id),
-        contract_version: input.execution_contract_version.or_else(|| input.host_event.get("contractVersion").and_then(Json::as_str)),
-        contract_digest: input.execution_contract_digest.or_else(|| input.host_event.get("contractDigest").and_then(Json::as_str)),
-        require_acceptance_evidence,
-    });
+    let require_acceptance_evidence = terminal
+        .as_ref()
+        .map(|t| t.certification == "genuine")
+        .unwrap_or(false);
+    let mut certification = input
+        .completion_gate
+        .evaluate_completion(CompletionClaimInput {
+            run_id,
+            task_id,
+            claimed_level: input.claimed_level,
+            touched_paths,
+            contract_id: input.execution_contract_id.or(host_contract_id),
+            contract_version: input.execution_contract_version.or_else(|| {
+                input
+                    .host_event
+                    .get("contractVersion")
+                    .and_then(Json::as_str)
+            }),
+            contract_digest: input.execution_contract_digest.or_else(|| {
+                input
+                    .host_event
+                    .get("contractDigest")
+                    .and_then(Json::as_str)
+            }),
+            require_acceptance_evidence,
+        });
 
     if let (Some(t), Json::Object(cert_map)) = (&terminal, &mut certification) {
-        let allowed = cert_map.get("allowed").and_then(Json::as_bool).unwrap_or(false);
-        let detail = cert_map.entry("detail").or_insert_with(|| Json::Object(Default::default()));
+        let allowed = cert_map
+            .get("allowed")
+            .and_then(Json::as_bool)
+            .unwrap_or(false);
+        let detail = cert_map
+            .entry("detail")
+            .or_insert_with(|| Json::Object(Default::default()));
         if let Json::Object(detail_map) = detail {
-            detail_map.insert("termination".into(), Json::String(t.termination_allowed.to_string()));
-            detail_map.insert("certification".into(), Json::String(if allowed { "certified".into() } else { "rejected".into() }));
-            detail_map.insert("disposition".into(), Json::String(t.disposition.to_string()));
+            detail_map.insert(
+                "termination".into(),
+                Json::String(t.termination_allowed.to_string()),
+            );
+            detail_map.insert(
+                "certification".into(),
+                Json::String(if allowed {
+                    "certified".into()
+                } else {
+                    "rejected".into()
+                }),
+            );
+            detail_map.insert(
+                "disposition".into(),
+                Json::String(t.disposition.to_string()),
+            );
         }
     }
     certification
@@ -559,14 +731,25 @@ const UNSUPPORTED_RUN_GUIDANCE: &str =
 
 /// Mirrors `hostStopHookOutput(completionDecision)`.
 pub fn host_stop_hook_output(completion_decision: &Json) -> Option<Json> {
-    if completion_decision.get("allowed").and_then(Json::as_bool).unwrap_or(false) {
+    if completion_decision
+        .get("allowed")
+        .and_then(Json::as_bool)
+        .unwrap_or(false)
+    {
         return None;
     }
     let code = completion_decision.get("code").and_then(Json::as_str);
     let label = code.map(|c| format!("{c}: ")).unwrap_or_default();
-    let base_message = completion_decision.get("message").and_then(Json::as_str).unwrap_or("completion claim denied by Arcane completion gate");
+    let base_message = completion_decision
+        .get("message")
+        .and_then(Json::as_str)
+        .unwrap_or("completion claim denied by Arcane completion gate");
     let mut reason = format!("{label}{base_message}");
-    if completion_decision.get("enforcementHealth").and_then(Json::as_str) == Some("unsupported") {
+    if completion_decision
+        .get("enforcementHealth")
+        .and_then(Json::as_str)
+        == Some("unsupported")
+    {
         reason = format!("{reason} {UNSUPPORTED_RUN_GUIDANCE}");
     }
     let reason: String = reason.chars().take(500).collect();
@@ -615,13 +798,22 @@ mod tests {
                 Some(Some("deadbeef".into()))
             }
         }
-        assert_eq!(resolve_source_revision(Some("/repo"), &Fast), Some("deadbeef".to_string()));
+        assert_eq!(
+            resolve_source_revision(Some("/repo"), &Fast),
+            Some("deadbeef".to_string())
+        );
     }
 
     #[test]
     fn resolve_source_revision_empty_workspace_is_null() {
-        assert_eq!(resolve_source_revision(Some(""), &SubprocessOnlyGitHeadResolver), None);
-        assert_eq!(resolve_source_revision(None, &SubprocessOnlyGitHeadResolver), None);
+        assert_eq!(
+            resolve_source_revision(Some(""), &SubprocessOnlyGitHeadResolver),
+            None
+        );
+        assert_eq!(
+            resolve_source_revision(None, &SubprocessOnlyGitHeadResolver),
+            None
+        );
     }
 
     #[test]
@@ -660,7 +852,11 @@ mod tests {
     impl Ingestor for RecordingIngestor {
         fn ingest(&mut self, _host_event: &Json, _authority_assertion: &Json) -> IngestOutcome {
             self.calls += 1;
-            IngestOutcome { accepted: true, receipt: Some(json!({"receiptId": "r1"})), decision: json!({"allowed": true, "code": null}) }
+            IngestOutcome {
+                accepted: true,
+                receipt: Some(json!({"receiptId": "r1"})),
+                decision: json!({"allowed": true, "code": null}),
+            }
         }
     }
 
@@ -695,7 +891,17 @@ mod tests {
         let git = SubprocessOnlyGitHeadResolver;
         let read_source = |_p: &str| None;
         let payload = json!({"command": "rm -rf /tmp/x"});
-        let result = handle_hook_event(&payload, base_deps(&normalize, classify, &mut ingestor, &signer, &git, &read_source));
+        let result = handle_hook_event(
+            &payload,
+            base_deps(
+                &normalize,
+                classify,
+                &mut ingestor,
+                &signer,
+                &git,
+                &read_source,
+            ),
+        );
         assert!(!result.accepted);
         assert_eq!(result.decision["code"], "ARC_EFFECT_CLASS_UNAUTHORIZED");
         assert_eq!(ingestor.calls, 0);
@@ -710,7 +916,17 @@ mod tests {
         let git = SubprocessOnlyGitHeadResolver;
         let read_source = |_p: &str| None;
         let payload = json!({});
-        let result = handle_hook_event(&payload, base_deps(&normalize, classify, &mut ingestor, &signer, &git, &read_source));
+        let result = handle_hook_event(
+            &payload,
+            base_deps(
+                &normalize,
+                classify,
+                &mut ingestor,
+                &signer,
+                &git,
+                &read_source,
+            ),
+        );
         assert!(!result.accepted);
         assert_eq!(result.enforcement_health, "degraded");
         assert_eq!(result.decision["code"], "ARC_AUTH_KEY_UNAVAILABLE");
@@ -726,7 +942,17 @@ mod tests {
         let git = SubprocessOnlyGitHeadResolver;
         let read_source = |_p: &str| None;
         let payload = json!({});
-        let result = handle_hook_event(&payload, base_deps(&normalize, classify, &mut ingestor, &signer, &git, &read_source));
+        let result = handle_hook_event(
+            &payload,
+            base_deps(
+                &normalize,
+                classify,
+                &mut ingestor,
+                &signer,
+                &git,
+                &read_source,
+            ),
+        );
         assert!(result.accepted);
         assert_eq!(ingestor.calls, 1);
         assert_eq!(result.receipt.unwrap()["receiptId"], "r1");
@@ -741,7 +967,17 @@ mod tests {
         let git = SubprocessOnlyGitHeadResolver;
         let read_source = |_p: &str| None;
         let payload = json!({"command": "git push --force"});
-        let result = handle_hook_event(&payload, base_deps(&normalize, classify, &mut ingestor, &signer, &git, &read_source));
+        let result = handle_hook_event(
+            &payload,
+            base_deps(
+                &normalize,
+                classify,
+                &mut ingestor,
+                &signer,
+                &git,
+                &read_source,
+            ),
+        );
         assert!(!result.accepted);
         assert_eq!(result.decision["code"], "ARC_APPROVAL_REQUIRED");
         assert_eq!(result.decision["escalate"], false);
@@ -756,11 +992,24 @@ mod tests {
         let git = SubprocessOnlyGitHeadResolver;
         let read_source = |_p: &str| None;
         let payload = json!({"command": "git push --force origin main"});
-        let result = handle_hook_event(&payload, base_deps(&normalize, classify, &mut ingestor, &signer, &git, &read_source));
+        let result = handle_hook_event(
+            &payload,
+            base_deps(
+                &normalize,
+                classify,
+                &mut ingestor,
+                &signer,
+                &git,
+                &read_source,
+            ),
+        );
         assert!(!result.accepted);
         assert_eq!(result.decision["code"], "ARC_APPROVAL_REQUIRED");
         assert_eq!(result.decision["escalate"], true);
-        assert_eq!(result.decision["detail"]["approvalKey"], "s1|VCS_PUSH|origin/main");
+        assert_eq!(
+            result.decision["detail"]["approvalKey"],
+            "s1|VCS_PUSH|origin/main"
+        );
     }
 
     struct FakeGate;
@@ -837,7 +1086,10 @@ mod tests {
 
     #[test]
     fn host_stop_hook_output_blocks_with_code_prefix() {
-        let out = host_stop_hook_output(&json!({"allowed": false, "code": "ARC_STORE_CORRUPT", "message": "bad"})).unwrap();
+        let out = host_stop_hook_output(
+            &json!({"allowed": false, "code": "ARC_STORE_CORRUPT", "message": "bad"}),
+        )
+        .unwrap();
         assert_eq!(out["decision"], "block");
         assert_eq!(out["reason"], "ARC_STORE_CORRUPT: bad");
     }
@@ -861,7 +1113,9 @@ mod tests {
     #[test]
     fn run_hook_main_writes_stdout_when_dispatch_returns_some() {
         let read = || Ok(json!({"hook_event_name": "Stop"}));
-        let dispatch = |_p: &Json| RunHookMainResult { stdout: Some("{\"decision\":\"block\"}".to_string()) };
+        let dispatch = |_p: &Json| RunHookMainResult {
+            stdout: Some("{\"decision\":\"block\"}".to_string()),
+        };
         let mut out = String::new();
         let result = run_hook_main(read, dispatch, |s| out.push_str(s));
         assert!(result.is_some());
@@ -872,7 +1126,12 @@ mod tests {
     fn derive_touched_paths_dedupes_and_ignores_empty_targets() {
         let list = |r: &str| {
             assert_eq!(r, "run1");
-            vec![json!({"observed": {"target": "a.rs"}}), json!({"observed": {"target": "a.rs"}}), json!({"observed": {"target": ""}}), json!({})]
+            vec![
+                json!({"observed": {"target": "a.rs"}}),
+                json!({"observed": {"target": "a.rs"}}),
+                json!({"observed": {"target": ""}}),
+                json!({}),
+            ]
         };
         let paths = derive_touched_paths(Some("run1"), list);
         assert_eq!(paths, vec!["a.rs".to_string()]);

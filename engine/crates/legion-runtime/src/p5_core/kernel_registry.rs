@@ -35,16 +35,31 @@ impl OperationRegistry {
             .as_object()
             .ok_or_else(|| usage_error("operation descriptor must be an object"))?;
         let envelope = object.get("envelope").cloned().unwrap_or(Value::Null);
-        assert_contract("operation-envelope-v1", &envelope, Some("operation envelope"))?;
+        assert_contract(
+            "operation-envelope-v1",
+            &envelope,
+            Some("operation envelope"),
+        )?;
 
-        let operation_id = object.get("operationId").and_then(Value::as_str).unwrap_or_default();
-        let envelope_operation_id = envelope.get("operationId").and_then(Value::as_str).unwrap_or_default();
+        let operation_id = object
+            .get("operationId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let envelope_operation_id = envelope
+            .get("operationId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let version = object.get("version");
         let envelope_version = envelope.get("operationVersion");
         if operation_id != envelope_operation_id || version != envelope_version {
-            return Err(usage_error("operation descriptor identity does not match envelope"));
+            return Err(usage_error(
+                "operation descriptor identity does not match envelope",
+            ));
         }
-        let handler_binding = object.get("handlerBinding").and_then(Value::as_str).unwrap_or_default();
+        let handler_binding = object
+            .get("handlerBinding")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if handler_binding.is_empty() {
             return Err(usage_error("operation handler binding is required"));
         }
@@ -58,7 +73,8 @@ impl OperationRegistry {
                 },
             ));
         }
-        self.operations.insert(operation_id.to_string(), descriptor.clone());
+        self.operations
+            .insert(operation_id.to_string(), descriptor.clone());
         Ok(descriptor)
     }
 
@@ -70,7 +86,10 @@ impl OperationRegistry {
                 format!("unknown operation: {operation_id}"),
                 KernelErrorOptions {
                     category: Some("usage".to_string()),
-                    remediation: Some("Call capability discovery and select a registered operation ID.".to_string()),
+                    remediation: Some(
+                        "Call capability discovery and select a registered operation ID."
+                            .to_string(),
+                    ),
                     ..Default::default()
                 },
             )
@@ -85,9 +104,16 @@ impl OperationRegistry {
 
 fn normalize_capabilities(value: &[String], label: &str) -> Result<Vec<String>, KernelError> {
     if value.iter().any(|c| c.is_empty()) {
-        return Err(usage_error(format!("{label} must be a non-empty string array")));
+        return Err(usage_error(format!(
+            "{label} must be a non-empty string array"
+        )));
     }
-    let mut unique: Vec<String> = value.iter().cloned().collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+    let mut unique: Vec<String> = value
+        .iter()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     unique.sort();
     Ok(unique)
 }
@@ -100,14 +126,29 @@ pub struct CapabilityNegotiation {
 }
 
 /// Port of `negotiateCapabilities({ required, supported })`.
-pub fn negotiate_capabilities(required: &[String], supported: &[String]) -> Result<CapabilityNegotiation, KernelError> {
+pub fn negotiate_capabilities(
+    required: &[String],
+    supported: &[String],
+) -> Result<CapabilityNegotiation, KernelError> {
     let required = normalize_capabilities(required, "required capabilities")?;
     let supported = normalize_capabilities(supported, "supported capabilities")?;
     let supported_set: std::collections::BTreeSet<&String> = supported.iter().collect();
-    let available: Vec<String> = required.iter().filter(|c| supported_set.contains(c)).cloned().collect();
-    let missing: Vec<String> = required.iter().filter(|c| !supported_set.contains(c)).cloned().collect();
+    let available: Vec<String> = required
+        .iter()
+        .filter(|c| supported_set.contains(c))
+        .cloned()
+        .collect();
+    let missing: Vec<String> = required
+        .iter()
+        .filter(|c| !supported_set.contains(c))
+        .cloned()
+        .collect();
     let compatible = missing.is_empty();
-    Ok(CapabilityNegotiation { available, missing, compatible })
+    Ok(CapabilityNegotiation {
+        available,
+        missing,
+        compatible,
+    })
 }
 
 #[cfg(test)]
@@ -151,7 +192,9 @@ mod tests {
     #[test]
     fn registry_rejects_non_object_descriptor() {
         let mut registry = OperationRegistry::new();
-        let error = registry.register(legion_catalog::json::Value::Null).unwrap_err();
+        let error = registry
+            .register(legion_catalog::json::Value::Null)
+            .unwrap_err();
         assert_eq!(error.code, "INVALID_ARGUMENT");
     }
 }

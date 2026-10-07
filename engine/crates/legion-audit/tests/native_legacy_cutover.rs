@@ -246,11 +246,17 @@ fn external_route_without_authorized_capability_cannot_claim_process_or_coverage
     fs::write(root.join("package.json"), "{}").unwrap();
     let inventory = inventory(&["package.json"]);
     let result = NativeProviderRegistry::new(&root)
-        .execute(&provider("legacy.quality.build", json!({"op":"always"})), &inventory)
+        .execute(
+            &provider("legacy.quality.build", json!({"op":"always"})),
+            &inventory,
+        )
         .expect("capability absence is a typed result");
     assert!(!result.complete);
     assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
-    assert!(result.coverage_gaps.iter().any(|gap| gap == "external-project-tool-capability-unavailable"));
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "external-project-tool-capability-unavailable"));
     let receipt = &result.details["executionReceipt"];
     assert_eq!(receipt["processTree"]["started"], false);
     assert_eq!(receipt["processTree"]["reaped"], false);
@@ -274,7 +280,8 @@ fn specification(id: &str) -> legion_contracts::ProviderSpec {
         "hostCapabilities":[], "execution":{}, "reasoning":{},
         "benchmark":{"status":"unproven","requiredForCleanClaim":false},
         "cleanClaim":"evidence-only", "controlIds":[], "scopes":[], "selectable":true
-    })).unwrap()
+    }))
+    .unwrap()
 }
 
 #[test]
@@ -282,10 +289,16 @@ fn in_process_legacy_check_passes_frozen_execution_without_fabricated_process_ev
     let root = root();
     fs::write(root.join("src-tauri/plain.rs"), "fn plain() {}\n").unwrap();
     let inventory = inventory(&["src-tauri/plain.rs"]);
-    let plan = legion_audit::AuditPlan::compile(&inventory, &[specification("legacy.tauri.contract-mirror")])
-        .unwrap().freeze(Some(b"fixture-key")).unwrap();
+    let plan = legion_audit::AuditPlan::compile(
+        &inventory,
+        &[specification("legacy.tauri.contract-mirror")],
+    )
+    .unwrap()
+    .freeze(Some(b"fixture-key"))
+    .unwrap();
     assert_eq!(plan.providers()[0].kind, ProviderKind::RustAlgorithm);
-    let report = legion_audit::execute(&plan, &inventory, &NativeProviderRegistry::new(&root)).unwrap();
+    let report =
+        legion_audit::execute(&plan, &inventory, &NativeProviderRegistry::new(&root)).unwrap();
     assert!(report.gaps.is_empty(), "{:?}", report.gaps);
     assert!(report.results[0].result.complete);
     let receipt = &report.results[0].result.details["executionReceipt"];
@@ -301,14 +314,38 @@ fn external_refusal_survives_common_report_validation_with_no_examined_files() {
     let root = root();
     fs::write(root.join("package.json"), "{}").unwrap();
     let inventory = inventory(&["package.json"]);
-    let plan = legion_audit::AuditPlan::compile(&inventory, &[specification("legacy.quality.build")])
-        .unwrap().freeze(Some(b"fixture-key")).unwrap();
-    assert_eq!(plan.providers()[0].kind, ProviderKind::TypedExternalProjectTool);
-    let report = legion_audit::execute(&plan, &inventory, &NativeProviderRegistry::new(&root)).unwrap();
+    let plan =
+        legion_audit::AuditPlan::compile(&inventory, &[specification("legacy.quality.build")])
+            .unwrap()
+            .freeze(Some(b"fixture-key"))
+            .unwrap();
+    assert_eq!(
+        plan.providers()[0].kind,
+        ProviderKind::TypedExternalProjectTool
+    );
+    let report =
+        legion_audit::execute(&plan, &inventory, &NativeProviderRegistry::new(&root)).unwrap();
     assert!(!report.results[0].result.complete);
-    assert!(report.gaps.iter().any(|gap| gap == "external-project-tool-capability-unavailable"), "{:?}", report.gaps);
-    assert!(!report.gaps.iter().any(|gap| gap.contains("invalid-provider-result")), "{:?}", report.gaps);
-    assert_eq!(report.results[0].result.coverage.as_ref().unwrap().examined, 0);
+    assert!(
+        report
+            .gaps
+            .iter()
+            .any(|gap| gap == "external-project-tool-capability-unavailable"),
+        "{:?}",
+        report.gaps
+    );
+    assert!(
+        !report
+            .gaps
+            .iter()
+            .any(|gap| gap.contains("invalid-provider-result")),
+        "{:?}",
+        report.gaps
+    );
+    assert_eq!(
+        report.results[0].result.coverage.as_ref().unwrap().examined,
+        0
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -320,14 +357,30 @@ fn changed_and_oversized_source_cannot_count_as_examined() {
     let mut entries = inventory(&["src-tauri/plain.rs"]).entries;
     entries[0].digest = Some(format!("sha256:{}", "0".repeat(64)));
     let frozen = InventoryEnvelope::new("fixture", "generation", entries).unwrap();
-    let result = NativeProviderRegistry::new(&root).execute(&provider("legacy.tauri.contract-mirror", json!({"op":"always"})), &frozen).unwrap();
+    let result = NativeProviderRegistry::new(&root)
+        .execute(
+            &provider("legacy.tauri.contract-mirror", json!({"op":"always"})),
+            &frozen,
+        )
+        .unwrap();
     assert!(!result.complete);
     assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
-    assert!(result.coverage_gaps.iter().any(|gap| gap.starts_with("source-digest-drift:")));
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("source-digest-drift:")));
     fs::write(path, vec![b'x'; 1_048_577]).unwrap();
-    let result = NativeProviderRegistry::new(&root).execute(&provider("legacy.tauri.contract-mirror", json!({"op":"always"})), &inventory(&["src-tauri/plain.rs"])).unwrap();
+    let result = NativeProviderRegistry::new(&root)
+        .execute(
+            &provider("legacy.tauri.contract-mirror", json!({"op":"always"})),
+            &inventory(&["src-tauri/plain.rs"]),
+        )
+        .unwrap();
     assert!(!result.complete);
     assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
-    assert!(result.coverage_gaps.iter().any(|gap| gap.starts_with("source-file-byte-limit:")));
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("source-file-byte-limit:")));
     fs::remove_dir_all(root).unwrap();
 }

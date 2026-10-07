@@ -56,13 +56,21 @@ impl ManualApplyCallbacks for FakeCallbacks {
         self.recorded.lock().unwrap().enqueued.push(event.clone());
     }
     fn acknowledge_pending_event(&self, event_id: &str) {
-        self.recorded.lock().unwrap().acknowledged.push(event_id.to_string());
+        self.recorded
+            .lock()
+            .unwrap()
+            .acknowledged
+            .push(event_id.to_string());
     }
     fn flush_pending_polls(&self) {
         self.recorded.lock().unwrap().flushed += 1;
     }
     fn record_manual_edit_activity(&self, kind: &str, data: Value) {
-        self.recorded.lock().unwrap().activity.push((kind.to_string(), data));
+        self.recorded
+            .lock()
+            .unwrap()
+            .activity
+            .push((kind.to_string(), data));
     }
 }
 
@@ -98,14 +106,18 @@ fn push_apply_event_and_wait_resolves_via_another_thread() {
     let recorded = Arc::new(Mutex::new(RecordedCalls::default()));
     let controller = Arc::new(ManualApplyController::with_timeouts(
         cwd.clone(),
-        FakeCallbacks { recorded: recorded.clone() },
+        FakeCallbacks {
+            recorded: recorded.clone(),
+        },
         Duration::from_secs(5),
         120_000,
     ));
 
     let batch = sample_batch();
     let controller_for_dispatch = controller.clone();
-    let dispatch = thread::spawn(move || controller_for_dispatch.push_apply_event_and_wait(&batch, Some("/index.html"), None, None));
+    let dispatch = thread::spawn(move || {
+        controller_for_dispatch.push_apply_event_and_wait(&batch, Some("/index.html"), None, None)
+    });
 
     // Wait until the event is actually enqueued, then resolve it from "another
     // request" — matching how the real HTTP reply route is a separate
@@ -128,8 +140,16 @@ fn push_apply_event_and_wait_resolves_via_another_thread() {
     assert_eq!(result["appliedEntryIds"][0], "entry-1");
 
     // Evidence file is removed once resolved.
-    assert!(!manual_apply_evidence_dir(&cwd).join(format!("{event_id}.json")).exists());
-    let activity_kinds: Vec<_> = recorded.lock().unwrap().activity.iter().map(|(k, _)| k.clone()).collect();
+    assert!(!manual_apply_evidence_dir(&cwd)
+        .join(format!("{event_id}.json"))
+        .exists());
+    let activity_kinds: Vec<_> = recorded
+        .lock()
+        .unwrap()
+        .activity
+        .iter()
+        .map(|(k, _)| k.clone())
+        .collect();
     assert!(activity_kinds.contains(&"manual_edit_apply_dispatched".to_string()));
 }
 
@@ -139,14 +159,18 @@ fn push_apply_event_and_wait_rejects() {
     let recorded = Arc::new(Mutex::new(RecordedCalls::default()));
     let controller = Arc::new(ManualApplyController::with_timeouts(
         cwd,
-        FakeCallbacks { recorded: recorded.clone() },
+        FakeCallbacks {
+            recorded: recorded.clone(),
+        },
         Duration::from_secs(5),
         120_000,
     ));
 
     let batch = sample_batch();
     let controller_for_dispatch = controller.clone();
-    let dispatch = thread::spawn(move || controller_for_dispatch.push_apply_event_and_wait(&batch, None, None, None));
+    let dispatch = thread::spawn(move || {
+        controller_for_dispatch.push_apply_event_and_wait(&batch, None, None, None)
+    });
 
     let event_id = loop {
         if let Some(event) = recorded.lock().unwrap().enqueued.first().cloned() {
@@ -166,13 +190,17 @@ fn push_apply_event_and_wait_times_out_and_tombstones() {
     let recorded = Arc::new(Mutex::new(RecordedCalls::default()));
     let controller = ManualApplyController::with_timeouts(
         cwd,
-        FakeCallbacks { recorded: recorded.clone() },
+        FakeCallbacks {
+            recorded: recorded.clone(),
+        },
         Duration::from_millis(50),
         120_000,
     );
 
     let batch = sample_batch();
-    let err = controller.push_apply_event_and_wait(&batch, Some("/index.html"), None, None).unwrap_err();
+    let err = controller
+        .push_apply_event_and_wait(&batch, Some("/index.html"), None, None)
+        .unwrap_err();
     assert_eq!(err, "chat_agent_timeout");
 
     let event_id = recorded.lock().unwrap().enqueued[0]
@@ -197,7 +225,9 @@ fn cancel_pending_events_rejects_matching_deferreds_and_rolls_back() {
     let recorded = Arc::new(Mutex::new(RecordedCalls::default()));
     let controller = Arc::new(ManualApplyController::with_timeouts(
         cwd.clone(),
-        FakeCallbacks { recorded: recorded.clone() },
+        FakeCallbacks {
+            recorded: recorded.clone(),
+        },
         Duration::from_secs(5),
         120_000,
     ));
@@ -206,7 +236,14 @@ fn cancel_pending_events_rejects_matching_deferreds_and_rolls_back() {
     batch["entries"][0]["ops"][0]["sourceHint"] = json!({ "file": "index.html" });
     let controller_for_dispatch = controller.clone();
     let batch_clone = batch.clone();
-    let dispatch = thread::spawn(move || controller_for_dispatch.push_apply_event_and_wait(&batch_clone, Some("/index.html"), None, None));
+    let dispatch = thread::spawn(move || {
+        controller_for_dispatch.push_apply_event_and_wait(
+            &batch_clone,
+            Some("/index.html"),
+            None,
+            None,
+        )
+    });
 
     loop {
         if !recorded.lock().unwrap().enqueued.is_empty() {
@@ -222,7 +259,10 @@ fn cancel_pending_events_rejects_matching_deferreds_and_rolls_back() {
     let canceled = controller.cancel_pending_events(Some("/index.html"), "manual_edit_discarded");
     assert_eq!(canceled.len(), 1);
     assert_eq!(canceled[0]["rolledBackFiles"][0], "index.html");
-    assert_eq!(std::fs::read_to_string(cwd.join("index.html")).unwrap(), "before");
+    assert_eq!(
+        std::fs::read_to_string(cwd.join("index.html")).unwrap(),
+        "before"
+    );
 
     let err = dispatch.join().unwrap().unwrap_err();
     assert_eq!(err, "manual_edit_discarded");
@@ -252,8 +292,15 @@ fn split_manual_apply_batch_splits_by_max_ops() {
     batch["entries"] = json!([batch["entries"][0].clone(), entry2]);
 
     let chunks = split_manual_apply_batch(&batch, 2);
-    assert!(chunks.len() >= 2, "expected multiple chunks, got {}", chunks.len());
-    let total_ops: usize = chunks.iter().map(|c| count_manual_apply_ops(&c.batch)).sum();
+    assert!(
+        chunks.len() >= 2,
+        "expected multiple chunks, got {}",
+        chunks.len()
+    );
+    let total_ops: usize = chunks
+        .iter()
+        .map(|c| count_manual_apply_ops(&c.batch))
+        .sum();
     assert_eq!(total_ops, 4);
     for chunk in &chunks {
         assert!(chunk.meta.is_some());
@@ -271,7 +318,9 @@ fn push_batch_in_chunks_and_wait_aggregates_applied_and_failed() {
     let recorded = Arc::new(Mutex::new(RecordedCalls::default()));
     let controller = Arc::new(ManualApplyController::with_timeouts(
         cwd,
-        FakeCallbacks { recorded: recorded.clone() },
+        FakeCallbacks {
+            recorded: recorded.clone(),
+        },
         Duration::from_secs(5),
         120_000,
     ));
@@ -287,7 +336,13 @@ fn push_batch_in_chunks_and_wait_aggregates_applied_and_failed() {
 
     let controller_for_dispatch = controller.clone();
     let batch_clone = batch.clone();
-    let dispatch = thread::spawn(move || controller_for_dispatch.push_batch_in_chunks_and_wait(&batch_clone, Some("/index.html"), None));
+    let dispatch = thread::spawn(move || {
+        controller_for_dispatch.push_batch_in_chunks_and_wait(
+            &batch_clone,
+            Some("/index.html"),
+            None,
+        )
+    });
 
     // Resolve every dispatched chunk as done for exactly the entries it
     // carries, however the controller chose to split the batch. A deadline
@@ -295,7 +350,10 @@ fn push_batch_in_chunks_and_wait_aggregates_applied_and_failed() {
     let deadline = std::time::Instant::now() + Duration::from_secs(30);
     let mut already_resolved: std::collections::HashSet<String> = std::collections::HashSet::new();
     while !dispatch.is_finished() {
-        assert!(std::time::Instant::now() < deadline, "controller never finished dispatching chunks");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "controller never finished dispatching chunks"
+        );
         let pending: Vec<(String, Vec<Value>)> = {
             let recorded_guard = recorded.lock().unwrap();
             recorded_guard
@@ -310,7 +368,12 @@ fn push_batch_in_chunks_and_wait_aggregates_applied_and_failed() {
                         .get("batch")
                         .and_then(|b| b.get("entries"))
                         .and_then(Value::as_array)
-                        .map(|entries| entries.iter().filter_map(|en| en.get("id").cloned()).collect())
+                        .map(|entries| {
+                            entries
+                                .iter()
+                                .filter_map(|en| en.get("id").cloned())
+                                .collect()
+                        })
                         .unwrap_or_default();
                     Some((id, entry_ids))
                 })
@@ -329,7 +392,12 @@ fn push_batch_in_chunks_and_wait_aggregates_applied_and_failed() {
     let result = dispatch.join().unwrap();
     std::env::remove_var("IMPECCABLE_LIVE_MANUAL_EDIT_CHUNK_SIZE");
     assert_eq!(result["status"], "done");
-    let applied: Vec<&str> = result["appliedEntryIds"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let applied: Vec<&str> = result["appliedEntryIds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(applied.contains(&"entry-1"));
     assert!(applied.contains(&"entry-2"));
 }
@@ -351,7 +419,8 @@ fn validate_manual_apply_result_message_accepts_well_formed_done() {
             "notes": [],
         }
     });
-    let result = validate_manual_apply_result_message(&msg, Some("abc123"), Some(&deferred_batch)).unwrap();
+    let result =
+        validate_manual_apply_result_message(&msg, Some("abc123"), Some(&deferred_batch)).unwrap();
     assert_eq!(result["status"], "done");
 }
 
@@ -362,8 +431,12 @@ fn validate_manual_apply_result_message_rejects_done_with_no_applied_ids() {
         "id": "abc123",
         "data": { "status": "done", "appliedEntryIds": [], "failed": [], "files": [], "notes": [] }
     });
-    let err = validate_manual_apply_result_message(&msg, Some("abc123"), Some(&deferred_batch)).unwrap_err();
-    assert_eq!(err["body"]["reason"], "done_result_missing_applied_entry_ids");
+    let err = validate_manual_apply_result_message(&msg, Some("abc123"), Some(&deferred_batch))
+        .unwrap_err();
+    assert_eq!(
+        err["body"]["reason"],
+        "done_result_missing_applied_entry_ids"
+    );
 }
 
 #[test]
@@ -373,7 +446,8 @@ fn validate_manual_apply_result_message_rejects_unknown_entry_id() {
         "id": "abc123",
         "data": { "status": "done", "appliedEntryIds": ["not-in-batch"], "failed": [], "files": [], "notes": [] }
     });
-    let err = validate_manual_apply_result_message(&msg, Some("abc123"), Some(&deferred_batch)).unwrap_err();
+    let err = validate_manual_apply_result_message(&msg, Some("abc123"), Some(&deferred_batch))
+        .unwrap_err();
     assert_eq!(err["body"]["reason"], "applied_entry_id_not_in_event");
 }
 
@@ -410,7 +484,10 @@ fn collect_manual_apply_files_dedupes_and_relativizes() {
 fn normalize_project_file_rejects_escape() {
     let cwd = tmp_dir("escape");
     assert_eq!(normalize_project_file(Some("../../etc/passwd"), &cwd), None);
-    assert_eq!(normalize_project_file(Some("src/a.html"), &cwd).as_deref(), Some("src/a.html"));
+    assert_eq!(
+        normalize_project_file(Some("src/a.html"), &cwd).as_deref(),
+        Some("src/a.html")
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -427,8 +504,14 @@ fn normalize_manual_apply_evidence_path_rejects_escape_and_wrong_extension() {
         normalize_manual_apply_evidence_path(Some(ok.to_str().unwrap()), &cwd),
         Some(ok)
     );
-    assert_eq!(normalize_manual_apply_evidence_path(Some("../outside.json"), &cwd), None);
-    assert_eq!(normalize_manual_apply_evidence_path(Some("abc.txt"), &cwd), None);
+    assert_eq!(
+        normalize_manual_apply_evidence_path(Some("../outside.json"), &cwd),
+        None
+    );
+    assert_eq!(
+        normalize_manual_apply_evidence_path(Some("abc.txt"), &cwd),
+        None
+    );
 }
 
 // ---------------------------------------------------------------------

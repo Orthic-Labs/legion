@@ -121,11 +121,29 @@ pub fn parse_entity(entity: &Value) -> Entity {
     let mentions = entity.get("mentions").and_then(Value::as_array);
     let sentiment = entity.get("sentiment");
     Entity {
-        name: entity.get("name").and_then(Value::as_str).unwrap_or("").to_string(),
-        r#type: entity.get("type").and_then(Value::as_str).unwrap_or("UNKNOWN").to_string(),
-        salience: round_to(entity.get("salience").and_then(Value::as_f64).unwrap_or(0.0), 4),
-        sentiment_score: sentiment.and_then(|s| s.get("score")).and_then(Value::as_f64),
-        sentiment_magnitude: sentiment.and_then(|s| s.get("magnitude")).and_then(Value::as_f64),
+        name: entity
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string(),
+        r#type: entity
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or("UNKNOWN")
+            .to_string(),
+        salience: round_to(
+            entity
+                .get("salience")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0),
+            4,
+        ),
+        sentiment_score: sentiment
+            .and_then(|s| s.get("score"))
+            .and_then(Value::as_f64),
+        sentiment_magnitude: sentiment
+            .and_then(|s| s.get("magnitude"))
+            .and_then(Value::as_f64),
         mention_count: mentions.map(|m| m.len()).unwrap_or(0),
         metadata: entity.get("metadata").cloned().unwrap_or(json!({})),
     }
@@ -135,7 +153,11 @@ pub fn parse_entity(entity: &Value) -> Entity {
 /// Stable descending sort — Python's `list.sort` is stable, and Rust's
 /// `sort_by` is too.
 pub fn sort_entities_by_salience(entities: &mut [Entity]) {
-    entities.sort_by(|a, b| b.salience.partial_cmp(&a.salience).unwrap_or(std::cmp::Ordering::Equal));
+    entities.sort_by(|a, b| {
+        b.salience
+            .partial_cmp(&a.salience)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 }
 
 /// `score > 0.25` positive / `score < -0.25` negative / else neutral.
@@ -188,11 +210,27 @@ pub struct SentimentResult {
 /// (returns `None` when the API returned no document sentiment at all,
 /// matching `if doc_sentiment:` being falsy for `{}`).
 pub fn build_sentiment(doc_sentiment: &Value, sentences: &[Value]) -> Option<SentimentResult> {
-    if doc_sentiment.as_object().map(|o| o.is_empty()).unwrap_or(true) {
+    if doc_sentiment
+        .as_object()
+        .map(|o| o.is_empty())
+        .unwrap_or(true)
+    {
         return None;
     }
-    let score = round_to(doc_sentiment.get("score").and_then(Value::as_f64).unwrap_or(0.0), 3);
-    let magnitude = round_to(doc_sentiment.get("magnitude").and_then(Value::as_f64).unwrap_or(0.0), 3);
+    let score = round_to(
+        doc_sentiment
+            .get("score")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0),
+        3,
+    );
+    let magnitude = round_to(
+        doc_sentiment
+            .get("magnitude")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0),
+        3,
+    );
     let tone = sentiment_tone(score);
     let interpretation = sentiment_interpretation(score, magnitude);
 
@@ -201,14 +239,27 @@ pub fn build_sentiment(doc_sentiment: &Value, sentences: &[Value]) -> Option<Sen
     } else {
         let scores: Vec<f64> = sentences
             .iter()
-            .map(|s| s.get("sentiment").and_then(|se| se.get("score")).and_then(Value::as_f64).unwrap_or(0.0))
+            .map(|s| {
+                s.get("sentiment")
+                    .and_then(|se| se.get("score"))
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0)
+            })
             .collect();
         let max = scores.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         let min = scores.iter().cloned().fold(f64::INFINITY, f64::min);
         (Some(sentences.len()), Some(max), Some(min))
     };
 
-    Some(SentimentResult { score, magnitude, tone, interpretation, sentence_count, most_positive, most_negative })
+    Some(SentimentResult {
+        score,
+        magnitude,
+        tone,
+        interpretation,
+        sentence_count,
+        most_positive,
+        most_negative,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -222,8 +273,15 @@ pub fn parse_categories(categories: &[Value]) -> Vec<Category> {
     categories
         .iter()
         .map(|c| Category {
-            name: c.get("name").and_then(Value::as_str).unwrap_or("").to_string(),
-            confidence: round_to(c.get("confidence").and_then(Value::as_f64).unwrap_or(0.0), 4),
+            name: c
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
+            confidence: round_to(
+                c.get("confidence").and_then(Value::as_f64).unwrap_or(0.0),
+                4,
+            ),
         })
         .collect()
 }
@@ -234,8 +292,15 @@ pub fn parse_moderation(moderation_categories: &[Value]) -> Vec<Category> {
         .iter()
         .filter(|m| m.get("confidence").and_then(Value::as_f64).unwrap_or(0.0) > 0.5)
         .map(|m| Category {
-            name: m.get("name").and_then(Value::as_str).unwrap_or("").to_string(),
-            confidence: round_to(m.get("confidence").and_then(Value::as_f64).unwrap_or(0.0), 4),
+            name: m
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
+            confidence: round_to(
+                m.get("confidence").and_then(Value::as_f64).unwrap_or(0.0),
+                4,
+            ),
         })
         .collect()
 }
@@ -266,7 +331,10 @@ pub fn build_result_from_response(text_length: usize, language: &str, data: &Val
     let empty = json!({});
     let sentiment = build_sentiment(
         data.get("documentSentiment").unwrap_or(&empty),
-        data.get("sentences").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]),
+        data.get("sentences")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]),
     );
 
     let categories = data
@@ -281,7 +349,15 @@ pub fn build_result_from_response(text_length: usize, language: &str, data: &Val
         .map(|arr| parse_moderation(arr))
         .unwrap_or_default();
 
-    NlpResult { text_length, language: language.to_string(), entities, sentiment, categories, moderation, error: None }
+    NlpResult {
+        text_length,
+        language: language.to_string(),
+        entities,
+        sentiment,
+        categories,
+        moderation,
+        error: None,
+    }
 }
 
 /// `analyze_url`'s HTML-text-extraction regex fallback (used when
@@ -388,7 +464,10 @@ impl NlpTransport for ReqwestNlpTransport {
             .map_err(|e| format!("Could not fetch URL: {e}"))?;
         let resp = client
             .get(url)
-            .header("User-Agent", "Mozilla/5.0 (compatible; ClaudeSEO/1.7 NLP Analyzer)")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (compatible; ClaudeSEO/1.7 NLP Analyzer)",
+            )
             .send()
             .map_err(|e| format!("Could not fetch URL: {e}"))?;
         if !resp.status().is_success() {
@@ -464,7 +543,11 @@ pub fn analyze_text_with(
     };
 
     let feats: Vec<String> = if features.is_empty() {
-        vec!["entities".to_string(), "sentiment".to_string(), "classify".to_string()]
+        vec![
+            "entities".to_string(),
+            "sentiment".to_string(),
+            "classify".to_string(),
+        ]
     } else {
         features.to_vec()
     };
@@ -478,11 +561,16 @@ pub fn analyze_text_with(
             error_result(text_length, language, categorize_http_status(429).unwrap())
         }
         Ok((status, data)) if (200..300).contains(&status) => {
-            let mut result: AnalyzeResult = build_result_from_response(text_length, language, &data).into();
+            let mut result: AnalyzeResult =
+                build_result_from_response(text_length, language, &data).into();
             result.language = language.to_string();
             result
         }
-        Ok((status, _)) => error_result(text_length, language, format!("NLP API request failed: HTTP {status}")),
+        Ok((status, _)) => error_result(
+            text_length,
+            language,
+            format!("NLP API request failed: HTTP {status}"),
+        ),
         Err(e) => error_result(text_length, language, e),
     }
 }
@@ -517,7 +605,11 @@ pub fn analyze_url_with(
     }
 
     if text_too_short(&text) {
-        return error_result(0, "en", "Extracted text too short for meaningful NLP analysis.".to_string());
+        return error_result(
+            0,
+            "en",
+            "Extracted text too short for meaningful NLP analysis.".to_string(),
+        );
     }
 
     let mut result = analyze_text_with(transport, &text, features, api_key, "en");
@@ -537,7 +629,10 @@ struct Args {
 }
 
 fn parse_args(args: &[String]) -> Result<Args, String> {
-    let mut out = Args { features: "entities,sentiment,classify".to_string(), ..Default::default() };
+    let mut out = Args {
+        features: "entities,sentiment,classify".to_string(),
+        ..Default::default()
+    };
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -586,13 +681,26 @@ pub fn run(
         return 1;
     }
 
-    let features: Vec<String> = parsed.features.split(',').map(|f| f.trim().to_string()).collect();
-    let api_key = parsed.api_key.clone().or_else(|| google_auth::load_config().api_key);
+    let features: Vec<String> = parsed
+        .features
+        .split(',')
+        .map(|f| f.trim().to_string())
+        .collect();
+    let api_key = parsed
+        .api_key
+        .clone()
+        .or_else(|| google_auth::load_config().api_key);
 
     let result = if let Some(url) = &parsed.url {
         analyze_url_with(transport, url, &features, api_key.as_deref())
     } else {
-        analyze_text_with(transport, parsed.text.as_deref().unwrap_or(""), &features, api_key.as_deref(), "en")
+        analyze_text_with(
+            transport,
+            parsed.text.as_deref().unwrap_or(""),
+            &features,
+            api_key.as_deref(),
+            "en",
+        )
     };
 
     if let Some(err) = &result.error {
@@ -630,26 +738,48 @@ pub fn run(
             "source_url": result.source_url,
             "extracted_text_length": result.extracted_text_length,
         });
-        let _ = writeln!(stdout, "{}", serde_json::to_string_pretty(&value).unwrap_or_default());
+        let _ = writeln!(
+            stdout,
+            "{}",
+            serde_json::to_string_pretty(&value).unwrap_or_default()
+        );
         return 0;
     }
 
     if let Some(url) = &result.source_url {
         let _ = writeln!(stdout, "=== NLP Analysis: {url} ===");
-        let _ = writeln!(stdout, "Text extracted: {} chars", result.extracted_text_length.unwrap_or(0));
+        let _ = writeln!(
+            stdout,
+            "Text extracted: {} chars",
+            result.extracted_text_length.unwrap_or(0)
+        );
     } else {
-        let _ = writeln!(stdout, "=== NLP Analysis ({} chars) ===", result.text_length);
+        let _ = writeln!(
+            stdout,
+            "=== NLP Analysis ({} chars) ===",
+            result.text_length
+        );
     }
 
     if let Some(sent) = &result.sentiment {
-        let _ = writeln!(stdout, "\nSentiment: {} (score: {}, magnitude: {})", sent.tone.to_uppercase(), sent.score, sent.magnitude);
+        let _ = writeln!(
+            stdout,
+            "\nSentiment: {} (score: {}, magnitude: {})",
+            sent.tone.to_uppercase(),
+            sent.score,
+            sent.magnitude
+        );
         let _ = writeln!(stdout, "  {}", sent.interpretation);
     }
 
     if !result.entities.is_empty() {
         let _ = writeln!(stdout, "\nTop Entities ({} total):", result.entities.len());
         for e in result.entities.iter().take(15) {
-            let _ = writeln!(stdout, "  [{:12}] {} (salience: {:.3})", e.r#type, e.name, e.salience);
+            let _ = writeln!(
+                stdout,
+                "  [{:12}] {} (salience: {:.3})",
+                e.r#type, e.name, e.salience
+            );
         }
     }
 

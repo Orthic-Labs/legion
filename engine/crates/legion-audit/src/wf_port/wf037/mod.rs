@@ -305,7 +305,12 @@ pub mod c_family {
     /// Mirrors `commands({ root, files, manifests, profile })`. `files` is
     /// accepted for parity with the JS signature but, matching the source,
     /// is not read.
-    pub fn commands(root: &str, _files: &[String], manifests: &[String], profile: Profile) -> Vec<PackCommand> {
+    pub fn commands(
+        root: &str,
+        _files: &[String],
+        manifests: &[String],
+        profile: Profile,
+    ) -> Vec<PackCommand> {
         let mut commands = Vec::new();
         let has_compile_commands = manifests.iter().any(|m| m == "compile_commands.json");
         if has_compile_commands {
@@ -386,9 +391,7 @@ pub mod c_family {
 
     fn unsafe_libc_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| {
-            Regex::new(r"\b(?:strcpy|sprintf|gets|scanf)\s*\(").expect("valid regex")
-        })
+        RE.get_or_init(|| Regex::new(r"\b(?:strcpy|sprintf|gets|scanf)\s*\(").expect("valid regex"))
     }
 
     fn unchecked_allocation_re() -> &'static Regex {
@@ -474,7 +477,12 @@ pub mod dart {
     }
 
     /// Mirrors `commands({ root, files, manifests, profile })`.
-    pub fn commands(root: &str, _files: &[String], manifests: &[String], profile: Profile) -> Vec<PackCommand> {
+    pub fn commands(
+        root: &str,
+        _files: &[String],
+        manifests: &[String],
+        profile: Profile,
+    ) -> Vec<PackCommand> {
         let mut commands = Vec::new();
         if manifests.iter().any(|m| pubspec_re().is_match(m)) {
             commands.push(PackCommand {
@@ -551,7 +559,12 @@ pub mod dotnet {
     }
 
     /// Mirrors `commands({ root, files, manifests, profile })`.
-    pub fn commands(root: &str, _files: &[String], manifests: &[String], profile: Profile) -> Vec<PackCommand> {
+    pub fn commands(
+        root: &str,
+        _files: &[String],
+        manifests: &[String],
+        profile: Profile,
+    ) -> Vec<PackCommand> {
         let mut commands = Vec::new();
         if manifests.iter().any(|m| build_manifest_re().is_match(m)) {
             commands.push(PackCommand {
@@ -619,7 +632,12 @@ pub mod go {
     }
 
     /// Mirrors `commands({ root, files, manifests, profile })`.
-    pub fn commands(root: &str, _files: &[String], manifests: &[String], profile: Profile) -> Vec<PackCommand> {
+    pub fn commands(
+        root: &str,
+        _files: &[String],
+        manifests: &[String],
+        profile: Profile,
+    ) -> Vec<PackCommand> {
         let mut commands = Vec::new();
         if manifests.iter().any(|m| m == "go.mod") {
             commands.push(PackCommand {

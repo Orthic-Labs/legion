@@ -96,7 +96,10 @@ pub fn parse_unified(raw: &str) -> Vec<DiffFile> {
             if let Some(c) = current.take() {
                 files.push(c);
             }
-            current = Some(RawFile { path: None, added: Vec::new() });
+            current = Some(RawFile {
+                path: None,
+                added: Vec::new(),
+            });
             continue;
         }
         if line.starts_with("+++ ") {
@@ -106,7 +109,11 @@ pub fn parse_unified(raw: &str) -> Vec<DiffFile> {
                     if rest == "/dev/null" {
                         cur.path = None;
                     } else if let Some(p) = rest.strip_prefix("b/") {
-                        cur.path = if p.is_empty() { None } else { Some(p.to_string()) };
+                        cur.path = if p.is_empty() {
+                            None
+                        } else {
+                            Some(p.to_string())
+                        };
                     }
                 }
             }
@@ -132,7 +139,10 @@ pub fn parse_unified(raw: &str) -> Vec<DiffFile> {
     files
         .into_iter()
         .filter_map(|f| match f.path {
-            Some(path) if !f.added.is_empty() => Some(DiffFile { path, lines: f.added }),
+            Some(path) if !f.added.is_empty() => Some(DiffFile {
+                path,
+                lines: f.added,
+            }),
             _ => None,
         })
         .collect()
@@ -241,8 +251,14 @@ diff --git a/b.js b/b.js\n\
     #[test]
     fn summarise_counts_files_and_lines() {
         let files = vec![
-            DiffFile { path: "a".to_string(), lines: vec![1, 2] },
-            DiffFile { path: "b".to_string(), lines: vec![3] },
+            DiffFile {
+                path: "a".to_string(),
+                lines: vec![1, 2],
+            },
+            DiffFile {
+                path: "b".to_string(),
+                lines: vec![3],
+            },
         ];
         let s = summarise(&files);
         assert_eq!(s.files, 2);

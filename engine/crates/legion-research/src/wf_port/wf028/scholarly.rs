@@ -335,9 +335,16 @@ pub fn search(
         let mut metadata = Map::new();
         metadata.insert(
             "doi".to_string(),
-            if doi.is_empty() { Value::Null } else { json!(doi) },
+            if doi.is_empty() {
+                Value::Null
+            } else {
+                json!(doi)
+            },
         );
-        metadata.insert("type".to_string(), item.get("type").cloned().unwrap_or(Value::Null));
+        metadata.insert(
+            "type".to_string(),
+            item.get("type").cloned().unwrap_or(Value::Null),
+        );
         metadata.insert(
             "relation".to_string(),
             item.get("relation").cloned().unwrap_or_else(|| json!({})),
@@ -442,7 +449,11 @@ mod tests {
                 .take()
                 .ok_or_else(|| TransportError("no fixture".into()))
         }
-        fn get_text(&self, _url: &str, _timeout_secs: u64) -> Result<(String, String), TransportError> {
+        fn get_text(
+            &self,
+            _url: &str,
+            _timeout_secs: u64,
+        ) -> Result<(String, String), TransportError> {
             self.text
                 .borrow_mut()
                 .take()
@@ -452,9 +463,18 @@ mod tests {
 
     #[test]
     fn publisher_from_url_strips_www_and_lowercases() {
-        assert_eq!(publisher_from_url("https://WWW.Example.com/a/b?q=1"), "example.com");
-        assert_eq!(publisher_from_url("https://example.com:443/x"), "example.com");
-        assert_eq!(publisher_from_url("https://user:pw@example.com/x"), "example.com");
+        assert_eq!(
+            publisher_from_url("https://WWW.Example.com/a/b?q=1"),
+            "example.com"
+        );
+        assert_eq!(
+            publisher_from_url("https://example.com:443/x"),
+            "example.com"
+        );
+        assert_eq!(
+            publisher_from_url("https://user:pw@example.com/x"),
+            "example.com"
+        );
         assert_eq!(publisher_from_url(""), "local-corpus");
     }
 
@@ -548,7 +568,10 @@ mod tests {
     fn open_wraps_body_in_data_only_envelope() {
         let transport = FakeTransport {
             json: RefCell::new(None),
-            text: RefCell::new(Some(("<html>body</html>".to_string(), "https://example.com/final".to_string()))),
+            text: RefCell::new(Some((
+                "<html>body</html>".to_string(),
+                "https://example.com/final".to_string(),
+            ))),
         };
         let opened = open(&transport, "https://example.com/req", "2026-09-23").unwrap();
         assert_eq!(opened.url, "https://example.com/final");

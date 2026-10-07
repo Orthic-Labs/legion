@@ -17,7 +17,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::wf_port::w2_007::html2pptx::{
-    run_html2pptx, FsImageSource, HeadlessChromeDriver, RawSlideData, write_pptx_from_slides,
+    run_html2pptx, write_pptx_from_slides, FsImageSource, HeadlessChromeDriver, RawSlideData,
 };
 
 /// `LAYOUT_WIDE`: 13.333in x 7.5in, matching the `.mjs`'s `pres.layout`.
@@ -92,8 +92,17 @@ pub enum RunError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConvertLogLine {
-    Ok { index: usize, total: usize, file: String },
-    Fail { index: usize, total: usize, file: String, error: String },
+    Ok {
+        index: usize,
+        total: usize,
+        file: String,
+    },
+    Fail {
+        index: usize,
+        total: usize,
+        file: String,
+        error: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -218,7 +227,13 @@ impl<'a> SlideConverter<Vec<RawSlideData>> for RealSlideConverter<'a> {
 /// })` at the end of `main()`.
 pub fn write_deck(out: &Path, slides: &[RawSlideData]) -> Result<(), String> {
     let mut images = FsImageSource;
-    write_pptx_from_slides(out, LAYOUT_WIDE_WIDTH_IN, LAYOUT_WIDE_HEIGHT_IN, slides, &mut images)
+    write_pptx_from_slides(
+        out,
+        LAYOUT_WIDE_WIDTH_IN,
+        LAYOUT_WIDE_HEIGHT_IN,
+        slides,
+        &mut images,
+    )
 }
 
 /// Full production entry point: launches a real headless Chrome tab,
@@ -227,13 +242,12 @@ pub fn write_deck(out: &Path, slides: &[RawSlideData]) -> Result<(), String> {
 /// end to end, including its log lines via [`RunOutcome`]/[`RunError`].
 pub fn run_production(args: &Args) -> Result<RunOutcome, RunError> {
     let fs = StdFileSystem;
-    let mut driver = HeadlessChromeDriver::launch()
-        .map_err(|e| RunError::AllSlidesFailed {
-            errors: vec![FileError {
-                file: String::new(),
-                error: format!("failed to launch headless chrome: {e}"),
-            }],
-        })?;
+    let mut driver = HeadlessChromeDriver::launch().map_err(|e| RunError::AllSlidesFailed {
+        errors: vec![FileError {
+            file: String::new(),
+            error: format!("failed to launch headless chrome: {e}"),
+        }],
+    })?;
     // `slides` is resolved relative to the current directory the same way
     // `path.resolve(slides)` is in the `.mjs`; `run_html2pptx`'s own
     // `resolve_html_file` re-resolves each per-file `full_path` against
@@ -278,7 +292,11 @@ mod tests {
 
     #[test]
     fn html_files_filters_and_sorts() {
-        let entries = vec!["02-b.html".to_string(), "01-a.html".to_string(), "x.css".to_string()];
+        let entries = vec![
+            "02-b.html".to_string(),
+            "01-a.html".to_string(),
+            "x.css".to_string(),
+        ];
         assert_eq!(html_files(&entries), vec!["01-a.html", "02-b.html"]);
     }
 
@@ -294,7 +312,11 @@ mod tests {
     struct FailingOn(Vec<String>);
     impl SlideConverter<Vec<String>> for FailingOn {
         fn convert(&mut self, slide_path: &Path, pres: &mut Vec<String>) -> Result<(), String> {
-            let name = slide_path.file_name().unwrap().to_string_lossy().to_string();
+            let name = slide_path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
             if self.0.contains(&name) {
                 Err(format!("bad slide {name}"))
             } else {

@@ -64,7 +64,7 @@ fn run_decision(
                 &positionals[1],
                 &map_minimize(decision_receipt(&positionals[0], paths))?,
             )
-                .map_err(map_minimize_error)?;
+            .map_err(map_minimize_error)?;
             pass()
         }
         Some("verify") => {
@@ -115,7 +115,7 @@ fn run_commit(
                 &positionals[1],
                 &map_minimize(build_receipt(git, &positionals[0], paths))?,
             )
-                .map_err(map_minimize_error)?;
+            .map_err(map_minimize_error)?;
             pass()
         }
         Some("verify") => {

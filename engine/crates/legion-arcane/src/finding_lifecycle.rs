@@ -17,13 +17,22 @@ fn finding_identity(finding: &Value) -> Result<Map<String, Value>, String> {
         .filter(|value| !value.is_empty())
         .ok_or_else(|| "finding controlId or ruleId is required".to_string())?;
     let subject_id = id(finding, "subjectId", "subject_id")
-        .or_else(|| finding.get("file").and_then(Value::as_str).map(str::to_owned))
-        .or_else(|| finding.get("path").and_then(Value::as_str).map(str::to_owned))
+        .or_else(|| {
+            finding
+                .get("file")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .or_else(|| {
+            finding
+                .get("path")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
         .filter(|value| !value.is_empty())
         .ok_or_else(|| "finding subjectId is required".to_string())?;
-    let semantic_key = id(finding, "semanticKey", "semantic_key").or_else(|| {
-        id(finding, "conditionFingerprint", "condition_fingerprint")
-    });
+    let semantic_key = id(finding, "semanticKey", "semantic_key")
+        .or_else(|| id(finding, "conditionFingerprint", "condition_fingerprint"));
     let mut object = Map::new();
     object.insert("control_id".into(), json!(control_id));
     object.insert("subject_id".into(), json!(subject_id));
@@ -62,8 +71,10 @@ pub fn upsert_finding(records: &[Value], finding: &Value, review_round_id: &str)
         records
             .iter()
             .map(|item| {
-                if item.get("stable_fingerprint").and_then(Value::as_str) == Some(&stable_fingerprint)
-                    || item.get("stableFingerprint").and_then(Value::as_str) == Some(&stable_fingerprint)
+                if item.get("stable_fingerprint").and_then(Value::as_str)
+                    == Some(&stable_fingerprint)
+                    || item.get("stableFingerprint").and_then(Value::as_str)
+                        == Some(&stable_fingerprint)
                 {
                     record.clone()
                 } else {
@@ -248,7 +259,11 @@ fn severity_value(finding: &Value) -> Result<i64, String> {
             "medium" => 2,
             "high" => 3,
             "critical" => 4,
-            _ => return Err("finding severity must be a non-negative integer or known severity".into()),
+            _ => {
+                return Err(
+                    "finding severity must be a non-negative integer or known severity".into(),
+                )
+            }
         };
         return Ok(mapped);
     }
@@ -301,7 +316,11 @@ pub fn apply_scoped_recheck(input: &Value) -> Result<Value, String> {
                 return record.clone();
             }
             let closure = closure_by_fingerprint.get(fingerprint);
-            if closure.and_then(|value| value.get("allowed")).and_then(Value::as_bool) != Some(true) {
+            if closure
+                .and_then(|value| value.get("allowed"))
+                .and_then(Value::as_bool)
+                != Some(true)
+            {
                 return record.clone();
             }
             let mut object = record.as_object().cloned().unwrap_or_default();
@@ -326,7 +345,8 @@ pub fn apply_scoped_recheck(input: &Value) -> Result<Value, String> {
                 .or_else(|| record.get("stableFingerprint"))
                 .and_then(Value::as_str)
                 .unwrap_or_default();
-            target_set.contains(fingerprint) && record.get("status") == Some(&json!("VERIFIED_CLOSED"))
+            target_set.contains(fingerprint)
+                && record.get("status") == Some(&json!("VERIFIED_CLOSED"))
         })
         .cloned()
         .collect::<Vec<_>>();

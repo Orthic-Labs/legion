@@ -32,9 +32,18 @@ use crate::wf_port::wf068::validate::validate_against;
 /// Every value in the frozen `EFFECT_CLASS` enum that mutates product state
 /// or may do so. Read-only work never arrives as an effect request at all.
 pub const MUTATING_EFFECT_CLASSES: &[&str] = &[
-    "FILE_WRITE", "FILE_DELETE", "FILE_MOVE", "COMMAND_EXEC", "NETWORK_EGRESS",
-    "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT",
-    "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT",
+    "FILE_WRITE",
+    "FILE_DELETE",
+    "FILE_MOVE",
+    "COMMAND_EXEC",
+    "NETWORK_EGRESS",
+    "PROCESS_SPAWN",
+    "CREDENTIAL_ACCESS",
+    "DEPENDENCY_INSTALL",
+    "VCS_COMMIT",
+    "VCS_PUSH",
+    "PUBLISH",
+    "EXTERNAL_SIDE_EFFECT",
 ];
 
 pub fn is_mutating(effect_class: &str) -> bool {
@@ -94,7 +103,11 @@ pub fn path_matches(pattern: &str, target: &str) -> bool {
     let segments: Vec<&str> = p.split('/').collect();
     let mut rx = String::from("^");
     for (index, segment) in segments.iter().enumerate() {
-        let separator = if index > 0 && segments[index - 1] != "**" { "/" } else { "" };
+        let separator = if index > 0 && segments[index - 1] != "**" {
+            "/"
+        } else {
+            ""
+        };
         if *segment == "**" {
             rx.push_str(separator);
             if index == segments.len() - 1 {
@@ -132,9 +145,9 @@ fn simple_glob_regex_match(rx: &str, text: &str) -> bool {
     #[derive(Debug)]
     enum Tok {
         Lit(char),
-        StarNonSlash,   // [^/]*
-        StarAny,        // .*
-        StarSegments,   // (?:[^/]+/)*
+        StarNonSlash, // [^/]*
+        StarAny,      // .*
+        StarSegments, // (?:[^/]+/)*
     }
     let mut toks = Vec::new();
     let body = &rx[1..rx.len() - 1]; // strip ^ and $
@@ -171,7 +184,9 @@ fn simple_glob_regex_match(rx: &str, text: &str) -> bool {
             return si == text.len();
         }
         match &toks[ti] {
-            Tok::Lit(c) => si < text.len() && text[si] == *c && matches_from(toks, ti + 1, text, si + 1),
+            Tok::Lit(c) => {
+                si < text.len() && text[si] == *c && matches_from(toks, ti + 1, text, si + 1)
+            }
             Tok::StarNonSlash => {
                 let mut end = si;
                 loop {
@@ -283,7 +298,12 @@ fn gd(
 }
 
 fn detail_pairs(pairs: &[(String, String)]) -> serde_json::Value {
-    serde_json::Value::Object(pairs.iter().map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone()))).collect())
+    serde_json::Value::Object(
+        pairs
+            .iter()
+            .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
+            .collect(),
+    )
 }
 
 /// `effect-request-v1`. Faithful to the schema's required fields (see
@@ -395,7 +415,11 @@ pub struct ApprovalGrant {
 /// case the gate synthesizes its own `ARC_APPROVAL_REQUIRED` denial, exactly
 /// as the JS `approval ?? decision({...})` fallback does).
 pub trait ApprovalAuthority {
-    fn derive(&self, request: &EffectRequest, ctx: &EvalCtx<'_>) -> Option<Result<ApprovalGrant, GateDecision>>;
+    fn derive(
+        &self,
+        request: &EffectRequest,
+        ctx: &EvalCtx<'_>,
+    ) -> Option<Result<ApprovalGrant, GateDecision>>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -421,11 +445,23 @@ impl PolicyHandle {
         match self {
             PolicyHandle::Engine(e) => {
                 let d = e.effect_decision(effect_class, approval_digest);
-                gd(d.allowed, d.code, d.message, serde_json::Value::Null, d.enforcement_health.as_deref())
+                gd(
+                    d.allowed,
+                    d.code,
+                    d.message,
+                    serde_json::Value::Null,
+                    d.enforcement_health.as_deref(),
+                )
             }
             PolicyHandle::FailClosed(f) => {
                 let d = f.effect_decision(effect_class);
-                gd(d.allowed, d.code, d.message, serde_json::Value::Null, d.enforcement_health.as_deref())
+                gd(
+                    d.allowed,
+                    d.code,
+                    d.message,
+                    serde_json::Value::Null,
+                    d.enforcement_health.as_deref(),
+                )
             }
         }
     }
@@ -433,7 +469,11 @@ impl PolicyHandle {
     fn capability_limits(&self) -> BTreeMap<String, String> {
         match self {
             PolicyHandle::Engine(e) => e.capability_limits(),
-            PolicyHandle::FailClosed(f) => f.capability_limits().into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+            PolicyHandle::FailClosed(f) => f
+                .capability_limits()
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect(),
         }
     }
 
@@ -453,7 +493,11 @@ enum RunChecks<'a> {
     /// Checks ran to completion. `deny` is the first failing decision, or
     /// `None` when every check passed. `approval_evidence` is populated
     /// only alongside a passing run that required approval.
-    Ran { deny: Option<GateDecision>, contract: Option<&'a ExecutionContract>, approval_evidence: Option<serde_json::Value> },
+    Ran {
+        deny: Option<GateDecision>,
+        contract: Option<&'a ExecutionContract>,
+        approval_evidence: Option<serde_json::Value>,
+    },
 }
 
 pub struct PreEffectGate {
@@ -507,7 +551,11 @@ impl PreEffectGate {
 
         let (deny, contract, _approval_evidence) = match self.run_checks(request, ctx) {
             RunChecks::HardFail(d) => return d,
-            RunChecks::Ran { deny, contract, approval_evidence } => (deny, contract, approval_evidence),
+            RunChecks::Ran {
+                deny,
+                contract,
+                approval_evidence,
+            } => (deny, contract, approval_evidence),
         };
         if let Some(d) = deny {
             return d;
@@ -526,15 +574,26 @@ impl PreEffectGate {
         };
         let now_ms = (self.clock)();
         let now_iso = capability_store_stamp(now_ms);
-        let store = self.capability_store.as_mut().expect("available() checked Some above");
-        let authority_now = self.authority.as_ref().and_then(|a| a.current(ctx.turn_id)).map(|a| a.authority.clone());
+        let store = self
+            .capability_store
+            .as_mut()
+            .expect("available() checked Some above");
+        let authority_now = self
+            .authority
+            .as_ref()
+            .and_then(|a| a.current(ctx.turn_id))
+            .map(|a| a.authority.clone());
         let check_ctx = CheckCtx {
             now: Some(now_iso.clone()),
             run_id: Some(request.run_id.clone()),
             task_id: Some(request.task_id.clone()),
             workspace: ctx.workspace.map(str::to_string),
             contract_id: Some(request.contract_id.clone()),
-            contract_version: Some(ctx.expected_contract_version.unwrap_or(contract.version).to_string()),
+            contract_version: Some(
+                ctx.expected_contract_version
+                    .unwrap_or(contract.version)
+                    .to_string(),
+            ),
             contract_digest: ctx.contract_digest.map(str::to_string),
             source_revision: Some(request.source_revision.clone()),
             authority: authority_now,
@@ -545,7 +604,13 @@ impl PreEffectGate {
         };
         let cap_call = store.check(capability_id, &check_ctx);
         if !cap_call.allowed {
-            return gd(false, cap_call.code.map(|c| c.as_str()), cap_call.message, detail_pairs(&cap_call.detail), None);
+            return gd(
+                false,
+                cap_call.code.map(|c| c.as_str()),
+                cap_call.message,
+                detail_pairs(&cap_call.detail),
+                None,
+            );
         }
 
         if let Err(error) = store.consume(capability_id, &check_ctx) {
@@ -558,7 +623,10 @@ impl PreEffectGate {
             );
         }
 
-        let (policy_id, _version, policy_digest) = self.policy.policy_identity().expect("policy available in a passing run");
+        let (policy_id, _version, policy_digest) = self
+            .policy
+            .policy_identity()
+            .expect("policy available in a passing run");
         gd(
             true,
             None,
@@ -581,7 +649,11 @@ impl PreEffectGate {
     pub fn authorize(&mut self, request: &EffectRequest, ctx: &EvalCtx<'_>) -> GateDecision {
         let (deny, contract, approval_evidence) = match self.run_checks(request, ctx) {
             RunChecks::HardFail(d) => return d,
-            RunChecks::Ran { deny, contract, approval_evidence } => (deny, contract, approval_evidence),
+            RunChecks::Ran {
+                deny,
+                contract,
+                approval_evidence,
+            } => (deny, contract, approval_evidence),
         };
         if deny.is_some() && self.enforcement_mode != EnforcementMode::Advisory {
             return deny.unwrap();
@@ -597,18 +669,35 @@ impl PreEffectGate {
         }
 
         let limits = self.policy.capability_limits();
-        let ttl_seconds: i64 = limits.get("ttlSeconds").and_then(|v| v.parse().ok()).unwrap_or(0);
+        let ttl_seconds: i64 = limits
+            .get("ttlSeconds")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
         let max_uses: Option<i64> = limits.get("maxUses").and_then(|v| v.parse().ok());
         let now_ms = (self.clock)();
         let now_iso = capability_store_stamp(now_ms);
-        let expires_at = if ttl_seconds > 0 { Some(capability_store_stamp(now_ms + ttl_seconds * 1000)) } else { None };
+        let expires_at = if ttl_seconds > 0 {
+            Some(capability_store_stamp(now_ms + ttl_seconds * 1000))
+        } else {
+            None
+        };
         let capability_id = format!("cap_{}", ulid(now_ms.max(0) as u64));
 
-        let (policy_id, policy_version, policy_digest) = self.policy.policy_identity().expect("policy available in a passing run");
-        let authority_now = self.authority.as_ref().and_then(|a| a.current(ctx.turn_id)).map(|a| a.authority.clone());
+        let (policy_id, policy_version, policy_digest) = self
+            .policy
+            .policy_identity()
+            .expect("policy available in a passing run");
+        let authority_now = self
+            .authority
+            .as_ref()
+            .and_then(|a| a.current(ctx.turn_id))
+            .map(|a| a.authority.clone());
         let contract_version = contract.map(|c| c.version);
 
-        let store = self.capability_store.as_mut().expect("available() checked Some above");
+        let store = self
+            .capability_store
+            .as_mut()
+            .expect("available() checked Some above");
         if let Err(err) = store.issue(CapabilityInput {
             capability_id: capability_id.clone(),
             run_id: Some(request.run_id.clone()),
@@ -631,7 +720,13 @@ impl PreEffectGate {
             max_uses,
             delegable: Some(false),
         }) {
-            return gd(false, Some(err.code.as_str()), err.message.clone(), serde_json::json!({ "capabilityId": capability_id }), None);
+            return gd(
+                false,
+                Some(err.code.as_str()),
+                err.message.clone(),
+                serde_json::json!({ "capabilityId": capability_id }),
+                None,
+            );
         }
 
         // Self-check: a capability this method just minted must itself pass
@@ -651,13 +746,29 @@ impl PreEffectGate {
             effect_class: Some(request.effect_class.clone()),
             target: Some(request.target.clone()),
         };
-        let self_check = self.capability_store.as_ref().unwrap().check(&capability_id, &self_check_ctx);
+        let self_check = self
+            .capability_store
+            .as_ref()
+            .unwrap()
+            .check(&capability_id, &self_check_ctx);
         if !self_check.allowed {
             let mut detail = detail_pairs(&self_check.detail);
             if let serde_json::Value::Object(map) = &mut detail {
-                map.insert("capabilityId".into(), serde_json::Value::String(capability_id.clone()));
+                map.insert(
+                    "capabilityId".into(),
+                    serde_json::Value::String(capability_id.clone()),
+                );
             }
-            return gd(false, self_check.code.map(|c| c.as_str()), format!("minted capability failed its own self-check: {}", self_check.message), detail, Some("unsupported"));
+            return gd(
+                false,
+                self_check.code.map(|c| c.as_str()),
+                format!(
+                    "minted capability failed its own self-check: {}",
+                    self_check.message
+                ),
+                detail,
+                Some("unsupported"),
+            );
         }
 
         let detail = serde_json::json!({
@@ -709,7 +820,13 @@ impl PreEffectGate {
                 ));
             }
             Err(err) => {
-                return RunChecks::HardFail(gd(false, Some(&*err.code), err.message, serde_json::Value::Null, None));
+                return RunChecks::HardFail(gd(
+                    false,
+                    Some(&*err.code),
+                    err.message,
+                    serde_json::Value::Null,
+                    None,
+                ));
             }
             Ok(_) => {}
         }
@@ -736,11 +853,20 @@ impl PreEffectGate {
             ledger,
             ctx.turn_id,
             &["alchemist", "sage", "oracle", "legion"],
-            RequireAuthorityOpts { claimed_authority: Some(request.requested_by.as_str()), require_per_message: true },
+            RequireAuthorityOpts {
+                claimed_authority: Some(request.requested_by.as_str()),
+                require_per_message: true,
+            },
         );
         if !auth.allowed {
             return RunChecks::Ran {
-                deny: Some(gd(false, auth.code.map(|c| c.as_str()), auth.message, detail_pairs(&auth.detail), None)),
+                deny: Some(gd(
+                    false,
+                    auth.code.map(|c| c.as_str()),
+                    auth.message,
+                    detail_pairs(&auth.detail),
+                    None,
+                )),
                 contract: ctx.contract,
                 approval_evidence: None,
             };
@@ -810,7 +936,11 @@ impl PreEffectGate {
                 deny: Some(gd(
                     false,
                     Some("ARC_CONTRACT_NOT_EXECUTABLE"),
-                    format!("contract {} has {} unresolved open question(s)", contract.contract_id, contract.open_question_ids.len()),
+                    format!(
+                        "contract {} has {} unresolved open question(s)",
+                        contract.contract_id,
+                        contract.open_question_ids.len()
+                    ),
                     serde_json::json!({ "openQuestions": contract.open_question_ids }),
                     None,
                 )),
@@ -828,7 +958,12 @@ impl PreEffectGate {
             }
         }
         for (which, value) in &paths {
-            let forbidden: Vec<&str> = contract.scope.forbidden.iter().map(String::as_str).collect();
+            let forbidden: Vec<&str> = contract
+                .scope
+                .forbidden
+                .iter()
+                .map(String::as_str)
+                .collect();
             if matches_any(&forbidden, value) {
                 return RunChecks::Ran {
                     deny: Some(gd(
@@ -859,12 +994,19 @@ impl PreEffectGate {
         }
 
         // 8. Effect-class authorization: contract first, then policy.
-        if !contract.authorized_effect_classes.iter().any(|c| c == &request.effect_class) {
+        if !contract
+            .authorized_effect_classes
+            .iter()
+            .any(|c| c == &request.effect_class)
+        {
             return RunChecks::Ran {
                 deny: Some(gd(
                     false,
                     Some("ARC_EFFECT_CLASS_UNAUTHORIZED"),
-                    format!("contract {} does not authorize {}", contract.contract_id, request.effect_class),
+                    format!(
+                        "contract {} does not authorize {}",
+                        contract.contract_id, request.effect_class
+                    ),
                     serde_json::json!({
                         "deniedBy": "contract",
                         "effectClass": request.effect_class,
@@ -891,7 +1033,10 @@ impl PreEffectGate {
                 deny: Some(gd(
                     false,
                     Some("ARC_PROFILE_EFFECT_FORBIDDEN"),
-                    format!("advisory profile {}/{} forbids {}", profile.bundle_id, profile.profile_id, request.effect_class),
+                    format!(
+                        "advisory profile {}/{} forbids {}",
+                        profile.bundle_id, profile.profile_id, request.effect_class
+                    ),
                     serde_json::json!({
                         "deniedBy": "advisory-profile",
                         "effectClass": request.effect_class,
@@ -909,17 +1054,29 @@ impl PreEffectGate {
         let mut derived_approval_digest: Option<String> = None;
         let mut approval_evidence: Option<serde_json::Value> = None;
         let requires_approval = match &self.policy {
-            PolicyHandle::Engine(e) => e.effect_decision(&request.effect_class, None).code == Some("ARC_APPROVAL_REQUIRED"),
-            PolicyHandle::FailClosed(f) => f.effect_decision(&request.effect_class).code == Some("ARC_APPROVAL_REQUIRED"),
+            PolicyHandle::Engine(e) => {
+                e.effect_decision(&request.effect_class, None).code == Some("ARC_APPROVAL_REQUIRED")
+            }
+            PolicyHandle::FailClosed(f) => {
+                f.effect_decision(&request.effect_class).code == Some("ARC_APPROVAL_REQUIRED")
+            }
         };
         if requires_approval {
-            match self.approval_authority.as_ref().map(|a| a.derive(request, ctx)) {
+            match self
+                .approval_authority
+                .as_ref()
+                .map(|a| a.derive(request, ctx))
+            {
                 Some(Some(Ok(grant))) => {
                     derived_approval_digest = Some(grant.approval_digest);
                     approval_evidence = Some(grant.evidence);
                 }
                 Some(Some(Err(deny))) => {
-                    return RunChecks::Ran { deny: Some(deny), contract: Some(contract), approval_evidence: None };
+                    return RunChecks::Ran {
+                        deny: Some(deny),
+                        contract: Some(contract),
+                        approval_evidence: None,
+                    };
                 }
                 Some(None) | None => {
                     return RunChecks::Ran {
@@ -936,14 +1093,19 @@ impl PreEffectGate {
                 }
             }
         }
-        let policy_call = self.policy.effect_decision(&request.effect_class, derived_approval_digest.as_deref());
+        let policy_call = self
+            .policy
+            .effect_decision(&request.effect_class, derived_approval_digest.as_deref());
         if !policy_call.allowed {
             let mut detail = policy_call.detail;
             if !detail.is_object() {
                 detail = serde_json::json!({});
             }
             if let serde_json::Value::Object(map) = &mut detail {
-                map.insert("deniedBy".into(), serde_json::Value::String("policy".into()));
+                map.insert(
+                    "deniedBy".into(),
+                    serde_json::Value::String("policy".into()),
+                );
             }
             return RunChecks::Ran {
                 deny: Some(gd(
@@ -961,21 +1123,53 @@ impl PreEffectGate {
         // 9. Latitude.
         let latitude_call = self.check_latitude(contract, request);
         if !latitude_call.allowed {
-            return RunChecks::Ran { deny: Some(latitude_call), contract: Some(contract), approval_evidence: None };
+            return RunChecks::Ran {
+                deny: Some(latitude_call),
+                contract: Some(contract),
+                approval_evidence: None,
+            };
         }
 
-        RunChecks::Ran { deny: None, contract: Some(contract), approval_evidence }
+        RunChecks::Ran {
+            deny: None,
+            contract: Some(contract),
+            approval_evidence,
+        }
     }
 
-    fn check_latitude(&self, contract: &ExecutionContract, request: &EffectRequest) -> GateDecision {
-        let exact = contract.artifacts.exact.iter().find(|a| a.path == request.target);
-        let bounded = contract.artifacts.bounded.iter().find(|a| a.path == request.target);
-        let declared = if exact.is_some() { Some("EXACT") } else if bounded.is_some() { Some("BOUNDED") } else { None };
+    fn check_latitude(
+        &self,
+        contract: &ExecutionContract,
+        request: &EffectRequest,
+    ) -> GateDecision {
+        let exact = contract
+            .artifacts
+            .exact
+            .iter()
+            .find(|a| a.path == request.target);
+        let bounded = contract
+            .artifacts
+            .bounded
+            .iter()
+            .find(|a| a.path == request.target);
+        let declared = if exact.is_some() {
+            Some("EXACT")
+        } else if bounded.is_some() {
+            Some("BOUNDED")
+        } else {
+            None
+        };
 
         match declared {
             None => {
                 if request.latitude == "BOUNDED" {
-                    gd(true, None, "", serde_json::json!({ "latitude": "BOUNDED", "artifact": null }), None)
+                    gd(
+                        true,
+                        None,
+                        "",
+                        serde_json::json!({ "latitude": "BOUNDED", "artifact": null }),
+                        None,
+                    )
                 } else {
                     gd(
                         false,
@@ -989,7 +1183,10 @@ impl PreEffectGate {
             Some(declared) if declared != request.latitude => gd(
                 false,
                 Some("ARC_LATITUDE_VIOLATION"),
-                format!("contract declares {declared} latitude for this artifact; request claims {}", request.latitude),
+                format!(
+                    "contract declares {declared} latitude for this artifact; request claims {}",
+                    request.latitude
+                ),
                 serde_json::json!({
                     "target": request.target,
                     "requested": request.latitude,
@@ -1010,7 +1207,12 @@ impl PreEffectGate {
 
     /// Read-only operations may continue when the gate is unavailable,
     /// provided the downgrade is recorded (mirrors JS `evaluateReadOnly`).
-    pub fn evaluate_read_only(&self, target: &str, turn_id: &str, contract: Option<&ExecutionContract>) -> GateDecision {
+    pub fn evaluate_read_only(
+        &self,
+        target: &str,
+        turn_id: &str,
+        contract: Option<&ExecutionContract>,
+    ) -> GateDecision {
         if !self.available() {
             return gd(
                 true,
@@ -1021,7 +1223,12 @@ impl PreEffectGate {
             );
         }
         if let Some(contract) = contract {
-            let forbidden: Vec<&str> = contract.scope.forbidden.iter().map(String::as_str).collect();
+            let forbidden: Vec<&str> = contract
+                .scope
+                .forbidden
+                .iter()
+                .map(String::as_str)
+                .collect();
             if matches_any(&forbidden, target) {
                 return gd(
                     false,
@@ -1032,17 +1239,39 @@ impl PreEffectGate {
                 );
             }
         }
-        gd(true, None, "", serde_json::json!({ "target": target, "turnId": turn_id, "degraded": false }), Some("strong"))
+        gd(
+            true,
+            None,
+            "",
+            serde_json::json!({ "target": target, "turnId": turn_id, "degraded": false }),
+            Some("strong"),
+        )
     }
 
     /// Per-capability enforcement health, reported honestly (mirrors JS
     /// `health()`).
     pub fn health(&self) -> GateHealth {
         GateHealth {
-            policy: if self.policy.available() { "strong" } else { "unsupported" },
-            capability: if self.capability_store.is_some() { "strong" } else { "unsupported" },
-            authority: if self.authority.is_some() { "strong" } else { "unsupported" },
-            overall: if self.available() { "strong" } else { "unsupported" },
+            policy: if self.policy.available() {
+                "strong"
+            } else {
+                "unsupported"
+            },
+            capability: if self.capability_store.is_some() {
+                "strong"
+            } else {
+                "unsupported"
+            },
+            authority: if self.authority.is_some() {
+                "strong"
+            } else {
+                "unsupported"
+            },
+            overall: if self.available() {
+                "strong"
+            } else {
+                "unsupported"
+            },
         }
     }
 }
@@ -1104,8 +1333,14 @@ mod tests {
 
     #[test]
     fn path_matches_trailing_slash_is_directory_prefix() {
-        assert!(path_matches("engine/crates/", "engine/crates/legion-policy/src/lib.rs"));
-        assert!(!path_matches("engine/crates/", "other/legion-policy/src/lib.rs"));
+        assert!(path_matches(
+            "engine/crates/",
+            "engine/crates/legion-policy/src/lib.rs"
+        ));
+        assert!(!path_matches(
+            "engine/crates/",
+            "other/legion-policy/src/lib.rs"
+        ));
     }
 
     #[test]
@@ -1121,12 +1356,18 @@ mod tests {
 
     #[test]
     fn workspace_relative_strips_matching_prefix_case_insensitively() {
-        assert_eq!(workspace_relative("/Work/Repo/src/lib.rs", Some("/work/repo")), "src/lib.rs");
+        assert_eq!(
+            workspace_relative("/Work/Repo/src/lib.rs", Some("/work/repo")),
+            "src/lib.rs"
+        );
     }
 
     #[test]
     fn workspace_relative_leaves_outside_paths_unchanged() {
-        assert_eq!(workspace_relative("/elsewhere/lib.rs", Some("/work/repo")), "/elsewhere/lib.rs");
+        assert_eq!(
+            workspace_relative("/elsewhere/lib.rs", Some("/work/repo")),
+            "/elsewhere/lib.rs"
+        );
     }
 
     #[test]
@@ -1156,7 +1397,10 @@ mod tests {
                 trust_minimum: "capability-signature".into(),
                 required_enforcement: "strong".into(),
             }],
-            capability: BTreeMap::from([("ttlSeconds".to_string(), "900".to_string()), ("maxUses".to_string(), "1".to_string())]),
+            capability: BTreeMap::from([
+                ("ttlSeconds".to_string(), "900".to_string()),
+                ("maxUses".to_string(), "1".to_string()),
+            ]),
             ..Default::default()
         }
     }
@@ -1182,7 +1426,10 @@ mod tests {
             version: 1,
             source_revision: "abcdefg1".into(),
             open_question_ids: vec![],
-            scope: ContractScope { own: vec!["src/**".into()], forbidden: vec![] },
+            scope: ContractScope {
+                own: vec!["src/**".into()],
+                forbidden: vec![],
+            },
             authorized_effect_classes: vec!["FILE_WRITE".into()],
             advisory_profile: None,
             artifacts: ContractArtifacts::default(),
@@ -1226,7 +1473,11 @@ mod tests {
         );
         assert!(!g.available());
         let req = request();
-        let ctx = EvalCtx { contract: None, turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: None,
+            turn_id: "t1",
+            ..Default::default()
+        };
         let d = g.evaluate(&req, &ctx);
         assert_eq!(d.code.as_deref(), Some("ARC_GATE_UNAVAILABLE"));
         assert_eq!(d.enforcement_health.as_deref(), Some("unsupported"));
@@ -1237,11 +1488,20 @@ mod tests {
         let mut g = gate(ledger_with_alchemist("t1"));
         let req = request();
         let c = contract();
-        let ctx = EvalCtx { contract: Some(&c), turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: Some(&c),
+            turn_id: "t1",
+            ..Default::default()
+        };
 
         let authorized = g.authorize(&req, &ctx);
         assert!(authorized.allowed, "expected allow, got {authorized:?}");
-        let capability_id = authorized.detail.get("capabilityId").and_then(|v| v.as_str()).unwrap().to_string();
+        let capability_id = authorized
+            .detail
+            .get("capabilityId")
+            .and_then(|v| v.as_str())
+            .unwrap()
+            .to_string();
         assert!(capability_id.starts_with("cap_"));
 
         let mut eval_ctx = ctx;
@@ -1256,7 +1516,11 @@ mod tests {
         let mut g = gate(ledger_with_alchemist("t1"));
         let req = request();
         let c = contract();
-        let ctx = EvalCtx { contract: Some(&c), turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: Some(&c),
+            turn_id: "t1",
+            ..Default::default()
+        };
         let d = g.evaluate(&req, &ctx);
         assert_eq!(d.code.as_deref(), Some("ARC_CAPABILITY_UNKNOWN"));
     }
@@ -1265,7 +1529,11 @@ mod tests {
     fn no_contract_denies_mutation() {
         let mut g = gate(ledger_with_alchemist("t1"));
         let req = request();
-        let ctx = EvalCtx { contract: None, turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: None,
+            turn_id: "t1",
+            ..Default::default()
+        };
         let d = g.authorize(&req, &ctx);
         assert_eq!(d.code.as_deref(), Some("ARC_NO_CONTRACT"));
     }
@@ -1276,7 +1544,11 @@ mod tests {
         let mut req = request();
         req.target = "other/lib.rs".into();
         let c = contract();
-        let ctx = EvalCtx { contract: Some(&c), turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: Some(&c),
+            turn_id: "t1",
+            ..Default::default()
+        };
         let d = g.authorize(&req, &ctx);
         assert_eq!(d.code.as_deref(), Some("ARC_PATH_NOT_OWNED"));
     }
@@ -1288,7 +1560,11 @@ mod tests {
         req.target = "src/secret.rs".into();
         let mut c = contract();
         c.scope.forbidden.push("src/secret.rs".into());
-        let ctx = EvalCtx { contract: Some(&c), turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: Some(&c),
+            turn_id: "t1",
+            ..Default::default()
+        };
         let d = g.authorize(&req, &ctx);
         assert_eq!(d.code.as_deref(), Some("ARC_PATH_FORBIDDEN"));
     }
@@ -1299,7 +1575,11 @@ mod tests {
         let mut req = request();
         req.latitude = "EXACT".into();
         let c = contract();
-        let ctx = EvalCtx { contract: Some(&c), turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: Some(&c),
+            turn_id: "t1",
+            ..Default::default()
+        };
         let d = g.authorize(&req, &ctx);
         assert_eq!(d.code.as_deref(), Some("ARC_LATITUDE_VIOLATION"));
     }
@@ -1320,7 +1600,11 @@ mod tests {
         let mut g = gate(ledger);
         let mut req = request();
         req.requested_by = "kernel".into();
-        let ctx = EvalCtx { contract: None, turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: None,
+            turn_id: "t1",
+            ..Default::default()
+        };
         let d = g.authorize(&req, &ctx);
         assert_eq!(d.code.as_deref(), Some("ARC_AUTHORITY_NOT_ASSERTED"));
     }
@@ -1331,23 +1615,42 @@ mod tests {
         let mut req = request();
         req.effect_class = "NOT_A_REAL_CLASS".into();
         let c = contract();
-        let ctx = EvalCtx { contract: Some(&c), turn_id: "t1", ..Default::default() };
+        let ctx = EvalCtx {
+            contract: Some(&c),
+            turn_id: "t1",
+            ..Default::default()
+        };
         let d = g.evaluate(&req, &ctx);
         assert_eq!(d.code.as_deref(), Some("ARC_SCHEMA_INVALID"));
     }
 
     #[test]
     fn read_only_continues_degraded_when_gate_unavailable() {
-        let g = PreEffectGate::new(PolicyHandle::Engine(PolicyEngine::new(bundle())), None, None, None, || 0);
+        let g = PreEffectGate::new(
+            PolicyHandle::Engine(PolicyEngine::new(bundle())),
+            None,
+            None,
+            None,
+            || 0,
+        );
         let d = g.evaluate_read_only("src/lib.rs", "t1", None);
         assert!(d.allowed);
         assert_eq!(d.enforcement_health.as_deref(), Some("read_only"));
-        assert_eq!(d.detail.get("degraded").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            d.detail.get("degraded").and_then(|v| v.as_bool()),
+            Some(true)
+        );
     }
 
     #[test]
     fn health_reports_unsupported_per_missing_dependency() {
-        let g = PreEffectGate::new(PolicyHandle::Engine(PolicyEngine::new(bundle())), None, Some(ledger_with_alchemist("t1")), None, || 0);
+        let g = PreEffectGate::new(
+            PolicyHandle::Engine(PolicyEngine::new(bundle())),
+            None,
+            Some(ledger_with_alchemist("t1")),
+            None,
+            || 0,
+        );
         let h = g.health();
         assert_eq!(h.capability, "unsupported");
         assert_eq!(h.authority, "strong");

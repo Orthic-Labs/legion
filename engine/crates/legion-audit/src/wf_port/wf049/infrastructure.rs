@@ -12,8 +12,8 @@
 use serde_json::{Map, Value};
 
 use super::shared::{
-    canonicalize, exact_binding, is_canonical_base64, safe_path, same_binding, sanitize_artifact_content,
-    sanitize_sensitive_value, utc_millis,
+    canonicalize, exact_binding, is_canonical_base64, safe_path, same_binding,
+    sanitize_artifact_content, sanitize_sensitive_value, utc_millis,
 };
 
 /// Verifies a detached signature over `signed_content` using `public_key`,
@@ -35,12 +35,27 @@ impl SignatureVerifier for UnimplementedSignatureVerifier {
 }
 
 const REQUIRED_CONTROLS: &[&str] = &[
-    "cdn", "deployment", "dns", "drift", "health", "iam", "infra", "network", "region", "rollback", "runtime",
-    "scaling", "secrets", "storage", "tls",
+    "cdn",
+    "deployment",
+    "dns",
+    "drift",
+    "health",
+    "iam",
+    "infra",
+    "network",
+    "region",
+    "rollback",
+    "runtime",
+    "scaling",
+    "secrets",
+    "storage",
+    "tls",
 ];
 
 fn valid_artifact(artifact: &Value, binding: &Value) -> bool {
-    let Some(obj) = artifact.as_object() else { return false };
+    let Some(obj) = artifact.as_object() else {
+        return false;
+    };
     if !safe_path(&artifact["path"]) {
         return false;
     }
@@ -52,12 +67,22 @@ fn valid_artifact(artifact: &Value, binding: &Value) -> bool {
         return false;
     }
     let has_content = artifact.get("content").and_then(Value::as_str).is_some();
-    let has_bytes = artifact.get("bytesBase64").and_then(Value::as_str).is_some();
+    let has_bytes = artifact
+        .get("bytesBase64")
+        .and_then(Value::as_str)
+        .is_some();
     if has_content == has_bytes {
         return false;
     }
     let bytes: Option<Vec<u8>> = if has_content {
-        Some(artifact.get("content").and_then(Value::as_str).unwrap().as_bytes().to_vec())
+        Some(
+            artifact
+                .get("content")
+                .and_then(Value::as_str)
+                .unwrap()
+                .as_bytes()
+                .to_vec(),
+        )
     } else {
         let b64 = artifact.get("bytesBase64").and_then(Value::as_str).unwrap();
         if is_canonical_base64(b64) {
@@ -78,7 +103,8 @@ fn typed_fact(fact: &Value) -> bool {
     if fact.as_object().is_none() {
         return false;
     }
-    matches!(fact.get("id"), Some(Value::String(id)) if !id.is_empty()) && matches!(fact.get("kind"), Some(Value::String(_)))
+    matches!(fact.get("id"), Some(Value::String(id)) if !id.is_empty())
+        && matches!(fact.get("kind"), Some(Value::String(_)))
 }
 
 fn infrastructure_fact_gaps(payload: &Value, binding: &Value) -> Vec<String> {
@@ -86,25 +112,41 @@ fn infrastructure_fact_gaps(payload: &Value, binding: &Value) -> Vec<String> {
     let denominator: Vec<String> = payload
         .get("applicableControls")
         .and_then(Value::as_array)
-        .map(|items| items.iter().filter_map(Value::as_str).map(str::to_string).collect())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
         .unwrap_or_default();
     let mut sorted_unique: Vec<String> = denominator.clone();
     sorted_unique.sort();
     sorted_unique.dedup();
-    let mut required_sorted: Vec<String> = REQUIRED_CONTROLS.iter().map(|s| s.to_string()).collect();
+    let mut required_sorted: Vec<String> =
+        REQUIRED_CONTROLS.iter().map(|s| s.to_string()).collect();
     required_sorted.sort();
     if sorted_unique != required_sorted {
         gaps.push("infrastructure-control-denominator-mismatch".to_string());
     }
     let facts_array = payload.get("controlFacts").and_then(Value::as_array);
-    let facts_valid = facts_array.map(|items| items.iter().all(typed_fact)).unwrap_or(false);
+    let facts_valid = facts_array
+        .map(|items| items.iter().all(typed_fact))
+        .unwrap_or(false);
     if !facts_valid {
         gaps.push("infrastructure-control-facts-invalid".to_string());
     }
     let empty: Vec<Value> = Vec::new();
-    let facts: &Vec<Value> = if facts_valid { facts_array.unwrap() } else { &empty };
+    let facts: &Vec<Value> = if facts_valid {
+        facts_array.unwrap()
+    } else {
+        &empty
+    };
     for id in REQUIRED_CONTROLS {
-        let matches: Vec<&Value> = facts.iter().filter(|f| f.get("id").and_then(Value::as_str) == Some(*id)).collect();
+        let matches: Vec<&Value> = facts
+            .iter()
+            .filter(|f| f.get("id").and_then(Value::as_str) == Some(*id))
+            .collect();
         if matches.is_empty() {
             gaps.push(format!("infrastructure-control-missing:{id}"));
             continue;
@@ -190,10 +232,18 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
             && matches!(item.get("id"), Some(Value::String(id)) if !id.is_empty())
             && item.get("publicKey").is_some()
     });
-    let producer_field = evidence.as_ref().and_then(|e| e.get("producer")).cloned().unwrap_or(Value::Null);
+    let producer_field = evidence
+        .as_ref()
+        .and_then(|e| e.get("producer"))
+        .cloned()
+        .unwrap_or(Value::Null);
 
     if !producers_valid {
-        let mut gaps: Vec<String> = exact_binding(&binding).gaps.iter().map(|g| format!("binding-missing:{g}")).collect();
+        let mut gaps: Vec<String> = exact_binding(&binding)
+            .gaps
+            .iter()
+            .map(|g| format!("binding-missing:{g}"))
+            .collect();
         gaps.push("trusted-producers-invalid".to_string());
         gaps.sort();
         gaps.dedup();
@@ -214,7 +264,11 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
         );
     }
 
-    let mut gaps: Vec<String> = exact_binding(&binding).gaps.iter().map(|g| format!("binding-missing:{g}")).collect();
+    let mut gaps: Vec<String> = exact_binding(&binding)
+        .gaps
+        .iter()
+        .map(|g| format!("binding-missing:{g}"))
+        .collect();
     let mut payload: Option<Value> = None;
 
     let producer = trusted_producers
@@ -228,15 +282,24 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
         gaps.push("producer-untrusted".to_string());
     }
 
-    let signed_content = evidence.as_ref().and_then(|e| e.get("signedContent")).and_then(Value::as_str);
-    let signature = evidence.as_ref().and_then(|e| e.get("signature")).and_then(Value::as_str);
+    let signed_content = evidence
+        .as_ref()
+        .and_then(|e| e.get("signedContent"))
+        .and_then(Value::as_str);
+    let signature = evidence
+        .as_ref()
+        .and_then(|e| e.get("signature"))
+        .and_then(Value::as_str);
 
     if signed_content.is_none() || signature.is_none() {
         gaps.push("signature-unproven".to_string());
     } else if !is_canonical_base64(signature.unwrap()) {
         gaps.push("signature-noncanonical".to_string());
     } else if let Some(producer) = producer {
-        let public_key = producer.get("publicKey").and_then(Value::as_str).unwrap_or_default();
+        let public_key = producer
+            .get("publicKey")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let sig_bytes = super::shared::base64_decode(signature.unwrap()).unwrap_or_default();
         let content = signed_content.unwrap();
         if !signature_verifier.verify(public_key, content.as_bytes(), &sig_bytes) {
@@ -249,7 +312,8 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
         }
     }
 
-    let evidence_digest = signed_content.map(|content| format!("sha256:{}", sha256_hex(content.as_bytes())));
+    let evidence_digest =
+        signed_content.map(|content| format!("sha256:{}", sha256_hex(content.as_bytes())));
 
     if payload.is_none() {
         gaps.push("deployed-proof-required".to_string());
@@ -271,12 +335,19 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
         let checked = utc_millis(payload_val.get("checkedAt").and_then(Value::as_str));
         let current = utc_millis(now.as_deref());
         let expires = utc_millis(payload_val.get("expiresAt").and_then(Value::as_str));
-        for (key, value) in [("issuedAt", issued), ("checkedAt", checked), ("now", current), ("expiresAt", expires)] {
+        for (key, value) in [
+            ("issuedAt", issued),
+            ("checkedAt", checked),
+            ("now", current),
+            ("expiresAt", expires),
+        ] {
             if value.is_none() {
                 gaps.push(format!("{key}-timestamp-invalid"));
             }
         }
-        let max_age_valid = max_age_ms.map(|v| v.is_finite() && v >= 0.0).unwrap_or(false);
+        let max_age_valid = max_age_ms
+            .map(|v| v.is_finite() && v >= 0.0)
+            .unwrap_or(false);
         if !max_age_valid {
             gaps.push("freshness-window-invalid".to_string());
         }
@@ -307,11 +378,16 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
         }
         let receipt = payload_val.get("exerciseReceipt");
         if receipt.and_then(|r| r.get("terminal")) != Some(&Value::Bool(true))
-            || receipt.and_then(|r| r.get("status")).and_then(Value::as_str) != Some("pass")
+            || receipt
+                .and_then(|r| r.get("status"))
+                .and_then(Value::as_str)
+                != Some("pass")
         {
             gaps.push("exercise-receipt-unproven".to_string());
         }
-        let receipt_artifacts = receipt.and_then(|r| r.get("artifacts")).and_then(Value::as_array);
+        let receipt_artifacts = receipt
+            .and_then(|r| r.get("artifacts"))
+            .and_then(Value::as_array);
         let artifacts_valid = receipt_artifacts
             .map(|items| !items.is_empty() && items.iter().all(|a| a.is_object()))
             .unwrap_or(false);
@@ -319,8 +395,13 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
             gaps.push("exercise-receipt-artifacts-invalid".to_string());
         }
         let empty: Vec<Value> = Vec::new();
-        let artifacts: &Vec<Value> = if artifacts_valid { receipt_artifacts.unwrap() } else { &empty };
-        let all_valid = !artifacts.is_empty() && artifacts.iter().all(|a| valid_artifact(a, &binding));
+        let artifacts: &Vec<Value> = if artifacts_valid {
+            receipt_artifacts.unwrap()
+        } else {
+            &empty
+        };
+        let all_valid =
+            !artifacts.is_empty() && artifacts.iter().all(|a| valid_artifact(a, &binding));
         if !all_valid {
             gaps.push("produced-evidence-invalid".to_string());
         }
@@ -332,16 +413,26 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
                 Some(items) => Value::Array(
                     items
                         .iter()
-                        .map(|artifact| sanitize_artifact_content(artifact, &Value::Null).0.unwrap_or(Value::Null))
+                        .map(|artifact| {
+                            sanitize_artifact_content(artifact, &Value::Null)
+                                .0
+                                .unwrap_or(Value::Null)
+                        })
                         .collect(),
                 ),
                 None => Value::Null,
             }
         };
         let control_facts_array = payload_val.get("controlFacts").and_then(Value::as_array);
-        let control_facts_valid = control_facts_array.map(|items| items.iter().all(typed_fact)).unwrap_or(false);
+        let control_facts_valid = control_facts_array
+            .map(|items| items.iter().all(typed_fact))
+            .unwrap_or(false);
         let safe_control_facts: Value = if control_facts_valid {
-            let sanitized_facts = sanitized_value.get("controlFacts").and_then(Value::as_array).cloned().unwrap_or_default();
+            let sanitized_facts = sanitized_value
+                .get("controlFacts")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             Value::Array(
                 control_facts_array
                     .unwrap()
@@ -368,7 +459,10 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
         };
 
         let exercise_receipt = if payload_val.get("exerciseReceipt").is_some() {
-            let mut base = sanitized_value.get("exerciseReceipt").cloned().unwrap_or(Value::Null);
+            let mut base = sanitized_value
+                .get("exerciseReceipt")
+                .cloned()
+                .unwrap_or(Value::Null);
             if let Value::Object(map) = &mut base {
                 map.insert(
                     "artifacts".to_string(),
@@ -382,7 +476,10 @@ pub fn verify_infrastructure_exercise(input: VerifyInfrastructureExerciseInput<'
             }
             base
         } else {
-            sanitized_value.get("exerciseReceipt").cloned().unwrap_or(Value::Null)
+            sanitized_value
+                .get("exerciseReceipt")
+                .cloned()
+                .unwrap_or(Value::Null)
         };
 
         let mut final_payload = sanitized_value.as_object().cloned().unwrap_or_default();

@@ -146,7 +146,12 @@ pub fn read_frames(buffer: &[u8]) -> (Vec<DecodedFrame>, Vec<u8>) {
             if buffer.len() - pos < 4 {
                 break;
             }
-            let m = [buffer[pos], buffer[pos + 1], buffer[pos + 2], buffer[pos + 3]];
+            let m = [
+                buffer[pos],
+                buffer[pos + 1],
+                buffer[pos + 2],
+                buffer[pos + 3],
+            ];
             pos += 4;
             Some(m)
         } else {
@@ -180,7 +185,12 @@ pub fn read_frames(buffer: &[u8]) -> (Vec<DecodedFrame>, Vec<u8>) {
 /// Port of `findBrowserExecutable`'s per-platform candidate path list
 /// (everything after the `CHROME_PATH`/`QA_BROWSER` override check). `home`
 /// mirrors `process.env.HOME || process.env.USERPROFILE || ''`.
-pub fn browser_executable_candidates(is_windows: bool, program_files: Option<&str>, program_files_x86: Option<&str>, home: &str) -> Vec<String> {
+pub fn browser_executable_candidates(
+    is_windows: bool,
+    program_files: Option<&str>,
+    program_files_x86: Option<&str>,
+    home: &str,
+) -> Vec<String> {
     if is_windows {
         let pf = program_files.unwrap_or("C:\\Program Files");
         let pf86 = program_files_x86.unwrap_or("C:\\Program Files (x86)");
@@ -241,7 +251,9 @@ pub fn is_mobile_viewport(width: u32) -> bool {
 /// (designSystem ? { designSystem } : {}) }`, represented as an ordered map
 /// of top-level keys to their JSON-ish string values so callers can render
 /// it either way without duplicating the merge decision.
-pub fn impeccable_config_overrides(has_design_system: bool) -> BTreeMap<&'static str, &'static str> {
+pub fn impeccable_config_overrides(
+    has_design_system: bool,
+) -> BTreeMap<&'static str, &'static str> {
     let mut m = BTreeMap::new();
     m.insert("autoScan", "false");
     if has_design_system {
@@ -269,11 +281,7 @@ mod tests {
             has_fonts: true,
             allowed_fonts: vec!["Inter".to_string()],
             has_colors: true,
-            allowed_color_values: vec![
-                Some((10.0, 20.0, 30.0)),
-                None,
-                Some((f64::NAN, 0.0, 0.0)),
-            ],
+            allowed_color_values: vec![Some((10.0, 20.0, 30.0)), None, Some((f64::NAN, 0.0, 0.0))],
             has_radii: true,
             allowed_radii: vec![Some(4.0), None, Some(f64::INFINITY)],
             has_pill_radius: true,
@@ -328,7 +336,8 @@ mod tests {
         let missing = find_browser_executable(None, &candidates, |_| false);
         assert!(missing.is_err());
 
-        let overridden = find_browser_executable(Some("/opt/chrome"), &candidates, |p| p == "/opt/chrome");
+        let overridden =
+            find_browser_executable(Some("/opt/chrome"), &candidates, |p| p == "/opt/chrome");
         assert_eq!(overridden, Ok("/opt/chrome".to_string()));
 
         let bad_override = find_browser_executable(Some("/opt/missing"), &candidates, |_| false);

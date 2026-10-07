@@ -4,10 +4,7 @@ use serde_json::{json, Value};
 
 const KIND: &str = "arcane-advisory-judgment";
 
-pub fn find_current_advisory_judgment(
-    receipt_store: &ReceiptStore,
-    _expected: &Value,
-) -> Value {
+pub fn find_current_advisory_judgment(receipt_store: &ReceiptStore, _expected: &Value) -> Value {
     let chain = receipt_store.verify_chain();
     if chain.get("ok").and_then(Value::as_bool) != Some(true) {
         return deny(
@@ -62,7 +59,11 @@ pub fn persist_advisory_judgment(receipt_store: &ReceiptStore, receipt: &Value) 
         );
     }
     if receipt.get("kind").and_then(Value::as_str) != Some(KIND) {
-        return deny("ARC_SCHEMA_INVALID", "advisory judgment is invalid", json!({}));
+        return deny(
+            "ARC_SCHEMA_INVALID",
+            "advisory judgment is invalid",
+            json!({}),
+        );
     }
     let existing = receipt_store
         .list()

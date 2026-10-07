@@ -21,7 +21,10 @@ const COEXISTENCE_FIELDS: [&str; 6] = [
     "trigger",
 ];
 
-fn object<'a>(value: &'a Value, name: &str) -> Result<&'a serde_json::Map<String, Value>, ArcaneError> {
+fn object<'a>(
+    value: &'a Value,
+    name: &str,
+) -> Result<&'a serde_json::Map<String, Value>, ArcaneError> {
     value.as_object().ok_or_else(|| {
         ArcaneError::typed("ARC_SCHEMA_INVALID", format!("{name} must be an object"))
     })
@@ -41,17 +44,16 @@ fn non_empty(value: &Value) -> bool {
 
 pub fn assess_migration_cutover(input: &Value) -> Result<Value, ArcaneError> {
     let plan = object(input.get("plan").unwrap_or(&Value::Null), "plan")?;
-    let observations =
-        object(input.get("observations").unwrap_or(&Value::Null), "observations")?;
-    let mode = plan
-        .get("mode")
-        .and_then(Value::as_str)
-        .ok_or_else(|| {
-            ArcaneError::typed(
-                "ARC_SCHEMA_INVALID",
-                "plan.mode must be HARD_CUT or BOUNDED_COEXISTENCE",
-            )
-        })?;
+    let observations = object(
+        input.get("observations").unwrap_or(&Value::Null),
+        "observations",
+    )?;
+    let mode = plan.get("mode").and_then(Value::as_str).ok_or_else(|| {
+        ArcaneError::typed(
+            "ARC_SCHEMA_INVALID",
+            "plan.mode must be HARD_CUT or BOUNDED_COEXISTENCE",
+        )
+    })?;
     if mode == "HARD_CUT" {
         let configured = object(
             plan.get("hard_cut")

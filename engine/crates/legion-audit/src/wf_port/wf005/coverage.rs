@@ -76,7 +76,10 @@ pub fn run_coverage(opts: RunCoverageOptions<'_>) -> CoverageLayer {
                 percent: 0.0,
                 error: Some(format!(
                     "test_command_failed:exit_{}",
-                    out.status.code().map(|c| c.to_string()).unwrap_or_else(|| "null".into())
+                    out.status
+                        .code()
+                        .map(|c| c.to_string())
+                        .unwrap_or_else(|| "null".into())
                 )),
                 results: Vec::new(),
             };
@@ -138,7 +141,10 @@ fn summarise_coverage(cwd: &Path, files: &[DiffFile], coverage_dir: &Path) -> Co
                 let ranges = func.get("ranges").and_then(|v| v.as_array());
                 let Some(ranges) = ranges else { continue };
                 for range in ranges {
-                    let start = range.get("startOffset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                    let start = range
+                        .get("startOffset")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0) as usize;
                     let end = range.get("endOffset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
                     let count = range.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
                     let start_line = offset_to_line(&source_text, start);
@@ -199,7 +205,11 @@ fn read_coverage_entries(dir: &Path) -> Vec<Value> {
         let Ok(data) = serde_json::from_str::<Value>(&raw) else {
             continue;
         };
-        if let Some(result) = data.get("result").and_then(|r| r.as_array()).and_then(|a| a.first()) {
+        if let Some(result) = data
+            .get("result")
+            .and_then(|r| r.as_array())
+            .and_then(|a| a.first())
+        {
             entries.push(result.clone());
         }
     }

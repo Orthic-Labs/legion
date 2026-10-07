@@ -55,7 +55,12 @@ pub fn integrity_gaps(snapshot: &Value) -> Vec<IntegrityGap> {
     let order: std::collections::HashMap<&str, usize> = receipt_list
         .iter()
         .enumerate()
-        .filter_map(|(index, receipt)| receipt.get("provider").and_then(Value::as_str).map(|p| (p, index)))
+        .filter_map(|(index, receipt)| {
+            receipt
+                .get("provider")
+                .and_then(Value::as_str)
+                .map(|p| (p, index))
+        })
         .collect();
 
     for (id, provider) in &providers {
@@ -198,18 +203,29 @@ impl VerificationReceipt {
 /// 'string'` branch reads and `JSON.parse`s a file, which is host I/O
 /// outside this chunk's scope — see the chunk-level doc comment); `now` is
 /// an RFC 3339 timestamp standing in for `host.clock.now().toISOString()`.
-pub fn verify_sealed_run(prior: &Value, current_repository: &CurrentRepository, now: &str) -> VerificationReceipt {
+pub fn verify_sealed_run(
+    prior: &Value,
+    current_repository: &CurrentRepository,
+    now: &str,
+) -> VerificationReceipt {
     let current_binding = current_repository.resolved_binding();
     let expected_binding = prior
         .get("binding")
         .cloned()
-        .or_else(|| prior.get("plan").and_then(|plan| plan.get("binding")).cloned())
+        .or_else(|| {
+            prior
+                .get("plan")
+                .and_then(|plan| plan.get("binding"))
+                .cloned()
+        })
         .unwrap_or(Value::Null);
 
     let current = current_repository.snapshot.clone();
 
     let mut gaps: Vec<IntegrityGap> = Vec::new();
-    let binding_drift = prior.is_null() || expected_binding.is_null() || !same_binding(&expected_binding, &current_binding);
+    let binding_drift = prior.is_null()
+        || expected_binding.is_null()
+        || !same_binding(&expected_binding, &current_binding);
     if binding_drift {
         gaps.push(json!({"kind": "binding-drift"}));
     }
@@ -244,7 +260,11 @@ pub fn verify_sealed_run(prior: &Value, current_repository: &CurrentRepository, 
         prior_digest: prior_semantic,
         current_digest: current_semantic,
         binding: current_binding,
-        status: if valid { "pass".to_string() } else { "unproven".to_string() },
+        status: if valid {
+            "pass".to_string()
+        } else {
+            "unproven".to_string()
+        },
         gaps,
         verified_at: now.to_string(),
     }
@@ -296,7 +316,10 @@ mod tests {
         };
         let receipt = verify_sealed_run(&prior, &current_repository, "2026-01-01T00:00:00.000Z");
         assert!(!receipt.valid);
-        assert!(receipt.gaps.iter().any(|g| g["kind"] == "semantic-replay-unavailable"));
+        assert!(receipt
+            .gaps
+            .iter()
+            .any(|g| g["kind"] == "semantic-replay-unavailable"));
         assert!(receipt.current_digest.is_none());
     }
 
@@ -319,7 +342,9 @@ mod tests {
             "receipts": [{"provider": "b"}, {"provider": "a"}],
         });
         let gaps = integrity_gaps(&snapshot);
-        assert!(gaps.iter().any(|g| g["kind"] == "dependency-order" && g["provider"] == "b" && g["dependency"] == "a"));
+        assert!(gaps.iter().any(|g| g["kind"] == "dependency-order"
+            && g["provider"] == "b"
+            && g["dependency"] == "a"));
     }
 
     #[test]
@@ -365,6 +390,8 @@ mod tests {
             ],
         });
         let gaps = integrity_gaps(&snapshot);
-        assert!(gaps.iter().any(|g| g["kind"] == "reasoning-context-reuse" && g["contextId"] == "ctx-1"));
+        assert!(gaps
+            .iter()
+            .any(|g| g["kind"] == "reasoning-context-reuse" && g["contextId"] == "ctx-1"));
     }
 }

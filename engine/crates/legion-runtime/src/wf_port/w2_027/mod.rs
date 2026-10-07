@@ -49,9 +49,8 @@ const SEO_CHECK_EXTENSIONS: &[&str] = &["html", "htm", "php", "jsx", "tsx", "vue
 
 /// Extensions `validate-schema.py`'s `valid_extensions` tuple matches:
 /// `(".html", ".htm", ".jsx", ".tsx", ".vue", ".svelte", ".php", ".ejs")`.
-const SCHEMA_CHECK_EXTENSIONS: &[&str] = &[
-    "html", "htm", "jsx", "tsx", "vue", "svelte", "php", "ejs",
-];
+const SCHEMA_CHECK_EXTENSIONS: &[&str] =
+    &["html", "htm", "jsx", "tsx", "vue", "svelte", "php", "ejs"];
 
 /// Port of the shell hook's staged-file filter: does `path` end in one of
 /// the checked extensions? Matches `grep -E '\.(html|htm|php|jsx|tsx|vue|svelte)$'`
@@ -93,10 +92,16 @@ pub struct Finding {
 
 impl Finding {
     fn error(message: impl Into<String>) -> Self {
-        Finding { severity: Severity::Error, message: message.into() }
+        Finding {
+            severity: Severity::Error,
+            message: message.into(),
+        }
     }
     fn warning(message: impl Into<String>) -> Self {
-        Finding { severity: Severity::Warning, message: message.into() }
+        Finding {
+            severity: Severity::Warning,
+            message: message.into(),
+        }
     }
 }
 
@@ -157,10 +162,7 @@ pub fn check_html_file(content: &str) -> Vec<Finding> {
 
     // 6. Meta description length:
     //    `grep -oP '(?<=<meta name="description" content=").*?(?=")' | head -1`.
-    if let Some(desc) = extract_first(
-        content,
-        r#"(?s)<meta name="description" content="(.*?)""#,
-    ) {
+    if let Some(desc) = extract_first(content, r#"(?s)<meta name="description" content="(.*?)""#) {
         let len = desc.chars().count();
         if !(120..=160).contains(&len) {
             findings.push(Finding::warning(format!(
@@ -173,7 +175,10 @@ pub fn check_html_file(content: &str) -> Vec<Finding> {
 }
 
 fn extract_first(content: &str, pattern: &str) -> Option<String> {
-    Regex::new(pattern).unwrap().captures(content).map(|c| c[1].to_string())
+    Regex::new(pattern)
+        .unwrap()
+        .captures(content)
+        .map(|c| c[1].to_string())
 }
 
 /// Port of `<img(?![^>]*alt=)`: a PCRE negative-lookahead the shell script
@@ -254,7 +259,10 @@ const DEPRECATED_TYPES: &[(&str, &str)] = &[
     ("CourseInfo", "retired June 2025"),
     ("EstimatedSalary", "retired June 2025"),
     ("LearningVideo", "retired June 2025"),
-    ("ClaimReview", "retired June 2025; fact-check rich results discontinued"),
+    (
+        "ClaimReview",
+        "retired June 2025; fact-check rich results discontinued",
+    ),
     (
         "VehicleListing",
         "retired June 2025; vehicle listing structured data discontinued",

@@ -70,9 +70,18 @@ pub enum ChainAdjudicationError {
     RefutedRequiresRefutation,
 }
 
-const CHAIN_VERDICTS: [&str; 5] = ["PROVEN", "PARTIALLY_SUPPORTED", "REFUTED", "BLOCKED", "UNPROVEN"];
+const CHAIN_VERDICTS: [&str; 5] = [
+    "PROVEN",
+    "PARTIALLY_SUPPORTED",
+    "REFUTED",
+    "BLOCKED",
+    "UNPROVEN",
+];
 
-fn require_object<'a>(value: &'a Value, label: &str) -> Result<&'a Map<String, Value>, ChainAdjudicationError> {
+fn require_object<'a>(
+    value: &'a Value,
+    label: &str,
+) -> Result<&'a Map<String, Value>, ChainAdjudicationError> {
     value
         .as_object()
         .ok_or_else(|| ChainAdjudicationError::NotAnObject(label.to_string()))
@@ -81,11 +90,16 @@ fn require_object<'a>(value: &'a Value, label: &str) -> Result<&'a Map<String, V
 fn require_string<'a>(value: &'a Value, label: &str) -> Result<&'a str, ChainAdjudicationError> {
     match value.as_str() {
         Some(s) if !s.is_empty() => Ok(s),
-        _ => Err(ChainAdjudicationError::NotANonEmptyString(label.to_string())),
+        _ => Err(ChainAdjudicationError::NotANonEmptyString(
+            label.to_string(),
+        )),
     }
 }
 
-fn require_array<'a>(value: &'a Value, label: &str) -> Result<&'a Vec<Value>, ChainAdjudicationError> {
+fn require_array<'a>(
+    value: &'a Value,
+    label: &str,
+) -> Result<&'a Vec<Value>, ChainAdjudicationError> {
     value
         .as_array()
         .ok_or_else(|| ChainAdjudicationError::NotAnArray(label.to_string()))
@@ -166,7 +180,13 @@ fn slice_model_for_path(model: &Value, step_packets: &[Value]) -> Value {
         let candidate = step.get("candidate").cloned().unwrap_or(Value::Null);
         for id in ids_from(
             &candidate,
-            &["sources", "sinks", "assets", "requiredControls", "observedControls"],
+            &[
+                "sources",
+                "sinks",
+                "assets",
+                "requiredControls",
+                "observedControls",
+            ],
         ) {
             referenced.insert(id);
         }
@@ -196,8 +216,14 @@ fn slice_model_for_path(model: &Value, step_packets: &[Value]) -> Value {
         .unwrap_or(&empty)
         .iter()
         .filter(|relation| {
-            let from = relation.get("from").and_then(Value::as_str).unwrap_or_default();
-            let to = relation.get("to").and_then(Value::as_str).unwrap_or_default();
+            let from = relation
+                .get("from")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let to = relation
+                .get("to")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
             entity_ids.contains(from) || entity_ids.contains(to)
         })
         .cloned()
@@ -261,13 +287,22 @@ pub fn create_chain_adjudication_packet(
 ) -> Result<ChainAdjudicationPacket, ChainAdjudicationError> {
     let binding = binding_from_plan(input.plan)?;
 
-    let path_artifact = json!({ "binding": input.path.get("binding").cloned().unwrap_or(Value::Null) });
+    let path_artifact =
+        json!({ "binding": input.path.get("binding").cloned().unwrap_or(Value::Null) });
     assert_artifact_binding(&path_artifact, &binding, "pathArtifact")?;
     assert_artifact_binding(input.candidates, &binding, "candidates")?;
-    assert_artifact_binding(input.candidate_adjudication, &binding, "candidateAdjudication")?;
+    assert_artifact_binding(
+        input.candidate_adjudication,
+        &binding,
+        "candidateAdjudication",
+    )?;
     assert_artifact_binding(input.model, &binding, "model")?;
 
-    let path_provider = input.path.get("provider").and_then(Value::as_str).unwrap_or_default();
+    let path_provider = input
+        .path
+        .get("provider")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let adjudicator_provider = input
         .adjudicator
         .get("provider")
@@ -301,13 +336,20 @@ pub fn create_chain_adjudication_packet(
         .unwrap_or(&empty_vec);
     let verdict_by_id: std::collections::HashMap<&str, &Value> = verdict_list
         .iter()
-        .filter_map(|item| item.get("candidateId").and_then(Value::as_str).map(|id| (id, item)))
+        .filter_map(|item| {
+            item.get("candidateId")
+                .and_then(Value::as_str)
+                .map(|id| (id, item))
+        })
         .collect();
 
     let steps = require_array(&input.path["steps"], "path.steps")?;
     let mut step_packets = Vec::with_capacity(steps.len());
     for step in steps {
-        let candidate_id = step.get("candidateId").and_then(Value::as_str).unwrap_or_default();
+        let candidate_id = step
+            .get("candidateId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let candidate = candidate_by_id.get(candidate_id);
         let verdict = verdict_by_id.get(candidate_id);
         match (candidate, verdict) {
@@ -325,7 +367,11 @@ pub fn create_chain_adjudication_packet(
     }
 
     let path_id = input.path.get("id").cloned().unwrap_or(Value::Null);
-    let adjudicator_context_id_value = input.adjudicator.get("contextId").cloned().unwrap_or(Value::Null);
+    let adjudicator_context_id_value = input
+        .adjudicator
+        .get("contextId")
+        .cloned()
+        .unwrap_or(Value::Null);
     let packet_id = format!(
         "sha256:{}",
         hex::encode(Sha256::digest(
@@ -380,7 +426,9 @@ pub fn finalize_chain_verdict(
         .and_then(Value::as_str)
         .unwrap_or_default();
     if !CHAIN_VERDICTS.contains(&verdict) {
-        return Err(ChainAdjudicationError::UnsupportedVerdict(verdict.to_string()));
+        return Err(ChainAdjudicationError::UnsupportedVerdict(
+            verdict.to_string(),
+        ));
     }
 
     let step_assessments = require_array(&raw_verdict["stepAssessments"], "stepAssessments")?;
@@ -438,19 +486,24 @@ pub fn finalize_chain_verdict(
         if raw_verdict.get("evidenceStrength").and_then(Value::as_str) != Some("verified") {
             return Err(ChainAdjudicationError::ProvenRequiresVerifiedEvidence);
         }
-        if raw_verdict.get("severity").map(Value::is_null).unwrap_or(true) {
+        if raw_verdict
+            .get("severity")
+            .map(Value::is_null)
+            .unwrap_or(true)
+        {
             return Err(ChainAdjudicationError::ProvenRequiresSeverity);
         }
-        if raw_verdict.get("terminalImpact").map(Value::is_null).unwrap_or(true) {
+        if raw_verdict
+            .get("terminalImpact")
+            .map(Value::is_null)
+            .unwrap_or(true)
+        {
             return Err(ChainAdjudicationError::ProvenRequiresTerminalImpact);
         }
         if raw_verdict.pointer("/proof/digest").is_none() {
             return Err(ChainAdjudicationError::ProvenRequiresProof);
         }
-        if raw_verdict
-            .pointer("/negativeControl/rationale")
-            .is_none()
-        {
+        if raw_verdict.pointer("/negativeControl/rationale").is_none() {
             return Err(ChainAdjudicationError::ProvenRequiresNegativeControl);
         }
         if step_assessments
@@ -471,7 +524,9 @@ pub fn finalize_chain_verdict(
         .map(|value| !value.is_null())
         .unwrap_or(false)
     {
-        return Err(ChainAdjudicationError::UnexpectedSeverity(verdict.to_string()));
+        return Err(ChainAdjudicationError::UnexpectedSeverity(
+            verdict.to_string(),
+        ));
     }
 
     if verdict == "BLOCKED" {

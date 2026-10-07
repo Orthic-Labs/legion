@@ -29,10 +29,26 @@ pub struct Viewport {
 }
 
 pub const VIEWPORTS: &[Viewport] = &[
-    Viewport { name: "desktop", width: 1920, height: 1080 },
-    Viewport { name: "laptop", width: 1366, height: 768 },
-    Viewport { name: "tablet", width: 768, height: 1024 },
-    Viewport { name: "mobile", width: 375, height: 812 },
+    Viewport {
+        name: "desktop",
+        width: 1920,
+        height: 1080,
+    },
+    Viewport {
+        name: "laptop",
+        width: 1366,
+        height: 768,
+    },
+    Viewport {
+        name: "tablet",
+        width: 768,
+        height: 1024,
+    },
+    Viewport {
+        name: "mobile",
+        width: 375,
+        height: 812,
+    },
 ];
 
 pub fn viewport_by_name(name: &str) -> Option<Viewport> {
@@ -53,9 +69,7 @@ fn parse_url_minimal(url: &str) -> ParsedUrl {
         Some(idx) => {
             let scheme = url[..idx].to_string();
             let rest = &url[idx + 3..];
-            let authority_end = rest
-                .find(['/', '?', '#'])
-                .unwrap_or(rest.len());
+            let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
             let authority = &rest[..authority_end];
             // Drop userinfo (before the last '@' in the authority).
             let host_port = match authority.rfind('@') {
@@ -64,15 +78,17 @@ fn parse_url_minimal(url: &str) -> ParsedUrl {
             };
             // IPv6 literal in brackets: hostname is inside the brackets.
             let hostname = if host_port.starts_with('[') {
-                host_port
-                    .find(']')
-                    .map(|end| host_port[1..end].to_string())
+                host_port.find(']').map(|end| host_port[1..end].to_string())
             } else {
                 let host = match host_port.rfind(':') {
                     Some(colon) => &host_port[..colon],
                     None => host_port,
                 };
-                if host.is_empty() { None } else { Some(host.to_string()) }
+                if host.is_empty() {
+                    None
+                } else {
+                    Some(host.to_string())
+                }
             };
             ParsedUrl { scheme, hostname }
         }
@@ -186,7 +202,12 @@ pub struct BoundingBox {
 pub trait PageBrowser {
     /// `browser.new_context(viewport=...)` + `page = ctx.new_page()`:
     /// (re)configures the viewport a subsequent `goto` renders at.
-    fn set_viewport(&mut self, width: u32, height: u32, device_scale_factor: f64) -> Result<(), String>;
+    fn set_viewport(
+        &mut self,
+        width: u32,
+        height: u32,
+        device_scale_factor: f64,
+    ) -> Result<(), String>;
     /// `page.goto(url, wait_until="networkidle", timeout=timeout)`.
     /// Returns `Err(BrowserError::Timeout)` on a Playwright timeout
     /// (mirrors `PlaywrightTimeout`), `Err(BrowserError::Other(..))` for
@@ -269,10 +290,17 @@ pub struct AnalyzeResult {
 /// meta, horizontal scroll, base font size) against `browser`. Mirrors the
 /// Python function's early-return `error` paths exactly (bad URL, blocked
 /// IP, timeout, any other exception message).
-pub fn run_analyze_visual(browser: &mut dyn PageBrowser, url: &str, timeout_ms: u64) -> AnalyzeResult {
+pub fn run_analyze_visual(
+    browser: &mut dyn PageBrowser,
+    url: &str,
+    timeout_ms: u64,
+) -> AnalyzeResult {
     let mut result = AnalyzeResult {
         url: url.to_string(),
-        fonts: FontsResult { base_size: None, readable: true },
+        fonts: FontsResult {
+            base_size: None,
+            readable: true,
+        },
         ..Default::default()
     };
 
@@ -390,7 +418,9 @@ pub fn run_capture_screenshot(
 
     let Some(vp) = viewport_by_name(viewport) else {
         let names: Vec<&str> = VIEWPORTS.iter().map(|v| v.name).collect();
-        result.error = Some(format!("Invalid viewport: {viewport}. Choose from: {names:?}"));
+        result.error = Some(format!(
+            "Invalid viewport: {viewport}. Choose from: {names:?}"
+        ));
         return result;
     };
 
@@ -442,7 +472,11 @@ pub fn run_capture_screenshot(
 /// start with `cwd` or `home` (matches [`output_dir_allowed`], kept
 /// separate so the realpath resolution stays with the caller — this crate
 /// has no canonicalization dependency requirement beyond `std::fs`).
-pub fn resolve_and_check_output_dir(output: &Path, cwd: &Path, home: &Path) -> Result<PathBuf, String> {
+pub fn resolve_and_check_output_dir(
+    output: &Path,
+    cwd: &Path,
+    home: &Path,
+) -> Result<PathBuf, String> {
     let resolved = std::fs::canonicalize(output).unwrap_or_else(|_| {
         // realpath() on a not-yet-created dir still resolves symlinks in
         // the existing prefix; std::fs::canonicalize requires the path to
@@ -455,7 +489,11 @@ pub fn resolve_and_check_output_dir(output: &Path, cwd: &Path, home: &Path) -> R
         }
     });
     let resolved_str = resolved.to_string_lossy().to_string();
-    if output_dir_allowed(&resolved_str, &cwd.to_string_lossy(), &home.to_string_lossy()) {
+    if output_dir_allowed(
+        &resolved_str,
+        &cwd.to_string_lossy(),
+        &home.to_string_lossy(),
+    ) {
         Ok(resolved)
     } else {
         Err("Output path must be within current directory or home directory".to_string())
@@ -477,29 +515,39 @@ impl ChromePageBrowser {
     pub fn launch() -> Result<Self, String> {
         let browser = headless_chrome::Browser::default().map_err(|e| e.to_string())?;
         let tab = browser.new_tab().map_err(|e| e.to_string())?;
-        Ok(Self { _browser: browser, tab })
+        Ok(Self {
+            _browser: browser,
+            tab,
+        })
     }
 }
 
 impl PageBrowser for ChromePageBrowser {
-    fn set_viewport(&mut self, width: u32, height: u32, device_scale_factor: f64) -> Result<(), String> {
+    fn set_viewport(
+        &mut self,
+        width: u32,
+        height: u32,
+        device_scale_factor: f64,
+    ) -> Result<(), String> {
         self.tab
-            .call_method(headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                width,
-                height,
-                device_scale_factor,
-                mobile: device_scale_factor > 1.0,
-                scale: None,
-                screen_width: None,
-                screen_height: None,
-                position_x: None,
-                position_y: None,
-                dont_set_visible_size: None,
-                screen_orientation: None,
-                viewport: None,
-                display_feature: None,
-                device_posture: None,
-            })
+            .call_method(
+                headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
+                    width,
+                    height,
+                    device_scale_factor,
+                    mobile: device_scale_factor > 1.0,
+                    scale: None,
+                    screen_width: None,
+                    screen_height: None,
+                    position_x: None,
+                    position_y: None,
+                    dont_set_visible_size: None,
+                    screen_orientation: None,
+                    viewport: None,
+                    display_feature: None,
+                    device_posture: None,
+                },
+            )
             .map(|_| ())
             .map_err(|e| e.to_string())
     }
@@ -521,7 +569,9 @@ impl PageBrowser for ChromePageBrowser {
     fn bounding_box(&mut self, selector: &str) -> Option<BoundingBox> {
         let el = self.tab.find_element(selector).ok()?;
         let box_model = el.get_box_model().ok()?;
-        Some(BoundingBox { y: box_model.content.most_top() })
+        Some(BoundingBox {
+            y: box_model.content.most_top(),
+        })
     }
 
     fn attribute(&mut self, selector: &str, attr: &str) -> Option<String> {
@@ -591,7 +641,9 @@ mod probe_tests {
             self.evals.get(js).copied()
         }
         fn screenshot_png(&mut self, _full_page: bool) -> Result<Vec<u8>, String> {
-            self.screenshot.clone().unwrap_or_else(|| Ok(vec![0x89, b'P', b'N', b'G']))
+            self.screenshot
+                .clone()
+                .unwrap_or_else(|| Ok(vec![0x89, b'P', b'N', b'G']))
         }
     }
 
@@ -599,10 +651,13 @@ mod probe_tests {
     fn analyze_visual_detects_h1_and_cta_above_fold() {
         let mut page = FakePage::default();
         page.boxes.insert("h1", BoundingBox { y: 100.0 });
-        page.boxes.insert("a[href*='signup']", BoundingBox { y: 200.0 });
-        page.attrs.insert((".hero img", "src"), "hero.png".to_string());
+        page.boxes
+            .insert("a[href*='signup']", BoundingBox { y: 200.0 });
+        page.attrs
+            .insert((".hero img", "src"), "hero.png".to_string());
         page.exists.insert("meta[name=\"viewport\"]", true);
-        page.evals.insert("document.documentElement.scrollWidth", 375.0);
+        page.evals
+            .insert("document.documentElement.scrollWidth", 375.0);
         page.evals.insert("window.innerWidth", 375.0);
         page.evals.insert(
             "(() => { const s = window.getComputedStyle(document.body); return parseFloat(s.fontSize); })()",
@@ -632,7 +687,10 @@ mod probe_tests {
     fn analyze_visual_blocks_private_ip_hostname() {
         let mut page = FakePage::default();
         let result = run_analyze_visual(&mut page, "http://127.0.0.1", 30_000);
-        assert!(result.error.unwrap().starts_with("Blocked: URL resolves to private/internal IP"));
+        assert!(result
+            .error
+            .unwrap()
+            .starts_with("Blocked: URL resolves to private/internal IP"));
     }
 
     #[test]
@@ -642,13 +700,17 @@ mod probe_tests {
             ..Default::default()
         };
         let result = run_analyze_visual(&mut page, "example.com", 5_000);
-        assert_eq!(result.error, Some("Page load timed out after 5000ms".to_string()));
+        assert_eq!(
+            result.error,
+            Some("Page load timed out after 5000ms".to_string())
+        );
     }
 
     #[test]
     fn analyze_visual_flags_narrow_font_and_horizontal_scroll() {
         let mut page = FakePage::default();
-        page.evals.insert("document.documentElement.scrollWidth", 500.0);
+        page.evals
+            .insert("document.documentElement.scrollWidth", 500.0);
         page.evals.insert("window.innerWidth", 375.0);
         page.evals.insert(
             "(() => { const s = window.getComputedStyle(document.body); return parseFloat(s.fontSize); })()",
@@ -663,10 +725,18 @@ mod probe_tests {
     fn capture_screenshot_rejects_unknown_viewport() {
         let mut page = FakePage::default();
         let mut writes = Vec::new();
-        let result = run_capture_screenshot(&mut page, "example.com", "out.png", "ultrawide", false, 30_000, &mut |b| {
-            writes.extend_from_slice(b);
-            Ok(())
-        });
+        let result = run_capture_screenshot(
+            &mut page,
+            "example.com",
+            "out.png",
+            "ultrawide",
+            false,
+            30_000,
+            &mut |b| {
+                writes.extend_from_slice(b);
+                Ok(())
+            },
+        );
         assert!(!result.success);
         assert!(result.error.unwrap().starts_with("Invalid viewport"));
         assert!(writes.is_empty());
@@ -679,10 +749,18 @@ mod probe_tests {
             ..Default::default()
         };
         let mut writes = Vec::new();
-        let result = run_capture_screenshot(&mut page, "example.com", "out.png", "mobile", true, 30_000, &mut |b| {
-            writes.extend_from_slice(b);
-            Ok(())
-        });
+        let result = run_capture_screenshot(
+            &mut page,
+            "example.com",
+            "out.png",
+            "mobile",
+            true,
+            30_000,
+            &mut |b| {
+                writes.extend_from_slice(b);
+                Ok(())
+            },
+        );
         assert!(result.success);
         assert_eq!(writes, vec![1, 2, 3]);
         assert_eq!(page.viewport, Some((375, 812, 2.0)));
@@ -692,10 +770,18 @@ mod probe_tests {
     fn capture_screenshot_surfaces_ssrf_block() {
         let mut page = FakePage::default();
         let mut writes = Vec::new();
-        let result = run_capture_screenshot(&mut page, "http://localhost", "out.png", "desktop", false, 30_000, &mut |b| {
-            writes.extend_from_slice(b);
-            Ok(())
-        });
+        let result = run_capture_screenshot(
+            &mut page,
+            "http://localhost",
+            "out.png",
+            "desktop",
+            false,
+            30_000,
+            &mut |b| {
+                writes.extend_from_slice(b);
+                Ok(())
+            },
+        );
         assert!(!result.success);
         assert!(result.error.is_some());
     }

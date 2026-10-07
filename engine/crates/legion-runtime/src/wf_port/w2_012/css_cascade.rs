@@ -120,7 +120,10 @@ pub fn normalize_color_for_check(value: &str) -> String {
         let b = dbl(&caps[3]);
         return format!("rgb({r}, {g}, {b})");
     }
-    if let Some((_, (r, g, b))) = NAMED_COLORS.iter().find(|(name, _)| *name == v.to_lowercase()) {
+    if let Some((_, (r, g, b))) = NAMED_COLORS
+        .iter()
+        .find(|(name, _)| *name == v.to_lowercase())
+    {
         return format!("rgb({r}, {g}, {b})");
     }
     v.to_string()
@@ -151,7 +154,13 @@ pub fn split_css_list(value: &str) -> Vec<String> {
             '(' | '[' => depth += 1,
             ')' | ']' => depth = (depth - 1).max(0),
             ',' if depth == 0 => {
-                parts.push(chars[start..i].iter().collect::<String>().trim().to_string());
+                parts.push(
+                    chars[start..i]
+                        .iter()
+                        .collect::<String>()
+                        .trim()
+                        .to_string(),
+                );
                 start = i + 1;
             }
             _ => {}
@@ -309,7 +318,10 @@ pub fn static_color_to_css(r: f64, g: f64, b: f64, a: f64) -> String {
         // default float Display does after trimming, so format then trim.
         let a3 = format!("{a:.3}");
         let trimmed = a3.trim_end_matches('0').trim_end_matches('.');
-        format!("rgba({}, {}, {}, {})", r as i64, g as i64, b as i64, trimmed)
+        format!(
+            "rgba({}, {}, {}, {})",
+            r as i64, g as i64, b as i64, trimmed
+        )
     } else {
         format!("rgb({}, {}, {})", r as i64, g as i64, b as i64)
     }
@@ -371,10 +383,30 @@ pub fn extract_static_color(value: &str) -> String {
 pub fn expand_static_box_values(tokens: &[String]) -> [String; 4] {
     match tokens.len() {
         0 => ["0px".into(), "0px".into(), "0px".into(), "0px".into()],
-        1 => [tokens[0].clone(), tokens[0].clone(), tokens[0].clone(), tokens[0].clone()],
-        2 => [tokens[0].clone(), tokens[1].clone(), tokens[0].clone(), tokens[1].clone()],
-        3 => [tokens[0].clone(), tokens[1].clone(), tokens[2].clone(), tokens[1].clone()],
-        _ => [tokens[0].clone(), tokens[1].clone(), tokens[2].clone(), tokens[3].clone()],
+        1 => [
+            tokens[0].clone(),
+            tokens[0].clone(),
+            tokens[0].clone(),
+            tokens[0].clone(),
+        ],
+        2 => [
+            tokens[0].clone(),
+            tokens[1].clone(),
+            tokens[0].clone(),
+            tokens[1].clone(),
+        ],
+        3 => [
+            tokens[0].clone(),
+            tokens[1].clone(),
+            tokens[2].clone(),
+            tokens[1].clone(),
+        ],
+        _ => [
+            tokens[0].clone(),
+            tokens[1].clone(),
+            tokens[2].clone(),
+            tokens[3].clone(),
+        ],
     }
 }
 
@@ -462,7 +494,8 @@ fn transition_prop_token_re() -> &'static Regex {
 fn transition_prop_exclude_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?i)^(?:ease|linear|infinite|alternate|forwards|backwards|both|normal|none)$").unwrap()
+        Regex::new(r"(?i)^(?:ease|linear|infinite|alternate|forwards|backwards|both|normal|none)$")
+            .unwrap()
     })
 }
 
@@ -524,10 +557,9 @@ pub fn parse_static_animation(value: &str) -> TransitionParts {
         if let Some(t) = tokens.iter().find(|t| timing_re().is_match(t)) {
             timings.push(t.clone());
         }
-        if let Some(n) = tokens
-            .iter()
-            .find(|t| animation_name_token_re().is_match(t) && !animation_name_exclude_re().is_match(t))
-        {
+        if let Some(n) = tokens.iter().find(|t| {
+            animation_name_token_re().is_match(t) && !animation_name_exclude_re().is_match(t)
+        }) {
             names.push(n.clone());
         }
     }
@@ -658,7 +690,12 @@ pub fn parse_static_style_attribute(style_text: &str, order_base: u32) -> Vec<In
             value = important_re().replace(&value, "").trim().to_string();
         }
         let order = order_base + decls.len() as u32;
-        decls.push(InlineDecl { prop, value, important, order });
+        decls.push(InlineDecl {
+            prop,
+            value,
+            important,
+            order,
+        });
     }
     decls
 }
@@ -718,7 +755,10 @@ mod tests {
     #[test]
     fn static_color_to_css_rgb_vs_rgba() {
         assert_eq!(static_color_to_css(255.0, 0.0, 0.0, 1.0), "rgb(255, 0, 0)");
-        assert_eq!(static_color_to_css(255.0, 0.0, 0.0, 0.5), "rgba(255, 0, 0, 0.5)");
+        assert_eq!(
+            static_color_to_css(255.0, 0.0, 0.0, 0.5),
+            "rgba(255, 0, 0, 0.5)"
+        );
     }
 
     #[test]
@@ -738,8 +778,14 @@ mod tests {
     #[test]
     fn expand_static_box_values_css_box_shorthand_rules() {
         let t = |s: &[&str]| s.iter().map(|x| x.to_string()).collect::<Vec<_>>();
-        assert_eq!(expand_static_box_values(&t(&["1px"])), ["1px", "1px", "1px", "1px"]);
-        assert_eq!(expand_static_box_values(&t(&["1px", "2px"])), ["1px", "2px", "1px", "2px"]);
+        assert_eq!(
+            expand_static_box_values(&t(&["1px"])),
+            ["1px", "1px", "1px", "1px"]
+        );
+        assert_eq!(
+            expand_static_box_values(&t(&["1px", "2px"])),
+            ["1px", "2px", "1px", "2px"]
+        );
         assert_eq!(
             expand_static_box_values(&t(&["1px", "2px", "3px"])),
             ["1px", "2px", "3px", "2px"]
@@ -789,16 +835,39 @@ mod tests {
     #[test]
     fn compare_static_priority_important_beats_specificity_beats_order() {
         let none: Option<&DeclMeta> = None;
-        let base = DeclMeta { important: false, inline: false, specificity: [0, 1, 0], order: 1 };
+        let base = DeclMeta {
+            important: false,
+            inline: false,
+            specificity: [0, 1, 0],
+            order: 1,
+        };
         assert!(compare_static_priority(none, &base));
 
-        let higher_specificity = DeclMeta { important: false, inline: false, specificity: [0, 2, 0], order: 0 };
+        let higher_specificity = DeclMeta {
+            important: false,
+            inline: false,
+            specificity: [0, 2, 0],
+            order: 0,
+        };
         assert!(compare_static_priority(Some(&base), &higher_specificity));
 
-        let lower_specificity_later = DeclMeta { important: false, inline: false, specificity: [0, 0, 1], order: 5 };
-        assert!(!compare_static_priority(Some(&base), &lower_specificity_later));
+        let lower_specificity_later = DeclMeta {
+            important: false,
+            inline: false,
+            specificity: [0, 0, 1],
+            order: 5,
+        };
+        assert!(!compare_static_priority(
+            Some(&base),
+            &lower_specificity_later
+        ));
 
-        let important = DeclMeta { important: true, inline: false, specificity: [0, 0, 0], order: 0 };
+        let important = DeclMeta {
+            important: true,
+            inline: false,
+            specificity: [0, 0, 0],
+            order: 0,
+        };
         assert!(compare_static_priority(Some(&base), &important));
     }
 

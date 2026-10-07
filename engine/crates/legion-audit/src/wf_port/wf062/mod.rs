@@ -73,7 +73,12 @@ impl Entity {
     }
 
     /// Mirrors the JS test helper `controlEntity(controlType, name, evidenceRefs)`.
-    pub fn control(id: impl Into<String>, control_type: &str, name: &str, evidence_refs: Vec<String>) -> Self {
+    pub fn control(
+        id: impl Into<String>,
+        control_type: &str,
+        name: &str,
+        evidence_refs: Vec<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             kind: "control".to_string(),
@@ -185,7 +190,11 @@ impl Context {
     /// `protects` relation into the given artifact whose source is a
     /// matching `control` entity; otherwise fall back to any matching
     /// `control` entity anywhere in the model.
-    pub fn find_related_control(&self, artifact_id: Option<&str>, control_types: &[&str]) -> Option<&Entity> {
+    pub fn find_related_control(
+        &self,
+        artifact_id: Option<&str>,
+        control_types: &[&str],
+    ) -> Option<&Entity> {
         if let Some(artifact_id) = artifact_id {
             for rel in self.relations_to(artifact_id) {
                 if rel.kind != "protects" {
@@ -344,14 +353,23 @@ mod common_tests {
     fn find_related_control_prefers_protects_relation_over_global_fallback() {
         let ctx = Context::new()
             .with_file("app.mjs", "x")
-            .with_entity(Entity::control("ctrl:1", "egress-allowlist", "global allowlist", vec!["ev:c".into()]))
+            .with_entity(Entity::control(
+                "ctrl:1",
+                "egress-allowlist",
+                "global allowlist",
+                vec!["ev:c".into()],
+            ))
             .with_entity(Entity::control(
                 "ctrl:2",
                 "egress-allowlist",
                 "scoped allowlist",
                 vec!["ev:c2".into()],
             ))
-            .with_relation(Relation { kind: "protects".to_string(), from: "ctrl:2".to_string(), to: "artifact:app.mjs".to_string() });
+            .with_relation(Relation {
+                kind: "protects".to_string(),
+                from: "ctrl:2".to_string(),
+                to: "artifact:app.mjs".to_string(),
+            });
         let found = ctx.find_related_control(Some("artifact:app.mjs"), &["egress-allowlist"]);
         assert_eq!(found.map(|e| e.id.as_str()), Some("ctrl:2"));
     }

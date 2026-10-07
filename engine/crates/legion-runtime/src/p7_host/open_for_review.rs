@@ -20,7 +20,8 @@ pub fn common_parent_dir(paths: &[PathBuf]) -> Option<PathBuf> {
     // the separator on Windows (`RootDir` stringifies to `\`, so joining
     // `["\\", "repo", "docs"]` with `\` produces the UNC-looking
     // `\\repo\docs` instead of `\repo\docs`).
-    let parts: Vec<Vec<std::path::Component>> = paths.iter().map(|p| p.components().collect()).collect();
+    let parts: Vec<Vec<std::path::Component>> =
+        paths.iter().map(|p| p.components().collect()).collect();
     let min_len = parts.iter().map(Vec::len).min().unwrap_or(0);
     let mut common: Vec<std::path::Component> = Vec::new();
     for i in 0..min_len {
@@ -58,7 +59,10 @@ pub fn open_for_review(
 ) -> OpenForReviewOutcome {
     let existing: Vec<PathBuf> = paths.iter().filter(|p| exists(p)).cloned().collect();
     if existing.is_empty() {
-        return OpenForReviewOutcome { ok: false, opened: None };
+        return OpenForReviewOutcome {
+            ok: false,
+            opened: None,
+        };
     }
     let target = if existing.len() == 1 {
         existing[0].clone()
@@ -66,7 +70,10 @@ pub fn open_for_review(
         common_parent_dir(&existing).unwrap_or_else(|| existing[0].clone())
     };
     let ok = launch(&target);
-    OpenForReviewOutcome { ok, opened: Some(target) }
+    OpenForReviewOutcome {
+        ok,
+        opened: Some(target),
+    }
 }
 
 #[cfg(test)]
@@ -109,7 +116,10 @@ mod tests {
     #[test]
     fn open_for_review_opens_common_parent_for_multiple_paths() {
         let outcome = open_for_review(
-            &[PathBuf::from("/repo/docs/a.md"), PathBuf::from("/repo/docs/b.md")],
+            &[
+                PathBuf::from("/repo/docs/a.md"),
+                PathBuf::from("/repo/docs/b.md"),
+            ],
             &|_| true,
             &mut |_| true,
         );

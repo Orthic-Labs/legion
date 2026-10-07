@@ -188,8 +188,16 @@ pub struct PendingTerminalOperationStore {
 }
 
 impl PendingTerminalOperationStore {
-    pub fn new(root: impl Into<PathBuf>, key: Vec<u8>, clock: impl Fn() -> String + Send + Sync + 'static) -> Self {
-        Self { root: root.into(), key, clock: Box::new(clock) }
+    pub fn new(
+        root: impl Into<PathBuf>,
+        key: Vec<u8>,
+        clock: impl Fn() -> String + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            root: root.into(),
+            key,
+            clock: Box::new(clock),
+        }
     }
 
     fn claim_path(&self, claim_id: &str) -> PathBuf {
@@ -200,7 +208,9 @@ impl PendingTerminalOperationStore {
 
     fn transition_path(&self, claim_id: &str, state: &str) -> PathBuf {
         let name = claim_id.get(7..).unwrap_or(claim_id);
-        self.root.join("transitions").join(format!("{name}-{state}.json"))
+        self.root
+            .join("transitions")
+            .join(format!("{name}-{state}.json"))
     }
 
     /// Mint a new, self-signed pending-terminal-operation claim. Callers may
@@ -239,7 +249,10 @@ impl PendingTerminalOperationStore {
         );
         unsigned.insert(
             "highRiskContext".into(),
-            fields.get("highRiskContext").cloned().unwrap_or(Value::Null),
+            fields
+                .get("highRiskContext")
+                .cloned()
+                .unwrap_or(Value::Null),
         );
         unsigned.insert("issuedAt".into(), json!(issued_at));
         unsigned.insert("expiresAt".into(), json!(expires_at));
@@ -287,10 +300,16 @@ impl PendingTerminalOperationStore {
         unsigned.remove("authentication");
         let unsigned_value = Value::Object(unsigned);
         if !verify_record(&unsigned_value, signature, &self.key) {
-            return deny("ARC_BINDING_MISMATCH", "terminal claim authentication invalid");
+            return deny(
+                "ARC_BINDING_MISMATCH",
+                "terminal claim authentication invalid",
+            );
         }
 
-        let claim_id = claim.get("claimId").and_then(Value::as_str).unwrap_or_default();
+        let claim_id = claim
+            .get("claimId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let claim_file = self.claim_path(claim_id);
         let pending_file = self.transition_path(claim_id, "pending");
 
@@ -310,16 +329,26 @@ impl PendingTerminalOperationStore {
         }
         let transition = json!({ "state": "PENDING", "claimId": claim_id, "at": (self.clock)() });
         if write_json_new(&pending_file, &transition).is_err() {
-            return deny("ARC_STORE_CORRUPT", "terminal claim transition could not be persisted");
+            return deny(
+                "ARC_STORE_CORRUPT",
+                "terminal claim transition could not be persisted",
+            );
         }
-        decision(true, None, None, json!({ "claimId": claim_id, "claim": claim }))
+        decision(
+            true,
+            None,
+            None,
+            json!({ "claimId": claim_id, "claim": claim }),
+        )
     }
 
     pub fn matching(&self, turn_correlation_digest: &str, stop_ordinal: i64) -> Option<Value> {
         let dir = self.root.join("claims");
         let entries = fs::read_dir(&dir).ok()?;
         for entry in entries.flatten() {
-            let Ok(value) = read_json(&entry.path()) else { continue };
+            let Ok(value) = read_json(&entry.path()) else {
+                continue;
+            };
             let matches = value.get("turnCorrelationDigest").and_then(Value::as_str)
                 == Some(turn_correlation_digest)
                 && value.get("expectedStopOrdinal").and_then(Value::as_i64) == Some(stop_ordinal);
@@ -339,7 +368,10 @@ impl PendingTerminalOperationStore {
         terminal: bool,
     ) -> Value {
         let Ok(claim) = read_json(&self.claim_path(claim_id)) else {
-            return deny("ARC_CLAIM_PREREQUISITE_UNMET", "pending terminal claim unavailable");
+            return deny(
+                "ARC_CLAIM_PREREQUISITE_UNMET",
+                "pending terminal claim unavailable",
+            );
         };
         let Some(auth) = claim.get("authentication").and_then(Value::as_object) else {
             return deny("ARC_SCHEMA_INVALID", "terminal claim schema invalid");
@@ -350,13 +382,20 @@ impl PendingTerminalOperationStore {
         let mut unsigned = claim.as_object().cloned().unwrap();
         unsigned.remove("authentication");
         if !verify_record(&Value::Object(unsigned), signature, &self.key) {
-            return deny("ARC_BINDING_MISMATCH", "terminal claim authentication invalid");
+            return deny(
+                "ARC_BINDING_MISMATCH",
+                "terminal claim authentication invalid",
+            );
         }
-        let expires_at = claim.get("expiresAt").and_then(Value::as_str).unwrap_or_default();
+        let expires_at = claim
+            .get("expiresAt")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if chrono_like_parse_ms(expires_at) < chrono_like_parse_ms(&(self.clock)()) {
             return deny("ARC_CLAIM_PREREQUISITE_UNMET", "terminal claim expired");
         }
-        if claim.get("turnCorrelationDigest").and_then(Value::as_str) != Some(turn_correlation_digest)
+        if claim.get("turnCorrelationDigest").and_then(Value::as_str)
+            != Some(turn_correlation_digest)
             || claim.get("expectedStopOrdinal").and_then(Value::as_i64) != Some(stop_ordinal)
         {
             return deny("ARC_BINDING_MISMATCH", "Stop does not match pending claim");
@@ -372,12 +411,15 @@ impl PendingTerminalOperationStore {
 
         for other in ["consumed", "abandoned"] {
             if let Ok(prior) = read_json(&self.transition_path(claim_id, other)) {
-                return if prior.get("stopEventDigest").and_then(Value::as_str) == Some(stop_event_digest) {
-                    let certification = if prior.get("state").and_then(Value::as_str) == Some("CONSUMED") {
-                        "genuine"
-                    } else {
-                        "not_claimed"
-                    };
+                return if prior.get("stopEventDigest").and_then(Value::as_str)
+                    == Some(stop_event_digest)
+                {
+                    let certification =
+                        if prior.get("state").and_then(Value::as_str) == Some("CONSUMED") {
+                            "genuine"
+                        } else {
+                            "not_claimed"
+                        };
                     decision(
                         true,
                         None,
@@ -392,10 +434,18 @@ impl PendingTerminalOperationStore {
 
         let file = self.transition_path(claim_id, state);
         if write_json_new(&file, &record).is_err() {
-            return deny("ARC_STORE_CORRUPT", "terminal claim transition could not be persisted");
+            return deny(
+                "ARC_STORE_CORRUPT",
+                "terminal claim transition could not be persisted",
+            );
         }
         let certification = if terminal { "genuine" } else { "not_claimed" };
-        decision(true, None, None, json!({ "record": record, "certification": certification }))
+        decision(
+            true,
+            None,
+            None,
+            json!({ "record": record, "certification": certification }),
+        )
     }
 }
 

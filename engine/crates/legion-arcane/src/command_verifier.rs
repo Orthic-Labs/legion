@@ -8,15 +8,14 @@ fn matches_expected(actual: &Value, expected: &Value) -> bool {
     let (Some(actual), Some(expected)) = (actual.as_object(), expected.as_object()) else {
         return false;
     };
-    expected
-        .iter()
-        .all(|(key, value)| actual.get(key).is_some_and(|actual| matches_expected(actual, value)))
+    expected.iter().all(|(key, value)| {
+        actual
+            .get(key)
+            .is_some_and(|actual| matches_expected(actual, value))
+    })
 }
 
-pub fn verify_command_result(
-    observed: &Value,
-    expected_output: Option<&Value>,
-) -> Value {
+pub fn verify_command_result(observed: &Value, expected_output: Option<&Value>) -> Value {
     let exit_code = observed.get("exitCode").and_then(Value::as_i64);
     if exit_code != Some(0) {
         return decision(

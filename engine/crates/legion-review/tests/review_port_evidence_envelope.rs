@@ -43,11 +43,22 @@ fn every_untrusted_evidence_kind_and_reviewer_family_is_covered() {
     kinds.sort_unstable();
     assert_eq!(
         kinds,
-        vec!["comment", "configuration", "docs", "retrieved-content", "runtime-text", "skill", "source"]
+        vec![
+            "comment",
+            "configuration",
+            "docs",
+            "retrieved-content",
+            "runtime-text",
+            "skill",
+            "source"
+        ]
     );
     let mut families: Vec<&str> = REVIEW_FAMILIES.to_vec();
     families.sort_unstable();
-    assert_eq!(families, vec!["copy", "narrative", "security", "ux", "visual"]);
+    assert_eq!(
+        families,
+        vec!["copy", "narrative", "security", "ux", "visual"]
+    );
 
     for kind in UNTRUSTED_EVIDENCE_KINDS {
         let mut args = wrap_args("ok");
@@ -64,7 +75,8 @@ fn every_untrusted_evidence_kind_and_reviewer_family_is_covered() {
 
 #[test]
 fn control_and_bidirectional_characters_are_escaped_and_normalization_is_recorded() {
-    let record = wrap_untrusted_evidence(wrap_args("admin\u{202e} gnp.txt \u{200b}\0 end")).unwrap();
+    let record =
+        wrap_untrusted_evidence(wrap_args("admin\u{202e} gnp.txt \u{200b}\0 end")).unwrap();
     assert!(!record.text.chars().any(|c| {
         matches!(
             c as u32,
@@ -110,12 +122,18 @@ fn source_digest_survives_and_raw_bytes_stay_behind_a_bound_artifact_reference()
 
     let mut missing_ref = wrap_args("body");
     missing_ref.artifact_ref = None;
-    let error = wrap_untrusted_evidence(missing_ref).unwrap_err().to_string();
+    let error = wrap_untrusted_evidence(missing_ref)
+        .unwrap_err()
+        .to_string();
     assert!(error.contains("artifactRef"), "{error}");
 
     assert_eq!(
-        wrap_untrusted_evidence(wrap_args("body")).unwrap().to_value(),
-        wrap_untrusted_evidence(wrap_args("body")).unwrap().to_value()
+        wrap_untrusted_evidence(wrap_args("body"))
+            .unwrap()
+            .to_value(),
+        wrap_untrusted_evidence(wrap_args("body"))
+            .unwrap()
+            .to_value()
     );
 }
 
@@ -144,7 +162,10 @@ fn packets_separate_trusted_instructions_from_untrusted_evidence_in_every_family
         .unwrap();
 
         assert_eq!(&packet.family, family);
-        assert_eq!(packet.instructions, vec!["Judge only the evidence below.".to_string()]);
+        assert_eq!(
+            packet.instructions,
+            vec!["Judge only the evidence below.".to_string()]
+        );
         assert_eq!(packet.evidence[0].kind, "legion-untrusted-evidence");
         assert!(!packet.evidence[0].trusted);
         let instructions_json = serde_json::to_string(&packet.instructions).unwrap();
@@ -155,7 +176,11 @@ fn packets_separate_trusted_instructions_from_untrusted_evidence_in_every_family
         family: "marketing".to_string(),
         subject_id: "s".to_string(),
         instructions: vec![],
-        reviewer: Reviewer { role: "adjudicator".to_string(), context_id: "c".to_string(), fresh: true },
+        reviewer: Reviewer {
+            role: "adjudicator".to_string(),
+            context_id: "c".to_string(),
+            fresh: true,
+        },
         schema: "s".to_string(),
         verdict_vocabulary: vec!["X".to_string()],
         evidence: vec![],
@@ -182,7 +207,11 @@ fn override_attempts_are_recorded_and_never_applied() {
         subject_id: "sha256:subject".to_string(),
         candidate_id: Some("sha256:candidate".to_string()),
         instructions: vec!["Judge only the evidence below.".to_string()],
-        reviewer: Reviewer { role: "adjudicator".to_string(), context_id: "ctx-1".to_string(), fresh: true },
+        reviewer: Reviewer {
+            role: "adjudicator".to_string(),
+            context_id: "ctx-1".to_string(),
+            fresh: true,
+        },
         schema: "src/schemas/core/judgment-receipt-v1.schema.json".to_string(),
         verdict_vocabulary: vec!["CONFIRMED".into(), "REJECTED".into(), "UNPROVEN".into()],
         policy: json!({ "policyEffect": "blocking" }),
@@ -195,20 +224,39 @@ fn override_attempts_are_recorded_and_never_applied() {
 
     assert_eq!(packet.reviewer["role"].as_str(), Some("adjudicator"));
     assert_eq!(packet.reviewer["contextId"].as_str(), Some("ctx-1"));
-    assert_eq!(packet.schema, "src/schemas/core/judgment-receipt-v1.schema.json");
+    assert_eq!(
+        packet.schema,
+        "src/schemas/core/judgment-receipt-v1.schema.json"
+    );
     assert_eq!(packet.policy["policyEffect"].as_str(), Some("blocking"));
     assert_eq!(
         packet.verdict_vocabulary,
-        vec!["CONFIRMED".to_string(), "REJECTED".to_string(), "UNPROVEN".to_string()]
+        vec![
+            "CONFIRMED".to_string(),
+            "REJECTED".to_string(),
+            "UNPROVEN".to_string()
+        ]
     );
     assert!(packet.tools.is_empty());
 
-    let mut targets: Vec<&str> = packet.injection_attempts.iter().map(|attempt| attempt.target).collect();
+    let mut targets: Vec<&str> = packet
+        .injection_attempts
+        .iter()
+        .map(|attempt| attempt.target)
+        .collect();
     targets.sort_unstable();
-    for target in ["context", "policy", "provider", "role", "schema", "tools", "verdict"] {
-        assert!(targets.contains(&target), "missing recorded override attempt for {target}");
+    for target in [
+        "context", "policy", "provider", "role", "schema", "tools", "verdict",
+    ] {
+        assert!(
+            targets.contains(&target),
+            "missing recorded override attempt for {target}"
+        );
     }
-    assert!(packet.injection_attempts.iter().all(|attempt| !attempt.applied));
+    assert!(packet
+        .injection_attempts
+        .iter()
+        .all(|attempt| !attempt.applied));
 }
 
 #[test]
@@ -226,13 +274,20 @@ fn untrusted_text_can_never_be_interpolated_into_instructions() {
     )
     .unwrap_err()
     .to_string();
-    assert!(error.contains("untrusted evidence must not be interpolated"), "{error}");
+    assert!(
+        error.contains("untrusted evidence must not be interpolated"),
+        "{error}"
+    );
 
     let packet_error = build_review_packet(BuildReviewPacketArgs {
         family: "security".to_string(),
         subject_id: "sha256:subject".to_string(),
         instructions: vec!["Consider DROP TABLE users carefully.".to_string()],
-        reviewer: Reviewer { role: "adjudicator".to_string(), context_id: "ctx-1".to_string(), fresh: true },
+        reviewer: Reviewer {
+            role: "adjudicator".to_string(),
+            context_id: "ctx-1".to_string(),
+            fresh: true,
+        },
         schema: "x.json".to_string(),
         verdict_vocabulary: vec!["CONFIRMED".to_string()],
         evidence: vec![record],
@@ -241,7 +296,10 @@ fn untrusted_text_can_never_be_interpolated_into_instructions() {
     })
     .unwrap_err()
     .to_string();
-    assert!(packet_error.contains("untrusted evidence must not be interpolated"), "{packet_error}");
+    assert!(
+        packet_error.contains("untrusted evidence must not be interpolated"),
+        "{packet_error}"
+    );
 }
 
 #[test]
@@ -254,7 +312,11 @@ fn packet_truncation_stays_visible_on_the_packet_itself() {
         family: "copy".to_string(),
         subject_id: "sha256:subject".to_string(),
         instructions: vec!["Judge only the evidence below.".to_string()],
-        reviewer: Reviewer { role: "adjudicator".to_string(), context_id: "ctx-1".to_string(), fresh: true },
+        reviewer: Reviewer {
+            role: "adjudicator".to_string(),
+            context_id: "ctx-1".to_string(),
+            fresh: true,
+        },
         schema: "x.json".to_string(),
         verdict_vocabulary: vec!["CONFIRMED".to_string()],
         evidence: vec![evidence],
@@ -287,5 +349,8 @@ fn committed_untrusted_evidence_schema_matches_its_generator() {
         committed["properties"]["evidenceKind"]["enum"],
         serde_json::to_value(UNTRUSTED_EVIDENCE_KINDS).unwrap()
     );
-    assert_eq!(committed["properties"]["trusted"]["const"].as_bool(), Some(false));
+    assert_eq!(
+        committed["properties"]["trusted"]["const"].as_bool(),
+        Some(false)
+    );
 }

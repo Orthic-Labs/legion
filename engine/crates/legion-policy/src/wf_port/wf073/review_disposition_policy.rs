@@ -31,10 +31,30 @@ pub struct CoverageDisposition {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReviewDispositionDecision {
-    Invalid { policy: &'static str, reason: &'static str },
-    Handoff { status: Status, disposition: &'static str, reason: &'static str },
-    ExploitChain { status: Status, disposition: &'static str, reason: Option<&'static str>, link_count: Option<usize>, unsupported_link_count: Option<usize>, coverage: CoverageDisposition },
-    ReviewReopen { status: Status, disposition: &'static str, reason: &'static str, advisory_count: Option<usize>, blocking_finding_ids: Vec<String> },
+    Invalid {
+        policy: &'static str,
+        reason: &'static str,
+    },
+    Handoff {
+        status: Status,
+        disposition: &'static str,
+        reason: &'static str,
+    },
+    ExploitChain {
+        status: Status,
+        disposition: &'static str,
+        reason: Option<&'static str>,
+        link_count: Option<usize>,
+        unsupported_link_count: Option<usize>,
+        coverage: CoverageDisposition,
+    },
+    ReviewReopen {
+        status: Status,
+        disposition: &'static str,
+        reason: &'static str,
+        advisory_count: Option<usize>,
+        blocking_finding_ids: Vec<String>,
+    },
 }
 
 impl ReviewDispositionDecision {
@@ -124,7 +144,9 @@ pub struct Coverage {
     pub inspected_areas: Vec<String>,
 }
 
-fn coverage_disposition(coverage: Option<&Coverage>) -> Result<CoverageDisposition, ReviewDispositionDecision> {
+fn coverage_disposition(
+    coverage: Option<&Coverage>,
+) -> Result<CoverageDisposition, ReviewDispositionDecision> {
     let Some(coverage) = coverage else {
         return Err(ReviewDispositionDecision::Invalid {
             policy: "review-coverage",
@@ -144,8 +166,16 @@ fn coverage_disposition(coverage: Option<&Coverage>) -> Result<CoverageDispositi
         .filter(|a| !inspected.contains(a))
         .cloned()
         .collect();
-    let status = if missing.is_empty() { Status::Allow } else { Status::Deny };
-    let disposition = if missing.is_empty() { "COVERAGE_SUPPORTED" } else { "INCOMPLETE_COVERAGE" };
+    let status = if missing.is_empty() {
+        Status::Allow
+    } else {
+        Status::Deny
+    };
+    let disposition = if missing.is_empty() {
+        "COVERAGE_SUPPORTED"
+    } else {
+        "INCOMPLETE_COVERAGE"
+    };
     Ok(CoverageDisposition {
         status,
         disposition,
@@ -191,7 +221,11 @@ fn exploit_chain_decision(evidence: Option<&ExploitChainEvidence>) -> ReviewDisp
         };
     }
     let node_set: std::collections::HashSet<&String> = evidence.nodes.iter().collect();
-    let invalid_links = evidence.links.iter().filter(|l| !demonstrated_link(l, &node_set)).count();
+    let invalid_links = evidence
+        .links
+        .iter()
+        .filter(|l| !demonstrated_link(l, &node_set))
+        .count();
     let coverage = match coverage_disposition(evidence.coverage.as_ref()) {
         Ok(c) => c,
         Err(invalid) => return invalid,
@@ -234,7 +268,10 @@ fn review_reopen_decision(evidence: Option<&ReviewReopenEvidence>) -> ReviewDisp
             reason: "review closure and findings must be explicit",
         };
     };
-    let malformed = evidence.findings.iter().any(|f| !non_empty(&f.id) || !non_empty(&f.disposition));
+    let malformed = evidence
+        .findings
+        .iter()
+        .any(|f| !non_empty(&f.id) || !non_empty(&f.disposition));
     if malformed {
         return ReviewDispositionDecision::Invalid {
             policy: "review-reopen",
@@ -281,7 +318,10 @@ pub enum CaseEvidence<'a> {
     Missing,
 }
 
-pub fn evaluate_review_disposition_case(id: &str, evidence: CaseEvidence) -> Option<ReviewDispositionDecision> {
+pub fn evaluate_review_disposition_case(
+    id: &str,
+    evidence: CaseEvidence,
+) -> Option<ReviewDispositionDecision> {
     match id {
         "AE-HANDOFF-004" => Some(handoff_decision(match evidence {
             CaseEvidence::Handoff(e) => Some(e),
@@ -299,7 +339,10 @@ pub fn evaluate_review_disposition_case(id: &str, evidence: CaseEvidence) -> Opt
     }
 }
 
-pub fn validate_review_disposition_decision(id: &str, decision: &ReviewDispositionDecision) -> bool {
+pub fn validate_review_disposition_decision(
+    id: &str,
+    decision: &ReviewDispositionDecision,
+) -> bool {
     match id {
         "AE-HANDOFF-004" => matches!(
             decision,
@@ -313,7 +356,11 @@ pub fn validate_review_disposition_decision(id: &str, decision: &ReviewDispositi
         ),
         "AE-REVIEW-VERDICT-SECURITY-005" => matches!(
             decision,
-            ReviewDispositionDecision::ReviewReopen { status: Status::Allow, disposition: "NO_REOPEN", .. }
+            ReviewDispositionDecision::ReviewReopen {
+                status: Status::Allow,
+                disposition: "NO_REOPEN",
+                ..
+            }
         ),
         _ => false,
     }

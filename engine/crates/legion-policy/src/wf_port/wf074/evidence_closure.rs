@@ -16,7 +16,9 @@
 //! verbatim as PENDING — and is ported here unchanged.
 
 use crate::wf_port::wf070::canon::{digest_value as architecture_digest_value, CanonVal};
-use crate::wf_port::wf070::state::{apply_architecture_event, create_architecture_state, validate_architecture_state};
+use crate::wf_port::wf070::state::{
+    apply_architecture_event, create_architecture_state, validate_architecture_state,
+};
 use crate::wf_port::wf072::evidence_registry::{
     AcceptanceEntry, AcceptanceEvidenceRegistry, Artifact, FreshnessContext, Lifecycle,
 };
@@ -25,8 +27,8 @@ use crate::wf_port::wf072::gate_validity::{
 };
 use crate::wf_port::wf072::support::{ArcCode, Json as SupportJson};
 use crate::wf_port::wf075::seal_reachability::{
-    compile_seal_reachability, verify_external_provider_capability, ProviderCapability, RecoveryPath,
-    SealRequirement,
+    compile_seal_reachability, verify_external_provider_capability, ProviderCapability,
+    RecoveryPath, SealRequirement,
 };
 
 /// `NOW = new Date('2026-08-14T00:00:00.000Z')` in the JS source.
@@ -130,7 +132,10 @@ pub enum EvidenceClosureResult {
 pub fn execute_evidence_closure_runtime_case(id: &str) -> EvidenceClosureResult {
     if let Some(&sid) = SUPPORTED_IDS.iter().find(|&&i| i == id) {
         return match run_supported_case(sid) {
-            Ok(integrated_state_identity) => EvidenceClosureResult::Accepted { id: sid, integrated_state_identity },
+            Ok(integrated_state_identity) => EvidenceClosureResult::Accepted {
+                id: sid,
+                integrated_state_identity,
+            },
             Err(reason) => EvidenceClosureResult::Failed {
                 id: sid,
                 reason: format!("production binding failed: {reason}"),
@@ -163,7 +168,9 @@ fn observed_state(case_id: &str, event_type: &str, payload: CanonVal) -> Result<
         .set("intent_epoch", CanonVal::Int(1))
         .set(
             "acceptance_fingerprint",
-            CanonVal::Str(architecture_digest_value(&CanonVal::Str(case_id.to_string()))),
+            CanonVal::Str(architecture_digest_value(&CanonVal::Str(
+                case_id.to_string(),
+            ))),
         )
         .set("frozen_at", CanonVal::Str(NOW_ISO.to_string()))
         .set("items", CanonVal::Arr(vec![]));
@@ -212,8 +219,15 @@ fn case_evidence_artifacts_001() -> Result<String, String> {
     let payload = CanonVal::obj()
         .set("id", CanonVal::Str("dashboard".to_string()))
         .set("admission", CanonVal::Str("INFORMATIONAL_ONLY".to_string()))
-        .set("verifierCode", CanonVal::Str(result.code.unwrap_or_default().to_string()));
-    observed_state("AE-EVIDENCE-ARTIFACTS-001", "ARTIFACT_ENVELOPE_RECORDED", payload)
+        .set(
+            "verifierCode",
+            CanonVal::Str(result.code.unwrap_or_default().to_string()),
+        );
+    observed_state(
+        "AE-EVIDENCE-ARTIFACTS-001",
+        "ARTIFACT_ENVELOPE_RECORDED",
+        payload,
+    )
 }
 
 fn case_evidence_artifacts_002() -> Result<String, String> {
@@ -239,18 +253,23 @@ fn case_evidence_artifacts_002() -> Result<String, String> {
     if capability.deletion_owner.is_none() {
         missing.push(CanonVal::Str("deletionOwner".to_string()));
     }
-    let has_deletion_owner_missing = missing
-        .iter()
-        .any(|v| v.as_str() == Some("deletionOwner"));
+    let has_deletion_owner_missing = missing.iter().any(|v| v.as_str() == Some("deletionOwner"));
     if result.code != Some("ARC_UNSOUND_SEAL") || !has_deletion_owner_missing {
         return Err("trace without deletion owner was admitted".to_string());
     }
     let payload = CanonVal::obj()
         .set("id", CanonVal::Str("sensitive-trace".to_string()))
         .set("admission", CanonVal::Str("DENIED".to_string()))
-        .set("verifierCode", CanonVal::Str(result.code.unwrap_or_default().to_string()))
+        .set(
+            "verifierCode",
+            CanonVal::Str(result.code.unwrap_or_default().to_string()),
+        )
         .set("missing", CanonVal::Arr(missing));
-    observed_state("AE-EVIDENCE-ARTIFACTS-002", "ARTIFACT_ENVELOPE_RECORDED", payload)
+    observed_state(
+        "AE-EVIDENCE-ARTIFACTS-002",
+        "ARTIFACT_ENVELOPE_RECORDED",
+        payload,
+    )
 }
 
 fn case_evidence_freshness_001() -> Result<String, String> {
@@ -298,9 +317,18 @@ fn case_evidence_freshness_001() -> Result<String, String> {
         .set("completion", CanonVal::Str("CANDIDATE".to_string()))
         .set(
             "verifierCode",
-            CanonVal::Str(check.code.map(|c| c.as_str().to_string()).unwrap_or_default()),
+            CanonVal::Str(
+                check
+                    .code
+                    .map(|c| c.as_str().to_string())
+                    .unwrap_or_default(),
+            ),
         );
-    observed_state("AE-EVIDENCE-FRESHNESS-001", "EVIDENCE_LIFECYCLE_RECORDED", payload)
+    observed_state(
+        "AE-EVIDENCE-FRESHNESS-001",
+        "EVIDENCE_LIFECYCLE_RECORDED",
+        payload,
+    )
 }
 
 fn s11_gate_contract() -> GateContract {
@@ -313,30 +341,72 @@ fn s11_gate_contract() -> GateContract {
         gates: true,
         authority: "oracle".to_string(),
         failure_semantics: "deny".to_string(),
-        payload: SupportJson::Obj(vec![("id".to_string(), SupportJson::str("s11-evidence-closure-gate"))]),
+        payload: SupportJson::Obj(vec![(
+            "id".to_string(),
+            SupportJson::str("s11-evidence-closure-gate"),
+        )]),
     }
 }
 
 fn gate_fixture(id: &str) -> Fixture {
-    Fixture { id: id.to_string(), payload: SupportJson::str(id) }
+    Fixture {
+        id: id.to_string(),
+        payload: SupportJson::str(id),
+    }
 }
 
 fn case_gate_validity_001() -> Result<String, String> {
     let contract = s11_gate_contract();
     let fixtures: Vec<(&'static str, Option<(Fixture, ExecResult)>)> = vec![
-        ("knownGood", Some((gate_fixture("good"), ExecResult { status: ExecResultStatus::Pass }))),
-        ("knownBad", Some((gate_fixture("bad"), ExecResult { status: ExecResultStatus::Fail }))),
-        ("empty", Some((gate_fixture("empty"), ExecResult { status: ExecResultStatus::Fail }))),
-        ("malformed", Some((gate_fixture("malformed"), ExecResult { status: ExecResultStatus::Fail }))),
+        (
+            "knownGood",
+            Some((
+                gate_fixture("good"),
+                ExecResult {
+                    status: ExecResultStatus::Pass,
+                },
+            )),
+        ),
+        (
+            "knownBad",
+            Some((
+                gate_fixture("bad"),
+                ExecResult {
+                    status: ExecResultStatus::Fail,
+                },
+            )),
+        ),
+        (
+            "empty",
+            Some((
+                gate_fixture("empty"),
+                ExecResult {
+                    status: ExecResultStatus::Fail,
+                },
+            )),
+        ),
+        (
+            "malformed",
+            Some((
+                gate_fixture("malformed"),
+                ExecResult {
+                    status: ExecResultStatus::Fail,
+                },
+            )),
+        ),
     ];
     let validity = validate_gate(&contract, &fixtures).map_err(|e| e.message)?;
     let result = execute_validated_gate(&contract, Some(&validity), &[], &[]);
-    let is_inconclusive = result.detail.get("gateStatus").map(String::as_str) == Some("INCONCLUSIVE");
+    let is_inconclusive =
+        result.detail.get("gateStatus").map(String::as_str) == Some("INCONCLUSIVE");
     if result.code != Some(ArcCode::ArcEvidenceInsufficient) || !is_inconclusive {
         return Err("zero-item blocking gate passed".to_string());
     }
     let status = result.detail.get("gateStatus").cloned().unwrap_or_default();
-    let verifier_code = result.code.map(|c| c.as_str().to_string()).unwrap_or_default();
+    let verifier_code = result
+        .code
+        .map(|c| c.as_str().to_string())
+        .unwrap_or_default();
     let payload = CanonVal::obj()
         .set("id", CanonVal::Str(contract.id.clone()))
         .set("status", CanonVal::Str(status))
@@ -347,7 +417,15 @@ fn case_gate_validity_001() -> Result<String, String> {
 fn case_gate_validity_002() -> Result<String, String> {
     let contract = s11_gate_contract();
     let fixtures: Vec<(&'static str, Option<(Fixture, ExecResult)>)> = vec![
-        ("knownGood", Some((gate_fixture("good"), ExecResult { status: ExecResultStatus::Pass }))),
+        (
+            "knownGood",
+            Some((
+                gate_fixture("good"),
+                ExecResult {
+                    status: ExecResultStatus::Pass,
+                },
+            )),
+        ),
         ("knownBad", None),
         ("empty", None),
         ("malformed", None),
@@ -356,8 +434,14 @@ fn case_gate_validity_002() -> Result<String, String> {
         Ok(_) => return Err("incomplete gate self-test remained enabled".to_string()),
         Err(e) => e,
     };
-    let machinery_defect = err.detail.get("machineryDefect").cloned().unwrap_or_default();
-    if err.code != Some(ArcCode::ArcGateInvalid) || machinery_defect != "OUT_OF_SCOPE_MACHINERY_DEFECT" {
+    let machinery_defect = err
+        .detail
+        .get("machineryDefect")
+        .cloned()
+        .unwrap_or_default();
+    if err.code != Some(ArcCode::ArcGateInvalid)
+        || machinery_defect != "OUT_OF_SCOPE_MACHINERY_DEFECT"
+    {
         return Err("incomplete gate self-test remained enabled".to_string());
     }
     let payload = CanonVal::obj()
@@ -395,8 +479,15 @@ fn case_seal_reachability_001() -> Result<String, String> {
     let payload = CanonVal::obj()
         .set("id", CanonVal::Str("required-schema".to_string()))
         .set("status", CanonVal::Str("UNSOUND_SEAL".to_string()))
-        .set("verifierCode", CanonVal::Str(result.code.unwrap_or_default().to_string()));
-    observed_state("AE-SEAL-REACHABILITY-001", "EVIDENCE_LIFECYCLE_RECORDED", payload)
+        .set(
+            "verifierCode",
+            CanonVal::Str(result.code.unwrap_or_default().to_string()),
+        );
+    observed_state(
+        "AE-SEAL-REACHABILITY-001",
+        "EVIDENCE_LIFECYCLE_RECORDED",
+        payload,
+    )
 }
 
 #[cfg(test)]
@@ -408,7 +499,10 @@ mod tests {
     fn every_supported_id_is_accepted_with_a_real_state_fingerprint() {
         for id in SUPPORTED_IDS {
             match execute_evidence_closure_runtime_case(id) {
-                EvidenceClosureResult::Accepted { integrated_state_identity, .. } => {
+                EvidenceClosureResult::Accepted {
+                    integrated_state_identity,
+                    ..
+                } => {
                     assert!(!integrated_state_identity.is_empty());
                 }
                 other => panic!("{id}: expected Accepted, got {other:?}"),
@@ -435,7 +529,11 @@ mod tests {
         assert_eq!(unsupported.len(), 12);
         for id in unsupported {
             match execute_evidence_closure_runtime_case(id) {
-                EvidenceClosureResult::Pending { reason, missing_capability, .. } => {
+                EvidenceClosureResult::Pending {
+                    reason,
+                    missing_capability,
+                    ..
+                } => {
                     assert!(reason.starts_with("missing production capability: "));
                     assert!(reason.ends_with(missing_capability));
                 }
@@ -447,7 +545,9 @@ mod tests {
     #[test]
     fn deficit_propagation_002_names_debt_conversion_guard() {
         match execute_evidence_closure_runtime_case("AE-DEFICIT-PROPAGATION-002") {
-            EvidenceClosureResult::Pending { missing_capability, .. } => {
+            EvidenceClosureResult::Pending {
+                missing_capability, ..
+            } => {
                 assert_eq!(
                     missing_capability,
                     "required correctness/safety debt-conversion guard"
@@ -514,8 +614,10 @@ mod tests {
     fn accepted_cases_produce_distinct_state_fingerprints() {
         let mut seen: BTreeMap<&str, String> = BTreeMap::new();
         for id in SUPPORTED_IDS {
-            if let EvidenceClosureResult::Accepted { integrated_state_identity, .. } =
-                execute_evidence_closure_runtime_case(id)
+            if let EvidenceClosureResult::Accepted {
+                integrated_state_identity,
+                ..
+            } = execute_evidence_closure_runtime_case(id)
             {
                 for (other_id, other_fp) in &seen {
                     assert_ne!(

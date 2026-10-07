@@ -164,7 +164,10 @@ fn doctor_json_preserves_machine_shape_and_host_capability_flags() {
     let fixture = Fixture::new();
     let output = fixture.run_with_env(
         &["doctor", ".", "--json"],
-        &[("AUDIT_NETWORK_GUARD", "active"), ("AUDIT_PLAN_SIGNING_KEY", "fixture-key")],
+        &[
+            ("AUDIT_NETWORK_GUARD", "active"),
+            ("AUDIT_PLAN_SIGNING_KEY", "fixture-key"),
+        ],
     );
     assert_eq!(output.status.code(), Some(0));
     let report = output_json(&output);
@@ -199,9 +202,17 @@ fn doctor_reports_missing_binding_and_legacy_mcp_migrations() {
     assert_eq!(output.status.code(), Some(0));
     let report = output_json(&output);
     assert_eq!(report["binding"]["receiptPresent"], false);
-    assert_eq!(report["naming"]["bindings"]["claudeCode"]["status"], "legacy-present");
-    assert_eq!(report["naming"]["bindings"]["codex"]["status"], "legacy-present");
-    assert!(report["gaps"].as_array().unwrap().iter().any(|gap| {
-        gap["kind"] == "naming-migration-pending"
-    }));
+    assert_eq!(
+        report["naming"]["bindings"]["claudeCode"]["status"],
+        "legacy-present"
+    );
+    assert_eq!(
+        report["naming"]["bindings"]["codex"]["status"],
+        "legacy-present"
+    );
+    assert!(report["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| { gap["kind"] == "naming-migration-pending" }));
 }

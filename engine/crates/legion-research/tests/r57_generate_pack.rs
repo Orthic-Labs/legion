@@ -16,12 +16,7 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir(label: &str) -> PathBuf {
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let dir = std::env::temp_dir().join(format!(
-        "r57-{}-{}-{}",
-        std::process::id(),
-        label,
-        n
-    ));
+    let dir = std::env::temp_dir().join(format!("r57-{}-{}-{}", std::process::id(), label, n));
     std::fs::create_dir_all(&dir).expect("create temp dir");
     dir
 }
@@ -159,7 +154,10 @@ fn annexure_range_spans_first_to_last_id() {
     let dir = temp_dir("annex-range");
     let yaml = case_yaml_for(&dir);
     let case: serde_yaml::Value = serde_yaml::from_str(&yaml).unwrap();
-    assert_eq!(builders::annexure_range(&case).as_deref(), Some("A-1 to A-2"));
+    assert_eq!(
+        builders::annexure_range(&case).as_deref(),
+        Some("A-1 to A-2")
+    );
 }
 
 #[test]

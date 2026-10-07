@@ -147,7 +147,11 @@ where
 /// [`profile_findings`] but always records `findings: 0` (no finding-count
 /// tracking), matching the JS `finally` block that always fires even on
 /// callback error/panic being out of scope for a pure Rust closure.
-pub fn profile_step<T, F>(profile: Option<&mut DetectorProfile>, meta: &ProfileMeta, callback: F) -> T
+pub fn profile_step<T, F>(
+    profile: Option<&mut DetectorProfile>,
+    meta: &ProfileMeta,
+    callback: F,
+) -> T
 where
     F: FnOnce() -> T,
 {

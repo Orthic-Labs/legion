@@ -8,13 +8,20 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::json;
 
-use super::prepare::{assembled_release, prepare_windows_archive, release_version, source_revision, windows_target_identity, PrepareOptions};
+use super::prepare::{
+    assembled_release, prepare_windows_archive, release_version, source_revision,
+    windows_target_identity, PrepareOptions,
+};
 use crate::windows_release_support::sha256_prefixed;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("legion-package-windows-{}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::SeqCst)));
+    let dir = std::env::temp_dir().join(format!(
+        "legion-package-windows-{}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::SeqCst)
+    ));
     fs::create_dir_all(&dir).unwrap();
     dir
 }
@@ -23,16 +30,39 @@ fn write_repo_fixture(root: &std::path::Path, version: &str) {
     fs::create_dir_all(root.join("release")).unwrap();
     fs::write(
         root.join("release").join("version.json"),
-        serde_json::to_string(&json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": version })).unwrap(),
+        serde_json::to_string(
+            &json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": version }),
+        )
+        .unwrap(),
     )
     .unwrap();
     // A throwaway git repo so `source_revision` (git rev-parse HEAD) resolves.
-    std::process::Command::new("git").args(["init", "-q"]).current_dir(root).status().unwrap();
-    std::process::Command::new("git").args(["config", "user.email", "test@example.com"]).current_dir(root).status().unwrap();
-    std::process::Command::new("git").args(["config", "user.name", "test"]).current_dir(root).status().unwrap();
+    std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(root)
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(root)
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.name", "test"])
+        .current_dir(root)
+        .status()
+        .unwrap();
     fs::write(root.join("release").join(".keep"), "x").unwrap();
-    std::process::Command::new("git").args(["add", "-A"]).current_dir(root).status().unwrap();
-    std::process::Command::new("git").args(["commit", "-q", "-m", "init"]).current_dir(root).status().unwrap();
+    std::process::Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(root)
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["commit", "-q", "-m", "init"])
+        .current_dir(root)
+        .status()
+        .unwrap();
 }
 
 fn write_assembled_fixture(root: &std::path::Path, version: &str) {
@@ -109,12 +139,18 @@ fn prepare_windows_archive_builds_a_zip() {
             assert_eq!(value["status"], "archive-prepared");
             assert_eq!(value["releaseVersion"], "1.2.3");
             let archive = value["archive"].as_str().unwrap();
-            assert!(std::path::Path::new(archive).is_file(), "archive must exist: {archive}");
+            assert!(
+                std::path::Path::new(archive).is_file(),
+                "archive must exist: {archive}"
+            );
         }
         Err(error) => {
             // A sandboxed CI runner without a usable `tar` on PATH is the
             // only expected failure mode here; anything else is a real bug.
-            assert!(error.contains("tar") || error.contains("portable archive"), "unexpected error: {error}");
+            assert!(
+                error.contains("tar") || error.contains("portable archive"),
+                "unexpected error: {error}"
+            );
         }
     }
     let _ = fs::remove_dir_all(&root);

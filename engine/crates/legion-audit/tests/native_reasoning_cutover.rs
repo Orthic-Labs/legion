@@ -91,25 +91,34 @@ fn result(request: &ReasoningInvocation) -> ProviderResult {
     let mut details = BTreeMap::new();
     match request.provider_id.as_str() {
         "reasoning.architecture" => {
-            details.insert("changeRisk".into(), json!({
-                "reversibility": "unknown",
-                "blastRadius": "whole repository",
-                "reason": "fixture has no diff context",
-                "beforeEvidence": [],
-                "afterEvidence": []
-            }));
+            details.insert(
+                "changeRisk".into(),
+                json!({
+                    "reversibility": "unknown",
+                    "blastRadius": "whole repository",
+                    "reason": "fixture has no diff context",
+                    "beforeEvidence": [],
+                    "afterEvidence": []
+                }),
+            );
         }
         "reasoning.correctness" => {
-            details.insert("semanticReview".into(), json!({
-                "axis": "spec", "status": "pass", "reason": "fixture source reviewed",
-                "sources": [{"location": "src/lib.rs:1", "quote": "fixture source"}]
-            }));
+            details.insert(
+                "semanticReview".into(),
+                json!({
+                    "axis": "spec", "status": "pass", "reason": "fixture source reviewed",
+                    "sources": [{"location": "src/lib.rs:1", "quote": "fixture source"}]
+                }),
+            );
         }
         "reasoning.ai-slop" => {
-            details.insert("semanticReview".into(), json!({
-                "axis": "standards", "status": "pass", "reason": "fixture source reviewed",
-                "sources": [{"location": "src/lib.rs:1", "quote": "fixture source"}]
-            }));
+            details.insert(
+                "semanticReview".into(),
+                json!({
+                    "axis": "standards", "status": "pass", "reason": "fixture source reviewed",
+                    "sources": [{"location": "src/lib.rs:1", "quote": "fixture source"}]
+                }),
+            );
         }
         _ => {}
     }
@@ -191,16 +200,19 @@ impl ReasoningHost for OrphanDetailFindingHost {
         request: &ReasoningInvocation,
     ) -> Result<ReasoningHostResponse, ReasoningHostError> {
         let mut result = result(request);
-        result.details.insert("lensFindings".into(), json!([{
-            "id": "orphan",
-            "lens": "architecture",
-            "severity": "medium",
-            "confidence": "likely",
-            "evidence": ["src/lib.rs:1"],
-            "failureScenario": "architecture finding",
-            "action": "review boundary",
-            "verifyStatus": "unverified"
-        }]));
+        result.details.insert(
+            "lensFindings".into(),
+            json!([{
+                "id": "orphan",
+                "lens": "architecture",
+                "severity": "medium",
+                "confidence": "likely",
+                "evidence": ["src/lib.rs:1"],
+                "failureScenario": "architecture finding",
+                "action": "review boundary",
+                "verifyStatus": "unverified"
+            }]),
+        );
         let receipt = signed_receipt(request, &result);
         Ok(ReasoningHostResponse { result, receipt })
     }
@@ -256,23 +268,38 @@ fn signed_host_result_is_bound_and_reaches_report_execution() {
 fn diff_review_cannot_claim_whole_repo_non_applicability() {
     struct NonApplicableHost;
     impl ReasoningHost for NonApplicableHost {
-        fn invoke(&self, request: &ReasoningInvocation) -> Result<ReasoningHostResponse, ReasoningHostError> {
+        fn invoke(
+            &self,
+            request: &ReasoningInvocation,
+        ) -> Result<ReasoningHostResponse, ReasoningHostError> {
             let mut result = result(request);
-            result.details.insert("semanticReview".into(), json!({
-                "axis":"spec", "status":"not-applicable",
-                "reason":"No supplied specification", "sources":[]
-            }));
-            Ok(ReasoningHostResponse { receipt: signed_receipt(request, &result), result })
+            result.details.insert(
+                "semanticReview".into(),
+                json!({
+                    "axis":"spec", "status":"not-applicable",
+                    "reason":"No supplied specification", "sources":[]
+                }),
+            );
+            Ok(ReasoningHostResponse {
+                receipt: signed_receipt(request, &result),
+                result,
+            })
         }
     }
     let inventory = inventory();
     let mut provider = spec("reasoning.correctness");
     provider.reasoning["reviewContext"]["mode"] = json!("diff");
-    let plan = AuditPlan::compile(&inventory, &[provider]).unwrap().freeze(Some(KEY)).unwrap();
+    let plan = AuditPlan::compile(&inventory, &[provider])
+        .unwrap()
+        .freeze(Some(KEY))
+        .unwrap();
     let executor = ReasoningProviderExecutor::new(".", Arc::new(NonApplicableHost), KEY.to_vec());
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert!(!report.results[0].result.complete);
-    assert!(report.gaps.iter().any(|gap| gap.contains("frozen whole-repo context")));
+    assert!(report
+        .gaps
+        .iter()
+        .any(|gap| gap.contains("frozen whole-repo context")));
 }
 
 #[test]
@@ -294,10 +321,14 @@ fn receipt_tampering_is_rejected_and_cannot_complete_provider() {
 #[test]
 fn detail_finding_without_top_level_projection_is_rejected() {
     let (plan, inventory) = plan("reasoning.architecture");
-    let executor = ReasoningProviderExecutor::new(".", Arc::new(OrphanDetailFindingHost), KEY.to_vec());
+    let executor =
+        ReasoningProviderExecutor::new(".", Arc::new(OrphanDetailFindingHost), KEY.to_vec());
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert!(!report.results[0].result.complete);
-    assert!(report.gaps.iter().any(|gap| gap.contains("absent from top-level findings")));
+    assert!(report
+        .gaps
+        .iter()
+        .any(|gap| gap.contains("absent from top-level findings")));
 }
 
 #[test]
@@ -336,11 +367,21 @@ fn replay_and_missing_host_are_typed_incomplete_results() {
 #[test]
 fn every_reasoning_id_executes_through_the_shared_native_registry() {
     let inventory = inventory();
-    let specs = REASONING_PROVIDER_IDS.iter().map(|id| spec(id)).collect::<Vec<_>>();
-    let plan = AuditPlan::compile(&inventory, &specs).unwrap().freeze(Some(KEY)).unwrap();
-    let host = Arc::new(FixtureHost { calls: AtomicUsize::new(0), tamper: false });
-    let executor = legion_audit::NativeProviderRegistry::new(".")
-        .with_reasoning(ReasoningProviderExecutor::new(".", host.clone(), KEY.to_vec()));
+    let specs = REASONING_PROVIDER_IDS
+        .iter()
+        .map(|id| spec(id))
+        .collect::<Vec<_>>();
+    let plan = AuditPlan::compile(&inventory, &specs)
+        .unwrap()
+        .freeze(Some(KEY))
+        .unwrap();
+    let host = Arc::new(FixtureHost {
+        calls: AtomicUsize::new(0),
+        tamper: false,
+    });
+    let executor = legion_audit::NativeProviderRegistry::new(".").with_reasoning(
+        ReasoningProviderExecutor::new(".", host.clone(), KEY.to_vec()),
+    );
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert_eq!(host.calls.load(Ordering::SeqCst), 17);
     assert_eq!(report.results.len(), 17);
@@ -351,22 +392,36 @@ fn every_reasoning_id_executes_through_the_shared_native_registry() {
 #[test]
 fn missing_trust_key_prevents_the_host_call() {
     let (plan, inventory) = plan("reasoning.architecture");
-    let host = Arc::new(FixtureHost { calls: AtomicUsize::new(0), tamper: false });
+    let host = Arc::new(FixtureHost {
+        calls: AtomicUsize::new(0),
+        tamper: false,
+    });
     let executor = ReasoningProviderExecutor::new(".", host.clone(), Vec::new());
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert_eq!(host.calls.load(Ordering::SeqCst), 0);
     assert!(!report.results[0].result.complete);
-    assert!(report.gaps.iter().any(|gap| gap.contains("verification key is unavailable")));
+    assert!(report
+        .gaps
+        .iter()
+        .any(|gap| gap.contains("verification key is unavailable")));
 }
 
 struct CachedHost(std::sync::Mutex<Option<ReasoningHostResponse>>);
 
 impl ReasoningHost for CachedHost {
-    fn invoke(&self, request: &ReasoningInvocation) -> Result<ReasoningHostResponse, ReasoningHostError> {
+    fn invoke(
+        &self,
+        request: &ReasoningInvocation,
+    ) -> Result<ReasoningHostResponse, ReasoningHostError> {
         let mut cached = self.0.lock().unwrap();
-        if let Some(response) = cached.as_ref() { return Ok(response.clone()); }
+        if let Some(response) = cached.as_ref() {
+            return Ok(response.clone());
+        }
         let result = result(request);
-        let response = ReasoningHostResponse { receipt: signed_receipt(request, &result), result };
+        let response = ReasoningHostResponse {
+            receipt: signed_receipt(request, &result),
+            result,
+        };
         *cached = Some(response.clone());
         Ok(response)
     }
@@ -382,13 +437,20 @@ fn a_new_executor_rejects_a_previously_signed_review_receipt() {
     let second = ReasoningProviderExecutor::new(".", host, KEY.to_vec());
     let second_report = legion_audit::execute(&plan, &inventory, &second).unwrap();
     assert!(!second_report.results[0].result.complete);
-    assert!(second_report.gaps.iter().any(|gap| gap.contains("reasoning receipt rejected")));
+    assert!(second_report
+        .gaps
+        .iter()
+        .any(|gap| gap.contains("reasoning receipt rejected")));
 }
 
 struct UnauthenticatedExecutor(AtomicUsize);
 
 impl ProviderExecutor for UnauthenticatedExecutor {
-    fn execute(&self, _: &legion_audit::AuditProvider, _: &InventoryEnvelope) -> Result<ProviderResult, legion_audit::AuditError> {
+    fn execute(
+        &self,
+        _: &legion_audit::AuditProvider,
+        _: &InventoryEnvelope,
+    ) -> Result<ProviderResult, legion_audit::AuditError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         panic!("unbound host-service path must not be invoked");
     }
@@ -401,5 +463,8 @@ fn generic_executors_cannot_bypass_reasoning_authentication() {
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert_eq!(executor.0.load(Ordering::SeqCst), 0);
     assert!(!report.results[0].result.complete);
-    assert!(report.gaps.iter().any(|gap| gap.contains("authenticated plan-bound executor")));
+    assert!(report
+        .gaps
+        .iter()
+        .any(|gap| gap.contains("authenticated plan-bound executor")));
 }

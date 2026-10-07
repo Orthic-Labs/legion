@@ -80,7 +80,10 @@ pub fn state_paths(workspace: &Path) -> StatePaths {
 /// ever changed).
 pub fn key_hex(domain: &str, values: &[String]) -> Result<String, CanonicalError> {
     let digest = canonical_digest(&json!({ "domain": domain, "values": values }))?;
-    Ok(digest.strip_prefix("sha256:").unwrap_or(digest.as_str()).to_owned())
+    Ok(digest
+        .strip_prefix("sha256:")
+        .unwrap_or(digest.as_str())
+        .to_owned())
 }
 
 /// JS `stateFile(dir, domain, values) => join(dir, \`${keyHex(...)}.json\`)`.
@@ -95,10 +98,7 @@ mod tests {
 
     #[test]
     fn state_root_joins_dot_audit_arcane() {
-        assert_eq!(
-            state_root(Path::new("/ws")),
-            Path::new("/ws/.audit/arcane")
-        );
+        assert_eq!(state_root(Path::new("/ws")), Path::new("/ws/.audit/arcane"));
     }
 
     #[test]
@@ -144,7 +144,10 @@ mod tests {
         assert_eq!(hex.len(), 64);
         assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
         let hex2 = key_hex("domain", &["a".to_string(), "b".to_string()]).unwrap();
-        assert_eq!(hex, hex2, "digest must be deterministic for identical input");
+        assert_eq!(
+            hex, hex2,
+            "digest must be deterministic for identical input"
+        );
     }
 
     #[test]

@@ -743,11 +743,15 @@ fn terminate_probe_tree(child: &mut Child) {
     #[cfg(unix)]
     let _ = Command::new("/bin/kill")
         .args(["-KILL", "--", &format!("-{}", child.id())])
-        .stdout(Stdio::null()).stderr(Stdio::null()).status();
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
     #[cfg(windows)]
     let _ = Command::new("taskkill")
         .args(["/PID", &child.id().to_string(), "/T", "/F"])
-        .stdout(Stdio::null()).stderr(Stdio::null()).status();
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
     let _ = child.kill();
 }
 
@@ -1057,11 +1061,17 @@ fn entrypoint_inventory() {
         .expect("diagnostic requires workflow-created network namespace");
     let isolated_network = std::fs::read_link("/proc/self/ns/net")
         .expect("diagnostic requires Linux network namespace evidence")
-        .display().to_string();
-    assert_ne!(original_network, isolated_network, "network namespace was not isolated");
+        .display()
+        .to_string();
+    assert_ne!(
+        original_network, isolated_network,
+        "network namespace was not isolated"
+    );
     let routes = std::fs::read_to_string("/proc/net/route").expect("read isolated IPv4 routes");
-    assert!(routes.lines().skip(1).all(|line| line.trim().is_empty()),
-        "isolated namespace unexpectedly contains network routes");
+    assert!(
+        routes.lines().skip(1).all(|line| line.trim().is_empty()),
+        "isolated namespace unexpectedly contains network routes"
+    );
     let root = std::env::temp_dir().join(format!(
         "legion-entrypoint-inventory-{}-{}",
         std::process::id(),
@@ -1140,7 +1150,11 @@ fn entrypoint_inventory() {
             "legion",
             legion.as_deref(),
             &invocation,
-            if probe.reason.is_some() { "isolated_precondition" } else { probe.mode.label() },
+            if probe.reason.is_some() {
+                "isolated_precondition"
+            } else {
+                probe.mode.label()
+            },
             None,
             &root,
             row_id,
@@ -1209,8 +1223,10 @@ fn entrypoint_inventory() {
         );
         row_id += 1;
         // Clap adds a synthetic help subcommand outside the declared command enum.
-        let discovered: Vec<_> = command_names_from_help(&help_text).into_iter()
-            .filter(|name| name != "help").collect();
+        let discovered: Vec<_> = command_names_from_help(&help_text)
+            .into_iter()
+            .filter(|name| name != "help")
+            .collect();
         rows.push(discovery);
         if binary.is_some() && discovered.is_empty() {
             structural_errors.push(format!("could not parse {label} --help command inventory"));
@@ -1232,8 +1248,10 @@ fn entrypoint_inventory() {
                 structural_errors.push(format!("{label} --help omitted command {name}"));
             }
         }
-        let commands: BTreeSet<String> = commands.into_iter()
-            .chain(expected.iter().map(|name| (*name).to_string())).collect();
+        let commands: BTreeSet<String> = commands
+            .into_iter()
+            .chain(expected.iter().map(|name| (*name).to_string()))
+            .collect();
         for command_name in commands {
             let args = vec![command_name.clone(), "--help".to_string()];
             rows.push(row(

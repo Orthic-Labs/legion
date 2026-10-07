@@ -38,12 +38,16 @@ fn browser_surface_receipt_passes_when_ready_and_undeclared_free() {
     assert_eq!(receipt["complete"], true);
     assert_eq!(receipt["shallow"], false);
     assert!(receipt["undeclaredActions"].as_array().unwrap().is_empty());
-    assert!(receipt["undeclaredDestinations"].as_array().unwrap().is_empty());
+    assert!(receipt["undeclaredDestinations"]
+        .as_array()
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
 fn browser_surface_receipt_blocks_on_undeclared_action_and_destination() {
-    let spec = json!({"surfaceId": "s", "allowedActions": ["click"], "allowedDestinations": ["a.com"]});
+    let spec =
+        json!({"surfaceId": "s", "allowedActions": ["click"], "allowedDestinations": ["a.com"]});
     let observation = json!({
         "ready": true,
         "reachedMeaningfulState": true,
@@ -75,10 +79,17 @@ fn browser_surface_receipt_unproven_when_shallow_or_not_ready() {
 fn browser_surface_receipt_blocked_on_failed_launch_or_missing_credentials() {
     let spec = json!({"surfaceId": "s"});
     let observation = json!({"ready": true, "reachedMeaningfulState": true, "failedLaunch": true});
-    assert_eq!(build_browser_surface_receipt(&spec, &observation)["status"], "blocked");
+    assert_eq!(
+        build_browser_surface_receipt(&spec, &observation)["status"],
+        "blocked"
+    );
 
-    let observation2 = json!({"ready": true, "reachedMeaningfulState": true, "credentialsMissing": true});
-    assert_eq!(build_browser_surface_receipt(&spec, &observation2)["status"], "blocked");
+    let observation2 =
+        json!({"ready": true, "reachedMeaningfulState": true, "credentialsMissing": true});
+    assert_eq!(
+        build_browser_surface_receipt(&spec, &observation2)["status"],
+        "blocked"
+    );
 }
 
 #[test]
@@ -94,7 +105,10 @@ fn browser_surface_receipt_redacts_sensitive_console_and_request_fields() {
     assert_eq!(receipt["console"][0]["authToken"], "[REDACTED]");
     assert_eq!(receipt["console"][0]["message"], "hi");
     assert_eq!(receipt["requests"][0]["headers"]["Cookie"], "[REDACTED]");
-    assert_eq!(receipt["requests"][0]["headers"]["Authorization"], "[REDACTED]");
+    assert_eq!(
+        receipt["requests"][0]["headers"]["Authorization"],
+        "[REDACTED]"
+    );
 }
 
 /* ------------------------- native-surface/adapter.mjs -------------------------- */
@@ -107,10 +121,14 @@ fn native_surface_receipt_pass_and_blocked_paths() {
     assert_eq!(receipt["status"], "pass");
     assert_eq!(receipt["complete"], true);
 
-    let bridge_down = json!({"ready": true, "reachedMeaningfulState": true, "bridgeAvailable": false});
+    let bridge_down =
+        json!({"ready": true, "reachedMeaningfulState": true, "bridgeAvailable": false});
     let receipt2 = build_native_surface_receipt(&spec, &bridge_down);
     assert_eq!(receipt2["status"], "blocked");
-    assert_eq!(receipt2["coverageGaps"], json!(["native-bridge-unavailable"]));
+    assert_eq!(
+        receipt2["coverageGaps"],
+        json!(["native-bridge-unavailable"])
+    );
 
     let undeclared = json!({"ready": true, "reachedMeaningfulState": true, "actions": ["swipe"]});
     let receipt3 = build_native_surface_receipt(&spec, &undeclared);
@@ -152,7 +170,10 @@ fn runtime_receipt_complete_requires_all_surfaces_tested_and_nonzero_found() {
         ..Default::default()
     });
     assert_eq!(shallow["complete"], false);
-    assert_eq!(shallow["coverageGaps"], json!([{"kind": "runtime-shallow-traversal"}]));
+    assert_eq!(
+        shallow["coverageGaps"],
+        json!([{"kind": "runtime-shallow-traversal"}])
+    );
 }
 
 #[test]
@@ -264,8 +285,14 @@ fn assess_service_runtime_pass_when_every_scenario_passes_and_restartable() {
 fn assess_service_runtime_partial_when_worker_restart_not_restartable() {
     struct NotRestartable;
     #[async_trait::async_trait]
-    impl legion_audit::native_providers::p10_runtime::browser_service::ServiceRuntimeAdapter for NotRestartable {
-        async fn execute(&self, id: &str, _binding: &serde_json::Value) -> Option<serde_json::Value> {
+    impl legion_audit::native_providers::p10_runtime::browser_service::ServiceRuntimeAdapter
+        for NotRestartable
+    {
+        async fn execute(
+            &self,
+            id: &str,
+            _binding: &serde_json::Value,
+        ) -> Option<serde_json::Value> {
             Some(json!({"status": "pass", "terminal": true, "restartable": id != "worker-restart"}))
         }
     }
@@ -279,7 +306,10 @@ fn assess_service_runtime_partial_when_worker_restart_not_restartable() {
         .find(|r| r["id"] == "worker-restart")
         .unwrap();
     assert_eq!(restart_receipt["status"], "partial");
-    assert_eq!(restart_receipt["coverageGaps"], json!(["worker-restartability-unproven"]));
+    assert_eq!(
+        restart_receipt["coverageGaps"],
+        json!(["worker-restartability-unproven"])
+    );
 }
 
 #[test]
@@ -296,7 +326,11 @@ fn assess_service_runtime_missing_execution_is_unproven_and_partial() {
     struct NoOp;
     #[async_trait::async_trait]
     impl legion_audit::native_providers::p10_runtime::browser_service::ServiceRuntimeAdapter for NoOp {
-        async fn execute(&self, _id: &str, _binding: &serde_json::Value) -> Option<serde_json::Value> {
+        async fn execute(
+            &self,
+            _id: &str,
+            _binding: &serde_json::Value,
+        ) -> Option<serde_json::Value> {
             None
         }
     }
@@ -315,7 +349,10 @@ fn assess_service_runtime_carries_production_control_gaps() {
     let controls = vec!["pci".to_string()];
     let result = tokio_test_block_on(assess_service_runtime(&target, &adapter, &controls));
     assert_eq!(result["status"], "partial");
-    assert_eq!(result["coverageGaps"], json!(["production-external-evidence-missing:pci"]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!(["production-external-evidence-missing:pci"])
+    );
 }
 
 /* ----------------------------- service/faults index.mjs ------------------------ */
@@ -346,7 +383,10 @@ fn fixture_adapter_rejects_unsupported_scenario_ids() {
     let adapter = create_service_fixture_adapter("clean");
     let result = tokio_test_block_on(adapter.execute("not-a-real-scenario", &json!({}))).unwrap();
     assert_eq!(result["status"], "error");
-    assert_eq!(result["coverageGaps"], json!(["unsupported-runtime-scenario"]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!(["unsupported-runtime-scenario"])
+    );
 }
 
 #[test]

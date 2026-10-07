@@ -26,7 +26,9 @@ fn solidity_or_vyper_file() -> &'static Regex {
 
 fn tx_origin_authorization() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)require\s*\(\s*tx\.origin\s*==|tx\.origin\s*==\s*owner").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)require\s*\(\s*tx\.origin\s*==|tx\.origin\s*==\s*owner").unwrap()
+    })
 }
 
 fn privileged_function_unprotected() -> &'static Regex {
@@ -43,22 +45,32 @@ fn privileged_function_suppress() -> &'static Regex {
 
 fn reentrancy_external_call() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\.call\{\s*value\s*:[^}]*\}\s*\(|\.call\.value\s*\([^)]*\)\s*\(").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)\.call\{\s*value\s*:[^}]*\}\s*\(|\.call\.value\s*\([^)]*\)\s*\(").unwrap()
+    })
 }
 
 fn reentrancy_suppress() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)nonReentrant|ReentrancyGuard|checks-effects-interactions").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)nonReentrant|ReentrancyGuard|checks-effects-interactions").unwrap()
+    })
 }
 
 fn oracle_single_source() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\.latestAnswer\s*\(\s*\)|\.latestRoundData\s*\(\s*\)|getPrice\s*\(\s*\)").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)\.latestAnswer\s*\(\s*\)|\.latestRoundData\s*\(\s*\)|getPrice\s*\(\s*\)")
+            .unwrap()
+    })
 }
 
 fn oracle_suppress() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)updatedAt|heartbeat|deviation|TWAP|twap|require\s*\([^)]*(?:stale|fresh)").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)updatedAt|heartbeat|deviation|TWAP|twap|require\s*\([^)]*(?:stale|fresh)")
+            .unwrap()
+    })
 }
 
 fn unprotected_upgrade_authorization() -> &'static Regex {
@@ -68,7 +80,9 @@ fn unprotected_upgrade_authorization() -> &'static Regex {
 
 fn upgrade_suppress() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)onlyOwner|onlyAdmin|onlyRole|require\s*\(\s*msg\.sender\s*==").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)onlyOwner|onlyAdmin|onlyRole|require\s*\(\s*msg\.sender\s*==").unwrap()
+    })
 }
 
 fn replay_missing_nonce() -> &'static Regex {
@@ -78,7 +92,9 @@ fn replay_missing_nonce() -> &'static Regex {
 
 fn replay_suppress() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)nonce|deadline|used\[|usedSignatures|EIP712|nonces\[").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)nonce|deadline|used\[|usedSignatures|EIP712|nonces\[").unwrap()
+    })
 }
 
 struct Rule {
@@ -319,12 +335,18 @@ mod tests {
             let positive_ctx = Context::new().with_file("Contract.sol", &wrap(positive));
             let positive_obs = analyze(&positive_ctx);
             let candidate = find(&positive_obs, rule_id);
-            assert!(candidate.is_some(), "{rule_id} did not fire on its positive fixture");
+            assert!(
+                candidate.is_some(),
+                "{rule_id} did not fire on its positive fixture"
+            );
             assert!(!candidate.unwrap().evidence_refs.is_empty());
 
             let mitigated_ctx = Context::new().with_file("Contract.sol", &wrap(mitigated));
             let mitigated_obs = analyze(&mitigated_ctx);
-            assert!(find(&mitigated_obs, rule_id).is_none(), "{rule_id} still fired on its mitigated fixture");
+            assert!(
+                find(&mitigated_obs, rule_id).is_none(),
+                "{rule_id} still fired on its mitigated fixture"
+            );
         }
     }
 
@@ -336,7 +358,10 @@ mod tests {
 
     #[test]
     fn emits_nothing_for_an_empty_contract() {
-        let context = Context::new().with_file("contracts/Empty.sol", "pragma solidity ^0.8.0;\ncontract Empty {}");
+        let context = Context::new().with_file(
+            "contracts/Empty.sol",
+            "pragma solidity ^0.8.0;\ncontract Empty {}",
+        );
         assert!(analyze(&context).is_empty());
     }
 

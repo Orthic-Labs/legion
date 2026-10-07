@@ -546,10 +546,10 @@ fn validate_portable_plugin_root(
             )))
         }
     }
-    let portable_contract: RightAxPortableCore =
-        serde_json::from_slice(&portable_contract_bytes).map_err(|error| {
-            plugin_root_error(format!("rightax-portable-core.json is invalid: {error}"))
-        })?;
+    let portable_contract: RightAxPortableCore = serde_json::from_slice(&portable_contract_bytes)
+        .map_err(|error| {
+        plugin_root_error(format!("rightax-portable-core.json is invalid: {error}"))
+    })?;
     if portable_contract.schema_version != 1
         || portable_contract.kind != "rightax-portable-core"
         || portable_contract.plugin != "legion"
@@ -625,11 +625,9 @@ fn validate_portable_plugin_root(
             "RightAX public file declaration is incomplete",
         ));
     }
-    if portable_contract
-        .public_files
-        .iter()
-        .any(|relative| !is_allowed_portable_public_file(relative, &expected_skills, &expected_agents))
-    {
+    if portable_contract.public_files.iter().any(|relative| {
+        !is_allowed_portable_public_file(relative, &expected_skills, &expected_agents)
+    }) {
         return Err(plugin_root_error(
             "RightAX public file declaration contains an extra or private path",
         ));
@@ -674,7 +672,9 @@ fn validate_portable_plugin_root(
         let projected = std::fs::read(&claude_mcp_projection).map_err(commands::io_error)?;
         let original = std::fs::read(root.join("mcp.json")).map_err(commands::io_error)?;
         if !matches_claude_mcp_projection(&original, &projected) {
-            return Err(plugin_root_error(".mcp.json does not match the approved Claude projection of mcp.json"));
+            return Err(plugin_root_error(
+                ".mcp.json does not match the approved Claude projection of mcp.json",
+            ));
         }
         expected_files.insert(".mcp.json".into());
     }
@@ -705,7 +705,12 @@ fn validate_portable_plugin_root(
         ));
     }
 
-    for relative in ["plugin.json", "mcp.json", "hooks/hooks.json", "rightax-portable-core.json"] {
+    for relative in [
+        "plugin.json",
+        "mcp.json",
+        "hooks/hooks.json",
+        "rightax-portable-core.json",
+    ] {
         serde_json::from_slice::<Value>(
             &std::fs::read(root.join(relative)).map_err(commands::io_error)?,
         )
@@ -771,8 +776,13 @@ fn is_allowed_portable_public_file(
         return true;
     }
     // agents/<name>.md, for a name the contract declares.
-    if let Some(agent) = relative.strip_prefix("agents/").and_then(|rest| rest.strip_suffix(".md")) {
-        return !agent.is_empty() && expected_agents.contains(agent) && is_safe_portable_relative_path(relative);
+    if let Some(agent) = relative
+        .strip_prefix("agents/")
+        .and_then(|rest| rest.strip_suffix(".md"))
+    {
+        return !agent.is_empty()
+            && expected_agents.contains(agent)
+            && is_safe_portable_relative_path(relative);
     }
     let mut components = relative.split('/');
     if components.next() != Some("skills") {
@@ -873,9 +883,7 @@ fn validate_portable_plugin_manifests(root: &Path) -> Result<(), commands::Comma
 /// It is never part of the shipped package, so it neither satisfies nor
 /// violates the package contract.
 fn is_generated_bytecode(relative: &str) -> bool {
-    relative
-        .split('/')
-        .any(|segment| segment == "__pycache__")
+    relative.split('/').any(|segment| segment == "__pycache__")
         || relative.ends_with(".pyc")
         || relative.ends_with(".pyo")
 }
@@ -1249,9 +1257,7 @@ where
     }
     if args.len() == 1
         && !is_help_flag(&args[0])
-        && args[0]
-            .to_str()
-            .is_some_and(|value| value.starts_with('-'))
+        && args[0].to_str().is_some_and(|value| value.starts_with('-'))
     {
         eprintln!(
             "Unknown option '{}'. Run `legion --help` for the list of commands.",
@@ -1297,15 +1303,20 @@ where
             0
         }
         Err(error) => {
-            let root_command = args.iter().find(|arg| !arg.to_string_lossy().starts_with('-'));
+            let root_command = args
+                .iter()
+                .find(|arg| !arg.to_string_lossy().starts_with('-'));
             if error.kind() == ErrorKind::InvalidSubcommand
                 && root_command.is_some_and(|name| {
-                    !Cli::command().get_subcommands().any(|command| {
-                        name.to_str() == Some(command.get_name())
-                    })
+                    !Cli::command()
+                        .get_subcommands()
+                        .any(|command| name.to_str() == Some(command.get_name()))
                 })
             {
-                eprintln!("unknown command: {}", root_command.unwrap().to_string_lossy());
+                eprintln!(
+                    "unknown command: {}",
+                    root_command.unwrap().to_string_lossy()
+                );
             } else {
                 eprintln!("{error}");
             }
@@ -1451,7 +1462,8 @@ fn finish(result: CommandResult) -> i32 {
             {
                 return 1;
             }
-            if value.get("kind").and_then(Value::as_str) == Some("arcane-execution-control-decision")
+            if value.get("kind").and_then(Value::as_str)
+                == Some("arcane-execution-control-decision")
                 && value
                     .get("result")
                     .and_then(|result| result.get("allowed"))
@@ -1484,7 +1496,8 @@ fn finish(result: CommandResult) -> i32 {
                 return 2;
             }
             if value.get("artifact").is_some()
-                && value.pointer("/artifact/kind").and_then(Value::as_str) == Some("legion-control-baseline")
+                && value.pointer("/artifact/kind").and_then(Value::as_str)
+                    == Some("legion-control-baseline")
                 && value.get("selectionTrace").is_none()
             {
                 return 2;

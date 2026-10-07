@@ -43,8 +43,8 @@ impl ChromeSession {
         // request/response CDP calls.
         let console_errors: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let sink = console_errors.clone();
-        let _ = tab.add_event_listener(Arc::new(move |event: &headless_chrome::protocol::cdp::types::Event| {
-            match event {
+        let _ = tab.add_event_listener(Arc::new(
+            move |event: &headless_chrome::protocol::cdp::types::Event| match event {
                 headless_chrome::protocol::cdp::types::Event::RuntimeConsoleAPICalled(ev) => {
                     let level = format!("{:?}", ev.params.Type).to_lowercase();
                     if level == "error" || level == "warning" {
@@ -55,7 +55,9 @@ impl ChromeSession {
                             .filter_map(|a| a.value.as_ref().map(|v| v.to_string()))
                             .collect::<Vec<_>>()
                             .join(" ");
-                        sink.lock().unwrap().push(format!("console.{level}: {text}"));
+                        sink.lock()
+                            .unwrap()
+                            .push(format!("console.{level}: {text}"));
                     }
                 }
                 headless_chrome::protocol::cdp::types::Event::RuntimeExceptionThrown(ev) => {
@@ -63,14 +65,20 @@ impl ChromeSession {
                     sink.lock().unwrap().push(format!("exception: {text}"));
                 }
                 _ => {}
-            }
-        }));
-        ChromeSession { tab, console_errors }
+            },
+        ));
+        ChromeSession {
+            tab,
+            console_errors,
+        }
     }
 
     fn eval_raw(&self, expression: &str) -> Result<Value, String> {
         // `runtimeEval` (qa.mjs lines 454-465): confirmed shape, see module doc.
-        let remote = self.tab.evaluate(expression, true).map_err(|e| e.to_string())?;
+        let remote = self
+            .tab
+            .evaluate(expression, true)
+            .map_err(|e| e.to_string())?;
         Ok(remote.value.unwrap_or(Value::Null))
     }
 }
@@ -94,7 +102,9 @@ impl BrowserSession for ChromeSession {
                 return Ok(last);
             }
             if started.elapsed().as_millis() as u64 >= timeout_ms {
-                return Err(format!("Timed out waiting for expression. Last result: {last}"));
+                return Err(format!(
+                    "Timed out waiting for expression. Last result: {last}"
+                ));
             }
             self.wait(250);
         }
@@ -167,7 +177,12 @@ impl BrowserSession for ChromeSession {
         // convenience wrapper (see module doc) and returns raw bytes directly, no base64 step.
         let bytes = self
             .tab
-            .capture_screenshot(headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png, None, None, true)
+            .capture_screenshot(
+                headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png,
+                None,
+                None,
+                true,
+            )
             .map_err(|e| e.to_string())?;
         if let Some(parent) = std::path::Path::new(out).parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -185,26 +200,30 @@ impl BrowserSession for ChromeSession {
         // `Network::EmulateNetworkConditions` field list is unverifiable in this environment and
         // is left as a no-op with the gap documented, rather than guessed.
         self.tab
-            .call_method(headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                width: conditions.width as u32,
-                height: conditions.height as u32,
-                device_scale_factor: conditions.dpr,
-                mobile: conditions.mobile,
-                scale: None,
-                screen_width: None,
-                screen_height: None,
-                position_x: None,
-                position_y: None,
-                dont_set_visible_size: None,
-                screen_orientation: None,
-                viewport: None,
-                display_feature: None,
-                device_posture: None,
-            })
+            .call_method(
+                headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
+                    width: conditions.width as u32,
+                    height: conditions.height as u32,
+                    device_scale_factor: conditions.dpr,
+                    mobile: conditions.mobile,
+                    scale: None,
+                    screen_width: None,
+                    screen_height: None,
+                    position_x: None,
+                    position_y: None,
+                    dont_set_visible_size: None,
+                    screen_orientation: None,
+                    viewport: None,
+                    display_feature: None,
+                    device_posture: None,
+                },
+            )
             .map_err(|e| e.to_string())?;
         if let Some(rate) = conditions.cpu {
             self.tab
-                .call_method(headless_chrome::protocol::cdp::Emulation::SetCPUThrottlingRate { rate })
+                .call_method(
+                    headless_chrome::protocol::cdp::Emulation::SetCPUThrottlingRate { rate },
+                )
                 .map_err(|e| e.to_string())?;
         }
         Ok(())
@@ -214,8 +233,13 @@ impl BrowserSession for ChromeSession {
         // Confirmed shape (module doc): `navigate_to` + `wait_until_navigated`, then the same
         // `document.readyState` poll qa.mjs itself uses (lines 654/707) as an extra guard.
         self.tab.navigate_to(url).map_err(|e| e.to_string())?;
-        self.tab.wait_until_navigated().map_err(|e| format!("Timed out loading {url}: {e}"))?;
-        self.wait_for_eval("(() => ({ ok: document.readyState !== 'loading' && !!document.body }))()", 30000)?;
+        self.tab
+            .wait_until_navigated()
+            .map_err(|e| format!("Timed out loading {url}: {e}"))?;
+        self.wait_for_eval(
+            "(() => ({ ok: document.readyState !== 'loading' && !!document.body }))()",
+            30000,
+        )?;
         Ok(())
     }
 
@@ -245,7 +269,10 @@ impl BrowserSession for ChromeSession {
             .ok()
             .and_then(|v| v.as_str().and_then(|s| serde_json::from_str(s).ok()))
             .unwrap_or(Value::Object(Default::default()));
-        Ok(SessionData { cookies: Value::Array(vec![]), local_storage })
+        Ok(SessionData {
+            cookies: Value::Array(vec![]),
+            local_storage,
+        })
     }
 
     fn take_console_errors(&mut self) -> Vec<String> {

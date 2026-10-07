@@ -6,7 +6,11 @@ use serde_json::{Map, Value};
 use std::collections::HashSet;
 
 fn arr<'a>(value: &'a Value, key: &str) -> Vec<&'a Value> {
-    value.get(key).and_then(Value::as_array).map(|items| items.iter().collect()).unwrap_or_default()
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|items| items.iter().collect())
+        .unwrap_or_default()
 }
 
 fn truthy(value: Option<&Value>) -> bool {
@@ -21,7 +25,15 @@ fn truthy(value: Option<&Value>) -> bool {
 }
 
 fn strings(value: Option<&Value>) -> Vec<String> {
-    value.and_then(Value::as_array).map(|items| items.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default()
+    value
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 // ---------------------------------------------------------------------
@@ -38,15 +50,36 @@ pub fn analyze_control_states(input: &Value) -> Value {
     for control in &controls {
         let id = control.get("id").cloned().unwrap_or(Value::Null);
         let role = control.get("role").cloned().unwrap_or(Value::Null);
-        let accessible_name = control.get("accessibleName").cloned().unwrap_or(Value::Null);
+        let accessible_name = control
+            .get("accessibleName")
+            .cloned()
+            .unwrap_or(Value::Null);
         let applicable_raw = strings(control.get("applicableStates"));
-        let applicable: Vec<String> = if applicable_raw.is_empty() { vec!["default".to_string()] } else {
+        let applicable: Vec<String> = if applicable_raw.is_empty() {
+            vec!["default".to_string()]
+        } else {
             let mut seen = HashSet::new();
-            applicable_raw.into_iter().filter(|s| seen.insert(s.clone())).collect()
+            applicable_raw
+                .into_iter()
+                .filter(|s| seen.insert(s.clone()))
+                .collect()
         };
-        let observed: HashSet<String> = strings(control.get("observedStates")).into_iter().collect();
-        let missing_states: Vec<Value> = applicable.iter().filter(|s| !observed.contains(*s)).map(|s| Value::String(s.clone())).collect();
-        applicability.insert(id.as_str().unwrap_or_default().to_string(), Value::Array(applicable.iter().map(|s| Value::String(s.clone())).collect()));
+        let observed: HashSet<String> =
+            strings(control.get("observedStates")).into_iter().collect();
+        let missing_states: Vec<Value> = applicable
+            .iter()
+            .filter(|s| !observed.contains(*s))
+            .map(|s| Value::String(s.clone()))
+            .collect();
+        applicability.insert(
+            id.as_str().unwrap_or_default().to_string(),
+            Value::Array(
+                applicable
+                    .iter()
+                    .map(|s| Value::String(s.clone()))
+                    .collect(),
+            ),
+        );
         if !missing_states.is_empty() {
             findings.push(serde_json::json!({ "ruleId": "ux.control-state-missing", "controlId": id, "role": role, "accessibleName": accessible_name, "missingStates": missing_states, "links": ["accessibility", "visual", "copy", "runtime"] }));
         }
@@ -57,7 +90,9 @@ pub fn analyze_control_states(input: &Value) -> Value {
             findings.push(serde_json::json!({ "ruleId": "ux.control-double-submit", "controlId": id, "role": role, "accessibleName": accessible_name }));
         }
     }
-    let complete = findings.iter().all(|item| item.get("ruleId") != Some(&Value::String("ux.control-state-missing".into())));
+    let complete = findings
+        .iter()
+        .all(|item| item.get("ruleId") != Some(&Value::String("ux.control-state-missing".into())));
     serde_json::json!({
         "provider": "ux.control-states", "status": if findings.is_empty() { "pass" } else { "candidates" },
         "complete": complete, "applicability": applicability, "findings": findings,
@@ -88,7 +123,10 @@ pub fn analyze_data_interactions(input: &Value) -> Value {
         let dataset = item.get("dataset").cloned().unwrap_or(Value::Null);
         let kind = item.get("kind").and_then(Value::as_str).unwrap_or_default();
         if truthy(item.get("largeDataClaim")) && !truthy(item.get("scaleEvidence")) {
-            coverage_gaps.push(Value::String(format!("scale-evidence-missing:{}", id.as_str().unwrap_or_default())));
+            coverage_gaps.push(Value::String(format!(
+                "scale-evidence-missing:{}",
+                id.as_str().unwrap_or_default()
+            )));
         }
         if kind == "table" && item.get("headersAccessible") == Some(&Value::Bool(false)) {
             findings.push(serde_json::json!({ "ruleId": "ux.data-table-headers", "interactionId": id, "dataset": dataset, "action": "read", "judgmentClass": "deterministic" }));
@@ -105,7 +143,13 @@ pub fn analyze_data_interactions(input: &Value) -> Value {
             }
         }
     }
-    let status = if !findings.is_empty() { "candidates" } else if !coverage_gaps.is_empty() { "unproven" } else { "pass" };
+    let status = if !findings.is_empty() {
+        "candidates"
+    } else if !coverage_gaps.is_empty() {
+        "unproven"
+    } else {
+        "pass"
+    };
     serde_json::json!({ "provider": "ux.data-interaction", "status": status, "findings": findings, "coverageGaps": coverage_gaps })
 }
 
@@ -118,10 +162,19 @@ pub fn create_flow_model(input: &Value) -> Value {
     if flows.is_empty() {
         return serde_json::json!({ "provider": "ux.flow-model", "status": "unproven", "flows": [], "requiredGoals": [], "coverageGaps": ["zero-flow-denominator"] });
     }
-    let required: HashSet<String> = strings(input.get("requiredGoalPolicy")).into_iter().collect();
+    let required: HashSet<String> = strings(input.get("requiredGoalPolicy"))
+        .into_iter()
+        .collect();
     let required_goals: Vec<Value> = flows
         .iter()
-        .filter(|flow| !truthy(flow.get("goalInferred")) || flow.get("goal").and_then(Value::as_str).map(|g| required.contains(g)).unwrap_or(false))
+        .filter(|flow| {
+            !truthy(flow.get("goalInferred"))
+                || flow
+                    .get("goal")
+                    .and_then(Value::as_str)
+                    .map(|g| required.contains(g))
+                    .unwrap_or(false)
+        })
         .map(|flow| flow.get("goal").cloned().unwrap_or(Value::Null))
         .collect();
     let mut coverage_gaps: Vec<Value> = Vec::new();
@@ -149,7 +202,11 @@ pub fn analyze_forms(input: &Value) -> Value {
     let forms: Vec<Value> = arr(input, "forms").into_iter().cloned().collect();
     let fields: Vec<(Value, Value)> = forms
         .iter()
-        .flat_map(|form| arr(form, "fields").into_iter().map(move |field| (form.clone(), field.clone())))
+        .flat_map(|form| {
+            arr(form, "fields")
+                .into_iter()
+                .map(move |field| (form.clone(), field.clone()))
+        })
         .collect();
     if fields.is_empty() {
         return serde_json::json!({
@@ -170,9 +227,13 @@ pub fn analyze_forms(input: &Value) -> Value {
         if !truthy(field.get("label")) {
             findings.push(serde_json::json!({ "ruleId": "ux.forms-label-missing", "formId": form_id, "fieldId": field_id }));
         }
-        let applicable: HashSet<String> = strings(field.get("applicableStates")).into_iter().collect();
+        let applicable: HashSet<String> =
+            strings(field.get("applicableStates")).into_iter().collect();
         let observed: HashSet<String> = strings(field.get("observedStates")).into_iter().collect();
-        let missing_states: Vec<Value> = applicable.difference(&observed).map(|s| Value::String(s.clone())).collect();
+        let missing_states: Vec<Value> = applicable
+            .difference(&observed)
+            .map(|s| Value::String(s.clone()))
+            .collect();
         if !missing_states.is_empty() {
             findings.push(serde_json::json!({ "ruleId": "ux.forms-state-missing", "formId": form_id, "fieldId": field_id, "missingStates": missing_states }));
         }
@@ -198,9 +259,16 @@ pub fn analyze_forms(input: &Value) -> Value {
             }
         }
     }
-    let server_security_proven = forms.iter().any(|form| truthy(form.get("serverValidationEvidence")))
-        && forms.iter().all(|form| !truthy(form.get("clientValidation")) || truthy(form.get("serverValidationEvidence")));
-    let sensitive_field_assumptions: Vec<Value> = forms.iter().flat_map(|form| arr(form, "sensitiveFieldAssumptions").into_iter().cloned()).collect();
+    let server_security_proven = forms
+        .iter()
+        .any(|form| truthy(form.get("serverValidationEvidence")))
+        && forms.iter().all(|form| {
+            !truthy(form.get("clientValidation")) || truthy(form.get("serverValidationEvidence"))
+        });
+    let sensitive_field_assumptions: Vec<Value> = forms
+        .iter()
+        .flat_map(|form| arr(form, "sensitiveFieldAssumptions").into_iter().cloned())
+        .collect();
     serde_json::json!({
         "provider": "ux.forms", "status": if findings.is_empty() { "pass" } else { "candidates" },
         "fieldDenominator": fields.len(), "findings": findings,
@@ -216,23 +284,49 @@ pub fn analyze_friction(input: &Value) -> Value {
     let flows: Vec<Value> = arr(input, "flows").into_iter().cloned().collect();
     let mut findings: Vec<Value> = Vec::new();
     let mut candidates: Vec<Value> = Vec::new();
-    let coverage_gaps: Vec<Value> = if flows.is_empty() { vec![Value::String("flow-denominator-missing".into())] } else { vec![] };
+    let coverage_gaps: Vec<Value> = if flows.is_empty() {
+        vec![Value::String("flow-denominator-missing".into())]
+    } else {
+        vec![]
+    };
     for flow in &flows {
         let flow_id = flow.get("id").cloned().unwrap_or(Value::Null);
-        let policy_context = flow.get("policyContext").and_then(Value::as_str).unwrap_or("unknown");
+        let policy_context = flow
+            .get("policyContext")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
         for step in arr(flow, "steps") {
             let step_id = step.get("id").cloned().unwrap_or(Value::Null);
-            let evidence = step.get("evidence").cloned().unwrap_or_else(|| Value::String(format!("step:{}", step_id.as_str().unwrap_or_default())));
+            let evidence = step.get("evidence").cloned().unwrap_or_else(|| {
+                Value::String(format!("step:{}", step_id.as_str().unwrap_or_default()))
+            });
             let loops = step.get("loopTo") == step.get("id");
-            if loops || truthy(step.get("unreachableHelp")) || truthy(step.get("contradictsControl")) || truthy(step.get("requiredInfoAfterDecision")) || truthy(step.get("unreachableReport")) || truthy(step.get("unreachableAppeal")) {
+            if loops
+                || truthy(step.get("unreachableHelp"))
+                || truthy(step.get("contradictsControl"))
+                || truthy(step.get("requiredInfoAfterDecision"))
+                || truthy(step.get("unreachableReport"))
+                || truthy(step.get("unreachableAppeal"))
+            {
                 findings.push(serde_json::json!({ "ruleId": "ux.friction-deterministic", "flowId": flow_id, "stepId": step_id, "policyContext": policy_context, "evidence": evidence, "judgmentClass": "deterministic" }));
             }
-            if truthy(step.get("memoryBurden")) || truthy(step.get("distracting")) || truthy(step.get("timePressure")) || truthy(step.get("tooltipDependence")) || truthy(step.get("repeatedEntry")) {
+            if truthy(step.get("memoryBurden"))
+                || truthy(step.get("distracting"))
+                || truthy(step.get("timePressure"))
+                || truthy(step.get("tooltipDependence"))
+                || truthy(step.get("repeatedEntry"))
+            {
                 candidates.push(serde_json::json!({ "ruleId": "ux.friction-interpretive", "flowId": flow_id, "stepId": step_id, "policyContext": policy_context, "evidence": evidence, "judgmentClass": "interpretive" }));
             }
         }
     }
-    let status = if !findings.is_empty() || !candidates.is_empty() { "candidates" } else if !coverage_gaps.is_empty() { "unproven" } else { "pass" };
+    let status = if !findings.is_empty() || !candidates.is_empty() {
+        "candidates"
+    } else if !coverage_gaps.is_empty() {
+        "unproven"
+    } else {
+        "pass"
+    };
     serde_json::json!({ "provider": "ux.friction", "status": status, "findings": findings, "candidates": candidates, "coverageGaps": coverage_gaps, "universalMaximumSteps": Value::Null })
 }
 
@@ -243,8 +337,15 @@ pub fn analyze_friction(input: &Value) -> Value {
 pub fn analyze_navigation(input: &Value) -> Value {
     let routes: Vec<Value> = arr(input, "routes").into_iter().cloned().collect();
     let flows: Vec<Value> = arr(input, "flows").into_iter().cloned().collect();
-    let coverage_gaps: Vec<Value> = if routes.is_empty() { vec![Value::String("navigation-routes-missing".into())] } else { vec![] };
-    let used: HashSet<String> = flows.iter().flat_map(|flow| strings(flow.get("routes"))).collect();
+    let coverage_gaps: Vec<Value> = if routes.is_empty() {
+        vec![Value::String("navigation-routes-missing".into())]
+    } else {
+        vec![]
+    };
+    let used: HashSet<String> = flows
+        .iter()
+        .flat_map(|flow| strings(flow.get("routes")))
+        .collect();
     let mut findings: Vec<Value> = routes
         .iter()
         .filter(|route| route.get("path").and_then(Value::as_str).map(|p| !used.contains(p)).unwrap_or(true))
@@ -253,15 +354,22 @@ pub fn analyze_navigation(input: &Value) -> Value {
             serde_json::json!({ "ruleId": "ux.navigation-unreachable", "route": path, "flowIds": [], "evidenceRefs": [format!("route:{}", path.as_str().unwrap_or_default())] })
         })
         .collect();
-    let mut labels: std::collections::BTreeMap<String, Vec<Value>> = std::collections::BTreeMap::new();
+    let mut labels: std::collections::BTreeMap<String, Vec<Value>> =
+        std::collections::BTreeMap::new();
     for route in &routes {
         if let Some(label) = route.get("label").and_then(Value::as_str) {
-            labels.entry(label.to_string()).or_default().push(route.get("path").cloned().unwrap_or(Value::Null));
+            labels
+                .entry(label.to_string())
+                .or_default()
+                .push(route.get("path").cloned().unwrap_or(Value::Null));
         }
     }
     for (label, paths) in &labels {
         if paths.len() > 1 {
-            let evidence_refs: Vec<Value> = paths.iter().map(|p| Value::String(format!("route:{}", p.as_str().unwrap_or_default()))).collect();
+            let evidence_refs: Vec<Value> = paths
+                .iter()
+                .map(|p| Value::String(format!("route:{}", p.as_str().unwrap_or_default())))
+                .collect();
             findings.push(serde_json::json!({ "ruleId": "ux.navigation-duplicate-label", "label": label, "routes": paths, "evidenceRefs": evidence_refs }));
         }
     }
@@ -286,7 +394,13 @@ pub fn analyze_navigation(input: &Value) -> Value {
             findings.push(serde_json::json!({ "ruleId": "ux.navigation-depth-candidate", "flowId": flow_id, "depth": flow_routes.len(), "evidenceRefs": [format!("flow:{}", flow_id.as_str().unwrap_or_default())], "judgmentClass": "candidate" }));
         }
     }
-    let status = if !findings.is_empty() { "candidates" } else if !coverage_gaps.is_empty() { "unproven" } else { "pass" };
+    let status = if !findings.is_empty() {
+        "candidates"
+    } else if !coverage_gaps.is_empty() {
+        "unproven"
+    } else {
+        "pass"
+    };
     serde_json::json!({ "provider": "ux.navigation", "status": status, "findings": findings, "coverageGaps": coverage_gaps, "suggestions": [] })
 }
 
@@ -310,12 +424,24 @@ pub fn analyze_recovery(input: &Value) -> Value {
         })
         .collect();
     let mut findings: Vec<Value> = Vec::new();
-    let coverage_gaps: Vec<Value> = if actions.is_empty() { vec![Value::String("action-denominator-missing".into())] } else { vec![] };
+    let coverage_gaps: Vec<Value> = if actions.is_empty() {
+        vec![Value::String("action-denominator-missing".into())]
+    } else {
+        vec![]
+    };
     for action in &normalized {
         let id = action.get("id").cloned().unwrap_or(Value::Null);
         let risk = action.get("risk").cloned().unwrap_or(Value::Null);
-        let recovery_path_missing = || action.get("undoEvidence").or_else(|| action.get("recoveryPath")).cloned().unwrap_or_else(|| Value::String("missing".into()));
-        if action.get("risk") == Some(&Value::String("high".into())) && action.get("confirmation") != Some(&Value::Bool(true)) {
+        let recovery_path_missing = || {
+            action
+                .get("undoEvidence")
+                .or_else(|| action.get("recoveryPath"))
+                .cloned()
+                .unwrap_or_else(|| Value::String("missing".into()))
+        };
+        if action.get("risk") == Some(&Value::String("high".into()))
+            && action.get("confirmation") != Some(&Value::Bool(true))
+        {
             findings.push(serde_json::json!({ "ruleId": "ux.recovery-confirmation-missing", "actionId": id, "actionRisk": risk, "recoveryEvidence": recovery_path_missing() }));
         }
         if truthy(action.get("progress")) && !truthy(action.get("terminalEvidence")) {
@@ -331,8 +457,16 @@ pub fn analyze_recovery(input: &Value) -> Value {
             findings.push(serde_json::json!({ "ruleId": "ux.recovery-work-loss", "actionId": id, "actionRisk": risk, "recoveryEvidence": action.get("recoveryPath").cloned().unwrap_or_else(|| Value::String("missing".into())) }));
         }
     }
-    let any_unproven = normalized.iter().any(|item| item.get("irreversible") == Some(&Value::String("unproven".into())));
-    let status = if !findings.is_empty() { "candidates" } else if any_unproven || !coverage_gaps.is_empty() { "unproven" } else { "pass" };
+    let any_unproven = normalized
+        .iter()
+        .any(|item| item.get("irreversible") == Some(&Value::String("unproven".into())));
+    let status = if !findings.is_empty() {
+        "candidates"
+    } else if any_unproven || !coverage_gaps.is_empty() {
+        "unproven"
+    } else {
+        "pass"
+    };
     serde_json::json!({ "provider": "ux.recovery", "status": status, "actions": normalized, "findings": findings, "coverageGaps": coverage_gaps })
 }
 
@@ -342,7 +476,10 @@ pub fn analyze_recovery(input: &Value) -> Value {
 
 pub fn inventory_surfaces(input: &Value) -> Value {
     let artifacts: Vec<Value> = arr(input, "artifacts").into_iter().cloned().collect();
-    let binding = input.get("binding").cloned().unwrap_or(Value::Object(Map::new()));
+    let binding = input
+        .get("binding")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
     let surfaces: Vec<Value> = artifacts
         .iter()
         .map(|artifact| {
@@ -362,9 +499,19 @@ pub fn inventory_surfaces(input: &Value) -> Value {
             })
         })
         .collect();
-    let complete = artifacts.iter().all(|artifact| truthy(artifact.get("file")));
-    let coverage_gaps: Vec<Value> = artifacts.iter().filter(|artifact| !truthy(artifact.get("file"))).map(|_| Value::String("surface-source-missing".into())).collect();
-    let denominator_digest = sha256_digest(serde_json::to_string(&Value::Array(surfaces.clone())).unwrap_or_default().as_bytes());
+    let complete = artifacts
+        .iter()
+        .all(|artifact| truthy(artifact.get("file")));
+    let coverage_gaps: Vec<Value> = artifacts
+        .iter()
+        .filter(|artifact| !truthy(artifact.get("file")))
+        .map(|_| Value::String("surface-source-missing".into()))
+        .collect();
+    let denominator_digest = sha256_digest(
+        serde_json::to_string(&Value::Array(surfaces.clone()))
+            .unwrap_or_default()
+            .as_bytes(),
+    );
     serde_json::json!({
         "schemaVersion": 1, "kind": "legion-surface-inventory", "binding": binding, "surfaces": surfaces,
         "denominatorDigest": denominator_digest, "complete": complete, "coverageGaps": coverage_gaps,
@@ -390,17 +537,31 @@ pub fn analyze_system_states(input: &Value) -> Value {
     ];
     for surface in &surfaces {
         let id = surface.get("id").cloned().unwrap_or(Value::Null);
-        let declared: HashSet<String> = strings(surface.get("declaredStates")).into_iter().collect();
-        let observed: HashSet<String> = strings(surface.get("observedStates")).into_iter().collect();
+        let declared: HashSet<String> =
+            strings(surface.get("declaredStates")).into_iter().collect();
+        let observed: HashSet<String> =
+            strings(surface.get("observedStates")).into_iter().collect();
         for state in strings(surface.get("expectedStates")) {
             denominator += 1;
             if !declared.contains(&state) {
-                coverage_gaps.push(Value::String(format!("state-absent:{}:{}", id.as_str().unwrap_or_default(), state)));
+                coverage_gaps.push(Value::String(format!(
+                    "state-absent:{}:{}",
+                    id.as_str().unwrap_or_default(),
+                    state
+                )));
             } else if !observed.contains(&state) {
-                coverage_gaps.push(Value::String(format!("state-untested:{}:{}", id.as_str().unwrap_or_default(), state)));
+                coverage_gaps.push(Value::String(format!(
+                    "state-untested:{}:{}",
+                    id.as_str().unwrap_or_default(),
+                    state
+                )));
             }
         }
-        let evidence_class = if truthy(surface.get("runtimeEvidence")) { "runtime" } else { "source" };
+        let evidence_class = if truthy(surface.get("runtimeEvidence")) {
+            "runtime"
+        } else {
+            "source"
+        };
         if truthy(surface.get("falseSuccess")) {
             findings.push(serde_json::json!({ "ruleId": "ux.system-state-false-success", "surfaceId": id, "evidenceClass": evidence_class }));
         }
@@ -416,6 +577,12 @@ pub fn analyze_system_states(input: &Value) -> Value {
     if denominator == 0 {
         coverage_gaps.push(Value::String("state-denominator-missing".into()));
     }
-    let status = if !findings.is_empty() { "candidates" } else if !coverage_gaps.is_empty() { "unproven" } else { "pass" };
+    let status = if !findings.is_empty() {
+        "candidates"
+    } else if !coverage_gaps.is_empty() {
+        "unproven"
+    } else {
+        "pass"
+    };
     serde_json::json!({ "provider": "ux.system-states", "status": status, "denominator": denominator, "findings": findings, "coverageGaps": coverage_gaps })
 }

@@ -9,18 +9,20 @@
 //! inside each `wf_port::wf072::*` submodule.
 
 use legion_policy::wf_port::wf072::evidence_envelope::{
-    import_legacy_evidence, seal_evidence, unfaithful_dimensions, Dependency, LegacyEnvelope, SealEvidenceInput,
-    DEPENDENCY_DIMENSION,
+    import_legacy_evidence, seal_evidence, unfaithful_dimensions, Dependency, LegacyEnvelope,
+    SealEvidenceInput, DEPENDENCY_DIMENSION,
 };
 use legion_policy::wf_port::wf072::evidence_migration::migrate_legacy_evidence;
 use legion_policy::wf_port::wf072::evidence_registry::{
-    evidence_freshness, Artifact, FreshnessContext, Freshness,
+    evidence_freshness, Artifact, Freshness, FreshnessContext,
 };
 use legion_policy::wf_port::wf072::gate_validity::{
-    execute_validated_gate, validate_gate, ExecResult, ExecResultStatus, Fixture, GateContract, Match,
+    execute_validated_gate, validate_gate, ExecResult, ExecResultStatus, Fixture, GateContract,
+    Match,
 };
 use legion_policy::wf_port::wf072::ingest::{
-    AuthorityAssertion, Effect, EffectReceipt, EventResult, HostEvent, HostIngestor, PriorCorrelation, ResultOutcome,
+    AuthorityAssertion, Effect, EffectReceipt, EventResult, HostEvent, HostIngestor,
+    PriorCorrelation, ResultOutcome,
 };
 use legion_policy::wf_port::wf072::support::{ArcCode, Json};
 
@@ -47,7 +49,11 @@ fn seal_evidence_projects_source_digest_dependency_and_seals_deterministically()
         observation: Json::Obj(vec![("claim".into(), Json::str("clean"))]),
         evidence_class: "internal".into(),
         source_revision: Some("git:deadbeef".into()),
-        dependencies: vec![Dependency { dimension: "source-digest".into(), reference: "sha256:11".into(), digest: Some("sha256:11".into()) }],
+        dependencies: vec![Dependency {
+            dimension: "source-digest".into(),
+            reference: "sha256:11".into(),
+            digest: Some("sha256:11".into()),
+        }],
         authentication_verification_method: Some("mac".into()),
         authentication: Json::Null,
         replay_defense: Json::Null,
@@ -55,7 +61,10 @@ fn seal_evidence_projects_source_digest_dependency_and_seals_deterministically()
     };
     let sealed1 = seal_evidence(input.clone()).unwrap();
     let sealed2 = seal_evidence(input).unwrap();
-    assert_eq!(sealed1.envelope_digest, sealed2.envelope_digest, "sealing is deterministic");
+    assert_eq!(
+        sealed1.envelope_digest, sealed2.envelope_digest,
+        "sealing is deterministic"
+    );
 }
 
 #[test]
@@ -115,7 +124,10 @@ fn migration_batch_quarantines_malformed_and_rejects_authenticated_true_separate
     assert_eq!(result.imported.len(), 1);
     assert_eq!(result.quarantined.len(), 1);
     assert_eq!(result.rejected.len(), 1);
-    assert_eq!(result.receipt.trust_granted, 0, "old records never gain trust");
+    assert_eq!(
+        result.receipt.trust_granted, 0,
+        "old records never gain trust"
+    );
     assert!(result.receipt.record_count_matches);
 }
 
@@ -135,8 +147,15 @@ fn evidence_freshness_state_mismatch_takes_precedence_over_time_checks() {
         verifier: "v".into(),
         completion_consumer: "c".into(),
     };
-    let ctx = FreshnessContext { integrated_state: Some("state-b".into()), latest_material_change_millis: Some(0), now_millis: 1500 };
-    assert_eq!(evidence_freshness(&artifact, &ctx), Freshness::StateMismatch);
+    let ctx = FreshnessContext {
+        integrated_state: Some("state-b".into()),
+        latest_material_change_millis: Some(0),
+        now_millis: 1500,
+    };
+    assert_eq!(
+        evidence_freshness(&artifact, &ctx),
+        Freshness::StateMismatch
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -157,10 +176,54 @@ fn gate_validity_full_lifecycle_validate_then_execute() {
         payload: Json::Obj(vec![("id".into(), Json::str("gate-int-1"))]),
     };
     let fixtures: Vec<(&'static str, Option<(Fixture, ExecResult)>)> = vec![
-        ("knownGood", Some((Fixture { id: "kg".into(), payload: Json::str("kg") }, ExecResult { status: ExecResultStatus::Pass }))),
-        ("knownBad", Some((Fixture { id: "kb".into(), payload: Json::str("kb") }, ExecResult { status: ExecResultStatus::Fail }))),
-        ("empty", Some((Fixture { id: "e".into(), payload: Json::str("e") }, ExecResult { status: ExecResultStatus::Fail }))),
-        ("malformed", Some((Fixture { id: "m".into(), payload: Json::str("m") }, ExecResult { status: ExecResultStatus::Fail }))),
+        (
+            "knownGood",
+            Some((
+                Fixture {
+                    id: "kg".into(),
+                    payload: Json::str("kg"),
+                },
+                ExecResult {
+                    status: ExecResultStatus::Pass,
+                },
+            )),
+        ),
+        (
+            "knownBad",
+            Some((
+                Fixture {
+                    id: "kb".into(),
+                    payload: Json::str("kb"),
+                },
+                ExecResult {
+                    status: ExecResultStatus::Fail,
+                },
+            )),
+        ),
+        (
+            "empty",
+            Some((
+                Fixture {
+                    id: "e".into(),
+                    payload: Json::str("e"),
+                },
+                ExecResult {
+                    status: ExecResultStatus::Fail,
+                },
+            )),
+        ),
+        (
+            "malformed",
+            Some((
+                Fixture {
+                    id: "m".into(),
+                    payload: Json::str("m"),
+                },
+                ExecResult {
+                    status: ExecResultStatus::Fail,
+                },
+            )),
+        ),
     ];
     let validity = validate_gate(&contract, &fixtures).expect("gate self-test should pass");
 
@@ -168,7 +231,10 @@ fn gate_validity_full_lifecycle_validate_then_execute() {
     let clean = execute_validated_gate(&contract, Some(&validity), &inspected, &[]);
     assert!(clean.allowed);
 
-    let matched = vec![Match { rule_id: Some("rule-x".into()), reason: Some("profanity".into()) }];
+    let matched = vec![Match {
+        rule_id: Some("rule-x".into()),
+        reason: Some("profanity".into()),
+    }];
     let dirty = execute_validated_gate(&contract, Some(&validity), &inspected, &matched);
     assert!(!dirty.allowed);
     assert_eq!(dirty.code, Some(ArcCode::ArcClaimPrerequisiteUnmet));
@@ -182,7 +248,11 @@ fn sample_event() -> HostEvent {
     HostEvent {
         event_id: "evt-int-1".into(),
         event_type: "post-effect".into(),
-        effect: Some(Effect { effect_class: "file-write".into(), target: "/repo/file.rs".into(), operation: "write".into() }),
+        effect: Some(Effect {
+            effect_class: "file-write".into(),
+            target: "/repo/file.rs".into(),
+            operation: "write".into(),
+        }),
         run_id: Some("run-int-1".into()),
         contract_id: Some("contract-1".into()),
         task_id: Some("task-1".into()),
@@ -191,11 +261,22 @@ fn sample_event() -> HostEvent {
         source_revision: Some("git:cafef00d".into()),
         prior_correlation: Some(PriorCorrelation {
             request_id: "req-int-1".into(),
-            requested_effect: Some(Effect { effect_class: "file-write".into(), target: "/repo/file.rs".into(), operation: "write".into() }),
-            authorized_effect: Some(Effect { effect_class: "file-write".into(), target: "/repo/file.rs".into(), operation: "write".into() }),
+            requested_effect: Some(Effect {
+                effect_class: "file-write".into(),
+                target: "/repo/file.rs".into(),
+                operation: "write".into(),
+            }),
+            authorized_effect: Some(Effect {
+                effect_class: "file-write".into(),
+                target: "/repo/file.rs".into(),
+                operation: "write".into(),
+            }),
             capability_id: Some("cap-int-1".into()),
         }),
-        result: EventResult { outcome: ResultOutcome::Success, observed_digest: Some("sha256:22".into()) },
+        result: EventResult {
+            outcome: ResultOutcome::Success,
+            observed_digest: Some("sha256:22".into()),
+        },
         replay_nonce: "nonce-1".into(),
         replay_sequence: 1,
         time: "2026-01-01T00:00:00Z".into(),
@@ -227,21 +308,32 @@ fn host_ingestor_end_to_end_accepts_and_persists_an_effect_receipt() {
         |_| Ok(()),
         || "receipt-int-1".to_string(),
         |r: &EffectReceipt| appended.push(r.clone()),
-        Some(|target: &str, digest: &str| invalidated.push((target.to_string(), digest.to_string()))),
+        Some(|target: &str, digest: &str| {
+            invalidated.push((target.to_string(), digest.to_string()))
+        }),
     );
 
     assert!(outcome.accepted);
-    let receipt = outcome.receipt.expect("post-effect with a bound run should mint a receipt");
+    let receipt = outcome
+        .receipt
+        .expect("post-effect with a bound run should mint a receipt");
     assert_eq!(receipt.receipt_id, "receipt-int-1");
     assert!(receipt.matched);
     assert_eq!(appended.len(), 1);
-    assert_eq!(invalidated, vec![("/repo/file.rs".to_string(), "sha256:22".to_string())]);
+    assert_eq!(
+        invalidated,
+        vec![("/repo/file.rs".to_string(), "sha256:22".to_string())]
+    );
 }
 
 #[test]
 fn host_ingestor_refuses_a_model_self_report_end_to_end() {
     let mut ingestor = HostIngestor::new();
-    let authority = AuthorityAssertion { asserted_by: "model".into(), receipt: None, connection_trust: None };
+    let authority = AuthorityAssertion {
+        asserted_by: "model".into(),
+        receipt: None,
+        connection_trust: None,
+    };
     let outcome = ingestor.ingest(
         &sample_event(),
         &authority,

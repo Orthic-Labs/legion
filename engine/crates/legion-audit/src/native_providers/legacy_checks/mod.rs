@@ -505,12 +505,14 @@ impl NativeLegacyCheckExecutor {
         // executor owns a scratch dir for the run's lifetime and the tool is
         // pointed at it explicitly.
         let report_temp_dir = match report_source {
-            ReportSource::File(_) => Some(ReportTempDir::create(contract.check).map_err(|error| {
-                AuditError::Provider(format!(
-                    "failed to create report temp dir for {}: {error}",
-                    contract.check
-                ))
-            })?),
+            ReportSource::File(_) => {
+                Some(ReportTempDir::create(contract.check).map_err(|error| {
+                    AuditError::Provider(format!(
+                        "failed to create report temp dir for {}: {error}",
+                        contract.check
+                    ))
+                })?)
+            }
             ReportSource::Stdout | ReportSource::Stderr => None,
         };
         if let Some(dir) = &report_temp_dir {
@@ -540,14 +542,19 @@ impl NativeLegacyCheckExecutor {
             // the tool to its sealed absolute path there. If resolution fails,
             // keep the bare name so the normal missing-tool path reports a
             // typed gap instead of a hard provider error.
-            let (resolved_executable, resolved_args): (String, Vec<String>) =
-                match (cfg!(target_os = "macos"), resolve_request(&self.root, executable, &args)) {
-                    (true, Ok(resolved)) => (
-                        resolved.executable.to_string_lossy().into_owned(),
-                        resolved.args.clone(),
-                    ),
-                    _ => (executable.to_string(), args.iter().map(|a| a.to_string()).collect()),
-                };
+            let (resolved_executable, resolved_args): (String, Vec<String>) = match (
+                cfg!(target_os = "macos"),
+                resolve_request(&self.root, executable, &args),
+            ) {
+                (true, Ok(resolved)) => (
+                    resolved.executable.to_string_lossy().into_owned(),
+                    resolved.args.clone(),
+                ),
+                _ => (
+                    executable.to_string(),
+                    args.iter().map(|a| a.to_string()).collect(),
+                ),
+            };
             match legion_effects::authenticate_sandbox(
                 &resolved_executable,
                 &resolved_args,
@@ -825,7 +832,9 @@ fn execution_from_receipt(
     let parse_bytes: Option<&[u8]> = match report_source {
         ReportSource::Stdout => stdout.as_deref(),
         ReportSource::Stderr => stderr.as_deref(),
-        ReportSource::File(_) => report_artifact.as_ref().map(|report| report.bytes.as_slice()),
+        ReportSource::File(_) => report_artifact
+            .as_ref()
+            .map(|report| report.bytes.as_slice()),
     };
     if let Some(bytes) = parse_bytes {
         if let Ok(value) = serde_json::from_slice::<Value>(bytes) {
@@ -1346,15 +1355,27 @@ fn decomposition_review_loc(root: &std::path::Path) -> (u64, &'static str, Vec<S
 fn classify_decomposition_file(path: &str) -> &'static str {
     let lower = format!("/{}", path.to_ascii_lowercase());
     let base = lower.rsplit('/').next().unwrap_or("");
-    let test_dir = ["test", "tests", "spec", "specs", "__tests__", "__mocks__", "e2e", "fixture", "fixtures", "__fixtures__", "cypress", "playwright", ".storybook"];
+    let test_dir = [
+        "test",
+        "tests",
+        "spec",
+        "specs",
+        "__tests__",
+        "__mocks__",
+        "e2e",
+        "fixture",
+        "fixtures",
+        "__fixtures__",
+        "cypress",
+        "playwright",
+        ".storybook",
+    ];
     if test_dir
         .iter()
         .any(|seg| lower.contains(&format!("/{seg}/")))
-        || [
-            ".test.", ".spec.", ".stories.", ".bench.", ".e2e.", ".cy.",
-        ]
-        .iter()
-        .any(|suffix| base.contains(suffix))
+        || [".test.", ".spec.", ".stories.", ".bench.", ".e2e.", ".cy."]
+            .iter()
+            .any(|suffix| base.contains(suffix))
         || base.ends_with("_test.rs")
         || base.ends_with("_test.py")
         || base.ends_with("_test.go")
@@ -1424,7 +1445,11 @@ fn native_decomposition(
         let loc = text.lines().count() as u64;
         loc_by_file.insert(entry.path.as_str(), loc);
         if loc > threshold {
-            oversized.push((entry.path.as_str(), loc, classify_decomposition_file(&entry.path)));
+            oversized.push((
+                entry.path.as_str(),
+                loc,
+                classify_decomposition_file(&entry.path),
+            ));
         }
     }
     oversized.sort_by(|a, b| b.1.cmp(&a.1));
@@ -1528,16 +1553,17 @@ fn native_decomposition(
         );
     }
 
+    output
+        .details
+        .insert("threshold".into(), Value::from(threshold));
     output.details.insert(
-        "threshold".into(),
-        Value::from(threshold),
+        "thresholdKind".into(),
+        Value::String("review-trigger".into()),
     );
-    output
-        .details
-        .insert("thresholdKind".into(), Value::String("review-trigger".into()));
-    output
-        .details
-        .insert("thresholdSource".into(), Value::String(threshold_source.into()));
+    output.details.insert(
+        "thresholdSource".into(),
+        Value::String(threshold_source.into()),
+    );
     if !threshold_ignored.is_empty() {
         output.details.insert(
             "thresholdIgnored".into(),

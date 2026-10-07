@@ -13,7 +13,9 @@ fn import_external_evidence_empty_is_unproven_with_denominator_gap() {
     let out = external::import_external_evidence(&json!({}));
     assert_eq!(out["status"], "unproven");
     let gaps = out["coverageGaps"].as_array().unwrap();
-    assert!(gaps.iter().any(|g| g == "external-evidence-denominator-empty"));
+    assert!(gaps
+        .iter()
+        .any(|g| g == "external-evidence-denominator-empty"));
     assert!(out["validations"].as_array().unwrap().is_empty());
 }
 
@@ -54,7 +56,11 @@ fn validate_external_evidence_never_passes_without_real_signature_verification()
     );
     assert_eq!(out["status"], "unproven");
     assert!(out["payload"].is_null());
-    assert!(out["gaps"].as_array().unwrap().iter().any(|g| g == "signature-invalid"));
+    assert!(out["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g == "signature-invalid"));
 }
 
 #[test]

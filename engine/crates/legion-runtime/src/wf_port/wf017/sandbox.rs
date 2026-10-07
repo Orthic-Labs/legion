@@ -14,8 +14,10 @@ use std::path::{Path, PathBuf};
 pub const SANDBOX_SCHEMA_VERSION: u32 = 1;
 
 /// Bounded overlay policies. A producer never chooses its own.
-pub const INPUT_OVERLAY_POLICIES: &[&str] =
-    &["bound-base-revision-only", "bound-base-revision-plus-dirty-overlay"];
+pub const INPUT_OVERLAY_POLICIES: &[&str] = &[
+    "bound-base-revision-only",
+    "bound-base-revision-plus-dirty-overlay",
+];
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProcessPolicy {
@@ -174,7 +176,10 @@ pub fn sandbox_receipt(mut input: SandboxReceiptInput) -> SandboxReceipt {
 
 /// Fails loudly if a sandbox would (or did) land inside the user's working
 /// tree.
-pub fn assert_primary_repository_untouched(receipt: &SandboxReceipt, repo: &RepoRef) -> Result<(), SandboxError> {
+pub fn assert_primary_repository_untouched(
+    receipt: &SandboxReceipt,
+    repo: &RepoRef,
+) -> Result<(), SandboxError> {
     // The JS source defensively checks `receipt.primaryRepositoryMutated !==
     // false` on an untyped object; `SandboxReceipt::primary_repository_mutated`
     // is a typed `bool` that this port always constructs as `false`, so that
@@ -256,9 +261,13 @@ pub async fn create_remediation_sandbox(
         ));
     }
     if !input.finding_run_digest.starts_with("sha256:") {
-        return Err(SandboxError("sandbox must be bound to a finding run digest".to_string()));
+        return Err(SandboxError(
+            "sandbox must be bound to a finding run digest".to_string(),
+        ));
     }
-    if input.input_overlay_policy == "bound-base-revision-only" && input.binding_dirty_patch_digest.is_some() {
+    if input.input_overlay_policy == "bound-base-revision-only"
+        && input.binding_dirty_patch_digest.is_some()
+    {
         return Err(SandboxError(
             "bound-base-revision-only sandbox cannot be created from a dirty run".to_string(),
         ));
@@ -291,7 +300,10 @@ pub async fn create_remediation_sandbox(
         })
         .await;
     if result.exit_code != 0 {
-        return Err(SandboxError(format!("sandbox creation failed: {}", result.stderr)));
+        return Err(SandboxError(format!(
+            "sandbox creation failed: {}",
+            result.stderr
+        )));
     }
 
     let cleanup = CleanupCommand {

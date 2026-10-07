@@ -15,7 +15,9 @@
 use std::collections::BTreeMap;
 
 use legion_policy::wf_port::wf070::canon::{digest_value, CanonVal};
-use legion_policy::wf_port::wf070::event_store::{ArchitectureEventStore, EventProposal, KeyRing, ReceiptStore};
+use legion_policy::wf_port::wf070::event_store::{
+    ArchitectureEventStore, EventProposal, KeyRing, ReceiptStore,
+};
 use legion_policy::wf_port::wf070::router::{route_architecture, ArchitectureRouterInput};
 use legion_policy::wf_port::wf070::state::create_architecture_state;
 
@@ -44,7 +46,10 @@ fn ledger() -> CanonVal {
         .set("schema", CanonVal::Str("acceptance-ledger.v1".to_string()))
         .set("ledger_version", CanonVal::Int(1))
         .set("intent_epoch", CanonVal::Int(1))
-        .set("acceptance_fingerprint", CanonVal::Str(digest_value(&CanonVal::obj())))
+        .set(
+            "acceptance_fingerprint",
+            CanonVal::Str(digest_value(&CanonVal::obj())),
+        )
         .set("frozen_at", CanonVal::Null)
         .set("items", CanonVal::Arr(vec![]))
 }
@@ -54,7 +59,11 @@ fn route_then_transition_then_replay_round_trips() {
     // 1. Route a significant, non-critical change: D1/standard.
     let mut significance = std::collections::BTreeSet::new();
     significance.insert("broad_impact".to_string());
-    let route = route_architecture(&ArchitectureRouterInput { significance, ..Default::default() }).unwrap();
+    let route = route_architecture(&ArchitectureRouterInput {
+        significance,
+        ..Default::default()
+    })
+    .unwrap();
     assert_eq!(route.depth, "D1");
     assert_eq!(route.rigor, "standard");
 
@@ -64,8 +73,13 @@ fn route_then_transition_then_replay_round_trips() {
     let mut keys = BTreeMap::new();
     keys.insert("k1".to_string(), b"wf070-integration-test-key".to_vec());
     let key_ring = FixedKeyRing(keys);
-    let mut event_store =
-        ArchitectureEventStore::new(&mut store, &key_ring, "k1", Box::new(|| "2026-09-23T00:00:00Z".to_string())).unwrap();
+    let mut event_store = ArchitectureEventStore::new(
+        &mut store,
+        &key_ring,
+        "k1",
+        Box::new(|| "2026-09-23T00:00:00Z".to_string()),
+    )
+    .unwrap();
 
     let replayed = event_store.replay("lineage-wf070", &initial).unwrap();
     assert_eq!(replayed.event_count, 0);
@@ -80,7 +94,9 @@ fn route_then_transition_then_replay_round_trips() {
         actor_role: "legion".to_string(),
         phase: "route".to_string(),
         event_type: "ROUTE_CLASSIFIED".to_string(),
-        payload: CanonVal::obj().set("objective", CanonVal::Str(route.objective.clone())).set("depth", CanonVal::Str(route.depth.to_string())),
+        payload: CanonVal::obj()
+            .set("objective", CanonVal::Str(route.objective.clone()))
+            .set("depth", CanonVal::Str(route.depth.to_string())),
         acceptance_ids: vec![],
         decision_ids: vec![],
         finding_ids: vec![],
@@ -92,33 +108,87 @@ fn route_then_transition_then_replay_round_trips() {
         terminal_reason: None,
         privacy_class: "content_free".to_string(),
     };
-    let after_route = event_store.accept(&route_event, Some(replayed.state_fingerprint.as_str())).unwrap();
+    let after_route = event_store
+        .accept(&route_event, Some(replayed.state_fingerprint.as_str()))
+        .unwrap();
     assert_eq!(after_route.last_sequence, 1);
 
-    let mut transition_event = route_event.clone_with_type("ARCHITECTURE_TRANSITIONED", CanonVal::obj().set("from", CanonVal::Str("UNROUTED".into())).set("to", CanonVal::Str("TAILORED".into())));
+    let mut transition_event = route_event.clone_with_type(
+        "ARCHITECTURE_TRANSITIONED",
+        CanonVal::obj()
+            .set("from", CanonVal::Str("UNROUTED".into()))
+            .set("to", CanonVal::Str("TAILORED".into())),
+    );
     transition_event.phase = "decide".to_string();
-    let after_transition = event_store.accept(&transition_event, Some(after_route.state_fingerprint.as_str())).unwrap();
+    let after_transition = event_store
+        .accept(
+            &transition_event,
+            Some(after_route.state_fingerprint.as_str()),
+        )
+        .unwrap();
     assert_eq!(after_transition.last_sequence, 2);
     assert_eq!(
-        after_transition.state.get("task").unwrap().get("architecture_status").unwrap().as_str(),
+        after_transition
+            .state
+            .get("task")
+            .unwrap()
+            .get("architecture_status")
+            .unwrap()
+            .as_str(),
         Some("TAILORED")
     );
 
-    let decision_event = route_event.clone_with_type("DECISION_RECORDED", CanonVal::obj().set("id", CanonVal::Str("D-1".into())).set("summary", CanonVal::Str("adopt option A".into())));
-    let after_decision = event_store.accept(&decision_event, Some(after_transition.state_fingerprint.as_str())).unwrap();
+    let decision_event = route_event.clone_with_type(
+        "DECISION_RECORDED",
+        CanonVal::obj()
+            .set("id", CanonVal::Str("D-1".into()))
+            .set("summary", CanonVal::Str("adopt option A".into())),
+    );
+    let after_decision = event_store
+        .accept(
+            &decision_event,
+            Some(after_transition.state_fingerprint.as_str()),
+        )
+        .unwrap();
     assert_eq!(after_decision.last_sequence, 3);
-    assert_eq!(after_decision.state.get("decision").unwrap().get("items").unwrap().as_arr().unwrap().len(), 1);
+    assert_eq!(
+        after_decision
+            .state
+            .get("decision")
+            .unwrap()
+            .get("items")
+            .unwrap()
+            .as_arr()
+            .unwrap()
+            .len(),
+        1
+    );
 
     // 4. A fresh store replaying the same events from the same initial
     //    state must land on the identical final state fingerprint —
     //    the whole point of an authenticated trajectory.
     drop(event_store);
-    let mut event_store2 = ArchitectureEventStore::new(&mut store, &key_ring, "k1", Box::new(|| "2026-09-23T00:00:00Z".to_string())).unwrap();
+    let mut event_store2 = ArchitectureEventStore::new(
+        &mut store,
+        &key_ring,
+        "k1",
+        Box::new(|| "2026-09-23T00:00:00Z".to_string()),
+    )
+    .unwrap();
     let replayed2 = event_store2.replay("lineage-wf070", &initial).unwrap();
     assert_eq!(replayed2.event_count, 3);
-    assert_eq!(replayed2.state_fingerprint, after_decision.state_fingerprint);
     assert_eq!(
-        replayed2.state.get("task").unwrap().get("architecture_status").unwrap().as_str(),
+        replayed2.state_fingerprint,
+        after_decision.state_fingerprint
+    );
+    assert_eq!(
+        replayed2
+            .state
+            .get("task")
+            .unwrap()
+            .get("architecture_status")
+            .unwrap()
+            .as_str(),
         Some("TAILORED")
     );
 }

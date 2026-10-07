@@ -25,15 +25,23 @@ fn yaml_string(value: &str) -> String {
 
 pub fn render_codex_skill_sidecar(id: &str, metadata: &Map<String, Value>) -> String {
     let implicit = metadata.get("discoverability").and_then(Value::as_str) == Some("public");
-    let description_raw = metadata.get("description").and_then(Value::as_str).unwrap_or_default();
-    let description = description_raw.split_whitespace().collect::<Vec<_>>().join(" ");
+    let description_raw = metadata
+        .get("description")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let description = description_raw
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     let lines = vec![
         "interface:".to_string(),
         format!("  display_name: {}", yaml_string(&display_name(id))),
         format!("  short_description: {}", yaml_string(&description)),
         format!(
             "  default_prompt: {}",
-            yaml_string(&format!("Use ${id} when this request matches: {description}"))
+            yaml_string(&format!(
+                "Use ${id} when this request matches: {description}"
+            ))
         ),
         "policy:".to_string(),
         format!("  allow_implicit_invocation: {implicit}"),
@@ -84,10 +92,14 @@ pub fn expected_codex_plugin(root: &Path) -> Result<Value, String> {
         Some(v) => v.clone(),
         None => Value::Null,
     };
-    let display_name_val = claude
-        .get("displayName")
-        .cloned()
-        .unwrap_or_else(|| Value::from(display_name(claude.get("name").and_then(Value::as_str).unwrap_or_default())));
+    let display_name_val = claude.get("displayName").cloned().unwrap_or_else(|| {
+        Value::from(display_name(
+            claude
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        ))
+    });
 
     let mut interface = Map::new();
     interface.insert("displayName".into(), display_name_val);
@@ -95,10 +107,14 @@ pub fn expected_codex_plugin(root: &Path) -> Result<Value, String> {
     interface.insert(
         "capabilities".into(),
         Value::Array(
-            ["Legion orchestration", "Arcane cognitive policy", "Covenant review"]
-                .iter()
-                .map(|s| Value::from(*s))
-                .collect(),
+            [
+                "Legion orchestration",
+                "Arcane cognitive policy",
+                "Covenant review",
+            ]
+            .iter()
+            .map(|s| Value::from(*s))
+            .collect(),
         ),
     );
     interface.insert(
@@ -107,11 +123,20 @@ pub fn expected_codex_plugin(root: &Path) -> Result<Value, String> {
     );
 
     let mut out = Map::new();
-    out.insert("name".into(), claude.get("name").cloned().unwrap_or(Value::Null));
-    out.insert("version".into(), claude.get("version").cloned().unwrap_or(Value::Null));
+    out.insert(
+        "name".into(),
+        claude.get("name").cloned().unwrap_or(Value::Null),
+    );
+    out.insert(
+        "version".into(),
+        claude.get("version").cloned().unwrap_or(Value::Null),
+    );
     out.insert("author".into(), author);
     out.insert("description".into(), Value::from(CODEX_DESCRIPTION));
-    out.insert("license".into(), claude.get("license").cloned().unwrap_or(Value::Null));
+    out.insert(
+        "license".into(),
+        claude.get("license").cloned().unwrap_or(Value::Null),
+    );
     out.insert("interface".into(), Value::Object(interface));
     Ok(Value::Object(out))
 }
@@ -158,7 +183,10 @@ pub fn run(root: &Path, check: bool) -> bool {
             return false;
         }
     };
-    let expected_map: std::collections::HashMap<&str, &str> = expected.iter().map(|(id, t)| (id.as_str(), t.as_str())).collect();
+    let expected_map: std::collections::HashMap<&str, &str> = expected
+        .iter()
+        .map(|(id, t)| (id.as_str(), t.as_str()))
+        .collect();
     let mut drift: Vec<String> = Vec::new();
 
     let expected_plugin = match expected_codex_plugin(root) {
@@ -169,7 +197,9 @@ pub fn run(root: &Path, check: bool) -> bool {
         }
     };
     let plugin_path = root.join(".codex-plugin/plugin.json");
-    let current_plugin: Option<Value> = fs::read_to_string(&plugin_path).ok().and_then(|s| serde_json::from_str(&s).ok());
+    let current_plugin: Option<Value> = fs::read_to_string(&plugin_path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok());
     if !same_json(current_plugin.as_ref(), &expected_plugin) && check {
         drift.push(".codex-plugin/plugin.json".to_string());
     }
@@ -208,7 +238,10 @@ pub fn run(root: &Path, check: bool) -> bool {
         if let Some(parent) = plugin_path.parent() {
             let _ = fs::create_dir_all(parent);
         }
-        let text = format!("{}\n", serde_json::to_string_pretty(&expected_plugin).unwrap());
+        let text = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&expected_plugin).unwrap()
+        );
         if let Err(e) = fs::write(&plugin_path, text) {
             eprintln!("generate-codex-skill-sidecars: {e}");
             return false;
@@ -220,7 +253,11 @@ pub fn run(root: &Path, check: bool) -> bool {
         let unique: Vec<&String> = drift.iter().filter(|p| seen.insert((*p).clone())).collect();
         eprintln!(
             "Codex skill sidecar drift:\n{}",
-            unique.iter().map(|p| format!("- {p}")).collect::<Vec<_>>().join("\n")
+            unique
+                .iter()
+                .map(|p| format!("- {p}"))
+                .collect::<Vec<_>>()
+                .join("\n")
         );
         return false;
     }

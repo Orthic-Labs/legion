@@ -38,7 +38,10 @@ pub fn load_control_packs(root: &Path) -> Result<Vec<Value>, String> {
     let index: serde_json::Value = serde_json::from_str(&index_text)
         .map_err(|e| format!("failed to parse {}: {e}", index_path.display()))?;
 
-    let schema_ok = index.get("schemaVersion").and_then(serde_json::Value::as_f64) == Some(1.0);
+    let schema_ok = index
+        .get("schemaVersion")
+        .and_then(serde_json::Value::as_f64)
+        == Some(1.0);
     let packs_field = index.get("packs").and_then(serde_json::Value::as_array);
     let no_duplicates = packs_field
         .map(|items| {
@@ -148,7 +151,10 @@ mod tests {
     fn pack(id: &str, deps: Vec<&str>, controls: Vec<Value>) -> Value {
         Value::object([
             ("id", Value::str(id)),
-            ("dependencies", Value::array(deps.into_iter().map(Value::str))),
+            (
+                "dependencies",
+                Value::array(deps.into_iter().map(Value::str)),
+            ),
             ("controls", Value::array(controls)),
         ])
     }

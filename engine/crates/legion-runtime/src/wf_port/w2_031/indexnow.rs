@@ -75,7 +75,12 @@ pub trait Transport {
 }
 
 /// `submit(host, urls, key, key_location)` in Python's request-body shape.
-pub fn build_submit_body(host: &str, urls: &[String], key: &str, key_location: Option<&str>) -> Value {
+pub fn build_submit_body(
+    host: &str,
+    urls: &[String],
+    key: &str,
+    key_location: Option<&str>,
+) -> Value {
     let mut body = json!({
         "host": host,
         "key": key,

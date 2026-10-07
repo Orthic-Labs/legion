@@ -31,14 +31,14 @@
 use serde_json::{json, Value};
 
 use crate::wf_port::q_q4::completion_evidence::{
-    load_completion_evidence, AuthorityProofIssuer, Execution as EvidenceExecution, ReceiptStore as EvidenceReceiptStore,
-    RecordVerifier,
+    load_completion_evidence, AuthorityProofIssuer, Execution as EvidenceExecution,
+    ReceiptStore as EvidenceReceiptStore, RecordVerifier,
 };
 use crate::wf_port::wf007::policy::{ClaimContext, PolicyEngine};
 
 use super::current_user_risk_acceptance::{
     consume_current_user_risk_acceptance, ExpectedAcceptance, LedgerStore as RiskLedgerStore,
-    RecordAuthenticator as RiskAuthenticator, ReceiptStore as RiskReceiptStore,
+    ReceiptStore as RiskReceiptStore, RecordAuthenticator as RiskAuthenticator,
 };
 use super::decision::{decision, Decision};
 
@@ -109,12 +109,24 @@ pub fn derive_from_receipts(records: &[Value]) -> DerivedEvidence {
 /// Injected in place of `findCurrentAdvisoryCertification`
 /// (`src/lib/verification/arcane/advisory-certification.mjs`).
 pub trait AdvisoryCertifier {
-    fn find_current(&self, run_id: &str, task_id: Option<&str>, expected: &Value, freshness_ms: f64) -> Decision;
+    fn find_current(
+        &self,
+        run_id: &str,
+        task_id: Option<&str>,
+        expected: &Value,
+        freshness_ms: f64,
+    ) -> Decision;
 }
 
 /// Injected in place of `budgetStore.inspect({...})`.
 pub trait BudgetStore {
-    fn inspect(&self, contract_id: &str, version: i64, task_id: &str, run_id: &str) -> BudgetInspection;
+    fn inspect(
+        &self,
+        contract_id: &str,
+        version: i64,
+        task_id: &str,
+        run_id: &str,
+    ) -> BudgetInspection;
 }
 
 #[derive(Debug, Clone)]
@@ -166,11 +178,19 @@ fn evidence_receipt_store<'a>(records: &'a [Value]) -> impl EvidenceReceiptStore
 }
 
 /// Mirrors JS `evaluateCompletion({...}, {...})`.
-pub fn evaluate_completion(req: &CompletionRequest, deps: &CompletionDeps, policy: &PolicyEngine, all_receipts: &[Value]) -> Decision {
+pub fn evaluate_completion(
+    req: &CompletionRequest,
+    deps: &CompletionDeps,
+    policy: &PolicyEngine,
+    all_receipts: &[Value],
+) -> Decision {
     // Budget state comes only from Arcane's persisted projection.
-    if let (Some(store), Some(contract_id), Some(version), Some(task_id)) =
-        (deps.budget_store, req.contract_id, req.contract_version, req.task_id)
-    {
+    if let (Some(store), Some(contract_id), Some(version), Some(task_id)) = (
+        deps.budget_store,
+        req.contract_id,
+        req.contract_version,
+        req.task_id,
+    ) {
         let budget = store.inspect(contract_id, version, task_id, req.run_id);
         if !budget.allowed || budget.stopped {
             return decision(
@@ -198,17 +218,38 @@ pub fn evaluate_completion(req: &CompletionRequest, deps: &CompletionDeps, polic
     if deps.require_acceptance_evidence {
         let trusted_execution = deps.execution.filter(|e| {
             e.run_id == json!(req.run_id)
-                && req.task_id.map(|t| e.task_id == json!(t)).unwrap_or(e.task_id.is_null())
-                && req.contract_id.map(|c| e.contract_id == json!(c)).unwrap_or(e.contract_id.is_null())
-                && req.contract_version.map(|v| e.contract_version == json!(v)).unwrap_or(e.contract_version.is_null())
-                && req.contract_digest.map(|d| e.contract_digest == json!(d)).unwrap_or(e.contract_digest.is_null())
-                && req.source_revision.map(|s| e.source_revision == json!(s)).unwrap_or(e.source_revision.is_null())
+                && req
+                    .task_id
+                    .map(|t| e.task_id == json!(t))
+                    .unwrap_or(e.task_id.is_null())
+                && req
+                    .contract_id
+                    .map(|c| e.contract_id == json!(c))
+                    .unwrap_or(e.contract_id.is_null())
+                && req
+                    .contract_version
+                    .map(|v| e.contract_version == json!(v))
+                    .unwrap_or(e.contract_version.is_null())
+                && req
+                    .contract_digest
+                    .map(|d| e.contract_digest == json!(d))
+                    .unwrap_or(e.contract_digest.is_null())
+                && req
+                    .source_revision
+                    .map(|s| e.source_revision == json!(s))
+                    .unwrap_or(e.source_revision.is_null())
         });
-        let acceptance = match (trusted_execution, deps.key_ring_present, deps.authority_proof_issuer, deps.record_verifier) {
+        let acceptance = match (
+            trusted_execution,
+            deps.key_ring_present,
+            deps.authority_proof_issuer,
+            deps.record_verifier,
+        ) {
             (Some(execution), true, Some(issuer), Some(verifier)) => {
                 let store = evidence_receipt_store(all_receipts);
                 let integrated_state = deps.integrated_state.cloned().unwrap_or(Value::Null);
-                let latest_material_change = deps.latest_material_change.cloned().unwrap_or(Value::Null);
+                let latest_material_change =
+                    deps.latest_material_change.cloned().unwrap_or(Value::Null);
                 let evidence = load_completion_evidence(
                     &store,
                     true,
@@ -218,7 +259,10 @@ pub fn evaluate_completion(req: &CompletionRequest, deps: &CompletionDeps, polic
                     &integrated_state,
                     &latest_material_change,
                 );
-                verify_required_acceptance_evidence(&evidence.evidence_registry, &evidence.acceptance_proofs)
+                verify_required_acceptance_evidence(
+                    &evidence.evidence_registry,
+                    &evidence.acceptance_proofs,
+                )
             }
             _ => decision(
                 false,
@@ -232,24 +276,64 @@ pub fn evaluate_completion(req: &CompletionRequest, deps: &CompletionDeps, polic
         }
     }
 
-    let material_risk_expected = req.completion_claim.and_then(|c| c.get("riskDigest")).map(|_| {
-        let c = req.completion_claim.unwrap();
-        ExpectedAcceptance {
-            risk_id: c.get("riskId").and_then(Value::as_str).unwrap_or("").to_string(),
-            risk_digest: c.get("riskDigest").and_then(Value::as_str).unwrap_or("").to_string(),
-            acceptance_ledger_fingerprint: c.get("acceptanceLedgerFingerprint").and_then(Value::as_str).unwrap_or("").to_string(),
-            integrated_state_identity: c.get("integratedStateIdentity").and_then(Value::as_str).unwrap_or("").to_string(),
-            source_set_digest: c.get("sourceSetDigest").and_then(Value::as_str).unwrap_or("").to_string(),
-            user_prompt_event_digest: c.get("userPromptEventDigest").and_then(Value::as_str).unwrap_or("").to_string(),
-            challenge_token: c.get("challengeToken").and_then(Value::as_str).unwrap_or("").to_string(),
-        }
-    });
+    let material_risk_expected = req
+        .completion_claim
+        .and_then(|c| c.get("riskDigest"))
+        .map(|_| {
+            let c = req.completion_claim.unwrap();
+            ExpectedAcceptance {
+                risk_id: c
+                    .get("riskId")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                risk_digest: c
+                    .get("riskDigest")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                acceptance_ledger_fingerprint: c
+                    .get("acceptanceLedgerFingerprint")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                integrated_state_identity: c
+                    .get("integratedStateIdentity")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                source_set_digest: c
+                    .get("sourceSetDigest")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                user_prompt_event_digest: c
+                    .get("userPromptEventDigest")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                challenge_token: c
+                    .get("challengeToken")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+            }
+        });
 
     if let Some(expected) = &material_risk_expected {
-        if let (Some(ledger), Some(receipts), Some(authenticator)) = (deps.risk_ledger, deps.risk_receipts, deps.risk_authenticator) {
-            let acceptance = super::current_user_risk_acceptance::verify_current_user_risk_acceptance(
-                expected, ledger, receipts, authenticator, deps.now_ms,
-            );
+        if let (Some(ledger), Some(receipts), Some(authenticator)) = (
+            deps.risk_ledger,
+            deps.risk_receipts,
+            deps.risk_authenticator,
+        ) {
+            let acceptance =
+                super::current_user_risk_acceptance::verify_current_user_risk_acceptance(
+                    expected,
+                    ledger,
+                    receipts,
+                    authenticator,
+                    deps.now_ms,
+                );
             if !acceptance.allowed {
                 return acceptance;
             }
@@ -282,13 +366,23 @@ pub fn evaluate_completion(req: &CompletionRequest, deps: &CompletionDeps, polic
                 .unwrap_or(0.0)
                 * 1000.0;
             let cert = match deps.advisory_certifier {
-                Some(certifier) => certifier.find_current(req.run_id, req.task_id, &expected, freshness_ms),
-                None => decision(false, Some("ARC_EVIDENCE_INSUFFICIENT"), "advisory certifier is unavailable", json!({})),
+                Some(certifier) => {
+                    certifier.find_current(req.run_id, req.task_id, &expected, freshness_ms)
+                }
+                None => decision(
+                    false,
+                    Some("ARC_EVIDENCE_INSUFFICIENT"),
+                    "advisory certifier is unavailable",
+                    json!({}),
+                ),
             };
             if !cert.allowed {
                 let mut detail = cert.detail.clone();
                 if let Some(obj) = detail.as_object_mut() {
-                    obj.insert("missingEvidence".into(), json!(["independent-advisory-certification"]));
+                    obj.insert(
+                        "missingEvidence".into(),
+                        json!(["independent-advisory-certification"]),
+                    );
                 }
                 return decision(false, cert.code, cert.message, detail);
             }
@@ -297,7 +391,11 @@ pub fn evaluate_completion(req: &CompletionRequest, deps: &CompletionDeps, polic
     }
 
     let mut levels_checked: Vec<String> = Vec::new();
-    let evidence_classes_refs: Vec<&str> = derived.evidence_classes.iter().map(String::as_str).collect();
+    let evidence_classes_refs: Vec<&str> = derived
+        .evidence_classes
+        .iter()
+        .map(String::as_str)
+        .collect();
     let fields: Vec<&str> = req
         .completion_claim
         .and_then(|c| c.get("highRiskContext"))
@@ -329,8 +427,19 @@ pub fn evaluate_completion(req: &CompletionRequest, deps: &CompletionDeps, polic
     }
 
     if let Some(expected) = &material_risk_expected {
-        if let (Some(ledger), Some(receipts), Some(authenticator)) = (deps.risk_ledger, deps.risk_receipts, deps.risk_authenticator) {
-            let consumed = consume_current_user_risk_acceptance(expected, ledger, receipts, authenticator, deps.now_ms, deps.now_iso);
+        if let (Some(ledger), Some(receipts), Some(authenticator)) = (
+            deps.risk_ledger,
+            deps.risk_receipts,
+            deps.risk_authenticator,
+        ) {
+            let consumed = consume_current_user_risk_acceptance(
+                expected,
+                ledger,
+                receipts,
+                authenticator,
+                deps.now_ms,
+                deps.now_iso,
+            );
             if !consumed.allowed {
                 return consumed;
             }
@@ -370,7 +479,12 @@ fn verify_required_acceptance_evidence(
     }
     if proofs.is_empty() {
         let missing: Vec<Value> = entries.iter().map(|e| e.acceptance_id.clone()).collect();
-        return decision(false, Some("ARC_EVIDENCE_INSUFFICIENT"), "completion requires fresh acceptance proofs", json!({"missingEvidence": missing}));
+        return decision(
+            false,
+            Some("ARC_EVIDENCE_INSUFFICIENT"),
+            "completion requires fresh acceptance proofs",
+            json!({"missingEvidence": missing}),
+        );
     }
     let required: Vec<Value> = entries.iter().map(|e| e.acceptance_id.clone()).collect();
     let mut seen: Vec<Value> = Vec::new();
@@ -395,7 +509,12 @@ fn verify_required_acceptance_evidence(
             json!({"missing": missing, "unexpected": unexpected}),
         );
     }
-    decision(true, None, "registered acceptance evidence is fresh for exact integrated state", json!({"acceptanceIds": required}))
+    decision(
+        true,
+        None,
+        "registered acceptance evidence is fresh for exact integrated state",
+        json!({"acceptanceIds": required}),
+    )
 }
 
 #[cfg(test)]
@@ -465,7 +584,8 @@ mod tests {
         // (the weakest health), which never satisfies that requirement.
         // One receipt with host-connection-trust authentication derives
         // "read_only", which does.
-        let receipts = vec![json!({"authentication": {"verificationMethod": "host-connection-trust"}})];
+        let receipts =
+            vec![json!({"authentication": {"verificationMethod": "host-connection-trust"}})];
         let result = evaluate_completion(&req, &deps, &policy, &receipts);
         assert!(result.allowed);
     }

@@ -52,12 +52,24 @@ pub fn verify_web_accessibility(
     tool: &Value,
     capture: CaptureEvidence,
 ) -> Value {
-    let binding_out = if binding.is_object() { binding.clone() } else { Value::Object(Map::new()) };
+    let binding_out = if binding.is_object() {
+        binding.clone()
+    } else {
+        Value::Object(Map::new())
+    };
 
     let captures_valid = captures.is_array()
-        && captures.as_array().unwrap().iter().all(|item| item.is_object());
+        && captures
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item.is_object());
     let inspections_valid = inspections.is_array()
-        && inspections.as_array().unwrap().iter().all(|item| item.is_object());
+        && inspections
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item.is_object());
 
     if !captures_valid || !inspections_valid {
         return finalize(
@@ -94,14 +106,27 @@ pub fn verify_web_accessibility(
 
     let inspection_ids: Vec<String> = inspections_sorted
         .iter()
-        .map(|i| i.get("id").and_then(Value::as_str).unwrap_or("").to_string())
+        .map(|i| {
+            i.get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string()
+        })
         .collect();
     let counts = denominator(&expected, &inspection_ids, &[]);
 
     let mut gaps: Vec<String> = capture.coverage_gaps.clone();
-    gaps.extend(counts.missing.iter().map(|id| format!("accessibility-inspection-missing:{id}")));
+    gaps.extend(
+        counts
+            .missing
+            .iter()
+            .map(|id| format!("accessibility-inspection-missing:{id}")),
+    );
 
-    for id in inspection_ids.iter().collect::<std::collections::BTreeSet<_>>() {
+    for id in inspection_ids
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+    {
         if inspection_ids.iter().filter(|v| *v == id).count() > 1 {
             gaps.push(format!("accessibility-inspection-duplicate:{id}"));
         }
@@ -117,7 +142,10 @@ pub fn verify_web_accessibility(
         if !inspection.get("violations").is_some_and(Value::is_array) {
             gaps.push(format!("violations-unbound:{id}"));
         }
-        if !same_binding(&binding_out, inspection.get("binding").unwrap_or(&Value::Null)) {
+        if !same_binding(
+            &binding_out,
+            inspection.get("binding").unwrap_or(&Value::Null),
+        ) {
             gaps.push(format!("accessibility-binding-mismatch:{id}"));
         }
         if inspection.get("terminal") != Some(&Value::Bool(true)) {
@@ -125,9 +153,15 @@ pub fn verify_web_accessibility(
         }
         let status = inspection.get("status").and_then(Value::as_str);
         if status != Some("pass") {
-            gaps.push(format!("accessibility-status-{}:{id}", status.unwrap_or("missing")));
+            gaps.push(format!(
+                "accessibility-status-{}:{id}",
+                status.unwrap_or("missing")
+            ));
         }
-        let screenshot_ok = inspection.get("screenshot").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
+        let screenshot_ok = inspection
+            .get("screenshot")
+            .and_then(Value::as_str)
+            .is_some_and(|s| !s.is_empty());
         if !screenshot_ok {
             gaps.push(format!("accessibility-screenshot-invalid:{id}"));
         }
@@ -135,7 +169,11 @@ pub fn verify_web_accessibility(
 
     let violation_count: usize = inspections_sorted
         .iter()
-        .map(|item| item.get("violations").and_then(Value::as_array).map_or(0, |v| v.len()))
+        .map(|item| {
+            item.get("violations")
+                .and_then(Value::as_array)
+                .map_or(0, |v| v.len())
+        })
         .sum();
 
     let mut sorted_gaps: Vec<String> = gaps;
@@ -191,7 +229,11 @@ pub fn verify_web_accessibility_production(
         coverage_gaps: capture_result
             .get("coverageGaps")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default(),
     };
     verify_web_accessibility(binding, captures, inspections, tool, capture)
@@ -231,7 +273,10 @@ mod tests {
             &Value::String("not-array".to_string()),
             &Value::Array(vec![]),
             &Value::Null,
-            CaptureEvidence { digest: Value::Null, coverage_gaps: vec![] },
+            CaptureEvidence {
+                digest: Value::Null,
+                coverage_gaps: vec![],
+            },
         );
         assert_eq!(out["status"], "error");
         assert_eq!(out["coverageGaps"][0], "accessibility-collections-invalid");
@@ -247,10 +292,18 @@ mod tests {
             &captures,
             &inspections,
             &Value::Null,
-            CaptureEvidence { digest: Value::String("sha256:abc".to_string()), coverage_gaps: vec![] },
+            CaptureEvidence {
+                digest: Value::String("sha256:abc".to_string()),
+                coverage_gaps: vec![],
+            },
         );
         assert_eq!(out["status"], "unproven");
-        let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+        let gaps: Vec<&str> = out["coverageGaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
         assert!(gaps.contains(&"accessibility-inspection-missing:1"));
     }
 
@@ -267,7 +320,10 @@ mod tests {
             &captures,
             &inspections,
             &serde_json::json!({"accessibilityEngine": "axe", "accessibilityEngineVersion": "4.0"}),
-            CaptureEvidence { digest: Value::String("sha256:abc".to_string()), coverage_gaps: vec![] },
+            CaptureEvidence {
+                digest: Value::String("sha256:abc".to_string()),
+                coverage_gaps: vec![],
+            },
         );
         assert_eq!(out["status"], "fail");
         assert_eq!(out["violationCount"], 1);

@@ -41,7 +41,10 @@ fn assert_owned_output(path: &Path, repository_root: &Path) -> Result<PathBuf, S
     let root = normalize_lexical(&repository_root.join("dist/native"));
     let value = normalize_lexical(path);
     if !value.starts_with(&root) || value == root {
-        return Err(format!("candidate extraction output must be below {}", root.display()));
+        return Err(format!(
+            "candidate extraction output must be below {}",
+            root.display()
+        ));
     }
     Ok(value)
 }
@@ -50,11 +53,17 @@ fn find_release_root(extracted: &Path) -> Result<PathBuf, String> {
     let mut candidates = vec![extracted.to_path_buf()];
     for entry in fs::read_dir(extracted).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
-        if fs::symlink_metadata(entry.path()).map(|m| m.is_dir()).unwrap_or(false) {
+        if fs::symlink_metadata(entry.path())
+            .map(|m| m.is_dir())
+            .unwrap_or(false)
+        {
             candidates.push(entry.path());
         }
     }
-    let matches: Vec<_> = candidates.into_iter().filter(|p| p.join("bin/legion.exe").exists()).collect();
+    let matches: Vec<_> = candidates
+        .into_iter()
+        .filter(|p| p.join("bin/legion.exe").exists())
+        .collect();
     if matches.len() != 1 {
         return Err("candidate archive must contain exactly one Legion release root".to_string());
     }
@@ -85,8 +94,13 @@ pub struct PrepareArgs {
     pub receipt_path: Option<PathBuf>,
 }
 
-pub fn prepare_windows_candidate_finalization(repository_root: &Path, args: PrepareArgs) -> Result<Value, String> {
-    let candidate_root = args.candidate_root.ok_or("LEGION_UNSIGNED_CANDIDATE_ROOT or --candidate is required")?;
+pub fn prepare_windows_candidate_finalization(
+    repository_root: &Path,
+    args: PrepareArgs,
+) -> Result<Value, String> {
+    let candidate_root = args
+        .candidate_root
+        .ok_or("LEGION_UNSIGNED_CANDIDATE_ROOT or --candidate is required")?;
     let output_root = args.output_root.ok_or("--output is required")?;
     let output = assert_owned_output(&output_root, repository_root)?;
     let checked = prepare_unsigned_candidate::check_unsigned_candidate(
@@ -99,7 +113,12 @@ pub fn prepare_windows_candidate_finalization(repository_root: &Path, args: Prep
             version: args.version.clone(),
         },
     )?;
-    let archive = PathBuf::from(checked.get("archive").and_then(|v| v.as_str()).unwrap_or_default());
+    let archive = PathBuf::from(
+        checked
+            .get("archive")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default(),
+    );
 
     let pid = std::process::id();
     let staging = PathBuf::from(format!("{}.candidate-extract-{pid}", output.display()));
@@ -122,12 +141,22 @@ pub fn prepare_windows_candidate_finalization(repository_root: &Path, args: Prep
             .output()
             .map_err(|e| e.to_string())?;
         if !command.status.success() {
-            let msg = if !command.stderr.is_empty() { command.stderr } else { command.stdout };
-            return Err(format!("candidate extraction failed: {}", String::from_utf8_lossy(&msg).trim()));
+            let msg = if !command.stderr.is_empty() {
+                command.stderr
+            } else {
+                command.stdout
+            };
+            return Err(format!(
+                "candidate extraction failed: {}",
+                String::from_utf8_lossy(&msg).trim()
+            ));
         }
         let release_root = find_release_root(&staging)?;
         if output.exists() {
-            return Err(format!("candidate extraction output already exists: {}", output.display()));
+            return Err(format!(
+                "candidate extraction output already exists: {}",
+                output.display()
+            ));
         }
         copy_dir_recursive(&release_root, &output).map_err(|e| e.to_string())?;
         Ok(())
@@ -164,7 +193,11 @@ pub fn prepare_windows_candidate_finalization(repository_root: &Path, args: Prep
         if let Some(parent) = receipt_path.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
-        fs::write(receipt_path, format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap())).map_err(|e| e.to_string())?;
+        fs::write(
+            receipt_path,
+            format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap()),
+        )
+        .map_err(|e| e.to_string())?;
     }
     receipt["receipt"] = match &args.receipt_path {
         Some(p) => Value::String(p.display().to_string()),
@@ -245,10 +278,26 @@ mod tests {
         .unwrap();
 
         assert_eq!(result["candidateArchiveSha256"], candidate["archiveSha256"]);
-        let files: Vec<String> = result["files"].as_array().unwrap().iter().map(|f| f["file"].as_str().unwrap().to_string()).collect();
-        assert_eq!(files, vec!["bin/legion.exe", "bin/legion-hook.exe", "bin/legion-mcp.exe"]);
-        let receipt: Value = serde_json::from_str(&fs::read_to_string(&receipt_path).unwrap()).unwrap();
-        assert_eq!(receipt["candidateArchiveSha256"], candidate["archiveSha256"]);
+        let files: Vec<String> = result["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f["file"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            files,
+            vec![
+                "bin/legion.exe",
+                "bin/legion-hook.exe",
+                "bin/legion-mcp.exe"
+            ]
+        );
+        let receipt: Value =
+            serde_json::from_str(&fs::read_to_string(&receipt_path).unwrap()).unwrap();
+        assert_eq!(
+            receipt["candidateArchiveSha256"],
+            candidate["archiveSha256"]
+        );
 
         let _ = fs::remove_dir_all(&root);
     }

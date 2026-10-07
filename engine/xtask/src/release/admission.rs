@@ -34,11 +34,31 @@ pub struct RequiredStage {
 /// Stages that must each carry a SUCCEEDED finalize stage-summary, bound to
 /// this exact version + source revision + run, before publication may proceed.
 pub const REQUIRED_RELEASE_STAGES: &[RequiredStage] = &[
-    RequiredStage { stage: "candidate", platform: Some("windows"), architecture: Some("x86_64") },
-    RequiredStage { stage: "candidate", platform: Some("macos"), architecture: Some("arm64") },
-    RequiredStage { stage: "windows-sign", platform: Some("windows"), architecture: Some("x86_64") },
-    RequiredStage { stage: "macos-sign", platform: Some("macos"), architecture: Some("arm64") },
-    RequiredStage { stage: "installed-qualification", platform: None, architecture: None },
+    RequiredStage {
+        stage: "candidate",
+        platform: Some("windows"),
+        architecture: Some("x86_64"),
+    },
+    RequiredStage {
+        stage: "candidate",
+        platform: Some("macos"),
+        architecture: Some("arm64"),
+    },
+    RequiredStage {
+        stage: "windows-sign",
+        platform: Some("windows"),
+        architecture: Some("x86_64"),
+    },
+    RequiredStage {
+        stage: "macos-sign",
+        platform: Some("macos"),
+        architecture: Some("arm64"),
+    },
+    RequiredStage {
+        stage: "installed-qualification",
+        platform: None,
+        architecture: None,
+    },
 ];
 
 fn repo_root() -> PathBuf {
@@ -64,7 +84,11 @@ fn git(root: &Path, args: &[&str]) -> GitResult {
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         },
-        Err(err) => GitResult { status: None, stdout: String::new(), stderr: err.to_string() },
+        Err(err) => GitResult {
+            status: None,
+            stdout: String::new(),
+            stderr: err.to_string(),
+        },
     }
 }
 
@@ -75,7 +99,11 @@ fn gh(root: &Path, args: &[&str]) -> GitResult {
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         },
-        Err(err) => GitResult { status: None, stdout: String::new(), stderr: err.to_string() },
+        Err(err) => GitResult {
+            status: None,
+            stdout: String::new(),
+            stderr: err.to_string(),
+        },
     }
 }
 
@@ -94,28 +122,58 @@ fn declared_version(root: &Path) -> ReleaseResult<String> {
 /// The admission job checks out the dispatched revision, so comparing against
 /// HEAD would be tautological. Ancestry is proven against the real remote
 /// ref, fetching it explicitly when the remote-tracking ref is not present.
-pub fn assert_source_revision_is_ancestor_of_main(root: &Path, revision: &str, remote: &str, branch: &str) -> ReleaseResult<()> {
+pub fn assert_source_revision_is_ancestor_of_main(
+    root: &Path,
+    revision: &str,
+    remote: &str,
+    branch: &str,
+) -> ReleaseResult<()> {
     let refname = format!("{remote}/{branch}");
     if git(root, &["rev-parse", "--verify", "-q", &refname]).status != Some(0) {
         if git(root, &["fetch", remote, branch]).status != Some(0) {
-            return Err(format!("release chain admission could not fetch {remote} {branch} to verify ancestry"));
+            return Err(format!(
+                "release chain admission could not fetch {remote} {branch} to verify ancestry"
+            ));
         }
         if git(root, &["rev-parse", "--verify", "-q", &refname]).status != Some(0) {
-            return Err(format!("release chain admission could not resolve {refname} after fetch"));
+            return Err(format!(
+                "release chain admission could not resolve {refname} after fetch"
+            ));
         }
     }
     if git(root, &["merge-base", "--is-ancestor", revision, &refname]).status != Some(0) {
-        return Err(format!("release chain admission source revision is not an ancestor of {refname}"));
+        return Err(format!(
+            "release chain admission source revision is not an ancestor of {refname}"
+        ));
     }
     Ok(())
 }
 
 pub fn tag_or_release_exists(root: &Path, version: &str) -> bool {
     let tag = format!("v{version}");
-    if git(root, &["ls-remote", "--exit-code", "--tags", "origin", &format!("refs/tags/{tag}")]).status == Some(0) {
+    if git(
+        root,
+        &[
+            "ls-remote",
+            "--exit-code",
+            "--tags",
+            "origin",
+            &format!("refs/tags/{tag}"),
+        ],
+    )
+    .status
+        == Some(0)
+    {
         return true;
     }
-    gh(root, &["release", "view", &tag, "--repo", REPOSITORY, "--json", "tagName"]).status == Some(0)
+    gh(
+        root,
+        &[
+            "release", "view", &tag, "--repo", REPOSITORY, "--json", "tagName",
+        ],
+    )
+    .status
+        == Some(0)
 }
 
 /// Gate 0A: same-SHA CI must be terminal and green. A release admitted while
@@ -124,33 +182,78 @@ pub fn tag_or_release_exists(root: &Path, version: &str) -> bool {
 pub fn assert_same_sha_ci_is_green(root: &Path, revision: &str) -> ReleaseResult<()> {
     let listed = gh(
         root,
-        &["run", "list", "--repo", REPOSITORY, "--commit", revision, "--workflow", CI_WORKFLOW, "--json", "status,conclusion,databaseId", "--limit", "25"],
+        &[
+            "run",
+            "list",
+            "--repo",
+            REPOSITORY,
+            "--commit",
+            revision,
+            "--workflow",
+            CI_WORKFLOW,
+            "--json",
+            "status,conclusion,databaseId",
+            "--limit",
+            "25",
+        ],
     );
     if listed.status != Some(0) {
-        return Err(format!("release chain admission could not read same-SHA CI runs: {}", listed.stderr.trim()));
+        return Err(format!(
+            "release chain admission could not read same-SHA CI runs: {}",
+            listed.stderr.trim()
+        ));
     }
-    let runs: Value = serde_json::from_str(&listed.stdout).map_err(|_| "release chain admission could not parse same-SHA CI runs".to_string())?;
+    let runs: Value = serde_json::from_str(&listed.stdout)
+        .map_err(|_| "release chain admission could not parse same-SHA CI runs".to_string())?;
     let runs = runs.as_array().cloned().unwrap_or_default();
     if runs.is_empty() {
-        return Err(format!("release chain admission found no {CI_WORKFLOW} run for {revision}"));
+        return Err(format!(
+            "release chain admission found no {CI_WORKFLOW} run for {revision}"
+        ));
     }
-    let unfinished: Vec<&Value> = runs.iter().filter(|r| r.get("status").and_then(Value::as_str) != Some("completed")).collect();
+    let unfinished: Vec<&Value> = runs
+        .iter()
+        .filter(|r| r.get("status").and_then(Value::as_str) != Some("completed"))
+        .collect();
     if !unfinished.is_empty() {
-        return Err(format!("release chain admission requires terminal same-SHA CI; {} run(s) still in progress", unfinished.len()));
+        return Err(format!(
+            "release chain admission requires terminal same-SHA CI; {} run(s) still in progress",
+            unfinished.len()
+        ));
     }
-    if !runs.iter().any(|r| r.get("conclusion").and_then(Value::as_str) == Some("success")) {
-        return Err(format!("release chain admission requires a successful {CI_WORKFLOW} run for {revision}"));
+    if !runs
+        .iter()
+        .any(|r| r.get("conclusion").and_then(Value::as_str) == Some("success"))
+    {
+        return Err(format!(
+            "release chain admission requires a successful {CI_WORKFLOW} run for {revision}"
+        ));
     }
     let failed: Vec<String> = runs
         .iter()
         .filter(|r| {
             let conclusion = r.get("conclusion").and_then(Value::as_str);
-            conclusion != Some("success") && conclusion != Some("cancelled") && conclusion != Some("skipped")
+            conclusion != Some("success")
+                && conclusion != Some("cancelled")
+                && conclusion != Some("skipped")
         })
-        .map(|r| format!("{}:{}", r.get("databaseId").map(|v| v.to_string()).unwrap_or_default(), r.get("conclusion").and_then(Value::as_str).unwrap_or("null")))
+        .map(|r| {
+            format!(
+                "{}:{}",
+                r.get("databaseId")
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+                r.get("conclusion")
+                    .and_then(Value::as_str)
+                    .unwrap_or("null")
+            )
+        })
         .collect();
     if !failed.is_empty() {
-        return Err(format!("release chain admission found a non-green same-SHA CI run: {}", failed.join(", ")));
+        return Err(format!(
+            "release chain admission found a non-green same-SHA CI run: {}",
+            failed.join(", ")
+        ));
     }
     Ok(())
 }
@@ -187,13 +290,17 @@ pub fn admit_release(env: &HashMap<String, String>, root: &Path) -> ReleaseResul
             return Err(format!("release chain admission dry run requires dispatch from a branch (refs/heads/*), got: {workflow_ref}"));
         }
     } else if workflow_ref != "refs/heads/main" {
-        return Err(format!("release chain admission requires dispatch from refs/heads/main, got: {workflow_ref}"));
+        return Err(format!(
+            "release chain admission requires dispatch from refs/heads/main, got: {workflow_ref}"
+        ));
     }
     let run_attempt = env_get(env, "RIGHT_GIT_RUN_ATTEMPT");
     if !dry_run {
         let is_digits = !run_attempt.is_empty() && run_attempt.chars().all(|c| c.is_ascii_digit());
         if !is_digits || run_attempt.parse::<i64>() != Ok(1) {
-            return Err(format!("release chain admission requires the first run attempt, got: {run_attempt}"));
+            return Err(format!(
+                "release chain admission requires the first run attempt, got: {run_attempt}"
+            ));
         }
     }
     let release_version = env_get(env, "RIGHT_GIT_RELEASE_VERSION");
@@ -201,7 +308,9 @@ pub fn admit_release(env: &HashMap<String, String>, root: &Path) -> ReleaseResul
         return Err(format!("release chain admission requires an exact semver release version, got: {release_version}"));
     }
     if dry_run && env_get(env, "RIGHT_GIT_PUBLISH") == "true" {
-        return Err("release chain admission refuses publish=true together with dry_run=true".to_string());
+        return Err(
+            "release chain admission refuses publish=true together with dry_run=true".to_string(),
+        );
     }
 
     // Version/tag/release contradiction: the dispatched version must be the
@@ -213,12 +322,21 @@ pub fn admit_release(env: &HashMap<String, String>, root: &Path) -> ReleaseResul
     }
 
     let revision = env_get(env, "RIGHT_GIT_SOURCE_REVISION");
-    let is_sha40 = revision.len() == 40 && revision.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase());
+    let is_sha40 = revision.len() == 40
+        && revision
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase());
     if !is_sha40 {
-        return Err("release chain admission requires an exact 40-character lowercase source revision SHA".to_string());
+        return Err(
+            "release chain admission requires an exact 40-character lowercase source revision SHA"
+                .to_string(),
+        );
     }
     if git(root, &["cat-file", "-e", &format!("{revision}^{{commit}}")]).status != Some(0) {
-        return Err("release chain admission source revision does not resolve to a known commit".to_string());
+        return Err(
+            "release chain admission source revision does not resolve to a known commit"
+                .to_string(),
+        );
     }
     // A dry run accepts any branch ref, so the source revision need not yet
     // be an ancestor of main; the tag/release-existence check is skipped too
@@ -231,25 +349,46 @@ pub fn admit_release(env: &HashMap<String, String>, root: &Path) -> ReleaseResul
     let signed_qualification = env_get(env, "RIGHT_GIT_SIGNED_QUALIFICATION") == "true";
     let publish = env_get(env, "RIGHT_GIT_PUBLISH") == "true";
     if publish && !signed_qualification {
-        return Err("release chain admission requires signed_qualification=true whenever publish=true".to_string());
+        return Err(
+            "release chain admission requires signed_qualification=true whenever publish=true"
+                .to_string(),
+        );
     }
     if !dry_run && tag_or_release_exists(root, &release_version) {
         return Err(format!("release chain admission version v{release_version} already has a tag or release (drafts included)"));
     }
 
-    let mut file = fs::OpenOptions::new().append(true).create(true).open(&output_path).map_err(|e| format!("could not open GITHUB_OUTPUT: {e}"))?;
+    let mut file = fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(&output_path)
+        .map_err(|e| format!("could not open GITHUB_OUTPUT: {e}"))?;
     for (key, value) in [
         ("version", release_version.clone()),
         ("source_revision", revision.clone()),
         ("signed_qualification", signed_qualification.to_string()),
         ("publish", publish.to_string()),
         ("dry_run", dry_run.to_string()),
-        ("artifact_suffix", if dry_run { "-dry-run".to_string() } else { String::new() }),
+        (
+            "artifact_suffix",
+            if dry_run {
+                "-dry-run".to_string()
+            } else {
+                String::new()
+            },
+        ),
     ] {
-        writeln!(file, "{key}={value}").map_err(|e| format!("could not write GITHUB_OUTPUT: {e}"))?;
+        writeln!(file, "{key}={value}")
+            .map_err(|e| format!("could not write GITHUB_OUTPUT: {e}"))?;
     }
 
-    Ok(AdmissionResult { status: "admitted", version: release_version, source_revision: revision, signed_qualification, publish })
+    Ok(AdmissionResult {
+        status: "admitted",
+        version: release_version,
+        source_revision: revision,
+        signed_qualification,
+        publish,
+    })
 }
 
 fn collect_evidence_files(root: Option<&Path>) -> ReleaseResult<Vec<Value>> {
@@ -263,7 +402,8 @@ fn collect_evidence_files(root: Option<&Path>) -> ReleaseResult<Vec<Value>> {
 }
 
 fn collect_evidence_files_walk(base: &Path, dir: &Path, out: &mut Vec<Value>) -> ReleaseResult<()> {
-    let entries = fs::read_dir(dir).map_err(|e| format!("failed to list {}: {e}", dir.display()))?;
+    let entries =
+        fs::read_dir(dir).map_err(|e| format!("failed to list {}: {e}", dir.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
@@ -271,7 +411,11 @@ fn collect_evidence_files_walk(base: &Path, dir: &Path, out: &mut Vec<Value>) ->
         if meta.is_dir() {
             collect_evidence_files_walk(base, &path, out)?;
         } else if meta.is_file() {
-            let rel = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+            let rel = path
+                .strip_prefix(base)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
             out.push(json!({ "name": rel, "sha256": sha256_file(&path)?, "size": meta.len() }));
         }
     }
@@ -306,20 +450,32 @@ pub fn write_stage_summary(env: &HashMap<String, String>) -> ReleaseResult<Value
         let raw = env_get(env, "RIGHT_GIT_STAGE_EXIT_CODE");
         let parsed: Option<i64> = raw.parse().ok();
         let Some(code) = parsed else {
-            return Err("release chain stage-summary finalize requires a numeric RIGHT_GIT_STAGE_EXIT_CODE".to_string());
+            return Err(
+                "release chain stage-summary finalize requires a numeric RIGHT_GIT_STAGE_EXIT_CODE"
+                    .to_string(),
+            );
         };
         exit_code = Some(code);
         if status == "SUCCEEDED" && code != 0 {
-            return Err("release chain stage-summary cannot mark a nonzero exit code SUCCEEDED".to_string());
+            return Err(
+                "release chain stage-summary cannot mark a nonzero exit code SUCCEEDED".to_string(),
+            );
         }
     }
     let stage_root_path = Path::new(&stage_root);
-    fs::create_dir_all(stage_root_path).map_err(|e| format!("could not create {stage_root}: {e}"))?;
+    fs::create_dir_all(stage_root_path)
+        .map_err(|e| format!("could not create {stage_root}: {e}"))?;
     let optional = |key: &str| -> Value {
         let v = env_get(env, key);
-        if v.is_empty() { Value::Null } else { Value::String(v) }
+        if v.is_empty() {
+            Value::Null
+        } else {
+            Value::String(v)
+        }
     };
-    let evidence_root = env.get("RIGHT_GIT_STAGE_EVIDENCE_ROOT").map(|s| PathBuf::from(s));
+    let evidence_root = env
+        .get("RIGHT_GIT_STAGE_EVIDENCE_ROOT")
+        .map(|s| PathBuf::from(s));
     let summary = json!({
         "schemaVersion": 1,
         "stage": stage,
@@ -345,12 +501,18 @@ fn now_iso8601() -> String {
     // manual UTC formatter (matches `new Date().toISOString()`'s shape:
     // this field is evidence metadata only and is never compared by
     // `verifyEvidence`, so sub-second precision parity is not required).
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = now.as_secs();
     let millis = now.subsec_millis();
     let days = secs / 86400;
     let time_of_day = secs % 86400;
-    let (h, m, s) = (time_of_day / 3600, (time_of_day % 3600) / 60, time_of_day % 60);
+    let (h, m, s) = (
+        time_of_day / 3600,
+        (time_of_day % 3600) / 60,
+        time_of_day % 60,
+    );
     let mut year = 1970i64;
     let mut remaining_days = days as i64;
     loop {
@@ -363,7 +525,11 @@ fn now_iso8601() -> String {
         year += 1;
     }
     let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
-    let month_lengths = if leap { [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] } else { [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] };
+    let month_lengths = if leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
     let mut month = 1;
     for len in month_lengths {
         if remaining_days < len {
@@ -378,7 +544,10 @@ fn now_iso8601() -> String {
 
 fn find_stage_summaries(root: &Path) -> ReleaseResult<Vec<Value>> {
     if !root.exists() {
-        return Err(format!("release chain evidence-verification root is missing: {}", root.display()));
+        return Err(format!(
+            "release chain evidence-verification root is missing: {}",
+            root.display()
+        ));
     }
     let mut out = vec![];
     find_stage_summaries_walk(root, &mut out)?;
@@ -386,16 +555,26 @@ fn find_stage_summaries(root: &Path) -> ReleaseResult<Vec<Value>> {
 }
 
 fn find_stage_summaries_walk(dir: &Path, out: &mut Vec<Value>) -> ReleaseResult<()> {
-    let entries = fs::read_dir(dir).map_err(|e| format!("failed to list {}: {e}", dir.display()))?;
+    let entries =
+        fs::read_dir(dir).map_err(|e| format!("failed to list {}: {e}", dir.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         let meta = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
         if meta.is_dir() {
             find_stage_summaries_walk(&path, out)?;
-        } else if meta.is_file() && path.file_name().map(|n| n == "stage-summary.json").unwrap_or(false) {
+        } else if meta.is_file()
+            && path
+                .file_name()
+                .map(|n| n == "stage-summary.json")
+                .unwrap_or(false)
+        {
             let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-            out.push(serde_json::from_str(&text).map_err(|e| format!("invalid stage-summary.json at {}: {e}", path.display()))?);
+            out.push(
+                serde_json::from_str(&text).map_err(|e| {
+                    format!("invalid stage-summary.json at {}: {e}", path.display())
+                })?,
+            );
         }
     }
     Ok(())
@@ -407,7 +586,12 @@ pub fn verify_evidence(env: &HashMap<String, String>) -> ReleaseResult<Value> {
     let run_id = env_get(env, "RIGHT_GIT_RUN_ID");
     let run_attempt = env_get(env, "RIGHT_GIT_RUN_ATTEMPT");
     let stage_summary_root = env_get(env, "RIGHT_GIT_STAGE_SUMMARY_ROOT");
-    if release_version.is_empty() || revision.is_empty() || run_id.is_empty() || run_attempt.is_empty() || stage_summary_root.is_empty() {
+    if release_version.is_empty()
+        || revision.is_empty()
+        || run_id.is_empty()
+        || run_attempt.is_empty()
+        || stage_summary_root.is_empty()
+    {
         return Err("release chain evidence-verification requires RIGHT_GIT_RELEASE_VERSION, RIGHT_GIT_SOURCE_REVISION, RIGHT_GIT_RUN_ID, RIGHT_GIT_RUN_ATTEMPT & RIGHT_GIT_STAGE_SUMMARY_ROOT".to_string());
     }
     let all_summaries = find_stage_summaries(Path::new(&stage_summary_root))?;
@@ -417,25 +601,44 @@ pub fn verify_evidence(env: &HashMap<String, String>) -> ReleaseResult<Value> {
             s.get("action").and_then(Value::as_str) == Some("finalize")
                 && s.get("version").and_then(Value::as_str) == Some(release_version.as_str())
                 && s.get("sourceRevision").and_then(Value::as_str) == Some(revision.as_str())
-                && s.get("runId").map(|v| v.to_string().trim_matches('"').to_string()) == Some(run_id.clone())
-                && s.get("runAttempt").map(|v| v.to_string().trim_matches('"').to_string()) == Some(run_attempt.clone())
+                && s.get("runId")
+                    .map(|v| v.to_string().trim_matches('"').to_string())
+                    == Some(run_id.clone())
+                && s.get("runAttempt")
+                    .map(|v| v.to_string().trim_matches('"').to_string())
+                    == Some(run_attempt.clone())
         })
         .collect();
     for required in REQUIRED_RELEASE_STAGES {
         let label = match required.platform {
-            Some(p) => format!("{} ({}/{})", required.stage, p, required.architecture.unwrap_or("")),
+            Some(p) => format!(
+                "{} ({}/{})",
+                required.stage,
+                p,
+                required.architecture.unwrap_or("")
+            ),
             None => required.stage.to_string(),
         };
         let found = summaries.iter().find(|s| {
             s.get("stage").and_then(Value::as_str) == Some(required.stage)
-                && required.platform.map(|p| s.get("platform").and_then(Value::as_str) == Some(p)).unwrap_or(true)
-                && required.architecture.map(|a| s.get("architecture").and_then(Value::as_str) == Some(a)).unwrap_or(true)
+                && required
+                    .platform
+                    .map(|p| s.get("platform").and_then(Value::as_str) == Some(p))
+                    .unwrap_or(true)
+                && required
+                    .architecture
+                    .map(|a| s.get("architecture").and_then(Value::as_str) == Some(a))
+                    .unwrap_or(true)
         });
         let Some(found) = found else {
-            return Err(format!("release chain evidence-verification is missing a required stage summary: {label}"));
+            return Err(format!(
+                "release chain evidence-verification is missing a required stage summary: {label}"
+            ));
         };
         if found.get("status").and_then(Value::as_str) != Some("SUCCEEDED") {
-            return Err(format!("release chain evidence-verification stage did not succeed: {label}"));
+            return Err(format!(
+                "release chain evidence-verification stage did not succeed: {label}"
+            ));
         }
     }
     Ok(json!({
@@ -462,15 +665,25 @@ mod tests {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("legion-admission-{name}-{}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::SeqCst)));
+        let dir = std::env::temp_dir().join(format!(
+            "legion-admission-{name}-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::SeqCst)
+        ));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
 
     fn base_env(output: &Path) -> HashMap<String, String> {
         HashMap::from([
-            ("GITHUB_OUTPUT".to_string(), output.to_string_lossy().to_string()),
-            ("RIGHT_GIT_WORKFLOW_REF".to_string(), "refs/heads/main".to_string()),
+            (
+                "GITHUB_OUTPUT".to_string(),
+                output.to_string_lossy().to_string(),
+            ),
+            (
+                "RIGHT_GIT_WORKFLOW_REF".to_string(),
+                "refs/heads/main".to_string(),
+            ),
             ("RIGHT_GIT_RUN_ATTEMPT".to_string(), "1".to_string()),
             ("RIGHT_GIT_RELEASE_VERSION".to_string(), "0.0.0".to_string()),
             ("RIGHT_GIT_SOURCE_REVISION".to_string(), "0".repeat(40)),
@@ -490,7 +703,10 @@ mod tests {
         let output = dir.join("out.txt");
         fs::write(&output, "").unwrap();
         let mut env = base_env(&output);
-        env.insert("RIGHT_GIT_WORKFLOW_REF".to_string(), "refs/heads/topic".to_string());
+        env.insert(
+            "RIGHT_GIT_WORKFLOW_REF".to_string(),
+            "refs/heads/topic".to_string(),
+        );
         let err = admit_release(&env, Path::new(".")).unwrap_err();
         assert!(err.contains("refs/heads/main"), "{err}");
     }
@@ -524,7 +740,10 @@ mod tests {
         fs::write(&output, "").unwrap();
         let mut env = base_env(&output);
         env.insert("RIGHT_GIT_DRY_RUN".to_string(), "true".to_string());
-        env.insert("RIGHT_GIT_WORKFLOW_REF".to_string(), "refs/tags/v9.9.9".to_string());
+        env.insert(
+            "RIGHT_GIT_WORKFLOW_REF".to_string(),
+            "refs/tags/v9.9.9".to_string(),
+        );
         let err = admit_release(&env, Path::new(".")).unwrap_err();
         assert!(err.contains("requires dispatch from a branch"), "{err}");
     }
@@ -536,10 +755,16 @@ mod tests {
         fs::write(&output, "").unwrap();
         let mut env = base_env(&output);
         env.insert("RIGHT_GIT_DRY_RUN".to_string(), "true".to_string());
-        env.insert("RIGHT_GIT_WORKFLOW_REF".to_string(), "refs/heads/topic".to_string());
+        env.insert(
+            "RIGHT_GIT_WORKFLOW_REF".to_string(),
+            "refs/heads/topic".to_string(),
+        );
         env.insert("RIGHT_GIT_PUBLISH".to_string(), "true".to_string());
         let err = admit_release(&env, Path::new(".")).unwrap_err();
-        assert!(err.contains("refuses publish=true together with dry_run=true"), "{err}");
+        assert!(
+            err.contains("refuses publish=true together with dry_run=true"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -547,11 +772,20 @@ mod tests {
         let root = scratch("stage");
         let mut env = HashMap::new();
         env.insert("RIGHT_GIT_STAGE_ACTION".to_string(), "finalize".to_string());
-        env.insert("RIGHT_GIT_STAGE_ROOT".to_string(), root.to_string_lossy().to_string());
+        env.insert(
+            "RIGHT_GIT_STAGE_ROOT".to_string(),
+            root.to_string_lossy().to_string(),
+        );
         env.insert("RIGHT_GIT_STAGE".to_string(), "candidate".to_string());
-        env.insert("RIGHT_GIT_RELEASE_VERSION".to_string(), "0.3.12".to_string());
+        env.insert(
+            "RIGHT_GIT_RELEASE_VERSION".to_string(),
+            "0.3.12".to_string(),
+        );
         env.insert("RIGHT_GIT_SOURCE_REVISION".to_string(), "a".repeat(40));
-        env.insert("RIGHT_GIT_STAGE_STATUS".to_string(), "succeeded".to_string());
+        env.insert(
+            "RIGHT_GIT_STAGE_STATUS".to_string(),
+            "succeeded".to_string(),
+        );
         env.insert("RIGHT_GIT_STAGE_EXIT_CODE".to_string(), "2".to_string());
         let err = write_stage_summary(&env).unwrap_err();
         assert!(err.contains("nonzero exit code"), "{err}");
@@ -559,8 +793,13 @@ mod tests {
         env.insert("RIGHT_GIT_STAGE_EXIT_CODE".to_string(), "0".to_string());
         let ok = write_stage_summary(&env).unwrap();
         assert_eq!(ok.get("status").and_then(Value::as_str), Some("SUCCEEDED"));
-        let written: Value = serde_json::from_str(&fs::read_to_string(root.join("stage-summary.json")).unwrap()).unwrap();
-        assert_eq!(written.get("stage").and_then(Value::as_str), Some("candidate"));
+        let written: Value =
+            serde_json::from_str(&fs::read_to_string(root.join("stage-summary.json")).unwrap())
+                .unwrap();
+        assert_eq!(
+            written.get("stage").and_then(Value::as_str),
+            Some("candidate")
+        );
     }
 
     #[test]
@@ -577,11 +816,17 @@ mod tests {
             })).unwrap(),
         ).unwrap();
         let mut env = HashMap::new();
-        env.insert("RIGHT_GIT_RELEASE_VERSION".to_string(), "0.3.12".to_string());
+        env.insert(
+            "RIGHT_GIT_RELEASE_VERSION".to_string(),
+            "0.3.12".to_string(),
+        );
         env.insert("RIGHT_GIT_SOURCE_REVISION".to_string(), "a".repeat(40));
         env.insert("RIGHT_GIT_RUN_ID".to_string(), "1".to_string());
         env.insert("RIGHT_GIT_RUN_ATTEMPT".to_string(), "1".to_string());
-        env.insert("RIGHT_GIT_STAGE_SUMMARY_ROOT".to_string(), root.to_string_lossy().to_string());
+        env.insert(
+            "RIGHT_GIT_STAGE_SUMMARY_ROOT".to_string(),
+            root.to_string_lossy().to_string(),
+        );
         let err = verify_evidence(&env).unwrap_err();
         assert!(err.contains("missing a required stage summary"), "{err}");
     }

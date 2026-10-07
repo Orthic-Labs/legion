@@ -69,7 +69,12 @@ fn rust_commands_non_fast_profile_adds_clippy_and_test() {
 fn rust_commands_undefined_profile_is_non_fast() {
     // JS: `profile !== 'fast'` — anything but the literal `'fast'` string
     // (including `undefined`) takes the non-fast branch.
-    let commands = rust::commands("/root", &s(&[]), &s(&["Cargo.toml"]), Profile::from_str_opt(None));
+    let commands = rust::commands(
+        "/root",
+        &s(&[]),
+        &s(&["Cargo.toml"]),
+        Profile::from_str_opt(None),
+    );
     assert_eq!(commands.len(), 3);
 }
 
@@ -104,7 +109,10 @@ fn rust_normalize_error_on_nonzero_exit_code() {
     assert!(!result.complete);
     assert_eq!(result.coverage_gaps.len(), 1);
     assert_eq!(result.coverage_gaps[0].kind, "command-failed");
-    assert_eq!(result.coverage_gaps[0].command.as_deref(), Some("rust.clippy"));
+    assert_eq!(
+        result.coverage_gaps[0].command.as_deref(),
+        Some("rust.clippy")
+    );
 }
 
 #[test]
@@ -137,7 +145,8 @@ fn rust_fixtures_are_empty() {
 #[test]
 fn rust_unsafe_boundaries_finds_unsafe_fn_block_and_impl() {
     let files = s(&["a.rs"]);
-    let source = "fn main() {}\nunsafe fn raw() {}\nlet x = unsafe { 1 };\nunsafe impl Foo for Bar {}\n";
+    let source =
+        "fn main() {}\nunsafe fn raw() {}\nlet x = unsafe { 1 };\nunsafe impl Foo for Bar {}\n";
     let boundaries = rust::unsafe_boundaries(&files, |f| {
         assert_eq!(f, "a.rs");
         Some(source.to_string())
@@ -188,7 +197,9 @@ fn swift_detect_matches_source_extensions() {
 fn swift_detect_matches_manifest_markers() {
     assert!(swift_objc::detect(&s(&["Package.swift"])));
     assert!(swift_objc::detect(&s(&["App.xcodeproj/project.pbxproj"])));
-    assert!(swift_objc::detect(&s(&["App.xcworkspace/contents.xcworkspacedata"])));
+    assert!(swift_objc::detect(&s(&[
+        "App.xcworkspace/contents.xcworkspacedata"
+    ])));
 }
 
 #[test]
@@ -300,7 +311,10 @@ fn swift_normalize_error_on_nonzero_exit_code() {
     );
     assert_eq!(result.status, "error");
     assert!(!result.complete);
-    assert_eq!(result.coverage_gaps[0].command.as_deref(), Some("swift.test"));
+    assert_eq!(
+        result.coverage_gaps[0].command.as_deref(),
+        Some("swift.test")
+    );
 }
 
 #[test]
@@ -309,7 +323,12 @@ fn swift_coverage_examines_swift_m_and_mm() {
     assert_eq!(coverage.provider, "language.swift-objc");
     assert_eq!(
         coverage.examined,
-        vec!["swift".to_string(), "m".to_string(), "mm".to_string(), "swift".to_string()]
+        vec![
+            "swift".to_string(),
+            "m".to_string(),
+            "mm".to_string(),
+            "swift".to_string()
+        ]
     );
     assert!(coverage.complete);
 }

@@ -46,7 +46,9 @@ pub struct ModelsConfig {
 pub fn enumerate_models(cfg: &ModelsConfig) -> BTreeMap<(String, String), SeatUsage> {
     let mut seen: BTreeMap<(String, String), SeatUsage> = BTreeMap::new();
     let mut note = |provider: &str, model: &str, seat: String, is_primary: bool| {
-        let rec = seen.entry((provider.to_string(), model.to_string())).or_default();
+        let rec = seen
+            .entry((provider.to_string(), model.to_string()))
+            .or_default();
         if is_primary {
             rec.primary_seats.push(seat);
         } else {
@@ -91,7 +93,10 @@ pub enum ProbeOutcome {
     /// "no_provider", ...}`.
     NoProvider,
     /// A successful call: `raw` is the (possibly empty) response text.
-    Ok { raw: Option<String>, latency_ms: i64 },
+    Ok {
+        raw: Option<String>,
+        latency_ms: i64,
+    },
     /// A `ProviderError`: `status` mirrors `getattr(e, "status", None)`,
     /// `is_quota` mirrors `getattr(e, "is_quota", False)`, `message` is
     /// `str(e)`.
@@ -125,7 +130,13 @@ pub fn classify(outcome: &ProbeOutcome) -> ClassifyResult {
             latency_ms: None,
         },
         ProbeOutcome::Ok { raw, latency_ms } => {
-            let detail: String = raw.as_deref().unwrap_or("").trim().chars().take(40).collect();
+            let detail: String = raw
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .chars()
+                .take(40)
+                .collect();
             ClassifyResult {
                 status: "ok".to_string(),
                 http: None,
@@ -165,7 +176,10 @@ pub fn classify(outcome: &ProbeOutcome) -> ClassifyResult {
         ProbeOutcome::Other { type_name, message } => ClassifyResult {
             status: "error".to_string(),
             http: None,
-            detail: format!("{type_name}: {}", message.chars().take(120).collect::<String>()),
+            detail: format!(
+                "{type_name}: {}",
+                message.chars().take(120).collect::<String>()
+            ),
             latency_ms: None,
         },
     }

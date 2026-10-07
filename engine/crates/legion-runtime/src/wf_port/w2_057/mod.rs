@@ -243,7 +243,10 @@ pub fn validate(tasklist_path: &Path, text: &str) -> (Vec<String>, Context) {
     ) {
         (Ok(_), Ok(receipt_bytes)) => {
             if serde_json::from_slice::<Value>(&receipt_bytes).is_err() {
-                errors.push("Minimize authority missing, invalid, or stale: invalid receipt JSON".to_string());
+                errors.push(
+                    "Minimize authority missing, invalid, or stale: invalid receipt JSON"
+                        .to_string(),
+                );
             }
         }
         (result_a, result_b) => {
@@ -404,11 +407,7 @@ pub fn validate(tasklist_path: &Path, text: &str) -> (Vec<String>, Context) {
             (
                 "Parallel lanes",
                 marker(&field(text, "Parallel lanes"), "PARALLEL_LANES_JSON:"),
-                compact(
-                    route
-                        .get("parallel_lanes")
-                        .unwrap_or(&Value::Array(vec![])),
-                ),
+                compact(route.get("parallel_lanes").unwrap_or(&Value::Array(vec![]))),
             ),
             (
                 "Deleted work",
@@ -418,11 +417,7 @@ pub fn validate(tasklist_path: &Path, text: &str) -> (Vec<String>, Context) {
             (
                 "Deferred work",
                 marker(&field(text, "Deferred work"), "DEFERRED_WORK_JSON:"),
-                compact(
-                    route
-                        .get("deferred_work")
-                        .unwrap_or(&Value::Array(vec![])),
-                ),
+                compact(route.get("deferred_work").unwrap_or(&Value::Array(vec![]))),
             ),
         ];
         for (label, actual, expected) in &mirrors {
@@ -506,10 +501,7 @@ pub fn validate(tasklist_path: &Path, text: &str) -> (Vec<String>, Context) {
                 format!("AFTER:{}", dependencies.join(","))
             };
             if task.depends != expected_depends {
-                errors.push(format!(
-                    "Task {} dependency contract mismatch",
-                    index + 1
-                ));
+                errors.push(format!("Task {} dependency contract mismatch", index + 1));
             }
             if dependencies.iter().any(|dep| !seen.contains(dep)) {
                 errors.push(format!("Task {} is not topologically ordered", index + 1));
@@ -766,9 +758,12 @@ pub fn validate(tasklist_path: &Path, text: &str) -> (Vec<String>, Context) {
                     covered_to = covered_to.max(*end);
                 }
                 for (step_id, (start, end)) in &span_by_step {
-                    let overlaps = span_by_step.iter().any(|(other_id, (other_start, other_end))| {
-                        other_id != step_id && start < other_end && other_start < end
-                    });
+                    let overlaps =
+                        span_by_step
+                            .iter()
+                            .any(|(other_id, (other_start, other_end))| {
+                                other_id != step_id && start < other_end && other_start < end
+                            });
                     if parallel_by_step.get(step_id) == Some(&true) && !overlaps {
                         errors.push(format!(
                             "Step {step_id} is flagged parallelizable but its span overlaps no other step"
@@ -950,9 +945,7 @@ fn resolve(path: &Path) -> PathBuf {
         if path.is_absolute() {
             path.to_path_buf()
         } else {
-            std::env::current_dir()
-                .unwrap_or_default()
-                .join(path)
+            std::env::current_dir().unwrap_or_default().join(path)
         }
     })
 }

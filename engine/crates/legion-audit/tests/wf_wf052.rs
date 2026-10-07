@@ -98,7 +98,10 @@ fn complete_receipt() -> Value {
 #[test]
 fn surviving_finding_without_complete_receipt_makes_synthesis_incomplete() {
     let plan = plan_with();
-    let model = model_with(json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]), json!([]));
+    let model = model_with(
+        json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]),
+        json!([]),
+    );
     let result = synthesize_security_evidence(
         &plan,
         &model,
@@ -119,7 +122,10 @@ fn surviving_finding_without_complete_receipt_makes_synthesis_incomplete() {
 #[test]
 fn false_positive_candidate_never_becomes_a_finding() {
     let plan = plan_with();
-    let model = model_with(json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]), json!([]));
+    let model = model_with(
+        json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]),
+        json!([]),
+    );
     let mut verdict = verdict_json();
     verdict["verdict"] = json!("FALSE_POSITIVE");
     let result = synthesize_security_evidence(
@@ -137,7 +143,10 @@ fn false_positive_candidate_never_becomes_a_finding() {
 #[test]
 fn complete_inputs_produce_findings_and_synthesis_is_complete() {
     let plan = plan_with();
-    let model = model_with(json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]), json!([]));
+    let model = model_with(
+        json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]),
+        json!([]),
+    );
     let result = synthesize_security_evidence(
         &plan,
         &model,
@@ -156,7 +165,10 @@ fn complete_inputs_produce_findings_and_synthesis_is_complete() {
 #[test]
 fn proven_path_references_constituent_findings_and_is_not_double_counted() {
     let plan = plan_with();
-    let model = model_with(json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]), json!([]));
+    let model = model_with(
+        json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]),
+        json!([]),
+    );
     let proven = json!({
         "pathId": "path-1", "verdict": "PROVEN", "severity": "critical", "priority": "PRIVILEGE_ESCALATION",
         "start": {"factIds": ["f1"]}, "objective": {"id": "objective.privilege-escalation"},
@@ -173,7 +185,13 @@ fn proven_path_references_constituent_findings_and_is_not_double_counted() {
     )
     .unwrap();
     assert_eq!(result["attackPaths"].as_array().unwrap().len(), 1);
-    assert_eq!(result["attackPaths"][0]["constituentFindingIds"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        result["attackPaths"][0]["constituentFindingIds"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     assert_eq!(result["coverage"]["survivingCandidateVerdicts"], 1);
     assert_eq!(result["coverage"]["provenPaths"], 1);
 }
@@ -181,7 +199,10 @@ fn proven_path_references_constituent_findings_and_is_not_double_counted() {
 #[test]
 fn partial_and_blocked_paths_carry_no_severity_and_are_classified_separately() {
     let plan = plan_with();
-    let model = model_with(json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]), json!([]));
+    let model = model_with(
+        json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]),
+        json!([]),
+    );
     let partial = json!({
         "pathId": "p2", "verdict": "PARTIALLY_SUPPORTED", "evidenceStrength": "strong-inference", "severity": null,
         "stepAssessments": [], "joinAssessments": [], "controls": [], "controlAssessments": [],
@@ -201,7 +222,13 @@ fn partial_and_blocked_paths_carry_no_severity_and_are_classified_separately() {
         &variants_artifact(json!([complete_receipt()]), true),
     )
     .unwrap();
-    assert_eq!(result["hypotheses"]["partiallySupported"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        result["hypotheses"]["partiallySupported"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     assert_eq!(result["hypotheses"]["blocked"].as_array().unwrap().len(), 1);
     assert_eq!(result["attackPaths"].as_array().unwrap().len(), 0);
     assert_eq!(result["findings"][0]["severity"], "high");
@@ -228,7 +255,10 @@ fn binding_mismatch_fails_synthesis() {
 #[test]
 fn same_root_cause_groups_variants_without_destructive_dedup() {
     let plan = plan_with();
-    let model = model_with(json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]), json!([]));
+    let model = model_with(
+        json!([{"id": "ctrl1", "kind": "control", "evidenceRefs": []}]),
+        json!([]),
+    );
     let mut candidate_b = candidate_json();
     candidate_b["id"] = json!("c2");
     let mut verdict_b = verdict_json();
@@ -245,9 +275,23 @@ fn same_root_cause_groups_variants_without_destructive_dedup() {
         &variants_artifact(json!([complete_receipt(), receipt_b]), true),
     )
     .unwrap();
-    assert_eq!(result["findings"].as_array().unwrap().len(), 2, "two findings kept");
-    assert_eq!(result["systemicRootCauses"].as_array().unwrap().len(), 1, "grouped by root cause");
-    assert_eq!(result["systemicRootCauses"][0]["findingIds"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        result["findings"].as_array().unwrap().len(),
+        2,
+        "two findings kept"
+    );
+    assert_eq!(
+        result["systemicRootCauses"].as_array().unwrap().len(),
+        1,
+        "grouped by root cause"
+    );
+    assert_eq!(
+        result["systemicRootCauses"][0]["findingIds"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
 }
 
 // ---- attack-path-synthesis.mjs (selected cross-module scenarios; the full
@@ -260,7 +304,10 @@ fn synthesis_output_feeds_reconciliation_end_to_end() {
         "kind": "object-access", "subject": "actor:external", "action": "read",
         "object": "jewel-id", "scope": "cross-tenant", "id": "fact:1", "evidenceRefs": ["ev1"],
     });
-    let model = model_with(json!([{"id": "jewel-id", "kind": "crown-jewel"}]), json!([start]));
+    let model = model_with(
+        json!([{"id": "jewel-id", "kind": "crown-jewel"}]),
+        json!([start]),
+    );
     let attack = json!({
         "schemaVersion": 2, "kind": "security-candidate", "id": "c1",
         "provider": "security.test", "providerVersion": "1", "ruleId": "r", "candidateClass": "test",
@@ -291,10 +338,16 @@ fn synthesis_output_feeds_reconciliation_end_to_end() {
     // Every primitive step survives adjudication: reconciliation must mark
     // the path PARTIALLY_SUPPORTED (eligible for chain adjudication) and
     // never PROVEN.
-    let adjudication = adjudication_artifact(json!([{"candidateId": "c1", "verdict": "TRUE_POSITIVE"}]), true);
+    let adjudication = adjudication_artifact(
+        json!([{"candidateId": "c1", "verdict": "TRUE_POSITIVE"}]),
+        true,
+    );
     let reconciled = reconcile_attack_paths(&plan, &hypotheses, &adjudication).unwrap();
     let reconciled_hyps = reconciled["hypotheses"].as_array().unwrap();
-    assert_eq!(reconciled_hyps.len(), hypotheses["hypotheses"].as_array().unwrap().len());
+    assert_eq!(
+        reconciled_hyps.len(),
+        hypotheses["hypotheses"].as_array().unwrap().len()
+    );
     for hyp in reconciled_hyps {
         assert_eq!(hyp["status"], "PARTIALLY_SUPPORTED");
         assert_ne!(hyp["status"], "PROVEN");
@@ -315,7 +368,15 @@ fn created_candidate_is_usable_directly_as_synthesis_input() {
         "effects": [{"kind": "capability", "subject": "actor:x", "action": "b"}],
         "evidenceRefs": ["ev1"],
     });
-    let candidate = create_security_candidate_v2(&plan, &model, "security.test", "1", "sha256:denom", &observation).unwrap();
+    let candidate = create_security_candidate_v2(
+        &plan,
+        &model,
+        "security.test",
+        "1",
+        "sha256:denom",
+        &observation,
+    )
+    .unwrap();
     assert_eq!(candidate["schemaVersion"], 2);
     assert_eq!(candidate["verdict"], "UNADJUDICATED");
 

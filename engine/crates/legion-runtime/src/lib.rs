@@ -4,21 +4,21 @@ pub mod budget;
 pub mod engine;
 pub mod error;
 pub mod escalation;
-pub mod p7_host;
 pub mod grant;
+pub mod l3_inventory;
 pub mod l4_platform;
 pub mod l5_skills;
+pub mod l6_designer_checks;
+pub mod p5_core;
+pub mod p7_host;
+pub mod p8_designer;
+pub mod p9_skills;
 pub mod plan;
 pub mod profile;
 pub mod release_binding;
 pub mod route;
 pub mod scheduler;
 pub mod task;
-pub mod p5_core;
-pub mod l3_inventory;
-pub mod l6_designer_checks;
-pub mod p9_skills;
-pub mod p8_designer;
 
 pub use budget::{BudgetAccount, BudgetReservation};
 pub use engine::{
@@ -46,6 +46,6 @@ pub use scheduler::{
 pub use task::{validate_task, ContextRequest};
 
 // LEG-026 owns validation.rs; this declaration is intentionally reserved.
-pub mod validation;
 pub mod p6_inventory;
+pub mod validation;
 pub mod wf_port;

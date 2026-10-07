@@ -3,8 +3,8 @@
 
 use legion_runtime::wf_port::w2_009::{
     default_output_dir, format_console_event, parse_viewport, parse_viewports_arg,
-    slide_screenshot_filename, viewport_screenshot_filenames, viewport_suffix, Args, Viewport,
-    VerifyReport, DEFAULT_VIEWPORT, DEFAULT_VIEWPORTS_ARG,
+    slide_screenshot_filename, viewport_screenshot_filenames, viewport_suffix, Args, VerifyReport,
+    Viewport, DEFAULT_VIEWPORT, DEFAULT_VIEWPORTS_ARG,
 };
 use std::path::{Path, PathBuf};
 
@@ -51,10 +51,16 @@ fn output_dir_defaults_to_screenshots_sibling_of_html() {
 
 #[test]
 fn slides_mode_filenames_are_one_based_zero_padded() {
-    let names: Vec<String> = (1..=3).map(|i| slide_screenshot_filename("deck", i)).collect();
+    let names: Vec<String> = (1..=3)
+        .map(|i| slide_screenshot_filename("deck", i))
+        .collect();
     assert_eq!(
         names,
-        vec!["deck-slide-01.png", "deck-slide-02.png", "deck-slide-03.png"]
+        vec![
+            "deck-slide-01.png",
+            "deck-slide-02.png",
+            "deck-slide-03.png"
+        ]
     );
 }
 

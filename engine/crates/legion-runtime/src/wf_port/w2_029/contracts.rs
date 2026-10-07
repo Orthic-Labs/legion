@@ -176,7 +176,8 @@ pub fn validate(kind: &str, obj: &Value) -> Vec<String> {
                 cfg.claim_states
             ));
         }
-        let evidence_ids_ok = matches!(obj.get("evidence_ids"), Some(Value::Array(a)) if !a.is_empty());
+        let evidence_ids_ok =
+            matches!(obj.get("evidence_ids"), Some(Value::Array(a)) if !a.is_empty());
         if !evidence_ids_ok {
             errors.push("finding.evidence_ids must be a non-empty list".to_string());
         }
@@ -205,9 +206,8 @@ pub fn validate(kind: &str, obj: &Value) -> Vec<String> {
         if matches!(status, Some("executed") | Some("verified"))
             && !truthy(obj.get("effect_receipt"))
         {
-            errors.push(
-                "executed/verified action requires host-observed effect_receipt".to_string(),
-            );
+            errors
+                .push("executed/verified action requires host-observed effect_receipt".to_string());
         }
     }
     if kind == "outcome" {
@@ -323,7 +323,8 @@ pub fn validate_bundle(payload: &Value) -> Value {
         if !ok {
             errors.push(format!(
                 "actions[{i}] references missing recommendation: {}",
-                rid.map(|s| format!("{s}")).unwrap_or_else(|| "None".to_string())
+                rid.map(|s| format!("{s}"))
+                    .unwrap_or_else(|| "None".to_string())
             ));
         }
     }
@@ -333,7 +334,8 @@ pub fn validate_bundle(payload: &Value) -> Value {
         if !ok {
             errors.push(format!(
                 "outcomes[{i}] references missing action: {}",
-                aid.map(|s| format!("{s}")).unwrap_or_else(|| "None".to_string())
+                aid.map(|s| format!("{s}"))
+                    .unwrap_or_else(|| "None".to_string())
             ));
         }
     }

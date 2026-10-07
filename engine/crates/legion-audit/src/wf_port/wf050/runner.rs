@@ -46,12 +46,20 @@ pub fn run_web_control(
             rest.remove("digest");
             rest.remove("kind");
             rest.remove("schemaVersion");
-            let delegated_provider =
-                rest.remove("provider").and_then(|v| v.as_str().map(str::to_string)).unwrap_or_else(|| "runtime.service.api".to_string());
+            let delegated_provider = rest
+                .remove("provider")
+                .and_then(|v| v.as_str().map(str::to_string))
+                .unwrap_or_else(|| "runtime.service.api".to_string());
             let mut out = Value::Object(rest);
             if let Value::Object(map) = &mut out {
-                map.insert("provider".to_string(), Value::String("runtime.web".to_string()));
-                map.insert("delegatedProvider".to_string(), Value::String(delegated_provider));
+                map.insert(
+                    "provider".to_string(),
+                    Value::String("runtime.web".to_string()),
+                );
+                map.insert(
+                    "delegatedProvider".to_string(),
+                    Value::String(delegated_provider),
+                );
             }
             finalize("legion-web-api-provider", out)
         }

@@ -2,8 +2,13 @@
 
 use serde_json::{json, Value};
 
-const STATES: &[&str] =
-    &["deterministic-measured", "interpretive-measured", "experimental", "unproven", "unavailable"];
+const STATES: &[&str] = &[
+    "deterministic-measured",
+    "interpretive-measured",
+    "experimental",
+    "unproven",
+    "unavailable",
+];
 
 /// `generateClaims(qualifications)`. Panics (mirrors the JS `throw`) on an
 /// unknown claim state.
@@ -67,16 +72,24 @@ pub fn render_support_markdown(claims: &[Value]) -> String {
     let lines: Vec<String> = claims
         .iter()
         .map(|claim| {
-            let subject = claim.get("subject").and_then(Value::as_str)
+            let subject = claim
+                .get("subject")
+                .and_then(Value::as_str)
                 .or_else(|| claim.get("id").and_then(Value::as_str))
                 .unwrap_or("");
             let state = claim.get("state").and_then(Value::as_str).unwrap_or("");
-            let limitations = claim.get("limitations").and_then(Value::as_array).cloned().unwrap_or_default();
+            let limitations = claim
+                .get("limitations")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             let limitations_suffix = if limitations.is_empty() {
                 String::new()
             } else {
-                let joined: Vec<String> =
-                    limitations.iter().map(|l| l.as_str().unwrap_or("").to_string()).collect();
+                let joined: Vec<String> = limitations
+                    .iter()
+                    .map(|l| l.as_str().unwrap_or("").to_string())
+                    .collect();
                 format!("; limitations: {}", joined.join(", "))
             };
             format!("- **{subject}** — {state}{limitations_suffix}")
@@ -86,7 +99,10 @@ pub fn render_support_markdown(claims: &[Value]) -> String {
 }
 
 /// `generateClaimsFromQualification(qualification, expectedIdentity)`.
-pub fn generate_claims_from_qualification(qualification: Option<&Value>, expected_identity: Option<&Value>) -> Value {
+pub fn generate_claims_from_qualification(
+    qualification: Option<&Value>,
+    expected_identity: Option<&Value>,
+) -> Value {
     let records = qualification
         .and_then(|q| q.get("claims").or_else(|| q.get("features")))
         .and_then(Value::as_array)
@@ -145,7 +161,10 @@ mod tests {
             "artifactDigest": "sha256:x", "corpusDigest": "sha256:y", "providerDigest": "sha256:z",
         })]);
         assert_eq!(claims[0]["state"], "unproven");
-        let result = generate_claims_from_qualification(Some(&json!({"claims": [{"id": "self", "state": "deterministic-measured"}]})), None);
+        let result = generate_claims_from_qualification(
+            Some(&json!({"claims": [{"id": "self", "state": "deterministic-measured"}]})),
+            None,
+        );
         assert_eq!(result["claims"][0]["state"], "unproven");
     }
 }

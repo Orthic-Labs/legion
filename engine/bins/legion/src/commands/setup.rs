@@ -2157,23 +2157,19 @@ fn setup_health(
                 .then_some(client_id)
         })
         .collect::<BTreeSet<_>>();
-    let has_full_supported_client = clients
-        .as_array()
-        .into_iter()
-        .flatten()
-        .any(|client| {
-            client.get("installed").and_then(Value::as_bool) == Some(true)
-                && client.get("fidelity").and_then(Value::as_str) == Some("Full")
-                && client
-                    .get("clientId")
-                    .or_else(|| client.get("client_id"))
-                    .and_then(Value::as_str)
-                    .is_some_and(|client_id| {
-                        client_id != legion_host::setup_registry::CLIENT_PI
-                            && legion_host::setup_registry::client_boundary(client_id)
-                                .is_some_and(|profile| profile.executable_registration)
-                    })
-        });
+    let has_full_supported_client = clients.as_array().into_iter().flatten().any(|client| {
+        client.get("installed").and_then(Value::as_bool) == Some(true)
+            && client.get("fidelity").and_then(Value::as_str) == Some("Full")
+            && client
+                .get("clientId")
+                .or_else(|| client.get("client_id"))
+                .and_then(Value::as_str)
+                .is_some_and(|client_id| {
+                    client_id != legion_host::setup_registry::CLIENT_PI
+                        && legion_host::setup_registry::client_boundary(client_id)
+                            .is_some_and(|profile| profile.executable_registration)
+                })
+    });
     let installed = live_identity.get("origin").and_then(Value::as_str)
         == Some(legion_host::setup_registry::ORIGIN_INSTALLED);
     let repair_command = if installed {
@@ -2233,9 +2229,8 @@ fn setup_health(
         ));
     }
     if !optional_baseline_clients.is_empty() && !has_full_supported_client {
-        remediation.push(
-            "optional Pi Baseline is present but no Full supported client is active".into(),
-        );
+        remediation
+            .push("optional Pi Baseline is present but no Full supported client is active".into());
     }
     match clients.as_array() {
         Some(values) if values.is_empty() => remediation
@@ -2300,29 +2295,27 @@ fn setup_health(
     }
     if let Some(projections) = live_identity["projections"].as_object() {
         for (client, projection) in projections {
-            let projection_client = projection
-                .get("clientId")
-                .and_then(Value::as_str)
-                .or_else(|| match client.as_str() {
-                    "claudeCodeLegacy" | "claudePlugin" => {
-                        Some(legion_host::setup_registry::CLIENT_CLAUDE)
-                    }
-                    "codexSkills" | "codexPlugin" => {
-                        Some(legion_host::setup_registry::CLIENT_CODEX)
-                    }
-                    "cursorPlugin" => Some(legion_host::setup_registry::CLIENT_CURSOR),
-                    "piSkills" => Some(legion_host::setup_registry::CLIENT_PI),
-                    "antigravityPlugin" => {
-                        Some(legion_host::setup_registry::CLIENT_ANTIGRAVITY)
-                    }
-                    _ => None,
-                });
+            let projection_client =
+                projection
+                    .get("clientId")
+                    .and_then(Value::as_str)
+                    .or_else(|| match client.as_str() {
+                        "claudeCodeLegacy" | "claudePlugin" => {
+                            Some(legion_host::setup_registry::CLIENT_CLAUDE)
+                        }
+                        "codexSkills" | "codexPlugin" => {
+                            Some(legion_host::setup_registry::CLIENT_CODEX)
+                        }
+                        "cursorPlugin" => Some(legion_host::setup_registry::CLIENT_CURSOR),
+                        "piSkills" => Some(legion_host::setup_registry::CLIENT_PI),
+                        "antigravityPlugin" => {
+                            Some(legion_host::setup_registry::CLIENT_ANTIGRAVITY)
+                        }
+                        _ => None,
+                    });
             if projection_client.is_some_and(|id| !active_clients.contains(id)) {
                 if projection_client == Some(legion_host::setup_registry::CLIENT_PI)
-                    && projection
-                        .get("explicitOnly")
-                        .and_then(Value::as_bool)
-                        == Some(true)
+                    && projection.get("explicitOnly").and_then(Value::as_bool) == Some(true)
                 {
                     let state = projection
                         .get("state")
@@ -2376,9 +2369,7 @@ fn setup_health(
                                     .get("ledgerGeneration")
                                     .and_then(Value::as_str)
                                     .is_none()
-                                && status
-                                    .get("destinationDigest")
-                                    .is_none_or(Value::is_null)
+                                && status.get("destinationDigest").is_none_or(Value::is_null)
                         })
                 });
             // An opt-in projection with no generation & no recorded Legion
@@ -2453,7 +2444,8 @@ fn setup_health(
                 projection.get("generation").and_then(Value::as_str),
             ) {
                 if expected != actual {
-                    let message = format!("{client} generation {actual} is stale; {repair_command}");
+                    let message =
+                        format!("{client} generation {actual} is stale; {repair_command}");
                     if opt_in {
                         opt_in_notes.push(format!(
                             "{client} generation {actual} is stale; this client is opt-in, so repair leaves it alone. Create its projection deliberately, or ignore this."
@@ -2469,8 +2461,8 @@ fn setup_health(
     // shapes (inspection nested under `preview`) remain truthful too.
     if active_clients.contains(legion_host::setup_registry::CLIENT_CODEX)
         && integration_inspection(host_integrations, "codexSkills")
-        .and_then(|value| value.get("ledgerError"))
-        .is_some_and(|value| !value.is_null())
+            .and_then(|value| value.get("ledgerError"))
+            .is_some_and(|value| !value.is_null())
     {
         remediation.push(
             "Codex ownership ledger is invalid; conflicting projections are preserved".into(),
@@ -2608,11 +2600,7 @@ fn resolved_binding_current(
     }
     let stable_current_root = install_root.join("current");
     let resolved_root_matches = path_starts_with(resolved_install_root, &canonical_install_root)
-        || windows_localcache_equivalent(
-            &stable_current_root,
-            resolved_install_root,
-            install_root,
-        );
+        || windows_localcache_equivalent(&stable_current_root, resolved_install_root, install_root);
     let resolved_current = resolved_executable.parent().and_then(Path::parent);
     let under_resolved_root = path_starts_with(resolved_executable, resolved_install_root)
         || resolved_current.is_some_and(|current| {
@@ -2622,15 +2610,15 @@ fn resolved_binding_current(
     let resolved_executable_matches = under_resolved_root
         && (path_starts_with(resolved_executable, &canonical_install_root)
             || windows_localcache_equivalent(
-                Path::new(executable.and_then(Value::as_str).expect("binding field checked")),
+                Path::new(
+                    executable
+                        .and_then(Value::as_str)
+                        .expect("binding field checked"),
+                ),
                 resolved_executable,
                 install_root,
             )
-            || windows_localcache_within(
-                &stable_current_root,
-                resolved_executable,
-                install_root,
-            ));
+            || windows_localcache_within(&stable_current_root, resolved_executable, install_root));
     resolved_root_matches
         && resolved_executable_matches
         && resolved_executable
@@ -2739,8 +2727,9 @@ fn paths_equal(left: &Path, right: &Path) -> bool {
     if cfg!(windows) {
         (path_starts_with(left, right) && path_starts_with(right, left))
             || match (std::fs::canonicalize(left), std::fs::canonicalize(right)) {
-                (Ok(left), Ok(right)) => path_starts_with(&left, &right)
-                    && path_starts_with(&right, &left),
+                (Ok(left), Ok(right)) => {
+                    path_starts_with(&left, &right) && path_starts_with(&right, &left)
+                }
                 _ => false,
             }
     } else {
@@ -3145,10 +3134,8 @@ fn should_mutate_client(request: &legion_host::SetupRequest, client_id: &str) ->
     ) {
         return true;
     }
-    !(matches!(
-        &request.selector,
-        legion_host::ClientSelector::AllSupported
-    ) && client_id == legion_host::setup_registry::CLIENT_PI)
+    !(matches!(&request.selector, legion_host::ClientSelector::AllSupported)
+        && client_id == legion_host::setup_registry::CLIENT_PI)
 }
 
 fn host_integration_inputs(
@@ -3337,11 +3324,13 @@ fn devin_config_root(home: &Path) -> PathBuf {
 
 fn installed_host_home() -> Result<PathBuf, CommandError> {
     let home = if cfg!(windows) {
-        std::env::var_os("USERPROFILE").map(PathBuf::from).or_else(|| {
-            let drive = std::env::var_os("HOMEDRIVE")?;
-            let path = std::env::var_os("HOMEPATH")?;
-            Some(PathBuf::from(drive).join(path))
-        })
+        std::env::var_os("USERPROFILE")
+            .map(PathBuf::from)
+            .or_else(|| {
+                let drive = std::env::var_os("HOMEDRIVE")?;
+                let path = std::env::var_os("HOMEPATH")?;
+                Some(PathBuf::from(drive).join(path))
+            })
     } else {
         std::env::var_os("HOME").map(PathBuf::from)
     }
@@ -3943,14 +3932,22 @@ mod tests {
 
     #[test]
     fn installed_plugin_projection_reads_stable_current_payload_root() {
-        let executable = PathBuf::from("product")
-            .join("current")
-            .join("bin")
-            .join(if cfg!(windows) { "legion.exe" } else { "legion" });
+        let executable =
+            PathBuf::from("product")
+                .join("current")
+                .join("bin")
+                .join(if cfg!(windows) {
+                    "legion.exe"
+                } else {
+                    "legion"
+                });
 
         let root = installed_plugin_source_root(&executable).expect("stable plugin root");
 
-        assert_eq!(root, PathBuf::from("product").join("current").join("plugin"));
+        assert_eq!(
+            root,
+            PathBuf::from("product").join("current").join("plugin")
+        );
     }
 
     #[test]
@@ -4312,7 +4309,9 @@ mod tests {
         });
         let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
         assert_eq!(status, "incomplete");
-        assert!(remediation.iter().any(|item| item.contains("piSkills resolved target escaped active release")));
+        assert!(remediation
+            .iter()
+            .any(|item| item.contains("piSkills resolved target escaped active release")));
     }
 
     #[test]
@@ -4428,11 +4427,8 @@ mod tests {
             .output()
             .expect("query short alias");
         assert!(short.status.success());
-        let short_install_root = PathBuf::from(
-            String::from_utf8(short.stdout)
-                .expect("utf8 alias")
-                .trim(),
-        );
+        let short_install_root =
+            PathBuf::from(String::from_utf8(short.stdout).expect("utf8 alias").trim());
 
         assert!(binding_fields_current(
             Some(legion_host::setup_registry::ORIGIN_INSTALLED),
@@ -4442,7 +4438,10 @@ mod tests {
             )),
         ));
         assert!(path_starts_with(&executable, &short_install_root));
-        assert!(!path_starts_with(&temp.0.join("outside"), &short_install_root));
+        assert!(!path_starts_with(
+            &temp.0.join("outside"),
+            &short_install_root
+        ));
     }
 
     #[cfg(windows)]

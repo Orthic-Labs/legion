@@ -75,7 +75,12 @@ pub struct CoverageGap {
     pub reason: Option<String>,
 }
 
-fn provider_result(provider: &str, status: &str, complete: bool, coverage_gaps: Vec<CoverageGap>) -> ProviderResultEnvelope {
+fn provider_result(
+    provider: &str,
+    status: &str,
+    complete: bool,
+    coverage_gaps: Vec<CoverageGap>,
+) -> ProviderResultEnvelope {
     ProviderResultEnvelope {
         schema_version: 1,
         provider: provider.to_string(),
@@ -110,7 +115,10 @@ pub struct ExecutionResult {
 
 /// Faithful port of `blocked(spec, reason, state='blocked')`.
 pub fn blocked(spec: &RunExternalSpec, reason: &str, state: &str) -> ExecutionResult {
-    let provider = spec.provider.clone().unwrap_or_else(|| "process".to_string());
+    let provider = spec
+        .provider
+        .clone()
+        .unwrap_or_else(|| "process".to_string());
     let empty = raw_artifact(&provider, "stdout", &[], false);
     let empty_err = raw_artifact(&provider, "stderr", &[], false);
     ExecutionResult {
@@ -136,17 +144,48 @@ pub fn blocked(spec: &RunExternalSpec, reason: &str, state: &str) -> ExecutionRe
         tool: None,
         provider_result: provider_result(
             &provider,
-            if state == "blocked" { "blocked" } else { "unproven" },
+            if state == "blocked" {
+                "blocked"
+            } else {
+                "unproven"
+            },
             false,
-            vec![CoverageGap { kind: state.to_string(), reason: Some(reason.to_string()) }],
+            vec![CoverageGap {
+                kind: state.to_string(),
+                reason: Some(reason.to_string()),
+            }],
         ),
     }
 }
 
 const DEFAULT_ALLOWED: &[&str] = &[
-    "node", "git", "tsc", "eslint", "python3", "python", "ruff", "cargo", "go", "dotnet",
-    "opengrep", "ast-grep", "sg", "osv-scanner", "gitleaks", "syft", "trivy", "swift", "clang",
-    "gcc", "cmake", "mvn", "gradle", "php", "composer", "ruby", "bundle",
+    "node",
+    "git",
+    "tsc",
+    "eslint",
+    "python3",
+    "python",
+    "ruff",
+    "cargo",
+    "go",
+    "dotnet",
+    "opengrep",
+    "ast-grep",
+    "sg",
+    "osv-scanner",
+    "gitleaks",
+    "syft",
+    "trivy",
+    "swift",
+    "clang",
+    "gcc",
+    "cmake",
+    "mvn",
+    "gradle",
+    "php",
+    "composer",
+    "ruby",
+    "bundle",
 ];
 
 fn bounded_probe_timeout(value: Option<u64>) -> u64 {
@@ -254,7 +293,10 @@ pub async fn run_external(spec: &RunExternalSpec, host: &RunExternalHost) -> Exe
         }
     }
 
-    let provider = spec.provider.clone().unwrap_or_else(|| "process".to_string());
+    let provider = spec
+        .provider
+        .clone()
+        .unwrap_or_else(|| "process".to_string());
     let started = Instant::now();
     let started_at = 0i64;
 
@@ -377,15 +419,24 @@ pub async fn run_external(spec: &RunExternalSpec, host: &RunExternalHost) -> Exe
     let process_complete = spawn_status == "completed";
     let mut gaps = Vec::new();
     if !process_complete {
-        gaps.push(CoverageGap { kind: spawn_status.to_string(), reason: None });
+        gaps.push(CoverageGap {
+            kind: spawn_status.to_string(),
+            reason: None,
+        });
     }
     let sealed_outputs = host.outputs_sealed;
     let sealed_tree = host.process_tree_sealed;
     if !sealed_outputs {
-        gaps.push(CoverageGap { kind: "immutable-raw-output-unavailable".to_string(), reason: None });
+        gaps.push(CoverageGap {
+            kind: "immutable-raw-output-unavailable".to_string(),
+            reason: None,
+        });
     }
     if !sealed_tree {
-        gaps.push(CoverageGap { kind: "process-tree-hard-kill-unavailable".to_string(), reason: None });
+        gaps.push(CoverageGap {
+            kind: "process-tree-hard-kill-unavailable".to_string(),
+            reason: None,
+        });
     }
     let complete = process_complete && sealed_outputs && sealed_tree;
 
@@ -394,7 +445,11 @@ pub async fn run_external(spec: &RunExternalSpec, host: &RunExternalHost) -> Exe
         kind: "legion-execution-result".to_string(),
         provider: spec.provider.clone(),
         complete,
-        command: CommandSpec { executable: spec.executable.clone(), args: spec.args.clone(), cwd: spec.cwd.clone() },
+        command: CommandSpec {
+            executable: spec.executable.clone(),
+            args: spec.args.clone(),
+            cwd: spec.cwd.clone(),
+        },
         started_at,
         completed_at,
         duration_ms: completed_at - started_at,
@@ -408,7 +463,13 @@ pub async fn run_external(spec: &RunExternalSpec, host: &RunExternalHost) -> Exe
         tool: Some(tool),
         provider_result: provider_result(
             &provider,
-            if complete { "pass" } else if spawn_status == "output-limit" { "partial" } else { "unproven" },
+            if complete {
+                "pass"
+            } else if spawn_status == "output-limit" {
+                "partial"
+            } else {
+                "unproven"
+            },
             complete,
             gaps,
         ),

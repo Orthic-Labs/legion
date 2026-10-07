@@ -27,13 +27,24 @@ fn self_test() -> bool {
         }
     };
     let mut ok = true;
-    ok &= assert_eq_print(test_result["provider"] == "test.provider", "provider preserved");
+    ok &= assert_eq_print(
+        test_result["provider"] == "test.provider",
+        "provider preserved",
+    );
     ok &= assert_eq_print(test_result["status"] == "pass", "status preserved");
-    ok &= assert_eq_print(test_result["coverage"]["denominatorDigest"] == "sha256:test", "digest bound");
+    ok &= assert_eq_print(
+        test_result["coverage"]["denominatorDigest"] == "sha256:test",
+        "digest bound",
+    );
     ok &= assert_eq_print(test_result["required"] == true, "required from contract");
-    ok &= assert_eq_print(test_result["degradation"].is_array(), "degradation normalized to array");
+    ok &= assert_eq_print(
+        test_result["degradation"].is_array(),
+        "degradation normalized to array",
+    );
 
-    match validate_provider_result(&json!({"schemaVersion": 1, "provider": "x", "status": "invalid-status", "complete": true})) {
+    match validate_provider_result(
+        &json!({"schemaVersion": 1, "provider": "x", "status": "invalid-status", "complete": true}),
+    ) {
         Ok(()) => {
             eprintln!("FAIL: should have rejected invalid status");
             ok = false;
@@ -41,7 +52,9 @@ fn self_test() -> bool {
         Err(e) => ok &= assert_eq_print(e.field == "status", "rejected invalid status"),
     }
 
-    match validate_provider_result(&json!({"schemaVersion": 1, "provider": "x", "status": "pass", "complete": true, "findings": null})) {
+    match validate_provider_result(
+        &json!({"schemaVersion": 1, "provider": "x", "status": "pass", "complete": true, "findings": null}),
+    ) {
         Ok(()) => {
             eprintln!("FAIL: should have rejected null findings");
             ok = false;

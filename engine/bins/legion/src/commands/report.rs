@@ -19,7 +19,9 @@ pub async fn run(args: ReportArgs, cancellation: CancellationToken) -> CommandRe
     let report_path = if args.report.is_absolute() {
         args.report.clone()
     } else {
-        std::env::current_dir().map_err(super::io_error)?.join(&args.report)
+        std::env::current_dir()
+            .map_err(super::io_error)?
+            .join(&args.report)
     };
     let bytes = std::fs::read(&report_path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {

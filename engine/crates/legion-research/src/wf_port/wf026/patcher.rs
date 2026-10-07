@@ -10,8 +10,8 @@
 //! `issued_by == "rhook.research-patch-guard"`, which
 //! `patch_guard::issue_receipt` never produces.
 
-use hmac::{Hmac, Mac};
 use hmac::digest::KeyInit;
+use hmac::{Hmac, Mac};
 use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -182,12 +182,7 @@ impl ApplyResult {
 }
 
 /// Mirrors `apply_patch()`.
-pub fn apply_patch(
-    source: &str,
-    diff: &str,
-    max_hunks: u32,
-    max_hunk_bytes: u32,
-) -> ApplyResult {
+pub fn apply_patch(source: &str, diff: &str, max_hunks: u32, max_hunk_bytes: u32) -> ApplyResult {
     let hunks = match parse_unified(diff) {
         Ok(h) => h,
         Err(e) => {
@@ -269,9 +264,17 @@ pub fn validate_correction_receipt(
     source_bytes: Option<&[u8]>,
     key_path: Option<&Path>,
 ) -> (bool, String) {
-    let issued_by = receipt.get("issued_by").and_then(Value::as_str).unwrap_or("");
-    if receipt.get("receipt_version") != Some(&json!(2)) || issued_by != "rhook.research-patch-guard" {
-        return (false, "receipt must be an authenticated rhook patch receipt v2".into());
+    let issued_by = receipt
+        .get("issued_by")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if receipt.get("receipt_version") != Some(&json!(2))
+        || issued_by != "rhook.research-patch-guard"
+    {
+        return (
+            false,
+            "receipt must be an authenticated rhook patch receipt v2".into(),
+        );
     }
     if receipt.get("stage").and_then(Value::as_str) != Some("patch") {
         return (false, "receipt stage must be patch".into());
@@ -279,10 +282,16 @@ pub fn validate_correction_receipt(
     let allowed: std::collections::BTreeSet<String> = receipt
         .get("allowed_tools")
         .and_then(Value::as_array)
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     let expected_allowed: std::collections::BTreeSet<String> =
-        ["Read".to_string(), "Edit".to_string()].into_iter().collect();
+        ["Read".to_string(), "Edit".to_string()]
+            .into_iter()
+            .collect();
     if allowed != expected_allowed {
         let mut sorted: Vec<&String> = allowed.iter().collect();
         sorted.sort();
@@ -312,15 +321,27 @@ pub fn validate_correction_receipt(
         hasher.update(source_bytes);
         let actual = hex::encode(hasher.finalize());
         if actual != bound {
-            return (false, "receipt draft hash does not match source bytes".into());
+            return (
+                false,
+                "receipt draft hash does not match source bytes".into(),
+            );
         }
     }
     let path = key_path.map(PathBuf::from).unwrap_or_else(default_key_path);
     let key = match std::fs::read(&path) {
         Ok(k) => k,
-        Err(_) => return (false, format!("patch signing key unavailable: {}", path.display())),
+        Err(_) => {
+            return (
+                false,
+                format!("patch signing key unavailable: {}", path.display()),
+            )
+        }
     };
-    let signature = receipt.get("signature").and_then(Value::as_str).unwrap_or("").to_string();
+    let signature = receipt
+        .get("signature")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let mut mac = Hmac::<Sha256>::new_from_slice(&key).expect("HMAC accepts any key length");
     mac.update(&canonical_payload(receipt));
     let expected = format!("hmac-sha256:{}", hex::encode(mac.finalize().into_bytes()));
@@ -367,7 +388,12 @@ mod tests {
 
     #[test]
     fn empty_diff_is_rejected_as_no_hunks() {
-        let result = apply_patch("a\n", "--- a\n+++ b\n", DEFAULT_MAX_HUNKS, DEFAULT_MAX_HUNK_BYTES);
+        let result = apply_patch(
+            "a\n",
+            "--- a\n+++ b\n",
+            DEFAULT_MAX_HUNKS,
+            DEFAULT_MAX_HUNK_BYTES,
+        );
         assert!(!result.ok);
         assert_eq!(result.reason.unwrap(), "patch contains no hunks");
     }
@@ -393,7 +419,12 @@ mod tests {
 
     #[test]
     fn invalid_hunk_header_is_a_parse_error() {
-        let result = apply_patch("a\n", "--- a\n+++ b\n@@ bogus @@\n-a\n+b\n", DEFAULT_MAX_HUNKS, DEFAULT_MAX_HUNK_BYTES);
+        let result = apply_patch(
+            "a\n",
+            "--- a\n+++ b\n@@ bogus @@\n-a\n+b\n",
+            DEFAULT_MAX_HUNKS,
+            DEFAULT_MAX_HUNK_BYTES,
+        );
         assert!(!result.ok);
         assert!(result.reason.unwrap().starts_with("invalid hunk header:"));
     }
@@ -419,10 +450,8 @@ mod tests {
 
     #[test]
     fn valid_receipt_and_matching_source_validates() {
-        let dir = std::env::temp_dir().join(format!(
-            "legion-wf026-patcher-valid-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("legion-wf026-patcher-valid-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let key_path = dir.join("key");
         let source = b"hello\n";
@@ -447,11 +476,15 @@ mod tests {
         let draft = dir.join("draft.md");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(&draft, b"hello\n").unwrap();
-        let receipt = super::super::patch_guard::issue_receipt(&draft, "run-test", Some(&key_path)).unwrap();
+        let receipt =
+            super::super::patch_guard::issue_receipt(&draft, "run-test", Some(&key_path)).unwrap();
 
         let (ok, reason) = validate_correction_receipt(&receipt, Some(b"hello\n"), Some(&key_path));
         assert!(!ok);
-        assert_eq!(reason, "receipt must be an authenticated rhook patch receipt v2");
+        assert_eq!(
+            reason,
+            "receipt must be an authenticated rhook patch receipt v2"
+        );
     }
 
     #[test]
@@ -467,7 +500,8 @@ mod tests {
         let sha = hex::encode(hasher.finalize());
         let receipt = valid_receipt(&key_path, &sha);
 
-        let (ok, reason) = validate_correction_receipt(&receipt, Some(b"tampered\n"), Some(&key_path));
+        let (ok, reason) =
+            validate_correction_receipt(&receipt, Some(b"tampered\n"), Some(&key_path));
         assert!(!ok);
         assert_eq!(reason, "receipt draft hash does not match source bytes");
     }

@@ -36,7 +36,11 @@ pub enum LoadedSkill {
     /// Port of `{ state: 'missing', bundle, path }` (record not declared).
     Missing { bundle: String, path: String },
     /// Port of `{ state: 'ready', text, record, capabilities }`.
-    Ready { text: String, record: Value, capabilities: LoadedSkillCapabilities },
+    Ready {
+        text: String,
+        record: Value,
+        capabilities: LoadedSkillCapabilities,
+    },
     /// Port of `{ state: 'corrupt', ok, digest, expectedDigest, record }`
     /// (digest mismatch) or `{ state: 'corrupt', error, record }` (read
     /// error other than ENOENT).
@@ -67,19 +71,38 @@ pub fn load_skill(
     let forbidden = match profile_contract {
         None => true,
         Some(Value::Null) => true,
-        Some(contract) => contract.get("externalOnly").and_then(Value::as_bool).unwrap_or(false),
+        Some(contract) => contract
+            .get("externalOnly")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
     };
     if forbidden {
-        return Ok(LoadedSkill::ForbiddenProfile { bundle: parsed.bundle, path: parsed.path });
+        return Ok(LoadedSkill::ForbiddenProfile {
+            bundle: parsed.bundle,
+            path: parsed.path,
+        });
     }
 
-    let files = manifest.get("files").and_then(Value::as_array).cloned().unwrap_or_default();
-    let Some(record) = files.iter().find(|item| item.get("path").and_then(Value::as_str) == Some(parsed.path.as_str())) else {
-        return Ok(LoadedSkill::Missing { bundle: parsed.bundle, path: parsed.path });
+    let files = manifest
+        .get("files")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let Some(record) = files
+        .iter()
+        .find(|item| item.get("path").and_then(Value::as_str) == Some(parsed.path.as_str()))
+    else {
+        return Ok(LoadedSkill::Missing {
+            bundle: parsed.bundle,
+            path: parsed.path,
+        });
     };
     let record = record.clone();
 
-    let file_path = package_root.join("skills").join(&parsed.bundle).join(&parsed.path);
+    let file_path = package_root
+        .join("skills")
+        .join(&parsed.bundle)
+        .join(&parsed.path);
     match std::fs::read(&file_path) {
         Ok(bytes) => {
             let expected_digest = record.get("digest").and_then(Value::as_str).unwrap_or("");
@@ -95,14 +118,23 @@ pub fn load_skill(
             Ok(LoadedSkill::Ready {
                 text: projected,
                 record,
-                capabilities: LoadedSkillCapabilities { mutation: false, publish: false },
+                capabilities: LoadedSkillCapabilities {
+                    mutation: false,
+                    publish: false,
+                },
             })
         }
         Err(error) => {
             if error.kind() == std::io::ErrorKind::NotFound {
-                Ok(LoadedSkill::MissingOnRead { error: error.to_string(), record })
+                Ok(LoadedSkill::MissingOnRead {
+                    error: error.to_string(),
+                    record,
+                })
             } else {
-                Ok(LoadedSkill::Corrupt { detail: error.to_string(), record })
+                Ok(LoadedSkill::Corrupt {
+                    detail: error.to_string(),
+                    record,
+                })
             }
         }
     }
@@ -124,13 +156,17 @@ mod tests {
     /// declare the entry file among `files`.
     fn manifest(entry: &str, audit_extra: Value, files: Value) -> Value {
         let mut audit = json!({"mutation": false, "publish": false});
-        if let (Some(audit_obj), Some(extra_obj)) = (audit.as_object_mut(), audit_extra.as_object()) {
+        if let (Some(audit_obj), Some(extra_obj)) = (audit.as_object_mut(), audit_extra.as_object())
+        {
             for (k, v) in extra_obj {
                 audit_obj.insert(k.clone(), v.clone());
             }
         }
         let mut all_files = files.as_array().cloned().unwrap_or_default();
-        if !all_files.iter().any(|f| f.get("path").and_then(Value::as_str) == Some(entry)) {
+        if !all_files
+            .iter()
+            .any(|f| f.get("path").and_then(Value::as_str) == Some(entry))
+        {
             all_files.push(json!({
                 "path": entry,
                 "uri": format!("legion-skill://demo/{entry}"),
@@ -164,9 +200,17 @@ mod tests {
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
 
-        let result = load_skill("legion-skill://demo/SKILL.md", dir.path(), &manifests, "audit").unwrap();
+        let result = load_skill(
+            "legion-skill://demo/SKILL.md",
+            dir.path(),
+            &manifests,
+            "audit",
+        )
+        .unwrap();
         match result {
-            LoadedSkill::Ready { text, capabilities, .. } => {
+            LoadedSkill::Ready {
+                text, capabilities, ..
+            } => {
                 assert_eq!(text, "hello\n");
                 assert!(!capabilities.mutation);
                 assert!(!capabilities.publish);
@@ -183,20 +227,38 @@ mod tests {
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
 
-        let result = load_skill("legion-skill://demo/SKILL.md", dir.path(), &manifests, "audit").unwrap();
+        let result = load_skill(
+            "legion-skill://demo/SKILL.md",
+            dir.path(),
+            &manifests,
+            "audit",
+        )
+        .unwrap();
         assert_eq!(
             result,
-            LoadedSkill::ForbiddenProfile { bundle: "demo".to_string(), path: "SKILL.md".to_string() }
+            LoadedSkill::ForbiddenProfile {
+                bundle: "demo".to_string(),
+                path: "SKILL.md".to_string()
+            }
         );
 
         // Spec (`loadSkill` in `src/lib/skills/loader.mjs`): forbidden iff
         // `!profileContract || profileContract.externalOnly`. A profile the
         // manifest never declares (`profiles[profile]` is `undefined`) hits
         // the `!profileContract` arm, independent of `externalOnly`.
-        let result2 = load_skill("legion-skill://demo/SKILL.md", dir.path(), &manifests, "nonexistent").unwrap();
+        let result2 = load_skill(
+            "legion-skill://demo/SKILL.md",
+            dir.path(),
+            &manifests,
+            "nonexistent",
+        )
+        .unwrap();
         assert_eq!(
             result2,
-            LoadedSkill::ForbiddenProfile { bundle: "demo".to_string(), path: "SKILL.md".to_string() }
+            LoadedSkill::ForbiddenProfile {
+                bundle: "demo".to_string(),
+                path: "SKILL.md".to_string()
+            }
         );
     }
 
@@ -207,10 +269,19 @@ mod tests {
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
 
-        let result = load_skill("legion-skill://demo/SKILL.md", dir.path(), &manifests, "audit").unwrap();
+        let result = load_skill(
+            "legion-skill://demo/SKILL.md",
+            dir.path(),
+            &manifests,
+            "audit",
+        )
+        .unwrap();
         assert_eq!(
             result,
-            LoadedSkill::Missing { bundle: "demo".to_string(), path: "SKILL.md".to_string() }
+            LoadedSkill::Missing {
+                bundle: "demo".to_string(),
+                path: "SKILL.md".to_string()
+            }
         );
     }
 
@@ -225,7 +296,13 @@ mod tests {
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
 
-        let result = load_skill("legion-skill://demo/SKILL.md", dir.path(), &manifests, "audit").unwrap();
+        let result = load_skill(
+            "legion-skill://demo/SKILL.md",
+            dir.path(),
+            &manifests,
+            "audit",
+        )
+        .unwrap();
         match result {
             LoadedSkill::MissingOnRead { .. } => {}
             other => panic!("unexpected {other:?}"),
@@ -245,7 +322,13 @@ mod tests {
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
 
-        let result = load_skill("legion-skill://demo/SKILL.md", dir.path(), &manifests, "audit").unwrap();
+        let result = load_skill(
+            "legion-skill://demo/SKILL.md",
+            dir.path(),
+            &manifests,
+            "audit",
+        )
+        .unwrap();
         match result {
             LoadedSkill::Corrupt { .. } => {}
             other => panic!("unexpected {other:?}"),

@@ -48,7 +48,10 @@ pub struct ServiceFixtureAdapter {
 impl ServiceFixtureAdapter {
     /// Port of `createServiceFixtureAdapter(fixture, { onExecute })`.
     pub fn new(fixture: impl Into<String>) -> Self {
-        Self { fixture: fixture.into(), on_execute: None }
+        Self {
+            fixture: fixture.into(),
+            on_execute: None,
+        }
     }
 
     pub fn with_on_execute(mut self, on_execute: impl FnMut(&str, &Value) + 'static) -> Self {
@@ -58,7 +61,11 @@ impl ServiceFixtureAdapter {
 
     /// Port of `execute({ id, binding = {} })`.
     pub fn execute(&mut self, id: &str, binding: &Value) -> Value {
-        let binding = if binding.is_object() { binding.clone() } else { Value::Object(Map::new()) };
+        let binding = if binding.is_object() {
+            binding.clone()
+        } else {
+            Value::Object(Map::new())
+        };
         if !SERVICE_RUNTIME_SCENARIOS.contains(&id) {
             return serde_json::json!({
                 "status": "error",
@@ -118,9 +125,15 @@ mod tests {
     #[test]
     fn defect_fixture_fails_and_unknown_fixture_is_blocked() {
         let mut defect = create_fault_adapter("defect");
-        assert_eq!(defect.execute("idempotency", &Value::Null)["status"], "fail");
+        assert_eq!(
+            defect.execute("idempotency", &Value::Null)["status"],
+            "fail"
+        );
         let mut unknown = create_fault_adapter("something-else");
-        assert_eq!(unknown.execute("idempotency", &Value::Null)["status"], "blocked");
+        assert_eq!(
+            unknown.execute("idempotency", &Value::Null)["status"],
+            "blocked"
+        );
     }
 
     #[test]

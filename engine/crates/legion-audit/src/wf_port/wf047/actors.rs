@@ -97,7 +97,11 @@ fn str_or_empty(value: Option<&Value>) -> String {
 }
 
 fn required_key(item: &Value) -> String {
-    REQUIRED_KEYS.iter().map(|k| str_or_empty(item.get(*k))).collect::<Vec<_>>().join(":")
+    REQUIRED_KEYS
+        .iter()
+        .map(|k| str_or_empty(item.get(*k)))
+        .collect::<Vec<_>>()
+        .join(":")
 }
 
 /// Port of `buildActorFixtures(input)`.
@@ -109,7 +113,11 @@ pub fn build_actor_fixtures(
     identity_capability: &Value,
     environment_capability: &Value,
 ) -> Value {
-    let binding_out = if binding.is_object() { binding.clone() } else { Value::Object(Map::new()) };
+    let binding_out = if binding.is_object() {
+        binding.clone()
+    } else {
+        Value::Object(Map::new())
+    };
     let actors_valid = actors.is_array()
         && actors.as_array().unwrap().iter().all(|item| {
             item.is_object()
@@ -118,7 +126,8 @@ pub fn build_actor_fixtures(
                     .map(|t| !t.is_array() || t.as_array().unwrap().iter().all(|tr| tr.is_object()))
                     .unwrap_or(true)
         });
-    let required_valid = required.is_array() && required.as_array().unwrap().iter().all(Value::is_object);
+    let required_valid =
+        required.is_array() && required.as_array().unwrap().iter().all(Value::is_object);
 
     if !actors_valid || !required_valid {
         return finalize(
@@ -136,19 +145,45 @@ pub fn build_actor_fixtures(
 
     let identifiers_hostile = actors_arr.iter().any(|actor| {
         hostile_identifier(actor.get("id").unwrap_or(&Value::Null))
-            || ["identityId", "credentialPolicyId", "sessionPolicyId", "role", "tier", "tenantId"]
-                .iter()
-                .any(|key| hostile_identifier(actor.get(*key).unwrap_or(&Value::Null)))
-            || actor.get("serverAuthorizations").and_then(Value::as_array).is_some_and(|arr| arr.iter().any(hostile_identifier))
-            || actor.get("uiVisibility").and_then(Value::as_array).is_some_and(|arr| arr.iter().any(hostile_identifier))
-            || actor.get("transitionCapabilities").and_then(Value::as_array).is_some_and(|arr| {
-                arr.iter().any(|item| {
-                    ["id", "toActorId", "fromTenantId", "toTenantId", "authorizationId"]
+            || [
+                "identityId",
+                "credentialPolicyId",
+                "sessionPolicyId",
+                "role",
+                "tier",
+                "tenantId",
+            ]
+            .iter()
+            .any(|key| hostile_identifier(actor.get(*key).unwrap_or(&Value::Null)))
+            || actor
+                .get("serverAuthorizations")
+                .and_then(Value::as_array)
+                .is_some_and(|arr| arr.iter().any(hostile_identifier))
+            || actor
+                .get("uiVisibility")
+                .and_then(Value::as_array)
+                .is_some_and(|arr| arr.iter().any(hostile_identifier))
+            || actor
+                .get("transitionCapabilities")
+                .and_then(Value::as_array)
+                .is_some_and(|arr| {
+                    arr.iter().any(|item| {
+                        [
+                            "id",
+                            "toActorId",
+                            "fromTenantId",
+                            "toTenantId",
+                            "authorizationId",
+                        ]
                         .iter()
                         .any(|key| hostile_identifier(item.get(*key).unwrap_or(&Value::Null)))
+                    })
                 })
-            })
-    }) || required_arr.iter().any(|item| REQUIRED_KEYS.iter().any(|key| hostile_identifier(item.get(*key).unwrap_or(&Value::Null))));
+    }) || required_arr.iter().any(|item| {
+        REQUIRED_KEYS
+            .iter()
+            .any(|key| hostile_identifier(item.get(*key).unwrap_or(&Value::Null)))
+    });
 
     if identifiers_hostile {
         return finalize(
@@ -164,11 +199,17 @@ pub fn build_actor_fixtures(
     let mut blocked: Vec<String> = Vec::new();
     let identity_status = identity_capability.get("status").and_then(Value::as_str);
     if identity_status != Some("available") {
-        blocked.push(format!("identity-capability-{}", identity_status.unwrap_or("missing")));
+        blocked.push(format!(
+            "identity-capability-{}",
+            identity_status.unwrap_or("missing")
+        ));
     }
     let env_status = environment_capability.get("status").and_then(Value::as_str);
     if env_status != Some("available") {
-        blocked.push(format!("environment-capability-{}", env_status.unwrap_or("missing")));
+        blocked.push(format!(
+            "environment-capability-{}",
+            env_status.unwrap_or("missing")
+        ));
     }
     if !blocked.is_empty() {
         let expected: Vec<String> = required_arr.iter().map(required_key).collect();
@@ -252,9 +293,17 @@ pub fn build_actor_fixtures(
 
     let expected: Vec<String> = required_arr.iter().map(required_key).collect();
     let actual: Vec<String> = normalized.iter().map(required_key).collect();
-    let receipt_ids: Vec<String> = actual.iter().filter(|id| expected.contains(id)).cloned().collect();
+    let receipt_ids: Vec<String> = actual
+        .iter()
+        .filter(|id| expected.contains(id))
+        .cloned()
+        .collect();
 
-    let mut gaps: Vec<String> = exact_binding(&binding_out).gaps.iter().map(|k| format!("binding-missing:{k}")).collect();
+    let mut gaps: Vec<String> = exact_binding(&binding_out)
+        .gaps
+        .iter()
+        .map(|k| format!("binding-missing:{k}"))
+        .collect();
     if now.is_none() {
         gaps.push("actor-clock-unbound".to_string());
     }
@@ -262,7 +311,10 @@ pub fn build_actor_fixtures(
         gaps.push("required-actor-denominator-empty".to_string());
     }
 
-    let actor_ids: Vec<String> = normalized.iter().map(|a| str_or_empty(a.get("id"))).collect();
+    let actor_ids: Vec<String> = normalized
+        .iter()
+        .map(|a| str_or_empty(a.get("id")))
+        .collect();
     for id in actor_ids.iter().collect::<std::collections::BTreeSet<_>>() {
         if actor_ids.iter().filter(|v| *v == id).count() > 1 {
             gaps.push(format!("actor-id-duplicate:{id}"));
@@ -270,10 +322,18 @@ pub fn build_actor_fixtures(
     }
     let transition_ids: Vec<String> = normalized
         .iter()
-        .flat_map(|a| a.get("transitionCapabilities").and_then(Value::as_array).cloned().unwrap_or_default())
+        .flat_map(|a| {
+            a.get("transitionCapabilities")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+        })
         .map(|t| str_or_empty(t.get("id")))
         .collect();
-    for id in transition_ids.iter().collect::<std::collections::BTreeSet<_>>() {
+    for id in transition_ids
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+    {
         if transition_ids.iter().filter(|v| *v == id).count() > 1 {
             gaps.push(format!("actor-transition-id-duplicate:{id}"));
         }
@@ -282,39 +342,88 @@ pub fn build_actor_fixtures(
     for (actor_index, actor) in normalized.iter().enumerate() {
         let source_actor = &sorted_actors[actor_index];
         let actor_id = str_or_empty(actor.get("id"));
-        for key in ["id", "role", "tier", "tenantId", "identityId", "credentialPolicyId", "sessionPolicyId"] {
-            if !actor.get(key).and_then(Value::as_str).is_some_and(|s| !s.is_empty()) {
+        for key in [
+            "id",
+            "role",
+            "tier",
+            "tenantId",
+            "identityId",
+            "credentialPolicyId",
+            "sessionPolicyId",
+        ] {
+            if !actor
+                .get(key)
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.is_empty())
+            {
                 gaps.push(format!("actor-{key}-invalid:{actor_id}"));
             }
         }
-        let account_state = actor.get("accountState").and_then(Value::as_str).unwrap_or("");
+        let account_state = actor
+            .get("accountState")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if !ACCOUNT_STATES.contains(&account_state) {
             gaps.push(format!("actor-accountState-invalid:{actor_id}"));
         }
-        for key in ["serverAuthorizations", "uiVisibility", "transitionCapabilities"] {
+        for key in [
+            "serverAuthorizations",
+            "uiVisibility",
+            "transitionCapabilities",
+        ] {
             if !source_actor.get(key).is_some_and(Value::is_array) {
                 gaps.push(format!("actor-{key}-invalid:{actor_id}"));
             }
         }
-        let server_auths = actor.get("serverAuthorizations").and_then(Value::as_array).cloned().unwrap_or_default();
-        if server_auths.iter().any(|item| !item.as_str().is_some_and(|s| !s.is_empty())) {
-            gaps.push(format!("actor-serverAuthorizations-entry-invalid:{actor_id}"));
+        let server_auths = actor
+            .get("serverAuthorizations")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if server_auths
+            .iter()
+            .any(|item| !item.as_str().is_some_and(|s| !s.is_empty()))
+        {
+            gaps.push(format!(
+                "actor-serverAuthorizations-entry-invalid:{actor_id}"
+            ));
         }
-        let ui_vis = actor.get("uiVisibility").and_then(Value::as_array).cloned().unwrap_or_default();
-        if ui_vis.iter().any(|item| !item.as_str().is_some_and(|s| !s.is_empty())) {
+        let ui_vis = actor
+            .get("uiVisibility")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if ui_vis
+            .iter()
+            .any(|item| !item.as_str().is_some_and(|s| !s.is_empty()))
+        {
             gaps.push(format!("actor-uiVisibility-entry-invalid:{actor_id}"));
         }
         if actor.get("credential") == Some(&Value::Null) || actor.get("credential").is_none() {
             gaps.push(format!("credential-reference-invalid:{actor_id}"));
         }
 
-        let current = now.map(|n| Value::String(n.to_string())).and_then(|v| utc_millis(&v));
+        let current = now
+            .map(|n| Value::String(n.to_string()))
+            .and_then(|v| utc_millis(&v));
         let issued_raw = actor.get("issuedAt").cloned().unwrap_or(Value::Null);
         let expires_raw = actor.get("expiresAt").cloned().unwrap_or(Value::Null);
         let revoked_raw = actor.get("revokedAt").cloned().unwrap_or(Value::Null);
-        let issued = if issued_raw.is_null() { None } else { utc_millis(&issued_raw) };
-        let expires = if expires_raw.is_null() { None } else { utc_millis(&expires_raw) };
-        let revoked = if revoked_raw.is_null() { None } else { utc_millis(&revoked_raw) };
+        let issued = if issued_raw.is_null() {
+            None
+        } else {
+            utc_millis(&issued_raw)
+        };
+        let expires = if expires_raw.is_null() {
+            None
+        } else {
+            utc_millis(&expires_raw)
+        };
+        let revoked = if revoked_raw.is_null() {
+            None
+        } else {
+            utc_millis(&revoked_raw)
+        };
 
         if now.is_some() && current.is_none() {
             gaps.push(format!("credential-now-timestamp-invalid:{actor_id}"));
@@ -367,23 +476,62 @@ pub fn build_actor_fixtures(
             }
         }
 
-        for transition in actor.get("transitionCapabilities").and_then(Value::as_array).cloned().unwrap_or_default() {
-            let to_actor_id = transition.get("toActorId").and_then(Value::as_str).unwrap_or("");
-            let target = normalized.iter().find(|c| c.get("id").and_then(Value::as_str) == Some(to_actor_id));
-            let transition_id = transition.get("id").and_then(Value::as_str).unwrap_or("missing");
+        for transition in actor
+            .get("transitionCapabilities")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let to_actor_id = transition
+                .get("toActorId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let target = normalized
+                .iter()
+                .find(|c| c.get("id").and_then(Value::as_str) == Some(to_actor_id));
+            let transition_id = transition
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("missing");
             let from_tenant_ok = transition.get("fromTenantId") == actor.get("tenantId");
-            let auth_id_ok = transition.get("authorizationId").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
-            let id_ok = transition.get("id").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
-            let to_tenant_ok = target.map(|t| transition.get("toTenantId") == t.get("tenantId")).unwrap_or(false);
+            let auth_id_ok = transition
+                .get("authorizationId")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.is_empty());
+            let id_ok = transition
+                .get("id")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.is_empty());
+            let to_tenant_ok = target
+                .map(|t| transition.get("toTenantId") == t.get("tenantId"))
+                .unwrap_or(false);
             if !id_ok || !from_tenant_ok || target.is_none() || !to_tenant_ok || !auth_id_ok {
-                gaps.push(format!("actor-transition-invalid:{actor_id}:{transition_id}"));
+                gaps.push(format!(
+                    "actor-transition-invalid:{actor_id}:{transition_id}"
+                ));
             }
-            let actor_identity = actor.get("identityId").and_then(Value::as_str).filter(|s| !s.is_empty());
-            let target_identity = target.and_then(|t| t.get("identityId")).and_then(Value::as_str).filter(|s| !s.is_empty());
-            let actor_cred_policy = actor.get("credentialPolicyId").and_then(Value::as_str).filter(|s| !s.is_empty());
-            let target_cred_policy = target.and_then(|t| t.get("credentialPolicyId")).and_then(Value::as_str);
-            let actor_session_policy = actor.get("sessionPolicyId").and_then(Value::as_str).filter(|s| !s.is_empty());
-            let target_session_policy = target.and_then(|t| t.get("sessionPolicyId")).and_then(Value::as_str);
+            let actor_identity = actor
+                .get("identityId")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty());
+            let target_identity = target
+                .and_then(|t| t.get("identityId"))
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty());
+            let actor_cred_policy = actor
+                .get("credentialPolicyId")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty());
+            let target_cred_policy = target
+                .and_then(|t| t.get("credentialPolicyId"))
+                .and_then(Value::as_str);
+            let actor_session_policy = actor
+                .get("sessionPolicyId")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty());
+            let target_session_policy = target
+                .and_then(|t| t.get("sessionPolicyId"))
+                .and_then(Value::as_str);
             if actor_identity.is_none()
                 || target_identity.is_none()
                 || actor_cred_policy.is_none()
@@ -391,27 +539,45 @@ pub fn build_actor_fixtures(
                 || actor_session_policy.is_none()
                 || actor_session_policy != target_session_policy
             {
-                gaps.push(format!("actor-transition-policy-mismatch:{actor_id}:{transition_id}"));
+                gaps.push(format!(
+                    "actor-transition-policy-mismatch:{actor_id}:{transition_id}"
+                ));
             }
-            let authorization_id = transition.get("authorizationId").and_then(Value::as_str).unwrap_or("");
-            let actor_has_auth = server_auths.iter().any(|a| a.as_str() == Some(authorization_id));
+            let authorization_id = transition
+                .get("authorizationId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let actor_has_auth = server_auths
+                .iter()
+                .any(|a| a.as_str() == Some(authorization_id));
             let target_has_auth = target
                 .and_then(|t| t.get("serverAuthorizations"))
                 .and_then(Value::as_array)
                 .is_some_and(|arr| arr.iter().any(|a| a.as_str() == Some(authorization_id)));
             if !actor_has_auth || !target_has_auth {
-                gaps.push(format!("actor-transition-authorization-ungranted:{actor_id}:{transition_id}"));
+                gaps.push(format!(
+                    "actor-transition-authorization-ungranted:{actor_id}:{transition_id}"
+                ));
             }
         }
     }
 
     let counts = denominator(&expected, &receipt_ids, &[]);
-    gaps.extend(counts.missing.iter().map(|id| format!("actor-fixture-missing:{id}")));
+    gaps.extend(
+        counts
+            .missing
+            .iter()
+            .map(|id| format!("actor-fixture-missing:{id}")),
+    );
 
     let mut sorted_gaps = gaps;
     sorted_gaps.sort();
     sorted_gaps.dedup();
-    let status = if sorted_gaps.is_empty() { "pass" } else { "unproven" };
+    let status = if sorted_gaps.is_empty() {
+        "pass"
+    } else {
+        "unproven"
+    };
 
     finalize(
         "legion-web-actor-fixtures",
@@ -463,16 +629,32 @@ pub fn switch_actor(
         && receipt.get("terminal") == Some(&Value::Bool(true))
         && receipt.get("complete") == Some(&Value::Bool(true))
         && receipt.get("proof") == Some(&Value::Bool(true))
-        && exact_binding(receipt.get("binding").unwrap_or(&Value::Null)).gaps.is_empty();
+        && exact_binding(receipt.get("binding").unwrap_or(&Value::Null))
+            .gaps
+            .is_empty();
     if !status_ok {
         return blocked("actor-fixture-proof-unproven");
     }
 
-    let actors = receipt.get("actors").and_then(Value::as_array).cloned().unwrap_or_default();
-    let source = actors.iter().find(|a| a.get("id").and_then(Value::as_str) == Some(from)).cloned();
-    let target = actors.iter().find(|a| a.get("id").and_then(Value::as_str) == Some(to)).cloned();
-    let Some(source) = source else { return blocked("source-actor-missing") };
-    let Some(target) = target else { return blocked("target-actor-missing") };
+    let actors = receipt
+        .get("actors")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let source = actors
+        .iter()
+        .find(|a| a.get("id").and_then(Value::as_str) == Some(from))
+        .cloned();
+    let target = actors
+        .iter()
+        .find(|a| a.get("id").and_then(Value::as_str) == Some(to))
+        .cloned();
+    let Some(source) = source else {
+        return blocked("source-actor-missing");
+    };
+    let Some(target) = target else {
+        return blocked("target-actor-missing");
+    };
     if current_actor_id != from {
         return blocked("current-actor-mismatch");
     }
@@ -507,24 +689,51 @@ pub fn switch_actor(
             })
             .cloned();
         let Some(transition) = transition else {
-            return blocked(if cross_tenant { "cross-tenant-transition-capability-missing" } else { "actor-transition-capability-missing" });
+            return blocked(if cross_tenant {
+                "cross-tenant-transition-capability-missing"
+            } else {
+                "actor-transition-capability-missing"
+            });
         };
-        let policy_ok = source.get("identityId").and_then(Value::as_str).is_some_and(|s| !s.is_empty())
-            && target.get("identityId").and_then(Value::as_str).is_some_and(|s| !s.is_empty())
-            && source.get("credentialPolicyId").and_then(Value::as_str).is_some_and(|s| !s.is_empty())
+        let policy_ok = source
+            .get("identityId")
+            .and_then(Value::as_str)
+            .is_some_and(|s| !s.is_empty())
+            && target
+                .get("identityId")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.is_empty())
+            && source
+                .get("credentialPolicyId")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.is_empty())
             && source.get("credentialPolicyId") == target.get("credentialPolicyId")
-            && source.get("sessionPolicyId").and_then(Value::as_str).is_some_and(|s| !s.is_empty())
+            && source
+                .get("sessionPolicyId")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.is_empty())
             && source.get("sessionPolicyId") == target.get("sessionPolicyId");
         if !policy_ok {
-            return blocked(if cross_tenant { "cross-tenant-transition-policy-mismatch" } else { "actor-transition-policy-mismatch" });
+            return blocked(if cross_tenant {
+                "cross-tenant-transition-policy-mismatch"
+            } else {
+                "actor-transition-policy-mismatch"
+            });
         }
         let transition_id = transition.get("id").cloned().unwrap_or(Value::Null);
-        let authorization_bound = server_authorization.get("kind").and_then(Value::as_str) == Some("server-authorization-evidence")
+        let authorization_bound = server_authorization.get("kind").and_then(Value::as_str)
+            == Some("server-authorization-evidence")
             && server_authorization.get("transitionId") == Some(&transition_id)
             && server_authorization.get("controlId") == Some(&transition_id)
             && server_authorization.get("authorizationId") == transition.get("authorizationId")
-            && server_authorization.get("fromActorId").and_then(Value::as_str) == Some(from)
-            && server_authorization.get("toActorId").and_then(Value::as_str) == Some(to)
+            && server_authorization
+                .get("fromActorId")
+                .and_then(Value::as_str)
+                == Some(from)
+            && server_authorization
+                .get("toActorId")
+                .and_then(Value::as_str)
+                == Some(to)
             && server_authorization.get("actorId").and_then(Value::as_str) == Some(from)
             && server_authorization.get("fromTenantId") == source.get("tenantId")
             && server_authorization.get("toTenantId") == target.get("tenantId")
@@ -532,21 +741,39 @@ pub fn switch_actor(
             && server_authorization.get("fromAccountState") == source.get("accountState")
             && server_authorization.get("toAccountState") == target.get("accountState")
             && server_authorization.get("sessionPolicyId") == source.get("sessionPolicyId")
-            && same_binding(session_binding, server_authorization.get("sessionBinding").unwrap_or(&Value::Null));
+            && same_binding(
+                session_binding,
+                server_authorization
+                    .get("sessionBinding")
+                    .unwrap_or(&Value::Null),
+            );
         let auth_ok = authorization_bound
             && server_authorization.get("status").and_then(Value::as_str) == Some("pass")
             && server_authorization.get("terminal") == Some(&Value::Bool(true))
-            && same_binding(&receipt_binding, server_authorization.get("binding").unwrap_or(&Value::Null))
+            && same_binding(
+                &receipt_binding,
+                server_authorization.get("binding").unwrap_or(&Value::Null),
+            )
             && source
                 .get("serverAuthorizations")
                 .and_then(Value::as_array)
-                .is_some_and(|arr| arr.iter().any(|a| Some(a) == transition.get("authorizationId")))
+                .is_some_and(|arr| {
+                    arr.iter()
+                        .any(|a| Some(a) == transition.get("authorizationId"))
+                })
             && target
                 .get("serverAuthorizations")
                 .and_then(Value::as_array)
-                .is_some_and(|arr| arr.iter().any(|a| Some(a) == transition.get("authorizationId")));
+                .is_some_and(|arr| {
+                    arr.iter()
+                        .any(|a| Some(a) == transition.get("authorizationId"))
+                });
         if !auth_ok {
-            return blocked(if cross_tenant { "cross-tenant-server-authorization-unproven" } else { "actor-server-authorization-unproven" });
+            return blocked(if cross_tenant {
+                "cross-tenant-server-authorization-unproven"
+            } else {
+                "actor-server-authorization-unproven"
+            });
         }
     }
 
@@ -559,7 +786,10 @@ pub fn switch_actor(
 
     let mut new_session_binding = session_binding.as_object().cloned().unwrap_or_default();
     new_session_binding.insert("actorId".to_string(), Value::String(to.to_string()));
-    new_session_binding.insert("tenantId".to_string(), target.get("tenantId").cloned().unwrap_or(Value::Null));
+    new_session_binding.insert(
+        "tenantId".to_string(),
+        target.get("tenantId").cloned().unwrap_or(Value::Null),
+    );
 
     serde_json::json!({
         "status": "pass",
@@ -626,14 +856,28 @@ mod tests {
             &serde_json::json!({"status": "available"}),
         );
         assert_eq!(out["status"], "error");
-        let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+        let gaps: Vec<&str> = out["coverageGaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
         assert!(gaps.contains(&"identity-capability-unavailable"));
     }
 
     #[test]
     fn switch_actor_rejects_digest_mismatch() {
         let receipt = serde_json::json!({ "digest": "sha256:deadbeef", "status": "pass" });
-        let out = switch_actor(&receipt, "a", "b", "a", &Value::Null, &[], None, &Value::Null);
+        let out = switch_actor(
+            &receipt,
+            "a",
+            "b",
+            "a",
+            &Value::Null,
+            &[],
+            None,
+            &Value::Null,
+        );
         assert_eq!(out["status"], "blocked");
         assert_eq!(out["reason"], "actor-fixture-digest-mismatch");
     }

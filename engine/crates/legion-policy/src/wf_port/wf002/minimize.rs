@@ -191,11 +191,18 @@ pub fn staged_files(cwd: &Path, env: &MinimizeEnv) -> Result<Vec<String>, Minimi
 
 pub fn staged_added_files(cwd: &Path) -> Result<Vec<String>, MinimizeError> {
     let out = git(cwd, &["diff", "--cached", "--name-only", "--diff-filter=A"])?;
-    Ok(out.lines().filter(|l| !l.is_empty()).map(str::to_string).collect())
+    Ok(out
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(str::to_string)
+        .collect())
 }
 
 /// Dependency names ADDED to any staged manifest, read from the diff itself.
-pub fn staged_new_dependencies(cwd: &Path, env: &MinimizeEnv) -> Result<Vec<String>, MinimizeError> {
+pub fn staged_new_dependencies(
+    cwd: &Path,
+    env: &MinimizeEnv,
+) -> Result<Vec<String>, MinimizeError> {
     let mut found = BTreeSet::new();
     for name in staged_files(cwd, env)? {
         let base = name.rsplit('/').next().unwrap_or(&name);
@@ -271,7 +278,13 @@ pub fn language_family(path: &str) -> Vec<&'static str> {
         .unwrap_or_default()
 }
 
-const OWNER_MANIFESTS: &[&str] = &["package.json", "Cargo.toml", "pyproject.toml", "go.mod", "deno.json"];
+const OWNER_MANIFESTS: &[&str] = &[
+    "package.json",
+    "Cargo.toml",
+    "pyproject.toml",
+    "go.mod",
+    "deno.json",
+];
 
 /// Repo-relative directory of the nearest package manifest above `path` (at
 /// HEAD, not on disk), or `""` for the repository root.
@@ -294,7 +307,11 @@ pub fn owner_root(cwd: &Path, path: &str) -> String {
             .map(|row| row.rsplit('/').next().unwrap_or(row))
             .collect();
         if OWNER_MANIFESTS.iter().any(|m| names.contains(m)) {
-            return if current == "." { String::new() } else { current };
+            return if current == "." {
+                String::new()
+            } else {
+                current
+            };
         }
         if current == "." {
             return String::new();
@@ -356,7 +373,10 @@ fn added_declaration(line: &str) -> Option<String> {
                     let tail = tail.trim_start();
                     if let Some(tail) = tail.strip_prefix('=') {
                         let mut tail = tail.trim_start();
-                        tail = tail.strip_prefix("async").map(str::trim_start).unwrap_or(tail);
+                        tail = tail
+                            .strip_prefix("async")
+                            .map(str::trim_start)
+                            .unwrap_or(tail);
                         if tail.starts_with("function") && starts_word_boundary(tail, "function") {
                             return Some(name);
                         }
@@ -373,7 +393,9 @@ fn added_declaration(line: &str) -> Option<String> {
 
 fn starts_word_boundary(text: &str, keyword: &str) -> bool {
     let rest = &text[keyword.len()..];
-    rest.chars().next().is_none_or(|c| !(c.is_alphanumeric() || c == '_' || c == '$'))
+    rest.chars()
+        .next()
+        .is_none_or(|c| !(c.is_alphanumeric() || c == '_' || c == '$'))
 }
 
 fn read_identifier(text: &str) -> Option<String> {
@@ -415,7 +437,13 @@ impl Finding {
         map.insert("added_in".to_string(), Json::String(self.added_in.clone()));
         map.insert(
             "already_defined_in".to_string(),
-            Json::Array(self.already_defined_in.iter().cloned().map(Json::String).collect()),
+            Json::Array(
+                self.already_defined_in
+                    .iter()
+                    .cloned()
+                    .map(Json::String)
+                    .collect(),
+            ),
         );
         map.insert("detail".to_string(), Json::String(self.detail.clone()));
         map.insert("status".to_string(), Json::String(self.status.clone()));
@@ -571,7 +599,13 @@ impl Review {
         );
         map.insert(
             "new_dependencies".to_string(),
-            Json::Array(self.new_dependencies.iter().cloned().map(Json::String).collect()),
+            Json::Array(
+                self.new_dependencies
+                    .iter()
+                    .cloned()
+                    .map(Json::String)
+                    .collect(),
+            ),
         );
         map.insert(
             "findings".to_string(),
@@ -612,9 +646,15 @@ pub fn build_review(cwd: &Path, env: &MinimizeEnv) -> Result<Review, MinimizeErr
 /// Validates a review *value* (already-parsed JSON, e.g. loaded from disk or
 /// mutated in memory — mirrors `validateReview(review)` accepting a plain
 /// object) against the live staged state of `cwd`.
-pub fn validate_review_json(review: &Json, cwd: &Path, env: &MinimizeEnv) -> Result<Json, MinimizeError> {
+pub fn validate_review_json(
+    review: &Json,
+    cwd: &Path,
+    env: &MinimizeEnv,
+) -> Result<Json, MinimizeError> {
     if review.get_str("schema") != Some(REVIEW_SCHEMA) {
-        return Err(MinimizeError::new(format!("review schema must be {REVIEW_SCHEMA}")));
+        return Err(MinimizeError::new(format!(
+            "review schema must be {REVIEW_SCHEMA}"
+        )));
     }
     let candidate_tree = review.get_str("candidate_tree").unwrap_or("");
     if candidate_tree != staged_tree(cwd)? {
@@ -661,15 +701,18 @@ pub fn validate_review_json(review: &Json, cwd: &Path, env: &MinimizeEnv) -> Res
     let unexplained: Vec<&(Json, String, Option<String>)> = findings
         .iter()
         .filter(|(f, status, _)| {
-            status == "waived"
-                && f.get_str("waiver_reason").unwrap_or("").trim().is_empty()
+            status == "waived" && f.get_str("waiver_reason").unwrap_or("").trim().is_empty()
         })
         .collect();
     if !unexplained.is_empty() {
         let names = unexplained
             .iter()
             .take(3)
-            .map(|(_, _, symbol)| symbol.clone().unwrap_or_else(|| "unnamed finding".to_string()))
+            .map(|(_, _, symbol)| {
+                symbol
+                    .clone()
+                    .unwrap_or_else(|| "unnamed finding".to_string())
+            })
             .collect::<Vec<_>>()
             .join(", ");
         return Err(MinimizeError::new(format!(
@@ -690,19 +733,30 @@ pub struct ReceiptPaths<'a> {
     pub validator_path: &'a Path,
 }
 
-pub fn build_receipt(review_path: &Path, paths: &ReceiptPaths, cwd: &Path, env: &MinimizeEnv) -> Result<Json, MinimizeError> {
+pub fn build_receipt(
+    review_path: &Path,
+    paths: &ReceiptPaths,
+    cwd: &Path,
+    env: &MinimizeEnv,
+) -> Result<Json, MinimizeError> {
     let review = read_json(review_path)?;
     let review = validate_review_json(&review, cwd, env)?;
 
     let mut map = BTreeMap::new();
-    map.insert("schema".to_string(), Json::String(RECEIPT_SCHEMA.to_string()));
+    map.insert(
+        "schema".to_string(),
+        Json::String(RECEIPT_SCHEMA.to_string()),
+    );
     map.insert(
         "candidate_tree".to_string(),
         review.get("candidate_tree").cloned().unwrap_or(Json::Null),
     );
     map.insert(
         "scope_files".to_string(),
-        review.get("scope_files").cloned().unwrap_or(Json::Array(vec![])),
+        review
+            .get("scope_files")
+            .cloned()
+            .unwrap_or(Json::Array(vec![])),
     );
     map.insert(
         "review".to_string(),
@@ -749,7 +803,12 @@ pub fn build_receipt(review_path: &Path, paths: &ReceiptPaths, cwd: &Path, env: 
     Ok(Json::Object(map))
 }
 
-pub fn verify_receipt(receipt: &Json, paths: &ReceiptPaths, cwd: &Path, env: &MinimizeEnv) -> Result<Json, MinimizeError> {
+pub fn verify_receipt(
+    receipt: &Json,
+    paths: &ReceiptPaths,
+    cwd: &Path,
+    env: &MinimizeEnv,
+) -> Result<Json, MinimizeError> {
     if receipt.get_str("schema") != Some(RECEIPT_SCHEMA) {
         return Err(MinimizeError::new("commit receipt schema mismatch"));
     }
@@ -944,7 +1003,9 @@ pub fn verify_decision(
         "selected_rung",
     ] {
         if actual.get(key) != expected.get(key) {
-            return Err(MinimizeError::new(format!("stale decision receipt: {key} mismatch")));
+            return Err(MinimizeError::new(format!(
+                "stale decision receipt: {key} mismatch"
+            )));
         }
     }
     Ok(actual)
@@ -965,7 +1026,9 @@ pub fn canonical_locator(path: &Path) -> String {
     if !output.status.success() {
         return resolved.to_string_lossy().into_owned();
     }
-    let root = String::from_utf8_lossy(&output.stdout).trim().replace('\\', "/");
+    let root = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .replace('\\', "/");
     let normalized = resolved.to_string_lossy().replace('\\', "/");
     let prefix = format!("{root}/");
     if let Some(rel) = normalized.strip_prefix(&prefix) {
@@ -1023,10 +1086,8 @@ mod tests {
     /// manifest — mirrors the JS test fixture.
     fn fixture() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!(
-            "legion-minimize-test-{}-{n}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("legion-minimize-test-{}-{n}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("pkg-a/src")).unwrap();
         fs::create_dir_all(root.join("pkg-b/src")).unwrap();
@@ -1158,7 +1219,11 @@ mod tests {
             validator_path: &validator_path,
         };
         let err = build_receipt(&review_path, &paths, &root, &env()).unwrap_err();
-        assert!(err.0.contains("open finding blocks commit receipt"), "{}", err.0);
+        assert!(
+            err.0.contains("open finding blocks commit receipt"),
+            "{}",
+            err.0
+        );
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -1186,7 +1251,11 @@ mod tests {
             }
         }
         let err = validate_review_json(&json, &root, &env()).unwrap_err();
-        assert!(err.0.contains("waived finding needs a waiver_reason"), "{}", err.0);
+        assert!(
+            err.0.contains("waived finding needs a waiver_reason"),
+            "{}",
+            err.0
+        );
 
         if let Json::Object(obj) = &mut json {
             if let Some(Json::Array(items)) = obj.get_mut("findings") {
@@ -1275,7 +1344,8 @@ mod tests {
         git_ok(&root, &["add", "pkg-a/src/extra.mjs"]);
         let err = verify_receipt(&receipt, &paths, &root, &env()).unwrap_err();
         assert!(
-            err.0.contains("stale commit receipt: candidate_tree mismatch"),
+            err.0
+                .contains("stale commit receipt: candidate_tree mismatch"),
             "{}",
             err.0
         );

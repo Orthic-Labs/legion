@@ -53,12 +53,10 @@ use crate::p8_designer::target_args::parse_target_path;
 use crate::wf_port::w2_010::context::{
     load_context, resolve_project_root, resolve_target_selection, TargetOptions,
 };
-use crate::wf_port::w2_016::impeccable_paths::{
-    read_live_server_info, resolve_live_config_path,
-};
+use crate::wf_port::w2_016::impeccable_paths::{read_live_server_info, resolve_live_config_path};
 use crate::wf_port::w2_018::inject::{
-    ensure_live_gitignores, insert_tag, patch_csp_meta, remove_tag, resolve_files,
-    revert_csp_meta, validate_config, ConfigError, InjectConfig,
+    ensure_live_gitignores, insert_tag, patch_csp_meta, remove_tag, resolve_files, revert_csp_meta,
+    validate_config, ConfigError, InjectConfig,
 };
 use crate::wf_port::w2_019::live_target::resolve_live_target;
 
@@ -113,7 +111,8 @@ pub fn glob_to_regex_source(pattern: &str) -> String {
 
 /// Compiles [`glob_to_regex_source`] into a `regex::Regex`.
 pub fn glob_to_regex(pattern: &str) -> regex::Regex {
-    regex::Regex::new(&glob_to_regex_source(pattern)).expect("glob_to_regex_source always produces a valid pattern")
+    regex::Regex::new(&glob_to_regex_source(pattern))
+        .expect("glob_to_regex_source always produces a valid pattern")
 }
 
 #[derive(Debug, Clone)]
@@ -129,8 +128,18 @@ fn ignore_dirs() -> &'static HashSet<&'static str> {
     static SET: std::sync::OnceLock<HashSet<&'static str>> = std::sync::OnceLock::new();
     SET.get_or_init(|| {
         [
-            "node_modules", ".git", ".next", ".nuxt", ".svelte-kit", ".astro", ".turbo", ".vercel", ".cache",
-            "coverage", "dist", "build",
+            "node_modules",
+            ".git",
+            ".next",
+            ".nuxt",
+            ".svelte-kit",
+            ".astro",
+            ".turbo",
+            ".vercel",
+            ".cache",
+            "coverage",
+            "dist",
+            "build",
         ]
         .into_iter()
         .collect()
@@ -160,7 +169,8 @@ pub fn scan_for_drift(
     mut list_dir: impl FnMut(&str) -> Vec<DirEntry>,
 ) -> Option<DriftReport> {
     let resolved_set: HashSet<&str> = resolved_files.iter().map(String::as_str).collect();
-    let user_exclude_regexes: Vec<regex::Regex> = exclude_globs.iter().map(|p| glob_to_regex(p)).collect();
+    let user_exclude_regexes: Vec<regex::Regex> =
+        exclude_globs.iter().map(|p| glob_to_regex(p)).collect();
     let is_user_excluded = |rel: &str| user_exclude_regexes.iter().any(|re| re.is_match(rel));
 
     let mut orphans = Vec::new();
@@ -184,7 +194,14 @@ pub fn scan_for_drift(
                     continue;
                 }
                 let child_dir = format!("{dir}/{}", entry.name);
-                walk(&child_dir, &rel, list_dir, resolved_set, is_user_excluded, orphans);
+                walk(
+                    &child_dir,
+                    &rel,
+                    list_dir,
+                    resolved_set,
+                    is_user_excluded,
+                    orphans,
+                );
             } else if entry.name.ends_with(".html") {
                 if resolved_set.contains(rel.as_str()) {
                     continue;
@@ -198,7 +215,14 @@ pub fn scan_for_drift(
     }
 
     for root in SCAN_ROOTS {
-        walk(root, root, &mut list_dir, &resolved_set, &is_user_excluded, &mut orphans);
+        walk(
+            root,
+            root,
+            &mut list_dir,
+            &resolved_set,
+            &is_user_excluded,
+            &mut orphans,
+        );
     }
 
     if orphans.is_empty() {
@@ -209,7 +233,11 @@ pub fn scan_for_drift(
     let hint = format!(
         "{orphan_count} HTML file(s) exist but aren't in config.files. Consider adding them, or use a glob pattern like \"public/**/*.html\"."
     );
-    Some(DriftReport { orphans: capped, orphan_count, hint })
+    Some(DriftReport {
+        orphans: capped,
+        orphan_count,
+        hint,
+    })
 }
 
 // ─── r19: liveCli() orchestration ───────────────────────────────────────
@@ -240,20 +268,41 @@ fn ensure_server_running(runner: &dyn ProcessRunner, cwd: &Path) -> Option<Value
 }
 
 fn inject_config_from_json(cfg: &Value) -> Option<InjectConfig> {
-    let files = cfg.get("files")?.as_array()?.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect();
+    let files = cfg
+        .get("files")?
+        .as_array()?
+        .iter()
+        .map(|v| v.as_str().unwrap_or("").to_string())
+        .collect();
     let exclude = cfg
         .get("exclude")
         .and_then(Value::as_array)
-        .map(|a| a.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+        .map(|a| {
+            a.iter()
+                .map(|v| v.as_str().unwrap_or("").to_string())
+                .collect()
+        })
         .unwrap_or_default();
-    let insert_before = cfg.get("insertBefore").and_then(Value::as_str).map(str::to_string);
-    let insert_after = cfg.get("insertAfter").and_then(Value::as_str).map(str::to_string);
+    let insert_before = cfg
+        .get("insertBefore")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let insert_after = cfg
+        .get("insertAfter")
+        .and_then(Value::as_str)
+        .map(str::to_string);
     let comment_syntax = cfg
         .get("commentSyntax")
         .and_then(Value::as_str)
         .unwrap_or("html")
         .to_string();
-    Some(InjectConfig { files, exclude, insert_before, insert_after, comment_syntax })
+    Some(InjectConfig {
+        files,
+        exclude,
+        insert_before,
+        insert_after,
+        comment_syntax,
+    })
 }
 
 fn config_error_message(err: &ConfigError) -> &'static str {
@@ -345,8 +394,13 @@ pub fn inject_port(cwd: &Path, port: u32) -> Option<Value> {
         let without_old = revert_csp_meta(&remove_tag(&content));
         let with_tag = insert_tag(&without_old, &parsed, port, rel_file);
         if with_tag == without_old {
-            let anchor = parsed.insert_before.as_deref().or(parsed.insert_after.as_deref());
-            results.push(json!({ "file": rel_file, "error": "insertion_point_not_found", "anchor": anchor }));
+            let anchor = parsed
+                .insert_before
+                .as_deref()
+                .or(parsed.insert_after.as_deref());
+            results.push(
+                json!({ "file": rel_file, "error": "insertion_point_not_found", "anchor": anchor }),
+            );
             continue;
         }
         let updated = patch_csp_meta(&with_tag, port);
@@ -355,10 +409,13 @@ pub fn inject_port(cwd: &Path, port: u32) -> Option<Value> {
             continue;
         }
         any_inserted = true;
-        results.push(json!({ "file": rel_file, "inserted": true, "cspPatched": updated != with_tag }));
+        results
+            .push(json!({ "file": rel_file, "inserted": true, "cspPatched": updated != with_tag }));
     }
 
-    Some(json!({ "ok": any_inserted, "port": port, "gitIgnore": git_ignore_json, "results": results }))
+    Some(
+        json!({ "ok": any_inserted, "port": port, "gitIgnore": git_ignore_json, "results": results }),
+    )
 }
 
 /// A real filesystem [`DirEntry`] walker for [`scan_for_drift`], used by the
@@ -397,7 +454,11 @@ pub fn live_cli(runner: &dyn ProcessRunner, original_cwd: &Path, argv: &[String]
 
     let (project_root, target_options) = match &target_path {
         Some(t) => {
-            let abs = if Path::new(t).is_absolute() { PathBuf::from(t) } else { original_cwd.join(t) };
+            let abs = if Path::new(t).is_absolute() {
+                PathBuf::from(t)
+            } else {
+                original_cwd.join(t)
+            };
             let opts = TargetOptions::with(abs.to_string_lossy().replace('\\', "/"));
             let root = resolve_project_root(&original_cwd, &opts);
             (root, opts)
@@ -439,7 +500,11 @@ pub fn live_cli(runner: &dyn ProcessRunner, original_cwd: &Path, argv: &[String]
 
     let missing_context = missing_live_context(ctx.has_product, ctx.has_design);
     if !missing_context.is_empty() {
-        let next_command = if missing_context.contains(&"PRODUCT.md") { "init" } else { "document" };
+        let next_command = if missing_context.contains(&"PRODUCT.md") {
+            "init"
+        } else {
+            "document"
+        };
         return (
             0,
             serde_json::to_string_pretty(&json!({
@@ -459,12 +524,18 @@ pub fn live_cli(runner: &dyn ProcessRunner, original_cwd: &Path, argv: &[String]
 
     // 1. Check config.
     let check_result = inject_check(&active_cwd);
-    let check_ok = check_result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    let check_ok = check_result
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if !check_ok {
         let mut merged = check_result;
         if let Some(obj) = merged.as_object_mut() {
             obj.insert("targetPath".into(), json!(output_target_path));
-            obj.insert("projectRoot".into(), json!(ctx.project_root.to_string_lossy()));
+            obj.insert(
+                "projectRoot".into(),
+                json!(ctx.project_root.to_string_lossy()),
+            );
             obj.insert("repoRoot".into(), json!(ctx.repo_root.to_string_lossy()));
         }
         return (0, serde_json::to_string_pretty(&merged).unwrap());
@@ -472,10 +543,16 @@ pub fn live_cli(runner: &dyn ProcessRunner, original_cwd: &Path, argv: &[String]
 
     // 2. Start (or reuse) the server.
     let Some(server_info) = ensure_server_running(runner, &active_cwd) else {
-        return (1, serde_json::to_string(&json!({ "ok": false, "error": "server_start_failed" })).unwrap());
+        return (
+            1,
+            serde_json::to_string(&json!({ "ok": false, "error": "server_start_failed" })).unwrap(),
+        );
     };
     let Some(server_port) = server_info.get("port").and_then(Value::as_u64) else {
-        return (1, serde_json::to_string(&json!({ "ok": false, "error": "server_start_failed" })).unwrap());
+        return (
+            1,
+            serde_json::to_string(&json!({ "ok": false, "error": "server_start_failed" })).unwrap(),
+        );
     };
 
     // 3. Inject the script tag at the current port.
@@ -488,7 +565,10 @@ pub fn live_cli(runner: &dyn ProcessRunner, original_cwd: &Path, argv: &[String]
             .unwrap(),
         );
     };
-    let inject_ok = inject_result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    let inject_ok = inject_result
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if !inject_ok {
         return (
             1,
@@ -508,9 +588,15 @@ pub fn live_cli(runner: &dyn ProcessRunner, original_cwd: &Path, argv: &[String]
     let exclude_globs: Vec<String> = config
         .get("exclude")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
-    let drift = scan_for_drift(&resolved_files, &exclude_globs, |dir| list_dir_real(&format!("{}/{dir}", active_cwd.display())));
+    let drift = scan_for_drift(&resolved_files, &exclude_globs, |dir| {
+        list_dir_real(&format!("{}/{dir}", active_cwd.display()))
+    });
     let drift_json = drift
         .map(|d| json!({ "orphans": d.orphans, "orphanCount": d.orphan_count, "hint": d.hint }))
         .unwrap_or(Value::Null);
@@ -547,7 +633,10 @@ mod tests {
 
     #[test]
     fn missing_live_context_reports_absent_files() {
-        assert_eq!(missing_live_context(false, false), vec!["PRODUCT.md", "DESIGN.md"]);
+        assert_eq!(
+            missing_live_context(false, false),
+            vec!["PRODUCT.md", "DESIGN.md"]
+        );
         assert_eq!(missing_live_context(true, false), vec!["DESIGN.md"]);
         assert_eq!(missing_live_context(true, true), Vec::<&str>::new());
     }
@@ -564,7 +653,9 @@ mod tests {
         assert!(!glob_to_regex("file?.html").is_match("file12.html"));
     }
 
-    fn fake_fs<'f>(files: &'f [(&'f str, &'f [&'f str])]) -> impl for<'a> FnMut(&'a str) -> Vec<DirEntry> + 'f {
+    fn fake_fs<'f>(
+        files: &'f [(&'f str, &'f [&'f str])],
+    ) -> impl for<'a> FnMut(&'a str) -> Vec<DirEntry> + 'f {
         move |dir: &str| {
             let mut entries = Vec::new();
             let mut seen_dirs = HashSet::new();
@@ -574,10 +665,16 @@ mod tests {
                     let is_dir = rest.contains('/');
                     if is_dir {
                         if seen_dirs.insert(first) {
-                            entries.push(DirEntry { name: first.to_string(), is_dir: true });
+                            entries.push(DirEntry {
+                                name: first.to_string(),
+                                is_dir: true,
+                            });
                         }
                     } else {
-                        entries.push(DirEntry { name: first.to_string(), is_dir: false });
+                        entries.push(DirEntry {
+                            name: first.to_string(),
+                            is_dir: false,
+                        });
                     }
                 }
             }
@@ -615,7 +712,10 @@ mod tests {
         for i in 0..25 {
             file_list.push((format!("public/o{i}.html"), &[][..]));
         }
-        let files_ref: Vec<(&str, &[&str])> = file_list.iter().map(|(p, _)| (p.as_str(), &[][..])).collect();
+        let files_ref: Vec<(&str, &[&str])> = file_list
+            .iter()
+            .map(|(p, _)| (p.as_str(), &[][..]))
+            .collect();
         let report = scan_for_drift(&[], &[], fake_fs(&files_ref)).unwrap();
         assert_eq!(report.orphans.len(), 20);
         assert_eq!(report.orphan_count, 25);

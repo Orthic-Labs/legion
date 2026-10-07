@@ -139,7 +139,9 @@ pub fn parse_unified(raw: &str) -> Vec<DiffFile> {
 fn parse_hunk_header(line: &str) -> Option<(usize, usize)> {
     let plus_idx = line.find('+')?;
     let rest = &line[plus_idx + 1..];
-    let end = rest.find(|c: char| c == ' ' || c == '@').unwrap_or(rest.len());
+    let end = rest
+        .find(|c: char| c == ' ' || c == '@')
+        .unwrap_or(rest.len());
     let spec = &rest[..end];
     if spec.is_empty() {
         return None;

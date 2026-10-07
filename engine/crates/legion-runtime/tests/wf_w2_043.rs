@@ -137,7 +137,11 @@ fn banned_words_and_em_dashes_in_built_html_fail_the_gate() {
         terms,
         vec!["leverage", "revolutionary", "synergy", "unlock"]
     );
-    assert_eq!(find(&report, "typography").status, Status::Fail, "em dash is caught");
+    assert_eq!(
+        find(&report, "typography").status,
+        Status::Fail,
+        "em dash is caught"
+    );
 }
 
 #[test]
@@ -182,7 +186,11 @@ fn a_check_that_cannot_run_reports_unavailable_and_blocks_never_a_silent_pass() 
         "no text to scan is not a pass"
     );
     assert_eq!(find(&report, "lighthouse").status, Status::Unavailable);
-    assert_eq!(report.verdict, Status::Fail, "unavailable required checks block the gate");
+    assert_eq!(
+        report.verdict,
+        Status::Fail,
+        "unavailable required checks block the gate"
+    );
     assert!(report.counts.pass < report.counts.total);
 }
 

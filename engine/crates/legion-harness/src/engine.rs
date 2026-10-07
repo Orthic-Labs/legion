@@ -65,7 +65,9 @@ pub fn install(
                 key: None,
             });
         let result = match surface.as_str() {
-            "instructions" => install_instructions(&mechanism, root, legion_root, skills_location.as_deref()),
+            "instructions" => {
+                install_instructions(&mechanism, root, legion_root, skills_location.as_deref())
+            }
             "skills" => install_skills(&mechanism, root, legion_root),
             "agents" => install_agents(&mechanism, root, legion_root),
             "mcp" => install_mcp(&mechanism, root),
@@ -74,12 +76,7 @@ pub fn install(
         }?;
         applied.insert(surface.clone(), result.clone());
         if let Some(items) = result.get("wrote").and_then(Value::as_array) {
-            wrote.extend(
-                items
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .map(str::to_string),
-            );
+            wrote.extend(items.iter().filter_map(Value::as_str).map(str::to_string));
         }
     }
     Ok(json!({
@@ -90,7 +87,11 @@ pub fn install(
     }))
 }
 
-pub fn verify(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path) -> Result<Value, HarnessError> {
+pub fn verify(
+    descriptor: &HarnessDescriptor,
+    root: &Path,
+    legion_root: &Path,
+) -> Result<Value, HarnessError> {
     let caps = capabilities_value(descriptor)?;
     let mut problems = Vec::new();
     let mut surfaces = BTreeMap::new();
@@ -103,7 +104,10 @@ pub fn verify(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path) -
             .and_then(Value::as_str)
             .unwrap_or("unsupported");
         if declared.is_none() || fidelity == "unsupported" {
-            surfaces.insert(surface.to_string(), json!({ "fidelity": fidelity, "ok": true }));
+            surfaces.insert(
+                surface.to_string(),
+                json!({ "fidelity": fidelity, "ok": true }),
+            );
             continue;
         }
         let mech = declared
@@ -115,7 +119,10 @@ pub fn verify(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path) -
                 key: None,
             });
         if surface == "skills" && mech.kind == "skills-dir" {
-            let path = mech.path.as_deref().ok_or_else(|| HarnessError::internal("skills path missing"))?;
+            let path = mech
+                .path
+                .as_deref()
+                .ok_or_else(|| HarnessError::internal("skills path missing"))?;
             let verification = verify_skill_projection(legion_root, &abs(root, path))?;
             let ok = verification
                 .get("missing")
@@ -169,7 +176,11 @@ pub fn verify(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path) -
     }))
 }
 
-pub fn uninstall(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path) -> Result<Value, HarnessError> {
+pub fn uninstall(
+    descriptor: &HarnessDescriptor,
+    root: &Path,
+    legion_root: &Path,
+) -> Result<Value, HarnessError> {
     let mut removed = Vec::new();
     let mut kept = Vec::new();
     for surface in SURFACES {
@@ -179,7 +190,10 @@ pub fn uninstall(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path
         }
         let mech = &declared.expect("checked").mechanism;
         if surface == "skills" && mech.kind == "skills-dir" {
-            let path = mech.path.as_deref().ok_or_else(|| HarnessError::internal("skills path missing"))?;
+            let path = mech
+                .path
+                .as_deref()
+                .ok_or_else(|| HarnessError::internal("skills path missing"))?;
             let result = unproject_skills(legion_root, &abs(root, path))?;
             if let Some(items) = result.get("removed").and_then(Value::as_array) {
                 removed.extend(
@@ -195,10 +209,12 @@ pub fn uninstall(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path
         } else if surface == "instructions" && mech.path.is_some() {
             let path = abs(root, mech.path.as_deref().expect("checked"));
             if path.is_file() {
-                let before = fs::read_to_string(&path).map_err(|error| HarnessError::internal(error.to_string()))?;
+                let before = fs::read_to_string(&path)
+                    .map_err(|error| HarnessError::internal(error.to_string()))?;
                 let stripped = strip_marker_block(&before);
                 if stripped != before {
-                    fs::write(&path, stripped).map_err(|error| HarnessError::internal(error.to_string()))?;
+                    fs::write(&path, stripped)
+                        .map_err(|error| HarnessError::internal(error.to_string()))?;
                     removed.push(mech.path.clone().expect("checked"));
                 }
             }
@@ -206,7 +222,9 @@ pub fn uninstall(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path
             let target = abs(root, mech.path.as_deref().expect("checked"));
             let source = legion_root.join("agents");
             if target.is_dir() && source.is_dir() {
-                for entry in fs::read_dir(&source).map_err(|error| HarnessError::internal(error.to_string()))? {
+                for entry in fs::read_dir(&source)
+                    .map_err(|error| HarnessError::internal(error.to_string()))?
+                {
                     let entry = entry.map_err(|error| HarnessError::internal(error.to_string()))?;
                     let name = entry.file_name().to_string_lossy().into_owned();
                     if !name.ends_with(".md") {
@@ -217,10 +235,13 @@ pub fn uninstall(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path
                     if !dest.is_file() {
                         continue;
                     }
-                    let left = fs::read(&dest).map_err(|error| HarnessError::internal(error.to_string()))?;
-                    let right = fs::read(&source_file).map_err(|error| HarnessError::internal(error.to_string()))?;
+                    let left = fs::read(&dest)
+                        .map_err(|error| HarnessError::internal(error.to_string()))?;
+                    let right = fs::read(&source_file)
+                        .map_err(|error| HarnessError::internal(error.to_string()))?;
                     if left == right {
-                        fs::remove_file(&dest).map_err(|error| HarnessError::internal(error.to_string()))?;
+                        fs::remove_file(&dest)
+                            .map_err(|error| HarnessError::internal(error.to_string()))?;
                         removed.push(format!("{}/{name}", mech.path.as_deref().expect("checked")));
                     } else {
                         kept.push(json!({
@@ -245,22 +266,32 @@ pub fn uninstall(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path
                             doc.as_object_mut().expect("object").remove(&key);
                         }
                         write_json_pretty(&path, &doc)?;
-                        removed.push(format!("{}#{}.legion", mech.path.as_deref().expect("checked"), key));
+                        removed.push(format!(
+                            "{}#{}.legion",
+                            mech.path.as_deref().expect("checked"),
+                            key
+                        ));
                     }
                 }
             } else if mech.kind == "toml" {
                 assert_plausible_toml(&path, "mcp")?;
                 let table = mech.table.clone().unwrap_or_else(|| "mcp_servers".into());
-                let before = fs::read_to_string(&path).map_err(|error| HarnessError::internal(error.to_string()))?;
+                let before = fs::read_to_string(&path)
+                    .map_err(|error| HarnessError::internal(error.to_string()))?;
                 let after = remove_legion_toml_block(&before, &table);
                 if after != before {
                     if after.trim().is_empty() {
-                        fs::remove_file(&path).map_err(|error| HarnessError::internal(error.to_string()))?;
+                        fs::remove_file(&path)
+                            .map_err(|error| HarnessError::internal(error.to_string()))?;
                     } else {
                         fs::write(&path, after.trim_start_matches('\n'))
                             .map_err(|error| HarnessError::internal(error.to_string()))?;
                     }
-                    removed.push(format!("{}#{}.legion", mech.path.as_deref().expect("checked"), table));
+                    removed.push(format!(
+                        "{}#{}.legion",
+                        mech.path.as_deref().expect("checked"),
+                        table
+                    ));
                 }
             }
         }
@@ -309,7 +340,11 @@ fn install_instructions(
     Ok(json!({ "wrote": [mech.path.clone().expect("path")] }))
 }
 
-fn install_skills(mech: &Mechanism, root: &Path, legion_root: &Path) -> Result<Value, HarnessError> {
+fn install_skills(
+    mech: &Mechanism,
+    root: &Path,
+    legion_root: &Path,
+) -> Result<Value, HarnessError> {
     if mech.kind != "skills-dir" {
         return Ok(json!({ "wrote": [] }));
     }
@@ -318,7 +353,11 @@ fn install_skills(mech: &Mechanism, root: &Path, legion_root: &Path) -> Result<V
     Ok(json!({ "wrote": [mech.path.clone().expect("path")], "skills": skills }))
 }
 
-fn install_agents(mech: &Mechanism, root: &Path, legion_root: &Path) -> Result<Value, HarnessError> {
+fn install_agents(
+    mech: &Mechanism,
+    root: &Path,
+    legion_root: &Path,
+) -> Result<Value, HarnessError> {
     if mech.kind != "dir" {
         return Ok(json!({ "wrote": [] }));
     }
@@ -337,8 +376,10 @@ fn install_agents(mech: &Mechanism, root: &Path, legion_root: &Path) -> Result<V
             let dest = target.join(file);
             let source_file = source.join(file);
             if dest.is_file() {
-                let left = fs::read(&dest).map_err(|error| HarnessError::internal(error.to_string()))?;
-                let right = fs::read(&source_file).map_err(|error| HarnessError::internal(error.to_string()))?;
+                let left =
+                    fs::read(&dest).map_err(|error| HarnessError::internal(error.to_string()))?;
+                let right = fs::read(&source_file)
+                    .map_err(|error| HarnessError::internal(error.to_string()))?;
                 if left != right {
                     return Err(HarnessError::conflict(format!(
                         "agents: refused to write {}: an existing file with this name is not a Legion projection",
@@ -373,7 +414,8 @@ fn install_mcp(mech: &Mechanism, root: &Path) -> Result<Value, HarnessError> {
             .expect("object")
             .insert(key.clone(), Value::Object(servers));
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| HarnessError::internal(error.to_string()))?;
+            fs::create_dir_all(parent)
+                .map_err(|error| HarnessError::internal(error.to_string()))?;
         }
         write_json_pretty(&path, &doc)?;
         return Ok(json!({ "wrote": [mech.path.clone().expect("path")] }));
@@ -389,7 +431,12 @@ fn install_mcp(mech: &Mechanism, root: &Path) -> Result<Value, HarnessError> {
             .unwrap_or_default();
         let args_toml = args
             .iter()
-            .map(|value| value.as_str().map(|item| json!(item).to_string()).unwrap_or_else(|| value.to_string()))
+            .map(|value| {
+                value
+                    .as_str()
+                    .map(|item| json!(item).to_string())
+                    .unwrap_or_else(|| value.to_string())
+            })
             .collect::<Vec<_>>()
             .join(", ");
         let command = server
@@ -398,10 +445,12 @@ fn install_mcp(mech: &Mechanism, root: &Path) -> Result<Value, HarnessError> {
             .unwrap_or("legion");
         let block = format!(
             "\n[{table}.legion]\ncommand = {command}\nargs = [{args_toml}]\n",
-            command = serde_json::to_string(command).map_err(|error| HarnessError::internal(error.to_string()))?
+            command = serde_json::to_string(command)
+                .map_err(|error| HarnessError::internal(error.to_string()))?
         );
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| HarnessError::internal(error.to_string()))?;
+            fs::create_dir_all(parent)
+                .map_err(|error| HarnessError::internal(error.to_string()))?;
         }
         let existing = if path.is_file() {
             fs::read_to_string(&path).map_err(|error| HarnessError::internal(error.to_string()))?
@@ -443,7 +492,8 @@ fn read_json_or_refuse(path: &Path, surface: &str) -> Result<Value, HarnessError
     if !path.is_file() {
         return Ok(json!({}));
     }
-    let text = fs::read_to_string(path).map_err(|error| HarnessError::internal(error.to_string()))?;
+    let text =
+        fs::read_to_string(path).map_err(|error| HarnessError::internal(error.to_string()))?;
     if text.trim().is_empty() {
         return Ok(json!({}));
     }
@@ -466,7 +516,8 @@ fn assert_plausible_toml(path: &Path, surface: &str) -> Result<(), HarnessError>
     if !path.is_file() {
         return Ok(());
     }
-    let text = fs::read_to_string(path).map_err(|error| HarnessError::internal(error.to_string()))?;
+    let text =
+        fs::read_to_string(path).map_err(|error| HarnessError::internal(error.to_string()))?;
     let multi = ["\"\"\"", "'''"];
     let mut in_multiline = false;
     for raw in text.lines() {

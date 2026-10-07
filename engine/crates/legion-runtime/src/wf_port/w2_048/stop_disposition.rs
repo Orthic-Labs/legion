@@ -94,7 +94,14 @@ mod tests {
     // are never certified genuine.
     #[test]
     fn unauthenticated_intents_always_terminate_and_are_not_claimed() {
-        for intent in ["UNKNOWN", "QUESTION", "PLAN", "PAUSE", "REVOKE", "SCOPE_NARROW"] {
+        for intent in [
+            "UNKNOWN",
+            "QUESTION",
+            "PLAN",
+            "PAUSE",
+            "REVOKE",
+            "SCOPE_NARROW",
+        ] {
             let outcome = stop_outcome(&StopDispositionInput {
                 authenticated_claim: false,
                 intent,

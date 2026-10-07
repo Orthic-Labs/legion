@@ -50,7 +50,9 @@ mod tests {
     #[test]
     fn reports_missing_heading() {
         let errors = ordered_heading_errors("# DISPATCH: x\n## 0. Dispatch Control\n");
-        assert!(errors.iter().any(|e| e.contains("missing heading: ## 1. Mission")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("missing heading: ## 1. Mission")));
     }
 
     #[test]
@@ -64,7 +66,9 @@ mod tests {
         // Python original (`validate-dispatch.py`'s `ordered_heading_errors`).
         let text = "## 1. Mission\n# DISPATCH: x\n";
         let errors = ordered_heading_errors(text);
-        assert!(errors.iter().any(|e| e == "heading out of order: ## 1. Mission"));
+        assert!(errors
+            .iter()
+            .any(|e| e == "heading out of order: ## 1. Mission"));
     }
 
     #[test]

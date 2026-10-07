@@ -3,8 +3,8 @@
 //! `skills/seo/extensions/banana/scripts/validate_setup.py`.
 
 use legion_runtime::wf_port::w2_026::{
-    apply_entry, check_api_key_set, check_command_is_npx, check_json_valid, check_model_set,
-    check_mcp_configured, check_npx_available, check_output_dir, check_package_correct,
+    apply_entry, check_api_key_set, check_command_is_npx, check_json_valid, check_mcp_configured,
+    check_model_set, check_npx_available, check_output_dir, check_package_correct,
     check_settings_file_exists, describe_setup, mask_key, remove_entry, run_validation,
     OutputDirState, SetupError, DEFAULT_MODEL, MCP_NAME, MCP_PACKAGE,
 };
@@ -122,7 +122,10 @@ fn apply_entry_preserves_other_settings_and_other_mcp_servers() {
     });
     apply_entry(&mut settings, "key").unwrap();
     assert_eq!(settings["otherTopLevel"], json!(true));
-    assert_eq!(settings["mcpServers"]["some-other-mcp"]["command"], json!("foo"));
+    assert_eq!(
+        settings["mcpServers"]["some-other-mcp"]["command"],
+        json!("foo")
+    );
     assert_eq!(settings["mcpServers"][MCP_NAME]["command"], json!("npx"));
 }
 
@@ -198,8 +201,7 @@ fn check_mcp_configured_signals_downstream_checks() {
     assert!(!check.passed);
     assert!(!has_mcp);
 
-    let (check, has_mcp) =
-        check_mcp_configured(&json!({ "mcpServers": { MCP_NAME: {} } }));
+    let (check, has_mcp) = check_mcp_configured(&json!({ "mcpServers": { MCP_NAME: {} } }));
     assert!(check.passed);
     assert!(has_mcp);
 }
@@ -284,7 +286,9 @@ fn check_output_dir_states() {
     assert!(check_output_dir(&OutputDirState::AlreadyExists, "/d").passed);
     assert!(check_output_dir(&OutputDirState::Created, "/d").passed);
     let failed = check_output_dir(
-        &OutputDirState::CreateFailed { detail: "Permission denied".to_string() },
+        &OutputDirState::CreateFailed {
+            detail: "Permission denied".to_string(),
+        },
         "/d",
     );
     assert!(!failed.passed);
@@ -297,7 +301,12 @@ fn check_output_dir_states() {
 
 #[test]
 fn run_validation_skips_checks_4_through_7_when_not_configured() {
-    let checks = run_validation(&json!({}), Some("/usr/bin/npx"), &OutputDirState::AlreadyExists, "/d");
+    let checks = run_validation(
+        &json!({}),
+        Some("/usr/bin/npx"),
+        &OutputDirState::AlreadyExists,
+        "/d",
+    );
     // Only: mcp configured, npx available, output dir = 3 checks.
     assert_eq!(checks.len(), 3);
     assert!(!checks[0].passed);
@@ -310,7 +319,12 @@ fn run_validation_runs_all_nine_analog_checks_when_fully_configured() {
         json!(["-y", MCP_PACKAGE]),
         json!({ "GOOGLE_AI_API_KEY": "AIzaSyABCDEFGHIJKLMNOP1234", "NANOBANANA_MODEL": "m" }),
     );
-    let checks = run_validation(&settings, Some("/usr/bin/npx"), &OutputDirState::AlreadyExists, "/d");
+    let checks = run_validation(
+        &settings,
+        Some("/usr/bin/npx"),
+        &OutputDirState::AlreadyExists,
+        "/d",
+    );
     // mcp configured, command, package, key, model, npx, output dir = 7.
     assert_eq!(checks.len(), 7);
     assert!(checks.iter().all(|c| c.passed));
@@ -344,7 +358,10 @@ fn missing_settings_file_short_circuits_with_exit_1() {
     use legion_runtime::wf_port::w2_026::ValidationReport;
     // main(): `if not SETTINGS_PATH.exists(): return 1` — only the first
     // check ran.
-    let checks = vec![check_settings_file_exists(false, "/home/u/.claude/settings.json")];
+    let checks = vec![check_settings_file_exists(
+        false,
+        "/home/u/.claude/settings.json",
+    )];
     let report = ValidationReport { checks };
     assert_eq!(report.exit_code(), 1);
 }

@@ -128,7 +128,13 @@ pub fn validate_gate(
             "blocking gate self-test failed",
             json!({"machineryDefect": "OUT_OF_SCOPE_MACHINERY_DEFECT", "invalid": invalid_json}),
         );
-        return GateValidity { decision: d, token: None, gate_id: None, gate_contract_digest: None, fixture_bindings_len: None };
+        return GateValidity {
+            decision: d,
+            token: None,
+            gate_id: None,
+            gate_contract_digest: None,
+            fixture_bindings_len: None,
+        };
     }
 
     let gate_contract_digest = digest_value(&contract.to_digest_value());
@@ -174,13 +180,28 @@ pub fn execute_validated_gate(
     matches: &[GateMatch],
 ) -> Decision {
     if !contract.gates {
-        return decision(true, None, "informational check cannot block", json!({"gateStatus": "INFORMATIONAL"}));
+        return decision(
+            true,
+            None,
+            "informational check cannot block",
+            json!({"gateStatus": "INFORMATIONAL"}),
+        );
     }
     let validity = match validity {
         Some(v) if v.decision.allowed => v,
         Some(v) => {
-            let defect = v.decision.detail.get("machineryDefect").cloned().unwrap_or(json!("OUT_OF_SCOPE_MACHINERY_DEFECT"));
-            return decision(false, Some("ARC_GATE_INVALID"), "unvalidated blocking gate cannot block delivery", json!({"machineryDefect": defect}));
+            let defect = v
+                .decision
+                .detail
+                .get("machineryDefect")
+                .cloned()
+                .unwrap_or(json!("OUT_OF_SCOPE_MACHINERY_DEFECT"));
+            return decision(
+                false,
+                Some("ARC_GATE_INVALID"),
+                "unvalidated blocking gate cannot block delivery",
+                json!({"machineryDefect": defect}),
+            );
         }
         None => {
             return decision(
@@ -194,7 +215,8 @@ pub fn execute_validated_gate(
 
     let binds = validity.token.is_some()
         && validity.gate_id.as_deref() == Some(contract.id.as_str())
-        && validity.gate_contract_digest.as_deref() == Some(digest_value(&contract.to_digest_value()).as_str())
+        && validity.gate_contract_digest.as_deref()
+            == Some(digest_value(&contract.to_digest_value()).as_str())
         && validity.fixture_bindings_len == Some(CASES.len());
     if !binds {
         return decision(
@@ -255,17 +277,43 @@ mod tests {
 
     fn fixtures() -> BTreeMap<&'static str, Fixture> {
         let mut m = BTreeMap::new();
-        m.insert("knownGood", Fixture { id: "known-good".into(), status: "PASS".into() });
-        m.insert("knownBad", Fixture { id: "known-bad".into(), status: "FAIL".into() });
-        m.insert("empty", Fixture { id: "empty".into(), status: "FAIL".into() });
-        m.insert("malformed", Fixture { id: "malformed".into(), status: "FAIL".into() });
+        m.insert(
+            "knownGood",
+            Fixture {
+                id: "known-good".into(),
+                status: "PASS".into(),
+            },
+        );
+        m.insert(
+            "knownBad",
+            Fixture {
+                id: "known-bad".into(),
+                status: "FAIL".into(),
+            },
+        );
+        m.insert(
+            "empty",
+            Fixture {
+                id: "empty".into(),
+                status: "FAIL".into(),
+            },
+        );
+        m.insert(
+            "malformed",
+            Fixture {
+                id: "malformed".into(),
+                status: "FAIL".into(),
+            },
+        );
         m
     }
 
     #[test]
     fn zero_inspected_is_inconclusive() {
         let contract = contract();
-        let validity = validate_gate(&contract, &fixtures(), |f| CaseResult { status: f.status.clone() });
+        let validity = validate_gate(&contract, &fixtures(), |f| CaseResult {
+            status: f.status.clone(),
+        });
         assert!(validity.decision.allowed);
         let result = execute_validated_gate(&contract, Some(&validity), &[], &[]);
         assert!(!result.allowed);
@@ -276,8 +324,13 @@ mod tests {
     #[test]
     fn out_of_scope_match_rejects_admission() {
         let contract = contract();
-        let validity = validate_gate(&contract, &fixtures(), |f| CaseResult { status: f.status.clone() });
-        let matches = vec![GateMatch { rule_id: Some("UNINSPECTED_SCOPE".into()), reason: Some("outside configured scope".into()) }];
+        let validity = validate_gate(&contract, &fixtures(), |f| CaseResult {
+            status: f.status.clone(),
+        });
+        let matches = vec![GateMatch {
+            rule_id: Some("UNINSPECTED_SCOPE".into()),
+            reason: Some("outside configured scope".into()),
+        }];
         let inspected = vec![json!({"subjectId": "src/lib/verification/arcane/gate-validity.mjs"})];
         let result = execute_validated_gate(&contract, Some(&validity), &inspected, &matches);
         assert!(!result.allowed);
@@ -289,7 +342,9 @@ mod tests {
         let contract_a = contract();
         let mut contract_b = contract();
         contract_b.id = "other-gate".into();
-        let validity = validate_gate(&contract_a, &fixtures(), |f| CaseResult { status: f.status.clone() });
+        let validity = validate_gate(&contract_a, &fixtures(), |f| CaseResult {
+            status: f.status.clone(),
+        });
         let inspected = vec![json!({"subjectId": "x"})];
         let result = execute_validated_gate(&contract_b, Some(&validity), &inspected, &[]);
         assert!(!result.allowed);
@@ -300,8 +355,16 @@ mod tests {
     fn invalid_self_test_fails_validation() {
         let contract = contract();
         let mut bad_fixtures = fixtures();
-        bad_fixtures.insert("knownGood", Fixture { id: "known-good".into(), status: "FAIL".into() });
-        let validity = validate_gate(&contract, &bad_fixtures, |f| CaseResult { status: f.status.clone() });
+        bad_fixtures.insert(
+            "knownGood",
+            Fixture {
+                id: "known-good".into(),
+                status: "FAIL".into(),
+            },
+        );
+        let validity = validate_gate(&contract, &bad_fixtures, |f| CaseResult {
+            status: f.status.clone(),
+        });
         assert!(!validity.decision.allowed);
         assert_eq!(validity.decision.code, Some("ARC_GATE_INVALID"));
     }

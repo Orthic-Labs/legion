@@ -154,8 +154,14 @@ mod tests {
     #[test]
     fn bash_with_network_command_is_external() {
         assert!(is_external("bash", Some("curl https://example.test")));
-        assert!(is_external("bash", Some("cd /tmp && wget https://example.test")));
-        assert!(is_external("bash", Some("git clone https://example.test/repo.git")));
+        assert!(is_external(
+            "bash",
+            Some("cd /tmp && wget https://example.test")
+        ));
+        assert!(is_external(
+            "bash",
+            Some("git clone https://example.test/repo.git")
+        ));
         assert!(is_external("bash", Some("pip install requests")));
         assert!(is_external("bash", Some("python -m pip install requests")));
     }

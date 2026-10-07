@@ -62,8 +62,9 @@ fn r01_html2pptx_end_to_end_from_dom_walk_to_pptx_zip() {
         }),
     };
 
-    let outcome = html2pptx::run_html2pptx(&mut driver, "slide.html", Path::new("/decks"), None, None)
-        .expect("no validation errors");
+    let outcome =
+        html2pptx::run_html2pptx(&mut driver, "slide.html", Path::new("/decks"), None, None)
+            .expect("no validation errors");
     assert!(outcome.placeholders.is_empty());
 
     let mut images = FakeImages(HashMap::new());

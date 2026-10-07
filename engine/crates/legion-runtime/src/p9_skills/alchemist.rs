@@ -29,11 +29,17 @@ impl WorkerExitCode {
 pub fn extract_model_from_profile(profile_toml: &str) -> Option<String> {
     for line in profile_toml.lines() {
         let trimmed = line.trim_start();
-        let Some(rest) = trimmed.strip_prefix("model") else { continue };
+        let Some(rest) = trimmed.strip_prefix("model") else {
+            continue;
+        };
         let rest = rest.trim_start();
-        let Some(rest) = rest.strip_prefix('=') else { continue };
+        let Some(rest) = rest.strip_prefix('=') else {
+            continue;
+        };
         let rest = rest.trim_start();
-        let Some(rest) = rest.strip_prefix('"') else { continue };
+        let Some(rest) = rest.strip_prefix('"') else {
+            continue;
+        };
         let end = match rest.find('"') {
             Some(e) => e,
             None => continue,
@@ -63,13 +69,22 @@ pub fn access_args(full_access_env: Option<&str>) -> Vec<&'static str> {
 /// `<run_dir>/<YYYYmmdd-HHMMSS>-<profile>.jsonl`, given an already-formatted UTC timestamp
 /// (the shell script uses `date +%Y%m%d-%H%M%S`; callers should format `now` the same way).
 pub fn default_event_log_path(run_dir: &str, timestamp: &str, profile: &str) -> String {
-    format!("{}/{}-{}.jsonl", run_dir.trim_end_matches('/'), timestamp, profile)
+    format!(
+        "{}/{}-{}.jsonl",
+        run_dir.trim_end_matches('/'),
+        timestamp,
+        profile
+    )
 }
 
 /// Path to a Codex profile's config file, given the Codex home directory and profile name:
 /// `${CODEX_HOME:-$HOME/.codex}/<profile>.config.toml`.
 pub fn profile_config_path(codex_home_dir: &str, profile: &str) -> String {
-    format!("{}/{}.config.toml", codex_home_dir.trim_end_matches('/'), profile)
+    format!(
+        "{}/{}.config.toml",
+        codex_home_dir.trim_end_matches('/'),
+        profile
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -136,7 +151,10 @@ pub fn classify(event: &Value) -> (String, String) {
     let lowered = kind.to_lowercase();
 
     if lowered.contains("reason") {
-        return ("reasoning".to_string(), truncate_chars(&first_text(payload), 400));
+        return (
+            "reasoning".to_string(),
+            truncate_chars(&first_text(payload), 400),
+        );
     }
     if lowered.contains("command") || lowered.contains("exec") || lowered.contains("shell") {
         let cmd = payload
@@ -147,7 +165,11 @@ pub fn classify(event: &Value) -> (String, String) {
         let cmd_str = match &cmd {
             Value::Array(items) => items
                 .iter()
-                .map(|v| v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string()))
+                .map(|v| {
+                    v.as_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| v.to_string())
+                })
                 .collect::<Vec<_>>()
                 .join(" "),
             Value::String(s) => s.clone(),
@@ -156,7 +178,10 @@ pub fn classify(event: &Value) -> (String, String) {
         return ("command".to_string(), truncate_chars(&cmd_str, 400));
     }
     if lowered.contains("patch") || lowered.contains("diff") || lowered.contains("apply") {
-        return ("patch".to_string(), truncate_chars(&first_text(payload), 400));
+        return (
+            "patch".to_string(),
+            truncate_chars(&first_text(payload), 400),
+        );
     }
     let event_error = event.get("error");
     if lowered.contains("error") || event_error.map(|e| !e.is_null()).unwrap_or(false) {
@@ -214,7 +239,11 @@ pub fn iter_events(text: &str, mut on_non_json: impl FnMut(&str)) -> Vec<Value> 
 /// `--stream` mode: classifies each event from `input`, writing assistant text to `stdout`
 /// and everything else (plus non-JSON lines) to `stderr` as `  · <kind>: <detail>`. Mirrors
 /// `run_stream()`. Always returns 0, as the Python function does.
-pub fn run_stream(input: &str, stdout: &mut dyn std::io::Write, stderr: &mut dyn std::io::Write) -> i32 {
+pub fn run_stream(
+    input: &str,
+    stdout: &mut dyn std::io::Write,
+    stderr: &mut dyn std::io::Write,
+) -> i32 {
     let events = iter_events(input, |bad| {
         let _ = writeln!(stderr, "[non-json] {bad}");
     });
@@ -282,7 +311,14 @@ pub fn run_summary(log_text: &str, stdout: &mut dyn std::io::Write) -> i32 {
     if !assistant.is_empty() {
         let _ = writeln!(stdout, "--- final worker message (tail) ---");
         let joined: String = assistant.concat();
-        let tail: String = joined.chars().rev().take(1200).collect::<Vec<_>>().into_iter().rev().collect();
+        let tail: String = joined
+            .chars()
+            .rev()
+            .take(1200)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
         let _ = writeln!(stdout, "{tail}");
     }
     let _ = writeln!(stdout);
@@ -323,11 +359,17 @@ pub fn run(
             }
         },
         (true, Some(_)) => {
-            let _ = writeln!(stderr, "error: argument --summary: not allowed with argument --stream");
+            let _ = writeln!(
+                stderr,
+                "error: argument --summary: not allowed with argument --stream"
+            );
             2
         }
         (false, None) => {
-            let _ = writeln!(stderr, "error: one of the arguments --stream --summary is required");
+            let _ = writeln!(
+                stderr,
+                "error: one of the arguments --stream --summary is required"
+            );
             2
         }
     }
@@ -340,7 +382,10 @@ mod tests {
     #[test]
     fn extracts_model_ignoring_leading_whitespace_and_trailing_content() {
         let toml = "profile = \"x\"\n  model = \"gpt-5.6\"  # comment\nother = 1\n";
-        assert_eq!(extract_model_from_profile(toml), Some("gpt-5.6".to_string()));
+        assert_eq!(
+            extract_model_from_profile(toml),
+            Some("gpt-5.6".to_string())
+        );
     }
 
     #[test]
@@ -351,7 +396,10 @@ mod tests {
     #[test]
     fn rejects_disallowed_characters_and_falls_through() {
         let toml = "model = \"bad value!\"\nmodel = \"good-value.1\"\n";
-        assert_eq!(extract_model_from_profile(toml), Some("good-value.1".to_string()));
+        assert_eq!(
+            extract_model_from_profile(toml),
+            Some("good-value.1".to_string())
+        );
     }
 
     #[test]
@@ -390,7 +438,8 @@ mod tests {
 
     #[test]
     fn classify_detects_assistant_message() {
-        let event: Value = serde_json::from_str(r#"{"type":"agent_message","text":"hello"}"#).unwrap();
+        let event: Value =
+            serde_json::from_str(r#"{"type":"agent_message","text":"hello"}"#).unwrap();
         let (kind, detail) = classify(&event);
         assert_eq!(kind, "assistant");
         assert_eq!(detail, "hello");
@@ -398,7 +447,8 @@ mod tests {
 
     #[test]
     fn classify_detects_command() {
-        let event: Value = serde_json::from_str(r#"{"type":"exec_command","command":["ls","-la"]}"#).unwrap();
+        let event: Value =
+            serde_json::from_str(r#"{"type":"exec_command","command":["ls","-la"]}"#).unwrap();
         let (kind, detail) = classify(&event);
         assert_eq!(kind, "command");
         assert_eq!(detail, "ls -la");
@@ -421,7 +471,9 @@ mod tests {
     #[test]
     fn iter_events_reports_non_json_lines() {
         let mut bad = Vec::new();
-        let events = iter_events("{\"a\":1}\nnot json\n\n{\"b\":2}\n", |line| bad.push(line.to_string()));
+        let events = iter_events("{\"a\":1}\nnot json\n\n{\"b\":2}\n", |line| {
+            bad.push(line.to_string())
+        });
         assert_eq!(events.len(), 2);
         assert_eq!(bad, vec!["not json".to_string()]);
     }
@@ -461,19 +513,47 @@ mod tests {
         let mut err = Vec::new();
         assert_eq!(run(&[], "", &read_file, &mut out, &mut err), 2);
         assert_eq!(
-            run(&["--stream".to_string()], "{\"type\":\"agent_message\",\"text\":\"hi\"}\n", &read_file, &mut out, &mut err),
+            run(
+                &["--stream".to_string()],
+                "{\"type\":\"agent_message\",\"text\":\"hi\"}\n",
+                &read_file,
+                &mut out,
+                &mut err
+            ),
             0
         );
         assert_eq!(
-            run(&["--summary".to_string(), "log.jsonl".to_string()], "", &read_file, &mut out, &mut err),
+            run(
+                &["--summary".to_string(), "log.jsonl".to_string()],
+                "",
+                &read_file,
+                &mut out,
+                &mut err
+            ),
             0
         );
         assert_eq!(
-            run(&["--summary".to_string(), "missing.jsonl".to_string()], "", &read_file, &mut out, &mut err),
+            run(
+                &["--summary".to_string(), "missing.jsonl".to_string()],
+                "",
+                &read_file,
+                &mut out,
+                &mut err
+            ),
             2
         );
         assert_eq!(
-            run(&["--stream".to_string(), "--summary".to_string(), "log.jsonl".to_string()], "", &read_file, &mut out, &mut err),
+            run(
+                &[
+                    "--stream".to_string(),
+                    "--summary".to_string(),
+                    "log.jsonl".to_string()
+                ],
+                "",
+                &read_file,
+                &mut out,
+                &mut err
+            ),
             2
         );
     }

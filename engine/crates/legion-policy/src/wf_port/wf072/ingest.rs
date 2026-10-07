@@ -187,7 +187,9 @@ impl Default for HostIngestor {
 
 impl HostIngestor {
     pub fn new() -> Self {
-        Self { seen: BTreeMap::new() }
+        Self {
+            seen: BTreeMap::new(),
+        }
     }
 
     /// Mirrors JS `ingest(hostEvent, { authorityAssertion })`.
@@ -220,7 +222,11 @@ impl HostIngestor {
         if authority.asserted_by == "model" {
             return Self::refuse(
                 None,
-                deny(ArcCode::ArcModelSelfReport, "a model self-report is never an effect receipt", detail_of(&[("assertedBy", "model")])),
+                deny(
+                    ArcCode::ArcModelSelfReport,
+                    "a model self-report is never an effect receipt",
+                    detail_of(&[("assertedBy", "model")]),
+                ),
             );
         }
         if authority.asserted_by != "host" {
@@ -236,7 +242,14 @@ impl HostIngestor {
 
         // 2. Structure.
         if !event.structurally_valid {
-            return Self::refuse(None, deny(ArcCode::ArcHostEventInvalid, "host event does not satisfy HOST_EVENT_SCHEMA", detail_of(&[])));
+            return Self::refuse(
+                None,
+                deny(
+                    ArcCode::ArcHostEventInvalid,
+                    "host event does not satisfy HOST_EVENT_SCHEMA",
+                    detail_of(&[]),
+                ),
+            );
         }
 
         // 2b. Authority may never be smuggled in through the payload.
@@ -335,23 +348,40 @@ impl HostIngestor {
 
         // 7. Replay-check.
         if let Err(d) = replay_check(event) {
-            return IngestOutcome { accepted: false, receipt: None, observation_class: Some(observation_class), decision: d };
+            return IngestOutcome {
+                accepted: false,
+                receipt: None,
+                observation_class: Some(observation_class),
+                decision: d,
+            };
         }
 
         // Build + persist the receipt.
         let requested = pc.requested_effect.clone().or_else(|| event.effect.clone());
-        let authorized_base = pc.authorized_effect.clone().or_else(|| event.effect.clone());
+        let authorized_base = pc
+            .authorized_effect
+            .clone()
+            .or_else(|| event.effect.clone());
         let observed = event.effect.clone().expect("checked above");
 
         // Mirrors JS `match`: requested vs. observed only — `authorized` is
         // not part of the comparison.
-        let matched = requested
-            .as_ref()
-            .map(|r| (r.effect_class.as_str(), r.target.as_str(), r.operation.as_str()))
-            == Some((observed.effect_class.as_str(), observed.target.as_str(), observed.operation.as_str()));
+        let matched = requested.as_ref().map(|r| {
+            (
+                r.effect_class.as_str(),
+                r.target.as_str(),
+                r.operation.as_str(),
+            )
+        }) == Some((
+            observed.effect_class.as_str(),
+            observed.target.as_str(),
+            observed.operation.as_str(),
+        ));
 
         let (auth_method, auth_key_id): (&'static str, Option<String>) = match &trust.method {
-            TrustMethod::CapabilitySignature { key_id } => ("capability-signature", Some(key_id.clone())),
+            TrustMethod::CapabilitySignature { key_id } => {
+                ("capability-signature", Some(key_id.clone()))
+            }
             TrustMethod::HostConnectionTrust { .. } => ("host-connection-trust", None),
         };
 
@@ -383,13 +413,19 @@ impl HostIngestor {
         if let Some(key) = &event.idempotency_key {
             self.seen.insert(
                 key.clone(),
-                Seen { receipt: Some(receipt.clone()), observation_class: Some(observation_class.clone()) },
+                Seen {
+                    receipt: Some(receipt.clone()),
+                    observation_class: Some(observation_class.clone()),
+                },
             );
         }
 
         // 8. WP4 action 10 — an observed mutation invalidates affected evidence.
         if observation_class == "mutation-observation" {
-            if let (Some(cb), Some(digest)) = (observe_change.as_mut(), event.result.observed_digest.as_deref()) {
+            if let (Some(cb), Some(digest)) = (
+                observe_change.as_mut(),
+                event.result.observed_digest.as_deref(),
+            ) {
                 cb(&observed.target, digest);
             }
         }
@@ -403,7 +439,12 @@ impl HostIngestor {
     }
 
     fn refuse(observation_class: Option<String>, decision: Decision) -> IngestOutcome {
-        IngestOutcome { accepted: false, receipt: None, observation_class, decision }
+        IngestOutcome {
+            accepted: false,
+            receipt: None,
+            observation_class,
+            decision,
+        }
     }
 
     /// Mirrors JS `#resolveHostTrust`. S00 finding 5 closure: `receipt` must
@@ -424,7 +465,9 @@ impl HostIngestor {
             }
             match verify_receipt(event, receipt) {
                 Ok(()) => Ok(Trust {
-                    method: TrustMethod::CapabilitySignature { key_id: receipt.key_id.clone() },
+                    method: TrustMethod::CapabilitySignature {
+                        key_id: receipt.key_id.clone(),
+                    },
                     issuer_identity: format!("key:{}", receipt.key_id),
                 }),
                 Err(reason) => Err(deny(
@@ -435,14 +478,24 @@ impl HostIngestor {
             }
         } else if let Some(ct) = &authority.connection_trust {
             if ct.issuer_identity.is_empty() {
-                return Err(deny(ArcCode::ArcHostEventUntrusted, "authority=host asserted with no receipt and no connection-trust proof", detail_of(&[])));
+                return Err(deny(
+                    ArcCode::ArcHostEventUntrusted,
+                    "authority=host asserted with no receipt and no connection-trust proof",
+                    detail_of(&[]),
+                ));
             }
             Ok(Trust {
-                method: TrustMethod::HostConnectionTrust { verified_at: ct.verified_at.clone() },
+                method: TrustMethod::HostConnectionTrust {
+                    verified_at: ct.verified_at.clone(),
+                },
                 issuer_identity: ct.issuer_identity.clone(),
             })
         } else {
-            Err(deny(ArcCode::ArcHostEventUntrusted, "authority=host asserted with no receipt and no connection-trust proof", detail_of(&[])))
+            Err(deny(
+                ArcCode::ArcHostEventUntrusted,
+                "authority=host asserted with no receipt and no connection-trust proof",
+                detail_of(&[]),
+            ))
         }
     }
 }
@@ -476,7 +529,11 @@ mod tests {
         HostEvent {
             event_id: "evt-1".into(),
             event_type: "post-effect".into(),
-            effect: Some(Effect { effect_class: "file-write".into(), target: "/a".into(), operation: "write".into() }),
+            effect: Some(Effect {
+                effect_class: "file-write".into(),
+                target: "/a".into(),
+                operation: "write".into(),
+            }),
             run_id: Some("run-1".into()),
             contract_id: None,
             task_id: None,
@@ -485,11 +542,22 @@ mod tests {
             source_revision: Some("git:abc".into()),
             prior_correlation: Some(PriorCorrelation {
                 request_id: "req-1".into(),
-                requested_effect: Some(Effect { effect_class: "file-write".into(), target: "/a".into(), operation: "write".into() }),
-                authorized_effect: Some(Effect { effect_class: "file-write".into(), target: "/a".into(), operation: "write".into() }),
+                requested_effect: Some(Effect {
+                    effect_class: "file-write".into(),
+                    target: "/a".into(),
+                    operation: "write".into(),
+                }),
+                authorized_effect: Some(Effect {
+                    effect_class: "file-write".into(),
+                    target: "/a".into(),
+                    operation: "write".into(),
+                }),
                 capability_id: Some("cap-1".into()),
             }),
-            result: EventResult { outcome: ResultOutcome::Success, observed_digest: Some("sha256:aa".into()) },
+            result: EventResult {
+                outcome: ResultOutcome::Success,
+                observed_digest: Some("sha256:aa".into()),
+            },
             replay_nonce: "n1".into(),
             replay_sequence: 1,
             time: "2026-01-01T00:00:00Z".into(),
@@ -503,7 +571,10 @@ mod tests {
         AuthorityAssertion {
             asserted_by: "host".into(),
             receipt: None,
-            connection_trust: Some(ConnectionTrust { issuer_identity: "host:cli".into(), verified_at: None }),
+            connection_trust: Some(ConnectionTrust {
+                issuer_identity: "host:cli".into(),
+                verified_at: None,
+            }),
         }
     }
 
@@ -513,7 +584,11 @@ mod tests {
     fn ingest_refuses_model_self_report() {
         let mut ingestor = HostIngestor::new();
         let event = base_event();
-        let authority = AuthorityAssertion { asserted_by: "model".into(), receipt: None, connection_trust: None };
+        let authority = AuthorityAssertion {
+            asserted_by: "model".into(),
+            receipt: None,
+            connection_trust: None,
+        };
         let out = ingestor.ingest(
             &event,
             &authority,
@@ -532,8 +607,21 @@ mod tests {
     fn ingest_refuses_untrusted_authority_source() {
         let mut ingestor = HostIngestor::new();
         let event = base_event();
-        let authority = AuthorityAssertion { asserted_by: "unknown".into(), receipt: None, connection_trust: None };
-        let out = ingestor.ingest(&event, &authority, |_| "x".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
+        let authority = AuthorityAssertion {
+            asserted_by: "unknown".into(),
+            receipt: None,
+            connection_trust: None,
+        };
+        let out = ingestor.ingest(
+            &event,
+            &authority,
+            |_| "x".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
         assert_eq!(out.decision.code, Some(ArcCode::ArcHostEventUntrusted));
     }
 
@@ -542,7 +630,16 @@ mod tests {
         let mut ingestor = HostIngestor::new();
         let mut event = base_event();
         event.structurally_valid = false;
-        let out = ingestor.ingest(&event, &host_authority_with_trust(), |_| "x".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
+        let out = ingestor.ingest(
+            &event,
+            &host_authority_with_trust(),
+            |_| "x".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
         assert_eq!(out.decision.code, Some(ArcCode::ArcHostEventInvalid));
     }
 
@@ -551,7 +648,16 @@ mod tests {
         let mut ingestor = HostIngestor::new();
         let mut event = base_event();
         event.payload_claims_authority = true;
-        let out = ingestor.ingest(&event, &host_authority_with_trust(), |_| "x".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
+        let out = ingestor.ingest(
+            &event,
+            &host_authority_with_trust(),
+            |_| "x".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
         assert_eq!(out.decision.code, Some(ArcCode::ArcModelSelfReport));
     }
 
@@ -559,8 +665,21 @@ mod tests {
     fn ingest_refuses_untrusted_host_with_no_receipt_or_connection_trust() {
         let mut ingestor = HostIngestor::new();
         let event = base_event();
-        let authority = AuthorityAssertion { asserted_by: "host".into(), receipt: None, connection_trust: None };
-        let out = ingestor.ingest(&event, &authority, |_| "x".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
+        let authority = AuthorityAssertion {
+            asserted_by: "host".into(),
+            receipt: None,
+            connection_trust: None,
+        };
+        let out = ingestor.ingest(
+            &event,
+            &authority,
+            |_| "x".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
         assert_eq!(out.decision.code, Some(ArcCode::ArcHostEventUntrusted));
     }
 
@@ -570,7 +689,11 @@ mod tests {
         let event = base_event();
         let authority = AuthorityAssertion {
             asserted_by: "host".into(),
-            receipt: Some(ReceiptEnvelope { alg: "".into(), key_id: "k1".into(), mac: "m".into() }),
+            receipt: Some(ReceiptEnvelope {
+                alg: "".into(),
+                key_id: "k1".into(),
+                mac: "m".into(),
+            }),
             connection_trust: None,
         };
         let out = ingestor.ingest(
@@ -591,7 +714,16 @@ mod tests {
         let mut ingestor = HostIngestor::new();
         let mut event = base_event();
         event.event_type = "pre-effect".into();
-        let out = ingestor.ingest(&event, &host_authority_with_trust(), |_| "mutation-observation".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
+        let out = ingestor.ingest(
+            &event,
+            &host_authority_with_trust(),
+            |_| "mutation-observation".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
         assert!(out.accepted);
         assert!(out.receipt.is_none());
     }
@@ -601,7 +733,16 @@ mod tests {
         let mut ingestor = HostIngestor::new();
         let mut event = base_event();
         event.effect = None;
-        let out = ingestor.ingest(&event, &host_authority_with_trust(), |_| "x".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
+        let out = ingestor.ingest(
+            &event,
+            &host_authority_with_trust(),
+            |_| "x".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
         assert!(out.accepted);
         assert!(out.receipt.is_none());
     }
@@ -611,7 +752,16 @@ mod tests {
         let mut ingestor = HostIngestor::new();
         let mut event = base_event();
         event.run_id = None;
-        let out = ingestor.ingest(&event, &host_authority_with_trust(), |_| "x".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
+        let out = ingestor.ingest(
+            &event,
+            &host_authority_with_trust(),
+            |_| "x".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
         assert!(out.accepted);
         assert!(out.receipt.is_none());
     }
@@ -621,7 +771,16 @@ mod tests {
         let mut ingestor = HostIngestor::new();
         let mut event = base_event();
         event.source_revision = None;
-        let out = ingestor.ingest(&event, &host_authority_with_trust(), |_| "x".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
+        let out = ingestor.ingest(
+            &event,
+            &host_authority_with_trust(),
+            |_| "x".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
         assert_eq!(out.decision.code, Some(ArcCode::ArcHostEventInvalid));
     }
 
@@ -630,8 +789,20 @@ mod tests {
         let mut ingestor = HostIngestor::new();
         let mut event = base_event();
         event.prior_correlation = None;
-        let out = ingestor.ingest(&event, &host_authority_with_trust(), |_| "x".into(), |_, _| Ok(()), |_| Ok(()), || "r".into(), |_| {}, None::<fn(&str, &str)>);
-        assert_eq!(out.decision.code, Some(ArcCode::ArcIngestCorrelationMissing));
+        let out = ingestor.ingest(
+            &event,
+            &host_authority_with_trust(),
+            |_| "x".into(),
+            |_, _| Ok(()),
+            |_| Ok(()),
+            || "r".into(),
+            |_| {},
+            None::<fn(&str, &str)>,
+        );
+        assert_eq!(
+            out.decision.code,
+            Some(ArcCode::ArcIngestCorrelationMissing)
+        );
     }
 
     #[test]
@@ -685,7 +856,9 @@ mod tests {
             |_| Ok(()),
             || "receipt-2".into(),
             |_| {},
-            Some(|target: &str, digest: &str| observed.push((target.to_string(), digest.to_string()))),
+            Some(|target: &str, digest: &str| {
+                observed.push((target.to_string(), digest.to_string()))
+            }),
         );
         assert!(out.accepted);
         assert_eq!(observed, vec![("/a".to_string(), "sha256:aa".to_string())]);
@@ -701,7 +874,13 @@ mod tests {
             &host_authority_with_trust(),
             |_| "mutation-observation".into(),
             |_, _| Ok(()),
-            |_| Err(deny(ArcCode::ArcHostEventInvalid, "replay seen", detail_of(&[]))),
+            |_| {
+                Err(deny(
+                    ArcCode::ArcHostEventInvalid,
+                    "replay seen",
+                    detail_of(&[]),
+                ))
+            },
             || "receipt-3".into(),
             |_: &EffectReceipt| appended += 1,
             None::<fn(&str, &str)>,
@@ -712,7 +891,11 @@ mod tests {
 
     #[test]
     fn effect_digest_is_deterministic() {
-        let e = Effect { effect_class: "file-write".into(), target: "/a".into(), operation: "write".into() };
+        let e = Effect {
+            effect_class: "file-write".into(),
+            target: "/a".into(),
+            operation: "write".into(),
+        };
         let d1 = effect_digest(&e);
         let d2 = effect_digest(&e);
         assert_eq!(d1, d2);

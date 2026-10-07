@@ -47,7 +47,14 @@ const REQUIRED: &[&str] = &[
 ];
 
 const PHASES: &[&str] = &[
-    "inventory", "source", "runtime", "product", "release", "facts", "judgment", "render",
+    "inventory",
+    "source",
+    "runtime",
+    "product",
+    "release",
+    "facts",
+    "judgment",
+    "render",
 ];
 
 const RUNNERS: &[&str] = &[
@@ -72,7 +79,13 @@ const EXECUTION_KEYS: &[&str] = &[
     "failurePolicy",
 ];
 
-const REASONING_KEYS: &[&str] = &["requirement", "trigger", "subjectKind", "freshContext", "producerSeparation"];
+const REASONING_KEYS: &[&str] = &[
+    "requirement",
+    "trigger",
+    "subjectKind",
+    "freshContext",
+    "producerSeparation",
+];
 
 const BENCHMARK_KEYS: &[&str] = &["status", "requiredForCleanClaim", "qualificationDigest"];
 
@@ -100,10 +113,16 @@ fn assert_enum(label: &str, values: &[&str], value: Option<&str>) -> Result<(), 
     Ok(())
 }
 
-fn assert_schema_version(label: &str, version: Option<i64>, supported: &[i64]) -> Result<(), SdkError> {
+fn assert_schema_version(
+    label: &str,
+    version: Option<i64>,
+    supported: &[i64],
+) -> Result<(), SdkError> {
     let version = version.unwrap_or(-1);
     if !supported.contains(&version) {
-        return Err(SdkError::new(format!("{label} unsupported schema version: {version}")));
+        return Err(SdkError::new(format!(
+            "{label} unsupported schema version: {version}"
+        )));
     }
     Ok(())
 }
@@ -129,29 +148,54 @@ pub fn validate_provider_v2(provider: &Value) -> Result<Value, SdkError> {
         }
     }
 
-    assert_enum("provider role", PROVIDER_ROLE, provider.get("role").and_then(Value::as_str))?;
+    assert_enum(
+        "provider role",
+        PROVIDER_ROLE,
+        provider.get("role").and_then(Value::as_str),
+    )?;
 
     let phase = provider.get("phase").and_then(Value::as_str).unwrap_or("");
     if !PHASES.contains(&phase) {
         return Err(SdkError::new(format!("provider {id} invalid phase")));
     }
 
-    let runner_kind = provider.pointer("/runner/kind").and_then(Value::as_str).unwrap_or("");
+    let runner_kind = provider
+        .pointer("/runner/kind")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if !RUNNERS.contains(&runner_kind) {
         return Err(SdkError::new(format!("provider {id} invalid runner")));
     }
 
-    for field in ["lensIds", "dependsOn", "consumes", "produces", "hostCapabilities", "controlIds", "scopes"] {
+    for field in [
+        "lensIds",
+        "dependsOn",
+        "consumes",
+        "produces",
+        "hostCapabilities",
+        "controlIds",
+        "scopes",
+    ] {
         if !is_array(object.get(field)) {
-            return Err(SdkError::new(format!("provider {id} {field} must be array")));
+            return Err(SdkError::new(format!(
+                "provider {id} {field} must be array"
+            )));
         }
     }
 
-    if let Some(claims) = provider.pointer("/execution/resourceClaims").and_then(Value::as_object) {
+    if let Some(claims) = provider
+        .pointer("/execution/resourceClaims")
+        .and_then(Value::as_object)
+    {
         for (name, amount) in claims {
-            let finite_non_negative = amount.as_f64().map(|value| value.is_finite() && value >= 0.0).unwrap_or(false);
+            let finite_non_negative = amount
+                .as_f64()
+                .map(|value| value.is_finite() && value >= 0.0)
+                .unwrap_or(false);
             if !finite_non_negative {
-                return Err(SdkError::new(format!("provider {id} invalid resource {name}")));
+                return Err(SdkError::new(format!(
+                    "provider {id} invalid resource {name}"
+                )));
             }
         }
     }
@@ -159,46 +203,66 @@ pub fn validate_provider_v2(provider: &Value) -> Result<Value, SdkError> {
     if let Some(execution) = provider.get("execution").and_then(Value::as_object) {
         for key in execution.keys() {
             if !EXECUTION_KEYS.contains(&key.as_str()) {
-                return Err(SdkError::new(format!("provider {id} unknown execution field {key}")));
+                return Err(SdkError::new(format!(
+                    "provider {id} unknown execution field {key}"
+                )));
             }
         }
     }
     if let Some(reasoning) = provider.get("reasoning").and_then(Value::as_object) {
         for key in reasoning.keys() {
             if !REASONING_KEYS.contains(&key.as_str()) {
-                return Err(SdkError::new(format!("provider {id} unknown reasoning field {key}")));
+                return Err(SdkError::new(format!(
+                    "provider {id} unknown reasoning field {key}"
+                )));
             }
         }
     }
     if let Some(benchmark) = provider.get("benchmark").and_then(Value::as_object) {
         for key in benchmark.keys() {
             if !BENCHMARK_KEYS.contains(&key.as_str()) {
-                return Err(SdkError::new(format!("provider {id} unknown benchmark field {key}")));
+                return Err(SdkError::new(format!(
+                    "provider {id} unknown benchmark field {key}"
+                )));
             }
         }
     }
 
     if runner_kind == "runtime-script" {
         let module = provider.pointer("/runner/module").and_then(Value::as_str);
-        let module_digest = provider.pointer("/runner/moduleDigest").and_then(Value::as_str).unwrap_or("");
+        let module_digest = provider
+            .pointer("/runner/moduleDigest")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let digest_ok = module_digest.len() == 71
             && module_digest.starts_with("sha256:")
-            && module_digest[7..].chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase());
+            && module_digest[7..]
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase());
         if module.map(str::is_empty).unwrap_or(true) || module.is_none() || !digest_ok {
-            return Err(SdkError::new(format!("provider {id} runtime module must be digest sealed")));
+            return Err(SdkError::new(format!(
+                "provider {id} runtime module must be digest sealed"
+            )));
         }
     }
 
-    let selectable = provider.get("selectable").and_then(Value::as_bool).unwrap_or(false);
+    let selectable = provider
+        .get("selectable")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if runner_kind == "planned" && selectable {
-        return Err(SdkError::new(format!("provider {id} planned provider must be unselectable")));
+        return Err(SdkError::new(format!(
+            "provider {id} planned provider must be unselectable"
+        )));
     }
 
     if selectable {
         let control_ids = string_array(provider, "controlIds");
         let scopes = string_array(provider, "scopes");
         if control_ids.is_empty() || scopes.is_empty() {
-            return Err(SdkError::new(format!("provider {id} selectable provider requires controls and scopes")));
+            return Err(SdkError::new(format!(
+                "provider {id} selectable provider requires controls and scopes"
+            )));
         }
     }
 
@@ -209,14 +273,26 @@ fn string_array(value: &Value, key: &str) -> Vec<String> {
     value
         .get(key)
         .and_then(Value::as_array)
-        .map(|items| items.iter().filter_map(|item| item.as_str().map(str::to_owned)).collect())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str().map(str::to_owned))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
 /// Faithful port of `validateProviderOutputAuthority`.
-pub fn validate_provider_output_authority(provider: &Value, result: &Value) -> Result<Value, SdkError> {
+pub fn validate_provider_output_authority(
+    provider: &Value,
+    result: &Value,
+) -> Result<Value, SdkError> {
     let role = provider.get("role").and_then(Value::as_str).unwrap_or("");
-    let findings_len = result.get("findings").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+    let findings_len = result
+        .get("findings")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
     if role == "candidate-generator" && findings_len > 0 {
         return Err(SdkError::new("candidate-generator cannot emit findings"));
     }

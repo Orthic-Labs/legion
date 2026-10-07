@@ -451,7 +451,11 @@ fn parse_rgb_channel(raw: &str) -> Option<u8> {
     let re = Regex::new(r"^(-?\d*\.?\d+)(%)?$").unwrap();
     let caps = re.captures(raw.trim())?;
     let value: f64 = caps[1].parse().ok()?;
-    let scaled = if caps.get(2).is_some() { value * 2.55 } else { value };
+    let scaled = if caps.get(2).is_some() {
+        value * 2.55
+    } else {
+        value
+    };
     if scaled < 0.0 || scaled > 255.0 {
         return None;
     }
@@ -462,7 +466,11 @@ fn parse_alpha_channel(raw: &str) -> Option<f64> {
     let re = Regex::new(r"^(-?\d*\.?\d+)(%)?$").unwrap();
     let caps = re.captures(raw.trim())?;
     let value: f64 = caps[1].parse().ok()?;
-    let alpha = if caps.get(2).is_some() { value / 100.0 } else { value };
+    let alpha = if caps.get(2).is_some() {
+        value / 100.0
+    } else {
+        value
+    };
     if (0.0..=1.0).contains(&alpha) {
         Some(alpha)
     } else {
@@ -498,7 +506,12 @@ fn hsl_to_rgb(hue: f64, saturation: f64, lightness: f64, alpha: f64) -> RgbaColo
     let h = (((hue % 360.0) + 360.0) % 360.0) / 360.0;
     if saturation == 0.0 {
         let gray = clamp_byte((lightness * 255.0).round());
-        return RgbaColor { r: gray, g: gray, b: gray, a: alpha };
+        return RgbaColor {
+            r: gray,
+            g: gray,
+            b: gray,
+            a: alpha,
+        };
     }
     let q = if lightness < 0.5 {
         lightness * (1.0 + saturation)
@@ -553,7 +566,8 @@ fn parse_ignore_value_entries(entries: &[Value]) -> Vec<IgnoreValueEntry> {
     for entry in entries {
         let Value::Object(map) = entry else { continue };
         let rule = normalize_ignore_rule(&map.get("rule").map(value_to_string).unwrap_or_default());
-        let value = normalize_ignore_value(&map.get("value").map(value_to_string).unwrap_or_default());
+        let value =
+            normalize_ignore_value(&map.get("value").map(value_to_string).unwrap_or_default());
         if rule.is_empty() || value.is_empty() {
             continue;
         }
@@ -620,7 +634,8 @@ fn merge_ignore_values_raw(
 ) -> Vec<IgnoreValueEntry> {
     // Preserves insertion order like a JS Map keyed by rule\0value\0filesKey.
     let mut order: Vec<String> = Vec::new();
-    let mut map: std::collections::HashMap<String, IgnoreValueEntry> = std::collections::HashMap::new();
+    let mut map: std::collections::HashMap<String, IgnoreValueEntry> =
+        std::collections::HashMap::new();
     for entry in existing.iter().chain(incoming.iter()) {
         let key = format!(
             "{}\u{0}{}\u{0}{}",
@@ -660,10 +675,7 @@ fn glob_to_regex(glob: &str) -> Option<Regex> {
         } else if c == '{' {
             if let Some(end) = chars[i..].iter().position(|&ch| ch == '}').map(|p| p + i) {
                 let inner: String = chars[i + 1..end].iter().collect();
-                let parts: Vec<String> = inner
-                    .split(',')
-                    .map(|p| regex::escape(p))
-                    .collect();
+                let parts: Vec<String> = inner.split(',').map(|p| regex::escape(p)).collect();
                 re.push_str(&format!("(?:{})", parts.join("|")));
                 i = end + 1;
             } else {
@@ -703,7 +715,11 @@ pub fn matches_any_glob(file_path: &str, globs: &[String]) -> bool {
     false
 }
 
-pub fn should_ignore_detection_file(file_path: &str, root: &Path, config: &DetectionConfig) -> bool {
+pub fn should_ignore_detection_file(
+    file_path: &str,
+    root: &Path,
+    config: &DetectionConfig,
+) -> bool {
     let globs = &config.ignore_files;
     if globs.is_empty() {
         return false;
@@ -782,7 +798,9 @@ fn is_ignored_finding_value(finding: &Finding, ignore_values: &[IgnoreValueEntry
     }
     ignore_values.iter().any(|entry| {
         let wildcard_value = entry.value == "*";
-        if entry.rule != rule || (!wildcard_value && !ignore_value_matches(&rule, &entry.value, &value)) {
+        if entry.rule != rule
+            || (!wildcard_value && !ignore_value_matches(&rule, &entry.value, &value))
+        {
             return false;
         }
         if entry.files.is_empty() {

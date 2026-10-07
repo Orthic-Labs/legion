@@ -102,7 +102,8 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
                     errors.push("script-bearing dispatch must name script owner".to_string());
                 }
                 if !path_re().is_match(&script_path) {
-                    errors.push("script-bearing dispatch must name explicit script path".to_string());
+                    errors
+                        .push("script-bearing dispatch must name explicit script path".to_string());
                 }
                 if !no_reason.to_uppercase().starts_with("NOT_APPLICABLE") {
                     errors.push(
@@ -110,7 +111,10 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
                             .to_string(),
                     );
                 }
-                if !matches!(gate.get("TIER").map(String::as_str), Some("S1") | Some("S2") | Some("S3")) {
+                if !matches!(
+                    gate.get("TIER").map(String::as_str),
+                    Some("S1") | Some("S2") | Some("S3")
+                ) {
                     errors.push("script-bearing dispatch requires TIER S1, S2, or S3".to_string());
                 }
                 for marker in [
@@ -133,7 +137,9 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
                     let value = gate.get(marker).cloned().unwrap_or_default();
                     if marker == "EXPECTED_TIME_TO_VERIFIED_B_MS" || marker == "ROUTE_REVISION" {
                         let ok = !value.is_empty()
-                            && (value == "0" || (value.chars().all(|c| c.is_ascii_digit()) && !value.starts_with('0')));
+                            && (value == "0"
+                                || (value.chars().all(|c| c.is_ascii_digit())
+                                    && !value.starts_with('0')));
                         if !ok {
                             errors.push(format!("script gate {marker} requires integer"));
                         }
@@ -142,7 +148,8 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
                     }
                 }
 
-                let selected_route_raw = label_value(text, "**Selected route:**").unwrap_or_default();
+                let selected_route_raw =
+                    label_value(text, "**Selected route:**").unwrap_or_default();
                 let selected_route = strip_prefix_ci(&selected_route_raw, "SELECTED_ROUTE:")
                     .trim()
                     .trim_matches(|c| c == '`' || c == ' ')
@@ -153,13 +160,17 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
                     .contains(&selected_route.to_lowercase())
                     || selected_route.is_empty()
                 {
-                    errors.push("script gate SELECTED_PATH must bind dispatch selected route".to_string());
+                    errors.push(
+                        "script gate SELECTED_PATH must bind dispatch selected route".to_string(),
+                    );
                 }
 
-                let route_artifact =
-                    clean_path_value(&label_value(text, "**Goal route artifact:**").unwrap_or_default());
-                let route_receipt =
-                    clean_path_value(&label_value(text, "**Goal route receipt:**").unwrap_or_default());
+                let route_artifact = clean_path_value(
+                    &label_value(text, "**Goal route artifact:**").unwrap_or_default(),
+                );
+                let route_receipt = clean_path_value(
+                    &label_value(text, "**Goal route receipt:**").unwrap_or_default(),
+                );
                 let expected_time = strip_prefix_ci(
                     &label_value(text, "**Expected time to verified B:**").unwrap_or_default(),
                     "EXPECTED_TIME_TO_VERIFIED_B_MS:",
@@ -171,19 +182,37 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
                 )
                 .to_string();
 
-                if normalized_path(gate.get("GOAL_ROUTE_ARTIFACT").map(String::as_str).unwrap_or(""), None)
-                    != normalized_path(&route_artifact, None)
+                if normalized_path(
+                    gate.get("GOAL_ROUTE_ARTIFACT")
+                        .map(String::as_str)
+                        .unwrap_or(""),
+                    None,
+                ) != normalized_path(&route_artifact, None)
                 {
-                    errors.push("script gate GOAL_ROUTE_ARTIFACT must bind dispatch route".to_string());
-                }
-                if normalized_path(gate.get("GOAL_ROUTE_RECEIPT").map(String::as_str).unwrap_or(""), None)
-                    != normalized_path(&route_receipt, None)
-                {
-                    errors.push("script gate GOAL_ROUTE_RECEIPT must bind dispatch receipt".to_string());
-                }
-                if gate.get("EXPECTED_TIME_TO_VERIFIED_B_MS").cloned().unwrap_or_default() != expected_time {
                     errors.push(
-                        "script gate EXPECTED_TIME_TO_VERIFIED_B_MS must match dispatch route".to_string(),
+                        "script gate GOAL_ROUTE_ARTIFACT must bind dispatch route".to_string(),
+                    );
+                }
+                if normalized_path(
+                    gate.get("GOAL_ROUTE_RECEIPT")
+                        .map(String::as_str)
+                        .unwrap_or(""),
+                    None,
+                ) != normalized_path(&route_receipt, None)
+                {
+                    errors.push(
+                        "script gate GOAL_ROUTE_RECEIPT must bind dispatch receipt".to_string(),
+                    );
+                }
+                if gate
+                    .get("EXPECTED_TIME_TO_VERIFIED_B_MS")
+                    .cloned()
+                    .unwrap_or_default()
+                    != expected_time
+                {
+                    errors.push(
+                        "script gate EXPECTED_TIME_TO_VERIFIED_B_MS must match dispatch route"
+                            .to_string(),
                     );
                 }
                 if gate.get("ROUTE_REVISION").cloned().unwrap_or_default() != route_revision {
@@ -195,7 +224,9 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
                     "YES"
                 };
                 if gate.get("SHIP").map(String::as_str) != Some(expected_ship) {
-                    errors.push(format!("script gate SHIP must be {expected_ship} for {ownership}"));
+                    errors.push(format!(
+                        "script gate SHIP must be {expected_ship} for {ownership}"
+                    ));
                 }
             } else if normalized == "NO" {
                 if !is_concrete(&no_reason) {
@@ -206,12 +237,16 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
                 }
                 if let (Some(start), Some(end_rel)) = (
                     text.find("## 5. Execution Procedure"),
-                    text.find("## 5. Execution Procedure").and_then(|s| text[s..].find("## 5A. Script & Runner Gate")),
+                    text.find("## 5. Execution Procedure")
+                        .and_then(|s| text[s..].find("## 5A. Script & Runner Gate")),
                 ) {
                     let execution = &text[start..start + end_rel];
                     let forbidden_re = forbidden_execution_re();
                     if forbidden_re.is_match(execution) {
-                        errors.push("script-bearing execution cannot declare Script involved NO".to_string());
+                        errors.push(
+                            "script-bearing execution cannot declare Script involved NO"
+                                .to_string(),
+                        );
                     }
                 }
             }
@@ -247,7 +282,10 @@ fn script_section_errors(text: &str, allow_template: bool) -> Vec<String> {
 fn forbidden_execution_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?i)\b(script|runner|pipeline|batch|deploy|render|install|paid API|production)\b").unwrap()
+        Regex::new(
+            r"(?i)\b(script|runner|pipeline|batch|deploy|render|install|paid API|production)\b",
+        )
+        .unwrap()
     })
 }
 
@@ -309,7 +347,11 @@ fn author_gate_errors(text: &str, allow_template: bool) -> Vec<String> {
 }
 
 /// Complete port of `validate()`. See the module doc.
-pub fn validate_full_errors(text: &str, allow_template: bool, artifact_path: Option<&Path>) -> Vec<String> {
+pub fn validate_full_errors(
+    text: &str,
+    allow_template: bool,
+    artifact_path: Option<&Path>,
+) -> Vec<String> {
     let mut errors = ordered_heading_errors(text);
 
     errors.extend(required_label_errors(text, allow_template));
@@ -325,14 +367,26 @@ pub fn validate_full_errors(text: &str, allow_template: bool, artifact_path: Opt
                 errors.push(format!("{label} lacks executable fenced command/action"));
             }
         }
-        let validator_command = fenced_value_after(text, "**Validator command:**").unwrap_or_default();
-        let receiver_command = fenced_value_after(text, "**Receiver hash check:**").unwrap_or_default();
-        let declared_artifact =
-            clean_path_value(&label_value(text, "**Validated artifact path:**").unwrap_or_default());
-        let declared_receipt = clean_path_value(&label_value(text, "**Receipt path:**").unwrap_or_default());
+        let validator_command =
+            fenced_value_after(text, "**Validator command:**").unwrap_or_default();
+        let receiver_command =
+            fenced_value_after(text, "**Receiver hash check:**").unwrap_or_default();
+        let declared_artifact = clean_path_value(
+            &label_value(text, "**Validated artifact path:**").unwrap_or_default(),
+        );
+        let declared_receipt =
+            clean_path_value(&label_value(text, "**Receipt path:**").unwrap_or_default());
         for (label, command, flag) in [
-            ("Validator command", validator_command.as_str(), "--write-receipt"),
-            ("Receiver hash check", receiver_command.as_str(), "--verify-receipt"),
+            (
+                "Validator command",
+                validator_command.as_str(),
+                "--write-receipt",
+            ),
+            (
+                "Receiver hash check",
+                receiver_command.as_str(),
+                "--verify-receipt",
+            ),
         ] {
             let normalized_command = command.replace('\\', "/").to_lowercase();
             let artifact_token = declared_artifact.replace('\\', "/").to_lowercase();
@@ -398,7 +452,11 @@ pub fn validate_full_errors(text: &str, allow_template: bool, artifact_path: Opt
 /// Port of the fully-available subset of `validate()` (kept for existing
 /// callers that predate this file's completion — see the module history
 /// in `mod.rs`). New callers should use [`validate_full_errors`].
-pub fn validate_ported_errors(text: &str, allow_template: bool, artifact_path: Option<&Path>) -> Vec<String> {
+pub fn validate_ported_errors(
+    text: &str,
+    allow_template: bool,
+    artifact_path: Option<&Path>,
+) -> Vec<String> {
     validate_full_errors(text, allow_template, artifact_path)
 }
 
@@ -418,7 +476,11 @@ pub trait MinimizeGate {
 pub struct NoMinimizeGate;
 
 impl MinimizeGate for NoMinimizeGate {
-    fn verify_decision(&self, _minimize_path: &Path, _minimize_receipt: &Path) -> Result<(), String> {
+    fn verify_decision(
+        &self,
+        _minimize_path: &Path,
+        _minimize_receipt: &Path,
+    ) -> Result<(), String> {
         Err("cannot load Minimize validator".to_string())
     }
 }
@@ -443,7 +505,9 @@ pub struct RunOptions<'a> {
 
 fn now_iso8601() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let dur = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = dur.as_secs();
     let millis = dur.subsec_millis();
     let days = secs / 86_400;
@@ -476,7 +540,10 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
     if !opts.dispatch.is_file() {
         return RunOutcome {
             exit_code: 2,
-            stdout: vec![format!("FAIL: dispatch file not found: {}", opts.dispatch.display())],
+            stdout: vec![format!(
+                "FAIL: dispatch file not found: {}",
+                opts.dispatch.display()
+            )],
         };
     }
     if !opts.template_self_check && opts.write_receipt.is_none() && opts.verify_receipt.is_none() {
@@ -509,15 +576,26 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
         .dispatch
         .canonicalize()
         .unwrap_or_else(|_| opts.dispatch.to_path_buf());
-    let mut errors = validate_full_errors(&text, opts.template_self_check, Some(dispatch_resolved.as_path()));
+    let mut errors = validate_full_errors(
+        &text,
+        opts.template_self_check,
+        Some(dispatch_resolved.as_path()),
+    );
 
     if !opts.template_self_check {
         let minimize_path = with_suffix(opts.dispatch, "minimize.json");
         let minimize_receipt = with_suffix(opts.dispatch, "minimize.receipt.json");
         if let Err(exc) = minimize_gate.verify_decision(&minimize_path, &minimize_receipt) {
-            errors.push(format!("Minimize authority missing, invalid, or stale: {exc}"));
+            errors.push(format!(
+                "Minimize authority missing, invalid, or stale: {exc}"
+            ));
         }
-        errors.extend(storage_errors(&text, opts.dispatch, opts.write_receipt, opts.verify_receipt));
+        errors.extend(storage_errors(
+            &text,
+            opts.dispatch,
+            opts.write_receipt,
+            opts.verify_receipt,
+        ));
     }
 
     if !errors.is_empty() {
@@ -525,7 +603,10 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
         for error in &errors {
             stdout.push(format!("- {error}"));
         }
-        return RunOutcome { exit_code: 1, stdout };
+        return RunOutcome {
+            exit_code: 1,
+            stdout,
+        };
     }
 
     let digest = sha256_hex(&raw_bytes);
@@ -534,7 +615,10 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
         if !verify_receipt.is_file() {
             return RunOutcome {
                 exit_code: 2,
-                stdout: vec![format!("FAIL: receipt file not found: {}", verify_receipt.display())],
+                stdout: vec![format!(
+                    "FAIL: receipt file not found: {}",
+                    verify_receipt.display()
+                )],
             };
         }
         let receipt_text = match std::fs::read_to_string(verify_receipt) {
@@ -561,14 +645,20 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
                 stdout: vec!["FAIL: dispatch bytes do not match receipt".to_string()],
             };
         }
-        let dispatch_name = opts.dispatch.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let dispatch_name = opts
+            .dispatch
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
         if receipt.get("artifact_name").and_then(|v| v.as_str()) != Some(dispatch_name.as_str()) {
             return RunOutcome {
                 exit_code: 1,
                 stdout: vec!["FAIL: dispatch filename does not match receipt".to_string()],
             };
         }
-        if receipt.get("artifact_path").and_then(|v| v.as_str()) != Some(canonical_locator(opts.dispatch).as_str()) {
+        if receipt.get("artifact_path").and_then(|v| v.as_str())
+            != Some(canonical_locator(opts.dispatch).as_str())
+        {
             return RunOutcome {
                 exit_code: 1,
                 stdout: vec!["FAIL: dispatch path does not match receipt".to_string()],
@@ -578,7 +668,11 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
     }
 
     if let Some(write_receipt) = opts.write_receipt {
-        let dispatch_name = opts.dispatch.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let dispatch_name = opts
+            .dispatch
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
         let receipt = serde_json::json!({
             "schema_version": 2,
             "artifact_name": dispatch_name,
@@ -595,7 +689,10 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
                 };
             }
         }
-        let body = format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap_or_default());
+        let body = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&receipt).unwrap_or_default()
+        );
         if let Err(exc) = std::fs::write(write_receipt, body) {
             return RunOutcome {
                 exit_code: 1,
@@ -609,11 +706,17 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
         step_count(&text),
         FAILURE_CLASSES.len(),
     ));
-    RunOutcome { exit_code: 0, stdout }
+    RunOutcome {
+        exit_code: 0,
+        stdout,
+    }
 }
 
 fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
-    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
     path.with_file_name(format!("{stem}.{suffix}"))
 }
 
@@ -645,7 +748,9 @@ mod tests {
     #[test]
     fn missing_script_gate_markers_reported() {
         let errors = script_section_errors("", false);
-        assert!(errors.iter().any(|e| e == "missing /script gate marker: GOAL:"));
+        assert!(errors
+            .iter()
+            .any(|e| e == "missing /script gate marker: GOAL:"));
     }
 
     #[test]

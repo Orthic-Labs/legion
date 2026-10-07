@@ -29,7 +29,10 @@ pub fn mint_request_id() -> String {
     out.push_str("req_");
     let seed_a = RandomState::new();
     let seed_b = RandomState::new();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     for i in 0..26u128 {
         let mut h = seed_a.build_hasher();
         (now, i).hash(&mut h);
@@ -110,7 +113,10 @@ impl PreEffectCorrelationStore {
 
     fn read_reservation(&self, tool_use_id: &str) -> Option<Reservation> {
         let kv = read_kv(&self.path_for(tool_use_id))?;
-        let request_id = kv.into_iter().find(|(k, _)| k == "requestId").map(|(_, v)| v)?;
+        let request_id = kv
+            .into_iter()
+            .find(|(k, _)| k == "requestId")
+            .map(|(_, v)| v)?;
         Some(Reservation { request_id })
     }
 
@@ -137,9 +143,9 @@ impl PreEffectCorrelationStore {
         }
         match write_kv(&path, &[("requestId", &request_id)]) {
             Ok(()) => Some((request_id, true)),
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                self.get_request_id(tool_use_id).map(|winner| (winner, false))
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => self
+                .get_request_id(tool_use_id)
+                .map(|winner| (winner, false)),
             Err(_) => None,
         }
     }
@@ -157,7 +163,12 @@ impl PreEffectCorrelationStore {
         requested_effect: &str,
         authorized_effect: &str,
     ) -> Option<FinalizedRecord> {
-        if tool_use_id.is_empty() || request_id.is_empty() || capability_id.is_empty() || requested_effect.is_empty() || authorized_effect.is_empty() {
+        if tool_use_id.is_empty()
+            || request_id.is_empty()
+            || capability_id.is_empty()
+            || requested_effect.is_empty()
+            || authorized_effect.is_empty()
+        {
             return None;
         }
         let reservation = self.read_reservation(tool_use_id)?;
@@ -220,7 +231,8 @@ mod tests {
     use super::*;
 
     fn temp_root(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("wf006-correlation-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("wf006-correlation-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         dir
     }
@@ -250,9 +262,21 @@ mod tests {
         let root = temp_root("finalize");
         let store = PreEffectCorrelationStore::new(root.clone());
         let (request_id, _) = store.reserve("tool-use-2").unwrap();
-        let bad = store.finalize("tool-use-2", "wrong-request-id", "cap-1", "req-effect", "auth-effect");
+        let bad = store.finalize(
+            "tool-use-2",
+            "wrong-request-id",
+            "cap-1",
+            "req-effect",
+            "auth-effect",
+        );
         assert!(bad.is_none());
-        let good = store.finalize("tool-use-2", &request_id, "cap-1", "req-effect", "auth-effect");
+        let good = store.finalize(
+            "tool-use-2",
+            &request_id,
+            "cap-1",
+            "req-effect",
+            "auth-effect",
+        );
         assert!(good.is_some());
         let _ = fs::remove_dir_all(&root);
     }
@@ -262,7 +286,9 @@ mod tests {
         let root = temp_root("get-finalized");
         let store = PreEffectCorrelationStore::new(root.clone());
         let (request_id, _) = store.reserve("tool-use-3").unwrap();
-        store.finalize("tool-use-3", &request_id, "cap-9", "req-eff", "auth-eff").unwrap();
+        store
+            .finalize("tool-use-3", &request_id, "cap-9", "req-eff", "auth-eff")
+            .unwrap();
         let got = store.get_finalized("tool-use-3").unwrap();
         assert_eq!(got.capability_id, "cap-9");
         let _ = fs::remove_dir_all(&root);

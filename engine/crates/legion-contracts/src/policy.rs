@@ -120,12 +120,7 @@ impl PolicyPack {
     }
 }
 
-fn rule(
-    id: &str,
-    effect_class: EffectClass,
-    allowed: bool,
-    operations: &[&str],
-) -> PolicyRule {
+fn rule(id: &str, effect_class: EffectClass, allowed: bool, operations: &[&str]) -> PolicyRule {
     PolicyRule {
         schema_version: 1,
         id: id.into(),
@@ -176,27 +171,82 @@ pub fn canonical_default_policy_pack() -> PolicyPack {
         id: "canonical-default".into(),
         version: 1,
         rules: vec![
-            rule("default-file-write-allow", EffectClass::FILE_WRITE, true, &["*"]),
-            rule("default-file-move-allow", EffectClass::FILE_MOVE, true, &["*"]),
-            rule("default-vcs-commit-allow", EffectClass::VCS_COMMIT, true, &["*"]),
-            rule("default-command-exec-allow", EffectClass::COMMAND_EXEC, true, &["*"]),
-            rule("default-file-delete-ordinary-allow", EffectClass::FILE_DELETE, true, &["*"]),
+            rule(
+                "default-file-write-allow",
+                EffectClass::FILE_WRITE,
+                true,
+                &["*"],
+            ),
+            rule(
+                "default-file-move-allow",
+                EffectClass::FILE_MOVE,
+                true,
+                &["*"],
+            ),
+            rule(
+                "default-vcs-commit-allow",
+                EffectClass::VCS_COMMIT,
+                true,
+                &["*"],
+            ),
+            rule(
+                "default-command-exec-allow",
+                EffectClass::COMMAND_EXEC,
+                true,
+                &["*"],
+            ),
+            rule(
+                "default-file-delete-ordinary-allow",
+                EffectClass::FILE_DELETE,
+                true,
+                &["*"],
+            ),
             rule(
                 "default-file-delete-destructive-deny",
                 EffectClass::FILE_DELETE,
                 false,
                 &["delete-recursive", "delete-force", "delete-broad"],
             ),
-            rule("default-mcp-known-observation-allow", EffectClass::MCP_KNOWN_OBSERVATION, true, &["*"]),
-            rule("default-credential-access-deny", EffectClass::CREDENTIAL_ACCESS, false, &["*"]),
+            rule(
+                "default-mcp-known-observation-allow",
+                EffectClass::MCP_KNOWN_OBSERVATION,
+                true,
+                &["*"],
+            ),
+            rule(
+                "default-credential-access-deny",
+                EffectClass::CREDENTIAL_ACCESS,
+                false,
+                &["*"],
+            ),
             rule("default-publish-allow", EffectClass::PUBLISH, true, &["*"]),
             // A push adds commits to a remote. It destroys nothing, and it is
             // ordinary work in every repository here; denying it stopped that
             // work with no way to proceed.
-            rule("default-vcs-push-allow", EffectClass::VCS_PUSH, true, &["*"]),
-            rule("default-dependency-install-allow", EffectClass::DEPENDENCY_INSTALL, true, &["*"]),
-            rule("default-network-egress-allow", EffectClass::NETWORK_EGRESS, true, &["*"]),
-            rule("default-process-spawn-allow", EffectClass::PROCESS_SPAWN, true, &["*"]),
+            rule(
+                "default-vcs-push-allow",
+                EffectClass::VCS_PUSH,
+                true,
+                &["*"],
+            ),
+            rule(
+                "default-dependency-install-allow",
+                EffectClass::DEPENDENCY_INSTALL,
+                true,
+                &["*"],
+            ),
+            rule(
+                "default-network-egress-allow",
+                EffectClass::NETWORK_EGRESS,
+                true,
+                &["*"],
+            ),
+            rule(
+                "default-process-spawn-allow",
+                EffectClass::PROCESS_SPAWN,
+                true,
+                &["*"],
+            ),
             rule(
                 "default-external-side-effect-deny",
                 EffectClass::EXTERNAL_SIDE_EFFECT,
@@ -312,7 +362,10 @@ mod tests {
             .expect("a destructive FILE_DELETE rule is present");
         for operation in ["delete-recursive", "delete-force", "delete-broad"] {
             assert!(
-                destructive.operations.iter().any(|value| value == operation),
+                destructive
+                    .operations
+                    .iter()
+                    .any(|value| value == operation),
                 "{operation} must stay denied"
             );
         }

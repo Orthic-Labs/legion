@@ -133,13 +133,19 @@ mod tests {
             stdout: Some("out".into()),
             stderr: Some("err".into()),
         };
-        assert_eq!(command_diagnostic(&result), "exit=1; stderr=err; stdout=out");
+        assert_eq!(
+            command_diagnostic(&result),
+            "exit=1; stderr=err; stdout=out"
+        );
     }
 
     #[test]
     fn diagnostic_empty_result_has_placeholder() {
         let result = CommandResult::default();
-        assert_eq!(command_diagnostic(&result), "command returned no diagnostic output");
+        assert_eq!(
+            command_diagnostic(&result),
+            "command returned no diagnostic output"
+        );
     }
 
     #[test]

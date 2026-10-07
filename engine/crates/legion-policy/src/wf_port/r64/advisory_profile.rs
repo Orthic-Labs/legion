@@ -23,7 +23,11 @@ pub struct ProfileError {
 }
 
 fn fail<T>(message: impl Into<String>, detail: Value) -> Result<T, ProfileError> {
-    Err(ProfileError { code: "ARC_PROFILE_BINDING_MISMATCH", message: message.into(), detail })
+    Err(ProfileError {
+        code: "ARC_PROFILE_BINDING_MISMATCH",
+        message: message.into(),
+        detail,
+    })
 }
 
 /// Mirrors JS `ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/`.
@@ -115,10 +119,18 @@ pub fn compile_advisory_profile(
     }
     let manifest = match manifests.load(bundle_id) {
         Some(m) => m,
-        None => return fail("canonical advisory manifest is unavailable", json!({"bundleId": bundle_id})),
+        None => {
+            return fail(
+                "canonical advisory manifest is unavailable",
+                json!({"bundleId": bundle_id}),
+            )
+        }
     };
     if let Err(cause) = validator.validate(&manifest) {
-        return fail("canonical advisory manifest is invalid", json!({"bundleId": bundle_id, "cause": cause}));
+        return fail(
+            "canonical advisory manifest is invalid",
+            json!({"bundleId": bundle_id, "cause": cause}),
+        );
     }
     let manifest_id = manifest.get("id").and_then(Value::as_str);
     if manifest_id != Some(bundle_id) {
@@ -129,12 +141,20 @@ pub fn compile_advisory_profile(
     }
     let profile = manifest.get("profiles").and_then(|p| p.get(profile_id));
     let (mutation, publish) = match profile {
-        Some(p) => (p.get("mutation").and_then(Value::as_bool), p.get("publish").and_then(Value::as_bool)),
+        Some(p) => (
+            p.get("mutation").and_then(Value::as_bool),
+            p.get("publish").and_then(Value::as_bool),
+        ),
         None => (None, None),
     };
     let (mutation, publish) = match (mutation, publish) {
         (Some(m), Some(p)) => (m, p),
-        _ => return fail("canonical advisory profile is invalid", json!({"bundleId": bundle_id, "profileId": profile_id})),
+        _ => {
+            return fail(
+                "canonical advisory profile is invalid",
+                json!({"bundleId": bundle_id, "profileId": profile_id}),
+            )
+        }
     };
     let external_only = profile
         .and_then(|p| p.get("externalOnly"))
@@ -176,8 +196,14 @@ pub fn require_canonical_advisory_profile(
     if !binding.is_object() {
         return fail("advisory profile binding must be an object", json!({}));
     }
-    let bundle_id = binding.get("bundleId").and_then(Value::as_str).unwrap_or("");
-    let profile_id = binding.get("profileId").and_then(Value::as_str).unwrap_or("");
+    let bundle_id = binding
+        .get("bundleId")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let profile_id = binding
+        .get("profileId")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     let canonical = compile_advisory_profile(bundle_id, profile_id, manifests, validator)?;
     if canonical_json_string(binding) != canonical_json_string(&canonical.to_json()) {
         return fail(
@@ -219,14 +245,16 @@ mod tests {
     #[test]
     fn invalid_id_grammar_fails() {
         let manifests = FakeManifests(BTreeMap::new());
-        let err = compile_advisory_profile("Not_Valid", "audit", &manifests, &AlwaysValid).unwrap_err();
+        let err =
+            compile_advisory_profile("Not_Valid", "audit", &manifests, &AlwaysValid).unwrap_err();
         assert_eq!(err.code, "ARC_PROFILE_BINDING_MISMATCH");
     }
 
     #[test]
     fn missing_manifest_fails() {
         let manifests = FakeManifests(BTreeMap::new());
-        let err = compile_advisory_profile("review-bundle", "audit", &manifests, &AlwaysValid).unwrap_err();
+        let err = compile_advisory_profile("review-bundle", "audit", &manifests, &AlwaysValid)
+            .unwrap_err();
         assert!(err.message.contains("unavailable"));
     }
 
@@ -235,7 +263,8 @@ mod tests {
         let mut m = BTreeMap::new();
         m.insert("review-bundle", manifest());
         let manifests = FakeManifests(m);
-        let binding = compile_advisory_profile("review-bundle", "audit", &manifests, &AlwaysValid).unwrap();
+        let binding =
+            compile_advisory_profile("review-bundle", "audit", &manifests, &AlwaysValid).unwrap();
         assert!(!binding.mutation_allowed);
         assert!(!binding.publish_allowed);
         assert!(binding.manifest_digest.starts_with("sha256:"));
@@ -247,9 +276,12 @@ mod tests {
         let mut m = BTreeMap::new();
         m.insert("review-bundle", manifest());
         let manifests = FakeManifests(m);
-        let compiled = compile_advisory_profile("review-bundle", "audit", &manifests, &AlwaysValid).unwrap();
+        let compiled =
+            compile_advisory_profile("review-bundle", "audit", &manifests, &AlwaysValid).unwrap();
         let as_binding = compiled.to_json();
-        let result = require_canonical_advisory_profile(Some(&as_binding), &manifests, &AlwaysValid).unwrap();
+        let result =
+            require_canonical_advisory_profile(Some(&as_binding), &manifests, &AlwaysValid)
+                .unwrap();
         assert!(result.is_some());
     }
 
@@ -258,10 +290,12 @@ mod tests {
         let mut m = BTreeMap::new();
         m.insert("review-bundle", manifest());
         let manifests = FakeManifests(m);
-        let compiled = compile_advisory_profile("review-bundle", "audit", &manifests, &AlwaysValid).unwrap();
+        let compiled =
+            compile_advisory_profile("review-bundle", "audit", &manifests, &AlwaysValid).unwrap();
         let mut tampered = compiled.to_json();
         tampered["mutationAllowed"] = json!(true);
-        let err = require_canonical_advisory_profile(Some(&tampered), &manifests, &AlwaysValid).unwrap_err();
+        let err = require_canonical_advisory_profile(Some(&tampered), &manifests, &AlwaysValid)
+            .unwrap_err();
         assert!(err.message.contains("differs"));
     }
 

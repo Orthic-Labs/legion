@@ -70,7 +70,9 @@ pub fn validate_phases(
     let ids: Vec<i64> = phases.iter().map(|p| p.id).collect();
     let expected: Vec<i64> = (1..=30).collect();
     if ids != expected {
-        errors.push(format!("checklist phases must be exactly 1..30; got {ids:?}"));
+        errors.push(format!(
+            "checklist phases must be exactly 1..30; got {ids:?}"
+        ));
     }
 
     let expected_statuses: BTreeSet<String> = ["pass", "partial", "fail", "na", "not_testable"]
@@ -121,7 +123,10 @@ pub fn validate_phases(
 /// Port of the "required set has entries not present in the discovered set" checks used
 /// repeatedly by `check()` (required scripts / refs / test fixtures / workflow packs), given
 /// the set of names already discovered on disk.
-pub fn missing_required<'a>(required: &BTreeSet<&'a str>, present: &BTreeSet<String>) -> Vec<&'a str> {
+pub fn missing_required<'a>(
+    required: &BTreeSet<&'a str>,
+    present: &BTreeSet<String>,
+) -> Vec<&'a str> {
     required
         .iter()
         .copied()
@@ -133,22 +138,67 @@ pub fn missing_required<'a>(required: &BTreeSet<&'a str>, present: &BTreeSet<Str
 /// (`engine/bins/legion/src/commands/script.rs`). The `script_cli` integration test asserts this
 /// list and `legion script --list` agree.
 pub const NATIVE_ENTRIES: &[&str] = &[
-    "ai_visibility_import", "analyze_visual", "banana-cost-tracker", "banana-generate",
-    "banana-presets", "bing_webmaster", "capture_screenshot", "checklist_compiler", "contracts",
-    "coverage", "crux_history", "edit", "fetch_page", "ga4_report", "google_auth", "google_report",
-    "gsc_inspect", "gsc_query", "gsc_query_v2", "indexing_notify", "indexnow", "keyword_planner",
-    "nlp_analyze", "page_engine", "pagespeed_check", "parse_html", "provider_registry",
-    "query_ownership", "question_inventory", "rank_tracker", "render_gap", "search_ops",
-    "seo_closure", "seo_project", "site_audit", "source_freshness", "templated_metadata",
-    "validate-schema", "youtube_search",
+    "ai_visibility_import",
+    "analyze_visual",
+    "banana-cost-tracker",
+    "banana-generate",
+    "banana-presets",
+    "bing_webmaster",
+    "capture_screenshot",
+    "checklist_compiler",
+    "contracts",
+    "coverage",
+    "crux_history",
+    "edit",
+    "fetch_page",
+    "ga4_report",
+    "google_auth",
+    "google_report",
+    "gsc_inspect",
+    "gsc_query",
+    "gsc_query_v2",
+    "indexing_notify",
+    "indexnow",
+    "keyword_planner",
+    "nlp_analyze",
+    "page_engine",
+    "pagespeed_check",
+    "parse_html",
+    "provider_registry",
+    "query_ownership",
+    "question_inventory",
+    "rank_tracker",
+    "render_gap",
+    "search_ops",
+    "seo_closure",
+    "seo_project",
+    "site_audit",
+    "source_freshness",
+    "templated_metadata",
+    "validate-schema",
+    "youtube_search",
 ];
 /// `legion script` entries the SEO closure contract requires (replaces the deleted `.py` set).
 const REQUIRED_ENTRIES: &[&str] = &[
-    "site_audit", "gsc_query", "gsc_query_v2", "gsc_inspect", "ga4_report",
-    "pagespeed_check", "crux_history", "ai_visibility_import",
-    "templated_metadata", "search_ops", "seo_project", "provider_registry",
-    "query_ownership", "question_inventory", "rank_tracker", "coverage",
-    "contracts", "checklist_compiler", "seo_closure",
+    "site_audit",
+    "gsc_query",
+    "gsc_query_v2",
+    "gsc_inspect",
+    "ga4_report",
+    "pagespeed_check",
+    "crux_history",
+    "ai_visibility_import",
+    "templated_metadata",
+    "search_ops",
+    "seo_project",
+    "provider_registry",
+    "query_ownership",
+    "question_inventory",
+    "rank_tracker",
+    "coverage",
+    "contracts",
+    "checklist_compiler",
+    "seo_closure",
 ];
 
 /// Appends the text of every `.md` file under `dir` (recursively) to `out`.
@@ -172,35 +222,84 @@ fn collect_markdown(dir: &Path, out: &mut String) {
 /// Normalizes a control's script reference (`legion script seo/x`, `seo/x`) to the stem `x`.
 fn entry_stem(reference: &str) -> Option<&str> {
     let trimmed = reference.trim();
-    let name = trimmed.strip_prefix("legion script ").unwrap_or(trimmed).trim();
+    let name = trimmed
+        .strip_prefix("legion script ")
+        .unwrap_or(trimmed)
+        .trim();
     name.strip_prefix("seo/")
 }
 
 const REQUIRED_REFS: &[&str] = &[
-    "manual.md", "operations.md", "ai-search-2026.md", "geo.md", "technical.md",
-    "page.md", "schema.md", "sitemap.md", "images.md", "local.md", "hreflang.md",
-    "programmatic.md", "backlinks.md", "off-page.md", "search-experience.md",
-    "topic-clusters.md", "ecommerce-2026.md", "workflow-packs.md",
-    "openseo-absorption.md", "free-data-sources.md", "quality-gates.md",
+    "manual.md",
+    "operations.md",
+    "ai-search-2026.md",
+    "geo.md",
+    "technical.md",
+    "page.md",
+    "schema.md",
+    "sitemap.md",
+    "images.md",
+    "local.md",
+    "hreflang.md",
+    "programmatic.md",
+    "backlinks.md",
+    "off-page.md",
+    "search-experience.md",
+    "topic-clusters.md",
+    "ecommerce-2026.md",
+    "workflow-packs.md",
+    "openseo-absorption.md",
+    "free-data-sources.md",
+    "quality-gates.md",
 ];
 const REQUIRED_TEST_FILES: &[&str] = &[
-    "fixtures/gsc_rows.json", "fixtures/gsc_replay.json", "fixtures/ai_google.csv",
-    "fixtures/ai_bing.csv", "fixtures/badseo/noindex.html", "fixtures/badseo/clean.html",
+    "fixtures/gsc_rows.json",
+    "fixtures/gsc_replay.json",
+    "fixtures/ai_google.csv",
+    "fixtures/ai_bing.csv",
+    "fixtures/badseo/noindex.html",
+    "fixtures/badseo/clean.html",
 ];
 const REQUIRED_PACKS: &[&str] = &[
-    "policy", "bot-policy", "logs", "crawl-efficiency", "agent-readiness",
-    "search-appearance", "discover", "media", "documents", "ecommerce", "publisher",
-    "access-states", "migration", "analytics", "forecast", "experiment", "monitor",
-    "release-gate", "incident", "feeds",
+    "policy",
+    "bot-policy",
+    "logs",
+    "crawl-efficiency",
+    "agent-readiness",
+    "search-appearance",
+    "discover",
+    "media",
+    "documents",
+    "ecommerce",
+    "publisher",
+    "access-states",
+    "migration",
+    "analytics",
+    "forecast",
+    "experiment",
+    "monitor",
+    "release-gate",
+    "incident",
+    "feeds",
 ];
 const REQUIRED_CRITICAL_GATES: &[&str] = &[
-    "indexability", "canonical-integrity", "redirect-integrity", "security-policy",
-    "measurement-integrity", "deployment-verification", "authority-boundary",
+    "indexability",
+    "canonical-integrity",
+    "redirect-integrity",
+    "security-policy",
+    "measurement-integrity",
+    "deployment-verification",
+    "authority-boundary",
 ];
 const ROUTER_REQUIRED: &[&str] = &[
-    "workflow-packs.md", "legion script seo/seo_project", "legion script seo/provider_registry",
-    "legion script seo/gsc_query_v2", "legion script seo/ai_visibility_import",
-    "legion script seo/search_ops", "legion script seo/coverage", "legion script seo/seo_closure",
+    "workflow-packs.md",
+    "legion script seo/seo_project",
+    "legion script seo/provider_registry",
+    "legion script seo/gsc_query_v2",
+    "legion script seo/ai_visibility_import",
+    "legion script seo/search_ops",
+    "legion script seo/coverage",
+    "legion script seo/seo_closure",
 ];
 
 fn set_of(items: &[&str]) -> BTreeSet<String> {
@@ -264,18 +363,25 @@ pub fn check(seo_root: &Path) -> ClosureResult {
         }
     };
 
-    let phases_json = catalog.get("phases").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let phases_json = catalog
+        .get("phases")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     let phases: Vec<PhaseRange> = phases_json
         .iter()
         .map(|p| PhaseRange {
             id: p.get("id").and_then(|v| v.as_i64()).unwrap_or(-1),
-            source_lines: p.get("source_lines").and_then(|v| v.as_array()).and_then(|a| {
-                if a.len() == 2 {
-                    Some((a[0].as_i64()?, a[1].as_i64()?))
-                } else {
-                    None
-                }
-            }),
+            source_lines: p
+                .get("source_lines")
+                .and_then(|v| v.as_array())
+                .and_then(|a| {
+                    if a.len() == 2 {
+                        Some((a[0].as_i64()?, a[1].as_i64()?))
+                    } else {
+                        None
+                    }
+                }),
             has_owners: p
                 .get("owners")
                 .and_then(|v| v.as_array())
@@ -287,33 +393,62 @@ pub fn check(seo_root: &Path) -> ClosureResult {
     let statuses: BTreeSet<String> = catalog
         .get("statuses")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     let critical_gates: BTreeSet<String> = catalog
         .get("critical_gates")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     let required_gates = set_of(REQUIRED_CRITICAL_GATES);
-    let source_line_count = catalog.get("source_line_count").and_then(|v| v.as_i64()).unwrap_or(-1);
+    let source_line_count = catalog
+        .get("source_line_count")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(-1);
 
-    errors.extend(validate_phases(&phases, &statuses, &critical_gates, &required_gates, source_line_count));
+    errors.extend(validate_phases(
+        &phases,
+        &statuses,
+        &critical_gates,
+        &required_gates,
+        source_line_count,
+    ));
 
     // Owner / script existence checks per-phase (validate_phases only checks structure).
     for p in &phases_json {
         let pid = p.get("id").and_then(|v| v.as_i64()).unwrap_or(-1);
-        for owner in p.get("owners").and_then(|v| v.as_array()).into_iter().flatten() {
+        for owner in p
+            .get("owners")
+            .and_then(|v| v.as_array())
+            .into_iter()
+            .flatten()
+        {
             if let Some(rel) = owner.as_str() {
                 if !seo_root.join(rel).exists() {
                     errors.push(format!("phase {pid} owner missing: {rel}"));
                 }
             }
         }
-        for script in p.get("scripts").and_then(|v| v.as_array()).into_iter().flatten() {
+        for script in p
+            .get("scripts")
+            .and_then(|v| v.as_array())
+            .into_iter()
+            .flatten()
+        {
             if let Some(name) = script.as_str() {
                 match entry_stem(name) {
                     Some(stem) if NATIVE_ENTRIES.contains(&stem) => {}
-                    _ => errors.push(format!("phase {pid} names a `legion script` entry that does not exist: {name}")),
+                    _ => errors.push(format!(
+                        "phase {pid} names a `legion script` entry that does not exist: {name}"
+                    )),
                 }
             }
         }
@@ -321,14 +456,21 @@ pub fn check(seo_root: &Path) -> ClosureResult {
 
     for name in REQUIRED_ENTRIES {
         if !NATIVE_ENTRIES.contains(name) {
-            errors.push(format!("required SEO `legion script` entry missing: seo/{name}"));
+            errors.push(format!(
+                "required SEO `legion script` entry missing: seo/{name}"
+            ));
         }
     }
     // Every control that names an entry must also be reachable from the router.
     let router_text = std::fs::read_to_string(seo_root.join("SKILL.md")).unwrap_or_default();
     let mut referenced: BTreeSet<String> = BTreeSet::new();
     for p in &phases_json {
-        for script in p.get("scripts").and_then(|v| v.as_array()).into_iter().flatten() {
+        for script in p
+            .get("scripts")
+            .and_then(|v| v.as_array())
+            .into_iter()
+            .flatten()
+        {
             if let Some(stem) = script.as_str().and_then(entry_stem) {
                 referenced.insert(stem.to_string());
             }
@@ -366,13 +508,23 @@ pub fn check(seo_root: &Path) -> ClosureResult {
     if provider_registry_path.exists() {
         match read_json(&provider_registry_path) {
             Ok(v) => {
-                let providers = v.get("providers").and_then(|x| x.as_object()).cloned().unwrap_or_default();
+                let providers = v
+                    .get("providers")
+                    .and_then(|x| x.as_object())
+                    .cloned()
+                    .unwrap_or_default();
                 for required in [
-                    "local", "google_gsc", "google_ga4", "google_pagespeed_crux",
-                    "google_generative_export", "bing_ai_export",
+                    "local",
+                    "google_gsc",
+                    "google_ga4",
+                    "google_pagespeed_crux",
+                    "google_generative_export",
+                    "bing_ai_export",
                 ] {
                     if !providers.contains_key(required) {
-                        errors.push(format!("provider registry missing core provider: {required}"));
+                        errors.push(format!(
+                            "provider registry missing core provider: {required}"
+                        ));
                     }
                 }
             }
@@ -383,8 +535,11 @@ pub fn check(seo_root: &Path) -> ClosureResult {
         match read_json(&contracts_path) {
             Ok(v) => {
                 for key in [
-                    "evidence_required", "finding_required", "recommendation_required",
-                    "action_required", "outcome_required",
+                    "evidence_required",
+                    "finding_required",
+                    "recommendation_required",
+                    "action_required",
+                    "outcome_required",
                 ] {
                     let truthy = v.get(key).map(is_truthy).unwrap_or(false);
                     if !truthy {
@@ -398,9 +553,14 @@ pub fn check(seo_root: &Path) -> ClosureResult {
     if qualification_path.exists() {
         match read_json(&qualification_path) {
             Ok(v) => {
-                let ok = v.get("provider_replay_required").map(is_truthy).unwrap_or(false)
+                let ok = v
+                    .get("provider_replay_required")
+                    .map(is_truthy)
+                    .unwrap_or(false)
                     && v.get("runtime_gates").map(is_truthy).unwrap_or(false)
-                    && v.get("installed_path_gates").map(is_truthy).unwrap_or(false);
+                    && v.get("installed_path_gates")
+                        .map(is_truthy)
+                        .unwrap_or(false);
                 if !ok {
                     errors.push("qualification.json missing provider/runtime/installed-path gate declarations".to_string());
                 }
@@ -412,7 +572,11 @@ pub fn check(seo_root: &Path) -> ClosureResult {
     let declared_packs: BTreeSet<String> = catalog
         .get("workflow_packs")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     let required_packs = set_of(REQUIRED_PACKS);
     let missing_packs: Vec<&str> = REQUIRED_PACKS
@@ -421,7 +585,9 @@ pub fn check(seo_root: &Path) -> ClosureResult {
         .filter(|p| !declared_packs.contains(*p))
         .collect();
     if !missing_packs.is_empty() {
-        errors.push(format!("workflow packs missing from catalog: {missing_packs:?}"));
+        errors.push(format!(
+            "workflow packs missing from catalog: {missing_packs:?}"
+        ));
     }
     let _ = &required_packs;
 
@@ -431,7 +597,9 @@ pub fn check(seo_root: &Path) -> ClosureResult {
             let hs = headings(&md);
             for pack in REQUIRED_PACKS {
                 if !hs.iter().any(|h| h.contains(pack)) {
-                    errors.push(format!("workflow pack has no documented owner section: {pack}"));
+                    errors.push(format!(
+                        "workflow pack has no documented owner section: {pack}"
+                    ));
                 }
             }
         }
@@ -441,14 +609,18 @@ pub fn check(seo_root: &Path) -> ClosureResult {
     let router = std::fs::read_to_string(&router_path).unwrap_or_default();
     for required in ROUTER_REQUIRED {
         if !router.contains(required) {
-            errors.push(format!("router does not expose/invoke closure component: {required}"));
+            errors.push(format!(
+                "router does not expose/invoke closure component: {required}"
+            ));
         }
     }
 
     let tests_dir = seo_root.join("tests");
     for rel in REQUIRED_TEST_FILES {
         if !tests_dir.join(rel).exists() {
-            errors.push(format!("required SEO regression fixture/test missing: {rel}"));
+            errors.push(format!(
+                "required SEO regression fixture/test missing: {rel}"
+            ));
         }
     }
 
@@ -458,26 +630,43 @@ pub fn check(seo_root: &Path) -> ClosureResult {
     } else {
         match read_json(&manifest_path) {
             Ok(manifest) => {
-                let sources = manifest.get("sources").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-                let checklist = sources.iter().find(|s| s.get("role").and_then(|r| r.as_str()) == Some("control-source"));
-                let implementation = sources
+                let sources = manifest
+                    .get("sources")
+                    .and_then(|v| v.as_array())
+                    .cloned()
+                    .unwrap_or_default();
+                let checklist = sources
                     .iter()
-                    .find(|s| s.get("role").and_then(|r| r.as_str()) == Some("implementation-contract"));
+                    .find(|s| s.get("role").and_then(|r| r.as_str()) == Some("control-source"));
+                let implementation = sources.iter().find(|s| {
+                    s.get("role").and_then(|r| r.as_str()) == Some("implementation-contract")
+                });
                 if checklist.is_none() || implementation.is_none() {
-                    errors.push("source manifest missing control-source or implementation-contract".to_string());
+                    errors.push(
+                        "source manifest missing control-source or implementation-contract"
+                            .to_string(),
+                    );
                 } else if let Some(checklist) = checklist {
                     if checklist.get("sha256") != catalog.get("source_sha256") {
-                        errors.push("control catalog source digest does not match source manifest".to_string());
+                        errors.push(
+                            "control catalog source digest does not match source manifest"
+                                .to_string(),
+                        );
                     }
                     if checklist.get("line_count") != catalog.get("source_line_count") {
-                        errors.push("control catalog line count does not match source manifest".to_string());
+                        errors.push(
+                            "control catalog line count does not match source manifest".to_string(),
+                        );
                     }
                 }
                 for source in &sources {
                     let has_sha = source.get("sha256").map(is_truthy).unwrap_or(false);
                     let has_lines = source.get("line_count").map(is_truthy).unwrap_or(false);
                     if !has_sha || !has_lines {
-                        let name = source.get("name").and_then(|v| v.as_str()).unwrap_or_default();
+                        let name = source
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or_default();
                         errors.push(format!("source manifest incomplete for {name}"));
                     }
                 }
@@ -492,7 +681,8 @@ pub fn check(seo_root: &Path) -> ClosureResult {
             .map(|t| t.contains("AgriciDaniel/claude-seo") && t.contains("every-app/open-seo"))
             .unwrap_or(false);
     if !notices_ok {
-        errors.push("third-party notices do not record SEO donor methodology provenance".to_string());
+        errors
+            .push("third-party notices do not record SEO donor methodology provenance".to_string());
     }
 
     let status = if errors.is_empty() { "pass" } else { "fail" };
@@ -526,7 +716,10 @@ pub fn run_against(seo_root: &Path, args: &[String]) -> i32 {
     let json_flag = args.iter().any(|a| a == "--json");
     let result = check(seo_root);
     if json_flag {
-        println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).unwrap_or_default()
+        );
     } else {
         println!(
             "SEO closure: {} — {} phases, {} workflow packs, {} critical gates",

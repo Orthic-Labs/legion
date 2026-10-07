@@ -112,7 +112,8 @@ fn append_event(run_dir: &Path, event: &Value) -> Result<(), MeterError> {
         .append(true)
         .open(events_path(run_dir))
         .map_err(|e| MeterError::Io(ManifestIoError(format!("cannot open events.jsonl: {e}"))))?;
-    let line = serde_json::to_string(event).map_err(|e| MeterError::Io(ManifestIoError(e.to_string())))?;
+    let line =
+        serde_json::to_string(event).map_err(|e| MeterError::Io(ManifestIoError(e.to_string())))?;
     writeln!(file, "{line}")
         .map_err(|e| MeterError::Io(ManifestIoError(format!("cannot append events.jsonl: {e}"))))
 }
@@ -138,7 +139,10 @@ fn apply_effect(
         "external_request" => {
             let current = get_i64(manifest.get("usage").unwrap(), "external_requests");
             let proposed = current + units;
-            let budget_limit = get_i64(manifest.get("budget").unwrap_or(&Value::Null), "external_requests");
+            let budget_limit = get_i64(
+                manifest.get("budget").unwrap_or(&Value::Null),
+                "external_requests",
+            );
             if proposed > budget_limit {
                 return Ok(Err(format!(
                     "research budget exceeded: external_requests {proposed} > {budget_limit}"
@@ -151,7 +155,8 @@ fn apply_effect(
             Some("start") => {
                 let current = get_i64(manifest.get("usage").unwrap(), "workers_active");
                 let proposed = current + units;
-                let budget_limit = get_i64(manifest.get("budget").unwrap_or(&Value::Null), "workers");
+                let budget_limit =
+                    get_i64(manifest.get("budget").unwrap_or(&Value::Null), "workers");
                 if proposed > budget_limit {
                     return Ok(Err(format!(
                         "research budget exceeded: workers_active {proposed} > {budget_limit}"
@@ -187,7 +192,8 @@ pub fn consume(
     worker_event: Option<&str>,
 ) -> Result<Value, MeterError> {
     let mut manifest = read_manifest(run_dir)?;
-    let outcome = apply_effect(&mut manifest, effect, units, worker_event).map_err(MeterError::Call)?;
+    let outcome =
+        apply_effect(&mut manifest, effect, units, worker_event).map_err(MeterError::Call)?;
     match outcome {
         Ok(()) => {
             write_manifest(run_dir, &manifest)?;
@@ -259,7 +265,8 @@ mod tests {
     }
 
     fn tmp_run_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("legion-wf026-meter-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("legion-wf026-meter-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         dir
     }

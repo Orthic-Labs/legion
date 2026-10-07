@@ -34,7 +34,10 @@ static STDIN: LazyLock<[Regex; 3]> = LazyLock::new(|| {
 });
 static FILES: LazyLock<[Regex; 2]> = LazyLock::new(|| {
     [
-        Regex::new(r#"(?i)\b(?:cat|type|Get-Content)\s+([^\s|<>]+)\s*\|\s*codex(?:\.exe)?\s+exec\b"#).unwrap(),
+        Regex::new(
+            r#"(?i)\b(?:cat|type|Get-Content)\s+([^\s|<>]+)\s*\|\s*codex(?:\.exe)?\s+exec\b"#,
+        )
+        .unwrap(),
         Regex::new(r"(?i)codex(?:\.exe)?\s+exec\b[^<]*<\s*([^\s|<>]+)").unwrap(),
     ]
 });
@@ -177,7 +180,10 @@ pub fn prompt_argument(command: &str) -> String {
     }
     let tail = &command[m.end()..];
     let mut longest = String::new();
-    for cap in DQUOTED.captures_iter(tail).chain(SQUOTED.captures_iter(tail)) {
+    for cap in DQUOTED
+        .captures_iter(tail)
+        .chain(SQUOTED.captures_iter(tail))
+    {
         let value = cap.get(1).map(|g| g.as_str()).unwrap_or("");
         if value.len() >= 50 && !NOT_A_PATH.is_match(value) && value.len() > longest.len() {
             longest = value.to_string();
@@ -208,10 +214,18 @@ pub struct EscalationDenial {
 
 impl EscalationDenial {
     fn allow(evidence: Option<u32>) -> Self {
-        Self { allowed: true, evidence, reason: None }
+        Self {
+            allowed: true,
+            evidence,
+            reason: None,
+        }
     }
     fn deny(evidence: Option<u32>, reason: String) -> Self {
-        Self { allowed: false, evidence, reason: Some(reason) }
+        Self {
+            allowed: false,
+            evidence,
+            reason: Some(reason),
+        }
     }
 }
 

@@ -26,15 +26,19 @@ use std::path::Path;
 use super::super::r07::browser::ChromeDriver;
 use super::super::r07::detect_url::{detect_url as port_detect_url, DetectUrlOptions, Viewport};
 use super::super::r07::findings::AntipatternLookup;
-use std::collections::HashSet;
-use super::super::r08::detect_text_matchers::{extract_css_in_js, extract_style_blocks, run_regex_matchers};
+use super::super::r08::detect_text_matchers::{
+    extract_css_in_js, extract_style_blocks, run_regex_matchers,
+};
 use super::super::r08::sweep_live::{sweep_site, PageFetcher};
 use super::super::w2_011::design_system::{check_source_design_system, DesignSystem};
-use super::super::w2_012::detect_text::{run_page_level_analyzers, run_text_content_analyzers, should_run_page_analyzers};
+use super::super::w2_012::detect_text::{
+    run_page_level_analyzers, run_text_content_analyzers, should_run_page_analyzers,
+};
 use super::super::w2_013::detect_html::{
     classify_img_src, find_broken_images, is_full_page, StaticStylesheet,
 };
 use super::output::CliFinding;
+use std::collections::HashSet;
 
 const CSS_LIKE_EXTS: [&str; 4] = [".css", ".scss", ".sass", ".less"];
 
@@ -75,33 +79,56 @@ fn dedupe(findings: Vec<CliFinding>) -> Vec<CliFinding> {
 /// impl, via [`filter_cli_findings_by_providers`], now that the antipattern
 /// registry is ported (`wf_port::w2_014::antipatterns`,
 /// `wf_port::r07::RegistryLookup`).
-pub fn detect_text(content: &str, file_path: &str, design_system: Option<&DesignSystem>) -> Vec<CliFinding> {
+pub fn detect_text(
+    content: &str,
+    file_path: &str,
+    design_system: Option<&DesignSystem>,
+) -> Vec<CliFinding> {
     let ext = ext_from_path(file_path);
     let lines: Vec<&str> = content.split('\n').collect();
     let block_context = CSS_LIKE_EXTS.contains(&ext.as_str());
 
     let mut findings: Vec<CliFinding> = Vec::new();
     for hit in run_regex_matchers(&lines, 0, block_context) {
-        findings.push(CliFinding::new(hit.antipattern, file_path, hit.line, hit.snippet));
+        findings.push(CliFinding::new(
+            hit.antipattern,
+            file_path,
+            hit.line,
+            hit.snippet,
+        ));
     }
 
     for block in extract_style_blocks(content, &ext) {
         let block_lines: Vec<&str> = block.content.split('\n').collect();
         for hit in run_regex_matchers(&block_lines, block.start_line.saturating_sub(1), true) {
-            findings.push(CliFinding::new(hit.antipattern, file_path, hit.line, hit.snippet));
+            findings.push(CliFinding::new(
+                hit.antipattern,
+                file_path,
+                hit.line,
+                hit.snippet,
+            ));
         }
     }
     for block in extract_css_in_js(content, &ext) {
         let block_lines: Vec<&str> = block.content.split('\n').collect();
         for hit in run_regex_matchers(&block_lines, block.start_line.saturating_sub(1), true) {
-            findings.push(CliFinding::new(hit.antipattern, file_path, hit.line, hit.snippet));
+            findings.push(CliFinding::new(
+                hit.antipattern,
+                file_path,
+                hit.line,
+                hit.snippet,
+            ));
         }
     }
 
     if let Some(ds) = design_system {
         for df in check_source_design_system(content, file_path, Some(ds)) {
             let mut f = CliFinding::new(df.antipattern, df.file, df.line, df.snippet);
-            f.ignore_value = if df.ignore_value.is_empty() { None } else { Some(df.ignore_value) };
+            f.ignore_value = if df.ignore_value.is_empty() {
+                None
+            } else {
+                Some(df.ignore_value)
+            };
             findings.push(f);
         }
     }
@@ -116,7 +143,12 @@ pub fn detect_text(content: &str, file_path: &str, design_system: Option<&Design
     // as `detectText`'s `deduped.push(...)` after the loop).
     if should_run_page_analyzers(is_full_page(content), file_path) {
         for tf in run_page_level_analyzers(content) {
-            deduped.push(CliFinding::new(tf.antipattern, file_path, tf.line.unwrap_or(0), tf.detail));
+            deduped.push(CliFinding::new(
+                tf.antipattern,
+                file_path,
+                tf.line.unwrap_or(0),
+                tf.detail,
+            ));
         }
     }
 
@@ -132,7 +164,10 @@ pub fn detect_text(content: &str, file_path: &str, design_system: Option<&Design
 /// etc., `rules/checks.mjs`) is not ported anywhere in this tree, so its
 /// findings are absent here; this is the packet's one open gap, not
 /// something fabricated to look complete.
-pub fn detect_html(file_path: &str, design_system: Option<&DesignSystem>) -> std::io::Result<Vec<CliFinding>> {
+pub fn detect_html(
+    file_path: &str,
+    design_system: Option<&DesignSystem>,
+) -> std::io::Result<Vec<CliFinding>> {
     let html = std::fs::read_to_string(file_path)?;
     let document = scraper::Html::parse_document(&html);
 
@@ -144,7 +179,11 @@ pub fn detect_html(file_path: &str, design_system: Option<&DesignSystem>) -> std
     if let Some(ds) = design_system {
         for df in check_source_design_system(&html, file_path, Some(ds)) {
             let mut f = CliFinding::new(df.antipattern, df.file, df.line, df.snippet);
-            f.ignore_value = if df.ignore_value.is_empty() { None } else { Some(df.ignore_value) };
+            f.ignore_value = if df.ignore_value.is_empty() {
+                None
+            } else {
+                Some(df.ignore_value)
+            };
             findings.push(f);
         }
     }
@@ -157,17 +196,45 @@ pub fn detect_html(file_path: &str, design_system: Option<&DesignSystem>) -> std
         // own doc comment says the caller supplies them from that file), so
         // they're inlined here verbatim from the JS source.
         let generic_fonts: std::collections::HashSet<String> = [
-            "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-serif",
-            "ui-sans-serif", "ui-monospace", "ui-rounded", "-apple-system", "blinkmacsystemfont",
-            "segoe ui", "inherit", "initial", "unset", "revert",
+            "serif",
+            "sans-serif",
+            "monospace",
+            "cursive",
+            "fantasy",
+            "system-ui",
+            "ui-serif",
+            "ui-sans-serif",
+            "ui-monospace",
+            "ui-rounded",
+            "-apple-system",
+            "blinkmacsystemfont",
+            "segoe ui",
+            "inherit",
+            "initial",
+            "unset",
+            "revert",
         ]
         .into_iter()
         .map(String::from)
         .collect();
         let overused_fonts: std::collections::HashSet<String> = [
-            "inter", "roboto", "open sans", "lato", "montserrat", "arial", "helvetica",
-            "fraunces", "instrument sans", "instrument serif", "geist", "geist sans",
-            "geist mono", "mona sans", "plus jakarta sans", "space grotesk", "recoleta",
+            "inter",
+            "roboto",
+            "open sans",
+            "lato",
+            "montserrat",
+            "arial",
+            "helvetica",
+            "fraunces",
+            "instrument sans",
+            "instrument serif",
+            "geist",
+            "geist sans",
+            "geist mono",
+            "mona sans",
+            "plus jakarta sans",
+            "space grotesk",
+            "recoleta",
         ]
         .into_iter()
         .map(String::from)
@@ -186,7 +253,12 @@ pub fn detect_html(file_path: &str, design_system: Option<&DesignSystem>) -> std
         // calls these directly too, so `.html` files get the same
         // coverage as source files.
         for tf in run_text_content_analyzers(&html, true, file_path) {
-            findings.push(CliFinding::new(tf.antipattern, file_path, tf.line.unwrap_or(0), tf.detail));
+            findings.push(CliFinding::new(
+                tf.antipattern,
+                file_path,
+                tf.line.unwrap_or(0),
+                tf.detail,
+            ));
         }
     }
 
@@ -205,7 +277,9 @@ pub fn detect_url(
     browser_script: &str,
     options: &DetectUrlOptions,
 ) -> Result<Vec<CliFinding>, String> {
-    let findings = port_detect_url(driver, registry, url, browser_script, options, |_| Ok(Vec::new()))?;
+    let findings = port_detect_url(driver, registry, url, browser_script, options, |_| {
+        Ok(Vec::new())
+    })?;
     Ok(findings
         .into_iter()
         .map(|f| {
@@ -292,23 +366,43 @@ where
     Reg: AntipatternLookup,
     Fe: PageFetcher,
 {
-    fn detect_text(&mut self, content: &str, file_path: &str, design_system: Option<&DesignSystem>) -> Vec<CliFinding> {
+    fn detect_text(
+        &mut self,
+        content: &str,
+        file_path: &str,
+        design_system: Option<&DesignSystem>,
+    ) -> Vec<CliFinding> {
         let findings = detect_text(content, file_path, design_system);
         filter_cli_findings_by_providers(self.registry, findings, self.providers)
     }
 
-    fn detect_html(&mut self, file_path: &str, design_system: Option<&DesignSystem>) -> Result<Vec<CliFinding>, String> {
+    fn detect_html(
+        &mut self,
+        file_path: &str,
+        design_system: Option<&DesignSystem>,
+    ) -> Result<Vec<CliFinding>, String> {
         let findings = detect_html(file_path, design_system).map_err(|e| e.to_string())?;
-        Ok(filter_cli_findings_by_providers(self.registry, findings, self.providers))
+        Ok(filter_cli_findings_by_providers(
+            self.registry,
+            findings,
+            self.providers,
+        ))
     }
 
-    fn detect_url(&mut self, url: &str, options: &super::cli::UrlScanOptions) -> Result<Vec<CliFinding>, String> {
+    fn detect_url(
+        &mut self,
+        url: &str,
+        options: &super::cli::UrlScanOptions,
+    ) -> Result<Vec<CliFinding>, String> {
         let mut opts = DetectUrlOptions {
             providers: options.providers.clone(),
             ..DetectUrlOptions::default()
         };
         if let Some((w, h)) = options.viewport {
-            opts.viewport = Viewport { width: w, height: h };
+            opts.viewport = Viewport {
+                width: w,
+                height: h,
+            };
         }
         detect_url(self.driver, self.registry, url, self.browser_script, &opts)
     }

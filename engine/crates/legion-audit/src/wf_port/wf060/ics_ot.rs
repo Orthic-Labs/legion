@@ -69,7 +69,8 @@ fn ot_bridged_pattern() -> &'static Regex {
 fn ot_bridged_suppress() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?i)firewall|dmz|vlan|segmentation|air[- ]?gap|one[- ]?way|data[- ]?diode").unwrap()
+        Regex::new(r"(?i)firewall|dmz|vlan|segmentation|air[- ]?gap|one[- ]?way|data[- ]?diode")
+            .unwrap()
     })
 }
 

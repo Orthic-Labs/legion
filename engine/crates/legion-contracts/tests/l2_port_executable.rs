@@ -21,8 +21,15 @@ fn base_contract() -> ExecutionContract {
         decisions: vec![],
         invariants: vec![],
         non_goals: vec![],
-        scope: Scope { own: vec![], read: vec![], forbidden: vec![] },
-        artifacts: Artifacts { exact: vec![], bounded: vec![] },
+        scope: Scope {
+            own: vec![],
+            read: vec![],
+            forbidden: vec![],
+        },
+        artifacts: Artifacts {
+            exact: vec![],
+            bounded: vec![],
+        },
         tasks: vec![],
         dependencies: vec![],
         acceptance_criteria: vec![],

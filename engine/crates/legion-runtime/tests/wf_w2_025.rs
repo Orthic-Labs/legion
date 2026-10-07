@@ -1,7 +1,9 @@
 //! Integration tests for the ported `wf_port::w2_025` module, mirroring
 //! `skills/seo/extensions/banana/scripts/{batch,cost_tracker,edit,generate,presets}.py`.
 
-use legion_runtime::wf_port::w2_025::batch::{parse_batch_csv, BatchCsvError, DEFAULT_MODEL as BATCH_DEFAULT_MODEL};
+use legion_runtime::wf_port::w2_025::batch::{
+    parse_batch_csv, BatchCsvError, DEFAULT_MODEL as BATCH_DEFAULT_MODEL,
+};
 use legion_runtime::wf_port::w2_025::cost_tracker::{
     estimate, last_n_days, log_entry, lookup_cost, reset_ledger, today_usage, truncate_prompt,
     CostLedger, CostWarning, DailyUsage,
@@ -10,8 +12,8 @@ use legion_runtime::wf_port::w2_025::edit::{
     build_edit_request_body, mime_type_for_suffix, output_filename as edit_output_filename,
 };
 use legion_runtime::wf_port::w2_025::generate::{
-    build_request_body, extract_image, resolve_api_key, validate_inputs,
-    output_filename as generate_output_filename, GenerateError, ResponsePart,
+    build_request_body, extract_image, output_filename as generate_output_filename,
+    resolve_api_key, validate_inputs, GenerateError, ResponsePart,
 };
 use legion_runtime::wf_port::w2_025::presets::{
     build_preset, format_list_row, require_confirm, sanitize_name, CreatePresetInput, PresetError,
@@ -46,7 +48,10 @@ fn batch_csv_from_readme_example_produces_expected_plan() {
 #[test]
 fn batch_csv_missing_prompt_header_is_rejected() {
     let csv = "ratio,resolution\n16:9,2K\n";
-    assert_eq!(parse_batch_csv(csv), Err(BatchCsvError::MissingPromptColumn));
+    assert_eq!(
+        parse_batch_csv(csv),
+        Err(BatchCsvError::MissingPromptColumn)
+    );
 }
 
 #[test]
@@ -75,7 +80,12 @@ fn cost_tracker_full_session_matches_python_semantics() {
     );
     assert!(w1.is_empty());
     assert_eq!(r1.cost, 0.078);
-    assert_eq!(ledger.entries[0].prompt.chars().count(), "a hero banner for a coffee shop landing page".chars().count());
+    assert_eq!(
+        ledger.entries[0].prompt.chars().count(),
+        "a hero banner for a coffee shop landing page"
+            .chars()
+            .count()
+    );
 
     let (r2, w2) = log_entry(
         &mut ledger,
@@ -168,7 +178,10 @@ fn presets_sanitize_name_blocks_path_traversal() {
 #[test]
 fn generate_validate_inputs_matches_python_order_and_messages() {
     let err = validate_inputs("not-a-ratio", "1K", Some("key")).unwrap_err();
-    assert_eq!(err, GenerateError::InvalidAspectRatio("not-a-ratio".to_string()));
+    assert_eq!(
+        err,
+        GenerateError::InvalidAspectRatio("not-a-ratio".to_string())
+    );
     assert!(err.to_string().starts_with("Invalid aspect ratio"));
 
     let err = validate_inputs("1:1", "9001K", Some("key")).unwrap_err();
@@ -184,8 +197,14 @@ fn generate_validate_inputs_matches_python_order_and_messages() {
 
 #[test]
 fn generate_resolve_api_key_precedence() {
-    assert_eq!(resolve_api_key(Some("cli"), Some("ai"), Some("plain")), Some("cli".to_string()));
-    assert_eq!(resolve_api_key(None, Some("ai"), Some("plain")), Some("ai".to_string()));
+    assert_eq!(
+        resolve_api_key(Some("cli"), Some("ai"), Some("plain")),
+        Some("cli".to_string())
+    );
+    assert_eq!(
+        resolve_api_key(None, Some("ai"), Some("plain")),
+        Some("ai".to_string())
+    );
     assert_eq!(resolve_api_key(None, None, None), None);
 }
 
@@ -194,8 +213,14 @@ fn generate_build_request_body_round_trips_through_json() {
     let body = build_request_body("a cat in space", "16:9", "1K", Some("medium"), false);
     let json = serde_json::to_value(&body).unwrap();
     assert_eq!(json["contents"][0]["parts"][0]["text"], "a cat in space");
-    assert_eq!(json["generationConfig"]["imageConfig"]["aspectRatio"], "16:9");
-    assert_eq!(json["generationConfig"]["thinkingConfig"]["thinkingLevel"], "medium");
+    assert_eq!(
+        json["generationConfig"]["imageConfig"]["aspectRatio"],
+        "16:9"
+    );
+    assert_eq!(
+        json["generationConfig"]["thinkingConfig"]["thinkingLevel"],
+        "medium"
+    );
     assert_eq!(
         json["generationConfig"]["responseModalities"],
         serde_json::json!(["TEXT", "IMAGE"])
@@ -212,8 +237,14 @@ fn generate_extract_image_and_output_filename() {
     let candidates = vec![(
         Some("STOP".to_string()),
         vec![
-            ResponsePart { inline_data_b64: Some("aW1hZ2U=".to_string()), text: None },
-            ResponsePart { inline_data_b64: None, text: Some("done".to_string()) },
+            ResponsePart {
+                inline_data_b64: Some("aW1hZ2U=".to_string()),
+                text: None,
+            },
+            ResponsePart {
+                inline_data_b64: None,
+                text: Some("done".to_string()),
+            },
         ],
     )];
     let extracted = extract_image(&candidates, None).unwrap();
@@ -233,9 +264,18 @@ fn edit_mime_type_and_request_body_and_filename() {
 
     let body = build_edit_request_body("remove the background", "QUJD", "image/png");
     let json = serde_json::to_value(&body).unwrap();
-    assert_eq!(json["contents"][0]["parts"][0]["text"], "remove the background");
-    assert_eq!(json["contents"][0]["parts"][1]["inlineData"]["mimeType"], "image/png");
-    assert_eq!(json["contents"][0]["parts"][1]["inlineData"]["data"], "QUJD");
+    assert_eq!(
+        json["contents"][0]["parts"][0]["text"],
+        "remove the background"
+    );
+    assert_eq!(
+        json["contents"][0]["parts"][1]["inlineData"]["mimeType"],
+        "image/png"
+    );
+    assert_eq!(
+        json["contents"][0]["parts"][1]["inlineData"]["data"],
+        "QUJD"
+    );
     assert_eq!(
         json["generationConfig"]["responseModalities"],
         serde_json::json!(["TEXT", "IMAGE"])

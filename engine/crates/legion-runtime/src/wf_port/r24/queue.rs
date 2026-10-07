@@ -239,7 +239,11 @@ mod tests {
         q.enqueue_event(json!({"type": "exit"}));
         let entry = q.find_available_pending_event().unwrap();
         assert!(q.lease_event(entry.seq, 5_000).is_some());
-        assert_eq!(q.len(), 0, "anonymous events have no id to ack later, so lease consumes them");
+        assert_eq!(
+            q.len(),
+            0,
+            "anonymous events have no id to ack later, so lease consumes them"
+        );
     }
 
     #[test]
@@ -249,7 +253,10 @@ mod tests {
         let entry = q.find_available_pending_event().unwrap();
         q.lease_event(entry.seq, 5_000);
         assert_eq!(q.len(), 1, "leasing an identified event does not remove it");
-        assert!(q.find_available_pending_event().is_none(), "leased event is unavailable until lease expires");
+        assert!(
+            q.find_available_pending_event().is_none(),
+            "leased event is unavailable until lease expires"
+        );
         assert!(q.acknowledge_pending_event("e1").is_some());
         assert_eq!(q.len(), 0);
     }

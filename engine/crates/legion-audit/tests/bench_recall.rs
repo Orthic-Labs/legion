@@ -46,7 +46,10 @@ fn provider_for_class(class: &str) -> Option<&'static str> {
 /// Classes allowed to skip instead of failing, each with the reason. Every
 /// other uncovered or tool-missing class fails the gate.
 fn allowed_skips() -> &'static [(&'static str, &'static str)] {
-    &[("drift", "detector removed; see docs/provenance/retirements.md")]
+    &[(
+        "drift",
+        "detector removed; see docs/provenance/retirements.md",
+    )]
 }
 
 fn allowed_skip_reason(class: &str) -> Option<&'static str> {
@@ -114,7 +117,12 @@ fn temp_root(tag: &str) -> PathBuf {
     let suffix = ((SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system clock")
-        .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }));
+        .as_nanos())
+    .wrapping_shl(20)
+        | ({
+            static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+        }));
     let root = std::env::temp_dir().join(format!("legion-bench-recall-{tag}-{suffix}"));
     fs::create_dir_all(&root).expect("temporary bench root");
     root
@@ -123,8 +131,8 @@ fn temp_root(tag: &str) -> PathBuf {
 /// Copies a bench fixture directory (from the ported `tests/fixtures/bench/`
 /// data) into a fresh temp repo root so the real provider scans real files.
 fn stage_fixture(root: &Path, fixture_dir: &str) -> Vec<String> {
-    let src = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/bench"))
-        .join(fixture_dir);
+    let src =
+        Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/bench")).join(fixture_dir);
     let mut relative_paths = Vec::new();
     copy_tree(&src, root, &src, &mut relative_paths);
     relative_paths
@@ -171,9 +179,7 @@ fn inventory(paths: &[String]) -> InventoryEnvelope {
 /// platform process backend, exactly as `legion` bin's
 /// `native_audit_external_tool` wires it for `/audit`. No reimplemented
 /// detector logic — findings come only from the real subprocess + parser.
-fn real_external_tool(
-    root: &Path,
-) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
+fn real_external_tool(root: &Path) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
     let policy = legion_effects::StaticPolicy {
         decision: legion_effects::PolicyDecision {
             allowed: true,
@@ -243,7 +249,10 @@ fn fixture_dir_of(entry_file: &str) -> String {
 enum ClassOutcome {
     Uncovered,
     ToolMissing(String),
-    Recall { positive_hit: bool, negative_clean: bool },
+    Recall {
+        positive_hit: bool,
+        negative_clean: bool,
+    },
 }
 
 fn run_class(class: &str) -> ClassOutcome {
@@ -373,7 +382,14 @@ bench_class_test!(bench_recall_drift, "drift");
 #[test]
 #[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the CI bench job with --ignored"]
 fn bench_recall_qualification_receipt() {
-    let classes = ["secret", "dependency_cve", "dead_code", "duplication", "type_error", "drift"];
+    let classes = [
+        "secret",
+        "dependency_cve",
+        "dead_code",
+        "duplication",
+        "type_error",
+        "drift",
+    ];
     let mut results = Vec::new();
     for class in classes {
         let outcome = run_class(class);
@@ -400,7 +416,9 @@ fn bench_recall_qualification_receipt() {
         "gate": "legion-audit::bench_recall",
         "results": results,
     });
-    let out_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("bench-receipts");
+    let out_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("bench-receipts");
     let _ = fs::create_dir_all(&out_dir);
     let _ = fs::write(
         out_dir.join("bench_recall_receipt.json"),

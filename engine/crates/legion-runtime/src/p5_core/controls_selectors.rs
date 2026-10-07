@@ -80,17 +80,26 @@ pub fn matches_selector(selector: &Value, ctx: &SelectorContext) -> Result<bool,
         }
     }
     if let Some(facets) = as_str_list(map.get("facets")) {
-        if !facets.iter().any(|f| ctx.target_facets.iter().any(|tf| tf == f)) {
+        if !facets
+            .iter()
+            .any(|f| ctx.target_facets.iter().any(|tf| tf == f))
+        {
             return Ok(false);
         }
     }
     if !overlap(as_str_list(map.get("stackIds")), ctx.stack_ids) {
         return Ok(false);
     }
-    if !overlap(as_str_list(map.get("environments")), ctx.contract_environments) {
+    if !overlap(
+        as_str_list(map.get("environments")),
+        ctx.contract_environments,
+    ) {
         return Ok(false);
     }
-    if !overlap(as_str_list(map.get("policyFlags")), ctx.contract_policy_flags) {
+    if !overlap(
+        as_str_list(map.get("policyFlags")),
+        ctx.contract_policy_flags,
+    ) {
         return Ok(false);
     }
 
@@ -98,7 +107,12 @@ pub fn matches_selector(selector: &Value, ctx: &SelectorContext) -> Result<bool,
 }
 
 /// Port of `selectionTrace(control, subject, selected)`.
-pub fn selection_trace(control_id: &str, selector: Value, subject_id: Option<&str>, selected: bool) -> Value {
+pub fn selection_trace(
+    control_id: &str,
+    selector: Value,
+    subject_id: Option<&str>,
+    selected: bool,
+) -> Value {
     Value::object([
         ("controlId", Value::str(control_id)),
         ("subjectId", Value::str(subject_id.unwrap_or("product"))),
@@ -149,10 +163,7 @@ mod tests {
 
     #[test]
     fn target_kind_mismatch_excludes() {
-        let selector = Value::object([(
-            "targetKinds",
-            Value::array([Value::str("web")]),
-        )]);
+        let selector = Value::object([("targetKinds", Value::array([Value::str("web")]))]);
         let mut c = ctx();
         c.target_kind = Some("mobile");
         assert!(!matches_selector(&selector, &c).unwrap());
@@ -186,7 +197,10 @@ mod tests {
         let selector = Value::object([("op", Value::str("always"))]);
         let trace = selection_trace("ctl.1", selector, Some("t1"), true);
         if let Value::Object(map) = &trace {
-            assert_eq!(map.get("reason"), Some(&Value::str("selector-matched-frozen-inventory")));
+            assert_eq!(
+                map.get("reason"),
+                Some(&Value::str("selector-matched-frozen-inventory"))
+            );
             assert_eq!(map.get("subjectId"), Some(&Value::str("t1")));
         } else {
             panic!("expected object");

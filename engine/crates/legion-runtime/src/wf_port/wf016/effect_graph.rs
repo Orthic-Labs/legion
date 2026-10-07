@@ -26,7 +26,11 @@ fn str_vec(value: &Value, key: &str) -> Vec<String> {
     value
         .get(key)
         .and_then(Value::as_array)
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -41,13 +45,19 @@ pub fn matches_path(pattern: &str, path: &str) -> bool {
 /// `plan_graph` is expected to carry a `providers` array of
 /// `{ id, dependsOn: [...] }` objects, exactly like the JS `planGraph`.
 pub fn compute_closure(plan_graph: &Value, seeds: &[String]) -> Vec<String> {
-    let providers = plan_graph.get("providers").and_then(Value::as_array).cloned().unwrap_or_default();
+    let providers = plan_graph
+        .get("providers")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut closure: std::collections::BTreeSet<String> = seeds.iter().cloned().collect();
     let mut grew = true;
     while grew {
         grew = false;
         for provider in &providers {
-            let Some(id) = provider.get("id").and_then(Value::as_str) else { continue };
+            let Some(id) = provider.get("id").and_then(Value::as_str) else {
+                continue;
+            };
             if closure.contains(id) {
                 continue;
             }
@@ -62,14 +72,25 @@ pub fn compute_closure(plan_graph: &Value, seeds: &[String]) -> Vec<String> {
 }
 
 fn seed_providers(plan_graph: &Value, changed_files: &[String]) -> Vec<String> {
-    let providers = plan_graph.get("providers").and_then(Value::as_array).cloned().unwrap_or_default();
+    let providers = plan_graph
+        .get("providers")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     providers
         .iter()
         .filter(|provider| {
             let paths = str_vec(provider, "paths");
-            paths.iter().any(|pattern| changed_files.iter().any(|file| matches_path(pattern, file)))
+            paths
+                .iter()
+                .any(|pattern| changed_files.iter().any(|file| matches_path(pattern, file)))
         })
-        .filter_map(|provider| provider.get("id").and_then(Value::as_str).map(str::to_owned))
+        .filter_map(|provider| {
+            provider
+                .get("id")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
         .collect()
 }
 
@@ -94,52 +115,99 @@ pub fn build_effect_graph(input: BuildEffectGraphInput) -> Result<Value, EffectG
     let patch_digest = input.proposal.get("patch").and_then(|p| p.get("digest"));
     let patch_digest = match patch_digest {
         Some(Value::String(s)) => s.clone(),
-        _ => return Err(EffectGraphError("an effect graph requires the proposal patch digest".to_string())),
+        _ => {
+            return Err(EffectGraphError(
+                "an effect graph requires the proposal patch digest".to_string(),
+            ))
+        }
     };
 
     let changed_files = sorted_unique_strings(str_vec(&input.proposal, "targetPaths"));
     if changed_files.is_empty() {
-        return Err(EffectGraphError("an effect graph requires at least one target path".to_string()));
+        return Err(EffectGraphError(
+            "an effect graph requires at least one target path".to_string(),
+        ));
     }
 
-    let changes: Vec<Value> = input.proposal.get("changes").and_then(Value::as_array).cloned().unwrap_or_default();
-    let declared_public_surface_changes = sorted_unique_strings(str_vec(&input.proposal, "publicSurfaceChanges"));
+    let changes: Vec<Value> = input
+        .proposal
+        .get("changes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let declared_public_surface_changes =
+        sorted_unique_strings(str_vec(&input.proposal, "publicSurfaceChanges"));
     let observed = sorted_unique_strings(input.observed_public_surface_changes.clone());
 
     let seeds = seed_providers(&input.plan_graph, &changed_files);
     let affected_providers = compute_closure(&input.plan_graph, &seeds);
-    let providers = input.plan_graph.get("providers").and_then(Value::as_array).cloned().unwrap_or_default();
+    let providers = input
+        .plan_graph
+        .get("providers")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let provider_by_id: std::collections::HashMap<String, Value> = providers
         .into_iter()
-        .filter_map(|p| p.get("id").and_then(Value::as_str).map(|id| (id.to_owned(), p.clone())))
+        .filter_map(|p| {
+            p.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_owned(), p.clone()))
+        })
         .collect();
 
     let changed_symbols = sorted_unique_strings(changes.iter().flat_map(|c| str_vec(c, "symbols")));
-    let changed_config = sorted_unique_strings(changes.iter().filter(|c| c.get("kind").and_then(Value::as_str) == Some("config")).filter_map(|c| {
-        c.get("keyPath").and_then(Value::as_array).map(|parts| {
-            parts.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(".")
-        })
-    }));
+    let changed_config = sorted_unique_strings(
+        changes
+            .iter()
+            .filter(|c| c.get("kind").and_then(Value::as_str) == Some("config"))
+            .filter_map(|c| {
+                c.get("keyPath").and_then(Value::as_array).map(|parts| {
+                    parts
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .collect::<Vec<_>>()
+                        .join(".")
+                })
+            }),
+    );
 
     let mut public_surface_changes: Vec<String> = declared_public_surface_changes.clone();
     public_surface_changes.extend(observed.clone());
     let public_surface_changes = sorted_unique_strings(public_surface_changes);
 
-    let unplanned_public_surface_changes: Vec<String> =
-        sorted_strings(observed.iter().filter(|item| !declared_public_surface_changes.contains(item)).cloned().collect());
+    let unplanned_public_surface_changes: Vec<String> = sorted_strings(
+        observed
+            .iter()
+            .filter(|item| !declared_public_surface_changes.contains(item))
+            .cloned()
+            .collect(),
+    );
 
     let mut content_items = input.content_items.clone();
-    content_items.extend(changes.iter().filter_map(|c| c.get("contentItemId").and_then(Value::as_str).map(str::to_owned)));
+    content_items.extend(changes.iter().filter_map(|c| {
+        c.get("contentItemId")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    }));
     let content_items = sorted_unique_strings(content_items);
 
-    let affected_families = sorted_unique_strings(
-        affected_providers
-            .iter()
-            .filter_map(|id| provider_by_id.get(id).and_then(|p| p.get("family")).and_then(Value::as_str).map(str::to_owned)),
-    );
+    let affected_families = sorted_unique_strings(affected_providers.iter().filter_map(|id| {
+        provider_by_id
+            .get(id)
+            .and_then(|p| p.get("family"))
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    }));
     let required_providers: Vec<String> = affected_providers
         .iter()
-        .filter(|id| provider_by_id.get(*id).and_then(|p| p.get("requiredForCleanClaim")).and_then(Value::as_bool) == Some(true))
+        .filter(|id| {
+            provider_by_id
+                .get(*id)
+                .and_then(|p| p.get("requiredForCleanClaim"))
+                .and_then(Value::as_bool)
+                == Some(true)
+        })
         .cloned()
         .collect();
     let required_gates = sorted_unique_strings(
@@ -179,7 +247,9 @@ pub fn build_effect_graph(input: BuildEffectGraphInput) -> Result<Value, EffectG
         "binding": input.binding,
     });
     let digest = digest_of("effect-graph", &body);
-    body.as_object_mut().expect("body is an object").insert("digest".to_string(), Value::String(digest));
+    body.as_object_mut()
+        .expect("body is an object")
+        .insert("digest".to_string(), Value::String(digest));
     Ok(body)
 }
 
@@ -187,10 +257,17 @@ pub fn build_effect_graph(input: BuildEffectGraphInput) -> Result<Value, EffectG
 /// Accepts both the current effect graph and the legacy `patchEffectGraph`
 /// shape.
 pub fn blocks_auto_apply(effect_graph: &Value) -> bool {
-    if let Some(arr) = effect_graph.get("unplannedPublicSurfaceChanges").and_then(Value::as_array) {
+    if let Some(arr) = effect_graph
+        .get("unplannedPublicSurfaceChanges")
+        .and_then(Value::as_array)
+    {
         return !arr.is_empty();
     }
-    !effect_graph.get("publicSurfaceChanges").and_then(Value::as_array).map(|a| a.is_empty()).unwrap_or(true)
+    !effect_graph
+        .get("publicSurfaceChanges")
+        .and_then(Value::as_array)
+        .map(|a| a.is_empty())
+        .unwrap_or(true)
 }
 
 /// Faithful port of `buildEffectGraphSchema` (a static JSON Schema document).
@@ -294,7 +371,10 @@ mod tests {
     #[test]
     fn compute_closure_transitively_includes_dependents() {
         let closure = compute_closure(&plan_graph(), &["p1".to_string()]);
-        assert_eq!(closure, vec!["p1".to_string(), "p2".to_string(), "p3".to_string()]);
+        assert_eq!(
+            closure,
+            vec!["p1".to_string(), "p2".to_string(), "p3".to_string()]
+        );
     }
 
     #[test]
@@ -319,16 +399,25 @@ mod tests {
             proposal,
             plan_graph: plan_graph(),
             binding: json!({ "runId": "r1" }),
-            observed_public_surface_changes: vec!["api:/v1/foo".to_string(), "api:/v1/bar".to_string()],
+            observed_public_surface_changes: vec![
+                "api:/v1/foo".to_string(),
+                "api:/v1/bar".to_string(),
+            ],
             ..Default::default()
         })
         .expect("builds");
         assert_eq!(result["affectedProviders"], json!(["p1", "p2", "p3"]));
-        assert_eq!(result["affectedFamilies"], json!(["other", "security", "ux"]));
+        assert_eq!(
+            result["affectedFamilies"],
+            json!(["other", "security", "ux"])
+        );
         assert_eq!(result["requiredProviders"], json!(["p1"]));
         assert_eq!(result["requiredGates"], json!(["g1"]));
         assert_eq!(result["changedConfig"], json!(["cookie.sameSite"]));
-        assert_eq!(result["unplannedPublicSurfaceChanges"], json!(["api:/v1/bar"]));
+        assert_eq!(
+            result["unplannedPublicSurfaceChanges"],
+            json!(["api:/v1/bar"])
+        );
         assert!(blocks_auto_apply(&result));
         assert!(result["digest"].as_str().unwrap().starts_with("sha256:"));
     }

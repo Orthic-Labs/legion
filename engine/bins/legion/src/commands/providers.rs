@@ -6,14 +6,20 @@ use serde_json::json;
 /// command deliberately has no source-tree fallback: release composition is
 /// the product boundary for this surface.
 pub fn run(args: CommonArgs) -> CommandResult {
-    let source: serde_json::Value = serde_json::from_str(PROVIDER_REGISTRY)
-        .map_err(|error| CommandError::internal(format!("embedded provider registry invalid: {error}")))?;
+    let source: serde_json::Value = serde_json::from_str(PROVIDER_REGISTRY).map_err(|error| {
+        CommandError::internal(format!("embedded provider registry invalid: {error}"))
+    })?;
     let mut providers = source
         .get("providers")
         .and_then(serde_json::Value::as_array)
         .ok_or_else(|| CommandError::internal("embedded provider registry has no providers"))?
         .iter()
-        .filter(|provider| provider.get("selectable").and_then(serde_json::Value::as_bool) != Some(false))
+        .filter(|provider| {
+            provider
+                .get("selectable")
+                .and_then(serde_json::Value::as_bool)
+                != Some(false)
+        })
         .map(project_provider)
         .collect::<Vec<_>>();
     providers.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
@@ -42,7 +48,10 @@ pub fn run(args: CommonArgs) -> CommandResult {
     Ok(json!({"json": false, "text": text}))
 }
 
-const PROVIDER_REGISTRY: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/providers.json"));
+const PROVIDER_REGISTRY: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../src/registry/providers.json"
+));
 
 fn project_provider(provider: &serde_json::Value) -> serde_json::Value {
     let canonical = provider["id"].as_str().unwrap_or_default();

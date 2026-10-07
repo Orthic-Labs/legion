@@ -9,12 +9,19 @@ pub const PROVIDER_ID: &str = "language.jvm";
 pub const VERSION: &str = "1.0.0";
 
 /// JS: `/(pom\.xml|build\.gradle|build\.gradle\.kts|settings\.gradle)$/`.
-const BUILD_FILE_SUFFIXES: &[&str] = &["pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle"];
+const BUILD_FILE_SUFFIXES: &[&str] = &[
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "settings.gradle",
+];
 
 /// `detect({ projection })`.
 pub fn detect(projection: &Projection) -> bool {
     let files = &projection.files;
-    files.iter().any(|f| ext_matches(f, &["java", "kt", "kts", "scala"]))
+    files
+        .iter()
+        .any(|f| ext_matches(f, &["java", "kt", "kts", "scala"]))
         || files.iter().any(|f| suffix_matches(f, BUILD_FILE_SUFFIXES))
 }
 

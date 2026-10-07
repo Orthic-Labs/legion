@@ -1,9 +1,9 @@
 //! Tests for the L1b `api-worker.py` port.
 
 use legion_provider_sdk::l1b_port::{
-    build_argv, clip, models_for_item, prepare_prompt, redacted_argv, strip_think,
-    validate_model, validate_prompt, ModelSelector, FREE_PRIMARY_MODELS, MAX_FALLBACK_ATTEMPTS,
-    MAX_PROMPT_CHARS, PAID_MODELS,
+    build_argv, clip, models_for_item, prepare_prompt, redacted_argv, strip_think, validate_model,
+    validate_prompt, ModelSelector, FREE_PRIMARY_MODELS, MAX_FALLBACK_ATTEMPTS, MAX_PROMPT_CHARS,
+    PAID_MODELS,
 };
 
 #[test]
@@ -28,7 +28,11 @@ fn validate_prompt_rejects_secret_markers() {
         "-----BEGIN RSA PRIVATE KEY-----",
         "please read src/.env/local",
     ] {
-        assert_eq!(validate_prompt(bad).unwrap_err().code, "unsafe_input", "should reject: {bad}");
+        assert_eq!(
+            validate_prompt(bad).unwrap_err().code,
+            "unsafe_input",
+            "should reject: {bad}"
+        );
     }
 }
 
@@ -84,11 +88,15 @@ fn models_for_item_rejects_unsupported_route() {
 #[test]
 fn models_for_item_rejects_unknown_tier_and_fallback() {
     assert_eq!(
-        models_for_item(&ModelSelector::Tier("gold".to_string()), false).unwrap_err().code,
+        models_for_item(&ModelSelector::Tier("gold".to_string()), false)
+            .unwrap_err()
+            .code,
         "invalid_tier"
     );
     assert_eq!(
-        models_for_item(&ModelSelector::Fallback("unknown".to_string()), false).unwrap_err().code,
+        models_for_item(&ModelSelector::Fallback("unknown".to_string()), false)
+            .unwrap_err()
+            .code,
         "invalid_fallback"
     );
 }

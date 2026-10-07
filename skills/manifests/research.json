@@ -124,7 +124,7 @@
     {
       "path": "references/domains/legal/india/consumer/GUIDE.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/GUIDE.md",
-      "digest": "sha256:bbca7bf60c4104974514e962634e8b37ba027181716d18918c1f2b0372eab1ce"
+      "digest": "sha256:e54afe493cb7f03d3a0720951fb0bf2b135f99543bea5b6e576445837214b035"
     },
     {
       "path": "references/domains/legal/india/consumer/cp-act-2019.md",
@@ -149,7 +149,7 @@
     {
       "path": "references/domains/legal/india/consumer/manual.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/manual.md",
-      "digest": "sha256:28c4fbea4c06da4fae43399393cfe16a47af35f2182e767623d5e06f87bb8594"
+      "digest": "sha256:00eedfb1db1ca1f1f0fa9af504904bd37b80f4f9949fbf8d1db0806f5c15e4bf"
     },
     {
       "path": "references/domains/medical/GUIDE.md",

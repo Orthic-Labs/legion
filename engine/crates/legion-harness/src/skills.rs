@@ -59,8 +59,7 @@ fn classify_destination(dest_path: &Path, canonical_path: &Path) -> &'static str
                 .parent()
                 .map(|parent| parent.join(&target))
                 .unwrap_or(target);
-            if fs::canonicalize(&resolved).ok()
-                == fs::canonicalize(canonical_path).ok()
+            if fs::canonicalize(&resolved).ok() == fs::canonicalize(canonical_path).ok()
                 && dest_path.join("SKILL.md").is_file()
             {
                 return "legion";
@@ -126,8 +125,10 @@ pub fn project_skills(
         #[cfg(windows)]
         let symlink_result = std::os::windows::fs::symlink_dir(&canonical, &dest);
         #[cfg(not(any(unix, windows)))]
-        let symlink_result: Result<(), std::io::Error> =
-            Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "symlink"));
+        let symlink_result: Result<(), std::io::Error> = Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "symlink",
+        ));
         if symlink_result.is_ok() {
             linked.push(id);
             continue;
@@ -162,15 +163,16 @@ pub fn project_skills(
     }))
 }
 
-pub fn verify_skill_projection(legion_root: &Path, target_dir: &Path) -> Result<Value, HarnessError> {
+pub fn verify_skill_projection(
+    legion_root: &Path,
+    target_dir: &Path,
+) -> Result<Value, HarnessError> {
     let ids = canonical_skill_ids(legion_root)?;
     let mut missing = Vec::new();
     let mut forked = Vec::new();
     for id in &ids {
-        let state = classify_destination(
-            &target_dir.join(id),
-            &canonical_skill_path(legion_root, id),
-        );
+        let state =
+            classify_destination(&target_dir.join(id), &canonical_skill_path(legion_root, id));
         if state == "absent" {
             missing.push(id.clone());
         } else if state == "foreign" {
@@ -237,10 +239,12 @@ fn copy_dir_recursive(source: &Path, dest: &Path) -> Result<(), HarnessError> {
             .map_err(|error| HarnessError::internal(error.to_string()))?;
         let target = dest.join(relative);
         if entry.file_type().is_dir() {
-            fs::create_dir_all(&target).map_err(|error| HarnessError::internal(error.to_string()))?;
+            fs::create_dir_all(&target)
+                .map_err(|error| HarnessError::internal(error.to_string()))?;
         } else {
             if let Some(parent) = target.parent() {
-                fs::create_dir_all(parent).map_err(|error| HarnessError::internal(error.to_string()))?;
+                fs::create_dir_all(parent)
+                    .map_err(|error| HarnessError::internal(error.to_string()))?;
             }
             fs::copy(entry.path(), &target)
                 .map_err(|error| HarnessError::internal(error.to_string()))?;

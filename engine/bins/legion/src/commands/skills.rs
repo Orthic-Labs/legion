@@ -44,7 +44,9 @@ pub fn run(args: CommonArgs) -> CommandResult {
                 return Ok(json!({"skills": selected, "__compact": true}));
             }
             let _ = error;
-            return Ok(json!({"status":"pass","count":selected.len(),"findings":[],"__compact":true}));
+            return Ok(
+                json!({"status":"pass","count":selected.len(),"findings":[],"__compact":true}),
+            );
         }
     };
     let catalog =
@@ -126,11 +128,15 @@ pub fn run(args: CommonArgs) -> CommandResult {
     })
 }
 
-const EMBEDDED_SKILL_INDEX: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/skills/index.json"));
+const EMBEDDED_SKILL_INDEX: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../src/registry/skills/index.json"
+));
 
 fn embedded_skill_ids(requested: &[String]) -> Result<Vec<String>, CommandError> {
-    let index: Value = serde_json::from_str(EMBEDDED_SKILL_INDEX)
-        .map_err(|error| CommandError::internal(format!("embedded skill catalog invalid: {error}")))?;
+    let index: Value = serde_json::from_str(EMBEDDED_SKILL_INDEX).map_err(|error| {
+        CommandError::internal(format!("embedded skill catalog invalid: {error}"))
+    })?;
     let mut ids = index
         .get("bundles")
         .and_then(Value::as_array)
@@ -140,7 +146,9 @@ fn embedded_skill_ids(requested: &[String]) -> Result<Vec<String>, CommandError>
         .collect::<Vec<_>>();
     ids.sort();
     if let Some(unknown) = requested.iter().find(|id| !ids.contains(id)) {
-        return Err(CommandError::usage(format!("unknown skill bundle: {unknown}")));
+        return Err(CommandError::usage(format!(
+            "unknown skill bundle: {unknown}"
+        )));
     }
     if requested.is_empty() {
         Ok(ids)

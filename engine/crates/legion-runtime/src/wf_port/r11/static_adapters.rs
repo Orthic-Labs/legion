@@ -37,7 +37,9 @@
 
 use scraper::ElementRef;
 
-use crate::l6_designer_checks::css_color::{css_color_is_transparent, colors_nearly_match, parse_any_color};
+use crate::l6_designer_checks::css_color::{
+    colors_nearly_match, css_color_is_transparent, parse_any_color,
+};
 use crate::l6_designer_checks::pure_checks::{
     border_colors_from_style, border_widths_from_style, check_gpt_thin_border_wide_shadow,
     check_italic_serif, check_oversized_h1, is_card_like_from_props, is_emoji_only_text,
@@ -105,7 +107,10 @@ fn descendants(el: ElementRef) -> Vec<ElementRef> {
 
 /// Port of `el.closest(selector)`, given a predicate instead of a CSS
 /// selector string (callers already know exactly what they're matching).
-fn closest_where<'a>(el: ElementRef<'a>, pred: impl Fn(&ElementRef<'a>) -> bool) -> Option<ElementRef<'a>> {
+fn closest_where<'a>(
+    el: ElementRef<'a>,
+    pred: impl Fn(&ElementRef<'a>) -> bool,
+) -> Option<ElementRef<'a>> {
     let mut cur = Some(el);
     while let Some(e) = cur {
         if pred(&e) {
@@ -136,17 +141,30 @@ fn read_own_background_color(el: ElementRef, style_bg: &str) -> Option<Rgba> {
     }
     let raw_style = attr(&el, "style").unwrap_or("");
     let inline_bg = raw_bg_declaration(raw_style);
-    let Some(inline_bg) = inline_bg else { return bg };
-    if inline_bg.to_ascii_lowercase().contains("gradient") || inline_bg.to_ascii_lowercase().contains("url(") {
+    let Some(inline_bg) = inline_bg else {
+        return bg;
+    };
+    if inline_bg.to_ascii_lowercase().contains("gradient")
+        || inline_bg.to_ascii_lowercase().contains("url(")
+    {
         return bg;
     }
-    parse_rgb(Some(&inline_bg)).or_else(|| parse_any_color(&inline_bg).map(|c| Rgba { r: c.r, g: c.g, b: c.b, a: c.a }))
+    parse_rgb(Some(&inline_bg)).or_else(|| {
+        parse_any_color(&inline_bg).map(|c| Rgba {
+            r: c.r,
+            g: c.g,
+            b: c.b,
+            a: c.a,
+        })
+    })
 }
 
 fn raw_bg_declaration(raw_style: &str) -> Option<String> {
     // Port of `/background(?:-color)?\s*:\s*([^;]+)/i`.
     let lower = raw_style.to_ascii_lowercase();
-    let idx = lower.find("background-color").or_else(|| lower.find("background"))?;
+    let idx = lower
+        .find("background-color")
+        .or_else(|| lower.find("background"))?;
     let after_colon = raw_style[idx..].find(':')?;
     let rest = &raw_style[idx + after_colon + 1..];
     let end = rest.find(';').unwrap_or(rest.len());
@@ -169,7 +187,8 @@ fn bg_color_of(el: ElementRef, doc: &StaticDocument) -> String {
 fn has_gradient_or_url(bg_image: &str) -> bool {
     !bg_image.is_empty()
         && bg_image != "none"
-        && (bg_image.to_ascii_lowercase().contains("gradient") || bg_image.to_ascii_lowercase().contains("url("))
+        && (bg_image.to_ascii_lowercase().contains("gradient")
+            || bg_image.to_ascii_lowercase().contains("url("))
 }
 
 /// Port of `resolveBackground(el, win, customPropMap)` (`customPropMap`
@@ -190,13 +209,23 @@ pub fn resolve_background<'a>(el: ElementRef<'a>, doc: &StaticDocument) -> Optio
         if gradient_or_url {
             let tag = tag_lower(cur);
             if tag == "body" || tag == "html" {
-                return Some(Rgba { r: 255.0, g: 255.0, b: 255.0, a: 1.0 });
+                return Some(Rgba {
+                    r: 255.0,
+                    g: 255.0,
+                    b: 255.0,
+                    a: 1.0,
+                });
             }
             return None;
         }
         current = parent_element(cur);
     }
-    Some(Rgba { r: 255.0, g: 255.0, b: 255.0, a: 1.0 })
+    Some(Rgba {
+        r: 255.0,
+        g: 255.0,
+        b: 255.0,
+        a: 1.0,
+    })
 }
 
 /// Port of `resolveGradientStops(el, win)`.
@@ -204,7 +233,10 @@ pub fn resolve_gradient_stops(el: ElementRef, doc: &StaticDocument) -> Vec<Rgba>
     let mut current = Some(el);
     while let Some(cur) = current {
         let bg_image = bg_image_of(cur, doc);
-        if !bg_image.is_empty() && bg_image != "none" && bg_image.to_ascii_lowercase().contains("gradient") {
+        if !bg_image.is_empty()
+            && bg_image != "none"
+            && bg_image.to_ascii_lowercase().contains("gradient")
+        {
             let stops = crate::wf_port::w2_014::color::parse_gradient_colors(Some(&bg_image));
             if !stops.is_empty() {
                 return stops;
@@ -226,7 +258,9 @@ pub fn resolve_gradient_stops(el: ElementRef, doc: &StaticDocument) -> Vec<Rgba>
 
 fn raw_bg_image_declaration(raw_style: &str) -> Option<String> {
     let lower = raw_style.to_ascii_lowercase();
-    let idx = lower.find("background-image").or_else(|| lower.find("background"))?;
+    let idx = lower
+        .find("background-image")
+        .or_else(|| lower.find("background"))?;
     let after_colon = raw_style[idx..].find(':')?;
     let rest = &raw_style[idx + after_colon + 1..];
     let end = rest.find(';').unwrap_or(rest.len());
@@ -308,8 +342,13 @@ pub fn check_element_borders(
         style.get_property_value("border-bottom-color"),
         style.get_property_value("border-left-color"),
     ];
-    let w: Vec<f64> = widths.iter().map(|w| leading_number(w).unwrap_or(0.0)).collect();
-    let radius = resolved_radius.unwrap_or_else(|| leading_number(&style.get_property_value("border-radius")).unwrap_or(0.0));
+    let w: Vec<f64> = widths
+        .iter()
+        .map(|w| leading_number(w).unwrap_or(0.0))
+        .collect();
+    let radius = resolved_radius.unwrap_or_else(|| {
+        leading_number(&style.get_property_value("border-radius")).unwrap_or(0.0)
+    });
     check_borders(
         tag,
         &BorderSides {
@@ -327,7 +366,12 @@ pub fn check_element_borders(
 
 // ─── checkElementColors (checks.mjs ~1748-1801) ────────────────────────────
 
-pub fn check_element_colors(el: ElementRef, doc: &StaticDocument, style: &crate::wf_port::r09::ComputedStyle, tag: &str) -> Vec<Finding> {
+pub fn check_element_colors(
+    el: ElementRef,
+    doc: &StaticDocument,
+    style: &crate::wf_port::r09::ComputedStyle,
+    tag: &str,
+) -> Vec<Finding> {
     let direct = direct_text(el);
     let has_direct_text = !direct.trim().is_empty();
     let effective_bg = resolve_background(el, doc);
@@ -339,7 +383,11 @@ pub fn check_element_colors(el: ElementRef, doc: &StaticDocument, style: &crate:
     };
     let bg_clip_raw = {
         let webkit = style.get_property_value("-webkit-background-clip");
-        if webkit.is_empty() { style.get_property_value("background-clip") } else { webkit }
+        if webkit.is_empty() {
+            style.get_property_value("background-clip")
+        } else {
+            webkit
+        }
     };
     let bg_image_raw = style.get_property_value("background-image");
     let class_list_raw = class_list(&el);
@@ -375,7 +423,9 @@ fn is_icon_child(el: &ElementRef) -> bool {
 }
 
 pub fn check_element_icon_tile(el: ElementRef, doc: &StaticDocument, tag: &str) -> Vec<Finding> {
-    let Some(sibling) = previous_element_sibling(el) else { return vec![] };
+    let Some(sibling) = previous_element_sibling(el) else {
+        return vec![];
+    };
     let sib_style = doc.get_style(&sibling);
     let sib_width = leading_number(&sib_style.get_property_value("width")).unwrap_or(0.0);
     let sib_height = leading_number(&sib_style.get_property_value("height")).unwrap_or(0.0);
@@ -389,7 +439,8 @@ pub fn check_element_icon_tile(el: ElementRef, doc: &StaticDocument, tag: &str) 
             .unwrap_or(0.0);
     }
     let sib_direct = direct_text(sibling);
-    let has_inline_emoji_icon = children_elements(sibling).is_empty() && is_emoji_only_text(&sib_direct);
+    let has_inline_emoji_icon =
+        children_elements(sibling).is_empty() && is_emoji_only_text(&sib_direct);
 
     let sib_tag = tag_lower(sibling);
     let heading_text = text_content(el);
@@ -404,7 +455,8 @@ pub fn check_element_icon_tile(el: ElementRef, doc: &StaticDocument, tag: &str) 
         sibling_bottom: 0.0,
         sibling_bg_color: parse_rgb(Some(&sib_style.get_property_value("background-color"))),
         sibling_bg_image: non_empty(&sib_bg_image),
-        sibling_border_width: leading_number(&sib_style.get_property_value("border-top-width")).unwrap_or(0.0),
+        sibling_border_width: leading_number(&sib_style.get_property_value("border-top-width"))
+            .unwrap_or(0.0),
         sibling_border_radius: resolve_border_radius_px(&sib_style, sib_width),
         has_icon_child: icon_child.is_some() || has_inline_emoji_icon,
         icon_child_width: Some(icon_width),
@@ -413,7 +465,11 @@ pub fn check_element_icon_tile(el: ElementRef, doc: &StaticDocument, tag: &str) 
 
 // ─── checkElementItalicSerif (checks.mjs ~1839-1848) ───────────────────────
 
-pub fn check_element_italic_serif(el: ElementRef, style: &crate::wf_port::r09::ComputedStyle, tag: &str) -> Vec<Finding> {
+pub fn check_element_italic_serif(
+    el: ElementRef,
+    style: &crate::wf_port::r09::ComputedStyle,
+    tag: &str,
+) -> Vec<Finding> {
     if tag != "h1" && tag != "h2" {
         return vec![];
     }
@@ -431,11 +487,18 @@ pub fn check_element_italic_serif(el: ElementRef, style: &crate::wf_port::r09::C
 
 // ─── checkElementHeroEyebrow (checks.mjs ~1850-1878) ───────────────────────
 
-pub fn check_element_hero_eyebrow(el: ElementRef, doc: &StaticDocument, style: &crate::wf_port::r09::ComputedStyle, tag: &str) -> Vec<Finding> {
+pub fn check_element_hero_eyebrow(
+    el: ElementRef,
+    doc: &StaticDocument,
+    style: &crate::wf_port::r09::ComputedStyle,
+    tag: &str,
+) -> Vec<Finding> {
     if tag != "h1" {
         return vec![];
     }
-    let Some(sibling) = previous_element_sibling(el) else { return vec![] };
+    let Some(sibling) = previous_element_sibling(el) else {
+        return vec![];
+    };
     let sib_style = doc.get_style(&sibling);
     let sib_font_size = leading_number(&sib_style.get_property_value("font-size")).unwrap_or(0.0);
     let letter_spacing_raw = sib_style.get_property_value("letter-spacing");
@@ -451,8 +514,10 @@ pub fn check_element_hero_eyebrow(el: ElementRef, doc: &StaticDocument, style: &
         sibling_text: &sibling_text,
         sibling_text_transform: non_empty(&sib_text_transform),
         sibling_font_size: sib_font_size,
-        sibling_letter_spacing: resolve_length_px(&letter_spacing_raw, sib_font_size).unwrap_or(0.0),
-        sibling_font_weight: leading_number(&sib_style.get_property_value("font-weight")).unwrap_or(0.0),
+        sibling_letter_spacing: resolve_length_px(&letter_spacing_raw, sib_font_size)
+            .unwrap_or(0.0),
+        sibling_font_weight: leading_number(&sib_style.get_property_value("font-weight"))
+            .unwrap_or(0.0),
         sibling_color: non_empty(&sib_color),
     })
 }
@@ -487,7 +552,11 @@ pub fn check_element_motion(tag: &str, style: &crate::wf_port::r09::ComputedStyl
     })
 }
 
-pub fn check_element_glow(tag: &str, style: &crate::wf_port::r09::ComputedStyle, effective_bg: Option<Rgba>) -> Vec<Finding> {
+pub fn check_element_glow(
+    tag: &str,
+    style: &crate::wf_port::r09::ComputedStyle,
+    effective_bg: Option<Rgba>,
+) -> Vec<Finding> {
     let box_shadow = style.get_property_value("box-shadow");
     if box_shadow.is_empty() || box_shadow == "none" {
         return vec![];
@@ -530,7 +599,12 @@ pub fn check_element_gpt_border_shadow(style: &crate::wf_port::r09::ComputedStyl
     let right = style.get_property_value("border-right-color");
     let bottom = style.get_property_value("border-bottom-color");
     let left = style.get_property_value("border-left-color");
-    let colors = border_colors_from_style(non_empty(&top), non_empty(&right), non_empty(&bottom), non_empty(&left));
+    let colors = border_colors_from_style(
+        non_empty(&top),
+        non_empty(&right),
+        non_empty(&bottom),
+        non_empty(&left),
+    );
     let box_shadow = style.get_property_value("box-shadow");
     check_gpt_thin_border_wide_shadow(&widths, &colors, &box_shadow)
 }
@@ -549,7 +623,11 @@ fn is_positioned_decorative(child: ElementRef) -> bool {
     if matches!(tag.as_str(), "img" | "svg" | "canvas" | "video") {
         return true;
     }
-    let ident = format!("{} {}", class_list(&child), attr(&child, "id").unwrap_or(""));
+    let ident = format!(
+        "{} {}",
+        class_list(&child),
+        attr(&child, "id").unwrap_or("")
+    );
     let decor_re = decorative_ident_re();
     if decor_re.is_match(&ident) && !positioned_child_has_substantive_content(child) {
         return true;
@@ -582,7 +660,10 @@ fn is_interactive(el: ElementRef) -> bool {
     if tag == "a" && attr(&el, "href").is_some() {
         return true;
     }
-    if matches!(tag.as_str(), "button" | "input" | "select" | "summary" | "textarea") {
+    if matches!(
+        tag.as_str(),
+        "button" | "input" | "select" | "summary" | "textarea"
+    ) {
         return true;
     }
     if let Some(tabindex) = attr(&el, "tabindex") {
@@ -597,11 +678,14 @@ fn is_interactive(el: ElementRef) -> bool {
 }
 
 fn clipping_container_is_intentional_viewport(el: ElementRef) -> bool {
-    let role_desc = attr(&el, "aria-roledescription").unwrap_or("").to_ascii_lowercase();
+    let role_desc = attr(&el, "aria-roledescription")
+        .unwrap_or("")
+        .to_ascii_lowercase();
     if role_desc.contains("carousel") || role_desc.contains("slider") {
         return true;
     }
-    let ident = format!("{} {}", class_list(&el), attr(&el, "id").unwrap_or("")).to_ascii_lowercase();
+    let ident =
+        format!("{} {}", class_list(&el), attr(&el, "id").unwrap_or("")).to_ascii_lowercase();
     let re = viewport_ident_re();
     re.is_match(&ident)
 }
@@ -615,8 +699,17 @@ fn viewport_ident_re() -> &'static regex::Regex {
 
 fn positioned_style_implies_escape(style: &crate::wf_port::r09::ComputedStyle) -> bool {
     let props = [
-        "top", "right", "bottom", "left", "inset", "inset-block", "inset-inline",
-        "inset-block-start", "inset-block-end", "inset-inline-start", "inset-inline-end",
+        "top",
+        "right",
+        "bottom",
+        "left",
+        "inset",
+        "inset-block",
+        "inset-inline",
+        "inset-block-start",
+        "inset-block-end",
+        "inset-inline-start",
+        "inset-inline-end",
     ];
     let neg_re = negative_leading_re();
     let full_re = full_percent_re();
@@ -647,7 +740,11 @@ fn full_percent_re() -> &'static regex::Regex {
 /// `null` here (its `elementRect` guard fails the same way it does in the
 /// static JS engine), and every candidate falls through to
 /// `positionedStyleImpliesEscape` — exactly the JS fallback path.
-pub fn check_element_clipped_overflow(el: ElementRef, doc: &StaticDocument, style: &crate::wf_port::r09::ComputedStyle) -> Vec<Finding> {
+pub fn check_element_clipped_overflow(
+    el: ElementRef,
+    doc: &StaticDocument,
+    style: &crate::wf_port::r09::ComputedStyle,
+) -> Vec<Finding> {
     let clips = |v: &str| v == "hidden" || v == "clip";
     let scrolls = |v: &str| v == "auto" || v == "scroll";
     let ox = style.get_property_value("overflow-x");
@@ -689,12 +786,16 @@ pub fn check_element_clipped_overflow(el: ElementRef, doc: &StaticDocument, styl
 // ─── checkElementQuality / checkQuality (checks.mjs ~1349-1660, rect=None) ──
 
 const FLUSH_SKIP_TAGS: &[&str] = &[
-    "html", "body", "main", "header", "footer", "nav", "article", "aside", "button", "a",
-    "label", "summary", "code", "pre", "input", "textarea", "select", "form", "figure", "table",
-    "tbody", "thead", "tr", "td", "th",
+    "html", "body", "main", "header", "footer", "nav", "article", "aside", "button", "a", "label",
+    "summary", "code", "pre", "input", "textarea", "select", "form", "figure", "table", "tbody",
+    "thead", "tr", "td", "th",
 ];
 
-fn has_visible_background_boundary(style: &crate::wf_port::r09::ComputedStyle, el: ElementRef, doc: &StaticDocument) -> bool {
+fn has_visible_background_boundary(
+    style: &crate::wf_port::r09::ComputedStyle,
+    el: ElementRef,
+    doc: &StaticDocument,
+) -> bool {
     let bg = style.get_property_value("background-color");
     if css_color_is_transparent(&bg) {
         return false;
@@ -713,7 +814,12 @@ fn has_visible_background_boundary(style: &crate::wf_port::r09::ComputedStyle, e
 
 /// Port of `checkQuality(opts)` with `opts.rect = null` (the static-adapter
 /// path — see module doc for exactly which rect-gated branches that skips).
-pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate::wf_port::r09::ComputedStyle, tag: &str) -> Vec<Finding> {
+pub fn check_element_quality(
+    el: ElementRef,
+    doc: &StaticDocument,
+    style: &crate::wf_port::r09::ComputedStyle,
+    tag: &str,
+) -> Vec<Finding> {
     let el_id = attr(&el, "id").unwrap_or("");
     if el_id.starts_with("claude-") || el_id.starts_with("cic-") {
         return vec![];
@@ -765,7 +871,8 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
             border_w[2] > 0.0 && !css_color_is_transparent(&border_colors[2]),
             border_w[3] > 0.0 && !css_color_is_transparent(&border_colors[3]),
         ];
-        let mut outline_w = leading_number(&style.get_property_value("outline-width")).unwrap_or(0.0);
+        let mut outline_w =
+            leading_number(&style.get_property_value("outline-width")).unwrap_or(0.0);
         let mut outline_style_val = style.get_property_value("outline-style");
         let mut outline_color_val = style.get_property_value("outline-color");
         let outline_shorthand = style.get_property_value("outline");
@@ -773,7 +880,8 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
             if let Some(w) = outline_width_re().captures(&outline_shorthand) {
                 outline_w = w[1].parse().unwrap_or(0.0);
             }
-            if outline_style_val.is_empty() && outline_style_word_re().is_match(&outline_shorthand) {
+            if outline_style_val.is_empty() && outline_style_word_re().is_match(&outline_shorthand)
+            {
                 outline_style_val = "solid".to_string();
             }
             if outline_color_val.is_empty() {
@@ -791,26 +899,38 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
 
         if any_visible {
             let pad = [
-                resolve_length_px(&style.get_property_value("padding-top"), font_size).unwrap_or(0.0),
-                resolve_length_px(&style.get_property_value("padding-right"), font_size).unwrap_or(0.0),
-                resolve_length_px(&style.get_property_value("padding-bottom"), font_size).unwrap_or(0.0),
-                resolve_length_px(&style.get_property_value("padding-left"), font_size).unwrap_or(0.0),
+                resolve_length_px(&style.get_property_value("padding-top"), font_size)
+                    .unwrap_or(0.0),
+                resolve_length_px(&style.get_property_value("padding-right"), font_size)
+                    .unwrap_or(0.0),
+                resolve_length_px(&style.get_property_value("padding-bottom"), font_size)
+                    .unwrap_or(0.0),
+                resolve_length_px(&style.get_property_value("padding-left"), font_size)
+                    .unwrap_or(0.0),
             ];
             const CHILD_INSULATE_THRESHOLD: f64 = 4.0;
             let mut children_insulate = [false; 4]; // top,right,bottom,left
             for child in &children {
                 let cs = doc.get_style(child);
                 let cp = [
-                    resolve_length_px(&cs.get_property_value("padding-top"), font_size).unwrap_or(0.0),
-                    resolve_length_px(&cs.get_property_value("padding-right"), font_size).unwrap_or(0.0),
-                    resolve_length_px(&cs.get_property_value("padding-bottom"), font_size).unwrap_or(0.0),
-                    resolve_length_px(&cs.get_property_value("padding-left"), font_size).unwrap_or(0.0),
+                    resolve_length_px(&cs.get_property_value("padding-top"), font_size)
+                        .unwrap_or(0.0),
+                    resolve_length_px(&cs.get_property_value("padding-right"), font_size)
+                        .unwrap_or(0.0),
+                    resolve_length_px(&cs.get_property_value("padding-bottom"), font_size)
+                        .unwrap_or(0.0),
+                    resolve_length_px(&cs.get_property_value("padding-left"), font_size)
+                        .unwrap_or(0.0),
                 ];
                 let cm = [
-                    resolve_length_px(&cs.get_property_value("margin-top"), font_size).unwrap_or(0.0),
-                    resolve_length_px(&cs.get_property_value("margin-right"), font_size).unwrap_or(0.0),
-                    resolve_length_px(&cs.get_property_value("margin-bottom"), font_size).unwrap_or(0.0),
-                    resolve_length_px(&cs.get_property_value("margin-left"), font_size).unwrap_or(0.0),
+                    resolve_length_px(&cs.get_property_value("margin-top"), font_size)
+                        .unwrap_or(0.0),
+                    resolve_length_px(&cs.get_property_value("margin-right"), font_size)
+                        .unwrap_or(0.0),
+                    resolve_length_px(&cs.get_property_value("margin-bottom"), font_size)
+                        .unwrap_or(0.0),
+                    resolve_length_px(&cs.get_property_value("margin-left"), font_size)
+                        .unwrap_or(0.0),
                 ];
                 for i in 0..4 {
                     if cp[i] >= CHILD_INSULATE_THRESHOLD || cm[i] >= CHILD_INSULATE_THRESHOLD {
@@ -833,7 +953,9 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
             }
 
             if !flush_sides.is_empty() {
-                let has_text_child = children.iter().any(|c| collapse_ws(&text_content(*c)).chars().count() > 4);
+                let has_text_child = children
+                    .iter()
+                    .any(|c| collapse_ws(&text_content(*c)).chars().count() > 4);
                 if has_text_child {
                     let cls = class_list(&el).split_whitespace().next().unwrap_or("");
                     let mut boundary_parts = Vec::new();
@@ -866,7 +988,10 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
                     };
                     findings.push(Finding {
                         id: "cramped-padding",
-                        snippet: format!("{ident}: children flush against {} on {sides_label} (no inset)", boundary_parts.join("+")),
+                        snippet: format!(
+                            "{ident}: children flush against {} on {sides_label} (no inset)",
+                            boundary_parts.join("+")
+                        ),
                     });
                 }
             }
@@ -892,7 +1017,11 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
     if has_direct_text && style.get_property_value("text-align") == "justify" {
         let hyphens = {
             let h = style.get_property_value("hyphens");
-            if h.is_empty() { style.get_property_value("-webkit-hyphens") } else { h }
+            if h.is_empty() {
+                style.get_property_value("-webkit-hyphens")
+            } else {
+                h
+            }
         };
         if hyphens != "auto" {
             findings.push(Finding {
@@ -904,7 +1033,16 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
 
     // --- Tiny body text ---
     if has_direct_text && text_len > 20 && font_size < 12.0 {
-        let skip_tags = ["sub", "sup", "code", "kbd", "samp", "var", "caption", "figcaption"];
+        let skip_tags = [
+            "sub",
+            "sup",
+            "code",
+            "kbd",
+            "samp",
+            "var",
+            "caption",
+            "figcaption",
+        ];
         let in_ui_context = closest_where(el, |e| is_ui_context_tag(*e)).is_some();
         let is_uppercase = style.get_property_value("text-transform") == "uppercase";
         if !skip_tags.contains(&tag) && !in_ui_context && !is_uppercase {
@@ -916,7 +1054,8 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
     }
 
     // --- All-caps body text ---
-    if has_direct_text && text_len > 30 && style.get_property_value("text-transform") == "uppercase" {
+    if has_direct_text && text_len > 30 && style.get_property_value("text-transform") == "uppercase"
+    {
         if !matches!(tag, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
             findings.push(Finding {
                 id: "all-caps-body",
@@ -926,7 +1065,8 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
     }
 
     // --- Wide letter spacing on body text ---
-    if has_direct_text && text_len > 20 && style.get_property_value("text-transform") != "uppercase" {
+    if has_direct_text && text_len > 20 && style.get_property_value("text-transform") != "uppercase"
+    {
         if let Some(ls) = letter_spacing_px {
             if ls > 0.0 && font_size > 0.0 {
                 let tracking_em = ls / font_size;
@@ -946,7 +1086,8 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
             if ls < 0.0 {
                 let tracking_em = ls / font_size;
                 if tracking_em <= -0.05 {
-                    let excerpt: String = collapse_ws(&text_content_full).chars().take(40).collect();
+                    let excerpt: String =
+                        collapse_ws(&text_content_full).chars().take(40).collect();
                     findings.push(Finding {
                         id: "extreme-negative-tracking",
                         snippet: format!("letter-spacing: {tracking_em:.2}em — \"{excerpt}\""),
@@ -961,13 +1102,19 @@ pub fn check_element_quality(el: ElementRef, doc: &StaticDocument, style: &crate
 
 fn is_ui_context_tag(el: ElementRef) -> bool {
     let tag = tag_lower(el);
-    if matches!(tag.as_str(), "button" | "a" | "label" | "summary" | "pre" | "nav" | "footer") {
+    if matches!(
+        tag.as_str(),
+        "button" | "a" | "label" | "summary" | "pre" | "nav" | "footer"
+    ) {
         return true;
     }
     if attr(&el, "aria-hidden") == Some("true") {
         return true;
     }
-    if matches!(attr(&el, "role").unwrap_or(""), "button" | "link" | "tab" | "menuitem" | "option") {
+    if matches!(
+        attr(&el, "role").unwrap_or(""),
+        "button" | "link" | "tab" | "menuitem" | "option"
+    ) {
         return true;
     }
     let cls = class_list(&el).to_ascii_lowercase();
@@ -987,7 +1134,8 @@ fn outline_width_re() -> &'static regex::Regex {
 fn outline_style_word_re() -> &'static regex::Regex {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     RE.get_or_init(|| {
-        regex::Regex::new(r"(?i)\b(solid|dashed|dotted|double|groove|ridge|inset|outset)\b").unwrap()
+        regex::Regex::new(r"(?i)\b(solid|dashed|dotted|double|groove|ridge|inset|outset)\b")
+            .unwrap()
     })
 }
 
@@ -1040,7 +1188,20 @@ fn is_repeated_kicker_card_context(heading: ElementRef, kicker: ElementRef) -> b
 
 fn kicker_skip(e: &ElementRef) -> bool {
     let tag = tag_lower(*e);
-    if matches!(tag.as_str(), "nav" | "form" | "table" | "thead" | "tbody" | "tfoot" | "figure" | "figcaption" | "ol" | "ul" | "li") {
+    if matches!(
+        tag.as_str(),
+        "nav"
+            | "form"
+            | "table"
+            | "thead"
+            | "tbody"
+            | "tfoot"
+            | "figure"
+            | "figcaption"
+            | "ol"
+            | "ul"
+            | "li"
+    ) {
         return true;
     }
     if attr(e, "role") == Some("navigation") {
@@ -1051,7 +1212,9 @@ fn kicker_skip(e: &ElementRef) -> bool {
     }
     let cls = class_list(e).to_ascii_lowercase();
     let aria = attr(e, "aria-label").unwrap_or("").to_ascii_lowercase();
-    cls.contains("breadcrumb") || aria.contains("breadcrumb") || attr(e, "data-impeccable-allow-kickers").is_some()
+    cls.contains("breadcrumb")
+        || aria.contains("breadcrumb")
+        || attr(e, "data-impeccable-allow-kickers").is_some()
 }
 
 fn is_repeated_kicker_candidate(
@@ -1091,7 +1254,8 @@ fn is_repeated_kicker_candidate(
         return false;
     }
     let is_uppercased = kicker_text_transform == "uppercase"
-        || (kicker_text.chars().any(|c| c.is_ascii_uppercase()) && !kicker_text.chars().any(|c| c.is_ascii_lowercase()));
+        || (kicker_text.chars().any(|c| c.is_ascii_uppercase())
+            && !kicker_text.chars().any(|c| c.is_ascii_lowercase()));
     if !is_uppercased {
         return false;
     }
@@ -1127,7 +1291,9 @@ pub fn check_repeated_section_kickers_from_doc(doc: &StaticDocument) -> Vec<Find
         if closest_where(heading, kicker_skip).is_some() {
             continue;
         }
-        let Some(kicker) = previous_element_sibling(heading) else { continue };
+        let Some(kicker) = previous_element_sibling(heading) else {
+            continue;
+        };
         if closest_where(kicker, kicker_skip).is_some() {
             continue;
         }
@@ -1144,14 +1310,19 @@ pub fn check_repeated_section_kickers_from_doc(doc: &StaticDocument) -> Vec<Find
         } else {
             kicker_text_raw
         };
-        let heading_font_size = resolve_length_px(&heading_style.get_property_value("font-size"), 16.0)
-            .or_else(|| leading_number(&heading_style.get_property_value("font-size")))
-            .unwrap_or(0.0);
-        let kicker_font_size = resolve_length_px(&kicker_style.get_property_value("font-size"), 16.0)
-            .or_else(|| leading_number(&kicker_style.get_property_value("font-size")))
-            .unwrap_or(0.0);
-        let kicker_letter_spacing =
-            resolve_length_px(&kicker_style.get_property_value("letter-spacing"), kicker_font_size).unwrap_or(0.0);
+        let heading_font_size =
+            resolve_length_px(&heading_style.get_property_value("font-size"), 16.0)
+                .or_else(|| leading_number(&heading_style.get_property_value("font-size")))
+                .unwrap_or(0.0);
+        let kicker_font_size =
+            resolve_length_px(&kicker_style.get_property_value("font-size"), 16.0)
+                .or_else(|| leading_number(&kicker_style.get_property_value("font-size")))
+                .unwrap_or(0.0);
+        let kicker_letter_spacing = resolve_length_px(
+            &kicker_style.get_property_value("letter-spacing"),
+            kicker_font_size,
+        )
+        .unwrap_or(0.0);
 
         let heading_tag = tag_lower(heading);
         let kicker_tag = tag_lower(kicker);
@@ -1184,7 +1355,10 @@ pub fn check_repeated_section_kickers_from_doc(doc: &StaticDocument) -> Vec<Find
 fn is_card_like(el: ElementRef, doc: &StaticDocument) -> bool {
     let tag = tag_lower(el);
     if crate::p8_designer::constants::SAFE_TAGS.contains(tag.as_str())
-        || matches!(tag.as_str(), "input" | "select" | "textarea" | "img" | "video" | "canvas" | "picture")
+        || matches!(
+            tag.as_str(),
+            "input" | "select" | "textarea" | "img" | "video" | "canvas" | "picture"
+        )
     {
         return false;
     }
@@ -1224,7 +1398,9 @@ fn bg_class_re() -> &'static regex::Regex {
 }
 fn bg_decl_re() -> &'static regex::Regex {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"(?i)background(?:-color)?\s*:\s*(?!transparent)").unwrap())
+    RE.get_or_init(|| {
+        regex::Regex::new(r"(?i)background(?:-color)?\s*:\s*(?!transparent)").unwrap()
+    })
 }
 fn absolute_fixed_class_re() -> &'static regex::Regex {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
@@ -1236,7 +1412,9 @@ fn position_abs_fixed_re() -> &'static regex::Regex {
 }
 fn dropdown_like_re() -> &'static regex::Regex {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"(?i)\b(?:dropdown|popover|tooltip|menu|modal|dialog)\b").unwrap())
+    RE.get_or_init(|| {
+        regex::Regex::new(r"(?i)\b(?:dropdown|popover|tooltip|menu|modal|dialog)\b").unwrap()
+    })
 }
 
 /// Port of `checkPageLayout(doc, win)`.
@@ -1277,7 +1455,9 @@ pub fn check_page_layout(doc: &StaticDocument) -> Vec<Finding> {
 
     let mut findings = Vec::new();
     for el in &flagged {
-        let is_ancestor = flagged.iter().any(|other| other.id() != el.id() && contains(*other, *el));
+        let is_ancestor = flagged
+            .iter()
+            .any(|other| other.id() != el.id() && contains(*other, *el));
         if !is_ancestor {
             findings.push(Finding {
                 id: "nested-cards",
@@ -1291,11 +1471,14 @@ pub fn check_page_layout(doc: &StaticDocument) -> Vec<Finding> {
 /// Port of `checkCreamPalette(doc, win)`.
 pub fn check_cream_palette(doc: &StaticDocument) -> Vec<Finding> {
     let body_sel = scraper::Selector::parse("body").expect("selector");
-    let Some(body) = doc.html.select(&body_sel).next() else { return vec![] };
+    let Some(body) = doc.html.select(&body_sel).next() else {
+        return vec![];
+    };
     let html_el = doc.html.root_element();
 
     let body_style = doc.get_style(&body);
-    let mut bg = read_own_background_color(body, &body_style.get_property_value("background-color"));
+    let mut bg =
+        read_own_background_color(body, &body_style.get_property_value("background-color"));
     if bg.as_ref().map(|c| c.a == 0.0).unwrap_or(true) {
         let html_style = doc.get_style(&html_el);
         bg = read_own_background_color(html_el, &html_style.get_property_value("background-color"));
@@ -1304,13 +1487,18 @@ pub fn check_cream_palette(doc: &StaticDocument) -> Vec<Finding> {
         if crate::l6_designer_checks::pure_checks::is_cream_color(rgb.r, rgb.g, rgb.b) {
             return vec![Finding {
                 id: "cream-palette",
-                snippet: format!("cream/beige page background rgb({}, {}, {})", rgb.r as i64, rgb.g as i64, rgb.b as i64),
+                snippet: format!(
+                    "cream/beige page background rgb({}, {}, {})",
+                    rgb.r as i64, rgb.g as i64, rgb.b as i64
+                ),
             }];
         }
     }
 
     for el in [body, html_el] {
-        if let Some(tok) = crate::l6_designer_checks::pure_checks::cream_from_class_list(attr(&el, "class")) {
+        if let Some(tok) =
+            crate::l6_designer_checks::pure_checks::cream_from_class_list(attr(&el, "class"))
+        {
             return vec![Finding {
                 id: "cream-palette",
                 snippet: format!("cream/beige page background (Tailwind {tok})"),
@@ -1319,4 +1507,3 @@ pub fn check_cream_palette(doc: &StaticDocument) -> Vec<Finding> {
     }
     vec![]
 }
-

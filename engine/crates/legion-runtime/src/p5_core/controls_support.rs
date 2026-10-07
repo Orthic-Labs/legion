@@ -109,7 +109,10 @@ fn write_json_string(out: &mut String, s: &str) {
 
 /// Port of `digest(value)`: `sha256:` + hex sha256 of the canonical JSON text.
 pub fn digest(value: &Value) -> String {
-    format!("sha256:{}", sha256_hex(value.to_canonical_string().as_bytes()))
+    format!(
+        "sha256:{}",
+        sha256_hex(value.to_canonical_string().as_bytes())
+    )
 }
 
 /// Port of `sameBinding(left, right)`: digest equality, treating `None` as
@@ -135,7 +138,8 @@ const K: [u32; 64] = [
 
 fn sha256_hex(data: &[u8]) -> String {
     let mut h: [u32; 8] = [
-        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+        0x5be0cd19,
     ];
 
     let bit_len = (data.len() as u64) * 8;
@@ -149,7 +153,12 @@ fn sha256_hex(data: &[u8]) -> String {
     for chunk in msg.chunks(64) {
         let mut w = [0u32; 64];
         for i in 0..16 {
-            w[i] = u32::from_be_bytes([chunk[i * 4], chunk[i * 4 + 1], chunk[i * 4 + 2], chunk[i * 4 + 3]]);
+            w[i] = u32::from_be_bytes([
+                chunk[i * 4],
+                chunk[i * 4 + 1],
+                chunk[i * 4 + 2],
+                chunk[i * 4 + 3],
+            ]);
         }
         for i in 16..64 {
             let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
@@ -225,10 +234,7 @@ mod tests {
 
     #[test]
     fn canonical_string_sorts_object_keys() {
-        let value = Value::object([
-            ("b", Value::Number(1.0)),
-            ("a", Value::Number(2.0)),
-        ]);
+        let value = Value::object([("b", Value::Number(1.0)), ("a", Value::Number(2.0))]);
         assert_eq!(value.to_canonical_string(), r#"{"a":2,"b":1}"#);
     }
 

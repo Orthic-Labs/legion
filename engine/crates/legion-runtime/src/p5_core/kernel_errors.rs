@@ -53,7 +53,11 @@ pub struct KernelError {
 }
 
 impl KernelError {
-    pub fn new(code: impl Into<String>, message: impl Into<String>, options: KernelErrorOptions) -> Self {
+    pub fn new(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        options: KernelErrorOptions,
+    ) -> Self {
         let category = options.category.unwrap_or_else(|| "internal".to_string());
         let exit_code = exit_code_for_category(&category);
         KernelError {
@@ -71,7 +75,11 @@ impl KernelError {
     }
 
     /// Convenience constructor matching the common `(code, message, category)` call shape.
-    pub fn simple(code: impl Into<String>, message: impl Into<String>, category: impl Into<String>) -> Self {
+    pub fn simple(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        category: impl Into<String>,
+    ) -> Self {
         Self::new(
             code,
             message,

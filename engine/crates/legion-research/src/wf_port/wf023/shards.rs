@@ -11,8 +11,8 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use sha2::{Digest, Sha256};
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 
 /// `shards.VALID_STATES`.
 pub const VALID_STATES: &[&str] = &["pending", "running", "done", "failed"];
@@ -77,7 +77,11 @@ pub fn plan(run_id: &str, work_items: &[WorkItem]) -> Result<ShardPlan, String> 
             artifacts: Map::new(),
         });
     }
-    Ok(ShardPlan { schema_version: 1, run_id: run_id.to_string(), shards: rows })
+    Ok(ShardPlan {
+        schema_version: 1,
+        run_id: run_id.to_string(),
+        shards: rows,
+    })
 }
 
 /// `shards.checkpoint`. `artifacts`, when given, is merged into the shard's
@@ -135,7 +139,11 @@ pub struct MergeReceipt {
 
 /// `shards.merge_jsonl`. `id_field` defaults to `"id"` in the Python
 /// signature; callers here pass it explicitly.
-pub fn merge_jsonl(paths: &[&Path], output: &Path, id_field: &str) -> std::io::Result<MergeReceipt> {
+pub fn merge_jsonl(
+    paths: &[&Path],
+    output: &Path,
+    id_field: &str,
+) -> std::io::Result<MergeReceipt> {
     let mut rows: Vec<Value> = Vec::new();
     let mut seen: std::collections::BTreeMap<String, &Path> = std::collections::BTreeMap::new();
     for path in paths.iter().copied() {
@@ -146,7 +154,10 @@ pub fn merge_jsonl(paths: &[&Path], output: &Path, id_field: &str) -> std::io::R
                 continue;
             }
             let row: Value = serde_json::from_str(line).map_err(|e| {
-                std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{}:{number}: {e}", path.display()))
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("{}:{number}: {e}", path.display()),
+                )
             })?;
             let key = row
                 .get(id_field)
@@ -164,7 +175,11 @@ pub fn merge_jsonl(paths: &[&Path], output: &Path, id_field: &str) -> std::io::R
             if let Some(prior) = seen.get(&key) {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
-                    format!("duplicate {id_field} {key:?} in {} and {}", prior.display(), path.display()),
+                    format!(
+                        "duplicate {id_field} {key:?} in {} and {}",
+                        prior.display(),
+                        path.display()
+                    ),
                 ));
             }
             seen.insert(key, path);
@@ -190,7 +205,11 @@ pub fn merge_jsonl(paths: &[&Path], output: &Path, id_field: &str) -> std::io::R
         hasher.update(text.as_bytes());
         hex::encode(hasher.finalize())
     };
-    Ok(MergeReceipt { rows: rows.len(), sha256, output: output.display().to_string() })
+    Ok(MergeReceipt {
+        rows: rows.len(),
+        sha256,
+        output: output.display().to_string(),
+    })
 }
 
 /// Matches `json.dumps(row, sort_keys=True, ensure_ascii=False)`: keys
@@ -221,8 +240,14 @@ mod tests {
 
     fn items() -> Vec<WorkItem> {
         vec![
-            WorkItem { key: "pricing".into(), payload: json!({"query": "price"}) },
-            WorkItem { key: "privacy".into(), payload: json!({"query": "privacy"}) },
+            WorkItem {
+                key: "pricing".into(),
+                payload: json!({"query": "price"}),
+            },
+            WorkItem {
+                key: "privacy".into(),
+                payload: json!({"query": "privacy"}),
+            },
         ]
     }
 
@@ -231,7 +256,11 @@ mod tests {
     fn plan_checkpoint_resume_and_merge_are_deterministic() {
         let mut plan_doc = plan("run-1", &items()).unwrap();
         assert_eq!(
-            plan_doc.shards.iter().map(|r| r.id.clone()).collect::<Vec<_>>(),
+            plan_doc
+                .shards
+                .iter()
+                .map(|r| r.id.clone())
+                .collect::<Vec<_>>(),
             vec![shard_id("run-1", "pricing"), shard_id("run-1", "privacy")]
         );
         let first = plan_doc.shards[0].id.clone();
@@ -244,10 +273,17 @@ mod tests {
         checkpoint(&mut plan_doc, &second, "running", None).unwrap();
         checkpoint(&mut plan_doc, &second, "failed", None).unwrap();
 
-        assert_eq!(resumable(&plan_doc).iter().map(|r| r.id.clone()).collect::<Vec<_>>(), vec![second]);
+        assert_eq!(
+            resumable(&plan_doc)
+                .iter()
+                .map(|r| r.id.clone())
+                .collect::<Vec<_>>(),
+            vec![second]
+        );
         assert_eq!(plan_doc.shards[0].attempts, 1);
 
-        let dir = std::env::temp_dir().join(format!("legion-wf023-shards-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("legion-wf023-shards-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let one = dir.join("one.jsonl");
@@ -261,7 +297,12 @@ mod tests {
         let merged = std::fs::read_to_string(&out).unwrap();
         let ids: Vec<String> = merged
             .lines()
-            .map(|line| serde_json::from_str::<Value>(line).unwrap()["id"].as_str().unwrap().to_string())
+            .map(|line| {
+                serde_json::from_str::<Value>(line).unwrap()["id"]
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
             .collect();
         assert_eq!(ids, vec!["a", "b"]);
 
@@ -275,8 +316,14 @@ mod tests {
     #[test]
     fn plan_rejects_duplicate_keys() {
         let items = vec![
-            WorkItem { key: "a".into(), payload: Value::Null },
-            WorkItem { key: "a".into(), payload: Value::Null },
+            WorkItem {
+                key: "a".into(),
+                payload: Value::Null,
+            },
+            WorkItem {
+                key: "a".into(),
+                payload: Value::Null,
+            },
         ];
         let err = plan("run-1", &items).unwrap_err();
         assert!(err.contains("duplicate shard key"));

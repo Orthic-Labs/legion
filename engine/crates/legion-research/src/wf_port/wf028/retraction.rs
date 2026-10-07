@@ -63,13 +63,19 @@ pub fn openalex_result(response: &Value) -> Value {
 
 /// Port of `_crossref()`'s response shaping.
 pub fn crossref_result(response: &Value) -> Value {
-    let message = response.get("message").cloned().unwrap_or_else(|| json!({}));
+    let message = response
+        .get("message")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let update_to = message
         .get("update-to")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let relation = message.get("relation").cloned().unwrap_or_else(|| json!({}));
+    let relation = message
+        .get("relation")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let update_to_retracted = update_to.iter().any(|item| {
         item.get("type")
             .and_then(Value::as_str)
@@ -175,7 +181,10 @@ pub fn sweep(
         .iter()
         .map(|d| {
             let lower = d.to_lowercase();
-            lower.strip_prefix("https://doi.org/").unwrap_or(&lower).to_string()
+            lower
+                .strip_prefix("https://doi.org/")
+                .unwrap_or(&lower)
+                .to_string()
         })
         .collect();
 
@@ -196,7 +205,9 @@ pub fn sweep(
         row["block"] = json!(block);
         results.push(row);
     }
-    let block_brief = results.iter().any(|r| r["block"].as_bool().unwrap_or(false));
+    let block_brief = results
+        .iter()
+        .any(|r| r["block"].as_bool().unwrap_or(false));
     let unknown_count = results
         .iter()
         .filter(|r| r["status"].as_str() == Some("unknown"))
@@ -378,7 +389,11 @@ mod tests {
         };
         let result = sweep(
             &t,
-            &["10.1/abc".to_string(), "  ".to_string(), "10.1/abc".to_string()],
+            &[
+                "10.1/abc".to_string(),
+                "  ".to_string(),
+                "10.1/abc".to_string(),
+            ],
             &[],
             true,
             None,

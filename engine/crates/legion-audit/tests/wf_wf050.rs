@@ -16,7 +16,9 @@
 //! wf050;` inside it) into `legion_audit`'s crate root.
 
 use legion_audit::wf_port::wf050::performance::{verify_web_performance, CaptureEvidence};
-use legion_audit::wf_port::wf050::protocols::{execute_web_protocol, AdapterExecuteResult, ProtocolPlanRow};
+use legion_audit::wf_port::wf050::protocols::{
+    execute_web_protocol, AdapterExecuteResult, ProtocolPlanRow,
+};
 use legion_audit::wf_port::wf050::runner::run_web_control;
 use legion_audit::wf_port::wf050::scenario::{run_web_scenario, AdapterCallResult};
 use legion_audit::wf_port::wf050::shared::{
@@ -52,17 +54,33 @@ fn shared_exact_binding_flags_missing_keys_as_opaque_and_sorted() {
     let result = exact_binding(&json!({ "targetId": "t1" }));
     assert!(result.gaps.contains(&"environment".to_string()));
     // Every declared binding key ends up present in the normalized output.
-    for key in ["targetId", "environment", "actorId", "tenantId", "browser", "browserVersion", "viewport", "locale", "sourceRevision", "artifactDigest"] {
+    for key in [
+        "targetId",
+        "environment",
+        "actorId",
+        "tenantId",
+        "browser",
+        "browserVersion",
+        "viewport",
+        "locale",
+        "sourceRevision",
+        "artifactDigest",
+    ] {
         assert!(result.binding.get(key).is_some(), "missing key {key}");
     }
-    assert_eq!(result.binding.get("targetId"), Some(&Value::String("t1".to_string())));
+    assert_eq!(
+        result.binding.get("targetId"),
+        Some(&Value::String("t1".to_string()))
+    );
 }
 
 #[test]
 fn shared_exact_binding_flags_extra_sensitive_and_undeclared_keys() {
     let result = exact_binding(&json!({ "token": "abc", "weird": "x" }));
     assert!(result.gaps.contains(&"binding-extra-sensitive".to_string()));
-    assert!(result.gaps.contains(&"binding-extra-undeclared".to_string()));
+    assert!(result
+        .gaps
+        .contains(&"binding-extra-undeclared".to_string()));
 }
 
 #[test]
@@ -107,7 +125,10 @@ fn shared_sort_by_id_orders_lexicographically() {
 
 #[test]
 fn shared_finalize_forces_error_on_invalid_binding() {
-    let out = finalize("legion-web-test", json!({ "status": "pass", "terminal": true, "binding": {} }));
+    let out = finalize(
+        "legion-web-test",
+        json!({ "status": "pass", "terminal": true, "binding": {} }),
+    );
     assert_eq!(out["status"], json!("error"));
     assert_eq!(out["terminal"], json!(true));
     assert_eq!(out["kind"], json!("legion-web-test"));
@@ -119,15 +140,25 @@ fn shared_finalize_forces_error_on_invalid_binding() {
 // ---------------------------------------------------------------------
 
 fn passing_capture() -> CaptureEvidence {
-    CaptureEvidence { coverage_gaps: Vec::new(), digest: json!("sha256:abc"), captures: json!([]) }
+    CaptureEvidence {
+        coverage_gaps: Vec::new(),
+        digest: json!("sha256:abc"),
+        captures: json!([]),
+    }
 }
 
 #[test]
 fn performance_invalid_captures_returns_error_immediately() {
     let capture = passing_capture();
-    let result = verify_web_performance(&json!({ "binding": full_binding(), "captures": "nope" }), &capture);
+    let result = verify_web_performance(
+        &json!({ "binding": full_binding(), "captures": "nope" }),
+        &capture,
+    );
     assert_eq!(result["status"], json!("error"));
-    assert_eq!(result["coverageGaps"], json!(["performance-captures-invalid"]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!(["performance-captures-invalid"])
+    );
 }
 
 #[test]
@@ -160,7 +191,12 @@ fn performance_flags_budget_exceeded_as_fail() {
     // but the budget-exceeded gap must still force `fail`.
     let result = verify_web_performance(&input, &capture);
     assert_eq!(result["status"], json!("fail"));
-    let gaps: Vec<String> = result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"budget-exceeded:lcp".to_string()));
 }
 
@@ -175,7 +211,12 @@ fn performance_missing_budgets_is_a_gap_but_not_fail() {
     });
     let result = verify_web_performance(&input, &capture);
     assert_eq!(result["status"], json!("unproven"));
-    let gaps: Vec<String> = result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"performance-budget-missing".to_string()));
 }
 
@@ -188,26 +229,43 @@ fn protocols_blocks_in_production() {
     let mut binding = full_binding();
     binding["environment"] = json!("production");
     let input = json!({ "binding": binding, "protocol": "csrf" });
-    let plan = [ProtocolPlanRow { protocol_id: "csrf", applicable: true }];
+    let plan = [ProtocolPlanRow {
+        protocol_id: "csrf",
+        applicable: true,
+    }];
     let result = execute_web_protocol(&input, &plan, &no_sanitize, None);
     assert_eq!(result["status"], json!("blocked"));
-    assert_eq!(result["coverageGaps"], json!(["production-effect-forbidden"]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!(["production-effect-forbidden"])
+    );
 }
 
 #[test]
 fn protocols_unrecognized_protocol_is_unproven() {
     let input = json!({ "binding": full_binding(), "protocol": "unknown" });
-    let plan = [ProtocolPlanRow { protocol_id: "csrf", applicable: true }];
+    let plan = [ProtocolPlanRow {
+        protocol_id: "csrf",
+        applicable: true,
+    }];
     let result = execute_web_protocol(&input, &plan, &no_sanitize, None);
     assert_eq!(result["status"], json!("unproven"));
-    let gaps: Vec<String> = result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"protocol-unrecognized".to_string()));
 }
 
 #[test]
 fn protocols_not_applicable_is_unsupported() {
     let input = json!({ "binding": full_binding(), "protocol": "csrf" });
-    let plan = [ProtocolPlanRow { protocol_id: "csrf", applicable: false }];
+    let plan = [ProtocolPlanRow {
+        protocol_id: "csrf",
+        applicable: false,
+    }];
     let result = execute_web_protocol(&input, &plan, &no_sanitize, None);
     assert_eq!(result["status"], json!("unsupported"));
 }
@@ -215,19 +273,32 @@ fn protocols_not_applicable_is_unsupported() {
 #[test]
 fn protocols_missing_adapter_is_unproven() {
     let input = json!({ "binding": full_binding(), "protocol": "csrf" });
-    let plan = [ProtocolPlanRow { protocol_id: "csrf", applicable: true }];
+    let plan = [ProtocolPlanRow {
+        protocol_id: "csrf",
+        applicable: true,
+    }];
     let result = execute_web_protocol(&input, &plan, &no_sanitize, None);
     assert_eq!(result["status"], json!("unproven"));
-    let gaps: Vec<String> = result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"protocol-adapter-missing".to_string()));
 }
 
 #[test]
 fn protocols_adapter_success_with_full_state_passes() {
     let input = json!({ "binding": full_binding(), "protocol": "csrf" });
-    let plan = [ProtocolPlanRow { protocol_id: "csrf", applicable: true }];
+    let plan = [ProtocolPlanRow {
+        protocol_id: "csrf",
+        applicable: true,
+    }];
     let adapter = |_binding: &Value, _protocol: &str| -> AdapterExecuteResult {
-        AdapterExecuteResult::Ok(json!({ "status": "pass", "observedState": { "a": 1 }, "durableState": { "a": 1 } }))
+        AdapterExecuteResult::Ok(
+            json!({ "status": "pass", "observedState": { "a": 1 }, "durableState": { "a": 1 } }),
+        )
     };
     let result = execute_web_protocol(&input, &plan, &no_sanitize, Some(&adapter));
     assert_eq!(result["status"], json!("pass"));
@@ -237,9 +308,15 @@ fn protocols_adapter_success_with_full_state_passes() {
 #[test]
 fn protocols_adapter_error_is_error_status() {
     let input = json!({ "binding": full_binding(), "protocol": "csrf" });
-    let plan = [ProtocolPlanRow { protocol_id: "csrf", applicable: true }];
+    let plan = [ProtocolPlanRow {
+        protocol_id: "csrf",
+        applicable: true,
+    }];
     let adapter = |_binding: &Value, _protocol: &str| -> AdapterExecuteResult {
-        AdapterExecuteResult::Err { name: "Error".to_string(), message: "boom".to_string() }
+        AdapterExecuteResult::Err {
+            name: "Error".to_string(),
+            message: "boom".to_string(),
+        }
     };
     let result = execute_web_protocol(&input, &plan, &no_sanitize, Some(&adapter));
     assert_eq!(result["status"], json!("error"));
@@ -262,7 +339,10 @@ fn runner_unsupported_family_is_blocked() {
         &|_| json!({}),
     );
     assert_eq!(result["status"], json!("blocked"));
-    assert_eq!(result["coverageGaps"], json!(["web-control-family-unsupported"]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!(["web-control-family-unsupported"])
+    );
 }
 
 #[test]
@@ -330,7 +410,10 @@ fn scenario_invalid_collections_error_immediately() {
         None,
     );
     assert_eq!(result["status"], json!("error"));
-    assert_eq!(result["coverageGaps"], json!(["scenario-collections-invalid"]));
+    assert_eq!(
+        result["coverageGaps"],
+        json!(["scenario-collections-invalid"])
+    );
 }
 
 #[test]
@@ -349,7 +432,11 @@ fn scenario_blocks_in_production() {
         None,
     );
     assert_eq!(result["status"], json!("blocked"));
-    assert!(result["receipts"].as_array().unwrap().iter().all(|r| r["status"] == json!("blocked")));
+    assert!(result["receipts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|r| r["status"] == json!("blocked")));
 }
 
 #[test]
@@ -391,7 +478,11 @@ fn scenario_missing_adapter_is_unproven() {
 #[test]
 fn scenario_full_pass_with_matching_adapter() {
     let expected_state = json!({ "a": 1 });
-    let journey_invoke = |_control: &str, _journey: &Value, _binding: &Value, _expected: &Value| -> AdapterCallResult {
+    let journey_invoke = |_control: &str,
+                          _journey: &Value,
+                          _binding: &Value,
+                          _expected: &Value|
+     -> AdapterCallResult {
         AdapterCallResult::Ok(json!({
             "status": "pass",
             "terminal": true,
@@ -455,6 +546,13 @@ fn scenario_unplanned_control_marks_preflight_invalid() {
         None,
         None,
     );
-    let gaps: Vec<String> = result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
-    assert!(gaps.iter().any(|g| g.starts_with("control-unrecognized:not-a-real-control")));
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+    assert!(gaps
+        .iter()
+        .any(|g| g.starts_with("control-unrecognized:not-a-real-control")));
 }

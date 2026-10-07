@@ -14,7 +14,10 @@ const GEM_FILE_SUFFIXES: &[&str] = &["Gemfile", ".gemspec"];
 /// `detect({ projection })`.
 pub fn detect(projection: &Projection) -> bool {
     parsed_extensions_has(projection, "rb")
-        || projection.files.iter().any(|f| suffix_matches(f, GEM_FILE_SUFFIXES))
+        || projection
+            .files
+            .iter()
+            .any(|f| suffix_matches(f, GEM_FILE_SUFFIXES))
 }
 
 /// `commands({ root, files, manifests, profile })`.

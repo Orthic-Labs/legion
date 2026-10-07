@@ -30,10 +30,7 @@ impl RealChromeDriver {
     /// --disable-background-networking` flags (a fresh, isolated profile dir
     /// is `headless_chrome`'s default behaviour, matching JS's per-launch
     /// `--user-data-dir`).
-    pub fn new(
-        executable: PathBuf,
-        viewport: super::detect_url::Viewport,
-    ) -> Result<Self, String> {
+    pub fn new(executable: PathBuf, viewport: super::detect_url::Viewport) -> Result<Self, String> {
         let args: Vec<&OsStr> = vec![
             OsStr::new("--no-first-run"),
             OsStr::new("--no-default-browser-check"),
@@ -61,9 +58,7 @@ impl ChromeDriver for RealChromeDriver {
     fn navigate(&mut self, url: &str) -> Result<(), String> {
         // Mirrors `Page.navigate` + the `document.readyState === 'complete'`
         // poll loop's 30s timeout in `detectUrlCdp`.
-        self.tab
-            .navigate_to(url)
-            .map_err(|e| e.to_string())?;
+        self.tab.navigate_to(url).map_err(|e| e.to_string())?;
         self.tab
             .wait_until_navigated()
             .map_err(|e| format!("Timed out loading {url}: {e}"))?;

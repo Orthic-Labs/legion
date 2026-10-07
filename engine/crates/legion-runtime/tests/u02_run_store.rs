@@ -46,7 +46,9 @@ fn init_then_write_json_then_read_verified_round_trips() {
     assert_eq!(record.path, "artifacts/receipt.json");
     assert_eq!(record.media_type, "application/json");
 
-    let bytes = store.read_verified("artifacts/receipt.json").expect("read_verified");
+    let bytes = store
+        .read_verified("artifacts/receipt.json")
+        .expect("read_verified");
     assert_eq!(bytes, b"{\n  \"ok\": true\n}\n");
 
     let records = store.records();

@@ -59,7 +59,10 @@ pub struct Limits {
 
 impl Default for Limits {
     fn default() -> Self {
-        Limits { max_findings: 5.0, max_chars: 8000.0 }
+        Limits {
+            max_findings: 5.0,
+            max_chars: 8000.0,
+        }
     }
 }
 
@@ -201,8 +204,14 @@ fn unique_strings(values: Vec<String>) -> Vec<String> {
 pub fn normalize_ignore_value_entries(entries: &[Value]) -> Vec<IgnoreValueEntry> {
     let mut out = Vec::new();
     for entry in entries {
-        let Some(obj) = entry.as_object() else { continue };
-        let rule = obj.get("rule").and_then(Value::as_str).map(normalize_rule_id).unwrap_or_default();
+        let Some(obj) = entry.as_object() else {
+            continue;
+        };
+        let rule = obj
+            .get("rule")
+            .and_then(Value::as_str)
+            .map(normalize_rule_id)
+            .unwrap_or_default();
         let value = obj
             .get("value")
             .and_then(Value::as_str)
@@ -239,13 +248,23 @@ pub fn normalize_ignore_value_entries(entries: &[Value]) -> Vec<IgnoreValueEntry
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(str::to_string);
-        out.push(IgnoreValueEntry { rule, value, files, reason, created_at });
+        out.push(IgnoreValueEntry {
+            rule,
+            value,
+            files,
+            reason,
+            created_at,
+        });
     }
     out
 }
 
 fn ignore_value_entry_key(entry: &IgnoreValueEntry) -> String {
-    let files = if !entry.files.is_empty() { entry.files.join("\u{1f}") } else { String::new() };
+    let files = if !entry.files.is_empty() {
+        entry.files.join("\u{1f}")
+    } else {
+        String::new()
+    };
     format!("{}\0{}\0{}", entry.rule, entry.value, files)
 }
 
@@ -300,13 +319,19 @@ fn apply_detector_config_source(config: &mut ReadConfig, raw: Option<Map<String,
         config.design_system = DesignSystem { enabled };
     }
     if let Some(arr) = raw.get("ignoreRules").and_then(Value::as_array) {
-        let incoming: Vec<String> = arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+        let incoming: Vec<String> = arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect();
         let mut combined = config.ignore_rules.clone();
         combined.extend(incoming);
         config.ignore_rules = unique_strings(combined);
     }
     if let Some(arr) = raw.get("ignoreFiles").and_then(Value::as_array) {
-        let incoming: Vec<String> = arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+        let incoming: Vec<String> = arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect();
         let mut combined = config.ignore_files.clone();
         combined.extend(incoming);
         config.ignore_files = unique_strings(combined);
@@ -380,10 +405,16 @@ fn resolve_git_dir(dot_git: &Path, worktree_dir: &Path) -> Option<PathBuf> {
     }
     let body = fs::read_to_string(dot_git).ok()?;
     let body = body.trim();
-    let rest = body.strip_prefix("gitdir:").or_else(|| body.strip_prefix("gitdir: "))?;
+    let rest = body
+        .strip_prefix("gitdir:")
+        .or_else(|| body.strip_prefix("gitdir: "))?;
     let rest = rest.trim();
     let p = Path::new(rest);
-    Some(if p.is_absolute() { p.to_path_buf() } else { worktree_dir.join(p) })
+    Some(if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        worktree_dir.join(p)
+    })
 }
 
 fn resolve_hook_git_exclude_target(cwd: &Path) -> io::Result<Option<GitExcludeTarget>> {
@@ -392,11 +423,17 @@ fn resolve_hook_git_exclude_target(cwd: &Path) -> io::Result<Option<GitExcludeTa
     loop {
         let dot_git = dir.join(".git");
         if dot_git.exists() {
-            let Some(git_dir) = resolve_git_dir(&dot_git, &dir) else { return Ok(None) };
+            let Some(git_dir) = resolve_git_dir(&dot_git, &dir) else {
+                return Ok(None);
+            };
             let rel_prefix = pathdiff(&dir, &start);
             return Ok(Some(GitExcludeTarget {
                 path: git_dir.join("info").join("exclude"),
-                pattern_prefix: if rel_prefix == "." { String::new() } else { rel_prefix },
+                pattern_prefix: if rel_prefix == "." {
+                    String::new()
+                } else {
+                    rel_prefix
+                },
             }));
         }
         match dir.parent() {
@@ -417,14 +454,25 @@ fn pathdiff(target: &Path, base: &Path) -> String {
     }
     match target.strip_prefix(base) {
         Ok(rel) => {
-            let s = rel.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/");
-            if s.is_empty() { ".".to_string() } else { s }
+            let s = rel
+                .to_string_lossy()
+                .replace(std::path::MAIN_SEPARATOR, "/");
+            if s.is_empty() {
+                ".".to_string()
+            } else {
+                s
+            }
         }
         Err(_) => ".".to_string(),
     }
 }
 
-fn escape_regex_literal_block(patterns_block: &str, existing: &str, marker_open: &str, marker_close: &str) -> Option<(usize, usize)> {
+fn escape_regex_literal_block(
+    patterns_block: &str,
+    existing: &str,
+    marker_open: &str,
+    marker_close: &str,
+) -> Option<(usize, usize)> {
     let start = existing.find(marker_open)?;
     let close_idx = existing[start..].find(marker_close)? + start;
     let end = close_idx + marker_close.len();
@@ -442,7 +490,10 @@ pub fn ensure_hook_git_excludes(cwd: &Path) -> GitExcludeResult {
         mode: "error".to_string(),
         file: None,
         changed: false,
-        patterns: HOOK_LOCAL_IGNORE_PATTERNS.iter().map(|s| s.to_string()).collect(),
+        patterns: HOOK_LOCAL_IGNORE_PATTERNS
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
     };
     let target = match resolve_hook_git_exclude_target(cwd) {
         Ok(Some(t)) => t,
@@ -451,21 +502,31 @@ pub fn ensure_hook_git_excludes(cwd: &Path) -> GitExcludeResult {
                 mode: "none".to_string(),
                 file: None,
                 changed: false,
-                patterns: HOOK_LOCAL_IGNORE_PATTERNS.iter().map(|s| s.to_string()).collect(),
+                patterns: HOOK_LOCAL_IGNORE_PATTERNS
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
             };
         }
         Err(_) => return fallback,
     };
 
     let patterns: Vec<String> = if target.pattern_prefix.is_empty() {
-        HOOK_LOCAL_IGNORE_PATTERNS.iter().map(|s| s.to_string()).collect()
+        HOOK_LOCAL_IGNORE_PATTERNS
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
     } else {
         HOOK_LOCAL_IGNORE_PATTERNS
             .iter()
             .map(|p| format!("{}/{}", target.pattern_prefix, p))
             .collect()
     };
-    let marker_suffix = if target.pattern_prefix.is_empty() { "." } else { target.pattern_prefix.as_str() };
+    let marker_suffix = if target.pattern_prefix.is_empty() {
+        "."
+    } else {
+        target.pattern_prefix.as_str()
+    };
     let marker_open = format!("{} {}", HOOK_IGNORE_MARKER_OPEN, marker_suffix);
     let marker_close = format!("{} {}", HOOK_IGNORE_MARKER_CLOSE, marker_suffix);
     let mut block_lines = vec![marker_open.clone()];
@@ -492,7 +553,12 @@ pub fn ensure_hook_git_excludes(cwd: &Path) -> GitExcludeResult {
                 format!("{}\n", existing)
             };
             let needs_blank = !(prefix.ends_with("\n\n") || prefix.is_empty());
-            format!("{}{}{}\n", prefix, if needs_blank { "\n" } else { "" }, block)
+            format!(
+                "{}{}{}\n",
+                prefix,
+                if needs_blank { "\n" } else { "" },
+                block
+            )
         }
     };
 
@@ -508,10 +574,17 @@ pub fn ensure_hook_git_excludes(cwd: &Path) -> GitExcludeResult {
         }
     }
 
-    let file_rel = pathdiff(&target.path, &fs::canonicalize(cwd).unwrap_or_else(|_| cwd.to_path_buf()));
+    let file_rel = pathdiff(
+        &target.path,
+        &fs::canonicalize(cwd).unwrap_or_else(|_| cwd.to_path_buf()),
+    );
     GitExcludeResult {
         mode: "git-info-exclude".to_string(),
-        file: Some(if file_rel == "." { target.path.display().to_string() } else { file_rel }),
+        file: Some(if file_rel == "." {
+            target.path.display().to_string()
+        } else {
+            file_rel
+        }),
         changed,
         patterns,
     }
@@ -522,7 +595,8 @@ pub fn ensure_hook_git_excludes(cwd: &Path) -> GitExcludeResult {
 // on/off, ignore-rule/-file/-value, reset, and the CLI action dispatcher.
 // ---------------------------------------------------------------------
 
-const DETECTOR_CONFIG_KEYS: [&str; 4] = ["ignoreRules", "ignoreFiles", "ignoreValues", "designSystem"];
+const DETECTOR_CONFIG_KEYS: [&str; 4] =
+    ["ignoreRules", "ignoreFiles", "ignoreValues", "designSystem"];
 
 fn strip_detector_keys(raw: &Map<String, Value>) -> Map<String, Value> {
     raw.iter()
@@ -544,8 +618,24 @@ pub struct DetectorConfig {
 
 fn detector_config_to_value(cfg: &DetectorConfig) -> Value {
     let mut obj = Map::new();
-    obj.insert("ignoreRules".into(), Value::Array(cfg.ignore_rules.iter().map(|s| Value::String(s.clone())).collect()));
-    obj.insert("ignoreFiles".into(), Value::Array(cfg.ignore_files.iter().map(|s| Value::String(s.clone())).collect()));
+    obj.insert(
+        "ignoreRules".into(),
+        Value::Array(
+            cfg.ignore_rules
+                .iter()
+                .map(|s| Value::String(s.clone()))
+                .collect(),
+        ),
+    );
+    obj.insert(
+        "ignoreFiles".into(),
+        Value::Array(
+            cfg.ignore_files
+                .iter()
+                .map(|s| Value::String(s.clone()))
+                .collect(),
+        ),
+    );
     obj.insert(
         "ignoreValues".into(),
         Value::Array(
@@ -563,7 +653,10 @@ fn detector_config_to_value(cfg: &DetectorConfig) -> Value {
     Value::Object(obj)
 }
 
-fn merge_detector_config(base: Option<&Map<String, Value>>, seed: Option<&DetectorConfig>) -> DetectorConfig {
+fn merge_detector_config(
+    base: Option<&Map<String, Value>>,
+    seed: Option<&DetectorConfig>,
+) -> DetectorConfig {
     let mut out = match seed {
         Some(s) => s.clone(),
         None => DetectorConfig::default(),
@@ -575,13 +668,19 @@ fn merge_detector_config(base: Option<&Map<String, Value>>, seed: Option<&Detect
         out.design_system_enabled = Some(enabled);
     }
     if let Some(arr) = base.get("ignoreRules").and_then(Value::as_array) {
-        let incoming: Vec<String> = arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+        let incoming: Vec<String> = arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect();
         let mut combined = out.ignore_rules.clone();
         combined.extend(incoming);
         out.ignore_rules = unique_strings(combined);
     }
     if let Some(arr) = base.get("ignoreFiles").and_then(Value::as_array) {
-        let incoming: Vec<String> = arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+        let incoming: Vec<String> = arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect();
         let mut combined = out.ignore_files.clone();
         combined.extend(incoming);
         out.ignore_files = unique_strings(combined);
@@ -760,7 +859,9 @@ fn hook_manifest_targets() -> Vec<ManifestTarget> {
 /// Mirrors `valueHasImpeccableHookMarker(value)`.
 fn value_has_impeccable_hook_marker(value: &Value) -> bool {
     match value {
-        Value::String(s) => IMPECCABLE_HOOK_COMMAND_MARKERS.iter().any(|m| s.contains(m)),
+        Value::String(s) => IMPECCABLE_HOOK_COMMAND_MARKERS
+            .iter()
+            .any(|m| s.contains(m)),
         Value::Array(arr) => arr.iter().any(value_has_impeccable_hook_marker),
         Value::Object(obj) => obj.values().any(value_has_impeccable_hook_marker),
         _ => false,
@@ -772,9 +873,15 @@ fn file_has_impeccable_hook_marker(fs_: &dyn AdminFs, path: &Path) -> bool {
     if !fs_.exists(path) {
         return false;
     }
-    let Some(text) = fs_.read_to_string(path) else { return false };
-    let Ok(parsed) = serde_json::from_str::<Value>(&text) else { return false };
-    let Some(obj) = parsed.as_object() else { return false };
+    let Some(text) = fs_.read_to_string(path) else {
+        return false;
+    };
+    let Ok(parsed) = serde_json::from_str::<Value>(&text) else {
+        return false;
+    };
+    let Some(obj) = parsed.as_object() else {
+        return false;
+    };
     match obj.get("hooks") {
         Some(hooks) if hooks.is_object() => value_has_impeccable_hook_marker(hooks),
         _ => false,
@@ -783,12 +890,26 @@ fn file_has_impeccable_hook_marker(fs_: &dyn AdminFs, path: &Path) -> bool {
 
 /// Mirrors `stripImpeccableHookEntry(entry)`.
 fn strip_impeccable_hook_entry(entry: &Value) -> Option<Value> {
-    let Some(obj) = entry.as_object() else { return Some(entry.clone()) };
+    let Some(obj) = entry.as_object() else {
+        return Some(entry.clone());
+    };
 
-    let has_marker = obj.get("command").map(value_has_impeccable_hook_marker).unwrap_or(false)
-        || obj.get("args").map(value_has_impeccable_hook_marker).unwrap_or(false)
-        || obj.get("bash").map(value_has_impeccable_hook_marker).unwrap_or(false)
-        || obj.get("powershell").map(value_has_impeccable_hook_marker).unwrap_or(false);
+    let has_marker = obj
+        .get("command")
+        .map(value_has_impeccable_hook_marker)
+        .unwrap_or(false)
+        || obj
+            .get("args")
+            .map(value_has_impeccable_hook_marker)
+            .unwrap_or(false)
+        || obj
+            .get("bash")
+            .map(value_has_impeccable_hook_marker)
+            .unwrap_or(false)
+        || obj
+            .get("powershell")
+            .map(value_has_impeccable_hook_marker)
+            .unwrap_or(false);
     if has_marker {
         return None;
     }
@@ -796,7 +917,10 @@ fn strip_impeccable_hook_entry(entry: &Value) -> Option<Value> {
     let Some(hooks_arr) = obj.get("hooks").and_then(Value::as_array) else {
         return Some(entry.clone());
     };
-    let stripped: Vec<Value> = hooks_arr.iter().filter_map(strip_impeccable_hook_entry).collect();
+    let stripped: Vec<Value> = hooks_arr
+        .iter()
+        .filter_map(strip_impeccable_hook_entry)
+        .collect();
     if stripped.is_empty() && hooks_arr.iter().any(value_has_impeccable_hook_marker) {
         return None;
     }
@@ -807,7 +931,9 @@ fn strip_impeccable_hook_entry(entry: &Value) -> Option<Value> {
 
 /// Mirrors `stripImpeccableHookEntries(entries)`.
 fn strip_impeccable_hook_entries(entries: Option<&Value>) -> Vec<Value> {
-    let Some(arr) = entries.and_then(Value::as_array) else { return Vec::new() };
+    let Some(arr) = entries.and_then(Value::as_array) else {
+        return Vec::new();
+    };
     arr.iter().filter_map(strip_impeccable_hook_entry).collect()
 }
 
@@ -815,8 +941,16 @@ fn strip_impeccable_hook_entries(entries: Option<&Value>) -> Vec<Value> {
 fn merge_hook_manifests(existing: &Value, fresh: &Value) -> Value {
     let existing_obj = existing.as_object().cloned().unwrap_or_default();
     let fresh_obj = fresh.as_object().cloned().unwrap_or_default();
-    let existing_hooks = existing_obj.get("hooks").and_then(Value::as_object).cloned().unwrap_or_default();
-    let fresh_hooks = fresh_obj.get("hooks").and_then(Value::as_object).cloned().unwrap_or_default();
+    let existing_hooks = existing_obj
+        .get("hooks")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let fresh_hooks = fresh_obj
+        .get("hooks")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
 
     let mut merged = existing_obj;
     merged.remove("hooks");
@@ -837,7 +971,11 @@ fn merge_hook_manifests(existing: &Value, fresh: &Value) -> Value {
     let mut hooks_out = Map::new();
     for event in event_names {
         let preserved = strip_impeccable_hook_entries(existing_hooks.get(&event));
-        let added: Vec<Value> = fresh_hooks.get(&event).and_then(Value::as_array).cloned().unwrap_or_default();
+        let added: Vec<Value> = fresh_hooks
+            .get(&event)
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         let mut merged_entries = preserved;
         merged_entries.extend(added);
         if !merged_entries.is_empty() {
@@ -856,11 +994,21 @@ fn prune_impeccable_hook_from_manifest(fs_: &mut dyn AdminFs, path: &Path) -> bo
     if !file_has_impeccable_hook_marker(fs_, path) {
         return false;
     }
-    let Some(text) = fs_.read_to_string(path) else { return false };
-    let Ok(parsed) = serde_json::from_str::<Value>(&text) else { return false };
-    let Some(obj) = parsed.as_object() else { return false };
+    let Some(text) = fs_.read_to_string(path) else {
+        return false;
+    };
+    let Ok(parsed) = serde_json::from_str::<Value>(&text) else {
+        return false;
+    };
+    let Some(obj) = parsed.as_object() else {
+        return false;
+    };
 
-    let existing_hooks = obj.get("hooks").and_then(Value::as_object).cloned().unwrap_or_default();
+    let existing_hooks = obj
+        .get("hooks")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let mut cleaned_hooks = Map::new();
     for (event, entries) in existing_hooks.iter() {
         let kept = strip_impeccable_hook_entries(Some(entries));
@@ -881,7 +1029,10 @@ fn prune_impeccable_hook_from_manifest(fs_: &mut dyn AdminFs, path: &Path) -> bo
     if next.is_empty() {
         let _ = fs_.remove_file(path);
     } else {
-        let serialized = format!("{}\n", serde_json::to_string_pretty(&Value::Object(next)).unwrap_or_default());
+        let serialized = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&Value::Object(next)).unwrap_or_default()
+        );
         let _ = fs_.write(path, &serialized);
     }
     true
@@ -936,7 +1087,10 @@ pub fn repair_hook_manifests(fs_: &mut dyn AdminFs, cwd: &Path) -> RepairHookMan
             }
         }
 
-        let serialized = format!("{}\n", serde_json::to_string_pretty(&next).unwrap_or_default());
+        let serialized = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&next).unwrap_or_default()
+        );
         let current = fs_.read_to_string(&dest);
         if current.as_deref() == Some(serialized.as_str()) {
             result.already.push(target.provider.to_string());
@@ -951,17 +1105,28 @@ pub fn repair_hook_manifests(fs_: &mut dyn AdminFs, cwd: &Path) -> RepairHookMan
 
 fn read_raw_config_file(fs_: &dyn AdminFs, path: &Path) -> Option<Map<String, Value>> {
     let raw = fs_.read_to_string(path)?;
-    serde_json::from_str::<Value>(&raw).ok()?.as_object().cloned()
+    serde_json::from_str::<Value>(&raw)
+        .ok()?
+        .as_object()
+        .cloned()
 }
 
 fn read_raw_hook_config(fs_: &dyn AdminFs, cwd: &Path, local: bool) -> Option<Map<String, Value>> {
-    let path = if local { get_local_config_path(cwd) } else { get_config_path(cwd) };
+    let path = if local {
+        get_local_config_path(cwd)
+    } else {
+        get_config_path(cwd)
+    };
     let unified = read_raw_config_file(fs_, &path)?;
     hook_section(&unified)
 }
 
 fn read_raw_detector_config(fs_: &dyn AdminFs, cwd: &Path, local: bool) -> DetectorConfig {
-    let path = if local { get_local_config_path(cwd) } else { get_config_path(cwd) };
+    let path = if local {
+        get_local_config_path(cwd)
+    } else {
+        get_config_path(cwd)
+    };
     let unified = read_raw_config_file(fs_, &path);
     let hook_raw = unified.as_ref().and_then(hook_section);
     let seed = merge_detector_config(hook_raw.as_ref(), None);
@@ -980,11 +1145,20 @@ pub struct HookRuntimeConfig {
 }
 
 fn merge_hook_config(existing: Option<&Map<String, Value>>) -> HookRuntimeConfig {
-    let mut cfg = HookRuntimeConfig { enabled: true, ..Default::default() };
+    let mut cfg = HookRuntimeConfig {
+        enabled: true,
+        ..Default::default()
+    };
     if let Some(base) = existing {
         cfg.enabled = !matches!(base.get("enabled"), Some(Value::Bool(false)));
-        cfg.max_findings = base.get("limits").and_then(|l| l.get("maxFindings")).and_then(Value::as_f64);
-        cfg.max_chars = base.get("limits").and_then(|l| l.get("maxChars")).and_then(Value::as_f64);
+        cfg.max_findings = base
+            .get("limits")
+            .and_then(|l| l.get("maxFindings"))
+            .and_then(Value::as_f64);
+        cfg.max_chars = base
+            .get("limits")
+            .and_then(|l| l.get("maxChars"))
+            .and_then(Value::as_f64);
     }
     cfg
 }
@@ -994,8 +1168,14 @@ fn hook_runtime_config_to_value(cfg: &HookRuntimeConfig) -> Value {
     obj.insert("enabled".into(), Value::Bool(cfg.enabled));
     if cfg.max_findings.is_some() || cfg.max_chars.is_some() {
         let mut limits = Map::new();
-        limits.insert("maxFindings".into(), Value::from(cfg.max_findings.unwrap_or(5.0)));
-        limits.insert("maxChars".into(), Value::from(cfg.max_chars.unwrap_or(8000.0)));
+        limits.insert(
+            "maxFindings".into(),
+            Value::from(cfg.max_findings.unwrap_or(5.0)),
+        );
+        limits.insert(
+            "maxChars".into(),
+            Value::from(cfg.max_chars.unwrap_or(8000.0)),
+        );
         obj.insert("limits".into(), Value::Object(limits));
     }
     Value::Object(obj)
@@ -1010,7 +1190,11 @@ fn write_hook_config(
     hook_config_patch: &Map<String, Value>,
     local: bool,
 ) -> io::Result<PathBuf> {
-    let path = if local { get_local_config_path(cwd) } else { get_config_path(cwd) };
+    let path = if local {
+        get_local_config_path(cwd)
+    } else {
+        get_config_path(cwd)
+    };
     if local {
         ensure_hook_git_excludes(cwd);
     }
@@ -1025,7 +1209,10 @@ fn write_hook_config(
 
     let mut next = existing;
     next.insert("hook".into(), Value::Object(merged_hook));
-    let serialized = format!("{}\n", serde_json::to_string_pretty(&Value::Object(next)).unwrap());
+    let serialized = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&Value::Object(next)).unwrap()
+    );
     fs_.write(&path, &serialized)?;
     Ok(path)
 }
@@ -1036,7 +1223,11 @@ fn write_detector_config(
     detector_config: &DetectorConfig,
     local: bool,
 ) -> io::Result<PathBuf> {
-    let path = if local { get_local_config_path(cwd) } else { get_config_path(cwd) };
+    let path = if local {
+        get_local_config_path(cwd)
+    } else {
+        get_config_path(cwd)
+    };
     if local {
         ensure_hook_git_excludes(cwd);
     }
@@ -1044,16 +1235,30 @@ fn write_detector_config(
     let next_hook = strip_detector_keys(&hook_section(&existing).unwrap_or_default());
     let existing_detector_raw = detector_section(&existing);
     let existing_detector = merge_detector_config(existing_detector_raw.as_ref(), None);
-    let merged_detector = merge_detector_config(Some(&detector_config_to_value(detector_config).as_object().unwrap().clone()), Some(&existing_detector));
+    let merged_detector = merge_detector_config(
+        Some(
+            &detector_config_to_value(detector_config)
+                .as_object()
+                .unwrap()
+                .clone(),
+        ),
+        Some(&existing_detector),
+    );
 
     let mut next = existing;
-    next.insert("detector".into(), detector_config_to_value(&merged_detector));
+    next.insert(
+        "detector".into(),
+        detector_config_to_value(&merged_detector),
+    );
     if !next_hook.is_empty() {
         next.insert("hook".into(), Value::Object(next_hook));
     } else {
         next.remove("hook");
     }
-    let serialized = format!("{}\n", serde_json::to_string_pretty(&Value::Object(next)).unwrap());
+    let serialized = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&Value::Object(next)).unwrap()
+    );
     fs_.write(&path, &serialized)?;
     Ok(path)
 }
@@ -1085,25 +1290,70 @@ pub fn status_report(fs_: &dyn AdminFs, cwd: &Path, env_kill: Option<&str>) -> S
         }
     };
 
-    let ignore_values: Vec<String> = cfg.ignore_values.iter().map(|e| format!("{}={}", e.rule, e.value)).collect();
+    let ignore_values: Vec<String> = cfg
+        .ignore_values
+        .iter()
+        .map(|e| format!("{}={}", e.rule, e.value))
+        .collect();
 
     let lines = vec![
         "Impeccable design hook".to_string(),
-        format!("  state:        {}", if cfg.enabled { "enabled" } else { "disabled" }),
+        format!(
+            "  state:        {}",
+            if cfg.enabled { "enabled" } else { "disabled" }
+        ),
         format!(
             "  shared file:  {}",
-            file_state(shared_exists, shared_malformed, ".impeccable/config.json", "using defaults; file not present")
+            file_state(
+                shared_exists,
+                shared_malformed,
+                ".impeccable/config.json",
+                "using defaults; file not present"
+            )
         ),
-        format!("  local file:   {}", file_state(local_exists, local_malformed, ".impeccable/config.local.json", "not present")),
-        format!("  ignoreRules:  {}", if cfg.ignore_rules.is_empty() { "(none)".to_string() } else { cfg.ignore_rules.join(", ") }),
-        format!("  ignoreFiles:  {}", if cfg.ignore_files.is_empty() { "(none)".to_string() } else { cfg.ignore_files.join(", ") }),
-        format!("  ignoreValues: {}", if ignore_values.is_empty() { "(none)".to_string() } else { ignore_values.join(", ") }),
+        format!(
+            "  local file:   {}",
+            file_state(
+                local_exists,
+                local_malformed,
+                ".impeccable/config.local.json",
+                "not present"
+            )
+        ),
+        format!(
+            "  ignoreRules:  {}",
+            if cfg.ignore_rules.is_empty() {
+                "(none)".to_string()
+            } else {
+                cfg.ignore_rules.join(", ")
+            }
+        ),
+        format!(
+            "  ignoreFiles:  {}",
+            if cfg.ignore_files.is_empty() {
+                "(none)".to_string()
+            } else {
+                cfg.ignore_files.join(", ")
+            }
+        ),
+        format!(
+            "  ignoreValues: {}",
+            if ignore_values.is_empty() {
+                "(none)".to_string()
+            } else {
+                ignore_values.join(", ")
+            }
+        ),
         format!("  maxFindings:  {}", cfg.limits.max_findings),
         format!("  maxChars:     {}", cfg.limits.max_chars),
         format!("  env override: {}", env_state),
         format!(
             "  cache file:   {}",
-            if fs_.exists(&cache_path) { ".impeccable/hook.cache.json".to_string() } else { ".impeccable/hook.cache.json (not present)".to_string() }
+            if fs_.exists(&cache_path) {
+                ".impeccable/hook.cache.json".to_string()
+            } else {
+                ".impeccable/hook.cache.json (not present)".to_string()
+            }
         ),
     ];
     lines.join("\n")
@@ -1143,20 +1393,34 @@ pub fn set_enabled(fs_: &mut dyn AdminFs, cwd: &Path, value: bool) -> io::Result
         patch.insert("limits".into(), Value::Object(limits));
     }
     let target = write_hook_config(fs_, cwd, &patch, false)?;
-    let target_rel = target.strip_prefix(cwd).map(|p| p.display().to_string()).unwrap_or_else(|_| target.display().to_string());
+    let target_rel = target
+        .strip_prefix(cwd)
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| target.display().to_string());
 
     if !value {
-        return Ok(SetEnabledResult { message: format!("Design hook disabled for this project (wrote {}).", target_rel) });
+        return Ok(SetEnabledResult {
+            message: format!(
+                "Design hook disabled for this project (wrote {}).",
+                target_rel
+            ),
+        });
     }
 
     let mut local_patch = Map::new();
     local_patch.insert("consent".into(), Value::String("accepted".into()));
     let local_target = write_hook_config(fs_, cwd, &local_patch, true)?;
-    let local_target_rel = local_target.strip_prefix(cwd).map(|p| p.display().to_string()).unwrap_or_else(|_| local_target.display().to_string());
+    let local_target_rel = local_target
+        .strip_prefix(cwd)
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| local_target.display().to_string());
 
     let repaired = repair_hook_manifests(fs_, cwd);
     let mut parts = vec![
-        format!("Design hook enabled for this project (wrote {}).", target_rel),
+        format!(
+            "Design hook enabled for this project (wrote {}).",
+            target_rel
+        ),
         format!("Recorded local hook consent in {}.", local_target_rel),
     ];
     if !repaired.written.is_empty() {
@@ -1182,12 +1446,22 @@ pub fn set_enabled(fs_: &mut dyn AdminFs, cwd: &Path, value: bool) -> io::Result
                     .unwrap_or_else(|_| p.display().to_string())
             })
             .collect();
-        parts.push(format!("Backed up malformed manifest(s): {}.", backups_rel.join(", ")));
+        parts.push(format!(
+            "Backed up malformed manifest(s): {}.",
+            backups_rel.join(", ")
+        ));
     }
-    Ok(SetEnabledResult { message: parts.join(" ") })
+    Ok(SetEnabledResult {
+        message: parts.join(" "),
+    })
 }
 
-fn add_ignore_rule(fs_: &mut dyn AdminFs, cwd: &Path, rule: &str, all_values: bool) -> Result<String, String> {
+fn add_ignore_rule(
+    fs_: &mut dyn AdminFs,
+    cwd: &Path,
+    rule: &str,
+    all_values: bool,
+) -> Result<String, String> {
     let rule = normalize_rule_id(rule);
     if rule.is_empty() {
         return Err("Pass a rule id, e.g. /designer hooks ignore-rule side-tab".to_string());
@@ -1203,7 +1477,11 @@ fn add_ignore_rule(fs_: &mut dyn AdminFs, cwd: &Path, rule: &str, all_values: bo
         config.ignore_rules.push(rule.clone());
     }
     write_detector_config(fs_, cwd, &config, false).map_err(|e| e.to_string())?;
-    Ok(format!("Added \"{}\" to detector.ignoreRules. Current: {}", rule, config.ignore_rules.join(", ")))
+    Ok(format!(
+        "Added \"{}\" to detector.ignoreRules. Current: {}",
+        rule,
+        config.ignore_rules.join(", ")
+    ))
 }
 
 fn add_ignore_file(fs_: &mut dyn AdminFs, cwd: &Path, glob: &str) -> Result<String, String> {
@@ -1215,7 +1493,11 @@ fn add_ignore_file(fs_: &mut dyn AdminFs, cwd: &Path, glob: &str) -> Result<Stri
         config.ignore_files.push(glob.to_string());
     }
     write_detector_config(fs_, cwd, &config, false).map_err(|e| e.to_string())?;
-    Ok(format!("Added \"{}\" to detector.ignoreFiles. Current: {}", glob, config.ignore_files.join(", ")))
+    Ok(format!(
+        "Added \"{}\" to detector.ignoreFiles. Current: {}",
+        glob,
+        config.ignore_files.join(", ")
+    ))
 }
 
 struct IgnoreValueArgs {
@@ -1252,15 +1534,32 @@ fn parse_ignore_value_args(args: &[String]) -> IgnoreValueArgs {
         }
         i += 1;
     }
-    let rule = positionals.first().cloned().unwrap_or_default().trim().to_lowercase();
-    let value_raw = positionals.get(1..).map(|s| s.join(" ")).unwrap_or_default();
-    IgnoreValueArgs { rule, value: normalize_ignore_value(&value_raw), shared, local, reason }
+    let rule = positionals
+        .first()
+        .cloned()
+        .unwrap_or_default()
+        .trim()
+        .to_lowercase();
+    let value_raw = positionals
+        .get(1..)
+        .map(|s| s.join(" "))
+        .unwrap_or_default();
+    IgnoreValueArgs {
+        rule,
+        value: normalize_ignore_value(&value_raw),
+        shared,
+        local,
+        reason,
+    }
 }
 
 fn add_ignore_value(fs_: &mut dyn AdminFs, cwd: &Path, args: &[String]) -> Result<String, String> {
     let parsed = parse_ignore_value_args(args);
     if parsed.rule.is_empty() || parsed.value.is_empty() {
-        return Err("Pass a rule id and value, e.g. /designer hooks ignore-value overused-font Inter".to_string());
+        return Err(
+            "Pass a rule id and value, e.g. /designer hooks ignore-value overused-font Inter"
+                .to_string(),
+        );
     }
     if parsed.shared && parsed.local {
         return Err("Pass only one scope flag: --shared or --local".to_string());
@@ -1268,7 +1567,11 @@ fn add_ignore_value(fs_: &mut dyn AdminFs, cwd: &Path, args: &[String]) -> Resul
     let local = parsed.local;
     let mut config = read_raw_detector_config(fs_, cwd, local);
     let key = format!("{}\0{}", parsed.rule, parsed.value);
-    if let Some(existing) = config.ignore_values.iter_mut().find(|e| format!("{}\0{}", e.rule, e.value) == key) {
+    if let Some(existing) = config
+        .ignore_values
+        .iter_mut()
+        .find(|e| format!("{}\0{}", e.rule, e.value) == key)
+    {
         if !parsed.reason.is_empty() {
             existing.reason = Some(parsed.reason.clone());
         }
@@ -1277,15 +1580,29 @@ fn add_ignore_value(fs_: &mut dyn AdminFs, cwd: &Path, args: &[String]) -> Resul
             rule: parsed.rule.clone(),
             value: parsed.value.clone(),
             files: Vec::new(),
-            reason: if parsed.reason.is_empty() { None } else { Some(parsed.reason.clone()) },
+            reason: if parsed.reason.is_empty() {
+                None
+            } else {
+                Some(parsed.reason.clone())
+            },
             created_at: Some(now_iso8601()),
         };
         config.ignore_values.push(entry);
     }
     let target = write_detector_config(fs_, cwd, &config, local).map_err(|e| e.to_string())?;
-    let scope = if local { "local detector.ignoreValues" } else { "shared detector.ignoreValues" };
-    let target_rel = target.strip_prefix(cwd).map(|p| p.display().to_string()).unwrap_or_else(|_| target.display().to_string());
-    Ok(format!("Added {}={} to {} ({}).", parsed.rule, parsed.value, scope, target_rel))
+    let scope = if local {
+        "local detector.ignoreValues"
+    } else {
+        "shared detector.ignoreValues"
+    };
+    let target_rel = target
+        .strip_prefix(cwd)
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| target.display().to_string());
+    Ok(format!(
+        "Added {}={} to {} ({}).",
+        parsed.rule, parsed.value, scope, target_rel
+    ))
 }
 
 /// Wall-clock ISO-8601 timestamp, mirroring `new Date().toISOString()`.
@@ -1293,14 +1610,19 @@ fn add_ignore_value(fs_: &mut dyn AdminFs, cwd: &Path, args: &[String]) -> Resul
 /// value here; only its presence/shape is part of the contract.
 fn now_iso8601() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let dur = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = dur.as_secs();
     let millis = dur.subsec_millis();
     let days = secs / 86_400;
     let rem = secs % 86_400;
     let (h, m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
     let (y, mo, d) = civil_from_days(days as i64);
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z", y, mo, d, h, m, s, millis)
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        y, mo, d, h, m, s, millis
+    )
 }
 
 /// Howard Hinnant's `civil_from_days` algorithm (proleptic Gregorian).
@@ -1322,7 +1644,9 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 pub fn reset(fs_: &mut dyn AdminFs, cwd: &Path) -> String {
     let mut removed: Vec<String> = Vec::new();
     for path in [get_config_path(cwd), get_local_config_path(cwd)] {
-        let Some(raw) = read_raw_config_file(fs_, &path) else { continue };
+        let Some(raw) = read_raw_config_file(fs_, &path) else {
+            continue;
+        };
         if !raw.contains_key("hook") && !raw.contains_key("detector") {
             continue;
         }
@@ -1332,24 +1656,36 @@ pub fn reset(fs_: &mut dyn AdminFs, cwd: &Path) -> String {
         let result = if rest.is_empty() {
             fs_.remove_file(&path)
         } else {
-            let serialized = format!("{}\n", serde_json::to_string_pretty(&Value::Object(rest)).unwrap());
+            let serialized = format!(
+                "{}\n",
+                serde_json::to_string_pretty(&Value::Object(rest)).unwrap()
+            );
             fs_.write(&path, &serialized)
         };
         if result.is_ok() {
-            let rel = path.strip_prefix(cwd).map(|p| p.display().to_string()).unwrap_or_else(|_| path.display().to_string());
+            let rel = path
+                .strip_prefix(cwd)
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| path.display().to_string());
             removed.push(rel);
         }
     }
     for path in [get_cache_path(cwd), get_pending_path(cwd)] {
         if fs_.exists(&path) && fs_.remove_file(&path).is_ok() {
-            let rel = path.strip_prefix(cwd).map(|p| p.display().to_string()).unwrap_or_else(|_| path.display().to_string());
+            let rel = path
+                .strip_prefix(cwd)
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| path.display().to_string());
             removed.push(rel);
         }
     }
     if removed.is_empty() {
         "No hook config or cache to remove. Already at defaults.".to_string()
     } else {
-        format!("Reset design hook config and cache (removed: {}).", removed.join(", "))
+        format!(
+            "Reset design hook config and cache (removed: {}).",
+            removed.join(", ")
+        )
     }
 }
 
@@ -1370,8 +1706,17 @@ pub struct CliOutcome {
 /// `main()`: dispatches `argv[2]` (default `"status"`) to the matching
 /// action against `cwd`. `env_kill` stands in for
 /// `process.env.IMPECCABLE_HOOK_DISABLED`.
-pub fn run_cli(fs_: &mut dyn AdminFs, cwd: &Path, argv: &[String], env_kill: Option<&str>) -> CliOutcome {
-    let action = argv.first().cloned().unwrap_or_else(|| "status".to_string()).to_lowercase();
+pub fn run_cli(
+    fs_: &mut dyn AdminFs,
+    cwd: &Path,
+    argv: &[String],
+    env_kill: Option<&str>,
+) -> CliOutcome {
+    let action = argv
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "status".to_string())
+        .to_lowercase();
     let rest: Vec<String> = argv.get(1..).map(|s| s.to_vec()).unwrap_or_default();
 
     if !ACTIONS.contains(&action.as_str()) {
@@ -1384,11 +1729,19 @@ pub fn run_cli(fs_: &mut dyn AdminFs, cwd: &Path, argv: &[String], env_kill: Opt
 
     let result: Result<String, String> = match action.as_str() {
         "status" => Ok(status_report(fs_, cwd, env_kill)),
-        "on" => set_enabled(fs_, cwd, true).map(|r| r.message).map_err(|e| e.to_string()),
-        "off" => set_enabled(fs_, cwd, false).map(|r| r.message).map_err(|e| e.to_string()),
+        "on" => set_enabled(fs_, cwd, true)
+            .map(|r| r.message)
+            .map_err(|e| e.to_string()),
+        "off" => set_enabled(fs_, cwd, false)
+            .map(|r| r.message)
+            .map_err(|e| e.to_string()),
         "ignore-rule" => {
             let all_values = rest.iter().any(|a| a == "--all-values");
-            let rule = rest.iter().find(|a| !a.starts_with("--")).cloned().unwrap_or_default();
+            let rule = rest
+                .iter()
+                .find(|a| !a.starts_with("--"))
+                .cloned()
+                .unwrap_or_default();
             add_ignore_rule(fs_, cwd, &rule, all_values)
         }
         "ignore-file" => add_ignore_file(fs_, cwd, rest.first().map(String::as_str).unwrap_or("")),
@@ -1398,8 +1751,16 @@ pub fn run_cli(fs_: &mut dyn AdminFs, cwd: &Path, argv: &[String], env_kill: Opt
     };
 
     match result {
-        Ok(out) => CliOutcome { exit_code: 0, stdout: format!("{}\n", out), stderr: String::new() },
-        Err(msg) => CliOutcome { exit_code: 1, stdout: String::new(), stderr: format!("Error: {}\n", msg) },
+        Ok(out) => CliOutcome {
+            exit_code: 0,
+            stdout: format!("{}\n", out),
+            stderr: String::new(),
+        },
+        Err(msg) => CliOutcome {
+            exit_code: 1,
+            stdout: String::new(),
+            stderr: format!("Error: {}\n", msg),
+        },
     }
 }
 
@@ -1480,7 +1841,9 @@ mod tests {
         assert_eq!(outcome.exit_code, 0);
         assert!(outcome.stdout.contains("Design hook enabled"));
         assert!(outcome.stdout.contains("Recorded local hook consent"));
-        assert!(outcome.stdout.contains("No installed provider skill folders found to repair."));
+        assert!(outcome
+            .stdout
+            .contains("No installed provider skill folders found to repair."));
         let local_raw = fs_.read_to_string(&get_local_config_path(&cwd())).unwrap();
         assert!(local_raw.contains("\"consent\": \"accepted\""));
     }
@@ -1488,7 +1851,12 @@ mod tests {
     #[test]
     fn ignore_rule_rejects_bare_overused_font() {
         let mut fs_ = FakeFs::default();
-        let outcome = run_cli(&mut fs_, &cwd(), &["ignore-rule".to_string(), "overused-font".to_string()], None);
+        let outcome = run_cli(
+            &mut fs_,
+            &cwd(),
+            &["ignore-rule".to_string(), "overused-font".to_string()],
+            None,
+        );
         assert_eq!(outcome.exit_code, 1);
         assert!(outcome.stderr.contains("value-specific by default"));
     }
@@ -1499,11 +1867,17 @@ mod tests {
         let outcome = run_cli(
             &mut fs_,
             &cwd(),
-            &["ignore-rule".to_string(), "overused-font".to_string(), "--all-values".to_string()],
+            &[
+                "ignore-rule".to_string(),
+                "overused-font".to_string(),
+                "--all-values".to_string(),
+            ],
             None,
         );
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stdout.contains("Added \"overused-font\" to detector.ignoreRules"));
+        assert!(outcome
+            .stdout
+            .contains("Added \"overused-font\" to detector.ignoreRules"));
     }
 
     #[test]
@@ -1517,8 +1891,18 @@ mod tests {
     #[test]
     fn ignore_file_appends_glob_and_dedupes() {
         let mut fs_ = FakeFs::default();
-        run_cli(&mut fs_, &cwd(), &["ignore-file".to_string(), "src/legacy/**".to_string()], None);
-        let outcome = run_cli(&mut fs_, &cwd(), &["ignore-file".to_string(), "src/legacy/**".to_string()], None);
+        run_cli(
+            &mut fs_,
+            &cwd(),
+            &["ignore-file".to_string(), "src/legacy/**".to_string()],
+            None,
+        );
+        let outcome = run_cli(
+            &mut fs_,
+            &cwd(),
+            &["ignore-file".to_string(), "src/legacy/**".to_string()],
+            None,
+        );
         assert_eq!(outcome.exit_code, 0);
         // The glob text itself appears twice in the message (once in
         // `Added "..."`, once in `Current: ...`) even on the no-op second
@@ -1534,7 +1918,13 @@ mod tests {
         let outcome = run_cli(
             &mut fs_,
             &cwd(),
-            &["ignore-value".to_string(), "overused-font".to_string(), "Inter".to_string(), "--shared".to_string(), "--local".to_string()],
+            &[
+                "ignore-value".to_string(),
+                "overused-font".to_string(),
+                "Inter".to_string(),
+                "--shared".to_string(),
+                "--local".to_string(),
+            ],
             None,
         );
         assert_eq!(outcome.exit_code, 1);
@@ -1547,11 +1937,17 @@ mod tests {
         let outcome = run_cli(
             &mut fs_,
             &cwd(),
-            &["ignore-value".to_string(), "overused-font".to_string(), "Inter".to_string()],
+            &[
+                "ignore-value".to_string(),
+                "overused-font".to_string(),
+                "Inter".to_string(),
+            ],
             None,
         );
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stdout.contains("Added overused-font=inter to shared detector.ignoreValues"));
+        assert!(outcome
+            .stdout
+            .contains("Added overused-font=inter to shared detector.ignoreValues"));
         let status = status_report(&fs_, &cwd(), None);
         assert!(status.contains("overused-font=inter"));
     }
@@ -1562,7 +1958,12 @@ mod tests {
         let outcome = run_cli(
             &mut fs_,
             &cwd(),
-            &["ignore-value".to_string(), "overused-font".to_string(), "Inter".to_string(), "--local".to_string()],
+            &[
+                "ignore-value".to_string(),
+                "overused-font".to_string(),
+                "Inter".to_string(),
+                "--local".to_string(),
+            ],
             None,
         );
         assert_eq!(outcome.exit_code, 0);
@@ -1575,20 +1976,32 @@ mod tests {
     fn reset_reports_nothing_to_remove_on_clean_project() {
         let mut fs_ = FakeFs::default();
         let out = reset(&mut fs_, &cwd());
-        assert_eq!(out, "No hook config or cache to remove. Already at defaults.");
+        assert_eq!(
+            out,
+            "No hook config or cache to remove. Already at defaults."
+        );
     }
 
     #[test]
     fn reset_removes_hook_and_detector_but_keeps_other_keys() {
         let mut fs_ = FakeFs::default();
         run_cli(&mut fs_, &cwd(), &["off".to_string()], None);
-        run_cli(&mut fs_, &cwd(), &["ignore-file".to_string(), "src/legacy/**".to_string()], None);
+        run_cli(
+            &mut fs_,
+            &cwd(),
+            &["ignore-file".to_string(), "src/legacy/**".to_string()],
+            None,
+        );
         // Add an unrelated key the admin must preserve.
         let path = get_config_path(&cwd());
         let raw = fs_.read_to_string(&path).unwrap();
         let mut value: Value = serde_json::from_str(&raw).unwrap();
-        value.as_object_mut().unwrap().insert("updateCheck".into(), Value::Bool(true));
-        fs_.write(&path, &serde_json::to_string_pretty(&value).unwrap()).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("updateCheck".into(), Value::Bool(true));
+        fs_.write(&path, &serde_json::to_string_pretty(&value).unwrap())
+            .unwrap();
 
         let out = reset(&mut fs_, &cwd());
         assert!(out.contains("Reset design hook config and cache"));
@@ -1655,12 +2068,15 @@ mod tests {
     #[test]
     fn repair_hook_manifests_installs_fresh_when_skill_folder_present() {
         let mut fs_ = FakeFs::default();
-        fs_.files.insert(cwd().join(".claude/skills/designer"), String::new());
+        fs_.files
+            .insert(cwd().join(".claude/skills/designer"), String::new());
         let result = repair_hook_manifests(&mut fs_, &cwd());
         assert_eq!(result.written, vec![".claude".to_string()]);
         assert!(result.already.is_empty());
         assert!(result.backups.is_empty());
-        let written = fs_.read_to_string(&cwd().join(".claude/settings.local.json")).unwrap();
+        let written = fs_
+            .read_to_string(&cwd().join(".claude/settings.local.json"))
+            .unwrap();
         assert!(written.contains("legion script designer/hook"));
         assert!(written.contains("\"PostToolUse\""));
     }
@@ -1676,7 +2092,8 @@ mod tests {
     #[test]
     fn repair_hook_manifests_reports_already_when_content_unchanged() {
         let mut fs_ = FakeFs::default();
-        fs_.files.insert(cwd().join(".claude/skills/designer"), String::new());
+        fs_.files
+            .insert(cwd().join(".claude/skills/designer"), String::new());
         let first = repair_hook_manifests(&mut fs_, &cwd());
         assert_eq!(first.written, vec![".claude".to_string()]);
         let second = repair_hook_manifests(&mut fs_, &cwd());
@@ -1687,7 +2104,8 @@ mod tests {
     #[test]
     fn repair_hook_manifests_preserves_unrelated_hooks_when_merging() {
         let mut fs_ = FakeFs::default();
-        fs_.files.insert(cwd().join(".cursor/skills/designer"), String::new());
+        fs_.files
+            .insert(cwd().join(".cursor/skills/designer"), String::new());
         let existing = serde_json::json!({
             "hooks": {
                 "preToolUse": [
@@ -1701,7 +2119,9 @@ mod tests {
         );
         let result = repair_hook_manifests(&mut fs_, &cwd());
         assert_eq!(result.written, vec![".cursor".to_string()]);
-        let written = fs_.read_to_string(&cwd().join(".cursor/hooks.json")).unwrap();
+        let written = fs_
+            .read_to_string(&cwd().join(".cursor/hooks.json"))
+            .unwrap();
         assert!(written.contains("other-tool.mjs"));
         assert!(written.contains("legion script designer/hook-before-edit"));
     }
@@ -1709,19 +2129,24 @@ mod tests {
     #[test]
     fn repair_hook_manifests_backs_up_malformed_existing_manifest() {
         let mut fs_ = FakeFs::default();
-        fs_.files.insert(cwd().join(".cursor/skills/designer"), String::new());
-        fs_.files.insert(cwd().join(".cursor/hooks.json"), "{ not json".to_string());
+        fs_.files
+            .insert(cwd().join(".cursor/skills/designer"), String::new());
+        fs_.files
+            .insert(cwd().join(".cursor/hooks.json"), "{ not json".to_string());
         let result = repair_hook_manifests(&mut fs_, &cwd());
         assert_eq!(result.written, vec![".cursor".to_string()]);
         assert_eq!(result.backups, vec![cwd().join(".cursor/hooks.json.bak")]);
-        let backup = fs_.read_to_string(&cwd().join(".cursor/hooks.json.bak")).unwrap();
+        let backup = fs_
+            .read_to_string(&cwd().join(".cursor/hooks.json.bak"))
+            .unwrap();
         assert_eq!(backup, "{ not json");
     }
 
     #[test]
     fn repair_hook_manifests_prunes_when_shared_manifest_already_carries_marker() {
         let mut fs_ = FakeFs::default();
-        fs_.files.insert(cwd().join(".claude/skills/designer"), String::new());
+        fs_.files
+            .insert(cwd().join(".claude/skills/designer"), String::new());
         let shared = serde_json::json!({
             "hooks": {
                 "PostToolUse": [
@@ -1734,7 +2159,8 @@ mod tests {
                 ]
             }
         });
-        fs_.files.insert(cwd().join(".claude/settings.json"), shared.to_string());
+        fs_.files
+            .insert(cwd().join(".claude/settings.json"), shared.to_string());
         let local = serde_json::json!({
             "hooks": {
                 "PostToolUse": [
@@ -1748,12 +2174,15 @@ mod tests {
                 ]
             }
         });
-        fs_.files.insert(cwd().join(".claude/settings.local.json"), local.to_string());
+        fs_.files
+            .insert(cwd().join(".claude/settings.local.json"), local.to_string());
 
         let result = repair_hook_manifests(&mut fs_, &cwd());
         assert_eq!(result.already, vec![".claude".to_string()]);
         assert!(result.written.is_empty());
-        let pruned = fs_.read_to_string(&cwd().join(".claude/settings.local.json")).unwrap();
+        let pruned = fs_
+            .read_to_string(&cwd().join(".claude/settings.local.json"))
+            .unwrap();
         assert!(!pruned.contains("legion script designer/hook"));
         assert!(pruned.contains("other.mjs"));
     }
@@ -1761,10 +2190,13 @@ mod tests {
     #[test]
     fn set_enabled_on_reports_installed_manifests_when_skill_folder_present() {
         let mut fs_ = FakeFs::default();
-        fs_.files.insert(cwd().join(".claude/skills/designer"), String::new());
+        fs_.files
+            .insert(cwd().join(".claude/skills/designer"), String::new());
         let outcome = run_cli(&mut fs_, &cwd(), &["on".to_string()], None);
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stdout.contains("Installed or repaired hook manifests for: .claude"));
+        assert!(outcome
+            .stdout
+            .contains("Installed or repaired hook manifests for: .claude"));
     }
 
     #[test]

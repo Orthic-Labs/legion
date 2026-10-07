@@ -59,7 +59,10 @@ mod tests {
     fn event_fingerprint_changes_with_content() {
         let e1 = CanonVal::obj().set("event_id", CanonVal::Str("a".into()));
         let e2 = CanonVal::obj().set("event_id", CanonVal::Str("b".into()));
-        assert_ne!(architecture_event_fingerprint(&e1), architecture_event_fingerprint(&e2));
+        assert_ne!(
+            architecture_event_fingerprint(&e1),
+            architecture_event_fingerprint(&e2)
+        );
     }
 
     #[test]

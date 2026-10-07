@@ -24,8 +24,16 @@ fn b64_encode(bytes: &[u8]) -> String {
         let n = ((b0 as u32) << 16) | ((b1 as u32) << 8) | (b2 as u32);
         out.push(B64_ALPHABET[((n >> 18) & 0x3f) as usize] as char);
         out.push(B64_ALPHABET[((n >> 12) & 0x3f) as usize] as char);
-        out.push(if chunk.len() > 1 { B64_ALPHABET[((n >> 6) & 0x3f) as usize] as char } else { '=' });
-        out.push(if chunk.len() > 2 { B64_ALPHABET[(n & 0x3f) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            B64_ALPHABET[((n >> 6) & 0x3f) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            B64_ALPHABET[(n & 0x3f) as usize] as char
+        } else {
+            '='
+        });
     }
     out
 }
@@ -75,17 +83,31 @@ fn b64_decode(input: &str) -> Option<Vec<u8>> {
 }
 
 fn normalize_key(key: &str) -> String {
-    key.chars().filter(|c| c.is_ascii_alphanumeric()).flat_map(|c| c.to_lowercase()).collect()
+    key.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .flat_map(|c| c.to_lowercase())
+        .collect()
 }
 
 /// Port of `commonSensitiveKey(key)` (`key` is assumed already normalized).
 fn common_sensitive_key(key: &str) -> bool {
-    for suffix in ["secret", "password", "token", "privatekey", "apikey", "cookie", "authorization"] {
+    for suffix in [
+        "secret",
+        "password",
+        "token",
+        "privatekey",
+        "apikey",
+        "cookie",
+        "authorization",
+    ] {
         if key.ends_with(suffix) {
             return true;
         }
     }
-    matches!(key, "email" | "phone" | "phonenumber" | "ssn" | "socialsecuritynumber" | "taxid")
+    matches!(
+        key,
+        "email" | "phone" | "phonenumber" | "ssn" | "socialsecuritynumber" | "taxid"
+    )
 }
 
 /// Port of the four regex redactions in `sanitizeString` (BEARER, EMAIL,
@@ -118,7 +140,10 @@ fn try_match_bearer(chars: &[char], start: usize) -> Option<usize> {
     if start + word.len() > chars.len() {
         return None;
     }
-    let candidate: String = chars[start..start + word.len()].iter().collect::<String>().to_lowercase();
+    let candidate: String = chars[start..start + word.len()]
+        .iter()
+        .collect::<String>()
+        .to_lowercase();
     if candidate != word {
         return None;
     }
@@ -208,7 +233,10 @@ fn redact_ssn(input: &str) -> String {
                 && bytes[4..6].iter().all(|c| c.is_ascii_digit())
                 && bytes[6] == '-'
                 && bytes[7..11].iter().all(|c| c.is_ascii_digit());
-            if matches && is_boundary(&chars, i as isize - 1) && is_boundary(&chars, (i + 11) as isize) {
+            if matches
+                && is_boundary(&chars, i as isize - 1)
+                && is_boundary(&chars, (i + 11) as isize)
+            {
                 out.push_str("[REDACTED]");
                 i += 11;
                 continue;
@@ -344,7 +372,11 @@ fn try_match_intl_phone(chars: &[char], start: usize) -> Option<usize> {
     }
     i += 1;
     let body_start = i;
-    while i < chars.len() && (chars[i].is_ascii_digit() || chars[i].is_whitespace() || matches!(chars[i], '(' | ')' | '.' | '-')) {
+    while i < chars.len()
+        && (chars[i].is_ascii_digit()
+            || chars[i].is_whitespace()
+            || matches!(chars[i], '(' | ')' | '.' | '-'))
+    {
         i += 1;
     }
     if i - body_start < 6 {
@@ -372,12 +404,20 @@ pub struct SanitizedValue {
 pub fn sanitize_sensitive_value(value: &Value) -> SanitizedValue {
     let mut changed = false;
     let sanitized = sanitize_value(value, &mut changed);
-    SanitizedValue { value: sanitized, sensitive: changed }
+    SanitizedValue {
+        value: sanitized,
+        sensitive: changed,
+    }
 }
 
 fn sanitize_value(value: &Value, changed: &mut bool) -> Value {
     match value {
-        Value::Array(items) => Value::Array(items.iter().map(|item| sanitize_value(item, changed)).collect()),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|item| sanitize_value(item, changed))
+                .collect(),
+        ),
         Value::Object(map) => {
             let mut out = Map::new();
             for (key, child) in map {
@@ -424,30 +464,66 @@ pub struct ProducedArtifactResult {
 pub fn sanitize_produced_artifact(artifact: &Value) -> ProducedArtifactResult {
     let obj = match artifact.as_object() {
         Some(o) => o,
-        None => return ProducedArtifactResult { artifact: Value::Null, valid: false, sensitive: false },
+        None => {
+            return ProducedArtifactResult {
+                artifact: Value::Null,
+                valid: false,
+                sensitive: false,
+            }
+        }
     };
     let has_content = matches!(obj.get("content"), Some(Value::String(_)));
     let has_bytes = matches!(obj.get("bytesBase64"), Some(Value::String(_)));
     if has_content == has_bytes {
-        return ProducedArtifactResult { artifact: Value::Null, valid: false, sensitive: false };
+        return ProducedArtifactResult {
+            artifact: Value::Null,
+            valid: false,
+            sensitive: false,
+        };
     }
     let bytes: Option<Vec<u8>> = if has_content {
-        Some(obj.get("content").and_then(Value::as_str).unwrap_or_default().as_bytes().to_vec())
+        Some(
+            obj.get("content")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .as_bytes()
+                .to_vec(),
+        )
     } else {
-        let b64 = obj.get("bytesBase64").and_then(Value::as_str).unwrap_or_default();
-        if is_canonical_base64(b64) { b64_decode(b64) } else { None }
+        let b64 = obj
+            .get("bytesBase64")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if is_canonical_base64(b64) {
+            b64_decode(b64)
+        } else {
+            None
+        }
     };
     let bytes = match bytes {
         Some(b) if !b.is_empty() => b,
-        _ => return ProducedArtifactResult { artifact: Value::Null, valid: false, sensitive: false },
+        _ => {
+            return ProducedArtifactResult {
+                artifact: Value::Null,
+                valid: false,
+                sensitive: false,
+            }
+        }
     };
     let expected_digest = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
     if obj.get("digest").and_then(Value::as_str) != Some(expected_digest.as_str()) {
-        return ProducedArtifactResult { artifact: Value::Null, valid: false, sensitive: false };
+        return ProducedArtifactResult {
+            artifact: Value::Null,
+            valid: false,
+            sensitive: false,
+        };
     }
     // Port of `sanitizeArtifactContent`.
     let original = if has_content {
-        obj.get("content").and_then(Value::as_str).unwrap_or_default().to_string()
+        obj.get("content")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
     } else {
         String::from_utf8_lossy(&bytes).into_owned()
     };
@@ -464,7 +540,11 @@ pub fn sanitize_produced_artifact(artifact: &Value) -> ProducedArtifactResult {
         }
     };
     if !changed {
-        return ProducedArtifactResult { artifact: artifact.clone(), valid: true, sensitive: false };
+        return ProducedArtifactResult {
+            artifact: artifact.clone(),
+            valid: true,
+            sensitive: false,
+        };
     }
     let mut rest = obj.clone();
     rest.remove("content");
@@ -473,7 +553,14 @@ pub fn sanitize_produced_artifact(artifact: &Value) -> ProducedArtifactResult {
     rest.insert("content".to_string(), Value::String(sanitized_text.clone()));
     rest.insert(
         "digest".to_string(),
-        Value::String(format!("sha256:{}", hex::encode(Sha256::digest(sanitized_text.as_bytes())))),
+        Value::String(format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(sanitized_text.as_bytes()))
+        )),
     );
-    ProducedArtifactResult { artifact: Value::Object(rest), valid: true, sensitive: true }
+    ProducedArtifactResult {
+        artifact: Value::Object(rest),
+        valid: true,
+        sensitive: true,
+    }
 }

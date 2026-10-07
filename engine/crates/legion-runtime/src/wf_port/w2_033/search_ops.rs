@@ -158,7 +158,8 @@ pub fn save_state(path: &Path, state: &SearchOpsState) -> Result<(), SearchOpsEr
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp");
     let tmp_path = PathBuf::from(tmp);
-    let text = serde_json::to_string_pretty(state).map_err(|e| SearchOpsError::Io(e.to_string()))? + "\n";
+    let text =
+        serde_json::to_string_pretty(state).map_err(|e| SearchOpsError::Io(e.to_string()))? + "\n";
     std::fs::write(&tmp_path, text).map_err(|e| SearchOpsError::Io(e.to_string()))?;
     std::fs::rename(&tmp_path, path).map_err(|e| SearchOpsError::Io(e.to_string()))?;
     Ok(())
@@ -167,9 +168,19 @@ pub fn save_state(path: &Path, state: &SearchOpsState) -> Result<(), SearchOpsEr
 /// A parsed CLI invocation, mirroring `search_ops.py`'s `argparse` subcommands.
 pub enum Command {
     Start(Intervention),
-    Deploy { id: String, deployment: Deployment },
-    Verify { id: String, result: String, evidence: String },
-    Outcome { id: String, outcome: Outcome },
+    Deploy {
+        id: String,
+        deployment: Deployment,
+    },
+    Verify {
+        id: String,
+        result: String,
+        evidence: String,
+    },
+    Outcome {
+        id: String,
+        outcome: Outcome,
+    },
     Run(Run),
     Brief,
 }
@@ -186,7 +197,9 @@ pub fn run_cli(path: &Path, command: Command) -> Result<(i32, String), SearchOps
     if let Command::Brief = command {
         let out = brief(&state);
         let text = match &out {
-            Some(b) => serde_json::to_string_pretty(b).map_err(|e| SearchOpsError::Io(e.to_string()))?,
+            Some(b) => {
+                serde_json::to_string_pretty(b).map_err(|e| SearchOpsError::Io(e.to_string()))?
+            }
             None => serde_json::to_string_pretty(&serde_json::json!({"status": "no_runs"}))
                 .map_err(|e| SearchOpsError::Io(e.to_string()))?,
         };
@@ -207,12 +220,20 @@ pub fn run_cli(path: &Path, command: Command) -> Result<(i32, String), SearchOps
             let row = state.interventions.iter().find(|x| x.id == id).unwrap();
             serde_json::to_value(row).map_err(|e| SearchOpsError::Io(e.to_string()))?
         }
-        Command::Verify { id, result, evidence } => {
+        Command::Verify {
+            id,
+            result,
+            evidence,
+        } => {
             verify(&mut state, &id, &result, evidence, now)?;
             let row = state.interventions.iter().find(|x| x.id == id).unwrap();
-            serde_json::to_value(&row.verification).map_err(|e| SearchOpsError::Io(e.to_string()))?
+            serde_json::to_value(&row.verification)
+                .map_err(|e| SearchOpsError::Io(e.to_string()))?
         }
-        Command::Outcome { id, outcome: mut out } => {
+        Command::Outcome {
+            id,
+            outcome: mut out,
+        } => {
             out.recorded_at = now;
             outcome(&mut state, &id, out.clone())?;
             serde_json::to_value(&out).map_err(|e| SearchOpsError::Io(e.to_string()))?
@@ -227,7 +248,8 @@ pub fn run_cli(path: &Path, command: Command) -> Result<(i32, String), SearchOps
     };
 
     save_state(path, &state)?;
-    let text = serde_json::to_string_pretty(&result_json).map_err(|e| SearchOpsError::Io(e.to_string()))?;
+    let text = serde_json::to_string_pretty(&result_json)
+        .map_err(|e| SearchOpsError::Io(e.to_string()))?;
     Ok((0, text))
 }
 
@@ -270,10 +292,7 @@ fn find_mut<'a>(
 }
 
 /// Port of `cmd_start`.
-pub fn start(
-    state: &mut SearchOpsState,
-    intervention: Intervention,
-) -> Result<(), SearchOpsError> {
+pub fn start(state: &mut SearchOpsState, intervention: Intervention) -> Result<(), SearchOpsError> {
     if state.interventions.iter().any(|x| x.id == intervention.id) {
         return Err(SearchOpsError::AlreadyExists(intervention.id));
     }
@@ -318,7 +337,12 @@ pub fn verify(
         result: result.to_string(),
         evidence,
     });
-    row.status = if result == "pass" { "verified" } else { "deployed" }.to_string();
+    row.status = if result == "pass" {
+        "verified"
+    } else {
+        "deployed"
+    }
+    .to_string();
     Ok(())
 }
 
@@ -482,10 +506,18 @@ pub fn run_argv(args: &[String]) -> i32 {
                     other => err!(format!("unrecognized argument: {other}")),
                 }
             }
-            let (Some(id), Some(target), Some(hypothesis), Some(action), Some(metric), Some(evaluate_after)) =
-                (id, target, hypothesis, action, metric, evaluate_after)
+            let (
+                Some(id),
+                Some(target),
+                Some(hypothesis),
+                Some(action),
+                Some(metric),
+                Some(evaluate_after),
+            ) = (id, target, hypothesis, action, metric, evaluate_after)
             else {
-                err!("start requires --id --target --hypothesis --action --metric --evaluate-after");
+                err!(
+                    "start requires --id --target --hypothesis --action --metric --evaluate-after"
+                );
             };
             Command::Start(Intervention {
                 id,
@@ -525,8 +557,21 @@ pub fn run_argv(args: &[String]) -> i32 {
                     other => err!(format!("unrecognized argument: {other}")),
                 }
             }
-            let (Some(id), Some(identity), Some(authorized_capability), Some(idempotency_key), Some(effect_receipt), Some(rollback)) =
-                (id, identity, authorized_capability, idempotency_key, effect_receipt, rollback)
+            let (
+                Some(id),
+                Some(identity),
+                Some(authorized_capability),
+                Some(idempotency_key),
+                Some(effect_receipt),
+                Some(rollback),
+            ) = (
+                id,
+                identity,
+                authorized_capability,
+                idempotency_key,
+                effect_receipt,
+                rollback,
+            )
             else {
                 err!("deploy requires --id --identity --authorized-capability --idempotency-key --effect-receipt --rollback");
             };
@@ -562,7 +607,11 @@ pub fn run_argv(args: &[String]) -> i32 {
             if result != "pass" && result != "fail" {
                 err!("--result must be pass or fail");
             }
-            Command::Verify { id, result, evidence }
+            Command::Verify {
+                id,
+                result,
+                evidence,
+            }
         }
         "outcome" => {
             let mut id = None;
@@ -712,7 +761,10 @@ mod tests {
         assert_eq!(state.schema_version, SCHEMA_VERSION);
         assert_eq!(state.interventions[0].status, "proposed");
         assert_eq!(state.interventions[1].status, "verified");
-        assert_eq!(state.interventions[1].deployment.as_ref().unwrap().verified, Some(true));
+        assert_eq!(
+            state.interventions[1].deployment.as_ref().unwrap().verified,
+            Some(true)
+        );
     }
 
     #[test]
@@ -816,7 +868,8 @@ mod tests {
     static TEST_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     fn temp_state_path() -> PathBuf {
         let id = TEST_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("r42-search-ops-{}-{}", std::process::id(), id));
+        let dir =
+            std::env::temp_dir().join(format!("r42-search-ops-{}-{}", std::process::id(), id));
         std::fs::create_dir_all(&dir).unwrap();
         dir.join("search-ops.json")
     }
@@ -902,30 +955,64 @@ mod tests {
         let path = temp_state_path();
         let path_str = path.to_string_lossy().to_string();
         let code = run_argv(&[
-            "--state".into(), path_str.clone(), "start".into(),
-            "--id".into(), "argv1".into(), "--target".into(), "/page".into(),
-            "--hypothesis".into(), "h".into(), "--action".into(), "a".into(),
-            "--metric".into(), "m".into(), "--evaluate-after".into(), "2026-01-01".into(),
+            "--state".into(),
+            path_str.clone(),
+            "start".into(),
+            "--id".into(),
+            "argv1".into(),
+            "--target".into(),
+            "/page".into(),
+            "--hypothesis".into(),
+            "h".into(),
+            "--action".into(),
+            "a".into(),
+            "--metric".into(),
+            "m".into(),
+            "--evaluate-after".into(),
+            "2026-01-01".into(),
         ]);
         assert_eq!(code, 0);
 
         let code = run_argv(&[
-            "--state".into(), path_str.clone(), "deploy".into(),
-            "--id".into(), "argv1".into(), "--identity".into(), "op".into(),
-            "--authorized-capability".into(), "cap".into(), "--idempotency-key".into(), "k".into(),
-            "--effect-receipt".into(), "r".into(), "--rollback".into(), "revert".into(),
+            "--state".into(),
+            path_str.clone(),
+            "deploy".into(),
+            "--id".into(),
+            "argv1".into(),
+            "--identity".into(),
+            "op".into(),
+            "--authorized-capability".into(),
+            "cap".into(),
+            "--idempotency-key".into(),
+            "k".into(),
+            "--effect-receipt".into(),
+            "r".into(),
+            "--rollback".into(),
+            "revert".into(),
         ]);
         assert_eq!(code, 0);
 
         let code = run_argv(&[
-            "--state".into(), path_str.clone(), "verify".into(),
-            "--id".into(), "argv1".into(), "--result".into(), "pass".into(), "--evidence".into(), "ev".into(),
+            "--state".into(),
+            path_str.clone(),
+            "verify".into(),
+            "--id".into(),
+            "argv1".into(),
+            "--result".into(),
+            "pass".into(),
+            "--evidence".into(),
+            "ev".into(),
         ]);
         assert_eq!(code, 0);
 
         let code = run_argv(&[
-            "--state".into(), path_str.clone(), "outcome".into(),
-            "--id".into(), "argv1".into(), "--verdict".into(), "win".into(),
+            "--state".into(),
+            path_str.clone(),
+            "outcome".into(),
+            "--id".into(),
+            "argv1".into(),
+            "--verdict".into(),
+            "win".into(),
         ]);
         assert_eq!(code, 0);
 
@@ -941,7 +1028,11 @@ mod tests {
     #[test]
     fn run_argv_start_missing_required_errors() {
         let path = temp_state_path();
-        let code = run_argv(&["--state".into(), path.to_string_lossy().into_owned(), "start".into()]);
+        let code = run_argv(&[
+            "--state".into(),
+            path.to_string_lossy().into_owned(),
+            "start".into(),
+        ]);
         assert_eq!(code, 1);
     }
 }

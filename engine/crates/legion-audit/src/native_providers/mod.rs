@@ -3,19 +3,19 @@ pub mod architecture;
 pub mod code;
 pub mod legacy;
 pub mod legacy_checks;
-pub mod reasoning;
-pub mod security;
 pub mod p10_runtime;
 pub mod p11_frameworks;
 pub mod p11b_frameworks;
 pub mod p11c_experience;
 pub mod p11d_quality;
+pub mod reasoning;
+pub mod security;
 
 use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
 use legion_contracts::ProviderResult;
 use legion_provider_sdk::ExternalProjectTool;
-use tokio_util::sync::CancellationToken;
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 
 /// Dispatches every provider family whose implementation is native. Host
 /// reasoning remains receipt-gated; the legacy-check adapter owns its
@@ -55,11 +55,13 @@ impl NativeProviderRegistry {
     }
 
     pub fn with_external_project_tool(mut self, tool: Arc<dyn ExternalProjectTool>) -> Self {
-        self.legacy_checks = self.legacy_checks.clone().with_external_project_tool(tool.clone());
+        self.legacy_checks = self
+            .legacy_checks
+            .clone()
+            .with_external_project_tool(tool.clone());
         self.external_project_tool = Some(tool);
         self
     }
-
 }
 
 #[async_trait::async_trait]
@@ -124,9 +126,11 @@ impl ProviderExecutor for NativeProviderRegistry {
         cancellation: CancellationToken,
     ) -> Result<ProviderResult, AuditError> {
         if legacy_checks::spec(&provider.id).is_some() {
-            return self.legacy_checks.execute_async(plan, provider, inventory, cancellation).await;
+            return self
+                .legacy_checks
+                .execute_async(plan, provider, inventory, cancellation)
+                .await;
         }
         self.execute_bound(plan, provider, inventory)
     }
-
 }

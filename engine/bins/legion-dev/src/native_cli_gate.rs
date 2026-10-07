@@ -22,8 +22,12 @@ use std::time::{Duration, Instant};
 pub const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 pub const DEFAULT_MAX_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 
-const ALLOWED_NORMALIZATION_KEYS: [&str; 4] =
-    ["lineEndings", "stackFrames", "trailingWhitespace", "timestamps"];
+const ALLOWED_NORMALIZATION_KEYS: [&str; 4] = [
+    "lineEndings",
+    "stackFrames",
+    "trailingWhitespace",
+    "timestamps",
+];
 // `tempRoots` is also allowed by the Node script; kept separate below since
 // it is checked by name, not iterated generically.
 const ALLOWED_NORMALIZATION_KEY_TEMP_ROOTS: &str = "tempRoots";
@@ -86,7 +90,8 @@ pub struct Manifest {
 pub fn load_manifest(manifest_path: &Path) -> Result<Manifest, String> {
     let bytes = fs::read(manifest_path).map_err(|e| format!("{}: {e}", manifest_path.display()))?;
     let text = String::from_utf8_lossy(&bytes).to_string();
-    let value: Value = serde_json::from_str(&text).map_err(|e| format!("manifest is invalid JSON: {e}"))?;
+    let value: Value =
+        serde_json::from_str(&text).map_err(|e| format!("manifest is invalid JSON: {e}"))?;
     let schema_ok = value.get("schemaVersion").and_then(Value::as_i64) == Some(1);
     let fixtures = value.get("fixtures").and_then(Value::as_array);
     if !schema_ok || fixtures.map(|f| f.is_empty()).unwrap_or(true) {
@@ -115,7 +120,11 @@ pub fn load_manifest(manifest_path: &Path) -> Result<Manifest, String> {
             return Err(format!("manifest row {id} has invalid argv"));
         }
         let fixture_sha256 = fixture_digest(fixture);
-        rows.push(ManifestRow { fixture: fixture.clone(), id, fixture_sha256 });
+        rows.push(ManifestRow {
+            fixture: fixture.clone(),
+            id,
+            fixture_sha256,
+        });
     }
     Ok(Manifest {
         value: value.clone(),
@@ -149,10 +158,19 @@ pub fn source_identity(root: &Path) -> Result<SourceIdentity, String> {
         && source_revision.len() <= 64
         && source_revision.chars().all(|c| c.is_ascii_hexdigit());
     if !revision_ok {
-        return Err(format!("cannot determine current source revision for {}", root.display()));
+        return Err(format!(
+            "cannot determine current source revision for {}",
+            root.display()
+        ));
     }
     let listing = Command::new("git")
-        .args(["ls-files", "-z", "--cached", "--others", "--exclude-standard"])
+        .args([
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+        ])
         .current_dir(root)
         .output()
         .map_err(|e| e.to_string())?;
@@ -194,29 +212,50 @@ pub struct InstalledExecutable {
 }
 
 #[cfg(windows)]
-pub fn installed_executable_path(local_app_data: Option<&str>) -> Result<InstalledExecutable, String> {
-    let local_app_data =
-        local_app_data.ok_or_else(|| "LOCALAPPDATA is required for installed qualification".to_string())?;
+pub fn installed_executable_path(
+    local_app_data: Option<&str>,
+) -> Result<InstalledExecutable, String> {
+    let local_app_data = local_app_data
+        .ok_or_else(|| "LOCALAPPDATA is required for installed qualification".to_string())?;
     let root = Path::new(local_app_data).join("Orthic Labs").join("Legion");
     let current = root.join("current");
     let executable = current.join("bin").join("legion.exe");
     let meta = fs::symlink_metadata(&executable).ok();
-    let ok = meta.as_ref().map(|m| m.is_file() && !m.file_type().is_symlink()).unwrap_or(false);
+    let ok = meta
+        .as_ref()
+        .map(|m| m.is_file() && !m.file_type().is_symlink())
+        .unwrap_or(false);
     if !ok {
-        return Err(format!("stable installed executable is missing or unsafe: {}", executable.display()));
+        return Err(format!(
+            "stable installed executable is missing or unsafe: {}",
+            executable.display()
+        ));
     }
-    Ok(InstalledExecutable { install_root: root, current_root: current, executable })
+    Ok(InstalledExecutable {
+        install_root: root,
+        current_root: current,
+        executable,
+    })
 }
 
 pub fn developer_executable_path(legion_exe: Option<&str>) -> Result<PathBuf, String> {
     let candidate = legion_exe
         .filter(|c| !c.is_empty() && Path::new(c).is_absolute())
-        .ok_or_else(|| "LEGION_EXE must be an absolute executable path for developer characterization".to_string())?;
+        .ok_or_else(|| {
+            "LEGION_EXE must be an absolute executable path for developer characterization"
+                .to_string()
+        })?;
     let path = Path::new(candidate).to_path_buf();
     let meta = fs::symlink_metadata(&path).ok();
-    let ok = meta.as_ref().map(|m| m.is_file() && !m.file_type().is_symlink()).unwrap_or(false);
+    let ok = meta
+        .as_ref()
+        .map(|m| m.is_file() && !m.file_type().is_symlink())
+        .unwrap_or(false);
     if !ok {
-        return Err(format!("developer executable is missing or unsafe: {}", path.display()));
+        return Err(format!(
+            "developer executable is missing or unsafe: {}",
+            path.display()
+        ));
     }
     Ok(path)
 }
@@ -253,12 +292,29 @@ pub struct Evidence {
 
 pub fn read_evidence(path: Option<&Path>) -> Result<Evidence, String> {
     let path = match path {
-        Some(p) if fs::symlink_metadata(p).map(|m| m.is_file() && !m.file_type().is_symlink()).unwrap_or(false) => p,
-        _ => return Err(format!("qualification evidence is missing or unsafe: {}", path.map(|p| p.display().to_string()).unwrap_or_else(|| "<unset>".to_string()))),
+        Some(p)
+            if fs::symlink_metadata(p)
+                .map(|m| m.is_file() && !m.file_type().is_symlink())
+                .unwrap_or(false) =>
+        {
+            p
+        }
+        _ => {
+            return Err(format!(
+                "qualification evidence is missing or unsafe: {}",
+                path.map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "<unset>".to_string())
+            ))
+        }
     };
     let bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let value: Value = serde_json::from_slice(&bytes).map_err(|e| format!("qualification evidence is invalid JSON: {e}"))?;
-    Ok(Evidence { path: path.to_path_buf(), value, sha256: sha256(&bytes) })
+    let value: Value = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("qualification evidence is invalid JSON: {e}"))?;
+    Ok(Evidence {
+        path: path.to_path_buf(),
+        value,
+        sha256: sha256(&bytes),
+    })
 }
 
 pub struct Provenance {
@@ -306,59 +362,123 @@ pub fn validate_executable_provenance(
     if !status_ok {
         return Err("qualification evidence does not report a completed status".to_string());
     }
-    let source_revision = get_field(value, &["sourceRevision", "source_revision", "build.sourceRevision"]);
-    let source_tree_sha256 = get_field(value, &["sourceTreeSha256", "sourceTreeDigest", "build.sourceTreeSha256"]);
-    let recorded_manifest = get_field(value, &["manifestSha256", "manifest.sha256", "behaviorManifestSha256", "build.manifestSha256"]);
-    let recorded_executable = get_field(value, &["executableSha256", "installedExecutableSha256", "executable.sha256", "build.executableSha256"]);
-    let recorded_path = get_field(value, &["installedExecutable", "executable.path", "build.executablePath"]);
+    let source_revision = get_field(
+        value,
+        &["sourceRevision", "source_revision", "build.sourceRevision"],
+    );
+    let source_tree_sha256 = get_field(
+        value,
+        &[
+            "sourceTreeSha256",
+            "sourceTreeDigest",
+            "build.sourceTreeSha256",
+        ],
+    );
+    let recorded_manifest = get_field(
+        value,
+        &[
+            "manifestSha256",
+            "manifest.sha256",
+            "behaviorManifestSha256",
+            "build.manifestSha256",
+        ],
+    );
+    let recorded_executable = get_field(
+        value,
+        &[
+            "executableSha256",
+            "installedExecutableSha256",
+            "executable.sha256",
+            "build.executableSha256",
+        ],
+    );
+    let recorded_path = get_field(
+        value,
+        &[
+            "installedExecutable",
+            "executable.path",
+            "build.executablePath",
+        ],
+    );
 
-    let source_revision = source_revision.filter(|s| is_revision(s)).ok_or("qualification evidence is missing a valid source revision")?;
-    let source_tree_sha256 = source_tree_sha256.filter(|s| is_sha256(s)).ok_or("qualification evidence is missing sourceTreeSha256")?;
-    let recorded_manifest = recorded_manifest.filter(|m| m.to_lowercase() == manifest_sha256.to_lowercase()).ok_or("qualification evidence manifest SHA-256 does not match frozen manifest")?;
-    let recorded_executable = recorded_executable.filter(|e| is_sha256(e)).ok_or("qualification evidence is missing executableSha256")?;
+    let source_revision = source_revision
+        .filter(|s| is_revision(s))
+        .ok_or("qualification evidence is missing a valid source revision")?;
+    let source_tree_sha256 = source_tree_sha256
+        .filter(|s| is_sha256(s))
+        .ok_or("qualification evidence is missing sourceTreeSha256")?;
+    let recorded_manifest = recorded_manifest
+        .filter(|m| m.to_lowercase() == manifest_sha256.to_lowercase())
+        .ok_or("qualification evidence manifest SHA-256 does not match frozen manifest")?;
+    let recorded_executable = recorded_executable
+        .filter(|e| is_sha256(e))
+        .ok_or("qualification evidence is missing executableSha256")?;
 
     let actual_executable = sha256_file(executable)?;
     if recorded_executable.to_lowercase() != actual_executable {
-        return Err("qualification evidence executable SHA-256 does not match executable".to_string());
+        return Err(
+            "qualification evidence executable SHA-256 does not match executable".to_string(),
+        );
     }
-    let normalized_executable = fs::canonicalize(executable).unwrap_or_else(|_| executable.to_path_buf());
+    let normalized_executable =
+        fs::canonicalize(executable).unwrap_or_else(|_| executable.to_path_buf());
 
     #[cfg(windows)]
     if mode == "installed" {
         let stable = installed_executable_path(local_app_data)?;
-        let stable_executable = fs::canonicalize(&stable.executable).unwrap_or(stable.executable.clone());
+        let stable_executable =
+            fs::canonicalize(&stable.executable).unwrap_or(stable.executable.clone());
         if normalized_executable != stable_executable {
             return Err("installed qualification executable is not the installer-owned stable current executable".to_string());
         }
         let recorded_path_ok = recorded_path
-            .map(|p| fs::canonicalize(p).unwrap_or_else(|_| PathBuf::from(p)) == normalized_executable)
+            .map(|p| {
+                fs::canonicalize(p).unwrap_or_else(|_| PathBuf::from(p)) == normalized_executable
+            })
             .unwrap_or(false);
         if !recorded_path_ok {
-            return Err("qualification evidence does not name the stable current executable".to_string());
+            return Err(
+                "qualification evidence does not name the stable current executable".to_string(),
+            );
         }
         let origin_ok = value.get("origin").and_then(Value::as_str) == Some("installed")
-            || value.get("activation").and_then(|a| a.get("status")).and_then(|s| s.get("origin")).and_then(Value::as_str) == Some("installed");
+            || value
+                .get("activation")
+                .and_then(|a| a.get("status"))
+                .and_then(|s| s.get("origin"))
+                .and_then(Value::as_str)
+                == Some("installed");
         if !origin_ok {
             return Err("qualification evidence does not prove installed origin".to_string());
         }
     } else if let Some(p) = recorded_path {
         let recorded_norm = fs::canonicalize(p).unwrap_or_else(|_| PathBuf::from(p));
         if recorded_norm != normalized_executable {
-            return Err("qualification evidence executable path does not match requested executable".to_string());
+            return Err(
+                "qualification evidence executable path does not match requested executable"
+                    .to_string(),
+            );
         }
     }
     #[cfg(not(windows))]
     if let Some(p) = recorded_path {
         let recorded_norm = fs::canonicalize(p).unwrap_or_else(|_| PathBuf::from(p));
         if recorded_norm != normalized_executable {
-            return Err("qualification evidence executable path does not match requested executable".to_string());
+            return Err(
+                "qualification evidence executable path does not match requested executable"
+                    .to_string(),
+            );
         }
     }
 
-    if !source.source_revision.is_empty() && source_revision.to_lowercase() != source.source_revision.to_lowercase() {
+    if !source.source_revision.is_empty()
+        && source_revision.to_lowercase() != source.source_revision.to_lowercase()
+    {
         return Err("qualification evidence source revision is not the current tree".to_string());
     }
-    if !source.source_tree_sha256.is_empty() && source_tree_sha256.to_lowercase() != source.source_tree_sha256.to_lowercase() {
+    if !source.source_tree_sha256.is_empty()
+        && source_tree_sha256.to_lowercase() != source.source_tree_sha256.to_lowercase()
+    {
         return Err("qualification evidence source tree hash is not the current tree".to_string());
     }
 
@@ -374,13 +494,19 @@ pub fn validate_executable_provenance(
     })
 }
 
-fn normalize_text(value: &str, normalization: &Value, temp_roots: &[String]) -> Result<String, String> {
+fn normalize_text(
+    value: &str,
+    normalization: &Value,
+    temp_roots: &[String],
+) -> Result<String, String> {
     if !normalization.is_object() {
         return Ok(value.to_string());
     }
     let obj = normalization.as_object().unwrap();
     for key in obj.keys() {
-        if !ALLOWED_NORMALIZATION_KEYS.contains(&key.as_str()) && key != ALLOWED_NORMALIZATION_KEY_TEMP_ROOTS {
+        if !ALLOWED_NORMALIZATION_KEYS.contains(&key.as_str())
+            && key != ALLOWED_NORMALIZATION_KEY_TEMP_ROOTS
+        {
             return Err(format!("unsupported normalization field: {key}"));
         }
     }
@@ -406,7 +532,8 @@ fn normalize_text(value: &str, normalization: &Value, temp_roots: &[String]) -> 
             .join("\n");
     }
     if obj.get("timestamps").and_then(Value::as_bool) == Some(true) {
-        let re = regex::Regex::new(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z\b").unwrap();
+        let re =
+            regex::Regex::new(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z\b").unwrap();
         text = re.replace_all(&text, "<TIMESTAMP>").to_string();
     }
     if obj.get("tempRoots").and_then(Value::as_bool) == Some(true) {
@@ -424,12 +551,22 @@ fn normalize_text(value: &str, normalization: &Value, temp_roots: &[String]) -> 
 
 fn normalize_evidence_value(value: &Value, normalization: &Value, temp_roots: &[String]) -> Value {
     match value {
-        Value::String(s) => Value::String(normalize_text(s, normalization, temp_roots).unwrap_or_else(|_| s.clone())),
-        Value::Array(items) => Value::Array(items.iter().map(|i| normalize_evidence_value(i, normalization, temp_roots)).collect()),
+        Value::String(s) => Value::String(
+            normalize_text(s, normalization, temp_roots).unwrap_or_else(|_| s.clone()),
+        ),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|i| normalize_evidence_value(i, normalization, temp_roots))
+                .collect(),
+        ),
         Value::Object(map) => {
             let mut out = Map::new();
             for (k, v) in map {
-                out.insert(k.clone(), normalize_evidence_value(v, normalization, temp_roots));
+                out.insert(
+                    k.clone(),
+                    normalize_evidence_value(v, normalization, temp_roots),
+                );
             }
             Value::Object(out)
         }
@@ -469,8 +606,13 @@ pub fn compare_observations(
     if expected_exit != actual.exit_code.map(|c| c as i64) {
         mismatches.push(format!(
             "exit {} != baseline {}",
-            actual.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "null".to_string()),
-            expected_exit.map(|c| c.to_string()).unwrap_or_else(|| "null".to_string())
+            actual
+                .exit_code
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "null".to_string()),
+            expected_exit
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "null".to_string())
         ));
     }
     let normalization = fixture
@@ -479,7 +621,12 @@ pub fn compare_observations(
         .cloned()
         .unwrap_or(json!({}));
     let mut all_temp_roots: Vec<String> = temp_roots.to_vec();
-    for r in expected.get("sandboxRoots").and_then(Value::as_array).into_iter().flatten() {
+    for r in expected
+        .get("sandboxRoots")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if let Some(s) = r.as_str() {
             all_temp_roots.push(s.to_string());
         }
@@ -488,10 +635,22 @@ pub fn compare_observations(
     all_temp_roots.sort();
     all_temp_roots.dedup();
 
-    let expected_stdout = normalize_text(expected.get("stdout").and_then(Value::as_str).unwrap_or(""), &normalization, &all_temp_roots).unwrap_or_default();
-    let actual_stdout = normalize_text(&actual.stdout, &normalization, &all_temp_roots).unwrap_or_default();
-    let expected_stderr = normalize_text(expected.get("stderr").and_then(Value::as_str).unwrap_or(""), &normalization, &all_temp_roots).unwrap_or_default();
-    let actual_stderr = normalize_text(&actual.stderr, &normalization, &all_temp_roots).unwrap_or_default();
+    let expected_stdout = normalize_text(
+        expected.get("stdout").and_then(Value::as_str).unwrap_or(""),
+        &normalization,
+        &all_temp_roots,
+    )
+    .unwrap_or_default();
+    let actual_stdout =
+        normalize_text(&actual.stdout, &normalization, &all_temp_roots).unwrap_or_default();
+    let expected_stderr = normalize_text(
+        expected.get("stderr").and_then(Value::as_str).unwrap_or(""),
+        &normalization,
+        &all_temp_roots,
+    )
+    .unwrap_or_default();
+    let actual_stderr =
+        normalize_text(&actual.stderr, &normalization, &all_temp_roots).unwrap_or_default();
     if expected_stdout != actual_stdout {
         mismatches.push("stdout differs from baseline".to_string());
     }
@@ -503,8 +662,10 @@ pub fn compare_observations(
     let expected_fs = expected.get("filesystem").unwrap_or(&empty);
     let expected_mutation = mutation_diff(expected_fs);
     let actual_mutation = mutation_diff(&actual.filesystem);
-    let expected_mutation = normalize_evidence_value(&expected_mutation, &normalization, &all_temp_roots);
-    let actual_mutation = normalize_evidence_value(&actual_mutation, &normalization, &all_temp_roots);
+    let expected_mutation =
+        normalize_evidence_value(&expected_mutation, &normalization, &all_temp_roots);
+    let actual_mutation =
+        normalize_evidence_value(&actual_mutation, &normalization, &all_temp_roots);
     if canonical_json(&expected_mutation) != canonical_json(&actual_mutation) {
         mismatches.push("filesystem mutation differs from baseline".to_string());
     }
@@ -526,15 +687,20 @@ fn mutation_diff(filesystem: &Value) -> Value {
     for root in roots {
         let left = before.get(&root);
         let right = after.get(&root);
-        match (left.and_then(Value::as_array), right.and_then(Value::as_array)) {
+        match (
+            left.and_then(Value::as_array),
+            right.and_then(Value::as_array),
+        ) {
             (Some(left_arr), Some(right_arr)) => {
-                let mut left_by_path: std::collections::BTreeMap<&str, &Value> = std::collections::BTreeMap::new();
+                let mut left_by_path: std::collections::BTreeMap<&str, &Value> =
+                    std::collections::BTreeMap::new();
                 for entry in left_arr {
                     if let Some(p) = entry.get("path").and_then(Value::as_str) {
                         left_by_path.insert(p, entry);
                     }
                 }
-                let mut right_by_path: std::collections::BTreeMap<&str, &Value> = std::collections::BTreeMap::new();
+                let mut right_by_path: std::collections::BTreeMap<&str, &Value> =
+                    std::collections::BTreeMap::new();
                 for entry in right_arr {
                     if let Some(p) = entry.get("path").and_then(Value::as_str) {
                         right_by_path.insert(p, entry);
@@ -573,8 +739,15 @@ fn normalized_windows_path(value: &str) -> String {
     stripped.replace('/', "\\").to_lowercase()
 }
 
-pub fn validate_installed_skill_links(filesystem: &Value, installed_skills_root: &Path, forbidden_root: &Path) -> Vec<String> {
-    let entries = filesystem.get("after").and_then(|a| a.get("cwd")).and_then(Value::as_array);
+pub fn validate_installed_skill_links(
+    filesystem: &Value,
+    installed_skills_root: &Path,
+    forbidden_root: &Path,
+) -> Vec<String> {
+    let entries = filesystem
+        .get("after")
+        .and_then(|a| a.get("cwd"))
+        .and_then(Value::as_array);
     let entries = match entries {
         Some(e) => e,
         None => return vec!["installed filesystem evidence has no cwd inventory".to_string()],
@@ -590,12 +763,22 @@ pub fn validate_installed_skill_links(filesystem: &Value, installed_skills_root:
     if links.is_empty() {
         return vec!["installed harness created no skill links".to_string()];
     }
-    let required = format!("{}\\", normalized_windows_path(&installed_skills_root.to_string_lossy()));
-    let forbidden = format!("{}\\", normalized_windows_path(&forbidden_root.to_string_lossy()));
+    let required = format!(
+        "{}\\",
+        normalized_windows_path(&installed_skills_root.to_string_lossy())
+    );
+    let forbidden = format!(
+        "{}\\",
+        normalized_windows_path(&forbidden_root.to_string_lossy())
+    );
     let mut problems = Vec::new();
     for link in links {
         let path = link.get("path").and_then(Value::as_str).unwrap_or_default();
-        let target = normalized_windows_path(link.get("target").and_then(Value::as_str).unwrap_or_default());
+        let target = normalized_windows_path(
+            link.get("target")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        );
         if !target.starts_with(&required) {
             problems.push(format!("{path} does not target installed plugin skills"));
         }
@@ -624,7 +807,11 @@ pub fn evaluate_parity_row(
     let record_value = observation_to_value(record);
     let problems = observation_value_problems(&record_value, "native");
     if !problems.is_empty() {
-        return ParityRowResult { status: "blocked", comparison: "invalid-observation", mismatch: problems };
+        return ParityRowResult {
+            status: "blocked",
+            comparison: "invalid-observation",
+            mismatch: problems,
+        };
     }
     if fixture.get("rust").and_then(Value::as_bool) == Some(false) {
         return ParityRowResult {
@@ -639,13 +826,25 @@ pub fn evaluate_parity_row(
             Ok(m) => mismatch.extend(m),
             Err(e) => mismatch.push(e),
         }
-        let before = record.filesystem.get("before").cloned().unwrap_or(Value::Null);
-        let after = record.filesystem.get("after").cloned().unwrap_or(Value::Null);
+        let before = record
+            .filesystem
+            .get("before")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let after = record
+            .filesystem
+            .get("after")
+            .cloned()
+            .unwrap_or(Value::Null);
         if canonical_json(&before) != canonical_json(&after) {
             mismatch.push("native-only row has unasserted filesystem mutations".to_string());
         }
         return ParityRowResult {
-            status: if mismatch.is_empty() { "matched" } else { "blocked" },
+            status: if mismatch.is_empty() {
+                "matched"
+            } else {
+                "blocked"
+            },
             comparison: "native-oracle",
             mismatch,
         };
@@ -665,13 +864,19 @@ pub fn evaluate_parity_row(
             return ParityRowResult {
                 status: "unmatched",
                 comparison: "node-parity",
-                mismatch: vec!["Node baseline identity does not match frozen manifest row".to_string()],
+                mismatch: vec![
+                    "Node baseline identity does not match frozen manifest row".to_string()
+                ],
             };
         }
     }
     let mismatch = compare_observations(baseline, record, fixture, temp_roots);
     ParityRowResult {
-        status: if mismatch.is_empty() { "matched" } else { "mismatched" },
+        status: if mismatch.is_empty() {
+            "matched"
+        } else {
+            "mismatched"
+        },
         comparison: "node-parity",
         mismatch,
     }
@@ -684,12 +889,19 @@ fn valid_exit_code(value: Option<i64>) -> bool {
 fn valid_string_list(value: Option<&Value>) -> bool {
     value
         .and_then(Value::as_array)
-        .map(|a| !a.is_empty() && a.iter().all(|v| v.as_str().map(|s| !s.is_empty()).unwrap_or(false)))
+        .map(|a| {
+            !a.is_empty()
+                && a.iter()
+                    .all(|v| v.as_str().map(|s| !s.is_empty()).unwrap_or(false))
+        })
         .unwrap_or(false)
 }
 
 fn valid_digest(value: Option<&Value>) -> bool {
-    value.and_then(Value::as_str).map(is_sha256).unwrap_or(false)
+    value
+        .and_then(Value::as_str)
+        .map(is_sha256)
+        .unwrap_or(false)
 }
 
 fn observation_to_value(observation: &Observation) -> Value {
@@ -710,7 +922,11 @@ fn observation_value_problems(observation: &Value, label: &str) -> Vec<String> {
     observation_problems_inner(observation, label, true)
 }
 
-fn observation_problems_inner(observation: &Value, label: &str, require_evidence: bool) -> Vec<String> {
+fn observation_problems_inner(
+    observation: &Value,
+    label: &str,
+    require_evidence: bool,
+) -> Vec<String> {
     let mut problems = Vec::new();
     if !observation.is_object() {
         return vec![format!("{label} observation is not an object")];
@@ -718,25 +934,53 @@ fn observation_problems_inner(observation: &Value, label: &str, require_evidence
     if !valid_exit_code(observation.get("exitCode").and_then(Value::as_i64)) {
         problems.push(format!("{label} observation has no valid integer exitCode"));
     }
-    let stdout_ok = observation.get("stdout").map(Value::is_string).unwrap_or(false);
-    let stderr_ok = observation.get("stderr").map(Value::is_string).unwrap_or(false);
+    let stdout_ok = observation
+        .get("stdout")
+        .map(Value::is_string)
+        .unwrap_or(false);
+    let stderr_ok = observation
+        .get("stderr")
+        .map(Value::is_string)
+        .unwrap_or(false);
     if !stdout_ok || !stderr_ok {
-        problems.push(format!("{label} observation streams are missing or not strings"));
+        problems.push(format!(
+            "{label} observation streams are missing or not strings"
+        ));
     }
     if require_evidence {
-        if !observation.get("error").map(Value::is_null).unwrap_or(false) {
+        if !observation
+            .get("error")
+            .map(Value::is_null)
+            .unwrap_or(false)
+        {
             problems.push(format!("{label} observation reports an error"));
         }
-        if !observation.get("signal").map(Value::is_null).unwrap_or(false) {
+        if !observation
+            .get("signal")
+            .map(Value::is_null)
+            .unwrap_or(false)
+        {
             problems.push(format!("{label} observation reports a signal"));
         }
         if observation.get("timedOut").and_then(Value::as_bool) != Some(false) {
-            problems.push(format!("{label} observation timed out or has invalid timeout state"));
+            problems.push(format!(
+                "{label} observation timed out or has invalid timeout state"
+            ));
         }
-        if observation.get("outputLimitExceeded").and_then(Value::as_bool) != Some(false) {
-            problems.push(format!("{label} observation exceeded the output limit or has invalid limit state"));
+        if observation
+            .get("outputLimitExceeded")
+            .and_then(Value::as_bool)
+            != Some(false)
+        {
+            problems.push(format!(
+                "{label} observation exceeded the output limit or has invalid limit state"
+            ));
         }
-        let mismatch_ok = observation.get("mismatch").and_then(Value::as_array).map(|a| a.is_empty()).unwrap_or(false);
+        let mismatch_ok = observation
+            .get("mismatch")
+            .and_then(Value::as_array)
+            .map(|a| a.is_empty())
+            .unwrap_or(false);
         if !mismatch_ok {
             problems.push(format!("{label} observation reports a mismatch"));
         }
@@ -744,17 +988,23 @@ fn observation_problems_inner(observation: &Value, label: &str, require_evidence
             Some(fsv) if fsv.is_object() => {
                 let obj = fsv.as_object().unwrap();
                 if !obj.get("before").map(|v| v.is_object()).unwrap_or(false) {
-                    problems.push(format!("{label} filesystem before evidence is missing or invalid"));
+                    problems.push(format!(
+                        "{label} filesystem before evidence is missing or invalid"
+                    ));
                 }
                 if !obj.get("after").map(|v| v.is_object()).unwrap_or(false) {
-                    problems.push(format!("{label} filesystem after evidence is missing or invalid"));
+                    problems.push(format!(
+                        "{label} filesystem after evidence is missing or invalid"
+                    ));
                 }
             }
             _ => problems.push(format!("{label} filesystem evidence is missing")),
         }
     } else {
         let error = observation.get("error");
-        if !matches!(error, None | Some(Value::Null)) && error != Some(&Value::String(String::new())) {
+        if !matches!(error, None | Some(Value::Null))
+            && error != Some(&Value::String(String::new()))
+        {
             problems.push(format!("{label} observation reports an error"));
         }
         let signal = observation.get("signal");
@@ -763,46 +1013,79 @@ fn observation_problems_inner(observation: &Value, label: &str, require_evidence
         }
         let timed_out = observation.get("timedOut");
         if timed_out.is_some() && timed_out.and_then(Value::as_bool) != Some(false) {
-            problems.push(format!("{label} observation timed out or has invalid timeout state"));
+            problems.push(format!(
+                "{label} observation timed out or has invalid timeout state"
+            ));
         }
         let limit = observation.get("outputLimitExceeded");
         if limit.is_some() && limit.and_then(Value::as_bool) != Some(false) {
-            problems.push(format!("{label} observation exceeded the output limit or has invalid limit state"));
+            problems.push(format!(
+                "{label} observation exceeded the output limit or has invalid limit state"
+            ));
         }
     }
     problems
 }
 
-const NATIVE_ORACLE_KEYS: [&str; 6] =
-    ["exitCode", "stdoutIncludes", "stderrIncludes", "kind", "stdoutSha256", "stderrSha256"];
+const NATIVE_ORACLE_KEYS: [&str; 6] = [
+    "exitCode",
+    "stdoutIncludes",
+    "stderrIncludes",
+    "kind",
+    "stdoutSha256",
+    "stderrSha256",
+];
 
-pub fn assert_native_oracle(fixture: &Value, observation: &Observation) -> Result<Vec<String>, String> {
+pub fn assert_native_oracle(
+    fixture: &Value,
+    observation: &Observation,
+) -> Result<Vec<String>, String> {
     let oracle = fixture
         .get("nativeOracle")
         .filter(|o| o.is_object())
-        .ok_or_else(|| format!("row {} has no valid native behavior oracle object", fixture.get("id").and_then(Value::as_str).unwrap_or("?")))?;
+        .ok_or_else(|| {
+            format!(
+                "row {} has no valid native behavior oracle object",
+                fixture.get("id").and_then(Value::as_str).unwrap_or("?")
+            )
+        })?;
     let obj = oracle.as_object().unwrap();
-    let unknown: Vec<&String> = obj.keys().filter(|k| !NATIVE_ORACLE_KEYS.contains(&k.as_str())).collect();
+    let unknown: Vec<&String> = obj
+        .keys()
+        .filter(|k| !NATIVE_ORACLE_KEYS.contains(&k.as_str()))
+        .collect();
     if !unknown.is_empty() {
         return Err(format!(
             "row {} native oracle has unknown assertion fields: {}",
             fixture.get("id").and_then(Value::as_str).unwrap_or("?"),
-            unknown.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+            unknown
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         ));
     }
     let id = fixture.get("id").and_then(Value::as_str).unwrap_or("?");
     if !valid_exit_code(obj.get("exitCode").and_then(Value::as_i64)) {
-        return Err(format!("row {id} native oracle requires a valid integer exitCode"));
+        return Err(format!(
+            "row {id} native oracle requires a valid integer exitCode"
+        ));
     }
     if obj.contains_key("stdoutIncludes") && !valid_string_list(obj.get("stdoutIncludes")) {
-        return Err(format!("row {id} native oracle stdoutIncludes must be a non-empty string array"));
+        return Err(format!(
+            "row {id} native oracle stdoutIncludes must be a non-empty string array"
+        ));
     }
     if obj.contains_key("stderrIncludes") && !valid_string_list(obj.get("stderrIncludes")) {
-        return Err(format!("row {id} native oracle stderrIncludes must be a non-empty string array"));
+        return Err(format!(
+            "row {id} native oracle stderrIncludes must be a non-empty string array"
+        ));
     }
     if let Some(kind) = obj.get("kind") {
         if kind.as_str().map(|s| s.is_empty()).unwrap_or(true) {
-            return Err(format!("row {id} native oracle kind must be a non-empty string"));
+            return Err(format!(
+                "row {id} native oracle kind must be a non-empty string"
+            ));
         }
     }
     if obj.contains_key("stdoutSha256") && !valid_digest(obj.get("stdoutSha256")) {
@@ -821,17 +1104,28 @@ pub fn assert_native_oracle(fixture: &Value, observation: &Observation) -> Resul
     if observation.exit_code.map(|c| c as i64) != expected_exit {
         mismatches.push(format!(
             "exit {} != native oracle {}",
-            observation.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "null".into()),
-            expected_exit.map(|c| c.to_string()).unwrap_or_else(|| "null".into())
+            observation
+                .exit_code
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "null".into()),
+            expected_exit
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "null".into())
         ));
     }
     if let Some(needles) = obj.get("stdoutIncludes").and_then(Value::as_array) {
-        if needles.iter().any(|n| !observation.stdout.contains(n.as_str().unwrap_or_default())) {
+        if needles
+            .iter()
+            .any(|n| !observation.stdout.contains(n.as_str().unwrap_or_default()))
+        {
             mismatches.push("stdout native oracle assertion failed".to_string());
         }
     }
     if let Some(needles) = obj.get("stderrIncludes").and_then(Value::as_array) {
-        if needles.iter().any(|n| !observation.stderr.contains(n.as_str().unwrap_or_default())) {
+        if needles
+            .iter()
+            .any(|n| !observation.stderr.contains(n.as_str().unwrap_or_default()))
+        {
             mismatches.push("stderr native oracle assertion failed".to_string());
         }
     }
@@ -865,9 +1159,17 @@ pub struct RowSummaryInput {
     pub error: Option<String>,
 }
 
-pub fn summarize_results(results: &[RowSummaryInput], expected_ids: Option<&[String]>, expected_count: Option<usize>) -> Value {
+pub fn summarize_results(
+    results: &[RowSummaryInput],
+    expected_ids: Option<&[String]>,
+    expected_count: Option<usize>,
+) -> Value {
     let result_ids: Vec<&str> = results.iter().map(|r| r.id.as_str()).collect();
-    let invalid_ids: Vec<&str> = result_ids.iter().filter(|id| id.is_empty()).copied().collect();
+    let invalid_ids: Vec<&str> = result_ids
+        .iter()
+        .filter(|id| id.is_empty())
+        .copied()
+        .collect();
     let mut seen_once: BTreeSet<&str> = BTreeSet::new();
     let mut duplicate_ids: Vec<&str> = Vec::new();
     for id in &result_ids {
@@ -879,7 +1181,12 @@ pub fn summarize_results(results: &[RowSummaryInput], expected_ids: Option<&[Str
     }
     let result_id_set: BTreeSet<&str> = result_ids.iter().copied().collect();
     let missing_ids: Vec<&str> = expected_ids
-        .map(|ids| ids.iter().filter(|id| !result_id_set.contains(id.as_str())).map(|s| s.as_str()).collect())
+        .map(|ids| {
+            ids.iter()
+                .filter(|id| !result_id_set.contains(id.as_str()))
+                .map(|s| s.as_str())
+                .collect()
+        })
         .unwrap_or_default();
     let mut unexpected_ids: Vec<&str> = Vec::new();
     if let Some(ids) = expected_ids {
@@ -904,13 +1211,16 @@ pub fn summarize_results(results: &[RowSummaryInput], expected_ids: Option<&[Str
         && expected_ids_unique
         && expected_count.map(|c| c == results.len()).unwrap_or(true)
         && expected_ids
-            .map(|ids| missing_ids.is_empty() && unexpected_ids.is_empty() && ids.len() == results.len())
+            .map(|ids| {
+                missing_ids.is_empty() && unexpected_ids.is_empty() && ids.len() == results.len()
+            })
             .unwrap_or(true);
 
     let normalized: Vec<(&str, Vec<String>)> = results
         .iter()
         .map(|r| {
-            let has_issue = !r.mismatch.is_empty() || r.error.as_ref().map(|e| !e.is_empty()).unwrap_or(false);
+            let has_issue =
+                !r.mismatch.is_empty() || r.error.as_ref().map(|e| !e.is_empty()).unwrap_or(false);
             if r.status == "matched" && has_issue {
                 let mismatch = if !r.mismatch.is_empty() {
                     r.mismatch.clone()
@@ -955,13 +1265,26 @@ pub fn snapshot_root(root: &Path, label: &str) -> Result<Value, String> {
     const MAX_FILES: usize = 2000;
     const MAX_BYTES: u64 = 32 * 1024 * 1024;
     const MAX_DEPTH: u32 = 16;
-    let root_meta = fs::symlink_metadata(root).map_err(|e| format!("filesystem snapshot root vanished at {label}: {e}"))?;
+    let root_meta = fs::symlink_metadata(root)
+        .map_err(|e| format!("filesystem snapshot root vanished at {label}: {e}"))?;
     if !root_meta.is_dir() || root_meta.file_type().is_symlink() {
-        return Err(format!("filesystem snapshot root is not a directory at {label}"));
+        return Err(format!(
+            "filesystem snapshot root is not a directory at {label}"
+        ));
     }
     let mut records = Vec::new();
     let mut bytes: u64 = 0;
-    walk_snapshot(root, root, 0, MAX_DEPTH, MAX_FILES, MAX_BYTES, label, &mut records, &mut bytes)?;
+    walk_snapshot(
+        root,
+        root,
+        0,
+        MAX_DEPTH,
+        MAX_FILES,
+        MAX_BYTES,
+        label,
+        &mut records,
+        &mut bytes,
+    )?;
     Ok(Value::Array(records))
 }
 
@@ -978,20 +1301,35 @@ fn walk_snapshot(
     bytes: &mut u64,
 ) -> Result<(), String> {
     if depth > max_depth {
-        return Err(format!("filesystem snapshot depth limit exceeded at {label}/{}", current.strip_prefix(root).unwrap_or(current).display()));
+        return Err(format!(
+            "filesystem snapshot depth limit exceeded at {label}/{}",
+            current.strip_prefix(root).unwrap_or(current).display()
+        ));
     }
     let mut entries: Vec<_> = fs::read_dir(current)
-        .map_err(|e| format!("filesystem snapshot directory vanished at {label}/{}: {e}", current.strip_prefix(root).unwrap_or(current).display()))?
+        .map_err(|e| {
+            format!(
+                "filesystem snapshot directory vanished at {label}/{}: {e}",
+                current.strip_prefix(root).unwrap_or(current).display()
+            )
+        })?
         .flatten()
         .collect();
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
         if records.len() >= max_files {
-            return Err(format!("filesystem snapshot file bound exceeded at {label}"));
+            return Err(format!(
+                "filesystem snapshot file bound exceeded at {label}"
+            ));
         }
         let path = entry.path();
-        let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
-        let observed = fs::symlink_metadata(&path).map_err(|e| format!("filesystem snapshot entry vanished at {label}/{rel}: {e}"))?;
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let observed = fs::symlink_metadata(&path)
+            .map_err(|e| format!("filesystem snapshot entry vanished at {label}/{rel}: {e}"))?;
         let actual_type = if observed.file_type().is_symlink() {
             "symlink"
         } else if observed.is_dir() {
@@ -1004,20 +1342,37 @@ fn walk_snapshot(
         match actual_type {
             "directory" => {
                 records.push(json!({ "path": rel, "type": "directory" }));
-                walk_snapshot(root, &path, depth + 1, max_depth, max_files, max_bytes, label, records, bytes)?;
+                walk_snapshot(
+                    root,
+                    &path,
+                    depth + 1,
+                    max_depth,
+                    max_files,
+                    max_bytes,
+                    label,
+                    records,
+                    bytes,
+                )?;
             }
             "symlink" => {
-                let target = fs::read_link(&path).ok().map(|t| t.to_string_lossy().to_string());
+                let target = fs::read_link(&path)
+                    .ok()
+                    .map(|t| t.to_string_lossy().to_string());
                 records.push(json!({ "path": rel, "type": "symlink", "target": target }));
             }
             "file" => {
                 let size = observed.len();
                 if *bytes + size > max_bytes {
-                    return Err(format!("filesystem snapshot output limit exceeded at {label}/{rel}"));
+                    return Err(format!(
+                        "filesystem snapshot output limit exceeded at {label}/{rel}"
+                    ));
                 }
                 *bytes += size;
-                let digest = sha256_file(&path).map_err(|e| format!("filesystem snapshot file vanished at {label}/{rel}: {e}"))?;
-                records.push(json!({ "path": rel, "type": "file", "size": size, "sha256": digest }));
+                let digest = sha256_file(&path).map_err(|e| {
+                    format!("filesystem snapshot file vanished at {label}/{rel}: {e}")
+                })?;
+                records
+                    .push(json!({ "path": rel, "type": "file", "size": size, "sha256": digest }));
             }
             _ => records.push(json!({ "path": rel, "type": "other" })),
         }
@@ -1051,7 +1406,11 @@ fn copy_dir_filtered(source: &Path, destination: &Path) -> Result<(), String> {
         let entry = entry.map_err(|e| e.to_string())?;
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
-        if name_str == ".git" || name_str == "node_modules" || name_str == "target" || name_str == "dist" {
+        if name_str == ".git"
+            || name_str == "node_modules"
+            || name_str == "target"
+            || name_str == "dist"
+        {
             continue;
         }
         let src_path = entry.path();
@@ -1092,15 +1451,54 @@ pub fn create_sandbox(root: &Path, fixture: &Value) -> Result<Sandbox, String> {
     }
     env.insert("HOME".into(), home.to_string_lossy().to_string());
     env.insert("USERPROFILE".into(), home.to_string_lossy().to_string());
-    env.insert("LOCALAPPDATA".into(), local_app_data.to_string_lossy().to_string());
-    env.insert("APPDATA".into(), home.join("AppData").join("Roaming").to_string_lossy().to_string());
-    env.insert("XDG_CONFIG_HOME".into(), home.join(".config").to_string_lossy().to_string());
-    env.insert("XDG_DATA_HOME".into(), home.join(".local").join("share").to_string_lossy().to_string());
-    env.insert("XDG_STATE_HOME".into(), home.join(".local").join("state").to_string_lossy().to_string());
-    env.insert("LEGION_STATE_ROOT".into(), state_root.to_string_lossy().to_string());
-    env.insert("ARCANE_STATE_ROOT".into(), state_root.to_string_lossy().to_string());
-    env.insert("ARCANE_KEY_DIR".into(), state_root.join("keys").to_string_lossy().to_string());
-    env.insert("LEGION_INSTALL_EVENT_LOG".into(), state_root.join("install-events.jsonl").to_string_lossy().to_string());
+    env.insert(
+        "LOCALAPPDATA".into(),
+        local_app_data.to_string_lossy().to_string(),
+    );
+    env.insert(
+        "APPDATA".into(),
+        home.join("AppData")
+            .join("Roaming")
+            .to_string_lossy()
+            .to_string(),
+    );
+    env.insert(
+        "XDG_CONFIG_HOME".into(),
+        home.join(".config").to_string_lossy().to_string(),
+    );
+    env.insert(
+        "XDG_DATA_HOME".into(),
+        home.join(".local")
+            .join("share")
+            .to_string_lossy()
+            .to_string(),
+    );
+    env.insert(
+        "XDG_STATE_HOME".into(),
+        home.join(".local")
+            .join("state")
+            .to_string_lossy()
+            .to_string(),
+    );
+    env.insert(
+        "LEGION_STATE_ROOT".into(),
+        state_root.to_string_lossy().to_string(),
+    );
+    env.insert(
+        "ARCANE_STATE_ROOT".into(),
+        state_root.to_string_lossy().to_string(),
+    );
+    env.insert(
+        "ARCANE_KEY_DIR".into(),
+        state_root.join("keys").to_string_lossy().to_string(),
+    );
+    env.insert(
+        "LEGION_INSTALL_EVENT_LOG".into(),
+        state_root
+            .join("install-events.jsonl")
+            .to_string_lossy()
+            .to_string(),
+    );
     let temp_dir = base.join("temp");
     env.insert("TEMP".into(), temp_dir.to_string_lossy().to_string());
     env.insert("TMP".into(), temp_dir.to_string_lossy().to_string());
@@ -1114,7 +1512,15 @@ pub fn create_sandbox(root: &Path, fixture: &Value) -> Result<Sandbox, String> {
         local_app_data.to_string_lossy().to_string(),
         state_root.to_string_lossy().to_string(),
     ];
-    Ok(Sandbox { cwd, home, local_app_data, state_root, env, temp_roots, base })
+    Ok(Sandbox {
+        cwd,
+        home,
+        local_app_data,
+        state_root,
+        env,
+        temp_roots,
+        base,
+    })
 }
 
 pub fn remove_sandbox(sandbox: &Sandbox) {
@@ -1210,8 +1616,12 @@ pub fn run_bounded(
         }
     };
 
-    let stdout_bytes = stdout_rx.recv_timeout(Duration::from_secs(5)).unwrap_or_default();
-    let stderr_bytes = stderr_rx.recv_timeout(Duration::from_secs(5)).unwrap_or_default();
+    let stdout_bytes = stdout_rx
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap_or_default();
+    let stderr_bytes = stderr_rx
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap_or_default();
     let output_bytes = stdout_bytes.len() + stderr_bytes.len();
     let output_limit_exceeded = output_bytes > max_output_bytes;
 
@@ -1263,10 +1673,14 @@ fn signal_of(_status: &std::process::ExitStatus) -> Option<String> {
 }
 
 pub fn validate_normalization(fixture: &Value) -> Result<(), String> {
-    let normalization = fixture.get("normalization").or_else(|| fixture.get("normalize"));
+    let normalization = fixture
+        .get("normalization")
+        .or_else(|| fixture.get("normalize"));
     if let Some(obj) = normalization.and_then(Value::as_object) {
         for key in obj.keys() {
-            if !ALLOWED_NORMALIZATION_KEYS.contains(&key.as_str()) && key != ALLOWED_NORMALIZATION_KEY_TEMP_ROOTS {
+            if !ALLOWED_NORMALIZATION_KEYS.contains(&key.as_str())
+                && key != ALLOWED_NORMALIZATION_KEY_TEMP_ROOTS
+            {
                 return Err(format!(
                     "row {} uses unsupported normalization: {key}",
                     fixture.get("id").and_then(Value::as_str).unwrap_or("?")
@@ -1281,7 +1695,9 @@ pub fn resolve_evidence_path(explicit: Option<&str>, root: &Path) -> PathBuf {
     if let Some(explicit) = explicit.filter(|s| !s.is_empty()) {
         return PathBuf::from(explicit);
     }
-    root.join("dist").join("local-windows").join("local-verification.json")
+    root.join("dist")
+        .join("local-windows")
+        .join("local-verification.json")
 }
 
 /// Brotli-decompress the frozen Node baselines bundle
@@ -1289,7 +1705,8 @@ pub fn resolve_evidence_path(explicit: Option<&str>, root: &Path) -> PathBuf {
 /// `node:zlib.brotliDecompressSync` in the JS runners.
 pub fn read_node_baselines(path: &Path) -> Result<Map<String, Value>, String> {
     let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let frozen: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let frozen: Value =
+        serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
     let encoding = frozen.get("encoding").and_then(Value::as_str).unwrap_or("");
     let payload = frozen.get("payload").and_then(Value::as_str).unwrap_or("");
     let compressed: Vec<u8> = if encoding == "brotli-base64" {
@@ -1318,7 +1735,10 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
             _ => None,
         }
     }
-    let clean: Vec<u8> = input.bytes().filter(|b| *b != b'=' && !b.is_ascii_whitespace()).collect();
+    let clean: Vec<u8> = input
+        .bytes()
+        .filter(|b| *b != b'=' && !b.is_ascii_whitespace())
+        .collect();
     let mut out = Vec::with_capacity(clean.len() * 3 / 4);
     for chunk in clean.chunks(4) {
         let mut nums = [0u8; 4];
@@ -1327,7 +1747,10 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
             nums[i] = val(*b).ok_or("invalid base64 payload")?;
             n += 1;
         }
-        let buf = ((nums[0] as u32) << 18) | ((nums[1] as u32) << 12) | ((nums[2] as u32) << 6) | (nums[3] as u32);
+        let buf = ((nums[0] as u32) << 18)
+            | ((nums[1] as u32) << 12)
+            | ((nums[2] as u32) << 6)
+            | (nums[3] as u32);
         if n > 1 {
             out.push((buf >> 16) as u8);
         }

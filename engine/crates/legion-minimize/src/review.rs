@@ -3,7 +3,7 @@ use crate::git::{GitContext, StagedChange};
 use crate::json_util::{read_json, sha256_file};
 use regex::Regex;
 use serde_json::{json, Value};
-use std::collections::{HashSet, BTreeSet};
+use std::collections::{BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 
 pub const RUNGS: &[&str] = &[
@@ -19,8 +19,8 @@ pub const REVIEW_SCHEMA: &str = "minimize-commit-review.v1";
 pub const RECEIPT_SCHEMA: &str = "minimize-commit-receipt.v1";
 
 const COMMON_NAMES: &[&str] = &[
-    "main", "handle", "create", "resolve", "render", "update", "delete", "insert",
-    "execute", "process", "convert", "collect", "compare", "extract", "cleanup",
+    "main", "handle", "create", "resolve", "render", "update", "delete", "insert", "execute",
+    "process", "convert", "collect", "compare", "extract", "cleanup",
 ];
 const SOURCE_SUFFIXES: &[&str] = &[".mjs", ".js", ".cjs", ".ts", ".tsx", ".py", ".rs"];
 const LANGUAGE_FAMILIES: &[&[&str]] = &[
@@ -53,9 +53,7 @@ fn dep_json_re() -> &'static Regex {
 
 fn dep_toml_re() -> &'static Regex {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#"^\+\s*([A-Za-z0-9_-]+)\s*=\s*["{]"#).expect("valid regex")
-    })
+    RE.get_or_init(|| Regex::new(r#"^\+\s*([A-Za-z0-9_-]+)\s*=\s*["{]"#).expect("valid regex"))
 }
 
 fn suffix_of(path: &str) -> String {
@@ -81,7 +79,9 @@ fn escape_regex(value: &str) -> String {
 
 fn owner_root(git: &GitContext, path: &str) -> Result<String, MinimizeError> {
     let mut current = if path.contains('/') {
-        path.rsplit_once('/').map(|(prefix, _)| prefix).unwrap_or(".")
+        path.rsplit_once('/')
+            .map(|(prefix, _)| prefix)
+            .unwrap_or(".")
     } else {
         "."
     };
@@ -100,7 +100,10 @@ fn owner_root(git: &GitContext, path: &str) -> Result<String, MinimizeError> {
             .filter(|line| !line.is_empty())
             .map(|row| row.rsplit('/').next().unwrap_or(row))
             .collect::<HashSet<_>>();
-        if OWNER_MANIFESTS.iter().any(|manifest| names.contains(manifest)) {
+        if OWNER_MANIFESTS
+            .iter()
+            .any(|manifest| names.contains(manifest))
+        {
             return Ok(if current == "." {
                 String::new()
             } else {
@@ -111,7 +114,10 @@ fn owner_root(git: &GitContext, path: &str) -> Result<String, MinimizeError> {
             return Ok(String::new());
         }
         current = if current.contains('/') {
-            current.rsplit_once('/').map(|(prefix, _)| prefix).unwrap_or(".")
+            current
+                .rsplit_once('/')
+                .map(|(prefix, _)| prefix)
+                .unwrap_or(".")
         } else {
             "."
         };
@@ -202,7 +208,12 @@ pub fn reuse_findings(git: &GitContext) -> Result<Vec<Value>, MinimizeError> {
                 .git_optional_at(&git.cwd, &grep_args)
                 .lines()
                 .filter(|line| !line.is_empty())
-                .map(|row| row.split_once(':').map(|(_, path)| path).unwrap_or(row).to_string())
+                .map(|row| {
+                    row.split_once(':')
+                        .map(|(_, path)| path)
+                        .unwrap_or(row)
+                        .to_string()
+                })
                 .collect::<Vec<_>>();
             let mut elsewhere = Vec::new();
             for hit in hits {
@@ -284,7 +295,8 @@ pub fn validate_review(git: &GitContext, review: &Value) -> Result<Value, Minimi
     declared_sorted.sort();
     let mut actual = git.staged_files()?;
     actual.sort();
-    if serde_json::to_string(&declared_sorted).map_err(|error| MinimizeError::new(error.to_string()))?
+    if serde_json::to_string(&declared_sorted)
+        .map_err(|error| MinimizeError::new(error.to_string()))?
         != serde_json::to_string(&actual).map_err(|error| MinimizeError::new(error.to_string()))?
     {
         return Err(MinimizeError::new("stale review: scope_files mismatch"));
@@ -414,7 +426,9 @@ pub fn verify_receipt(
         return Err(MinimizeError::new("commit receipt schema mismatch"));
     }
     if receipt.get("candidate_tree").and_then(Value::as_str) != Some(git.staged_tree()?.as_str()) {
-        return Err(MinimizeError::new("stale commit receipt: candidate_tree mismatch"));
+        return Err(MinimizeError::new(
+            "stale commit receipt: candidate_tree mismatch",
+        ));
     }
     let declared = receipt
         .get("scope_files")
@@ -431,20 +445,27 @@ pub fn verify_receipt(
     declared_sorted.sort();
     let mut actual = git.staged_files()?;
     actual.sort();
-    if serde_json::to_string(&declared_sorted).map_err(|error| MinimizeError::new(error.to_string()))?
+    if serde_json::to_string(&declared_sorted)
+        .map_err(|error| MinimizeError::new(error.to_string()))?
         != serde_json::to_string(&actual).map_err(|error| MinimizeError::new(error.to_string()))?
     {
-        return Err(MinimizeError::new("stale commit receipt: scope_files mismatch"));
+        return Err(MinimizeError::new(
+            "stale commit receipt: scope_files mismatch",
+        ));
     }
     if receipt.get("policy_sha256").and_then(Value::as_str)
         != Some(sha256_file(&paths.policy_path)?.as_str())
     {
-        return Err(MinimizeError::new("stale commit receipt: policy_sha256 mismatch"));
+        return Err(MinimizeError::new(
+            "stale commit receipt: policy_sha256 mismatch",
+        ));
     }
     if receipt.get("validator_sha256").and_then(Value::as_str)
         != Some(sha256_file(&paths.validator_path)?.as_str())
     {
-        return Err(MinimizeError::new("stale commit receipt: validator_sha256 mismatch"));
+        return Err(MinimizeError::new(
+            "stale commit receipt: validator_sha256 mismatch",
+        ));
     }
     if receipt.get("verdict").and_then(Value::as_str) != Some("CLEAN") {
         return Err(MinimizeError::new("commit receipt verdict must be CLEAN"));

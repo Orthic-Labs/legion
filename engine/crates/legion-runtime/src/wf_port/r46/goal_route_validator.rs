@@ -174,7 +174,9 @@ pub fn candidate_graph(candidate: &Value, errors: &mut Vec<String>) -> (StepGrap
         let step_obj = match raw_step.as_object() {
             Some(obj) => obj,
             None => {
-                errors.push(format!("candidate {candidate_id} step {index} must be object"));
+                errors.push(format!(
+                    "candidate {candidate_id} step {index} must be object"
+                ));
                 continue;
             }
         };
@@ -196,11 +198,15 @@ pub fn candidate_graph(candidate: &Value, errors: &mut Vec<String>) -> (StepGrap
             errors.push(format!("step {step_id} requires exact operation"));
         }
         if !positive_int(step_obj.get("min_wall_ms")) {
-            errors.push(format!("step {step_id} min_wall_ms must be positive integer"));
+            errors.push(format!(
+                "step {step_id} min_wall_ms must be positive integer"
+            ));
         }
         let kind = step_obj.get("kind").and_then(Value::as_str);
         if !matches!(kind, Some("ADVANCE_B") | Some("SAFETY_DEPENDENCY")) {
-            errors.push(format!("step {step_id} kind must be ADVANCE_B or SAFETY_DEPENDENCY"));
+            errors.push(format!(
+                "step {step_id} kind must be ADVANCE_B or SAFETY_DEPENDENCY"
+            ));
         }
         if !concrete_min(step_obj.get("b_state_delta"), 6) {
             errors.push(format!("step {step_id} requires observable b_state_delta"));
@@ -256,7 +262,10 @@ pub fn candidate_graph(candidate: &Value, errors: &mut Vec<String>) -> (StepGrap
             }
             seen.insert(normalized.clone());
             *indegree.get_mut(step_id).unwrap() += 1;
-            consumers.get_mut(&normalized).unwrap().push(step_id.clone());
+            consumers
+                .get_mut(&normalized)
+                .unwrap()
+                .push(step_id.clone());
         }
     }
 
@@ -284,7 +293,9 @@ pub fn candidate_graph(candidate: &Value, errors: &mut Vec<String>) -> (StepGrap
         queue.sort();
     }
     if order.len() != steps.len() {
-        errors.push(format!("candidate {candidate_id} dependency graph contains cycle"));
+        errors.push(format!(
+            "candidate {candidate_id} dependency graph contains cycle"
+        ));
         return (steps, 0);
     }
 
@@ -297,11 +308,7 @@ pub fn candidate_graph(candidate: &Value, errors: &mut Vec<String>) -> (StepGrap
             .map(|d| d.to_uppercase())
             .filter(|d| steps.contains_key(d))
             .collect();
-        let base = deps
-            .iter()
-            .map(|d| distance[d])
-            .max()
-            .unwrap_or(0);
+        let base = deps.iter().map(|d| distance[d]).max().unwrap_or(0);
         distance.insert(step_id.clone(), duration + base);
     }
     let nominal = distance.values().copied().max().unwrap_or(0);
@@ -396,7 +403,8 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                         match item.as_object() {
                             Some(item) => {
                                 if !locator(item.get("locator")) {
-                                    errors.push(format!("state_a evidence {index} requires locator"));
+                                    errors
+                                        .push(format!("state_a evidence {index} requires locator"));
                                 }
                                 let sha_ok = item
                                     .get("sha256")
@@ -404,10 +412,13 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                                     .map(|s| sha256_re().is_match(s))
                                     .unwrap_or(false);
                                 if !sha_ok {
-                                    errors.push(format!("state_a evidence {index} requires sha256"));
+                                    errors
+                                        .push(format!("state_a evidence {index} requires sha256"));
                                 }
                                 if !concrete(item.get("check")) {
-                                    errors.push(format!("state_a evidence {index} requires exact check"));
+                                    errors.push(format!(
+                                        "state_a evidence {index} requires exact check"
+                                    ));
                                 }
                             }
                             None => errors.push(format!("state_a evidence {index} must be object")),
@@ -432,10 +443,14 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                                     errors.push(format!("state_b proof {index} requires command"));
                                 }
                                 if !concrete_min(proof.get("expected"), 6) {
-                                    errors.push(format!("state_b proof {index} requires expected result"));
+                                    errors.push(format!(
+                                        "state_b proof {index} requires expected result"
+                                    ));
                                 }
                                 if !locator(proof.get("evidence_path")) {
-                                    errors.push(format!("state_b proof {index} requires evidence_path"));
+                                    errors.push(format!(
+                                        "state_b proof {index} requires evidence_path"
+                                    ));
                                 }
                             }
                             None => errors.push(format!("state_b proof {index} must be object")),
@@ -521,30 +536,46 @@ pub fn validate_route(data: &Value) -> Vec<String> {
         }
         candidate_ids.insert(normalized_id.clone());
 
-        let constraint_status = candidate_obj.get("constraint_status").and_then(Value::as_str);
+        let constraint_status = candidate_obj
+            .get("constraint_status")
+            .and_then(Value::as_str);
         if !matches!(constraint_status, Some("PASS") | Some("FAIL")) {
-            errors.push(format!("candidate {candidate_id} constraint_status must PASS or FAIL"));
+            errors.push(format!(
+                "candidate {candidate_id} constraint_status must PASS or FAIL"
+            ));
         }
         if !locator(candidate_obj.get("constraint_evidence")) {
-            errors.push(format!("candidate {candidate_id} requires constraint_evidence"));
+            errors.push(format!(
+                "candidate {candidate_id} requires constraint_evidence"
+            ));
         }
 
         let (steps, nominal) = candidate_graph(raw_candidate, &mut errors);
         graph_by_candidate.insert(normalized_id.clone(), steps);
-        if candidate_obj.get("nominal_critical_path_ms").and_then(Value::as_i64) != Some(nominal) {
+        if candidate_obj
+            .get("nominal_critical_path_ms")
+            .and_then(Value::as_i64)
+            != Some(nominal)
+        {
             errors.push(format!(
                 "candidate {candidate_id} nominal_critical_path_ms must equal computed {nominal}"
             ));
         }
 
         match as_object(candidate_obj.get("probabilities_bps")) {
-            None => errors.push(format!("candidate {candidate_id} probabilities_bps must be object")),
+            None => errors.push(format!(
+                "candidate {candidate_id} probabilities_bps must be object"
+            )),
             Some(probabilities) => {
                 let retry = probabilities.get("retry").and_then(Value::as_i64);
-                let terminal = probabilities.get("terminal_failure").and_then(Value::as_i64);
+                let terminal = probabilities
+                    .get("terminal_failure")
+                    .and_then(Value::as_i64);
                 let in_range = |v: Option<i64>| matches!(v, Some(v) if (0..=10000).contains(&v));
                 if !in_range(retry) || !in_range(terminal) {
-                    errors.push(format!("candidate {candidate_id} probabilities must be 0..10000"));
+                    errors.push(format!(
+                        "candidate {candidate_id} probabilities must be 0..10000"
+                    ));
                 } else if retry.unwrap() + terminal.unwrap() > 10000 {
                     errors.push(format!(
                         "candidate {candidate_id} retry + terminal probability exceeds 10000"
@@ -561,7 +592,9 @@ pub fn validate_route(data: &Value) -> Vec<String> {
             "rework_units",
         ] {
             if !nonnegative_int(candidate_obj.get(field)) {
-                errors.push(format!("candidate {candidate_id} {field} must be nonnegative integer"));
+                errors.push(format!(
+                    "candidate {candidate_id} {field} must be nonnegative integer"
+                ));
             }
         }
 
@@ -578,10 +611,14 @@ pub fn validate_route(data: &Value) -> Vec<String> {
 
         let status = candidate_obj.get("status").and_then(Value::as_str);
         if !matches!(status, Some("SELECTED") | Some("REJECTED")) {
-            errors.push(format!("candidate {candidate_id} status must SELECTED or REJECTED"));
+            errors.push(format!(
+                "candidate {candidate_id} status must SELECTED or REJECTED"
+            ));
         }
         if status == Some("SELECTED") && constraint_status != Some("PASS") {
-            errors.push(format!("selected candidate {candidate_id} must pass constraints"));
+            errors.push(format!(
+                "selected candidate {candidate_id} must pass constraints"
+            ));
         }
         if status == Some("REJECTED")
             && constraint_status == Some("PASS")
@@ -597,7 +634,9 @@ pub fn validate_route(data: &Value) -> Vec<String> {
             _ => false,
         };
         if !evidence_ok {
-            errors.push(format!("candidate {candidate_id} requires evidence locators"));
+            errors.push(format!(
+                "candidate {candidate_id} requires evidence locators"
+            ));
         }
 
         candidates.push((raw_candidate, nominal, computed_expected));
@@ -605,19 +644,29 @@ pub fn validate_route(data: &Value) -> Vec<String> {
 
     let selected: Vec<&(&Value, i64, i64)> = candidates
         .iter()
-        .filter(|(candidate, _, _)| candidate.get("status").and_then(Value::as_str) == Some("SELECTED"))
+        .filter(|(candidate, _, _)| {
+            candidate.get("status").and_then(Value::as_str) == Some("SELECTED")
+        })
         .collect();
     if selected.len() != 1 {
         errors.push("exactly one candidate must be SELECTED".to_string());
     }
-    let selected_candidate = if selected.len() == 1 { Some(selected[0]) } else { None };
+    let selected_candidate = if selected.len() == 1 {
+        Some(selected[0])
+    } else {
+        None
+    };
     let selected_id_field = root
         .get("selected_route_id")
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_uppercase();
     if let Some((candidate, _, _)) = selected_candidate {
-        let candidate_id = candidate.get("id").and_then(Value::as_str).unwrap_or("").to_uppercase();
+        let candidate_id = candidate
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_uppercase();
         if selected_id_field != candidate_id {
             errors.push("selected_route_id must match SELECTED candidate".to_string());
         }
@@ -657,7 +706,10 @@ pub fn validate_route(data: &Value) -> Vec<String> {
         }
 
         let winner_id = winner_id_raw.to_uppercase();
-        let steps = graph_by_candidate.get(&winner_id).cloned().unwrap_or_default();
+        let steps = graph_by_candidate
+            .get(&winner_id)
+            .cloned()
+            .unwrap_or_default();
 
         match as_array(root.get("selected_critical_path")) {
             None => errors.push("selected_critical_path must be non-empty array".to_string()),
@@ -670,7 +722,9 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                     .map(|item| item.as_str().map(str::to_uppercase).unwrap_or_default())
                     .collect();
                 if normalized_path.iter().any(|item| !steps.contains_key(item)) {
-                    errors.push("selected_critical_path contains non-selected/unknown step".to_string());
+                    errors.push(
+                        "selected_critical_path contains non-selected/unknown step".to_string(),
+                    );
                 } else {
                     let mut broke = false;
                     for pair in normalized_path.windows(2) {
@@ -698,7 +752,12 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                     if !broke {
                         let path_total: i64 = normalized_path
                             .iter()
-                            .map(|item| steps[item].get("min_wall_ms").and_then(Value::as_i64).unwrap_or(0))
+                            .map(|item| {
+                                steps[item]
+                                    .get("min_wall_ms")
+                                    .and_then(Value::as_i64)
+                                    .unwrap_or(0)
+                            })
                             .sum();
                         if path_total != *winner_nominal {
                             errors.push(
@@ -725,13 +784,16 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                             continue;
                         }
                     };
-                    if !concrete_min(lane_obj.get("id"), 2) || !concrete_min(lane_obj.get("reason"), 6) {
+                    if !concrete_min(lane_obj.get("id"), 2)
+                        || !concrete_min(lane_obj.get("reason"), 6)
+                    {
                         errors.push(format!("parallel lane {index} requires id and reason"));
                     }
                     let items = match as_array(lane_obj.get("steps")) {
                         Some(items) if items.len() >= 2 => items,
                         _ => {
-                            errors.push(format!("parallel lane {index} requires at least two steps"));
+                            errors
+                                .push(format!("parallel lane {index} requires at least two steps"));
                             continue;
                         }
                     };
@@ -739,7 +801,10 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                         .iter()
                         .map(|item| item.as_str().map(str::to_uppercase).unwrap_or_default())
                         .collect();
-                    if normalized_items.iter().any(|item| !steps.contains_key(item)) {
+                    if normalized_items
+                        .iter()
+                        .any(|item| !steps.contains_key(item))
+                    {
                         errors.push(format!(
                             "parallel lane {index} contains unknown/non-selected step"
                         ));
@@ -775,13 +840,16 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                     .unwrap_or("")
                     .to_uppercase();
                 match steps.get(&bottleneck_id) {
-                    None => errors.push("bottleneck step must belong to selected route".to_string()),
+                    None => {
+                        errors.push("bottleneck step must belong to selected route".to_string())
+                    }
                     Some(step) => {
                         if bottleneck.get("bound_ms").and_then(Value::as_i64)
                             != step.get("min_wall_ms").and_then(Value::as_i64)
                         {
                             errors.push(
-                                "bottleneck bound_ms must equal selected step min_wall_ms".to_string(),
+                                "bottleneck bound_ms must equal selected step min_wall_ms"
+                                    .to_string(),
                             );
                         }
                     }
@@ -816,7 +884,9 @@ pub fn validate_route(data: &Value) -> Vec<String> {
         None => errors.push("invalidation must be object".to_string()),
         Some(invalidation) => {
             let revision = invalidation.get("revision");
-            let correction = invalidation.get("semantic_correction").and_then(Value::as_str);
+            let correction = invalidation
+                .get("semantic_correction")
+                .and_then(Value::as_str);
             if !positive_int(revision) {
                 errors.push("invalidation.revision must be positive integer".to_string());
             }
@@ -851,7 +921,9 @@ pub fn validate_route(data: &Value) -> Vec<String> {
     let (binding, binding_name, state_scheme): (Option<&Value>, &str, &str) =
         match (alchemist, legacy_forge) {
             (Some(_), Some(_)) => {
-                errors.push("route must not declare both alchemist and legacy forge bindings".to_string());
+                errors.push(
+                    "route must not declare both alchemist and legacy forge bindings".to_string(),
+                );
                 (None, "alchemist", "alchemist")
             }
             (Some(a), None) => (Some(a), "alchemist", "alchemist"),
@@ -869,16 +941,25 @@ pub fn validate_route(data: &Value) -> Vec<String> {
                     errors.push("non-routine route requires Alchemist".to_string());
                 }
                 if required {
-                    let run_id = binding_obj.get("run_id").and_then(Value::as_str).unwrap_or("");
+                    let run_id = binding_obj
+                        .get("run_id")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
                     if !is_uuid(run_id) {
                         errors.push(format!("{binding_name}.run_id must be UUID"));
                     }
                     let expected_ref = format!("{state_scheme}://run/{run_id}/state");
-                    if binding_obj.get("state_ref").and_then(Value::as_str) != Some(expected_ref.as_str()) {
+                    if binding_obj.get("state_ref").and_then(Value::as_str)
+                        != Some(expected_ref.as_str())
+                    {
                         errors.push(format!("{binding_name}.state_ref must match run_id"));
                     }
-                    if binding_obj.get("checkpoint").and_then(Value::as_str) != Some("GOAL_ROUTE_V2") {
-                        errors.push(format!("{binding_name}.checkpoint must equal GOAL_ROUTE_V2"));
+                    if binding_obj.get("checkpoint").and_then(Value::as_str)
+                        != Some("GOAL_ROUTE_V2")
+                    {
+                        errors.push(format!(
+                            "{binding_name}.checkpoint must equal GOAL_ROUTE_V2"
+                        ));
                     }
                 } else if !concrete_min(binding_obj.get("reason"), 8) {
                     errors.push("routine route without Alchemist requires reason".to_string());

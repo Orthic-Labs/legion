@@ -28,12 +28,12 @@
 use std::fmt;
 
 use crate::wf_port::wf026::meter;
-use crate::wf_port::wf027::{CommandBridgeProvider, LocalCorpusProvider, ReqwestTransport};
+use crate::wf_port::wf027::support::WfError;
 use crate::wf_port::wf027::types::{
     LocatedPassage as WfLocatedPassage, OpenedSource as WfOpenedSource, Provider,
     SearchHit as WfSearchHit,
 };
-use crate::wf_port::wf027::support::WfError;
+use crate::wf_port::wf027::{CommandBridgeProvider, LocalCorpusProvider, ReqwestTransport};
 
 #[derive(Debug)]
 pub enum DispatchError {
@@ -101,7 +101,10 @@ pub struct ScholarlyProviderAdapter<T: super::scholarly::ScholarlyTransport> {
 
 impl<T: super::scholarly::ScholarlyTransport> ScholarlyProviderAdapter<T> {
     pub fn new(transport: T, contact_email: Option<String>) -> Self {
-        Self { transport, contact_email }
+        Self {
+            transport,
+            contact_email,
+        }
     }
 }
 
@@ -187,15 +190,21 @@ impl<T: super::scholarly::ScholarlyTransport> Provider for ScholarlyProviderAdap
         Ok(opened_to_wf(opened))
     }
 
-    fn find(&self, opened: &WfOpenedSource, pattern: &str) -> Result<Option<WfLocatedPassage>, WfError> {
+    fn find(
+        &self,
+        opened: &WfOpenedSource,
+        pattern: &str,
+    ) -> Result<Option<WfLocatedPassage>, WfError> {
         let scholarly_opened = opened_to_scholarly(opened);
-        Ok(super::scholarly::find(&scholarly_opened.content, pattern).map(|mut p| {
-            // `scholarly::find` (mirroring the Python) leaves `url` blank;
-            // the dispatcher-level caller (like `run.py`'s `acquire`) uses
-            // the opened source's own URL for the located passage.
-            p.url = opened.url.clone();
-            passage_to_wf(p)
-        }))
+        Ok(
+            super::scholarly::find(&scholarly_opened.content, pattern).map(|mut p| {
+                // `scholarly::find` (mirroring the Python) leaves `url` blank;
+                // the dispatcher-level caller (like `run.py`'s `acquire`) uses
+                // the opened source's own URL for the located passage.
+                p.url = opened.url.clone();
+                passage_to_wf(p)
+            }),
+        )
     }
 }
 
@@ -218,10 +227,9 @@ pub fn provider(name: &str, corpus: Option<&str>) -> Result<Box<dyn Provider>, D
             };
             Ok(Box::new(LocalCorpusProvider::new(corpus)?))
         }
-        ProviderName::Browser | ProviderName::DomainDefault => Ok(Box::new(CommandBridgeProvider::new(
-            "browser",
-            "RESEARCH_BROWSER_CMD",
-        )?)),
+        ProviderName::Browser | ProviderName::DomainDefault => Ok(Box::new(
+            CommandBridgeProvider::new("browser", "RESEARCH_BROWSER_CMD")?,
+        )),
         ProviderName::LegalAuthority => Ok(Box::new(CommandBridgeProvider::new(
             "legal-authority",
             "RESEARCH_AUTHORITY_CMD",
@@ -250,7 +258,10 @@ pub fn meter_effect(
     };
     let result = meter::consume(run_dir, effect, 1, None)?;
     if result["ok"] != serde_json::json!(true) {
-        let reason = result["reason"].as_str().unwrap_or("research budget exceeded").to_string();
+        let reason = result["reason"]
+            .as_str()
+            .unwrap_or("research budget exceeded")
+            .to_string();
         return Err(reason.into());
     }
     Ok(())

@@ -125,8 +125,12 @@ pub fn parse_viewport(s: &str) -> Result<Viewport, String> {
         .split_once('x')
         .ok_or_else(|| format!("invalid viewport: {s}"))?;
     Ok(Viewport {
-        width: w.parse().map_err(|_| format!("invalid viewport width: {w}"))?,
-        height: h.parse().map_err(|_| format!("invalid viewport height: {h}"))?,
+        width: w
+            .parse()
+            .map_err(|_| format!("invalid viewport width: {w}"))?,
+        height: h
+            .parse()
+            .map_err(|_| format!("invalid viewport height: {h}"))?,
     })
 }
 
@@ -154,13 +158,20 @@ pub fn slide_filename(stem: &str, index_1based: u32) -> String {
 /// Screenshot filenames for the non-slide branch: viewport screenshot and
 /// full-page screenshot. `suffix` is `-{w}x{h}` only when there is more
 /// than one viewport (matching `f"-{w}x{h}" if len(viewports) > 1 else ""`).
-pub fn single_shot_filenames(stem: &str, viewport: Viewport, viewport_count: usize) -> (String, String) {
+pub fn single_shot_filenames(
+    stem: &str,
+    viewport: Viewport,
+    viewport_count: usize,
+) -> (String, String) {
     let suffix = if viewport_count > 1 {
         format!("-{}x{}", viewport.width, viewport.height)
     } else {
         String::new()
     };
-    (format!("{stem}{suffix}.png"), format!("{stem}{suffix}-full.png"))
+    (
+        format!("{stem}{suffix}.png"),
+        format!("{stem}{suffix}-full.png"),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -229,7 +240,9 @@ pub fn verify_html(
 ) -> Result<VerifyReport, VerifyError> {
     if !fs.exists(html_path) {
         let _ = writeln!(stdout, "ERROR: 文件不存在: {}", html_path.to_string_lossy());
-        return Err(VerifyError::FileNotFound(html_path.to_string_lossy().to_string()));
+        return Err(VerifyError::FileNotFound(
+            html_path.to_string_lossy().to_string(),
+        ));
     }
 
     let output_dir = output_dir.unwrap_or_else(|| default_output_dir(html_path));
@@ -300,7 +313,11 @@ pub fn verify_html(
     }
 
     if !console_errors.is_empty() {
-        let _ = writeln!(stdout, "\n⚠️  Console Errors/Warnings ({}):", console_errors.len());
+        let _ = writeln!(
+            stdout,
+            "\n⚠️  Console Errors/Warnings ({}):",
+            console_errors.len()
+        );
         for e in console_errors.iter().take(20) {
             let _ = writeln!(stdout, "  - {e}");
         }
@@ -430,8 +447,8 @@ impl BrowserDriver for ChromeBrowserDriver {
 
         let console = self.console.clone();
         let page_errors = self.page_errors.clone();
-        let _ = tab.add_event_listener(std::sync::Arc::new(move |event: &headless_chrome::protocol::cdp::types::Event| {
-            match event {
+        let _ = tab.add_event_listener(std::sync::Arc::new(
+            move |event: &headless_chrome::protocol::cdp::types::Event| match event {
                 headless_chrome::protocol::cdp::types::Event::RuntimeConsoleAPICalled(ev) => {
                     let level = format!("{:?}", ev.params.Type).to_lowercase();
                     if level == "error" || level == "warning" {
@@ -442,7 +459,10 @@ impl BrowserDriver for ChromeBrowserDriver {
                             .filter_map(|a| a.value.as_ref().map(|v| v.to_string()))
                             .collect::<Vec<_>>()
                             .join(" ");
-                        console.lock().unwrap().push(console_log_line(&level, &text));
+                        console
+                            .lock()
+                            .unwrap()
+                            .push(console_log_line(&level, &text));
                     }
                 }
                 headless_chrome::protocol::cdp::types::Event::RuntimeExceptionThrown(ev) => {
@@ -452,8 +472,8 @@ impl BrowserDriver for ChromeBrowserDriver {
                         .push(ev.params.exception_details.text.clone());
                 }
                 _ => {}
-            }
-        }));
+            },
+        ));
 
         tab.navigate_to(file_url).map_err(|e| e.to_string())?;
         tab.wait_until_navigated().map_err(|e| e.to_string())?;
@@ -549,7 +569,10 @@ mod tests {
 
     #[test]
     fn parse_cli_args_missing_html_path() {
-        assert_eq!(parse_cli_args(&a(&["--slides", "5"])), Err(ArgsError::MissingHtmlPath));
+        assert_eq!(
+            parse_cli_args(&a(&["--slides", "5"])),
+            Err(ArgsError::MissingHtmlPath)
+        );
     }
 
     #[test]
@@ -614,7 +637,9 @@ mod tests {
             Ok(())
         }
         fn write(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-            self.writes.borrow_mut().insert(path.to_path_buf(), bytes.to_vec());
+            self.writes
+                .borrow_mut()
+                .insert(path.to_path_buf(), bytes.to_vec());
             Ok(())
         }
     }
@@ -669,7 +694,10 @@ mod tests {
             &mut stdout,
         )
         .unwrap_err();
-        assert_eq!(err, VerifyError::FileNotFound("/x/missing.html".to_string()));
+        assert_eq!(
+            err,
+            VerifyError::FileNotFound("/x/missing.html".to_string())
+        );
     }
 
     #[test]
@@ -701,7 +729,10 @@ mod tests {
         .unwrap();
         assert_eq!(report.exit_code, 0);
         assert_eq!(report.output_dir, PathBuf::from("/x/screenshots"));
-        assert!(fs.writes.borrow().contains_key(&report.output_dir.join("design.png")));
+        assert!(fs
+            .writes
+            .borrow()
+            .contains_key(&report.output_dir.join("design.png")));
         assert!(fs
             .writes
             .borrow()
@@ -740,9 +771,18 @@ mod tests {
         )
         .unwrap();
         let dir = &report.output_dir;
-        assert!(fs.writes.borrow().contains_key(&dir.join("deck-slide-01.png")));
-        assert!(fs.writes.borrow().contains_key(&dir.join("deck-slide-02.png")));
-        assert!(fs.writes.borrow().contains_key(&dir.join("deck-slide-03.png")));
+        assert!(fs
+            .writes
+            .borrow()
+            .contains_key(&dir.join("deck-slide-01.png")));
+        assert!(fs
+            .writes
+            .borrow()
+            .contains_key(&dir.join("deck-slide-02.png")));
+        assert!(fs
+            .writes
+            .borrow()
+            .contains_key(&dir.join("deck-slide-03.png")));
     }
 
     #[test]

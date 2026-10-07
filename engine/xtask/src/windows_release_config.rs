@@ -84,7 +84,8 @@ impl WindowsInstallContract {
     pub const INTEGRATION_JOURNAL_NAME: &'static str = "integration-journal.json";
     pub const EXECUTABLE_PATH: &'static str = "bin/legion.exe";
     pub const GENERATION_FORMAT: &'static str = "release-version:declarative-assets-sha256";
-    pub const FORBIDDEN_BINDING_SEGMENTS: [&'static str; 4] = ["repo", "dist", "target", "node_modules"];
+    pub const FORBIDDEN_BINDING_SEGMENTS: [&'static str; 4] =
+        ["repo", "dist", "target", "node_modules"];
 }
 
 /// Mirrors `FORBIDDEN_BINDING_SEGMENTS` in both scripts (the contract's set

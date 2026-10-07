@@ -16,26 +16,57 @@ use std::collections::{BTreeMap, HashMap};
 
 pub fn headers(mode: &str) -> Option<&'static [&'static str]> {
     match mode {
-        "inventory" => Some(&["Platform", "Domain", "Atom", "Definition / boundary", "Source evidence"]),
+        "inventory" => Some(&[
+            "Platform",
+            "Domain",
+            "Atom",
+            "Definition / boundary",
+            "Source evidence",
+        ]),
         "stage2" => Some(&[
-            "Scope", "Domain", "Atom", "Repository mechanisms", "Best observed", "Best combined",
-            "Rationale / tradeoffs", "Source evidence",
+            "Scope",
+            "Domain",
+            "Atom",
+            "Repository mechanisms",
+            "Best observed",
+            "Best combined",
+            "Rationale / tradeoffs",
+            "Source evidence",
         ]),
         "stage3" => Some(&[
-            "Scope", "Domain", "Atom", "Current product", "Repository mechanisms", "Best observed",
-            "Best combined", "Rationale / tradeoffs", "Source evidence",
+            "Scope",
+            "Domain",
+            "Atom",
+            "Current product",
+            "Repository mechanisms",
+            "Best observed",
+            "Best combined",
+            "Rationale / tradeoffs",
+            "Source evidence",
         ]),
         "final" => Some(&[
-            "Scope", "Domain", "Atom", "Best observed", "Recommended implementation",
-            "Why / tradeoffs", "Source evidence", "Confidence",
+            "Scope",
+            "Domain",
+            "Atom",
+            "Best observed",
+            "Recommended implementation",
+            "Why / tradeoffs",
+            "Source evidence",
+            "Confidence",
         ]),
         _ => None,
     }
 }
 
 const FORBIDDEN_EVIDENCE: &[&str] = &[
-    ".cache/", ".right-release/", ".fingerprint/", "node_modules/", "target/debug/",
-    "target/release/", "deriveddata/", "heardright-recording-lifecycle-review/",
+    ".cache/",
+    ".right-release/",
+    ".fingerprint/",
+    "node_modules/",
+    "target/debug/",
+    "target/release/",
+    "deriveddata/",
+    "heardright-recording-lifecycle-review/",
 ];
 
 const BOILERPLATE: &[&str] = &[
@@ -50,72 +81,144 @@ const BOILERPLATE: &[&str] = &[
 /// `SEMANTIC_SIGNATURES`.
 fn semantic_signatures() -> HashMap<&'static str, Vec<Vec<&'static str>>> {
     let mut m: HashMap<&'static str, Vec<Vec<&'static str>>> = HashMap::new();
-    m.insert("pill motion & relocation", vec![
-        vec!["drag", "snap", "relocat", "move", "position", "anchor"],
-        vec!["screen", "display", "coordinate", "geometry", "position", "anchor"],
-    ]);
-    m.insert("spoken send parser", vec![
-        vec!["parse", "parser", "phrase", "utterance", "intent", "command"],
-        vec!["send", "submit"],
-    ]);
-    m.insert("post-insert submit", vec![
-        vec!["enter", "return", "submit"],
-        vec!["insert", "delivery"],
-        vec!["confirm", "verif", "evidence", "success"],
-    ]);
-    m.insert("target snapshot & revalidation", vec![
-        vec!["target", "focus"],
-        vec!["revalid", "identity", "same target", "snapshot"],
-    ]);
-    m.insert("clipboard transaction", vec![
-        vec!["clipboard"],
-        vec!["snapshot", "preserve", "save"],
-        vec!["restore"],
-    ]);
-    m.insert("background model download", vec![
-        vec!["download", "transfer"],
-        vec!["model", "artifact"],
-        vec!["background", "resume", "resumable", "checkpoint"],
-        vec!["validat", "checksum", "signature", "atomic"],
-    ]);
-    m.insert("watchconnectivity bridge", vec![
-        vec!["wcsession", "watchconnectivity", "watch session"],
-        vec!["message", "applicationcontext", "userinfo", "file transfer", "payload"],
-        vec!["reachab", "ack", "retry", "queue", "dedup"],
-    ]);
-    m.insert("watchconnectivity relay", vec![
-        vec!["wcsession", "watchconnectivity", "watch session"],
-        vec!["message", "applicationcontext", "userinfo", "file transfer", "payload"],
-        vec!["ack", "retry", "queue", "dedup", "idempot"],
-    ]);
-    m.insert("forward queue retry", vec![
-        vec!["queue"],
-        vec!["retry", "backoff"],
-        vec!["idempot", "dedup", "stable id", "operation id"],
-    ]);
-    m.insert("device registration", vec![
-        vec!["device", "identity"],
-        vec!["register", "pair", "token", "credential"],
-    ]);
-    m.insert("ime microphone key", vec![
-        vec!["ime", "keyboard", "input method"],
-        vec!["microphone", "mic"],
-        vec!["start", "stop", "toggle", "capture"],
-    ]);
-    m.insert("action_recognize_speech", vec![
-        vec!["action_recognize_speech", "recognition intent", "recognizer intent"],
-        vec!["result", "caller", "activity result"],
-    ]);
-    m.insert("vad/silence endpointing", vec![
-        vec!["vad", "voice activity", "speech"],
-        vec!["silence", "endpoint"],
-    ]);
-    m.insert("verified update install", vec![
-        vec!["signature", "signed", "checksum", "hash", "verif"],
-        vec!["artifact", "package", "bundle", "release", "update"],
-        vec!["install", "replace", "activate", "relaunch"],
-        vec!["rollback", "last-good", "prior working", "resume"],
-    ]);
+    m.insert(
+        "pill motion & relocation",
+        vec![
+            vec!["drag", "snap", "relocat", "move", "position", "anchor"],
+            vec![
+                "screen",
+                "display",
+                "coordinate",
+                "geometry",
+                "position",
+                "anchor",
+            ],
+        ],
+    );
+    m.insert(
+        "spoken send parser",
+        vec![
+            vec![
+                "parse",
+                "parser",
+                "phrase",
+                "utterance",
+                "intent",
+                "command",
+            ],
+            vec!["send", "submit"],
+        ],
+    );
+    m.insert(
+        "post-insert submit",
+        vec![
+            vec!["enter", "return", "submit"],
+            vec!["insert", "delivery"],
+            vec!["confirm", "verif", "evidence", "success"],
+        ],
+    );
+    m.insert(
+        "target snapshot & revalidation",
+        vec![
+            vec!["target", "focus"],
+            vec!["revalid", "identity", "same target", "snapshot"],
+        ],
+    );
+    m.insert(
+        "clipboard transaction",
+        vec![
+            vec!["clipboard"],
+            vec!["snapshot", "preserve", "save"],
+            vec!["restore"],
+        ],
+    );
+    m.insert(
+        "background model download",
+        vec![
+            vec!["download", "transfer"],
+            vec!["model", "artifact"],
+            vec!["background", "resume", "resumable", "checkpoint"],
+            vec!["validat", "checksum", "signature", "atomic"],
+        ],
+    );
+    m.insert(
+        "watchconnectivity bridge",
+        vec![
+            vec!["wcsession", "watchconnectivity", "watch session"],
+            vec![
+                "message",
+                "applicationcontext",
+                "userinfo",
+                "file transfer",
+                "payload",
+            ],
+            vec!["reachab", "ack", "retry", "queue", "dedup"],
+        ],
+    );
+    m.insert(
+        "watchconnectivity relay",
+        vec![
+            vec!["wcsession", "watchconnectivity", "watch session"],
+            vec![
+                "message",
+                "applicationcontext",
+                "userinfo",
+                "file transfer",
+                "payload",
+            ],
+            vec!["ack", "retry", "queue", "dedup", "idempot"],
+        ],
+    );
+    m.insert(
+        "forward queue retry",
+        vec![
+            vec!["queue"],
+            vec!["retry", "backoff"],
+            vec!["idempot", "dedup", "stable id", "operation id"],
+        ],
+    );
+    m.insert(
+        "device registration",
+        vec![
+            vec!["device", "identity"],
+            vec!["register", "pair", "token", "credential"],
+        ],
+    );
+    m.insert(
+        "ime microphone key",
+        vec![
+            vec!["ime", "keyboard", "input method"],
+            vec!["microphone", "mic"],
+            vec!["start", "stop", "toggle", "capture"],
+        ],
+    );
+    m.insert(
+        "action_recognize_speech",
+        vec![
+            vec![
+                "action_recognize_speech",
+                "recognition intent",
+                "recognizer intent",
+            ],
+            vec!["result", "caller", "activity result"],
+        ],
+    );
+    m.insert(
+        "vad/silence endpointing",
+        vec![
+            vec!["vad", "voice activity", "speech"],
+            vec!["silence", "endpoint"],
+        ],
+    );
+    m.insert(
+        "verified update install",
+        vec![
+            vec!["signature", "signed", "checksum", "hash", "verif"],
+            vec!["artifact", "package", "bundle", "release", "update"],
+            vec!["install", "replace", "activate", "relaunch"],
+            vec!["rollback", "last-good", "prior working", "resume"],
+        ],
+    );
     m
 }
 
@@ -124,17 +227,27 @@ pub type Row = (usize, Vec<String>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
-    CellCountMismatch { line: usize, expected: usize, got: usize },
+    CellCountMismatch {
+        line: usize,
+        expected: usize,
+        got: usize,
+    },
     MissingHeader(Vec<String>),
 }
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::CellCountMismatch { line, expected, got } => {
+            Self::CellCountMismatch {
+                line,
+                expected,
+                got,
+            } => {
                 write!(f, "line {line}: expected {expected} cells, got {got}")
             }
-            Self::MissingHeader(header) => write!(f, "missing table header: {}", header.join(" | ")),
+            Self::MissingHeader(header) => {
+                write!(f, "missing table header: {}", header.join(" | "))
+            }
         }
     }
 }
@@ -151,11 +264,19 @@ pub fn parse_table(text: &str, expected_header: &[&str]) -> Result<Vec<Row>, Par
         }
         let trimmed = raw.trim().trim_matches('|');
         let cells: Vec<String> = trimmed.split('|').map(|c| c.trim().to_string()).collect();
-        if cells.iter().map(|s| s.as_str()).eq(expected_header.iter().copied()) {
+        if cells
+            .iter()
+            .map(|s| s.as_str())
+            .eq(expected_header.iter().copied())
+        {
             in_table = true;
             continue;
         }
-        if in_table && cells.iter().all(|c| !c.is_empty() && c.chars().all(|ch| ch == '-' || ch == ':')) {
+        if in_table
+            && cells
+                .iter()
+                .all(|c| !c.is_empty() && c.chars().all(|ch| ch == '-' || ch == ':'))
+        {
             continue;
         }
         if in_table {
@@ -170,7 +291,9 @@ pub fn parse_table(text: &str, expected_header: &[&str]) -> Result<Vec<Row>, Par
         }
     }
     if !in_table {
-        return Err(ParseError::MissingHeader(expected_header.iter().map(|s| s.to_string()).collect()));
+        return Err(ParseError::MissingHeader(
+            expected_header.iter().map(|s| s.to_string()).collect(),
+        ));
     }
     Ok(rows)
 }
@@ -206,7 +329,12 @@ fn contains_evidence_repo(evidence: &str, repo: &str) -> bool {
 /// Port of `main()`'s per-row/per-column checks (everything after
 /// `parse_table` succeeds). `resolve_evidence_path` and `evidence_file_exists`
 /// close over the manifest's repo roots via `fs`.
-pub fn validate(rows: &[Row], header: &[&str], opts: &ValidateOptions, fs: &dyn ReportFs) -> Vec<String> {
+pub fn validate(
+    rows: &[Row],
+    header: &[&str],
+    opts: &ValidateOptions,
+    fs: &dyn ReportFs,
+) -> Vec<String> {
     let mut errors = Vec::new();
     let index: HashMap<&str, usize> = header.iter().enumerate().map(|(i, h)| (*h, i)).collect();
     let signatures = semantic_signatures();
@@ -217,7 +345,11 @@ pub fn validate(rows: &[Row], header: &[&str], opts: &ValidateOptions, fs: &dyn 
         }
     }
 
-    let scope_name = if index.contains_key("Scope") { "Scope" } else { "Platform" };
+    let scope_name = if index.contains_key("Scope") {
+        "Scope"
+    } else {
+        "Platform"
+    };
     let mut seen: HashMap<(String, String, String), usize> = HashMap::new();
 
     for (line_number, cells) in rows {
@@ -227,7 +359,9 @@ pub fn validate(rows: &[Row], header: &[&str], opts: &ValidateOptions, fs: &dyn 
             cells[index["Atom"]].clone(),
         );
         if let Some(first) = seen.get(&key) {
-            errors.push(format!("line {line_number}: duplicate atom tuple; first at line {first}"));
+            errors.push(format!(
+                "line {line_number}: duplicate atom tuple; first at line {first}"
+            ));
         } else {
             seen.insert(key, *line_number);
         }
@@ -235,14 +369,18 @@ pub fn validate(rows: &[Row], header: &[&str], opts: &ValidateOptions, fs: &dyn 
         let evidence = cells[index["Source evidence"]].to_lowercase();
         for token in FORBIDDEN_EVIDENCE {
             if evidence.contains(token) {
-                errors.push(format!("line {line_number}: forbidden evidence path `{token}`"));
+                errors.push(format!(
+                    "line {line_number}: forbidden evidence path `{token}`"
+                ));
             }
         }
 
         let joined = cells.join(" ").to_lowercase();
         for phrase in BOILERPLATE {
             if joined.contains(phrase) {
-                errors.push(format!("line {line_number}: prohibited boilerplate `{phrase}`"));
+                errors.push(format!(
+                    "line {line_number}: prohibited boilerplate `{phrase}`"
+                ));
             }
         }
 
@@ -255,7 +393,9 @@ pub fn validate(rows: &[Row], header: &[&str], opts: &ValidateOptions, fs: &dyn 
         };
         let atom_raw = &cells[index["Atom"]];
         let atom_key = atom_raw.trim().to_lowercase();
-        if let (Some(rec_name), Some(groups)) = (recommendation_name, signatures.get(atom_key.as_str())) {
+        if let (Some(rec_name), Some(groups)) =
+            (recommendation_name, signatures.get(atom_key.as_str()))
+        {
             let mut body = cells[index[rec_name]].trim().to_lowercase();
             let prefix = format!("{atom_key}:");
             if let Some(stripped) = body.strip_prefix(&prefix) {
@@ -276,19 +416,29 @@ pub fn validate(rows: &[Row], header: &[&str], opts: &ValidateOptions, fs: &dyn 
         }
 
         if (header == headers("stage2").unwrap() || header == headers("stage3").unwrap())
-            && opts.manifest.as_ref().is_some_and(|m| !m.scope_repos.is_empty())
+            && opts
+                .manifest
+                .as_ref()
+                .is_some_and(|m| !m.scope_repos.is_empty())
         {
             let manifest = opts.manifest.as_ref().unwrap();
             let scope = &cells[index["Scope"]];
             let Some(expected_repos) = manifest.scope_repos.get(scope) else {
-                errors.push(format!("line {line_number}: scope `{scope}` missing from manifest"));
+                errors.push(format!(
+                    "line {line_number}: scope `{scope}` missing from manifest"
+                ));
                 continue;
             };
 
-            let mechanism_entries: Vec<&str> = cells[index["Repository mechanisms"]].split("<br>").collect();
+            let mechanism_entries: Vec<&str> = cells[index["Repository mechanisms"]]
+                .split("<br>")
+                .collect();
             for repo in expected_repos {
                 let prefix = format!("{repo}:");
-                let matches: Vec<&&str> = mechanism_entries.iter().filter(|e| e.starts_with(&prefix)).collect();
+                let matches: Vec<&&str> = mechanism_entries
+                    .iter()
+                    .filter(|e| e.starts_with(&prefix))
+                    .collect();
                 if matches.len() != 1 {
                     errors.push(format!(
                         "line {line_number}: expected exactly one `{repo}:` mechanism entry, found {}",
@@ -323,32 +473,48 @@ pub fn validate(rows: &[Row], header: &[&str], opts: &ValidateOptions, fs: &dyn 
                 let candidate = fs.resolve(&candidate_str);
                 let root_resolved = fs.resolve(root);
                 if !candidate.starts_with(&root_resolved) {
-                    errors.push(format!("line {line_number}: evidence path escapes `{repo}` root: {relative}"));
+                    errors.push(format!(
+                        "line {line_number}: evidence path escapes `{repo}` root: {relative}"
+                    ));
                     continue;
                 }
                 if !fs.is_file(&candidate) {
-                    errors.push(format!("line {line_number}: missing evidence file for `{repo}`: {relative}"));
+                    errors.push(format!(
+                        "line {line_number}: missing evidence file for `{repo}`: {relative}"
+                    ));
                 }
             }
         }
     }
 
-    let repeat_columns: Vec<&str> = ["Best observed", "Best combined", "Recommended implementation", "Rationale / tradeoffs", "Why / tradeoffs"]
-        .into_iter()
-        .filter(|name| index.contains_key(name))
-        .collect();
+    let repeat_columns: Vec<&str> = [
+        "Best observed",
+        "Best combined",
+        "Recommended implementation",
+        "Rationale / tradeoffs",
+        "Why / tradeoffs",
+    ]
+    .into_iter()
+    .filter(|name| index.contains_key(name))
+    .collect();
     let sentinels = ["not found", "unclear", "n/a", "no proven winner"];
     for name in repeat_columns {
         let mut counter: HashMap<String, usize> = HashMap::new();
         for (_, cells) in rows {
-            *counter.entry(cells[index[name]].trim().to_string()).or_insert(0) += 1;
+            *counter
+                .entry(cells[index[name]].trim().to_string())
+                .or_insert(0) += 1;
         }
         for (value, count) in counter {
             if value.is_empty() || sentinels.contains(&value.to_lowercase().as_str()) {
                 continue;
             }
             if count > opts.max_repeat {
-                let sample: String = value.chars().take(100).collect::<String>().replace('\n', " ");
+                let sample: String = value
+                    .chars()
+                    .take(100)
+                    .collect::<String>()
+                    .replace('\n', " ");
                 errors.push(format!("column `{name}` repeats {count} times: {sample:?}"));
             }
         }
@@ -381,7 +547,9 @@ fn extract_evidence_citations(cell: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for segment in split_on_semicolon_boundaries(cell) {
         let segment = segment.trim_start();
-        let Some(colon) = segment.find(':') else { continue };
+        let Some(colon) = segment.find(':') else {
+            continue;
+        };
         let (repo_part, rest) = segment.split_at(colon);
         if repo_part.contains(';') {
             continue;
@@ -420,13 +588,27 @@ pub struct RunOutcome {
 /// `FAIL: N issue(s)` / `PASS: ...` output. Receipt writing (`--write-receipt`)
 /// is left to the caller (it needs sha256 + an isolated-clock timestamp,
 /// which belong at the process boundary, not in this pure module).
-pub fn run(report_text: &str, mode: &str, opts: &ValidateOptions, fs: &dyn ReportFs, report_path: &str) -> RunOutcome {
+pub fn run(
+    report_text: &str,
+    mode: &str,
+    opts: &ValidateOptions,
+    fs: &dyn ReportFs,
+    report_path: &str,
+) -> RunOutcome {
     let Some(header) = headers(mode) else {
-        return RunOutcome { stdout: format!("FAIL: unknown mode `{mode}`"), code: 1 };
+        return RunOutcome {
+            stdout: format!("FAIL: unknown mode `{mode}`"),
+            code: 1,
+        };
     };
     let rows = match parse_table(report_text, header) {
         Ok(r) => r,
-        Err(e) => return RunOutcome { stdout: format!("FAIL: {e}"), code: 1 },
+        Err(e) => {
+            return RunOutcome {
+                stdout: format!("FAIL: {e}"),
+                code: 1,
+            }
+        }
     };
     let errors = validate(&rows, header, opts, fs);
     if !errors.is_empty() {
@@ -434,7 +616,10 @@ pub fn run(report_text: &str, mode: &str, opts: &ValidateOptions, fs: &dyn Repor
         for issue in &errors {
             out.push_str(&format!("- {issue}\n"));
         }
-        return RunOutcome { stdout: out.trim_end().to_string(), code: 1 };
+        return RunOutcome {
+            stdout: out.trim_end().to_string(),
+            code: 1,
+        };
     }
     RunOutcome {
         stdout: format!("PASS: {report_path} ({} rows, mode={mode})", rows.len()),
@@ -481,10 +666,31 @@ mod tests {
     fn validate_flags_duplicate_atom_and_forbidden_evidence() {
         let header = headers("inventory").unwrap();
         let rows = vec![
-            (2usize, vec!["macOS".into(), "Paste".into(), "X".into(), "d".into(), ".cache/foo".into()]),
-            (3usize, vec!["macOS".into(), "Paste".into(), "X".into(), "d".into(), "ok/path".into()]),
+            (
+                2usize,
+                vec![
+                    "macOS".into(),
+                    "Paste".into(),
+                    "X".into(),
+                    "d".into(),
+                    ".cache/foo".into(),
+                ],
+            ),
+            (
+                3usize,
+                vec![
+                    "macOS".into(),
+                    "Paste".into(),
+                    "X".into(),
+                    "d".into(),
+                    "ok/path".into(),
+                ],
+            ),
         ];
-        let opts = ValidateOptions { max_repeat: 8, ..Default::default() };
+        let opts = ValidateOptions {
+            max_repeat: 8,
+            ..Default::default()
+        };
         let errors = validate(&rows, header, &opts, &NoFs);
         assert!(errors.iter().any(|e| e.contains("duplicate atom tuple")));
         assert!(errors.iter().any(|e| e.contains("forbidden evidence path")));
@@ -497,7 +703,10 @@ mod tests {
 | --- | --- | --- | --- | --- |
 | macOS | Paste | Clipboard transaction | boundary text | some/path.rs |
 ";
-        let opts = ValidateOptions { max_repeat: 8, ..Default::default() };
+        let opts = ValidateOptions {
+            max_repeat: 8,
+            ..Default::default()
+        };
         let outcome = run(text, "inventory", &opts, &NoFs, "report.md");
         assert_eq!(outcome.code, 0);
         assert!(outcome.stdout.starts_with("PASS: report.md (1 rows"));
@@ -505,6 +714,9 @@ mod tests {
 
     #[test]
     fn extract_backticked_pairs() {
-        assert_eq!(extract_backticked("Observed `src/a.rs#L1`"), vec!["src/a.rs#L1".to_string()]);
+        assert_eq!(
+            extract_backticked("Observed `src/a.rs#L1`"),
+            vec!["src/a.rs#L1".to_string()]
+        );
     }
 }

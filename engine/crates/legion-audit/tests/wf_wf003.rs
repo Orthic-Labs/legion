@@ -93,7 +93,10 @@ fn weak_test_surfaces_a_surviving_mutant_and_host_shaped_check() {
     })
     .expect("gauntlet run");
 
-    assert_eq!(run.exit_code, 1, "gauntlet must exit 1 when a mutant survives");
+    assert_eq!(
+        run.exit_code, 1,
+        "gauntlet must exit 1 when a mutant survives"
+    );
     assert_eq!(run.check.executor, "host");
     assert_eq!(run.check.authority, "host");
     assert_eq!(run.check.kind, "gauntlet");
@@ -104,17 +107,28 @@ fn weak_test_surfaces_a_surviving_mutant_and_host_shaped_check() {
     let receipt: serde_json::Value = serde_json::from_str(&run.check.receipt).unwrap();
     assert_eq!(receipt["schema"], "orthic.tool-receipt.v1");
     assert_eq!(receipt["exit_status"], 1);
-    assert!(receipt["summary"]["mutation"].is_object(), "receipt must include mutation summary");
+    assert!(
+        receipt["summary"]["mutation"].is_object(),
+        "receipt must include mutation summary"
+    );
 
     let output: serde_json::Value = serde_json::from_str(&run.check.output).unwrap();
-    let mutation_results = output["layers"]["mutation"]["results"].as_array().expect("mutation results array");
+    let mutation_results = output["layers"]["mutation"]["results"]
+        .as_array()
+        .expect("mutation results array");
     let survived: Vec<_> = mutation_results
         .iter()
         .filter(|r| r["status"] == "survived")
         .collect();
-    assert!(!survived.is_empty(), "fixture must contain at least one killable-but-survived mutant; got: {mutation_results:?}");
+    assert!(
+        !survived.is_empty(),
+        "fixture must contain at least one killable-but-survived mutant; got: {mutation_results:?}"
+    );
     let neq_survivor = survived.iter().find(|r| r["mutator"] == "neq-flip");
-    assert!(neq_survivor.is_some(), "expected a === -> !== survivor; got: {survived:?}");
+    assert!(
+        neq_survivor.is_some(),
+        "expected a === -> !== survivor; got: {survived:?}"
+    );
 
     let _ = fs::remove_dir_all(&dir);
 }
@@ -146,9 +160,17 @@ console.log(\"strong-test-ok\");\n";
     .expect("gauntlet run");
 
     let output: serde_json::Value = serde_json::from_str(&run.check.output).unwrap();
-    let mutation_results = output["layers"]["mutation"]["results"].as_array().expect("mutation results array");
-    let survivors: Vec<_> = mutation_results.iter().filter(|r| r["status"] == "survived").collect();
-    assert!(survivors.is_empty(), "strong test should kill every mutator; survivors: {survivors:?}");
+    let mutation_results = output["layers"]["mutation"]["results"]
+        .as_array()
+        .expect("mutation results array");
+    let survivors: Vec<_> = mutation_results
+        .iter()
+        .filter(|r| r["status"] == "survived")
+        .collect();
+    assert!(
+        survivors.is_empty(),
+        "strong test should kill every mutator; survivors: {survivors:?}"
+    );
     assert_eq!(run.check.status, "passed");
 
     let _ = fs::remove_dir_all(&dir);

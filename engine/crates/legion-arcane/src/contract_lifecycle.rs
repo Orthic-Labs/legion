@@ -227,7 +227,8 @@ impl ContractLifecycle {
         };
         if canonical_digest(&current).ok() == canonical_digest(&pending["predecessorBinding"]).ok()
         {
-            let _ = self.bindings
+            let _ = self
+                .bindings
                 .compare_and_swap(session, &current, &pending["successorBinding"])
                 .map_err(|e| e.to_owned())?;
         };

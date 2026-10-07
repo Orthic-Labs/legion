@@ -58,27 +58,40 @@ fn relative_invocation_re() -> &'static Regex {
 
 fn route_step_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)^ROUTE_STEP:([A-Z][A-Z0-9_-]*)/([A-Z][A-Z0-9_-]*)$").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)^ROUTE_STEP:([A-Z][A-Z0-9_-]*)/([A-Z][A-Z0-9_-]*)$").unwrap()
+    })
 }
 
 /// Port of `exact_action_validator_path_errors()`.
 pub fn exact_action_validator_path_errors(name: &str, action: &str) -> Vec<String> {
-    let invocation_lines: Vec<&str> = action.lines().filter(|l| validator_line_re().is_match(l)).collect();
+    let invocation_lines: Vec<&str> = action
+        .lines()
+        .filter(|l| validator_line_re().is_match(l))
+        .collect();
     if invocation_lines.is_empty() {
         return Vec::new();
     }
     let invocation_variables: HashSet<String> = invocation_lines
         .iter()
-        .flat_map(|line| dollar_var_re().captures_iter(line).map(|c| c.get(1).unwrap().as_str().to_lowercase()))
+        .flat_map(|line| {
+            dollar_var_re()
+                .captures_iter(line)
+                .map(|c| c.get(1).unwrap().as_str().to_lowercase())
+        })
         .collect();
     let relative_assignment = assignment_re().captures_iter(action).any(|caps| {
         let var = caps.get(1).unwrap().as_str().to_lowercase();
         let value = caps.get(2).unwrap().as_str();
         invocation_variables.contains(&var) && relative_assignment_value_re().is_match(value)
     });
-    let relative_invocation = invocation_lines.iter().any(|line| relative_invocation_re().is_match(line));
+    let relative_invocation = invocation_lines
+        .iter()
+        .any(|line| relative_invocation_re().is_match(line));
     if relative_assignment || relative_invocation {
-        vec![format!("{name} exact action uses checkout-relative validator paths")]
+        vec![format!(
+            "{name} exact action uses checkout-relative validator paths"
+        )]
     } else {
         Vec::new()
     }
@@ -95,14 +108,21 @@ pub fn step_errors(text: &str, allow_template: bool) -> Vec<String> {
     let section_end = text.find("## 6. Failure Decision & Recovery Matrix");
     let mut selected_route = label_value(text, "**Selected route:**").unwrap_or_default();
     selected_route = selected_route.trim_matches('`').to_string();
-    if let Some(stripped) = Regex::new(r"(?i)^SELECTED_ROUTE:\s*").unwrap().find(&selected_route) {
+    if let Some(stripped) = Regex::new(r"(?i)^SELECTED_ROUTE:\s*")
+        .unwrap()
+        .find(&selected_route)
+    {
         selected_route = selected_route[stripped.end()..].to_string();
     }
     let mut seen_route_steps: BTreeSet<String> = BTreeSet::new();
     let mut execution_dependencies: HashMap<String, BTreeSet<String>> = HashMap::new();
 
     for (index, m) in matches.iter().enumerate() {
-        let end = matches.get(index + 1).map(|next| next.start()).or(section_end).unwrap_or(text.len());
+        let end = matches
+            .get(index + 1)
+            .map(|next| next.start())
+            .or(section_end)
+            .unwrap_or(text.len());
         let block = &text[m.start()..end];
         let name = m.as_str();
         for label in STEP_LABELS {
@@ -150,16 +170,24 @@ pub fn step_errors(text: &str, allow_template: bool) -> Vec<String> {
                 None => errors.push(format!("{name} lacks exact ROUTE_STEP binding")),
                 Some(route_match) => {
                     let route_id = route_match.get(1).unwrap().as_str().to_string();
-                    let step_id = format!("{route_id}/{}", route_match.get(2).unwrap().as_str()).to_uppercase();
+                    let step_id = format!("{route_id}/{}", route_match.get(2).unwrap().as_str())
+                        .to_uppercase();
                     if !selected_route.is_empty()
                         && route_id.to_lowercase() != selected_route.to_lowercase()
                     {
                         errors.push(format!("{name} binds non-selected route"));
                     }
-                    let dependency = label_value(block, "**Dependency order:**").unwrap_or_default();
-                    if Regex::new(r"(?i)^START:\s*\S").unwrap().is_match(&dependency) {
+                    let dependency =
+                        label_value(block, "**Dependency order:**").unwrap_or_default();
+                    if Regex::new(r"(?i)^START:\s*\S")
+                        .unwrap()
+                        .is_match(&dependency)
+                    {
                         execution_dependencies.insert(step_id.clone(), BTreeSet::new());
-                    } else if let Some(dependency_match) = Regex::new(r"(?i)^AFTER:\s*(\S.+)$").unwrap().captures(&dependency) {
+                    } else if let Some(dependency_match) = Regex::new(r"(?i)^AFTER:\s*(\S.+)$")
+                        .unwrap()
+                        .captures(&dependency)
+                    {
                         let deps: BTreeSet<String> = Regex::new(r"[,+]")
                             .unwrap()
                             .split(dependency_match.get(1).unwrap().as_str())
@@ -177,20 +205,29 @@ pub fn step_errors(text: &str, allow_template: bool) -> Vec<String> {
                         }
                         execution_dependencies.insert(step_id.clone(), deps);
                     } else {
-                        errors.push(format!("{name} dependency order must be START or AFTER prior route step"));
+                        errors.push(format!(
+                            "{name} dependency order must be START or AFTER prior route step"
+                        ));
                     }
                     seen_route_steps.insert(step_id);
                 }
             }
             let advances = label_value(block, "**Advances target:**").unwrap_or_default();
-            if !Regex::new(r"(?i)^ADVANCES_STATE_B:\s*\S").unwrap().is_match(&advances) {
+            if !Regex::new(r"(?i)^ADVANCES_STATE_B:\s*\S")
+                .unwrap()
+                .is_match(&advances)
+            {
                 errors.push(format!("{name} lacks observable ADVANCES_STATE_B delta"));
             }
         }
     }
 
     if !allow_template {
-        let route_table = table_rows(text, "## 1C. Goal Route & Critical Path", "## 1D. Experiment Topology & Workload Funnel");
+        let route_table = table_rows(
+            text,
+            "## 1C. Goal Route & Critical Path",
+            "## 1D. Experiment Topology & Workload Funnel",
+        );
         let selected_rows: Vec<&Vec<String>> = route_table
             .iter()
             .skip(1)
@@ -198,13 +235,21 @@ pub fn step_errors(text: &str, allow_template: bool) -> Vec<String> {
             .collect();
         if selected_rows.len() == 1 {
             let row = selected_rows[0];
-            let declared_steps: BTreeSet<String> = if let Some(caps) = Regex::new(r"(?i)^STEPS:(.+)$").unwrap().captures(&row[1]) {
-                caps.get(1).unwrap().as_str().split('>').map(|s| s.trim().to_uppercase()).collect()
-            } else {
-                BTreeSet::new()
-            };
+            let declared_steps: BTreeSet<String> =
+                if let Some(caps) = Regex::new(r"(?i)^STEPS:(.+)$").unwrap().captures(&row[1]) {
+                    caps.get(1)
+                        .unwrap()
+                        .as_str()
+                        .split('>')
+                        .map(|s| s.trim().to_uppercase())
+                        .collect()
+                } else {
+                    BTreeSet::new()
+                };
             if declared_steps != seen_route_steps {
-                errors.push("execution step bindings must exactly cover selected route steps".to_string());
+                errors.push(
+                    "execution step bindings must exactly cover selected route steps".to_string(),
+                );
             }
             if let Some((roots, edges)) = parse_dependency_contract(&row[2]) {
                 let mut expected_dependencies: HashMap<String, BTreeSet<String>> = HashMap::new();
@@ -220,7 +265,10 @@ pub fn step_errors(text: &str, allow_template: bool) -> Vec<String> {
                     expected_dependencies.entry(root.clone()).or_default();
                 }
                 if execution_dependencies != expected_dependencies {
-                    errors.push("execution dependency bindings must exactly match selected route DAG".to_string());
+                    errors.push(
+                        "execution dependency bindings must exactly match selected route DAG"
+                            .to_string(),
+                    );
                 }
             }
         }
@@ -236,14 +284,20 @@ mod tests {
     #[test]
     fn missing_step_reports_expected_message() {
         let errors = step_errors("no steps here", false);
-        assert_eq!(errors, vec!["missing execution step: expected '### Step N — name'".to_string()]);
+        assert_eq!(
+            errors,
+            vec!["missing execution step: expected '### Step N — name'".to_string()]
+        );
     }
 
     #[test]
     fn exact_action_flags_relative_invocation() {
         let action = "run python tasks/validate-dispatch.py --check";
         let errors = exact_action_validator_path_errors("### Step 1 — x", action);
-        assert_eq!(errors, vec!["### Step 1 — x exact action uses checkout-relative validator paths".to_string()]);
+        assert_eq!(
+            errors,
+            vec!["### Step 1 — x exact action uses checkout-relative validator paths".to_string()]
+        );
     }
 
     #[test]
@@ -256,6 +310,8 @@ mod tests {
     fn step_present_but_missing_labels_reports_them() {
         let text = "### Step 1 — do the thing\nsome body\n";
         let errors = step_errors(text, true);
-        assert!(errors.iter().any(|e| e.contains("missing label: **Route step:**")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("missing label: **Route step:**")));
     }
 }

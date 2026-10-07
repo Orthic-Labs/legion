@@ -33,7 +33,10 @@ pub struct ProviderResultValidationError {
 }
 
 fn err(field: &str, detail: impl Into<String>) -> ProviderResultValidationError {
-    ProviderResultValidationError { field: field.to_string(), detail: detail.into() }
+    ProviderResultValidationError {
+        field: field.to_string(),
+        detail: detail.into(),
+    }
 }
 
 /// Faithful port of `validateProviderResult(result)`. Returns `Ok(())` on a
@@ -56,7 +59,10 @@ pub fn validate_provider_result(result: &Value) -> Result<(), ProviderResultVali
         _ => return Err(err("provider", "must be a non-empty string")),
     }
 
-    let status = obj.get("status").and_then(Value::as_str).unwrap_or_default();
+    let status = obj
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if !PROVIDER_STATUS.contains(&status) {
         return Err(err(
             "status",
@@ -95,13 +101,18 @@ pub fn validate_provider_result(result: &Value) -> Result<(), ProviderResultVali
         for artifact in artifacts {
             let a = artifact.as_object();
             let ok = a
-                .map(|m| m.contains_key("kind") && m.contains_key("path") && m.contains_key("digest"))
+                .map(|m| {
+                    m.contains_key("kind") && m.contains_key("path") && m.contains_key("digest")
+                })
                 .unwrap_or(false)
                 && !matches!(artifact.get("kind"), Some(Value::Null) | None)
                 && !matches!(artifact.get("path"), Some(Value::Null) | None)
                 && !matches!(artifact.get("digest"), Some(Value::Null) | None);
             if !ok {
-                return Err(err("artifacts", "each artifact requires kind, path, and digest"));
+                return Err(err(
+                    "artifacts",
+                    "each artifact requires kind, path, and digest",
+                ));
             }
             let digest_ok = artifact
                 .get("digest")
@@ -147,7 +158,11 @@ pub fn normalize_provider_result(
     let status = get_or(raw_output, "status", &Value::from("unproven")).clone();
     let complete = get_or(raw_output, "complete", &Value::Bool(false)).clone();
 
-    let raw_coverage = raw_output.get("coverage").and_then(Value::as_object).cloned().unwrap_or_default();
+    let raw_coverage = raw_output
+        .get("coverage")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let denominator_digest = raw_coverage
         .get("denominatorDigest")
         .filter(|v| !v.is_null())
@@ -171,14 +186,38 @@ pub fn normalize_provider_result(
     normalized.insert("status".into(), status);
     normalized.insert("complete".into(), complete);
     normalized.insert("coverage".into(), Value::Object(coverage));
-    normalized.insert("commands".into(), get_or(raw_output, "commands", &empty).clone());
-    normalized.insert("receipts".into(), get_or(raw_output, "receipts", &empty).clone());
-    normalized.insert("inventory".into(), get_or(raw_output, "inventory", &empty).clone());
-    normalized.insert("candidates".into(), get_or(raw_output, "candidates", &empty).clone());
-    normalized.insert("findings".into(), get_or(raw_output, "findings", &empty).clone());
-    normalized.insert("coverageGaps".into(), get_or(raw_output, "coverageGaps", &empty).clone());
-    normalized.insert("artifacts".into(), get_or(raw_output, "artifacts", &empty).clone());
-    normalized.insert("degradation".into(), get_or(raw_output, "degradation", &empty).clone());
+    normalized.insert(
+        "commands".into(),
+        get_or(raw_output, "commands", &empty).clone(),
+    );
+    normalized.insert(
+        "receipts".into(),
+        get_or(raw_output, "receipts", &empty).clone(),
+    );
+    normalized.insert(
+        "inventory".into(),
+        get_or(raw_output, "inventory", &empty).clone(),
+    );
+    normalized.insert(
+        "candidates".into(),
+        get_or(raw_output, "candidates", &empty).clone(),
+    );
+    normalized.insert(
+        "findings".into(),
+        get_or(raw_output, "findings", &empty).clone(),
+    );
+    normalized.insert(
+        "coverageGaps".into(),
+        get_or(raw_output, "coverageGaps", &empty).clone(),
+    );
+    normalized.insert(
+        "artifacts".into(),
+        get_or(raw_output, "artifacts", &empty).clone(),
+    );
+    normalized.insert(
+        "degradation".into(),
+        get_or(raw_output, "degradation", &empty).clone(),
+    );
     let _ = &empty_obj; // reserved: matches JS's implicit object-shaped defaults path
 
     let value = Value::Object(normalized);

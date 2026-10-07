@@ -33,7 +33,9 @@ fn present(path: &Path) -> Option<fs::Metadata> {
 
 fn is_node_runtime_file(path: &Path) -> bool {
     let file = path.to_string_lossy().to_lowercase();
-    let has_ext = [".cjs", ".js", ".mjs"].iter().any(|ext| file.ends_with(ext));
+    let has_ext = [".cjs", ".js", ".mjs"]
+        .iter()
+        .any(|ext| file.ends_with(ext));
     has_ext && !file.ends_with(".test.mjs")
 }
 
@@ -92,26 +94,33 @@ pub fn run(root: &Path, phase_arg: &str) -> bool {
 }
 
 fn compute(root: &Path, phase_arg: &str) -> Summary {
-    let phase = if phase_arg == "enforce" { "enforce" } else { "record" };
+    let phase = if phase_arg == "enforce" {
+        "enforce"
+    } else {
+        "record"
+    };
     let mut issues: Vec<String> = Vec::new();
     let mut reported: BTreeSet<String> = BTreeSet::new();
 
-    let mut report_runtime_file = |path: &Path, issues: &mut Vec<String>, reported: &mut BTreeSet<String>| {
-        let rel = rel_forward(root, path);
-        if reported.contains(&rel) {
-            return;
-        }
-        reported.insert(rel.clone());
-        if rel == "src/bin/legion.mjs" || rel == "src/lib/cli/run.mjs" {
-            issues.push(format!("forbidden Node Legion entrypoint still present: {rel}"));
-        } else if rel.starts_with("src/lib/cli/commands/")
-            && !rel["src/lib/cli/commands/".len()..].contains('/')
-        {
-            issues.push(format!("forbidden Node Legion command handler: {rel}"));
-        } else {
-            issues.push(format!("forbidden Node Legion runtime file: {rel}"));
-        }
-    };
+    let mut report_runtime_file =
+        |path: &Path, issues: &mut Vec<String>, reported: &mut BTreeSet<String>| {
+            let rel = rel_forward(root, path);
+            if reported.contains(&rel) {
+                return;
+            }
+            reported.insert(rel.clone());
+            if rel == "src/bin/legion.mjs" || rel == "src/lib/cli/run.mjs" {
+                issues.push(format!(
+                    "forbidden Node Legion entrypoint still present: {rel}"
+                ));
+            } else if rel.starts_with("src/lib/cli/commands/")
+                && !rel["src/lib/cli/commands/".len()..].contains('/')
+            {
+                issues.push(format!("forbidden Node Legion command handler: {rel}"));
+            } else {
+                issues.push(format!("forbidden Node Legion runtime file: {rel}"));
+            }
+        };
 
     for rel in FORBIDDEN_RUNTIME_PATHS {
         let path = root.join(rel);
@@ -139,7 +148,11 @@ fn compute(root: &Path, phase_arg: &str) -> Summary {
         }
         if let Ok(text) = fs::read_to_string(path) {
             if text.contains("src/bin/legion.mjs") || text.contains("from '../bin/legion.mjs'") {
-                let rel = path.strip_prefix(root).unwrap_or(path).to_string_lossy().to_string();
+                let rel = path
+                    .strip_prefix(root)
+                    .unwrap_or(path)
+                    .to_string_lossy()
+                    .to_string();
                 issues.push(format!("product test still invokes Node CLI: {rel}"));
             }
         }
@@ -148,7 +161,9 @@ fn compute(root: &Path, phase_arg: &str) -> Summary {
     for rel in PRODUCT_CLI_TESTS {
         if let Ok(text) = fs::read_to_string(root.join(rel)) {
             if !text.contains("scripts/native-cli/test-helper.mjs") {
-                issues.push(format!("product CLI test must use native executable helper: {rel}"));
+                issues.push(format!(
+                    "product CLI test must use native executable helper: {rel}"
+                ));
             }
         }
     }
@@ -156,12 +171,8 @@ fn compute(root: &Path, phase_arg: &str) -> Summary {
     if let Ok(pkg_text) = fs::read_to_string(root.join("package.json")) {
         if let Ok(pkg) = serde_json::from_str::<serde_json::Value>(&pkg_text) {
             let bin = pkg.get("bin");
-            let has_legion = bin
-                .and_then(|b| b.get("legion"))
-                .is_some();
-            let has_scoped = bin
-                .and_then(|b| b.get("@orthic-labs/legion"))
-                .is_some();
+            let has_legion = bin.and_then(|b| b.get("legion")).is_some();
+            let has_scoped = bin.and_then(|b| b.get("@orthic-labs/legion")).is_some();
             if has_legion || has_scoped {
                 issues.push("package.json must not register npm bin legion".to_string());
             }
@@ -243,7 +254,6 @@ mod tests {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, contents).unwrap();
         }
-
     }
 
     impl Drop for Tree {
@@ -262,7 +272,10 @@ mod tests {
     #[test]
     fn record_reports_real_runtime_gaps_without_granting_enforcement_success() {
         let tree = Tree::new();
-        tree.add("src/bin/legion.mjs", "// retained reference implementation\n");
+        tree.add(
+            "src/bin/legion.mjs",
+            "// retained reference implementation\n",
+        );
         tree.add("src/lib/cli/commands/state.mjs", "// retained command\n");
         let record = compute(&tree.root, "record");
         assert!(!record.ok);

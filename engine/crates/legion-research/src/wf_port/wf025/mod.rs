@@ -19,4 +19,6 @@ pub use manifest::record_event;
 
 pub use gap_critic::{review as gap_critic_review, review_to_json as gap_critic_review_to_json};
 pub use independence::cluster as independence_cluster;
-pub use ledger::{check as ledger_check, render as ledger_render, validate_evidence as ledger_validate_evidence};
+pub use ledger::{
+    check as ledger_check, render as ledger_render, validate_evidence as ledger_validate_evidence,
+};

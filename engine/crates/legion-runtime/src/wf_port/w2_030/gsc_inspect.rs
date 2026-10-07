@@ -17,18 +17,25 @@ use super::gsc_query_v2::resolve_bearer_token;
 pub const DAILY_LIMIT: usize = 2000;
 pub const QPM_LIMIT: usize = 600;
 
-const INSPECT_ENDPOINT: &str = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect";
+const INSPECT_ENDPOINT: &str =
+    "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect";
 
 /// Port of the `except Exception as e:` branch in `inspect_url()`: classifies a raised error's
 /// string representation into the same human-readable messages, by substring match on
 /// `"403"`/`"429"`/`"400"`, same as the python (first match wins, in the same order).
 pub fn classify_inspection_error(error_str: &str, inspection_url: &str, site_url: &str) -> String {
     if error_str.contains("403") {
-        format!("Permission denied. Add the service account as an Owner in GSC property '{site_url}'.")
+        format!(
+            "Permission denied. Add the service account as an Owner in GSC property '{site_url}'."
+        )
     } else if error_str.contains("429") {
-        format!("Rate limit exceeded. URL Inspection: {QPM_LIMIT} QPM / {DAILY_LIMIT} QPD per site.")
+        format!(
+            "Rate limit exceeded. URL Inspection: {QPM_LIMIT} QPM / {DAILY_LIMIT} QPD per site."
+        )
     } else if error_str.contains("400") {
-        format!("Invalid request. Ensure the URL '{inspection_url}' belongs to property '{site_url}'.")
+        format!(
+            "Invalid request. Ensure the URL '{inspection_url}' belongs to property '{site_url}'."
+        )
     } else {
         format!("URL Inspection API error: {error_str}")
     }
@@ -162,7 +169,10 @@ pub fn tally_batch_summary(inspections: &[Value]) -> BatchSummary {
             .get("error")
             .map(|e| !e.is_null())
             .unwrap_or(false);
-        let verdict = inspection.get("verdict").and_then(|v| v.as_str()).unwrap_or("");
+        let verdict = inspection
+            .get("verdict")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         if has_error {
             summary.error_count += 1;
         } else if verdict == "PASS" {
@@ -249,7 +259,13 @@ pub fn inspect_url_with<T: InspectionTransport>(
 
     let parsed: Value = match serde_json::from_str(&response_text) {
         Ok(v) => v,
-        Err(e) => return error_result(inspection_url, site_url, &format!("URL Inspection API error: {e}")),
+        Err(e) => {
+            return error_result(
+                inspection_url,
+                site_url,
+                &format!("URL Inspection API error: {e}"),
+            )
+        }
     };
     let raw_inspection_result = parsed.get("inspectionResult").cloned().unwrap_or(json!({}));
     parse_inspection_result(inspection_url, site_url, &raw_inspection_result)
@@ -288,7 +304,13 @@ pub fn batch_inspect_with<T: InspectionTransport>(
         if url.is_empty() {
             continue;
         }
-        results.push(inspect_url_with(transport, bearer, url, site_url, language_code));
+        results.push(inspect_url_with(
+            transport,
+            bearer,
+            url,
+            site_url,
+            language_code,
+        ));
     }
     let summary = tally_batch_summary(&results);
     json!({
@@ -343,7 +365,10 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
     let site_url = match site_url.or(cfg.default_property) {
         Some(s) => s,
         None => {
-            let _ = writeln!(err, "Error: No site URL specified. Use --site-url or set default_property in config.");
+            let _ = writeln!(
+                err,
+                "Error: No site URL specified. Use --site-url or set default_property in config."
+            );
             return 1;
         }
     };
@@ -364,7 +389,12 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                 return 1;
             }
         };
-        let urls: Vec<String> = text.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_string).collect();
+        let urls: Vec<String> = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .map(str::to_string)
+            .collect();
         batch_inspect_with(&ReqwestInspectionTransport, &bearer, urls, &site_url, "en")
     } else if let Some(u) = &url {
         inspect_url_with(&ReqwestInspectionTransport, &bearer, u, &site_url, "en")
@@ -374,7 +404,11 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
     };
 
     if json_out {
-        let _ = writeln!(out, "{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+        let _ = writeln!(
+            out,
+            "{}",
+            serde_json::to_string_pretty(&result).unwrap_or_default()
+        );
         return 0;
     }
 
@@ -391,7 +425,12 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             summary.get("error").and_then(Value::as_u64).unwrap_or(0),
         );
         let _ = writeln!(out);
-        for r in result.get("results").and_then(Value::as_array).cloned().unwrap_or_default() {
+        for r in result
+            .get("results")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
             let verdict = r.get("verdict").and_then(Value::as_str).unwrap_or("?");
             let status = match verdict {
                 "PASS" => "OK",
@@ -399,7 +438,11 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                 "NEUTRAL" => "--",
                 _ => "ERR",
             };
-            let _ = writeln!(out, "  [{status}] {}", r.get("url").and_then(Value::as_str).unwrap_or(""));
+            let _ = writeln!(
+                out,
+                "  [{status}] {}",
+                r.get("url").and_then(Value::as_str).unwrap_or("")
+            );
             if let Some(e) = r.get("error").and_then(Value::as_str) {
                 let _ = writeln!(out, "       Error: {e}");
             } else if verdict == "FAIL" {
@@ -407,8 +450,12 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                 let _ = writeln!(
                     out,
                     "       Coverage: {} | Fetch: {}",
-                    idx.get("coverage_state").and_then(Value::as_str).unwrap_or("None"),
-                    idx.get("page_fetch_state").and_then(Value::as_str).unwrap_or("None"),
+                    idx.get("coverage_state")
+                        .and_then(Value::as_str)
+                        .unwrap_or("None"),
+                    idx.get("page_fetch_state")
+                        .and_then(Value::as_str)
+                        .unwrap_or("None"),
                 );
             }
         }
@@ -419,30 +466,101 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             return 1;
         }
         let verdict = result.get("verdict").and_then(Value::as_str).unwrap_or("?");
-        let _ = writeln!(out, "=== URL Inspection: {} ===", result.get("url").and_then(Value::as_str).unwrap_or(""));
+        let _ = writeln!(
+            out,
+            "=== URL Inspection: {} ===",
+            result.get("url").and_then(Value::as_str).unwrap_or("")
+        );
         let _ = writeln!(out, "Verdict: {verdict}");
         if let Some(idx) = result.get("index_status").filter(|v| !v.is_null()) {
             let _ = writeln!(out, "\nIndex Status:");
-            let _ = writeln!(out, "  Coverage: {}", idx.get("coverage_state").and_then(Value::as_str).unwrap_or("None"));
-            let _ = writeln!(out, "  Robots.txt: {}", idx.get("robots_txt_state").and_then(Value::as_str).unwrap_or("None"));
-            let _ = writeln!(out, "  Indexing: {}", idx.get("indexing_state").and_then(Value::as_str).unwrap_or("None"));
-            let _ = writeln!(out, "  Page Fetch: {}", idx.get("page_fetch_state").and_then(Value::as_str).unwrap_or("None"));
-            let _ = writeln!(out, "  Last Crawl: {}", idx.get("last_crawl_time").and_then(Value::as_str).unwrap_or("N/A"));
-            let _ = writeln!(out, "  Crawled As: {}", idx.get("crawled_as").and_then(Value::as_str).unwrap_or("None"));
+            let _ = writeln!(
+                out,
+                "  Coverage: {}",
+                idx.get("coverage_state")
+                    .and_then(Value::as_str)
+                    .unwrap_or("None")
+            );
+            let _ = writeln!(
+                out,
+                "  Robots.txt: {}",
+                idx.get("robots_txt_state")
+                    .and_then(Value::as_str)
+                    .unwrap_or("None")
+            );
+            let _ = writeln!(
+                out,
+                "  Indexing: {}",
+                idx.get("indexing_state")
+                    .and_then(Value::as_str)
+                    .unwrap_or("None")
+            );
+            let _ = writeln!(
+                out,
+                "  Page Fetch: {}",
+                idx.get("page_fetch_state")
+                    .and_then(Value::as_str)
+                    .unwrap_or("None")
+            );
+            let _ = writeln!(
+                out,
+                "  Last Crawl: {}",
+                idx.get("last_crawl_time")
+                    .and_then(Value::as_str)
+                    .unwrap_or("N/A")
+            );
+            let _ = writeln!(
+                out,
+                "  Crawled As: {}",
+                idx.get("crawled_as")
+                    .and_then(Value::as_str)
+                    .unwrap_or("None")
+            );
         }
         if let Some(canon) = result.get("canonical").filter(|v| !v.is_null()) {
             let _ = writeln!(out, "\nCanonical:");
-            let _ = writeln!(out, "  Google: {}", canon.get("google_canonical").and_then(Value::as_str).unwrap_or("N/A"));
-            let _ = writeln!(out, "  User: {}", canon.get("user_canonical").and_then(Value::as_str).unwrap_or("N/A"));
+            let _ = writeln!(
+                out,
+                "  Google: {}",
+                canon
+                    .get("google_canonical")
+                    .and_then(Value::as_str)
+                    .unwrap_or("N/A")
+            );
+            let _ = writeln!(
+                out,
+                "  User: {}",
+                canon
+                    .get("user_canonical")
+                    .and_then(Value::as_str)
+                    .unwrap_or("N/A")
+            );
             if let Some(m) = canon.get("match").and_then(Value::as_bool) {
                 let _ = writeln!(out, "  Match: {}", if m { "Yes" } else { "MISMATCH" });
             }
         }
         if let Some(rr) = result.get("rich_results").filter(|v| !v.is_null()) {
-            if rr.get("detected_items").and_then(Value::as_array).is_some_and(|a| !a.is_empty()) {
-                let _ = writeln!(out, "\nRich Results: {}", rr.get("verdict").and_then(Value::as_str).unwrap_or(""));
-                for item in rr.get("detected_items").and_then(Value::as_array).cloned().unwrap_or_default() {
-                    let _ = writeln!(out, "  Type: {}", item.get("type").and_then(Value::as_str).unwrap_or(""));
+            if rr
+                .get("detected_items")
+                .and_then(Value::as_array)
+                .is_some_and(|a| !a.is_empty())
+            {
+                let _ = writeln!(
+                    out,
+                    "\nRich Results: {}",
+                    rr.get("verdict").and_then(Value::as_str).unwrap_or("")
+                );
+                for item in rr
+                    .get("detected_items")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+                {
+                    let _ = writeln!(
+                        out,
+                        "  Type: {}",
+                        item.get("type").and_then(Value::as_str).unwrap_or("")
+                    );
                 }
             }
         }
@@ -456,10 +574,15 @@ mod tests {
 
     #[test]
     fn classify_error_checks_403_then_429_then_400() {
-        assert!(classify_inspection_error("HttpError 403 Forbidden", "u", "s").contains("Permission denied"));
+        assert!(
+            classify_inspection_error("HttpError 403 Forbidden", "u", "s")
+                .contains("Permission denied")
+        );
         assert!(classify_inspection_error("429 too many requests", "u", "s").contains("Rate limit"));
         assert!(classify_inspection_error("400 bad request", "u", "s").contains("Invalid request"));
-        assert!(classify_inspection_error("boom", "u", "s").contains("URL Inspection API error: boom"));
+        assert!(
+            classify_inspection_error("boom", "u", "s").contains("URL Inspection API error: boom")
+        );
     }
 
     #[test]
@@ -474,7 +597,10 @@ mod tests {
         });
         let out = parse_inspection_result("https://example.com/", "sc-domain:example.com", &raw);
         assert_eq!(out["verdict"], "PASS");
-        assert_eq!(out["index_status"]["coverage_state"], "Submitted and indexed");
+        assert_eq!(
+            out["index_status"]["coverage_state"],
+            "Submitted and indexed"
+        );
         assert_eq!(out["canonical"]["match"], true);
         assert_eq!(out["mobile_usability"], Value::Null);
     }
@@ -500,7 +626,10 @@ mod tests {
         let out = parse_inspection_result("u", "s", &raw);
         assert_eq!(out["rich_results"]["verdict"], "PASS");
         assert_eq!(out["rich_results"]["detected_items"][0]["type"], "FAQ");
-        assert_eq!(out["rich_results"]["detected_items"][0]["items"][0]["name"], "Q1");
+        assert_eq!(
+            out["rich_results"]["detected_items"][0]["items"][0]["name"],
+            "Q1"
+        );
     }
 
     #[test]
@@ -514,13 +643,20 @@ mod tests {
         let summary = tally_batch_summary(&inspections);
         assert_eq!(
             summary,
-            BatchSummary { pass_count: 1, fail_count: 1, neutral_count: 1, error_count: 1 }
+            BatchSummary {
+                pass_count: 1,
+                fail_count: 1,
+                neutral_count: 1,
+                error_count: 1
+            }
         );
     }
 
     #[test]
     fn apply_daily_limit_truncates_and_warns() {
-        let urls: Vec<String> = (0..DAILY_LIMIT + 5).map(|i| format!("https://example.com/{i}")).collect();
+        let urls: Vec<String> = (0..DAILY_LIMIT + 5)
+            .map(|i| format!("https://example.com/{i}"))
+            .collect();
         let (truncated, error) = apply_daily_limit(urls);
         assert_eq!(truncated.len(), DAILY_LIMIT);
         assert!(error.unwrap().contains("exceeds daily limit"));
@@ -540,7 +676,12 @@ mod tests {
     }
 
     impl InspectionTransport for FakeInspectionTransport {
-        fn post_json(&self, _url: &str, _bearer: &str, _body: &Value) -> Result<(u16, String), String> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _bearer: &str,
+            _body: &Value,
+        ) -> Result<(u16, String), String> {
             Ok((self.status, self.body.to_string()))
         }
     }
@@ -551,15 +692,30 @@ mod tests {
             status: 200,
             body: json!({"inspectionResult": {"indexStatusResult": {"verdict": "PASS"}}}),
         };
-        let out = inspect_url_with(&transport, "tok", "https://example.com/", "sc-domain:example.com", "en");
+        let out = inspect_url_with(
+            &transport,
+            "tok",
+            "https://example.com/",
+            "sc-domain:example.com",
+            "en",
+        );
         assert_eq!(out["verdict"], "PASS");
         assert_eq!(out["error"], Value::Null);
     }
 
     #[test]
     fn inspect_url_with_classifies_403() {
-        let transport = FakeInspectionTransport { status: 403, body: json!("Forbidden") };
-        let out = inspect_url_with(&transport, "tok", "https://example.com/", "sc-domain:example.com", "en");
+        let transport = FakeInspectionTransport {
+            status: 403,
+            body: json!("Forbidden"),
+        };
+        let out = inspect_url_with(
+            &transport,
+            "tok",
+            "https://example.com/",
+            "sc-domain:example.com",
+            "en",
+        );
         assert!(out["error"].as_str().unwrap().contains("Permission denied"));
         assert_eq!(out["verdict"], Value::Null);
     }
@@ -568,11 +724,23 @@ mod tests {
     fn batch_inspect_with_tallies_and_truncates() {
         struct AlwaysPass;
         impl InspectionTransport for AlwaysPass {
-            fn post_json(&self, _url: &str, _bearer: &str, _body: &Value) -> Result<(u16, String), String> {
-                Ok((200, json!({"inspectionResult": {"indexStatusResult": {"verdict": "PASS"}}}).to_string()))
+            fn post_json(
+                &self,
+                _url: &str,
+                _bearer: &str,
+                _body: &Value,
+            ) -> Result<(u16, String), String> {
+                Ok((
+                    200,
+                    json!({"inspectionResult": {"indexStatusResult": {"verdict": "PASS"}}})
+                        .to_string(),
+                ))
             }
         }
-        let urls = vec!["https://example.com/1".to_string(), "https://example.com/2".to_string()];
+        let urls = vec![
+            "https://example.com/1".to_string(),
+            "https://example.com/2".to_string(),
+        ];
         let out = batch_inspect_with(&AlwaysPass, "tok", urls, "sc-domain:example.com", "en");
         assert_eq!(out["summary"]["pass"], 2);
         assert_eq!(out["total"], 2);

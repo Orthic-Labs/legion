@@ -24,7 +24,10 @@ impl ScratchDir {
         let path = std::env::temp_dir().join(format!(
             "legion-audit-reasoning-excerpts-it-{}-{}-{id}",
             std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir_all(&path).unwrap();
         Self(path)
@@ -66,15 +69,26 @@ fn excerpt_mode_matches_lens_plan_for_every_owned_provider() {
     ] {
         let mode = lens_plan::lens_plan_excerpt_mode(provider).expect(provider);
         let is_raw = mode == lens_plan::ExcerptMode::Raw;
-        assert_eq!(is_raw, expect_raw, "{provider}: unexpected excerpt mode {mode:?}");
+        assert_eq!(
+            is_raw, expect_raw,
+            "{provider}: unexpected excerpt mode {mode:?}"
+        );
     }
 }
 
 #[test]
 fn raw_excerpt_slicing_is_file_line_anchored_and_redacted_across_languages() {
     let dir = ScratchDir::new();
-    write(dir.path(), "src/lib.rs", "pub fn a() {}\nconst TOKEN: &str = \"ghp_abcdefghijklmnopqrstuvwxyz012345\";\n");
-    write(dir.path(), "web/app.ts", "export function b() { return 1; }\n");
+    write(
+        dir.path(),
+        "src/lib.rs",
+        "pub fn a() {}\nconst TOKEN: &str = \"ghp_abcdefghijklmnopqrstuvwxyz012345\";\n",
+    );
+    write(
+        dir.path(),
+        "web/app.ts",
+        "export function b() { return 1; }\n",
+    );
     write(dir.path(), "ios/App.swift", "func c() {}\n");
     write(dir.path(), "scripts/tool.py", "def d():\n    return 1\n");
 
@@ -90,9 +104,15 @@ fn raw_excerpt_slicing_is_file_line_anchored_and_redacted_across_languages() {
     assert_eq!(rust.language, "rust");
     assert!(rust.anchors.iter().any(|a| a.starts_with("src/lib.rs:")));
     assert!(rust.redacted, "the ghp_ token must be redacted");
-    assert!(!rust.content.contains("ghp_abcdefghijklmnopqrstuvwxyz012345"));
+    assert!(!rust
+        .content
+        .contains("ghp_abcdefghijklmnopqrstuvwxyz012345"));
 
-    for (path, language) in [("web/app.ts", "typescript"), ("ios/App.swift", "swift"), ("scripts/tool.py", "python")] {
+    for (path, language) in [
+        ("web/app.ts", "typescript"),
+        ("ios/App.swift", "swift"),
+        ("scripts/tool.py", "python"),
+    ] {
         let excerpt = excerpts.iter().find(|e| e.path == path).unwrap();
         assert_eq!(excerpt.language, language);
     }
@@ -114,16 +134,35 @@ fn skeleton_excerpt_slicing_keeps_signatures_and_drops_bodies_across_languages()
     assert!(excerpt.content.contains("pub fn compute() -> i32 {"));
     assert!(!excerpt.content.contains("secret_body = 41 + 1"));
     assert!(excerpt.content.contains("{ ... }"));
-    assert!(!excerpt.redacted, "skeleton mode does not redact (no bodies survive to carry secrets)");
+    assert!(
+        !excerpt.redacted,
+        "skeleton mode does not redact (no bodies survive to carry secrets)"
+    );
 }
 
 #[test]
 fn conditional_trigger_detection_covers_all_five_lenses_with_evidence() {
     let dir = ScratchDir::new();
-    write(dir.path(), "web/Button.tsx", "export const Button = () => <button />;\n");
-    write(dir.path(), "db/migrations/0001_init.sql", "CREATE TABLE t (id INT);\n");
-    write(dir.path(), "src/sidecar/run.rs", "fn main() { std::process::Command::new(\"x\"); }\n");
-    write(dir.path(), "src/platform.rs", "#[cfg(target_os = \"windows\")]\nfn win() {}\n");
+    write(
+        dir.path(),
+        "web/Button.tsx",
+        "export const Button = () => <button />;\n",
+    );
+    write(
+        dir.path(),
+        "db/migrations/0001_init.sql",
+        "CREATE TABLE t (id INT);\n",
+    );
+    write(
+        dir.path(),
+        "src/sidecar/run.rs",
+        "fn main() { std::process::Command::new(\"x\"); }\n",
+    );
+    write(
+        dir.path(),
+        "src/platform.rs",
+        "#[cfg(target_os = \"windows\")]\nfn win() {}\n",
+    );
     write(dir.path(), "release/tauri.conf.json", "{}\n");
 
     let paths = vec![
@@ -136,7 +175,11 @@ fn conditional_trigger_detection_covers_all_five_lenses_with_evidence() {
     let evaluations = triggers::evaluate_all_conditional_triggers(dir.path(), &paths);
     assert_eq!(evaluations.len(), 5);
     for evaluation in &evaluations {
-        assert!(evaluation.fired, "{} should have fired with matching evidence present", evaluation.lens);
+        assert!(
+            evaluation.fired,
+            "{} should have fired with matching evidence present",
+            evaluation.lens
+        );
         assert!(!evaluation.evidence_paths.is_empty());
         assert!(!evaluation.reason.is_empty());
     }
@@ -145,7 +188,9 @@ fn conditional_trigger_detection_covers_all_five_lenses_with_evidence() {
     let empty_dir = ScratchDir::new();
     let none_fired = triggers::evaluate_all_conditional_triggers(empty_dir.path(), &[]);
     assert!(none_fired.iter().all(|evaluation| !evaluation.fired));
-    assert!(none_fired.iter().all(|evaluation| evaluation.reason.contains("zero hits")));
+    assert!(none_fired
+        .iter()
+        .all(|evaluation| evaluation.reason.contains("zero hits")));
 }
 
 #[test]
@@ -160,7 +205,10 @@ fn lens_plan_conditional_trigger_text_matches_a_real_evaluator() {
         "reasoning.release-readiness",
     ] {
         let lens = lens_plan::lens_id_for_provider(provider).expect(provider);
-        assert!(triggers::evaluate_trigger(Path::new("."), lens, &[]).is_some(), "{lens} has no trigger evaluator");
+        assert!(
+            triggers::evaluate_trigger(Path::new("."), lens, &[]).is_some(),
+            "{lens} has no trigger evaluator"
+        );
     }
 }
 
@@ -188,8 +236,14 @@ fn report_schema_body_is_present_for_every_owned_lens_and_matches_the_packet_id(
         let schema_id = packet["reportSchema"].as_str().unwrap();
         let lens = lens_plan::lens_id_for_provider(provider).unwrap();
         let schema_body = lens_schemas::lens_report_schema(lens).expect(provider);
-        assert_eq!(schema_body["$id"], json!(format!("https://legion.audit/schemas/{schema_id}")));
-        assert!(schema_body["required"].as_array().unwrap().contains(&json!("evidence")));
+        assert_eq!(
+            schema_body["$id"],
+            json!(format!("https://legion.audit/schemas/{schema_id}"))
+        );
+        assert!(schema_body["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("evidence")));
     }
 }
 

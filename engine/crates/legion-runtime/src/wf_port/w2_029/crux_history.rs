@@ -103,9 +103,7 @@ fn validate_parsed_url(url: &str) -> Option<bool> {
     }
     // hostname is the authority up to the first '/', '?', or '#', minus
     // userinfo and port.
-    let authority_end = rest
-        .find(&['/', '?', '#'][..])
-        .unwrap_or(rest.len());
+    let authority_end = rest.find(&['/', '?', '#'][..]).unwrap_or(rest.len());
     let authority = &rest[..authority_end];
     let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
     let hostname = if let Some(stripped) = host_port.strip_prefix('[') {
@@ -233,7 +231,9 @@ fn parse_density_pct(val: &Value) -> Option<f64> {
 /// response onward (i.e. everything after the HTTP call succeeds):
 /// collection periods, metrics timeseries, and trend analysis. `record`
 /// is the `data["record"]` object from the CrUX History API response.
-pub fn parse_history_record(record: &Value) -> (Vec<CollectionPeriod>, BTreeMap<String, MetricSeries>) {
+pub fn parse_history_record(
+    record: &Value,
+) -> (Vec<CollectionPeriod>, BTreeMap<String, MetricSeries>) {
     let mut periods = Vec::new();
     if let Some(arr) = record.get("collectionPeriods").and_then(Value::as_array) {
         for period in arr {
@@ -257,10 +257,8 @@ pub fn parse_history_record(record: &Value) -> (Vec<CollectionPeriod>, BTreeMap<
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            let p75s: Vec<Option<f64>> = p75s_raw
-                .iter()
-                .map(|v| parse_p75(metric_name, v))
-                .collect();
+            let p75s: Vec<Option<f64>> =
+                p75s_raw.iter().map(|v| parse_p75(metric_name, v)).collect();
 
             let histogram_ts = metric_data
                 .get("histogramTimeseries")
@@ -421,11 +419,14 @@ pub fn query_history(
     };
 
     if !validate_url(url_or_origin) {
-        result.error = Some("Invalid URL. Only http/https URLs to public hosts are accepted.".to_string());
+        result.error =
+            Some("Invalid URL. Only http/https URLs to public hosts are accepted.".to_string());
         return result;
     }
 
-    let (scheme, rest) = url_or_origin.split_once("://").unwrap_or(("", url_or_origin));
+    let (scheme, rest) = url_or_origin
+        .split_once("://")
+        .unwrap_or(("", url_or_origin));
     let authority_end = rest.find(&['/', '?', '#'][..]).unwrap_or(rest.len());
     let (authority, path_and_query) = rest.split_at(authority_end);
     let is_origin = (path_and_query.is_empty() || path_and_query == "/") && !rest.contains('?');
@@ -459,7 +460,8 @@ pub fn query_history(
         return result;
     }
     if status == 429 {
-        result.error = Some("CrUX API rate limit exceeded (150 QPM shared). Wait and retry.".to_string());
+        result.error =
+            Some("CrUX API rate limit exceeded (150 QPM shared). Wait and retry.".to_string());
         return result;
     }
     if !(200..300).contains(&status) {
@@ -511,7 +513,9 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
         }
         i += 1;
     }
-    out.url.clone().ok_or("the following arguments are required: url")?;
+    out.url
+        .clone()
+        .ok_or("the following arguments are required: url")?;
     Ok(out)
 }
 
@@ -572,7 +576,10 @@ pub fn run(
     let _ = writeln!(stdout, "=== CrUX History ({}) ===", result.form_factor);
     let _ = writeln!(stdout, "Target: {}", result.target);
 
-    if let (Some(first), Some(last)) = (result.collection_periods.first(), result.collection_periods.last()) {
+    if let (Some(first), Some(last)) = (
+        result.collection_periods.first(),
+        result.collection_periods.last(),
+    ) {
         let _ = writeln!(
             stdout,
             "Range: {} to {} ({} weeks)",

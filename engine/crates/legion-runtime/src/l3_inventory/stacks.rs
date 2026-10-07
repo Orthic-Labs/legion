@@ -9,15 +9,59 @@ use super::error::InventoryError;
 type R<T> = Result<T, InventoryError>;
 
 const KNOWN: &[&str] = &[
-    "javascript", "typescript", "python", "rust", "go", "java", "kotlin", "swift", "c", "c++",
-    "c#", "php", "ruby", "dart", "node", "react", "next", "vue", "svelte", "tauri", "electron",
-    "pnpm", "npm", "cargo", "pip", "gradle", "maven", "postgres", "sqlite", "redis", "http",
-    "windows", "macos", "linux", "chromium", "ios", "android", "aws", "azure", "gcp",
-    "app-store", "play-store", "authenticode", "stripe",
+    "javascript",
+    "typescript",
+    "python",
+    "rust",
+    "go",
+    "java",
+    "kotlin",
+    "swift",
+    "c",
+    "c++",
+    "c#",
+    "php",
+    "ruby",
+    "dart",
+    "node",
+    "react",
+    "next",
+    "vue",
+    "svelte",
+    "tauri",
+    "electron",
+    "pnpm",
+    "npm",
+    "cargo",
+    "pip",
+    "gradle",
+    "maven",
+    "postgres",
+    "sqlite",
+    "redis",
+    "http",
+    "windows",
+    "macos",
+    "linux",
+    "chromium",
+    "ios",
+    "android",
+    "aws",
+    "azure",
+    "gcp",
+    "app-store",
+    "play-store",
+    "authenticode",
+    "stripe",
 ];
 
 /// Port of `stackRecord`.
-pub fn stack_record(name: &str, role: &str, evidence_paths: Vec<String>, extra: Map<String, Value>) -> Value {
+pub fn stack_record(
+    name: &str,
+    role: &str,
+    evidence_paths: Vec<String>,
+    extra: Map<String, Value>,
+) -> Value {
     let mut sorted = evidence_paths.clone();
     sorted.sort();
     let text = format!("{name}\0{role}\0{}", sorted.join("\0"));
@@ -27,7 +71,10 @@ pub fn stack_record(name: &str, role: &str, evidence_paths: Vec<String>, extra: 
     record.insert("id".into(), Value::String(id));
     record.insert("name".into(), Value::String(name.into()));
     record.insert("role".into(), Value::String(role.into()));
-    record.insert("evidencePaths".into(), Value::Array(evidence_paths.into_iter().map(Value::String).collect()));
+    record.insert(
+        "evidencePaths".into(),
+        Value::Array(evidence_paths.into_iter().map(Value::String).collect()),
+    );
     record.insert(
         "tiers".into(),
         json!({
@@ -46,11 +93,24 @@ pub fn validate_stack_catalogue(catalogue: &Value) -> R<()> {
     // JS compares `JSON.stringify(catalogue.tiers) !== JSON.stringify(required)`
     // where `required` is the literal array of tier names below.
     let required_names = [
-        "inventory", "parser", "native", "cross-file", "measured-pack", "runtime", "remediation",
+        "inventory",
+        "parser",
+        "native",
+        "cross-file",
+        "measured-pack",
+        "runtime",
+        "remediation",
     ];
     let tiers = catalogue.get("tiers").cloned().unwrap_or(Value::Null);
-    let expected = Value::Array(required_names.iter().map(|s| Value::String(s.to_string())).collect());
-    if serde_json::to_string(&tiers).unwrap_or_default() != serde_json::to_string(&expected).unwrap_or_default() {
+    let expected = Value::Array(
+        required_names
+            .iter()
+            .map(|s| Value::String(s.to_string()))
+            .collect(),
+    );
+    if serde_json::to_string(&tiers).unwrap_or_default()
+        != serde_json::to_string(&expected).unwrap_or_default()
+    {
         return Err(InventoryError::new("invalid independent evidence tiers"));
     }
     for item in catalogue
@@ -114,7 +174,11 @@ fn entries(value: &Value, role: &str) -> Vec<(String, Value, String)> {
                     Value::String(s) => s.clone(),
                     other => other.to_string(),
                 };
-                let raw = if item.is_object() { item.clone() } else { json!({"version": Value::Null}) };
+                let raw = if item.is_object() {
+                    item.clone()
+                } else {
+                    json!({"version": Value::Null})
+                };
                 (name, raw, role.to_string())
             })
             .collect(),
@@ -127,7 +191,12 @@ fn entries(value: &Value, role: &str) -> Vec<(String, Value, String)> {
 }
 
 /// Port of `buildStackGraph`.
-pub fn build_stack_graph(portfolio: &Value, components: &Value, projection: &Value, binding: &Value) -> Value {
+pub fn build_stack_graph(
+    portfolio: &Value,
+    components: &Value,
+    projection: &Value,
+    binding: &Value,
+) -> Value {
     let dependencies = projection
         .get("dependencies")
         .or_else(|| projection.get("packages"))
@@ -224,7 +293,10 @@ pub fn build_stack_graph(portfolio: &Value, components: &Value, projection: &Val
         .filter_map(|c| c.get("id").cloned())
         .collect();
 
-    let known_records = stacks.iter().filter(|s| s.get("known") == Some(&Value::Bool(true))).count();
+    let known_records = stacks
+        .iter()
+        .filter(|s| s.get("known") == Some(&Value::Bool(true)))
+        .count();
     let unknown_stacks: Vec<Value> = stacks
         .iter()
         .filter(|s| s.get("known") != Some(&Value::Bool(true)))
@@ -264,7 +336,12 @@ mod tests {
     fn build_stack_graph_marks_known_dependency() {
         let portfolio = json!({"targets": [{"id": "target:web"}]});
         let projection = json!({"dependencies": {"rust": "1.0.0"}});
-        let graph = build_stack_graph(&portfolio, &json!({"components": []}), &projection, &Value::Null);
+        let graph = build_stack_graph(
+            &portfolio,
+            &json!({"components": []}),
+            &projection,
+            &Value::Null,
+        );
         let stacks = graph["stacks"].as_array().unwrap();
         assert_eq!(stacks.len(), 1);
         assert_eq!(stacks[0]["known"], true);

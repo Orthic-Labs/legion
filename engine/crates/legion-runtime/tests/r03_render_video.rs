@@ -42,7 +42,13 @@ fn parse_args_usage_error_without_positional() {
 
 #[test]
 fn parse_args_and_derive_paths() {
-    let a = parse_args(&args(&["sub/anim.html", "--duration=5", "--width=640", "--height=360"])).unwrap();
+    let a = parse_args(&args(&[
+        "sub/anim.html",
+        "--duration=5",
+        "--width=640",
+        "--height=360",
+    ]))
+    .unwrap();
     assert_eq!(a.duration, 5.0);
     let paths = derive_paths(&a.html_file, Path::new("/root"));
     assert_eq!(paths.mp4_out, PathBuf::from("/root/sub/anim.mp4"));
@@ -110,7 +116,9 @@ impl FileSystem for FakeFs {
         Ok(())
     }
     fn write(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-        self.writes.borrow_mut().insert(path.to_path_buf(), bytes.to_vec());
+        self.writes
+            .borrow_mut()
+            .insert(path.to_path_buf(), bytes.to_vec());
         Ok(())
     }
     fn remove_dir_all(&self, _path: &Path) -> std::io::Result<()> {

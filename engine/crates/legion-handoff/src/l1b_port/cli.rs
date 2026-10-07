@@ -110,7 +110,11 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
     let digest = hex::encode(Sha256::digest(&raw_bytes));
     if let Some(verify_receipt) = &verify_receipt {
         if !verify_receipt.is_file() {
-            let _ = writeln!(out, "FAIL: receipt file not found: {}", verify_receipt.display());
+            let _ = writeln!(
+                out,
+                "FAIL: receipt file not found: {}",
+                verify_receipt.display()
+            );
             return 2;
         }
         let receipt_text = match std::fs::read_to_string(verify_receipt) {
@@ -184,7 +188,10 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             return 1;
         }
     }
-    let _ = writeln!(out, "PASS: handoff is cold-start complete (sha256={digest})");
+    let _ = writeln!(
+        out,
+        "PASS: handoff is cold-start complete (sha256={digest})"
+    );
     0
 }
 
@@ -198,11 +205,13 @@ fn iso8601_now_utc() -> String {
     let micros = now.subsec_micros();
     let days = secs / 86_400;
     let time_of_day = secs % 86_400;
-    let (h, m, s) = (time_of_day / 3600, (time_of_day % 3600) / 60, time_of_day % 60);
+    let (h, m, s) = (
+        time_of_day / 3600,
+        (time_of_day % 3600) / 60,
+        time_of_day % 60,
+    );
     let (y, mo, d) = civil_from_days(days as i64);
-    format!(
-        "{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}.{micros:06}+00:00"
-    )
+    format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}.{micros:06}+00:00")
 }
 
 /// Days-since-epoch to (year, month, day), Howard Hinnant's algorithm.

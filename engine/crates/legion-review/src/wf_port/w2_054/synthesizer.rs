@@ -227,7 +227,9 @@ pub fn render(result: &Value, lens_questions: &BTreeMap<String, String>) -> Stri
     if let Some(escalation) = result.get("escalation").and_then(Value::as_array) {
         if !escalation.is_empty() {
             out.push("\n### Escalation jurors".to_string());
-            out.push("| Juror | Provider/Model | Verdict | Score | Top concern | Latency |".to_string());
+            out.push(
+                "| Juror | Provider/Model | Verdict | Score | Top concern | Latency |".to_string(),
+            );
             out.push("|---|---|---|---|---|---|".to_string());
             for j in escalation {
                 let verdict_raw = j.get("verdict").and_then(Value::as_str).unwrap_or("?");
@@ -275,10 +277,18 @@ pub fn render(result: &Value, lens_questions: &BTreeMap<String, String>) -> Stri
     if syn.get("split").and_then(Value::as_bool).unwrap_or(false) {
         notes.push("⚠ split verdict");
     }
-    if syn.get("any_degraded").and_then(Value::as_bool).unwrap_or(false) {
+    if syn
+        .get("any_degraded")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         notes.push("⚠ degraded juror used");
     }
-    if syn.get("any_error").and_then(Value::as_bool).unwrap_or(false) {
+    if syn
+        .get("any_error")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         notes.push("❌ one or more jurors failed");
     }
     if !notes.is_empty() {
@@ -309,7 +319,10 @@ fn juror_row(j: &Value, lens_questions: &BTreeMap<String, String>) -> String {
     if j.get("degraded").and_then(Value::as_bool).unwrap_or(false) {
         verdict.push_str(" ⚠");
     }
-    if j.get("fallback_used").and_then(Value::as_bool).unwrap_or(false) {
+    if j.get("fallback_used")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         verdict.push_str(" ↩");
     }
     if j.get("cache_hit").and_then(Value::as_bool).unwrap_or(false) {
@@ -393,7 +406,10 @@ mod tests {
     #[test]
     fn tier_and_text_dict_shape() {
         let b = json!({"tier": "p0", "text": "  bad thing  "});
-        assert_eq!(tier_and_text(&b), ("P0".to_string(), "bad thing".to_string()));
+        assert_eq!(
+            tier_and_text(&b),
+            ("P0".to_string(), "bad thing".to_string())
+        );
     }
 
     #[test]
@@ -454,7 +470,10 @@ mod tests {
             json!({"juror_id": "b", "blockers": [{"tier": "P1", "text": "same issue"}]}),
         ];
         let lines = render_blockers_by_tier(&jurors);
-        let count = lines.iter().filter(|l| l.contains("same issue") || l.contains("Same Issue")).count();
+        let count = lines
+            .iter()
+            .filter(|l| l.contains("same issue") || l.contains("Same Issue"))
+            .count();
         assert_eq!(count, 1);
     }
 

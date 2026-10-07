@@ -5,22 +5,29 @@ use serde_json::{json, Value};
 use super::binding::digest;
 
 /// Port of `buildJourneys`.
-pub fn build_journeys(portfolio: &Value, contract: &Value, projection: &Value, binding: &Value) -> Value {
+pub fn build_journeys(
+    portfolio: &Value,
+    contract: &Value,
+    projection: &Value,
+    binding: &Value,
+) -> Value {
     let declared_names = contract
         .get("declared")
         .and_then(|d| d.get("criticalJourneys"))
         .and_then(Value::as_array)
         .cloned();
-    let names: Vec<Value> = declared_names
-        .clone()
-        .unwrap_or_else(|| {
-            projection
-                .get("journeys")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default()
-        });
-    let origin = if declared_names.is_some() { "declared" } else { "observed" };
+    let names: Vec<Value> = declared_names.clone().unwrap_or_else(|| {
+        projection
+            .get("journeys")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+    });
+    let origin = if declared_names.is_some() {
+        "declared"
+    } else {
+        "observed"
+    };
 
     let targets = portfolio
         .get("targets")

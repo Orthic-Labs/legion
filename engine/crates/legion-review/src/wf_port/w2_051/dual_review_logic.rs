@@ -39,8 +39,8 @@
 //! (`RUNS_ROOT`'s module-relative default has no Rust equivalent; callers
 //! own the path, same treatment `review_evidence.rs` already documents).
 
-use sha2::{Digest, Sha256};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 
 /// Port of `_digest`: hex SHA-256 of UTF-8 text.
 pub fn digest(text: &str) -> String {
@@ -114,7 +114,11 @@ pub enum Blocker {
 pub fn render_blocker(b: &Blocker) -> String {
     match b {
         Blocker::Structured(obj) => {
-            let text = obj.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let text = obj
+                .get("text")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             match obj.get("tier").and_then(|v| v.as_str()) {
                 Some(tier) if !tier.is_empty() => format!("[{tier}] {text}"),
                 _ => text,
@@ -158,37 +162,57 @@ pub fn finding_records(jurors: &[JurorVerdict]) -> Vec<FindingRecord> {
         }
         let author = juror.juror_id.clone();
         for (index, blocker) in juror.blockers.iter().enumerate() {
-            let (claim, severity, rationale, evidence_refs, proposed_change, confidence) = match blocker {
-                Blocker::Structured(obj) => {
-                    let claim = obj.get("text").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
-                    let severity = obj
-                        .get("tier")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("P1")
-                        .to_string();
-                    let rationale = obj
-                        .get("rationale")
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| claim.clone());
-                    let evidence_refs = obj
-                        .get("evidence_refs")
-                        .and_then(|v| v.as_array())
-                        .cloned()
-                        .unwrap_or_default();
-                    let proposed_change = obj
-                        .get("proposed_change")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
-                    let confidence = obj.get("confidence").cloned();
-                    (claim, severity, rationale, evidence_refs, proposed_change, confidence)
-                }
-                Blocker::Text(t) => {
-                    let claim = t.trim().to_string();
-                    (claim.clone(), "P1".to_string(), claim, Vec::new(), String::new(), None)
-                }
-            };
+            let (claim, severity, rationale, evidence_refs, proposed_change, confidence) =
+                match blocker {
+                    Blocker::Structured(obj) => {
+                        let claim = obj
+                            .get("text")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .trim()
+                            .to_string();
+                        let severity = obj
+                            .get("tier")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("P1")
+                            .to_string();
+                        let rationale = obj
+                            .get("rationale")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| claim.clone());
+                        let evidence_refs = obj
+                            .get("evidence_refs")
+                            .and_then(|v| v.as_array())
+                            .cloned()
+                            .unwrap_or_default();
+                        let proposed_change = obj
+                            .get("proposed_change")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let confidence = obj.get("confidence").cloned();
+                        (
+                            claim,
+                            severity,
+                            rationale,
+                            evidence_refs,
+                            proposed_change,
+                            confidence,
+                        )
+                    }
+                    Blocker::Text(t) => {
+                        let claim = t.trim().to_string();
+                        (
+                            claim.clone(),
+                            "P1".to_string(),
+                            claim,
+                            Vec::new(),
+                            String::new(),
+                            None,
+                        )
+                    }
+                };
             if claim.is_empty() {
                 continue;
             }
@@ -348,7 +372,10 @@ pub const ADOPTION_SUPPORT_MARKERS: &[&str] = &[
 ];
 
 fn normalize_ws_lower(s: &str) -> String {
-    s.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" ")
+    s.to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Port of `_is_adoption`: whether `text` is (close to) a verbatim restate
@@ -388,7 +415,11 @@ pub fn strip_unsupported_adoptions(rebuttal: &mut Value, advisory: &Value) {
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
-                .filter(|j| j.get("parsed_ok").and_then(|v| v.as_bool()).unwrap_or(false))
+                .filter(|j| {
+                    j.get("parsed_ok")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                })
                 .map(|j| {
                     let id = j
                         .get("juror_id")
@@ -462,7 +493,10 @@ pub fn contest_audit_v(rebuttal: &Value) -> Value {
         .unwrap_or_default();
     let mut seats: Vec<Value> = Vec::new();
     for j in &jurors {
-        let parsed_ok = j.get("parsed_ok").and_then(|v| v.as_bool()).unwrap_or(false);
+        let parsed_ok = j
+            .get("parsed_ok")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         let blockers = j
             .get("blockers")
             .and_then(|v| v.as_array())
@@ -536,7 +570,10 @@ pub fn contests_by_target(rebuttal: &Value) -> Map<String, Value> {
             let Some(contest) = contest_record_v(&value) else {
                 continue;
             };
-            let finding_id = contest.get("finding_id").and_then(|v| v.as_str()).unwrap_or("");
+            let finding_id = contest
+                .get("finding_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let target = finding_index
                 .get(finding_id)
                 .and_then(|f| f.get("author_seat"))
@@ -584,8 +621,7 @@ fn append_resolution(
         if choice == "concede" {
             "conceded"
         } else if choice == "sustain"
-            && r
-                .get("evidence_refs")
+            && r.get("evidence_refs")
                 .and_then(|v| v.as_array())
                 .map(|a| !a.is_empty())
                 .unwrap_or(false)
@@ -682,9 +718,18 @@ pub fn resolution_audit_v(response: &Value) -> Value {
         }
     }
 
-    let conceded = resolutions.iter().filter(|r| r["outcome"] == "conceded").count();
-    let sustained = resolutions.iter().filter(|r| r["outcome"] == "sustained").count();
-    let unanswered = resolutions.iter().filter(|r| r["outcome"] == "unanswered").count();
+    let conceded = resolutions
+        .iter()
+        .filter(|r| r["outcome"] == "conceded")
+        .count();
+    let sustained = resolutions
+        .iter()
+        .filter(|r| r["outcome"] == "sustained")
+        .count();
+    let unanswered = resolutions
+        .iter()
+        .filter(|r| r["outcome"] == "unanswered")
+        .count();
     json!({
         "resolutions": resolutions,
         "conceded_count": conceded,
@@ -703,7 +748,11 @@ pub fn position_shifts_v(advisory: &Value, rebuttal: &Value) -> Value {
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
-                .filter(|j| j.get("parsed_ok").and_then(|v| v.as_bool()).unwrap_or(false))
+                .filter(|j| {
+                    j.get("parsed_ok")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                })
                 .filter_map(|j| {
                     j.get("juror_id")
                         .and_then(|v| v.as_str())
@@ -717,8 +766,13 @@ pub fn position_shifts_v(advisory: &Value, rebuttal: &Value) -> Value {
     if let Some(arr) = rebuttal.get("jurors").and_then(|v| v.as_array()) {
         for after in arr {
             let id = after.get("juror_id").and_then(|v| v.as_str()).unwrap_or("");
-            let parsed_ok = after.get("parsed_ok").and_then(|v| v.as_bool()).unwrap_or(false);
-            let Some(prior) = before.get(id) else { continue };
+            let parsed_ok = after
+                .get("parsed_ok")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let Some(prior) = before.get(id) else {
+                continue;
+            };
             if !parsed_ok {
                 continue;
             }
@@ -780,8 +834,14 @@ pub fn synthesize_combined(council: &Value, jury: &Value) -> Value {
         let cv_truthy = cv.as_str().map(|s| !s.is_empty()).unwrap_or(!cv.is_null());
         let jv_truthy = jv.as_str().map(|s| !s.is_empty()).unwrap_or(!jv.is_null());
         if cv_truthy && jv_truthy && cv != jv {
-            let cv_s = cv.as_str().map(|s| s.to_string()).unwrap_or_else(|| cv.to_string());
-            let jv_s = jv.as_str().map(|s| s.to_string()).unwrap_or_else(|| jv.to_string());
+            let cv_s = cv
+                .as_str()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| cv.to_string());
+            let jv_s = jv
+                .as_str()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| jv.to_string());
             notes.push(format!(
                 "advisory={cv_s} vs verdict={jv_s}; Jury remains the ship gate"
             ));
@@ -817,14 +877,20 @@ pub enum CliResultRoute {
 
 /// Port of `render_cli_result`'s dispatch logic (see `CliResultRoute`).
 pub fn render_cli_result_route(result: &Value) -> CliResultRoute {
-    let notification = result.get("user_notification").cloned().unwrap_or(Value::Null);
+    let notification = result
+        .get("user_notification")
+        .cloned()
+        .unwrap_or(Value::Null);
     if result.get("status").and_then(|v| v.as_str()) == Some("room_active") {
         if notification
             .get("required")
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
         {
-            let message = notification.get("message").and_then(|v| v.as_str()).unwrap_or("");
+            let message = notification
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             return CliResultRoute::RoomNotificationRequired(format!(
                 "MANDATORY USER NOTIFICATION\n{message}\n\nSend the line above to the operator immediately, before any other work. Only after sending it, resume the same command with --ack-room-link-delivered.\n"
             ));

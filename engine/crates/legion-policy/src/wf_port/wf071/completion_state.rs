@@ -27,7 +27,11 @@ fn sha256_hex_bytes(value: &[u8]) -> String {
 }
 
 fn run_git(cwd: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git").args(args).current_dir(cwd).output().ok()?;
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .ok()?;
     if !output.status.success() {
         return None;
     }
@@ -66,7 +70,11 @@ pub fn path_matches(pattern: &str, target: &str) -> bool {
     let segments: Vec<&str> = p.split('/').collect();
     let mut rx = String::from("^");
     for (index, segment) in segments.iter().enumerate() {
-        let separator = if index != 0 && segments[index - 1] != "**" { "/" } else { "" };
+        let separator = if index != 0 && segments[index - 1] != "**" {
+            "/"
+        } else {
+            ""
+        };
         if *segment == "**" {
             rx.push_str(separator);
             if index == segments.len() - 1 {
@@ -92,7 +100,9 @@ pub fn path_matches(pattern: &str, target: &str) -> bool {
         }
     }
     rx.push('$');
-    regex::Regex::new(&rx).map(|re| re.is_match(&t)).unwrap_or(false)
+    regex::Regex::new(&rx)
+        .map(|re| re.is_match(&t))
+        .unwrap_or(false)
 }
 
 /// Canonicalizes the longest existing prefix of `target`, preserving any
@@ -152,11 +162,19 @@ pub fn repository_relative(target: &str, cwd: &Path) -> Option<String> {
         return None;
     }
     let root = fs::canonicalize(cwd).ok()?;
-    let joined = if Path::new(&value).is_absolute() { PathBuf::from(&value) } else { root.join(&value) };
+    let joined = if Path::new(&value).is_absolute() {
+        PathBuf::from(&value)
+    } else {
+        root.join(&value)
+    };
     let resolved = canonical_path(&joined);
     let local = relative_to(&resolved, &root)?;
     let local = local.replace('\\', "/");
-    if local.is_empty() || local == ".." || local.starts_with("../") || local.split('/').any(|s| s == "..") {
+    if local.is_empty()
+        || local == ".."
+        || local.starts_with("../")
+        || local.split('/').any(|s| s == "..")
+    {
         return None;
     }
     Some(local)
@@ -187,9 +205,12 @@ struct RepoState {
 fn repository_state(cwd: &Path, scope: &[String]) -> Option<RepoState> {
     let toplevel = run_git(cwd, &["rev-parse", "--show-toplevel"])?;
     let root = fs::canonicalize(toplevel.trim()).ok()?;
-    let tree = run_git(&root, &["rev-parse", "HEAD^{tree}"])?.trim().to_string();
+    let tree = run_git(&root, &["rev-parse", "HEAD^{tree}"])?
+        .trim()
+        .to_string();
     let diff = run_git(&root, &["diff", "--binary", "HEAD"]).unwrap_or_default();
-    let status = run_git(&root, &["status", "--porcelain=v1", "--untracked-files=no"]).unwrap_or_default();
+    let status =
+        run_git(&root, &["status", "--porcelain=v1", "--untracked-files=no"]).unwrap_or_default();
     let untracked = scoped_untracked(&root, scope);
     let composite = format!("{diff}\n{status}\n{untracked}\n");
     Some(RepoState {
@@ -214,7 +235,9 @@ pub fn completion_integrated_state(cwd: &Path, scope: &[String]) -> Option<Strin
 /// Aggregate identity for every delivery repository. Order cannot alter it.
 /// Duplicate repositories are rejected as an ambiguous delivery declaration
 /// (returns `None`).
-pub fn completion_integrated_state_for_repositories(repositories: &[RepositoryScope]) -> Option<String> {
+pub fn completion_integrated_state_for_repositories(
+    repositories: &[RepositoryScope],
+) -> Option<String> {
     let mut states: Vec<RepoState> = repositories
         .iter()
         .map(|r| repository_state(&r.cwd, &r.scope))
@@ -240,7 +263,11 @@ mod tests {
 
     fn init_repo(dir: &Path) {
         let run = |args: &[&str]| {
-            let status = StdCommand::new("git").args(args).current_dir(dir).status().unwrap();
+            let status = StdCommand::new("git")
+                .args(args)
+                .current_dir(dir)
+                .status()
+                .unwrap();
             assert!(status.success(), "git {:?} failed", args);
         };
         run(&["init", "-q"]);
@@ -309,7 +336,8 @@ mod tests {
 
     #[test]
     fn completion_integrated_state_changes_on_scoped_untracked_file() {
-        let dir = std::env::temp_dir().join(format!("legion-wf071-untracked-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("legion-wf071-untracked-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         init_repo(&dir);
         let scope = vec!["**".to_string()];
@@ -326,8 +354,14 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         init_repo(&dir);
         let repos = vec![
-            RepositoryScope { cwd: dir.clone(), scope: vec![] },
-            RepositoryScope { cwd: dir.clone(), scope: vec![] },
+            RepositoryScope {
+                cwd: dir.clone(),
+                scope: vec![],
+            },
+            RepositoryScope {
+                cwd: dir.clone(),
+                scope: vec![],
+            },
         ];
         assert_eq!(completion_integrated_state_for_repositories(&repos), None);
         fs::remove_dir_all(&dir).ok();
@@ -342,12 +376,24 @@ mod tests {
         init_repo(&dir_a);
         init_repo(&dir_b);
         let forward = vec![
-            RepositoryScope { cwd: dir_a.clone(), scope: vec![] },
-            RepositoryScope { cwd: dir_b.clone(), scope: vec![] },
+            RepositoryScope {
+                cwd: dir_a.clone(),
+                scope: vec![],
+            },
+            RepositoryScope {
+                cwd: dir_b.clone(),
+                scope: vec![],
+            },
         ];
         let reverse = vec![
-            RepositoryScope { cwd: dir_b.clone(), scope: vec![] },
-            RepositoryScope { cwd: dir_a.clone(), scope: vec![] },
+            RepositoryScope {
+                cwd: dir_b.clone(),
+                scope: vec![],
+            },
+            RepositoryScope {
+                cwd: dir_a.clone(),
+                scope: vec![],
+            },
         ];
         let a = completion_integrated_state_for_repositories(&forward);
         let b = completion_integrated_state_for_repositories(&reverse);

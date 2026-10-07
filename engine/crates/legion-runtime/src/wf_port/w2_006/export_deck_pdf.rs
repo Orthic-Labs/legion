@@ -231,8 +231,14 @@ pub fn run_production(
     printer: &mut dyn SlidePrinter,
     args: &DeckPdfArgs,
 ) -> Result<RunOutcome, RunError> {
-    let slides_dir = args.slides.clone().ok_or(RunError::Args(ArgError::MissingSlidesOrOut))?;
-    let out = args.out.clone().ok_or(RunError::Args(ArgError::MissingSlidesOrOut))?;
+    let slides_dir = args
+        .slides
+        .clone()
+        .ok_or(RunError::Args(ArgError::MissingSlidesOrOut))?;
+    let out = args
+        .out
+        .clone()
+        .ok_or(RunError::Args(ArgError::MissingSlidesOrOut))?;
     let slides_path = std::path::Path::new(&slides_dir);
 
     let entries = fs
@@ -310,7 +316,9 @@ pub fn merge_page_pdfs(pages: &[Vec<u8>]) -> Result<Vec<u8>, String> {
     pages_dict.set("Type", lopdf::Object::Name(b"Pages".to_vec()));
     pages_dict.set("Kids", lopdf::Object::Array(kids.clone()));
     pages_dict.set("Count", lopdf::Object::Integer(page_count));
-    merged.objects.insert(pages_id, lopdf::Object::Dictionary(pages_dict));
+    merged
+        .objects
+        .insert(pages_id, lopdf::Object::Dictionary(pages_dict));
 
     for kid in &kids {
         if let lopdf::Object::Reference(id) = kid {
@@ -353,7 +361,10 @@ impl ChromeSlidePrinter {
             .map_err(|e| e.to_string())?;
         let browser = headless_chrome::Browser::new(launch_options).map_err(|e| e.to_string())?;
         let tab = browser.new_tab().map_err(|e| e.to_string())?;
-        Ok(Self { tab, _browser: browser })
+        Ok(Self {
+            tab,
+            _browser: browser,
+        })
     }
 }
 
@@ -375,10 +386,7 @@ mod tests {
             parse_args(["--slides", "./s"]),
             Err(ArgError::MissingSlidesOrOut)
         );
-        assert_eq!(
-            parse_args::<_, &str>([]),
-            Err(ArgError::MissingSlidesOrOut)
-        );
+        assert_eq!(parse_args::<_, &str>([]), Err(ArgError::MissingSlidesOrOut));
     }
 
     #[test]
@@ -439,8 +447,14 @@ mod tests {
 
     #[test]
     fn progress_and_summary_lines() {
-        assert_eq!(progress_line(1, 3, "01-title.html"), "  [1/3] 01-title.html");
-        assert_eq!(found_slides_line(3, "/decks/q3"), "Found 3 slides in /decks/q3");
+        assert_eq!(
+            progress_line(1, 3, "01-title.html"),
+            "  [1/3] 01-title.html"
+        );
+        assert_eq!(
+            found_slides_line(3, "/decks/q3"),
+            "Found 3 slides in /decks/q3"
+        );
         assert_eq!(
             wrote_summary_line("/out/deck.pdf", 204_800, 3),
             "\n\u{2713} Wrote /out/deck.pdf  (200 KB, 3 pages, vector)"

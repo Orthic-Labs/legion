@@ -28,7 +28,10 @@ pub struct OutScopeError {
 pub fn assert_run_owned_out_scope(root: &Path, out_dir: &Path) -> Result<PathBuf, OutScopeError> {
     let scope_root = root.join(".audit");
     let rel = pathdiff_lexical(&scope_root, out_dir);
-    let escapes = rel.as_deref().map(|r| r.is_empty() || r.starts_with("..")).unwrap_or(true);
+    let escapes = rel
+        .as_deref()
+        .map(|r| r.is_empty() || r.starts_with(".."))
+        .unwrap_or(true);
     if escapes {
         return Err(OutScopeError {
             scope_root: scope_root.to_string_lossy().to_string(),
@@ -68,7 +71,11 @@ pub fn candidate_provider_ids(plan: &Value) -> BTreeSet<String> {
         .map(|providers| {
             providers
                 .iter()
-                .filter(|p| p.get("producesSecurityCandidates").and_then(|v| v.as_bool()) == Some(true))
+                .filter(|p| {
+                    p.get("producesSecurityCandidates")
+                        .and_then(|v| v.as_bool())
+                        == Some(true)
+                })
                 .filter_map(|p| p.get("id").and_then(|v| v.as_str()).map(String::from))
                 .collect()
         })
@@ -115,9 +122,20 @@ pub fn aggregate_security_candidates(
                 provider: provider.unwrap_or_default().to_string(),
             });
         }
-        for candidate in result.get("candidates").and_then(|v| v.as_array()).into_iter().flatten() {
-            let rule_id = candidate.get("ruleId").and_then(|v| v.as_str()).unwrap_or_default();
-            let file = candidate.get("file").and_then(|v| v.as_str()).unwrap_or_default();
+        for candidate in result
+            .get("candidates")
+            .and_then(|v| v.as_array())
+            .into_iter()
+            .flatten()
+        {
+            let rule_id = candidate
+                .get("ruleId")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
+            let file = candidate
+                .get("file")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
             let line = candidate.get("line").and_then(|v| v.as_i64()).unwrap_or(1);
             let id = candidate
                 .get("id")
@@ -166,19 +184,29 @@ pub fn aggregate_security_candidates(
     let mut order: Vec<String> = Vec::new();
     let mut by_id: BTreeMap<String, Value> = BTreeMap::new();
     for candidate in candidates {
-        let id = candidate.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        let id = candidate
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
         if !by_id.contains_key(&id) {
             order.push(id.clone());
         }
         by_id.insert(id, candidate);
     }
-    let unique: Vec<Value> = order.into_iter().map(|id| by_id.remove(&id).unwrap()).collect();
+    let unique: Vec<Value> = order
+        .into_iter()
+        .map(|id| by_id.remove(&id).unwrap())
+        .collect();
 
     let candidate_providers: BTreeSet<String> = unique
         .iter()
         .filter_map(|c| c.get("provider").and_then(|v| v.as_str()).map(String::from))
         .collect();
-    let mut coverage = internal_report.get("coverage").cloned().unwrap_or_else(|| json!({}));
+    let mut coverage = internal_report
+        .get("coverage")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     if let Value::Object(map) = &mut coverage {
         map.insert(
             "candidateProviders".to_string(),
@@ -198,15 +226,25 @@ pub fn aggregate_security_candidates(
 }
 
 /// Faithful port of `onlyWrapperProvidersCausedPriorIncomplete`.
-pub fn only_wrapper_providers_caused_prior_incomplete(facts: &Value, added_provider_ids: &BTreeSet<String>) -> bool {
+pub fn only_wrapper_providers_caused_prior_incomplete(
+    facts: &Value,
+    added_provider_ids: &BTreeSet<String>,
+) -> bool {
     if facts.get("incomplete").and_then(|v| v.as_bool()) != Some(true) {
         return false;
     }
-    let reconciliation = facts.get("provider_reconciliation").cloned().unwrap_or_else(|| json!({}));
+    let reconciliation = facts
+        .get("provider_reconciliation")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let mut missing: Vec<String> = reconciliation
         .get("missingRuntimeProviders")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     missing.sort();
     let mut expected: Vec<String> = added_provider_ids.iter().cloned().collect();
@@ -230,7 +268,11 @@ pub fn only_wrapper_providers_caused_prior_incomplete(facts: &Value, added_provi
     {
         return false;
     }
-    if facts.pointer("/security/adjudicationRequired").and_then(|v| v.as_bool()) == Some(true) {
+    if facts
+        .pointer("/security/adjudicationRequired")
+        .and_then(|v| v.as_bool())
+        == Some(true)
+    {
         return false;
     }
     if facts.pointer("/blueprint/state").and_then(|v| v.as_str()) != Some("ready")
@@ -248,8 +290,12 @@ pub fn only_wrapper_providers_caused_prior_incomplete(facts: &Value, added_provi
             results
                 .iter()
                 .filter(|p| {
-                    let id = p.get("provider").and_then(|v| v.as_str()).unwrap_or_default();
-                    !added_provider_ids.contains(id) && p.get("status").and_then(|v| v.as_str()) != Some("pending")
+                    let id = p
+                        .get("provider")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default();
+                    !added_provider_ids.contains(id)
+                        && p.get("status").and_then(|v| v.as_str()) != Some("pending")
                 })
                 .all(|p| {
                     p.get("complete").and_then(|v| v.as_bool()) != Some(false)
@@ -308,16 +354,20 @@ mod tests {
 
     #[test]
     fn aggregate_security_candidates_rejects_findings_from_candidate_provider() {
-        let plan = json!({"providers": [{"id": "security.secrets", "producesSecurityCandidates": true}]});
+        let plan =
+            json!({"providers": [{"id": "security.secrets", "producesSecurityCandidates": true}]});
         let internal = json!({"candidates": []});
-        let results = vec![json!({"provider": "security.secrets", "findings": [{"ruleId": "x"}], "candidates": []})];
+        let results = vec![
+            json!({"provider": "security.secrets", "findings": [{"ruleId": "x"}], "candidates": []}),
+        ];
         let err = aggregate_security_candidates(&plan, &internal, &results).unwrap_err();
         assert_eq!(err.provider, "security.secrets");
     }
 
     #[test]
     fn aggregate_security_candidates_dedupes_by_id() {
-        let plan = json!({"providers": [{"id": "security.secrets", "producesSecurityCandidates": true}]});
+        let plan =
+            json!({"providers": [{"id": "security.secrets", "producesSecurityCandidates": true}]});
         let internal = json!({"candidates": [{"id": "c1", "provider": "security.secrets"}]});
         let results = vec![json!({
             "provider": "security.secrets",
@@ -334,9 +384,12 @@ mod tests {
 
     #[test]
     fn aggregate_security_candidates_ignores_unauthorized_providers() {
-        let plan = json!({"providers": [{"id": "security.secrets", "producesSecurityCandidates": true}]});
+        let plan =
+            json!({"providers": [{"id": "security.secrets", "producesSecurityCandidates": true}]});
         let internal = json!({"candidates": []});
-        let results = vec![json!({"provider": "not-a-candidate-provider", "findings": [{"ruleId":"x"}], "candidates": [{"id": "should-not-appear"}]})];
+        let results = vec![
+            json!({"provider": "not-a-candidate-provider", "findings": [{"ruleId":"x"}], "candidates": [{"id": "should-not-appear"}]}),
+        ];
         let out = aggregate_security_candidates(&plan, &internal, &results).unwrap();
         assert!(out["candidates"].as_array().unwrap().is_empty());
     }
@@ -355,7 +408,9 @@ mod tests {
                 "providerResults": [{"provider": "other", "status": "pass", "complete": true}],
             },
         });
-        assert!(only_wrapper_providers_caused_prior_incomplete(&facts, &added));
+        assert!(only_wrapper_providers_caused_prior_incomplete(
+            &facts, &added
+        ));
 
         let facts_not_ready = json!({
             "incomplete": true,
@@ -368,6 +423,9 @@ mod tests {
                 "providerResults": [],
             },
         });
-        assert!(!only_wrapper_providers_caused_prior_incomplete(&facts_not_ready, &added));
+        assert!(!only_wrapper_providers_caused_prior_incomplete(
+            &facts_not_ready,
+            &added
+        ));
     }
 }

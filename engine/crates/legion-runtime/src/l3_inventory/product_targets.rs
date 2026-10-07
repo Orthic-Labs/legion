@@ -46,7 +46,10 @@ pub const RELATIONS: &[&str] = &[
 fn portable_path(value: &str) -> String {
     let normalized = value.replace('\\', "/");
     let normalized = normalized.strip_prefix("./").unwrap_or(&normalized);
-    Regex::new(r"/{2,}").unwrap().replace_all(normalized, "/").into_owned()
+    Regex::new(r"/{2,}")
+        .unwrap()
+        .replace_all(normalized, "/")
+        .into_owned()
 }
 
 fn path_of(item: &Value) -> String {
@@ -73,7 +76,10 @@ pub fn target_id(kind: &str, root: &str, entrypoints: &[String]) -> String {
 
 /// Port of `validateTarget`.
 pub fn validate_target(target: &Value) -> R<()> {
-    let kind = target.get("kind").and_then(Value::as_str).unwrap_or_default();
+    let kind = target
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if !KINDS.contains(&kind) {
         return Err(InventoryError::new(format!("unknown target kind: {kind}")));
     }
@@ -95,10 +101,15 @@ pub fn validate_target(target: &Value) -> R<()> {
         "conflicts",
     ] {
         if !matches!(target.get(key), Some(Value::Array(_))) {
-            return Err(InventoryError::new(format!("target {key} must be an array")));
+            return Err(InventoryError::new(format!(
+                "target {key} must be an array"
+            )));
         }
     }
-    let confidence = target.get("confidence").and_then(Value::as_str).unwrap_or_default();
+    let confidence = target
+        .get("confidence")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if !["high", "medium", "low"].contains(&confidence) {
         return Err(InventoryError::new("target confidence is invalid"));
     }
@@ -116,7 +127,10 @@ pub fn validate_target(target: &Value) -> R<()> {
         return Err(InventoryError::new("target binding is required"));
     }
     let digest_re = Regex::new(r"^sha256:[a-f0-9]{64}$").unwrap();
-    let digest_value = target.get("digest").and_then(Value::as_str).unwrap_or_default();
+    let digest_value = target
+        .get("digest")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if !digest_re.is_match(digest_value) {
         return Err(InventoryError::new("target digest is required"));
     }
@@ -125,11 +139,15 @@ pub fn validate_target(target: &Value) -> R<()> {
 
 /// Port of `validateTargetRegistry`.
 pub fn validate_target_registry(registry: &Value) -> R<()> {
-    let allowed: BTreeSet<&str> = ["schemaVersion", "additive", "relations", "kinds"].into_iter().collect();
+    let allowed: BTreeSet<&str> = ["schemaVersion", "additive", "relations", "kinds"]
+        .into_iter()
+        .collect();
     if let Value::Object(map) = registry {
         for key in map.keys() {
             if !allowed.contains(key.as_str()) {
-                return Err(InventoryError::new(format!("unknown target registry field: {key}")));
+                return Err(InventoryError::new(format!(
+                    "unknown target registry field: {key}"
+                )));
             }
         }
     }
@@ -158,7 +176,9 @@ pub fn validate_target_registry(registry: &Value) -> R<()> {
         if let Value::Object(map) = kind {
             for key in map.keys() {
                 if !allowed_kind_keys.contains(key.as_str()) {
-                    return Err(InventoryError::new(format!("unknown target kind field: {key}")));
+                    return Err(InventoryError::new(format!(
+                        "unknown target kind field: {key}"
+                    )));
                 }
             }
         }
@@ -189,16 +209,24 @@ pub fn validate_target_registry(registry: &Value) -> R<()> {
         }
     }
     if ids.len() != KINDS.len() {
-        return Err(InventoryError::new("target registry does not cover canonical kinds"));
+        return Err(InventoryError::new(
+            "target registry does not cover canonical kinds",
+        ));
     }
     let unknown_clean_claim = registry
         .get("kinds")
         .and_then(Value::as_array)
-        .and_then(|kinds| kinds.iter().find(|k| k.get("id") == Some(&json!("unknown-deliverable"))))
+        .and_then(|kinds| {
+            kinds
+                .iter()
+                .find(|k| k.get("id") == Some(&json!("unknown-deliverable")))
+        })
         .and_then(|k| k.get("cleanClaim"))
         .and_then(Value::as_str);
     if unknown_clean_claim != Some("never") {
-        return Err(InventoryError::new("unknown deliverable cannot support clean claim"));
+        return Err(InventoryError::new(
+            "unknown deliverable cannot support clean claim",
+        ));
     }
     for relation in registry
         .get("relations")
@@ -218,7 +246,9 @@ pub fn validate_target_registry(registry: &Value) -> R<()> {
 /// Port of `targetRelation`.
 pub fn target_relation(kind: &str, from: &str, to: &str, evidence: Vec<Value>) -> R<Value> {
     if !RELATIONS.contains(&kind) {
-        return Err(InventoryError::new(format!("unknown target relation: {kind}")));
+        return Err(InventoryError::new(format!(
+            "unknown target relation: {kind}"
+        )));
     }
     Ok(json!({"kind": kind, "from": from, "to": to, "evidence": evidence}))
 }
@@ -226,26 +256,77 @@ pub fn target_relation(kind: &str, from: &str, to: &str, evidence: Vec<Value>) -
 // ---- detectors ----
 
 const DETECTOR_RULES: &[(&str, &str)] = &[
-    ("website", r"(?i)(?:^|/)(?:public/)?index\.html$|astro\.config|hugo\.(?:toml|yaml)|_config\.yml"),
-    ("web-app", r"(?i)next\.config|vite\.config|react-scripts|svelte\.config|nuxt\.config"),
-    ("api-service", r"(?i)fastapi|express|koa|nestjs|openapi\.(?:json|ya?ml)|routes?/"),
-    ("worker", r"(?i)worker\.(?:js|ts)|bullmq|celery|cloudflare.*worker|wrangler\.toml"),
-    ("serverless-function", r"(?i)serverless\.ya?ml|functions?/[^/]+\.(?:js|ts|py)|lambda"),
-    ("desktop-app", r"(?i)tauri\.conf\.json|electron-builder|electron\.js|\.csproj.*winexe"),
+    (
+        "website",
+        r"(?i)(?:^|/)(?:public/)?index\.html$|astro\.config|hugo\.(?:toml|yaml)|_config\.yml",
+    ),
+    (
+        "web-app",
+        r"(?i)next\.config|vite\.config|react-scripts|svelte\.config|nuxt\.config",
+    ),
+    (
+        "api-service",
+        r"(?i)fastapi|express|koa|nestjs|openapi\.(?:json|ya?ml)|routes?/",
+    ),
+    (
+        "worker",
+        r"(?i)worker\.(?:js|ts)|bullmq|celery|cloudflare.*worker|wrangler\.toml",
+    ),
+    (
+        "serverless-function",
+        r"(?i)serverless\.ya?ml|functions?/[^/]+\.(?:js|ts|py)|lambda",
+    ),
+    (
+        "desktop-app",
+        r"(?i)tauri\.conf\.json|electron-builder|electron\.js|\.csproj.*winexe",
+    ),
     ("ios-app", r"(?i)\.xcodeproj|Info\.plist|Package\.swift"),
     ("android-app", r"(?i)build\.gradle|AndroidManifest\.xml"),
-    ("mobile-extension", r"(?i)(?:share|notification|widget).*extension|NSExtension"),
-    ("cli", r#"(?i)"bin"\s*:|(?:^|/)bin/[^/]+$|commander|click\.command"#),
-    ("library-sdk", r#"(?i)"exports"\s*:|(?:^|/)lib/index\.|pyproject\.toml|Cargo\.toml"#),
-    ("browser-extension", r#"(?i)(?:extension|browser-extension)/manifest\.json|browser\.runtime|chrome\.runtime|"manifest_version""#),
-    ("editor-extension", r#"(?i)"engines"\s*:\s*\{[^}]*"vscode"|vscode\.commands|extension\.ts"#),
+    (
+        "mobile-extension",
+        r"(?i)(?:share|notification|widget).*extension|NSExtension",
+    ),
+    (
+        "cli",
+        r#"(?i)"bin"\s*:|(?:^|/)bin/[^/]+$|commander|click\.command"#,
+    ),
+    (
+        "library-sdk",
+        r#"(?i)"exports"\s*:|(?:^|/)lib/index\.|pyproject\.toml|Cargo\.toml"#,
+    ),
+    (
+        "browser-extension",
+        r#"(?i)(?:extension|browser-extension)/manifest\.json|browser\.runtime|chrome\.runtime|"manifest_version""#,
+    ),
+    (
+        "editor-extension",
+        r#"(?i)"engines"\s*:\s*\{[^}]*"vscode"|vscode\.commands|extension\.ts"#,
+    ),
     ("plugin-system", r"(?i)plugins?/|plugin-api|registerPlugin"),
-    ("data-pipeline", r"(?i)airflow|dagster|dbt_project|pipelines?/|etl"),
-    ("infrastructure", r"(?i)terraform|cloudformation|pulumi|kustomization|helmfile"),
-    ("ai-agent-system", r"(?i)agents?/|langchain|autogen|tool_calls?|mcp-server"),
-    ("embedded-firmware", r"(?i)platformio\.ini|\.ino$|zephyr|firmware/|stm32"),
-    ("smart-contract", r"(?i)\.sol$|hardhat\.config|foundry\.toml|anchor\.toml"),
-    ("documentation-product", r"(?i)mkdocs|docusaurus|docs/.*\.md$|vitepress"),
+    (
+        "data-pipeline",
+        r"(?i)airflow|dagster|dbt_project|pipelines?/|etl",
+    ),
+    (
+        "infrastructure",
+        r"(?i)terraform|cloudformation|pulumi|kustomization|helmfile",
+    ),
+    (
+        "ai-agent-system",
+        r"(?i)agents?/|langchain|autogen|tool_calls?|mcp-server",
+    ),
+    (
+        "embedded-firmware",
+        r"(?i)platformio\.ini|\.ino$|zephyr|firmware/|stm32",
+    ),
+    (
+        "smart-contract",
+        r"(?i)\.sol$|hardhat\.config|foundry\.toml|anchor\.toml",
+    ),
+    (
+        "documentation-product",
+        r"(?i)mkdocs|docusaurus|docs/.*\.md$|vitepress",
+    ),
 ];
 
 fn source_files(projection: &Value) -> Vec<Value> {
@@ -264,7 +345,11 @@ pub fn discover_targets(projection: &Value, binding: &Value) -> Vec<Value> {
         .iter()
         .map(|item| match item {
             Value::String(s) => s.clone(),
-            Value::Object(map) => map.get("path").and_then(Value::as_str).unwrap_or_default().to_string(),
+            Value::Object(map) => map
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
             _ => String::new(),
         })
         .filter(|p| !p.is_empty())
@@ -316,7 +401,11 @@ pub fn discover_targets(projection: &Value, binding: &Value) -> Vec<Value> {
             .into_iter()
             .filter(|item| {
                 let path = path_of(item).replace('\\', "/");
-                let prefix = if root == "." { "".to_string() } else { root.clone() };
+                let prefix = if root == "." {
+                    "".to_string()
+                } else {
+                    root.clone()
+                };
                 path.starts_with(&prefix)
             })
             .collect();
@@ -391,7 +480,9 @@ pub fn discover_targets(projection: &Value, binding: &Value) -> Vec<Value> {
     }
 
     results.sort_by(|a, b| {
-        a.get("id").and_then(Value::as_str).unwrap_or_default()
+        a.get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
             .cmp(b.get("id").and_then(Value::as_str).unwrap_or_default())
     });
     results
@@ -432,7 +523,12 @@ fn normalize_target(mut target: Map<String, Value>) -> Value {
     Value::Object(out)
 }
 
-const MERGE_AUTHORITY: &[&str] = &["confidence", "classificationBasis", "detectorVersion", "binding"];
+const MERGE_AUTHORITY: &[&str] = &[
+    "confidence",
+    "classificationBasis",
+    "detectorVersion",
+    "binding",
+];
 
 fn confidence_join(left: &str, right: &str) -> &'static str {
     if left == "low" || right == "low" {
@@ -447,7 +543,12 @@ fn confidence_join(left: &str, right: &str) -> &'static str {
 fn str_array_union(left: &Value, right: &Value, key: &str) -> Vec<Value> {
     let mut set: BTreeSet<String> = BTreeSet::new();
     for v in [left, right] {
-        for item in v.get(key).and_then(Value::as_array).cloned().unwrap_or_default() {
+        for item in v
+            .get(key)
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
             if let Some(s) = item.as_str() {
                 set.insert(s.to_string());
             }
@@ -466,7 +567,8 @@ fn merge_target(left: &Value, right: &Value) -> R<Value> {
             .iter()
             .filter(|field| {
                 serde_json::to_string(left.get(**field).unwrap_or(&Value::Null)).unwrap_or_default()
-                    != serde_json::to_string(right.get(**field).unwrap_or(&Value::Null)).unwrap_or_default()
+                    != serde_json::to_string(right.get(**field).unwrap_or(&Value::Null))
+                        .unwrap_or_default()
             })
             .map(|s| s.to_string())
             .collect();
@@ -508,9 +610,18 @@ fn merge_target(left: &Value, right: &Value) -> R<Value> {
         .cloned()
         .unwrap_or_default()
         .into_iter()
-        .chain(right.get("relations").and_then(Value::as_array).cloned().unwrap_or_default())
+        .chain(
+            right
+                .get("relations")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+        )
     {
-        relation_map.insert(serde_json::to_string(&relation).unwrap_or_default(), relation);
+        relation_map.insert(
+            serde_json::to_string(&relation).unwrap_or_default(),
+            relation,
+        );
     }
 
     let mut value = left.as_object().cloned().unwrap_or_default();
@@ -518,21 +629,53 @@ fn merge_target(left: &Value, right: &Value) -> R<Value> {
         "confidence".into(),
         Value::String(
             confidence_join(
-                left.get("confidence").and_then(Value::as_str).unwrap_or_default(),
-                right.get("confidence").and_then(Value::as_str).unwrap_or_default(),
+                left.get("confidence")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+                right
+                    .get("confidence")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
             )
             .to_string(),
         ),
     );
-    value.insert("facets".into(), Value::Array(str_array_union(left, right, "facets")));
-    value.insert("entrypoints".into(), Value::Array(str_array_union(left, right, "entrypoints")));
-    value.insert("buildOutputs".into(), Value::Array(str_array_union(left, right, "buildOutputs")));
-    value.insert("distributions".into(), Value::Array(str_array_union(left, right, "distributions")));
-    value.insert("environments".into(), Value::Array(str_array_union(left, right, "environments")));
-    value.insert("componentIds".into(), Value::Array(str_array_union(left, right, "componentIds")));
-    value.insert("stackIds".into(), Value::Array(str_array_union(left, right, "stackIds")));
-    value.insert("relations".into(), Value::Array(relation_map.into_values().collect()));
-    value.insert("evidencePaths".into(), Value::Array(str_array_union(left, right, "evidencePaths")));
+    value.insert(
+        "facets".into(),
+        Value::Array(str_array_union(left, right, "facets")),
+    );
+    value.insert(
+        "entrypoints".into(),
+        Value::Array(str_array_union(left, right, "entrypoints")),
+    );
+    value.insert(
+        "buildOutputs".into(),
+        Value::Array(str_array_union(left, right, "buildOutputs")),
+    );
+    value.insert(
+        "distributions".into(),
+        Value::Array(str_array_union(left, right, "distributions")),
+    );
+    value.insert(
+        "environments".into(),
+        Value::Array(str_array_union(left, right, "environments")),
+    );
+    value.insert(
+        "componentIds".into(),
+        Value::Array(str_array_union(left, right, "componentIds")),
+    );
+    value.insert(
+        "stackIds".into(),
+        Value::Array(str_array_union(left, right, "stackIds")),
+    );
+    value.insert(
+        "relations".into(),
+        Value::Array(relation_map.into_values().collect()),
+    );
+    value.insert(
+        "evidencePaths".into(),
+        Value::Array(str_array_union(left, right, "evidencePaths")),
+    );
     value.insert("conflicts".into(), Value::Array(deduped_conflicts));
     value.remove("digest");
     let out_value = Value::Object(value.clone());
@@ -556,7 +699,11 @@ pub fn build_portfolio(
         let map = raw.as_object().cloned().unwrap_or_default();
         let target = normalize_target(map);
         validate_target(&target)?;
-        let id = target.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+        let id = target
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
         if let Some(existing) = by_id.get(&id) {
             duplicate_candidates += 1;
             let merged = merge_target(existing, &target)?;
@@ -601,21 +748,33 @@ pub fn build_portfolio(
         let hashed = digest(&Value::String(path.clone()));
         let suffix = &hashed[hashed.len().saturating_sub(20)..];
         let mut map = Map::new();
-        map.insert("id".into(), Value::String(format!("target:unknown:{suffix}")));
+        map.insert(
+            "id".into(),
+            Value::String(format!("target:unknown:{suffix}")),
+        );
         map.insert("kind".into(), Value::String("unknown-deliverable".into()));
         map.insert("root".into(), Value::String(path.clone()));
         map.insert("evidencePaths".into(), json!([path.clone()]));
         map.insert("buildOutputs".into(), json!([path.clone()]));
         map.insert("confidence".into(), Value::String("high".into()));
-        map.insert("conflicts".into(), json!(["missing-qualified-target-mapping"]));
+        map.insert(
+            "conflicts".into(),
+            json!(["missing-qualified-target-mapping"]),
+        );
         let target = normalize_target(map);
-        let id = target.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+        let id = target
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
         by_id.insert(id, target);
     }
 
     let mut targets: Vec<Value> = by_id.into_values().collect();
     targets.sort_by(|a, b| {
-        a.get("id").and_then(Value::as_str).unwrap_or_default()
+        a.get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
             .cmp(b.get("id").and_then(Value::as_str).unwrap_or_default())
     });
 
@@ -625,12 +784,23 @@ pub fn build_portfolio(
         .map(str::to_string)
         .collect();
     for relation in &relations {
-        let kind = relation.get("kind").and_then(Value::as_str).unwrap_or_default();
+        let kind = relation
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if !RELATIONS.contains(&kind) {
-            return Err(InventoryError::new(format!("unknown target relation: {kind}")));
+            return Err(InventoryError::new(format!(
+                "unknown target relation: {kind}"
+            )));
         }
-        let from = relation.get("from").and_then(Value::as_str).unwrap_or_default();
-        let to = relation.get("to").and_then(Value::as_str).unwrap_or_default();
+        let from = relation
+            .get("from")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let to = relation
+            .get("to")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if !target_ids.contains(from) || !target_ids.contains(to) {
             return Err(InventoryError::new(format!(
                 "target relation endpoint is unknown: {from}->{to}"
@@ -647,7 +817,12 @@ pub fn build_portfolio(
     let mut merged_conflicts = conflicts;
     for target in &targets {
         let id = target.get("id").cloned().unwrap_or(Value::Null);
-        for conflict in target.get("conflicts").and_then(Value::as_array).cloned().unwrap_or_default() {
+        for conflict in target
+            .get("conflicts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
             let mut entry = if let Some(s) = conflict.as_str() {
                 let mut m = Map::new();
                 m.insert("kind".into(), Value::String(s.to_string()));
@@ -662,7 +837,9 @@ pub fn build_portfolio(
 
     let mut sorted_relations = relations.clone();
     sorted_relations.sort_by(|a, b| {
-        serde_json::to_string(a).unwrap_or_default().cmp(&serde_json::to_string(b).unwrap_or_default())
+        serde_json::to_string(a)
+            .unwrap_or_default()
+            .cmp(&serde_json::to_string(b).unwrap_or_default())
     });
 
     let value = json!({
@@ -720,18 +897,23 @@ pub fn review_classification(candidates: Vec<Value>, review: Option<Value>) -> R
             .get("candidateId")
             .and_then(Value::as_str)
             .unwrap_or_default();
-        let candidate = by_id
-            .get(candidate_id)
-            .cloned()
-            .ok_or_else(|| InventoryError::new(format!("review nomination references unknown candidate: {candidate_id}")))?;
+        let candidate = by_id.get(candidate_id).cloned().ok_or_else(|| {
+            InventoryError::new(format!(
+                "review nomination references unknown candidate: {candidate_id}"
+            ))
+        })?;
         if let Some(kind) = nomination.get("kind").and_then(Value::as_str) {
             if !KINDS.contains(&kind) {
-                return Err(InventoryError::new(format!("unknown nomination kind: {kind}")));
+                return Err(InventoryError::new(format!(
+                    "unknown nomination kind: {kind}"
+                )));
             }
         }
         if let Some(confidence) = nomination.get("confidence").and_then(Value::as_str) {
             if !["high", "medium", "low"].contains(&confidence) {
-                return Err(InventoryError::new(format!("review confidence is invalid: {confidence}")));
+                return Err(InventoryError::new(format!(
+                    "review confidence is invalid: {confidence}"
+                )));
             }
         }
         let evidence_refs: Vec<Value> = nomination
@@ -739,10 +921,15 @@ pub fn review_classification(candidates: Vec<Value>, review: Option<Value>) -> R
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let candidate_kind = candidate.get("kind").and_then(Value::as_str).unwrap_or_default();
+        let candidate_kind = candidate
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let nomination_kind = nomination.get("kind").and_then(Value::as_str);
         if candidate_kind == "unknown-deliverable"
-            && nomination_kind.map(|k| k != "unknown-deliverable").unwrap_or(false)
+            && nomination_kind
+                .map(|k| k != "unknown-deliverable")
+                .unwrap_or(false)
             && evidence_refs.is_empty()
         {
             return Err(InventoryError::new(
@@ -766,7 +953,10 @@ pub fn review_classification(candidates: Vec<Value>, review: Option<Value>) -> R
                 )));
             }
         }
-        let candidate_confidence = candidate.get("confidence").and_then(Value::as_str).unwrap_or_default();
+        let candidate_confidence = candidate
+            .get("confidence")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if candidate_kind != "unknown-deliverable" && candidate_confidence == "high" {
             continue;
         }
@@ -777,7 +967,10 @@ pub fn review_classification(candidates: Vec<Value>, review: Option<Value>) -> R
         if let Some(c) = nomination.get("confidence") {
             value.insert("confidence".into(), c.clone());
         }
-        value.insert("classificationBasis".into(), Value::String("reviewed".into()));
+        value.insert(
+            "classificationBasis".into(),
+            Value::String("reviewed".into()),
+        );
         value.insert(
             "reviewNomination".into(),
             json!({
@@ -794,12 +987,19 @@ pub fn review_classification(candidates: Vec<Value>, review: Option<Value>) -> R
     }
 
     let output: Vec<Value> = by_id.into_values().collect();
-    let conflicts = review.get("conflicts").cloned().unwrap_or_else(|| json!([]));
+    let conflicts = review
+        .get("conflicts")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
     let has_unknown = output
         .iter()
         .any(|c| c.get("kind") == Some(&Value::String("unknown-deliverable".into())));
     let conflicts_len = conflicts.as_array().map(|a| a.len()).unwrap_or(0);
-    let status = if conflicts_len > 0 || has_unknown { "unproven" } else { "pass" };
+    let status = if conflicts_len > 0 || has_unknown {
+        "unproven"
+    } else {
+        "pass"
+    };
 
     Ok(json!({
         "status": status,
@@ -838,7 +1038,14 @@ mod tests {
             "confidence": "high", "classificationBasis": "observed",
             "detectorVersion": "1.0.0", "binding": null,
         });
-        let result = build_portfolio(vec![candidate], vec![], vec![json!({"kind": "bogus", "from": "target:a", "to": "target:a"})], vec![], vec![], Value::Null);
+        let result = build_portfolio(
+            vec![candidate],
+            vec![],
+            vec![json!({"kind": "bogus", "from": "target:a", "to": "target:a"})],
+            vec![],
+            vec![],
+            Value::Null,
+        );
         assert!(result.is_err());
     }
 

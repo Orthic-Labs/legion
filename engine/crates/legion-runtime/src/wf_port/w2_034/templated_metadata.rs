@@ -292,7 +292,9 @@ mod tests {
         let rows = vec![PageRow {
             url: Some(json!("https://example.com/a")),
             title: Some("Widgets".to_string()),
-            meta_desc: Some("A totally unrelated unique description of our product line.".to_string()),
+            meta_desc: Some(
+                "A totally unrelated unique description of our product line.".to_string(),
+            ),
         }];
         let result = analyze(&rows);
         assert_eq!(result.templated_pages, 0);
@@ -302,8 +304,16 @@ mod tests {
     #[test]
     fn empty_description_rows_are_skipped_from_checked_count() {
         let rows = vec![
-            PageRow { url: None, title: Some("T".into()), meta_desc: None },
-            PageRow { url: None, title: Some("T".into()), meta_desc: Some("".into()) },
+            PageRow {
+                url: None,
+                title: Some("T".into()),
+                meta_desc: None,
+            },
+            PageRow {
+                url: None,
+                title: Some("T".into()),
+                meta_desc: Some("".into()),
+            },
         ];
         let result = analyze(&rows);
         assert_eq!(result.pages_checked, 0);
@@ -352,11 +362,18 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "legion-w2034-tm-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("in.json");
-        std::fs::write(&input, r#"[{"url":"https://x.com/a","title":"Widgets","meta_desc":"Widgets. Learn more"}]"#).unwrap();
+        std::fs::write(
+            &input,
+            r#"[{"url":"https://x.com/a","title":"Widgets","meta_desc":"Widgets. Learn more"}]"#,
+        )
+        .unwrap();
         assert_eq!(run(&[input.to_str().unwrap().to_string()]), 0);
         let _ = std::fs::remove_dir_all(&dir);
     }

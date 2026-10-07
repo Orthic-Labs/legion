@@ -80,7 +80,11 @@ fn resolver_resolves_explicit_command_and_alias() {
     let root = fixture_root();
     let direct = resolve_skill_invocation("/demo hello", &root).unwrap();
     match direct {
-        legion_runtime::wf_port::w2_056::InvocationResolution::Resolved { canonical, argument_text, .. } => {
+        legion_runtime::wf_port::w2_056::InvocationResolution::Resolved {
+            canonical,
+            argument_text,
+            ..
+        } => {
             assert_eq!(canonical, "demo");
             assert_eq!(argument_text, "hello");
         }
@@ -106,9 +110,12 @@ fn resolver_resolves_explicit_command_and_alias() {
 fn resolver_validates_semantic_selection_against_the_catalog() {
     let root = fixture_root();
     let ids = vec!["demo".to_string(), "missing".to_string()];
-    let result =
-        legion_runtime::wf_port::w2_056::validate_capability_selection(&ids, SelectionSource::Semantic, &root)
-            .unwrap();
+    let result = legion_runtime::wf_port::w2_056::validate_capability_selection(
+        &ids,
+        SelectionSource::Semantic,
+        &root,
+    )
+    .unwrap();
     assert_eq!(result.status, "invalid");
     assert_eq!(result.resolved.len(), 1);
     assert_eq!(result.resolved[0].id, "demo");
@@ -131,7 +138,9 @@ fn loader_loads_and_projects_the_ready_file() {
 
     let loaded = load_skill("legion-skill://demo/SKILL.md", &root, &manifests, "audit").unwrap();
     match loaded {
-        LoadedSkill::Ready { text, capabilities, .. } => {
+        LoadedSkill::Ready {
+            text, capabilities, ..
+        } => {
             assert!(text.contains("Body text with no host commands."));
             assert!(!capabilities.mutation);
             assert!(!capabilities.publish);

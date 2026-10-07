@@ -13,6 +13,6 @@ pub mod validate;
 pub use cli::run;
 pub use validate::{
     clean_path_value, concrete, fenced_after, is_absolute_path, label_value, normalized_path,
-    ordered_errors, resume_errors, storage_errors, table_errors, table_rows, validate as validate_handoff,
-    FORBIDDEN_STORAGE_PARTS, HEADINGS, LABELS, STEP_LABELS,
+    ordered_errors, resume_errors, storage_errors, table_errors, table_rows,
+    validate as validate_handoff, FORBIDDEN_STORAGE_PARTS, HEADINGS, LABELS, STEP_LABELS,
 };

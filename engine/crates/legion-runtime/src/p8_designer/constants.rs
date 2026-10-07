@@ -10,10 +10,42 @@ use std::sync::LazyLock;
 
 pub static SAFE_TAGS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     [
-        "blockquote", "nav", "a", "input", "textarea", "select", "pre", "code", "span", "th",
-        "td", "tr", "li", "label", "button", "hr", "html", "head", "body", "script", "style",
-        "link", "meta", "title", "br", "img", "svg", "path", "circle", "rect", "line",
-        "polyline", "polygon", "g", "defs", "use",
+        "blockquote",
+        "nav",
+        "a",
+        "input",
+        "textarea",
+        "select",
+        "pre",
+        "code",
+        "span",
+        "th",
+        "td",
+        "tr",
+        "li",
+        "label",
+        "button",
+        "hr",
+        "html",
+        "head",
+        "body",
+        "script",
+        "style",
+        "link",
+        "meta",
+        "title",
+        "br",
+        "img",
+        "svg",
+        "path",
+        "circle",
+        "rect",
+        "line",
+        "polyline",
+        "polygon",
+        "g",
+        "defs",
+        "use",
     ]
     .into_iter()
     .collect()
@@ -21,14 +53,33 @@ pub static SAFE_TAGS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
 
 /// `SAFE_TAGS` minus `label` (border/side-tab anti-pattern check needs
 /// `label` to remain detectable).
-pub static BORDER_SAFE_TAGS: LazyLock<HashSet<&'static str>> =
-    LazyLock::new(|| SAFE_TAGS.iter().copied().filter(|t| *t != "label").collect());
+pub static BORDER_SAFE_TAGS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    SAFE_TAGS
+        .iter()
+        .copied()
+        .filter(|t| *t != "label")
+        .collect()
+});
 
 pub static OVERUSED_FONTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     [
-        "inter", "roboto", "open sans", "lato", "montserrat", "arial", "helvetica", "fraunces",
-        "instrument sans", "instrument serif", "geist", "geist sans", "geist mono", "mona sans",
-        "plus jakarta sans", "space grotesk", "recoleta",
+        "inter",
+        "roboto",
+        "open sans",
+        "lato",
+        "montserrat",
+        "arial",
+        "helvetica",
+        "fraunces",
+        "instrument sans",
+        "instrument serif",
+        "geist",
+        "geist sans",
+        "geist mono",
+        "mona sans",
+        "plus jakarta sans",
+        "space grotesk",
+        "recoleta",
     ]
     .into_iter()
     .collect()
@@ -113,12 +164,39 @@ pub const WCAG_LARGE_BOLD_TEXT_PX: f64 = 14.0 * (96.0 / 72.0);
 
 pub static KNOWN_SERIF_FONTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     [
-        "fraunces", "recoleta", "newsreader", "playfair display", "playfair", "cormorant",
-        "cormorant garamond", "garamond", "eb garamond", "tiempos", "tiempos headline",
-        "tiempos text", "lora", "vollkorn", "spectral", "source serif pro", "source serif 4",
-        "source serif", "ibm plex serif", "merriweather", "libre caslon", "libre baskerville",
-        "baskerville", "georgia", "times new roman", "times", "dm serif display",
-        "dm serif text", "instrument serif", "gt sectra", "ogg", "canela", "freight display",
+        "fraunces",
+        "recoleta",
+        "newsreader",
+        "playfair display",
+        "playfair",
+        "cormorant",
+        "cormorant garamond",
+        "garamond",
+        "eb garamond",
+        "tiempos",
+        "tiempos headline",
+        "tiempos text",
+        "lora",
+        "vollkorn",
+        "spectral",
+        "source serif pro",
+        "source serif 4",
+        "source serif",
+        "ibm plex serif",
+        "merriweather",
+        "libre caslon",
+        "libre baskerville",
+        "baskerville",
+        "georgia",
+        "times new roman",
+        "times",
+        "dm serif display",
+        "dm serif text",
+        "instrument serif",
+        "gt sectra",
+        "ogg",
+        "canela",
+        "freight display",
         "freight text",
     ]
     .into_iter()
@@ -161,7 +239,10 @@ mod tests {
 
     #[test]
     fn brand_font_unknown_font_is_false() {
-        assert!(!is_brand_font_on_own_domain("comic sans", Some("google.com")));
+        assert!(!is_brand_font_on_own_domain(
+            "comic sans",
+            Some("google.com")
+        ));
     }
 
     #[test]

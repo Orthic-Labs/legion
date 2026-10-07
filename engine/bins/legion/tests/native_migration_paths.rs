@@ -1,6 +1,10 @@
 //! Focused executable coverage for Node CLI cases being migrated to native Rust.
 use serde_json::Value;
-use std::{path::PathBuf, process::{Command, Output}, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    path::PathBuf,
+    process::{Command, Output},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 /// Parallel tests must never share a scratch root.
 static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -12,7 +16,10 @@ impl Fixture {
         let root = std::env::temp_dir().join(format!(
             "legion-migration-paths-{}-{}-{}",
             std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
             SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(root.join("home")).unwrap();
@@ -36,12 +43,17 @@ impl Fixture {
 }
 
 impl Drop for Fixture {
-    fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); }
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 fn json(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
-        panic!("{error}; stderr={}", String::from_utf8_lossy(&output.stderr))
+        panic!(
+            "{error}; stderr={}",
+            String::from_utf8_lossy(&output.stderr)
+        )
     })
 }
 
@@ -49,12 +61,19 @@ fn json(output: &Output) -> Value {
 fn init_write_creates_config_and_ignore_entries_idempotently() {
     let fixture = Fixture::new();
     let first = fixture.run(&["init", ".", "--write"]);
-    assert_eq!(first.status.code(), Some(0), "{}", String::from_utf8_lossy(&first.stderr));
+    assert_eq!(
+        first.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
     assert_eq!(json(&first)["kind"], "legion-init-preview");
     let config = fixture.0.join("legion.config.json");
     let ignore = fixture.0.join(".gitignore");
     assert!(config.is_file());
-    assert!(std::fs::read_to_string(&ignore).unwrap().contains(".legion/"));
+    assert!(std::fs::read_to_string(&ignore)
+        .unwrap()
+        .contains(".legion/"));
     let config_before = std::fs::read(&config).unwrap();
     let ignore_before = std::fs::read(&ignore).unwrap();
     let second = fixture.run(&["init", ".", "--write"]);
@@ -69,7 +88,12 @@ fn bind_write_projects_codex_harness_and_is_idempotent() {
     std::fs::create_dir(fixture.0.join(".codex")).unwrap();
     std::fs::write(fixture.0.join(".codex/config.toml"), "[user]\nkeep = true\n\n# >>> legion:managed-block v1 >>>\n[mcp_servers.legion]\ncommand = \"legion\"\n# <<< legion:managed-block v1 <<<\n").unwrap();
     let output = fixture.run(&["bind", "--write", "."]);
-    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let result = json(&output);
     assert_eq!(result["kind"], "legion-bind-result");
     assert_eq!(result["dryRun"], false);
@@ -83,7 +107,10 @@ fn bind_write_projects_codex_harness_and_is_idempotent() {
     let binding = std::fs::read(&fixture.0.join(".legion/binding.json")).unwrap();
     let second = fixture.run(&["bind", "--write", "--harness", "codex", "."]);
     assert_eq!(second.status.code(), Some(0));
-    assert_eq!(std::fs::read(&fixture.0.join(".legion/binding.json")).unwrap(), binding);
+    assert_eq!(
+        std::fs::read(&fixture.0.join(".legion/binding.json")).unwrap(),
+        binding
+    );
 }
 
 #[test]
@@ -102,12 +129,25 @@ fn verify_invalid_facts_is_usage_error_without_rewriting_artifact() {
 #[test]
 fn verify_reports_content_integrity_mismatch_as_failed_result() {
     let fixture = Fixture::new();
-    std::fs::write(fixture.0.join("facts.json"), br#"{"kind":"wrong-facts"}
-"#).unwrap();
-    std::fs::write(fixture.0.join("plan.json"), br#"{"kind":"wrong-plan","schemaVersion":99}
-"#).unwrap();
+    std::fs::write(
+        fixture.0.join("facts.json"),
+        br#"{"kind":"wrong-facts"}
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        fixture.0.join("plan.json"),
+        br#"{"kind":"wrong-plan","schemaVersion":99}
+"#,
+    )
+    .unwrap();
     let output = fixture.run(&["verify", "."]);
-    assert_eq!(output.status.code(), Some(1), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let result = json(&output);
     assert_eq!(result["kind"], "legion-verify");
     assert_eq!(result["valid"], false);
@@ -118,14 +158,18 @@ fn verify_reports_content_integrity_mismatch_as_failed_result() {
 fn completion_without_authenticated_key_material_is_incomplete() {
     let fixture = Fixture::new();
     std::fs::write(fixture.0.join("outcome.json"), b"{}\n").unwrap();
-    let output = fixture.run(&["completion", "claim", "--file", "outcome.json", "--session", "migration-session"]);
+    let output = fixture.run(&[
+        "completion",
+        "claim",
+        "--file",
+        "outcome.json",
+        "--session",
+        "migration-session",
+    ]);
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("ARC_AUTH_KEY_UNAVAILABLE"),
-        "{stderr}"
-    );
+    assert!(stderr.contains("ARC_AUTH_KEY_UNAVAILABLE"), "{stderr}");
 }
 
 #[test]
@@ -134,7 +178,14 @@ fn state_verification_recovers_after_reverting_mutation() {
     std::fs::create_dir_all(fixture.0.join("surface")).unwrap();
     let path = fixture.0.join("surface/value.txt");
     std::fs::write(&path, b"stable\n").unwrap();
-    let snapshot = fixture.run(&["state", "snapshot", "--path", "surface", "--out", "before.json"]);
+    let snapshot = fixture.run(&[
+        "state",
+        "snapshot",
+        "--path",
+        "surface",
+        "--out",
+        "before.json",
+    ]);
     assert_eq!(snapshot.status.code(), Some(0));
     std::fs::write(&path, b"changed\n").unwrap();
     let breached = fixture.run(&["state", "verify", "--snapshot", "before.json"]);

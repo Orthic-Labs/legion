@@ -69,16 +69,8 @@ fn rollback_with_no_prior_apply_never_reports_restored() {
 
 #[test]
 fn checkpoint_digest_is_deterministic_and_restore_plan_is_a_reverse() {
-    let checkpoint = create_checkpoint(
-        "/w",
-        "abc",
-        &["a.ts".to_string(), "b.ts".to_string()],
-    );
-    let again = create_checkpoint(
-        "/w",
-        "abc",
-        &["b.ts".to_string(), "a.ts".to_string()],
-    );
+    let checkpoint = create_checkpoint("/w", "abc", &["a.ts".to_string(), "b.ts".to_string()]);
+    let again = create_checkpoint("/w", "abc", &["b.ts".to_string(), "a.ts".to_string()]);
     assert_eq!(checkpoint.digest, again.digest);
 
     let restore = restore_plan(&checkpoint);
@@ -275,7 +267,11 @@ fn code_proposal_pulls_patch_from_changes_and_sets_validation_plan() {
     assert_eq!(proposal["patch"]["path"], "a.patch");
     assert_eq!(
         proposal["validationPlan"],
-        json!(["parse-check", "affected-provider-rerun", "baseline-gate-recheck"])
+        json!([
+            "parse-check",
+            "affected-provider-rerun",
+            "baseline-gate-recheck"
+        ])
     );
     assert_eq!(proposal["affectedFamilies"], json!(["security", "code"]));
 }

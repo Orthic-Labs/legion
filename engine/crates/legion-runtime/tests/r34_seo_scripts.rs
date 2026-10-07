@@ -10,9 +10,7 @@ use std::time::Duration;
 
 static DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-use legion_runtime::wf_port::w2_029::crux_history::{
-    query_history, run as crux_run, CruxClient,
-};
+use legion_runtime::wf_port::w2_029::crux_history::{query_history, run as crux_run, CruxClient};
 use legion_runtime::wf_port::w2_029::fetch_page::{
     fetch_page, run as fetch_run, FetchOutcome, PageFetcher,
 };
@@ -30,7 +28,8 @@ struct FakeCrux {
 
 impl CruxClient for FakeCrux {
     fn post(&self, endpoint: &str, api_key: &str, body: &Value) -> Result<(u16, Value), String> {
-        *self.last_request.lock().unwrap() = Some((endpoint.to_string(), api_key.to_string(), body.clone()));
+        *self.last_request.lock().unwrap() =
+            Some((endpoint.to_string(), api_key.to_string(), body.clone()));
         Ok((self.status, self.body.clone()))
     }
 }
@@ -72,7 +71,10 @@ fn query_history_builds_origin_body_and_parses_response() {
     let result = query_history(&fake, "https://example.com/", "abc123", Some("phone"));
     assert!(result.error.is_none());
     assert_eq!(result.collection_periods[0].first, "2026-01-01");
-    assert_eq!(result.trends["largest_contentful_paint"].direction, "improving");
+    assert_eq!(
+        result.trends["largest_contentful_paint"].direction,
+        "improving"
+    );
 
     let (endpoint, key, body) = fake.last_request.lock().unwrap().clone().unwrap();
     assert!(endpoint.contains("queryHistoryRecord"));
@@ -89,7 +91,10 @@ fn query_history_maps_404_and_429() {
         last_request: Mutex::new(None),
     };
     let r = query_history(&fake_404, "https://example.com/page", "k", None);
-    assert!(r.error.unwrap().contains("Insufficient Chrome traffic volume"));
+    assert!(r
+        .error
+        .unwrap()
+        .contains("Insufficient Chrome traffic volume"));
 
     let fake_429 = FakeCrux {
         status: 429,
@@ -169,7 +174,13 @@ fn fetch_page_returns_scheme_error_without_calling_fetcher() {
             ..Default::default()
         },
     };
-    let result = fetch_page(&fake, "ftp://example.com", Duration::from_secs(5), true, None);
+    let result = fetch_page(
+        &fake,
+        "ftp://example.com",
+        Duration::from_secs(5),
+        true,
+        None,
+    );
     assert_eq!(result.error.as_deref(), Some("Invalid URL scheme: ftp"));
 }
 
@@ -185,7 +196,13 @@ fn fetch_page_blocks_ssrf_when_hostname_resolves_locally() {
             ..Default::default()
         },
     };
-    let result = fetch_page(&fake, "http://localhost:1", Duration::from_secs(5), true, None);
+    let result = fetch_page(
+        &fake,
+        "http://localhost:1",
+        Duration::from_secs(5),
+        true,
+        None,
+    );
     assert!(result.error.is_some());
     assert!(result.error.unwrap().contains("Blocked"));
 }
@@ -217,7 +234,12 @@ fn fetch_run_prints_content_to_stdout_and_metadata_to_stderr() {
     };
     let mut out = Vec::new();
     let mut err = Vec::new();
-    let code = fetch_run(&["https://example.com".to_string()], &fake, &mut out, &mut err);
+    let code = fetch_run(
+        &["https://example.com".to_string()],
+        &fake,
+        &mut out,
+        &mut err,
+    );
     assert_eq!(code, 0);
     assert_eq!(String::from_utf8(out).unwrap(), "hello\n");
     let stderr = String::from_utf8(err).unwrap();
@@ -269,9 +291,16 @@ fn fetch_run_reports_fetcher_error_and_exits_nonzero() {
     };
     let mut out = Vec::new();
     let mut err = Vec::new();
-    let code = fetch_run(&["https://example.com".to_string()], &fake, &mut out, &mut err);
+    let code = fetch_run(
+        &["https://example.com".to_string()],
+        &fake,
+        &mut out,
+        &mut err,
+    );
     assert_eq!(code, 1);
-    assert!(String::from_utf8(err).unwrap().contains("Connection error: boom"));
+    assert!(String::from_utf8(err)
+        .unwrap()
+        .contains("Connection error: boom"));
     assert!(out.is_empty());
 }
 

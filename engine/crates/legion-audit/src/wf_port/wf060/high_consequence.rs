@@ -121,13 +121,16 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
             let Some(m) = re.find(text) else { continue };
             let matched = match rule.id {
                 "embedded.update-without-verification" => no_verification_within_120(text, m.end()),
-                "safety.command-without-interlock" => no_interlock_before_close_paren(text, m.end()),
+                "safety.command-without-interlock" => {
+                    no_interlock_before_close_paren(text, m.end())
+                }
                 _ => true,
             };
             if !matched {
                 continue;
             }
-            let artifact_ids: Vec<String> = artifact.map(|a| vec![a.id.clone()]).unwrap_or_default();
+            let artifact_ids: Vec<String> =
+                artifact.map(|a| vec![a.id.clone()]).unwrap_or_default();
             observations.push(Observation {
                 rule_id: rule.id.to_string(),
                 candidate_class: CANDIDATE_CLASS.to_string(),
@@ -159,10 +162,13 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 required_controls: Vec::new(),
                 observed_controls: Vec::new(),
                 chain_roles: vec!["starter".to_string(), "impact".to_string()],
-                evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                evidence_refs: artifact
+                    .map(|a| a.evidence_refs.clone())
+                    .unwrap_or_default(),
                 detector_metadata: json!({ "file": file, "patternFamily": CANDIDATE_CLASS }),
                 uncertainty: vec![
-                    "Reachability and compensating controls require independent adjudication.".to_string(),
+                    "Reachability and compensating controls require independent adjudication."
+                        .to_string(),
                 ],
             });
         }

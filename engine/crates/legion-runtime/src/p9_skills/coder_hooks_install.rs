@@ -111,19 +111,30 @@ pub fn install(
         json!({"hooks": []})
     };
 
-    let backup_path = PathBuf::from(format!("{}.pre-synced-hooks.bak", layout.settings.display()));
+    let backup_path = PathBuf::from(format!(
+        "{}.pre-synced-hooks.bak",
+        layout.settings.display()
+    ));
     io.copy_file(&layout.settings, &backup_path)
         .map_err(|e| InstallError(format!("backing up {}: {e}", layout.settings.display())))?;
 
     if !settings.is_object() {
-        return Err(InstallError(format!("{}: not a JSON object", layout.settings.display())));
+        return Err(InstallError(format!(
+            "{}: not a JSON object",
+            layout.settings.display()
+        )));
     }
     let settings_obj = settings.as_object_mut().unwrap();
     settings_obj.entry("hooks").or_insert_with(|| json!({}));
     let hooks_by_event = settings_obj
         .get_mut("hooks")
         .and_then(Value::as_object_mut)
-        .ok_or_else(|| InstallError(format!("{}: \"hooks\" is not an object", layout.settings.display())))?;
+        .ok_or_else(|| {
+            InstallError(format!(
+                "{}: \"hooks\" is not an object",
+                layout.settings.display()
+            ))
+        })?;
 
     let mut registered = Vec::new();
 
@@ -131,10 +142,12 @@ pub fn install(
         let file = field_str(hk, "file", &hooks_json_path)?;
         let event = field_str(hk, "event", &hooks_json_path)?;
         let matcher = field_str(hk, "matcher", &hooks_json_path)?;
-        let hook_manifest_entry = hk
-            .get("manifest")
-            .cloned()
-            .ok_or_else(|| InstallError(format!("{}: hook missing \"manifest\"", hooks_json_path.display())))?;
+        let hook_manifest_entry = hk.get("manifest").cloned().ok_or_else(|| {
+            InstallError(format!(
+                "{}: hook missing \"manifest\"",
+                hooks_json_path.display()
+            ))
+        })?;
 
         let abs_path = normalize_forward_slashes(&hooks_dir.join(&file));
         let command = format!("{} {abs_path}", layout.py_bin);
@@ -146,9 +159,9 @@ pub fn install(
             .or_insert_with(|| json!([]))
             .as_array_mut()
             .ok_or_else(|| InstallError(format!("hooks.{event} is not an array")))?;
-        let entry_index = event_list.iter().position(|e| {
-            e.get("matcher").and_then(Value::as_str) == Some(matcher.as_str())
-        });
+        let entry_index = event_list
+            .iter()
+            .position(|e| e.get("matcher").and_then(Value::as_str) == Some(matcher.as_str()));
         let entry_index = match entry_index {
             Some(i) => i,
             None => {
@@ -173,29 +186,44 @@ pub fn install(
         hook_list.push(json!({"type": "command", "command": command}));
 
         // hooks-manifest.json: replace the entry by id.
-        let mut man = hook_manifest_entry
-            .as_object()
-            .cloned()
-            .ok_or_else(|| InstallError(format!("{}: hook \"manifest\" is not an object", hooks_json_path.display())))?;
+        let mut man = hook_manifest_entry.as_object().cloned().ok_or_else(|| {
+            InstallError(format!(
+                "{}: hook \"manifest\" is not an object",
+                hooks_json_path.display()
+            ))
+        })?;
         let man_id = man
             .get("id")
             .and_then(Value::as_str)
-            .ok_or_else(|| InstallError(format!("{}: hook manifest missing \"id\"", hooks_json_path.display())))?
+            .ok_or_else(|| {
+                InstallError(format!(
+                    "{}: hook manifest missing \"id\"",
+                    hooks_json_path.display()
+                ))
+            })?
             .to_string();
         man.insert("command".to_string(), json!(command));
 
         let manifest_hooks = manifest
             .as_object_mut()
             .and_then(|m| m.entry("hooks").or_insert_with(|| json!([])).as_array_mut())
-            .ok_or_else(|| InstallError("hooks-manifest.json: \"hooks\" is not an array".to_string()))?;
+            .ok_or_else(|| {
+                InstallError("hooks-manifest.json: \"hooks\" is not an array".to_string())
+            })?;
         manifest_hooks.retain(|h| h.get("id").and_then(Value::as_str) != Some(man_id.as_str()));
         manifest_hooks.push(Value::Object(man));
 
-        registered.push(RegisteredHook { id: man_id, command });
+        registered.push(RegisteredHook {
+            id: man_id,
+            command,
+        });
     }
 
-    io.write_string(&layout.settings, &serde_json::to_string_pretty(&settings).unwrap_or_default())
-        .map_err(|e| InstallError(format!("writing {}: {e}", layout.settings.display())))?;
+    io.write_string(
+        &layout.settings,
+        &serde_json::to_string_pretty(&settings).unwrap_or_default(),
+    )
+    .map_err(|e| InstallError(format!("writing {}: {e}", layout.settings.display())))?;
     if let Some(parent) = layout.manifest.parent() {
         io.create_dir_all(parent)
             .map_err(|e| InstallError(format!("creating {}: {e}", parent.display())))?;
@@ -204,14 +232,22 @@ pub fn install(
     io.write_string(&layout.manifest, &to_string_indent1(&manifest))
         .map_err(|e| InstallError(format!("writing {}: {e}", layout.manifest.display())))?;
 
-    Ok(InstallSummary { registered, backup_path })
+    Ok(InstallSummary {
+        registered,
+        backup_path,
+    })
 }
 
 fn field_str(hk: &Value, key: &str, hooks_json_path: &Path) -> Result<String, InstallError> {
     hk.get(key)
         .and_then(Value::as_str)
         .map(str::to_string)
-        .ok_or_else(|| InstallError(format!("{}: hook missing \"{key}\"", hooks_json_path.display())))
+        .ok_or_else(|| {
+            InstallError(format!(
+                "{}: hook missing \"{key}\"",
+                hooks_json_path.display()
+            ))
+        })
 }
 
 fn normalize_forward_slashes(path: &Path) -> String {

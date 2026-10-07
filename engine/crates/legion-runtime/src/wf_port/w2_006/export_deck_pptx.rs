@@ -92,8 +92,14 @@ pub fn converting_line(count: usize) -> String {
 /// plus the success case's `` `  [${i+1}/${files.length}] ${f} ✓` `` line.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SlideOutcome {
-    Ok { line: String },
-    Err { file: String, error: String, line: String },
+    Ok {
+        line: String,
+    },
+    Err {
+        file: String,
+        error: String,
+        line: String,
+    },
 }
 
 /// Port of the per-slide try/catch inside the `for` loop over `files`,

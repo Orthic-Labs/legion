@@ -19,7 +19,11 @@ pub const DIAG_TIMEOUT: Duration = Duration::from_secs(60);
 /// (other errors).
 #[derive(Debug)]
 pub enum DiagOutcome {
-    Ran { returncode: i32, stdout: String, stderr: String },
+    Ran {
+        returncode: i32,
+        stdout: String,
+        stderr: String,
+    },
     Timeout,
     Error(String),
 }
@@ -96,13 +100,19 @@ mod tests {
 
     #[test]
     fn default_codex_cmd_matches_python_hardcode() {
-        assert_eq!(default_codex_cmd(), PathBuf::from(r"C:\nvm4w\nodejs\codex.cmd"));
+        assert_eq!(
+            default_codex_cmd(),
+            PathBuf::from(r"C:\nvm4w\nodejs\codex.cmd")
+        );
     }
 
     #[test]
     fn run_diag_reports_timeout() {
         let outcome = run_diag("codex", |_cmd, _timeout| {
-            Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "timed out"))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            ))
         });
         assert!(matches!(outcome, DiagOutcome::Timeout));
     }
@@ -110,7 +120,10 @@ mod tests {
     #[test]
     fn run_diag_reports_other_errors() {
         let outcome = run_diag("codex", |_cmd, _timeout| {
-            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "no such file"))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "no such file",
+            ))
         });
         match outcome {
             DiagOutcome::Error(msg) => assert!(msg.contains("no such file")),
@@ -120,11 +133,13 @@ mod tests {
 
     #[test]
     fn run_diag_captures_stdout_stderr_and_returncode() {
-        let outcome = run_diag("codex", |_cmd, _timeout| {
-            Ok(fake_output(0, "hello\n", ""))
-        });
+        let outcome = run_diag("codex", |_cmd, _timeout| Ok(fake_output(0, "hello\n", "")));
         match outcome {
-            DiagOutcome::Ran { returncode, stdout, stderr } => {
+            DiagOutcome::Ran {
+                returncode,
+                stdout,
+                stderr,
+            } => {
                 assert_eq!(returncode, 0);
                 assert_eq!(stdout, "hello\n");
                 assert_eq!(stderr, "");
@@ -147,7 +162,11 @@ mod tests {
         let shell = if cfg!(windows) { "cmd" } else { "sh" };
         let flag = if cfg!(windows) { "/C" } else { "-c" };
         let script = format!("exit {returncode}");
-        let mut output = Command::new(shell).arg(flag).arg(script).output().expect("spawn shell");
+        let mut output = Command::new(shell)
+            .arg(flag)
+            .arg(script)
+            .output()
+            .expect("spawn shell");
         output.stdout = expected_stdout.as_bytes().to_vec();
         output.stderr = expected_stderr.as_bytes().to_vec();
         output

@@ -73,7 +73,8 @@ pub fn execute_adversarial_binding(id: &str) -> AdversarialResult {
             "significance": {"quality_or_mission": true},
             "effect": {},
         });
-        let route = route_architecture(&input).expect("fixed AE-ADVERSARIAL-003 input is always valid");
+        let route =
+            route_architecture(&input).expect("fixed AE-ADVERSARIAL-003 input is always valid");
         return AdversarialResult::Observed {
             id: "AE-ADVERSARIAL-003",
             rigor: route.rigor.to_string(),
@@ -91,7 +92,11 @@ pub fn execute_adversarial_binding(id: &str) -> AdversarialResult {
 /// Mirrors JS `validateAdversarialObservation(id, result)`.
 pub fn validate_adversarial_observation(result: &AdversarialResult) -> bool {
     match result {
-        AdversarialResult::Observed { id: "AE-ADVERSARIAL-003", rigor, depth } => rigor == "critical" && depth == "D1",
+        AdversarialResult::Observed {
+            id: "AE-ADVERSARIAL-003",
+            rigor,
+            depth,
+        } => rigor == "critical" && depth == "D1",
         _ => false,
     }
 }
@@ -115,7 +120,13 @@ mod tests {
     #[test]
     fn case_003_now_runs_the_real_router_and_validates() {
         let r = execute_adversarial_binding("AE-ADVERSARIAL-003");
-        assert!(matches!(r, AdversarialResult::Observed { id: "AE-ADVERSARIAL-003", .. }));
+        assert!(matches!(
+            r,
+            AdversarialResult::Observed {
+                id: "AE-ADVERSARIAL-003",
+                ..
+            }
+        ));
         assert!(validate_adversarial_observation(&r));
     }
 
@@ -127,7 +138,11 @@ mod tests {
             }
             let r = execute_adversarial_binding(id);
             match r {
-                AdversarialResult::Pending { reason, missing_producer, .. } => {
+                AdversarialResult::Pending {
+                    reason,
+                    missing_producer,
+                    ..
+                } => {
                     assert!(reason.starts_with("requires "));
                     assert!(missing_producer.is_some());
                 }

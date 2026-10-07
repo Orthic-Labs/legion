@@ -31,9 +31,10 @@ pub use denominators::{reconcile_denominator, DenominatorReconciliation};
 pub use exit_taxonomy::{exit_code_for_report, Exit, ExitReport, TaxonomyError};
 
 pub use core_records::{
-    achieved_claim_level, build_judgment_packet, reconcile_claim, required_stages_for, run_layout,
-    reviewer_policy, ClaimReconciliation, JudgmentPacketInput, ReviewerPolicy, ReviewerPolicyError,
-    RunLayout, CLAIM_LEVELS, JUDGMENT_VERDICTS, PLANNING_STAGE_IDS, RUN_DIRECTORIES,
+    achieved_claim_level, build_judgment_packet, reconcile_claim, required_stages_for,
+    reviewer_policy, run_layout, ClaimReconciliation, JudgmentPacketInput, ReviewerPolicy,
+    ReviewerPolicyError, RunLayout, CLAIM_LEVELS, JUDGMENT_VERDICTS, PLANNING_STAGE_IDS,
+    RUN_DIRECTORIES,
 };
 pub use core_scheduler::{
     provider_dependencies, schedule_providers, BlockedProvider, ResourcedSchedule, ScheduleMode,
@@ -90,7 +91,8 @@ pub use kernel_ids::{
 pub use kernel_journal::JsonlJournal;
 pub use kernel_lifecycle::{KernelTask, TaskLifecycle};
 pub use kernel_profiles::{
-    default_profile_policy, downgrade_model_profile, load_model_profile, ModelProfile, ProfileLimits,
+    default_profile_policy, downgrade_model_profile, load_model_profile, ModelProfile,
+    ProfileLimits,
 };
 pub use kernel_registry::{negotiate_capabilities, CapabilityNegotiation, OperationRegistry};
 pub use kernel_scheduler::{scheduler_options_from_argv, LaneContext, LaneNode, LaneScheduler};

@@ -18,8 +18,12 @@ use std::path::PathBuf;
 use legion_research::wf_port::wf027::types::Provider as _;
 use legion_research::wf_port::wf028::receipt::finalize;
 use legion_research::wf_port::wf028::resource_guard::read_resource;
-use legion_research::wf_port::wf028::retraction::{self, RetractionTransport, TransportError as RetractionTransportError};
-use legion_research::wf_port::wf028::scholarly::{self, ScholarlyTransport, TransportError as ScholarlyTransportError};
+use legion_research::wf_port::wf028::retraction::{
+    self, RetractionTransport, TransportError as RetractionTransportError,
+};
+use legion_research::wf_port::wf028::scholarly::{
+    self, ScholarlyTransport, TransportError as ScholarlyTransportError,
+};
 use legion_research::wf_port::wf028::search_open_find::{self, ProviderName};
 use legion_research::wf_port::wf028::support;
 use serde_json::{json, Value};
@@ -104,8 +108,15 @@ impl ScholarlyTransport for FixtureScholarlyTransport {
     fn get_json(&self, _url: &str, _timeout_secs: u64) -> Result<Value, ScholarlyTransportError> {
         Ok(self.json_body.clone())
     }
-    fn get_text(&self, _url: &str, _timeout_secs: u64) -> Result<(String, String), ScholarlyTransportError> {
-        Ok(("<html>Ossified Alloys of the Late Devonian</html>".to_string(), "https://journal.example/paper".to_string()))
+    fn get_text(
+        &self,
+        _url: &str,
+        _timeout_secs: u64,
+    ) -> Result<(String, String), ScholarlyTransportError> {
+        Ok((
+            "<html>Ossified Alloys of the Late Devonian</html>".to_string(),
+            "https://journal.example/paper".to_string(),
+        ))
     }
 }
 
@@ -122,9 +133,18 @@ fn search_open_find_dispatches_scholarly_and_matches_to_dict_shapes() {
 
     let resolved = search_open_find::provider("scholarly", None).unwrap();
     assert_eq!(resolved.name(), "scholarly");
-    assert!(search_open_find::is_metered_op(ProviderName::Scholarly, "search"));
-    assert!(search_open_find::is_metered_op(ProviderName::Scholarly, "open"));
-    assert!(!search_open_find::is_metered_op(ProviderName::Scholarly, "find"));
+    assert!(search_open_find::is_metered_op(
+        ProviderName::Scholarly,
+        "search"
+    ));
+    assert!(search_open_find::is_metered_op(
+        ProviderName::Scholarly,
+        "open"
+    ));
+    assert!(!search_open_find::is_metered_op(
+        ProviderName::Scholarly,
+        "find"
+    ));
 
     let hits = scholarly::search(&transport, "devonian alloys", 10, &[], None).unwrap();
     assert_eq!(hits.len(), 1);
@@ -132,7 +152,8 @@ fn search_open_find_dispatches_scholarly_and_matches_to_dict_shapes() {
     assert_eq!(hit_json["evidence_status"], json!("lead"));
     assert_eq!(hit_json["provider"], json!("scholarly"));
 
-    let opened = scholarly::open(&transport, "https://journal.example/paper", "2026-09-23").unwrap();
+    let opened =
+        scholarly::open(&transport, "https://journal.example/paper", "2026-09-23").unwrap();
     let opened_json = opened.to_json();
     assert_eq!(opened_json["instructionPolicy"], json!("data_only"));
     assert!(opened_json.get("instruction_policy").is_none());
@@ -170,13 +191,20 @@ impl RetractionTransport for FixtureRetractionTransport {
 #[test]
 fn retraction_sweep_blocks_undisclosed_retraction_end_to_end() {
     let fixture_path = fixtures_dir().join("openalex_retracted.json");
-    let openalex: Value = serde_json::from_str(&fs::read_to_string(&fixture_path).unwrap()).unwrap();
+    let openalex: Value =
+        serde_json::from_str(&fs::read_to_string(&fixture_path).unwrap()).unwrap();
     let transport = FixtureRetractionTransport {
         openalex,
         crossref: json!({"message": {"update-to": [], "relation": {}}}),
     };
 
-    let result = retraction::sweep(&transport, &["10.9999/retracted-example".to_string()], &[], true, None);
+    let result = retraction::sweep(
+        &transport,
+        &["10.9999/retracted-example".to_string()],
+        &[],
+        true,
+        None,
+    );
     assert_eq!(result["block_brief"], json!(true));
     assert_eq!(retraction::exit_code(&result), 2);
 

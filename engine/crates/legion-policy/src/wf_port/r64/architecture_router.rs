@@ -55,11 +55,21 @@ pub struct RouterError {
 }
 
 fn fail<T>(message: impl Into<String>) -> Result<T, RouterError> {
-    Err(RouterError { message: message.into(), detail: Value::Object(Map::new()) })
+    Err(RouterError {
+        message: message.into(),
+        detail: Value::Object(Map::new()),
+    })
 }
 
 fn router_fields() -> Vec<&'static str> {
-    let mut v = vec!["objective", "optimize_axis", "significance", "effect", "flags", "prior_route"];
+    let mut v = vec![
+        "objective",
+        "optimize_axis",
+        "significance",
+        "effect",
+        "flags",
+        "prior_route",
+    ];
     v.extend_from_slice(CRITICAL);
     v.extend_from_slice(DEPTH_FLAGS);
     v
@@ -75,7 +85,10 @@ fn get<'a>(input: &'a Value, key: &str) -> Option<&'a Value> {
 }
 
 fn is_true(input: &Value, key: &str) -> bool {
-    input.get(key).map(|v| v == &Value::Bool(true)).unwrap_or(false)
+    input
+        .get(key)
+        .map(|v| v == &Value::Bool(true))
+        .unwrap_or(false)
 }
 
 #[derive(Debug, Clone)]
@@ -86,7 +99,9 @@ pub struct NormalizedRoute {
 
 /// Mirrors JS `normalizeArchitectureRoute(input)`.
 pub fn normalize_architecture_route(input: &Value) -> NormalizedRoute {
-    let raw_objective = get(input, "objective").and_then(Value::as_str).unwrap_or("");
+    let raw_objective = get(input, "objective")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     let normalized_objective_str = raw_objective.trim().to_lowercase().replace([' ', '-'], "_");
     let optimize_axis = get(input, "optimize_axis").and_then(Value::as_str);
     let optimize_axis_present = optimize_axis.map(|s| !s.trim().is_empty()).unwrap_or(false);
@@ -99,7 +114,11 @@ pub fn normalize_architecture_route(input: &Value) -> NormalizedRoute {
     };
     NormalizedRoute {
         objective,
-        optimize_axis: if optimize_axis_present { Some(optimize_axis.unwrap().trim().to_string()) } else { None },
+        optimize_axis: if optimize_axis_present {
+            Some(optimize_axis.unwrap().trim().to_string())
+        } else {
+            None
+        },
     }
 }
 
@@ -126,7 +145,10 @@ pub fn classify_significance(facts: &Value) -> Result<Significance, RouterError>
         .filter(|k| object.get(**k) == Some(&Value::Bool(true)))
         .map(|k| k.to_string())
         .collect();
-    Ok(Significance { significant: !matched.is_empty(), matched_significance_facts: matched })
+    Ok(Significance {
+        significant: !matched.is_empty(),
+        matched_significance_facts: matched,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -183,7 +205,14 @@ pub fn classify_effect(input: &Value) -> Result<EffectClassification, RouterErro
         }
     }
     if let Some(s) = semantic {
-        if ["destructive", "irreversible", "data_loss", "external_commitment"].contains(&s) {
+        if [
+            "destructive",
+            "irreversible",
+            "data_loss",
+            "external_commitment",
+        ]
+        .contains(&s)
+        {
             return Ok(EffectClassification {
                 declared_type: explicit.map(str::to_string),
                 matched_rule: "semantic_risk",
@@ -191,7 +220,17 @@ pub fn classify_effect(input: &Value) -> Result<EffectClassification, RouterErro
                 door: "one_way",
             });
         }
-        if ["authority", "credential", "trust_boundary", "production", "spend", "send", "publish"].contains(&s) {
+        if [
+            "authority",
+            "credential",
+            "trust_boundary",
+            "production",
+            "spend",
+            "send",
+            "publish",
+        ]
+        .contains(&s)
+        {
             return Ok(EffectClassification {
                 declared_type: explicit.map(str::to_string),
                 matched_rule: "semantic_risk",
@@ -203,7 +242,9 @@ pub fn classify_effect(input: &Value) -> Result<EffectClassification, RouterErro
     Ok(EffectClassification {
         declared_type: explicit.map(str::to_string),
         matched_rule: "safe_default",
-        basis: semantic.map(str::to_string).unwrap_or_else(|| "ambiguous".to_string()),
+        basis: semantic
+            .map(str::to_string)
+            .unwrap_or_else(|| "ambiguous".to_string()),
         door: "authority_sensitive",
     })
 }
@@ -254,7 +295,10 @@ pub fn route_architecture(input: &Value) -> Result<ArchitectureRoute, RouterErro
             let all_known = [CRITICAL, DEPTH_FLAGS].concat();
             let ok = flags
                 .as_array()
-                .map(|arr| arr.iter().all(|f| f.as_str().map(|s| all_known.contains(&s)).unwrap_or(false)))
+                .map(|arr| {
+                    arr.iter()
+                        .all(|f| f.as_str().map(|s| all_known.contains(&s)).unwrap_or(false))
+                })
                 .unwrap_or(false);
             if !ok {
                 return fail("flags contain an unknown routing fact");
@@ -282,13 +326,21 @@ pub fn route_architecture(input: &Value) -> Result<ArchitectureRoute, RouterErro
     let flags: Vec<String> = object
         .get("flags")
         .and_then(Value::as_array)
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
-    let critical = CRITICAL.iter().any(|fact| is_true(input, fact) || flags.iter().any(|f| f == fact));
+    let critical = CRITICAL
+        .iter()
+        .any(|fact| is_true(input, fact) || flags.iter().any(|f| f == fact));
     let depth: &'static str = if !significance.significant {
         "D0"
     } else if normalized.objective == "best_shape"
-        || DEPTH_FLAGS.iter().any(|fact| is_true(input, fact) || flags.iter().any(|f| f == fact))
+        || DEPTH_FLAGS
+            .iter()
+            .any(|fact| is_true(input, fact) || flags.iter().any(|f| f == fact))
     {
         "D2"
     } else {
@@ -302,7 +354,9 @@ pub fn route_architecture(input: &Value) -> Result<ArchitectureRoute, RouterErro
         "lite"
     };
 
-    let effect_input = get(input, "effect").cloned().unwrap_or_else(|| input.clone());
+    let effect_input = get(input, "effect")
+        .cloned()
+        .unwrap_or_else(|| input.clone());
     let effect_classification = classify_effect(&effect_input)?;
 
     Ok(ArchitectureRoute {
@@ -375,6 +429,9 @@ mod tests {
         let input = json!({"effect": {"category": "FILE_DELETE"}});
         let route = route_architecture(&input).unwrap();
         assert_eq!(route.effect_classification.door, "one_way");
-        assert_eq!(route.effect_classification.matched_rule, "capability_category");
+        assert_eq!(
+            route.effect_classification.matched_rule,
+            "capability_category"
+        );
     }
 }

@@ -29,8 +29,18 @@ pub struct Observation {
     pub file: String,
 }
 
-fn obs(rule_id: &'static str, severity_hint: &'static str, claim: &'static str, file: &str) -> Observation {
-    Observation { rule_id, severity_hint, claim, file: file.to_string() }
+fn obs(
+    rule_id: &'static str,
+    severity_hint: &'static str,
+    claim: &'static str,
+    file: &str,
+) -> Observation {
+    Observation {
+        rule_id,
+        severity_hint,
+        claim,
+        file: file.to_string(),
+    }
 }
 
 /// `projection?.auditFacts?.packageManifests` as JSON-stringified entries
@@ -66,8 +76,10 @@ pub mod apple {
     pub fn analyze(files: FileText) -> Vec<Observation> {
         let ats_disabled = Regex::new(r"NSAllowsArbitraryLoads\s*=\s*true").unwrap();
         let ats_disabled_plist = Regex::new(r"NSAllowsArbitraryLoads</key>\s*<true/>").unwrap();
-        let ats_webview = Regex::new(r#"NSAllowsArbitraryLoadsInWebContent["']?\s*[:=]\s*true"#).unwrap();
-        let webview_js = Regex::new(r"UIWebView\b|WKWebView[\s\S]{0,200}?javaScriptEnabled\s*=\s*true").unwrap();
+        let ats_webview =
+            Regex::new(r#"NSAllowsArbitraryLoadsInWebContent["']?\s*[:=]\s*true"#).unwrap();
+        let webview_js =
+            Regex::new(r"UIWebView\b|WKWebView[\s\S]{0,200}?javaScriptEnabled\s*=\s*true").unwrap();
         let oauth_cb = Regex::new(r#"https?://[^"']*//(?:callback|oauth|auth)"#).unwrap();
         let oauth_guard = Regex::new(r"state|pkce|code_verifier").unwrap();
         let storage_sensitive =
@@ -76,10 +88,20 @@ pub mod apple {
         let mut out = Vec::new();
         for (file, text) in files {
             if ats_disabled.is_match(text) || ats_disabled_plist.is_match(text) {
-                out.push(obs("apple.ats-disabled", "high", "ATS (arbitrary loads) is disabled.", file));
+                out.push(obs(
+                    "apple.ats-disabled",
+                    "high",
+                    "ATS (arbitrary loads) is disabled.",
+                    file,
+                ));
             }
             if ats_webview.is_match(text) {
-                out.push(obs("apple.ats-webview", "medium", "ATS disabled in WebView content.", file));
+                out.push(obs(
+                    "apple.ats-webview",
+                    "medium",
+                    "ATS disabled in WebView content.",
+                    file,
+                ));
             }
             if webview_js.is_match(text) {
                 out.push(obs(
@@ -137,7 +159,12 @@ pub mod aspnet {
                 continue;
             }
             if cors_origin.is_match(text) || cors_creds.is_match(text) {
-                out.push(obs("aspnet.cors-permissive", "medium", "CORS is broadly permissive.", file));
+                out.push(obs(
+                    "aspnet.cors-permissive",
+                    "medium",
+                    "CORS is broadly permissive.",
+                    file,
+                ));
             }
             if !authorize.is_match(text) && http_verb.is_match(text) && sensitive.is_match(text) {
                 out.push(obs(
@@ -180,7 +207,8 @@ pub mod django {
 
     pub fn analyze(files: FileText) -> Vec<Observation> {
         let debug_true = Regex::new(r"(?m)^\s*DEBUG\s*=\s*True\b").unwrap();
-        let allowed_hosts = Regex::new(r#"(?m)^\s*ALLOWED_HOSTS\s*=\s*\[[^\]]*['"]\*['"]"#).unwrap();
+        let allowed_hosts =
+            Regex::new(r#"(?m)^\s*ALLOWED_HOSTS\s*=\s*\[[^\]]*['"]\*['"]"#).unwrap();
         let csrf_exempt = Regex::new(r"@csrf_exempt\b").unwrap();
         let mark_safe = Regex::new(r"\bmark_safe\s*\(").unwrap();
         let raw_fstring = Regex::new(r#"\.raw\s*\(\s*f["']"#).unwrap();
@@ -189,7 +217,12 @@ pub mod django {
         let mut out = Vec::new();
         for (file, text) in files {
             if debug_true.is_match(text) {
-                out.push(obs("django.settings.debug", "high", "Django DEBUG is enabled.", file));
+                out.push(obs(
+                    "django.settings.debug",
+                    "high",
+                    "Django DEBUG is enabled.",
+                    file,
+                ));
             }
             if allowed_hosts.is_match(text) {
                 out.push(obs(
@@ -200,13 +233,28 @@ pub mod django {
                 ));
             }
             if csrf_exempt.is_match(text) {
-                out.push(obs("django.csrf-exempt", "medium", "CSRF protection bypassed for this view.", file));
+                out.push(obs(
+                    "django.csrf-exempt",
+                    "medium",
+                    "CSRF protection bypassed for this view.",
+                    file,
+                ));
             }
             if mark_safe.is_match(text) {
-                out.push(obs("django.output-mark-safe", "medium", "Output explicitly marked safe.", file));
+                out.push(obs(
+                    "django.output-mark-safe",
+                    "medium",
+                    "Output explicitly marked safe.",
+                    file,
+                ));
             }
             if raw_fstring.is_match(text) || extra_where.is_match(text) {
-                out.push(obs("django.orm.raw-sql", "high", "Raw SQL with interpolated input.", file));
+                out.push(obs(
+                    "django.orm.raw-sql",
+                    "high",
+                    "Raw SQL with interpolated input.",
+                    file,
+                ));
             }
         }
         out
@@ -238,7 +286,12 @@ pub mod entity_framework {
                 continue;
             }
             if raw_sql1.is_match(text) || raw_sql2.is_match(text) {
-                out.push(obs("ef.raw-sql-interpolation", "high", "Raw SQL with interpolated input.", file));
+                out.push(obs(
+                    "ef.raw-sql-interpolation",
+                    "high",
+                    "Raw SQL with interpolated input.",
+                    file,
+                ));
             }
             if query.is_match(text) && !tenant.is_match(text) {
                 out.push(obs(
@@ -249,7 +302,12 @@ pub mod entity_framework {
                 ));
             }
             if save.is_match(text) && !txn.is_match(text) {
-                out.push(obs("ef.no-transaction", "low", "Save without a visible transaction.", file));
+                out.push(obs(
+                    "ef.no-transaction",
+                    "low",
+                    "Save without a visible transaction.",
+                    file,
+                ));
             }
         }
         out
@@ -287,13 +345,19 @@ pub mod fastapi {
 
     pub fn analyze(files: FileText) -> Vec<Observation> {
         let cors_all = Regex::new(r#"allow_origins\s*=\s*\[[^\]]*['"]\*['"]"#).unwrap();
-        let bg_task = Regex::new(r"BackgroundTasks\b[\s\S]{0,300}?add_task\s*\([^\n]*(?:request|input|user)")
-            .unwrap();
+        let bg_task =
+            Regex::new(r"BackgroundTasks\b[\s\S]{0,300}?add_task\s*\([^\n]*(?:request|input|user)")
+                .unwrap();
 
         let mut out = Vec::new();
         for (file, text) in files {
             if cors_all.is_match(text) {
-                out.push(obs("fastapi.cors-all-origins", "medium", "CORS accepts every origin.", file));
+                out.push(obs(
+                    "fastapi.cors-all-origins",
+                    "medium",
+                    "CORS accepts every origin.",
+                    file,
+                ));
             }
             if route_missing_response_model(text) {
                 out.push(obs(
@@ -338,10 +402,20 @@ pub mod flask {
         let mut out = Vec::new();
         for (file, text) in files {
             if debug.is_match(text) {
-                out.push(obs("flask.debug-enabled", "high", "Flask debug mode is enabled.", file));
+                out.push(obs(
+                    "flask.debug-enabled",
+                    "high",
+                    "Flask debug mode is enabled.",
+                    file,
+                ));
             }
             if secret_fallback.is_match(text) {
-                out.push(obs("flask.secret-fallback", "high", "Secret key has a tracked fallback value.", file));
+                out.push(obs(
+                    "flask.secret-fallback",
+                    "high",
+                    "Secret key has a tracked fallback value.",
+                    file,
+                ));
             }
             if template_input.is_match(text) {
                 out.push(obs(
@@ -369,7 +443,8 @@ pub mod flutter {
     }
 
     pub fn analyze(files: FileText) -> Vec<Observation> {
-        let bad_cert = Regex::new(r"badCertificateCallback\s*[:=]\s*[\s\S]{0,80}?=>\s*true").unwrap();
+        let bad_cert =
+            Regex::new(r"badCertificateCallback\s*[:=]\s*[\s\S]{0,80}?=>\s*true").unwrap();
         let js_unrestricted = Regex::new(r"JavaScriptMode\.unrestricted").unwrap();
         let method_channel = Regex::new(r"MethodChannel\s*\([^)]*\)").unwrap();
         let channel_handler = Regex::new(r"invokeMethod|setMethodCallHandler").unwrap();
@@ -382,7 +457,12 @@ pub mod flutter {
                 continue;
             }
             if bad_cert.is_match(text) {
-                out.push(obs("flutter.bad-cert-callback", "high", "All TLS certificates accepted.", file));
+                out.push(obs(
+                    "flutter.bad-cert-callback",
+                    "high",
+                    "All TLS certificates accepted.",
+                    file,
+                ));
             }
             if js_unrestricted.is_match(text) {
                 out.push(obs(
@@ -426,7 +506,8 @@ pub mod go_web {
 
     pub fn analyze(files: FileText) -> Vec<Observation> {
         let http_server = Regex::new(r"http\.Server\s*\{").unwrap();
-        let timeouts = Regex::new(r"ReadHeaderTimeout|ReadTimeout|WriteTimeout|IdleTimeout").unwrap();
+        let timeouts =
+            Regex::new(r"ReadHeaderTimeout|ReadTimeout|WriteTimeout|IdleTimeout").unwrap();
         let body = Regex::new(r"r\.Body|http\.MaxBytesReader").unwrap();
         let bound = Regex::new(r"MaxBytesReader|io\.LimitReader").unwrap();
         let exec_cmd = Regex::new(r"exec\.Command(?:Context)?\s*\([^)]*\)").unwrap();
@@ -474,7 +555,12 @@ pub mod go_web {
                 ));
             }
             if route.is_match(text) && !auth.is_match(text) {
-                out.push(obs("go-web.route-no-auth", "medium", "Route has no visible auth middleware.", file));
+                out.push(obs(
+                    "go-web.route-no-auth",
+                    "medium",
+                    "Route has no visible auth middleware.",
+                    file,
+                ));
             }
         }
         out
@@ -497,13 +583,19 @@ pub mod grpc {
         let auth = Regex::new(r"(?i)auth|interceptor|metadata").unwrap();
         let new_server = Regex::new(r"grpc\.NewServer\s*\(").unwrap();
         let limits = Regex::new(r"KeepaliveParams|EnforcementPolicy|MaxRecvMsgSize").unwrap();
-        let streaming = Regex::new(r"rpc\s+\w+\s*\(\s*stream|stream\s+\w+\s*\)\s*(?:returns)?").unwrap();
+        let streaming =
+            Regex::new(r"rpc\s+\w+\s*\(\s*stream|stream\s+\w+\s*\)\s*(?:returns)?").unwrap();
         let flow_control = Regex::new(r"MaxRecvMsgSize|recv\(\)").unwrap();
 
         let mut out = Vec::new();
         for (file, text) in files {
             if service.is_match(text) && !auth.is_match(text) {
-                out.push(obs("grpc.service-no-auth", "medium", "gRPC service has no visible auth interceptor.", file));
+                out.push(obs(
+                    "grpc.service-no-auth",
+                    "medium",
+                    "gRPC service has no visible auth interceptor.",
+                    file,
+                ));
             }
             if new_server.is_match(text) && !limits.is_match(text) {
                 out.push(obs(
@@ -547,7 +639,12 @@ pub mod ktor {
         let mut out = Vec::new();
         for (file, text) in files {
             if any_host.is_match(text) {
-                out.push(obs("ktor.cors-any-host", "medium", "CORS permits any host.", file));
+                out.push(obs(
+                    "ktor.cors-any-host",
+                    "medium",
+                    "CORS permits any host.",
+                    file,
+                ));
             }
             if forwarded.is_match(text) {
                 out.push(obs(
@@ -585,16 +682,27 @@ pub mod laravel {
         let raw_sql = Regex::new(r"DB::(?:select|statement|unprepared)\s*\([^)]*(\$|\.)").unwrap();
         let unescaped_blade = Regex::new(r"\{!![^!]*\$[^!]*!!\}").unwrap();
         let mass_assign =
-            Regex::new(r"(?:Model::|\w+::create|\w+::update|->fill)\s*\([^)]*(?:request|input)").unwrap();
+            Regex::new(r"(?:Model::|\w+::create|\w+::update|->fill)\s*\([^)]*(?:request|input)")
+                .unwrap();
         let guard = Regex::new(r"fillable|guarded").unwrap();
 
         let mut out = Vec::new();
         for (file, text) in files {
             if raw_sql.is_match(text) {
-                out.push(obs("laravel.raw-sql-interpolation", "high", "Raw SQL with interpolated input.", file));
+                out.push(obs(
+                    "laravel.raw-sql-interpolation",
+                    "high",
+                    "Raw SQL with interpolated input.",
+                    file,
+                ));
             }
             if unescaped_blade.is_match(text) {
-                out.push(obs("laravel.unescaped-blade", "medium", "Unescaped Blade output.", file));
+                out.push(obs(
+                    "laravel.unescaped-blade",
+                    "medium",
+                    "Unescaped Blade output.",
+                    file,
+                ));
             }
             if mass_assign.is_match(text) && !guard.is_match(text) {
                 out.push(obs(
@@ -714,10 +822,20 @@ pub mod rails {
         let mut out = Vec::new();
         for (file, text) in files {
             if forgery_bypass.is_match(text) {
-                out.push(obs("rails.forgery-bypass", "medium", "Request forgery protection bypassed.", file));
+                out.push(obs(
+                    "rails.forgery-bypass",
+                    "medium",
+                    "Request forgery protection bypassed.",
+                    file,
+                ));
             }
             if raw_html.is_match(text) {
-                out.push(obs("rails.raw-html", "medium", "Output marked HTML-safe.", file));
+                out.push(obs(
+                    "rails.raw-html",
+                    "medium",
+                    "Output marked HTML-safe.",
+                    file,
+                ));
             }
             if constantize.is_match(text) && params_request.is_match(text) {
                 out.push(obs(
@@ -814,7 +932,9 @@ pub mod react {
 
     fn blueprint_record_selects_react(record: &Value) -> bool {
         match record {
-            Value::Array(items) => items.iter().any(|item| REACT_PACKAGES.contains(&record_name(item).as_str())),
+            Value::Array(items) => items
+                .iter()
+                .any(|item| REACT_PACKAGES.contains(&record_name(item).as_str())),
             Value::Object(map) => map.iter().any(|(name, item)| {
                 REACT_PACKAGES.contains(&name.to_lowercase().as_str())
                     || REACT_PACKAGES.contains(&record_name(item).as_str())
@@ -832,7 +952,10 @@ pub mod react {
         ];
         for list in lists.into_iter().flatten() {
             if let Value::Array(items) = list {
-                if items.iter().any(|v| matches!(v.as_str(), Some(s) if REACT_PACKAGES.contains(&s))) {
+                if items
+                    .iter()
+                    .any(|v| matches!(v.as_str(), Some(s) if REACT_PACKAGES.contains(&s)))
+                {
                     return true;
                 }
             }
@@ -849,24 +972,32 @@ pub mod react {
     /// (`frameworks`/`blueprint.frameworks`, `selectedFrameworks`/`auditFacts.selectedFrameworks`,
     /// `auditFacts.nestedPackageManifests`/`auditFacts.workspaceManifests`).
     fn blueprint_selects_nested_react(projection: &Value) -> bool {
-        let frameworks = projection
-            .get("frameworks")
-            .or_else(|| projection.get("blueprint").and_then(|b| b.get("frameworks")));
+        let frameworks = projection.get("frameworks").or_else(|| {
+            projection
+                .get("blueprint")
+                .and_then(|b| b.get("frameworks"))
+        });
         if let Some(f) = frameworks {
             if blueprint_record_selects_react(f) {
                 return true;
             }
         }
-        let hints = projection
-            .get("selectedFrameworks")
-            .or_else(|| projection.get("auditFacts").and_then(|a| a.get("selectedFrameworks")));
+        let hints = projection.get("selectedFrameworks").or_else(|| {
+            projection
+                .get("auditFacts")
+                .and_then(|a| a.get("selectedFrameworks"))
+        });
         if let Some(Value::Array(items)) = hints {
-            if items.iter().any(|item| REACT_PACKAGES.contains(&record_name(item).as_str())) {
+            if items
+                .iter()
+                .any(|item| REACT_PACKAGES.contains(&record_name(item).as_str()))
+            {
                 return true;
             }
         }
         let nested = projection.get("auditFacts").and_then(|a| {
-            a.get("nestedPackageManifests").or_else(|| a.get("workspaceManifests"))
+            a.get("nestedPackageManifests")
+                .or_else(|| a.get("workspaceManifests"))
         });
         if let Some(Value::Array(items)) = nested {
             if items.iter().any(manifest_declares_react) {
@@ -912,7 +1043,8 @@ pub mod react {
     pub fn analyze(files: FileText) -> Vec<Observation> {
         let ext_re = Regex::new(r"\.(jsx|tsx|js|ts)$").unwrap();
         let conditional_hook =
-            Regex::new(r"if\s*\([^)]*\)\s*\{\s*(?:useState|useEffect|useMemo|useCallback)\s*\(").unwrap();
+            Regex::new(r"if\s*\([^)]*\)\s*\{\s*(?:useState|useEffect|useMemo|useCallback)\s*\(")
+                .unwrap();
         let dangerous_html = Regex::new(r"dangerouslySetInnerHTML\s*=").unwrap();
 
         let mut out = Vec::new();
@@ -937,7 +1069,12 @@ pub mod react {
                 ));
             }
             if img_missing_alt(text) {
-                out.push(obs("react.a11y.img-alt", "medium", "An img element has no alt attribute.", file));
+                out.push(obs(
+                    "react.a11y.img-alt",
+                    "medium",
+                    "An img element has no alt attribute.",
+                    file,
+                ));
             }
             if dangerous_html.is_match(text) {
                 out.push(obs(
@@ -982,13 +1119,28 @@ pub mod spring {
         let mut out = Vec::new();
         for (file, text) in files {
             if csrf_disabled.is_match(text) {
-                out.push(obs("spring.csrf-disabled", "medium", "Spring Security CSRF is disabled.", file));
+                out.push(obs(
+                    "spring.csrf-disabled",
+                    "medium",
+                    "Spring Security CSRF is disabled.",
+                    file,
+                ));
             }
             if sensitive_permit_all.is_match(text) {
-                out.push(obs("spring.sensitive-permit-all", "high", "Sensitive route is permitAll.", file));
+                out.push(obs(
+                    "spring.sensitive-permit-all",
+                    "high",
+                    "Sensitive route is permitAll.",
+                    file,
+                ));
             }
             if spel_input.is_match(text) {
-                out.push(obs("spring.spel-input", "high", "Variable input reaches a SpEL parser.", file));
+                out.push(obs(
+                    "spring.spel-input",
+                    "high",
+                    "Variable input reaches a SpEL parser.",
+                    file,
+                ));
             }
             if request_param.is_match(text) && !valid.is_match(text) {
                 out.push(obs(
@@ -1071,10 +1223,8 @@ pub mod symfony {
 
     pub fn analyze(files: FileText) -> Vec<Observation> {
         let untrusted_bind = Regex::new(r"->bind\s*\([^)]*(?:request|input)").unwrap();
-        let sensitive_route = Regex::new(
-            r"access_control\s*:\s*\[[^\]]*path:\s*\^(?:/admin|/internal)",
-        )
-        .unwrap();
+        let sensitive_route =
+            Regex::new(r"access_control\s*:\s*\[[^\]]*path:\s*\^(?:/admin|/internal)").unwrap();
         let role_gate = Regex::new(r"role:\s*ROLE_ADMIN").unwrap();
 
         let mut out = Vec::new();
@@ -1129,7 +1279,8 @@ pub mod tauri {
             Regex::new(r#"dangerousInsecureTransportProtocol["']?\s*[:=]\s*true"#).unwrap();
         let shell_open_all = Regex::new(r#""shell"\s*:\s*\{\s*"open"\s*:\s*true"#).unwrap();
         let capability_file = Regex::new(r"(?:capabilities?/|capabilities?\.json)").unwrap();
-        let fs_broad_scope = Regex::new(r#""fs"\s*:\s*\{[\s\S]{0,300}?"scope"\s*:\s*\["\*\*""#).unwrap();
+        let fs_broad_scope =
+            Regex::new(r#""fs"\s*:\s*\{[\s\S]{0,300}?"scope"\s*:\s*\["\*\*""#).unwrap();
         let sidecar = Regex::new(r#""sidecar"\s*:\s*true"#).unwrap();
         let updater = Regex::new(r#"updater["']?\s*[:=]"#).unwrap();
         let signature = Regex::new(r"pubkey|signature|key").unwrap();
@@ -1145,10 +1296,20 @@ pub mod tauri {
                 ));
             }
             if non_http_dev_url(text) {
-                out.push(obs("tauri.window.non-http-dev-url", "medium", "Dev URL is not http(s).", file));
+                out.push(obs(
+                    "tauri.window.non-http-dev-url",
+                    "medium",
+                    "Dev URL is not http(s).",
+                    file,
+                ));
             }
             if shell_open_all.is_match(text) {
-                out.push(obs("tauri.shell.open-all", "medium", "shell.open is broadly enabled.", file));
+                out.push(obs(
+                    "tauri.shell.open-all",
+                    "medium",
+                    "shell.open is broadly enabled.",
+                    file,
+                ));
             }
             if capability_file.is_match(file) && fs_broad_scope.is_match(text) {
                 out.push(obs(
@@ -1159,7 +1320,12 @@ pub mod tauri {
                 ));
             }
             if sidecar.is_match(text) {
-                out.push(obs("tauri.sidecar-enabled", "low", "Sidecar binary execution is enabled.", file));
+                out.push(obs(
+                    "tauri.sidecar-enabled",
+                    "low",
+                    "Sidecar binary execution is enabled.",
+                    file,
+                ));
             }
             if updater.is_match(text) && !signature.is_match(text) {
                 out.push(obs(

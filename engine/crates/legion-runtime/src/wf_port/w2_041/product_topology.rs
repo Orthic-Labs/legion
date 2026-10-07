@@ -46,7 +46,11 @@ pub fn product_topology_stage_result(artifact: &Value) -> Value {
         .map(|items| {
             items
                 .iter()
-                .filter(|item| item.get("mandatory").and_then(Value::as_bool).unwrap_or(false))
+                .filter(|item| {
+                    item.get("mandatory")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                })
                 .count()
         })
         .unwrap_or(0);
@@ -116,7 +120,11 @@ pub fn product_topology_stage_result(artifact: &Value) -> Value {
 }
 
 fn array_len(value: &Value, pointer: &str) -> usize {
-    value.pointer(pointer).and_then(Value::as_array).map(|a| a.len()).unwrap_or(0)
+    value
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .map(|a| a.len())
+        .unwrap_or(0)
 }
 
 #[cfg(test)]

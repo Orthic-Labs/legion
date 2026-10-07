@@ -26,9 +26,9 @@ fn run_summary_on_fixture_log_matches_python_report_shape() {
     assert!(report.contains("! gateway timeout"));
     assert!(report.contains("--- final worker message (tail) ---"));
     assert!(report.contains("Done: patched x and ran cargo test."));
-    assert!(report.contains(
-        "NOTE: this summarizes what the worker CLAIMS. The host must still read"
-    ));
+    assert!(
+        report.contains("NOTE: this summarizes what the worker CLAIMS. The host must still read")
+    );
 }
 
 #[test]
@@ -60,10 +60,7 @@ fn worker_launch_profile_round_trip() {
 fn stack_status_idempotency_and_text() {
     assert!(stack_status::should_start(false));
     assert!(!stack_status::should_start(true));
-    assert_eq!(
-        stack_status::status_menu_text(false),
-        "Citadel: down"
-    );
+    assert_eq!(stack_status::status_menu_text(false), "Citadel: down");
     assert_eq!(
         stack_status::tray_tooltip_text(false),
         "Alchemist - Citadel down"

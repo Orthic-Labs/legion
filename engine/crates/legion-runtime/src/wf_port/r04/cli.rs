@@ -128,10 +128,7 @@ pub fn build_resolved_context_directive(
     target_exists: Option<bool>,
 ) -> String {
     let mut lines = vec!["{".to_string()];
-    lines.push(format!(
-        "  \"targetPath\": {},",
-        opt_str_json(target_path)
-    ));
+    lines.push(format!("  \"targetPath\": {},", opt_str_json(target_path)));
     if target_path.is_some() {
         lines.push(format!(
             "  \"targetExists\": {},",
@@ -307,12 +304,10 @@ pub fn run_cli(
     };
 
     if !ctx.has_product {
-        let mut parts = vec![
-            "NO_PRODUCT_MD: This project has no PRODUCT.md yet. \
+        let mut parts = vec!["NO_PRODUCT_MD: This project has no PRODUCT.md yet. \
 Stop the current task, load reference/init.md, and follow its \
 instructions to write PRODUCT.md before resuming."
-                .to_string(),
-        ];
+            .to_string()];
         parts.push(build_resolved_context_directive(
             &ctx,
             target_path_for_output,
@@ -374,12 +369,8 @@ mod tests {
 
     fn temp_project(name: &str) -> std::path::PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
-            "r04-cli-{}-{}-{}",
-            std::process::id(),
-            name,
-            n
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("r04-cli-{}-{}-{}", std::process::id(), name, n));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -433,25 +424,23 @@ mod tests {
         assert_eq!(out.exit_code, 0);
         assert!(out.stdout.starts_with("# PRODUCT.md"));
         assert!(out.stdout.contains("My Product"));
-        assert!(out.stdout.contains("NEXT STEP: You MUST now read the matching register"));
+        assert!(out
+            .stdout
+            .contains("NEXT STEP: You MUST now read the matching register"));
         assert!(!out.stdout.contains("# DESIGN.md"));
     }
 
     #[test]
     fn design_md_present_is_included_and_register_directive_uses_register() {
         let dir = temp_project("has-design-register");
-        std::fs::write(
-            dir.join("PRODUCT.md"),
-            "# P\n\n## Register\n\nbrand\n",
-        )
-        .unwrap();
+        std::fs::write(dir.join("PRODUCT.md"), "# P\n\n## Register\n\nbrand\n").unwrap();
         std::fs::write(dir.join("DESIGN.md"), "# Design notes\n").unwrap();
         let out = run_cli(&[], &dir, "context.mjs", None);
         assert!(out.stdout.contains("# DESIGN.md"));
         assert!(out.stdout.contains("Design notes"));
-        assert!(out
-            .stdout
-            .contains("NEXT STEP: This project's register is `brand`. You MUST now read `reference/brand.md`"));
+        assert!(out.stdout.contains(
+            "NEXT STEP: This project's register is `brand`. You MUST now read `reference/brand.md`"
+        ));
     }
 
     #[test]

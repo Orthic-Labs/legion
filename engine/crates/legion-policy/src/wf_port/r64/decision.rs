@@ -58,7 +58,9 @@ pub fn decision_full(
         code,
         message: message.into(),
         detail: if detail.is_null() { json!({}) } else { detail },
-        fail_closed: code.map(|c| FAIL_CLOSED_CODES.contains(&c)).unwrap_or(false),
+        fail_closed: code
+            .map(|c| FAIL_CLOSED_CODES.contains(&c))
+            .unwrap_or(false),
         enforcement_health: enforcement_health.into(),
         escalate,
     }
@@ -85,7 +87,12 @@ mod tests {
 
     #[test]
     fn evidence_insufficient_is_not_fail_closed() {
-        let d = decision(false, Some("ARC_EVIDENCE_INSUFFICIENT"), "missing", json!({}));
+        let d = decision(
+            false,
+            Some("ARC_EVIDENCE_INSUFFICIENT"),
+            "missing",
+            json!({}),
+        );
         assert!(!d.fail_closed);
     }
 }

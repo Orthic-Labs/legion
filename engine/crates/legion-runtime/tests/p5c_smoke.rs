@@ -9,9 +9,9 @@ use serde_json::json;
 
 use legion_runtime::p5_core::{
     bound_packet_evidence, create_chain_adjudication_packet, escape_for_reasoning,
-    finalize_chain_verdict, read_ecosystem_manifests, untrusted_evidence_envelope,
-    validate_lenses, verification_digest, verification_receipt, CreateChainAdjudicationPacketInput,
-    EvidenceInput, LensRecord,
+    finalize_chain_verdict, read_ecosystem_manifests, untrusted_evidence_envelope, validate_lenses,
+    verification_digest, verification_receipt, CreateChainAdjudicationPacketInput, EvidenceInput,
+    LensRecord,
 };
 
 #[test]

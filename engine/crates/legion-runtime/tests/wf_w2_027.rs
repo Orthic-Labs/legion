@@ -23,7 +23,9 @@ fn fixture(name: &str) -> String {
 
 #[test]
 fn seo_extension_filter_matches_shell_grep_set() {
-    for ok in ["a.html", "a.htm", "a.php", "a.jsx", "a.tsx", "a.vue", "a.svelte"] {
+    for ok in [
+        "a.html", "a.htm", "a.php", "a.jsx", "a.tsx", "a.vue", "a.svelte",
+    ] {
         assert!(is_seo_checked_extension(ok), "{ok} should match");
     }
     for bad in ["a.md", "a.css", "a.js", "a.HTML", "html", ".html"] {
@@ -49,17 +51,18 @@ fn schema_extension_filter_matches_python_valid_extensions() {
 fn clean_html_file_has_no_findings() {
     let content = fixture("clean.html");
     let findings = check_html_file(&content);
-    assert!(findings.is_empty(), "expected no findings, got {findings:?}");
+    assert!(
+        findings.is_empty(),
+        "expected no findings, got {findings:?}"
+    );
 }
 
 #[test]
 fn placeholder_text_is_a_blocking_error() {
     let content = fixture("placeholder.html");
     let findings = check_html_file(&content);
-    assert!(findings
-        .iter()
-        .any(|f| f.severity == Severity::Error
-            && f.message == "Contains placeholder text in schema markup"));
+    assert!(findings.iter().any(|f| f.severity == Severity::Error
+        && f.message == "Contains placeholder text in schema markup"));
 }
 
 #[test]
@@ -100,11 +103,16 @@ fn deprecated_schema_type_in_raw_text_is_a_blocking_error() {
 
 #[test]
 fn fid_reference_is_a_warning_case_insensitive() {
-    for text in ["First Input Delay", "the \"FID\" metric", "first input delay"] {
+    for text in [
+        "First Input Delay",
+        "the \"FID\" metric",
+        "first input delay",
+    ] {
         let findings = check_html_file(text);
         assert!(
-            findings.iter().any(|f| f.severity == Severity::Warning
-                && f.message.contains("should use INP")),
+            findings
+                .iter()
+                .any(|f| f.severity == Severity::Warning && f.message.contains("should use INP")),
             "expected FID warning for {text:?}, got {findings:?}"
         );
     }
@@ -114,15 +122,11 @@ fn fid_reference_is_a_warning_case_insensitive() {
 fn meta_description_length_outside_120_160_is_a_warning() {
     let short = r#"<meta name="description" content="too short">"#;
     let findings = check_html_file(short);
-    assert!(findings
-        .iter()
-        .any(|f| f.severity == Severity::Warning
-            && f.message.starts_with("Meta description length")));
+    assert!(findings.iter().any(
+        |f| f.severity == Severity::Warning && f.message.starts_with("Meta description length")
+    ));
 
-    let ok_desc = format!(
-        r#"<meta name="description" content="{}">"#,
-        "x".repeat(140)
-    );
+    let ok_desc = format!(r#"<meta name="description" content="{}">"#, "x".repeat(140));
     assert!(check_html_file(&ok_desc).is_empty());
 }
 
@@ -132,8 +136,14 @@ fn multiple_findings_accumulate_in_file_and_across_files() {
     let findings = check_html_file(&content);
     // placeholder (error) + img alt (warning) + deprecated type (error)
     // + FID (warning) in the fixture.
-    let errors = findings.iter().filter(|f| f.severity == Severity::Error).count();
-    let warnings = findings.iter().filter(|f| f.severity == Severity::Warning).count();
+    let errors = findings
+        .iter()
+        .filter(|f| f.severity == Severity::Error)
+        .count();
+    let warnings = findings
+        .iter()
+        .filter(|f| f.severity == Severity::Warning)
+        .count();
     assert!(errors >= 2, "expected >=2 errors, got {findings:?}");
     assert!(warnings >= 2, "expected >=2 warnings, got {findings:?}");
 
@@ -151,10 +161,34 @@ fn multiple_findings_accumulate_in_file_and_across_files() {
 
 #[test]
 fn hook_exit_code_blocks_only_on_errors() {
-    assert_eq!(hook_exit_code(HookTotals { errors: 0, warnings: 0 }), 0);
-    assert_eq!(hook_exit_code(HookTotals { errors: 0, warnings: 5 }), 0);
-    assert_eq!(hook_exit_code(HookTotals { errors: 1, warnings: 0 }), 2);
-    assert_eq!(hook_exit_code(HookTotals { errors: 2, warnings: 3 }), 2);
+    assert_eq!(
+        hook_exit_code(HookTotals {
+            errors: 0,
+            warnings: 0
+        }),
+        0
+    );
+    assert_eq!(
+        hook_exit_code(HookTotals {
+            errors: 0,
+            warnings: 5
+        }),
+        0
+    );
+    assert_eq!(
+        hook_exit_code(HookTotals {
+            errors: 1,
+            warnings: 0
+        }),
+        2
+    );
+    assert_eq!(
+        hook_exit_code(HookTotals {
+            errors: 2,
+            warnings: 3
+        }),
+        2
+    );
 }
 
 #[test]
@@ -240,8 +274,10 @@ fn retired_type_message_matches_python_text() {
         {"@context": "https://schema.org", "@type": "ClaimReview"}
     </script>"#;
     let errors = validate_jsonld(content);
-    assert!(errors.iter().any(|e| e
-        == "Block 1: @type 'ClaimReview' is retired June 2025; fact-check rich results discontinued"));
+    assert!(errors.iter().any(|e| {
+        e
+        == "Block 1: @type 'ClaimReview' is retired June 2025; fact-check rich results discontinued"
+    }));
 }
 
 #[test]
@@ -273,7 +309,9 @@ fn multiple_blocks_are_numbered_in_order() {
     "#;
     let errors = validate_jsonld(content);
     assert!(errors.iter().any(|e| e.starts_with("Block 1:")));
-    assert!(errors.iter().any(|e| e.starts_with("Block 2: Missing @context")));
+    assert!(errors
+        .iter()
+        .any(|e| e.starts_with("Block 2: Missing @context")));
 }
 
 #[test]
@@ -287,7 +325,10 @@ fn script_tag_matching_is_case_insensitive_and_allows_attribute_order() {
 #[test]
 fn validate_schema_object_direct_call_matches_validate_jsonld_wrapper() {
     let mut obj = serde_json::Map::new();
-    obj.insert("@type".to_string(), serde_json::json!("SpecialAnnouncement"));
+    obj.insert(
+        "@type".to_string(),
+        serde_json::json!("SpecialAnnouncement"),
+    );
     let errors = validate_schema_object(&obj, 7);
     assert!(errors.iter().any(|e| e.starts_with("Block 7:")));
     assert!(errors
@@ -301,9 +342,15 @@ fn validate_schema_object_direct_call_matches_validate_jsonld_wrapper() {
 
 #[test]
 fn is_critical_finding_matches_placeholder_deprecated_retired_keywords() {
-    assert!(is_critical_finding("Block 1: Contains placeholder text: [City]"));
-    assert!(is_critical_finding("Block 1: @type 'HowTo' is deprecated September 2023"));
-    assert!(is_critical_finding("Block 1: @type 'ClaimReview' is retired June 2025"));
+    assert!(is_critical_finding(
+        "Block 1: Contains placeholder text: [City]"
+    ));
+    assert!(is_critical_finding(
+        "Block 1: @type 'HowTo' is deprecated September 2023"
+    ));
+    assert!(is_critical_finding(
+        "Block 1: @type 'ClaimReview' is retired June 2025"
+    ));
     assert!(!is_critical_finding("Block 1: Missing @context"));
     assert!(!is_critical_finding("Block 1: Missing @type"));
     assert!(!is_critical_finding(
@@ -339,7 +386,10 @@ fn partition_findings_splits_critical_from_warnings_preserving_order() {
         "Block 1: Missing @type".to_string(),
     ];
     let (critical, warnings) = partition_findings(&errors);
-    assert_eq!(critical, vec!["Block 1: Contains placeholder text: [City]".to_string()]);
+    assert_eq!(
+        critical,
+        vec!["Block 1: Contains placeholder text: [City]".to_string()]
+    );
     assert_eq!(
         warnings,
         vec![

@@ -261,17 +261,24 @@ pub fn validate_adr_canon_clarify_observation(id: &str, value: &EvalOutcome) -> 
         return false;
     }
     match (id, value) {
-        (id, EvalOutcome::AdrAdmission { status, architecture_route, .. })
-            if id.starts_with("AE-ADR-") =>
-        {
+        (
+            id,
+            EvalOutcome::AdrAdmission {
+                status,
+                architecture_route,
+                ..
+            },
+        ) if id.starts_with("AE-ADR-") => {
             matches!(*status, "ADMIT" | "REJECT" | "PENDING")
                 && (*status == "PENDING" || architecture_route.is_some())
         }
         ("AE-CANON-DRIFT-001", EvalOutcome::CanonOwnerDrift { status, drift, .. }) => {
-            matches!(*status, "PASS" | "FAIL" | "PENDING") && (*status == "PENDING" || drift.is_some())
+            matches!(*status, "PASS" | "FAIL" | "PENDING")
+                && (*status == "PENDING" || drift.is_some())
         }
         ("AE-CANON-DRIFT-002", EvalOutcome::GeneratedSourceDrift { status, drift, .. }) => {
-            matches!(*status, "PASS" | "FAIL" | "PENDING") && (*status == "PENDING" || drift.is_some())
+            matches!(*status, "PASS" | "FAIL" | "PENDING")
+                && (*status == "PENDING" || drift.is_some())
         }
         (
             "AE-CLARIFICATION-CONVERGENCE-001",
@@ -284,7 +291,14 @@ pub fn validate_adr_canon_clarify_observation(id: &str, value: &EvalOutcome) -> 
             matches!(*status, "STOP" | "CONTINUE" | "PENDING")
                 && (*status == "PENDING" || stop_questioning.is_some())
         }
-        ("AE-CLARIFICATION-CONVERGENCE-002", EvalOutcome::FogMetadata { status, scheduled_work, .. }) => {
+        (
+            "AE-CLARIFICATION-CONVERGENCE-002",
+            EvalOutcome::FogMetadata {
+                status,
+                scheduled_work,
+                ..
+            },
+        ) => {
             matches!(*status, "FOG" | "READY" | "PENDING")
                 && (*status == "PENDING" || *scheduled_work == Some(false))
         }
@@ -325,7 +339,9 @@ mod tests {
             local_alternatives: Some(0),
         });
         match out {
-            EvalOutcome::AdrAdmission { status, artifact, .. } => {
+            EvalOutcome::AdrAdmission {
+                status, artifact, ..
+            } => {
                 assert_eq!(status, "ADMIT");
                 assert_eq!(artifact, Some("ADR"));
             }
@@ -339,14 +355,25 @@ mod tests {
             local_alternatives: Some(-1),
             ..Default::default()
         });
-        assert!(matches!(out, EvalOutcome::AdrAdmission { status: "PENDING", .. }));
+        assert!(matches!(
+            out,
+            EvalOutcome::AdrAdmission {
+                status: "PENDING",
+                ..
+            }
+        ));
     }
 
     #[test]
     fn canon_drift_001_detects_two_owners() {
         let out = execute_adr_canon_clarify_case("AE-CANON-DRIFT-001").unwrap();
         match out {
-            EvalOutcome::CanonOwnerDrift { status, owner_count, drift, .. } => {
+            EvalOutcome::CanonOwnerDrift {
+                status,
+                owner_count,
+                drift,
+                ..
+            } => {
                 assert_eq!(status, "FAIL");
                 assert_eq!(owner_count, Some(2));
                 assert_eq!(drift, Some(true));
@@ -359,7 +386,12 @@ mod tests {
     fn canon_drift_single_owner_passes() {
         let out = evaluate_canon_owner_drift(&["a", "a", "a"]);
         match out {
-            EvalOutcome::CanonOwnerDrift { status, source_owner, drift, .. } => {
+            EvalOutcome::CanonOwnerDrift {
+                status,
+                source_owner,
+                drift,
+                ..
+            } => {
                 assert_eq!(status, "PASS");
                 assert_eq!(source_owner.as_deref(), Some("a"));
                 assert_eq!(drift, Some(false));
@@ -394,7 +426,12 @@ mod tests {
         let v = Json::obj([("a", Json::Num(1.0))]);
         let out = evaluate_generated_source_drift(&v.clone(), &v);
         match out {
-            EvalOutcome::GeneratedSourceDrift { status, drift, remediation, .. } => {
+            EvalOutcome::GeneratedSourceDrift {
+                status,
+                drift,
+                remediation,
+                ..
+            } => {
                 assert_eq!(status, "PASS");
                 assert_eq!(drift, Some(false));
                 assert_eq!(remediation, None);
@@ -407,7 +444,11 @@ mod tests {
     fn clarification_convergence_001_stops() {
         let out = execute_adr_canon_clarify_case("AE-CLARIFICATION-CONVERGENCE-001").unwrap();
         match out {
-            EvalOutcome::ClarificationConvergence { status, stop_questioning, .. } => {
+            EvalOutcome::ClarificationConvergence {
+                status,
+                stop_questioning,
+                ..
+            } => {
                 assert_eq!(status, "STOP");
                 assert_eq!(stop_questioning, Some(true));
             }
@@ -424,20 +465,38 @@ mod tests {
             },
             true,
         );
-        assert!(matches!(out, EvalOutcome::ClarificationConvergence { status: "CONTINUE", .. }));
+        assert!(matches!(
+            out,
+            EvalOutcome::ClarificationConvergence {
+                status: "CONTINUE",
+                ..
+            }
+        ));
     }
 
     #[test]
     fn clarification_continues_when_dispositions_not_recorded() {
         let out = evaluate_clarification_convergence(&ClarificationImpact::default(), false);
-        assert!(matches!(out, EvalOutcome::ClarificationConvergence { status: "CONTINUE", .. }));
+        assert!(matches!(
+            out,
+            EvalOutcome::ClarificationConvergence {
+                status: "CONTINUE",
+                ..
+            }
+        ));
     }
 
     #[test]
     fn fog_metadata_002_is_fog_on_blank_inputs() {
         let out = execute_adr_canon_clarify_case("AE-CLARIFICATION-CONVERGENCE-002").unwrap();
         match out {
-            EvalOutcome::FogMetadata { status, fog_metadata_only, scheduled_work, blocker, .. } => {
+            EvalOutcome::FogMetadata {
+                status,
+                fog_metadata_only,
+                scheduled_work,
+                blocker,
+                ..
+            } => {
                 assert_eq!(status, "FOG");
                 assert_eq!(fog_metadata_only, Some(true));
                 assert_eq!(scheduled_work, Some(false));
@@ -451,7 +510,11 @@ mod tests {
     fn fog_metadata_ready_on_precise_inputs() {
         let out = evaluate_fog_metadata("why does X drift", "observed at commit abc");
         match out {
-            EvalOutcome::FogMetadata { status, fog_metadata_only, .. } => {
+            EvalOutcome::FogMetadata {
+                status,
+                fog_metadata_only,
+                ..
+            } => {
                 assert_eq!(status, "READY");
                 assert_eq!(fog_metadata_only, Some(false));
             }
@@ -467,7 +530,10 @@ mod tests {
     #[test]
     fn all_runtime_ids_execute_to_some_outcome() {
         for id in adr_canon_clarify_runtime_ids() {
-            assert!(execute_adr_canon_clarify_case(id).is_some(), "{id} did not execute");
+            assert!(
+                execute_adr_canon_clarify_case(id).is_some(),
+                "{id} did not execute"
+            );
         }
     }
 
@@ -485,12 +551,18 @@ mod tests {
     #[test]
     fn validator_rejects_unknown_id() {
         let out = execute_adr_canon_clarify_case("AE-CANON-DRIFT-001").unwrap();
-        assert!(!validate_adr_canon_clarify_observation("AE-NOT-A-CASE", &out));
+        assert!(!validate_adr_canon_clarify_observation(
+            "AE-NOT-A-CASE",
+            &out
+        ));
     }
 
     #[test]
     fn binding_alias_names_match_case_functions() {
-        assert_eq!(adr_canon_clarify_binding_ids(), adr_canon_clarify_runtime_ids());
+        assert_eq!(
+            adr_canon_clarify_binding_ids(),
+            adr_canon_clarify_runtime_ids()
+        );
         assert_eq!(
             execute_adr_canon_clarify_binding("AE-CANON-DRIFT-001"),
             execute_adr_canon_clarify_case("AE-CANON-DRIFT-001")

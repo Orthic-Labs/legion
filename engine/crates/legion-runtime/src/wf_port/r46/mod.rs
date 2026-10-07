@@ -60,7 +60,10 @@ pub mod tables;
 pub mod topology;
 
 pub use authority_correction::authority_correction_errors;
-pub use cli::{validate_full_errors, validate_ported_errors, MinimizeGate, NoMinimizeGate, RunOptions, RunOutcome};
+pub use cli::{
+    validate_full_errors, validate_ported_errors, MinimizeGate, NoMinimizeGate, RunOptions,
+    RunOutcome,
+};
 pub use decision_scope::decision_scope_errors;
 pub use dependency::parse_dependency_contract;
 pub use execution_control::execution_control_errors;

@@ -35,7 +35,8 @@ impl ProviderNode {
 /// text as the JS `Error` it mirrors (including the `JSON.stringify`-shaped
 /// cycle report), since these are diagnostics, not typed refusals.
 pub fn topological_providers(providers: &[ProviderNode]) -> Result<Vec<ProviderNode>, String> {
-    let by_id: BTreeMap<&str, &ProviderNode> = providers.iter().map(|p| (p.id.as_str(), p)).collect();
+    let by_id: BTreeMap<&str, &ProviderNode> =
+        providers.iter().map(|p| (p.id.as_str(), p)).collect();
     let mut incoming: BTreeMap<String, BTreeSet<String>> = providers
         .iter()
         .map(|p| (p.id.clone(), p.depends_on.iter().cloned().collect()))
@@ -116,13 +117,48 @@ pub struct RoleAuthority {
 /// Mirrors `ROLE_OUTPUT_AUTHORITY`. Order/membership match JS exactly.
 pub fn role_output_authority(role: &str) -> Option<RoleAuthority> {
     Some(match role {
-        "model-builder" => RoleAuthority { candidates: false, hypotheses: false, verdicts: false, findings: false },
-        "candidate-generator" => RoleAuthority { candidates: true, hypotheses: false, verdicts: false, findings: false },
-        "hypothesis-generator" => RoleAuthority { candidates: false, hypotheses: true, verdicts: false, findings: false },
-        "adjudicator" => RoleAuthority { candidates: false, hypotheses: false, verdicts: true, findings: false },
-        "variant-analyzer" => RoleAuthority { candidates: false, hypotheses: false, verdicts: false, findings: false },
-        "evidence-synthesizer" => RoleAuthority { candidates: false, hypotheses: false, verdicts: false, findings: true },
-        "deterministic" => RoleAuthority { candidates: true, hypotheses: false, verdicts: false, findings: true },
+        "model-builder" => RoleAuthority {
+            candidates: false,
+            hypotheses: false,
+            verdicts: false,
+            findings: false,
+        },
+        "candidate-generator" => RoleAuthority {
+            candidates: true,
+            hypotheses: false,
+            verdicts: false,
+            findings: false,
+        },
+        "hypothesis-generator" => RoleAuthority {
+            candidates: false,
+            hypotheses: true,
+            verdicts: false,
+            findings: false,
+        },
+        "adjudicator" => RoleAuthority {
+            candidates: false,
+            hypotheses: false,
+            verdicts: true,
+            findings: false,
+        },
+        "variant-analyzer" => RoleAuthority {
+            candidates: false,
+            hypotheses: false,
+            verdicts: false,
+            findings: false,
+        },
+        "evidence-synthesizer" => RoleAuthority {
+            candidates: false,
+            hypotheses: false,
+            verdicts: false,
+            findings: true,
+        },
+        "deterministic" => RoleAuthority {
+            candidates: true,
+            hypotheses: false,
+            verdicts: false,
+            findings: true,
+        },
         _ => return None,
     })
 }
@@ -136,8 +172,12 @@ const ARTIFACT_KEYS: &[(&str, fn(&RoleAuthority) -> bool)] = &[
 
 /// Port of `validateRoleOutput(provider)`.
 pub fn validate_role_output(provider: &ProviderNode) -> Result<bool, String> {
-    let authority = role_output_authority(&provider.role)
-        .ok_or_else(|| format!("provider {} has unknown role {}", provider.id, provider.role))?;
+    let authority = role_output_authority(&provider.role).ok_or_else(|| {
+        format!(
+            "provider {} has unknown role {}",
+            provider.id, provider.role
+        )
+    })?;
     for (artifact, allowed) in ARTIFACT_KEYS {
         if provider.produces.iter().any(|p| p == artifact) && !allowed(&authority) {
             return Err(format!(
@@ -172,7 +212,10 @@ pub fn validate_provider_dag(providers: &[ProviderNode]) -> Result<bool, String>
                     artifact.clone(),
                     ProducerEntry {
                         id: provider.id.clone(),
-                        non_singleton: provider.non_singleton_artifacts.iter().any(|a| a == artifact),
+                        non_singleton: provider
+                            .non_singleton_artifacts
+                            .iter()
+                            .any(|a| a == artifact),
                     },
                 );
             }
@@ -231,7 +274,10 @@ mod tests {
 
     #[test]
     fn cycle_errors_with_json_report() {
-        let providers = vec![node("a", "deterministic", &["b"]), node("b", "deterministic", &["a"])];
+        let providers = vec![
+            node("a", "deterministic", &["b"]),
+            node("b", "deterministic", &["a"]),
+        ];
         let err = topological_providers(&providers).unwrap_err();
         assert!(err.starts_with("provider dependency cycle: "));
         assert!(err.contains(r#""id":"a""#));
@@ -243,7 +289,10 @@ mod tests {
         let mut p = ProviderNode::new("p1", "model-builder");
         p.produces = vec!["security-candidates".to_string()];
         let err = validate_role_output(&p).unwrap_err();
-        assert_eq!(err, "provider p1 role model-builder may not produce security-candidates");
+        assert_eq!(
+            err,
+            "provider p1 role model-builder may not produce security-candidates"
+        );
     }
 
     #[test]

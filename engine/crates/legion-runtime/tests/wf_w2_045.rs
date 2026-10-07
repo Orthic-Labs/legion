@@ -36,7 +36,10 @@ fn planned_files_fixture_round_trips_through_direct_file_allowlist_path() {
     for entry in &planned {
         let normalized = direct_file_allowlist_path(entry)
             .unwrap_or_else(|| panic!("fixture entry should be a valid allowlist path: {entry}"));
-        assert!(seen.insert(normalized), "duplicate/aliased planned file: {entry}");
+        assert!(
+            seen.insert(normalized),
+            "duplicate/aliased planned file: {entry}"
+        );
     }
 }
 
@@ -88,8 +91,10 @@ fn resolve_declared_path_and_canonical_locator_round_trip_repo_relative_paths() 
     // so a "repo-relative" declared path must be relative to `legion/`,
     // i.e. include the `engine/crates/legion-runtime/` prefix.
     let artifact = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
-    let resolved =
-        resolve_declared_path("engine/crates/legion-runtime/src/wf_port/w2_045/mod.rs", &artifact);
+    let resolved = resolve_declared_path(
+        "engine/crates/legion-runtime/src/wf_port/w2_045/mod.rs",
+        &artifact,
+    );
     assert!(resolved.ends_with("src/wf_port/w2_045/mod.rs"));
     assert_eq!(
         canonical_locator(&resolved),

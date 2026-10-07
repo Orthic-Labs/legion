@@ -53,7 +53,10 @@ mod tests {
     #[test]
     fn buckets_are_round_robin_and_cover_all_frames() {
         let buckets = round_robin_buckets(10, 3);
-        assert_eq!(buckets, vec![vec![0, 3, 6, 9], vec![1, 4, 7], vec![2, 5, 8]]);
+        assert_eq!(
+            buckets,
+            vec![vec![0, 3, 6, 9], vec![1, 4, 7], vec![2, 5, 8]]
+        );
         let total: usize = buckets.iter().map(|b| b.len()).sum();
         assert_eq!(total, 10);
     }

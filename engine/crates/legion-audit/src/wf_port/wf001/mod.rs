@@ -76,11 +76,15 @@ impl Eq for Manifest {}
 pub fn build_components(packages: Vec<Package>) -> Result<Vec<Component>, ComponentError> {
     let mut components = Vec::with_capacity(packages.len());
     for pkg in packages {
-        let manifest = pkg.manifest.ok_or_else(|| ComponentError::ManifestRequired {
-            root: pkg.root.clone(),
-        })?;
+        let manifest = pkg
+            .manifest
+            .ok_or_else(|| ComponentError::ManifestRequired {
+                root: pkg.root.clone(),
+            })?;
         if manifest.name.is_empty() {
-            return Err(ComponentError::ManifestRequired { root: pkg.root.clone() });
+            return Err(ComponentError::ManifestRequired {
+                root: pkg.root.clone(),
+            });
         }
 
         let mut hasher = Sha256::new();
@@ -358,7 +362,10 @@ mod tests {
         .unwrap();
         let a_component = out.iter().find(|c| c.root == "packages/a").unwrap();
         assert_eq!(again[0].id, a_component.id);
-        assert_eq!(a_component.dependents, vec!["x".to_string(), "y".to_string()]);
+        assert_eq!(
+            a_component.dependents,
+            vec!["x".to_string(), "y".to_string()]
+        );
 
         // Output sorted by id, lexicographically.
         assert!(out[0].id <= out[1].id);
@@ -385,7 +392,10 @@ mod tests {
     fn no_call_evidence_is_unknown() {
         let out = join_reachability(serde_json::Map::new(), Some(vec![]), None);
         assert_eq!(out.reachability, ReachabilityState::Unknown);
-        assert_eq!(out.limitations, vec!["missing-qualified-call-evidence".to_string()]);
+        assert_eq!(
+            out.limitations,
+            vec!["missing-qualified-call-evidence".to_string()]
+        );
         assert!(out.evidence_refs.is_empty());
         assert!(out.trace.is_empty());
 
@@ -453,8 +463,14 @@ mod tests {
             }]),
             Some(serde_json::json!("scope")),
         );
-        assert_eq!(out.reachability, ReachabilityState::NotReachedInObservedGraph);
-        assert_eq!(out.limitations, vec!["observed graph is not proof of safety".to_string()]);
+        assert_eq!(
+            out.reachability,
+            ReachabilityState::NotReachedInObservedGraph
+        );
+        assert_eq!(
+            out.limitations,
+            vec!["observed graph is not proof of safety".to_string()]
+        );
         assert_eq!(out.graph_scope, Some(serde_json::json!("scope")));
     }
 

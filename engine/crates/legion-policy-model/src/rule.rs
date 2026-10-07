@@ -144,6 +144,8 @@ mod tests {
 
     #[test]
     fn an_unknown_predicate_clause_is_still_refused() {
-        assert!(serde_json::from_str::<RulePredicate>(r#"{"effectClass": "FILE_DELETE"}"#).is_err());
+        assert!(
+            serde_json::from_str::<RulePredicate>(r#"{"effectClass": "FILE_DELETE"}"#).is_err()
+        );
     }
 }

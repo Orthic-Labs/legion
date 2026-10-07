@@ -40,9 +40,9 @@ pub mod decision;
 pub mod time;
 
 pub mod architecture_router;
-pub mod scheduler;
 pub mod gate_validity;
+pub mod scheduler;
 
 pub mod advisory_profile;
-pub mod current_user_risk_acceptance;
 pub mod completion_gate;
+pub mod current_user_risk_acceptance;

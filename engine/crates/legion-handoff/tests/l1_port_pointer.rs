@@ -1,8 +1,7 @@
 //! Tests for the L1 literal port of `transcript_handoff.py`'s pointer logic.
 
 use legion_handoff::l1_port::pointer::{
-    build_pointer, candidates, normalized_path, paste_prompt, read_header, resolve_source,
-    Platform,
+    build_pointer, candidates, normalized_path, paste_prompt, read_header, resolve_source, Platform,
 };
 use std::fs;
 use std::io::Write;
@@ -136,14 +135,8 @@ fn resolve_source_filters_by_requested_session_id() {
     write_jsonl(&a, &[r#"{"id":"session-a","cwd":"/work"}"#]);
     write_jsonl(&b, &[r#"{"id":"session-b","cwd":"/work"}"#]);
 
-    let (path, id, _workspace, method) = resolve_source(
-        Platform::Claude,
-        Some("session-b"),
-        None,
-        home.path(),
-        None,
-    )
-    .unwrap();
+    let (path, id, _workspace, method) =
+        resolve_source(Platform::Claude, Some("session-b"), None, home.path(), None).unwrap();
     assert_eq!(id, "session-b");
     assert_eq!(method, "exact_session_id");
     assert!(path.ends_with("b.jsonl"));
@@ -152,8 +145,8 @@ fn resolve_source_filters_by_requested_session_id() {
 #[test]
 fn resolve_source_errors_when_no_match() {
     let home = tempfile::tempdir().unwrap();
-    let err = resolve_source(Platform::Claude, Some("missing"), None, home.path(), None)
-        .unwrap_err();
+    let err =
+        resolve_source(Platform::Claude, Some("missing"), None, home.path(), None).unwrap_err();
     assert!(err.contains("no transcript matches"));
 }
 

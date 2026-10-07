@@ -21,7 +21,8 @@ struct Rule {
 fn debug_enabled() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r#"(?i)(?:DEBUG|debug)\s*[:=]\s*(?:true|1)|NODE_ENV\s*!==?\s*['"]production"#).unwrap()
+        Regex::new(r#"(?i)(?:DEBUG|debug)\s*[:=]\s*(?:true|1)|NODE_ENV\s*!==?\s*['"]production"#)
+            .unwrap()
     })
 }
 
@@ -76,7 +77,8 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
             if !(rule.pattern)().is_match(text) {
                 continue;
             }
-            let artifact_ids: Vec<String> = artifact.map(|a| vec![a.id.clone()]).unwrap_or_default();
+            let artifact_ids: Vec<String> =
+                artifact.map(|a| vec![a.id.clone()]).unwrap_or_default();
             observations.push(Observation {
                 rule_id: rule.id.to_string(),
                 candidate_class: CANDIDATE_CLASS.to_string(),
@@ -108,10 +110,13 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 required_controls: Vec::new(),
                 observed_controls: Vec::new(),
                 chain_roles: vec!["starter".to_string(), "impact".to_string()],
-                evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                evidence_refs: artifact
+                    .map(|a| a.evidence_refs.clone())
+                    .unwrap_or_default(),
                 detector_metadata: json!({ "file": file, "patternFamily": CANDIDATE_CLASS }),
                 uncertainty: vec![
-                    "Reachability and compensating controls require independent adjudication.".to_string(),
+                    "Reachability and compensating controls require independent adjudication."
+                        .to_string(),
                 ],
             });
         }

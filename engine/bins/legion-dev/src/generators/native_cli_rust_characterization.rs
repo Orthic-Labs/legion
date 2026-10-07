@@ -17,18 +17,31 @@ fn semantic_oracle(fixture: &Value, observation: &gate::Observation) -> Vec<Stri
         if observation.exit_code.map(|c| c as i64) != Some(exit) {
             mismatches.push(format!(
                 "expected native exit {exit}, got {}",
-                observation.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "null".into())
+                observation
+                    .exit_code
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| "null".into())
             ));
         }
     }
-    for needle in expect.get("stdoutIncludes").and_then(Value::as_array).into_iter().flatten() {
+    for needle in expect
+        .get("stdoutIncludes")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if let Some(n) = needle.as_str() {
             if !observation.stdout.contains(n) {
                 mismatches.push(format!("native stdout missing: {n}"));
             }
         }
     }
-    for needle in expect.get("stderrIncludes").and_then(Value::as_array).into_iter().flatten() {
+    for needle in expect
+        .get("stderrIncludes")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if let Some(n) = needle.as_str() {
             if !observation.stderr.contains(n) {
                 mismatches.push(format!("native stderr missing: {n}"));
@@ -77,7 +90,12 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
             json!({ "mode": "diagnostic-developer", "executable": executable.display().to_string(), "evidenceRole": "diagnostic-developer-capture" }),
         )
     } else {
-        let evidence_path = gate::resolve_evidence_path(std::env::var("LEGION_NATIVE_BUILD_EVIDENCE").ok().as_deref(), root);
+        let evidence_path = gate::resolve_evidence_path(
+            std::env::var("LEGION_NATIVE_BUILD_EVIDENCE")
+                .ok()
+                .as_deref(),
+            root,
+        );
         let provenance = gate::validate_executable_provenance(
             &executable,
             Some(evidence_path.as_path()),
@@ -118,11 +136,30 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
             .fixture
             .get("argv")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default();
-        let timeout_ms = row.fixture.get("timeoutMs").and_then(Value::as_u64).unwrap_or(gate::DEFAULT_TIMEOUT_MS);
-        let max_output = row.fixture.get("maxOutputBytes").and_then(Value::as_u64).unwrap_or(gate::DEFAULT_MAX_OUTPUT_BYTES as u64) as usize;
-        let mut observation = gate::run_bounded(&provenance_executable, &argv, &sandbox.cwd, &sandbox.env, timeout_ms, max_output);
+        let timeout_ms = row
+            .fixture
+            .get("timeoutMs")
+            .and_then(Value::as_u64)
+            .unwrap_or(gate::DEFAULT_TIMEOUT_MS);
+        let max_output = row
+            .fixture
+            .get("maxOutputBytes")
+            .and_then(Value::as_u64)
+            .unwrap_or(gate::DEFAULT_MAX_OUTPUT_BYTES as u64) as usize;
+        let mut observation = gate::run_bounded(
+            &provenance_executable,
+            &argv,
+            &sandbox.cwd,
+            &sandbox.env,
+            timeout_ms,
+            max_output,
+        );
         let after = gate::snapshot_sandbox_hashed(&sandbox);
         gate::remove_sandbox(&sandbox);
         let (after, after_sha256) = after?;
@@ -149,14 +186,22 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
             &row.fixture,
             &observation,
             baseline,
-            baseline_id_digest.as_ref().map(|(a, b)| (a.as_str(), b.as_str())),
+            baseline_id_digest
+                .as_ref()
+                .map(|(a, b)| (a.as_str(), b.as_str())),
             &row.fixture_sha256,
             &row.id,
             &temp_roots,
         );
         if row_result.status == "matched" || row_result.status == "mismatched" {
-            row_result.mismatch.extend(semantic_oracle(&row.fixture, &observation));
-            row_result.status = if row_result.mismatch.is_empty() { "matched" } else { "mismatched" };
+            row_result
+                .mismatch
+                .extend(semantic_oracle(&row.fixture, &observation));
+            row_result.status = if row_result.mismatch.is_empty() {
+                "matched"
+            } else {
+                "mismatched"
+            };
         }
 
         let record = json!({
@@ -185,7 +230,11 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
             "status": row_result.status,
             "comparison": row_result.comparison,
         });
-        fs::write(out_dir.join(format!("{}.json", row.id)), format!("{}\n", serde_json::to_string_pretty(&record).unwrap())).map_err(|e| e.to_string())?;
+        fs::write(
+            out_dir.join(format!("{}.json", row.id)),
+            format!("{}\n", serde_json::to_string_pretty(&record).unwrap()),
+        )
+        .map_err(|e| e.to_string())?;
         results.push(gate::RowSummaryInput {
             id: row.id.clone(),
             status: row_result.status.to_string(),
@@ -194,8 +243,12 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
         });
     }
 
-    let summarized = gate::summarize_results(&results, Some(&manifest.row_ids), Some(manifest.row_count));
-    let mut qualifying = summarized.get("qualifying").and_then(Value::as_bool).unwrap_or(false);
+    let summarized =
+        gate::summarize_results(&results, Some(&manifest.row_ids), Some(manifest.row_count));
+    let mut qualifying = summarized
+        .get("qualifying")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     qualifying = !diagnostic && qualifying;
 
     let summary = json!({
@@ -215,7 +268,11 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
         "counts": summarized["counts"],
         "results": summarized["resultsNormalized"],
     });
-    fs::write(out_dir.join("summary.json"), format!("{}\n", serde_json::to_string_pretty(&summary).unwrap())).map_err(|e| e.to_string())?;
+    fs::write(
+        out_dir.join("summary.json"),
+        format!("{}\n", serde_json::to_string_pretty(&summary).unwrap()),
+    )
+    .map_err(|e| e.to_string())?;
     println!("{}", serde_json::to_string_pretty(&summary).unwrap());
     Ok(diagnostic || qualifying)
 }

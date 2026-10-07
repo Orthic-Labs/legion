@@ -80,9 +80,15 @@ pub fn detect_comment_syntax(file_path: &Path) -> CommentSyntax {
         .map(|e| e.to_lowercase())
         .unwrap_or_default();
     if ext == "jsx" || ext == "tsx" {
-        CommentSyntax { open: "{/*", close: "*/}" }
+        CommentSyntax {
+            open: "{/*",
+            close: "*/}",
+        }
     } else {
-        CommentSyntax { open: "<!--", close: "-->" }
+        CommentSyntax {
+            open: "<!--",
+            close: "-->",
+        }
     }
 }
 
@@ -109,7 +115,12 @@ fn has_variant_wrapper_attr(line: &str, id: &str) -> bool {
 }
 
 /// Mirrors `expandReplaceRange(block, lines, isJsx)`.
-pub fn expand_replace_range(block: MarkerBlock, lines: &[String], id: &str, is_jsx: bool) -> MarkerBlock {
+pub fn expand_replace_range(
+    block: MarkerBlock,
+    lines: &[String],
+    id: &str,
+    is_jsx: bool,
+) -> MarkerBlock {
     if !is_jsx {
         return block;
     }
@@ -125,7 +136,10 @@ pub fn expand_replace_range(block: MarkerBlock, lines: &[String], id: &str, is_j
         if has_variant_wrapper_attr(&lines[idx], id) {
             let mut opener = idx;
             let div_re = Regex::new(r"<div\b").unwrap();
-            while opener > 0 && !div_re.is_match(&lines[opener]) && !is_variant_end_marker_line(&lines[opener], id) {
+            while opener > 0
+                && !div_re.is_match(&lines[opener])
+                && !is_variant_end_marker_line(&lines[opener], id)
+            {
                 opener -= 1;
             }
             if div_re.is_match(&lines[opener]) {
@@ -196,8 +210,10 @@ fn strip_style_and_join(lines: &[String], block: MarkerBlock) -> String {
 
 /// Mirrors `extractInnerByAttr(text, attrMatch)`.
 fn extract_inner_by_attr(text: &str, attr_match: &str) -> Option<String> {
-    let opener_re =
-        Regex::new(&format!(r"<([A-Za-z][A-Za-z0-9]*)\b[^>]*{attr_match}[^>]*>")).ok()?;
+    let opener_re = Regex::new(&format!(
+        r"<([A-Za-z][A-Za-z0-9]*)\b[^>]*{attr_match}[^>]*>"
+    ))
+    .ok()?;
     let open_match = opener_re.find(text)?;
     let caps = opener_re.captures(text)?;
     let tag_name = caps.get(1)?.as_str();
@@ -231,7 +247,11 @@ pub fn extract_original(lines: &[String], block: MarkerBlock) -> Vec<String> {
 }
 
 /// Mirrors `extractVariant(lines, block, variantNum)`.
-pub fn extract_variant(lines: &[String], block: MarkerBlock, variant_num: &str) -> Option<Vec<String>> {
+pub fn extract_variant(
+    lines: &[String],
+    block: MarkerBlock,
+    variant_num: &str,
+) -> Option<Vec<String>> {
     let text = strip_style_and_join(lines, block);
     let attr = format!(r#"data-impeccable-variant="{variant_num}""#);
     let inner = extract_inner_by_attr(&text, &attr)?;
@@ -612,7 +632,14 @@ pub fn accept_file(
 // ---------------------------------------------------------------------------
 
 const SEARCH_DIRS: [&str; 8] = [
-    "src", "app", "pages", "components", "public", "views", "templates", ".",
+    "src",
+    "app",
+    "pages",
+    "components",
+    "public",
+    "views",
+    "templates",
+    ".",
 ];
 
 /// Mirrors `findSessionFile(id, cwd)`, returning the matching file's path
@@ -777,7 +804,10 @@ fn write_manual_edits_buffer(root: &Path, buffer: &serde_json::Value) -> std::io
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let entries = buffer.get("entries").cloned().unwrap_or_else(|| serde_json::json!([]));
+    let entries = buffer
+        .get("entries")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
     let out = serde_json::json!({ "version": 1, "entries": entries });
     fs::write(path, serde_json::to_string_pretty(&out).unwrap())
 }
@@ -815,9 +845,18 @@ pub fn scrub_manual_edits_against_original_block_on_disk(
         };
         let before = ops.len();
         ops.retain(|op| {
-            let original_text = op.get("originalText").and_then(|v| v.as_str()).map(str::to_string);
-            let new_text = op.get("newText").and_then(|v| v.as_str()).map(str::to_string);
-            let mirrored = ManualEditOp { original_text, new_text };
+            let original_text = op
+                .get("originalText")
+                .and_then(|v| v.as_str())
+                .map(str::to_string);
+            let new_text = op
+                .get("newText")
+                .and_then(|v| v.as_str())
+                .map(str::to_string);
+            let mirrored = ManualEditOp {
+                original_text,
+                new_text,
+            };
             !manual_edit_op_appears_in_block(&mirrored, original_block_text)
         });
         if ops.len() != before {
@@ -848,10 +887,7 @@ pub fn scrub_manual_edits_against_original_block_on_disk(
 /// value is read, not which quote character was used).
 fn read_html_attr(tag: &str, name: &str) -> Option<String> {
     let escaped = escape_regex(name);
-    let re = Regex::new(&format!(
-        r#"\s{escaped}\s*=\s*(?:"([^"]*)"|'([^']*)')"#
-    ))
-    .ok()?;
+    let re = Regex::new(&format!(r#"\s{escaped}\s*=\s*(?:"([^"]*)"|'([^']*)')"#)).ok()?;
     let caps = re.captures(tag)?;
     let value = caps.get(1).or_else(|| caps.get(2))?.as_str();
     Some(decode_html_attr(value))
@@ -880,8 +916,12 @@ fn read_source_shadow_preview_meta(content: &str, id: &str) -> Option<(String, i
         return None;
     }
     let source_file = read_html_attr(tag, "data-impeccable-source-file")?;
-    let source_start_line: i64 = read_html_attr(tag, "data-impeccable-source-start")?.parse().ok()?;
-    let source_end_line: i64 = read_html_attr(tag, "data-impeccable-source-end")?.parse().ok()?;
+    let source_start_line: i64 = read_html_attr(tag, "data-impeccable-source-start")?
+        .parse()
+        .ok()?;
+    let source_end_line: i64 = read_html_attr(tag, "data-impeccable-source-end")?
+        .parse()
+        .ok()?;
     Some((source_file, source_start_line, source_end_line))
 }
 
@@ -993,7 +1033,10 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
         let mut value = serde_json::to_value(&result).unwrap_or_default();
         if result.carbonize {
             if let Some(obj) = value.as_object_mut() {
-                obj.insert("todo".to_string(), serde_json::json!(carbonize_todo(&result.file)));
+                obj.insert(
+                    "todo".to_string(),
+                    serde_json::json!(carbonize_todo(&result.file)),
+                );
             }
         }
         return (0, value.to_string());
@@ -1022,7 +1065,9 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
         return (0, out.to_string());
     }
 
-    let is_generated_options = IsGeneratedOptions { cwd: Some(cwd.to_path_buf()) };
+    let is_generated_options = IsGeneratedOptions {
+        cwd: Some(cwd.to_path_buf()),
+    };
     if is_generated_file(&found.to_string_lossy(), &is_generated_options) {
         let out = serde_json::json!({
             "handled": false,
@@ -1036,7 +1081,8 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
     if is_discard {
         match discard_file(id, &found) {
             Ok(result) if result.handled => {
-                let out = serde_json::json!({ "handled": true, "file": rel_file, "carbonize": false });
+                let out =
+                    serde_json::json!({ "handled": true, "file": rel_file, "carbonize": false });
                 (0, out.to_string())
             }
             Ok(result) => {
@@ -1053,7 +1099,10 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
                 if result.carbonize {
                     if let Some(obj) = out.as_object_mut() {
                         obj.insert("carbonize".to_string(), serde_json::json!(true));
-                        obj.insert("todo".to_string(), serde_json::json!(carbonize_todo(&rel_file)));
+                        obj.insert(
+                            "todo".to_string(),
+                            serde_json::json!(carbonize_todo(&rel_file)),
+                        );
                     }
                 }
                 scrub_manual_edits_against_original_block_on_disk(
@@ -1177,7 +1226,10 @@ mod tests {
 
     #[test]
     fn deindent_content_strips_minimum_common_indent() {
-        let content = vec!["    <p>a</p>".to_string(), "      <span>b</span>".to_string()];
+        let content = vec![
+            "    <p>a</p>".to_string(),
+            "      <span>b</span>".to_string(),
+        ];
         let out = deindent_content(&content, "  ");
         assert_eq!(out[0], "  <p>a</p>");
         assert_eq!(out[1], "    <span>b</span>");
@@ -1241,7 +1293,10 @@ mod tests {
         let result = handle_accept(id, "1", &l, Path::new("a.html"), None);
         assert!(result.handled);
         assert!(result.carbonize);
-        assert!(result.new_lines.join("\n").contains("impeccable-carbonize-start"));
+        assert!(result
+            .new_lines
+            .join("\n")
+            .contains("impeccable-carbonize-start"));
     }
 
     #[test]
@@ -1249,11 +1304,8 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
-            "w2-016-live-accept-{}-{}",
-            std::process::id(),
-            n
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("w2-016-live-accept-{}-{}", std::process::id(), n));
         fs::create_dir_all(&dir).unwrap();
         let file_path = dir.join("page.html");
         let id = "abc123";
@@ -1272,11 +1324,8 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
-            "w2-016-find-session-{}-{}",
-            std::process::id(),
-            n
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("w2-016-find-session-{}-{}", std::process::id(), n));
         let src_dir = dir.join("src");
         fs::create_dir_all(&src_dir).unwrap();
         let id = "abc123";
@@ -1311,7 +1360,11 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("r17-live-accept-{tag}-{}-{}", std::process::id(), n));
+        let dir = std::env::temp_dir().join(format!(
+            "r17-live-accept-{tag}-{}-{}",
+            std::process::id(),
+            n
+        ));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -1334,7 +1387,11 @@ mod tests {
         });
         write_manual_edits_buffer(&root, &buffer).unwrap();
 
-        scrub_manual_edits_against_original_block_on_disk(&root, "<p>Hello world</p>", Some("/home"));
+        scrub_manual_edits_against_original_block_on_disk(
+            &root,
+            "<p>Hello world</p>",
+            Some("/home"),
+        );
 
         let reread = read_manual_edits_buffer(&root);
         let entries = reread["entries"].as_array().unwrap();
@@ -1399,7 +1456,11 @@ mod tests {
     fn run_session_not_found_reports_unhandled_with_zero_exit() {
         let dir = r17_tmp_dir("run-not-found");
         let (code, out) = run(
-            &["--id".to_string(), "missing-id".to_string(), "--discard".to_string()],
+            &[
+                "--id".to_string(),
+                "missing-id".to_string(),
+                "--discard".to_string(),
+            ],
             &dir,
         );
         assert_eq!(code, 0);
@@ -1417,7 +1478,12 @@ mod tests {
         fs::write(src_dir.join("page.html"), html_fixture(id)).unwrap();
 
         let (code, out) = run(
-            &["--id".to_string(), id.to_string(), "--variant".to_string(), "1".to_string()],
+            &[
+                "--id".to_string(),
+                id.to_string(),
+                "--variant".to_string(),
+                "1".to_string(),
+            ],
             &dir,
         );
         assert_eq!(code, 0);
@@ -1436,7 +1502,10 @@ mod tests {
         let id = "abc123";
         fs::write(src_dir.join("page.html"), html_fixture(id)).unwrap();
 
-        let (code, out) = run(&["--id".to_string(), id.to_string(), "--discard".to_string()], &dir);
+        let (code, out) = run(
+            &["--id".to_string(), id.to_string(), "--discard".to_string()],
+            &dir,
+        );
         assert_eq!(code, 0);
         assert!(out.contains("\"handled\":true"));
         let written = fs::read_to_string(src_dir.join("page.html")).unwrap();

@@ -61,7 +61,12 @@ fn root() -> PathBuf {
     let suffix = ((SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system clock")
-        .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }));
+        .as_nanos())
+    .wrapping_shl(20)
+        | ({
+            static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+        }));
     let root = std::env::temp_dir().join(format!("legion-decomposition-parity-{suffix}"));
     fs::create_dir_all(&root).expect("temporary repository");
     root
@@ -103,9 +108,17 @@ fn default_threshold_is_400_loc_not_800() {
     let inv = inventory(&["big.ts"]);
     let selector = json!({"op":"always"});
     let result = NativeProviderRegistry::new(&root)
-        .execute(&provider("legacy.architecture.decomposition", selector), &inv)
+        .execute(
+            &provider("legacy.architecture.decomposition", selector),
+            &inv,
+        )
         .unwrap();
-    let candidates = result.details.get("candidates").unwrap().as_array().unwrap();
+    let candidates = result
+        .details
+        .get("candidates")
+        .unwrap()
+        .as_array()
+        .unwrap();
     assert!(
         !candidates.is_empty(),
         "450 LOC file must trigger a review candidate at the 400 LOC default threshold"
@@ -130,7 +143,12 @@ fn file_below_threshold_is_not_flagged() {
             &inv,
         )
         .unwrap();
-    let candidates = result.details.get("candidates").unwrap().as_array().unwrap();
+    let candidates = result
+        .details
+        .get("candidates")
+        .unwrap()
+        .as_array()
+        .unwrap();
     assert!(candidates.is_empty());
     let _ = fs::remove_dir_all(root);
 }
@@ -149,7 +167,12 @@ fn env_var_overrides_workspace_default_threshold() {
         )
         .unwrap();
     std::env::remove_var("CORTEX_DECOMPOSITION_REVIEW_LOC");
-    let candidates = result.details.get("candidates").unwrap().as_array().unwrap();
+    let candidates = result
+        .details
+        .get("candidates")
+        .unwrap()
+        .as_array()
+        .unwrap();
     assert!(
         candidates.is_empty(),
         "500 LOC file must not trigger when the env threshold is raised to 600"
@@ -180,7 +203,12 @@ fn config_file_threshold_is_read_when_env_is_absent() {
             &inv,
         )
         .unwrap();
-    let candidates = result.details.get("candidates").unwrap().as_array().unwrap();
+    let candidates = result
+        .details
+        .get("candidates")
+        .unwrap()
+        .as_array()
+        .unwrap();
     assert!(candidates.is_empty());
     assert_eq!(result.details.get("threshold").unwrap().as_u64(), Some(700));
     assert_eq!(
@@ -202,7 +230,12 @@ fn test_classified_oversized_file_is_low_severity_not_runtime() {
             &inv,
         )
         .unwrap();
-    let candidates = result.details.get("candidates").unwrap().as_array().unwrap();
+    let candidates = result
+        .details
+        .get("candidates")
+        .unwrap()
+        .as_array()
+        .unwrap();
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0]["severityHint"].as_str(), Some("low"));
     let by_class = result.details.get("byClass").unwrap();
@@ -220,17 +253,19 @@ fn mechanical_split_across_parts_dir_reconstructs_logical_loc() {
     // exceeds the 400 LOC review trigger.
     fs::write(root.join("engine/big_parts/part1.rs"), lines_of(250)).unwrap();
     fs::write(root.join("engine/big_parts/part2.rs"), lines_of(250)).unwrap();
-    let inv = inventory(&[
-        "engine/big_parts/part1.rs",
-        "engine/big_parts/part2.rs",
-    ]);
+    let inv = inventory(&["engine/big_parts/part1.rs", "engine/big_parts/part2.rs"]);
     let result = NativeProviderRegistry::new(&root)
         .execute(
             &provider("legacy.architecture.decomposition", json!({"op":"always"})),
             &inv,
         )
         .unwrap();
-    let candidates = result.details.get("candidates").unwrap().as_array().unwrap();
+    let candidates = result
+        .details
+        .get("candidates")
+        .unwrap()
+        .as_array()
+        .unwrap();
     assert!(
         candidates
             .iter()
@@ -253,7 +288,15 @@ fn generated_and_vendored_paths_are_excluded() {
             &inv,
         )
         .unwrap();
-    let candidates = result.details.get("candidates").unwrap().as_array().unwrap();
-    assert!(candidates.is_empty(), "dist/ is generated/vendored and must not be flagged");
+    let candidates = result
+        .details
+        .get("candidates")
+        .unwrap()
+        .as_array()
+        .unwrap();
+    assert!(
+        candidates.is_empty(),
+        "dist/ is generated/vendored and must not be flagged"
+    );
     let _ = fs::remove_dir_all(root);
 }

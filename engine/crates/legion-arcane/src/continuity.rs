@@ -15,7 +15,10 @@ pub fn rehydrate_untrusted_data(envelope: &Value) -> Result<Value, ArcaneError> 
         .get("content_digest")
         .and_then(Value::as_str)
         .ok_or_else(|| {
-            ArcaneError::typed("REHYDRATION_REJECTED", "rehydration content digest mismatch")
+            ArcaneError::typed(
+                "REHYDRATION_REJECTED",
+                "rehydration content digest mismatch",
+            )
         })?;
     if !content_digest.starts_with("sha256:") {
         return Err(ArcaneError::typed(

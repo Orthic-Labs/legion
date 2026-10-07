@@ -56,11 +56,25 @@ pub struct CapabilityDecision {
 }
 
 fn allow(message: impl Into<String>) -> CapabilityDecision {
-    CapabilityDecision { allowed: true, code: None, message: message.into(), admission: None }
+    CapabilityDecision {
+        allowed: true,
+        code: None,
+        message: message.into(),
+        admission: None,
+    }
 }
 
-fn deny(code: &'static str, message: impl Into<String>, admission: Option<&'static str>) -> CapabilityDecision {
-    CapabilityDecision { allowed: false, code: Some(code), message: message.into(), admission }
+fn deny(
+    code: &'static str,
+    message: impl Into<String>,
+    admission: Option<&'static str>,
+) -> CapabilityDecision {
+    CapabilityDecision {
+        allowed: false,
+        code: Some(code),
+        message: message.into(),
+        admission,
+    }
 }
 
 /// Durable adapter-backed store this registry writes/reads through. Kept as
@@ -157,7 +171,12 @@ impl<S: ProviderCapabilityStore> ProviderCapabilityRegistry<S> {
         self.store.as_ref().and_then(|s| s.get(provider_id))
     }
 
-    pub fn verify(&self, provider_id: &str, now_ms: i64, parse_iso_ms: impl Fn(&str) -> i64) -> CapabilityDecision {
+    pub fn verify(
+        &self,
+        provider_id: &str,
+        now_ms: i64,
+        parse_iso_ms: impl Fn(&str) -> i64,
+    ) -> CapabilityDecision {
         let Some(record) = self.get(provider_id) else {
             return deny(
                 "ARC_UNSOUND_SEAL",
@@ -195,14 +214,22 @@ pub fn verify_external_provider_capability(
     provider_id: &str,
 ) -> CapabilityDecision {
     if adapter.adapter_id.is_empty() {
-        return deny("ARC_UNSOUND_SEAL", "external provider capability is incomplete or substituted", None);
+        return deny(
+            "ARC_UNSOUND_SEAL",
+            "external provider capability is incomplete or substituted",
+            None,
+        );
     }
     if !(adapter.machine_readable
         && adapter.gateable
         && adapter.downloadable
         && adapter.trusted_retrieval)
     {
-        return deny("ARC_UNSOUND_SEAL", "external provider cannot produce closure-grade evidence", None);
+        return deny(
+            "ARC_UNSOUND_SEAL",
+            "external provider cannot produce closure-grade evidence",
+            None,
+        );
     }
     if sensitivity == "sensitive" && (retention.is_none() || deletion_owner.is_none()) {
         return deny(

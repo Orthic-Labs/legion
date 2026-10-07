@@ -15,10 +15,11 @@
 use serde_json::{json, Value};
 
 use super::config_producer::{config_producers, render_config_preview};
-use super::util::digest_of;
 use super::fix_contract::{fix_proposal, FixProposalInput};
+use super::util::digest_of;
 use crate::wf_port::wf017::structural::{
-    find_producer as find_structural_producer, render_structural_preview, ProducerRisk, StructuralEdit, StructuralPreview,
+    find_producer as find_structural_producer, render_structural_preview, ProducerRisk,
+    StructuralEdit, StructuralPreview,
 };
 
 /// The JS source is untyped: a `preview.edits` entry is `{keyPath, value,
@@ -28,15 +29,31 @@ use crate::wf_port::wf017::structural::{
 /// faithfully while keeping each shape's fields typed.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Edit {
-    Config { key_path: Vec<String>, value: Value, previous: Value },
-    Structural { line: usize, before: String, after: String },
+    Config {
+        key_path: Vec<String>,
+        value: Value,
+        previous: Value,
+    },
+    Structural {
+        line: usize,
+        before: String,
+        after: String,
+    },
 }
 
 impl Edit {
     fn to_json(&self) -> Value {
         match self {
-            Edit::Config { key_path, value, previous } => json!({ "keyPath": key_path, "value": value, "previous": previous }),
-            Edit::Structural { line, before, after } => json!({ "line": line, "before": before, "after": after }),
+            Edit::Config {
+                key_path,
+                value,
+                previous,
+            } => json!({ "keyPath": key_path, "value": value, "previous": previous }),
+            Edit::Structural {
+                line,
+                before,
+                after,
+            } => json!({ "line": line, "before": before, "after": after }),
         }
     }
 }
@@ -72,7 +89,12 @@ pub struct Producer {
 /// finding })` only reads `path`/`text`, so this is the one piece of
 /// `finding` a structural producer's `fn(text, finding)` adapter needs.
 fn path_from_finding(finding: &Value) -> String {
-    finding.get("location").and_then(|l| l.get("path")).and_then(Value::as_str).unwrap_or_default().to_string()
+    finding
+        .get("location")
+        .and_then(|l| l.get("path"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
 }
 
 fn structural_result(preview: StructuralPreview) -> PreviewResult {
@@ -80,7 +102,11 @@ fn structural_result(preview: StructuralPreview) -> PreviewResult {
         edits: preview
             .edits
             .into_iter()
-            .map(|e| Edit::Structural { line: e.line, before: e.before, after: e.after })
+            .map(|e| Edit::Structural {
+                line: e.line,
+                before: e.before,
+                after: e.after,
+            })
             .collect(),
         public_surface_changes: preview.public_surface_changes,
         unsupported: None,
@@ -89,13 +115,15 @@ fn structural_result(preview: StructuralPreview) -> PreviewResult {
 
 fn preview_structural_tls_reject_unauthorized(text: &str, finding: &Value) -> PreviewResult {
     let path = path_from_finding(finding);
-    let producer = find_structural_producer("structural.tls-reject-unauthorized").expect("registered in STRUCTURAL_PRODUCERS");
+    let producer = find_structural_producer("structural.tls-reject-unauthorized")
+        .expect("registered in STRUCTURAL_PRODUCERS");
     structural_result(producer.preview(&path, text))
 }
 
 fn preview_structural_dom_innerhtml_to_textcontent(text: &str, finding: &Value) -> PreviewResult {
     let path = path_from_finding(finding);
-    let producer = find_structural_producer("structural.dom-innerhtml-to-textcontent").expect("registered in STRUCTURAL_PRODUCERS");
+    let producer = find_structural_producer("structural.dom-innerhtml-to-textcontent")
+        .expect("registered in STRUCTURAL_PRODUCERS");
     structural_result(producer.preview(&path, text))
 }
 
@@ -114,7 +142,8 @@ fn structural_risk(risk: ProducerRisk) -> &'static str {
 fn structural_adapted_producers() -> Vec<Producer> {
     vec![
         {
-            let source = find_structural_producer("structural.tls-reject-unauthorized").expect("registered in STRUCTURAL_PRODUCERS");
+            let source = find_structural_producer("structural.tls-reject-unauthorized")
+                .expect("registered in STRUCTURAL_PRODUCERS");
             Producer {
                 id: source.id,
                 version: source.version,
@@ -130,7 +159,8 @@ fn structural_adapted_producers() -> Vec<Producer> {
             }
         },
         {
-            let source = find_structural_producer("structural.dom-innerhtml-to-textcontent").expect("registered in STRUCTURAL_PRODUCERS");
+            let source = find_structural_producer("structural.dom-innerhtml-to-textcontent")
+                .expect("registered in STRUCTURAL_PRODUCERS");
             Producer {
                 id: source.id,
                 version: source.version,
@@ -227,7 +257,9 @@ pub fn mechanical_registry_json() -> Value {
 }
 
 pub fn producer_for(rule_id: &str) -> Option<Producer> {
-    all_producers().into_iter().find(|p| p.rule_ids.contains(&rule_id))
+    all_producers()
+        .into_iter()
+        .find(|p| p.rule_ids.contains(&rule_id))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -239,10 +271,16 @@ impl std::fmt::Display for MechanicalError {
     }
 }
 
-pub fn assert_producer_qualified(producer: &Producer, rule_id: &str) -> Result<(), MechanicalError> {
+pub fn assert_producer_qualified(
+    producer: &Producer,
+    rule_id: &str,
+) -> Result<(), MechanicalError> {
     let registry = mechanical_registry();
     let Some(entry) = registry.iter().find(|e| e.id == producer.id) else {
-        return Err(MechanicalError(format!("producer {} is not in the mechanical registry", producer.id)));
+        return Err(MechanicalError(format!(
+            "producer {} is not in the mechanical registry",
+            producer.id
+        )));
     };
     if entry.producer_version != producer.version {
         return Err(MechanicalError(format!(
@@ -251,23 +289,40 @@ pub fn assert_producer_qualified(producer: &Producer, rule_id: &str) -> Result<(
         )));
     }
     if !entry.rule_ids.iter().any(|id| id == rule_id) {
-        return Err(MechanicalError(format!("producer {} is not qualified for rule {rule_id}", producer.id)));
+        return Err(MechanicalError(format!(
+            "producer {} is not qualified for rule {rule_id}",
+            producer.id
+        )));
     }
     Ok(())
 }
 
 fn assert_sandbox(sandbox: &Value) -> Result<(), MechanicalError> {
     if sandbox.get("kind").and_then(Value::as_str) != Some("legion-remediation-sandbox") {
-        return Err(MechanicalError("mechanical producers run only inside a remediation sandbox".to_string()));
+        return Err(MechanicalError(
+            "mechanical producers run only inside a remediation sandbox".to_string(),
+        ));
     }
-    if sandbox.get("primaryRepositoryMutated").and_then(Value::as_bool) != Some(false) {
-        return Err(MechanicalError("refusing to produce against a sandbox that reports the primary repository mutated".to_string()));
+    if sandbox
+        .get("primaryRepositoryMutated")
+        .and_then(Value::as_bool)
+        != Some(false)
+    {
+        return Err(MechanicalError(
+            "refusing to produce against a sandbox that reports the primary repository mutated"
+                .to_string(),
+        ));
     }
     Ok(())
 }
 
 /// Faithful port of `manualProposal`.
-pub fn manual_proposal(finding: &Value, reason: &str, binding: &Value, target_paths: Vec<String>) -> Value {
+pub fn manual_proposal(
+    finding: &Value,
+    reason: &str,
+    binding: &Value,
+    target_paths: Vec<String>,
+) -> Value {
     let mut sorted_paths = target_paths;
     sorted_paths.sort();
     let finding_id = finding.get("id").cloned().unwrap_or(Value::Null);
@@ -290,17 +345,29 @@ pub fn manual_proposal(finding: &Value, reason: &str, binding: &Value, target_pa
         "binding": binding,
     });
     let id = digest_of("remediation-proposal", &body);
-    body.as_object_mut().unwrap().insert("id".to_string(), Value::String(id));
+    body.as_object_mut()
+        .unwrap()
+        .insert("id".to_string(), Value::String(id));
     body
 }
 
 /// Faithful port of `createMechanicalProposal`. `target_path` mirrors the JS
 /// `finding.location?.path ?? null` — `None` serializes as JSON `null`,
 /// exactly as an absent finding location would in JS.
-pub fn create_mechanical_proposal(finding: &Value, producer: &Producer, preview: &PreviewResult, target_path: Option<&str>, binding: &Value) -> Value {
+pub fn create_mechanical_proposal(
+    finding: &Value,
+    producer: &Producer,
+    preview: &PreviewResult,
+    target_path: Option<&str>,
+    binding: &Value,
+) -> Value {
     let target_path_json: Value = target_path.map(Value::from).unwrap_or(Value::Null);
     let edits_json: Vec<Value> = preview.edits.iter().map(Edit::to_json).collect();
-    let render_key = if producer.kind == "config" { "config" } else { "structural" };
+    let render_key = if producer.kind == "config" {
+        "config"
+    } else {
+        "structural"
+    };
     let patch_body = json!({
         "producer": producer.id,
         "path": target_path_json,
@@ -334,7 +401,9 @@ pub fn create_mechanical_proposal(finding: &Value, producer: &Producer, preview:
         "binding": binding,
     });
     let id = digest_of("remediation-proposal", &body);
-    body.as_object_mut().unwrap().insert("id".to_string(), Value::String(id));
+    body.as_object_mut()
+        .unwrap()
+        .insert("id".to_string(), Value::String(id));
     body
 }
 
@@ -345,15 +414,31 @@ pub fn create_mechanical_proposal(finding: &Value, producer: &Producer, preview:
 /// returns the file text as `String` (the JS caller is expected to throw on
 /// its own if the read fails — that is out of this function's contract in
 /// both languages).
-pub fn plan_mechanical_remediation<F: Fn(&str) -> String>(finding: &Value, sandbox: &Value, read_file: F, binding: &Value) -> Result<Value, MechanicalError> {
+pub fn plan_mechanical_remediation<F: Fn(&str) -> String>(
+    finding: &Value,
+    sandbox: &Value,
+    read_file: F,
+    binding: &Value,
+) -> Result<Value, MechanicalError> {
     assert_sandbox(sandbox)?;
-    let rule_id = finding.get("ruleId").and_then(Value::as_str).unwrap_or_default();
+    let rule_id = finding
+        .get("ruleId")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let Some(producer) = producer_for(rule_id) else {
-        return Ok(manual_proposal(finding, &format!("no qualified mechanical producer for rule {rule_id}"), binding, vec![]));
+        return Ok(manual_proposal(
+            finding,
+            &format!("no qualified mechanical producer for rule {rule_id}"),
+            binding,
+            vec![],
+        ));
     };
     assert_producer_qualified(&producer, rule_id)?;
 
-    let target_path = finding.get("location").and_then(|l| l.get("path")).and_then(Value::as_str);
+    let target_path = finding
+        .get("location")
+        .and_then(|l| l.get("path"))
+        .and_then(Value::as_str);
     let text = target_path.map(|p| read_file(p)).unwrap_or_default();
     let preview = (producer.preview)(&text, finding);
 
@@ -377,26 +462,46 @@ pub fn plan_mechanical_remediation<F: Fn(&str) -> String>(finding: &Value, sandb
     if !has_location && preview.edits.len() > 1 {
         return Ok(manual_proposal(
             finding,
-            &format!("ambiguous target: {} candidate sites and no unique finding location", preview.edits.len()),
+            &format!(
+                "ambiguous target: {} candidate sites and no unique finding location",
+                preview.edits.len()
+            ),
             binding,
             vec![],
         ));
     }
-    Ok(create_mechanical_proposal(finding, &producer, &preview, target_path, binding))
+    Ok(create_mechanical_proposal(
+        finding,
+        &producer,
+        &preview,
+        target_path,
+        binding,
+    ))
 }
 
 /// Faithful port of `renderPreview`: `kind === 'config' ? renderConfigPreview
 /// (text, edits) : renderStructuralPreview(text, edits)`.
-pub fn render_preview(producer: &Producer, text: &str, edits: &[Edit]) -> Result<String, MechanicalError> {
+pub fn render_preview(
+    producer: &Producer,
+    text: &str,
+    edits: &[Edit],
+) -> Result<String, MechanicalError> {
     if producer.kind == "config" {
-        render_config_preview(text, edits).map_err(|e| MechanicalError(format!("invalid config JSON: {e}")))
+        render_config_preview(text, edits)
+            .map_err(|e| MechanicalError(format!("invalid config JSON: {e}")))
     } else {
         let structural_edits: Vec<StructuralEdit> = edits
             .iter()
             .filter_map(|edit| match edit {
-                Edit::Structural { line, before, after } => {
-                    Some(StructuralEdit { line: *line, before: before.clone(), after: after.clone() })
-                }
+                Edit::Structural {
+                    line,
+                    before,
+                    after,
+                } => Some(StructuralEdit {
+                    line: *line,
+                    before: before.clone(),
+                    after: after.clone(),
+                }),
                 Edit::Config { .. } => None,
             })
             .collect();
@@ -409,19 +514,31 @@ pub fn render_preview(producer: &Producer, text: &str, edits: &[Edit]) -> Result
 // ---------------------------------------------------------------------------
 
 pub fn mechanical_ast_grep_proposal(finding: &Value, edits: &[Value]) -> Value {
-    let mut files: Vec<String> = edits.iter().filter_map(|e| e.get("file").and_then(Value::as_str).map(str::to_owned)).collect();
+    let mut files: Vec<String> = edits
+        .iter()
+        .filter_map(|e| e.get("file").and_then(Value::as_str).map(str::to_owned))
+        .collect();
     files.sort();
     files.dedup();
     fix_proposal(FixProposalInput {
         finding_id: finding.get("id").cloned().unwrap_or(Value::Null),
-        root_cause_digest: finding.get("rootCauseDigest").cloned().unwrap_or(Value::Null),
+        root_cause_digest: finding
+            .get("rootCauseDigest")
+            .cloned()
+            .unwrap_or(Value::Null),
         producer: json!({ "kind": "mechanical", "engine": "ast-grep", "version": "1" }),
         target_paths: files,
-        preconditions: vec!["rewrite preview is parse-clean".to_string(), "patch is idempotent".to_string()],
+        preconditions: vec![
+            "rewrite preview is parse-clean".to_string(),
+            "patch is idempotent".to_string(),
+        ],
         patch: json!({ "path": "patches/fix.patch", "digest": Value::Null }),
         expected_behavior: vec!["rewritten sites no longer match the finding rule".to_string()],
         risks: vec!["behavioral change to covered call sites".to_string()],
-        validation_commands: vec!["parse-check".to_string(), "affected-provider-rerun".to_string()],
+        validation_commands: vec![
+            "parse-check".to_string(),
+            "affected-provider-rerun".to_string(),
+        ],
         tier: json!("MECHANICAL"),
     })
 }
@@ -429,14 +546,20 @@ pub fn mechanical_ast_grep_proposal(finding: &Value, edits: &[Value]) -> Value {
 pub fn mechanical_config_proposal(finding: &Value, config_path: &str) -> Value {
     fix_proposal(FixProposalInput {
         finding_id: finding.get("id").cloned().unwrap_or(Value::Null),
-        root_cause_digest: finding.get("rootCauseDigest").cloned().unwrap_or(Value::Null),
+        root_cause_digest: finding
+            .get("rootCauseDigest")
+            .cloned()
+            .unwrap_or(Value::Null),
         producer: json!({ "kind": "mechanical", "engine": "config-transform", "version": "1" }),
         target_paths: vec![config_path.to_string()],
         preconditions: vec!["configuration value is validated by schema".to_string()],
         patch: json!({ "path": "patches/config.patch", "digest": Value::Null }),
         expected_behavior: vec!["configuration no longer matches the finding rule".to_string()],
         risks: vec!["deployment behavior change".to_string()],
-        validation_commands: vec!["config-schema-check".to_string(), "affected-provider-rerun".to_string()],
+        validation_commands: vec![
+            "config-schema-check".to_string(),
+            "affected-provider-rerun".to_string(),
+        ],
         tier: json!("MECHANICAL"),
     })
 }
@@ -444,14 +567,20 @@ pub fn mechanical_config_proposal(finding: &Value, config_path: &str) -> Value {
 pub fn mechanical_dependency_proposal(finding: &Value, manifest_path: &str) -> Value {
     fix_proposal(FixProposalInput {
         finding_id: finding.get("id").cloned().unwrap_or(Value::Null),
-        root_cause_digest: finding.get("rootCauseDigest").cloned().unwrap_or(Value::Null),
+        root_cause_digest: finding
+            .get("rootCauseDigest")
+            .cloned()
+            .unwrap_or(Value::Null),
         producer: json!({ "kind": "mechanical", "engine": "dependency-policy", "version": "1" }),
         target_paths: vec![manifest_path.to_string()],
         preconditions: vec!["lockfile update is offline-safe".to_string()],
         patch: json!({ "path": "patches/dependency.patch", "digest": Value::Null }),
         expected_behavior: vec!["dependency satisfies the policy".to_string()],
         risks: vec!["transitive breakage".to_string()],
-        validation_commands: vec!["lockfile-reconcile".to_string(), "affected-provider-rerun".to_string()],
+        validation_commands: vec![
+            "lockfile-reconcile".to_string(),
+            "affected-provider-rerun".to_string(),
+        ],
         tier: json!("MECHANICAL"),
     })
 }
@@ -511,7 +640,13 @@ mod tests {
             "ruleId": "browser-http.cookie-samesite",
             "location": { "path": "config.json" },
         });
-        let proposal = plan_mechanical_remediation(&finding, &sandbox(), |_path| "{\n  \"cookie\": {}\n}".to_string(), &json!({ "runId": "r1" })).unwrap();
+        let proposal = plan_mechanical_remediation(
+            &finding,
+            &sandbox(),
+            |_path| "{\n  \"cookie\": {}\n}".to_string(),
+            &json!({ "runId": "r1" }),
+        )
+        .unwrap();
         assert_eq!(proposal["tier"], json!("MECHANICAL"));
         assert_eq!(proposal["owner"], json!("code"));
         assert_eq!(proposal["targetPaths"], json!(["config.json"]));
@@ -521,9 +656,14 @@ mod tests {
     #[test]
     fn plan_mechanical_remediation_falls_back_to_manual_for_unknown_rule() {
         let finding = json!({ "id": "finding-2", "ruleId": "no-such-rule" });
-        let proposal = plan_mechanical_remediation(&finding, &sandbox(), |_| String::new(), &json!({})).unwrap();
+        let proposal =
+            plan_mechanical_remediation(&finding, &sandbox(), |_| String::new(), &json!({}))
+                .unwrap();
         assert_eq!(proposal["tier"], json!("MANUAL"));
-        assert!(proposal["reason"].as_str().unwrap().contains("no qualified mechanical producer"));
+        assert!(proposal["reason"]
+            .as_str()
+            .unwrap()
+            .contains("no qualified mechanical producer"));
     }
 
     #[test]
@@ -533,10 +673,18 @@ mod tests {
             "ruleId": "browser-http.cookie-samesite",
             "location": { "path": "config.json" },
         });
-        let proposal =
-            plan_mechanical_remediation(&finding, &sandbox(), |_| "{\n  \"cookie\": { \"sameSite\": \"lax\" }\n}".to_string(), &json!({})).unwrap();
+        let proposal = plan_mechanical_remediation(
+            &finding,
+            &sandbox(),
+            |_| "{\n  \"cookie\": { \"sameSite\": \"lax\" }\n}".to_string(),
+            &json!({}),
+        )
+        .unwrap();
         assert_eq!(proposal["tier"], json!("MANUAL"));
-        assert!(proposal["reason"].as_str().unwrap().contains("no mechanical edit applies"));
+        assert!(proposal["reason"]
+            .as_str()
+            .unwrap()
+            .contains("no mechanical edit applies"));
     }
 
     #[test]
@@ -546,16 +694,28 @@ mod tests {
             "ruleId": "browser-http.cookie-samesite",
             "location": { "path": "config.json" },
         });
-        let proposal = plan_mechanical_remediation(&finding, &sandbox(), |_| "not json".to_string(), &json!({})).unwrap();
+        let proposal = plan_mechanical_remediation(
+            &finding,
+            &sandbox(),
+            |_| "not json".to_string(),
+            &json!({}),
+        )
+        .unwrap();
         assert_eq!(proposal["tier"], json!("MANUAL"));
-        assert!(proposal["reason"].as_str().unwrap().contains("unsupported target"));
+        assert!(proposal["reason"]
+            .as_str()
+            .unwrap()
+            .contains("unsupported target"));
     }
 
     #[test]
     fn plan_mechanical_remediation_rejects_mutated_sandbox() {
         let finding = json!({ "id": "f", "ruleId": "browser-http.cookie-samesite" });
-        let bad_sandbox = json!({ "kind": "legion-remediation-sandbox", "primaryRepositoryMutated": true });
-        let err = plan_mechanical_remediation(&finding, &bad_sandbox, |_| String::new(), &json!({})).unwrap_err();
+        let bad_sandbox =
+            json!({ "kind": "legion-remediation-sandbox", "primaryRepositoryMutated": true });
+        let err =
+            plan_mechanical_remediation(&finding, &bad_sandbox, |_| String::new(), &json!({}))
+                .unwrap_err();
         assert!(err.0.contains("primary repository mutated"));
     }
 
@@ -574,7 +734,11 @@ mod tests {
             validation_plan: vec![],
             preview: |_text, _finding| PreviewResult::default(),
         };
-        let edits = vec![Edit::Structural { line: 1, before: "rejectUnauthorized: false".to_string(), after: "rejectUnauthorized: true".to_string() }];
+        let edits = vec![Edit::Structural {
+            line: 1,
+            before: "rejectUnauthorized: false".to_string(),
+            after: "rejectUnauthorized: true".to_string(),
+        }];
         let rendered = render_preview(&producer, "rejectUnauthorized: false", &edits).unwrap();
         assert_eq!(rendered, "rejectUnauthorized: true");
     }
@@ -599,7 +763,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(proposal["tier"], json!("MECHANICAL"));
-        assert_eq!(proposal["producer"]["id"], json!("structural.tls-reject-unauthorized"));
+        assert_eq!(
+            proposal["producer"]["id"],
+            json!("structural.tls-reject-unauthorized")
+        );
         // Mirrors JS `createMechanicalProposal`: "render" only exists on the
         // ephemeral `patchBody` used to compute `patch.digest`, never on the
         // `patch` object itself.
@@ -627,7 +794,11 @@ mod tests {
     #[test]
     fn legacy_mechanical_ast_grep_proposal_dedupes_and_sorts_files() {
         let finding = json!({ "id": "f1" });
-        let edits = vec![json!({ "file": "b.js" }), json!({ "file": "a.js" }), json!({ "file": "a.js" })];
+        let edits = vec![
+            json!({ "file": "b.js" }),
+            json!({ "file": "a.js" }),
+            json!({ "file": "a.js" }),
+        ];
         let proposal = mechanical_ast_grep_proposal(&finding, &edits);
         assert_eq!(proposal["targetPaths"], json!(["a.js", "b.js"]));
     }

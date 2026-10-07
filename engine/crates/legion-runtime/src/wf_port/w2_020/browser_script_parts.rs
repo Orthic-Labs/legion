@@ -15,9 +15,18 @@ pub struct ScriptPart {
 
 /// Mirrors `LIVE_BROWSER_SCRIPT_PARTS`.
 pub const LIVE_BROWSER_SCRIPT_PARTS: &[ScriptPart] = &[
-    ScriptPart { name: "session-state", file: "live-browser-session.js" },
-    ScriptPart { name: "dom-helpers", file: "live-browser-dom.js" },
-    ScriptPart { name: "browser-ui", file: "live-browser.js" },
+    ScriptPart {
+        name: "session-state",
+        file: "live-browser-session.js",
+    },
+    ScriptPart {
+        name: "dom-helpers",
+        file: "live-browser-dom.js",
+    },
+    ScriptPart {
+        name: "browser-ui",
+        file: "live-browser.js",
+    },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -152,25 +161,36 @@ mod tests {
 
     #[test]
     fn resolve_builds_indexed_paths() {
-        let resolved = resolve_live_browser_script_parts("/scripts", LIVE_BROWSER_SCRIPT_PARTS).unwrap();
+        let resolved =
+            resolve_live_browser_script_parts("/scripts", LIVE_BROWSER_SCRIPT_PARTS).unwrap();
         assert_eq!(resolved.len(), 3);
         assert_eq!(resolved[0].name, "session-state");
         assert_eq!(resolved[0].index, 0);
-        assert_eq!(resolved[0].path, PathBuf::from("/scripts/live-browser-session.js"));
+        assert_eq!(
+            resolved[0].path,
+            PathBuf::from("/scripts/live-browser-session.js")
+        );
         assert_eq!(resolved[2].path, PathBuf::from("/scripts/live-browser.js"));
     }
 
     #[test]
     fn assert_reports_first_missing_part() {
-        let resolved = resolve_live_browser_script_parts("/scripts", LIVE_BROWSER_SCRIPT_PARTS).unwrap();
-        let err = assert_live_browser_script_parts(&resolved, |p| p.to_string_lossy() != "/scripts/live-browser-dom.js")
-            .unwrap_err();
-        assert_eq!(err, "Live browser script part missing: dom-helpers (/scripts/live-browser-dom.js)");
+        let resolved =
+            resolve_live_browser_script_parts("/scripts", LIVE_BROWSER_SCRIPT_PARTS).unwrap();
+        let err = assert_live_browser_script_parts(&resolved, |p| {
+            p.to_string_lossy() != "/scripts/live-browser-dom.js"
+        })
+        .unwrap_err();
+        assert_eq!(
+            err,
+            "Live browser script part missing: dom-helpers (/scripts/live-browser-dom.js)"
+        );
     }
 
     #[test]
     fn assert_ok_when_all_exist() {
-        let resolved = resolve_live_browser_script_parts("/scripts", LIVE_BROWSER_SCRIPT_PARTS).unwrap();
+        let resolved =
+            resolve_live_browser_script_parts("/scripts", LIVE_BROWSER_SCRIPT_PARTS).unwrap();
         assert!(assert_live_browser_script_parts(&resolved, |_| true).is_ok());
     }
 
@@ -196,7 +216,11 @@ mod tests {
         assert!(script.starts_with(
             "window.__IMPECCABLE_TOKEN__ = 'tok123';\nwindow.__IMPECCABLE_PORT__ = 4321;\nwindow.__IMPECCABLE_VOCAB__ = {\"x\":1};\n"
         ));
-        assert!(script.contains("// --- impeccable live script part: a (a.js) ---\nconsole.log('a')"));
-        assert!(script.contains("// --- impeccable live script part: b (b.js) ---\nconsole.log('b')"));
+        assert!(
+            script.contains("// --- impeccable live script part: a (a.js) ---\nconsole.log('a')")
+        );
+        assert!(
+            script.contains("// --- impeccable live script part: b (b.js) ---\nconsole.log('b')")
+        );
     }
 }

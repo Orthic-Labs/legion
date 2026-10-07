@@ -34,11 +34,19 @@ impl FakeRunner {
     }
 
     fn sequence(outcomes: Vec<ProcessOutcome>) -> Self {
-        Self { outcomes: Mutex::new(outcomes), calls: AtomicUsize::new(0), present: true }
+        Self {
+            outcomes: Mutex::new(outcomes),
+            calls: AtomicUsize::new(0),
+            present: true,
+        }
     }
 
     fn missing() -> Self {
-        Self { outcomes: Mutex::new(vec![]), calls: AtomicUsize::new(0), present: false }
+        Self {
+            outcomes: Mutex::new(vec![]),
+            calls: AtomicUsize::new(0),
+            present: false,
+        }
     }
 }
 
@@ -51,14 +59,27 @@ impl ProcessRunner for FakeRunner {
         let i = self.calls.fetch_add(1, Ordering::SeqCst);
         let mut outcomes = self.outcomes.lock().unwrap();
         if outcomes.is_empty() {
-            return ProcessOutcome::Completed { stdout: String::new(), stderr: String::new(), exit_code: 1 };
+            return ProcessOutcome::Completed {
+                stdout: String::new(),
+                stderr: String::new(),
+                exit_code: 1,
+            };
         }
         let idx = i.min(outcomes.len() - 1);
         match &outcomes[idx] {
-            ProcessOutcome::Completed { stdout, stderr, exit_code } => {
-                ProcessOutcome::Completed { stdout: stdout.clone(), stderr: stderr.clone(), exit_code: *exit_code }
-            }
-            ProcessOutcome::TimedOut { partial_stdout, partial_stderr } => ProcessOutcome::TimedOut {
+            ProcessOutcome::Completed {
+                stdout,
+                stderr,
+                exit_code,
+            } => ProcessOutcome::Completed {
+                stdout: stdout.clone(),
+                stderr: stderr.clone(),
+                exit_code: *exit_code,
+            },
+            ProcessOutcome::TimedOut {
+                partial_stdout,
+                partial_stderr,
+            } => ProcessOutcome::TimedOut {
                 partial_stdout: partial_stdout.clone(),
                 partial_stderr: partial_stderr.clone(),
             },
@@ -76,7 +97,13 @@ fn run_pi_ok_strips_think_and_clips_and_fills_receipt() {
     assert_eq!(result.output, "final answer");
     assert_eq!(result.receipt["status"], "ok");
     assert_eq!(result.receipt["model"], FREE_PRIMARY_MODELS[0]);
-    assert!(result.receipt["argv"][11].as_str().unwrap().contains("prompt-redacted") || true);
+    assert!(
+        result.receipt["argv"][11]
+            .as_str()
+            .unwrap()
+            .contains("prompt-redacted")
+            || true
+    );
     // argv redaction: the value after "-p" must never be the raw prompt.
     let argv = result.receipt["argv"].as_array().unwrap();
     let p_index = argv.iter().position(|v| v == "-p").unwrap();
@@ -127,8 +154,16 @@ fn run_pi_empty_output_on_success_is_empty_output_error() {
 #[test]
 fn run_item_uses_at_most_one_fallback_attempt() {
     let runner = FakeRunner::sequence(vec![
-        ProcessOutcome::Completed { stdout: String::new(), stderr: "model not found".to_string(), exit_code: 1 },
-        ProcessOutcome::Completed { stdout: "second try worked".to_string(), stderr: String::new(), exit_code: 0 },
+        ProcessOutcome::Completed {
+            stdout: String::new(),
+            stderr: "model not found".to_string(),
+            exit_code: 1,
+        },
+        ProcessOutcome::Completed {
+            stdout: "second try worked".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+        },
     ]);
     let item = ManifestItem {
         id: Some("job-1".to_string()),
@@ -161,7 +196,11 @@ fn run_item_rejects_unsupported_route() {
 fn run_batch_preserves_manifest_order_with_pooled_workers() {
     let runner = FakeRunner::ok("out");
     let items: Vec<ManifestItem> = (0..6)
-        .map(|i| ManifestItem { id: Some(format!("job-{i}")), prompt: Some("p".to_string()), ..Default::default() })
+        .map(|i| ManifestItem {
+            id: Some(format!("job-{i}")),
+            prompt: Some("p".to_string()),
+            ..Default::default()
+        })
         .collect();
     let results = run_batch(&runner, &items, 4);
     assert_eq!(results.len(), 6);

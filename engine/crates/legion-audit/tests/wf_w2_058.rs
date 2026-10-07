@@ -23,8 +23,8 @@ fn fixtures_dir() -> PathBuf {
 }
 
 fn sample_pairs() -> Vec<serde_json::Value> {
-    let raw = fs::read_to_string(fixtures_dir().join("sample_pairs.json"))
-        .expect("fixture should exist");
+    let raw =
+        fs::read_to_string(fixtures_dir().join("sample_pairs.json")).expect("fixture should exist");
     serde_json::from_str(&raw).expect("sample_pairs.json must be valid JSON")
 }
 

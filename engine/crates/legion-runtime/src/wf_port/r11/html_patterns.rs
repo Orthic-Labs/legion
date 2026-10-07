@@ -19,7 +19,8 @@ use crate::l6_designer_checks::pure_checks::Finding;
 fn purple_hex_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?i)#(?:7c3aed|8b5cf6|a855f7|9333ea|7e22ce|6d28d9|6366f1|764ba2|667eea)\b").unwrap()
+        Regex::new(r"(?i)#(?:7c3aed|8b5cf6|a855f7|9333ea|7e22ce|6d28d9|6366f1|764ba2|667eea)\b")
+            .unwrap()
     })
 }
 
@@ -81,7 +82,8 @@ fn tw_space_re() -> &'static Regex {
 fn rem_spacing_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?i)(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([\d.]+)rem").unwrap()
+        Regex::new(r"(?i)(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([\d.]+)rem")
+            .unwrap()
     })
 }
 
@@ -101,7 +103,10 @@ fn bounce_token_re() -> &'static Regex {
 fn bezier_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)").unwrap()
+        Regex::new(
+            r"cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)",
+        )
+        .unwrap()
     })
 }
 
@@ -215,11 +220,10 @@ fn extract_shadow_px_values(val: &str) -> Vec<f64> {
             // adjacent to a digit/dot on either side (word-boundary + the
             // negative lookaround in the source).
             let is_zero_token = &val[start..j] == "0";
-            let prev_ok = start == 0
-                || {
-                    let p = bytes[start - 1];
-                    !(p.is_ascii_digit() || p == b'.')
-                };
+            let prev_ok = start == 0 || {
+                let p = bytes[start - 1];
+                !(p.is_ascii_digit() || p == b'.')
+            };
             let next_ok = j >= bytes.len() || {
                 let n = bytes[j];
                 !(n.is_ascii_digit() || n == b'.')
@@ -257,7 +261,12 @@ pub fn check_html_patterns(html: &str) -> Vec<Finding> {
             .map(|(i, c)| i + c.len_utf8())
             .find(|&i| i >= end)
             .unwrap_or(html.len());
-        let start = html.char_indices().map(|(i, _)| i).filter(|&i| i <= start).last().unwrap_or(0);
+        let start = html
+            .char_indices()
+            .map(|(i, _)| i)
+            .filter(|&i| i <= start)
+            .last()
+            .unwrap_or(0);
         let context = &html[start..end];
         if gradient_word_re().is_match(context) {
             findings.push(Finding {
@@ -303,7 +312,10 @@ pub fn check_html_patterns(html: &str) -> Vec<Finding> {
             }
         }
     }
-    let rounded_spacing: Vec<i64> = spacing_values.iter().map(|v| ((*v as f64) / 4.0).round() as i64 * 4).collect();
+    let rounded_spacing: Vec<i64> = spacing_values
+        .iter()
+        .map(|v| ((*v as f64) / 4.0).round() as i64 * 4)
+        .collect();
     if rounded_spacing.len() >= 10 {
         use std::collections::HashMap;
         let mut counts: HashMap<i64, usize> = HashMap::new();
@@ -356,7 +368,10 @@ pub fn check_html_patterns(html: &str) -> Vec<Finding> {
         if !(-0.1..=1.1).contains(&y1) || !(-0.1..=1.1).contains(&y2) {
             findings.push(Finding {
                 id: "bounce-easing",
-                snippet: format!("cubic-bezier({}, {}, {}, {})", &bm[1], &bm[2], &bm[3], &bm[4]),
+                snippet: format!(
+                    "cubic-bezier({}, {}, {}, {})",
+                    &bm[1], &bm[2], &bm[3], &bm[4]
+                ),
             });
             break;
         }
@@ -368,7 +383,10 @@ pub fn check_html_patterns(html: &str) -> Vec<Finding> {
         if trans_all_re().is_match(&val) {
             continue;
         }
-        let found: Vec<&str> = trans_prop_re().find_iter(&val).map(|m| m.as_str()).collect();
+        let found: Vec<&str> = trans_prop_re()
+            .find_iter(&val)
+            .map(|m| m.as_str())
+            .collect();
         if !found.is_empty() {
             // find_iter over the lowercased `val` gives lowercase matches
             // directly, same as JS's case-insensitive `.match()` output.
@@ -384,7 +402,9 @@ pub fn check_html_patterns(html: &str) -> Vec<Finding> {
     if dark_bg_re().is_match(html) || tw_dark_bg_re().is_match(html) {
         for shm in shadow_re().captures_iter(html) {
             let val = &shm[1];
-            let Some(cm) = shadow_color_re().captures(val) else { continue };
+            let Some(cm) = shadow_color_re().captures(val) else {
+                continue;
+            };
             let r: f64 = cm[1].parse().unwrap_or(0.0);
             let g: f64 = cm[2].parse().unwrap_or(0.0);
             let b: f64 = cm[3].parse().unwrap_or(0.0);
@@ -397,7 +417,10 @@ pub fn check_html_patterns(html: &str) -> Vec<Finding> {
             if px_vals.len() >= 3 && px_vals[2] > 4.0 {
                 findings.push(Finding {
                     id: "dark-glow",
-                    snippet: format!("Colored glow (rgb({},{},{})) on dark page", r as i64, g as i64, b as i64),
+                    snippet: format!(
+                        "Colored glow (rgb({},{},{})) on dark page",
+                        r as i64, g as i64, b as i64
+                    ),
                 });
                 break;
             }
@@ -453,7 +476,10 @@ mod tests {
     fn purple_palette_needs_both_hex_and_color_usage() {
         let html = r#"<div style="color:#7c3aed">hi</div>"#;
         assert!(ids(&check_html_patterns(html)).contains(&"ai-color-palette"));
-        assert!(!ids(&check_html_patterns("<div>#7c3aed mentioned only</div>")).contains(&"ai-color-palette"));
+        assert!(
+            !ids(&check_html_patterns("<div>#7c3aed mentioned only</div>"))
+                .contains(&"ai-color-palette")
+        );
     }
 
     #[test]
@@ -476,14 +502,26 @@ mod tests {
 
     #[test]
     fn bounce_easing_from_animation_name_and_bezier() {
-        assert!(ids(&check_html_patterns("<style>a{animation-name: bounce-in}</style>")).contains(&"bounce-easing"));
-        assert!(ids(&check_html_patterns("<style>a{transition-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55)}</style>")).contains(&"bounce-easing"));
+        assert!(ids(&check_html_patterns(
+            "<style>a{animation-name: bounce-in}</style>"
+        ))
+        .contains(&"bounce-easing"));
+        assert!(ids(&check_html_patterns(
+            "<style>a{transition-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55)}</style>"
+        ))
+        .contains(&"bounce-easing"));
     }
 
     #[test]
     fn layout_transition_flags_width_not_all() {
-        assert!(ids(&check_html_patterns("<style>a{transition-property: width, color}</style>")).contains(&"layout-transition"));
-        assert!(!ids(&check_html_patterns("<style>a{transition: all 0.2s}</style>")).contains(&"layout-transition"));
+        assert!(ids(&check_html_patterns(
+            "<style>a{transition-property: width, color}</style>"
+        ))
+        .contains(&"layout-transition"));
+        assert!(!ids(&check_html_patterns(
+            "<style>a{transition: all 0.2s}</style>"
+        ))
+        .contains(&"layout-transition"));
     }
 
     #[test]
@@ -506,8 +544,14 @@ mod tests {
 
     #[test]
     fn image_hover_transform_css_and_tailwind() {
-        assert!(ids(&check_html_patterns("<style>img:hover{transform: scale(1.1)}</style>")).contains(&"image-hover-transform"));
-        assert!(ids(&check_html_patterns(r#"<img class="hover:scale-105">"#)).contains(&"image-hover-transform"));
+        assert!(ids(&check_html_patterns(
+            "<style>img:hover{transform: scale(1.1)}</style>"
+        ))
+        .contains(&"image-hover-transform"));
+        assert!(
+            ids(&check_html_patterns(r#"<img class="hover:scale-105">"#))
+                .contains(&"image-hover-transform")
+        );
     }
 
     #[test]
@@ -523,6 +567,9 @@ mod tests {
         // Matches JS's `/(\d+)px/` behavior on "1.5px": \d+ only grabs the
         // "5" between the "." and "px" (JS regex has no decimal-aware
         // px matcher either), so this yields 5.0 then 24.0, not 1.5.
-        assert_eq!(extract_shadow_px_values("1.5px 0 24px"), vec![5.0, 0.0, 24.0]);
+        assert_eq!(
+            extract_shadow_px_values("1.5px 0 24px"),
+            vec![5.0, 0.0, 24.0]
+        );
     }
 }

@@ -42,7 +42,8 @@ pub fn sign_passport(body: &Value, signing_key: Option<&str>) -> Value {
     };
     let unsigned = without_signature(body);
     let encoded = serde_json::to_string(&unsigned).unwrap_or_default();
-    let mut mac = HmacSha256::new_from_slice(signing_key.as_bytes()).expect("HMAC accepts any key length");
+    let mut mac =
+        HmacSha256::new_from_slice(signing_key.as_bytes()).expect("HMAC accepts any key length");
     mac.update(encoded.as_bytes());
     let value = hex::encode(mac.finalize().into_bytes());
 
@@ -76,7 +77,8 @@ pub fn verify_passport(passport: &Value, signing_key: Option<&str>) -> bool {
     }
     let unsigned = without_signature(passport);
     let encoded = serde_json::to_string(&unsigned).unwrap_or_default();
-    let mut mac = HmacSha256::new_from_slice(signing_key.as_bytes()).expect("HMAC accepts any key length");
+    let mut mac =
+        HmacSha256::new_from_slice(signing_key.as_bytes()).expect("HMAC accepts any key length");
     mac.update(encoded.as_bytes());
     let expected = hex::encode(mac.finalize().into_bytes());
     passport
@@ -180,7 +182,10 @@ mod tests {
         assert_eq!(passport["verificationArtifacts"], json!(["a.log", "z.log"]));
         assert_eq!(passport["schemaVersion"], json!(1));
         assert_eq!(passport["kind"], json!("legion-change-passport"));
-        assert!(passport["passportDigest"].as_str().unwrap().starts_with("sha256:"));
+        assert!(passport["passportDigest"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:"));
         assert_eq!(passport["signature"]["algorithm"], json!("HMAC-SHA256"));
     }
 

@@ -37,8 +37,8 @@ use super::super::w2_050::config::{Escalation, Juror, ModelsConfig, Provider as 
 use super::super::w2_052::base::{JurorResult, ProviderError, ProviderImage};
 use super::super::w2_052::packet::{validate_packet, PacketValidation};
 use super::engine_logic::{
-    accounting, execution_units, normalized_usage, parse_juror_json, provider_prompts,
-    synthesize, Accounting, EscalationRule, JurorResultSummary, JurorSeat, Synthesis,
+    accounting, execution_units, normalized_usage, parse_juror_json, provider_prompts, synthesize,
+    Accounting, EscalationRule, JurorResultSummary, JurorSeat, Synthesis,
 };
 
 /// One lens entry from `lenses.yaml`: `{preamble, lens_question}`.
@@ -345,7 +345,8 @@ impl<'a> Engine<'a> {
                 return Err(EngineError::PacketInvalid(msg));
             }
         }
-        let has_packet = packet_validation.errors.is_empty() && !packet_validation.sections.is_empty();
+        let has_packet =
+            packet_validation.errors.is_empty() && !packet_validation.sections.is_empty();
 
         let rubric_rel = skill_cfg.rubric.clone().unwrap_or_default();
         let rubric_path = self.root.join(&rubric_rel);
@@ -353,8 +354,14 @@ impl<'a> Engine<'a> {
             .map_err(|e| EngineError::Config(format!("{}: {e}", rubric_path.display())))?;
 
         let is_vision = skill_cfg.needs_vision_input.unwrap_or(false);
-        let (system_prompt, user_prompt) =
-            build_prompts(&rubric, user_input, is_vision, &self.lenses, None, panel_name);
+        let (system_prompt, user_prompt) = build_prompts(
+            &rubric,
+            user_input,
+            is_vision,
+            &self.lenses,
+            None,
+            panel_name,
+        );
 
         let vision_images: Vec<ProviderImage> = if is_vision {
             vision_prep.prepare(user_input).unwrap_or_default()
@@ -481,7 +488,10 @@ impl<'a> Engine<'a> {
 
         for (provider_name, model, is_fallback) in &chain {
             let provider_cfg: Option<&ProviderCfg> = self.config.providers.get(provider_name);
-            if provider_cfg.map(|c| c.disabled.unwrap_or(false)).unwrap_or(false) {
+            if provider_cfg
+                .map(|c| c.disabled.unwrap_or(false))
+                .unwrap_or(false)
+            {
                 last_err = Some(format!("{provider_name} disabled in models.yaml"));
                 continue;
             }
@@ -499,23 +509,27 @@ impl<'a> Engine<'a> {
                 "{user}|vision:{vision_digest}|lens:{}",
                 lens.as_deref().unwrap_or("default")
             );
-            let cache_key = Cache::make_key(
-                "",
-                &cache_input,
-                provider_name,
-                model,
-                self.prompt_version,
-            );
+            let cache_key =
+                Cache::make_key("", &cache_input, provider_name, model, self.prompt_version);
 
             if !no_cache {
                 if let Some(cached) = self.cache.get(&cache_key) {
-                    let parsed_ok = cached.get("parsed_ok").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let parsed_ok = cached
+                        .get("parsed_ok")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
                     if parsed_ok {
                         if let Value::Object(obj) = cached {
                             let mut result = JurorResult::new(
                                 juror_cfg.id.clone(),
-                                obj.get("provider").and_then(|v| v.as_str()).unwrap_or(provider_name).to_string(),
-                                obj.get("model").and_then(|v| v.as_str()).unwrap_or(model).to_string(),
+                                obj.get("provider")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or(provider_name)
+                                    .to_string(),
+                                obj.get("model")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or(model)
+                                    .to_string(),
                             );
                             result.verdict = get_str(&obj, "verdict", "ERROR");
                             result.score = get_i64(&obj, "score");
@@ -526,7 +540,10 @@ impl<'a> Engine<'a> {
                             result.raw_response = get_str(&obj, "raw_response", "");
                             result.parsed_ok = true;
                             result.latency_ms = get_i64(&obj, "latency_ms");
-                            result.degraded = obj.get("degraded").and_then(|v| v.as_bool()).unwrap_or(false);
+                            result.degraded = obj
+                                .get("degraded")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false);
                             result.fallback_used = *is_fallback;
                             result.lens = lens.clone();
                             result.call_count = 0;
@@ -544,7 +561,9 @@ impl<'a> Engine<'a> {
                 continue;
             };
             let degraded = provider_cfg.and_then(|c| c.flag_degraded).unwrap_or(false);
-            let provider_cap = provider_cfg.and_then(|c| c.max_output_tokens).unwrap_or(8192);
+            let provider_cap = provider_cfg
+                .and_then(|c| c.max_output_tokens)
+                .unwrap_or(8192);
             let seat_cap = juror_cfg
                 .max_tokens
                 .unwrap_or(if is_vision { 4096 } else { 3072 });
@@ -587,7 +606,11 @@ impl<'a> Engine<'a> {
                 Ok(raw) => {
                     let latency_ms = t0.elapsed().as_millis() as i64;
                     let parsed = parse_juror_json(Some(&raw));
-                    let mut result = JurorResult::new(juror_cfg.id.clone(), provider_name.clone(), model.clone());
+                    let mut result = JurorResult::new(
+                        juror_cfg.id.clone(),
+                        provider_name.clone(),
+                        model.clone(),
+                    );
                     if let Some(obj) = &parsed.object {
                         result.verdict = get_str(obj, "verdict", "ERROR");
                         result.score = get_i64(obj, "score");
@@ -614,7 +637,10 @@ impl<'a> Engine<'a> {
 
                     let mut d = result.to_dict();
                     if let Value::Object(m) = &mut d {
-                        m.insert("lens".to_string(), lens.clone().map(Value::String).unwrap_or(Value::Null));
+                        m.insert(
+                            "lens".to_string(),
+                            lens.clone().map(Value::String).unwrap_or(Value::Null),
+                        );
                     }
                     if result.parsed_ok {
                         let _ = self.cache.set(&cache_key, &d);
@@ -639,7 +665,8 @@ impl<'a> Engine<'a> {
             }
         }
 
-        let mut result = JurorResult::new(juror_cfg.id.clone(), chain[0].0.clone(), chain[0].1.clone());
+        let mut result =
+            JurorResult::new(juror_cfg.id.clone(), chain[0].0.clone(), chain[0].1.clone());
         result.verdict = "ERROR".to_string();
         result.error = Some(last_err.unwrap_or_else(|| "all fallbacks exhausted".to_string()));
         result.call_count = call_count;
@@ -684,8 +711,11 @@ impl<'a> Engine<'a> {
         let mut out = Vec::new();
         for rule in triggered {
             let Some(provider) = self.providers.get(&rule.provider) else {
-                let mut result =
-                    JurorResult::new(format!("escalation:{}", rule.provider), rule.provider.clone(), rule.model.clone());
+                let mut result = JurorResult::new(
+                    format!("escalation:{}", rule.provider),
+                    rule.provider.clone(),
+                    rule.model.clone(),
+                );
                 result.verdict = "ERROR".to_string();
                 result.error = Some(format!("{}: no provider wired", rule.provider));
                 result.call_count = 1;
@@ -694,26 +724,27 @@ impl<'a> Engine<'a> {
             };
             let t0 = Instant::now();
             let call_result = provider.call_with_metadata(&rule.model, system, user, 1024, None);
-            let raw_result: Result<(String, bool, BTreeMap<String, Value>), ProviderError> = match call_result {
-                Ok(Some((text, usage))) => {
-                    let observed = normalized_usage(usage.as_ref());
-                    let usage_complete = observed.is_some();
-                    let usage_out = observed
-                        .map(|u| {
-                            BTreeMap::from([
-                                ("input_tokens".to_string(), Value::from(u.input_tokens)),
-                                ("output_tokens".to_string(), Value::from(u.output_tokens)),
-                                ("total_tokens".to_string(), Value::from(u.total_tokens)),
-                            ])
-                        })
-                        .unwrap_or_default();
-                    Ok((text, usage_complete, usage_out))
-                }
-                Ok(None) => provider
-                    .call(&rule.model, system, user, 1024, None)
-                    .map(|text| (text, false, BTreeMap::new())),
-                Err(e) => Err(e),
-            };
+            let raw_result: Result<(String, bool, BTreeMap<String, Value>), ProviderError> =
+                match call_result {
+                    Ok(Some((text, usage))) => {
+                        let observed = normalized_usage(usage.as_ref());
+                        let usage_complete = observed.is_some();
+                        let usage_out = observed
+                            .map(|u| {
+                                BTreeMap::from([
+                                    ("input_tokens".to_string(), Value::from(u.input_tokens)),
+                                    ("output_tokens".to_string(), Value::from(u.output_tokens)),
+                                    ("total_tokens".to_string(), Value::from(u.total_tokens)),
+                                ])
+                            })
+                            .unwrap_or_default();
+                        Ok((text, usage_complete, usage_out))
+                    }
+                    Ok(None) => provider
+                        .call(&rule.model, system, user, 1024, None)
+                        .map(|text| (text, false, BTreeMap::new())),
+                    Err(e) => Err(e),
+                };
             match raw_result {
                 Ok((raw, usage_complete, usage)) => {
                     let parsed = parse_juror_json(Some(&raw));

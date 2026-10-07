@@ -25,7 +25,9 @@ impl TrustedDeliveryEvidenceCapability {
             "controlRecoveryAuthority",
         ];
         if providers.is_empty()
-            || providers.keys().any(|name| !ALLOWED.contains(&name.as_str()))
+            || providers
+                .keys()
+                .any(|name| !ALLOWED.contains(&name.as_str()))
         {
             return Err("trusted delivery providers must be known functions".into());
         }
@@ -65,23 +67,26 @@ impl DeliveryGovernanceDispatcher {
 
     pub fn dispatch(&self, request: &Value) -> Value {
         if !request.is_object() {
-            return denied("ARC_SCHEMA_INVALID", json!({ "message": "operation is required" }));
+            return denied(
+                "ARC_SCHEMA_INVALID",
+                json!({ "message": "operation is required" }),
+            );
         }
         let operation = request
             .get("operation")
             .and_then(Value::as_str)
             .filter(|value| !value.is_empty());
         if operation.is_none() {
-            return denied("ARC_SCHEMA_INVALID", json!({ "message": "operation is required" }));
+            return denied(
+                "ARC_SCHEMA_INVALID",
+                json!({ "message": "operation is required" }),
+            );
         }
         let operation = operation.unwrap();
         let input = request.get("input").unwrap_or(&Value::Null);
         match self.operation_result(operation, input) {
             Ok(value) => value,
-            Err(error) => denied(
-                error.code(),
-                json!({ "operation": operation }),
-            ),
+            Err(error) => denied(error.code(), json!({ "operation": operation })),
         }
     }
 }
@@ -204,7 +209,12 @@ impl DeliveryGovernanceDispatcher {
                         recover_control_state(
                             input,
                             &|_| false,
-                            &|_, _| Err(ArcaneError::typed("ARC_RECOVERY_REPAIR_FAILED", "unreachable")),
+                            &|_, _| {
+                                Err(ArcaneError::typed(
+                                    "ARC_RECOVERY_REPAIR_FAILED",
+                                    "unreachable",
+                                ))
+                            },
                             &|_, _| false,
                         )?,
                     )

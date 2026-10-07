@@ -36,12 +36,17 @@ mod util;
 pub use config_producer::{config_producers, render_config_preview};
 pub use design_proposal::{design_proposal, DesignProposalError, DesignProposalInput};
 pub use effect_graph::{
-    blocks_auto_apply, build_effect_graph, build_effect_graph_schema, compute_closure, matches_path, patch_effect_graph, BuildEffectGraphInput,
-    EffectGraphError, PatchEffectGraphInput, EFFECT_GRAPH_SCHEMA_VERSION,
+    blocks_auto_apply, build_effect_graph, build_effect_graph_schema, compute_closure,
+    matches_path, patch_effect_graph, BuildEffectGraphInput, EffectGraphError,
+    PatchEffectGraphInput, EFFECT_GRAPH_SCHEMA_VERSION,
 };
-pub use fix_contract::{evaluate_fix_loop, fix_proposal, EvaluateFixLoopInput, FixLoopDecision, FixProposalInput, FIX_STOPS};
+pub use fix_contract::{
+    evaluate_fix_loop, fix_proposal, EvaluateFixLoopInput, FixLoopDecision, FixProposalInput,
+    FIX_STOPS,
+};
 pub use mechanical::{
-    all_producers, assert_producer_qualified, create_mechanical_proposal, manual_proposal, mechanical_ast_grep_proposal, mechanical_config_proposal,
-    mechanical_dependency_proposal, mechanical_registry, mechanical_registry_json, plan_mechanical_remediation, producer_for, render_preview, Edit,
-    MechanicalError, PreviewResult, Producer, RegistryEntry,
+    all_producers, assert_producer_qualified, create_mechanical_proposal, manual_proposal,
+    mechanical_ast_grep_proposal, mechanical_config_proposal, mechanical_dependency_proposal,
+    mechanical_registry, mechanical_registry_json, plan_mechanical_remediation, producer_for,
+    render_preview, Edit, MechanicalError, PreviewResult, Producer, RegistryEntry,
 };

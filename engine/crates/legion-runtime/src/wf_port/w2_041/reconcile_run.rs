@@ -83,7 +83,12 @@ fn expected_denominator(plan: &Value, provider: &Value) -> Value {
 /// Port of `reconcileRun({ plan, receipts = [], artifacts = null }, host)`.
 ///
 /// `now_iso` stands in for `host.clock.now().toISOString()`.
-pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>, now_iso: &str) -> Value {
+pub fn reconcile_run(
+    plan: &Value,
+    receipts: &[Value],
+    artifacts: Option<&Value>,
+    now_iso: &str,
+) -> Value {
     let providers = plan
         .get("providers")
         .and_then(Value::as_array)
@@ -91,14 +96,23 @@ pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>
         .unwrap_or_default();
     let planned: std::collections::BTreeMap<String, Value> = providers
         .iter()
-        .filter_map(|p| p.get("id").and_then(Value::as_str).map(|id| (id.to_string(), p.clone())))
+        .filter_map(|p| {
+            p.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), p.clone()))
+        })
         .collect();
 
     // Group receipts by provider id, preserving the original receipt order
     // within each group (only the first receipt of a group is ever used).
-    let mut grouped: std::collections::HashMap<String, Vec<&Value>> = std::collections::HashMap::new();
+    let mut grouped: std::collections::HashMap<String, Vec<&Value>> =
+        std::collections::HashMap::new();
     for receipt in receipts {
-        let provider = receipt.get("provider").and_then(Value::as_str).unwrap_or("").to_string();
+        let provider = receipt
+            .get("provider")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         grouped.entry(provider).or_default().push(receipt);
     }
 
@@ -120,7 +134,11 @@ pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>
     let mut denominator_mismatches: Vec<Value> = Vec::new();
     let plan_binding = plan.get("binding").cloned().unwrap_or(Value::Null);
     for receipt in receipts {
-        let provider_id = receipt.get("provider").and_then(Value::as_str).unwrap_or("").to_string();
+        let provider_id = receipt
+            .get("provider")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         let Some(provider) = planned.get(&provider_id) else {
             continue;
         };
@@ -174,7 +192,11 @@ pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>
     let provider_results: Vec<Value> = providers
         .iter()
         .map(|provider| {
-            let id = provider.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+            let id = provider
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             let phase = provider.get("phase").cloned().unwrap_or(Value::Null);
             let benchmark = provider.get("benchmark").cloned().unwrap_or(Value::Null);
             let receipt = grouped.get(&id).and_then(|rows| rows.first()).copied();
@@ -197,10 +219,12 @@ pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>
             } else {
                 let receipt = receipt.unwrap();
                 let status = nz(receipt, "/providerResult/status").unwrap_or(json!("unproven"));
-                let complete = receipt.pointer("/providerResult/complete") == Some(&Value::Bool(true));
+                let complete =
+                    receipt.pointer("/providerResult/complete") == Some(&Value::Bool(true));
                 let spawn_status = receipt.get("spawnStatus").cloned().unwrap_or(Value::Null);
                 let exit_code = receipt.get("exitCode").cloned().unwrap_or(Value::Null);
-                let coverage_gaps = nz(receipt, "/providerResult/coverageGaps").unwrap_or(json!([]));
+                let coverage_gaps =
+                    nz(receipt, "/providerResult/coverageGaps").unwrap_or(json!([]));
                 json!({
                     "provider": id,
                     "phase": phase,
@@ -257,7 +281,11 @@ pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>
             .iter()
             .map(|provider| json!({"kind": "unplanned-terminal-receipt", "provider": provider})),
     );
-    integrity_gaps.extend(binding_mismatches.iter().map(|row| spread_kind("binding-mismatch", row)));
+    integrity_gaps.extend(
+        binding_mismatches
+            .iter()
+            .map(|row| spread_kind("binding-mismatch", row)),
+    );
     integrity_gaps.extend(
         denominator_mismatches
             .iter()
@@ -275,14 +303,20 @@ pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>
     });
     let incomplete = incomplete_providers || !integrity_gaps.is_empty();
     let execution_failed = provider_results.iter().any(|r| {
-        matches!(r.get("status").and_then(Value::as_str), Some("fail") | Some("error"))
+        matches!(
+            r.get("status").and_then(Value::as_str),
+            Some("fail") | Some("error")
+        )
     });
 
     let checks: Vec<Value> = receipts
         .iter()
         .map(|receipt| {
             let provider = receipt.get("provider").cloned().unwrap_or(Value::Null);
-            let provider_id = receipt.get("provider").and_then(Value::as_str).unwrap_or("");
+            let provider_id = receipt
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             let provider_result_status = nz(receipt, "/providerResult/status");
             let status = provider_result_status
                 .clone()
@@ -308,7 +342,9 @@ pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>
         .collect();
 
     let workspace = plan.get("root").cloned().unwrap_or(Value::Null);
-    let out_dir = artifacts.and_then(|a| nz(a, "/root")).unwrap_or(Value::Null);
+    let out_dir = artifacts
+        .and_then(|a| nz(a, "/root"))
+        .unwrap_or(Value::Null);
 
     let missing_checks: Vec<Value> = provider_results
         .iter()
@@ -322,8 +358,10 @@ pub fn reconcile_run(plan: &Value, receipts: &[Value], artifacts: Option<&Value>
     unresolved_coverage.extend(topology_gaps.clone());
     unresolved_coverage.extend(integrity_gaps.clone());
 
-    let overall_incomplete =
-        incomplete || !capability_gaps.is_empty() || !baseline_gaps.is_empty() || !topology_gaps.is_empty();
+    let overall_incomplete = incomplete
+        || !capability_gaps.is_empty()
+        || !baseline_gaps.is_empty()
+        || !topology_gaps.is_empty();
 
     json!({
         "schemaVersion": 1,
@@ -398,12 +436,17 @@ mod tests {
         assert_eq!(result["kind"], json!("audit-facts"));
         assert_eq!(result["workspace"], json!("/repo"));
         assert_eq!(result["generated_at"], json!("2026-01-01T00:00:00.000Z"));
-        let provider_results = result["provider_reconciliation"]["providerResults"].as_array().unwrap();
+        let provider_results = result["provider_reconciliation"]["providerResults"]
+            .as_array()
+            .unwrap();
         assert_eq!(provider_results.len(), 2);
         assert_eq!(provider_results[0]["status"], json!("pass"));
         assert_eq!(provider_results[0]["complete"], json!(true));
         assert_eq!(provider_results[1]["status"], json!("missing"));
-        assert_eq!(provider_results[1]["coverageGaps"], json!([{"kind": "missing-terminal-receipt"}]));
+        assert_eq!(
+            provider_results[1]["coverageGaps"],
+            json!([{"kind": "missing-terminal-receipt"}])
+        );
         assert_eq!(
             result["provider_reconciliation"]["missingChecks"],
             json!(["p2"])
@@ -425,9 +468,14 @@ mod tests {
             result["provider_reconciliation"]["duplicateChecks"],
             json!(["p1"])
         );
-        let provider_results = result["provider_reconciliation"]["providerResults"].as_array().unwrap();
+        let provider_results = result["provider_reconciliation"]["providerResults"]
+            .as_array()
+            .unwrap();
         assert_eq!(provider_results[0]["status"], json!("invalid"));
-        assert_eq!(provider_results[0]["coverageGaps"], json!([{"kind": "invalid-terminal-receipt"}]));
+        assert_eq!(
+            provider_results[0]["coverageGaps"],
+            json!([{"kind": "invalid-terminal-receipt"}])
+        );
         assert_eq!(result["incomplete"], json!(true));
     }
 
@@ -459,7 +507,9 @@ mod tests {
             "providerResult": {"status": "pass", "complete": true, "provider": "not-p1"},
         })];
         let result = reconcile_run(&plan, &receipts, None, "now");
-        let mismatches = result["provider_reconciliation"]["bindingMismatches"].as_array().unwrap();
+        let mismatches = result["provider_reconciliation"]["bindingMismatches"]
+            .as_array()
+            .unwrap();
         // One binding digest mismatch + one provider-result mismatch.
         assert_eq!(mismatches.len(), 2);
         assert!(mismatches
@@ -480,7 +530,9 @@ mod tests {
             "providerResult": {"status": "pass", "complete": true, "provider": "p1"},
         })];
         let result = reconcile_run(&plan, &receipts, None, "now");
-        let mismatches = result["provider_reconciliation"]["denominatorMismatches"].as_array().unwrap();
+        let mismatches = result["provider_reconciliation"]["denominatorMismatches"]
+            .as_array()
+            .unwrap();
         assert_eq!(mismatches.len(), 1);
         assert_eq!(mismatches[0]["expected"], json!("d1"));
         assert_eq!(mismatches[0]["actual"], json!("d2"));
@@ -496,9 +548,15 @@ mod tests {
         });
         let result = reconcile_run(&plan, &[], None, "now");
         assert_eq!(result["incomplete"], json!(true));
-        let unresolved = result["provider_reconciliation"]["unresolvedCoverage"].as_array().unwrap();
-        assert!(unresolved.iter().any(|g| g["kind"] == json!("unmapped-control")));
-        assert!(unresolved.iter().any(|g| g["kind"] == json!("unknown-deliverable")));
+        let unresolved = result["provider_reconciliation"]["unresolvedCoverage"]
+            .as_array()
+            .unwrap();
+        assert!(unresolved
+            .iter()
+            .any(|g| g["kind"] == json!("unmapped-control")));
+        assert!(unresolved
+            .iter()
+            .any(|g| g["kind"] == json!("unknown-deliverable")));
     }
 
     #[test]

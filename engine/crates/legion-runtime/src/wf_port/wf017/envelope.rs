@@ -103,12 +103,14 @@ pub struct UntrustedEvidenceRecord {
 // tab). Unlike the JS source we do not run Unicode NFC normalization first
 // (no normalization crate is available in this workspace's Cargo.lock); see
 // the wf017 report.
-static BIDI: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new("[\u{200E}\u{200F}\u{061C}\u{202A}-\u{202E}\u{2066}-\u{2069}]").expect("valid regex"));
+static BIDI: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new("[\u{200E}\u{200F}\u{061C}\u{202A}-\u{202E}\u{2066}-\u{2069}]").expect("valid regex")
+});
 static ZERO_WIDTH: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("[\u{200B}-\u{200D}\u{2060}\u{FEFF}]").expect("valid regex"));
-static CONTROL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x9F]").expect("valid regex"));
+static CONTROL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x9F]").expect("valid regex")
+});
 
 fn escape_matches(re: &Regex, text: &str) -> (String, bool) {
     let mut changed = false;
@@ -205,7 +207,10 @@ pub struct OverrideAttempt {
 }
 
 static OVERRIDE_PATTERNS: &[(&str, &str)] = &[
-    ("provider", r"(?i)\b(?:provider|producer)\s*(?:[:=]|\bto\b)\s*[\w.@/-]+"),
+    (
+        "provider",
+        r"(?i)\b(?:provider|producer)\s*(?:[:=]|\bto\b)\s*[\w.@/-]+",
+    ),
     (
         "role",
         r"(?i)\b(?:role|persona|you\s+are)\s*(?:[:=]|\bnow\b)?\s*(?:system|admin|root|developer|assistant|adjudicator)\b",
@@ -216,7 +221,10 @@ static OVERRIDE_PATTERNS: &[(&str, &str)] = &[
     ),
     ("schema", r"(?i)\b(?:new\s+)?schema\s*[:=]\s*[\w./-]+"),
     ("tools", r"(?i)\btools?\s*[:=]\s*[\w.,\s/-]+"),
-    ("policy", r"(?i)\b(?:policy|policyEffect|severity|blocking)\s*[:=]\s*[\w-]+"),
+    (
+        "policy",
+        r"(?i)\b(?:policy|policyEffect|severity|blocking)\s*[:=]\s*[\w-]+",
+    ),
     ("verdict", r"\bverdict\s*[:=]\s*[A-Z_]{3,}"),
     (
         "instruction",

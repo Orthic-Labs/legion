@@ -39,11 +39,23 @@ fn service_data_reports_blocked_with_no_adapter_and_wraps_with_service_provider_
     let binding = full_binding();
     let mut adapter = DataAdapter::default();
     let cases = json!(["case-1"]);
-    let out = verify_service_data(&binding, Some("dataset-1"), Some("v1"), &mut adapter, &cases);
+    let out = verify_service_data(
+        &binding,
+        Some("dataset-1"),
+        Some("v1"),
+        &mut adapter,
+        &cases,
+    );
     assert_eq!(out["provider"], "runtime.service.data");
     assert_eq!(out["claimLevel"], "runtime");
-    assert_eq!(out["kind"], "legion-service-data-provider", "finalize re-adds its own kind after verifyServiceData strips the inner one");
-    assert!(out.get("digest").is_some(), "finalize re-adds its own digest");
+    assert_eq!(
+        out["kind"], "legion-service-data-provider",
+        "finalize re-adds its own kind after verifyServiceData strips the inner one"
+    );
+    assert!(
+        out.get("digest").is_some(),
+        "finalize re-adds its own digest"
+    );
     assert_eq!(out["status"], "blocked");
 }
 
@@ -81,7 +93,10 @@ fn web_accessibility_passes_with_matching_clean_inspections() {
         &captures,
         &inspections,
         &tool,
-        CaptureEvidence { digest: Value::String("sha256:capture".to_string()), coverage_gaps: vec![] },
+        CaptureEvidence {
+            digest: Value::String("sha256:capture".to_string()),
+            coverage_gaps: vec![],
+        },
     );
     assert_eq!(out["status"], "pass");
     assert_eq!(out["violationCount"], 0);
@@ -101,10 +116,18 @@ fn web_accessibility_flags_missing_and_unplanned_inspections() {
         &captures,
         &inspections,
         &Value::Null,
-        CaptureEvidence { digest: Value::Null, coverage_gaps: vec![] },
+        CaptureEvidence {
+            digest: Value::Null,
+            coverage_gaps: vec![],
+        },
     );
     assert_eq!(out["status"], "unproven");
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"accessibility-inspection-missing:2"));
     assert!(gaps.contains(&"accessibility-inspection-unplanned:3"));
 }
@@ -153,7 +176,16 @@ fn actor_fixtures_pass_and_switch_actor_succeeds_within_same_tenant() {
     assert_eq!(receipt["proof"], true);
 
     let session_binding = receipt["binding"].clone();
-    let result = switch_actor(&receipt, "actor-a", "actor-b", "actor-a", &session_binding, &[], None, &Value::Null);
+    let result = switch_actor(
+        &receipt,
+        "actor-a",
+        "actor-b",
+        "actor-a",
+        &session_binding,
+        &[],
+        None,
+        &Value::Null,
+    );
     assert_eq!(result["status"], "pass");
     assert_eq!(result["from"], "actor-a");
     assert_eq!(result["to"], "actor-b");
@@ -162,7 +194,16 @@ fn actor_fixtures_pass_and_switch_actor_succeeds_within_same_tenant() {
 #[test]
 fn switch_actor_blocks_on_digest_mismatch() {
     let receipt = json!({ "digest": "sha256:not-real", "status": "pass", "terminal": true, "complete": true, "proof": true });
-    let out = switch_actor(&receipt, "a", "b", "a", &Value::Null, &[], None, &Value::Null);
+    let out = switch_actor(
+        &receipt,
+        "a",
+        "b",
+        "a",
+        &Value::Null,
+        &[],
+        None,
+        &Value::Null,
+    );
     assert_eq!(out["status"], "blocked");
     assert_eq!(out["reason"], "actor-fixture-digest-mismatch");
 }
@@ -189,7 +230,12 @@ fn api_exercise_rejects_unsafe_case_id() {
     let cases = json!([{ "id": "has spaces!" }]);
     let out = verify_api_exercise(&Value::Null, &cases, &Value::Null);
     assert_eq!(out["status"], "error");
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"api-case-id-invalid"));
 }
 

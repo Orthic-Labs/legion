@@ -71,10 +71,7 @@ fn truthy(v: Option<&Value>) -> bool {
 /// objects (the script's loose schema); `contradictions`, if present, is
 /// the `{"contradictions": [{"claim_ids": [...]}, ...]}` shape.
 pub fn review(claims: &[Value], evidence: &[Value], contradictions: Option<&Value>) -> GapReview {
-    let by_id: HashMap<String, &Value> = evidence
-        .iter()
-        .map(|e| (str_field(e, "id"), e))
-        .collect();
+    let by_id: HashMap<String, &Value> = evidence.iter().map(|e| (str_field(e, "id"), e)).collect();
 
     let contested_ids: HashSet<String> = contradictions
         .and_then(|c| c.get("contradictions"))
@@ -161,7 +158,9 @@ pub fn review(claims: &[Value], evidence: &[Value], contradictions: Option<&Valu
             }
         }
         if overturners.is_empty() {
-            overturners.push("new proposition-fit primary evidence that contradicts the claim".to_string());
+            overturners.push(
+                "new proposition-fit primary evidence that contradicts the claim".to_string(),
+            );
         }
 
         let query = if gaps.is_empty() {
@@ -239,7 +238,11 @@ fn build_query(claim: &Value, ctype: &str) -> String {
 /// Builds the `{"findings": [...], "blocking_findings": [...],
 /// "targeted_queries": [...], "complete": bool}` JSON exactly as the Python
 /// CLI prints it (field order matches `json.dumps(..., sort_keys=True)`).
-pub fn review_to_json(claims: &[Value], evidence: &[Value], contradictions: Option<&Value>) -> Value {
+pub fn review_to_json(
+    claims: &[Value],
+    evidence: &[Value],
+    contradictions: Option<&Value>,
+) -> Value {
     let result = review(claims, evidence, contradictions);
     let finding_to_json = |f: &GapFinding| {
         let mut obj = Map::new();
@@ -261,7 +264,10 @@ pub fn review_to_json(claims: &[Value], evidence: &[Value], contradictions: Opti
         );
         obj.insert(
             "targeted_query".to_string(),
-            f.targeted_query.clone().map(Value::String).unwrap_or(Value::Null),
+            f.targeted_query
+                .clone()
+                .map(Value::String)
+                .unwrap_or(Value::Null),
         );
         obj.insert("status".to_string(), Value::String(f.status.to_string()));
         Value::Object(obj)
@@ -309,7 +315,8 @@ mod tests {
 
     #[test]
     fn missing_primary_source_blocks() {
-        let claims = vec![json!({"id": "c1", "text": "x", "claim_type": "observation", "source_ids": []})];
+        let claims =
+            vec![json!({"id": "c1", "text": "x", "claim_type": "observation", "source_ids": []})];
         let review = review(&claims, &[], None);
         assert!(!review.complete);
         assert!(review.findings[0]
@@ -319,9 +326,8 @@ mod tests {
 
     #[test]
     fn multi_source_claim_type_requires_two_clusters() {
-        let evidence = vec![
-            json!({"id": "e1", "is_primary": true, "independence_cluster": "ind:1"}),
-        ];
+        let evidence =
+            vec![json!({"id": "e1", "is_primary": true, "independence_cluster": "ind:1"})];
         let claims = vec![json!({
             "id": "c1", "text": "x", "claim_type": "benchmark", "source_ids": ["e1"]
         })];
@@ -358,7 +364,12 @@ mod tests {
     fn json_shape_matches_python_field_names() {
         let claims = vec![json!({"id": "c1", "text": "x", "claim_type": "inference"})];
         let out = review_to_json(&claims, &[], None);
-        for key in ["findings", "blocking_findings", "targeted_queries", "complete"] {
+        for key in [
+            "findings",
+            "blocking_findings",
+            "targeted_queries",
+            "complete",
+        ] {
             assert!(out.get(key).is_some(), "missing key {key}");
         }
     }

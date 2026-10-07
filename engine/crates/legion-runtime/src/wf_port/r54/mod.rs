@@ -19,8 +19,8 @@
 pub mod actions;
 pub mod browser;
 pub mod chrome_session;
-pub mod profiles;
 pub mod ports;
+pub mod profiles;
 pub mod run;
 pub mod session;
 pub mod session_client;

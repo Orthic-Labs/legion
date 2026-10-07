@@ -49,30 +49,48 @@ fn same(a: &Value, b: &Value) -> bool {
 fn check_manifest_authority(value: Option<&Value>, issues: &mut Vec<String>, label: &str) {
     let value = value.cloned().unwrap_or(Value::Null);
     if s(&value, "manifestAuthority") != Some(MANIFEST_AUTHORITY) {
-        issues.push(format!("{label} must use release-manifest.json + release-manifest.cat"));
+        issues.push(format!(
+            "{label} must use release-manifest.json + release-manifest.cat"
+        ));
     }
     let manifest = value.get("manifest").cloned().unwrap_or(Value::Null);
-    if s(&manifest, "file") != Some(MANIFEST_FILE) || s(&manifest, "signature") != Some(MANIFEST_SIGNATURE) {
-        issues.push(format!("{label} manifest files are not release-manifest.json + release-manifest.cat"));
+    if s(&manifest, "file") != Some(MANIFEST_FILE)
+        || s(&manifest, "signature") != Some(MANIFEST_SIGNATURE)
+    {
+        issues.push(format!(
+            "{label} manifest files are not release-manifest.json + release-manifest.cat"
+        ));
     }
     if s(&manifest, "signatureAlgorithm") != Some(SIGNATURE_ALGORITHM) {
-        issues.push(format!("{label} manifest signature algorithm is not Authenticode catalog SHA-256"));
+        issues.push(format!(
+            "{label} manifest signature algorithm is not Authenticode catalog SHA-256"
+        ));
     }
-    let provider_version_ok = manifest.get("signatureProviderVersion").and_then(|v| v.as_i64())
+    let provider_version_ok = manifest
+        .get("signatureProviderVersion")
+        .and_then(|v| v.as_i64())
         == Some(SIGNATURE_PROVIDER_VERSION);
     if s(&manifest, "signatureProvider") != Some(SIGNATURE_PROVIDER) || !provider_version_ok {
-        issues.push(format!("{label} manifest signature provider is not windows-authenticode-catalog v1"));
+        issues.push(format!(
+            "{label} manifest signature provider is not windows-authenticode-catalog v1"
+        ));
     }
     let checksums = value.get("checksums").cloned().unwrap_or(Value::Null);
-    if s(&checksums, "file") != Some(CHECKSUMS_FILE) || s(&checksums, "role") != Some(CHECKSUMS_ROLE) {
-        issues.push(format!("{label} checksums must be manifest-bound convenience evidence"));
+    if s(&checksums, "file") != Some(CHECKSUMS_FILE)
+        || s(&checksums, "role") != Some(CHECKSUMS_ROLE)
+    {
+        issues.push(format!(
+            "{label} checksums must be manifest-bound convenience evidence"
+        ));
     }
 }
 
 fn check_no_retired_claims(value: &Value, issues: &mut Vec<String>, label: &str) {
     let text = value.to_string().to_lowercase();
     if text.contains("release-manifest.sig") {
-        issues.push(format!("{label} contains retired release-manifest.sig authority"));
+        issues.push(format!(
+            "{label} contains retired release-manifest.sig authority"
+        ));
     }
     if text.contains("cms") {
         issues.push(format!("{label} contains a detached CMS claim"));
@@ -91,19 +109,39 @@ pub fn validate(root: &Path) -> Report {
     let mut issues: Vec<String> = Vec::new();
     let contract = match read_json(&root.join(CONTRACT_PATH)) {
         Ok(v) => v,
-        Err(e) => return Report { ok: false, issues: vec![e] },
+        Err(e) => {
+            return Report {
+                ok: false,
+                issues: vec![e],
+            }
+        }
     };
     let policy = match read_json(&root.join(POLICY_PATH)) {
         Ok(v) => v,
-        Err(e) => return Report { ok: false, issues: vec![e] },
+        Err(e) => {
+            return Report {
+                ok: false,
+                issues: vec![e],
+            }
+        }
     };
     let channels = match read_json(&root.join(CHANNELS_PATH)) {
         Ok(v) => v,
-        Err(e) => return Report { ok: false, issues: vec![e] },
+        Err(e) => {
+            return Report {
+                ok: false,
+                issues: vec![e],
+            }
+        }
     };
     let pkg = match read_json(&root.join("package.json")) {
         Ok(v) => v,
-        Err(e) => return Report { ok: false, issues: vec![e] },
+        Err(e) => {
+            return Report {
+                ok: false,
+                issues: vec![e],
+            }
+        }
     };
 
     let null = Value::Null;
@@ -136,7 +174,10 @@ pub fn validate(root: &Path) -> Report {
     {
         issues.push("npm publication must be denied as private development tooling".to_string());
     }
-    let native = contract.get("nativeRelease").cloned().unwrap_or_else(|| serde_json::json!({}));
+    let native = contract
+        .get("nativeRelease")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
     let native_channel = s(&native, "channel").unwrap_or("");
     let grant = policy
         .get("channels")
@@ -164,7 +205,10 @@ pub fn validate(root: &Path) -> Report {
     if native.get("public").and_then(|v| v.as_bool()) != Some(true)
         || s(&native, "status") != Some("blocked")
     {
-        issues.push("native direct-bootstrap publication must remain blocked until evidence is complete".to_string());
+        issues.push(
+            "native direct-bootstrap publication must remain blocked until evidence is complete"
+                .to_string(),
+        );
     }
     if s(&native, "payloadAuthority") != Some(PAYLOAD_AUTHORITY) {
         issues.push("native payload authority must be immutable GitHub Releases".to_string());
@@ -178,12 +222,19 @@ pub fn validate(root: &Path) -> Report {
     if native
         .get("requiredEvidence")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().any(|x| x.as_str() == Some("package-manager-metadata")))
+        .map(|a| {
+            a.iter()
+                .any(|x| x.as_str() == Some("package-manager-metadata"))
+        })
         .unwrap_or(false)
     {
         issues.push("package-manager metadata cannot be required release evidence".to_string());
     }
-    check_manifest_authority(policy.get("authority"), &mut issues, "publication policy authority");
+    check_manifest_authority(
+        policy.get("authority"),
+        &mut issues,
+        "publication policy authority",
+    );
     let policy_authority = policy.get("authority").unwrap_or(&null);
     if s(policy_authority, "payload") != Some(PAYLOAD_AUTHORITY)
         || s(policy_authority, "bootstrap") != Some("rightkit-worker-r2-stable-object")
@@ -210,12 +261,16 @@ pub fn validate(root: &Path) -> Report {
         issues.push("invalid packaging/channels.json".to_string());
     }
     if s(&channels, "contract") != Some(CONTRACT_PATH) {
-        issues.push("distribution channel ledger is not bound to distribution contract".to_string());
+        issues
+            .push("distribution channel ledger is not bound to distribution contract".to_string());
     }
     if s(&channels, "versionSource") != Some("release/version.json")
         || s(&channels, "artifactSource") != Some(PAYLOAD_AUTHORITY)
     {
-        issues.push("distribution channel ledger is not bound to versioned immutable GitHub payloads".to_string());
+        issues.push(
+            "distribution channel ledger is not bound to versioned immutable GitHub payloads"
+                .to_string(),
+        );
     }
     if s(&channels, "publicationOwner") != Some("RightKit Release") {
         issues.push("distribution channel publisher must be RightKit Release".to_string());
@@ -226,7 +281,10 @@ pub fn validate(root: &Path) -> Report {
         || s(channels_bootstrap, "stableUrl") != Some(BOOTSTRAP_URL)
         || s(channels_bootstrap, "objectKey") != Some(BOOTSTRAP_OBJECT_KEY)
     {
-        issues.push("distribution channel bootstrap must be the RightKit Worker+R2 stable object only".to_string());
+        issues.push(
+            "distribution channel bootstrap must be the RightKit Worker+R2 stable object only"
+                .to_string(),
+        );
     }
     let channel_manifest = channels.get("manifest").cloned().unwrap_or(Value::Null);
     let synthetic = serde_json::json!({
@@ -234,7 +292,11 @@ pub fn validate(root: &Path) -> Report {
         "manifest": channel_manifest,
         "checksums": channels.get("checksums").cloned().unwrap_or(Value::Null),
     });
-    check_manifest_authority(Some(&synthetic), &mut issues, "distribution channel authority");
+    check_manifest_authority(
+        Some(&synthetic),
+        &mut issues,
+        "distribution channel authority",
+    );
 
     let channels_map = channels.get("channels").unwrap_or(&null);
     let native_ch = channels_map.get(native_channel).unwrap_or(&null);
@@ -299,13 +361,16 @@ pub fn validate(root: &Path) -> Report {
             || lower.contains("packagemanager:\"winget\"")
             || lower.contains("packagemanager:\"homebrew\"");
         if retired_hit {
-            issues.push("right-release config contains a retired distribution authority".to_string());
+            issues
+                .push("right-release config contains a retired distribution authority".to_string());
         }
     }
 
     let mut declared_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
     for candidate in [
-        native.pointer("/bootstrap/stableKey").and_then(|v| v.as_str()),
+        native
+            .pointer("/bootstrap/stableKey")
+            .and_then(|v| v.as_str()),
         grant.get("objectKey").and_then(|v| v.as_str()),
         channels_bootstrap.get("objectKey").and_then(|v| v.as_str()),
         native_ch.get("objectKey").and_then(|v| v.as_str()),
@@ -316,14 +381,19 @@ pub fn validate(root: &Path) -> Report {
         declared_keys.insert(candidate.to_string());
     }
     if declared_keys.len() != 1 || !declared_keys.contains(BOOTSTRAP_OBJECT_KEY) {
-        issues.push("bootstrap object key is missing or inconsistent across contract, policy, and channels".to_string());
+        issues.push(
+            "bootstrap object key is missing or inconsistent across contract, policy, and channels"
+                .to_string(),
+        );
     }
     match parse_https_url(BOOTSTRAP_URL) {
         Some((hostname, path)) => {
             let first_label = hostname.split('.').next().unwrap_or("");
             let projected = format!("{first_label}{path}");
             if projected != BOOTSTRAP_OBJECT_KEY {
-                issues.push(format!("bootstrap stable URL does not project onto {BOOTSTRAP_OBJECT_KEY}"));
+                issues.push(format!(
+                    "bootstrap stable URL does not project onto {BOOTSTRAP_OBJECT_KEY}"
+                ));
             }
         }
         None => issues.push("bootstrap stable URL must be HTTPS".to_string()),
@@ -334,18 +404,25 @@ pub fn validate(root: &Path) -> Report {
         channels_bootstrap.get("bucket").and_then(|v| v.as_str()),
     ] {
         if bucket != Some(BOOTSTRAP_BUCKET) {
-            issues.push("bootstrap R2 bucket is missing or not the shared downloads bucket".to_string());
+            issues.push(
+                "bootstrap R2 bucket is missing or not the shared downloads bucket".to_string(),
+            );
         }
     }
     for retired in RETIRED_PAGES_PATHS {
         if root.join(retired).exists() {
-            issues.push(format!("retired GitHub Pages bootstrap path still present: {retired}"));
+            issues.push(format!(
+                "retired GitHub Pages bootstrap path still present: {retired}"
+            ));
         }
     }
     check_no_retired_claims(&policy, &mut issues, "publication policy");
     check_no_retired_claims(&channels, &mut issues, "distribution channels");
 
-    Report { ok: issues.is_empty(), issues }
+    Report {
+        ok: issues.is_empty(),
+        issues,
+    }
 }
 
 /// Minimal `https://host/path` split (no query/fragment handling needed for

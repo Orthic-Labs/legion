@@ -83,14 +83,25 @@ impl MutationResult {
                 "status": "no-mutator",
                 "reason": reason,
             }),
-            MutationResult::Survived { file, line, mutator, exit_code } => json!({
+            MutationResult::Survived {
+                file,
+                line,
+                mutator,
+                exit_code,
+            } => json!({
                 "file": file,
                 "line": line,
                 "mutator": mutator,
                 "status": "survived",
                 "exit_code": exit_code,
             }),
-            MutationResult::Killed { file, line, mutator, exit_code, stderr_tail } => json!({
+            MutationResult::Killed {
+                file,
+                line,
+                mutator,
+                exit_code,
+                stderr_tail,
+            } => json!({
                 "file": file,
                 "line": line,
                 "mutator": mutator,
@@ -112,7 +123,13 @@ pub struct MutationLayer {
     pub results: Vec<MutationResult>,
 }
 
-const MUTATOR_ORDER: [&str; 5] = ["neq-flip", "or-swap", "neg-flip", "literal-zero", "string-empty"];
+const MUTATOR_ORDER: [&str; 5] = [
+    "neq-flip",
+    "or-swap",
+    "neg-flip",
+    "literal-zero",
+    "string-empty",
+];
 
 fn apply_mutator(id: &str, line: &str) -> Option<String> {
     match id {
@@ -184,10 +201,12 @@ fn find_return_keyword(line: &str) -> Option<usize> {
     while let Some(rel) = line[search_from..].find("return") {
         let idx = search_from + rel;
         let boundary_before = idx == 0
-            || !line.as_bytes()[idx - 1].is_ascii_alphanumeric() && line.as_bytes()[idx - 1] != b'_';
+            || !line.as_bytes()[idx - 1].is_ascii_alphanumeric()
+                && line.as_bytes()[idx - 1] != b'_';
         let after = idx + 6;
-        let boundary_after =
-            after >= line.len() || !(line.as_bytes()[after] as char).is_alphanumeric() && line.as_bytes()[after] != b'_';
+        let boundary_after = after >= line.len()
+            || !(line.as_bytes()[after] as char).is_alphanumeric()
+                && line.as_bytes()[after] != b'_';
         if boundary_before && boundary_after {
             return Some(idx);
         }
@@ -328,7 +347,8 @@ pub fn run_mutation(opts: RunMutationOptions<'_>) -> MutationLayer {
                 continue;
             };
             let mutated_line = apply_mutator(mutator, line).unwrap();
-            let mut mutated_lines: Vec<String> = source_lines.iter().map(|s| s.to_string()).collect();
+            let mut mutated_lines: Vec<String> =
+                source_lines.iter().map(|s| s.to_string()).collect();
             mutated_lines[idx] = mutated_line;
             let mutated_source = mutated_lines.join("\n");
 

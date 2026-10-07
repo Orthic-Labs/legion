@@ -215,10 +215,7 @@ fn find_tests(cwd: &Path, files: &[DiffFile]) -> Vec<String> {
         });
     }
 
-    found
-        .into_iter()
-        .map(|p| relative(cwd, &p))
-        .collect()
+    found.into_iter().map(|p| relative(cwd, &p)).collect()
 }
 
 /// Emulates Node's `path.resolve(cwd, path)`: if `path` is absolute, it is

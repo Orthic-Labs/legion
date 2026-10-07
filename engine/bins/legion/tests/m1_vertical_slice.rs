@@ -472,7 +472,10 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
         .iter()
         .map(|tool| tool["name"].as_str().unwrap())
         .collect::<Vec<_>>();
-    assert_eq!(names, ["legion_m1_status", "legion_m1_invoke", "legion_apple"]);
+    assert_eq!(
+        names,
+        ["legion_m1_status", "legion_m1_invoke", "legion_apple"]
+    );
 
     let apple = request(
         &mut stdin,
@@ -481,7 +484,10 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
             "name":"legion_apple", "arguments":{"operation":"catalog"}
         }}),
     );
-    assert_eq!(apple["result"]["structuredContent"]["data"]["backend"], "legion-apple", "{apple}");
+    assert_eq!(
+        apple["result"]["structuredContent"]["data"]["backend"], "legion-apple",
+        "{apple}"
+    );
     let denied = request(
         &mut stdin,
         &mut stdout,
@@ -491,8 +497,14 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
             }
         }}),
     );
-    assert_eq!(denied["result"]["isError"], true, "unguarded account execution must fail: {denied}");
-    assert_eq!(denied["result"]["structuredContent"]["error"]["code"], "INVALID_PARAMS");
+    assert_eq!(
+        denied["result"]["isError"], true,
+        "unguarded account execution must fail: {denied}"
+    );
+    assert_eq!(
+        denied["result"]["structuredContent"]["error"]["code"],
+        "INVALID_PARAMS"
+    );
     assert!(denied["result"]["structuredContent"]["data"].is_null());
 
     let invoked = request(

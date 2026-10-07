@@ -8,8 +8,10 @@ use regex::Regex;
 use serde_json::json;
 use std::sync::LazyLock;
 
-static FIRMWARE_FILE_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\.(c|h|cpp|hpp|ino|rs)$|(^|/)(platformio\.ini|CMakeLists\.txt|sdkconfig)$").unwrap());
+static FIRMWARE_FILE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\.(c|h|cpp|hpp|ino|rs)$|(^|/)(platformio\.ini|CMakeLists\.txt|sdkconfig)$")
+        .unwrap()
+});
 
 struct Rule {
     id: &'static str,
@@ -102,7 +104,12 @@ static RULE_SHARED_DEVICE_KEY: Rule = Rule {
 };
 
 fn rules() -> [&'static Rule; 4] {
-    [&RULE_FIRMWARE, &RULE_DEBUG_INTERFACE, &RULE_HARDCODED_SECRET, &RULE_SHARED_DEVICE_KEY]
+    [
+        &RULE_FIRMWARE,
+        &RULE_DEBUG_INTERFACE,
+        &RULE_HARDCODED_SECRET,
+        &RULE_SHARED_DEVICE_KEY,
+    ]
 }
 
 /// Faithful port of the module default export's `analyze(context)`.

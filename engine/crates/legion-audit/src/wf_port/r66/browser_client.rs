@@ -49,7 +49,11 @@ fn js_truthy(value: &Value) -> bool {
 }
 
 /// Mirrors `runtimeHeaderCompliance(context, headerKey, isCompliant)`.
-fn runtime_header_compliance(context: &Context, header_key: &str, is_compliant: impl Fn(&Value) -> bool) -> Option<bool> {
+fn runtime_header_compliance(
+    context: &Context,
+    header_key: &str,
+    is_compliant: impl Fn(&Value) -> bool,
+) -> Option<bool> {
     let value = context.runtime_header(header_key)?;
     Some(is_compliant(value))
 }
@@ -78,7 +82,9 @@ fn evaluate_deployment_aware_claim(
                 Some(DeploymentOutcome {
                     severity_cap: Some("medium"),
                     uncertainty: vec![deployment_assumption_uncertainty(subject)],
-                    deployment_assumption: Some(json!({ "assumption": "source-config-reflects-served-state", "subject": subject })),
+                    deployment_assumption: Some(
+                        json!({ "assumption": "source-config-reflects-served-state", "subject": subject }),
+                    ),
                     disagreement: None,
                 })
             }
@@ -91,7 +97,12 @@ fn evaluate_deployment_aware_claim(
             if runtime_compliant {
                 None
             } else if !source_compliant {
-                Some(DeploymentOutcome { severity_cap: None, uncertainty: vec![], deployment_assumption: None, disagreement: None })
+                Some(DeploymentOutcome {
+                    severity_cap: None,
+                    uncertainty: vec![],
+                    deployment_assumption: None,
+                    disagreement: None,
+                })
             } else {
                 Some(DeploymentOutcome {
                     severity_cap: Some("medium"),
@@ -113,12 +124,19 @@ fn evaluate_deployment_aware_claim(
 /// Mirrors `deploymentGate(context, subject)`.
 fn deployment_gate(context: &Context, subject: &str) -> DeploymentOutcome {
     if context.has_deployment_evidence() {
-        DeploymentOutcome { severity_cap: None, uncertainty: vec![], deployment_assumption: None, disagreement: None }
+        DeploymentOutcome {
+            severity_cap: None,
+            uncertainty: vec![],
+            deployment_assumption: None,
+            disagreement: None,
+        }
     } else {
         DeploymentOutcome {
             severity_cap: Some("medium"),
             uncertainty: vec![deployment_assumption_uncertainty(subject)],
-            deployment_assumption: Some(json!({ "assumption": "source-config-reflects-served-state", "subject": subject })),
+            deployment_assumption: Some(
+                json!({ "assumption": "source-config-reflects-served-state", "subject": subject }),
+            ),
             disagreement: None,
         }
     }
@@ -136,42 +154,62 @@ fn repo_wide_evidence_refs(context: &Context) -> Vec<String> {
     refs.into_iter().collect()
 }
 
-static CSRF_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)csrf|csurf|xsrf|_csrf|antiforgery").unwrap());
-static COOKIE_SESSION_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)cookie-session|req\.session|res\.cookie|express-session").unwrap());
-static STATE_CHANGING_ROUTE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)\b(?:app|router)\.(post|put|patch|delete)\(\s*['"]([^'"]+)['"]"#).unwrap());
+static CSRF_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)csrf|csurf|xsrf|_csrf|antiforgery").unwrap());
+static COOKIE_SESSION_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)cookie-session|req\.session|res\.cookie|express-session").unwrap()
+});
+static STATE_CHANGING_ROUTE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)\b(?:app|router)\.(post|put|patch|delete)\(\s*['"]([^'"]+)['"]"#).unwrap()
+});
 
-static SESSION_COOKIE_STATEMENT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:res\.cookie|Set-Cookie)[^\n]{0,40}(?:session|auth|token|jwt)[^\n]{0,150}").unwrap());
+static SESSION_COOKIE_STATEMENT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:res\.cookie|Set-Cookie)[^\n]{0,40}(?:session|auth|token|jwt)[^\n]{0,150}")
+        .unwrap()
+});
 
 static CORS_WILDCARD_CREDENTIALS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)Access-Control-Allow-Origin['"]?\s*[:,]\s*['"]?\*[\s\S]{0,300}Access-Control-Allow-Credentials['"]?\s*[:,]\s*['"]?(?:true|1)"#).unwrap()
 });
-static CORS_REFLECTED_ORIGIN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)Access-Control-Allow-Origin['"]?\s*[:,]\s*(?:req|request|ctx)\.(?:headers\.)?origin"#).unwrap());
-static CORS_ALLOWLIST_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)allow(?:ed)?Origins?|origin\s*===|includes\(\s*origin\s*\)").unwrap());
+static CORS_REFLECTED_ORIGIN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)Access-Control-Allow-Origin['"]?\s*[:,]\s*(?:req|request|ctx)\.(?:headers\.)?origin"#).unwrap()
+});
+static CORS_ALLOWLIST_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)allow(?:ed)?Origins?|origin\s*===|includes\(\s*origin\s*\)").unwrap()
+});
 
-static FRAME_PROTECTION_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)X-Frame-Options|frame-ancestors").unwrap());
-static SERVES_HTML_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)<html|res\.render|getServerSideProps|\.ejs\b|\.hbs\b|app\.get\(\s*['"]/"#).unwrap());
+static FRAME_PROTECTION_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)X-Frame-Options|frame-ancestors").unwrap());
+static SERVES_HTML_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)<html|res\.render|getServerSideProps|\.ejs\b|\.hbs\b|app\.get\(\s*['"]/"#)
+        .unwrap()
+});
 
-static OPEN_REDIRECT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)res\.redirect\(\s*(?:req|request)\.(?:query|params|body)\.[a-zA-Z_][\w]*").unwrap());
-static REDIRECT_ALLOWLIST_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)allowedRedirects|isValidRedirect|startsWith\(\s*['"]/"#).unwrap());
+static OPEN_REDIRECT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)res\.redirect\(\s*(?:req|request)\.(?:query|params|body)\.[a-zA-Z_][\w]*")
+        .unwrap()
+});
+static REDIRECT_ALLOWLIST_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)allowedRedirects|isValidRedirect|startsWith\(\s*['"]/"#).unwrap()
+});
 
-static OAUTH_REDIRECT_FROM_REQUEST: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)redirect_uri['"]?\s*[:=]\s*(?:req|request)\.(?:query|params|body)"#).unwrap());
-static OAUTH_ALLOWLIST_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)redirectUriAllowlist|exact.?match|===\s*['"]https?://"#).unwrap());
+static OAUTH_REDIRECT_FROM_REQUEST: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)redirect_uri['"]?\s*[:=]\s*(?:req|request)\.(?:query|params|body)"#).unwrap()
+});
+static OAUTH_ALLOWLIST_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)redirectUriAllowlist|exact.?match|===\s*['"]https?://"#).unwrap()
+});
 
-static CSP_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)Content-Security-Policy").unwrap());
-static CSP_UNSAFE_INLINE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)Content-Security-Policy[^\n]*unsafe-inline").unwrap());
-static CSP_UNSAFE_EVAL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)Content-Security-Policy[^\n]*unsafe-eval").unwrap());
-static CSP_HEADER_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)Content-Security-Policy").unwrap());
-static CSP_WILDCARD_DIRECTIVE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)script-src|default-src|connect-src").unwrap());
+static CSP_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)Content-Security-Policy").unwrap());
+static CSP_UNSAFE_INLINE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)Content-Security-Policy[^\n]*unsafe-inline").unwrap());
+static CSP_UNSAFE_EVAL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)Content-Security-Policy[^\n]*unsafe-eval").unwrap());
+static CSP_HEADER_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)Content-Security-Policy").unwrap());
+static CSP_WILDCARD_DIRECTIVE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)script-src|default-src|connect-src").unwrap());
 
 /// Word-class used by `CSP_WILDCARD_SOURCE`'s lookaround guards
 /// (`[\w.-]`): word char, `.`, or `-`.
@@ -184,7 +222,8 @@ fn is_wildcard_boundary_char(c: char) -> bool {
 /// only when `Secure` does not appear within the following 80 characters.
 /// Returns the byte-index of each match's start.
 fn find_samesite_none_without_secure(text: &str) -> Vec<usize> {
-    static SAMESITE_NONE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)SameSite=None").unwrap());
+    static SAMESITE_NONE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)SameSite=None").unwrap());
     static SECURE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)Secure").unwrap());
     let mut out = Vec::new();
     for m in SAMESITE_NONE.find_iter(text) {
@@ -227,7 +266,9 @@ fn find_csp_wildcard_source(text: &str) -> Vec<usize> {
             window_end = start + i + ch.len_utf8();
         }
         let window = &text[start..window_end];
-        let Some(directive_match) = CSP_WILDCARD_DIRECTIVE.find(window) else { continue };
+        let Some(directive_match) = CSP_WILDCARD_DIRECTIVE.find(window) else {
+            continue;
+        };
         let after_directive = &window[directive_match.end()..];
         let mut found = false;
         for (byte_off, ch) in after_directive.char_indices() {
@@ -235,9 +276,17 @@ fn find_csp_wildcard_source(text: &str) -> Vec<usize> {
                 continue;
             }
             let abs = start + directive_match.end() + byte_off;
-            let prev_ok = text[..abs].chars().next_back().map(is_wildcard_boundary_char).unwrap_or(true);
+            let prev_ok = text[..abs]
+                .chars()
+                .next_back()
+                .map(is_wildcard_boundary_char)
+                .unwrap_or(true);
             let next_idx = abs + ch.len_utf8();
-            let next_ok = text[next_idx..].chars().next().map(is_wildcard_boundary_char).unwrap_or(true);
+            let next_ok = text[next_idx..]
+                .chars()
+                .next()
+                .map(is_wildcard_boundary_char)
+                .unwrap_or(true);
             if prev_ok && next_ok {
                 found = true;
                 break;
@@ -270,7 +319,10 @@ fn base_observation(
     uncertainty: Vec<String>,
 ) -> Observation {
     if let Value::Object(map) = &mut detector_metadata {
-        map.insert("primitiveClass".to_string(), Value::String(primitive_class.to_string()));
+        map.insert(
+            "primitiveClass".to_string(),
+            Value::String(primitive_class.to_string()),
+        );
     }
     Observation {
         rule_id: rule_id.to_string(),
@@ -279,7 +331,10 @@ fn base_observation(
         severity_hint,
         sources,
         sinks,
-        attacker_capabilities: attacker_capabilities.into_iter().map(String::from).collect(),
+        attacker_capabilities: attacker_capabilities
+            .into_iter()
+            .map(String::from)
+            .collect(),
         preconditions,
         effects,
         assets: vec![],
@@ -320,7 +375,12 @@ fn effect_fact(kind: &str, action: &str, object: Option<String>, scope: &str) ->
 /// Mirrors the JS pack's `analyze(context)`.
 pub fn analyze(context: &Context) -> Vec<Observation> {
     let mut observations = Vec::new();
-    let combined_text = context.files.iter().map(|f| context.read_file(f)).collect::<Vec<_>>().join("\n");
+    let combined_text = context
+        .files
+        .iter()
+        .map(|f| context.read_file(f))
+        .collect::<Vec<_>>()
+        .join("\n");
 
     // --- Per-file, code-logic rules (not deployment-dependent) -----------
     for file in &context.files {
@@ -328,7 +388,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
         if text.is_empty() {
             continue;
         }
-        let Some(artifact) = context.find_artifact(file) else { continue };
+        let Some(artifact) = context.find_artifact(file) else {
+            continue;
+        };
         let evidence_refs = artifact.evidence_refs.clone();
         if evidence_refs.is_empty() {
             continue;
@@ -486,8 +548,22 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
 
         // csp.unsafe-inline / csp.unsafe-eval / csp.wildcard-source
         for (rule_id, matches, token) in [
-            ("csp.unsafe-inline", CSP_UNSAFE_INLINE.find_iter(text).map(|m| m.start()).collect::<Vec<_>>(), "'unsafe-inline'"),
-            ("csp.unsafe-eval", CSP_UNSAFE_EVAL.find_iter(text).map(|m| m.start()).collect::<Vec<_>>(), "'unsafe-eval'"),
+            (
+                "csp.unsafe-inline",
+                CSP_UNSAFE_INLINE
+                    .find_iter(text)
+                    .map(|m| m.start())
+                    .collect::<Vec<_>>(),
+                "'unsafe-inline'",
+            ),
+            (
+                "csp.unsafe-eval",
+                CSP_UNSAFE_EVAL
+                    .find_iter(text)
+                    .map(|m| m.start())
+                    .collect::<Vec<_>>(),
+                "'unsafe-eval'",
+            ),
             ("csp.wildcard-source", find_csp_wildcard_source(text), "*"),
         ] {
             for idx in matches {
@@ -528,8 +604,20 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
     if SERVES_HTML_MARKER.is_match(&combined_text) {
         let source_compliant = FRAME_PROTECTION_MARKER.is_match(&combined_text);
         let runtime_compliant = runtime_header_compliance(context, "x-frame-options", js_truthy)
-            .or_else(|| runtime_header_compliance(context, "content-security-policy", |v| Regex::new(r"(?i)frame-ancestors").unwrap().is_match(v.as_str().unwrap_or_default())));
-        if let Some(outcome) = evaluate_deployment_aware_claim("X-Frame-Options / frame-ancestors", source_compliant, runtime_compliant, "present", "absent") {
+            .or_else(|| {
+                runtime_header_compliance(context, "content-security-policy", |v| {
+                    Regex::new(r"(?i)frame-ancestors")
+                        .unwrap()
+                        .is_match(v.as_str().unwrap_or_default())
+                })
+            });
+        if let Some(outcome) = evaluate_deployment_aware_claim(
+            "X-Frame-Options / frame-ancestors",
+            source_compliant,
+            runtime_compliant,
+            "present",
+            "absent",
+        ) {
             let mut metadata = json!({
                 "scope": "repository",
                 "header": "X-Frame-Options / Content-Security-Policy frame-ancestors",
@@ -563,8 +651,15 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
     let csp_evidence_refs = repo_wide_evidence_refs(context);
     if !csp_evidence_refs.is_empty() {
         let source_compliant = CSP_MARKER.is_match(&combined_text);
-        let runtime_compliant = runtime_header_compliance(context, "content-security-policy", js_truthy);
-        if let Some(outcome) = evaluate_deployment_aware_claim("Content-Security-Policy header", source_compliant, runtime_compliant, "present", "absent") {
+        let runtime_compliant =
+            runtime_header_compliance(context, "content-security-policy", js_truthy);
+        if let Some(outcome) = evaluate_deployment_aware_claim(
+            "Content-Security-Policy header",
+            source_compliant,
+            runtime_compliant,
+            "present",
+            "absent",
+        ) {
             let mut metadata = json!({
                 "scope": "repository",
                 "header": "Content-Security-Policy",
@@ -585,7 +680,12 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 vec![],
                 vec!["inject-html-or-script"],
                 vec![attacker_position_fact("inject-content")],
-                vec![effect_fact("control-bypass", "bypass", None, "content-security-policy")],
+                vec![effect_fact(
+                    "control-bypass",
+                    "bypass",
+                    None,
+                    "content-security-policy",
+                )],
                 vec!["enabler"],
                 csp_evidence_refs,
                 metadata,
@@ -631,7 +731,10 @@ pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<Value> {
             let mut matches = Vec::new();
             for file in &context.files {
                 let text = context.read_file(file);
-                if text.is_empty() || !COOKIE_SESSION_MARKER.is_match(text) || CSRF_MARKER.is_match(text) {
+                if text.is_empty()
+                    || !COOKIE_SESSION_MARKER.is_match(text)
+                    || CSRF_MARKER.is_match(text)
+                {
                     continue;
                 }
                 for cap in STATE_CHANGING_ROUTE.captures_iter(text) {
@@ -727,7 +830,9 @@ mod tests {
             "req.session.user = 1;\napp.post('/account', (req, res) => { res.cookie('x', '1'); });",
         );
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o.rule_id == "csrf.state-changing-route.missing-token"));
+        assert!(obs
+            .iter()
+            .any(|o| o.rule_id == "csrf.state-changing-route.missing-token"));
     }
 
     #[test]
@@ -736,21 +841,33 @@ mod tests {
             "routes.mjs",
             "req.session.user = 1;\napp.use(csrf());\napp.post('/account', (req, res) => {});",
         );
-        assert!(!analyze(&ctx).iter().any(|o| o.rule_id == "csrf.state-changing-route.missing-token"));
+        assert!(!analyze(&ctx)
+            .iter()
+            .any(|o| o.rule_id == "csrf.state-changing-route.missing-token"));
     }
 
     #[test]
     fn samesite_none_without_secure_flagged() {
-        let ctx = Context::new().with_file("app.mjs", "res.header('Set-Cookie', 'sid=1; SameSite=None; Path=/');");
+        let ctx = Context::new().with_file(
+            "app.mjs",
+            "res.header('Set-Cookie', 'sid=1; SameSite=None; Path=/');",
+        );
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o.rule_id == "csrf.samesite-none-without-secure"));
+        assert!(obs
+            .iter()
+            .any(|o| o.rule_id == "csrf.samesite-none-without-secure"));
     }
 
     #[test]
     fn samesite_none_with_nearby_secure_is_not_flagged() {
-        let ctx = Context::new().with_file("app.mjs", "res.header('Set-Cookie', 'sid=1; SameSite=None; Secure; Path=/');");
+        let ctx = Context::new().with_file(
+            "app.mjs",
+            "res.header('Set-Cookie', 'sid=1; SameSite=None; Secure; Path=/');",
+        );
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o.rule_id == "csrf.samesite-none-without-secure"));
+        assert!(!obs
+            .iter()
+            .any(|o| o.rule_id == "csrf.samesite-none-without-secure"));
     }
 
     #[test]
@@ -760,15 +877,23 @@ mod tests {
             "res.setHeader('Access-Control-Allow-Origin', '*');\nres.setHeader('Access-Control-Allow-Credentials', 'true');",
         );
         let obs = analyze(&ctx);
-        let hit = obs.iter().find(|o| o.rule_id == "cors.wildcard-origin-with-credentials").unwrap();
+        let hit = obs
+            .iter()
+            .find(|o| o.rule_id == "cors.wildcard-origin-with-credentials")
+            .unwrap();
         assert_eq!(hit.severity_hint, "critical");
     }
 
     #[test]
     fn cors_reflected_origin_without_allowlist() {
-        let ctx = Context::new().with_file("cors.mjs", "res.setHeader('Access-Control-Allow-Origin', req.headers.origin);");
+        let ctx = Context::new().with_file(
+            "cors.mjs",
+            "res.setHeader('Access-Control-Allow-Origin', req.headers.origin);",
+        );
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o.rule_id == "cors.reflected-origin-without-allowlist"));
+        assert!(obs
+            .iter()
+            .any(|o| o.rule_id == "cors.reflected-origin-without-allowlist"));
     }
 
     #[test]
@@ -777,48 +902,70 @@ mod tests {
             "cors.mjs",
             "if (allowedOrigins.includes(origin)) { res.setHeader('Access-Control-Allow-Origin', req.headers.origin); }",
         );
-        assert!(!analyze(&ctx).iter().any(|o| o.rule_id == "cors.reflected-origin-without-allowlist"));
+        assert!(!analyze(&ctx)
+            .iter()
+            .any(|o| o.rule_id == "cors.reflected-origin-without-allowlist"));
     }
 
     #[test]
     fn open_redirect_unvalidated_target() {
         let ctx = Context::new().with_file("redirect.mjs", "res.redirect(req.query.next);");
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o.rule_id == "open-redirect.unvalidated-target"));
+        assert!(obs
+            .iter()
+            .any(|o| o.rule_id == "open-redirect.unvalidated-target"));
     }
 
     #[test]
     fn oauth_redirect_uri_unvalidated() {
-        let ctx = Context::new().with_file("oauth.mjs", "const redirect_uri = req.query.redirect_uri;");
+        let ctx =
+            Context::new().with_file("oauth.mjs", "const redirect_uri = req.query.redirect_uri;");
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o.rule_id == "oauth.redirect-uri.unvalidated"));
+        assert!(obs
+            .iter()
+            .any(|o| o.rule_id == "oauth.redirect-uri.unvalidated"));
     }
 
     #[test]
     fn csp_unsafe_inline_capped_without_deployment_evidence() {
-        let ctx = Context::new().with_file("headers.mjs", "res.setHeader('Content-Security-Policy', \"script-src 'unsafe-inline'\");");
+        let ctx = Context::new().with_file(
+            "headers.mjs",
+            "res.setHeader('Content-Security-Policy', \"script-src 'unsafe-inline'\");",
+        );
         let obs = analyze(&ctx);
-        let hit = obs.iter().find(|o| o.rule_id == "csp.unsafe-inline").unwrap();
+        let hit = obs
+            .iter()
+            .find(|o| o.rule_id == "csp.unsafe-inline")
+            .unwrap();
         assert_eq!(hit.severity_hint, "low");
     }
 
     #[test]
     fn csp_wildcard_source_detected() {
-        let ctx = Context::new().with_file("headers.mjs", "res.setHeader('Content-Security-Policy', 'script-src *');");
+        let ctx = Context::new().with_file(
+            "headers.mjs",
+            "res.setHeader('Content-Security-Policy', 'script-src *');",
+        );
         let obs = analyze(&ctx);
         assert!(obs.iter().any(|o| o.rule_id == "csp.wildcard-source"));
     }
 
     #[test]
     fn csp_wildcard_source_not_flagged_when_part_of_a_word() {
-        let ctx = Context::new().with_file("headers.mjs", "res.setHeader('Content-Security-Policy', 'script-src abc*def.com');");
+        let ctx = Context::new().with_file(
+            "headers.mjs",
+            "res.setHeader('Content-Security-Policy', 'script-src abc*def.com');",
+        );
         let obs = analyze(&ctx);
         assert!(!obs.iter().any(|o| o.rule_id == "csp.wildcard-source"));
     }
 
     #[test]
     fn csp_missing_across_repository() {
-        let ctx = Context::new().with_file("app.mjs", "app.get('/', (req, res) => res.render('index'));");
+        let ctx = Context::new().with_file(
+            "app.mjs",
+            "app.get('/', (req, res) => res.render('index'));",
+        );
         let obs = analyze(&ctx);
         let hit = obs.iter().find(|o| o.rule_id == "csp.missing").unwrap();
         assert_eq!(hit.severity_hint, "low");
@@ -828,17 +975,29 @@ mod tests {
     #[test]
     fn csp_missing_suppressed_when_runtime_header_present() {
         let mut headers = HashMap::new();
-        headers.insert("content-security-policy".to_string(), Value::String("default-src 'self'".to_string()));
+        headers.insert(
+            "content-security-policy".to_string(),
+            Value::String("default-src 'self'".to_string()),
+        );
         let ctx = Context::new()
-            .with_file("app.mjs", "app.get('/', (req, res) => res.render('index'));")
-            .with_audit_facts(super::super::AuditFacts { deployment: None, runtime_headers: Some(headers) });
+            .with_file(
+                "app.mjs",
+                "app.get('/', (req, res) => res.render('index'));",
+            )
+            .with_audit_facts(super::super::AuditFacts {
+                deployment: None,
+                runtime_headers: Some(headers),
+            });
         assert!(!analyze(&ctx).iter().any(|o| o.rule_id == "csp.missing"));
     }
 
     #[test]
     fn clickjacking_missing_frame_protection_only_when_serving_html() {
-        let ctx = Context::new().with_file("lib.mjs", "export function add(a, b) { return a + b; }");
-        assert!(!analyze(&ctx).iter().any(|o| o.rule_id == "clickjacking.missing-frame-protection"));
+        let ctx =
+            Context::new().with_file("lib.mjs", "export function add(a, b) { return a + b; }");
+        assert!(!analyze(&ctx)
+            .iter()
+            .any(|o| o.rule_id == "clickjacking.missing-frame-protection"));
     }
 
     #[test]

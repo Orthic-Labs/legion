@@ -57,14 +57,10 @@ pub fn canonical_skill_ids(legion_root: &Path) -> Result<Vec<String>, HarnessErr
                 .iter()
                 .filter(|capability| {
                     (capability.get("kind").and_then(Value::as_str) == Some("domain-capability")
-                        && capability
-                            .get("discoverability")
-                            .and_then(Value::as_str)
+                        && capability.get("discoverability").and_then(Value::as_str)
                             == Some("public"))
                         || (capability.get("kind").and_then(Value::as_str) == Some("entrypoint")
-                            && capability
-                                .get("discoverability")
-                                .and_then(Value::as_str)
+                            && capability.get("discoverability").and_then(Value::as_str)
                                 == Some("explicit"))
                 })
                 .filter_map(|capability| capability.get("id").and_then(Value::as_str))
@@ -75,7 +71,13 @@ pub fn canonical_skill_ids(legion_root: &Path) -> Result<Vec<String>, HarnessErr
     ids.sort();
     let absent = ids
         .iter()
-        .filter(|id| !legion_root.join("skills").join(id).join("SKILL.md").is_file())
+        .filter(|id| {
+            !legion_root
+                .join("skills")
+                .join(id)
+                .join("SKILL.md")
+                .is_file()
+        })
         .cloned()
         .collect::<Vec<_>>();
     if !absent.is_empty() {

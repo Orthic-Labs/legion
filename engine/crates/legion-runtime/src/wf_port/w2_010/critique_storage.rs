@@ -246,7 +246,9 @@ pub fn parse_frontmatter(text: &str) -> BTreeMap<String, String> {
         None => return out,
     };
     for line in body.split("\r\n").flat_map(|l| l.split('\n')) {
-        let Some(colon) = line.find(':') else { continue };
+        let Some(colon) = line.find(':') else {
+            continue;
+        };
         let key = line[..colon].trim().to_string();
         let mut value = line[colon + 1..].trim().to_string();
         if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
@@ -412,12 +414,22 @@ mod tests {
             ("p0".to_string(), "1".to_string()),
             ("p1".to_string(), "3".to_string()),
         ];
-        let path = write_snapshot(&cwd, &options, "src-app-tsx", meta, "# Critique\n\nBody text", 1778956200123)
-            .unwrap();
+        let path = write_snapshot(
+            &cwd,
+            &options,
+            "src-app-tsx",
+            meta,
+            "# Critique\n\nBody text",
+            1778956200123,
+        )
+        .unwrap();
         assert!(path.exists());
 
         let latest = read_latest_snapshot("src-app-tsx", &cwd, &options).unwrap();
-        assert_eq!(latest.meta.get("slug").map(String::as_str), Some("src-app-tsx"));
+        assert_eq!(
+            latest.meta.get("slug").map(String::as_str),
+            Some("src-app-tsx")
+        );
         assert_eq!(latest.meta.get("score").map(String::as_str), Some("82"));
         assert!(latest.body.contains("Body text"));
     }
@@ -432,7 +444,10 @@ mod tests {
     fn read_trend_returns_oldest_to_newest_limited() {
         let cwd = tmp_dir("trend");
         let options = TargetOptions::none();
-        for (i, ts) in [1778956200123i64, 1778956300123, 1778956400123].iter().enumerate() {
+        for (i, ts) in [1778956200123i64, 1778956300123, 1778956400123]
+            .iter()
+            .enumerate()
+        {
             let meta = vec![("score".to_string(), (80 + i).to_string())];
             write_snapshot(&cwd, &options, "slug-x", meta, "body", *ts).unwrap();
         }

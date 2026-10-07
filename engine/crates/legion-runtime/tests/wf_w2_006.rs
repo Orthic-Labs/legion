@@ -30,7 +30,10 @@ fn deck_stage_full_navigation_and_persistence_cycle() {
     let existing = vec![(None, None), (None, None), (None, None), (None, None)];
     let attrs = deck_stage::collect_slide_attrs(&existing);
     assert_eq!(
-        attrs.iter().map(|a| a.screen_label.as_str()).collect::<Vec<_>>(),
+        attrs
+            .iter()
+            .map(|a| a.screen_label.as_str())
+            .collect::<Vec<_>>(),
         vec!["01", "02", "03", "04"]
     );
 
@@ -47,8 +50,13 @@ fn deck_stage_full_navigation_and_persistence_cycle() {
     assert_eq!(restored, 2);
 
     // Viewport fit for a 1920x1080 stage inside a taller-than-wide window.
-    let transform = deck_stage::compute_scale(1000.0, 2000.0, deck_stage::DEFAULT_WIDTH, deck_stage::DEFAULT_HEIGHT)
-        .unwrap();
+    let transform = deck_stage::compute_scale(
+        1000.0,
+        2000.0,
+        deck_stage::DEFAULT_WIDTH,
+        deck_stage::DEFAULT_HEIGHT,
+    )
+    .unwrap();
     assert!(transform.scale > 0.0);
     assert!(transform.to_css().starts_with("translate("));
 }
@@ -132,7 +140,14 @@ fn convert_formats_unknown_flag_is_rejected() {
 #[test]
 fn export_deck_pdf_end_to_end_run() {
     let args = export_deck_pdf::parse_args([
-        "--slides", "./decks/q3", "--out", "q3.pdf", "--width", "1280", "--height", "720",
+        "--slides",
+        "./decks/q3",
+        "--out",
+        "q3.pdf",
+        "--width",
+        "1280",
+        "--height",
+        "720",
     ])
     .unwrap();
 
@@ -163,7 +178,8 @@ fn export_deck_pdf_end_to_end_run() {
 
 #[test]
 fn export_deck_pptx_partial_failure_still_writes() {
-    let args = export_deck_pptx::parse_args(["--slides", "./decks/q3", "--out", "q3.pptx"]).unwrap();
+    let args =
+        export_deck_pptx::parse_args(["--slides", "./decks/q3", "--out", "q3.pptx"]).unwrap();
     let entries = vec!["02-body.html".to_string(), "01-title.html".to_string()];
     let files = export_deck_pptx::select_and_sort_slides(&entries);
     assert_eq!(files, vec!["01-title.html", "02-body.html"]);
@@ -202,9 +218,12 @@ fn export_deck_pptx_partial_failure_still_writes() {
 
 #[test]
 fn export_deck_pptx_all_failed_blocks_write() {
-    let outcomes = vec![
-        export_deck_pptx::convert_slide(0, 1, "01-title.html", |_| Err("bad".into())),
-    ];
+    let outcomes = vec![export_deck_pptx::convert_slide(
+        0,
+        1,
+        "01-title.html",
+        |_| Err("bad".into()),
+    )];
     assert_eq!(
         export_deck_pptx::summarize(&outcomes),
         export_deck_pptx::DeckOutcome::AllFailed

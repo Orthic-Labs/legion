@@ -6,12 +6,14 @@
 
 use legion_policy::{PolicyEvaluator, PolicyPack};
 use legion_policy_model::{
-    CanonicalPath, DecisionOutcome, EffectClass, PathOperation, PolicyContext,
-    SymlinkState,
+    CanonicalPath, DecisionOutcome, EffectClass, PathOperation, PolicyContext, SymlinkState,
 };
 use legion_runtime::RuntimeError;
 use serde_json::{json, Value};
-use std::{env, fs, path::{Path, PathBuf}};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 const CONFIG_ENVS: [&str; 2] = ["LEGION_M1_CONFIG_PATH", "LEGION_M1_CONFIG"];
 
@@ -116,9 +118,9 @@ fn authorize(
     }
 
     let targets = trusted_target_paths(operation, arguments, plan, &context)?;
-    let path_bound = effects.iter().any(|effect| {
-        matches!(effect, EffectClass::FileWrite | EffectClass::FileDelete)
-    });
+    let path_bound = effects
+        .iter()
+        .any(|effect| matches!(effect, EffectClass::FileWrite | EffectClass::FileDelete));
     if path_bound && targets.is_empty() {
         return Err("Apple operation has a file effect but no bound target path".to_string());
     }
@@ -143,8 +145,7 @@ fn authorize(
             if decision.outcome != DecisionOutcome::Allow {
                 return Err(format!(
                     "Apple operation denied by canonical policy for {:?}: {:?}",
-                    effect,
-                    decision.outcome
+                    effect, decision.outcome
                 ));
             }
             receipts.push(json!({
@@ -241,7 +242,10 @@ fn trusted_target_paths(
                     | "swiftpm.run"
             )
         {
-            if let Some(cwd) = plan.and_then(|value| value.get("cwd")).and_then(Value::as_str) {
+            if let Some(cwd) = plan
+                .and_then(|value| value.get("cwd"))
+                .and_then(Value::as_str)
+            {
                 raw_targets.push(cwd);
             }
         }
@@ -260,7 +264,10 @@ fn trusted_target_paths(
         .into_iter()
         .map(|raw| {
             if matches!(raw.trim(), "." | "./") {
-                if let Some(cwd) = plan.and_then(|value| value.get("cwd")).and_then(Value::as_str) {
+                if let Some(cwd) = plan
+                    .and_then(|value| value.get("cwd"))
+                    .and_then(Value::as_str)
+                {
                     return canonical_target_with_cwd(cwd, base, trusted_cwd);
                 }
             }
@@ -365,7 +372,11 @@ async fn derive_effects(
     arguments: &Value,
 ) -> Result<(Vec<EffectClass>, Option<Value>), RuntimeError> {
     let coarse = required_effects(operation, arguments).map_err(RuntimeError::InvalidTask)?;
-    if !arguments.get("execute").and_then(Value::as_bool).unwrap_or(false) {
+    if !arguments
+        .get("execute")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         return Ok((coarse, None));
     }
     let mut dry_arguments = arguments.clone();
@@ -386,7 +397,10 @@ async fn derive_effects(
             )))
         }
     };
-    Ok((effects_from_plan(operation, arguments, &plan, coarse), Some(plan)))
+    Ok((
+        effects_from_plan(operation, arguments, &plan, coarse),
+        Some(plan),
+    ))
 }
 
 fn effects_from_plan(
@@ -424,10 +438,16 @@ fn effects_from_plan(
     }
     if let Some(mutation) = plan.get("mutation").and_then(Value::as_bool) {
         effects.retain(|effect| {
-            !matches!(effect, EffectClass::ExternalSideEffect | EffectClass::Publish)
+            !matches!(
+                effect,
+                EffectClass::ExternalSideEffect | EffectClass::Publish
+            )
         });
         if mutation {
-            let action = arguments.get("action").and_then(Value::as_str).unwrap_or("");
+            let action = arguments
+                .get("action")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             let request = plan.get("request").and_then(Value::as_object);
             let method = request
                 .and_then(|value| value.get("method"))
@@ -448,11 +468,13 @@ fn effects_from_plan(
                 .or_else(|| arguments.get("operationId").and_then(Value::as_str))
                 .or_else(|| arguments.get("operation").and_then(Value::as_str))
                 .unwrap_or("");
-            effects.push(if is_publish_route(action, operation_id, method, path, body) {
-                EffectClass::Publish
-            } else {
-                EffectClass::ExternalSideEffect
-            });
+            effects.push(
+                if is_publish_route(action, operation_id, method, path, body) {
+                    EffectClass::Publish
+                } else {
+                    EffectClass::ExternalSideEffect
+                },
+            );
         }
     }
     if operation == "app-store" && is_upload_request(arguments) {
@@ -574,7 +596,10 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
     let object = arguments
         .as_object()
         .ok_or_else(|| "Apple arguments must be an object".to_string())?;
-    let execute = object.get("execute").and_then(Value::as_bool).unwrap_or(false);
+    let execute = object
+        .get("execute")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if !execute {
         return Ok(Vec::new());
     }
@@ -625,18 +650,25 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
             operation_id
         };
         let path = object.get("path").and_then(Value::as_str).unwrap_or("");
-        if method != "GET" || matches!(operation_name.as_str(), "create" | "update" | "delete" | "submit") {
-            effects.push(if is_publish_route(
-                &action,
-                publish_operation,
-                &method,
-                path,
-                object.get("body"),
-            ) {
-                EffectClass::Publish
-            } else {
-                EffectClass::ExternalSideEffect
-            });
+        if method != "GET"
+            || matches!(
+                operation_name.as_str(),
+                "create" | "update" | "delete" | "submit"
+            )
+        {
+            effects.push(
+                if is_publish_route(
+                    &action,
+                    publish_operation,
+                    &method,
+                    path,
+                    object.get("body"),
+                ) {
+                    EffectClass::Publish
+                } else {
+                    EffectClass::ExternalSideEffect
+                },
+            );
         }
         if matches!(action.as_str(), "openapi" | "operations")
             && ["operationId", "operation_id", "operation", "method", "path"]
@@ -653,21 +685,58 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
         }
         return Ok(effects);
     }
-    if matches!(operation, "catalog" | "preflight" | "docs" | "build-analysis" | "flamegraph" | "flamegraph-json" | "build-log" | "build_log" | "memgraph.parse" | "memgraph-text" | "profile.parse" | "swiftui-trace") {
+    if matches!(
+        operation,
+        "catalog"
+            | "preflight"
+            | "docs"
+            | "build-analysis"
+            | "flamegraph"
+            | "flamegraph-json"
+            | "build-log"
+            | "build_log"
+            | "memgraph.parse"
+            | "memgraph-text"
+            | "profile.parse"
+            | "swiftui-trace"
+    ) {
         return Ok(Vec::new());
     }
     let operation = canonical_operation(operation);
     if operation == "ui.read" {
         return Ok(vec![EffectClass::ProcessSpawn]);
     }
-    if matches!(operation, "ui.tap" | "ui.type" | "ui.swipe" | "ui.key" | "ui.key_sequence" | "ui.button" | "ui.drag" | "ui.gesture" | "ui.long_press" | "ui.touch") {
-        return Ok(vec![EffectClass::ProcessSpawn, EffectClass::ExternalSideEffect]);
+    if matches!(
+        operation,
+        "ui.tap"
+            | "ui.type"
+            | "ui.swipe"
+            | "ui.key"
+            | "ui.key_sequence"
+            | "ui.button"
+            | "ui.drag"
+            | "ui.gesture"
+            | "ui.long_press"
+            | "ui.touch"
+    ) {
+        return Ok(vec![
+            EffectClass::ProcessSpawn,
+            EffectClass::ExternalSideEffect,
+        ]);
     }
     let mut effects = vec![EffectClass::ProcessSpawn];
-    if matches!(operation,
-        "project.build" | "project.test" | "project.archive" | "project.export"
-        | "simulator.install" | "device.install" | "simulator.screenshot"
-        | "simulator.record_video" | "profile" | "profile.export"
+    if matches!(
+        operation,
+        "project.build"
+            | "project.test"
+            | "project.archive"
+            | "project.export"
+            | "simulator.install"
+            | "device.install"
+            | "simulator.screenshot"
+            | "simulator.record_video"
+            | "profile"
+            | "profile.export"
     ) {
         effects.push(EffectClass::FileWrite);
     }
@@ -684,12 +753,24 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
         effects.push(EffectClass::FileWrite);
         effects.push(EffectClass::NetworkEgress);
     }
-    if matches!(operation,
-        "simulator.boot" | "simulator.install" | "simulator.launch"
-        | "simulator.terminate" | "simulator.location" | "simulator.appearance"
-        | "simulator.location_reset" | "simulator.statusbar" | "device.install" | "device.launch"
-        | "device.terminate" | "mac.launch" | "mac.stop" | "debug.breakpoint"
-        | "swiftpm.stop" | "debug.batch"
+    if matches!(
+        operation,
+        "simulator.boot"
+            | "simulator.install"
+            | "simulator.launch"
+            | "simulator.terminate"
+            | "simulator.location"
+            | "simulator.appearance"
+            | "simulator.location_reset"
+            | "simulator.statusbar"
+            | "device.install"
+            | "device.launch"
+            | "device.terminate"
+            | "mac.launch"
+            | "mac.stop"
+            | "debug.breakpoint"
+            | "swiftpm.stop"
+            | "debug.batch"
     ) {
         effects.push(EffectClass::ExternalSideEffect);
     }

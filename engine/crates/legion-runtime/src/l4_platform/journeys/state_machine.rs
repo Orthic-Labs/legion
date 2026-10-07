@@ -4,9 +4,12 @@ use serde_json::{json, Value};
 
 /// `transition(machine, state, event)`.
 pub fn transition(machine: Option<&Value>, state: &Value, event: &Value) -> Value {
-    let transitions = machine.and_then(|m| m.get("transitions")).and_then(Value::as_array);
+    let transitions = machine
+        .and_then(|m| m.get("transitions"))
+        .and_then(Value::as_array);
     let rule = transitions.and_then(|list| {
-        list.iter().find(|item| item.get("from") == Some(state) && item.get("event") == Some(event))
+        list.iter()
+            .find(|item| item.get("from") == Some(state) && item.get("event") == Some(event))
     });
     match rule {
         Some(rule) => json!({

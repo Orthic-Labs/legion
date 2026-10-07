@@ -16,9 +16,8 @@ static AUTH_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         .expect("valid regex")
 });
 
-static TENANT_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)tenant|workspace|org_?id|company_id").expect("valid regex")
-});
+static TENANT_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)tenant|workspace|org_?id|company_id").expect("valid regex"));
 
 /// Result shape mirroring the JS extractor's
 /// `{ entities, relations, evidence, initialFacts, coverageGaps }` return.
@@ -179,7 +178,10 @@ mod tests {
 
     #[test]
     fn no_markers_yields_nothing_for_that_file() {
-        let out = extract_identity(&[("src/utils/math.js".into(), "export const add = (a, b) => a + b;".into())]);
+        let out = extract_identity(&[(
+            "src/utils/math.js".into(),
+            "export const add = (a, b) => a + b;".into(),
+        )]);
         assert!(out.entities.is_empty());
         assert!(out.evidence.is_empty());
     }

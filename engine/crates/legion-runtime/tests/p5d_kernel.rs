@@ -4,9 +4,9 @@
 //! entry points rather than internal helpers.
 
 use legion_runtime::p5_core::{
-    bind_run_identity, digest_content, mint_id, negotiate_capabilities, now_millis,
-    random_entropy, validate_execution_task_id, validate_id, ArtifactStore, EventStore,
-    JsonlJournal, LaneContext, LaneNode, LaneScheduler, OperationRegistry, TaskLifecycle,
+    bind_run_identity, digest_content, mint_id, negotiate_capabilities, now_millis, random_entropy,
+    validate_execution_task_id, validate_id, ArtifactStore, EventStore, JsonlJournal, LaneContext,
+    LaneNode, LaneScheduler, OperationRegistry, TaskLifecycle,
 };
 use serde_json::json;
 
@@ -14,7 +14,12 @@ fn temp_dir(label: &str) -> std::path::PathBuf {
     let nonce = ((std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+        .as_nanos())
+    .wrapping_shl(20)
+        | ({
+            static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+        }))
         ^ (std::process::id() as u128);
     std::env::temp_dir().join(format!("p5d-kernel-it-{label}-{nonce}"))
 }
@@ -111,7 +116,9 @@ fn journal_lifecycle_event_and_artifact_stores_share_one_root() {
         )
         .unwrap();
     lifecycle.start(&task.task_id).unwrap();
-    let completed = lifecycle.complete(&task.task_id, json!({"ok": true})).unwrap();
+    let completed = lifecycle
+        .complete(&task.task_id, json!({"ok": true}))
+        .unwrap();
     assert_eq!(completed.state, "COMPLETED");
 
     // EventStore
@@ -150,7 +157,9 @@ fn journal_lifecycle_event_and_artifact_stores_share_one_root() {
         )
         .unwrap();
     assert_eq!(
-        artifacts.get_content("art_01ARZ3NDEKTSV4RRFFQ69G5FAV").unwrap(),
+        artifacts
+            .get_content("art_01ARZ3NDEKTSV4RRFFQ69G5FAV")
+            .unwrap(),
         content
     );
 
@@ -164,7 +173,9 @@ fn lane_scheduler_resolves_dependency_order_via_public_api() {
             id: "second".to_string(),
             dependencies: vec!["first".to_string()],
             concurrency_key: None,
-            run: Box::new(|ctx: &LaneContext| Ok(json!({"after": ctx.results.get("first").cloned()}))),
+            run: Box::new(|ctx: &LaneContext| {
+                Ok(json!({"after": ctx.results.get("first").cloned()}))
+            }),
         },
         LaneNode {
             id: "first".to_string(),

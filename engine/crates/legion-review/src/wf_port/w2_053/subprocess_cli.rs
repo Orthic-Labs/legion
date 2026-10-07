@@ -93,12 +93,14 @@ pub const EXIT_ERROR_CAP: usize = 4000;
 /// Python's `str[:4000]` slices by Unicode code point; this slices by
 /// `char`, matching that (not by byte, which could split a multi-byte
 /// char).
-pub fn exit_error_message(provider_name: &str, model: &str, returncode: i32, stderr: &str, stdout: &str) -> String {
-    let raw: &str = if !stderr.is_empty() {
-        stderr
-    } else {
-        stdout
-    };
+pub fn exit_error_message(
+    provider_name: &str,
+    model: &str,
+    returncode: i32,
+    stderr: &str,
+    stdout: &str,
+) -> String {
+    let raw: &str = if !stderr.is_empty() { stderr } else { stdout };
     let capped: String = raw.chars().take(EXIT_ERROR_CAP).collect();
     format!("{provider_name}/{model} exit {returncode}: {capped}")
 }
@@ -133,7 +135,10 @@ pub struct ProviderError {
 
 impl ProviderError {
     fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into(), is_quota: false }
+        Self {
+            message: message.into(),
+            is_quota: false,
+        }
     }
 }
 
@@ -168,7 +173,12 @@ pub enum RunError {
 /// text, bounded by `timeout_s`. Mirrors the w2_020 `ProcessRunner`
 /// precedent so tests supply a fake instead of spawning a real child.
 pub trait CommandRunner {
-    fn run(&self, cmd: &[String], stdin: Option<&str>, timeout_s: u64) -> Result<RunOutput, RunError>;
+    fn run(
+        &self,
+        cmd: &[String],
+        stdin: Option<&str>,
+        timeout_s: u64,
+    ) -> Result<RunOutput, RunError>;
 }
 
 /// Real implementation: `std::process::Command`, with `timeout_s` enforced
@@ -179,7 +189,12 @@ pub trait CommandRunner {
 pub struct StdCommandRunner;
 
 impl CommandRunner for StdCommandRunner {
-    fn run(&self, cmd: &[String], stdin: Option<&str>, timeout_s: u64) -> Result<RunOutput, RunError> {
+    fn run(
+        &self,
+        cmd: &[String],
+        stdin: Option<&str>,
+        timeout_s: u64,
+    ) -> Result<RunOutput, RunError> {
         use std::io::Read;
 
         let Some((exe, rest)) = cmd.split_first() else {
@@ -189,7 +204,11 @@ impl CommandRunner for StdCommandRunner {
         command.args(rest);
         command.stdout(Stdio::piped());
         command.stderr(Stdio::piped());
-        command.stdin(if stdin.is_some() { Stdio::piped() } else { Stdio::null() });
+        command.stdin(if stdin.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        });
 
         let mut child = match command.spawn() {
             Ok(c) => c,
@@ -270,7 +289,11 @@ fn which(name: &str) -> Option<PathBuf> {
     // matching shutil.which's own short-circuit for that case.
     if name.contains(std::path::MAIN_SEPARATOR) || name.contains('/') {
         let p = Path::new(name);
-        return if is_executable_file(p) { Some(p.to_path_buf()) } else { None };
+        return if is_executable_file(p) {
+            Some(p.to_path_buf())
+        } else {
+            None
+        };
     }
     let path_var = env::var_os("PATH")?;
     for dir in env::split_paths(&path_var) {
@@ -328,7 +351,11 @@ impl SubprocessProvider {
     /// Port of `__init__`: `timeout_s` defaults to `180`
     /// (`int(config.get("timeout_s", 180))`), and `prompt_via_stdin` is
     /// derived from `command_template` per [`prompt_via_stdin`].
-    pub fn new(name: impl Into<String>, command_template: Vec<String>, timeout_s: Option<u64>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        command_template: Vec<String>,
+        timeout_s: Option<u64>,
+    ) -> Self {
         let stdin_route = prompt_via_stdin(&command_template);
         Self {
             name: name.into(),
@@ -359,7 +386,11 @@ impl SubprocessProvider {
             *first = resolve_executable(first);
         }
 
-        let stdin = if self.prompt_via_stdin { Some(full_prompt.as_str()) } else { None };
+        let stdin = if self.prompt_via_stdin {
+            Some(full_prompt.as_str())
+        } else {
+            None
+        };
         match runner.run(&cmd, stdin, self.timeout_s) {
             Ok(output) => {
                 if output.returncode != 0 {
@@ -380,9 +411,15 @@ impl SubprocessProvider {
             }),
             Err(RunError::NotFound) => {
                 let argv0 = cmd.first().cloned().unwrap_or_default();
-                Err(ProviderError::new(format!("{}: CLI not found ({argv0})", self.name)))
+                Err(ProviderError::new(format!(
+                    "{}: CLI not found ({argv0})",
+                    self.name
+                )))
             }
-            Err(RunError::Other(e)) => Err(ProviderError::new(format!("{}/{model} error: {e}", self.name))),
+            Err(RunError::Other(e)) => Err(ProviderError::new(format!(
+                "{}/{model} error: {e}",
+                self.name
+            ))),
         }
     }
 }
@@ -407,7 +444,13 @@ mod tests {
     fn windows_candidates_in_order() {
         assert_eq!(
             windows_executable_candidates("gemini"),
-            vec!["gemini", "gemini.cmd", "gemini.exe", "gemini.bat", "gemini.ps1"],
+            vec![
+                "gemini",
+                "gemini.cmd",
+                "gemini.exe",
+                "gemini.bat",
+                "gemini.ps1"
+            ],
         );
     }
 
@@ -471,10 +514,7 @@ mod tests {
 
     #[test]
     fn full_prompt_join_format() {
-        assert_eq!(
-            build_full_prompt("SYS", "USER"),
-            "SYS\n\n---\n\nUSER",
-        );
+        assert_eq!(build_full_prompt("SYS", "USER"), "SYS\n\n---\n\nUSER",);
     }
 
     struct FakeRunner {
@@ -494,7 +534,12 @@ mod tests {
     }
 
     impl CommandRunner for FakeRunner {
-        fn run(&self, cmd: &[String], stdin: Option<&str>, _timeout_s: u64) -> Result<RunOutput, RunError> {
+        fn run(
+            &self,
+            cmd: &[String],
+            stdin: Option<&str>,
+            _timeout_s: u64,
+        ) -> Result<RunOutput, RunError> {
             *self.last_cmd.borrow_mut() = cmd.to_vec();
             *self.last_stdin.borrow_mut() = stdin.map(str::to_string);
             self.result.borrow_mut().take().expect("run called once")
@@ -505,7 +550,13 @@ mod tests {
     fn provider_call_returns_stdout_on_success() {
         let provider = SubprocessProvider::new(
             "codex",
-            vec!["codex".to_string(), "exec".to_string(), "-m".to_string(), "{model}".to_string(), "-".to_string()],
+            vec![
+                "codex".to_string(),
+                "exec".to_string(),
+                "-m".to_string(),
+                "{model}".to_string(),
+                "-".to_string(),
+            ],
             None,
         );
         let runner = FakeRunner::new(Ok(RunOutput {
@@ -513,45 +564,65 @@ mod tests {
             stderr: String::new(),
             returncode: 0,
         }));
-        let out = provider.call(&runner, "gpt-5.5", "SYS", "USER", None).unwrap();
+        let out = provider
+            .call(&runner, "gpt-5.5", "SYS", "USER", None)
+            .unwrap();
         assert_eq!(out, "the answer");
         assert_eq!(provider.timeout_s, DEFAULT_TIMEOUT_S);
         assert!(provider.prompt_via_stdin);
-        assert_eq!(*runner.last_stdin.borrow(), Some("SYS\n\n---\n\nUSER".to_string()));
+        assert_eq!(
+            *runner.last_stdin.borrow(),
+            Some("SYS\n\n---\n\nUSER".to_string())
+        );
     }
 
     #[test]
     fn provider_call_nonzero_exit_caps_and_prefers_stderr() {
-        let provider = SubprocessProvider::new("codex", vec!["codex".to_string(), "{prompt}".to_string()], Some(90));
+        let provider = SubprocessProvider::new(
+            "codex",
+            vec!["codex".to_string(), "{prompt}".to_string()],
+            Some(90),
+        );
         let runner = FakeRunner::new(Ok(RunOutput {
             stdout: "ignored".to_string(),
             stderr: "boom".to_string(),
             returncode: 3,
         }));
-        let err = provider.call(&runner, "gpt-5.5", "SYS", "USER", None).unwrap_err();
+        let err = provider
+            .call(&runner, "gpt-5.5", "SYS", "USER", None)
+            .unwrap_err();
         assert_eq!(err.message, "codex/gpt-5.5 exit 3: boom");
         assert!(!err.is_quota);
         assert_eq!(provider.timeout_s, 90);
         assert!(!provider.prompt_via_stdin);
-        assert_eq!(*runner.last_cmd.borrow(), vec!["codex", "SYS\n\n---\n\nUSER"]);
+        assert_eq!(
+            *runner.last_cmd.borrow(),
+            vec!["codex", "SYS\n\n---\n\nUSER"]
+        );
     }
 
     #[test]
     fn provider_call_maps_timeout_and_not_found() {
-        let provider = SubprocessProvider::new("codex", vec!["codex".to_string(), "-".to_string()], Some(5));
+        let provider =
+            SubprocessProvider::new("codex", vec!["codex".to_string(), "-".to_string()], Some(5));
         let timeout_runner = FakeRunner::new(Err(RunError::Timeout));
-        let err = provider.call(&timeout_runner, "m", "S", "U", None).unwrap_err();
+        let err = provider
+            .call(&timeout_runner, "m", "S", "U", None)
+            .unwrap_err();
         assert_eq!(err.message, "codex/m timeout after 5s");
         assert!(!err.is_quota);
 
         let missing_runner = FakeRunner::new(Err(RunError::NotFound));
-        let err = provider.call(&missing_runner, "m", "S", "U", None).unwrap_err();
+        let err = provider
+            .call(&missing_runner, "m", "S", "U", None)
+            .unwrap_err();
         assert!(err.message.starts_with("codex: CLI not found ("));
     }
 
     #[test]
     fn provider_call_maps_other_error() {
-        let provider = SubprocessProvider::new("codex", vec!["codex".to_string(), "-".to_string()], Some(5));
+        let provider =
+            SubprocessProvider::new("codex", vec!["codex".to_string(), "-".to_string()], Some(5));
         let runner = FakeRunner::new(Err(RunError::Other("pipe broke".to_string())));
         let err = provider.call(&runner, "m", "S", "U", None).unwrap_err();
         assert_eq!(err.message, "codex/m error: pipe broke");
@@ -576,7 +647,15 @@ mod tests {
         }
         let runner = StdCommandRunner;
         let out = runner
-            .run(&["sh".to_string(), "-c".to_string(), "echo hi; exit 7".to_string()], None, 10)
+            .run(
+                &[
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    "echo hi; exit 7".to_string(),
+                ],
+                None,
+                10,
+            )
             .expect("sh should run");
         assert_eq!(out.stdout.trim(), "hi");
         assert_eq!(out.returncode, 7);

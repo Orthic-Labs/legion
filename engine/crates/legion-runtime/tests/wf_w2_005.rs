@@ -128,7 +128,11 @@ Do not assume access to old chat, local filesystem, or unstated context.
 fn inline_filled_packet_passes_with_inline_declared() {
     let text = filled_packet("`INLINE`");
     let errors = validate_packet(&text, Path::new("packet.md"), true, false, false);
-    assert_eq!(errors, Vec::<String>::new(), "unexpected errors: {errors:?}");
+    assert_eq!(
+        errors,
+        Vec::<String>::new(),
+        "unexpected errors: {errors:?}"
+    );
 }
 
 #[test]
@@ -148,7 +152,11 @@ fn durable_packet_requires_matching_absolute_path_and_md_suffix() {
     let declared = format!("`{}`", path.to_string_lossy());
     let text = filled_packet(&declared);
     let errors = validate_packet(&text, &path, false, false, false);
-    assert_eq!(errors, Vec::<String>::new(), "unexpected errors: {errors:?}");
+    assert_eq!(
+        errors,
+        Vec::<String>::new(),
+        "unexpected errors: {errors:?}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -176,7 +184,8 @@ fn durable_packet_in_forbidden_storage_is_rejected() {
 
 #[test]
 fn unfilled_placeholder_is_rejected() {
-    let text = filled_packet("`INLINE`").replace("Diagnosis", "{{DIAGNOSIS_DESIGN_REWRITE_OR_REVIEW}}");
+    let text =
+        filled_packet("`INLINE`").replace("Diagnosis", "{{DIAGNOSIS_DESIGN_REWRITE_OR_REVIEW}}");
     let errors = validate_packet(&text, Path::new("packet.md"), true, false, false);
     assert!(errors.iter().any(|e| e == "unfilled placeholder remains"));
 }
@@ -212,15 +221,15 @@ fn secret_pattern_is_detected() {
         "api_key: sk-ABCDEFGHIJKLMNOPQRSTUVWX123456",
     );
     let errors = validate_packet(&text, Path::new("packet.md"), true, false, false);
-    assert!(errors.iter().any(|e| e.starts_with("possible secret detected")));
+    assert!(errors
+        .iter()
+        .any(|e| e.starts_with("possible secret detected")));
 }
 
 #[test]
 fn wrong_mode_label_is_rejected() {
-    let text = filled_packet("`INLINE`").replace(
-        "PACKET_ONLY — DO_NOT_RUN_COVENANT",
-        "RUN_COVENANT_NOW",
-    );
+    let text =
+        filled_packet("`INLINE`").replace("PACKET_ONLY — DO_NOT_RUN_COVENANT", "RUN_COVENANT_NOW");
     let errors = validate_packet(&text, Path::new("packet.md"), true, false, false);
     assert!(errors
         .iter()
@@ -233,8 +242,16 @@ fn thin_wrapper_short_circuits_before_engine_checks_run() {
     // marker substring anywhere in text; it does not require the label itself to carry
     // it verbatim before delegating. Confirm the short-circuit path returns exactly one
     // error and does not also surface deeper structural defects.
-    let errors =
-        validate_external_review_packet("garbage text with no marker", Path::new("packet.md"), true, false, false);
+    let errors = validate_external_review_packet(
+        "garbage text with no marker",
+        Path::new("packet.md"),
+        true,
+        false,
+        false,
+    );
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0], format!("Mode must be {}", CANONICAL_EXTERNAL_MODE));
+    assert_eq!(
+        errors[0],
+        format!("Mode must be {}", CANONICAL_EXTERNAL_MODE)
+    );
 }

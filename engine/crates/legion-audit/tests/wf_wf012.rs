@@ -112,7 +112,10 @@ fn compile_schedule_unknown_dependency_errors() {
 fn compile_schedule_self_dependency_errors() {
     let providers = vec![provider("a", &["a"], &[])];
     let error = compile_schedule(&providers, &BTreeMap::new()).unwrap_err();
-    assert_eq!(error, ScheduleError::Dag(DagError::SelfDependency("a".into())));
+    assert_eq!(
+        error,
+        ScheduleError::Dag(DagError::SelfDependency("a".into()))
+    );
 }
 
 #[test]
@@ -132,7 +135,10 @@ fn compile_schedule_cycle_errors() {
 
 #[test]
 fn evaluate_selector_default_selector_matches_any_projection() {
-    assert!(evaluate_selector(&Selector::default(), &Projection::default()));
+    assert!(evaluate_selector(
+        &Selector::default(),
+        &Projection::default()
+    ));
 }
 
 #[test]
@@ -218,7 +224,10 @@ fn path_denominator_dedupes_filters_and_sorts() {
         "node_modules/x.js".to_string(),
     ];
     let result = path_denominator(&paths, &["node_modules".to_string()]);
-    assert_eq!(result.paths, vec!["src/a.rs".to_string(), "src/b.rs".to_string()]);
+    assert_eq!(
+        result.paths,
+        vec!["src/a.rs".to_string(), "src/b.rs".to_string()]
+    );
     assert_eq!(result.path_count, 2);
     assert_eq!(
         result.path_digest,
@@ -308,8 +317,7 @@ fn normalize_provider_result_matches_js_self_test() {
         "complete": true,
         "findings": [],
     });
-    let normalized =
-        normalize_provider_result(Some(&plan_contract), Some(&raw_output)).unwrap();
+    let normalized = normalize_provider_result(Some(&plan_contract), Some(&raw_output)).unwrap();
     assert_eq!(normalized["provider"], "test.provider");
     assert_eq!(normalized["status"], "pass");
     assert_eq!(normalized["coverage"]["denominatorDigest"], "sha256:test");
@@ -324,5 +332,8 @@ fn normalize_provider_result_defaults_provider_to_unknown() {
     assert_eq!(normalized["status"], "unproven");
     assert_eq!(normalized["complete"], false);
     assert_eq!(normalized["required"], false);
-    assert_eq!(normalized["coverage"]["denominatorDigest"], "sha256:unbound");
+    assert_eq!(
+        normalized["coverage"]["denominatorDigest"],
+        "sha256:unbound"
+    );
 }

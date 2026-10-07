@@ -53,7 +53,9 @@ fn parse_arguments(argv: &[String]) -> Result<(bool, bool, HashMap<String, Strin
             Some(v) => v,
             None => {
                 index += 1;
-                argv.get(index).cloned().ok_or_else(|| format!("--{key} requires a value"))?
+                argv.get(index)
+                    .cloned()
+                    .ok_or_else(|| format!("--{key} requires a value"))?
             }
         };
         if value.is_empty() || value.starts_with("--") {
@@ -79,7 +81,13 @@ pub fn run(argv: &[String]) -> ExitCode {
     }
     let get = |keys: &[&str]| keys.iter().find_map(|k| options.get(*k).cloned());
     let current_zip = get(&["currentzip", "currentarchive", "current", "archive"]);
-    let prior_zip = get(&["priorzip", "priorarchive", "prior", "previouszip", "previousarchive"]);
+    let prior_zip = get(&[
+        "priorzip",
+        "priorarchive",
+        "prior",
+        "previouszip",
+        "previousarchive",
+    ]);
     let architecture = get(&["architecture", "expectedarchitecture"]);
     let source_revision = get(&["sourcerevision", "revision"]);
     let output = get(&["output", "outputreceipt", "receipt", "receiptpath"]);
@@ -104,7 +112,10 @@ pub fn run(argv: &[String]) -> ExitCode {
                 "archiveSha256": receipt.get("archiveSha256"),
                 "runtimeSha256": receipt.get("runtimeSha256"),
             });
-            println!("{}", serde_json::to_string_pretty(&summary).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&summary).unwrap_or_default()
+            );
             ExitCode::SUCCESS
         }
         Err(error) => {

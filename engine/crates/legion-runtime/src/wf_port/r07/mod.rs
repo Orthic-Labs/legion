@@ -68,6 +68,6 @@ pub use detect_url::{
     detect_url, detect_url_cdp, serialize_design_system_for_browser, DesignSystemInput,
     DetectUrlOptions, Viewport,
 };
-pub use findings::{finding, filter_by_providers, AntipatternLookup, AntipatternRule, Finding};
+pub use findings::{filter_by_providers, finding, AntipatternLookup, AntipatternRule, Finding};
 pub use real::RealChromeDriver;
 pub use registry::RegistryLookup;

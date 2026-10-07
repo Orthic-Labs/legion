@@ -9,7 +9,11 @@ use serde_json::{json, Value};
 pub const TELEMETRY_DEFAULT: &str = "off";
 
 /// Port of `privacyReceipt({ telemetry, integrations, egress })`.
-pub fn privacy_receipt(telemetry: Option<&str>, integrations: &[String], egress: &[Value]) -> Value {
+pub fn privacy_receipt(
+    telemetry: Option<&str>,
+    integrations: &[String],
+    egress: &[Value],
+) -> Value {
     let mut sorted_integrations = integrations.to_vec();
     sorted_integrations.sort();
     let egress_out: Vec<Value> = egress

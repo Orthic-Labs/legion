@@ -63,7 +63,10 @@ pub struct IngestedItem {
 
 fn is_sha256(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(|hex| {
-        hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        hex.len() == 64
+            && hex
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
     })
 }
 
@@ -81,7 +84,10 @@ pub fn ingest_source(
         if !TERMINAL.contains(&item.disposition.as_str()) {
             return Err("source item requires terminal disposition".to_string());
         }
-        let rights = item.rights_status.clone().unwrap_or_else(|| source.rights_status.clone());
+        let rights = item
+            .rights_status
+            .clone()
+            .unwrap_or_else(|| source.rights_status.clone());
         let has_derived = !item.control_ids.is_empty() || item.derived_content;
         if (source.rights_status != "cleared" || rights != "cleared") && has_derived {
             return Err("source item rights do not permit derived controls".to_string());
@@ -114,7 +120,10 @@ mod tests {
 
     #[test]
     fn dedup_keeps_identical_duplicate() {
-        let a = SourceRecord { digest: "d1".into(), canonical: "{}".into() };
+        let a = SourceRecord {
+            digest: "d1".into(),
+            canonical: "{}".into(),
+        };
         let b = a.clone();
         let result = deduplicate_sources(vec![a, b]).unwrap();
         assert_eq!(result.len(), 1);
@@ -122,41 +131,71 @@ mod tests {
 
     #[test]
     fn dedup_rejects_drifted_duplicate() {
-        let a = SourceRecord { digest: "d1".into(), canonical: "{\"a\":1}".into() };
-        let b = SourceRecord { digest: "d1".into(), canonical: "{\"a\":2}".into() };
+        let a = SourceRecord {
+            digest: "d1".into(),
+            canonical: "{\"a\":1}".into(),
+        };
+        let b = SourceRecord {
+            digest: "d1".into(),
+            canonical: "{\"a\":2}".into(),
+        };
         let err = deduplicate_sources(vec![a, b]).unwrap_err();
         assert_eq!(err, "source digest drift: d1");
     }
 
     fn valid_source() -> IngestSource {
-        IngestSource { digest: format!("sha256:{}", "a".repeat(64)), rights_status: "cleared".into() }
+        IngestSource {
+            digest: format!("sha256:{}", "a".repeat(64)),
+            rights_status: "cleared".into(),
+        }
     }
 
     #[test]
     fn ingest_requires_valid_digest() {
-        let bad = IngestSource { digest: "not-a-digest".into(), rights_status: "cleared".into() };
+        let bad = IngestSource {
+            digest: "not-a-digest".into(),
+            rights_status: "cleared".into(),
+        };
         let err = ingest_source(&bad, &[]).unwrap_err();
         assert_eq!(err, "source requires valid sha256 digest and rights status");
     }
 
     #[test]
     fn ingest_requires_terminal_disposition() {
-        let item = IngestItem { disposition: "pending".into(), rights_status: None, control_ids: vec![], derived_content: false };
+        let item = IngestItem {
+            disposition: "pending".into(),
+            rights_status: None,
+            control_ids: vec![],
+            derived_content: false,
+        };
         let err = ingest_source(&valid_source(), &[item]).unwrap_err();
         assert_eq!(err, "source item requires terminal disposition");
     }
 
     #[test]
     fn ingest_blocks_derived_controls_without_cleared_rights() {
-        let source = IngestSource { digest: format!("sha256:{}", "a".repeat(64)), rights_status: "restricted".into() };
-        let item = IngestItem { disposition: "mapped".into(), rights_status: None, control_ids: vec!["c1".into()], derived_content: false };
+        let source = IngestSource {
+            digest: format!("sha256:{}", "a".repeat(64)),
+            rights_status: "restricted".into(),
+        };
+        let item = IngestItem {
+            disposition: "mapped".into(),
+            rights_status: None,
+            control_ids: vec!["c1".into()],
+            derived_content: false,
+        };
         let err = ingest_source(&source, &[item]).unwrap_err();
         assert_eq!(err, "source item rights do not permit derived controls");
     }
 
     #[test]
     fn ingest_numbers_items_and_clears_execution_authority() {
-        let item = IngestItem { disposition: "mapped".into(), rights_status: None, control_ids: vec!["c1".into()], derived_content: false };
+        let item = IngestItem {
+            disposition: "mapped".into(),
+            rights_status: None,
+            control_ids: vec!["c1".into()],
+            derived_content: false,
+        };
         let (out_source, items) = ingest_source(&valid_source(), &[item]).unwrap();
         assert!(!out_source.digest.is_empty());
         assert_eq!(items[0].id, format!("{}:1", valid_source().digest));

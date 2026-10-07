@@ -14,12 +14,13 @@
 
 use legion_runtime::wf_port::w2_020::{
     browser_script_parts::{
-        assemble_live_browser_script, resolve_live_browser_script_parts, ScriptPartSource, LIVE_BROWSER_SCRIPT_PARTS,
+        assemble_live_browser_script, resolve_live_browser_script_parts, ScriptPartSource,
+        LIVE_BROWSER_SCRIPT_PARTS,
     },
     completion::{completion_ack_for_accept_result, completion_type_for_accept_result},
     event_validation::{can_create_insert, validate_event, VISUAL_ACTIONS},
     live_cli::{glob_to_regex, missing_live_context, scan_for_drift, DirEntry},
-    wrap::{build_search_queries, detect_comment_syntax, find_element, find_closing_line},
+    wrap::{build_search_queries, detect_comment_syntax, find_closing_line, find_element},
 };
 use serde_json::json;
 
@@ -36,7 +37,10 @@ fn event_validation_end_to_end_generate_replace_flow() {
     assert_eq!(validate_event(Some(&msg)), None);
 
     let bad = json!({"type": "generate", "id": "0123abcd", "count": 2, "action": "not-a-real-action", "element": {"outerHTML": "<div></div>"}});
-    assert_eq!(validate_event(Some(&bad)), Some("generate: invalid action".to_string()));
+    assert_eq!(
+        validate_event(Some(&bad)),
+        Some("generate: invalid action".to_string())
+    );
 
     assert!(can_create_insert(Some("prompt text"), None, None));
 }
@@ -53,7 +57,8 @@ fn completion_pipeline_drives_ack_shape() {
 
 #[test]
 fn browser_script_parts_resolve_and_assemble() {
-    let resolved = resolve_live_browser_script_parts("/proj/scripts/live", LIVE_BROWSER_SCRIPT_PARTS).unwrap();
+    let resolved =
+        resolve_live_browser_script_parts("/proj/scripts/live", LIVE_BROWSER_SCRIPT_PARTS).unwrap();
     assert_eq!(resolved.len(), 3);
 
     let sources: Vec<ScriptPartSource> = resolved

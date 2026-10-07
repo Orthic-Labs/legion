@@ -57,7 +57,8 @@ impl RuntimeSchemaSet {
     pub fn new() -> Self {
         let mut schemas = HashMap::with_capacity(EMBEDDED.len());
         for text in EMBEDDED {
-            let schema: Value = serde_json::from_str(text).expect("embedded arcane schema is valid JSON");
+            let schema: Value =
+                serde_json::from_str(text).expect("embedded arcane schema is valid JSON");
             let id = schema
                 .get("$id")
                 .and_then(Value::as_str)
@@ -134,7 +135,8 @@ impl Default for RuntimeSchemaSet {
 fn date_time_like(value: &str) -> bool {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
-        regex::Regex::new(r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$").unwrap()
+        regex::Regex::new(r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$")
+            .unwrap()
     });
     re.is_match(value)
 }
@@ -172,7 +174,11 @@ mod tests {
     #[test]
     fn loads_all_seventeen_ids_without_collision() {
         let set = RuntimeSchemaSet::new();
-        assert_eq!(set.schemas.len(), 17, "an $id collision silently dropped a schema");
+        assert_eq!(
+            set.schemas.len(),
+            17,
+            "an $id collision silently dropped a schema"
+        );
     }
 
     #[test]
@@ -203,7 +209,10 @@ mod tests {
             "contract": {},
         });
         let issues = set.validate("arcane-contract-seal-v1", &value).unwrap();
-        assert!(issues.iter().any(|i| i.contains("sealedAt")), "issues: {issues:?}");
+        assert!(
+            issues.iter().any(|i| i.contains("sealedAt")),
+            "issues: {issues:?}"
+        );
     }
 
     #[test]

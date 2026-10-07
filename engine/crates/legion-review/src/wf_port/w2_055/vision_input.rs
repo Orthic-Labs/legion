@@ -109,7 +109,9 @@ pub fn keyframe_timestamps(duration_s: f64, n: usize) -> Vec<f64> {
         return vec![duration_s / 2.0];
     }
     let step = duration_s / (n as f64 + 1.0);
-    (0..n).map(|i| (step * (i as f64 + 1.0) * 100.0).round() / 100.0).collect()
+    (0..n)
+        .map(|i| (step * (i as f64 + 1.0) * 100.0).round() / 100.0)
+        .collect()
 }
 
 /// One prepared vision payload item, matching the JSON shape
@@ -170,7 +172,11 @@ pub fn prepare_vision_payload(
             }
             let mime = mime_for_image_ext(&ext).expect("ext checked against IMAGE_EXTS");
             if let Some(b64) = source.base64(&resolved) {
-                payload.push(VisionItem { mime, b64, source: resolved.clone() });
+                payload.push(VisionItem {
+                    mime,
+                    b64,
+                    source: resolved.clone(),
+                });
             }
         } else if VIDEO_EXTS.contains(&ext.as_str()) {
             for fp in source.video_keyframes(&resolved) {
@@ -226,7 +232,10 @@ impl FsImageSource {
             ])
             .output()
             .ok()?;
-        String::from_utf8_lossy(&out.stdout).trim().parse::<f64>().ok()
+        String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .parse::<f64>()
+            .ok()
     }
 }
 
@@ -235,8 +244,7 @@ impl FsImageSource {
 /// `base64` crate dependency (see the chunk report for the suggested
 /// `Cargo.toml` patch if a caller prefers a crate implementation).
 fn base64_standard_encode(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0];
@@ -245,8 +253,16 @@ fn base64_standard_encode(bytes: &[u8]) -> String {
         let n = ((b0 as u32) << 16) | ((b1 as u32) << 8) | (b2 as u32);
         out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
         out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
-        out.push(if chunk.len() > 1 { ALPHABET[((n >> 6) & 0x3F) as usize] as char } else { '=' });
-        out.push(if chunk.len() > 2 { ALPHABET[(n & 0x3F) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            ALPHABET[((n >> 6) & 0x3F) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            ALPHABET[(n & 0x3F) as usize] as char
+        } else {
+            '='
+        });
     }
     out
 }
@@ -299,7 +315,9 @@ impl ImageSource for FsImageSource {
             let status = Command::new("ffmpeg").args(&args).arg(&out_path).status();
             if status.is_ok()
                 && out_path.exists()
-                && std::fs::metadata(&out_path).map(|m| m.len() > 0).unwrap_or(false)
+                && std::fs::metadata(&out_path)
+                    .map(|m| m.len() > 0)
+                    .unwrap_or(false)
             {
                 out_paths.push(out_path.to_string_lossy().into_owned());
             }
@@ -386,7 +404,10 @@ mod tests {
     fn prepare_vision_payload_encodes_images_within_cap() {
         let mut sizes = HashMap::new();
         sizes.insert("/tmp/a.png".to_string(), 100);
-        let source = FakeSource { sizes, frames: HashMap::new() };
+        let source = FakeSource {
+            sizes,
+            frames: HashMap::new(),
+        };
         let payload =
             prepare_vision_payload("/tmp/a.png", MAX_IMAGES, &source, |p| p == "/tmp/a.png");
         assert_eq!(payload.len(), 1);
@@ -399,7 +420,10 @@ mod tests {
     fn prepare_vision_payload_skips_oversized_image() {
         let mut sizes = HashMap::new();
         sizes.insert("/tmp/a.png".to_string(), MAX_IMAGE_BYTES + 1);
-        let source = FakeSource { sizes, frames: HashMap::new() };
+        let source = FakeSource {
+            sizes,
+            frames: HashMap::new(),
+        };
         let payload =
             prepare_vision_payload("/tmp/a.png", MAX_IMAGES, &source, |p| p == "/tmp/a.png");
         assert!(payload.is_empty());
@@ -407,7 +431,10 @@ mod tests {
 
     #[test]
     fn prepare_vision_payload_skips_unresolvable_path() {
-        let source = FakeSource { sizes: HashMap::new(), frames: HashMap::new() };
+        let source = FakeSource {
+            sizes: HashMap::new(),
+            frames: HashMap::new(),
+        };
         let payload = prepare_vision_payload("/tmp/a.png", MAX_IMAGES, &source, |_| false);
         assert!(payload.is_empty());
     }
@@ -421,7 +448,10 @@ mod tests {
         let mut frames = HashMap::new();
         frames.insert(
             "/tmp/clip.mp4".to_string(),
-            vec!["/tmp/frame-00.png".to_string(), "/tmp/frame-01.png".to_string()],
+            vec![
+                "/tmp/frame-00.png".to_string(),
+                "/tmp/frame-01.png".to_string(),
+            ],
         );
         let source = FakeSource { sizes, frames };
         let exists = |p: &str| p == "/tmp/clip.mp4";
@@ -436,7 +466,10 @@ mod tests {
         let mut sizes = HashMap::new();
         sizes.insert("/tmp/a.png".to_string(), 10);
         sizes.insert("/tmp/b.png".to_string(), 10);
-        let source = FakeSource { sizes, frames: HashMap::new() };
+        let source = FakeSource {
+            sizes,
+            frames: HashMap::new(),
+        };
         let text = "/tmp/a.png /tmp/b.png";
         let payload = prepare_vision_payload(text, 1, &source, |_| true);
         assert_eq!(payload.len(), 1);
@@ -445,7 +478,10 @@ mod tests {
 
     #[test]
     fn prepare_vision_payload_empty_text_is_empty() {
-        let source = FakeSource { sizes: HashMap::new(), frames: HashMap::new() };
+        let source = FakeSource {
+            sizes: HashMap::new(),
+            frames: HashMap::new(),
+        };
         assert!(prepare_vision_payload("", MAX_IMAGES, &source, |_| true).is_empty());
     }
 }

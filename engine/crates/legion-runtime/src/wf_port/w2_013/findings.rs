@@ -64,7 +64,15 @@ pub fn build_finding_default_line(
     file_path: &str,
     snippet: &str,
 ) -> Finding {
-    build_finding(antipattern_id, name, description, severity, file_path, snippet, 0)
+    build_finding(
+        antipattern_id,
+        name,
+        description,
+        severity,
+        file_path,
+        snippet,
+        0,
+    )
 }
 
 #[cfg(test)]

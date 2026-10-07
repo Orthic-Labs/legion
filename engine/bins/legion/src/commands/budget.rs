@@ -1,7 +1,7 @@
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
 use legion_arcane::{
-    BudgetGovernanceStore, KeyRing, TaskBudgetSealStore, inspect_projection, state_root,
+    inspect_projection, state_root, BudgetGovernanceStore, KeyRing, TaskBudgetSealStore,
 };
 use serde_json::json;
 use std::path::PathBuf;
@@ -31,9 +31,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
             }
             "--version" => {
                 index += 1;
-                version = argv
-                    .get(index)
-                    .and_then(|value| value.parse::<u32>().ok());
+                version = argv.get(index).and_then(|value| value.parse::<u32>().ok());
             }
             "--task" => {
                 index += 1;
@@ -43,24 +41,32 @@ pub fn run(args: CommonArgs) -> CommandResult {
                 index += 1;
                 run = argv.get(index).cloned();
             }
-            flag => return Err(CommandError::usage(format!("unknown budget option: {flag}"))),
+            flag => {
+                return Err(CommandError::usage(format!(
+                    "unknown budget option: {flag}"
+                )))
+            }
         }
         index += 1;
     }
-    let contract = contract.filter(|value| !value.is_empty()).ok_or_else(|| {
-        CommandError::usage("budget inspect requires --contract <EC-#>")
-    })?;
+    let contract = contract
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| CommandError::usage("budget inspect requires --contract <EC-#>"))?;
     if !contract.starts_with("EC-") || contract[3..].parse::<u64>().is_err() {
-        return Err(CommandError::usage("budget inspect requires --contract <EC-#>"));
+        return Err(CommandError::usage(
+            "budget inspect requires --contract <EC-#>",
+        ));
     }
     let version = version.filter(|value| *value >= 1).ok_or_else(|| {
         CommandError::usage("budget inspect requires --version <positive integer>")
     })?;
-    let task = task.filter(|value| !value.is_empty()).ok_or_else(|| {
-        CommandError::usage("budget inspect requires --task <T-#(.#)*>")
-    })?;
+    let task = task
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| CommandError::usage("budget inspect requires --task <T-#(.#)*>"))?;
     if !task.starts_with("T-") {
-        return Err(CommandError::usage("budget inspect requires --task <T-#(.#)*>"));
+        return Err(CommandError::usage(
+            "budget inspect requires --task <T-#(.#)*>",
+        ));
     }
     if std::env::var_os("ARCANE_KEY_DIR").is_none() {
         return Err(CommandError::incomplete(
@@ -71,14 +77,9 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let cwd = std::env::current_dir().map_err(super::io_error)?;
     let arcane_root = state_root(&cwd);
     let key_ring = KeyRing::load_dir(&key_dir).map_err(map_arcane_error)?;
-    let budget_store = BudgetGovernanceStore::new(
-        arcane_root.join("budget-governance"),
-        key_ring.clone(),
-    );
-    let task_store = TaskBudgetSealStore::new(
-        arcane_root.join("task-budget-seals"),
-        key_ring,
-    );
+    let budget_store =
+        BudgetGovernanceStore::new(arcane_root.join("budget-governance"), key_ring.clone());
+    let task_store = TaskBudgetSealStore::new(arcane_root.join("task-budget-seals"), key_ring);
     let budget = budget_store
         .require(&contract, version)
         .map_err(map_arcane_error)?;
@@ -114,9 +115,6 @@ fn map_arcane_error(error: legion_arcane::ArcaneError) -> CommandError {
         "ARC_BINDING_MISMATCH" | "ARC_STORE_MISSING" | "ARC_STORE_CORRUPT" => {
             CommandError::incomplete(format!("{}: {}", error.code(), error))
         }
-        _ => CommandError::incomplete(format!(
-            "{}: budget inspection unavailable",
-            error.code()
-        )),
+        _ => CommandError::incomplete(format!("{}: budget inspection unavailable", error.code())),
     }
 }

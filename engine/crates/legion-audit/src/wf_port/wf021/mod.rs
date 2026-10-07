@@ -331,13 +331,12 @@ pub fn build_family_summary(
         let status_pass = result.get("status").and_then(Value::as_str) == Some("pass");
         let denominator = result.get("denominator");
         let denominator_present = matches!(denominator, Some(v) if !v.is_null());
-        let denominator_valid = denominator_present
-            && {
-                let d = denominator.unwrap();
-                let expected = d.get("expected").and_then(Value::as_i64);
-                let examined = d.get("examined").and_then(Value::as_i64);
-                matches!(expected, Some(e) if e >= 1) && expected == examined
-            };
+        let denominator_valid = denominator_present && {
+            let d = denominator.unwrap();
+            let expected = d.get("expected").and_then(Value::as_i64);
+            let examined = d.get("examined").and_then(Value::as_i64);
+            matches!(expected, Some(e) if e >= 1) && expected == examined
+        };
         !complete_true || !status_pass || !denominator_valid
     };
 
@@ -434,7 +433,13 @@ fn value_to_display_string(value: &Value) -> String {
 
 fn links(ids: &[String]) -> String {
     ids.iter()
-        .map(|id| format!("<a href=\"#evidence-{}\">{}</a>", anchor(id), escape_html(id)))
+        .map(|id| {
+            format!(
+                "<a href=\"#evidence-{}\">{}</a>",
+                anchor(id),
+                escape_html(id)
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -497,7 +502,11 @@ fn section(title: &str, value: &Value) -> String {
     };
 
     let kind = anchor(&title.to_lowercase().replace(' ', "-"));
-    let rows_or_placeholder = if rows.is_empty() { "<p>Unavailable.</p>".to_string() } else { rows };
+    let rows_or_placeholder = if rows.is_empty() {
+        "<p>Unavailable.</p>".to_string()
+    } else {
+        rows
+    };
     format!(
         "<section data-kind=\"{kind}\"><h2>{}</h2>{rows_or_placeholder}{truncated}</section>",
         escape_html(title)
@@ -554,7 +563,10 @@ pub fn render_html_report(report: &Value) -> String {
         for finding in arr {
             if let Some(evidence) = finding.get("evidence").and_then(Value::as_array) {
                 for item in evidence {
-                    let key = item.get("id").map(value_to_display_string).unwrap_or_default();
+                    let key = item
+                        .get("id")
+                        .map(value_to_display_string)
+                        .unwrap_or_default();
                     if !map.contains_key(&key) {
                         order.push(key.clone());
                     }
@@ -589,10 +601,21 @@ pub fn render_html_report(report: &Value) -> String {
         .map(|arr| {
             arr.iter()
                 .map(|family| {
-                    let id = family.get("id").map(value_to_display_string).unwrap_or_default();
-                    let status = family.get("status").map(value_to_display_string).unwrap_or_default();
+                    let id = family
+                        .get("id")
+                        .map(value_to_display_string)
+                        .unwrap_or_default();
+                    let status = family
+                        .get("status")
+                        .map(value_to_display_string)
+                        .unwrap_or_default();
                     let ev_ids = string_array(&opt_array(family, "evidenceIds"));
-                    format!("<li>{}: {} {}</li>", escape_html(&id), escape_html(&status), links(&ev_ids))
+                    format!(
+                        "<li>{}: {} {}</li>",
+                        escape_html(&id),
+                        escape_html(&status),
+                        links(&ev_ids)
+                    )
                 })
                 .collect::<Vec<_>>()
                 .join("\n")
@@ -605,7 +628,10 @@ pub fn render_html_report(report: &Value) -> String {
         .map(|arr| {
             arr.iter()
                 .map(|gap| {
-                    let kind = gap.get("kind").map(value_to_display_string).unwrap_or_default();
+                    let kind = gap
+                        .get("kind")
+                        .map(value_to_display_string)
+                        .unwrap_or_default();
                     let detail = match gap.get("detail") {
                         Some(v) if !v.is_null() => format!(
                             ": {}",
@@ -671,8 +697,16 @@ fn base64_encode(bytes: &[u8]) -> String {
         let n = ((b0 as u32) << 16) | ((b1 as u32) << 8) | (b2 as u32);
         out.push(TABLE[((n >> 18) & 0x3f) as usize] as char);
         out.push(TABLE[((n >> 12) & 0x3f) as usize] as char);
-        out.push(if chunk.len() > 1 { TABLE[((n >> 6) & 0x3f) as usize] as char } else { '=' });
-        out.push(if chunk.len() > 2 { TABLE[(n & 0x3f) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            TABLE[((n >> 6) & 0x3f) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            TABLE[(n & 0x3f) as usize] as char
+        } else {
+            '='
+        });
     }
     out
 }
@@ -701,7 +735,10 @@ pub fn render_markdown_report(report: &Value) -> String {
     let empty = json!({});
     let report = if report.is_null() { &empty } else { report };
 
-    let mut findings: Vec<Value> = opt_array(report, "findings").as_array().cloned().unwrap_or_default();
+    let mut findings: Vec<Value> = opt_array(report, "findings")
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     findings.sort_by(|a, b| {
         let ka = a.get("id").map(value_to_display_string).unwrap_or_default();
         let kb = b.get("id").map(value_to_display_string).unwrap_or_default();
@@ -714,13 +751,26 @@ pub fn render_markdown_report(report: &Value) -> String {
         .cloned()
         .unwrap_or_default();
     gaps.sort_by(|a, b| {
-        let ka = a.get("kind").map(value_to_display_string).unwrap_or_default();
-        let kb = b.get("kind").map(value_to_display_string).unwrap_or_default();
+        let ka = a
+            .get("kind")
+            .map(value_to_display_string)
+            .unwrap_or_default();
+        let kb = b
+            .get("kind")
+            .map(value_to_display_string)
+            .unwrap_or_default();
         ka.cmp(&kb)
     });
 
-    let status = report.get("audit_status").map(|v| escape_markdown(v)).unwrap_or_else(|| "unknown".to_string());
-    let status = if status.is_empty() { "unknown".to_string() } else { status };
+    let status = report
+        .get("audit_status")
+        .map(|v| escape_markdown(v))
+        .unwrap_or_else(|| "unknown".to_string());
+    let status = if status.is_empty() {
+        "unknown".to_string()
+    } else {
+        status
+    };
     let quality_gate = match report.get("quality_gate") {
         Some(v) if !v.is_null() => escape_markdown(v),
         _ => "unknown".to_string(),
@@ -740,9 +790,18 @@ pub fn render_markdown_report(report: &Value) -> String {
     ];
 
     for finding in &findings {
-        let id = finding.get("id").map(|v| escape_markdown(v)).unwrap_or_default();
-        let rule = finding.get("ruleId").map(|v| escape_markdown(v)).unwrap_or_default();
-        let severity = finding.get("severity").map(|v| escape_markdown(v)).unwrap_or_default();
+        let id = finding
+            .get("id")
+            .map(|v| escape_markdown(v))
+            .unwrap_or_default();
+        let rule = finding
+            .get("ruleId")
+            .map(|v| escape_markdown(v))
+            .unwrap_or_default();
+        let severity = finding
+            .get("severity")
+            .map(|v| escape_markdown(v))
+            .unwrap_or_default();
         // `finding.title ?? finding.detail`
         let title = match finding.get("title") {
             Some(v) if !v.is_null() => escape_markdown(v),
@@ -751,7 +810,10 @@ pub fn render_markdown_report(report: &Value) -> String {
                 _ => escape_markdown(&Value::Null),
             },
         };
-        let file = finding.get("file").map(|v| escape_markdown(v)).unwrap_or_default();
+        let file = finding
+            .get("file")
+            .map(|v| escape_markdown(v))
+            .unwrap_or_default();
         lines.push(format!("| {id} | {rule} | {severity} | {title} | {file} |"));
     }
     if findings.is_empty() {
@@ -763,9 +825,15 @@ pub fn render_markdown_report(report: &Value) -> String {
     lines.push(String::new());
     if !gaps.is_empty() {
         for gap in &gaps {
-            let kind = gap.get("kind").map(|v| escape_markdown(v)).unwrap_or_default();
+            let kind = gap
+                .get("kind")
+                .map(|v| escape_markdown(v))
+                .unwrap_or_default();
             let detail = match gap.get("detail") {
-                Some(v) if !v.is_null() => format!(": {}", escape_markdown(&Value::String(serde_json::to_string(v).unwrap_or_default()))),
+                Some(v) if !v.is_null() => format!(
+                    ": {}",
+                    escape_markdown(&Value::String(serde_json::to_string(v).unwrap_or_default()))
+                ),
                 _ => String::new(),
             };
             lines.push(format!("- {kind}{detail}"));

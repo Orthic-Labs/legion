@@ -72,7 +72,10 @@ pub fn analyze(input: &Value) -> Value {
     let mut normalized = Vec::new();
     let mut gaps = Vec::new();
     for item in &supplied {
-        let raw = item.get("rawBytes").and_then(Value::as_str).map(str::as_bytes);
+        let raw = item
+            .get("rawBytes")
+            .and_then(Value::as_str)
+            .map(str::as_bytes);
         let binding = item
             .get("binding")
             .or_else(|| input.get("plan").and_then(|p| p.get("repositoryBinding")))

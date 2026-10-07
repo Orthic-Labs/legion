@@ -1,6 +1,6 @@
-use legion_audit::InventorySource as _;
 use super::{CommandError, CommandResult};
 use clap::Args;
+use legion_audit::InventorySource as _;
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
@@ -67,8 +67,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // the plan; the facts document then omits scope and the run is incomplete,
     // mirroring Node's crashed facts collection without a CLI-level error.
     let scope = audit_scope(&root, &args);
-    let direct = args.provider_plan.is_some()
-        || !args.provider_results.is_empty();
+    let direct = args.provider_plan.is_some() || !args.provider_results.is_empty();
     let signing_key = if args.plan_only {
         Some(super::audit_signing_key()?)
     } else {
@@ -92,10 +91,15 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         (Arc::new(application), notices)
     };
     let mut selected_specs = application.provider_specs();
-    let configured_ids = selected_specs.iter().map(|provider| provider.id.as_str()).collect::<std::collections::BTreeSet<_>>();
+    let configured_ids = selected_specs
+        .iter()
+        .map(|provider| provider.id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
     for requested in args.only.iter().chain(args.skip.iter()) {
         if !configured_ids.contains(requested.as_str()) {
-            return Err(CommandError::usage(format!("unknown provider: {requested}")));
+            return Err(CommandError::usage(format!(
+                "unknown provider: {requested}"
+            )));
         }
     }
     // Keep provider selection deterministic and equivalent to audit-run's
@@ -103,7 +107,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // therefore excluded providers cannot affect frozen denominators or DAG.
     selected_specs = filter_provider_specs(selected_specs, &args);
     if selected_specs.is_empty() {
-        return Err(CommandError::usage("provider selection produced an empty plan"));
+        return Err(CommandError::usage(
+            "provider selection produced an empty plan",
+        ));
     }
     let review_context = review_context(&root, &scope);
     for provider in &mut selected_specs {
@@ -372,10 +378,9 @@ fn lens_work_items(
         if expected_plan_digest.is_some_and(|digest| digest != plan.digest()) {
             return Err("plan digest differs from the executed plan".into());
         }
-        let work = legion_audit::native_providers::reasoning::pending_lens_work(
-            root, &plan, &inventory,
-        )
-        .map_err(|error| error.to_string())?;
+        let work =
+            legion_audit::native_providers::reasoning::pending_lens_work(root, &plan, &inventory)
+                .map_err(|error| error.to_string())?;
         let mut items = Vec::new();
         for item in work {
             let file = format!("{}.json", item.provider_id);
@@ -396,11 +401,17 @@ fn lens_work_items(
     })();
     match built {
         Ok(items) => (items, Vec::new()),
-        Err(message) => (Vec::new(), vec![format!("lens-packets-unavailable:{message}")]),
+        Err(message) => (
+            Vec::new(),
+            vec![format!("lens-packets-unavailable:{message}")],
+        ),
     }
 }
 
-fn validate_output_dir(root: &std::path::Path, requested: &std::path::Path) -> Result<(), CommandError> {
+fn validate_output_dir(
+    root: &std::path::Path,
+    requested: &std::path::Path,
+) -> Result<(), CommandError> {
     let base = std::env::current_dir().map_err(super::io_error)?;
     let output = if requested.is_absolute() {
         requested.to_path_buf()
@@ -552,7 +563,9 @@ fn native_audit_parity_gaps(
 
 fn native_audit_input_gaps(args: &AuditArgs) -> Vec<String> {
     let mut gaps = Vec::new();
-    if args.native_rule_manifest.is_some() { gaps.push("native-provider-composition-partial".into()); }
+    if args.native_rule_manifest.is_some() {
+        gaps.push("native-provider-composition-partial".into());
+    }
     // Visual options (--url/--surfaces/--visual-spec/--visual-baselines/--width/
     // --height) stay accepted-and-inert without a gap record: Node's bare CLI
     // behaves the same way (the frozen registry has no visual.core provider),
@@ -645,12 +658,9 @@ fn validate_git_ref(reference: &str) -> bool {
             .chars()
             .next()
             .is_some_and(|first| first.is_ascii_alphanumeric())
-        && reference
-            .chars()
-            .all(|character| {
-                character.is_ascii_alphanumeric()
-                    || matches!(character, '.' | '_' | '/' | '@' | '-')
-            })
+        && reference.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '/' | '@' | '-')
+        })
 }
 
 fn git_ref_is_valid(reference: &Option<String>) -> bool {
@@ -702,9 +712,7 @@ fn audit_changed_files(
             let range = format!("{upstream}..HEAD");
             push_changed_files(&mut files, root, &["diff", "--name-only", &range]);
         }
-        files.retain(|file| {
-            !file.starts_with(".audit/") && !is_generated_or_vendored_path(file)
-        });
+        files.retain(|file| !file.starts_with(".audit/") && !is_generated_or_vendored_path(file));
     } else if let Some(commit) = scope_base_commit {
         push_changed_files(&mut files, root, &["diff", "--name-only", commit]);
     } else if let Some(base) = scope_base {
@@ -741,8 +749,8 @@ fn audit_scope(root: &std::path::Path, args: &AuditArgs) -> AuditScope {
         .and_then(|dir| clean_path(&dir.to_string_lossy()));
     let scope_base = args.base.clone();
     let scope_base_commit = args.base_commit.clone();
-    let refs_valid = AuditScope::ref_is_valid(&scope_base)
-        && AuditScope::ref_is_valid(&scope_base_commit);
+    let refs_valid =
+        AuditScope::ref_is_valid(&scope_base) && AuditScope::ref_is_valid(&scope_base_commit);
     let scoped = scope_dir.is_some()
         || scope_base.is_some()
         || scope_base_commit.is_some()
@@ -786,7 +794,12 @@ fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
             "mergeBase": Value::Null,
         },
     });
-    if scope.mode == "whole-repo" || (scope.dir.is_some() && scope.base.is_none() && scope.base_commit.is_none() && scope.scope_type == "all") {
+    if scope.mode == "whole-repo"
+        || (scope.dir.is_some()
+            && scope.base.is_none()
+            && scope.base_commit.is_none()
+            && scope.scope_type == "all")
+    {
         context["baseline"]["status"] = json!("not-applicable");
         return context;
     }
@@ -809,11 +822,15 @@ fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
             )
             .map(|value| value.trim().to_owned())
             .filter(|value| !value.is_empty());
-            let Some(upstream) = upstream else { return context; };
+            let Some(upstream) = upstream else {
+                return context;
+            };
             merge_base = git_stdout(root, &["merge-base", &upstream, &head])
                 .map(|value| value.trim().to_owned())
                 .filter(|value| !value.is_empty());
-            let Some(base) = merge_base.clone() else { return context; };
+            let Some(base) = merge_base.clone() else {
+                return context;
+            };
             baseline_kind = "merge-base-with-worktree";
             baseline_commit = Some(base.clone());
         }
@@ -822,7 +839,9 @@ fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
             baseline_commit = git_stdout(root, &["rev-parse", &format!("{raw}^{{commit}}")])
                 .map(|value| value.trim().to_owned())
                 .filter(|value| !value.is_empty());
-            let Some(_base) = baseline_commit.clone() else { return context; };
+            let Some(_base) = baseline_commit.clone() else {
+                return context;
+            };
             baseline_kind = "commit-to-worktree";
         }
         _ if scope.base.is_some() => {
@@ -830,7 +849,9 @@ fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
             merge_base = git_stdout(root, &["merge-base", raw, &head])
                 .map(|value| value.trim().to_owned())
                 .filter(|value| !value.is_empty());
-            let Some(base) = merge_base.clone() else { return context; };
+            let Some(base) = merge_base.clone() else {
+                return context;
+            };
             baseline_kind = "merge-base";
             baseline_commit = Some(base.clone());
         }
@@ -841,7 +862,9 @@ fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
             baseline_commit = git_stdout(root, &["rev-parse", "HEAD~1"])
                 .map(|value| value.trim().to_owned())
                 .filter(|value| !value.is_empty());
-            let Some(_base) = baseline_commit.clone() else { return context; };
+            let Some(_base) = baseline_commit.clone() else {
+                return context;
+            };
         }
         _ => return context,
     }
@@ -877,13 +900,23 @@ fn native_rule_diagnostic_application(
         "benchmark": {"status":"unproven","requiredForCleanClaim":false},
         "cleanClaim": "finding-producing",
         "controlIds": [], "scopes": [], "selectable": true
-    })).map_err(|error| CommandError::internal(error.to_string()))?;
+    }))
+    .map_err(|error| CommandError::internal(error.to_string()))?;
     let source = super::audit_inventory_source(root)?;
-    let executor = super::rules::NativeRuleProviderExecutor::new(root.to_path_buf(), manifest.to_path_buf(), 1_048_576)
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let executor = super::rules::NativeRuleProviderExecutor::new(
+        root.to_path_buf(),
+        manifest.to_path_buf(),
+        1_048_576,
+    )
+    .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let application = legion_application::NativeApplicationConfig::for_audit_executor(
-        root.to_string_lossy().into_owned(), source, vec![provider], Arc::new(executor), Some(root.to_path_buf()),
-    ).map_err(|error| CommandError::incomplete(error.to_string()))?;
+        root.to_string_lossy().into_owned(),
+        source,
+        vec![provider],
+        Arc::new(executor),
+        Some(root.to_path_buf()),
+    )
+    .map_err(|error| CommandError::incomplete(error.to_string()))?;
     Ok((application, Vec::new()))
 }
 
@@ -950,7 +983,9 @@ fn native_audit_external_tool(
         legion_effects::ArtifactWriter::new(root),
         policy,
     );
-    std::sync::Arc::new(legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects))
+    std::sync::Arc::new(
+        legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects),
+    )
 }
 
 fn native_provider_registry_path() -> Option<std::path::PathBuf> {
@@ -1194,7 +1229,8 @@ mod closure_tests {
             "controlIds": [],
             "scopes": [],
             "selectable": true
-        })).unwrap();
+        }))
+        .unwrap();
         for scope_type in ["all", "local", "committed", "uncommitted"] {
             let mut args = minimal_audit_args();
             args.r#type = Some(scope_type.into());

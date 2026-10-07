@@ -10,9 +10,13 @@ use legion_audit::wf_port::wf049::infrastructure::{
     verify_infrastructure_exercise, SignatureVerifier, VerifyInfrastructureExerciseInput,
 };
 use legion_audit::wf_port::wf049::integration::integrate_web_evidence;
-use legion_audit::wf_port::wf049::journey_plan::{web_journey_for_control, web_journeys, WebJourneySurfaceMatchesInput};
+use legion_audit::wf_port::wf049::journey_plan::{
+    web_journey_for_control, web_journeys, WebJourneySurfaceMatchesInput,
+};
 use legion_audit::wf_port::wf049::matrix::{compile_web_matrix, is_web_matrix_combination_id};
-use legion_audit::wf_port::wf049::operations::{verify_operations_exercise, VerifyOperationsExerciseInput};
+use legion_audit::wf_port::wf049::operations::{
+    verify_operations_exercise, VerifyOperationsExerciseInput,
+};
 use serde_json::json;
 
 fn binding() -> serde_json::Value {
@@ -42,29 +46,50 @@ fn journey_plan_loads_the_registry_fixture() {
 
 #[test]
 fn web_journey_for_control_finds_a_known_row_and_none_for_unknown() {
-    let known_id = web_journeys()[0].get("controlId").and_then(|v| v.as_str()).unwrap().to_string();
+    let known_id = web_journeys()[0]
+        .get("controlId")
+        .and_then(|v| v.as_str())
+        .unwrap()
+        .to_string();
     assert!(web_journey_for_control(&known_id).is_some());
     assert!(web_journey_for_control("definitely-not-a-real-control-id").is_none());
 }
 
 #[test]
 fn web_journey_surface_matches_requires_applicable_true_and_all_fields() {
-    let row = web_journeys().iter().find(|r| r.get("applicable") == Some(&serde_json::Value::Bool(true))).unwrap();
+    let row = web_journeys()
+        .iter()
+        .find(|r| r.get("applicable") == Some(&serde_json::Value::Bool(true)))
+        .unwrap();
     let route = row.get("route").and_then(|v| v.as_str());
     let state_id = row.get("stateId").and_then(|v| v.as_str());
     let matrix_combination_id = row.get("matrixCombinationId").and_then(|v| v.as_str());
-    assert!(web_journey_surface_matches_wraps(route, state_id, matrix_combination_id));
-    // Mismatched route never matches.
-    assert!(!web_journey_surface_matches_wraps(Some("/definitely-not-a-real-route"), state_id, matrix_combination_id));
-}
-
-fn web_journey_surface_matches_wraps(route: Option<&str>, state_id: Option<&str>, matrix_combination_id: Option<&str>) -> bool {
-    legion_audit::wf_port::wf049::journey_plan::web_journey_surface_matches(WebJourneySurfaceMatchesInput {
-        journey_id: None,
+    assert!(web_journey_surface_matches_wraps(
         route,
         state_id,
-        matrix_combination_id,
-    })
+        matrix_combination_id
+    ));
+    // Mismatched route never matches.
+    assert!(!web_journey_surface_matches_wraps(
+        Some("/definitely-not-a-real-route"),
+        state_id,
+        matrix_combination_id
+    ));
+}
+
+fn web_journey_surface_matches_wraps(
+    route: Option<&str>,
+    state_id: Option<&str>,
+    matrix_combination_id: Option<&str>,
+) -> bool {
+    legion_audit::wf_port::wf049::journey_plan::web_journey_surface_matches(
+        WebJourneySurfaceMatchesInput {
+            journey_id: None,
+            route,
+            state_id,
+            matrix_combination_id,
+        },
+    )
 }
 
 // --- matrix -------------------------------------------------------------
@@ -79,8 +104,12 @@ fn matrix_combination_ids_from_the_plan_are_recognized() {
 #[test]
 fn compile_web_matrix_reports_collections_invalid_for_bad_policy() {
     let result = compile_web_matrix(binding(), json!("not-an-object"), vec![]);
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert_eq!(result["status"], "error");
     assert!(gaps.contains(&"matrix-policy-invalid".to_string()));
     assert!(gaps.contains(&"matrix-collections-invalid".to_string()));
@@ -89,8 +118,12 @@ fn compile_web_matrix_reports_collections_invalid_for_bad_policy() {
 #[test]
 fn compile_web_matrix_with_empty_policy_reports_denominator_empty() {
     let result = compile_web_matrix(binding(), json!({}), vec![]);
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"matrix-denominator-empty".to_string()));
     assert!(!result["combinations"].as_array().unwrap().is_empty());
 }
@@ -99,9 +132,14 @@ fn compile_web_matrix_with_empty_policy_reports_denominator_empty() {
 
 #[test]
 fn integrate_web_evidence_reports_missing_terminal_receipts() {
-    let result = integrate_web_evidence(binding(), vec![json!("tls"), json!("dns")], vec![]).unwrap();
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let result =
+        integrate_web_evidence(binding(), vec![json!("tls"), json!("dns")], vec![]).unwrap();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"missing-terminal-receipt:dns".to_string()));
     assert!(gaps.contains(&"missing-terminal-receipt:tls".to_string()));
     assert_eq!(result["status"], "partial");
@@ -157,8 +195,12 @@ fn verify_infrastructure_exercise_flags_untrusted_producer_collection() {
         max_age_ms: None,
         signature_verifier: &AlwaysValidVerifier,
     });
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert_eq!(result["status"], "error");
     assert!(gaps.contains(&"trusted-producers-invalid".to_string()));
 }
@@ -174,8 +216,12 @@ fn verify_infrastructure_exercise_rejects_invalid_signature() {
         max_age_ms: Some(1000.0),
         signature_verifier: &AlwaysInvalidVerifier,
     });
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"signature-invalid".to_string()));
     assert!(gaps.contains(&"deployed-proof-required".to_string()));
     assert!(gaps.contains(&"rollback-not-exercised".to_string()));
@@ -191,8 +237,12 @@ fn verify_infrastructure_exercise_missing_evidence_reports_supplied_evidence_mis
         max_age_ms: None,
         signature_verifier: &AlwaysValidVerifier,
     });
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"supplied-evidence-missing".to_string()));
     assert!(gaps.contains(&"producer-untrusted".to_string()));
 }
@@ -209,8 +259,12 @@ fn verify_operations_exercise_reports_collections_invalid_for_bad_input() {
         max_age_ms: None,
         signature_verifier: &AlwaysValidVerifier,
     });
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert_eq!(result["status"], "error");
     assert!(gaps.contains(&"operations-collections-invalid".to_string()));
 }
@@ -225,8 +279,12 @@ fn verify_operations_exercise_reports_identifiers_invalid_for_unsafe_ids() {
         max_age_ms: None,
         signature_verifier: &AlwaysValidVerifier,
     });
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"operations-identifiers-invalid".to_string()));
 }
 
@@ -240,8 +298,12 @@ fn verify_operations_exercise_marks_every_missing_operation_id() {
         max_age_ms: None,
         signature_verifier: &AlwaysValidVerifier,
     });
-    let gaps: Vec<String> =
-        result["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let gaps: Vec<String> = result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert!(gaps.contains(&"operations-denominator-empty".to_string()));
     assert!(gaps.contains(&"operation-omitted:alerts".to_string()));
     assert!(gaps.contains(&"operation-omitted:rto".to_string()));

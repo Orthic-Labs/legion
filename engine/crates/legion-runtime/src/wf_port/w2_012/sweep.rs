@@ -84,7 +84,11 @@ pub fn url_origin(url: &str) -> Option<String> {
     let scheme_end = url.find("://")?;
     let rest = &url[scheme_end + 3..];
     let authority_end = rest.find('/').unwrap_or(rest.len());
-    Some(format!("{}://{}", &url[..scheme_end], &rest[..authority_end]))
+    Some(format!(
+        "{}://{}",
+        &url[..scheme_end],
+        &rest[..authority_end]
+    ))
 }
 
 /// Path portion of a resolved URL string, as `new URL(...).pathname` would
@@ -158,25 +162,50 @@ pub struct RequiredPage {
 }
 
 pub const UNIVERSAL_PAGES: &[RequiredPage] = &[
-    RequiredPage { name: "privacy policy", pattern: "privacy" },
-    RequiredPage { name: "terms / T&C", pattern: "terms|conditions|tos\\b" },
+    RequiredPage {
+        name: "privacy policy",
+        pattern: "privacy",
+    },
+    RequiredPage {
+        name: "terms / T&C",
+        pattern: "terms|conditions|tos\\b",
+    },
 ];
 
 pub const APP_PAGES: &[RequiredPage] = &[
-    RequiredPage { name: "pricing", pattern: "pricing|price" },
-    RequiredPage { name: "download", pattern: "download" },
+    RequiredPage {
+        name: "pricing",
+        pattern: "pricing|price",
+    },
+    RequiredPage {
+        name: "download",
+        pattern: "download",
+    },
 ];
 
 pub const ECOMMERCE_PAGES: &[RequiredPage] = &[
-    RequiredPage { name: "returns/refunds", pattern: "return|refund" },
-    RequiredPage { name: "shipping", pattern: "shipping|delivery" },
-    RequiredPage { name: "contact", pattern: "contact" },
-    RequiredPage { name: "about", pattern: "about" },
+    RequiredPage {
+        name: "returns/refunds",
+        pattern: "return|refund",
+    },
+    RequiredPage {
+        name: "shipping",
+        pattern: "shipping|delivery",
+    },
+    RequiredPage {
+        name: "contact",
+        pattern: "contact",
+    },
+    RequiredPage {
+        name: "about",
+        pattern: "about",
+    },
 ];
 
-pub const CONTENT_PAGES: &[RequiredPage] = &[
-    RequiredPage { name: "about", pattern: "about" },
-];
+pub const CONTENT_PAGES: &[RequiredPage] = &[RequiredPage {
+    name: "about",
+    pattern: "about",
+}];
 
 /// Port of the `REQUIRED_PAGES` lookup by site-type key (`"universal"` is
 /// always available; the rest match `siteType`). Returns `None` for an
@@ -229,7 +258,9 @@ pub fn missing_required_pages(
 ) -> Vec<(&'static str, RequiredPage)> {
     let mut out = Vec::new();
     for &profile in profiles {
-        let Some(pages) = required_pages_for(profile) else { continue };
+        let Some(pages) = required_pages_for(profile) else {
+            continue;
+        };
         for &page in pages {
             if !page_is_linked(&page, internal) {
                 out.push((profile, page));
@@ -288,7 +319,10 @@ mod tests {
     #[test]
     fn profiles_for_always_includes_universal() {
         assert_eq!(profiles_for(None), vec!["universal"]);
-        assert_eq!(profiles_for(Some("ecommerce")), vec!["universal", "ecommerce"]);
+        assert_eq!(
+            profiles_for(Some("ecommerce")),
+            vec!["universal", "ecommerce"]
+        );
         // Unknown site type: universal only, same as REQUIRED_PAGES[siteType] undefined.
         assert_eq!(profiles_for(Some("unknown")), vec!["universal"]);
     }
@@ -302,7 +336,10 @@ mod tests {
         let page = UNIVERSAL_PAGES[0]; // privacy policy
         assert!(page_is_linked(&page, &links));
 
-        let links2 = extract_links(r#"<a href="/legal">Privacy Policy</a>"#, "https://example.com/");
+        let links2 = extract_links(
+            r#"<a href="/legal">Privacy Policy</a>"#,
+            "https://example.com/",
+        );
         assert!(page_is_linked(&page, &links2));
 
         let links3 = extract_links(r#"<a href="/legal">Legal</a>"#, "https://example.com/");
@@ -316,9 +353,15 @@ mod tests {
         let missing = missing_required_pages(&profiles, &links);
         // universal: privacy + terms both missing; app: download missing (pricing present).
         assert_eq!(missing.len(), 3);
-        assert!(missing.iter().any(|(p, pg)| *p == "universal" && pg.name == "privacy policy"));
-        assert!(missing.iter().any(|(p, pg)| *p == "universal" && pg.name == "terms / T&C"));
-        assert!(missing.iter().any(|(p, pg)| *p == "app" && pg.name == "download"));
+        assert!(missing
+            .iter()
+            .any(|(p, pg)| *p == "universal" && pg.name == "privacy policy"));
+        assert!(missing
+            .iter()
+            .any(|(p, pg)| *p == "universal" && pg.name == "terms / T&C"));
+        assert!(missing
+            .iter()
+            .any(|(p, pg)| *p == "app" && pg.name == "download"));
         assert!(!missing.iter().any(|(_, pg)| pg.name == "pricing"));
     }
 }

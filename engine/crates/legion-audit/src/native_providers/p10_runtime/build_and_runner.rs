@@ -163,7 +163,11 @@ pub fn gradle_wrapper_receipt(
     }
 }
 
-pub fn gradle_command(root: &str, offline: Option<bool>, tasks: Option<&[String]>) -> NativeCommandSpec {
+pub fn gradle_command(
+    root: &str,
+    offline: Option<bool>,
+    tasks: Option<&[String]>,
+) -> NativeCommandSpec {
     let offline = offline.unwrap_or(true);
     let mut args: Vec<String> = tasks
         .map(|t| t.to_vec())
@@ -210,7 +214,11 @@ pub fn maven_wrapper_receipt(
     }
 }
 
-pub fn maven_command(root: &str, offline: Option<bool>, goals: Option<&[String]>) -> NativeCommandSpec {
+pub fn maven_command(
+    root: &str,
+    offline: Option<bool>,
+    goals: Option<&[String]>,
+) -> NativeCommandSpec {
     let offline = offline.unwrap_or(true);
     let mut args: Vec<String> = goals
         .map(|g| g.to_vec())
@@ -278,7 +286,12 @@ pub struct FamilyCommand {
 
 impl FamilyCommand {
     fn new(id: &str, command: &str, args: Vec<String>) -> Self {
-        Self { id: id.to_string(), command: command.to_string(), args, timeout_ms: None }
+        Self {
+            id: id.to_string(),
+            command: command.to_string(),
+            args,
+            timeout_ms: None,
+        }
     }
 }
 
@@ -342,7 +355,11 @@ fn family_js_ts(root: &Path, _files: &[String]) -> Vec<FamilyCommand> {
                         vec!["run".into(), (*name).to_string(), "--if-present".into()],
                     ));
                 } else {
-                    commands.push(FamilyCommand::new(id, manager, vec!["run".into(), (*name).to_string()]));
+                    commands.push(FamilyCommand::new(
+                        id,
+                        manager,
+                        vec!["run".into(), (*name).to_string()],
+                    ));
                 }
             }
         };
@@ -390,24 +407,40 @@ fn family_rust(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
         FamilyCommand::new(
             "metadata",
             "cargo",
-            [vec!["metadata".into(), "--format-version".into(), "1".into()], manifest_args.clone()].concat(),
+            [
+                vec!["metadata".into(), "--format-version".into(), "1".into()],
+                manifest_args.clone(),
+            ]
+            .concat(),
         ),
         FamilyCommand::new(
             "check",
             "cargo",
-            [vec!["check".into(), "--workspace".into(), "--all-targets".into()], manifest_args.clone()].concat(),
+            [
+                vec!["check".into(), "--workspace".into(), "--all-targets".into()],
+                manifest_args.clone(),
+            ]
+            .concat(),
         ),
         FamilyCommand::new(
             "clippy",
             "cargo",
             [
-                vec!["clippy".into(), "--workspace".into(), "--all-targets".into()],
+                vec![
+                    "clippy".into(),
+                    "--workspace".into(),
+                    "--all-targets".into(),
+                ],
                 manifest_args.clone(),
                 vec!["--".into(), "-D".into(), "warnings".into()],
             ]
             .concat(),
         ),
-        FamilyCommand::new("test", "cargo", [vec!["test".into(), "--workspace".into()], manifest_args].concat()),
+        FamilyCommand::new(
+            "test",
+            "cargo",
+            [vec!["test".into(), "--workspace".into()], manifest_args].concat(),
+        ),
     ]
 }
 
@@ -447,12 +480,31 @@ fn family_shell(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
                 "$errors=$null; [void][System.Management.Automation.Language.Parser]::ParseFile('{escaped}', [ref]$null, [ref]$errors); if($errors.Count){{$errors | Out-String; exit 1}}"
             );
             let (exe, mut args) = if cfg!(target_os = "windows") {
-                ("powershell".to_string(), vec!["-NoProfile".to_string(), "-NonInteractive".to_string(), "-Command".to_string()])
+                (
+                    "powershell".to_string(),
+                    vec![
+                        "-NoProfile".to_string(),
+                        "-NonInteractive".to_string(),
+                        "-Command".to_string(),
+                    ],
+                )
             } else {
-                ("pwsh".to_string(), vec!["-NoProfile".to_string(), "-NonInteractive".to_string(), "-Command".to_string()])
+                (
+                    "pwsh".to_string(),
+                    vec![
+                        "-NoProfile".to_string(),
+                        "-NonInteractive".to_string(),
+                        "-Command".to_string(),
+                    ],
+                )
             };
             args.push(ps_cmd);
-            commands.push(FamilyCommand { id: format!("syntax:{file}"), command: exe, args, timeout_ms: Some(30_000) });
+            commands.push(FamilyCommand {
+                id: format!("syntax:{file}"),
+                command: exe,
+                args,
+                timeout_ms: Some(30_000),
+            });
         }
     }
     commands
@@ -460,28 +512,64 @@ fn family_shell(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
 
 fn family_java(root: &Path, files: &[String]) -> Vec<FamilyCommand> {
     let mut commands = Vec::new();
-    let gradlew_name = if cfg!(target_os = "windows") { "gradlew.bat" } else { "gradlew" };
+    let gradlew_name = if cfg!(target_os = "windows") {
+        "gradlew.bat"
+    } else {
+        "gradlew"
+    };
     if root.join(gradlew_name).exists() {
-        let wrapper = if cfg!(target_os = "windows") { "gradlew.bat".to_string() } else { "./gradlew".to_string() };
-        commands.push(FamilyCommand::new("build", &wrapper, vec!["build".into(), "--no-daemon".into()]));
-        commands.push(FamilyCommand::new("test", &wrapper, vec!["test".into(), "--no-daemon".into()]));
+        let wrapper = if cfg!(target_os = "windows") {
+            "gradlew.bat".to_string()
+        } else {
+            "./gradlew".to_string()
+        };
+        commands.push(FamilyCommand::new(
+            "build",
+            &wrapper,
+            vec!["build".into(), "--no-daemon".into()],
+        ));
+        commands.push(FamilyCommand::new(
+            "test",
+            &wrapper,
+            vec!["test".into(), "--no-daemon".into()],
+        ));
         return commands;
     }
-    let mvnw_name = if cfg!(target_os = "windows") { "mvnw.cmd" } else { "mvnw" };
+    let mvnw_name = if cfg!(target_os = "windows") {
+        "mvnw.cmd"
+    } else {
+        "mvnw"
+    };
     if root.join(mvnw_name).exists() {
-        let wrapper = if cfg!(target_os = "windows") { "mvnw.cmd".to_string() } else { "./mvnw".to_string() };
-        commands.push(FamilyCommand::new("verify", &wrapper, vec!["-B".into(), "verify".into()]));
+        let wrapper = if cfg!(target_os = "windows") {
+            "mvnw.cmd".to_string()
+        } else {
+            "./mvnw".to_string()
+        };
+        commands.push(FamilyCommand::new(
+            "verify",
+            &wrapper,
+            vec!["-B".into(), "verify".into()],
+        ));
         return commands;
     }
     if files.iter().any(|f| matches_basename(f, "pom.xml")) {
-        commands.push(FamilyCommand::new("verify", "mvn", vec!["-B".into(), "verify".into()]));
+        commands.push(FamilyCommand::new(
+            "verify",
+            "mvn",
+            vec!["-B".into(), "verify".into()],
+        ));
         return commands;
     }
     if files
         .iter()
         .any(|f| matches_basename(f, "build.gradle") || matches_basename(f, "build.gradle.kts"))
     {
-        commands.push(FamilyCommand::new("build", "gradle", vec!["build".into(), "--no-daemon".into()]));
+        commands.push(FamilyCommand::new(
+            "build",
+            "gradle",
+            vec!["build".into(), "--no-daemon".into()],
+        ));
     }
     commands
 }
@@ -490,15 +578,27 @@ fn family_dotnet(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
     let target = files
         .iter()
         .find(|f| f.ends_with(".sln") || f.ends_with(".slnx"))
-        .or_else(|| files.iter().find(|f| f.ends_with(".csproj") || f.ends_with(".fsproj") || f.ends_with(".vbproj")));
+        .or_else(|| {
+            files.iter().find(|f| {
+                f.ends_with(".csproj") || f.ends_with(".fsproj") || f.ends_with(".vbproj")
+            })
+        });
     let target = match target {
         Some(t) => t.clone(),
         None => return Vec::new(),
     };
     vec![
         FamilyCommand::new("restore", "dotnet", vec!["restore".into(), target.clone()]),
-        FamilyCommand::new("build", "dotnet", vec!["build".into(), target.clone(), "--no-restore".into()]),
-        FamilyCommand::new("test", "dotnet", vec!["test".into(), target, "--no-build".into()]),
+        FamilyCommand::new(
+            "build",
+            "dotnet",
+            vec!["build".into(), target.clone(), "--no-restore".into()],
+        ),
+        FamilyCommand::new(
+            "test",
+            "dotnet",
+            vec!["test".into(), target, "--no-build".into()],
+        ),
     ]
 }
 
@@ -516,7 +616,15 @@ fn family_php(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
     if files.iter().any(|f| matches_basename(f, "composer.json")) {
         commands.insert(
             0,
-            FamilyCommand::new("composer-validate", "composer", vec!["validate".into(), "--no-interaction".into(), "--strict".into()]),
+            FamilyCommand::new(
+                "composer-validate",
+                "composer",
+                vec![
+                    "validate".into(),
+                    "--no-interaction".into(),
+                    "--strict".into(),
+                ],
+            ),
         );
     }
     commands
@@ -531,9 +639,16 @@ fn family_go(_root: &Path, _files: &[String]) -> Vec<FamilyCommand> {
 
 fn family_c_cpp(root: &Path, files: &[String]) -> Vec<FamilyCommand> {
     if root.join("build").exists() && files.iter().any(|f| matches_basename(f, "CMakeLists.txt")) {
-        return vec![FamilyCommand::new("build", "cmake", vec!["--build".into(), "build".into()])];
+        return vec![FamilyCommand::new(
+            "build",
+            "cmake",
+            vec!["--build".into(), "build".into()],
+        )];
     }
-    if files.iter().any(|f| matches_basename(f, "Makefile") || matches_basename(f, "makefile")) {
+    if files
+        .iter()
+        .any(|f| matches_basename(f, "Makefile") || matches_basename(f, "makefile"))
+    {
         return vec![FamilyCommand::new("build-plan", "make", vec!["-n".into()])];
     }
     Vec::new()
@@ -550,15 +665,24 @@ fn family_ruby(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
             timeout_ms: Some(30_000),
         })
         .collect();
-    if files.iter().any(|f| matches_basename(f, "Gemfile")) && files.iter().any(|f| matches_basename(f, "Rakefile")) {
-        commands.push(FamilyCommand::new("test", "bundle", vec!["exec".into(), "rake".into(), "test".into()]));
+    if files.iter().any(|f| matches_basename(f, "Gemfile"))
+        && files.iter().any(|f| matches_basename(f, "Rakefile"))
+    {
+        commands.push(FamilyCommand::new(
+            "test",
+            "bundle",
+            vec!["exec".into(), "rake".into(), "test".into()],
+        ));
     }
     commands
 }
 
 fn family_dart(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
     let flutter = files.iter().any(|f| {
-        contains_segment_dir(f, "android") || contains_segment_dir(f, "ios") || f == "lib/main.dart" || f.ends_with("/lib/main.dart")
+        contains_segment_dir(f, "android")
+            || contains_segment_dir(f, "ios")
+            || f == "lib/main.dart"
+            || f.ends_with("/lib/main.dart")
     });
     if flutter {
         vec![
@@ -576,7 +700,11 @@ fn family_dart(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
 fn family_elixir(_root: &Path, files: &[String]) -> Vec<FamilyCommand> {
     if files.iter().any(|f| matches_basename(f, "mix.exs")) {
         return vec![
-            FamilyCommand::new("compile", "mix", vec!["compile".into(), "--warnings-as-errors".into()]),
+            FamilyCommand::new(
+                "compile",
+                "mix",
+                vec!["compile".into(), "--warnings-as-errors".into()],
+            ),
             FamilyCommand::new("test", "mix", vec!["test".into()]),
         ];
     }
@@ -641,7 +769,9 @@ fn framework_findings(framework_id: &str, root: &Path, files: &[String]) -> Vec<
 
 fn framework_react(root: &Path, files: &[String]) -> Vec<Finding> {
     let mut findings = Vec::new();
-    for file in files.iter().filter(|f| f.ends_with(".js") || f.ends_with(".jsx") || f.ends_with(".ts") || f.ends_with(".tsx")) {
+    for file in files.iter().filter(|f| {
+        f.ends_with(".js") || f.ends_with(".jsx") || f.ends_with(".ts") || f.ends_with(".tsx")
+    }) {
         let text = safe_read(root, file);
         if text.contains("dangerouslySetInnerHTML") && text.contains('=') {
             findings.push(finding(
@@ -652,10 +782,11 @@ fn framework_react(root: &Path, files: &[String]) -> Vec<Finding> {
             ));
         }
         let lower = text.to_lowercase();
-        let has_storage_call = lower.contains("localstorage.setitem(") || lower.contains("localstorage.getitem(");
-        let has_auth_key = ["token", "auth", "jwt", "session"].iter().any(|k| {
-            lower.contains(&format!("'{k}")) || lower.contains(&format!("\"{k}"))
-        });
+        let has_storage_call =
+            lower.contains("localstorage.setitem(") || lower.contains("localstorage.getitem(");
+        let has_auth_key = ["token", "auth", "jwt", "session"]
+            .iter()
+            .any(|k| lower.contains(&format!("'{k}")) || lower.contains(&format!("\"{k}")));
         if has_storage_call && has_auth_key {
             findings.push(finding(
                 "react-auth-localstorage",
@@ -664,9 +795,13 @@ fn framework_react(root: &Path, files: &[String]) -> Vec<Finding> {
                 Some(file),
             ));
         }
-        let has_effect_listener =
-            text.contains("useEffect(") && (text.contains("addEventListener(") || text.contains("setInterval(") || text.contains("setTimeout("));
-        let has_cleanup = text.contains("removeEventListener") || text.contains("clearInterval") || text.contains("clearTimeout");
+        let has_effect_listener = text.contains("useEffect(")
+            && (text.contains("addEventListener(")
+                || text.contains("setInterval(")
+                || text.contains("setTimeout("));
+        let has_cleanup = text.contains("removeEventListener")
+            || text.contains("clearInterval")
+            || text.contains("clearTimeout");
         if has_effect_listener && !has_cleanup {
             findings.push(finding(
                 "react-effect-cleanup",
@@ -676,7 +811,12 @@ fn framework_react(root: &Path, files: &[String]) -> Vec<Finding> {
             ));
         }
         if text.contains(".map(") && text.contains('<') && !text.contains("key=") {
-            findings.push(finding("react-list-key", "warning", "Rendered collection has no visible stable key.", Some(file)));
+            findings.push(finding(
+                "react-list-key",
+                "warning",
+                "Rendered collection has no visible stable key.",
+                Some(file),
+            ));
         }
     }
     findings
@@ -687,7 +827,9 @@ fn extract_invoke_calls(text: &str) -> Vec<String> {
     let needle = "invoke";
     let mut idx = 0usize;
     while idx < text.len() {
-        let Some(pos) = text[idx..].find(needle) else { break };
+        let Some(pos) = text[idx..].find(needle) else {
+            break;
+        };
         let start = idx + pos + needle.len();
         let rest = text[start..].trim_start();
         if let Some(rest2) = rest.strip_prefix('(') {
@@ -710,13 +852,18 @@ fn extract_tauri_commands(text: &str) -> Vec<String> {
     let marker = "#[tauri::command]";
     let mut idx = 0usize;
     while idx < text.len() {
-        let Some(pos) = text[idx..].find(marker) else { break };
+        let Some(pos) = text[idx..].find(marker) else {
+            break;
+        };
         let start = idx + pos + marker.len();
         let window_end = (start + 200).min(text.len());
         let window = &text[start..window_end];
         if let Some(fn_pos) = window.find("fn ") {
             let after = &window[fn_pos + 3..];
-            let name: String = after.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+            let name: String = after
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
             if !name.is_empty() {
                 out.push(name);
             }
@@ -730,7 +877,11 @@ fn framework_tauri(root: &Path, files: &[String]) -> Vec<Finding> {
     let mut findings = Vec::new();
     let configs: Vec<&String> = files
         .iter()
-        .filter(|f| f.ends_with("tauri.conf.json") || f.ends_with("tauri.conf.json5") || f.ends_with("Tauri.toml"))
+        .filter(|f| {
+            f.ends_with("tauri.conf.json")
+                || f.ends_with("tauri.conf.json5")
+                || f.ends_with("Tauri.toml")
+        })
         .collect();
     if configs.is_empty() {
         findings.push(finding(
@@ -740,13 +891,17 @@ fn framework_tauri(root: &Path, files: &[String]) -> Vec<Finding> {
             None,
         ));
     }
-    for file in files.iter().filter(|f| f.contains("capabilities/") && (f.ends_with(".json") || f.ends_with(".toml"))) {
+    for file in files
+        .iter()
+        .filter(|f| f.contains("capabilities/") && (f.ends_with(".json") || f.ends_with(".toml")))
+    {
         let text = safe_read(root, file);
         let has_broad = text.contains("shell:allow-execute")
             || text.contains("shell:allow-spawn")
             || text.contains("fs:allow-write")
             || text.contains("fs:allow-remove");
-        let has_scope = text.contains("windows") || text.contains("webviews") || text.contains("platforms");
+        let has_scope =
+            text.contains("windows") || text.contains("webviews") || text.contains("platforms");
         if has_broad && !has_scope {
             findings.push(finding(
                 "tauri-broad-capability",
@@ -758,10 +913,13 @@ fn framework_tauri(root: &Path, files: &[String]) -> Vec<Finding> {
     }
     let mut frontend: BTreeSet<String> = BTreeSet::new();
     let mut backend: BTreeSet<String> = BTreeSet::new();
-    for file in files
-        .iter()
-        .filter(|f| f.ends_with(".js") || f.ends_with(".jsx") || f.ends_with(".ts") || f.ends_with(".tsx") || f.ends_with(".rs"))
-    {
+    for file in files.iter().filter(|f| {
+        f.ends_with(".js")
+            || f.ends_with(".jsx")
+            || f.ends_with(".ts")
+            || f.ends_with(".tsx")
+            || f.ends_with(".rs")
+    }) {
         let text = safe_read(root, file);
         for cmd in extract_invoke_calls(&text) {
             frontend.insert(cmd);
@@ -791,7 +949,10 @@ fn framework_tailwind(root: &Path, files: &[String]) -> Vec<Finding> {
         .iter()
         .filter(|f| {
             let base = f.rsplit('/').next().unwrap_or(f.as_str());
-            base == "tailwind.config.js" || base == "tailwind.config.cjs" || base == "tailwind.config.mjs" || base == "tailwind.config.ts"
+            base == "tailwind.config.js"
+                || base == "tailwind.config.cjs"
+                || base == "tailwind.config.mjs"
+                || base == "tailwind.config.ts"
         })
         .collect();
     if configs.is_empty() {
@@ -802,10 +963,15 @@ fn framework_tailwind(root: &Path, files: &[String]) -> Vec<Finding> {
             None,
         ));
     }
-    for file in files
-        .iter()
-        .filter(|f| f.ends_with(".js") || f.ends_with(".jsx") || f.ends_with(".ts") || f.ends_with(".tsx") || f.ends_with(".vue") || f.ends_with(".svelte") || f.ends_with(".html"))
-    {
+    for file in files.iter().filter(|f| {
+        f.ends_with(".js")
+            || f.ends_with(".jsx")
+            || f.ends_with(".ts")
+            || f.ends_with(".tsx")
+            || f.ends_with(".vue")
+            || f.ends_with(".svelte")
+            || f.ends_with(".html")
+    }) {
         let text = safe_read(root, file);
         if (text.contains("class={") || text.contains("className={")) && text.contains("${") {
             findings.push(finding(
@@ -832,17 +998,44 @@ fn framework_laravel(root: &Path, files: &[String]) -> Vec<Finding> {
     for file in files.iter().filter(|f| f.ends_with(".php")) {
         let text = safe_read(root, file);
         if text.contains("Model::unguard(") {
-            findings.push(finding("laravel-unguard", "error", "Global mass-assignment protection is disabled.", Some(file)));
+            findings.push(finding(
+                "laravel-unguard",
+                "error",
+                "Global mass-assignment protection is disabled.",
+                Some(file),
+            ));
         }
-        if text.contains("DB::select($") || text.contains("DB::statement($") || text.contains("DB::unprepared($") {
-            findings.push(finding("laravel-raw-sql", "error", "Variable input is passed directly to a raw SQL API.", Some(file)));
+        if text.contains("DB::select($")
+            || text.contains("DB::statement($")
+            || text.contains("DB::unprepared($")
+        {
+            findings.push(finding(
+                "laravel-raw-sql",
+                "error",
+                "Variable input is passed directly to a raw SQL API.",
+                Some(file),
+            ));
         }
         if text.contains("{!!") && text.contains("!!}") {
-            findings.push(finding("blade-raw-output", "warning", "Blade raw-output syntax requires explicit trust justification.", Some(file)));
+            findings.push(finding(
+                "blade-raw-output",
+                "warning",
+                "Blade raw-output syntax requires explicit trust justification.",
+                Some(file),
+            ));
         }
-        let normalized: String = text.to_lowercase().chars().filter(|c| !c.is_whitespace()).collect();
+        let normalized: String = text
+            .to_lowercase()
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect();
         if normalized.contains("app_debug=true") {
-            findings.push(finding("laravel-debug-enabled", "error", "Laravel debug mode is enabled in a tracked configuration.", Some(file)));
+            findings.push(finding(
+                "laravel-debug-enabled",
+                "error",
+                "Laravel debug mode is enabled in a tracked configuration.",
+                Some(file),
+            ));
         }
     }
     findings
@@ -853,11 +1046,21 @@ fn framework_aspnet(root: &Path, files: &[String]) -> Vec<Finding> {
     for file in files.iter().filter(|f| f.ends_with(".cs")) {
         let text = safe_read(root, file);
         if text.contains("AllowAnyOrigin()") && text.contains("AllowCredentials()") {
-            findings.push(finding("aspnet-cors-credentials", "error", "CORS combines any origin with credentials.", Some(file)));
+            findings.push(finding(
+                "aspnet-cors-credentials",
+                "error",
+                "CORS combines any origin with credentials.",
+                Some(file),
+            ));
         }
         if text.contains("[AllowAnonymous]") {
             let lower = text.to_lowercase();
-            if lower.contains("delete") || lower.contains("admin") || lower.contains("billing") || lower.contains("payment") || lower.contains("token") {
+            if lower.contains("delete")
+                || lower.contains("admin")
+                || lower.contains("billing")
+                || lower.contains("payment")
+                || lower.contains("token")
+            {
                 findings.push(finding(
                     "aspnet-sensitive-anonymous",
                     "warning",
@@ -880,9 +1083,13 @@ fn framework_aspnet(root: &Path, files: &[String]) -> Vec<Finding> {
 
 fn framework_spring(root: &Path, files: &[String]) -> Vec<Finding> {
     let mut findings = Vec::new();
-    for file in files.iter().filter(|f| f.ends_with(".java") || f.ends_with(".kt")) {
+    for file in files
+        .iter()
+        .filter(|f| f.ends_with(".java") || f.ends_with(".kt"))
+    {
         let text = safe_read(root, file);
-        let csrf_disabled = (text.contains("csrf(") && text.contains(".disable(")) || (text.contains("csrf {") && text.contains("disable("));
+        let csrf_disabled = (text.contains("csrf(") && text.contains(".disable("))
+            || (text.contains("csrf {") && text.contains("disable("));
         if csrf_disabled {
             findings.push(finding(
                 "spring-csrf-disabled",
@@ -892,11 +1099,24 @@ fn framework_spring(root: &Path, files: &[String]) -> Vec<Finding> {
             ));
         }
         let lower = text.to_lowercase();
-        if text.contains("requestMatchers(") && text.contains(".permitAll(") && (lower.contains("admin") || lower.contains("internal") || lower.contains("actuator")) {
-            findings.push(finding("spring-sensitive-permit-all", "error", "Sensitive-looking Spring route is configured permitAll.", Some(file)));
+        if text.contains("requestMatchers(")
+            && text.contains(".permitAll(")
+            && (lower.contains("admin") || lower.contains("internal") || lower.contains("actuator"))
+        {
+            findings.push(finding(
+                "spring-sensitive-permit-all",
+                "error",
+                "Sensitive-looking Spring route is configured permitAll.",
+                Some(file),
+            ));
         }
         if text.contains("SpelExpressionParser") && text.contains("parseExpression(") {
-            findings.push(finding("spring-spel-input", "error", "Potentially variable input reaches a SpEL parser.", Some(file)));
+            findings.push(finding(
+                "spring-spel-input",
+                "error",
+                "Potentially variable input reaches a SpEL parser.",
+                Some(file),
+            ));
         }
     }
     findings
@@ -914,16 +1134,30 @@ struct SpawnResult {
     stderr: String,
 }
 
-fn run_with_timeout(cwd: Option<&Path>, command: &str, args: &[String], timeout: Duration) -> SpawnResult {
+fn run_with_timeout(
+    cwd: Option<&Path>,
+    command: &str,
+    args: &[String],
+    timeout: Duration,
+) -> SpawnResult {
     let mut cmd = Command::new(command);
-    cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped()).stdin(Stdio::null());
+    cmd.args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::null());
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
     }
     let mut child = match cmd.spawn() {
         Ok(c) => c,
         Err(_) => {
-            return SpawnResult { spawn_error: true, timed_out: false, exit_code: None, stdout: String::new(), stderr: String::new() };
+            return SpawnResult {
+                spawn_error: true,
+                timed_out: false,
+                exit_code: None,
+                stdout: String::new(),
+                stderr: String::new(),
+            };
         }
     };
     let stdout_pipe = child.stdout.take();
@@ -962,13 +1196,30 @@ fn run_with_timeout(cwd: Option<&Path>, command: &str, args: &[String], timeout:
     let stdout = String::from_utf8_lossy(&stdout_bytes).to_string();
     let stderr = String::from_utf8_lossy(&stderr_bytes).to_string();
     match status_opt {
-        Some(status) => SpawnResult { spawn_error: false, timed_out: false, exit_code: status.code(), stdout, stderr },
-        None => SpawnResult { spawn_error: false, timed_out: true, exit_code: None, stdout, stderr },
+        Some(status) => SpawnResult {
+            spawn_error: false,
+            timed_out: false,
+            exit_code: status.code(),
+            stdout,
+            stderr,
+        },
+        None => SpawnResult {
+            spawn_error: false,
+            timed_out: true,
+            exit_code: None,
+            stdout,
+            stderr,
+        },
     }
 }
 
 fn command_exists(command: &str) -> bool {
-    let result = run_with_timeout(None, command, &["--version".to_string()], Duration::from_secs(10));
+    let result = run_with_timeout(
+        None,
+        command,
+        &["--version".to_string()],
+        Duration::from_secs(10),
+    );
     !result.spawn_error && !result.timed_out && result.exit_code == Some(0)
 }
 
@@ -1041,11 +1292,18 @@ fn run_command(root: &Path, spec: &FamilyCommand) -> CommandReceipt {
 fn applicable_files(plan: &Value, family_id: &str) -> Vec<String> {
     plan.get("coverageFamilies")
         .and_then(|v| v.as_array())
-        .and_then(|arr| arr.iter().find(|item| item.get("id").and_then(|v| v.as_str()) == Some(family_id)))
+        .and_then(|arr| {
+            arr.iter()
+                .find(|item| item.get("id").and_then(|v| v.as_str()) == Some(family_id))
+        })
         .and_then(|item| item.get("denominator"))
         .and_then(|d| d.get("paths"))
         .and_then(|p| p.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -1093,7 +1351,11 @@ pub fn run_native_families(root: &Path, plan: &Value) -> Vec<FamilyResult> {
         .get("denominator")
         .and_then(|d| d.get("paths"))
         .and_then(|p| p.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.replace('\\', "/"))).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.replace('\\', "/")))
+                .collect()
+        })
         .unwrap_or_default();
 
     let mut results = Vec::new();
@@ -1106,9 +1368,15 @@ pub fn run_native_families(root: &Path, plan: &Value) -> Vec<FamilyResult> {
         let commands = family_commands(family_id, root, &files);
         let receipts: Vec<CommandReceipt> = commands.iter().map(|c| run_command(root, c)).collect();
         let unavailable = receipts.iter().any(|r| r.status == "unproven");
-        let failed = receipts.iter().any(|r| r.status == "fail" || r.status == "error");
+        let failed = receipts
+            .iter()
+            .any(|r| r.status == "fail" || r.status == "error");
         let examined: BTreeSet<String> = files.iter().cloned().collect();
-        let mut unexamined: Vec<String> = all_plan_paths.iter().filter(|p| !examined.contains(*p)).cloned().collect();
+        let mut unexamined: Vec<String> = all_plan_paths
+            .iter()
+            .filter(|p| !examined.contains(*p))
+            .cloned()
+            .collect();
         unexamined.sort();
         let commands_completed = receipts.iter().filter(|r| r.status != "unproven").count();
         results.push(FamilyResult {
@@ -1139,7 +1407,8 @@ pub fn run_native_families(root: &Path, plan: &Value) -> Vec<FamilyResult> {
             coverage_gaps: if commands.is_empty() {
                 vec![CoverageGap {
                     kind: "native-command".to_string(),
-                    detail: "No safe project-native build/test command could be derived.".to_string(),
+                    detail: "No safe project-native build/test command could be derived."
+                        .to_string(),
                 }]
             } else if unavailable {
                 vec![CoverageGap {
@@ -1160,14 +1429,22 @@ pub fn run_native_families(root: &Path, plan: &Value) -> Vec<FamilyResult> {
         }
         let findings = framework_findings(framework_id, root, &files);
         let examined: BTreeSet<String> = files.iter().cloned().collect();
-        let mut unexamined: Vec<String> = all_plan_paths.iter().filter(|p| !examined.contains(*p)).cloned().collect();
+        let mut unexamined: Vec<String> = all_plan_paths
+            .iter()
+            .filter(|p| !examined.contains(*p))
+            .cloned()
+            .collect();
         unexamined.sort();
         results.push(FamilyResult {
             provider: format!("native.{framework_id}"),
             family: framework_id.to_string(),
             applicable: true,
             required: true,
-            status: if findings.iter().any(|f| f.level == "error") { "fail".to_string() } else { "pass".to_string() },
+            status: if findings.iter().any(|f| f.level == "error") {
+                "fail".to_string()
+            } else {
+                "pass".to_string()
+            },
             complete: true,
             coverage: FamilyCoverage {
                 paths: files.clone(),
@@ -1213,7 +1490,10 @@ fn iso8601_now() -> String {
     let (y, m, d) = civil_from_days((secs / 86_400) as i64);
     let rem = secs % 86_400;
     let (hh, mm, ss) = (rem / 3600, (rem % 3600) / 60, rem % 60);
-    format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}.{:03}Z", now.subsec_millis())
+    format!(
+        "{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}.{:03}Z",
+        now.subsec_millis()
+    )
 }
 
 #[derive(Debug, Clone, Serialize)]

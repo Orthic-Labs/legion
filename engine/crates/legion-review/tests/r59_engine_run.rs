@@ -71,7 +71,10 @@ struct FakeProvider {
 impl FakeProvider {
     fn new(responses: Vec<(&str, Result<String, ProviderError>)>) -> Self {
         Self {
-            responses: responses.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+            responses: responses
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect(),
             calls: std::sync::atomic::AtomicU64::new(0),
         }
     }
@@ -169,7 +172,10 @@ fn run_happy_path_parses_verdicts_and_synthesizes_majority() {
         "good".to_string(),
         Box::new(FakeProvider::new(vec![
             ("model-a", Ok(r#"{"verdict":"PASS","score":8}"#.to_string())),
-            ("escalation-model", Ok(r#"{"verdict":"PASS","score":7}"#.to_string())),
+            (
+                "escalation-model",
+                Ok(r#"{"verdict":"PASS","score":7}"#.to_string()),
+            ),
         ])),
     );
     providers.insert(
@@ -187,8 +193,8 @@ fn run_happy_path_parses_verdicts_and_synthesizes_majority() {
             "review",
             "no packet fence here",
             &flags,
-            true, // no_cache
-            true, // no_escalation
+            true,  // no_cache
+            true,  // no_escalation
             false, // enforce_packet — legacy (no-fence) input must not hard-fail
             "jury",
             None,
@@ -215,7 +221,17 @@ fn run_unknown_skill_errors() {
     let engine = Engine::new(&cfg, &root, Lenses::new(), providers, cache);
     let flags = BTreeMap::new();
     let err = engine
-        .run("nope", "x", &flags, true, true, true, "jury", None, &NoVisionPrep)
+        .run(
+            "nope",
+            "x",
+            &flags,
+            true,
+            true,
+            true,
+            "jury",
+            None,
+            &NoVisionPrep,
+        )
         .expect_err("unknown skill must error");
     match err {
         EngineError::SkillNotFound(name) => assert_eq!(name, "nope"),
@@ -234,7 +250,17 @@ fn run_invalid_packet_hard_fails_when_enforced() {
     // legacy no-fence path) but fails validation.
     let bad_input = "```packet\nSOMETHING: x\n```";
     let err = engine
-        .run("review", bad_input, &flags, true, true, true, "jury", None, &NoVisionPrep)
+        .run(
+            "review",
+            bad_input,
+            &flags,
+            true,
+            true,
+            true,
+            "jury",
+            None,
+            &NoVisionPrep,
+        )
         .expect_err("invalid packet must hard-fail when enforce_packet=true");
     assert!(matches!(err, EngineError::PacketInvalid(_)));
 }
@@ -279,7 +305,17 @@ skills:
     let engine = Engine::new(&cfg, &root, Lenses::new(), providers, cache);
     let flags = BTreeMap::new();
     let result = engine
-        .run("review", "x", &flags, true, true, false, "jury", None, &NoVisionPrep)
+        .run(
+            "review",
+            "x",
+            &flags,
+            true,
+            true,
+            false,
+            "jury",
+            None,
+            &NoVisionPrep,
+        )
         .unwrap();
     assert_eq!(result.jurors.len(), 1);
     let j = &result.jurors[0];
@@ -310,7 +346,17 @@ fn run_all_fallbacks_exhausted_returns_error_result() {
     let engine = Engine::new(&cfg, &root, Lenses::new(), providers, cache);
     let flags = BTreeMap::new();
     let result = engine
-        .run("review", "x", &flags, true, true, false, "jury", None, &NoVisionPrep)
+        .run(
+            "review",
+            "x",
+            &flags,
+            true,
+            true,
+            false,
+            "jury",
+            None,
+            &NoVisionPrep,
+        )
         .unwrap();
     let a = result.jurors.iter().find(|j| j.juror_id == "a").unwrap();
     assert_eq!(a.verdict, "ERROR");
@@ -357,7 +403,17 @@ skills:
     {
         let engine = Engine::new(&cfg, &root, Lenses::new(), providers, cache);
         let r1 = engine
-            .run("review", "same input", &flags, false, true, false, "jury", None, &NoVisionPrep)
+            .run(
+                "review",
+                "same input",
+                &flags,
+                false,
+                true,
+                false,
+                "jury",
+                None,
+                &NoVisionPrep,
+            )
             .unwrap();
         assert!(r1.jurors[0].parsed_ok);
         assert!(!r1.jurors[0].cache_hit);
@@ -365,7 +421,17 @@ skills:
         // Second run against the SAME engine (same cache dir, same input):
         // the cache lookup should short-circuit the provider call.
         let r2 = engine
-            .run("review", "same input", &flags, false, true, false, "jury", None, &NoVisionPrep)
+            .run(
+                "review",
+                "same input",
+                &flags,
+                false,
+                true,
+                false,
+                "jury",
+                None,
+                &NoVisionPrep,
+            )
             .unwrap();
         assert!(r2.jurors[0].cache_hit);
         assert_eq!(r2.jurors[0].verdict, "PASS");
@@ -381,7 +447,10 @@ fn run_escalation_triggers_on_jury_split() {
         "good".to_string(),
         Box::new(FakeProvider::new(vec![
             ("model-a", Ok(r#"{"verdict":"PASS","score":8}"#.to_string())),
-            ("escalation-model", Ok(r#"{"verdict":"FAIL","score":2}"#.to_string())),
+            (
+                "escalation-model",
+                Ok(r#"{"verdict":"FAIL","score":2}"#.to_string()),
+            ),
         ])),
     );
     providers.insert(
@@ -395,9 +464,15 @@ fn run_escalation_triggers_on_jury_split() {
     let flags = BTreeMap::new();
     let result = engine
         .run(
-            "review", "x", &flags, true, /* no_cache */
+            "review",
+            "x",
+            &flags,
+            true,  /* no_cache */
             false, /* no_escalation = false -> escalation runs */
-            false, "jury", None, &NoVisionPrep,
+            false,
+            "jury",
+            None,
+            &NoVisionPrep,
         )
         .unwrap();
     assert!(result.synthesis.split);

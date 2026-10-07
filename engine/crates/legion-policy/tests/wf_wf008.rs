@@ -79,7 +79,11 @@ fn compiler_rejects_schema_invalid_enforcement_value() {
     let base = base();
     let bad = source().replacen("enforcement=strong", "enforcement=advisory", 1);
     let err = compile_policy_rules(&bad, &base).unwrap_err();
-    assert!(err.0.contains("compiled policy failed validation"), "{}", err.0);
+    assert!(
+        err.0.contains("compiled policy failed validation"),
+        "{}",
+        err.0
+    );
 }
 
 #[test]
@@ -103,6 +107,7 @@ fn parser_permits_comments_blanks_and_escaped_note_text_only() {
 
 #[test]
 fn parser_rejects_invalid_trust_value() {
-    let err = parse_policy_rules("allow FILE_WRITE approval=none trust=other enforcement=strong").unwrap_err();
+    let err = parse_policy_rules("allow FILE_WRITE approval=none trust=other enforcement=strong")
+        .unwrap_err();
     assert!(err.0.contains("invalid rule"), "{}", err.0);
 }

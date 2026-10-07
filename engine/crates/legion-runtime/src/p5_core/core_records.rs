@@ -17,7 +17,10 @@ pub struct ClaimReconciliation {
 /// Port of `reconcileClaim({ requiredEvidence, evidence })`. `evidence`
 /// items are either bare IDs or `{id, ...}` records in JS; callers here
 /// pass the resolved ID strings directly.
-pub fn reconcile_claim(required_evidence: &[String], evidence_ids: &[String]) -> ClaimReconciliation {
+pub fn reconcile_claim(
+    required_evidence: &[String],
+    evidence_ids: &[String],
+) -> ClaimReconciliation {
     let available: BTreeSet<&str> = evidence_ids.iter().map(String::as_str).collect();
     let gaps: Vec<String> = required_evidence
         .iter()
@@ -26,7 +29,11 @@ pub fn reconcile_claim(required_evidence: &[String], evidence_ids: &[String]) ->
         .collect();
     ClaimReconciliation {
         complete: gaps.is_empty(),
-        status: if gaps.is_empty() { "pass" } else { "incomplete" },
+        status: if gaps.is_empty() {
+            "pass"
+        } else {
+            "incomplete"
+        },
         gaps,
     }
 }
@@ -60,7 +67,12 @@ pub fn build_judgment_packet(input: JudgmentPacketInput) -> Value {
     }
     packet.insert(
         "verdicts".into(),
-        Value::Array(JUDGMENT_VERDICTS.iter().map(|v| Value::String((*v).to_string())).collect()),
+        Value::Array(
+            JUDGMENT_VERDICTS
+                .iter()
+                .map(|v| Value::String((*v).to_string()))
+                .collect(),
+        ),
     );
     packet.insert("budget".into(), input.budget);
     Value::Object(packet)
@@ -85,7 +97,9 @@ pub enum ReviewerPolicyError {
 impl std::fmt::Display for ReviewerPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReviewerPolicyError::SelfAdjudication => write!(f, "reviewer self-adjudication forbidden"),
+            ReviewerPolicyError::SelfAdjudication => {
+                write!(f, "reviewer self-adjudication forbidden")
+            }
             ReviewerPolicyError::ContextReuse => write!(f, "reviewer context reuse forbidden"),
         }
     }
@@ -121,7 +135,9 @@ pub const CLAIM_LEVELS: [&str; 5] = ["inventory", "source", "runtime", "product"
 /// decision (and every lower level's decision, per JS's left-to-right
 /// `reduce`) is `"pass"`. `decisions` maps claim-level name to decision
 /// string.
-pub fn achieved_claim_level(decisions: &std::collections::BTreeMap<String, String>) -> Option<&'static str> {
+pub fn achieved_claim_level(
+    decisions: &std::collections::BTreeMap<String, String>,
+) -> Option<&'static str> {
     let mut level: Option<&'static str> = None;
     for candidate in CLAIM_LEVELS {
         if decisions.get(candidate).map(String::as_str) == Some("pass") {
@@ -183,7 +199,11 @@ pub const PLANNING_STAGE_IDS: [&str; 12] = [
 /// Port of the `REQUIRED` table in plan-stages/registry.mjs: which stage IDs
 /// are mandatory for a given claim level.
 pub fn required_stages_for(claim_level: &str) -> &'static [&'static str] {
-    const INVENTORY: [&str; 3] = ["repository-binding", "blueprint-packet", "product-portfolio"];
+    const INVENTORY: [&str; 3] = [
+        "repository-binding",
+        "blueprint-packet",
+        "product-portfolio",
+    ];
     const SOURCE: [&str; 9] = [
         "repository-binding",
         "blueprint-packet",
@@ -238,7 +258,10 @@ mod tests {
             lens: None,
         });
         assert_eq!(packet["schemaVersion"], Value::from(1));
-        assert_eq!(packet["verdicts"], serde_json::json!(["confirmed", "rejected", "unproven", "needs-human"]));
+        assert_eq!(
+            packet["verdicts"],
+            serde_json::json!(["confirmed", "rejected", "unproven", "needs-human"])
+        );
         assert!(packet.get("lens").is_none());
     }
 
@@ -302,7 +325,11 @@ mod tests {
     fn required_stages_for_inventory_is_first_three() {
         assert_eq!(
             required_stages_for("inventory"),
-            &["repository-binding", "blueprint-packet", "product-portfolio"]
+            &[
+                "repository-binding",
+                "blueprint-packet",
+                "product-portfolio"
+            ]
         );
     }
 

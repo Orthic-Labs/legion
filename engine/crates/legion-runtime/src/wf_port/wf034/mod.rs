@@ -150,12 +150,12 @@ pub fn load_routing_groups(root: &Path) -> Result<RoutingGroups, RoutingLoadErro
     let skill_index = read_json(&root.join("src/registry/skills/index.json"))?;
 
     let domains = match registry.get("domains") {
-        Some(value) => serde_json::from_value(value.clone()).map_err(|source| {
-            RoutingLoadError::Json {
+        Some(value) => {
+            serde_json::from_value(value.clone()).map_err(|source| RoutingLoadError::Json {
                 path: root.join("src/registry/routing/domains.json"),
                 source,
-            }
-        })?,
+            })?
+        }
         None => Vec::new(),
     };
 

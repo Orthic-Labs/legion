@@ -25,12 +25,10 @@ pub fn run(args: CommonArgs) -> CommandResult {
         ));
     }
     let plan_path = PathBuf::from(plan_path.unwrap());
-    let bytes = std::fs::read(&plan_path).map_err(|error| {
-        CommandError::usage(format!("cannot read remediation plan: {error}"))
-    })?;
-    let plan: Value = serde_json::from_slice(&bytes).map_err(|error| {
-        CommandError::usage(format!("invalid remediation plan: {error}"))
-    })?;
+    let bytes = std::fs::read(&plan_path)
+        .map_err(|error| CommandError::usage(format!("cannot read remediation plan: {error}")))?;
+    let plan: Value = serde_json::from_slice(&bytes)
+        .map_err(|error| CommandError::usage(format!("invalid remediation plan: {error}")))?;
     validate_remediation_plan(&plan)?;
     let action_count = plan
         .get("actions")
@@ -55,7 +53,10 @@ fn validate_remediation_plan(plan: &Value) -> Result<(), CommandError> {
     let schema_version = plan.get("schemaVersion").and_then(Value::as_u64);
     let kind = plan.get("kind").and_then(Value::as_str);
     if schema_version != Some(1)
-        || !matches!(kind, Some("legion-remediation-plan") | Some("legion-sealed-remediation-plan"))
+        || !matches!(
+            kind,
+            Some("legion-remediation-plan") | Some("legion-sealed-remediation-plan")
+        )
     {
         return Err(CommandError::usage("invalid remediation plan contract"));
     }

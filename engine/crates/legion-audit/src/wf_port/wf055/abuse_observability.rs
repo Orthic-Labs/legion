@@ -44,7 +44,8 @@ static WEBHOOK_WITHOUT_SIGNATURE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?:webhook|callback)\s*\(").expect("valid regex")
 });
 static SWALLOWED_SECURITY_ERROR: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)catch\s*\([^)]*\)\s*\{\s*(?:return\s+(?:null|false|undefined)|\})").expect("valid regex")
+    Regex::new(r"(?i)catch\s*\([^)]*\)\s*\{\s*(?:return\s+(?:null|false|undefined)|\})")
+        .expect("valid regex")
 });
 
 pub static RULES: &[Rule] = &[
@@ -245,7 +246,8 @@ mod tests {
     fn a_single_file_can_trigger_multiple_rules() {
         let files = [ObservabilityFile {
             path: "src/combo.js",
-            text: "function login(req) {} function webhook(req) {} try {} catch (e) { return false; }",
+            text:
+                "function login(req) {} function webhook(req) {} try {} catch (e) { return false; }",
             artifact_id: None,
             artifact_evidence_refs: &[],
         }];

@@ -66,10 +66,7 @@ fn always_on_lenses_are_not_conditional() {
 
 #[test]
 fn structure_lenses_get_skeleton_excerpts_and_raw_lenses_get_raw() {
-    for id in [
-        "reasoning.naming",
-        "reasoning.dead-file",
-    ] {
+    for id in ["reasoning.naming", "reasoning.dead-file"] {
         let value = lens_plan_packet_value(id).expect("lens plan present");
         assert_eq!(value["excerptMode"], "skeleton", "{id}");
     }

@@ -50,7 +50,11 @@ fn argv(command: &str) -> Vec<String> {
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'repo', tool: 'git', required: d.git, ... })`.
-pub fn build_repo<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_repo<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     CheckSpec {
         check: "repo",
         tool: Some("git".to_string()),
@@ -283,7 +287,11 @@ pub fn build_secrets<'a>(
             let out = runner.run(
                 &[
                     "gitleaks".to_string(),
-                    if stack.git { "git".to_string() } else { "dir".to_string() },
+                    if stack.git {
+                        "git".to_string()
+                    } else {
+                        "dir".to_string()
+                    },
                     ".".to_string(),
                     "--report-format".to_string(),
                     "json".to_string(),
@@ -308,18 +316,17 @@ pub fn build_secrets<'a>(
                     ..Default::default()
                 };
             }
-            let findings = report_io.read(&raw_path).ok().and_then(|raw| {
-                gitleaks_candidates(&raw).ok()
-            });
+            let findings = report_io
+                .read(&raw_path)
+                .ok()
+                .and_then(|raw| gitleaks_candidates(&raw).ok());
             report_io.delete(&raw_path);
             let Some(candidates) = findings else {
                 return RunResult {
                     status: "error",
                     command: Some(cmd),
                     exit_code: Some(out.code),
-                    skip_reason: Some(
-                        "gitleaks report unreadable — scan not proven".to_string(),
-                    ),
+                    skip_reason: Some("gitleaks report unreadable — scan not proven".to_string()),
                     raw_log: redact(Some(if !out.stderr.is_empty() {
                         &out.stderr
                     } else {
@@ -348,7 +355,11 @@ pub fn build_secrets<'a>(
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'deps_cve', tool: `${d.pkgMgr} audit`, required: d.node, ... })`.
-pub fn build_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_deps_cve<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     CheckSpec {
         check: "deps_cve",
         tool: Some(format!("{} audit", stack.pkg_mgr)),
@@ -373,7 +384,11 @@ pub fn build_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: 
                     command: Some(cmd.clone()),
                     exit_code: Some(out.code),
                     skip_reason: Some(format!("{} not available", stack.pkg_mgr)),
-                    raw_log: redact(Some(if !out.stderr.is_empty() { &out.stderr } else { &out.stdout })),
+                    raw_log: redact(Some(if !out.stderr.is_empty() {
+                        &out.stderr
+                    } else {
+                        &out.stdout
+                    })),
                     ..Default::default()
                 };
             }
@@ -388,14 +403,20 @@ pub fn build_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: 
                 };
             }
             let parsed = serde_json::from_str::<Value>(&out.stdout).ok();
-            let outcome = parsed.as_ref().and_then(|v| parsers::dispatch_json("deps_cve", v));
+            let outcome = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("deps_cve", v));
             match outcome.filter(|o| !o.malformed) {
                 Some(outcome) => RunResult {
                     status: "ran",
                     command: Some(cmd),
                     exit_code: Some(out.code),
                     findings_count: outcome.findings_count,
-                    raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                    raw_log: redact(Some(if !out.stdout.is_empty() {
+                        &out.stdout
+                    } else {
+                        &out.stderr
+                    })),
                     duration_ms: Some(out.duration_ms),
                     ..Default::default()
                 },
@@ -403,8 +424,15 @@ pub fn build_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: 
                     status: "error",
                     command: Some(cmd),
                     exit_code: Some(out.code),
-                    skip_reason: Some(format!("{} audit output unparseable — scan not proven", stack.pkg_mgr)),
-                    raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                    skip_reason: Some(format!(
+                        "{} audit output unparseable — scan not proven",
+                        stack.pkg_mgr
+                    )),
+                    raw_log: redact(Some(if !out.stdout.is_empty() {
+                        &out.stdout
+                    } else {
+                        &out.stderr
+                    })),
                     ..Default::default()
                 },
             }
@@ -414,7 +442,9 @@ pub fn build_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: 
 
 fn regex_lite_lockfile_missing(text: &str) -> bool {
     let lower = text.to_ascii_lowercase();
-    lower.contains("requires an existing lockfile") || lower.contains("no lockfile") || lower.contains("enolock")
+    lower.contains("requires an existing lockfile")
+        || lower.contains("no lockfile")
+        || lower.contains("enolock")
 }
 
 // ---------------------------------------------------------------------------
@@ -422,7 +452,11 @@ fn regex_lite_lockfile_missing(text: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'py_deps_cve', tool: 'pip-audit', ... })`.
-pub fn build_py_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_py_deps_cve<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     CheckSpec {
         check: "py_deps_cve",
         tool: Some("pip-audit".to_string()),
@@ -435,14 +469,18 @@ pub fn build_py_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stac
             if !stack.py {
                 return RunResult {
                     status: "unproven",
-                    skip_reason: Some("no Python project (pyproject/setup.py/requirements)".to_string()),
+                    skip_reason: Some(
+                        "no Python project (pyproject/setup.py/requirements)".to_string(),
+                    ),
                     ..Default::default()
                 };
             }
             if !runner.which("pip-audit") {
                 return RunResult {
                     status: "unproven",
-                    skip_reason: Some("pip-audit not installed (`pipx install pip-audit`)".to_string()),
+                    skip_reason: Some(
+                        "pip-audit not installed (`pipx install pip-audit`)".to_string(),
+                    ),
                     tool_absent: true,
                     ..Default::default()
                 };
@@ -464,13 +502,20 @@ pub fn build_py_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stac
                 };
             }
             let parsed = serde_json::from_str::<Value>(&out.stdout).ok();
-            let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("py_deps_cve", v)).and_then(|o| o.findings_count);
+            let count = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("py_deps_cve", v))
+                .and_then(|o| o.findings_count);
             RunResult {
                 status: "ran",
                 command: Some(cmd),
                 exit_code: Some(out.code),
                 findings_count: count,
-                raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                raw_log: redact(Some(if !out.stdout.is_empty() {
+                    &out.stdout
+                } else {
+                    &out.stderr
+                })),
                 duration_ms: Some(out.duration_ms),
                 ..Default::default()
             }
@@ -483,7 +528,11 @@ pub fn build_py_deps_cve<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stac
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'types', ... })`.
-pub fn build_types<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_types<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     let tool = if stack.ts {
         Some("tsc".to_string())
     } else if stack.py {
@@ -505,7 +554,9 @@ pub fn build_types<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a
                 if !has_ts_dep {
                     return RunResult {
                         status: "unproven",
-                        skip_reason: Some("tsconfig present but typescript not in dependencies".to_string()),
+                        skip_reason: Some(
+                            "tsconfig present but typescript not in dependencies".to_string(),
+                        ),
                         tool_absent: true,
                         ..Default::default()
                     };
@@ -537,7 +588,10 @@ pub fn build_types<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a
                     let cmd = "basedpyright --outputjson";
                     let out = runner.run(&argv(cmd), root, 180_000);
                     let parsed = serde_json::from_str::<Value>(&out.stdout).ok();
-                    let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("types", v)).and_then(|o| o.findings_count);
+                    let count = parsed
+                        .as_ref()
+                        .and_then(|v| parsers::dispatch_json("types", v))
+                        .and_then(|o| o.findings_count);
                     return RunResult {
                         status: "ran",
                         command: Some(cmd.to_string()),
@@ -562,7 +616,9 @@ pub fn build_types<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a
                 }
                 return RunResult {
                     status: "unproven",
-                    skip_reason: Some("no Python type checker (basedpyright/mypy) installed".to_string()),
+                    skip_reason: Some(
+                        "no Python type checker (basedpyright/mypy) installed".to_string(),
+                    ),
                     tool_absent: true,
                     ..Default::default()
                 };
@@ -581,7 +637,11 @@ pub fn build_types<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'lint', ... })`.
-pub fn build_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_lint<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     let tool = if stack.biome {
         Some("biome".to_string())
     } else if stack.eslint {
@@ -603,11 +663,17 @@ pub fn build_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a 
         force_skip: false,
         run: Box::new(move || {
             if stack.biome {
-                let has_biome_dep = stack.pkg.as_ref().is_some_and(|p| has_dep(p, "@biomejs/biome"));
+                let has_biome_dep = stack
+                    .pkg
+                    .as_ref()
+                    .is_some_and(|p| has_dep(p, "@biomejs/biome"));
                 if !has_biome_dep {
                     return RunResult {
                         status: "unproven",
-                        skip_reason: Some("biome config present but @biomejs/biome not in dependencies".to_string()),
+                        skip_reason: Some(
+                            "biome config present but @biomejs/biome not in dependencies"
+                                .to_string(),
+                        ),
                         tool_absent: true,
                         ..Default::default()
                     };
@@ -629,7 +695,11 @@ pub fn build_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a 
                     command: Some(cmd.to_string()),
                     exit_code: Some(out.code),
                     findings_count: count,
-                    raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                    raw_log: redact(Some(if !out.stdout.is_empty() {
+                        &out.stdout
+                    } else {
+                        &out.stderr
+                    })),
                     duration_ms: Some(out.duration_ms),
                     ..Default::default()
                 };
@@ -639,7 +709,9 @@ pub fn build_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a 
                 if !has_eslint_dep {
                     return RunResult {
                         status: "unproven",
-                        skip_reason: Some("eslint config present but eslint not in dependencies".to_string()),
+                        skip_reason: Some(
+                            "eslint config present but eslint not in dependencies".to_string(),
+                        ),
                         tool_absent: true,
                         ..Default::default()
                     };
@@ -655,13 +727,20 @@ pub fn build_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a 
                     };
                 }
                 let parsed = serde_json::from_str::<Value>(&out.stdout).ok();
-                let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("lint", v)).and_then(|o| o.findings_count);
+                let count = parsed
+                    .as_ref()
+                    .and_then(|v| parsers::dispatch_json("lint", v))
+                    .and_then(|o| o.findings_count);
                 return RunResult {
                     status: "ran",
                     command: Some(cmd.to_string()),
                     exit_code: Some(out.code),
                     findings_count: count,
-                    raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                    raw_log: redact(Some(if !out.stdout.is_empty() {
+                        &out.stdout
+                    } else {
+                        &out.stderr
+                    })),
                     duration_ms: Some(out.duration_ms),
                     ..Default::default()
                 };
@@ -670,13 +749,20 @@ pub fn build_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a 
                 let cmd = "ruff check . --output-format json";
                 let out = runner.run(&argv(cmd), root, 180_000);
                 let parsed = serde_json::from_str::<Value>(&out.stdout).ok();
-                let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("lint", v)).and_then(|o| o.findings_count);
+                let count = parsed
+                    .as_ref()
+                    .and_then(|v| parsers::dispatch_json("lint", v))
+                    .and_then(|o| o.findings_count);
                 return RunResult {
                     status: "ran",
                     command: Some(cmd.to_string()),
                     exit_code: Some(out.code),
                     findings_count: count,
-                    raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                    raw_log: redact(Some(if !out.stdout.is_empty() {
+                        &out.stdout
+                    } else {
+                        &out.stderr
+                    })),
                     duration_ms: Some(out.duration_ms),
                     ..Default::default()
                 };
@@ -726,7 +812,11 @@ pub fn build_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a 
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'dead_code', tool: 'knip', ... })`.
-pub fn build_dead_code<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_dead_code<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     CheckSpec {
         check: "dead_code",
         tool: Some("knip".to_string()),
@@ -748,19 +838,28 @@ pub fn build_dead_code<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack:
             if looks_missing(&out.stdout, &out.stderr) {
                 return RunResult {
                     status: "unproven",
-                    skip_reason: Some("knip not installed (add as dep or `npm i -g knip`)".to_string()),
+                    skip_reason: Some(
+                        "knip not installed (add as dep or `npm i -g knip`)".to_string(),
+                    ),
                     tool_absent: true,
                     ..Default::default()
                 };
             }
             let parsed = serde_json::from_str::<Value>(&out.stdout).ok();
-            let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("dead_code", v)).and_then(|o| o.findings_count);
+            let count = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("dead_code", v))
+                .and_then(|o| o.findings_count);
             RunResult {
                 status: "ran",
                 command: Some(cmd.to_string()),
                 exit_code: Some(out.code),
                 findings_count: count,
-                raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                raw_log: redact(Some(if !out.stdout.is_empty() {
+                    &out.stdout
+                } else {
+                    &out.stderr
+                })),
                 duration_ms: Some(out.duration_ms),
                 ..Default::default()
             }
@@ -817,8 +916,12 @@ pub fn build_duplication<'a>(
                 };
             }
             let report_text = report_io.read(&rep.join("jscpd-report.json")).ok();
-            let parsed = report_text.as_deref().and_then(|t| serde_json::from_str::<Value>(t).ok());
-            let outcome = parsed.as_ref().and_then(|v| parsers::dispatch_json("duplication", v));
+            let parsed = report_text
+                .as_deref()
+                .and_then(|t| serde_json::from_str::<Value>(t).ok());
+            let outcome = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("duplication", v));
             match outcome.filter(|o| !o.malformed) {
                 Some(outcome) => {
                     let summary = parsed
@@ -832,7 +935,9 @@ pub fn build_duplication<'a>(
                         command: Some(cmd),
                         exit_code: Some(out.code),
                         findings_count: outcome.findings_count,
-                        raw_log: redact(Some(&serde_json::to_string_pretty(&summary).unwrap_or_default())),
+                        raw_log: redact(Some(
+                            &serde_json::to_string_pretty(&summary).unwrap_or_default(),
+                        )),
                         duration_ms: Some(out.duration_ms),
                         ..Default::default()
                     }
@@ -842,7 +947,11 @@ pub fn build_duplication<'a>(
                     command: Some(cmd),
                     exit_code: Some(out.code),
                     skip_reason: Some("jscpd report unreadable — scan not proven".to_string()),
-                    raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                    raw_log: redact(Some(if !out.stdout.is_empty() {
+                        &out.stdout
+                    } else {
+                        &out.stderr
+                    })),
                     ..Default::default()
                 },
             }
@@ -855,7 +964,11 @@ pub fn build_duplication<'a>(
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'ci_lint', tool: 'actionlint', ... })`.
-pub fn build_ci_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_ci_lint<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     CheckSpec {
         check: "ci_lint",
         tool: Some("actionlint".to_string()),
@@ -880,16 +993,32 @@ pub fn build_ci_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &
                     ..Default::default()
                 };
             }
-            let cmd = vec!["actionlint".to_string(), "-format".to_string(), "{{json .}}".to_string()];
+            let cmd = vec![
+                "actionlint".to_string(),
+                "-format".to_string(),
+                "{{json .}}".to_string(),
+            ];
             let out = runner.run(&cmd, root, 180_000);
-            let parsed = serde_json::from_str::<Value>(if out.stdout.trim().is_empty() { "[]" } else { &out.stdout }).ok();
-            let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("ci_lint", v)).and_then(|o| o.findings_count);
+            let parsed = serde_json::from_str::<Value>(if out.stdout.trim().is_empty() {
+                "[]"
+            } else {
+                &out.stdout
+            })
+            .ok();
+            let count = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("ci_lint", v))
+                .and_then(|o| o.findings_count);
             RunResult {
                 status: "ran",
                 command: Some("actionlint -format \"{{json .}}\"".to_string()),
                 exit_code: Some(out.code),
                 findings_count: count,
-                raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                raw_log: redact(Some(if !out.stdout.is_empty() {
+                    &out.stdout
+                } else {
+                    &out.stderr
+                })),
                 duration_ms: Some(out.duration_ms),
                 ..Default::default()
             }
@@ -902,7 +1031,11 @@ pub fn build_ci_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'docker', tool: 'hadolint', ... })`.
-pub fn build_docker<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_docker<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     CheckSpec {
         check: "docker",
         tool: Some("hadolint".to_string()),
@@ -929,14 +1062,26 @@ pub fn build_docker<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'
             }
             let cmd = "hadolint --format json Dockerfile";
             let out = runner.run(&argv(cmd), root, 180_000);
-            let parsed = serde_json::from_str::<Value>(if out.stdout.trim().is_empty() { "[]" } else { &out.stdout }).ok();
-            let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("docker", v)).and_then(|o| o.findings_count);
+            let parsed = serde_json::from_str::<Value>(if out.stdout.trim().is_empty() {
+                "[]"
+            } else {
+                &out.stdout
+            })
+            .ok();
+            let count = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("docker", v))
+                .and_then(|o| o.findings_count);
             RunResult {
                 status: "ran",
                 command: Some(cmd.to_string()),
                 exit_code: Some(out.code),
                 findings_count: count,
-                raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                raw_log: redact(Some(if !out.stdout.is_empty() {
+                    &out.stdout
+                } else {
+                    &out.stderr
+                })),
                 duration_ms: Some(out.duration_ms),
                 ..Default::default()
             }
@@ -970,13 +1115,20 @@ pub fn build_sast<'a>(runner: &'a dyn CommandRunner, root: &'a Path) -> CheckSpe
             let cmd = "semgrep --config auto --json --quiet --exclude vendor --exclude qwik --exclude .audit --exclude .agent --exclude dist";
             let out = runner.run(&argv(cmd), root, 300_000);
             let parsed = serde_json::from_str::<Value>(&out.stdout).ok();
-            let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("sast", v)).and_then(|o| o.findings_count);
+            let count = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("sast", v))
+                .and_then(|o| o.findings_count);
             RunResult {
                 status: "ran",
                 command: Some(cmd.to_string()),
                 exit_code: Some(out.code),
                 findings_count: count,
-                raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                raw_log: redact(Some(if !out.stdout.is_empty() {
+                    &out.stdout
+                } else {
+                    &out.stderr
+                })),
                 duration_ms: Some(out.duration_ms),
                 ..Default::default()
             }
@@ -989,7 +1141,11 @@ pub fn build_sast<'a>(runner: &'a dyn CommandRunner, root: &'a Path) -> CheckSpe
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'swift_lint', tool: 'swiftlint', ... })`.
-pub fn build_swift_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_swift_lint<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     CheckSpec {
         check: "swift_lint",
         tool: Some("swiftlint".to_string()),
@@ -1022,21 +1178,35 @@ pub fn build_swift_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack
             if !runner.which("swiftlint") {
                 return RunResult {
                     status: "unproven",
-                    skip_reason: Some("swiftlint not installed (`brew install swiftlint`)".to_string()),
+                    skip_reason: Some(
+                        "swiftlint not installed (`brew install swiftlint`)".to_string(),
+                    ),
                     tool_absent: true,
                     ..Default::default()
                 };
             }
             let cmd = "swiftlint lint --quiet --reporter json";
             let out = runner.run(&argv(cmd), root, 300_000);
-            let parsed = serde_json::from_str::<Value>(if out.stdout.trim().is_empty() { "[]" } else { &out.stdout }).ok();
-            let count = parsed.as_ref().and_then(|v| parsers::dispatch_json("swift_lint", v)).and_then(|o| o.findings_count);
+            let parsed = serde_json::from_str::<Value>(if out.stdout.trim().is_empty() {
+                "[]"
+            } else {
+                &out.stdout
+            })
+            .ok();
+            let count = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("swift_lint", v))
+                .and_then(|o| o.findings_count);
             RunResult {
                 status: "ran",
                 command: Some(cmd.to_string()),
                 exit_code: Some(out.code),
                 findings_count: count,
-                raw_log: redact(Some(if !out.stdout.is_empty() { &out.stdout } else { &out.stderr })),
+                raw_log: redact(Some(if !out.stdout.is_empty() {
+                    &out.stdout
+                } else {
+                    &out.stderr
+                })),
                 duration_ms: Some(out.duration_ms),
                 ..Default::default()
             }
@@ -1049,7 +1219,11 @@ pub fn build_swift_lint<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack
 // ---------------------------------------------------------------------------
 
 /// `add({ check: 'js_licenses', tool: 'license-checker', ... })`.
-pub fn build_js_licenses<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a DetectedStack) -> CheckSpec<'a> {
+pub fn build_js_licenses<'a>(
+    runner: &'a dyn CommandRunner,
+    root: &'a Path,
+    stack: &'a DetectedStack,
+) -> CheckSpec<'a> {
     CheckSpec {
         check: "js_licenses",
         tool: Some("license-checker".to_string()),
@@ -1071,13 +1245,17 @@ pub fn build_js_licenses<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stac
             if looks_missing(&out.stdout, &out.stderr) {
                 return RunResult {
                     status: "unproven",
-                    skip_reason: Some("license-checker not installed (`npm i -D license-checker`)".to_string()),
+                    skip_reason: Some(
+                        "license-checker not installed (`npm i -D license-checker`)".to_string(),
+                    ),
                     tool_absent: true,
                     ..Default::default()
                 };
             }
             let parsed = serde_json::from_str::<Value>(&out.stdout).ok();
-            let outcome = parsed.as_ref().and_then(|v| parsers::dispatch_json("js_licenses", v));
+            let outcome = parsed
+                .as_ref()
+                .and_then(|v| parsers::dispatch_json("js_licenses", v));
             RunResult {
                 status: "ran",
                 command: Some(cmd.to_string()),
@@ -1139,7 +1317,12 @@ mod tests {
         }
     }
     impl CommandRunner for FakeRunner {
-        fn run(&self, argv: &[String], _cwd: &Path, _timeout_ms: u64) -> crate::wf_port::wf065::collect_facts_exec::RunOutput {
+        fn run(
+            &self,
+            argv: &[String],
+            _cwd: &Path,
+            _timeout_ms: u64,
+        ) -> crate::wf_port::wf065::collect_facts_exec::RunOutput {
             let key = argv.join(" ");
             self.calls.lock().unwrap().push(key.clone());
             // Unregistered commands default to a benign empty success (not an
@@ -1149,16 +1332,15 @@ mod tests {
             // report, not stdout) doesn't get misread as "tool missing" by
             // `looks_missing`. Tests asserting tool-absence register an
             // explicit ENOENT-shaped output or use `with_which(..., false)`.
-            self.outputs
-                .get(&key)
-                .cloned()
-                .unwrap_or(crate::wf_port::wf065::collect_facts_exec::RunOutput {
+            self.outputs.get(&key).cloned().unwrap_or(
+                crate::wf_port::wf065::collect_facts_exec::RunOutput {
                     code: 0,
                     stdout: String::new(),
                     stderr: String::new(),
                     duration_ms: 1,
                     spawn_error: false,
-                })
+                },
+            )
         }
         fn which(&self, bin: &str) -> bool {
             *self.which.get(bin).unwrap_or(&false)
@@ -1256,16 +1438,17 @@ mod tests {
 
     #[test]
     fn secrets_check_converts_report_to_redacted_candidates_and_deletes_it() {
-        let runner = FakeRunner::new()
-            .with_which("gitleaks", true)
-            .with_output(
-                "gitleaks git . --report-format json --no-banner --report-path OUT/_gitleaks.json",
-                0,
-                "",
-                "",
-            );
+        let runner = FakeRunner::new().with_which("gitleaks", true).with_output(
+            "gitleaks git . --report-format json --no-banner --report-path OUT/_gitleaks.json",
+            0,
+            "",
+            "",
+        );
         let report = FakeGitleaksReport {
-            content: Some(r#"[{"RuleID":"aws-key","File":"a.env","StartLine":3,"Fingerprint":"fp1"}]"#.to_string()),
+            content: Some(
+                r#"[{"RuleID":"aws-key","File":"a.env","StartLine":3,"Fingerprint":"fp1"}]"#
+                    .to_string(),
+            ),
             deleted: Mutex::new(false),
         };
         let stack = npm_stack();
@@ -1282,7 +1465,10 @@ mod tests {
     #[test]
     fn secrets_check_unproven_when_gitleaks_absent() {
         let runner = FakeRunner::new().with_which("gitleaks", false);
-        let report = FakeGitleaksReport { content: None, deleted: Mutex::new(false) };
+        let report = FakeGitleaksReport {
+            content: None,
+            deleted: Mutex::new(false),
+        };
         let stack = npm_stack();
         let spec = build_secrets(&runner, &report, Path::new("."), Path::new("OUT"), &stack);
         let result = (spec.run)();
@@ -1326,14 +1512,12 @@ mod tests {
 
     #[test]
     fn py_deps_cve_sums_vuln_arrays_when_python_project() {
-        let runner = FakeRunner::new()
-            .with_which("pip-audit", true)
-            .with_output(
-                "pip-audit -f json",
-                0,
-                r#"{"dependencies":[{"name":"requests","vulns":[{"id":"PYSEC-1"}]}]}"#,
-                "",
-            );
+        let runner = FakeRunner::new().with_which("pip-audit", true).with_output(
+            "pip-audit -f json",
+            0,
+            r#"{"dependencies":[{"name":"requests","vulns":[{"id":"PYSEC-1"}]}]}"#,
+            "",
+        );
         let mut stack = npm_stack();
         stack.py = true;
         // A real tempdir with no requirements*.txt, so the check's own
@@ -1460,9 +1644,12 @@ mod tests {
 
     #[test]
     fn docker_counts_hadolint_array() {
-        let runner = FakeRunner::new()
-            .with_which("hadolint", true)
-            .with_output("hadolint --format json Dockerfile", 1, r#"[{"code":"DL3008"}]"#, "");
+        let runner = FakeRunner::new().with_which("hadolint", true).with_output(
+            "hadolint --format json Dockerfile",
+            1,
+            r#"[{"code":"DL3008"}]"#,
+            "",
+        );
         let mut stack = npm_stack();
         stack.dockerfile = true;
         let spec = build_docker(&runner, Path::new("."), &stack);

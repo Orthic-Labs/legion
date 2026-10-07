@@ -56,12 +56,18 @@ fn now_iso() -> String {
     // Unix epoch. It is used only for the receipt's informational
     // `started_at`/`completed_at` fields, never compared for equality by
     // any consumer.
-    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let dur = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = dur.as_secs();
     let millis = dur.subsec_millis();
     let days = secs / 86_400;
     let time_of_day = secs % 86_400;
-    let (h, m, s) = (time_of_day / 3600, (time_of_day % 3600) / 60, time_of_day % 60);
+    let (h, m, s) = (
+        time_of_day / 3600,
+        (time_of_day % 3600) / 60,
+        time_of_day % 60,
+    );
     // Days since epoch -> proleptic Gregorian date.
     let (y, mo, d) = civil_from_days(days as i64);
     format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}.{millis:03}Z")
@@ -84,7 +90,14 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (y, m, d)
 }
 
-fn pick_metrics(passed: usize, failed: usize, total: usize, percent: Option<f64>, ok: bool, error: Option<&str>) -> Value {
+fn pick_metrics(
+    passed: usize,
+    failed: usize,
+    total: usize,
+    percent: Option<f64>,
+    ok: bool,
+    error: Option<&str>,
+) -> Value {
     json!({
         "passed": passed,
         "failed": failed,
@@ -97,7 +110,9 @@ fn pick_metrics(passed: usize, failed: usize, total: usize, percent: Option<f64>
 
 /// Mirrors the whole of `gauntlet.mjs`'s top-level script body.
 pub fn run_gauntlet(opts: GauntletOptions<'_>) -> GauntletRun {
-    let test_command = opts.test_command.unwrap_or("node --test --test-concurrency=1");
+    let test_command = opts
+        .test_command
+        .unwrap_or("node --test --test-concurrency=1");
     let started_at = now_iso();
     let command = format!(
         "gauntlet --base {} --test \"{}\"",
@@ -278,11 +293,26 @@ fn build_no_diff_run(started_at: &str, command: &str, load_error: Option<String>
         command: command.to_string(),
         summary_ok: false,
         output,
-        mutation: LayerSummary { passed: 0, failed: 0, total: 0 },
+        mutation: LayerSummary {
+            passed: 0,
+            failed: 0,
+            total: 0,
+        },
         coverage_percent: 0.0,
-        coverage: LayerSummary { passed: 0, failed: 0, total: 0 },
-        order: LayerSummary { passed: 0, failed: 0, total: 0 },
+        coverage: LayerSummary {
+            passed: 0,
+            failed: 0,
+            total: 0,
+        },
+        order: LayerSummary {
+            passed: 0,
+            failed: 0,
+            total: 0,
+        },
     });
     let check = build_check(&receipt);
-    GauntletRun { check, exit_code: 1 }
+    GauntletRun {
+        check,
+        exit_code: 1,
+    }
 }

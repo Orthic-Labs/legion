@@ -197,7 +197,12 @@ mod tests {
     #[test]
     fn parse_args_ignores_bad_numeric_and_keeps_default() {
         let a = parse_args(&argv(&[
-            "--html", "d.html", "--out", "o.pdf", "--width", "not-a-number",
+            "--html",
+            "d.html",
+            "--out",
+            "o.pdf",
+            "--width",
+            "not-a-number",
         ]))
         .unwrap();
         assert_eq!(a.width, 1920);
@@ -235,7 +240,10 @@ mod tests {
     #[test]
     fn summary_line_rounds_kb_and_reports_pages() {
         let line = summary_line(Path::new("/x/deck.pdf"), 512_500, 12);
-        assert_eq!(line, "\n\u{2713} Wrote /x/deck.pdf  (500 KB, 12 pages, vector)");
+        assert_eq!(
+            line,
+            "\n\u{2713} Wrote /x/deck.pdf  (500 KB, 12 pages, vector)"
+        );
     }
 
     #[test]

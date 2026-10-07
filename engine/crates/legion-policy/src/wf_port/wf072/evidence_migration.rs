@@ -14,7 +14,9 @@
 //! pushed to `imported`" ordering and side effect shape without requiring
 //! wf072 to own or depend on the ledger's not-yet-wired module.
 
-use super::evidence_envelope::{import_legacy_evidence, EnvelopeError, ImportedLegacyEvidence, LegacyEnvelope};
+use super::evidence_envelope::{
+    import_legacy_evidence, EnvelopeError, ImportedLegacyEvidence, LegacyEnvelope,
+};
 use super::support::{digest_value, Json};
 
 #[derive(Debug, Clone)]
@@ -68,7 +70,13 @@ fn legacy_envelope_json(l: &LegacyEnvelope) -> Json {
         ("legacyKind".into(), Json::str(l.legacy_kind.clone())),
         ("payload".into(), l.payload.clone()),
         ("authenticated".into(), Json::Bool(l.authenticated)),
-        ("sourceRevision".into(), l.source_revision.clone().map(Json::Str).unwrap_or(Json::Null)),
+        (
+            "sourceRevision".into(),
+            l.source_revision
+                .clone()
+                .map(Json::Str)
+                .unwrap_or(Json::Null),
+        ),
         ("source".into(), Json::str(l.source.clone())),
         ("capturedAt".into(), Json::str(l.captured_at.clone())),
     ])
@@ -81,16 +89,42 @@ fn legacy_envelope_json(l: &LegacyEnvelope) -> Json {
 fn project_for_parity(record_id: &str, envelope: &ImportedLegacyEvidence) -> Json {
     Json::Obj(vec![
         ("recordId".into(), Json::str(record_id)),
-        ("runId".into(), envelope.run_id.clone().map(Json::Str).unwrap_or(Json::Null)),
+        (
+            "runId".into(),
+            envelope.run_id.clone().map(Json::Str).unwrap_or(Json::Null),
+        ),
         ("legacyKind".into(), Json::str(envelope.legacy_kind.clone())),
         ("capability".into(), Json::str(envelope.capability.clone())),
         ("observation".into(), envelope.observation.clone()),
-        ("evidenceClass".into(), Json::str(envelope.evidence_class.clone())),
-        ("sourceRevision".into(), envelope.source_revision.clone().map(Json::Str).unwrap_or(Json::Null)),
-        ("authenticationIssuerIdentity".into(), Json::str(envelope.authentication_issuer_identity.clone())),
+        (
+            "evidenceClass".into(),
+            Json::str(envelope.evidence_class.clone()),
+        ),
+        (
+            "sourceRevision".into(),
+            envelope
+                .source_revision
+                .clone()
+                .map(Json::Str)
+                .unwrap_or(Json::Null),
+        ),
+        (
+            "authenticationIssuerIdentity".into(),
+            Json::str(envelope.authentication_issuer_identity.clone()),
+        ),
         ("trustClass".into(), Json::str(envelope.trust_class.clone())),
-        ("neverQualifying".into(), Json::Bool(envelope.never_qualifying)),
-        ("provisionalMappingRef".into(), envelope.provisional_mapping_ref.clone().map(Json::Str).unwrap_or(Json::Null)),
+        (
+            "neverQualifying".into(),
+            Json::Bool(envelope.never_qualifying),
+        ),
+        (
+            "provisionalMappingRef".into(),
+            envelope
+                .provisional_mapping_ref
+                .clone()
+                .map(Json::Str)
+                .unwrap_or(Json::Null),
+        ),
         ("observedAt".into(), Json::str(envelope.observed_at.clone())),
         ("stale".into(), Json::Bool(envelope.stale)),
     ])
@@ -118,7 +152,13 @@ pub fn migrate_legacy_evidence(
         let source_digest = digest_value(&legacy_envelope_json(record));
 
         let evidence_id = mint_evidence_id(index);
-        match import_legacy_evidence(record, evidence_id, None, Some("legacy-migration".into()), Some(captured_at.to_string())) {
+        match import_legacy_evidence(
+            record,
+            evidence_id,
+            None,
+            Some("legacy-migration".into()),
+            Some(captured_at.to_string()),
+        ) {
             Ok(envelope) => {
                 register_import(&envelope.evidence_id);
                 let destination_digest = digest_value(&project_for_parity(&record_id, &envelope));
@@ -161,9 +201,17 @@ pub fn migrate_legacy_evidence(
         }
     }
 
-    let source_digest_agg = digest_value(&Json::Arr(per_record.iter().map(|r| Json::str(r.source_digest.clone())).collect()));
+    let source_digest_agg = digest_value(&Json::Arr(
+        per_record
+            .iter()
+            .map(|r| Json::str(r.source_digest.clone()))
+            .collect(),
+    ));
     let destination_digest_agg = digest_value(&Json::Arr(
-        imported.iter().map(|(rid, env)| project_for_parity(rid, env)).collect(),
+        imported
+            .iter()
+            .map(|(rid, env)| project_for_parity(rid, env))
+            .collect(),
     ));
 
     // Trust tally: must always read 0. Recomputed from what was actually
@@ -176,37 +224,84 @@ pub fn migrate_legacy_evidence(
     let record_count_matches = records.len() == imported.len() + quarantined.len() + rejected.len();
 
     let receipt_core = Json::Obj(vec![
-        ("schema".into(), Json::str("arcane.evidence-migration-receipt.v1")),
+        (
+            "schema".into(),
+            Json::str("arcane.evidence-migration-receipt.v1"),
+        ),
         ("deliverable".into(), Json::str("S05")),
         ("lane".into(), Json::str("E-ARCANE")),
         ("destructive".into(), Json::Bool(false)),
         ("mappingVersion".into(), Json::str(mapping_version)),
         ("capturedAt".into(), Json::str(captured_at)),
-        ("source".into(), Json::Obj(vec![
-            ("recordCount".into(), Json::I64(records.len() as i64)),
-            ("digest".into(), Json::str(source_digest_agg.clone())),
-        ])),
-        ("destination".into(), Json::Obj(vec![
-            ("namespace".into(), Json::str("arcane")),
-            ("count".into(), Json::I64(imported.len() as i64)),
-            ("digest".into(), Json::str(destination_digest_agg.clone())),
-        ])),
-        ("parity".into(), Json::Obj(vec![
-            ("recordCountMatches".into(), Json::Bool(record_count_matches)),
-        ])),
-        ("quarantine".into(), Json::Obj(vec![
-            ("count".into(), Json::I64(quarantined.len() as i64)),
-            ("ids".into(), Json::Arr(quarantined.iter().map(|q| Json::str(q.record_id.clone())).collect())),
-        ])),
-        ("rejected".into(), Json::Obj(vec![
-            ("count".into(), Json::I64(rejected.len() as i64)),
-            ("ids".into(), Json::Arr(rejected.iter().map(|r| Json::str(r.record_id.clone())).collect())),
-        ])),
-        ("trust".into(), Json::Obj(vec![("trustGranted".into(), Json::I64(trust_granted as i64))])),
-        ("rollback".into(), Json::Obj(vec![
-            ("method".into(), Json::str("migration performs no destructive rewrite")),
-            ("reversible".into(), Json::Bool(true)),
-        ])),
+        (
+            "source".into(),
+            Json::Obj(vec![
+                ("recordCount".into(), Json::I64(records.len() as i64)),
+                ("digest".into(), Json::str(source_digest_agg.clone())),
+            ]),
+        ),
+        (
+            "destination".into(),
+            Json::Obj(vec![
+                ("namespace".into(), Json::str("arcane")),
+                ("count".into(), Json::I64(imported.len() as i64)),
+                ("digest".into(), Json::str(destination_digest_agg.clone())),
+            ]),
+        ),
+        (
+            "parity".into(),
+            Json::Obj(vec![(
+                "recordCountMatches".into(),
+                Json::Bool(record_count_matches),
+            )]),
+        ),
+        (
+            "quarantine".into(),
+            Json::Obj(vec![
+                ("count".into(), Json::I64(quarantined.len() as i64)),
+                (
+                    "ids".into(),
+                    Json::Arr(
+                        quarantined
+                            .iter()
+                            .map(|q| Json::str(q.record_id.clone()))
+                            .collect(),
+                    ),
+                ),
+            ]),
+        ),
+        (
+            "rejected".into(),
+            Json::Obj(vec![
+                ("count".into(), Json::I64(rejected.len() as i64)),
+                (
+                    "ids".into(),
+                    Json::Arr(
+                        rejected
+                            .iter()
+                            .map(|r| Json::str(r.record_id.clone()))
+                            .collect(),
+                    ),
+                ),
+            ]),
+        ),
+        (
+            "trust".into(),
+            Json::Obj(vec![(
+                "trustGranted".into(),
+                Json::I64(trust_granted as i64),
+            )]),
+        ),
+        (
+            "rollback".into(),
+            Json::Obj(vec![
+                (
+                    "method".into(),
+                    Json::str("migration performs no destructive rewrite"),
+                ),
+                ("reversible".into(), Json::Bool(true)),
+            ]),
+        ),
     ]);
     let receipt_digest = digest_value(&receipt_core);
 
@@ -229,7 +324,12 @@ pub fn migrate_legacy_evidence(
         receipt_digest,
     };
 
-    MigrationResult { receipt, imported, quarantined, rejected }
+    MigrationResult {
+        receipt,
+        imported,
+        quarantined,
+        rejected,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -248,32 +348,59 @@ pub fn verify_migration(
     mapping_version: &str,
     mint_evidence_id: impl FnMut(usize) -> String,
 ) -> Vec<Mismatch> {
-    let fresh = migrate_legacy_evidence(records, captured_at, mapping_version, mint_evidence_id, |_| {});
+    let fresh = migrate_legacy_evidence(
+        records,
+        captured_at,
+        mapping_version,
+        mint_evidence_id,
+        |_| {},
+    );
     let mut mismatches = Vec::new();
 
     if receipt.source_record_count != fresh.receipt.source_record_count {
-        mismatches.push(Mismatch { field: "source.recordCount".into(), record_id: None });
+        mismatches.push(Mismatch {
+            field: "source.recordCount".into(),
+            record_id: None,
+        });
     }
     if receipt.source_digest != fresh.receipt.source_digest {
-        mismatches.push(Mismatch { field: "source.digest".into(), record_id: None });
+        mismatches.push(Mismatch {
+            field: "source.digest".into(),
+            record_id: None,
+        });
     }
     if receipt.destination_count != fresh.receipt.destination_count {
-        mismatches.push(Mismatch { field: "destination.count".into(), record_id: None });
+        mismatches.push(Mismatch {
+            field: "destination.count".into(),
+            record_id: None,
+        });
     }
     if receipt.destination_digest != fresh.receipt.destination_digest {
-        mismatches.push(Mismatch { field: "destination.digest".into(), record_id: None });
+        mismatches.push(Mismatch {
+            field: "destination.digest".into(),
+            record_id: None,
+        });
     }
 
     for fresh_rec in &fresh.receipt.per_record {
-        let orig = receipt.per_record.iter().find(|r| r.record_id == fresh_rec.record_id);
+        let orig = receipt
+            .per_record
+            .iter()
+            .find(|r| r.record_id == fresh_rec.record_id);
         match orig {
-            None => mismatches.push(Mismatch { field: "parity.perRecord".into(), record_id: Some(fresh_rec.record_id.clone()) }),
+            None => mismatches.push(Mismatch {
+                field: "parity.perRecord".into(),
+                record_id: Some(fresh_rec.record_id.clone()),
+            }),
             Some(orig) => {
                 if orig.status != fresh_rec.status
                     || orig.source_digest != fresh_rec.source_digest
                     || orig.destination_digest != fresh_rec.destination_digest
                 {
-                    mismatches.push(Mismatch { field: "parity.perRecord".into(), record_id: Some(fresh_rec.record_id.clone()) });
+                    mismatches.push(Mismatch {
+                        field: "parity.perRecord".into(),
+                        record_id: Some(fresh_rec.record_id.clone()),
+                    });
                 }
             }
         }
@@ -316,7 +443,13 @@ mod tests {
     fn migrate_imports_valid_records_and_trust_granted_is_always_zero() {
         let records = vec![legacy(false), legacy(false)];
         let mut registered = Vec::new();
-        let result = migrate_legacy_evidence(&records, "2026-01-01T00:00:00Z", "v1", |i| format!("ev-{i}"), |id| registered.push(id.to_string()));
+        let result = migrate_legacy_evidence(
+            &records,
+            "2026-01-01T00:00:00Z",
+            "v1",
+            |i| format!("ev-{i}"),
+            |id| registered.push(id.to_string()),
+        );
         assert_eq!(result.imported.len(), 2);
         assert_eq!(result.receipt.trust_granted, 0);
         assert_eq!(registered.len(), 2);
@@ -326,7 +459,13 @@ mod tests {
     #[test]
     fn migrate_quarantines_malformed_records_without_aborting_batch() {
         let records = vec![legacy(false), malformed(), legacy(false)];
-        let result = migrate_legacy_evidence(&records, "2026-01-01T00:00:00Z", "v1", |i| format!("ev-{i}"), |_| {});
+        let result = migrate_legacy_evidence(
+            &records,
+            "2026-01-01T00:00:00Z",
+            "v1",
+            |i| format!("ev-{i}"),
+            |_| {},
+        );
         assert_eq!(result.imported.len(), 2);
         assert_eq!(result.quarantined.len(), 1);
         assert_eq!(result.quarantined[0].record_id, "legacy-evidence#1");
@@ -336,26 +475,59 @@ mod tests {
     #[test]
     fn migrate_rejects_authenticated_true_records_separately_from_quarantine() {
         let records = vec![legacy(true)];
-        let result = migrate_legacy_evidence(&records, "2026-01-01T00:00:00Z", "v1", |i| format!("ev-{i}"), |_| {});
+        let result = migrate_legacy_evidence(
+            &records,
+            "2026-01-01T00:00:00Z",
+            "v1",
+            |i| format!("ev-{i}"),
+            |_| {},
+        );
         assert_eq!(result.rejected.len(), 1);
         assert_eq!(result.quarantined.len(), 0);
-        assert_eq!(result.rejected[0].code.as_deref(), Some("ARC_AUTH_LEGACY_DIGEST"));
+        assert_eq!(
+            result.rejected[0].code.as_deref(),
+            Some("ARC_AUTH_LEGACY_DIGEST")
+        );
     }
 
     #[test]
     fn verify_migration_detects_no_mismatch_for_identical_rerun() {
         let records = vec![legacy(false), malformed()];
-        let result = migrate_legacy_evidence(&records, "2026-01-01T00:00:00Z", "v1", |i| format!("ev-{i}"), |_| {});
-        let mismatches = verify_migration(&result.receipt, &records, "2026-01-01T00:00:00Z", "v1", |i| format!("ev-{i}"));
+        let result = migrate_legacy_evidence(
+            &records,
+            "2026-01-01T00:00:00Z",
+            "v1",
+            |i| format!("ev-{i}"),
+            |_| {},
+        );
+        let mismatches = verify_migration(
+            &result.receipt,
+            &records,
+            "2026-01-01T00:00:00Z",
+            "v1",
+            |i| format!("ev-{i}"),
+        );
         assert!(mismatches.is_empty(), "{mismatches:?}");
     }
 
     #[test]
     fn verify_migration_detects_digest_mismatch_when_records_change() {
         let records = vec![legacy(false)];
-        let result = migrate_legacy_evidence(&records, "2026-01-01T00:00:00Z", "v1", |i| format!("ev-{i}"), |_| {});
+        let result = migrate_legacy_evidence(
+            &records,
+            "2026-01-01T00:00:00Z",
+            "v1",
+            |i| format!("ev-{i}"),
+            |_| {},
+        );
         let changed_records = vec![legacy(false), legacy(false)];
-        let mismatches = verify_migration(&result.receipt, &changed_records, "2026-01-01T00:00:00Z", "v1", |i| format!("ev-{i}"));
+        let mismatches = verify_migration(
+            &result.receipt,
+            &changed_records,
+            "2026-01-01T00:00:00Z",
+            "v1",
+            |i| format!("ev-{i}"),
+        );
         assert!(!mismatches.is_empty());
     }
 }

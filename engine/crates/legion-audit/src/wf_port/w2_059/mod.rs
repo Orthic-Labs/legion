@@ -71,7 +71,11 @@ pub struct Evidence {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Claim {
     /// `None` mirrors JS `claim.evidenceRefs` being absent/`undefined`.
-    #[serde(rename = "evidenceRefs", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "evidenceRefs",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub evidence_refs: Option<Vec<String>>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
@@ -90,7 +94,11 @@ pub enum Disposition {
 pub struct ResolvedClaim {
     #[serde(flatten)]
     pub extra: Map<String, Value>,
-    #[serde(rename = "evidenceRefs", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "evidenceRefs",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub evidence_refs: Option<Vec<String>>,
     pub proof: Vec<Evidence>,
     pub disposition: Disposition,

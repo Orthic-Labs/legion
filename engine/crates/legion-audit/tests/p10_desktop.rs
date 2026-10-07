@@ -20,7 +20,12 @@ fn terminal_pass(id: &str) -> serde_json::Value {
 fn desktop_storage_reports_missing_cases_and_migration_denominator() {
     let out = evaluate_desktop_storage(&json!({}));
     assert_eq!(out["status"], "unproven");
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"migration-denominator-empty"));
     assert!(gaps.contains(&"native-storage-receipt-missing"));
     assert!(gaps.contains(&"storage-locations-incomplete"));
@@ -30,7 +35,8 @@ fn desktop_storage_reports_missing_cases_and_migration_denominator() {
 #[test]
 fn desktop_storage_passes_with_full_evidence() {
     let cases: Vec<_> = FILE_CASES.iter().map(|id| terminal_pass(id)).collect();
-    let migration = json!({ "id": "m1", "status": "pass", "terminal": true, "sourcePreserved": true });
+    let migration =
+        json!({ "id": "m1", "status": "pass", "terminal": true, "sourcePreserved": true });
     let input = json!({
         "cases": cases,
         "migrations": [migration],
@@ -46,7 +52,8 @@ fn desktop_storage_passes_with_full_evidence() {
 #[test]
 fn desktop_storage_fails_when_migration_source_not_preserved() {
     let cases: Vec<_> = FILE_CASES.iter().map(|id| terminal_pass(id)).collect();
-    let migration = json!({ "id": "m1", "status": "fail", "terminal": true, "sourcePreserved": false });
+    let migration =
+        json!({ "id": "m1", "status": "fail", "terminal": true, "sourcePreserved": false });
     let input = json!({
         "cases": cases,
         "migrations": [migration],
@@ -59,9 +66,15 @@ fn desktop_storage_fails_when_migration_source_not_preserved() {
 
 #[test]
 fn desktop_storage_flags_duplicate_locations() {
-    let input = json!({ "locations": { "data": "same", "cache": "same", "logs": "l", "temp": "t" } });
+    let input =
+        json!({ "locations": { "data": "same", "cache": "same", "logs": "l", "temp": "t" } });
     let out = evaluate_desktop_storage(&input);
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"storage-locations-not-separated"));
 }
 
@@ -81,7 +94,12 @@ fn integrate_desktop_evidence_stop_ships_on_nonterminal_receipt() {
     let out = integrate_desktop_evidence(&input);
     assert_eq!(out["status"], "fail");
     assert_eq!(out["stopShip"], true);
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.iter().any(|g| g.starts_with("receipt-nonterminal:")));
 }
 
@@ -101,7 +119,9 @@ fn integrate_desktop_evidence_passes_with_closed_controls_and_families() {
         ("legion-desktop-windows", json!({})),
     ] {
         let mut r = json!({ "targetId": "t1", "terminal": true, "status": "pass", "kind": kind });
-        r.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        r.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
         receipts.push(r);
     }
     let input = json!({
@@ -129,7 +149,12 @@ fn integrate_desktop_evidence_drops_source_regex_only_release_claims() {
         "platformMatrices": [],
     });
     let out = integrate_desktop_evidence(&input);
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"native-release-evidence-missing:release-signing"));
     assert!(gaps.contains(&"control-missing:release-signing"));
 }
@@ -154,7 +179,10 @@ fn installer_lifecycle_allows_destructive_target_inside_temp() {
 #[test]
 fn installer_lifecycle_unsafe_rollback_forces_fail() {
     let mut scenarios: Vec<_> = INSTALLER_CASES.iter().map(|id| terminal_pass(id)).collect();
-    let idx = INSTALLER_CASES.iter().position(|id| *id == "rollback").unwrap();
+    let idx = INSTALLER_CASES
+        .iter()
+        .position(|id| *id == "rollback")
+        .unwrap();
     scenarios[idx] = json!({ "id": "rollback", "status": "pass", "terminal": true, "newerDataPreserved": false });
     let input = json!({
         "package": { "digest": format!("sha256:{}", "a".repeat(64)), "production": true, "signatureReceipt": { "status": "pass", "artifactDigest": format!("sha256:{}", "a".repeat(64)) } },
@@ -235,7 +263,12 @@ fn desktop_ipc_flags_bypassed_denial() {
 #[test]
 fn linux_platform_requires_matrix_binding() {
     let out = evaluate_linux_platform(&json!({ "capability": { "status": "available" } }));
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"linux-matrix-incomplete"));
     assert!(gaps.iter().any(|g| g.starts_with("linux-case-missing:")));
 }
@@ -250,7 +283,12 @@ fn macos_platform_requires_final_artifact_for_notarization() {
         "artifact": { "final": false },
     });
     let out = evaluate_macos_platform(&input);
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"macos-final-artifact-unproven:notarization"));
     assert!(gaps.contains(&"macos-final-artifact-unproven:gatekeeper"));
 }
@@ -270,7 +308,12 @@ fn compile_os_matrix_synthesizes_missing_cases() {
 fn compile_os_matrix_flags_caller_defined_extra_case() {
     let input = json!({ "required": ["single-instance"], "cases": [{ "id": "not-required" }] });
     let out = compile_desktop_os_matrix(&input);
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"caller-defined-matrix-case:not-required"));
 }
 
@@ -294,7 +337,12 @@ fn compile_os_matrix_requires_host_unavailable_detail_for_unsupported() {
     });
     let input = json!({ "required": ["screen-reader"], "cases": [case] });
     let out = compile_desktop_os_matrix(&input);
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"host-unavailable-detail-missing:screen-reader"));
 }
 
@@ -311,7 +359,10 @@ fn full_measurement(id: &str) -> serde_json::Value {
 
 #[test]
 fn desktop_performance_passes_with_full_evidence() {
-    let measurements: Vec<_> = PERFORMANCE_CASES.iter().map(|id| full_measurement(id)).collect();
+    let measurements: Vec<_> = PERFORMANCE_CASES
+        .iter()
+        .map(|id| full_measurement(id))
+        .collect();
     let input = json!({
         "artifact": { "build": "release", "digest": format!("sha256:{}", "b".repeat(64)) },
         "environment": {
@@ -327,7 +378,10 @@ fn desktop_performance_passes_with_full_evidence() {
 
 #[test]
 fn desktop_performance_soak_only_gaps_are_partial() {
-    let measurements: Vec<_> = PERFORMANCE_CASES.iter().map(|id| full_measurement(id)).collect();
+    let measurements: Vec<_> = PERFORMANCE_CASES
+        .iter()
+        .map(|id| full_measurement(id))
+        .collect();
     let input = json!({
         "artifact": { "build": "release", "digest": format!("sha256:{}", "b".repeat(64)) },
         "environment": {
@@ -354,7 +408,12 @@ fn desktop_performance_missing_environment_is_unproven() {
 #[test]
 fn collect_desktop_runtime_flags_unsupported_framework_and_missing_binding() {
     let out = collect_desktop_runtime(&json!({ "target": { "framework": "unknown" } }));
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"target-id-missing"));
     assert!(gaps.contains(&"framework-unsupported"));
     assert!(gaps.contains(&"artifact-binding-incomplete"));
@@ -404,14 +463,22 @@ fn updater_evidence_flags_forged_caller_boolean() {
     let input = json!({ "artifact": { "forgedCaller": true } });
     let out = evaluate_updater_evidence(&input);
     assert_eq!(out["status"], "fail");
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"forged-caller-boolean:forgedCaller"));
 }
 
 #[test]
 fn updater_evidence_flags_bypassed_verification() {
     let mut attempts: Vec<_> = UPDATE_CASES.iter().map(|id| terminal_pass(id)).collect();
-    let idx = UPDATE_CASES.iter().position(|id| *id == "forged-payload").unwrap();
+    let idx = UPDATE_CASES
+        .iter()
+        .position(|id| *id == "forged-payload")
+        .unwrap();
     attempts[idx] = json!({ "id": "forged-payload", "status": "fail", "terminal": true, "verificationPassed": false, "executed": true });
     let input = json!({ "attempts": attempts });
     let out = evaluate_updater_evidence(&input);
@@ -441,7 +508,12 @@ fn updater_evidence_flags_sensitive_log_line() {
         },
     });
     let out = evaluate_updater_evidence(&input);
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"updater-log-sensitive"));
 }
 
@@ -482,15 +554,26 @@ fn windows_platform_requires_final_artifact_for_authenticode() {
         "artifact": { "final": false },
     });
     let out = evaluate_windows_platform(&input);
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.contains(&"windows-final-artifact-unproven:authenticode"));
     assert!(gaps.contains(&"windows-final-artifact-unproven:installer"));
 }
 
 #[test]
 fn windows_platform_default_capability_is_available() {
-    let out = evaluate_windows_platform(&json!({ "matrix": { "version": "11", "architecture": "x64" } }));
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let out =
+        evaluate_windows_platform(&json!({ "matrix": { "version": "11", "architecture": "x64" } }));
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(!gaps.iter().any(|g| g.starts_with("windows-capability-")));
 }
 
@@ -517,8 +600,19 @@ fn execute_desktop_storage_without_host_falls_back_to_unproven_evaluate() {
 
 #[test]
 fn execute_desktop_runtime_without_host_reports_unavailable_capability() {
-    let out = execute_desktop_runtime(None, &json!({ "id": "t1", "framework": "tauri" }), &json!({}), &json!({}), false);
+    let out = execute_desktop_runtime(
+        None,
+        &json!({ "id": "t1", "framework": "tauri" }),
+        &json!({}),
+        &json!({}),
+        false,
+    );
     assert_eq!(out["binding"]["targetId"], "t1");
-    let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let gaps: Vec<&str> = out["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(gaps.iter().any(|g| g.starts_with("native-capability-")));
 }

@@ -18,8 +18,8 @@ use serde_json::{json, Value};
 
 use super::manual_edit_deps::{LiveServerManualEditDeps, QueueCallbacks};
 use super::queue::QueueState;
-use super::server_info::remove_live_server_info;
 use super::remove_all_svelte_component_sessions;
+use super::server_info::remove_live_server_info;
 use crate::wf_port::w2_020::browser_script_parts::{
     assemble_live_browser_script, read_live_browser_script_parts,
     resolve_live_browser_script_parts, LIVE_BROWSER_SCRIPT_PARTS,
@@ -48,7 +48,9 @@ fn candidate_scripts_dirs(project_root: &Path) -> Vec<std::path::PathBuf> {
 /// the same 500 `assertLiveBrowserScriptParts` would have raised at
 /// startup).
 fn find_scripts_dir(project_root: &Path) -> Option<std::path::PathBuf> {
-    candidate_scripts_dirs(project_root).into_iter().find(|d| d.is_dir())
+    candidate_scripts_dirs(project_root)
+        .into_iter()
+        .find(|d| d.is_dir())
 }
 
 struct Request {
@@ -84,10 +86,9 @@ fn urldecode(s: &str) -> String {
                 i += 1;
             }
             b'%' if i + 2 < bytes.len() => {
-                if let Ok(byte) = u8::from_str_radix(
-                    std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""),
-                    16,
-                ) {
+                if let Ok(byte) =
+                    u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+                {
                     out.push(byte);
                     i += 3;
                 } else {
@@ -200,7 +201,9 @@ const MAX_ANNOTATION_BYTES: usize = 10 * 1024 * 1024;
 fn is_valid_event_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= 64
-        && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
 fn handle_request<'a>(
@@ -226,7 +229,13 @@ fn handle_request<'a>(
         ("GET", "/stop") => {
             let provided = req.query.get("token").map(String::as_str).unwrap_or("");
             if provided != token {
-                write_response(&mut stream, 401, "Unauthorized", "text/plain", b"Unauthorized");
+                write_response(
+                    &mut stream,
+                    401,
+                    "Unauthorized",
+                    "text/plain",
+                    b"Unauthorized",
+                );
                 return true;
             }
             write_json(&mut stream, 200, "OK", &json!({ "ok": true }));
@@ -235,7 +244,13 @@ fn handle_request<'a>(
         ("POST", "/events") => {
             let provided = req.query.get("token").map(String::as_str).unwrap_or("");
             if provided != token {
-                write_response(&mut stream, 401, "Unauthorized", "text/plain", b"Unauthorized");
+                write_response(
+                    &mut stream,
+                    401,
+                    "Unauthorized",
+                    "text/plain",
+                    b"Unauthorized",
+                );
                 return true;
             }
             match serde_json::from_slice::<Value>(&req.body) {
@@ -261,13 +276,21 @@ fn handle_request<'a>(
         ("GET", "/poll") => {
             let provided = req.query.get("token").map(String::as_str).unwrap_or("");
             if provided != token {
-                write_response(&mut stream, 401, "Unauthorized", "text/plain", b"Unauthorized");
+                write_response(
+                    &mut stream,
+                    401,
+                    "Unauthorized",
+                    "text/plain",
+                    b"Unauthorized",
+                );
                 return true;
             }
             let deadline = std::time::Instant::now() + DEFAULT_POLL_TIMEOUT;
             loop {
                 if let Some(entry) = queue.find_available_pending_event() {
-                    let event = queue.lease_event(entry.seq, POLL_LEASE_MS).unwrap_or(entry.event);
+                    let event = queue
+                        .lease_event(entry.seq, POLL_LEASE_MS)
+                        .unwrap_or(entry.event);
                     write_json(&mut stream, 200, "OK", &event);
                     return true;
                 }
@@ -282,7 +305,13 @@ fn handle_request<'a>(
             // Acknowledge a previously leased event: body is `{ "id": "..." }`.
             let provided = req.query.get("token").map(String::as_str).unwrap_or("");
             if provided != token {
-                write_response(&mut stream, 401, "Unauthorized", "text/plain", b"Unauthorized");
+                write_response(
+                    &mut stream,
+                    401,
+                    "Unauthorized",
+                    "text/plain",
+                    b"Unauthorized",
+                );
                 return true;
             }
             let id = serde_json::from_slice::<Value>(&req.body)
@@ -294,7 +323,12 @@ fn handle_request<'a>(
                     write_json(&mut stream, 200, "OK", &json!({ "ok": acked.is_some() }));
                 }
                 None => {
-                    write_json(&mut stream, 400, "Bad Request", &json!({ "error": "Missing id" }));
+                    write_json(
+                        &mut stream,
+                        400,
+                        "Bad Request",
+                        &json!({ "error": "Missing id" }),
+                    );
                 }
             }
             true
@@ -302,7 +336,13 @@ fn handle_request<'a>(
         ("GET", "/status") => {
             let provided = req.query.get("token").map(String::as_str).unwrap_or("");
             if provided != token {
-                write_response(&mut stream, 401, "Unauthorized", "text/plain", b"Unauthorized");
+                write_response(
+                    &mut stream,
+                    401,
+                    "Unauthorized",
+                    "text/plain",
+                    b"Unauthorized",
+                );
                 return true;
             }
             // Faithful for `pendingEvents`; the other JS `/status` fields
@@ -328,7 +368,13 @@ fn handle_request<'a>(
             let scripts_dir = match find_scripts_dir(project_root) {
                 Some(d) => d,
                 None => {
-                    write_response(&mut stream, 500, "Internal Server Error", "text/plain", b"scripts dir not found");
+                    write_response(
+                        &mut stream,
+                        500,
+                        "Internal Server Error",
+                        "text/plain",
+                        b"scripts dir not found",
+                    );
                     return true;
                 }
             };
@@ -338,38 +384,71 @@ fn handle_request<'a>(
             ) {
                 Ok(r) => r,
                 Err(e) => {
-                    write_response(&mut stream, 500, "Internal Server Error", "text/plain", e.as_bytes());
+                    write_response(
+                        &mut stream,
+                        500,
+                        "Internal Server Error",
+                        "text/plain",
+                        e.as_bytes(),
+                    );
                     return true;
                 }
             };
-            let parts = match read_live_browser_script_parts(&resolved, |p| std::fs::read_to_string(p)) {
-                Ok(p) => p,
-                Err(e) => {
-                    let msg = format!("Error reading live browser scripts: {e}");
-                    write_response(&mut stream, 500, "Internal Server Error", "text/plain", msg.as_bytes());
-                    return true;
-                }
-            };
+            let parts =
+                match read_live_browser_script_parts(&resolved, |p| std::fs::read_to_string(p)) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let msg = format!("Error reading live browser scripts: {e}");
+                        write_response(
+                            &mut stream,
+                            500,
+                            "Internal Server Error",
+                            "text/plain",
+                            msg.as_bytes(),
+                        );
+                        return true;
+                    }
+                };
             let vocab_value = Value::Array(
                 live_commands()
                     .into_iter()
                     .map(|c| json!({ "value": c.value, "label": c.label, "icon": c.icon }))
                     .collect::<Vec<_>>(),
             );
-            let vocab_json = serde_json::to_string(&vocab_value).unwrap_or_else(|_| "[]".to_string());
+            let vocab_json =
+                serde_json::to_string(&vocab_value).unwrap_or_else(|_| "[]".to_string());
             let body = assemble_live_browser_script(token, port, &vocab_json, &parts);
-            write_response(&mut stream, 200, "OK", "application/javascript", body.as_bytes());
+            write_response(
+                &mut stream,
+                200,
+                "OK",
+                "application/javascript",
+                body.as_bytes(),
+            );
             true
         }
         ("GET", "/detect.js") | ("GET", "/") => {
             let scripts_dir = find_scripts_dir(project_root);
-            let detect_path = scripts_dir.map(|d| d.join("detector").join("detect-antipatterns-browser.js"));
+            let detect_path =
+                scripts_dir.map(|d| d.join("detector").join("detect-antipatterns-browser.js"));
             match detect_path.and_then(|p| std::fs::read_to_string(p).ok()) {
                 Some(content) => {
-                    write_response(&mut stream, 200, "OK", "application/javascript", content.as_bytes());
+                    write_response(
+                        &mut stream,
+                        200,
+                        "OK",
+                        "application/javascript",
+                        content.as_bytes(),
+                    );
                 }
                 None => {
-                    write_response(&mut stream, 404, "Not Found", "text/plain", b"Not available");
+                    write_response(
+                        &mut stream,
+                        404,
+                        "Not Found",
+                        "text/plain",
+                        b"Not available",
+                    );
                 }
             }
             true
@@ -377,12 +456,23 @@ fn handle_request<'a>(
         ("POST", "/annotation") => {
             let provided = req.query.get("token").map(String::as_str).unwrap_or("");
             if provided != token {
-                write_response(&mut stream, 401, "Unauthorized", "text/plain", b"Unauthorized");
+                write_response(
+                    &mut stream,
+                    401,
+                    "Unauthorized",
+                    "text/plain",
+                    b"Unauthorized",
+                );
                 return true;
             }
             let event_id = req.query.get("eventId").map(String::as_str).unwrap_or("");
             if !is_valid_event_id(event_id) {
-                write_json(&mut stream, 400, "Bad Request", &json!({ "error": "Invalid eventId" }));
+                write_json(
+                    &mut stream,
+                    400,
+                    "Bad Request",
+                    &json!({ "error": "Invalid eventId" }),
+                );
                 return true;
             }
             if !req.content_type.eq_ignore_ascii_case("image/png") {
@@ -395,7 +485,12 @@ fn handle_request<'a>(
                 return true;
             }
             if req.body.len() > MAX_ANNOTATION_BYTES {
-                write_json(&mut stream, 413, "Payload Too Large", &json!({ "error": "Payload too large" }));
+                write_json(
+                    &mut stream,
+                    413,
+                    "Payload Too Large",
+                    &json!({ "error": "Payload too large" }),
+                );
                 return true;
             }
             let abs_path = session_dir.join(format!("{event_id}.png"));
@@ -433,7 +528,11 @@ fn handle_request<'a>(
             let manual_req = ManualEditRequest {
                 method: req.method.clone(),
                 path: req.path.clone(),
-                query: req.query.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+                query: req
+                    .query
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect(),
                 body,
             };
             let deps = LiveServerManualEditDeps {
@@ -536,7 +635,10 @@ mod tests {
     #[test]
     fn health_check_returns_ok_json() {
         let queue = QueueState::new();
-        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
         let req = Request {
             method: "GET".into(),
             path: "/health".into(),
@@ -546,7 +648,16 @@ mod tests {
         };
         let mut out = Vec::new();
         let session_dir = std::env::temp_dir();
-        let keep_running = handle_request(req, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
+        let keep_running = handle_request(
+            req,
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            &session_dir,
+        );
         assert!(keep_running);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("200 OK"));
@@ -556,17 +667,31 @@ mod tests {
     #[test]
     fn events_post_requires_matching_token() {
         let queue = QueueState::new();
-        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
         let req = Request {
             method: "POST".into(),
             path: "/events".into(),
-            query: [("token".to_string(), "wrong".to_string())].into_iter().collect(),
+            query: [("token".to_string(), "wrong".to_string())]
+                .into_iter()
+                .collect(),
             body: b"{}".to_vec(),
             content_type: String::new(),
         };
         let mut out = Vec::new();
         let session_dir = std::env::temp_dir();
-        handle_request(req, &mut out, "correct", &queue, Path::new("."), 0, &controller, &session_dir);
+        handle_request(
+            req,
+            &mut out,
+            "correct",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            &session_dir,
+        );
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("401"));
         assert_eq!(queue.len(), 0);
@@ -575,28 +700,53 @@ mod tests {
     #[test]
     fn events_post_enqueues_and_poll_get_drains() {
         let queue = QueueState::new();
-        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
         let post = Request {
             method: "POST".into(),
             path: "/events".into(),
-            query: [("token".to_string(), "tok".to_string())].into_iter().collect(),
+            query: [("token".to_string(), "tok".to_string())]
+                .into_iter()
+                .collect(),
             body: br#"{"id":"e1","type":"generate"}"#.to_vec(),
             content_type: String::new(),
         };
         let mut out = Vec::new();
         let session_dir = std::env::temp_dir();
-        handle_request(post, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
+        handle_request(
+            post,
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            &session_dir,
+        );
         assert_eq!(queue.len(), 1);
 
         let poll = Request {
             method: "GET".into(),
             path: "/poll".into(),
-            query: [("token".to_string(), "tok".to_string())].into_iter().collect(),
+            query: [("token".to_string(), "tok".to_string())]
+                .into_iter()
+                .collect(),
             body: vec![],
             content_type: String::new(),
         };
         let mut poll_out = Vec::new();
-        handle_request(poll, &mut poll_out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
+        handle_request(
+            poll,
+            &mut poll_out,
+            "tok",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            &session_dir,
+        );
         let text = String::from_utf8(poll_out).unwrap();
         assert!(text.contains("\"id\":\"e1\""));
         // Leased (has an id) so it remains queued until acked.
@@ -606,7 +756,10 @@ mod tests {
     #[test]
     fn poll_post_acknowledges_event() {
         let queue = QueueState::new();
-        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
         queue.enqueue_event(json!({"id": "e1", "type": "generate"}));
         let entry = queue.find_available_pending_event().unwrap();
         queue.lease_event(entry.seq, 30_000);
@@ -614,13 +767,24 @@ mod tests {
         let ack = Request {
             method: "POST".into(),
             path: "/poll".into(),
-            query: [("token".to_string(), "tok".to_string())].into_iter().collect(),
+            query: [("token".to_string(), "tok".to_string())]
+                .into_iter()
+                .collect(),
             body: br#"{"id":"e1"}"#.to_vec(),
             content_type: String::new(),
         };
         let mut out = Vec::new();
         let session_dir = std::env::temp_dir();
-        handle_request(ack, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
+        handle_request(
+            ack,
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            &session_dir,
+        );
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("\"ok\":true"));
         assert_eq!(queue.len(), 0);
@@ -634,7 +798,10 @@ mod tests {
         // script body — mirrors `assertLiveBrowserScriptParts` raising at
         // startup when a part file is missing.
         let queue = QueueState::new();
-        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
         let req = Request {
             method: "GET".into(),
             path: "/live.js".into(),
@@ -652,7 +819,16 @@ mod tests {
                 .as_nanos()
         ));
         let session_dir = std::env::temp_dir();
-        handle_request(req, &mut out, "tok", &queue, &dir, 0, &controller, &session_dir);
+        handle_request(
+            req,
+            &mut out,
+            "tok",
+            &queue,
+            &dir,
+            0,
+            &controller,
+            &session_dir,
+        );
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("500"));
     }
@@ -660,7 +836,10 @@ mod tests {
     #[test]
     fn annotation_post_stages_png_to_session_dir() {
         let queue = QueueState::new();
-        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
         let session_dir = std::env::temp_dir().join(format!(
             "legion-r24-annotation-test-{}-{}",
             std::process::id(),
@@ -683,7 +862,16 @@ mod tests {
             content_type: "image/png".to_string(),
         };
         let mut out = Vec::new();
-        handle_request(req, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
+        handle_request(
+            req,
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            &session_dir,
+        );
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("200"));
         assert!(text.contains("\"ok\":true"));
@@ -694,27 +882,52 @@ mod tests {
     #[test]
     fn stop_route_requires_token_and_signals_shutdown() {
         let queue = QueueState::new();
-        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
         let session_dir = std::env::temp_dir();
         let bad = Request {
             method: "GET".into(),
             path: "/stop".into(),
-            query: [("token".to_string(), "wrong".to_string())].into_iter().collect(),
+            query: [("token".to_string(), "wrong".to_string())]
+                .into_iter()
+                .collect(),
             body: vec![],
             content_type: String::new(),
         };
         let mut out = Vec::new();
-        assert!(handle_request(bad, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir));
+        assert!(handle_request(
+            bad,
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            &session_dir
+        ));
 
         let good = Request {
             method: "GET".into(),
             path: "/stop".into(),
-            query: [("token".to_string(), "tok".to_string())].into_iter().collect(),
+            query: [("token".to_string(), "tok".to_string())]
+                .into_iter()
+                .collect(),
             body: vec![],
             content_type: String::new(),
         };
         let mut out2 = Vec::new();
-        assert!(!handle_request(good, &mut out2, "tok", &queue, Path::new("."), 0, &controller, &session_dir));
+        assert!(!handle_request(
+            good,
+            &mut out2,
+            "tok",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            &session_dir
+        ));
     }
 
     #[test]

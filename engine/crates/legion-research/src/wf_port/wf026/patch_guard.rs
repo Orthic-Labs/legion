@@ -16,8 +16,8 @@
 //! side would change behaviour beyond what was asked (faithful port); see
 //! the packet report for this observation.
 
-use hmac::{Hmac, Mac};
 use hmac::digest::KeyInit;
+use hmac::{Hmac, Mac};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fmt;
@@ -151,7 +151,13 @@ fn canonical_json(value: &Value) -> String {
             keys.sort();
             let parts: Vec<String> = keys
                 .into_iter()
-                .map(|k| format!("{}:{}", canonical_json(&Value::String(k.clone())), canonical_json(&map[k])))
+                .map(|k| {
+                    format!(
+                        "{}:{}",
+                        canonical_json(&Value::String(k.clone())),
+                        canonical_json(&map[k])
+                    )
+                })
                 .collect();
             format!("{{{}}}", parts.join(","))
         }
@@ -177,7 +183,8 @@ pub fn issue_receipt(
     run_id: &str,
     key_path: Option<&Path>,
 ) -> Result<Value, PatchGuardError> {
-    let draft_bytes = fs::read(draft).map_err(|e| PatchGuardError(format!("cannot read draft: {e}")))?;
+    let draft_bytes =
+        fs::read(draft).map_err(|e| PatchGuardError(format!("cannot read draft: {e}")))?;
     let mut hasher = Sha256::new();
     hasher.update(&draft_bytes);
     let draft_sha256 = hex::encode(hasher.finalize());
@@ -271,7 +278,10 @@ mod tests {
         let expected_sha = hex::encode(hasher.finalize());
         assert_eq!(receipt["sourced_draft_sha256"], json!(expected_sha));
 
-        assert!(receipt["signature"].as_str().unwrap().starts_with("hmac-sha256:"));
+        assert!(receipt["signature"]
+            .as_str()
+            .unwrap()
+            .starts_with("hmac-sha256:"));
     }
 
     #[test]
@@ -327,6 +337,9 @@ mod tests {
 
         let receipt_a = issue_receipt(&draft_a, "run-test", Some(&key_path)).unwrap();
         let receipt_b = issue_receipt(&draft_b, "run-test", Some(&key_path)).unwrap();
-        assert_ne!(receipt_a["sourced_draft_sha256"], receipt_b["sourced_draft_sha256"]);
+        assert_ne!(
+            receipt_a["sourced_draft_sha256"],
+            receipt_b["sourced_draft_sha256"]
+        );
     }
 }

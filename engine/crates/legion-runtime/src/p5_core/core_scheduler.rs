@@ -167,7 +167,10 @@ pub fn schedule_providers(
             if blocked.contains_key(&p.id) {
                 continue;
             }
-            if let Some(dep) = deps[p.id.as_str()].iter().find(|d| blocked.contains_key(*d)) {
+            if let Some(dep) = deps[p.id.as_str()]
+                .iter()
+                .find(|d| blocked.contains_key(*d))
+            {
                 block(blocked, &p.id, format!("dependency-blocked:{dep}"));
                 changed = true;
             }
@@ -314,7 +317,10 @@ mod tests {
     #[test]
     fn provider_dependencies_dedupes() {
         let p = SchedulerProvider::new("a").with_dependencies(["x", "y", "x"]);
-        assert_eq!(provider_dependencies(&p), vec!["x".to_string(), "y".to_string()]);
+        assert_eq!(
+            provider_dependencies(&p),
+            vec!["x".to_string(), "y".to_string()]
+        );
     }
 
     #[test]

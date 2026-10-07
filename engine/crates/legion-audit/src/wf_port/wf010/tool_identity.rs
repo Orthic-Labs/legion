@@ -163,8 +163,11 @@ pub async fn qualify_tool(
     #[cfg(not(unix))]
     let exit_code = exit_status.and_then(|status| status.code());
 
-    let executable_digest = if Path::new(executable).is_absolute() && Path::new(executable).exists() {
-        std::fs::read(executable).ok().map(|bytes| sha256_digest(&bytes))
+    let executable_digest = if Path::new(executable).is_absolute() && Path::new(executable).exists()
+    {
+        std::fs::read(executable)
+            .ok()
+            .map(|bytes| sha256_digest(&bytes))
     } else {
         None
     };

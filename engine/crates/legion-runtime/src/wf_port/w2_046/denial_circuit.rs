@@ -43,7 +43,10 @@ pub fn denial_control_class(input: DenialClassificationInput<'_>) -> String {
     if let Some(c) = input.control_class {
         return c.to_string();
     }
-    if matches!(input.event_type, Some("PreToolUse") | Some("PostToolUse") | Some("PostToolUseFailure")) {
+    if matches!(
+        input.event_type,
+        Some("PreToolUse") | Some("PostToolUse") | Some("PostToolUseFailure")
+    ) {
         return "effect".to_string();
     }
     if let Some(code) = input.code {
@@ -151,7 +154,11 @@ impl DenialRecorder for MemoryDenialCircuit {
             &missing_evidence_digest,
             &target_digest,
         );
-        let scope = (record.session_id.clone(), record.run_id.clone(), record.task_id.clone());
+        let scope = (
+            record.session_id.clone(),
+            record.run_id.clone(),
+            record.task_id.clone(),
+        );
         let prior = self.store.get(&scope).cloned();
         let count = match &prior {
             Some((prior_fp, prior_count)) if *prior_fp == fingerprint => {
@@ -162,7 +169,10 @@ impl DenialRecorder for MemoryDenialCircuit {
         self.store.insert(scope, (fingerprint.clone(), count));
         let opened = count >= MAX_IDENTICAL_DENIALS
             && !matches!(record.control_class.as_str(), "effect" | "security");
-        Ok(RecordOutcome { receipt: DenialReceipt { fingerprint, count }, opened })
+        Ok(RecordOutcome {
+            receipt: DenialReceipt { fingerprint, count },
+            opened,
+        })
     }
 }
 
@@ -281,7 +291,12 @@ impl<'a> FileDenialCircuit<'a> {
                 message: "authenticated denial circuit requires root and active key".to_string(),
             });
         }
-        Ok(Self { root, key_ring, key_id: key_id.to_string(), clock })
+        Ok(Self {
+            root,
+            key_ring,
+            key_id: key_id.to_string(),
+            clock,
+        })
     }
 }
 
@@ -290,10 +305,16 @@ impl<'a> DenialRecorder for FileDenialCircuit<'a> {
 
     fn record(&mut self, record: DenialRecord) -> Result<RecordOutcome, Self::Error> {
         if record.session_id.is_empty() || record.run_id.is_empty() || record.task_id.is_empty() {
-            return Err(DenialCircuitError { code: "ARC_SCHEMA_INVALID", message: "denial circuit requires sessionId/runId/taskId".to_string() });
+            return Err(DenialCircuitError {
+                code: "ARC_SCHEMA_INVALID",
+                message: "denial circuit requires sessionId/runId/taskId".to_string(),
+            });
         }
         if record.control_class.is_empty() || record.code.is_empty() {
-            return Err(DenialCircuitError { code: "ARC_SCHEMA_INVALID", message: "denial circuit requires controlClass/code".to_string() });
+            return Err(DenialCircuitError {
+                code: "ARC_SCHEMA_INVALID",
+                message: "denial circuit requires controlClass/code".to_string(),
+            });
         }
         let missing_evidence_digest = {
             let mut sorted = record.missing_evidence.clone();
@@ -310,22 +331,41 @@ impl<'a> DenialRecorder for FileDenialCircuit<'a> {
             &missing_evidence_digest,
             &target_digest,
         );
-        let path = record_path(&self.root, &record.session_id, &record.run_id, &record.task_id);
+        let path = record_path(
+            &self.root,
+            &record.session_id,
+            &record.run_id,
+            &record.task_id,
+        );
 
         let mut run_body = || -> Result<RecordOutcome, DenialCircuitError> {
             let prior: Option<Value> = if path.exists() {
-                let text = std::fs::read_to_string(&path)
-                    .map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
-                let parsed: Value = serde_json::from_str(&text)
-                    .map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
+                let text = std::fs::read_to_string(&path).map_err(|e| DenialCircuitError {
+                    code: "ARC_STORE_CORRUPT",
+                    message: e.to_string(),
+                })?;
+                let parsed: Value =
+                    serde_json::from_str(&text).map_err(|e| DenialCircuitError {
+                        code: "ARC_STORE_CORRUPT",
+                        message: e.to_string(),
+                    })?;
                 let auth = parsed.get("authentication").cloned().unwrap_or(Value::Null);
                 let expected_binding = [
                     ("sessionId", record.session_id.as_str()),
                     ("runId", record.run_id.as_str()),
                     ("taskId", record.task_id.as_str()),
                 ];
-                verify_record(&parsed, &auth, self.key_ring, DENIAL_CIRCUIT_BOUND_FIELDS, &expected_binding, Some(DOMAIN)).map_err(|d| {
-                    DenialCircuitError { code: d.code, message: d.message }
+                verify_record(
+                    &parsed,
+                    &auth,
+                    self.key_ring,
+                    DENIAL_CIRCUIT_BOUND_FIELDS,
+                    &expected_binding,
+                    Some(DOMAIN),
+                )
+                .map_err(|d| DenialCircuitError {
+                    code: d.code,
+                    message: d.message,
                 })?;
                 Some(parsed)
             } else {
@@ -333,7 +373,10 @@ impl<'a> DenialRecorder for FileDenialCircuit<'a> {
             };
 
             let count = match &prior {
-                Some(p) if p.get("fingerprint").and_then(Value::as_str) == Some(fingerprint.as_str()) => {
+                Some(p)
+                    if p.get("fingerprint").and_then(Value::as_str)
+                        == Some(fingerprint.as_str()) =>
+                {
                     let prior_count = p.get("count").and_then(Value::as_u64).unwrap_or(0) as u32;
                     (prior_count + 1).min(MAX_IDENTICAL_DENIALS)
                 }
@@ -355,24 +398,56 @@ impl<'a> DenialRecorder for FileDenialCircuit<'a> {
                 "count": count,
                 "issuedAt": issued_at,
             });
-            let signed = sign_record(&receipt, self.key_ring, &self.key_id, DENIAL_CIRCUIT_BOUND_FIELDS, Some(DOMAIN))
-                .map_err(|e| DenialCircuitError { code: "ARC_AUTH_KEY_UNAVAILABLE", message: e.0 })?;
+            let signed = sign_record(
+                &receipt,
+                self.key_ring,
+                &self.key_id,
+                DENIAL_CIRCUIT_BOUND_FIELDS,
+                Some(DOMAIN),
+            )
+            .map_err(|e| DenialCircuitError {
+                code: "ARC_AUTH_KEY_UNAVAILABLE",
+                message: e.0,
+            })?;
             receipt["authentication"] = signed.to_json();
 
-            std::fs::create_dir_all(&self.root).map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
+            std::fs::create_dir_all(&self.root).map_err(|e| DenialCircuitError {
+                code: "ARC_STORE_CORRUPT",
+                message: e.to_string(),
+            })?;
             // `fingerprint` is a `digest_value` output ("sha256:<hex>"); the
             // ':' is illegal in a Windows filename (rename/create fails with
             // ERROR_INVALID_PARAMETER, os error 87), so sanitize it for the
             // tmp filename component. The colon never reaches disk in the
             // final `path` (that's `record_path`'s own sha256 hex digest).
             let fingerprint_for_filename = fingerprint.replace(':', "-");
-            let tmp = self.root.join(format!(".{}.{}.tmp", std::process::id(), fingerprint_for_filename));
-            std::fs::write(&tmp, format!("{}\n", serde_json::to_string(&receipt).unwrap()))
-                .map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
-            std::fs::rename(&tmp, &path).map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
+            let tmp = self.root.join(format!(
+                ".{}.{}.tmp",
+                std::process::id(),
+                fingerprint_for_filename
+            ));
+            std::fs::write(
+                &tmp,
+                format!("{}\n", serde_json::to_string(&receipt).unwrap()),
+            )
+            .map_err(|e| DenialCircuitError {
+                code: "ARC_STORE_CORRUPT",
+                message: e.to_string(),
+            })?;
+            std::fs::rename(&tmp, &path).map_err(|e| DenialCircuitError {
+                code: "ARC_STORE_CORRUPT",
+                message: e.to_string(),
+            })?;
 
-            let opened = count >= MAX_IDENTICAL_DENIALS && !matches!(record.control_class.as_str(), "effect" | "security");
-            Ok(RecordOutcome { receipt: DenialReceipt { fingerprint: fingerprint.clone(), count }, opened })
+            let opened = count >= MAX_IDENTICAL_DENIALS
+                && !matches!(record.control_class.as_str(), "effect" | "security");
+            Ok(RecordOutcome {
+                receipt: DenialReceipt {
+                    fingerprint: fingerprint.clone(),
+                    count,
+                },
+                opened,
+            })
         };
         run_body()
     }
@@ -406,8 +481,19 @@ mod tests {
 
     #[test]
     fn control_class_from_security_code_prefixes() {
-        for code in ["ARC_AUTH_FORGED", "ARC_BINDING_MISMATCH", "ARC_REPLAY_STALE", "ARC_CAPABILITY_EXPIRED", "ARC_HOST_EVENT_INVALID", "ARC_STORE_CORRUPT"] {
-            let class = denial_control_class(DenialClassificationInput { event_type: None, code: Some(code), control_class: None });
+        for code in [
+            "ARC_AUTH_FORGED",
+            "ARC_BINDING_MISMATCH",
+            "ARC_REPLAY_STALE",
+            "ARC_CAPABILITY_EXPIRED",
+            "ARC_HOST_EVENT_INVALID",
+            "ARC_STORE_CORRUPT",
+        ] {
+            let class = denial_control_class(DenialClassificationInput {
+                event_type: None,
+                code: Some(code),
+                control_class: None,
+            });
             assert_eq!(class, "security", "code={code}");
         }
     }
@@ -415,11 +501,19 @@ mod tests {
     #[test]
     fn control_class_escalation_and_stop() {
         assert_eq!(
-            denial_control_class(DenialClassificationInput { event_type: None, code: Some("ARC_ESCALATION_UNEVIDENCED"), control_class: None }),
+            denial_control_class(DenialClassificationInput {
+                event_type: None,
+                code: Some("ARC_ESCALATION_UNEVIDENCED"),
+                control_class: None
+            }),
             "escalation"
         );
         assert_eq!(
-            denial_control_class(DenialClassificationInput { event_type: None, code: Some("ARC_STOP_SHAPE"), control_class: None }),
+            denial_control_class(DenialClassificationInput {
+                event_type: None,
+                code: Some("ARC_STOP_SHAPE"),
+                control_class: None
+            }),
             "stop"
         );
     }
@@ -427,7 +521,11 @@ mod tests {
     #[test]
     fn control_class_default_is_evidence() {
         assert_eq!(
-            denial_control_class(DenialClassificationInput { event_type: None, code: Some("ARC_EVIDENCE_STALE"), control_class: None }),
+            denial_control_class(DenialClassificationInput {
+                event_type: None,
+                code: Some("ARC_EVIDENCE_STALE"),
+                control_class: None
+            }),
             "evidence"
         );
     }
@@ -453,7 +551,12 @@ mod tests {
         let out = apply_denial_circuit(
             result.clone(),
             Some(&mut circuit),
-            DenialContext { session_id: "s".into(), run_id: "r".into(), task_id: "t".into(), ..Default::default() },
+            DenialContext {
+                session_id: "s".into(),
+                run_id: "r".into(),
+                task_id: "t".into(),
+                ..Default::default()
+            },
         )
         .unwrap();
         assert_eq!(out.retry_signature, None);
@@ -465,7 +568,12 @@ mod tests {
         let out = apply_denial_circuit::<MemoryDenialCircuit>(
             result.clone(),
             None,
-            DenialContext { session_id: "s".into(), run_id: "r".into(), task_id: "t".into(), ..Default::default() },
+            DenialContext {
+                session_id: "s".into(),
+                run_id: "r".into(),
+                task_id: "t".into(),
+                ..Default::default()
+            },
         )
         .unwrap();
         assert_eq!(out.retry_signature, None);
@@ -474,7 +582,12 @@ mod tests {
     #[test]
     fn repeated_identical_denials_open_after_max() {
         let mut circuit = MemoryDenialCircuit::default();
-        let ctx = || DenialContext { session_id: "s".into(), run_id: "r".into(), task_id: "t".into(), ..Default::default() };
+        let ctx = || DenialContext {
+            session_id: "s".into(),
+            run_id: "r".into(),
+            task_id: "t".into(),
+            ..Default::default()
+        };
         let r1 = apply_denial_circuit(base_result(), Some(&mut circuit), ctx()).unwrap();
         assert!(!r1.termination_terminate);
         let r2 = apply_denial_circuit(base_result(), Some(&mut circuit), ctx()).unwrap();
@@ -487,7 +600,12 @@ mod tests {
         let mut circuit = MemoryDenialCircuit::default();
         let mut result = base_result();
         result.code = Some("ARC_AUTH_FORGED".to_string()); // -> security class
-        let ctx = || DenialContext { session_id: "s".into(), run_id: "r".into(), task_id: "t".into(), ..Default::default() };
+        let ctx = || DenialContext {
+            session_id: "s".into(),
+            run_id: "r".into(),
+            task_id: "t".into(),
+            ..Default::default()
+        };
         apply_denial_circuit(result.clone(), Some(&mut circuit), ctx()).unwrap();
         let r2 = apply_denial_circuit(result, Some(&mut circuit), ctx()).unwrap();
         assert!(!r2.termination_terminate);
@@ -497,7 +615,11 @@ mod tests {
     impl KeyRing for FixedKeyRing {
         fn get(&self, key_id: &str) -> Option<super::super::receipt_auth::KeyRingEntry<'_>> {
             if key_id == "k1" {
-                Some(super::super::receipt_auth::KeyRingEntry { key_id: "k1", key: b"denial-circuit-test-key", revoked: false })
+                Some(super::super::receipt_auth::KeyRingEntry {
+                    key_id: "k1",
+                    key: b"denial-circuit-test-key",
+                    revoked: false,
+                })
             } else {
                 None
             }
@@ -507,7 +629,11 @@ mod tests {
     fn temp_dir(name: &str) -> PathBuf {
         static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("legion-denial-circuit-{}-{}-{n}", std::process::id(), name));
+        let dir = std::env::temp_dir().join(format!(
+            "legion-denial-circuit-{}-{}-{n}",
+            std::process::id(),
+            name
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
@@ -558,7 +684,13 @@ mod tests {
     fn file_denial_circuit_different_fingerprint_resets_count() {
         let root = temp_dir("reset");
         let ring = FixedKeyRing;
-        let mut circuit = FileDenialCircuit::new(root.clone(), &ring, "k1", Box::new(|| "2026-01-01T00:00:00.000Z".to_string())).unwrap();
+        let mut circuit = FileDenialCircuit::new(
+            root.clone(),
+            &ring,
+            "k1",
+            Box::new(|| "2026-01-01T00:00:00.000Z".to_string()),
+        )
+        .unwrap();
 
         circuit.record(record_for("s1")).unwrap();
         let mut different = record_for("s1");
@@ -573,7 +705,13 @@ mod tests {
     fn file_denial_circuit_rejects_missing_key() {
         let root = temp_dir("missing-key");
         let ring = FixedKeyRing;
-        let mut circuit = FileDenialCircuit::new(root.clone(), &ring, "no-such-key", Box::new(|| "2026-01-01T00:00:00.000Z".to_string())).unwrap();
+        let mut circuit = FileDenialCircuit::new(
+            root.clone(),
+            &ring,
+            "no-such-key",
+            Box::new(|| "2026-01-01T00:00:00.000Z".to_string()),
+        )
+        .unwrap();
         let err = circuit.record(record_for("s1")).unwrap_err();
         assert_eq!(err.code, "ARC_AUTH_KEY_UNAVAILABLE");
         let _ = std::fs::remove_dir_all(&root);
@@ -584,15 +722,28 @@ mod tests {
         let root = temp_dir("tamper");
         let ring = FixedKeyRing;
         {
-            let mut circuit = FileDenialCircuit::new(root.clone(), &ring, "k1", Box::new(|| "2026-01-01T00:00:00.000Z".to_string())).unwrap();
+            let mut circuit = FileDenialCircuit::new(
+                root.clone(),
+                &ring,
+                "k1",
+                Box::new(|| "2026-01-01T00:00:00.000Z".to_string()),
+            )
+            .unwrap();
             circuit.record(record_for("s1")).unwrap();
         }
         let path = record_path(&root, "s1", "r", "t");
-        let mut body: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let mut body: Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         body["count"] = json!(999);
         std::fs::write(&path, serde_json::to_string(&body).unwrap()).unwrap();
 
-        let mut circuit = FileDenialCircuit::new(root.clone(), &ring, "k1", Box::new(|| "2026-01-01T00:00:01.000Z".to_string())).unwrap();
+        let mut circuit = FileDenialCircuit::new(
+            root.clone(),
+            &ring,
+            "k1",
+            Box::new(|| "2026-01-01T00:00:01.000Z".to_string()),
+        )
+        .unwrap();
         let err = circuit.record(record_for("s1")).unwrap_err();
         assert_eq!(err.code, "ARC_AUTH_FORGED");
 

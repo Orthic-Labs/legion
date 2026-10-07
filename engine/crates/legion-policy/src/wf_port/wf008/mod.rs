@@ -89,8 +89,9 @@ fn parse_note(value: &str, line_number: usize) -> Result<String, PolicyRuleCompi
     // grammar), so re-quoting and running it through a JSON string parser
     // is the faithful decode (handles `\"`, `\\`, `\n`, `\uXXXX`, ...).
     let wrapped = format!("\"{value}\"");
-    serde_json::from_str::<String>(&wrapped)
-        .map_err(|_| PolicyRuleCompileError::new(format!("line {line_number}: invalid note string")))
+    serde_json::from_str::<String>(&wrapped).map_err(|_| {
+        PolicyRuleCompileError::new(format!("line {line_number}: invalid note string"))
+    })
 }
 
 /// Parse controlled-English effect rules; comments and blank lines are
@@ -106,9 +107,9 @@ pub fn parse_policy_rules(source: &str) -> Result<Vec<ParsedRule>, PolicyRuleCom
             continue;
         }
         let line_number = index + 1;
-        let caps = re
-            .captures(line)
-            .ok_or_else(|| PolicyRuleCompileError::new(format!("line {line_number}: invalid rule")))?;
+        let caps = re.captures(line).ok_or_else(|| {
+            PolicyRuleCompileError::new(format!("line {line_number}: invalid rule"))
+        })?;
         let rule = caps.get(1).unwrap().as_str().to_string();
         let effect_class = caps.get(2).unwrap().as_str().to_string();
         let approval = caps.get(3).unwrap().as_str();
@@ -145,9 +146,20 @@ const EFFECT_CLASS_ENUM: &[&str] = &[
     "EXTERNAL_SIDE_EFFECT",
 ];
 const RULE_ENUM: &[&str] = &["allow", "deny"];
-const TRUST_MINIMUM_ENUM: &[&str] = &["host-connection-trust", "capability-signature", "unauthenticated"];
+const TRUST_MINIMUM_ENUM: &[&str] = &[
+    "host-connection-trust",
+    "capability-signature",
+    "unauthenticated",
+];
 const REQUIRED_ENFORCEMENT_ENUM: &[&str] = &["strong", "observed", "read_only", "unsupported"];
-const EFFECT_RULE_KEYS: &[&str] = &["effectClass", "rule", "approvalRequired", "trustMinimum", "requiredEnforcement", "note"];
+const EFFECT_RULE_KEYS: &[&str] = &[
+    "effectClass",
+    "rule",
+    "approvalRequired",
+    "trustMinimum",
+    "requiredEnforcement",
+    "note",
+];
 
 /// Structural validation of a compiled `effectRules` array against the
 /// `effectRules.items` subset of `policy-bundle-v1.schema.json`. See the
@@ -162,35 +174,53 @@ fn validate_effect_rules(effect_rules: &[Value]) -> Vec<String> {
         };
         for key in obj.keys() {
             if !EFFECT_RULE_KEYS.contains(&key.as_str()) {
-                issues.push(format!("effectRules[{i}]: additional property '{key}' is not allowed"));
+                issues.push(format!(
+                    "effectRules[{i}]: additional property '{key}' is not allowed"
+                ));
             }
         }
-        for required in ["effectClass", "rule", "approvalRequired", "trustMinimum", "requiredEnforcement"] {
+        for required in [
+            "effectClass",
+            "rule",
+            "approvalRequired",
+            "trustMinimum",
+            "requiredEnforcement",
+        ] {
             if !obj.contains_key(required) {
-                issues.push(format!("effectRules[{i}]: missing required property '{required}'"));
+                issues.push(format!(
+                    "effectRules[{i}]: missing required property '{required}'"
+                ));
             }
         }
         if let Some(v) = obj.get("effectClass") {
             match v.as_str() {
                 Some(s) if EFFECT_CLASS_ENUM.contains(&s) => {}
-                _ => issues.push(format!("effectRules[{i}].effectClass: must be one of {EFFECT_CLASS_ENUM:?}")),
+                _ => issues.push(format!(
+                    "effectRules[{i}].effectClass: must be one of {EFFECT_CLASS_ENUM:?}"
+                )),
             }
         }
         if let Some(v) = obj.get("rule") {
             match v.as_str() {
                 Some(s) if RULE_ENUM.contains(&s) => {}
-                _ => issues.push(format!("effectRules[{i}].rule: must be one of {RULE_ENUM:?}")),
+                _ => issues.push(format!(
+                    "effectRules[{i}].rule: must be one of {RULE_ENUM:?}"
+                )),
             }
         }
         if let Some(v) = obj.get("approvalRequired") {
             if !v.is_boolean() {
-                issues.push(format!("effectRules[{i}].approvalRequired: must be a boolean"));
+                issues.push(format!(
+                    "effectRules[{i}].approvalRequired: must be a boolean"
+                ));
             }
         }
         if let Some(v) = obj.get("trustMinimum") {
             match v.as_str() {
                 Some(s) if TRUST_MINIMUM_ENUM.contains(&s) => {}
-                _ => issues.push(format!("effectRules[{i}].trustMinimum: must be one of {TRUST_MINIMUM_ENUM:?}")),
+                _ => issues.push(format!(
+                    "effectRules[{i}].trustMinimum: must be one of {TRUST_MINIMUM_ENUM:?}"
+                )),
             }
         }
         if let Some(v) = obj.get("requiredEnforcement") {
@@ -217,7 +247,9 @@ pub fn compile_policy_rules(source: &str, base: &Value) -> Result<Value, PolicyR
 
     let base_effect_rules = base.get("effectRules").and_then(Value::as_array);
     let Some(base_effect_rules) = base_effect_rules else {
-        return Err(PolicyRuleCompileError::new("base policy has no effectRules"));
+        return Err(PolicyRuleCompileError::new(
+            "base policy has no effectRules",
+        ));
     };
     let base_classes: Vec<String> = base_effect_rules
         .iter()
@@ -246,25 +278,50 @@ pub fn compile_policy_rules(source: &str, base: &Value) -> Result<Value, PolicyR
         }
     }
 
-    let missing: Vec<&String> = base_classes.iter().filter(|c| !seen.contains(c.as_str())).collect();
+    let missing: Vec<&String> = base_classes
+        .iter()
+        .filter(|c| !seen.contains(c.as_str()))
+        .collect();
     if !missing.is_empty() {
-        let joined = missing.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ");
-        return Err(PolicyRuleCompileError::new(format!("missing effect class(es): {joined}")));
+        let joined = missing
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(PolicyRuleCompileError::new(format!(
+            "missing effect class(es): {joined}"
+        )));
     }
 
-    let by_class: HashMap<&str, &ParsedRule> = parsed.iter().map(|r| (r.effect_class.as_str(), r)).collect();
+    let by_class: HashMap<&str, &ParsedRule> = parsed
+        .iter()
+        .map(|r| (r.effect_class.as_str(), r))
+        .collect();
     let effect_rules: Vec<Value> = base_classes
         .iter()
-        .map(|c| serde_json::to_value(by_class.get(c.as_str()).expect("every base class was checked above")))
+        .map(|c| {
+            serde_json::to_value(
+                by_class
+                    .get(c.as_str())
+                    .expect("every base class was checked above"),
+            )
+        })
         .collect::<Result<_, _>>()
         .expect("ParsedRule always serializes");
 
     let mut bundle = base.clone();
     match bundle.as_object_mut() {
         Some(obj) => {
-            obj.insert("effectRules".to_string(), Value::Array(effect_rules.clone()));
+            obj.insert(
+                "effectRules".to_string(),
+                Value::Array(effect_rules.clone()),
+            );
         }
-        None => return Err(PolicyRuleCompileError::new("base policy has no effectRules")),
+        None => {
+            return Err(PolicyRuleCompileError::new(
+                "base policy has no effectRules",
+            ))
+        }
     }
 
     let issues = validate_effect_rules(&effect_rules);
@@ -280,16 +337,28 @@ pub fn compile_policy_rules(source: &str, base: &Value) -> Result<Value, PolicyR
 
 /// Mirrors JS `compilePolicyFiles`: reads a base policy JSON file and a
 /// rule-source text file from disk and compiles them.
-pub fn compile_policy_files(source_path: &std::path::Path, base_path: &std::path::Path) -> Result<Value, PolicyRuleCompileError> {
+pub fn compile_policy_files(
+    source_path: &std::path::Path,
+    base_path: &std::path::Path,
+) -> Result<Value, PolicyRuleCompileError> {
     let base_text = std::fs::read_to_string(base_path).map_err(|error| {
-        PolicyRuleCompileError::new(format!("base policy unreadable: {} ({error})", base_path.display()))
+        PolicyRuleCompileError::new(format!(
+            "base policy unreadable: {} ({error})",
+            base_path.display()
+        ))
     })?;
     let base: Value = serde_json::from_str(&base_text).map_err(|error| {
-        PolicyRuleCompileError::new(format!("base policy unreadable: {} ({error})", base_path.display()))
+        PolicyRuleCompileError::new(format!(
+            "base policy unreadable: {} ({error})",
+            base_path.display()
+        ))
     })?;
 
     let source = std::fs::read_to_string(source_path).map_err(|error| {
-        PolicyRuleCompileError::new(format!("rule source unreadable: {} ({error})", source_path.display()))
+        PolicyRuleCompileError::new(format!(
+            "rule source unreadable: {} ({error})",
+            source_path.display()
+        ))
     })?;
 
     compile_policy_rules(&source, &base)

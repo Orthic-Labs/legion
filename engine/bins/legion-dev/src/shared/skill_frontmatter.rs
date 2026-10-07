@@ -18,8 +18,17 @@ const LIST_FIELDS: &[&str] = &["operations", "effects", "hostRequirements"];
 const KINDS: &[&str] = &["capability", "entrypoint"];
 const CAPABILITY_CLASSES: &[&str] = &["domain", "workflow", "context"];
 const DISCOVERABILITY: &[&str] = &["public", "explicit", "internal"];
-const DOMAINS: &[&str] = &["engineering", "research", "commercial", "editorial", "design", "null"];
-const OPERATIONS: &[&str] = &["route", "analyze", "diagnose", "decide", "produce", "evaluate", "execute"];
+const DOMAINS: &[&str] = &[
+    "engineering",
+    "research",
+    "commercial",
+    "editorial",
+    "design",
+    "null",
+];
+const OPERATIONS: &[&str] = &[
+    "route", "analyze", "diagnose", "decide", "produce", "evaluate", "execute",
+];
 const EFFECTS: &[&str] = &[
     "source-read",
     "artifact-write",
@@ -53,7 +62,10 @@ impl Frontmatter {
         if let Some(cc) = &self.capability_class {
             out.insert("capabilityClass".into(), Value::from(cc.clone()));
         }
-        out.insert("discoverability".into(), Value::from(self.discoverability.clone()));
+        out.insert(
+            "discoverability".into(),
+            Value::from(self.discoverability.clone()),
+        );
         if let Some(d) = &self.domain {
             out.insert("domain".into(), Value::from(d.clone()));
         }
@@ -67,7 +79,13 @@ impl Frontmatter {
         );
         out.insert(
             "hostRequirements".into(),
-            Value::Array(self.host_requirements.iter().cloned().map(Value::from).collect()),
+            Value::Array(
+                self.host_requirements
+                    .iter()
+                    .cloned()
+                    .map(Value::from)
+                    .collect(),
+            ),
         );
         out
     }
@@ -89,7 +107,9 @@ fn scalar(value: &str, path: &str, key: &str) -> Result<String, String> {
         return Ok(text[1..text.len() - 1].to_string());
     }
     if Regex::new(r":[ \t]").unwrap().is_match(text) {
-        return Err(format!("{path}: {key} contains an unquoted YAML mapping delimiter"));
+        return Err(format!(
+            "{path}: {key} contains an unquoted YAML mapping delimiter"
+        ));
     }
     Ok(text.to_string())
 }
@@ -103,7 +123,10 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
     let body = &text[4..end];
     let lines: Vec<&str> = body.split(['\n']).collect();
     // Handle CRLF the same as the JS `split(/\r?\n/)`: strip trailing \r per line.
-    let lines: Vec<String> = lines.iter().map(|l| l.trim_end_matches('\r').to_string()).collect();
+    let lines: Vec<String> = lines
+        .iter()
+        .map(|l| l.trim_end_matches('\r').to_string())
+        .collect();
 
     let mut out: std::collections::HashMap<String, Field> = std::collections::HashMap::new();
     let mut key: Option<String> = None;
@@ -114,7 +137,7 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
     let scalar_field_set: HashSet<&str> = SCALAR_FIELDS.iter().copied().collect();
 
     let finish_block = |block: &mut Option<(String, bool, Vec<String>)>,
-                         out: &mut std::collections::HashMap<String, Field>| {
+                        out: &mut std::collections::HashMap<String, Field>| {
         if let Some((k, folded, lines)) = block.take() {
             let sep = if folded { " " } else { "\n" };
             out.insert(k, Field::Scalar(lines.join(sep).trim().to_string()));
@@ -130,7 +153,10 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
             if list_field_set.contains(k.as_str()) {
                 let v = value.trim();
                 if !v.is_empty() && v != "[]" {
-                    return Err(format!("{path}:{}: {k} must use a YAML block list or []", index + 2));
+                    return Err(format!(
+                        "{path}:{}: {k} must use a YAML block list or []",
+                        index + 2
+                    ));
                 }
                 out.insert(k.clone(), Field::List(Vec::new()));
             } else if scalar_field_set.contains(k.as_str()) {
@@ -151,7 +177,9 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
             }
         }
         if let Some(k) = &key {
-            if list_field_set.contains(k.as_str()) && Regex::new(r"^\s+-\s+\S").unwrap().is_match(line) {
+            if list_field_set.contains(k.as_str())
+                && Regex::new(r"^\s+-\s+\S").unwrap().is_match(line)
+            {
                 let item_text = Regex::new(r"^\s+-\s+").unwrap().replace(line, "");
                 let item = scalar(&item_text, path, k)?;
                 if let Some(Field::List(items)) = out.get_mut(k) {
@@ -160,10 +188,15 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
                 continue;
             }
         }
-        if Regex::new(r"^\s*$").unwrap().is_match(line) || Regex::new(r"^\s+").unwrap().is_match(line) {
+        if Regex::new(r"^\s*$").unwrap().is_match(line)
+            || Regex::new(r"^\s+").unwrap().is_match(line)
+        {
             continue;
         }
-        return Err(format!("{path}:{}: unsupported YAML frontmatter syntax", index + 2));
+        return Err(format!(
+            "{path}:{}: unsupported YAML frontmatter syntax",
+            index + 2
+        ));
     }
     finish_block(&mut block, &mut out);
 
@@ -195,7 +228,9 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
     };
 
     let kind = get_scalar(&out, "kind");
-    let capability_class_raw = out.get("capabilityClass").map(|_| get_scalar(&out, "capabilityClass"));
+    let capability_class_raw = out
+        .get("capabilityClass")
+        .map(|_| get_scalar(&out, "capabilityClass"));
     if kind == "capability" && capability_class_raw.as_deref().unwrap_or("").is_empty() {
         return Err(format!("{path}: capability requires capabilityClass"));
     }
@@ -212,7 +247,12 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
             return Err(format!("{path}: invalid capabilityClass {cc}"));
         }
     }
-    if kind == "entrypoint" && capability_class_raw.as_deref().map(|s| !s.is_empty()).unwrap_or(false) {
+    if kind == "entrypoint"
+        && capability_class_raw
+            .as_deref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+    {
         return Err(format!("{path}: entrypoint cannot declare capabilityClass"));
     }
     let domain = out.get("domain").map(|_| get_scalar(&out, "domain"));
@@ -263,7 +303,14 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
 pub fn parse_skill_frontmatter_map(text: &str, path: &str) -> Result<Map<String, Value>, String> {
     parse_skill_frontmatter(text, path)?;
     const LISTS: [&str; 3] = ["operations", "effects", "hostRequirements"];
-    const SCALARS: [&str; 6] = ["name", "description", "kind", "capabilityClass", "discoverability", "domain"];
+    const SCALARS: [&str; 6] = [
+        "name",
+        "description",
+        "kind",
+        "capabilityClass",
+        "discoverability",
+        "domain",
+    ];
     let end = text[4..].find("\n---").map(|i| i + 4).unwrap_or(text.len());
     let top = Regex::new(r"^([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]*(.*))$").unwrap();
     let mut out = Map::new();

@@ -68,14 +68,21 @@ impl JsonlJournal {
             if line.trim().is_empty() {
                 continue;
             }
-            let value: Value = json::from_str(line)
-                .map_err(|cause| integrity_error(format!("invalid JSONL record at line {}: {cause}", index + 1)))?;
+            let value: Value = json::from_str(line).map_err(|cause| {
+                integrity_error(format!(
+                    "invalid JSONL record at line {}: {cause}",
+                    index + 1
+                ))
+            })?;
             records.push(value);
         }
         for (index, record) in records.iter().enumerate() {
             let sequence = record.get("sequence").and_then(Value::as_u64);
             if sequence != Some((index + 1) as u64) {
-                return Err(integrity_error(format!("invalid journal sequence at line {}", index + 1)));
+                return Err(integrity_error(format!(
+                    "invalid journal sequence at line {}",
+                    index + 1
+                )));
             }
         }
 
@@ -97,8 +104,9 @@ impl JsonlJournal {
             .ok_or_else(|| integrity_error("journal record must be an object"))?
             .insert("sequence".to_string(), json::json!(sequence));
 
-        let line = json::to_string(&record)
-            .map_err(|cause| integrity_error(format!("failed to serialize journal record: {cause}")))?;
+        let line = json::to_string(&record).map_err(|cause| {
+            integrity_error(format!("failed to serialize journal record: {cause}"))
+        })?;
         // Ensure the parent directory still exists before opening for
         // append. `open()` creates it once, but on Windows a
         // just-created directory can transiently fail to resolve for a
@@ -167,9 +175,13 @@ mod tests {
         let path = dir.join("journal.jsonl");
         {
             let mut journal = JsonlJournal::open(&path).unwrap();
-            let first = journal.append(json::json!({"eventType": "task.created"})).unwrap();
+            let first = journal
+                .append(json::json!({"eventType": "task.created"}))
+                .unwrap();
             assert_eq!(first["sequence"], 1);
-            let second = journal.append(json::json!({"eventType": "task.started"})).unwrap();
+            let second = journal
+                .append(json::json!({"eventType": "task.started"}))
+                .unwrap();
             assert_eq!(second["sequence"], 2);
         }
         let reopened = JsonlJournal::open(&path).unwrap();
@@ -205,7 +217,11 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         use std::time::{SystemTime, UNIX_EPOCH};
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
-        (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() ^ (std::process::id() as u128))
+        (SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            ^ (std::process::id() as u128))
             .wrapping_add(NEXT_ID.fetch_add(1, Ordering::Relaxed) as u128)
     }
 }

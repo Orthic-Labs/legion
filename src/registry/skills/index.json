@@ -24,8 +24,17 @@
         "source-read",
         "network-request"
       ],
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "banana-image"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "banana-image",
+          "degradation": "The skill reports the image-generation step unavailable and continues without it. This package ships no fallback generator.",
+          "remedy": "Wire a nano-banana image-generation MCP server into the host. This package ships no generator and no fallback.",
+          "probe": null
+        }
+      ],
       "scopedRequirementDetails": [],
       "source": "skills/ads/SKILL.md",
       "manifest": "skills/manifests/ads.json"
@@ -309,7 +318,6 @@
       ],
       "hostRequirements": [
         "pi-cli",
-        "python-runtime",
         "legion"
       ],
       "hostRequirementDetails": [
@@ -321,19 +329,6 @@
             "kind": "command-any",
             "commands": [
               "pi"
-            ]
-          }
-        },
-        {
-          "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
-          "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
             ]
           }
         },
@@ -441,21 +436,14 @@
         "artifact-write"
       ],
       "hostRequirements": [
-        "python-runtime"
+        "banana-image"
       ],
       "hostRequirementDetails": [
         {
-          "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
-          "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
-          }
+          "id": "banana-image",
+          "degradation": "The skill reports the image-generation step unavailable and continues without it. This package ships no fallback generator.",
+          "remedy": "Wire a nano-banana image-generation MCP server into the host. This package ships no generator and no fallback.",
+          "probe": null
         }
       ],
       "scopedRequirementDetails": [],
@@ -480,20 +468,16 @@
         "process-exec"
       ],
       "hostRequirements": [
-        "python-runtime"
+        "legion"
       ],
       "hostRequirementDetails": [
         {
-          "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
           "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
+            "kind": "command",
+            "command": "legion"
           }
         }
       ],
@@ -869,8 +853,27 @@
         "source-read",
         "network-request"
       ],
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "dataforseo",
+        "ahrefs"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "dataforseo",
+          "degradation": "Report that backlink/SERP data is unavailable and mark those findings UNPROVEN; never estimate them.",
+          "remedy": "Set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD in the host environment.",
+          "probe": {
+            "kind": "env",
+            "env": "DATAFORSEO_LOGIN"
+          }
+        },
+        {
+          "id": "ahrefs",
+          "degradation": "The skill reports the Ahrefs step unavailable and continues without it; findings that needed Ahrefs data are marked UNPROVEN and never estimated.",
+          "remedy": "Connect an Ahrefs MCP server in the host.",
+          "probe": null
+        }
+      ],
       "scopedRequirementDetails": [],
       "source": "skills/marketing/SKILL.md",
       "manifest": "skills/manifests/marketing.json"
@@ -1039,23 +1042,13 @@
         "network-request"
       ],
       "hostRequirements": [
-        "python-runtime",
-        "legion"
+        "legion",
+        "banana-image",
+        "dataforseo",
+        "firecrawl",
+        "ahrefs"
       ],
       "hostRequirementDetails": [
-        {
-          "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
-          "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
-          }
-        },
         {
           "id": "legion",
           "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
@@ -1064,6 +1057,36 @@
             "kind": "command",
             "command": "legion"
           }
+        },
+        {
+          "id": "banana-image",
+          "degradation": "The skill reports the image-generation step unavailable and continues without it. This package ships no fallback generator.",
+          "remedy": "Wire a nano-banana image-generation MCP server into the host. This package ships no generator and no fallback.",
+          "probe": null
+        },
+        {
+          "id": "dataforseo",
+          "degradation": "Report that backlink/SERP data is unavailable and mark those findings UNPROVEN; never estimate them.",
+          "remedy": "Set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD in the host environment.",
+          "probe": {
+            "kind": "env",
+            "env": "DATAFORSEO_LOGIN"
+          }
+        },
+        {
+          "id": "firecrawl",
+          "degradation": "Fall back to raw HTTP fetch and state that no rendered DOM was available.",
+          "remedy": "Set FIRECRAWL_API_KEY in the host environment.",
+          "probe": {
+            "kind": "env",
+            "env": "FIRECRAWL_API_KEY"
+          }
+        },
+        {
+          "id": "ahrefs",
+          "degradation": "The skill reports the Ahrefs step unavailable and continues without it; findings that needed Ahrefs data are marked UNPROVEN and never estimated.",
+          "remedy": "Connect an Ahrefs MCP server in the host.",
+          "probe": null
         }
       ],
       "scopedRequirementDetails": [],
@@ -1113,20 +1136,16 @@
         "process-exec"
       ],
       "hostRequirements": [
-        "python-runtime"
+        "legion"
       ],
       "hostRequirementDetails": [
         {
-          "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
           "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
+            "kind": "command",
+            "command": "legion"
           }
         }
       ],

@@ -24,8 +24,9 @@ use std::sync::LazyLock;
 /// combination, treated as an explicit (if unverified) trust boundary and
 /// the candidate is suppressed rather than downgraded, mirroring the pinned
 /// pre-existing behaviour of this rule.
-static TRUST_LABEL_HINT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)trust_label|sanitize|escape|allowlist|provenance|content_filter").unwrap());
+static TRUST_LABEL_HINT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)trust_label|sanitize|escape|allowlist|provenance|content_filter").unwrap()
+});
 
 static INDIRECT_UNTRUSTED_CONTENT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?:prompt|messages|system_prompt|instructions?)\s*[:=]\s*[^\n]*(?:request|input|issue|body|content|document|description)")
@@ -176,19 +177,26 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 }
             }
 
-            let control = context.find_control(sink_entity.map(|e| e.id.as_str()), rule.control_types);
+            let control =
+                context.find_control(sink_entity.map(|e| e.id.as_str()), rule.control_types);
             if control.is_some() {
                 // Observed, model-grounded control suppresses the candidate entirely.
                 continue;
             }
 
-            let sources = source_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
+            let sources = source_entity
+                .map(|e| vec![e.id.clone()])
+                .unwrap_or_default();
             let sinks = sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
             let mut evidence_refs: Vec<String> = source_entity
                 .map(|e| e.evidence_refs.clone())
                 .unwrap_or_default()
                 .into_iter()
-                .chain(sink_entity.map(|e| e.evidence_refs.clone()).unwrap_or_default())
+                .chain(
+                    sink_entity
+                        .map(|e| e.evidence_refs.clone())
+                        .unwrap_or_default(),
+                )
                 .collect();
             evidence_refs.sort();
             evidence_refs.dedup();
@@ -247,7 +255,10 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// Port of `variantStrategies[rule.id].rootCause(candidate)`: identical
 /// shape for every rule, parameterized by `rule.sinkKind`/`rule.sourceKind`
 /// and the candidate's `detectorMetadata.sink`.
-pub fn variant_root_cause(rule_id: &str, candidate_sink: Option<&str>) -> Option<serde_json::Value> {
+pub fn variant_root_cause(
+    rule_id: &str,
+    candidate_sink: Option<&str>,
+) -> Option<serde_json::Value> {
     let rule = RULES.iter().find(|r| r.id == rule_id)?;
     Some(serde_json::json!({
         "class": format!("{}-untrusted-content-injection", rule.sink_kind),
@@ -268,10 +279,15 @@ pub fn variant_root_cause(rule_id: &str, candidate_sink: Option<&str>) -> Option
 /// alternate model-context sinks the same untrusted source may also reach.
 pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<serde_json::Value> {
     let rule = RULES.iter().find(|r| r.id == rule_id)?;
-    let alternate_sinks: Vec<&str> = ["prompt", "retrieval-context", "memory-context", "tool-schema"]
-        .into_iter()
-        .filter(|s| *s != rule.sink_kind)
-        .collect();
+    let alternate_sinks: Vec<&str> = [
+        "prompt",
+        "retrieval-context",
+        "memory-context",
+        "tool-schema",
+    ]
+    .into_iter()
+    .filter(|s| *s != rule.sink_kind)
+    .collect();
     Some(serde_json::json!({
         "denominator": {
             "kind": "source-files",
@@ -309,7 +325,10 @@ mod tests {
         );
         let obs = analyze(&ctx);
         assert_eq!(obs.len(), 1);
-        assert_eq!(obs[0].rule_id, "ai.prompt-injection.indirect-untrusted-content");
+        assert_eq!(
+            obs[0].rule_id,
+            "ai.prompt-injection.indirect-untrusted-content"
+        );
         assert!(obs[0].uncertainty[0].contains("not tool compromise"));
     }
 
@@ -325,7 +344,10 @@ mod tests {
     #[test]
     fn observed_control_suppresses_candidate() {
         let ctx = Context::new()
-            .with_file("agent.mjs", "const prompt = `Answer this: ${request.body.description}`;")
+            .with_file(
+                "agent.mjs",
+                "const prompt = `Answer this: ${request.body.description}`;",
+            )
             .with_entity(Entity::control(
                 "ctrl:1",
                 "prompt-trust-boundary",
@@ -342,7 +364,9 @@ mod tests {
             "const messages = [{ role: 'system', content: retrieved_content }];\nmessages.push({ context: search_result });",
         );
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o.rule_id == "ai.prompt-injection.retrieved-content-untrusted"));
+        assert!(obs
+            .iter()
+            .any(|o| o.rule_id == "ai.prompt-injection.retrieved-content-untrusted"));
     }
 
     #[test]
@@ -350,8 +374,14 @@ mod tests {
         let ctx = Context::new().with_file("agent.mjs", "tools.push(JSON.parse(response.body));");
         let obs = analyze(&ctx);
         assert_eq!(obs.len(), 1);
-        assert_eq!(obs[0].rule_id, "ai.prompt-injection.dynamic-tool-schema-untrusted");
-        assert_eq!(obs[0].chain_roles, vec!["starter".to_string(), "enabler".to_string()]);
+        assert_eq!(
+            obs[0].rule_id,
+            "ai.prompt-injection.dynamic-tool-schema-untrusted"
+        );
+        assert_eq!(
+            obs[0].chain_roles,
+            vec!["starter".to_string(), "enabler".to_string()]
+        );
     }
 
     #[test]

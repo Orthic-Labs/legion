@@ -20,7 +20,10 @@ fn rules() -> &'static [(&'static str, &'static str)] {
             "**Ground-truth policy:**",
             r"^GROUND_TRUTH_SOURCE:\s*\S.*\bMEASURED_OUTPUT_NOT_GROUND_TRUTH\b",
         ),
-        ("**Model / tool relevance rule:**", r"^LOAD_ONLY_IF_METRIC:\s*\S"),
+        (
+            "**Model / tool relevance rule:**",
+            r"^LOAD_ONLY_IF_METRIC:\s*\S",
+        ),
         (
             "**Locked model / runtime route:**",
             r"^(?:ROUTE_LOCK:|NO_MODEL_ALLOWED:)\s*\S",
@@ -131,7 +134,9 @@ pub fn decision_scope_errors(text: &str, allow_template: bool) -> Vec<String> {
         }
     }
 
-    let alchemist_required = semantics_set.iter().any(|s| non_routine_semantics().contains(s));
+    let alchemist_required = semantics_set
+        .iter()
+        .any(|s| non_routine_semantics().contains(s));
     let alchemist_gate = authority_label_value(text, "**Alchemist gate:**").unwrap_or_default();
     let alchemist_state =
         authority_label_value(text, "**Alchemist state reference:**").unwrap_or_default();
@@ -208,11 +213,15 @@ pub fn decision_scope_errors(text: &str, allow_template: bool) -> Vec<String> {
         "## 2. Source of Truth & Known State",
         "## 3. Scope & Ownership",
     );
-    let required_inputs = label_value(text, "**Required inputs:**").unwrap_or_default().to_lowercase();
+    let required_inputs = label_value(text, "**Required inputs:**")
+        .unwrap_or_default()
+        .to_lowercase();
     let acceptance_metrics = label_value(text, "**Acceptance metrics only:**")
         .unwrap_or_default()
         .to_lowercase();
-    let decision_rule = label_value(text, "**Decision rule:**").unwrap_or_default().to_lowercase();
+    let decision_rule = label_value(text, "**Decision rule:**")
+        .unwrap_or_default()
+        .to_lowercase();
 
     let full_trace = table_rows(
         text,

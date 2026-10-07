@@ -171,12 +171,18 @@ enum Commands {
 /// Lightweight `new Date().toISOString()`-shaped UTC timestamp for
 /// evidence metadata (this crate has no `chrono` workspace dependency).
 fn chrono_like_now_iso() -> String {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = now.as_secs();
     let millis = now.subsec_millis();
     let days = secs / 86400;
     let time_of_day = secs % 86400;
-    let (h, m, s) = (time_of_day / 3600, (time_of_day % 3600) / 60, time_of_day % 60);
+    let (h, m, s) = (
+        time_of_day / 3600,
+        (time_of_day % 3600) / 60,
+        time_of_day % 60,
+    );
     let mut year = 1970i64;
     let mut remaining_days = days as i64;
     loop {
@@ -189,7 +195,11 @@ fn chrono_like_now_iso() -> String {
         year += 1;
     }
     let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
-    let month_lengths = if leap { [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] } else { [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] };
+    let month_lengths = if leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
     let mut month = 1;
     for len in month_lengths {
         if remaining_days < len {
@@ -205,7 +215,9 @@ fn chrono_like_now_iso() -> String {
 fn repo_root() -> PathBuf {
     let cwd = std::env::current_dir().expect("cwd");
     cwd.ancestors()
-        .find(|dir| dir.join("release/version.json").is_file() && dir.join("engine/Cargo.toml").is_file())
+        .find(|dir| {
+            dir.join("release/version.json").is_file() && dir.join("engine/Cargo.toml").is_file()
+        })
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -224,7 +236,11 @@ fn delegate_to_node(script_rel: &str, args: &[String]) -> ExitCode {
         "xtask: {script_rel} is not yet ported to Rust; delegating to Node ({}).",
         script.display()
     );
-    let status = Command::new("node").arg(&script).args(args).current_dir(&root).status();
+    let status = Command::new("node")
+        .arg(&script)
+        .args(args)
+        .current_dir(&root)
+        .status();
     match status {
         Ok(status) => {
             if status.success() {
@@ -248,22 +264,23 @@ fn main() -> ExitCode {
     }
     let cli = Cli::parse_from(argv);
     match cli.command {
-        Commands::VerifyRelease { manifest_path, dist_dir } => {
-            match verify_release::verify_release_manifest(&manifest_path, dist_dir.as_deref()) {
-                Ok(result) => {
-                    println!("{}", serde_json::to_string_pretty(&result).unwrap());
-                    if result.valid {
-                        ExitCode::SUCCESS
-                    } else {
-                        ExitCode::from(1)
-                    }
-                }
-                Err(err) => {
-                    eprintln!("{err}");
-                    ExitCode::from(2)
+        Commands::VerifyRelease {
+            manifest_path,
+            dist_dir,
+        } => match verify_release::verify_release_manifest(&manifest_path, dist_dir.as_deref()) {
+            Ok(result) => {
+                println!("{}", serde_json::to_string_pretty(&result).unwrap());
+                if result.valid {
+                    ExitCode::SUCCESS
+                } else {
+                    ExitCode::from(1)
                 }
             }
-        }
+            Err(err) => {
+                eprintln!("{err}");
+                ExitCode::from(2)
+            }
+        },
         Commands::AssembleNativeRelease {
             platform,
             architecture,
@@ -313,7 +330,13 @@ fn main() -> ExitCode {
             let result = if check {
                 prepare_unsigned_candidate::check_unsigned_candidate(
                     &repo_root,
-                    prepare_unsigned_candidate::CheckArgs { output_root: output, platform, architecture, source_revision, version },
+                    prepare_unsigned_candidate::CheckArgs {
+                        output_root: output,
+                        platform,
+                        architecture,
+                        source_revision,
+                        version,
+                    },
                 )
             } else {
                 prepare_unsigned_candidate::prepare_unsigned_candidate(
@@ -340,11 +363,25 @@ fn main() -> ExitCode {
                 }
             }
         }
-        Commands::PrepareWindowsCandidateFinalization { candidate, output, architecture, source_revision, version, receipt } => {
+        Commands::PrepareWindowsCandidateFinalization {
+            candidate,
+            output,
+            architecture,
+            source_revision,
+            version,
+            receipt,
+        } => {
             let repo_root = repo_root();
-            let candidate = candidate.or_else(|| std::env::var("LEGION_UNSIGNED_CANDIDATE_ROOT").ok().map(PathBuf::from));
-            let architecture = architecture.or_else(|| std::env::var("LEGION_WINDOWS_ARCH").ok()).or_else(|| Some("x86_64".to_string()));
-            let source_revision = source_revision.or_else(|| std::env::var("LEGION_SOURCE_REVISION").ok());
+            let candidate = candidate.or_else(|| {
+                std::env::var("LEGION_UNSIGNED_CANDIDATE_ROOT")
+                    .ok()
+                    .map(PathBuf::from)
+            });
+            let architecture = architecture
+                .or_else(|| std::env::var("LEGION_WINDOWS_ARCH").ok())
+                .or_else(|| Some("x86_64".to_string()));
+            let source_revision =
+                source_revision.or_else(|| std::env::var("LEGION_SOURCE_REVISION").ok());
             match prepare_windows_candidate_finalization::prepare_windows_candidate_finalization(
                 &repo_root,
                 prepare_windows_candidate_finalization::PrepareArgs {
@@ -378,21 +415,35 @@ fn main() -> ExitCode {
             receipt,
         } => {
             let repo_root = repo_root();
-            let source_revision = source_revision.or_else(|| std::env::var("LEGION_SOURCE_REVISION").ok());
+            let source_revision =
+                source_revision.or_else(|| std::env::var("LEGION_SOURCE_REVISION").ok());
             let result = if package {
                 (|| {
                     let input = input.ok_or_else(|| "--input is required".to_string())?;
                     let output = output.ok_or_else(|| "--output is required".to_string())?;
-                    let notarization_archive = notarization_archive.ok_or_else(|| "--notarization-archive is required".to_string())?;
+                    let notarization_archive = notarization_archive
+                        .ok_or_else(|| "--notarization-archive is required".to_string())?;
                     let version = version.ok_or_else(|| "--version is required".to_string())?;
-                    let source_revision = source_revision.ok_or_else(|| "--source-revision is required".to_string())?;
+                    let source_revision = source_revision
+                        .ok_or_else(|| "--source-revision is required".to_string())?;
                     finalize_macos_candidate::package_macos_candidate(
                         &repo_root,
-                        finalize_macos_candidate::PackageArgs { input_root: input, output_root: output, notarization_archive, version, architecture, source_revision },
+                        finalize_macos_candidate::PackageArgs {
+                            input_root: input,
+                            output_root: output,
+                            notarization_archive,
+                            version,
+                            architecture,
+                            source_revision,
+                        },
                     )
                 })()
             } else {
-                let candidate = candidate.or_else(|| std::env::var("LEGION_UNSIGNED_CANDIDATE_ROOT").ok().map(PathBuf::from));
+                let candidate = candidate.or_else(|| {
+                    std::env::var("LEGION_UNSIGNED_CANDIDATE_ROOT")
+                        .ok()
+                        .map(PathBuf::from)
+                });
                 finalize_macos_candidate::prepare_macos_candidate_finalization(
                     &repo_root,
                     finalize_macos_candidate::PrepareArgs {
@@ -460,13 +511,15 @@ fn main() -> ExitCode {
             let repo_root = repo_root();
             let env: std::collections::HashMap<String, String> = std::env::vars().collect();
             let runner: release::paths::CommandRunner<'_> = &release::paths::spawn_sync;
-            let inno_template = match std::fs::read_to_string(repo_root.join("scripts/release/windows/legion.iss")) {
-                Ok(v) => v,
-                Err(err) => {
-                    eprintln!("xtask: failed to read legion.iss: {err}");
-                    return ExitCode::from(1);
-                }
-            };
+            let inno_template =
+                match std::fs::read_to_string(repo_root.join("scripts/release/windows/legion.iss"))
+                {
+                    Ok(v) => v,
+                    Err(err) => {
+                        eprintln!("xtask: failed to read legion.iss: {err}");
+                        return ExitCode::from(1);
+                    }
+                };
             let activation_script = repo_root.join("scripts/release/windows/activate.ps1");
             match release::installer_release_chain::finalization_manifest(
                 "windows",
@@ -498,7 +551,9 @@ fn main() -> ExitCode {
             let repo_root = repo_root();
             let env: std::collections::HashMap<String, String> = std::env::vars().collect();
             let runner: release::paths::CommandRunner<'_> = &release::paths::spawn_sync;
-            let inno_template = std::fs::read_to_string(repo_root.join("scripts/release/windows/legion.iss")).unwrap_or_default();
+            let inno_template =
+                std::fs::read_to_string(repo_root.join("scripts/release/windows/legion.iss"))
+                    .unwrap_or_default();
             let activation_script = repo_root.join("scripts/release/windows/activate.ps1");
             match release::installer_release_chain::finalization_manifest(
                 "macos",
@@ -529,7 +584,8 @@ fn main() -> ExitCode {
         Commands::ReleaseQualifyInstalled => {
             let env: std::collections::HashMap<String, String> = std::env::vars().collect();
             let runner: release::paths::CommandRunner<'_> = &release::paths::spawn_sync;
-            let is_windows = std::env::consts::OS == "windows" || env.get("RIGHT_GIT_TEST_PLATFORM").map(|s| s.as_str()) == Some("win32");
+            let is_windows = std::env::consts::OS == "windows"
+                || env.get("RIGHT_GIT_TEST_PLATFORM").map(|s| s.as_str()) == Some("win32");
             match release::installer_release_chain::qualify_installed(runner, &env, is_windows) {
                 Ok(result) => {
                     println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -545,12 +601,14 @@ fn main() -> ExitCode {
             let repo_root = repo_root();
             let env: std::collections::HashMap<String, String> = std::env::vars().collect();
             let runner: release::paths::CommandRunner<'_> = &release::paths::spawn_sync;
-            match release::installer_release_chain::publish_qualified(release::installer_release_chain::PublishQualifiedOptions {
-                env: &env,
-                runner,
-                repository_root: &repo_root,
-                download_root: None,
-            }) {
+            match release::installer_release_chain::publish_qualified(
+                release::installer_release_chain::PublishQualifiedOptions {
+                    env: &env,
+                    runner,
+                    repository_root: &repo_root,
+                    download_root: None,
+                },
+            ) {
                 Ok(result) => {
                     println!("{}", serde_json::to_string_pretty(&result).unwrap());
                     ExitCode::SUCCESS
@@ -565,32 +623,47 @@ fn main() -> ExitCode {
             let repo_root = repo_root();
             let env: std::collections::HashMap<String, String> = std::env::vars().collect();
             let runner: release::paths::CommandRunner<'_> = &release::paths::spawn_sync;
-            let inno_template = match std::fs::read_to_string(repo_root.join("scripts/release/windows/legion.iss")) {
-                Ok(v) => v,
-                Err(err) => {
-                    eprintln!("xtask: failed to read legion.iss: {err}");
-                    return ExitCode::from(1);
-                }
-            };
+            let inno_template =
+                match std::fs::read_to_string(repo_root.join("scripts/release/windows/legion.iss"))
+                {
+                    Ok(v) => v,
+                    Err(err) => {
+                        eprintln!("xtask: failed to read legion.iss: {err}");
+                        return ExitCode::from(1);
+                    }
+                };
             let activation_script = repo_root.join("scripts/release/windows/activate.ps1");
             let xtask_binary = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("xtask"));
             let where_exe = || -> Option<String> {
-                Command::new("where.exe").arg("iscc.exe").output().ok().and_then(|o| {
-                    let text = String::from_utf8_lossy(&o.stdout).lines().next().map(|s| s.to_string());
-                    if o.status.success() { text } else { None }
-                })
+                Command::new("where.exe")
+                    .arg("iscc.exe")
+                    .output()
+                    .ok()
+                    .and_then(|o| {
+                        let text = String::from_utf8_lossy(&o.stdout)
+                            .lines()
+                            .next()
+                            .map(|s| s.to_string());
+                        if o.status.success() {
+                            text
+                        } else {
+                            None
+                        }
+                    })
             };
-            match release::local_windows_development::run_local_windows_development(release::local_windows_development::RunLocalWindowsDevelopmentOptions {
-                build_only,
-                is_windows_host: std::env::consts::OS == "windows",
-                runner,
-                env: &env,
-                repository_root: &repo_root,
-                xtask_binary: &xtask_binary,
-                inno_template: &inno_template,
-                activation_script: &activation_script,
-                where_exe: &where_exe,
-            }) {
+            match release::local_windows_development::run_local_windows_development(
+                release::local_windows_development::RunLocalWindowsDevelopmentOptions {
+                    build_only,
+                    is_windows_host: std::env::consts::OS == "windows",
+                    runner,
+                    env: &env,
+                    repository_root: &repo_root,
+                    xtask_binary: &xtask_binary,
+                    inno_template: &inno_template,
+                    activation_script: &activation_script,
+                    where_exe: &where_exe,
+                },
+            ) {
                 Ok(result) => {
                     println!("{}", serde_json::to_string_pretty(&result).unwrap());
                     ExitCode::SUCCESS
@@ -601,7 +674,11 @@ fn main() -> ExitCode {
                 }
             }
         }
-        Commands::NativeInstalledSmoke { candidate, isolated_root, positional } => {
+        Commands::NativeInstalledSmoke {
+            candidate,
+            isolated_root,
+            positional,
+        } => {
             let candidate = candidate.or_else(|| positional.get(0).cloned());
             let isolated_root = isolated_root.or_else(|| positional.get(1).cloned());
             let Some(candidate) = candidate else {
@@ -610,7 +687,10 @@ fn main() -> ExitCode {
                 );
                 return ExitCode::from(1);
             };
-            match native_installed_smoke::native_installed_smoke(&candidate, isolated_root.as_deref()) {
+            match native_installed_smoke::native_installed_smoke(
+                &candidate,
+                isolated_root.as_deref(),
+            ) {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(err) => {
                     eprintln!("{err}");

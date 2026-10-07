@@ -34,7 +34,13 @@ const CRITICAL: &[&str] = &[
     "hard_real_time",
     "destructive_migration",
 ];
-const DEPTH_FLAGS: &[&str] = &["system_level", "cross_boundary", "migration", "platform", "broad_review"];
+const DEPTH_FLAGS: &[&str] = &[
+    "system_level",
+    "cross_boundary",
+    "migration",
+    "platform",
+    "broad_review",
+];
 
 fn effect_category_door(category: &str) -> Option<&'static str> {
     match category {
@@ -72,7 +78,10 @@ pub struct NormalizedRoute {
 /// Mirrors `normalizeArchitectureRoute`: `objective` is `best_shape` only
 /// when explicitly requested, `optimize` when a non-blank `optimize_axis` is
 /// present, and `sufficient` otherwise.
-pub fn normalize_architecture_route(objective_raw: Option<&str>, optimize_axis_raw: Option<&str>) -> NormalizedRoute {
+pub fn normalize_architecture_route(
+    objective_raw: Option<&str>,
+    optimize_axis_raw: Option<&str>,
+) -> NormalizedRoute {
     let objective = normalize_alias(objective_raw.unwrap_or(""));
     let optimize_axis = optimize_axis_raw.map(str::trim).filter(|s| !s.is_empty());
     let normalized_objective = if objective == "best_shape" {
@@ -152,7 +161,14 @@ pub fn classify_effect(
         }
     }
     if let Some(semantic) = semantic_risk {
-        if ["destructive", "irreversible", "data_loss", "external_commitment"].contains(&semantic) {
+        if [
+            "destructive",
+            "irreversible",
+            "data_loss",
+            "external_commitment",
+        ]
+        .contains(&semantic)
+        {
             return EffectClassification {
                 declared_type: declared_type.map(str::to_string),
                 matched_rule: "semantic_risk",
@@ -160,7 +176,16 @@ pub fn classify_effect(
                 door: "one_way",
             };
         }
-        if ["authority", "credential", "trust_boundary", "production", "spend", "send", "publish"].contains(&semantic)
+        if [
+            "authority",
+            "credential",
+            "trust_boundary",
+            "production",
+            "spend",
+            "send",
+            "publish",
+        ]
+        .contains(&semantic)
         {
             return EffectClassification {
                 declared_type: declared_type.map(str::to_string),
@@ -218,7 +243,9 @@ pub struct ArchitectureRoute {
 }
 
 /// Mirrors `routeArchitecture`.
-pub fn route_architecture(input: &ArchitectureRouterInput) -> Result<ArchitectureRoute, RouterError> {
+pub fn route_architecture(
+    input: &ArchitectureRouterInput,
+) -> Result<ArchitectureRoute, RouterError> {
     if let Some(objective) = &input.objective {
         if !OBJECTIVE.contains(&normalize_architecture_alias(objective).as_str()) {
             return fail("objective is invalid");
@@ -234,7 +261,8 @@ pub fn route_architecture(input: &ArchitectureRouterInput) -> Result<Architectur
             return fail("flags contain an unknown routing fact");
         }
     }
-    let normalized = normalize_architecture_route(input.objective.as_deref(), input.optimize_axis.as_deref());
+    let normalized =
+        normalize_architecture_route(input.objective.as_deref(), input.optimize_axis.as_deref());
     let significance = classify_significance(&input.significance)?;
     if let Some(prior) = &input.prior_route_objective {
         if prior != &normalized.objective {
@@ -244,7 +272,9 @@ pub fn route_architecture(input: &ArchitectureRouterInput) -> Result<Architectur
     let critical = CRITICAL.iter().any(|fact| input.flags.contains(*fact));
     let depth = if !significance.significant {
         "D0"
-    } else if normalized.objective == "best_shape" || DEPTH_FLAGS.iter().any(|fact| input.flags.contains(*fact)) {
+    } else if normalized.objective == "best_shape"
+        || DEPTH_FLAGS.iter().any(|fact| input.flags.contains(*fact))
+    {
         "D2"
     } else {
         "D1"
@@ -280,7 +310,9 @@ pub fn validate_architecture_router_input(input: &ArchitectureRouterInput) -> (b
     }
 }
 
-pub fn assert_architecture_router_input(input: &ArchitectureRouterInput) -> Result<(), RouterError> {
+pub fn assert_architecture_router_input(
+    input: &ArchitectureRouterInput,
+) -> Result<(), RouterError> {
     let (valid, issues) = validate_architecture_router_input(input);
     if !valid {
         return fail(issues.into_iter().next().unwrap_or_default());
@@ -296,7 +328,13 @@ pub fn route_to_canon(route: &ArchitectureRoute) -> CanonVal {
         .set("significant", CanonVal::Bool(route.significant))
         .set(
             "matched_significance_facts",
-            CanonVal::Arr(route.matched_significance_facts.iter().map(|s| CanonVal::Str(s.clone())).collect()),
+            CanonVal::Arr(
+                route
+                    .matched_significance_facts
+                    .iter()
+                    .map(|s| CanonVal::Str(s.clone()))
+                    .collect(),
+            ),
         )
         .set("objective", CanonVal::Str(route.objective.clone()))
         .set("depth", CanonVal::Str(route.depth.to_string()))

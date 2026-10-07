@@ -39,7 +39,11 @@ pub fn frozen_files(plan: &Value, id: &str, fallback: &[String]) -> Vec<String> 
         Some(provider) => provider
             .pointer("/denominator/paths")
             .and_then(|v| v.as_array())
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_else(|| fallback.to_vec()),
     }
 }
@@ -128,7 +132,11 @@ pub fn cli_first<'a>(args: &'a [String], cwd_fallback: &'a str) -> &'a str {
 /// resolution is filesystem/URL I/O owned by the caller — this function
 /// takes two already-resolved, canonical href/path strings and applies only
 /// the deterministic platform-normalization + comparison JS performs last.
-pub fn is_main_entrypoint_href(resolved_argv_href: &str, resolved_module_href: &str, platform_is_windows: bool) -> bool {
+pub fn is_main_entrypoint_href(
+    resolved_argv_href: &str,
+    resolved_module_href: &str,
+    platform_is_windows: bool,
+) -> bool {
     if platform_is_windows {
         resolved_argv_href.to_lowercase() == resolved_module_href.to_lowercase()
     } else {
@@ -225,11 +233,14 @@ pub fn apply_offline_env(env: &mut dyn EnvSetter) {
         .collect::<Vec<_>>()
         .join(" ");
     env.set("MAVEN_ARGS", &maven);
-    let gradle = [env.get("GRADLE_OPTS"), Some("-Dorg.gradle.offline=true".to_string())]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" ");
+    let gradle = [
+        env.get("GRADLE_OPTS"),
+        Some("-Dorg.gradle.offline=true".to_string()),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
+    .join(" ");
     env.set("GRADLE_OPTS", &gradle);
 }
 
@@ -276,7 +287,10 @@ pub fn project_execution_checks() -> BTreeSet<&'static str> {
 /// the offline environment variables themselves (`AUDIT_OFFLINE`,
 /// `CARGO_NET_OFFLINE`, etc.) is process-environment mutation and is not
 /// ported here.
-pub fn offline_policy_skip_set(requested_skip: &[String], network_sandbox_active: bool) -> Vec<String> {
+pub fn offline_policy_skip_set(
+    requested_skip: &[String],
+    network_sandbox_active: bool,
+) -> Vec<String> {
     let mut skip: BTreeSet<String> = requested_skip.iter().cloned().collect();
     skip.extend(network_dependent_checks().into_iter().map(String::from));
     if !network_sandbox_active {
@@ -288,7 +302,11 @@ pub fn offline_policy_skip_set(requested_skip: &[String], network_sandbox_active
 fn provider_plan<'a>(plan: &'a Value, id: &str) -> Option<&'a Value> {
     plan.get("providers")
         .and_then(|v| v.as_array())
-        .and_then(|providers| providers.iter().find(|p| p.get("id").and_then(|v| v.as_str()) == Some(id)))
+        .and_then(|providers| {
+            providers
+                .iter()
+                .find(|p| p.get("id").and_then(|v| v.as_str()) == Some(id))
+        })
 }
 
 /// `familyCoverage`.
@@ -297,7 +315,10 @@ fn family_coverage(plan: &Value, results: &[Value]) -> (Vec<Value>, Vec<Value>) 
     let mut by_family: BTreeMap<String, Vec<&Value>> = BTreeMap::new();
     for result in results {
         if let Some(family) = result.get("family").and_then(|v| v.as_str()) {
-            by_family.entry(family.to_string()).or_default().push(result);
+            by_family
+                .entry(family.to_string())
+                .or_default()
+                .push(result);
         }
     }
     let families: Vec<Value> = plan
@@ -307,7 +328,10 @@ fn family_coverage(plan: &Value, results: &[Value]) -> (Vec<Value>, Vec<Value>) 
         .unwrap_or_default()
         .into_iter()
         .map(|family| {
-            let id = family.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            let id = family
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
             let executions = by_family.get(id);
             match executions {
                 Some(execs) if !execs.is_empty() => {
@@ -455,7 +479,10 @@ pub fn reconcile_complete_run(
         .filter(|id| !observed.contains(*id))
         .copied()
         .collect();
-    let legacy_provider_results = legacy["providerResults"].as_array().cloned().unwrap_or_default();
+    let legacy_provider_results = legacy["providerResults"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     let facts_complete = legacy_provider_results
         .iter()
         .filter(|p| p.get("phase").and_then(|v| v.as_str()) == Some("facts"))
@@ -477,7 +504,10 @@ pub fn reconcile_complete_run(
         .and_then(|v| v.as_array())
         .map(|a| a.is_empty())
         .unwrap_or(true)
-        || plan_value.pointer("/qualification/state").and_then(|v| v.as_str()) == Some("unproven");
+        || plan_value
+            .pointer("/qualification/state")
+            .and_then(|v| v.as_str())
+            == Some("unproven");
     let denominator_mismatches = denominator_drift(&plan_value, provider_results);
     let binding_valid = binding_verification.get("valid").and_then(|v| v.as_bool()) == Some(true);
     let projection_ready = projection.get("state").and_then(|v| v.as_str()) == Some("ready");
@@ -551,7 +581,10 @@ pub fn reconcile_complete_run(
                 "adjudicationRequired": security_pending,
             }),
         );
-        map.insert("plan_binding_verification".to_string(), binding_verification.clone());
+        map.insert(
+            "plan_binding_verification".to_string(),
+            binding_verification.clone(),
+        );
     }
     out
 }
@@ -593,13 +626,24 @@ mod tests {
         let security_result = json!({"candidates": []});
         let projection = json!({"state": "ready"});
         let binding_verification = json!({"valid": true});
-        let out = reconcile_complete_run(&plan, &facts, &provider_results, &security_result, &projection, &binding_verification);
+        let out = reconcile_complete_run(
+            &plan,
+            &facts,
+            &provider_results,
+            &security_result,
+            &projection,
+            &binding_verification,
+        );
         assert_eq!(out["incomplete"], json!(true));
     }
 
     #[test]
     fn cli_first_skips_valued_flag_arguments() {
-        let args = ["--out".to_string(), "outdir".to_string(), "/repo".to_string()];
+        let args = [
+            "--out".to_string(),
+            "outdir".to_string(),
+            "/repo".to_string(),
+        ];
         assert_eq!(cli_first(&args, "/cwd"), "/repo");
     }
 
@@ -619,13 +663,25 @@ mod tests {
 
     #[test]
     fn is_main_entrypoint_href_is_case_sensitive_off_windows() {
-        assert!(!is_main_entrypoint_href("file:///Repo/x.mjs", "file:///repo/x.mjs", false));
-        assert!(is_main_entrypoint_href("file:///repo/x.mjs", "file:///repo/x.mjs", false));
+        assert!(!is_main_entrypoint_href(
+            "file:///Repo/x.mjs",
+            "file:///repo/x.mjs",
+            false
+        ));
+        assert!(is_main_entrypoint_href(
+            "file:///repo/x.mjs",
+            "file:///repo/x.mjs",
+            false
+        ));
     }
 
     #[test]
     fn is_main_entrypoint_href_is_case_insensitive_on_windows() {
-        assert!(is_main_entrypoint_href("file:///Repo/x.mjs", "file:///repo/x.mjs", true));
+        assert!(is_main_entrypoint_href(
+            "file:///Repo/x.mjs",
+            "file:///repo/x.mjs",
+            true
+        ));
     }
 
     #[test]
@@ -636,16 +692,36 @@ mod tests {
             base_commit: None,
             dir: None,
         };
-        let argv = collect_facts_argv("collect-facts.mjs", "/repo", "/out", &["lint".to_string(), "build".to_string()], &scope);
+        let argv = collect_facts_argv(
+            "collect-facts.mjs",
+            "/repo",
+            "/out",
+            &["lint".to_string(), "build".to_string()],
+            &scope,
+        );
         assert_eq!(
             argv,
-            vec!["collect-facts.mjs", "/repo", "--out", "/out", "--only", "lint,build", "--type", "changed", "--base", "main"]
+            vec![
+                "collect-facts.mjs",
+                "/repo",
+                "--out",
+                "/out",
+                "--only",
+                "lint,build",
+                "--type",
+                "changed",
+                "--base",
+                "main"
+            ]
         );
     }
 
     #[test]
     fn collect_facts_argv_omits_type_flag_when_all() {
-        let scope = CollectFactsScope { scope_type: Some("all".to_string()), ..Default::default() };
+        let scope = CollectFactsScope {
+            scope_type: Some("all".to_string()),
+            ..Default::default()
+        };
         let argv = collect_facts_argv("collect-facts.mjs", "/repo", "/out", &[], &scope);
         assert!(!argv.contains(&"--type".to_string()));
     }
@@ -667,8 +743,14 @@ mod tests {
     fn frozen_files_falls_back_when_no_denominator_paths() {
         let plan = json!({"providers": [{"id": "data.internal-suite", "denominator": {}}]});
         let fallback = vec!["a.rs".to_string()];
-        assert_eq!(frozen_files(&plan, "data.internal-suite", &fallback), fallback);
-        assert_eq!(frozen_files(&plan, "missing", &fallback), Vec::<String>::new());
+        assert_eq!(
+            frozen_files(&plan, "data.internal-suite", &fallback),
+            fallback
+        );
+        assert_eq!(
+            frozen_files(&plan, "missing", &fallback),
+            Vec::<String>::new()
+        );
     }
 
     struct FakeEnv {
@@ -695,13 +777,18 @@ mod tests {
         };
         apply_offline_env(&mut env);
         assert_eq!(env.get("MAVEN_ARGS").as_deref(), Some("-DskipTests -o"));
-        assert_eq!(env.get("GRADLE_OPTS").as_deref(), Some("-Xmx2g -Dorg.gradle.offline=true"));
+        assert_eq!(
+            env.get("GRADLE_OPTS").as_deref(),
+            Some("-Xmx2g -Dorg.gradle.offline=true")
+        );
         assert_eq!(env.get("AUDIT_OFFLINE").as_deref(), Some("1"));
     }
 
     #[test]
     fn apply_offline_env_sets_flag_alone_when_unset() {
-        let mut env = FakeEnv { vars: std::collections::HashMap::new() };
+        let mut env = FakeEnv {
+            vars: std::collections::HashMap::new(),
+        };
         apply_offline_env(&mut env);
         assert_eq!(env.get("MAVEN_ARGS").as_deref(), Some("-o"));
     }
@@ -721,7 +808,14 @@ mod tests {
         let security_result = json!({"candidates": []});
         let projection = json!({"state": "ready"});
         let binding_verification = json!({"valid": true});
-        let out = reconcile_complete_run(&plan, &facts, &provider_results, &security_result, &projection, &binding_verification);
+        let out = reconcile_complete_run(
+            &plan,
+            &facts,
+            &provider_results,
+            &security_result,
+            &projection,
+            &binding_verification,
+        );
         assert_eq!(out["incomplete"], json!(false));
     }
 }

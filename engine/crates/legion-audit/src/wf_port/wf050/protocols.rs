@@ -52,7 +52,11 @@ pub fn execute_web_protocol(
     let protocol = input.get("protocol").cloned().unwrap_or(Value::Null);
     let protocol_str = protocol.as_str();
 
-    let mut gaps = exact_binding(&binding).gaps.into_iter().map(|k| format!("binding-missing:{k}")).collect::<Vec<_>>();
+    let mut gaps = exact_binding(&binding)
+        .gaps
+        .into_iter()
+        .map(|k| format!("binding-missing:{k}"))
+        .collect::<Vec<_>>();
     if protocol_str.is_none() {
         gaps.push("protocol-missing".to_string());
     }
@@ -172,30 +176,36 @@ pub fn execute_web_protocol(
         AdapterExecuteResult::Ok(raw_observed) => {
             let raw_artifacts = raw_observed.get("artifacts").cloned();
             // Each entry: (valid && bound, sensitive, sanitized artifact value).
-            let (processed_bound, artifacts_shape_invalid): (Vec<(bool, bool, Value)>, bool) = match &raw_artifacts {
-                None => (Vec::new(), false),
-                Some(Value::Array(items)) => {
-                    let processed = items
-                        .iter()
-                        .map(|artifact| {
-                            let (valid, sensitive, sanitized) = sanitize_artifact(artifact);
-                            let bound = binding
-                                .as_object()
-                                .map(|bmap| {
-                                    bmap.iter().all(|(k, v)| artifact.get("binding").and_then(|b| b.get(k)) == Some(v))
-                                })
-                                .unwrap_or(true);
-                            (valid && bound, sensitive, sanitized)
-                        })
-                        .collect::<Vec<_>>();
-                    (processed, false)
-                }
-                Some(_) => (Vec::new(), true),
-            };
+            let (processed_bound, artifacts_shape_invalid): (Vec<(bool, bool, Value)>, bool) =
+                match &raw_artifacts {
+                    None => (Vec::new(), false),
+                    Some(Value::Array(items)) => {
+                        let processed = items
+                            .iter()
+                            .map(|artifact| {
+                                let (valid, sensitive, sanitized) = sanitize_artifact(artifact);
+                                let bound = binding
+                                    .as_object()
+                                    .map(|bmap| {
+                                        bmap.iter().all(|(k, v)| {
+                                            artifact.get("binding").and_then(|b| b.get(k))
+                                                == Some(v)
+                                        })
+                                    })
+                                    .unwrap_or(true);
+                                (valid && bound, sensitive, sanitized)
+                            })
+                            .collect::<Vec<_>>();
+                        (processed, false)
+                    }
+                    Some(_) => (Vec::new(), true),
+                };
 
             let mut gaps: Vec<String> = Vec::new();
             let any_invalid_or_unbound = artifacts_shape_invalid
-                || processed_bound.iter().any(|(valid_and_bound, _, _)| !*valid_and_bound);
+                || processed_bound
+                    .iter()
+                    .any(|(valid_and_bound, _, _)| !*valid_and_bound);
             if any_invalid_or_unbound {
                 gaps.push("protocol-artifact-invalid".to_string());
             }
@@ -218,12 +228,22 @@ pub fn execute_web_protocol(
                 gaps.push("durable-state-missing".to_string());
             }
 
-            let status = observed.get("status").and_then(Value::as_str).unwrap_or("pass").to_string();
-            if !["pass", "fail", "partial", "unproven", "blocked", "error"].contains(&status.as_str()) {
+            let status = observed
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("pass")
+                .to_string();
+            if !["pass", "fail", "partial", "unproven", "blocked", "error"]
+                .contains(&status.as_str())
+            {
                 gaps.push(format!("protocol-status-{status}"));
             }
 
-            let final_status = if !gaps.is_empty() { "unproven".to_string() } else { status.clone() };
+            let final_status = if !gaps.is_empty() {
+                "unproven".to_string()
+            } else {
+                status.clone()
+            };
             let final_artifacts: Vec<Value> = processed_bound
                 .into_iter()
                 .filter(|(valid_and_bound, _, _)| *valid_and_bound)

@@ -30,7 +30,10 @@ fn domain_verify_medical_route_fixture_passes() {
         .as_array()
         .expect("array")
         .clone();
-    let claims: Vec<Value> = load("medical_claims.json").as_array().expect("array").clone();
+    let claims: Vec<Value> = load("medical_claims.json")
+        .as_array()
+        .expect("array")
+        .clone();
 
     let result = domain_verify::verify(&route, &evidence, &claims);
     assert_eq!(result["ok"], json!(true), "result: {result}");
@@ -39,7 +42,10 @@ fn domain_verify_medical_route_fixture_passes() {
 #[test]
 fn domain_verify_legal_route_fixture_fails_missing_authority() {
     let route = load("legal_route.json");
-    let evidence: Vec<Value> = load("legal_evidence.json").as_array().expect("array").clone();
+    let evidence: Vec<Value> = load("legal_evidence.json")
+        .as_array()
+        .expect("array")
+        .clone();
     let claims: Vec<Value> = load("legal_claims.json").as_array().expect("array").clone();
 
     let result = domain_verify::verify(&route, &evidence, &claims);

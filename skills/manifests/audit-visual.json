@@ -79,12 +79,12 @@
     {
       "path": "references/platform-fidelity.md",
       "uri": "legion-skill://audit-visual/references/platform-fidelity.md",
-      "digest": "sha256:f4e4dba84a826d3fad21c0cc210da0d006e3106d749f06537d4ae5e0c62705f1"
+      "digest": "sha256:7698694db06bbbb0dbe179ca419d649e0256ac505d1ef9055276a6653874d98f"
     },
     {
       "path": "references/visual-qa-capture.md",
       "uri": "legion-skill://audit-visual/references/visual-qa-capture.md",
-      "digest": "sha256:4564d9e84fdf161f29f5937908e86203da9e18a831f68be43c511ef233a7cf36"
+      "digest": "sha256:106ace574670643b671c0cc0f862edb648107b9ae61c0692d62c2afdbf806771"
     }
   ]
 }

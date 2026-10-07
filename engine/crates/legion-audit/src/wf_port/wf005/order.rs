@@ -61,7 +61,11 @@ fn find_tests(cwd: &Path, files: &[DiffFile]) -> Vec<String> {
     }
     found
         .into_iter()
-        .filter_map(|p| p.strip_prefix(cwd).ok().map(|r| r.to_string_lossy().into_owned()))
+        .filter_map(|p| {
+            p.strip_prefix(cwd)
+                .ok()
+                .map(|r| r.to_string_lossy().into_owned())
+        })
         .collect()
 }
 

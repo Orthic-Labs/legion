@@ -2359,6 +2359,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "legion-workspace-tests"
+version = "0.3.21"
+dependencies = [
+ "legion-contracts",
+ "legion-effects",
+ "legion-host",
+ "legion-policy-model",
+ "serde_json",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"

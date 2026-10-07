@@ -32,10 +32,13 @@ const CANDIDATE_CLASS: &str = "abuse-resilience";
 
 // --- patterns -----------------------------------------------------------
 
-static SERVER_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\bapp\.listen\(|createServer\(|fastify\s*\(|new\s+Koa\(\)").expect("valid regex"));
-static RATE_LIMIT_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)rate.?limit|RateLimiter(?:Memory|Redis)|slowDown\(|throttle").expect("valid regex"));
+static SERVER_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\bapp\.listen\(|createServer\(|fastify\s*\(|new\s+Koa\(\)").expect("valid regex")
+});
+static RATE_LIMIT_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)rate.?limit|RateLimiter(?:Memory|Redis)|slowDown\(|throttle")
+        .expect("valid regex")
+});
 
 static IDENTITY_ROUTE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
@@ -44,12 +47,16 @@ static IDENTITY_ROUTE: LazyLock<Regex> = LazyLock::new(|| {
     .expect("valid regex")
 });
 
-static GRAPHQL_SERVER_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"new\s+ApolloServer\(|new\s+GraphQLSchema\(|graphqlHTTP\(|buildSchema\(").expect("valid regex"));
-static GRAPHQL_DEPTH_LIMIT_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)depthLimit\(|queryDepthLimit|maxDepth\s*:").expect("valid regex"));
+static GRAPHQL_SERVER_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"new\s+ApolloServer\(|new\s+GraphQLSchema\(|graphqlHTTP\(|buildSchema\(")
+        .expect("valid regex")
+});
+static GRAPHQL_DEPTH_LIMIT_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)depthLimit\(|queryDepthLimit|maxDepth\s*:").expect("valid regex")
+});
 static GRAPHQL_COST_MARKER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)costAnalysis|queryComplexity|createComplexityLimitRule|costLimit\s*:").expect("valid regex")
+    Regex::new(r"(?i)costAnalysis|queryComplexity|createComplexityLimitRule|costLimit\s*:")
+        .expect("valid regex")
 });
 static GRAPHQL_INTROSPECTION_TRUE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"introspection\s*:\s*true").expect("valid regex"));
@@ -60,19 +67,25 @@ static PAGINATION_UNBOUNDED: LazyLock<Regex> = LazyLock::new(|| {
     )
     .expect("valid regex")
 });
-static PAGINATION_CAP_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)Math\.min\(").expect("valid regex"));
+static PAGINATION_CAP_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)Math\.min\(").expect("valid regex"));
 
-static SENSITIVE_FIELD_NAME: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)password(?:Hash)?|\bssn\b|apiKey|secret|privateKey|creditCard").expect("valid regex"));
+static SENSITIVE_FIELD_NAME: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)password(?:Hash)?|\bssn\b|apiKey|secret|privateKey|creditCard")
+        .expect("valid regex")
+});
 static RESPONSE_FULL_OBJECT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)res\.(?:json|send)\(\s*(user|account|profile|customer|record|entity)\s*\)").expect("valid regex")
+    Regex::new(r"(?i)res\.(?:json|send)\(\s*(user|account|profile|customer|record|entity)\s*\)")
+        .expect("valid regex")
 });
 static FIELD_ALLOWLIST_MARKER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\.pick\(|\.omit\(|toSafeJSON|sanitizeUser|select\s*:|serialize\(").expect("valid regex")
+    Regex::new(r"(?i)\.pick\(|\.omit\(|toSafeJSON|sanitizeUser|select\s*:|serialize\(")
+        .expect("valid regex")
 });
 
 static WEBHOOK_ROUTE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)(?:app|router)\.(?:post|all)\(\s*['"][^'"]*(?:webhook|callback)[^'"]*['"]"#).expect("valid regex")
+    Regex::new(r#"(?i)(?:app|router)\.(?:post|all)\(\s*['"][^'"]*(?:webhook|callback)[^'"]*['"]"#)
+        .expect("valid regex")
 });
 static BODY_USE_MARKER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\b(?:process|save|handle|charge|apply|persist|fulfill|db\.\w+|JSON\.parse)\s*\(\s*(?:req|request)\.body")
@@ -85,8 +98,9 @@ static SIGNATURE_VERIFY_MARKER: LazyLock<Regex> = LazyLock::new(|| {
 static MUTATION_PAYMENT_ROUTE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)(?:app|router)\.post\(\s*['"][^'"]*(?:charge|payment|order|transfer|refund)[^'"]*['"]"#).expect("valid regex")
 });
-static IDEMPOTENCY_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)idempotencyKey|Idempotency-Key|idempotency_key").expect("valid regex"));
+static IDEMPOTENCY_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)idempotencyKey|Idempotency-Key|idempotency_key").expect("valid regex")
+});
 
 static UNBOUNDED_ALLOCATION: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
@@ -94,13 +108,15 @@ static UNBOUNDED_ALLOCATION: LazyLock<Regex> = LazyLock::new(|| {
     )
     .expect("valid regex")
 });
-static RESOURCE_CAP_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)Math\.min\(").expect("valid regex"));
+static RESOURCE_CAP_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)Math\.min\(").expect("valid regex"));
 
 static OUTBOUND_CALL_MARKER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"axios\.(?:get|post|put|delete|patch)\(|fetch\(\s*['"]https?://|http\.request\(|https\.request\("#).expect("valid regex")
 });
 static CIRCUIT_BREAKER_MARKER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)opossum|CircuitBreaker\(|new\s+CircuitBreaker|retry\(\s*\{|backoff\(").expect("valid regex")
+    Regex::new(r"(?i)opossum|CircuitBreaker\(|new\s+CircuitBreaker|retry\(\s*\{|backoff\(")
+        .expect("valid regex")
 });
 
 // --- context types --------------------------------------------------------
@@ -177,7 +193,14 @@ fn slice_around(text: &str, index: usize, match_len: usize, before: usize, after
     text[start..end].to_string()
 }
 
-fn test_around(pattern: &Regex, text: &str, index: usize, match_len: usize, before: usize, after: usize) -> bool {
+fn test_around(
+    pattern: &Regex,
+    text: &str,
+    index: usize,
+    match_len: usize,
+    before: usize,
+    after: usize,
+) -> bool {
     pattern.is_match(&slice_around(text, index, match_len, before, after))
 }
 
@@ -189,7 +212,10 @@ fn repo_wide_evidence_refs(context: &ResilienceContext) -> Vec<Value> {
     refs.into_iter().map(Value::String).collect()
 }
 
-fn performance_evidence_for<'a>(context: &'a ResilienceContext, key: &str) -> Option<&'a PerformanceTrace> {
+fn performance_evidence_for<'a>(
+    context: &'a ResilienceContext,
+    key: &str,
+) -> Option<&'a PerformanceTrace> {
     context
         .performance_traces
         .iter()
@@ -202,16 +228,32 @@ struct ClaimGate {
     trace_note: Option<String>,
 }
 
-fn availability_claim_class(context: &ResilienceContext, key: &str, has_direct_amplification_evidence: bool) -> ClaimGate {
+fn availability_claim_class(
+    context: &ResilienceContext,
+    key: &str,
+    has_direct_amplification_evidence: bool,
+) -> ClaimGate {
     if has_direct_amplification_evidence {
-        return ClaimGate { claim_class: "proven-primitive", severity_cap: None, trace_note: None };
+        return ClaimGate {
+            claim_class: "proven-primitive",
+            severity_cap: None,
+            trace_note: None,
+        };
     }
     if let Some(trace) = performance_evidence_for(context, key) {
         if trace.cost_evidence {
-            return ClaimGate { claim_class: "proven-primitive", severity_cap: None, trace_note: trace.note.clone() };
+            return ClaimGate {
+                claim_class: "proven-primitive",
+                severity_cap: None,
+                trace_note: trace.note.clone(),
+            };
         }
     }
-    ClaimGate { claim_class: "design-recommendation", severity_cap: Some("low"), trace_note: None }
+    ClaimGate {
+        claim_class: "design-recommendation",
+        severity_cap: Some("low"),
+        trace_note: None,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -232,8 +274,14 @@ fn base_observation(
     detector_metadata: Map<String, Value>,
     uncertainty: Vec<String>,
 ) -> Value {
-    debug_assert!(!attacker_capabilities.is_empty(), "{rule_id}: attackerCapabilities must be non-empty");
-    debug_assert!(!resource.is_empty(), "{rule_id}: detectorMetadata.resource is required");
+    debug_assert!(
+        !attacker_capabilities.is_empty(),
+        "{rule_id}: attackerCapabilities must be non-empty"
+    );
+    debug_assert!(
+        !resource.is_empty(),
+        "{rule_id}: detectorMetadata.resource is required"
+    );
     debug_assert!(
         !attacker_controlled_input.is_empty(),
         "{rule_id}: detectorMetadata.attackerControlledInput is required"
@@ -242,7 +290,10 @@ fn base_observation(
     let mut metadata = detector_metadata;
     metadata.insert("claimClass".into(), Value::String(claim_class.into()));
     metadata.insert("resource".into(), Value::String(resource.into()));
-    metadata.insert("attackerControlledInput".into(), Value::String(attacker_controlled_input.into()));
+    metadata.insert(
+        "attackerControlledInput".into(),
+        Value::String(attacker_controlled_input.into()),
+    );
 
     json!({
         "ruleId": rule_id,
@@ -321,7 +372,9 @@ pub fn analyze(context: &ResilienceContext) -> Vec<Value> {
         ));
     }
 
-    if OUTBOUND_CALL_MARKER.is_match(&combined_text) && !CIRCUIT_BREAKER_MARKER.is_match(&combined_text) {
+    if OUTBOUND_CALL_MARKER.is_match(&combined_text)
+        && !CIRCUIT_BREAKER_MARKER.is_match(&combined_text)
+    {
         observations.push(base_observation(
             "abuse.resilience.circuit-breaker-absent",
             "The application makes outbound calls to a downstream dependency with no visible circuit breaker, timeout backoff, or retry-budget pattern.",
@@ -398,7 +451,12 @@ pub fn analyze(context: &ResilienceContext) -> Vec<Value> {
         if text.is_empty() || file.artifact_evidence_refs.is_empty() {
             continue;
         }
-        let evidence_refs: Vec<Value> = file.artifact_evidence_refs.iter().cloned().map(Value::String).collect();
+        let evidence_refs: Vec<Value> = file
+            .artifact_evidence_refs
+            .iter()
+            .cloned()
+            .map(Value::String)
+            .collect();
 
         // abuse.rate-limit.operation-missing
         for caps in IDENTITY_ROUTE.captures_iter(text) {
@@ -703,7 +761,9 @@ pub fn variant_webhook_signature_missing(context: &ResilienceContext) -> Vec<Var
 }
 
 /// Port of `lexicalVariantStrategy('abuse.webhook.signature-verified-after-use', ...)`'s `enumerate`.
-pub fn variant_webhook_signature_verified_after_use(context: &ResilienceContext) -> Vec<VariantMatch> {
+pub fn variant_webhook_signature_verified_after_use(
+    context: &ResilienceContext,
+) -> Vec<VariantMatch> {
     let mut matches = Vec::new();
     for file in &context.files {
         let text = file.text.as_str();
@@ -715,13 +775,19 @@ pub fn variant_webhook_signature_verified_after_use(context: &ResilienceContext)
             if !SIGNATURE_VERIFY_MARKER.is_match(&window_text) {
                 continue;
             }
-            let Some(use_match) = BODY_USE_MARKER.find(&window_text) else { continue };
-            let Some(verify_match) = SIGNATURE_VERIFY_MARKER.find(&window_text) else { continue };
+            let Some(use_match) = BODY_USE_MARKER.find(&window_text) else {
+                continue;
+            };
+            let Some(verify_match) = SIGNATURE_VERIFY_MARKER.find(&window_text) else {
+                continue;
+            };
             if use_match.start() < verify_match.start() {
                 matches.push(VariantMatch {
                     file: file.path.clone(),
                     line: line_of(text, m.start()),
-                    semantic_fingerprint: digest(&json!({ "file": file.path, "route": m.as_str() })),
+                    semantic_fingerprint: digest(
+                        &json!({ "file": file.path, "route": m.as_str() }),
+                    ),
                     disposition: "CONFIRMED",
                 });
             }
@@ -777,7 +843,9 @@ pub fn variant_pagination_unbounded(context: &ResilienceContext) -> Vec<VariantM
 }
 
 /// Port of `lexicalVariantStrategy('abuse.resource.exhaustion-unbounded-input', ...)`'s `enumerate`.
-pub fn variant_resource_exhaustion_unbounded_input(context: &ResilienceContext) -> Vec<VariantMatch> {
+pub fn variant_resource_exhaustion_unbounded_input(
+    context: &ResilienceContext,
+) -> Vec<VariantMatch> {
     let mut matches = Vec::new();
     for file in &context.files {
         let text = file.text.as_str();
@@ -834,23 +902,37 @@ mod tests {
     }
 
     fn context(files: Vec<ResilienceFile>) -> ResilienceContext {
-        ResilienceContext { files, performance_traces: vec![] }
+        ResilienceContext {
+            files,
+            performance_traces: vec![],
+        }
     }
 
     #[test]
     fn server_without_rate_limiter_is_flagged_as_design_recommendation_by_default() {
         let ctx = context(vec![file("src/server.js", "app.listen(3000)")]);
         let obs = analyze(&ctx);
-        let finding = obs.iter().find(|o| o["ruleId"] == "abuse.rate-limit.global-missing").expect("finding present");
+        let finding = obs
+            .iter()
+            .find(|o| o["ruleId"] == "abuse.rate-limit.global-missing")
+            .expect("finding present");
         assert_eq!(finding["severityHint"], "low");
-        assert_eq!(finding["detectorMetadata"]["claimClass"], "design-recommendation");
+        assert_eq!(
+            finding["detectorMetadata"]["claimClass"],
+            "design-recommendation"
+        );
     }
 
     #[test]
     fn server_with_rate_limiter_is_not_flagged() {
-        let ctx = context(vec![file("src/server.js", "app.listen(3000); app.use(rateLimit())")]);
+        let ctx = context(vec![file(
+            "src/server.js",
+            "app.listen(3000); app.use(rateLimit())",
+        )]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.rate-limit.global-missing"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.rate-limit.global-missing"));
     }
 
     #[test]
@@ -863,9 +945,15 @@ mod tests {
             note: Some("p99 800ms".to_string()),
         });
         let obs = analyze(&ctx);
-        let finding = obs.iter().find(|o| o["ruleId"] == "abuse.rate-limit.global-missing").expect("finding present");
+        let finding = obs
+            .iter()
+            .find(|o| o["ruleId"] == "abuse.rate-limit.global-missing")
+            .expect("finding present");
         assert_eq!(finding["severityHint"], "medium");
-        assert_eq!(finding["detectorMetadata"]["claimClass"], "proven-primitive");
+        assert_eq!(
+            finding["detectorMetadata"]["claimClass"],
+            "proven-primitive"
+        );
     }
 
     #[test]
@@ -891,34 +979,51 @@ mod tests {
             "router.post('/login', loginRateLimit, (req, res) => { doLogin(req, res); })",
         )]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.rate-limit.operation-missing"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.rate-limit.operation-missing"));
     }
 
     #[test]
     fn graphql_server_without_depth_or_cost_limit_flags_both() {
         let ctx = context(vec![file("src/graphql.js", "new ApolloServer({ schema })")]);
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o["ruleId"] == "abuse.graphql.depth-unbounded"));
-        assert!(obs.iter().any(|o| o["ruleId"] == "abuse.graphql.cost-unbounded"));
+        assert!(obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.graphql.depth-unbounded"));
+        assert!(obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.graphql.cost-unbounded"));
     }
 
     #[test]
     fn graphql_introspection_true_is_always_proven_and_low_severity() {
-        let ctx = context(vec![file("src/graphql.js", "new ApolloServer({ introspection: true })")]);
+        let ctx = context(vec![file(
+            "src/graphql.js",
+            "new ApolloServer({ introspection: true })",
+        )]);
         let obs = analyze(&ctx);
         let finding = obs
             .iter()
             .find(|o| o["ruleId"] == "abuse.graphql.introspection-enabled")
             .expect("finding present");
         assert_eq!(finding["severityHint"], "low");
-        assert_eq!(finding["detectorMetadata"]["claimClass"], "proven-primitive");
+        assert_eq!(
+            finding["detectorMetadata"]["claimClass"],
+            "proven-primitive"
+        );
     }
 
     #[test]
     fn pagination_unbounded_without_math_min_is_flagged() {
-        let ctx = context(vec![file("src/list.js", "db.find().limit(req.query.limit)")]);
+        let ctx = context(vec![file(
+            "src/list.js",
+            "db.find().limit(req.query.limit)",
+        )]);
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o["ruleId"] == "abuse.pagination.unbounded"));
+        assert!(obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.pagination.unbounded"));
     }
 
     #[test]
@@ -928,7 +1033,9 @@ mod tests {
             "const take = Math.min(req.query.limit, 100); db.find().limit(req.query.limit)",
         )]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.pagination.unbounded"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.pagination.unbounded"));
     }
 
     #[test]
@@ -938,7 +1045,10 @@ mod tests {
             "const password = user.password; app.get('/me', (req, res) => { res.json(user) })",
         )]);
         let obs = analyze(&ctx);
-        let finding = obs.iter().find(|o| o["ruleId"] == "abuse.data.over-exposed-fields").expect("finding present");
+        let finding = obs
+            .iter()
+            .find(|o| o["ruleId"] == "abuse.data.over-exposed-fields")
+            .expect("finding present");
         assert_eq!(finding["detectorMetadata"]["config"], "res.json(user)");
     }
 
@@ -949,7 +1059,9 @@ mod tests {
             "const password = user.password; res.json(sanitizeUser(user))",
         )]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.data.over-exposed-fields"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.data.over-exposed-fields"));
     }
 
     #[test]
@@ -959,7 +1071,9 @@ mod tests {
             "app.post('/webhook', (req, res) => { process(req.body); })",
         )]);
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o["ruleId"] == "abuse.webhook.signature-missing"));
+        assert!(obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.webhook.signature-missing"));
     }
 
     #[test]
@@ -969,7 +1083,10 @@ mod tests {
             "app.post('/webhook', (req, res) => { verifyWebhookSignature(req); process(req.body); })",
         )]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"].as_str().unwrap_or("").starts_with("abuse.webhook")));
+        assert!(!obs.iter().any(|o| o["ruleId"]
+            .as_str()
+            .unwrap_or("")
+            .starts_with("abuse.webhook")));
     }
 
     #[test]
@@ -979,8 +1096,12 @@ mod tests {
             "app.post('/webhook', (req, res) => { process(req.body); verifyWebhookSignature(req); })",
         )]);
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o["ruleId"] == "abuse.webhook.signature-verified-after-use"));
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.webhook.signature-missing"));
+        assert!(obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.webhook.signature-verified-after-use"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.webhook.signature-missing"));
     }
 
     #[test]
@@ -990,7 +1111,9 @@ mod tests {
             "router.post('/charge', (req, res) => { chargeCard(req.body); })",
         )]);
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o["ruleId"] == "abuse.mutation.idempotency-key-missing"));
+        assert!(obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.mutation.idempotency-key-missing"));
     }
 
     #[test]
@@ -1000,14 +1123,21 @@ mod tests {
             "router.post('/charge', (req, res) => { const key = req.headers['Idempotency-Key']; chargeCard(req.body); })",
         )]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.mutation.idempotency-key-missing"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.mutation.idempotency-key-missing"));
     }
 
     #[test]
     fn unbounded_array_allocation_from_request_input_is_flagged() {
-        let ctx = context(vec![file("src/buf.js", "const arr = new Array(req.query.count)")]);
+        let ctx = context(vec![file(
+            "src/buf.js",
+            "const arr = new Array(req.query.count)",
+        )]);
         let obs = analyze(&ctx);
-        assert!(obs.iter().any(|o| o["ruleId"] == "abuse.resource.exhaustion-unbounded-input"));
+        assert!(obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.resource.exhaustion-unbounded-input"));
     }
 
     #[test]
@@ -1017,12 +1147,17 @@ mod tests {
             "const n = Math.min(req.query.count, 1000); const arr = new Array(req.query.count)",
         )]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.resource.exhaustion-unbounded-input"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.resource.exhaustion-unbounded-input"));
     }
 
     #[test]
     fn outbound_call_without_circuit_breaker_is_flagged_low_and_capped() {
-        let ctx = context(vec![file("src/client.js", "axios.get('https://api.example.com')")]);
+        let ctx = context(vec![file(
+            "src/client.js",
+            "axios.get('https://api.example.com')",
+        )]);
         let obs = analyze(&ctx);
         let finding = obs
             .iter()
@@ -1038,7 +1173,9 @@ mod tests {
             "const breaker = new CircuitBreaker(fn); axios.get('https://api.example.com')",
         )]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.resilience.circuit-breaker-absent"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.resilience.circuit-breaker-absent"));
     }
 
     #[test]
@@ -1050,7 +1187,9 @@ mod tests {
             artifact_evidence_refs: vec![],
         }]);
         let obs = analyze(&ctx);
-        assert!(!obs.iter().any(|o| o["ruleId"] == "abuse.rate-limit.operation-missing"));
+        assert!(!obs
+            .iter()
+            .any(|o| o["ruleId"] == "abuse.rate-limit.operation-missing"));
     }
 
     #[test]
@@ -1085,7 +1224,10 @@ mod tests {
 
     #[test]
     fn variant_strategy_pagination_unbounded_matches_analyze() {
-        let ctx = context(vec![file("src/list.js", "db.find().limit(req.query.limit)")]);
+        let ctx = context(vec![file(
+            "src/list.js",
+            "db.find().limit(req.query.limit)",
+        )]);
         let matches = variant_pagination_unbounded(&ctx);
         assert_eq!(matches.len(), 1);
     }

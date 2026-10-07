@@ -108,16 +108,23 @@ pub fn resolve_generic_descriptor(
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Some(p) = from_env {
         let path = Path::new(p);
-        candidates.push(if path.is_absolute() { path.to_path_buf() } else { root.join(path) });
+        candidates.push(if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            root.join(path)
+        });
     }
     candidates.push(root.join(".agents").join("legion-harness.json"));
 
     for path in candidates {
-        let Some(contents) = read_file(&path) else { continue };
-        let declared: Value = serde_json::from_str(&contents).map_err(|e| HarnessDescriptorError {
-            path: path.display().to_string(),
-            message: format!("does not parse: {e}"),
-        })?;
+        let Some(contents) = read_file(&path) else {
+            continue;
+        };
+        let declared: Value =
+            serde_json::from_str(&contents).map_err(|e| HarnessDescriptorError {
+                path: path.display().to_string(),
+                message: format!("does not parse: {e}"),
+            })?;
         if !declared.is_object() {
             return Err(HarnessDescriptorError {
                 path: path.display().to_string(),
@@ -188,9 +195,14 @@ mod tests {
     #[test]
     fn resolve_generic_descriptor_merges_declared_surfaces_over_default() {
         let env = HashMap::new();
-        let declared = r#"{"surfaces": {"mcp": {"fidelity": "strong", "mechanism": {"kind": "json"}}}}"#;
+        let declared =
+            r#"{"surfaces": {"mcp": {"fidelity": "strong", "mechanism": {"kind": "json"}}}}"#;
         let result = resolve_generic_descriptor(Path::new("/repo"), &env, &|p| {
-            if p.ends_with("legion-harness.json") { Some(declared.to_string()) } else { None }
+            if p.ends_with("legion-harness.json") {
+                Some(declared.to_string())
+            } else {
+                None
+            }
         })
         .unwrap();
         assert_eq!(result["surfaces"]["mcp"]["fidelity"], "strong");
@@ -202,7 +214,11 @@ mod tests {
     fn resolve_generic_descriptor_errors_on_malformed_json() {
         let env = HashMap::new();
         let result = resolve_generic_descriptor(Path::new("/repo"), &env, &|p| {
-            if p.ends_with("legion-harness.json") { Some("{not json".to_string()) } else { None }
+            if p.ends_with("legion-harness.json") {
+                Some("{not json".to_string())
+            } else {
+                None
+            }
         });
         assert!(result.is_err());
     }

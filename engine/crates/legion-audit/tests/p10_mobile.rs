@@ -24,7 +24,9 @@ fn commerce_all_gaps_when_empty() {
     assert_eq!(result["status"], "fail");
     assert_eq!(result["terminal"], true);
     let gaps = result["coverageGaps"].as_array().unwrap();
-    assert!(gaps.iter().any(|g| g == "entitlement-state-coverage-missing"));
+    assert!(gaps
+        .iter()
+        .any(|g| g == "entitlement-state-coverage-missing"));
     assert!(gaps.iter().any(|g| g == "push-account-binding-missing"));
     assert!(gaps.iter().any(|g| g == "analytics-consent-missing"));
     assert!(gaps.iter().any(|g| g == "operations-readiness-missing"));
@@ -139,10 +141,7 @@ fn device_execute_blocked_when_physical_only_on_simulator() {
     });
     let result = mobile_device_execute(&input, None);
     assert_eq!(result["status"], "blocked");
-    assert_eq!(
-        result["coverageGaps"][0],
-        "physical-device-required:scn-1"
-    );
+    assert_eq!(result["coverageGaps"][0], "physical-device-required:scn-1");
 }
 
 #[test]
@@ -204,8 +203,14 @@ fn host_plan_marks_requirement_unavailable_without_matching_device() {
     let result = plan_mobile_hosts(&input);
     assert_eq!(result["status"], "partial");
     assert_eq!(result["requirements"][0]["status"], "unavailable");
-    assert_eq!(result["requirements"][0]["gap"], "physical-device-unavailable");
-    assert_eq!(result["coverageGaps"][0], "req-1:physical-device-unavailable");
+    assert_eq!(
+        result["requirements"][0]["gap"],
+        "physical-device-unavailable"
+    );
+    assert_eq!(
+        result["coverageGaps"][0],
+        "req-1:physical-device-unavailable"
+    );
 }
 
 #[test]
@@ -257,13 +262,19 @@ fn lifecycle_unproven_with_available_device() {
 
 #[test]
 fn network_plan_enumerates_fixed_and_migration_scenarios() {
-    let result = plan_mobile_data_network(&json!({ "actorId": "actor-1", "supportedSchemaVersions": [3, 4] }));
+    let result = plan_mobile_data_network(
+        &json!({ "actorId": "actor-1", "supportedSchemaVersions": [3, 4] }),
+    );
     assert_eq!(result["status"], "unproven");
     let scenarios = result["scenarios"].as_array().unwrap();
     // 15 network + 1 sync + 10 storage + 2 migration + 1 pressure + 1 cache = 30
     assert_eq!(scenarios.len(), 30);
-    assert!(scenarios.iter().any(|s| s["id"] == "migration:3-to-current"));
-    assert!(scenarios.iter().any(|s| s["id"] == "migration:4-to-current"));
+    assert!(scenarios
+        .iter()
+        .any(|s| s["id"] == "migration:3-to-current"));
+    assert!(scenarios
+        .iter()
+        .any(|s| s["id"] == "migration:4-to-current"));
     assert_eq!(result["denominator"]["total"], 30);
     assert_eq!(result["coverageGaps"].as_array().unwrap().len(), 30);
 }
@@ -277,7 +288,9 @@ fn performance_reports_all_gaps_when_no_measurements() {
     let result = assess_mobile_performance(&json!({}));
     assert_eq!(result["status"], "partial");
     let gaps = result["coverageGaps"].as_array().unwrap();
-    assert!(gaps.iter().any(|g| g == "physical-device-measurement-missing"));
+    assert!(gaps
+        .iter()
+        .any(|g| g == "physical-device-measurement-missing"));
     assert!(gaps.iter().any(|g| g == "artifact-identity-missing"));
     assert!(gaps.iter().any(|g| g == "metric-missing:cold-start"));
 }
@@ -370,7 +383,11 @@ fn release_non_blocking_gaps_yield_partial() {
     let result = verify_mobile_release(&input);
     assert_eq!(result["status"], "partial");
     assert_eq!(result["releaseBlocked"], false);
-    assert!(result["coverageGaps"].as_array().unwrap().iter().any(|g| g == "symbols-missing"));
+    assert!(result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g == "symbols-missing"));
 }
 
 #[test]

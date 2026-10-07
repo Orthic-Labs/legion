@@ -1951,7 +1951,9 @@ mod route_domain_tests {
     #[test]
     fn a_medical_route_without_a_patient_is_refused() {
         let route = ResearchRoute::host_injected_with("dosing", "medical", "private");
-        let error = route.validate().expect_err("medical must require a patient subject");
+        let error = route
+            .validate()
+            .expect_err("medical must require a patient subject");
         assert!(
             format!("{error}").contains("subject.patient"),
             "refusal must name the missing subject, got: {error}"
@@ -1961,6 +1963,9 @@ mod route_domain_tests {
     #[test]
     fn an_undeclared_domain_is_refused() {
         let route = ResearchRoute::host_injected_with("q", "astrology", "public");
-        assert!(route.validate().is_err(), "undeclared domain must not validate");
+        assert!(
+            route.validate().is_err(),
+            "undeclared domain must not validate"
+        );
     }
 }

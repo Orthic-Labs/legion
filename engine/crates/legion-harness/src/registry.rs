@@ -96,7 +96,11 @@ pub fn matrix_value(registry: &HarnessRegistry, root: &Path) -> Result<Value, Ha
     }))
 }
 
-pub fn capabilities_response(registry: &HarnessRegistry, id: &str, root: &Path) -> Result<Value, HarnessError> {
+pub fn capabilities_response(
+    registry: &HarnessRegistry,
+    id: &str,
+    root: &Path,
+) -> Result<Value, HarnessError> {
     let value = registry.capabilities(id, root)?;
     Ok(json!({
         "kind": "legion-harness-capabilities",
@@ -107,21 +111,38 @@ pub fn capabilities_response(registry: &HarnessRegistry, id: &str, root: &Path) 
     }))
 }
 
-pub fn install_response(registry: &HarnessRegistry, id: &str, root: &Path) -> Result<Value, HarnessError> {
+pub fn install_response(
+    registry: &HarnessRegistry,
+    id: &str,
+    root: &Path,
+) -> Result<Value, HarnessError> {
     let value = registry.install(id, root)?;
     let mut response = serde_json::Map::new();
     response.insert("kind".into(), json!("legion-harness-install"));
     response.insert("id".into(), value.get("id").cloned().unwrap_or(Value::Null));
-    response.insert("installOwner".into(), value.get("installOwner").cloned().unwrap_or(Value::Null));
-    response.insert("wrote".into(), value.get("wrote").cloned().unwrap_or(Value::Null));
+    response.insert(
+        "installOwner".into(),
+        value.get("installOwner").cloned().unwrap_or(Value::Null),
+    );
+    response.insert(
+        "wrote".into(),
+        value.get("wrote").cloned().unwrap_or(Value::Null),
+    );
     if let Some(skipped) = value.get("skipped") {
         response.insert("skipped".into(), skipped.clone());
     }
-    response.insert("surfaces".into(), value.get("surfaces").cloned().unwrap_or(Value::Null));
+    response.insert(
+        "surfaces".into(),
+        value.get("surfaces").cloned().unwrap_or(Value::Null),
+    );
     Ok(Value::Object(response))
 }
 
-pub fn verify_response(registry: &HarnessRegistry, id: &str, root: &Path) -> Result<(Value, bool), HarnessError> {
+pub fn verify_response(
+    registry: &HarnessRegistry,
+    id: &str,
+    root: &Path,
+) -> Result<(Value, bool), HarnessError> {
     let value = registry.verify(id, root)?;
     let ok = value.get("ok").and_then(Value::as_bool) == Some(true);
     Ok((
@@ -137,7 +158,11 @@ pub fn verify_response(registry: &HarnessRegistry, id: &str, root: &Path) -> Res
     ))
 }
 
-pub fn uninstall_response(registry: &HarnessRegistry, id: &str, root: &Path) -> Result<Value, HarnessError> {
+pub fn uninstall_response(
+    registry: &HarnessRegistry,
+    id: &str,
+    root: &Path,
+) -> Result<Value, HarnessError> {
     let value = registry.uninstall(id, root)?;
     Ok(json!({
         "kind": "legion-harness-uninstall",

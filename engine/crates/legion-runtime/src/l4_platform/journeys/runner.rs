@@ -21,9 +21,18 @@ pub async fn run_journey(
     capability: Option<&Value>,
     binding: Value,
 ) -> Value {
-    let scenario_id = scenario.and_then(|s| s.get("id")).cloned().unwrap_or(Value::Null);
-    let target_id = scenario.and_then(|s| s.get("targetId")).cloned().unwrap_or(Value::Null);
-    let destructive = scenario.and_then(|s| s.get("destructive")).and_then(Value::as_bool).unwrap_or(false);
+    let scenario_id = scenario
+        .and_then(|s| s.get("id"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let target_id = scenario
+        .and_then(|s| s.get("targetId"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let destructive = scenario
+        .and_then(|s| s.get("destructive"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
 
     let permitted = require_capability(capability, destructive);
     if !permitted.ok {
@@ -36,7 +45,9 @@ pub async fn run_journey(
     let steps_value = scenario.and_then(|s| s.get("steps"));
     let steps_array = steps_value.and_then(Value::as_array);
     let steps_valid = scenario.map(Value::is_object).unwrap_or(false)
-        && steps_array.map(|arr| !arr.is_empty() && arr.iter().all(|s| s.is_object())).unwrap_or(false);
+        && steps_array
+            .map(|arr| !arr.is_empty() && arr.iter().all(|s| s.is_object()))
+            .unwrap_or(false);
     if !steps_valid {
         return terminal_scenario_receipt(&json!({
             "scenarioId": scenario_id, "targetId": target_id, "status": "unproven", "binding": binding,
@@ -80,7 +91,10 @@ pub async fn run_journey(
             }
         };
         let result_status = result.get("status").and_then(Value::as_str).unwrap_or("");
-        let result_terminal = result.get("terminal").and_then(Value::as_bool).unwrap_or(false);
+        let result_terminal = result
+            .get("terminal")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         if !TERMINAL_STATUSES.contains(&result_status) || !result_terminal {
             return terminal_scenario_receipt(&json!({
                 "scenarioId": scenario_id, "targetId": target_id, "status": "error", "binding": binding,
@@ -89,8 +103,14 @@ pub async fn run_journey(
         }
         durable_state = result.get("durableState").cloned().unwrap_or(Value::Null);
         let assertion = evaluate_invariant(step.get("invariant"), result.get("observedState"));
-        let step_status = if result_status != "pass" { result_status.to_string() } else {
-            assertion.get("status").and_then(Value::as_str).unwrap_or("unproven").to_string()
+        let step_status = if result_status != "pass" {
+            result_status.to_string()
+        } else {
+            assertion
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("unproven")
+                .to_string()
         };
         recorded_steps.push(json!({
             "id": step.get("id").cloned().unwrap_or(Value::Null),
@@ -102,7 +122,11 @@ pub async fn run_journey(
             "durableState": durable_state,
         }));
         if step_status != "pass" {
-            let final_status = if step_status == "fail" { "fail".to_string() } else { step_status.clone() };
+            let final_status = if step_status == "fail" {
+                "fail".to_string()
+            } else {
+                step_status.clone()
+            };
             return terminal_scenario_receipt(&json!({
                 "scenarioId": scenario_id, "targetId": target_id, "status": final_status, "binding": binding,
                 "steps": recorded_steps, "observedState": result.get("observedState").cloned().unwrap_or(Value::Null),
@@ -135,7 +159,9 @@ mod tests {
     #[async_trait]
     impl JourneyAdapter for StubAdapter {
         async fn execute(&self, _step: &Value) -> Option<Value> {
-            Some(json!({"status": "pass", "terminal": true, "durableState": {"ok": true}, "observedState": {"ready": true}}))
+            Some(
+                json!({"status": "pass", "terminal": true, "durableState": {"ok": true}, "observedState": {"ready": true}}),
+            )
         }
     }
 

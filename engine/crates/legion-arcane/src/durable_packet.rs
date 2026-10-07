@@ -19,7 +19,12 @@ fn packet_state(value: &Value) -> Option<PacketState> {
     if digests.iter().any(|digest| digest.is_empty()) {
         return None;
     }
-    if digests.len() != digests.iter().collect::<std::collections::HashSet<_>>().len() {
+    if digests.len()
+        != digests
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+    {
         return None;
     }
     Some(PacketState {
@@ -53,12 +58,10 @@ impl DurablePacketAdmissionStore {
             });
         }
         let bytes = fs::read(&self.state_path).map_err(|error| error.to_string())?;
-        let value: Value = serde_json::from_slice(&bytes).map_err(|_| {
-            "ARC_PACKET_STORE_CORRUPT: durable packet state is invalid".to_string()
-        })?;
-        packet_state(&value).ok_or_else(|| {
-            "ARC_PACKET_STORE_CORRUPT: durable packet state is invalid".to_string()
-        })
+        let value: Value = serde_json::from_slice(&bytes)
+            .map_err(|_| "ARC_PACKET_STORE_CORRUPT: durable packet state is invalid".to_string())?;
+        packet_state(&value)
+            .ok_or_else(|| "ARC_PACKET_STORE_CORRUPT: durable packet state is invalid".to_string())
     }
 
     fn persist_store(&self, state: &PacketState) -> Result<(), String> {
@@ -101,7 +104,11 @@ impl DurablePacketAdmissionStore {
         };
         let result: Result<Value, String> = (|| {
             let state = self.read_store()?;
-            if state.packet_digests.iter().any(|digest| digest == packet_digest) {
+            if state
+                .packet_digests
+                .iter()
+                .any(|digest| digest == packet_digest)
+            {
                 return Ok(json!({
                     "allowed": false,
                     "code": "ARC_PACKET_DIGEST_REPLAY",

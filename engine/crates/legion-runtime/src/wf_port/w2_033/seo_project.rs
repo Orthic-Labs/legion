@@ -132,14 +132,30 @@ pub const STATE_DIR_COMPONENTS: [&str; 2] = [".legion", "seo"];
 pub const SITE_FILE: &str = "site.yaml";
 /// Port of `REQUIRED_STATE_DIRS`.
 pub const REQUIRED_STATE_DIRS: &[&str] = &[
-    "strategy", "baselines", "gsc", "ga4", "bing", "ai-visibility", "crawls", "keywords",
-    "rank-tracking", "competitors", "backlinks", "briefs", "interventions", "reports", "cache",
+    "strategy",
+    "baselines",
+    "gsc",
+    "ga4",
+    "bing",
+    "ai-visibility",
+    "crawls",
+    "keywords",
+    "rank-tracking",
+    "competitors",
+    "backlinks",
+    "briefs",
+    "interventions",
+    "reports",
+    "cache",
 ];
 /// Port of `PROVIDER_ENV`: provider name -> required environment variable names, in the
 /// same iteration order as the Python dict literal (used by [`doctor`]'s output).
 pub const PROVIDER_ENV: &[(&str, &[&str])] = &[
     ("google_api", &["GOOGLE_API_KEY"]),
-    ("google_oauth_or_service", &["GOOGLE_APPLICATION_CREDENTIALS"]),
+    (
+        "google_oauth_or_service",
+        &["GOOGLE_APPLICATION_CREDENTIALS"],
+    ),
     ("gsc_property", &["GSC_PROPERTY"]),
     ("ga4_property", &["GA4_PROPERTY_ID"]),
     ("bing_webmaster", &["BING_API_KEY"]),
@@ -231,7 +247,10 @@ pub fn load_site(root: &Path) -> Result<Map<String, Value>, String> {
         .map_err(|e| format!("invalid project state {}: {e}", path.display()))?;
     match serde_json::from_str::<Value>(&text) {
         Ok(Value::Object(map)) => Ok(map),
-        Ok(_) => Err(format!("invalid project state {}: not a JSON object", path.display())),
+        Ok(_) => Err(format!(
+            "invalid project state {}: not a JSON object",
+            path.display()
+        )),
         Err(e) => Err(format!("invalid project state {}: {e}", path.display())),
     }
 }
@@ -361,7 +380,10 @@ pub fn doctor(root: &Path) -> Value {
     let writable_target = if state_dir.exists() {
         state_dir.clone()
     } else {
-        state_dir.parent().map(Path::to_path_buf).unwrap_or(state_dir.clone())
+        state_dir
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or(state_dir.clone())
     };
     let state_dir_writable = is_writable(&writable_target);
 
@@ -389,13 +411,28 @@ pub fn doctor(root: &Path) -> Value {
 
     let mut out = Map::new();
     out.insert("checked_at".into(), Value::from(utc_now()));
-    out.insert("root".into(), Value::from(root_path(root).display().to_string()));
-    out.insert("domain".into(), site.get("domain").cloned().unwrap_or(Value::Null));
-    out.insert("market".into(), site.get("market").cloned().unwrap_or(Value::Null));
-    out.insert("language".into(), site.get("language").cloned().unwrap_or(Value::Null));
+    out.insert(
+        "root".into(),
+        Value::from(root_path(root).display().to_string()),
+    );
+    out.insert(
+        "domain".into(),
+        site.get("domain").cloned().unwrap_or(Value::Null),
+    );
+    out.insert(
+        "market".into(),
+        site.get("market").cloned().unwrap_or(Value::Null),
+    );
+    out.insert(
+        "language".into(),
+        site.get("language").cloned().unwrap_or(Value::Null),
+    );
     out.insert("providers".into(), Value::Object(providers));
     out.insert("checks".into(), Value::Object(checks));
-    out.insert("missing_property_mappings".into(), Value::from(missing_mapping));
+    out.insert(
+        "missing_property_mappings".into(),
+        Value::from(missing_mapping),
+    );
     out.insert("secrets_exposed".into(), Value::from(false));
     Value::Object(out)
 }
@@ -485,7 +522,10 @@ pub fn run(args: &[String]) -> i32 {
                     return 2;
                 }
             };
-            let devices_arg = opts.get("devices").cloned().unwrap_or_else(|| "desktop,mobile".to_string());
+            let devices_arg = opts
+                .get("devices")
+                .cloned()
+                .unwrap_or_else(|| "desktop,mobile".to_string());
             let devices: Vec<String> = devices_arg
                 .split(',')
                 .map(|s| s.trim().to_string())
@@ -566,11 +606,35 @@ mod tests {
 
     #[test]
     fn cache_key_is_deterministic_and_field_order_independent_input() {
-        let a = cache_key("google_api", "serp", "example.com", "US", "en", "desktop", "daily");
-        let b = cache_key("google_api", "serp", "example.com", "US", "en", "desktop", "daily");
+        let a = cache_key(
+            "google_api",
+            "serp",
+            "example.com",
+            "US",
+            "en",
+            "desktop",
+            "daily",
+        );
+        let b = cache_key(
+            "google_api",
+            "serp",
+            "example.com",
+            "US",
+            "en",
+            "desktop",
+            "daily",
+        );
         assert_eq!(a, b);
         assert_eq!(a.len(), 64);
-        let c = cache_key("google_api", "serp", "example.com", "GB", "en", "desktop", "daily");
+        let c = cache_key(
+            "google_api",
+            "serp",
+            "example.com",
+            "GB",
+            "en",
+            "desktop",
+            "daily",
+        );
         assert_ne!(a, c);
     }
 
@@ -627,21 +691,50 @@ mod tests {
     fn setup_project_creates_state_dirs_and_merges_over_existing() {
         let root = unique_temp_dir("setup");
         let first = setup_project(
-            &root, "example.com", "US", "en",
-            Some("sc-domain:example.com"), None, None, Some("USD"), None,
+            &root,
+            "example.com",
+            "US",
+            "en",
+            Some("sc-domain:example.com"),
+            None,
+            None,
+            Some("USD"),
+            None,
         )
         .expect("first setup");
         assert_eq!(first["domain"], Value::from("example.com"));
-        assert_eq!(first["devices"], Value::from(vec!["desktop".to_string(), "mobile".to_string()]));
-        assert_eq!(first["properties"]["gsc"], Value::from("sc-domain:example.com"));
+        assert_eq!(
+            first["devices"],
+            Value::from(vec!["desktop".to_string(), "mobile".to_string()])
+        );
+        assert_eq!(
+            first["properties"]["gsc"],
+            Value::from("sc-domain:example.com")
+        );
         for name in REQUIRED_STATE_DIRS {
-            assert!(state_path(&root).join(name).is_dir(), "missing state dir {name}");
+            assert!(
+                state_path(&root).join(name).is_dir(),
+                "missing state dir {name}"
+            );
         }
 
         // Second call without gsc_property must preserve the previously stored mapping.
-        let second = setup_project(&root, "example.com", "US", "en", None, Some("properties/123"), None, None, None)
-            .expect("second setup");
-        assert_eq!(second["properties"]["gsc"], Value::from("sc-domain:example.com"));
+        let second = setup_project(
+            &root,
+            "example.com",
+            "US",
+            "en",
+            None,
+            Some("properties/123"),
+            None,
+            None,
+            None,
+        )
+        .expect("second setup");
+        assert_eq!(
+            second["properties"]["gsc"],
+            Value::from("sc-domain:example.com")
+        );
         assert_eq!(second["properties"]["ga4"], Value::from("properties/123"));
 
         let loaded = load_site(&root).expect("load site");
@@ -658,7 +751,15 @@ mod tests {
     #[test]
     fn cache_put_and_get_round_trip() {
         let root = unique_temp_dir("cache");
-        let key = cache_key("google_api", "serp", "example.com", "US", "en", "desktop", "daily");
+        let key = cache_key(
+            "google_api",
+            "serp",
+            "example.com",
+            "US",
+            "en",
+            "desktop",
+            "daily",
+        );
         let value = serde_json::json!({"rank": 3});
         cache_put(&root, &key, &value).expect("cache put");
         let fetched = cache_get(&root, &key).expect("cache get");
@@ -692,8 +793,13 @@ mod tests {
     #[test]
     fn run_cache_key_command_prints_json_and_returns_zero() {
         let args: Vec<String> = [
-            "cache-key", "--provider", "google_api", "--capability", "serp",
-            "--target", "example.com",
+            "cache-key",
+            "--provider",
+            "google_api",
+            "--capability",
+            "serp",
+            "--target",
+            "example.com",
         ]
         .iter()
         .map(|s| s.to_string())

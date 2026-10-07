@@ -34,7 +34,10 @@ fn tts_doubao_cli_roundtrip_success() {
         env,
         vec![
             ("DOUBAO_TTS_API_KEY".to_string(), "key-abc".to_string()),
-            ("DOUBAO_TTS_VOICE_ID".to_string(), "default-voice".to_string()),
+            (
+                "DOUBAO_TTS_VOICE_ID".to_string(),
+                "default-voice".to_string()
+            ),
         ]
     );
 
@@ -85,9 +88,8 @@ fn fetch_images_cli_derives_filenames_and_query() {
     assert!(!fname.contains("File:"));
     assert!(!fname.contains(' '));
 
-    let artist = strip_html_tags(
-        r#"<a href="//commons.wikimedia.org/wiki/User:Jane">Jane Doe</a>"#,
-    );
+    let artist =
+        strip_html_tags(r#"<a href="//commons.wikimedia.org/wiki/User:Jane">Jane Doe</a>"#);
     assert_eq!(artist, "Jane Doe");
 
     assert_eq!(safe_slug("Langkawi beach!"), "Langkawi_beach_");

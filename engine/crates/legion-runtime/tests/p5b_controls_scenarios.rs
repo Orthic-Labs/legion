@@ -31,7 +31,8 @@ fn pairwise_honors_a_constraint_and_reports_omissions() {
     dims.insert("arch".into(), vec![Value::str("x64"), Value::str("arm64")]);
 
     let deny_win_arm: Constraint = Box::new(|row| {
-        !(row.get("os") == Some(&Value::str("win")) && row.get("arch") == Some(&Value::str("arm64")))
+        !(row.get("os") == Some(&Value::str("win"))
+            && row.get("arch") == Some(&Value::str("arm64")))
     });
 
     let result = pairwise(&dims, &[deny_win_arm], &[]).expect("pairwise should succeed");
@@ -39,5 +40,6 @@ fn pairwise_honors_a_constraint_and_reports_omissions() {
     assert!(!result
         .rows
         .iter()
-        .any(|row| row.get("os") == Some(&Value::str("win")) && row.get("arch") == Some(&Value::str("arm64"))));
+        .any(|row| row.get("os") == Some(&Value::str("win"))
+            && row.get("arch") == Some(&Value::str("arm64"))));
 }

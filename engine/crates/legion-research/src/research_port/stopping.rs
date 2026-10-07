@@ -28,9 +28,20 @@ pub struct StoppingDecision {
 /// Production entry point — same decision order as the Python:
 /// budget exhaustion, then full coverage, then stagnation, else continue.
 pub fn decide(input: &StoppingInput) -> StoppingDecision {
-    let required: BTreeSet<&str> = input.required_questions.iter().map(String::as_str).collect();
-    let answered: BTreeSet<&str> = input.answered_questions.iter().map(String::as_str).collect();
-    let unanswered: Vec<String> = required.difference(&answered).map(|s| s.to_string()).collect();
+    let required: BTreeSet<&str> = input
+        .required_questions
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let answered: BTreeSet<&str> = input
+        .answered_questions
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let unanswered: Vec<String> = required
+        .difference(&answered)
+        .map(|s| s.to_string())
+        .collect();
     let gaps: Vec<String> = input
         .blocking_gaps
         .iter()

@@ -55,7 +55,11 @@ fn walk_dir_and_import_graph_end_to_end() {
     std::fs::write(root.join("src/index.ts"), "import './app';\n").unwrap();
     std::fs::write(root.join("src/app.ts"), "export const app = 1;\n").unwrap();
     std::fs::create_dir_all(root.join("node_modules/pkg")).unwrap();
-    std::fs::write(root.join("node_modules/pkg/index.js"), "module.exports = {}").unwrap();
+    std::fs::write(
+        root.join("node_modules/pkg/index.js"),
+        "module.exports = {}",
+    )
+    .unwrap();
 
     let files = walk_dir(&root);
     let file_names: HashSet<String> = files
@@ -82,7 +86,10 @@ fn walk_dir_and_import_graph_end_to_end() {
 #[test]
 fn resolve_import_bare_specifier_is_skipped() {
     let files: HashSet<PathBuf> = HashSet::new();
-    assert_eq!(resolve_import("react-dom", std::path::Path::new("/x"), &files), None);
+    assert_eq!(
+        resolve_import("react-dom", std::path::Path::new("/x"), &files),
+        None
+    );
 }
 
 #[test]
@@ -138,14 +145,35 @@ fn percentile_helper_matches_js_ceil_formula_for_p95() {
 #[test]
 fn sanitize_clip_and_contrast_ratio_roundtrip() {
     let clip = sanitize_screenshot_clip(
-        Some(Clip { x: 0, y: 0, width: 4000, height: 1000 }),
+        Some(Clip {
+            x: 0,
+            y: 0,
+            width: 4000,
+            height: 1000,
+        }),
         Some(1600),
     )
     .unwrap();
-    assert_eq!(clip, Clip { x: 0, y: 0, width: 1600, height: 320 });
+    assert_eq!(
+        clip,
+        Clip {
+            x: 0,
+            y: 0,
+            width: 1600,
+            height: 320
+        }
+    );
 
-    let black = Rgb { r: 0.0, g: 0.0, b: 0.0 };
-    let white = Rgb { r: 255.0, g: 255.0, b: 255.0 };
+    let black = Rgb {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+    };
+    let white = Rgb {
+        r: 255.0,
+        g: 255.0,
+        b: 255.0,
+    };
     assert!(contrast_ratio(black, white) > 20.9);
 
     let ratios = vec![2.0, 4.0, 6.0, 8.0, 10.0];

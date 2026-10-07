@@ -215,7 +215,9 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
         Some(v) => v,
         None => return (1, "Missing --id".to_string()),
     };
-    let count: i64 = arg_val(args, "--count").and_then(|v| v.parse().ok()).unwrap_or(3);
+    let count: i64 = arg_val(args, "--count")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3);
     let position = match arg_val(args, "--position") {
         Some(v) => v,
         None => return (1, "Missing --position (before | after)".to_string()),
@@ -231,14 +233,19 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
     let text = arg_val(args, "--text");
 
     if element_id.is_none() && classes.is_none() && query.is_none() {
-        return (1, "Need at least one of: --element-id, --classes, --query".to_string());
+        return (
+            1,
+            "Need at least one of: --element-id, --classes, --query".to_string(),
+        );
     }
 
     let queries = live_wrap::build_search_queries(element_id, classes, tag, query);
 
     let mut target_file = file_path.map(|p| cwd.join(p));
     if let Some(tf) = &target_file {
-        let opts = IsGeneratedOptions { cwd: Some(cwd.to_path_buf()) };
+        let opts = IsGeneratedOptions {
+            cwd: Some(cwd.to_path_buf()),
+        };
         if is_generated_file(&tf.to_string_lossy(), &opts) {
             return (
                 1,
@@ -280,7 +287,12 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
 
     let content = match std::fs::read_to_string(&target_file) {
         Ok(c) => c,
-        Err(e) => return (1, json!({"error": "read_failed", "message": e.to_string()}).to_string()),
+        Err(e) => {
+            return (
+                1,
+                json!({"error": "read_failed", "message": e.to_string()}).to_string(),
+            )
+        }
     };
     let lines: Vec<String> = content.split('\n').map(str::to_string).collect();
     let resolved = resolve_element_match(&lines, &queries, tag, text);
@@ -303,7 +315,10 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
             );
         }
         ElementMatchResult::NotFound => {
-            return (1, json!({"error": "element_not_found", "fallback": "agent-driven"}).to_string());
+            return (
+                1,
+                json!({"error": "element_not_found", "fallback": "agent-driven"}).to_string(),
+            );
         }
         ElementMatchResult::Match(m) => (m.start_line, m.end_line),
     };
@@ -331,7 +346,12 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
             cwd,
         ) {
             Ok(s) => s,
-            Err(e) => return (1, json!({"error": "write_failed", "message": e.to_string()}).to_string()),
+            Err(e) => {
+                return (
+                    1,
+                    json!({"error": "write_failed", "message": e.to_string()}).to_string(),
+                )
+            }
         };
         let css = svelte::build_svelte_component_css_authoring(count as usize);
         return (
@@ -377,7 +397,10 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
         .or_else(|| lines.get(start_line).map(|l| leading_ws(l)))
         .unwrap_or_default();
 
-    let cs = CommentSyntax { open: comment_syntax.open.to_string(), close: comment_syntax.close.to_string() };
+    let cs = CommentSyntax {
+        open: comment_syntax.open.to_string(),
+        close: comment_syntax.close.to_string(),
+    };
     let wrapper_lines = build_insert_wrapper_lines(InsertWrapperArgs {
         id,
         count,
@@ -392,7 +415,10 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
     new_lines.extend_from_slice(&lines[splice_index..]);
 
     if let Err(e) = std::fs::write(&target_file, new_lines.join("\n")) {
-        return (1, json!({"error": "write_failed", "message": e.to_string()}).to_string());
+        return (
+            1,
+            json!({"error": "write_failed", "message": e.to_string()}).to_string(),
+        );
     }
 
     let insert_line = splice_index + 3;
@@ -503,7 +529,12 @@ mod tests {
 
     #[test]
     fn arg_val_returns_following_value() {
-        let args = vec!["--id".to_string(), "sess1".to_string(), "--count".to_string(), "3".to_string()];
+        let args = vec![
+            "--id".to_string(),
+            "sess1".to_string(),
+            "--count".to_string(),
+            "3".to_string(),
+        ];
         assert_eq!(arg_val(&args, "--id"), Some("sess1"));
         assert_eq!(arg_val(&args, "--count"), Some("3"));
     }

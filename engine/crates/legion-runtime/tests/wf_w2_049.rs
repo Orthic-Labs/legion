@@ -143,13 +143,16 @@ fn naming_checker_rejects_security_pack_prefix_and_occurrence_bypasses() {
     let allowlist_path = fixture.join("src/config/naming-legacy-allowlist.json");
     let mut allowlist: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&allowlist_path).unwrap()).unwrap();
-    allowlist["rules"].as_array_mut().unwrap().push(serde_json::json!({
-        "path": "src/security/packs/output-handling.mjs",
-        "tokens": ["forge"],
-        "occurrences": {"forge": 1},
-        "class": "R0",
-        "reason": "fixture: ordinary security verb",
-    }));
+    allowlist["rules"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "path": "src/security/packs/output-handling.mjs",
+            "tokens": ["forge"],
+            "occurrences": {"forge": 1},
+            "class": "R0",
+            "reason": "fixture: ordinary security verb",
+        }));
     fs::write(
         &allowlist_path,
         format!("{}\n", serde_json::to_string_pretty(&allowlist).unwrap()),

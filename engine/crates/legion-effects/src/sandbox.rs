@@ -56,8 +56,7 @@ impl SandboxGap {
     pub fn as_str(&self) -> String {
         match self {
             Self::UnsupportedPlatform => {
-                "sandbox_unsupported_platform: no OS sandbox authenticator for this platform"
-                    .into()
+                "sandbox_unsupported_platform: no OS sandbox authenticator for this platform".into()
             }
             Self::ToolMissing => "sandbox_tool_missing: /usr/bin/sandbox-exec not found".into(),
             Self::ProfileWriteFailed(detail) => format!("sandbox_profile_write_failed: {detail}"),

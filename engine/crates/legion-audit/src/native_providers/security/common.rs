@@ -61,7 +61,9 @@ pub fn exact_binding(actual: Option<&Value>, expected: Option<&Value>) -> bool {
 
 pub fn object(entries: impl IntoIterator<Item = (&'static str, Value)>) -> Value {
     Value::Object(Map::from_iter(
-        entries.into_iter().map(|(key, value)| (key.to_owned(), value)),
+        entries
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value)),
     ))
 }
 

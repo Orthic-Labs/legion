@@ -45,7 +45,11 @@ pub fn inspect_web_backend(binding: &Value, endpoints: &Value) -> Value {
         let id = item.get("id").cloned().unwrap_or(Value::Null);
         let mut gaps: Vec<String> = Vec::new();
         for key in ["id", "method", "path"] {
-            if item.get(key).map(|v| v.is_null() || v == "").unwrap_or(true) {
+            if item
+                .get(key)
+                .map(|v| v.is_null() || v == "")
+                .unwrap_or(true)
+            {
                 gaps.push(format!("missing-{key}"));
             }
         }
@@ -65,11 +69,21 @@ pub fn inspect_web_backend(binding: &Value, endpoints: &Value) -> Value {
 
     let ids: Vec<String> = endpoints_arr
         .iter()
-        .map(|item| item.get("id").and_then(Value::as_str).unwrap_or_default().to_string())
+        .map(|item| {
+            item.get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        })
         .collect();
     let receipt_ids: Vec<String> = receipts
         .iter()
-        .map(|r| r.get("id").and_then(Value::as_str).unwrap_or_default().to_string())
+        .map(|r| {
+            r.get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        })
         .collect();
     let counts = denominator(&ids, &receipt_ids, &[]);
 
@@ -82,7 +96,11 @@ pub fn inspect_web_backend(binding: &Value, endpoints: &Value) -> Value {
     for id in &ids {
         *seen_counts.entry(id.as_str()).or_insert(0) += 1;
     }
-    let mut duplicate_ids: Vec<&str> = seen_counts.iter().filter(|(_, &count)| count > 1).map(|(id, _)| *id).collect();
+    let mut duplicate_ids: Vec<&str> = seen_counts
+        .iter()
+        .filter(|(_, &count)| count > 1)
+        .map(|(id, _)| *id)
+        .collect();
     duplicate_ids.sort();
     for id in duplicate_ids {
         gaps.push(format!("backend-id-duplicate:{id}"));

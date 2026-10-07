@@ -12,13 +12,30 @@ use std::sync::OnceLock;
 
 use super::infrastructure::SignatureVerifier;
 use super::shared::{
-    denominator, exact_binding, finalize, is_canonical_base64, safe_path, same_binding, sanitize_produced_artifact,
-    sanitize_sensitive_value, sort_by_id, utc_millis,
+    denominator, exact_binding, finalize, is_canonical_base64, safe_path, same_binding,
+    sanitize_produced_artifact, sanitize_sensitive_value, sort_by_id, utc_millis,
 };
 
 const OPERATION_IDS: &[&str] = &[
-    "alerts", "backlog", "backup", "capacity", "containment", "cost", "dashboards", "health", "incidents", "load",
-    "provider", "quota", "region", "restore", "rollback", "rpo", "rto", "slo", "support",
+    "alerts",
+    "backlog",
+    "backup",
+    "capacity",
+    "containment",
+    "cost",
+    "dashboards",
+    "health",
+    "incidents",
+    "load",
+    "provider",
+    "quota",
+    "region",
+    "restore",
+    "rollback",
+    "rpo",
+    "rto",
+    "slo",
+    "support",
 ];
 const RESULT_STATUSES: &[&str] = &["pass", "fail", "partial", "unproven", "blocked", "error"];
 
@@ -50,10 +67,16 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(sha2::Sha256::digest(bytes))
 }
 
-fn unwrap(envelope: &Value, trusted_producers: &[Value], signature_verifier: &dyn SignatureVerifier) -> Unwrapped {
+fn unwrap(
+    envelope: &Value,
+    trusted_producers: &[Value],
+    signature_verifier: &dyn SignatureVerifier,
+) -> Unwrapped {
     let mut gaps: Vec<String> = Vec::new();
     let envelope_producer = envelope.get("producer").cloned().unwrap_or(Value::Null);
-    let trusted = trusted_producers.iter().find(|item| item.get("id") == Some(&envelope_producer));
+    let trusted = trusted_producers
+        .iter()
+        .find(|item| item.get("id") == Some(&envelope_producer));
     let mut record = envelope.clone();
 
     let signed_content = envelope.get("signedContent").and_then(Value::as_str);
@@ -65,7 +88,10 @@ fn unwrap(envelope: &Value, trusted_producers: &[Value], signature_verifier: &dy
         gaps.push("signature-noncanonical".to_string());
     } else {
         let trusted = trusted.unwrap();
-        let public_key = trusted.get("publicKey").and_then(Value::as_str).unwrap_or_default();
+        let public_key = trusted
+            .get("publicKey")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let sig_bytes = super::shared::base64_decode(signature.unwrap()).unwrap_or_default();
         let content = signed_content.unwrap();
         if !signature_verifier.verify(public_key, content.as_bytes(), &sig_bytes) {
@@ -85,7 +111,10 @@ fn unwrap(envelope: &Value, trusted_producers: &[Value], signature_verifier: &dy
     let original_artifacts = record.get("artifacts").cloned();
     let record_binding = record.get("binding").cloned().unwrap_or(Value::Null);
     if let Some(artifacts) = &original_artifacts {
-        let ok = artifacts.as_array().map(|items| items.iter().all(|a| valid_artifact(a, &record_binding))).unwrap_or(false);
+        let ok = artifacts
+            .as_array()
+            .map(|items| items.iter().all(|a| valid_artifact(a, &record_binding)))
+            .unwrap_or(false);
         if !ok {
             gaps.push("operation-artifact-invalid".to_string());
         }
@@ -93,7 +122,10 @@ fn unwrap(envelope: &Value, trusted_producers: &[Value], signature_verifier: &dy
 
     let (sanitized_value, sensitive) = sanitize_sensitive_value(&record, &Value::Null);
     let artifact_admissions: Vec<(Option<Value>, bool, bool)> = match &original_artifacts {
-        Some(Value::Array(items)) => items.iter().map(|artifact| sanitize_produced_artifact(artifact, &Value::Null)).collect(),
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|artifact| sanitize_produced_artifact(artifact, &Value::Null))
+            .collect(),
         _ => Vec::new(),
     };
     let sanitized_artifacts: Value = match &original_artifacts {
@@ -106,7 +138,9 @@ fn unwrap(envelope: &Value, trusted_producers: &[Value], signature_verifier: &dy
         ),
         other => other.clone().unwrap_or(Value::Null),
     };
-    let any_sensitive_artifact = artifact_admissions.iter().any(|(_, _, sensitive)| *sensitive);
+    let any_sensitive_artifact = artifact_admissions
+        .iter()
+        .any(|(_, _, sensitive)| *sensitive);
     if any_sensitive_artifact {
         gaps.push("operation-artifact-sanitized".to_string());
     }
@@ -124,10 +158,15 @@ fn unwrap(envelope: &Value, trusted_producers: &[Value], signature_verifier: &dy
         sanitized_value
     };
 
-    let evidence_digest = signed_content.map(|c| Value::String(format!("sha256:{}", sha256_hex(c.as_bytes())))).unwrap_or(Value::Null);
+    let evidence_digest = signed_content
+        .map(|c| Value::String(format!("sha256:{}", sha256_hex(c.as_bytes()))))
+        .unwrap_or(Value::Null);
 
     Unwrapped {
-        id: final_record.get("id").cloned().unwrap_or_else(|| envelope.get("id").cloned().unwrap_or(Value::Null)),
+        id: final_record
+            .get("id")
+            .cloned()
+            .unwrap_or_else(|| envelope.get("id").cloned().unwrap_or(Value::Null)),
         record: final_record,
         producer: envelope_producer,
         evidence_digest,
@@ -146,9 +185,20 @@ pub struct VerifyOperationsExerciseInput<'a> {
 
 /// Port of `verifyOperationsExercise` in `operations/index.mjs`.
 pub fn verify_operations_exercise(input: VerifyOperationsExerciseInput<'_>) -> Value {
-    let VerifyOperationsExerciseInput { binding, exercises, trusted_producers, now, max_age_ms, signature_verifier } = input;
+    let VerifyOperationsExerciseInput {
+        binding,
+        exercises,
+        trusted_producers,
+        now,
+        max_age_ms,
+        signature_verifier,
+    } = input;
 
-    if exercises.iter().any(|item| item.as_object().is_none()) || trusted_producers.iter().any(|item| item.as_object().is_none()) {
+    if exercises.iter().any(|item| item.as_object().is_none())
+        || trusted_producers
+            .iter()
+            .any(|item| item.as_object().is_none())
+    {
         return finalize(
             "legion-web-operations-exercise",
             serde_json::json!({
@@ -193,7 +243,10 @@ pub fn verify_operations_exercise(input: VerifyOperationsExerciseInput<'_>) -> V
         );
     }
 
-    let verified: Vec<Unwrapped> = sort_by_id(&exercises).iter().map(|item| unwrap(item, &trusted_producers, signature_verifier)).collect();
+    let verified: Vec<Unwrapped> = sort_by_id(&exercises)
+        .iter()
+        .map(|item| unwrap(item, &trusted_producers, signature_verifier))
+        .collect();
     let mut grouped: HashMap<String, Vec<&Unwrapped>> = HashMap::new();
     for item in &verified {
         let id = item.id.as_str().unwrap_or("").to_string();
@@ -203,18 +256,30 @@ pub fn verify_operations_exercise(input: VerifyOperationsExerciseInput<'_>) -> V
     let mut global_gaps: Vec<String> = Vec::new();
     for (id, rows) in &grouped {
         if !OPERATION_IDS.contains(&id.as_str()) {
-            global_gaps.push(format!("operation-unplanned:{}", if id.is_empty() { "missing" } else { id }));
+            global_gaps.push(format!(
+                "operation-unplanned:{}",
+                if id.is_empty() { "missing" } else { id }
+            ));
         }
         if rows.len() > 1 {
             global_gaps.push(format!("operation-id-duplicate:{id}"));
         }
-        if rows.iter().any(|row| row.gaps.contains(&"signature-unproven".to_string())) {
+        if rows
+            .iter()
+            .any(|row| row.gaps.contains(&"signature-unproven".to_string()))
+        {
             global_gaps.push(format!("operation-signature-unproven:{id}"));
         }
-        if rows.iter().any(|row| row.gaps.contains(&"signature-noncanonical".to_string())) {
+        if rows
+            .iter()
+            .any(|row| row.gaps.contains(&"signature-noncanonical".to_string()))
+        {
             global_gaps.push(format!("operation-signature-noncanonical:{id}"));
         }
-        if rows.iter().any(|row| row.gaps.contains(&"signature-invalid".to_string())) {
+        if rows
+            .iter()
+            .any(|row| row.gaps.contains(&"signature-invalid".to_string()))
+        {
             global_gaps.push(format!("operation-signature-invalid:{id}"));
         }
     }
@@ -334,10 +399,27 @@ pub fn verify_operations_exercise(input: VerifyOperationsExerciseInput<'_>) -> V
         })
         .collect();
 
-    let counts = denominator(&OPERATION_IDS.iter().map(|s| s.to_string()).collect::<Vec<_>>(), &receipts, &[]);
+    let counts = denominator(
+        &OPERATION_IDS
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>(),
+        &receipts,
+        &[],
+    );
     let mut gaps: Vec<String> = global_gaps;
-    gaps.extend(exact_binding(&binding).gaps.iter().map(|g| format!("binding-missing:{g}")));
-    gaps.extend(OPERATION_IDS.iter().filter(|id| !grouped.contains_key(**id)).map(|id| format!("operation-omitted:{id}")));
+    gaps.extend(
+        exact_binding(&binding)
+            .gaps
+            .iter()
+            .map(|g| format!("binding-missing:{g}")),
+    );
+    gaps.extend(
+        OPERATION_IDS
+            .iter()
+            .filter(|id| !grouped.contains_key(**id))
+            .map(|id| format!("operation-omitted:{id}")),
+    );
     for receipt in &receipts {
         let id = receipt.get("id").and_then(Value::as_str).unwrap_or("");
         if let Some(coverage) = receipt.get("coverageGaps").and_then(Value::as_array) {
@@ -349,13 +431,25 @@ pub fn verify_operations_exercise(input: VerifyOperationsExerciseInput<'_>) -> V
     if exercises.is_empty() {
         gaps.push("operations-denominator-empty".to_string());
     }
-    let terminal_statuses: Vec<String> =
-        receipts.iter().filter_map(|item| item.get("status").and_then(Value::as_str).map(str::to_string)).collect();
+    let terminal_statuses: Vec<String> = receipts
+        .iter()
+        .filter_map(|item| {
+            item.get("status")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .collect();
     let status = ["error", "fail", "blocked", "partial", "unproven"]
         .iter()
         .find(|candidate| terminal_statuses.iter().any(|s| s == *candidate))
         .map(|s| s.to_string())
-        .unwrap_or_else(|| if !gaps.is_empty() { "unproven".to_string() } else { "pass".to_string() });
+        .unwrap_or_else(|| {
+            if !gaps.is_empty() {
+                "unproven".to_string()
+            } else {
+                "pass".to_string()
+            }
+        });
 
     let mut gaps_sorted = gaps;
     gaps_sorted.sort();

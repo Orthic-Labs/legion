@@ -27,18 +27,15 @@ fn candidate() -> legion_audit::native_providers::reasoning::security_adjudicati
 
 #[test]
 fn generator_cannot_adjudicate_in_its_own_provider_or_context() {
-    let same_provider = create_adjudication_packet(candidate(), "reasoning.security", "adj-ctx", None);
+    let same_provider =
+        create_adjudication_packet(candidate(), "reasoning.security", "adj-ctx", None);
     assert!(matches!(
         same_provider,
         Err(SecurityAdjudicationError::SelfAdjudication(_, _))
     ));
 
-    let same_context = create_adjudication_packet(
-        candidate(),
-        "legacy.security.adjudication",
-        "gen-ctx",
-        None,
-    );
+    let same_context =
+        create_adjudication_packet(candidate(), "legacy.security.adjudication", "gen-ctx", None);
     assert!(matches!(
         same_context,
         Err(SecurityAdjudicationError::SameContext(_))

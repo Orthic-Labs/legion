@@ -4,8 +4,8 @@
 //! document, cross-referencing a declared GoalRoute JSON artifact and
 //! receipt via [`super::goal_route_validator`].
 
-use super::goal_route_validator::{validate_receipt, validate_route};
 use super::dependency::parse_dependency_contract;
+use super::goal_route_validator::{validate_receipt, validate_route};
 use super::labels::{action_re, authority_label_value, bound_re, is_concrete, path_re};
 use super::route_scan::label_value;
 use super::tables::table_rows;
@@ -54,7 +54,9 @@ fn only_feasible_re() -> &'static Regex {
 
 fn critical_path_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?is)^CRITICAL_PATH:([^;]+);\s*TOTAL_MIN_WALL_MS:(\d+)$").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?is)^CRITICAL_PATH:([^;]+);\s*TOTAL_MIN_WALL_MS:(\d+)$").unwrap()
+    })
 }
 
 /// A single row of the `## 1C.` route comparison table, decoded from its
@@ -79,7 +81,11 @@ struct RouteRow {
 /// repository root. Pass `None` when no artifact path is available (the
 /// GoalRoute artifact/receipt cross-check is then skipped, matching the
 /// Python `artifact_path is not None` guard).
-pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option<&Path>) -> Vec<String> {
+pub fn goal_route_errors(
+    text: &str,
+    allow_template: bool,
+    artifact_path: Option<&Path>,
+) -> Vec<String> {
     if allow_template {
         return Vec::new();
     }
@@ -88,12 +94,18 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
     let rules: [(&str, Regex); 12] = [
         ("**State A:**", Regex::new(r"(?i)^STATE_A:\s*\S").unwrap()),
         ("**State B:**", Regex::new(r"(?i)^STATE_B:\s*\S").unwrap()),
-        ("**Goal success proof:**", Regex::new(r"(?i)^PROOF:\s*\S").unwrap()),
+        (
+            "**Goal success proof:**",
+            Regex::new(r"(?i)^PROOF:\s*\S").unwrap(),
+        ),
         (
             "**Hard route constraints:**",
             Regex::new(r"(?i)^CONSTRAINTS:\s*\S").unwrap(),
         ),
-        ("**Goal route schema:**", Regex::new(r"(?i)^goal-route\.v2$").unwrap()),
+        (
+            "**Goal route schema:**",
+            Regex::new(r"(?i)^goal-route\.v2$").unwrap(),
+        ),
         (
             "**Selected route:**",
             Regex::new(r"(?i)^SELECTED_ROUTE:\s*[A-Z][A-Z0-9_-]*$").unwrap(),
@@ -110,7 +122,10 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
             "**Why fastest valid:**",
             Regex::new(r"(?i)^EXPECTED_TIME_PROOF:\s*\S").unwrap(),
         ),
-        ("**Bottleneck:**", Regex::new(r"(?i)^BOTTLENECK:\s*\S").unwrap()),
+        (
+            "**Bottleneck:**",
+            Regex::new(r"(?i)^BOTTLENECK:\s*\S").unwrap(),
+        ),
         (
             "**Parallel lanes:**",
             Regex::new(r"(?i)^(?:PARALLEL:\s*\S|NONE_DEPENDENCY_BOUND:\s*\S)").unwrap(),
@@ -131,7 +146,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
         let raw = label_value(text, label).unwrap_or_default();
         let state = raw.splitn(2, ':').last().unwrap_or("");
         if !is_concrete(state) {
-            errors.push(format!("{label} requires concrete state, not label-only value"));
+            errors.push(format!(
+                "{label} requires concrete state, not label-only value"
+            ));
         }
     }
 
@@ -187,7 +204,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
                                 errors.push(format!("GoalRoute receipt: {error}"));
                             }
                             if parsed_route.is_object() {
-                                if let Some(candidates) = parsed_route.get("candidates").and_then(Value::as_array) {
+                                if let Some(candidates) =
+                                    parsed_route.get("candidates").and_then(Value::as_array)
+                                {
                                     for candidate in candidates {
                                         if let Some(obj) = candidate.as_object() {
                                             let id = obj
@@ -202,11 +221,17 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
                                 route_document = Some(parsed_route);
                             }
                         }
-                        Err(exc) => errors.push(format!("GoalRoute artifact/receipt cannot be validated: {exc}")),
+                        Err(exc) => errors.push(format!(
+                            "GoalRoute artifact/receipt cannot be validated: {exc}"
+                        )),
                     },
-                    Err(exc) => errors.push(format!("GoalRoute artifact/receipt cannot be validated: {exc}")),
+                    Err(exc) => errors.push(format!(
+                        "GoalRoute artifact/receipt cannot be validated: {exc}"
+                    )),
                 },
-                Err(exc) => errors.push(format!("GoalRoute artifact/receipt cannot be validated: {exc}")),
+                Err(exc) => errors.push(format!(
+                    "GoalRoute artifact/receipt cannot be validated: {exc}"
+                )),
             }
         }
     }
@@ -219,7 +244,10 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
     let raw_rows: Vec<Vec<String>> = table.into_iter().skip(1).collect();
     for (index, row) in raw_rows.iter().enumerate() {
         if row.len() != 11 {
-            errors.push(format!("goal route comparison row {} must contain 11 cells", index + 1));
+            errors.push(format!(
+                "goal route comparison row {} must contain 11 cells",
+                index + 1
+            ));
         }
     }
     let rows: Vec<&Vec<String>> = raw_rows.iter().filter(|row| row.len() == 11).collect();
@@ -231,7 +259,10 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
     }
 
     let selected_label = selected_route_prefix_re()
-        .replace(&label_value(text, "**Selected route:**").unwrap_or_default(), "")
+        .replace(
+            &label_value(text, "**Selected route:**").unwrap_or_default(),
+            "",
+        )
         .trim_matches(|c: char| c == '`' || c == ' ')
         .to_string();
 
@@ -245,7 +276,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
         if let Some(caps) = steps_re(&route_id).captures(&row[1]) {
             step_ids = caps[1].split('>').map(|s| s.to_uppercase()).collect();
         } else {
-            errors.push(format!("route {route_id} requires ordered STEPS bound to route ID"));
+            errors.push(format!(
+                "route {route_id} requires ordered STEPS bound to route ID"
+            ));
             step_ids = Vec::new();
         }
 
@@ -267,7 +300,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
                 (roots, edges)
             }
             None => {
-                errors.push(format!("route {route_id} requires explicit dependency edges"));
+                errors.push(format!(
+                    "route {route_id} requires explicit dependency edges"
+                ));
                 (BTreeSet::new(), BTreeSet::new())
             }
         };
@@ -275,7 +310,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
         let constraint_pass = constraint_pass_re().is_match(&row[3]);
         let constraint_fail = constraint_fail_re().is_match(&row[3]);
         if !(constraint_pass || constraint_fail) {
-            errors.push(format!("route {route_id} constraint result must be PASS or FAIL"));
+            errors.push(format!(
+                "route {route_id} constraint result must be PASS or FAIL"
+            ));
         }
 
         let field_names = ["wall", "expected", "cost", "risk", "rework"];
@@ -293,12 +330,19 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
 
         let status = row[9].trim_matches('`').to_uppercase();
         if status != "SELECTED" && status != "REJECTED" {
-            errors.push(format!("route {route_id} status must be SELECTED or REJECTED"));
+            errors.push(format!(
+                "route {route_id} status must be SELECTED or REJECTED"
+            ));
         }
         if status == "SELECTED" && !constraint_pass {
-            errors.push(format!("selected route {route_id} must pass hard constraints"));
+            errors.push(format!(
+                "selected route {route_id} must pass hard constraints"
+            ));
         }
-        if status == "REJECTED" && constraint_pass && !dominance_re(&selected_label).is_match(&row[10]) {
+        if status == "REJECTED"
+            && constraint_pass
+            && !dominance_re(&selected_label).is_match(&row[10])
+        {
             errors.push(format!(
                 "passing rejected route {route_id} requires dominance/tradeoff evidence"
             ));
@@ -329,7 +373,10 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
     if unique_ids.len() != route_ids.len() {
         errors.push("goal route comparison contains duplicate route IDs".to_string());
     }
-    let selected: Vec<&RouteRow> = route_data.iter().filter(|r| r.status == "SELECTED").collect();
+    let selected: Vec<&RouteRow> = route_data
+        .iter()
+        .filter(|r| r.status == "SELECTED")
+        .collect();
     if selected.len() != 1 {
         errors.push("goal route comparison requires exactly one SELECTED route".to_string());
     } else if selected[0].id.to_lowercase() != selected_label.to_lowercase() {
@@ -347,7 +394,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
         let route_id_set: BTreeSet<&String> = route_ids.iter().collect();
         let candidate_id_set: BTreeSet<&String> = route_candidates.keys().collect();
         if route_id_set != candidate_id_set {
-            errors.push("route table IDs must exactly match GoalRoute artifact candidates".to_string());
+            errors.push(
+                "route table IDs must exactly match GoalRoute artifact candidates".to_string(),
+            );
         }
         let artifact_selected_id = route_document
             .get("selected_route_id")
@@ -367,7 +416,10 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
             .to_string();
         let revision_label = Regex::new(r"(?i)^ROUTE_REVISION:")
             .unwrap()
-            .replace(&label_value(text, "**Route revision:**").unwrap_or_default(), "")
+            .replace(
+                &label_value(text, "**Route revision:**").unwrap_or_default(),
+                "",
+            )
             .to_string();
 
         let invalidation = route_document.get("invalidation");
@@ -377,7 +429,11 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
             .and_then(Value::as_str)
             .unwrap_or("");
         let dispatch_correction = label_value(text, "**Correction state:**").unwrap_or_default();
-        if artifact_correction == "NONE" && !Regex::new(r"(?i)^NONE:").unwrap().is_match(&dispatch_correction) {
+        if artifact_correction == "NONE"
+            && !Regex::new(r"(?i)^NONE:")
+                .unwrap()
+                .is_match(&dispatch_correction)
+        {
             errors.push("dispatch correction state must match GoalRoute artifact".to_string());
         }
         if artifact_correction == "RECOMPILED_FROM_ROOT"
@@ -396,7 +452,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
         if expected_label != artifact_expected {
             errors.push("Expected time label must match selected GoalRoute candidate".to_string());
         }
-        let artifact_revision_str = artifact_revision.map(json_scalar_to_string).unwrap_or_else(|| "None".to_string());
+        let artifact_revision_str = artifact_revision
+            .map(json_scalar_to_string)
+            .unwrap_or_else(|| "None".to_string());
         if revision_label != artifact_revision_str {
             errors.push("Route revision label must match GoalRoute artifact".to_string());
         }
@@ -445,10 +503,16 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
             let step_set: BTreeSet<String> = route.steps.iter().cloned().collect();
             let artifact_step_set: BTreeSet<String> = artifact_steps.keys().cloned().collect();
             if step_set != artifact_step_set {
-                errors.push(format!("route {} steps must match GoalRoute artifact", route.id));
+                errors.push(format!(
+                    "route {} steps must match GoalRoute artifact",
+                    route.id
+                ));
             }
             if route.roots != artifact_roots || route.edges != artifact_edges {
-                errors.push(format!("route {} dependency DAG must match GoalRoute artifact", route.id));
+                errors.push(format!(
+                    "route {} dependency DAG must match GoalRoute artifact",
+                    route.id
+                ));
             }
 
             let mirrors: [(i64, &str); 5] = [
@@ -467,11 +531,17 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
                         "risk_units" => "risk",
                         _ => "rework",
                     };
-                    errors.push(format!("route {} {inline_key} must match GoalRoute artifact", route.id));
+                    errors.push(format!(
+                        "route {} {inline_key} must match GoalRoute artifact",
+                        route.id
+                    ));
                 }
             }
             if artifact.get("status").and_then(Value::as_str) != Some(route.status.as_str()) {
-                errors.push(format!("route {} status must match GoalRoute artifact", route.id));
+                errors.push(format!(
+                    "route {} status must match GoalRoute artifact",
+                    route.id
+                ));
             }
         }
     }
@@ -479,7 +549,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
     if let Some(winner) = selected.first() {
         let critical = label_value(text, "**Critical path:**").unwrap_or_default();
         match critical_path_re().captures(&critical) {
-            None => errors.push("Critical path requires ordered steps + TOTAL_MIN_WALL_MS".to_string()),
+            None => {
+                errors.push("Critical path requires ordered steps + TOTAL_MIN_WALL_MS".to_string())
+            }
             Some(caps) => {
                 let critical_steps: Vec<String> = caps[1]
                     .split('>')
@@ -492,7 +564,10 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
                 }
                 let total: i64 = caps[2].parse().unwrap_or(0);
                 if total != winner.wall {
-                    errors.push("Critical path TOTAL_MIN_WALL_MS must equal selected route wall".to_string());
+                    errors.push(
+                        "Critical path TOTAL_MIN_WALL_MS must equal selected route wall"
+                            .to_string(),
+                    );
                 }
                 if let Some(route_document) = &route_document {
                     let artifact_path_steps: Vec<String> = route_document
@@ -506,7 +581,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
                         })
                         .unwrap_or_default();
                     if critical_steps != artifact_path_steps {
-                        errors.push("Critical path must exactly match GoalRoute artifact".to_string());
+                        errors.push(
+                            "Critical path must exactly match GoalRoute artifact".to_string(),
+                        );
                     }
                 }
             }
@@ -514,7 +591,8 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
     }
 
     let alchemist_gate = authority_label_value(text, "**Alchemist gate:**").unwrap_or_default();
-    let route_alchemist = authority_label_value(text, "**Route Alchemist binding:**").unwrap_or_default();
+    let route_alchemist =
+        authority_label_value(text, "**Route Alchemist binding:**").unwrap_or_default();
     let mut artifact_alchemist: Option<&Value> = None;
     let mut state_scheme = "alchemist";
     if let Some(route_document) = &route_document {
@@ -542,7 +620,9 @@ pub fn goal_route_errors(text: &str, allow_template: bool, artifact_path: Option
             errors.push("Route Alchemist binding must match GoalRoute artifact".to_string());
         }
         if !alchemist_gate.contains(&run_id) {
-            errors.push("dispatch Alchemist gate must contain GoalRoute Alchemist run ID".to_string());
+            errors.push(
+                "dispatch Alchemist gate must contain GoalRoute Alchemist run ID".to_string(),
+            );
         }
     } else if !Regex::new(r"(?i)^SCHEMA:goal-route\.v2;\s*NOT_REQUIRED:\s*\S")
         .unwrap()

@@ -10,8 +10,8 @@ use legion_runtime::wf_port::w2_033::seo_closure::{
     check, headings, run as seo_closure_run, validate_phases, PhaseRange, NATIVE_ENTRIES,
 };
 use legion_runtime::wf_port::w2_033::seo_project::{
-    cache_get, cache_key, cache_put, doctor, env_state, load_site, preflight, run as seo_project_run,
-    setup_project, PlannedCall,
+    cache_get, cache_key, cache_put, doctor, env_state, load_site, preflight,
+    run as seo_project_run, setup_project, PlannedCall,
 };
 use serde_json::json;
 use std::collections::BTreeSet;
@@ -81,7 +81,14 @@ fn search_ops_full_lifecycle_via_public_entry_points() {
     )
     .unwrap();
 
-    verify(&mut state, "iv-1", "pass", "verify-evidence.json".into(), "t2".into()).unwrap();
+    verify(
+        &mut state,
+        "iv-1",
+        "pass",
+        "verify-evidence.json".into(),
+        "t2".into(),
+    )
+    .unwrap();
     assert_eq!(state.interventions[0].status, "verified");
 
     outcome(
@@ -128,7 +135,15 @@ fn seo_closure_headings_and_phase_validation() {
 
 #[test]
 fn seo_project_cache_key_and_preflight_and_env_state() {
-    let key = cache_key("google_api", "serp", "example.com", "US", "en", "desktop", "daily");
+    let key = cache_key(
+        "google_api",
+        "serp",
+        "example.com",
+        "US",
+        "en",
+        "desktop",
+        "daily",
+    );
     assert_eq!(key.len(), 64);
 
     let calls = vec![PlannedCall {
@@ -149,7 +164,10 @@ fn seo_project_cache_key_and_preflight_and_env_state() {
 fn unique_temp_dir(label: &str) -> PathBuf {
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("legion-wf-w2033-{label}-{}-{n}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "legion-wf-w2033-{label}-{}-{n}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
@@ -159,8 +177,18 @@ fn unique_temp_dir(label: &str) -> PathBuf {
 #[test]
 fn seo_project_setup_doctor_cache_and_cli_round_trip() {
     let root = unique_temp_dir("project");
-    let project = setup_project(&root, "example.com", "US", "en", None, None, None, None, None)
-        .expect("setup_project");
+    let project = setup_project(
+        &root,
+        "example.com",
+        "US",
+        "en",
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    .expect("setup_project");
     assert_eq!(project["domain"], json!("example.com"));
     assert_eq!(load_site(&root).unwrap()["domain"], json!("example.com"));
 
@@ -172,7 +200,13 @@ fn seo_project_setup_doctor_cache_and_cli_round_trip() {
     assert_eq!(cache_get(&root, &key).unwrap()["value"], json!({"v": 1}));
 
     let args: Vec<String> = [
-        "cache-key", "--provider", "google_api", "--capability", "serp", "--target", "example.com",
+        "cache-key",
+        "--provider",
+        "google_api",
+        "--capability",
+        "serp",
+        "--target",
+        "example.com",
     ]
     .iter()
     .map(|s| s.to_string())
@@ -218,15 +252,25 @@ fn seo_closure_gate_checks_native_entries_not_python_files() {
         "phases": phases,
         "workflow_packs": [],
     });
-    std::fs::write(root.join("config/control-catalog.json"), catalog.to_string()).unwrap();
+    std::fs::write(
+        root.join("config/control-catalog.json"),
+        catalog.to_string(),
+    )
+    .unwrap();
     let result = check(&root);
     assert!(
-        result.errors.iter().any(|e| e.contains("seo/not_a_real_entry")),
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("seo/not_a_real_entry")),
         "unknown entry must be reported: {:?}",
         result.errors
     );
     assert!(
-        !result.errors.iter().any(|e| e.contains(".py") || e.contains("test-python")),
+        !result
+            .errors
+            .iter()
+            .any(|e| e.contains(".py") || e.contains("test-python")),
         "gate must not require Python files: {:?}",
         result.errors
     );

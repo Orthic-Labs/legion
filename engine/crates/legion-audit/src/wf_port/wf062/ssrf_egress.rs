@@ -21,8 +21,7 @@ use std::sync::OnceLock;
 
 pub const CANDIDATE_CLASS: &str = "ssrf-egress";
 
-const EGRESS_CALLEES: &str =
-    r"fetch|axios(?:\.\w+)?|request|http\.request|https\.request|http\.get|https\.get|urlopen|got|requests\.(?:get|post|put|delete)";
+const EGRESS_CALLEES: &str = r"fetch|axios(?:\.\w+)?|request|http\.request|https\.request|http\.get|https\.get|urlopen|got|requests\.(?:get|post|put|delete)";
 
 fn request_controlled_destination() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -73,7 +72,10 @@ fn egress_environment_has_evidence(context: &Context) -> bool {
 }
 
 /// Mirrors `environmentGate(context, controlSignal)`: `(cap, uncertainty)`.
-fn environment_gate(context: &Context, control_signal: bool) -> (Option<&'static str>, Vec<String>) {
+fn environment_gate(
+    context: &Context,
+    control_signal: bool,
+) -> (Option<&'static str>, Vec<String>) {
     if egress_environment_has_evidence(context) || control_signal {
         return (None, Vec::new());
     }
@@ -181,7 +183,12 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 } else {
                     cap.get(rule.sink_api_group).unwrap().as_str().to_string()
                 };
-                let source_expr = cap.get(rule.source_group).unwrap().as_str().trim().to_string();
+                let source_expr = cap
+                    .get(rule.source_group)
+                    .unwrap()
+                    .as_str()
+                    .trim()
+                    .to_string();
 
                 let mut severity_hint = rule.severity_hint.to_string();
                 let mut observed_controls = Vec::new();
@@ -189,9 +196,10 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 let mut control_signal = false;
                 let mut uncertainty = vec![rule.uncertainty.to_string()];
 
-                if let Some(control) =
-                    context.find_related_control(artifact.map(|a| a.id.as_str()), rule.downgrade.control_types)
-                {
+                if let Some(control) = context.find_related_control(
+                    artifact.map(|a| a.id.as_str()),
+                    rule.downgrade.control_types,
+                ) {
                     severity_hint = rule.downgrade.severity_hint.to_string();
                     observed_controls = vec![control.id.clone()];
                     control_observed = Some(control.name.clone());
@@ -201,9 +209,12 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                         "Observed {control_type} control ({}) on this path; downgraded pending adjudication of coverage completeness.",
                         control.name
                     ));
-                } else if (rule.downgrade.lexical_pattern)()
-                    .is_match(window_around(text, whole.start(), whole.len(), rule.downgrade.radius))
-                {
+                } else if (rule.downgrade.lexical_pattern)().is_match(window_around(
+                    text,
+                    whole.start(),
+                    whole.len(),
+                    rule.downgrade.radius,
+                )) {
                     severity_hint = rule.downgrade.severity_hint.to_string();
                     control_observed = Some("lexical-signal".to_string());
                     control_signal = true;
@@ -227,7 +238,11 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                     severity_hint,
                     sources: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
                     sinks: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
-                    attacker_capabilities: rule.attacker_capabilities.iter().map(|s| s.to_string()).collect(),
+                    attacker_capabilities: rule
+                        .attacker_capabilities
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
                     preconditions: vec![Fact {
                         kind: "attacker-position".to_string(),
                         subject: "actor:external".to_string(),
@@ -251,7 +266,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                     required_controls: Vec::new(),
                     observed_controls,
                     chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                    evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                    evidence_refs: artifact
+                        .map(|a| a.evidence_refs.clone())
+                        .unwrap_or_default(),
                     detector_metadata: json!({
                         "file": file,
                         "line": line_of(text, whole.start()),
@@ -332,8 +349,8 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::{AuditFacts, Entity, Relation};
+    use super::*;
 
     fn find<'a>(obs: &'a [Observation], rule_id: &str) -> Option<&'a Observation> {
         obs.iter().find(|o| o.rule_id == rule_id)
@@ -352,14 +369,20 @@ mod tests {
             _ => 4,
         };
         assert!(rank(&candidate.severity_hint) <= rank("medium"));
-        assert!(candidate.uncertainty.iter().any(|u| u.to_lowercase().contains("unknown") && u.to_lowercase().contains("egress")));
+        assert!(candidate
+            .uncertainty
+            .iter()
+            .any(|u| u.to_lowercase().contains("unknown") && u.to_lowercase().contains("egress")));
     }
 
     #[test]
     fn a_deployment_evidenced_egress_environment_lifts_the_medium_cap() {
         let context = Context::new()
             .with_file("egress.mjs", "fetch(request.query.url)")
-            .with_audit_facts(AuditFacts { deployment: Some(json!({ "httpsEnforced": true })), ..Default::default() });
+            .with_audit_facts(AuditFacts {
+                deployment: Some(json!({ "httpsEnforced": true })),
+                ..Default::default()
+            });
         let obs = analyze(&context);
         let candidate = find(&obs, "ssrf.request-controlled-destination").unwrap();
         assert_eq!(candidate.severity_hint, "high");
@@ -369,8 +392,17 @@ mod tests {
     fn an_observed_egress_allowlist_control_downgrades_and_references_the_control() {
         let context = Context::new()
             .with_file("egress.mjs", "fetch(request.query.url)")
-            .with_entity(Entity::control("ctrl:1", "egress-allowlist", "outbound host allowlist", vec!["ev:control".into()]))
-            .with_relation(Relation { kind: "protects".to_string(), from: "ctrl:1".to_string(), to: "artifact:egress.mjs".to_string() });
+            .with_entity(Entity::control(
+                "ctrl:1",
+                "egress-allowlist",
+                "outbound host allowlist",
+                vec!["ev:control".into()],
+            ))
+            .with_relation(Relation {
+                kind: "protects".to_string(),
+                from: "ctrl:1".to_string(),
+                to: "artifact:egress.mjs".to_string(),
+            });
         let obs = analyze(&context);
         let candidate = find(&obs, "ssrf.request-controlled-destination").unwrap();
         assert_eq!(candidate.severity_hint, "low");
@@ -379,7 +411,8 @@ mod tests {
 
     #[test]
     fn redirect_following_unbounded_fires_on_a_true_follow_redirect_config() {
-        let context = Context::new().with_file("client.mjs", "const opts = { followRedirects: true };");
+        let context =
+            Context::new().with_file("client.mjs", "const opts = { followRedirects: true };");
         let obs = analyze(&context);
         assert!(find(&obs, "ssrf.redirect-following-unbounded").is_some());
     }
@@ -393,7 +426,10 @@ mod tests {
 
     #[test]
     fn dns_rebinding_unprotected_is_silent_when_a_pinning_marker_is_present() {
-        let context = Context::new().with_file("egress.mjs", "blockPrivateIp(host); fetch('https://example.com')");
+        let context = Context::new().with_file(
+            "egress.mjs",
+            "blockPrivateIp(host); fetch('https://example.com')",
+        );
         let obs = analyze(&context);
         assert!(find(&obs, "ssrf.dns-rebinding-unprotected").is_none());
     }

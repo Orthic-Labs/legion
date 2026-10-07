@@ -24,7 +24,8 @@ use std::collections::HashMap;
 
 #[test]
 fn unwrap_css_at_layer_flattens_tailwind_style_layers() {
-    let src = "@layer base, utilities;\n@layer utilities { .p-4 { padding: 1rem; } } .x { color: red; }";
+    let src =
+        "@layer base, utilities;\n@layer utilities { .p-4 { padding: 1rem; } } .x { color: red; }";
     let out = unwrap_css_at_layer(src);
     assert!(!out.contains("@layer utilities {"));
     assert!(out.contains(".p-4 { padding: 1rem; }"));
@@ -40,7 +41,10 @@ fn normalize_color_for_check_roundtrip() {
 #[test]
 fn split_css_list_and_tokens() {
     assert_eq!(split_css_list("a, b, c"), vec!["a", "b", "c"]);
-    assert_eq!(split_css_tokens("1px solid red"), vec!["1px", "solid", "red"]);
+    assert_eq!(
+        split_css_tokens("1px solid red"),
+        vec!["1px", "solid", "red"]
+    );
 }
 
 #[test]
@@ -66,8 +70,14 @@ fn extract_static_color_and_parse_static_border() {
 #[test]
 fn expand_static_box_values_all_arities() {
     let t = |s: &[&str]| s.iter().map(|x| x.to_string()).collect::<Vec<_>>();
-    assert_eq!(expand_static_box_values(&t(&[])), ["0px", "0px", "0px", "0px"]);
-    assert_eq!(expand_static_box_values(&t(&["1px", "2px", "3px"])), ["1px", "2px", "3px", "2px"]);
+    assert_eq!(
+        expand_static_box_values(&t(&[])),
+        ["0px", "0px", "0px", "0px"]
+    );
+    assert_eq!(
+        expand_static_box_values(&t(&["1px", "2px", "3px"])),
+        ["1px", "2px", "3px", "2px"]
+    );
 }
 
 #[test]
@@ -89,8 +99,18 @@ fn parse_static_font_and_transition_and_animation() {
 #[test]
 fn compare_static_priority_and_specificity() {
     assert_eq!(static_specificity("#id .cls[data-x] span"), [1, 2, 1]);
-    let base = DeclMeta { important: false, inline: false, specificity: [0, 1, 0], order: 0 };
-    let inline_wins = DeclMeta { important: false, inline: true, specificity: [0, 0, 0], order: 0 };
+    let base = DeclMeta {
+        important: false,
+        inline: false,
+        specificity: [0, 1, 0],
+        order: 0,
+    };
+    let inline_wins = DeclMeta {
+        important: false,
+        inline: true,
+        specificity: [0, 0, 0],
+        order: 0,
+    };
     assert!(compare_static_priority(Some(&base), &inline_wins));
 }
 
@@ -111,7 +131,10 @@ fn border_shorthand_regex_is_exported() {
 fn static_style_tables_are_exported() {
     assert_eq!(static_default_style().get("display"), Some(&""));
     assert!(static_inherited_props().contains("fontFamily"));
-    assert_eq!(static_prop_map().get("border-radius"), Some(&"borderRadius"));
+    assert_eq!(
+        static_prop_map().get("border-radius"),
+        Some(&"borderRadius")
+    );
     assert!(static_named_colors().contains_key("silver"));
 }
 
@@ -160,7 +183,12 @@ fn full_cascade_pipeline_selects_highest_priority_declaration_per_element() {
         &node,
         "border",
         "1px solid black",
-        DeclMeta { important: false, inline: false, specificity: [0, 1, 0], order: 0 },
+        DeclMeta {
+            important: false,
+            inline: false,
+            specificity: [0, 1, 0],
+            order: 0,
+        },
     );
     // Rule 2: `.card.featured { border-left-color: red; }` — higher
     // specificity [0,2,0], later order: wins for borderLeftColor only.
@@ -169,7 +197,12 @@ fn full_cascade_pipeline_selects_highest_priority_declaration_per_element() {
         &node,
         "border-left-color",
         "red",
-        DeclMeta { important: false, inline: false, specificity: [0, 2, 0], order: 1 },
+        DeclMeta {
+            important: false,
+            inline: false,
+            specificity: [0, 2, 0],
+            order: 1,
+        },
     );
     // Inline style always wins regardless of specificity.
     apply_static_declaration(
@@ -177,7 +210,12 @@ fn full_cascade_pipeline_selects_highest_priority_declaration_per_element() {
         &node,
         "border-top-width",
         "3px",
-        DeclMeta { important: false, inline: true, specificity: [1, 0, 0], order: 2 },
+        DeclMeta {
+            important: false,
+            inline: true,
+            specificity: [1, 0, 0],
+            order: 2,
+        },
     );
 
     let map = &specified[&node];

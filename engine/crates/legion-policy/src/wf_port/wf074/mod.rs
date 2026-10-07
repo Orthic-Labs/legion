@@ -22,6 +22,7 @@ pub mod eval_concurrency_convergence;
 pub mod eval_review_security;
 pub mod evidence_closure;
 
+pub use canonical::{canonical_json, digest_value, Json};
 pub use eval_adr_canon_clarify::{
     adr_canon_clarify_binding_ids, adr_canon_clarify_runtime_ids, evaluate_adr_admission,
     evaluate_canon_owner_drift, evaluate_clarification_convergence, evaluate_fog_metadata,
@@ -45,4 +46,3 @@ pub use evidence_closure::{
     evidence_closure_runtime_policy_ids, execute_evidence_closure_runtime_case,
     EvidenceClosureResult,
 };
-pub use canonical::{digest_value, canonical_json, Json};

@@ -36,7 +36,9 @@ pub struct HttpStatusEnv {
 
 impl HttpStatusEnv {
     pub fn new(root: impl AsRef<Path>) -> Self {
-        Self { root: root.as_ref().to_path_buf() }
+        Self {
+            root: root.as_ref().to_path_buf(),
+        }
     }
 }
 
@@ -96,7 +98,10 @@ pub fn run(env: &dyn StatusEnv) -> Value {
 /// fallback, and the `recoveryHint` three-way branch.
 pub fn build_status_payload(server: Option<&Value>, active_sessions: &[Value]) -> Value {
     let manual_apply = find_pending_manual_apply(
-        server.and_then(|s| s.get("pendingEvents")).and_then(Value::as_array).map(|v| v.as_slice()),
+        server
+            .and_then(|s| s.get("pendingEvents"))
+            .and_then(Value::as_array)
+            .map(|v| v.as_slice()),
         &active_sessions
             .iter()
             .map(|s| s.get("pendingEvent").cloned())
@@ -118,7 +123,9 @@ pub fn build_status_payload(server: Option<&Value>, active_sessions: &[Value]) -
         .unwrap_or_else(|| Value::Array(active_sessions.to_vec()));
 
     let recovery_hint = if let Some(event) = manual_apply.as_ref() {
-        Value::String(manual_apply_resume_hint(&manual_apply_event_from_value(event)))
+        Value::String(manual_apply_resume_hint(&manual_apply_event_from_value(
+            event,
+        )))
     } else if server.is_some() {
         Value::String(
             "Run live-poll.mjs to continue pending work, or live-complete.mjs --id <session> after manual cleanup."
@@ -126,7 +133,8 @@ pub fn build_status_payload(server: Option<&Value>, active_sessions: &[Value]) -
         )
     } else {
         Value::String(
-            "Start live-server.mjs to requeue pending durable events, then run live-poll.mjs.".to_string(),
+            "Start live-server.mjs to requeue pending durable events, then run live-poll.mjs."
+                .to_string(),
         )
     };
 
@@ -143,7 +151,10 @@ fn manual_apply_event_from_value(event: &Value) -> ManualApplyEvent {
     use crate::wf_port::w2_019::live_resume::ChunkRef;
     ManualApplyEvent {
         id: event.get("id").and_then(Value::as_str).map(String::from),
-        page_url: event.get("pageUrl").and_then(Value::as_str).map(String::from),
+        page_url: event
+            .get("pageUrl")
+            .and_then(Value::as_str)
+            .map(String::from),
         chunk: event.get("chunk").and_then(|c| {
             Some(ChunkRef {
                 index: c.get("index")?.as_i64()?,
@@ -278,7 +289,11 @@ mod tests {
 
     #[test]
     fn run_with_no_server_info_yields_start_server_hint() {
-        let env = FakeEnv { info: None, status: None, sessions: vec![] };
+        let env = FakeEnv {
+            info: None,
+            status: None,
+            sessions: vec![],
+        };
         let payload = run(&env);
         assert_eq!(
             payload["recoveryHint"],

@@ -57,30 +57,50 @@ pub struct Identity {
     pub target: String,
 }
 
-pub fn infer_target(platform: Option<&str>, architecture: Option<&str>) -> Result<Option<Identity>, String> {
+pub fn infer_target(
+    platform: Option<&str>,
+    architecture: Option<&str>,
+) -> Result<Option<Identity>, String> {
     let (Some(platform), Some(architecture)) = (platform, architecture) else {
-        return Err("unsigned candidate target requires explicit platform and architecture".to_string());
+        return Err(
+            "unsigned candidate target requires explicit platform and architecture".to_string(),
+        );
     };
-    let Some(normalized_platform) = normalize_platform(platform) else { return Ok(None) };
+    let Some(normalized_platform) = normalize_platform(platform) else {
+        return Ok(None);
+    };
     let Some(normalized_architecture) = normalize_architecture(architecture) else {
-        return Err(format!("unsupported {normalized_platform} architecture: {architecture}"));
+        return Err(format!(
+            "unsupported {normalized_platform} architecture: {architecture}"
+        ));
     };
     let target = format!("{normalized_platform}-{normalized_architecture}");
-    Ok(Some(Identity { platform: normalized_platform, architecture: normalized_architecture, target }))
+    Ok(Some(Identity {
+        platform: normalized_platform,
+        architecture: normalized_architecture,
+        target,
+    }))
 }
 
 fn read_stable_version(repository_root: &Path, supplied: Option<&str>) -> Result<String, String> {
     let record: Value = serde_json::from_str(
-        &fs::read_to_string(repository_root.join("release/version.json")).map_err(|e| e.to_string())?,
+        &fs::read_to_string(repository_root.join("release/version.json"))
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     if record.get("schemaVersion").and_then(|v| v.as_i64()) != Some(1)
         || record.get("kind").and_then(|v| v.as_str()) != Some("legion-release-version")
     {
-        return Err("release/version.json must be the canonical release version record".to_string());
+        return Err(
+            "release/version.json must be the canonical release version record".to_string(),
+        );
     }
     let version = supplied.map(|s| s.to_string()).unwrap_or_else(|| {
-        record.get("version").and_then(|v| v.as_str()).unwrap_or_default().to_string()
+        record
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string()
     });
     if !stable_version_re().is_match(&version) {
         return Err(format!("release version must be stable SemVer: {version}"));
@@ -101,7 +121,9 @@ fn read_source_revision(repository_root: &Path, supplied: Option<&str>) -> Resul
         .current_dir(repository_root)
         .output()
         .map_err(|_| "release source revision is unavailable".to_string())?;
-    let revision = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+    let revision = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .to_lowercase();
     if !output.status.success() || !source_revision_re().is_match(&revision) {
         return Err("release source revision is unavailable".to_string());
     }
@@ -122,7 +144,10 @@ fn resolve_input_root(input: Option<&Path>) -> Result<PathBuf, String> {
     }
     let runner_temp = env::var("RUNNER_TEMP").ok();
     configured_path(
-        runner_temp.as_deref().map(|t| format!("{t}/legion-install")).as_deref(),
+        runner_temp
+            .as_deref()
+            .map(|t| format!("{t}/legion-install"))
+            .as_deref(),
         "assembled install root",
     )
 }
@@ -138,7 +163,10 @@ pub fn resolve_artifact_root(output_root: Option<&Path>) -> Result<PathBuf, Stri
     }
     let runner_temp = env::var("RUNNER_TEMP").ok();
     configured_path(
-        runner_temp.as_deref().map(|t| format!("{t}/{CANDIDATE_ROOT_NAME}")).as_deref(),
+        runner_temp
+            .as_deref()
+            .map(|t| format!("{t}/{CANDIDATE_ROOT_NAME}"))
+            .as_deref(),
         "RIGHT_GIT_ARTIFACT_ROOT or RUNNER_TEMP",
     )
 }
@@ -151,7 +179,8 @@ fn assert_directory(path: &Path, label: &str) -> Result<(), String> {
 }
 
 fn assert_regular_file(path: &Path, label: &str) -> Result<(), String> {
-    let meta = fs::symlink_metadata(path).map_err(|_| format!("{label} is missing or unsafe: {}", path.display()))?;
+    let meta = fs::symlink_metadata(path)
+        .map_err(|_| format!("{label} is missing or unsafe: {}", path.display()))?;
     if !meta.is_file() || meta.file_type().is_symlink() {
         return Err(format!("{label} is missing or unsafe: {}", path.display()));
     }
@@ -187,7 +216,11 @@ fn relative_lexical(root: &Path, target: &Path) -> String {
     let target = normalize_lexical(target);
     let root_components: Vec<_> = root.components().collect();
     let target_components: Vec<_> = target.components().collect();
-    let common = root_components.iter().zip(target_components.iter()).take_while(|(a, b)| a == b).count();
+    let common = root_components
+        .iter()
+        .zip(target_components.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
     let mut parts: Vec<String> = Vec::new();
     for _ in common..root_components.len() {
         parts.push("..".to_string());
@@ -202,7 +235,10 @@ fn assert_outside(source_root: &Path, destination_root: &Path) -> Result<(), Str
     let rel = relative_lexical(source_root, destination_root);
     let bad = rel.is_empty() || (rel != ".." && !rel.starts_with("../"));
     if bad {
-        return Err(format!("candidate artifacts must be outside assembled install root: {}", destination_root.display()));
+        return Err(format!(
+            "candidate artifacts must be outside assembled install root: {}",
+            destination_root.display()
+        ));
     }
     Ok(())
 }
@@ -233,7 +269,9 @@ fn timestamp(value: Option<&str>) -> String {
             }
         }
     }
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
     iso8601_utc_millis(now.as_secs() as i64, now.subsec_millis())
 }
 
@@ -267,7 +305,11 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 }
 
 fn property<'a>(properties: &'a Value, name: &str) -> Option<&'a Value> {
-    properties.as_array()?.iter().find(|entry| entry.get("name").and_then(|v| v.as_str()) == Some(name)).and_then(|e| e.get("value"))
+    properties
+        .as_array()?
+        .iter()
+        .find(|entry| entry.get("name").and_then(|v| v.as_str()) == Some(name))
+        .and_then(|e| e.get("value"))
 }
 
 pub struct PrepareArgs {
@@ -280,7 +322,13 @@ pub struct PrepareArgs {
     pub created_at: Option<String>,
 }
 
-fn run_inherit(command: &str, args: &[&str], cwd: &Path, extra_env: &[(String, String)], label: &str) -> Result<(), String> {
+fn run_inherit(
+    command: &str,
+    args: &[&str],
+    cwd: &Path,
+    extra_env: &[(String, String)],
+    label: &str,
+) -> Result<(), String> {
     // pnpm is a .cmd shim on Windows, which CreateProcess cannot launch directly.
     let mut cmd = if cfg!(windows) && command == "pnpm" {
         let mut c = Command::new("cmd");
@@ -295,25 +343,57 @@ fn run_inherit(command: &str, args: &[&str], cwd: &Path, extra_env: &[(String, S
     }
     let status = cmd.status().map_err(|e| format!("{label} failed: {e}"))?;
     if !status.success() {
-        return Err(format!("{label} failed: exit={}", status.code().unwrap_or(-1)));
+        return Err(format!(
+            "{label} failed: exit={}",
+            status.code().unwrap_or(-1)
+        ));
     }
     Ok(())
 }
 
-fn assemble_and_smoke(repository_root: &Path, input_root: &Path, identity: &Identity) -> Result<(), String> {
+fn assemble_and_smoke(
+    repository_root: &Path,
+    input_root: &Path,
+    identity: &Identity,
+) -> Result<(), String> {
     let target_triple = match (identity.platform.as_str(), identity.architecture.as_str()) {
         ("windows", "arm64") => "aarch64-pc-windows-msvc",
         ("windows", _) => "x86_64-pc-windows-msvc",
         (_, "arm64") => "aarch64-apple-darwin",
         _ => "x86_64-apple-darwin",
     };
-    run_inherit("pnpm", &["legion:check"], repository_root, &[], "Legion consistency gate")?;
+    run_inherit(
+        "pnpm",
+        &["legion:check"],
+        repository_root,
+        &[],
+        "Legion consistency gate",
+    )?;
     let engine_dir = repository_root.join("engine");
-    run_inherit("cargo", &["check", "--workspace", "--all-targets", "--locked"], &engine_dir, &[], "Cargo check")?;
-    run_inherit("cargo", &["test", "--locked"], &engine_dir, &[], "Cargo tests")?;
     run_inherit(
         "cargo",
-        &["build", "--locked", "--release", "--bins", "--target", target_triple],
+        &["check", "--workspace", "--all-targets", "--locked"],
+        &engine_dir,
+        &[],
+        "Cargo check",
+    )?;
+    run_inherit(
+        "cargo",
+        &["test", "--locked"],
+        &engine_dir,
+        &[],
+        "Cargo tests",
+    )?;
+    run_inherit(
+        "cargo",
+        &[
+            "build",
+            "--locked",
+            "--release",
+            "--bins",
+            "--target",
+            target_triple,
+        ],
         &engine_dir,
         &[],
         "cargo build",
@@ -342,8 +422,16 @@ fn assemble_and_smoke(repository_root: &Path, input_root: &Path, identity: &Iden
     )?;
     crate::native_installed_smoke::native_installed_smoke(&input_root, None)
         .map_err(|e| format!("installed-product smoke failed: {e}"))?;
-    let bin_name = if identity.platform == "windows" { "legion.exe" } else { "legion" };
-    let native_cli_path = input_root.join("bin").join(bin_name).to_string_lossy().to_string();
+    let bin_name = if identity.platform == "windows" {
+        "legion.exe"
+    } else {
+        "legion"
+    };
+    let native_cli_path = input_root
+        .join("bin")
+        .join(bin_name)
+        .to_string_lossy()
+        .to_string();
     run_inherit(
         "pnpm",
         &["test"],
@@ -367,15 +455,26 @@ pub struct PrepareDeps<'a> {
 
 impl<'a> Default for PrepareDeps<'a> {
     fn default() -> Self {
-        Self { create_archive: Box::new(|root, src, out| rightkit_release_bridge::create_portable_archive(root, src, out)) }
+        Self {
+            create_archive: Box::new(|root, src, out| {
+                rightkit_release_bridge::create_portable_archive(root, src, out)
+            }),
+        }
     }
 }
 
-pub fn prepare_unsigned_candidate(repository_root: &Path, args: PrepareArgs) -> Result<Value, String> {
+pub fn prepare_unsigned_candidate(
+    repository_root: &Path,
+    args: PrepareArgs,
+) -> Result<Value, String> {
     prepare_unsigned_candidate_with(repository_root, args, &PrepareDeps::default())
 }
 
-pub fn prepare_unsigned_candidate_with(repository_root: &Path, args: PrepareArgs, deps: &PrepareDeps) -> Result<Value, String> {
+pub fn prepare_unsigned_candidate_with(
+    repository_root: &Path,
+    args: PrepareArgs,
+    deps: &PrepareDeps,
+) -> Result<Value, String> {
     let platform = args
         .platform
         .clone()
@@ -386,8 +485,13 @@ pub fn prepare_unsigned_candidate_with(repository_root: &Path, args: PrepareArgs
         .clone()
         .or_else(|| env::var("RIGHT_GIT_RELEASE_ARCHITECTURE").ok())
         .or_else(|| env::var("LEGION_RELEASE_ARCHITECTURE").ok());
-    let identity = infer_target(platform.as_deref(), architecture.as_deref())?
-        .ok_or_else(|| format!("unsigned public candidates require Windows or macOS: {}", platform.unwrap_or_default()))?;
+    let identity =
+        infer_target(platform.as_deref(), architecture.as_deref())?.ok_or_else(|| {
+            format!(
+                "unsigned public candidates require Windows or macOS: {}",
+                platform.unwrap_or_default()
+            )
+        })?;
 
     let input_root = resolve_input_root(args.input.as_deref())?;
     let artifact_root = resolve_artifact_root(args.output_root.as_deref())?;
@@ -402,22 +506,37 @@ pub fn prepare_unsigned_candidate_with(repository_root: &Path, args: PrepareArgs
     let revision = read_source_revision(repository_root, args.source_revision.as_deref())?;
     let target = identity.target.clone();
     let stem = format!("{PRODUCT}-{release_version}-{target}");
-    let archive_ext = if identity.platform == "macos" { ".tar.gz" } else { ".zip" };
+    let archive_ext = if identity.platform == "macos" {
+        ".tar.gz"
+    } else {
+        ".zip"
+    };
     let archive_path = artifact_root.join(format!("{stem}{archive_ext}"));
     let sbom_path = artifact_root.join(format!("{stem}.cdx.json"));
     let provenance_path = artifact_root.join(format!("{stem}.intoto.jsonl"));
 
     let archive_result = (deps.create_archive)(repository_root, &input_root, &archive_path)?;
     assert_regular_file(&archive_path, "portable archive")?;
-    let archive_size = fs::metadata(&archive_path).map_err(|e| e.to_string())?.len();
+    let archive_size = fs::metadata(&archive_path)
+        .map_err(|e| e.to_string())?
+        .len();
     if archive_size < 1 {
-        return Err(format!("portable archive is empty: {}", archive_path.display()));
+        return Err(format!(
+            "portable archive is empty: {}",
+            archive_path.display()
+        ));
     }
     let archive_sha256 = sha256_file(&archive_path)?;
     if let Some(reported) = archive_result.get("sha256").and_then(|v| v.as_str()) {
-        let normalized = reported.trim_start_matches("sha256:").trim_start_matches("SHA256:").to_lowercase();
+        let normalized = reported
+            .trim_start_matches("sha256:")
+            .trim_start_matches("SHA256:")
+            .to_lowercase();
         if !normalized.is_empty() && normalized != archive_sha256 {
-            return Err(format!("portable archive digest changed during preparation: {}", archive_path.display()));
+            return Err(format!(
+                "portable archive digest changed during preparation: {}",
+                archive_path.display()
+            ));
         }
     }
     let archive = json!({
@@ -468,7 +587,11 @@ pub fn prepare_unsigned_candidate_with(repository_root: &Path, args: PrepareArgs
         }
     });
     let candidate_path = artifact_root.join(CANDIDATE_FILE);
-    fs::write(&candidate_path, format!("{}\n", serde_json::to_string_pretty(&candidate).unwrap())).map_err(|e| e.to_string())?;
+    fs::write(
+        &candidate_path,
+        format!("{}\n", serde_json::to_string_pretty(&candidate).unwrap()),
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(json!({
         "status": "complete",
@@ -507,34 +630,59 @@ pub fn check_unsigned_candidate(repository_root: &Path, args: CheckArgs) -> Resu
         .clone()
         .or_else(|| env::var("RIGHT_GIT_RELEASE_ARCHITECTURE").ok())
         .or_else(|| env::var("LEGION_RELEASE_ARCHITECTURE").ok());
-    let identity = infer_target(platform.as_deref(), architecture.as_deref())?
-        .ok_or_else(|| format!("unsigned public candidates require Windows or macOS: {}", platform.unwrap_or_default()))?;
+    let identity =
+        infer_target(platform.as_deref(), architecture.as_deref())?.ok_or_else(|| {
+            format!(
+                "unsigned public candidates require Windows or macOS: {}",
+                platform.unwrap_or_default()
+            )
+        })?;
 
     let artifact_root = resolve_artifact_root(args.output_root.as_deref())?;
     let release_version = read_stable_version(repository_root, args.version.as_deref())?;
     let revision = read_source_revision(repository_root, args.source_revision.as_deref())?;
     let target = identity.target.clone();
     let stem = format!("{PRODUCT}-{release_version}-{target}");
-    let archive_ext = if identity.platform == "macos" { ".tar.gz" } else { ".zip" };
+    let archive_ext = if identity.platform == "macos" {
+        ".tar.gz"
+    } else {
+        ".zip"
+    };
     let archive_path = artifact_root.join(format!("{stem}{archive_ext}"));
     let sbom_path = artifact_root.join(format!("{stem}.cdx.json"));
     let provenance_path = artifact_root.join(format!("{stem}.intoto.jsonl"));
     let candidate_path = artifact_root.join(CANDIDATE_FILE);
     if !artifact_root.is_dir() {
-        return Err(format!("candidate artifact root is missing: {}", artifact_root.display()));
+        return Err(format!(
+            "candidate artifact root is missing: {}",
+            artifact_root.display()
+        ));
     }
 
     let expected_names: std::collections::HashSet<String> = [
         CANDIDATE_FILE.to_string(),
-        archive_path.file_name().unwrap().to_string_lossy().to_string(),
+        archive_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string(),
         sbom_path.file_name().unwrap().to_string_lossy().to_string(),
-        provenance_path.file_name().unwrap().to_string_lossy().to_string(),
+        provenance_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string(),
     ]
     .into_iter()
     .collect();
-    let entries: Vec<_> = fs::read_dir(&artifact_root).map_err(|e| e.to_string())?.filter_map(|e| e.ok()).collect();
+    let entries: Vec<_> = fs::read_dir(&artifact_root)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .collect();
     if entries.len() != expected_names.len()
-        || entries.iter().any(|e| !expected_names.contains(&e.file_name().to_string_lossy().to_string()))
+        || entries
+            .iter()
+            .any(|e| !expected_names.contains(&e.file_name().to_string_lossy().to_string()))
     {
         return Err("candidate artifact root must contain exactly candidate.json, archive, SBOM, and provenance".to_string());
     }
@@ -547,11 +695,16 @@ pub fn check_unsigned_candidate(repository_root: &Path, args: CheckArgs) -> Resu
         assert_regular_file(path, label)?;
     }
 
-    let candidate: Value = serde_json::from_str(&fs::read_to_string(&candidate_path).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
-    let mut candidate_keys: Vec<String> = candidate.as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default();
+    let candidate: Value =
+        serde_json::from_str(&fs::read_to_string(&candidate_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let mut candidate_keys: Vec<String> = candidate
+        .as_object()
+        .map(|o| o.keys().cloned().collect())
+        .unwrap_or_default();
     candidate_keys.sort();
-    if candidate_keys.join(",") != "files,kind,product,schemaVersion,sourceRevision,target,version" {
+    if candidate_keys.join(",") != "files,kind,product,schemaVersion,sourceRevision,target,version"
+    {
         return Err("candidate.json schema is invalid".to_string());
     }
     if candidate.get("schemaVersion").and_then(|v| v.as_i64()) != Some(1)
@@ -564,64 +717,107 @@ pub fn check_unsigned_candidate(repository_root: &Path, args: CheckArgs) -> Resu
         return Err("candidate.json identity does not match unsigned candidate".to_string());
     }
     let files = candidate.get("files").cloned().unwrap_or(Value::Null);
-    let mut file_roles: Vec<String> = files.as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default();
+    let mut file_roles: Vec<String> = files
+        .as_object()
+        .map(|o| o.keys().cloned().collect())
+        .unwrap_or_default();
     file_roles.sort();
     if !files.is_object() || file_roles.join(",") != "archive,provenance,sbom" {
-        return Err("candidate.json files must contain exactly archive, sbom, and provenance".to_string());
+        return Err(
+            "candidate.json files must contain exactly archive, sbom, and provenance".to_string(),
+        );
     }
 
-    let archive_size = fs::metadata(&archive_path).map_err(|e| e.to_string())?.len();
+    let archive_size = fs::metadata(&archive_path)
+        .map_err(|e| e.to_string())?
+        .len();
     if archive_size < 1 {
-        return Err(format!("portable archive is empty: {}", archive_path.display()));
+        return Err(format!(
+            "portable archive is empty: {}",
+            archive_path.display()
+        ));
     }
     let archive = json!({
         "name": archive_path.file_name().unwrap().to_string_lossy(),
         "size": archive_size,
         "sha256": sha256_file(&archive_path)?,
     });
-    for (role, path) in [("archive", &archive_path), ("sbom", &sbom_path), ("provenance", &provenance_path)] {
+    for (role, path) in [
+        ("archive", &archive_path),
+        ("sbom", &sbom_path),
+        ("provenance", &provenance_path),
+    ] {
         let expected = files.get(role).cloned().unwrap_or(Value::Null);
         let observed = file_record(path)?;
-        let mut expected_keys: Vec<String> = expected.as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default();
+        let mut expected_keys: Vec<String> = expected
+            .as_object()
+            .map(|o| o.keys().cloned().collect())
+            .unwrap_or_default();
         expected_keys.sort();
         let ok = expected.is_object()
             && expected_keys.join(",") == "name,sha256,size"
             && expected.get("name") == observed.get("name")
             && expected.get("size") == observed.get("size")
-            && expected.get("sha256").and_then(|v| v.as_str()).map(|s| sha256_re().is_match(s)).unwrap_or(false)
+            && expected
+                .get("sha256")
+                .and_then(|v| v.as_str())
+                .map(|s| sha256_re().is_match(s))
+                .unwrap_or(false)
             && expected.get("sha256") == observed.get("sha256");
         if !ok {
             return Err(format!("candidate file digest or size mismatch: {role}"));
         }
     }
 
-    let sbom = rightkit_release_bridge::validate_cyclonedx_sbom(repository_root, &sbom_path, &archive)?;
-    let component = sbom.get("metadata").and_then(|m| m.get("component")).cloned().unwrap_or(Value::Null);
+    let sbom =
+        rightkit_release_bridge::validate_cyclonedx_sbom(repository_root, &sbom_path, &archive)?;
+    let component = sbom
+        .get("metadata")
+        .and_then(|m| m.get("component"))
+        .cloned()
+        .unwrap_or(Value::Null);
     let properties = component.get("properties").cloned().unwrap_or(Value::Null);
     if component.get("name").and_then(|v| v.as_str()) != Some(PRODUCT)
         || component.get("version").and_then(|v| v.as_str()) != Some(release_version.as_str())
-        || property(&properties, "rightkit:target").and_then(|v| v.as_str()) != Some(target.as_str())
-        || property(&properties, "rightkit:sourceCommit").and_then(|v| v.as_str()) != Some(revision.as_str())
+        || property(&properties, "rightkit:target").and_then(|v| v.as_str())
+            != Some(target.as_str())
+        || property(&properties, "rightkit:sourceCommit").and_then(|v| v.as_str())
+            != Some(revision.as_str())
     {
         return Err("CycloneDX identity does not match unsigned candidate".to_string());
     }
 
     let expected_subject = json!({ "name": archive.get("name"), "sha256": archive.get("sha256") });
-    let provenance =
-        rightkit_release_bridge::validate_in_toto_slsa_provenance(repository_root, &provenance_path, &expected_subject)?;
-    let build_definition = provenance.get("predicate").and_then(|p| p.get("buildDefinition")).cloned().unwrap_or(Value::Null);
+    let provenance = rightkit_release_bridge::validate_in_toto_slsa_provenance(
+        repository_root,
+        &provenance_path,
+        &expected_subject,
+    )?;
+    let build_definition = provenance
+        .get("predicate")
+        .and_then(|p| p.get("buildDefinition"))
+        .cloned()
+        .unwrap_or(Value::Null);
     let dependency = build_definition
         .get("resolvedDependencies")
         .and_then(|v| v.as_array())
         .and_then(|a| a.first())
         .cloned()
         .unwrap_or(Value::Null);
-    let external_parameters = build_definition.get("externalParameters").cloned().unwrap_or(Value::Null);
+    let external_parameters = build_definition
+        .get("externalParameters")
+        .cloned()
+        .unwrap_or(Value::Null);
     let expected_uri = format!("git+{SOURCE_REPOSITORY}@{revision}");
     if external_parameters.get("product").and_then(|v| v.as_str()) != Some(PRODUCT)
-        || external_parameters.get("version").and_then(|v| v.as_str()) != Some(release_version.as_str())
+        || external_parameters.get("version").and_then(|v| v.as_str())
+            != Some(release_version.as_str())
         || external_parameters.get("target").and_then(|v| v.as_str()) != Some(target.as_str())
-        || dependency.get("digest").and_then(|d| d.get("gitCommit")).and_then(|v| v.as_str()) != Some(revision.as_str())
+        || dependency
+            .get("digest")
+            .and_then(|d| d.get("gitCommit"))
+            .and_then(|v| v.as_str())
+            != Some(revision.as_str())
         || dependency.get("uri").and_then(|v| v.as_str()) != Some(expected_uri.as_str())
     {
         return Err("in-toto identity does not match unsigned candidate".to_string());
@@ -727,7 +923,8 @@ mod tests {
         fs::create_dir_all(repository_root.join("release")).unwrap();
         fs::write(
             repository_root.join("release/version.json"),
-            json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": "0.1.0" }).to_string(),
+            json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": "0.1.0" })
+                .to_string(),
         )
         .unwrap();
         fs::create_dir_all(input.join("bin")).unwrap();
@@ -753,24 +950,45 @@ mod tests {
         assert_eq!(result["target"], "macos-arm64");
         assert_eq!(result["version"], "0.1.0");
         assert_eq!(result["sourceRevision"], source_revision);
-        assert!(result["archive"].as_str().unwrap().ends_with("legion-0.1.0-macos-arm64.tar.gz"));
-        assert!(result["candidate"].as_str().unwrap().ends_with("candidate.json"));
+        assert!(result["archive"]
+            .as_str()
+            .unwrap()
+            .ends_with("legion-0.1.0-macos-arm64.tar.gz"));
+        assert!(result["candidate"]
+            .as_str()
+            .unwrap()
+            .ends_with("candidate.json"));
 
         let candidate_path = PathBuf::from(result["candidate"].as_str().unwrap());
-        let candidate: Value = serde_json::from_str(&fs::read_to_string(&candidate_path).unwrap()).unwrap();
-        let mut file_keys: Vec<String> = candidate["files"].as_object().unwrap().keys().cloned().collect();
+        let candidate: Value =
+            serde_json::from_str(&fs::read_to_string(&candidate_path).unwrap()).unwrap();
+        let mut file_keys: Vec<String> = candidate["files"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
         file_keys.sort();
         assert_eq!(file_keys, vec!["archive", "provenance", "sbom"]);
 
         let sbom_path = PathBuf::from(result["sbom"].as_str().unwrap());
         let sbom: Value = serde_json::from_str(&fs::read_to_string(&sbom_path).unwrap()).unwrap();
         assert_eq!(sbom["specVersion"], "1.6");
-        assert_eq!(sbom["components"][0]["name"], "legion-0.1.0-macos-arm64.tar.gz");
+        assert_eq!(
+            sbom["components"][0]["name"],
+            "legion-0.1.0-macos-arm64.tar.gz"
+        );
 
         let provenance_path = PathBuf::from(result["provenance"].as_str().unwrap());
         let provenance = first_jsonl_object(&provenance_path);
-        assert_eq!(provenance["predicateType"], "https://slsa.dev/provenance/v1");
-        assert_eq!(provenance["subject"][0]["digest"]["sha256"], result["archiveSha256"]);
+        assert_eq!(
+            provenance["predicateType"],
+            "https://slsa.dev/provenance/v1"
+        );
+        assert_eq!(
+            provenance["subject"][0]["digest"]["sha256"],
+            result["archiveSha256"]
+        );
 
         let checked = check_unsigned_candidate(
             &repository_root,
@@ -800,7 +1018,10 @@ mod tests {
             },
         )
         .unwrap_err();
-        assert!(err.contains("candidate file digest or size mismatch"), "{err}");
+        assert!(
+            err.contains("candidate file digest or size mismatch"),
+            "{err}"
+        );
         fs::write(&sbom_path, &original_sbom).unwrap();
 
         fs::write(output_root.join("extra.txt"), "unexpected\n").unwrap();
@@ -815,7 +1036,10 @@ mod tests {
             },
         )
         .unwrap_err();
-        assert!(err.contains("exactly candidate.json, archive, SBOM, and provenance"), "{err}");
+        assert!(
+            err.contains("exactly candidate.json, archive, SBOM, and provenance"),
+            "{err}"
+        );
 
         let err = prepare_unsigned_candidate_with(
             &repository_root,
@@ -833,7 +1057,10 @@ mod tests {
             },
         )
         .unwrap_err();
-        assert!(err.contains("candidate artifacts must be outside assembled install root"), "{err}");
+        assert!(
+            err.contains("candidate artifacts must be outside assembled install root"),
+            "{err}"
+        );
 
         let _ = fs::remove_dir_all(&root);
     }

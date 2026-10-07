@@ -14,9 +14,7 @@ use std::path::Path;
 
 use legion_runtime::wf_port::w2_046::canonical::digest_value;
 use legion_runtime::wf_port::w2_046::codex_escalation::evaluate_codex_escalation;
-use legion_runtime::wf_port::w2_046::continuity::{
-    rehydrate_untrusted_data, ContinuityController,
-};
+use legion_runtime::wf_port::w2_046::continuity::{rehydrate_untrusted_data, ContinuityController};
 use legion_runtime::wf_port::w2_046::decision_envelope::{
     create_decision_envelope, DecisionEnvelopeDetail, DecisionEnvelopeInput,
 };
@@ -53,7 +51,10 @@ fn codex_escalation_reads_stdin_fixture_and_counts_evidence() {
     // match more than 20 chars apart, and each has a RESULT
     // ("failed"/`\w+Error\b` via "ModuleNotFoundError") within 120 chars,
     // so ATTEMPT/RESULT counts 3 attempts here, not 2.
-    assert!(outcome.allowed, "expected evidenced escalation to be allowed: {outcome:?}");
+    assert!(
+        outcome.allowed,
+        "expected evidenced escalation to be allowed: {outcome:?}"
+    );
     assert_eq!(outcome.evidence, Some(3));
 }
 
@@ -72,7 +73,10 @@ fn codex_escalation_denies_prose_without_evidence() {
     // recursion guard, unrelated to this evidence-insufficient denial.
     assert!(!outcome.allowed);
     assert_eq!(outcome.evidence, Some(0));
-    assert!(outcome.reason.unwrap().contains("BLOCKED [codex-escalation-gate]"));
+    assert!(outcome
+        .reason
+        .unwrap()
+        .contains("BLOCKED [codex-escalation-gate]"));
 }
 
 /// Port of `decision-envelope.mjs`'s `createDecisionEnvelope`, exercising a
@@ -94,7 +98,10 @@ fn decision_envelope_denied_envelope_matches_shape() {
     .unwrap();
     assert!(!env.allowed);
     assert_eq!(env.certification, "rejected");
-    assert_eq!(env.responsible_producer, Some("legion run close".to_string()));
+    assert_eq!(
+        env.responsible_producer,
+        Some("legion run close".to_string())
+    );
     assert_eq!(
         env.public_reason,
         "ARC_EVIDENCE_INSUFFICIENT: Required evidence is missing."
@@ -156,7 +163,10 @@ fn discipline_controls_blocks_no_verify_from_fixture_payload() {
     let command = value["tool_input"]["command"].as_str().unwrap().to_string();
     assert!(no_verify_blocked(&command));
 
-    let payload = DisciplinePayload { command: Some(command), ..Default::default() };
+    let payload = DisciplinePayload {
+        command: Some(command),
+        ..Default::default()
+    };
     assert!(generated_lock_targets(&payload).is_empty());
 }
 

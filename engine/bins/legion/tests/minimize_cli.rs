@@ -80,14 +80,22 @@ fn native_minimize_decision_receipt_binds_executable_and_rejects_tampering() {
             "verdict": "REJECTED", "evidence": "requested native validation"}],
         "allowed_new_files": [], "allowed_new_dependencies": []
     });
-    fs::write(
-        fixture.0.join("decision.json"),
-        decision.to_string(),
-    )
-    .unwrap();
+    fs::write(fixture.0.join("decision.json"), decision.to_string()).unwrap();
     fixture.pass(&["minimize", "decision", "validate", "decision.json"]);
-    fixture.pass(&["minimize", "decision", "receipt", "decision.json", "receipt.json"]);
-    fixture.pass(&["minimize", "decision", "verify", "decision.json", "receipt.json"]);
+    fixture.pass(&[
+        "minimize",
+        "decision",
+        "receipt",
+        "decision.json",
+        "receipt.json",
+    ]);
+    fixture.pass(&[
+        "minimize",
+        "decision",
+        "verify",
+        "decision.json",
+        "receipt.json",
+    ]);
     let path = fixture.0.join("receipt.json");
     let mut receipt: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
     let native_hash = Sha256::digest(fs::read(env!("CARGO_BIN_EXE_legion")).unwrap())
@@ -105,9 +113,7 @@ fn native_minimize_decision_receipt_binds_executable_and_rejects_tampering() {
         "receipt.json",
     ]);
     assert!(!failed.status.success());
-    assert!(
-        String::from_utf8_lossy(&failed.stderr).contains("validator_sha256 mismatch")
-    );
+    assert!(String::from_utf8_lossy(&failed.stderr).contains("validator_sha256 mismatch"));
 }
 
 #[test]
@@ -123,7 +129,13 @@ fn native_minimize_commit_receipt_rejects_staged_tree_drift() {
     fs::write(fixture.0.join("candidate.txt"), "candidate\n").unwrap();
     fixture.git_pass(&["add", "candidate.txt"]);
     fixture.pass(&["minimize", "commit", "init-review", "review.json"]);
-    fixture.pass(&["minimize", "commit", "receipt", "review.json", "receipt.json"]);
+    fixture.pass(&[
+        "minimize",
+        "commit",
+        "receipt",
+        "review.json",
+        "receipt.json",
+    ]);
     fixture.pass(&["minimize", "commit", "verify", "receipt.json"]);
 
     let review: Value =
@@ -139,8 +151,6 @@ fn native_minimize_commit_receipt_rejects_staged_tree_drift() {
     fixture.git_pass(&["add", "candidate.txt"]);
     let failed = fixture.run(&["minimize", "commit", "verify", "receipt.json"]);
     assert!(!failed.status.success());
-    assert!(
-        String::from_utf8_lossy(&failed.stderr)
-            .contains("stale commit receipt: candidate_tree mismatch")
-    );
+    assert!(String::from_utf8_lossy(&failed.stderr)
+        .contains("stale commit receipt: candidate_tree mismatch"));
 }

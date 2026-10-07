@@ -63,7 +63,9 @@ fn validate_commands(value: &Value, path: &str) -> Result<(), RegistryError> {
             )));
         }
         if !seen.insert(s.to_string()) {
-            return Err(RegistryError(format!("{path}: commands contains duplicates")));
+            return Err(RegistryError(format!(
+                "{path}: commands contains duplicates"
+            )));
         }
     }
     Ok(())
@@ -123,10 +125,7 @@ fn validate_probe(probe: Option<&Value>, path: &str) -> Result<(), RegistryError
 }
 
 /// Port of `validateCapabilityRegistry`.
-pub fn validate_capability_registry(
-    registry: &Value,
-    path: &str,
-) -> Result<(), RegistryError> {
+pub fn validate_capability_registry(registry: &Value, path: &str) -> Result<(), RegistryError> {
     let obj = registry
         .as_object()
         .ok_or_else(|| RegistryError(format!("{path}: registry must be an object")))?;
@@ -159,7 +158,9 @@ pub fn validate_capability_registry(
     for (id, entry) in capabilities {
         let entry_path = format!("{path}#capabilities.{id}");
         if !is_capability_id(id) {
-            return Err(RegistryError(format!("{entry_path}: invalid capability id")));
+            return Err(RegistryError(format!(
+                "{entry_path}: invalid capability id"
+            )));
         }
         let entry_obj = entry
             .as_object()
@@ -197,7 +198,11 @@ pub fn command_capability_map(registry: &Value) -> Result<BTreeMap<String, Strin
         let mut aliases: Vec<String> = entry
             .get("commands")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
         if let Some(probe) = entry.get("probe") {
             match probe.get("kind").and_then(Value::as_str) {
@@ -294,7 +299,12 @@ pub struct CapabilityMetadata {
     pub message: Option<String>,
 }
 
-fn unavailable_message(id: &str, degradation: &str, remedy: Option<&str>, available: Option<bool>) -> String {
+fn unavailable_message(
+    id: &str,
+    degradation: &str,
+    remedy: Option<&str>,
+    available: Option<bool>,
+) -> String {
     let state = match available {
         Some(false) => "is not available on this host",
         _ => "could not be detected on this host",
@@ -319,14 +329,19 @@ pub fn probe_capability(
     let entry = registry
         .get("capabilities")
         .and_then(|c| c.get(id))
-        .ok_or_else(|| RegistryError(format!("capability is not declared in the registry: {id}")))?;
+        .ok_or_else(|| {
+            RegistryError(format!("capability is not declared in the registry: {id}"))
+        })?;
     let available = detect(entry.get("probe"), env, command_exists, path_exists);
     let degradation = entry
         .get("degradation")
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_string();
-    let remedy = entry.get("remedy").and_then(Value::as_str).map(String::from);
+    let remedy = entry
+        .get("remedy")
+        .and_then(Value::as_str)
+        .map(String::from);
     let message = if available == Some(true) {
         None
     } else {
@@ -339,9 +354,17 @@ pub fn probe_capability(
     };
     Ok(CapabilityMetadata {
         id: id.to_string(),
-        kind: entry.get("kind").and_then(Value::as_str).unwrap_or_default().to_string(),
+        kind: entry
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
         available,
-        summary: entry.get("summary").and_then(Value::as_str).unwrap_or_default().to_string(),
+        summary: entry
+            .get("summary")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
         degradation,
         remedy,
         message,
@@ -434,14 +457,7 @@ mod tests {
     fn probe_reports_unavailable_with_remedy_message() {
         let reg = sample_registry();
         let env = BTreeMap::new();
-        let meta = probe_capability(
-            "network-sandbox",
-            &reg,
-            &env,
-            &|_| false,
-            &|_| false,
-        )
-        .unwrap();
+        let meta = probe_capability("network-sandbox", &reg, &env, &|_| false, &|_| false).unwrap();
         assert_eq!(meta.available, Some(false));
         assert!(meta.message.unwrap().contains("To enable it: r"));
     }

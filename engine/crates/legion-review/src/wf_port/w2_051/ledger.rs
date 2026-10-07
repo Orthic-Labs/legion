@@ -129,7 +129,11 @@ impl Ledger {
     pub fn pending_blockers(&self) -> Vec<&BlockerEntry> {
         match self.latest_round() {
             None => Vec::new(),
-            Some(r) => r.blockers.iter().filter(|b| b.disposition.is_none()).collect(),
+            Some(r) => r
+                .blockers
+                .iter()
+                .filter(|b| b.disposition.is_none())
+                .collect(),
         }
     }
 
@@ -265,7 +269,8 @@ pub fn register_verdict_round(
     for r in &ledger.rounds {
         for b in &r.blockers {
             if let Some(disp) = &b.disposition {
-                prior_dispositions.insert(b.text.to_lowercase(), (disp.clone(), b.evidence.clone()));
+                prior_dispositions
+                    .insert(b.text.to_lowercase(), (disp.clone(), b.evidence.clone()));
             }
         }
     }
@@ -289,7 +294,11 @@ pub fn register_verdict_round(
                 from_juror: juror.clone(),
                 disposition: prior.map(|(d, _)| d.clone()),
                 evidence: prior.and_then(|(_, e)| e.clone()),
-                disposed_at: if prior.is_some() { Some(now_iso_utc()) } else { None },
+                disposed_at: if prior.is_some() {
+                    Some(now_iso_utc())
+                } else {
+                    None
+                },
             });
         }
     }
@@ -347,7 +356,11 @@ pub fn parse_dispose_arg(arg: &str) -> Result<(String, String, Option<String>), 
     };
     let bid = bid.trim().to_string();
     if let Some((disposition, evidence)) = rest.split_once(':') {
-        Ok((bid, disposition.trim().to_string(), Some(evidence.trim().to_string())))
+        Ok((
+            bid,
+            disposition.trim().to_string(),
+            Some(evidence.trim().to_string()),
+        ))
     } else {
         Ok((bid, rest.trim().to_string(), None))
     }

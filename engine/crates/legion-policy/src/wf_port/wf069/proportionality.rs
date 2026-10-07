@@ -10,11 +10,21 @@ pub const ADVERSARIAL_PROPORTIONALITY_IDS: [&str; 2] = ["AE-ADVERSARIAL-001", "A
 
 const COMPLEXITY: [&str; 3] = ["minimal", "modular", "distributed"];
 const SCALE: [&str; 3] = ["low", "moderate", "high"];
-const OBLIGATION_DOMAINS: [&str; 6] =
-    ["privacy", "compliance", "security", "safety", "retention", "availability"];
+const OBLIGATION_DOMAINS: [&str; 6] = [
+    "privacy",
+    "compliance",
+    "security",
+    "safety",
+    "retention",
+    "availability",
+];
 
 fn rank(complexity: &str) -> i32 {
-    COMPLEXITY.iter().position(|c| *c == complexity).map(|i| i as i32).unwrap_or(-1)
+    COMPLEXITY
+        .iter()
+        .position(|c| *c == complexity)
+        .map(|i| i as i32)
+        .unwrap_or(-1)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,15 +46,23 @@ fn normalize_obligations(values: &[Obligation]) -> Result<Vec<Obligation>, Arcan
     let mut ids = std::collections::HashSet::new();
     for entry in values {
         if entry.id.trim().is_empty() {
-            return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "obligation id is required"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcSchemaInvalid,
+                "obligation id is required",
+            ));
         }
         if !ids.insert(entry.id.clone()) {
-            return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "duplicate obligation id")
-                .with_detail("id", entry.id.clone()));
+            return Err(
+                ArcaneError::new(ArcCode::ArcSchemaInvalid, "duplicate obligation id")
+                    .with_detail("id", entry.id.clone()),
+            );
         }
         if !OBLIGATION_DOMAINS.contains(&entry.domain.as_str()) {
-            return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "obligation domain is invalid")
-                .with_detail("id", entry.id.clone()));
+            return Err(ArcaneError::new(
+                ArcCode::ArcSchemaInvalid,
+                "obligation domain is invalid",
+            )
+            .with_detail("id", entry.id.clone()));
         }
     }
     Ok(values.to_vec())
@@ -96,22 +114,33 @@ pub fn assess_architecture_proportionality(
     input: &ProportionalityInput,
 ) -> Result<ProportionalityResult, ArcaneError> {
     if !["greenfield", "existing"].contains(&input.deployment.as_str()) {
-        return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "deployment is invalid"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcSchemaInvalid,
+            "deployment is invalid",
+        ));
     }
     if !SCALE.contains(&input.scale.as_str()) {
-        return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "scale is invalid"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcSchemaInvalid,
+            "scale is invalid",
+        ));
     }
     if !COMPLEXITY.contains(&input.proposed_complexity.as_str()) {
-        return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "proposedComplexity is invalid"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcSchemaInvalid,
+            "proposedComplexity is invalid",
+        ));
     }
     let obligations = normalize_obligations(&input.obligations)?;
     let mandatory: Vec<&Obligation> = obligations
         .iter()
         .filter(|o| o.mandatory && o.status != ObligationStatus::NotApplicable)
         .collect();
-    let distributed_driver =
-        input.scale == "high" || input.drivers.independent_scaling || input.drivers.multi_region_consistency;
-    let modular_driver = !mandatory.is_empty() || input.drivers.isolation_boundary || input.scale == "moderate";
+    let distributed_driver = input.scale == "high"
+        || input.drivers.independent_scaling
+        || input.drivers.multi_region_consistency;
+    let modular_driver =
+        !mandatory.is_empty() || input.drivers.isolation_boundary || input.scale == "moderate";
     let minimum_complexity = if distributed_driver {
         "distributed"
     } else if modular_driver {
@@ -122,7 +151,11 @@ pub fn assess_architecture_proportionality(
     let excessive = rank(&input.proposed_complexity) > rank(minimum_complexity);
     Ok(ProportionalityResult {
         decision: if excessive { "REJECT" } else { "ALLOW" },
-        code: if excessive { Some("ARC_PROPORTIONALITY_EXCESS") } else { None },
+        code: if excessive {
+            Some("ARC_PROPORTIONALITY_EXCESS")
+        } else {
+            None
+        },
         proposed_complexity: input.proposed_complexity.clone(),
         minimum_complexity,
         distributed: distributed_driver,
@@ -161,22 +194,36 @@ pub fn assess_mandatory_obligation_readiness(
     input: &ObligationReadinessInput,
 ) -> Result<ObligationReadinessResult, ArcaneError> {
     if !["minimize", "standard"].contains(&input.objective.as_str()) {
-        return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "objective is invalid"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcSchemaInvalid,
+            "objective is invalid",
+        ));
     }
     if !COMPLEXITY.contains(&input.proposed_complexity.as_str()) {
-        return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "proposedComplexity is invalid"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcSchemaInvalid,
+            "proposedComplexity is invalid",
+        ));
     }
     let obligations = normalize_obligations(&input.obligations)?;
-    let missing: Vec<&Obligation> =
-        obligations.iter().filter(|o| o.mandatory && o.status == ObligationStatus::Missing).collect();
-    let required: Vec<&Obligation> =
-        obligations.iter().filter(|o| o.mandatory && o.status != ObligationStatus::NotApplicable).collect();
+    let missing: Vec<&Obligation> = obligations
+        .iter()
+        .filter(|o| o.mandatory && o.status == ObligationStatus::Missing)
+        .collect();
+    let required: Vec<&Obligation> = obligations
+        .iter()
+        .filter(|o| o.mandatory && o.status != ObligationStatus::NotApplicable)
+        .collect();
     let mut missing_domains: Vec<String> = missing.iter().map(|o| o.domain.clone()).collect();
     missing_domains.sort();
     missing_domains.dedup();
     Ok(ObligationReadinessResult {
         decision: if missing.is_empty() { "READY" } else { "BLOCK" },
-        code: if missing.is_empty() { None } else { Some("ARC_MANDATORY_OBLIGATION_MISSING") },
+        code: if missing.is_empty() {
+            None
+        } else {
+            Some("ARC_MANDATORY_OBLIGATION_MISSING")
+        },
         objective: input.objective.clone(),
         proposed_complexity: input.proposed_complexity.clone(),
         required_obligation_ids: required.iter().map(|o| o.id.clone()).collect(),
@@ -273,8 +320,18 @@ mod tests {
     fn rejects_duplicate_obligation_ids() {
         let mut input = default_proportionality_input();
         input.obligations = vec![
-            Obligation { id: "a".into(), domain: "privacy".into(), mandatory: true, status: ObligationStatus::Missing },
-            Obligation { id: "a".into(), domain: "privacy".into(), mandatory: true, status: ObligationStatus::Missing },
+            Obligation {
+                id: "a".into(),
+                domain: "privacy".into(),
+                mandatory: true,
+                status: ObligationStatus::Missing,
+            },
+            Obligation {
+                id: "a".into(),
+                domain: "privacy".into(),
+                mandatory: true,
+                status: ObligationStatus::Missing,
+            },
         ];
         let err = assess_architecture_proportionality(&input).unwrap_err();
         assert_eq!(err.code, ArcCode::ArcSchemaInvalid);
@@ -282,6 +339,9 @@ mod tests {
 
     #[test]
     fn binding_ids_match_js_constant() {
-        assert_eq!(adversarial_proportionality_binding_ids(), ["AE-ADVERSARIAL-001", "AE-ADVERSARIAL-002"]);
+        assert_eq!(
+            adversarial_proportionality_binding_ids(),
+            ["AE-ADVERSARIAL-001", "AE-ADVERSARIAL-002"]
+        );
     }
 }

@@ -60,13 +60,36 @@ pub fn build_catalogs(root: &Path) -> Result<Value, String> {
         .unwrap_or_default()
         .iter()
         .filter_map(Value::as_object)
-        .map(|o| pick(o, &["id", "providerVersion", "role", "family", "benchmark", "selectable"]))
+        .map(|o| {
+            pick(
+                o,
+                &[
+                    "id",
+                    "providerVersion",
+                    "role",
+                    "family",
+                    "benchmark",
+                    "selectable",
+                ],
+            )
+        })
         .collect();
 
     let support: Vec<Value> = coverage_records
         .iter()
         .filter_map(Value::as_object)
-        .map(|o| pick(o, &["id", "tiers", "corpusDigest", "artifactDigest", "qualificationDigest"]))
+        .map(|o| {
+            pick(
+                o,
+                &[
+                    "id",
+                    "tiers",
+                    "corpusDigest",
+                    "artifactDigest",
+                    "qualificationDigest",
+                ],
+            )
+        })
         .collect();
 
     let mut out = Map::new();
@@ -103,9 +126,7 @@ pub fn run(root: &Path, check: bool) -> bool {
     if check {
         let actual = fs::read_to_string(&target).unwrap_or_default();
         if actual != expected {
-            eprintln!(
-                "catalog drift: {OUT_REL} does not match its canonical registry sources."
-            );
+            eprintln!("catalog drift: {OUT_REL} does not match its canonical registry sources.");
             return false;
         }
         println!("qualification catalogs: no drift");

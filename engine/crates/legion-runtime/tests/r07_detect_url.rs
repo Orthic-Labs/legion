@@ -145,10 +145,21 @@ fn detect_url_cdp_end_to_end_with_design_system() {
     opts.design_system = Some(DesignSystemInput {
         present: true,
         has_colors: true,
-        allowed_color_keys: vec![Rgb { r: 1.0, g: 2.0, b: 3.0 }],
+        allowed_color_keys: vec![Rgb {
+            r: 1.0,
+            g: 2.0,
+            b: 3.0,
+        }],
         ..Default::default()
     });
-    let out = detect_url_cdp(&mut driver, &reg, "https://example.test", "/*script*/", &opts).unwrap();
+    let out = detect_url_cdp(
+        &mut driver,
+        &reg,
+        "https://example.test",
+        "/*script*/",
+        &opts,
+    )
+    .unwrap();
     assert_eq!(driver.navigated, vec!["https://example.test".to_string()]);
     assert_eq!(out.len(), 1);
     assert_eq!(out[0].ignore_value.as_deref(), Some("#fff"));
@@ -172,6 +183,9 @@ fn detect_url_without_visual_contrast_matches_cdp_only_path() {
     let reg = registry();
     let opts = DetectUrlOptions::default();
     let a = detect_url_cdp(&mut driver_a, &reg, "https://x", "/*s*/", &opts).unwrap();
-    let b = detect_url(&mut driver_b, &reg, "https://x", "/*s*/", &opts, |_| Ok(vec![])).unwrap();
+    let b = detect_url(&mut driver_b, &reg, "https://x", "/*s*/", &opts, |_| {
+        Ok(vec![])
+    })
+    .unwrap();
     assert_eq!(a, b);
 }

@@ -211,7 +211,10 @@ impl UntrustedEvidenceRecord {
         object.insert("sourcePath".into(), json!(self.source_path));
         object.insert("sourceDigest".into(), json!(self.source_digest));
         object.insert("artifactRef".into(), self.artifact_ref.to_value());
-        object.insert("locator".into(), self.locator.clone().unwrap_or(Value::Null));
+        object.insert(
+            "locator".into(),
+            self.locator.clone().unwrap_or(Value::Null),
+        );
         object.insert("encoding".into(), json!(self.encoding));
         object.insert("text".into(), json!(self.text));
         object.insert("originalBytes".into(), json!(self.original_bytes));
@@ -277,10 +280,16 @@ pub fn wrap_untrusted_evidence(
     } else {
         text
     };
-    let included_bytes = if truncated { args.max_bytes } else { original_bytes };
+    let included_bytes = if truncated {
+        args.max_bytes
+    } else {
+        original_bytes
+    };
 
     let mut normalizations: Vec<&'static str> = vec!["unicode-nfc"];
-    let display_nfc: String = icu_normalizer::ComposingNormalizer::new_nfc().normalize(&body).into_owned();
+    let display_nfc: String = icu_normalizer::ComposingNormalizer::new_nfc()
+        .normalize(&body)
+        .into_owned();
 
     let mut saw_bidi = false;
     let mut saw_zero_width = false;
@@ -384,11 +393,7 @@ override_pattern!(
     "schema",
     r"(?i)\b(?:new\s+)?schema\s*[:=]\s*[\w./-]+"
 );
-override_pattern!(
-    tools_pattern,
-    "tools",
-    r"(?i)\btools?\s*[:=]\s*[\w.,\s/-]+"
-);
+override_pattern!(tools_pattern, "tools", r"(?i)\btools?\s*[:=]\s*[\w.,\s/-]+");
 override_pattern!(
     policy_pattern,
     "policy",
@@ -410,15 +415,42 @@ fn override_patterns() -> &'static [OverridePattern] {
     static PATTERNS: OnceLock<Vec<OverridePattern>> = OnceLock::new();
     PATTERNS.get_or_init(|| {
         vec![
-            OverridePattern { target: "provider", regex: provider_pattern },
-            OverridePattern { target: "role", regex: role_pattern },
-            OverridePattern { target: "context", regex: context_pattern },
-            OverridePattern { target: "schema", regex: schema_pattern },
-            OverridePattern { target: "tools", regex: tools_pattern },
-            OverridePattern { target: "policy", regex: policy_pattern },
-            OverridePattern { target: "verdict", regex: verdict_pattern },
-            OverridePattern { target: "instruction", regex: instruction_pattern },
-            OverridePattern { target: "instruction", regex: instruction_prefix_pattern },
+            OverridePattern {
+                target: "provider",
+                regex: provider_pattern,
+            },
+            OverridePattern {
+                target: "role",
+                regex: role_pattern,
+            },
+            OverridePattern {
+                target: "context",
+                regex: context_pattern,
+            },
+            OverridePattern {
+                target: "schema",
+                regex: schema_pattern,
+            },
+            OverridePattern {
+                target: "tools",
+                regex: tools_pattern,
+            },
+            OverridePattern {
+                target: "policy",
+                regex: policy_pattern,
+            },
+            OverridePattern {
+                target: "verdict",
+                regex: verdict_pattern,
+            },
+            OverridePattern {
+                target: "instruction",
+                regex: instruction_pattern,
+            },
+            OverridePattern {
+                target: "instruction",
+                regex: instruction_prefix_pattern,
+            },
         ]
     })
 }
@@ -528,7 +560,11 @@ impl Default for BuildReviewPacketArgs {
             subject_id: String::new(),
             candidate_id: None,
             instructions: Vec::new(),
-            reviewer: Reviewer { role: String::new(), context_id: String::new(), fresh: false },
+            reviewer: Reviewer {
+                role: String::new(),
+                context_id: String::new(),
+                fresh: false,
+            },
             schema: String::new(),
             verdict_vocabulary: Vec::new(),
             policy: json!({}),
@@ -582,16 +618,31 @@ impl ReviewPacket {
         object.insert("tools".into(), Value::Array(self.tools.clone()));
         object.insert(
             "evidence".into(),
-            Value::Array(self.evidence.iter().map(UntrustedEvidenceRecord::to_value).collect()),
+            Value::Array(
+                self.evidence
+                    .iter()
+                    .map(UntrustedEvidenceRecord::to_value)
+                    .collect(),
+            ),
         );
         object.insert(
             "omittedEvidence".into(),
-            Value::Array(self.omitted_evidence.iter().map(Omission::to_value).collect()),
+            Value::Array(
+                self.omitted_evidence
+                    .iter()
+                    .map(Omission::to_value)
+                    .collect(),
+            ),
         );
         object.insert("truncated".into(), json!(self.truncated));
         object.insert(
             "injectionAttempts".into(),
-            Value::Array(self.injection_attempts.iter().map(InjectionAttempt::to_value).collect()),
+            Value::Array(
+                self.injection_attempts
+                    .iter()
+                    .map(InjectionAttempt::to_value)
+                    .collect(),
+            ),
         );
         object.insert("binding".into(), self.binding.clone());
         Value::Object(object)
@@ -626,7 +677,9 @@ pub fn build_review_packet(args: BuildReviewPacketArgs) -> Result<ReviewPacket, 
     require_string(&args.reviewer.role, "reviewer.role")?;
     require_string(&args.reviewer.context_id, "reviewer.contextId")?;
     if !args.reviewer.fresh {
-        return Err(EnvelopeError::Invalid("reviewer context must be fresh".to_string()));
+        return Err(EnvelopeError::Invalid(
+            "reviewer context must be fresh".to_string(),
+        ));
     }
     if args.binding.is_null() {
         return Err(EnvelopeError::Type("binding is required".to_string()));

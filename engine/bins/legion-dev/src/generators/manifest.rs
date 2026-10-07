@@ -27,7 +27,10 @@ pub fn generated_manifest_text(registry_path: &Path) -> Result<String, String> {
     let raw = read_json(registry_path)?;
     let registry = load_provider_registry_v2(&raw).map_err(|e| e.to_string())?;
     let manifest = render_manifest(&registry);
-    Ok(format!("{}\n", serde_json::to_string_pretty(&manifest).unwrap()))
+    Ok(format!(
+        "{}\n",
+        serde_json::to_string_pretty(&manifest).unwrap()
+    ))
 }
 
 struct Compatibility {
@@ -57,7 +60,10 @@ fn compatible_checked_in_manifest(actual: Option<&Value>, expected: &Value) -> C
     if a_checks != e_checks {
         errors.push("checks");
     }
-    let provider_mirror_present = matches!(actual.and_then(|a| a.get("providers")), Some(Value::Array(_)));
+    let provider_mirror_present = matches!(
+        actual.and_then(|a| a.get("providers")),
+        Some(Value::Array(_))
+    );
     if provider_mirror_present {
         let a_providers = actual.and_then(|a| a.get("providers"));
         let e_providers = expected.get("providers");
@@ -65,7 +71,11 @@ fn compatible_checked_in_manifest(actual: Option<&Value>, expected: &Value) -> C
             errors.push("providers");
         }
     }
-    Compatibility { valid: errors.is_empty(), errors, provider_mirror_present }
+    Compatibility {
+        valid: errors.is_empty(),
+        errors,
+        provider_mirror_present,
+    }
 }
 
 /// `legion-dev generate-manifest [--check] [--registry PATH] [--out PATH]`
@@ -73,7 +83,9 @@ pub fn run(root: &Path, check: bool, registry: Option<&Path>, out: Option<&Path>
     let registry_path = registry
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| root.join("src/registry/providers.json"));
-    let out_path = out.map(|p| p.to_path_buf()).unwrap_or_else(|| root.join("manifest.json"));
+    let out_path = out
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| root.join("manifest.json"));
 
     let expected_text = match generated_manifest_text(&registry_path) {
         Ok(t) => t,
@@ -85,7 +97,9 @@ pub fn run(root: &Path, check: bool, registry: Option<&Path>, out: Option<&Path>
     let expected: Value = serde_json::from_str(&expected_text).unwrap();
 
     if check {
-        let actual: Option<Value> = fs::read_to_string(&out_path).ok().and_then(|s| serde_json::from_str(&s).ok());
+        let actual: Option<Value> = fs::read_to_string(&out_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok());
         let compatibility = compatible_checked_in_manifest(actual.as_ref(), &expected);
         if !compatibility.valid {
             eprintln!(
@@ -101,7 +115,10 @@ pub fn run(root: &Path, check: bool, registry: Option<&Path>, out: Option<&Path>
                 out_path.display()
             );
         } else {
-            println!("manifest matches complete executed provider registry: {}", out_path.display());
+            println!(
+                "manifest matches complete executed provider registry: {}",
+                out_path.display()
+            );
         }
         return true;
     }

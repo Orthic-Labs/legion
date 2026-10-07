@@ -24,7 +24,12 @@ fn tempdir(prefix: &str) -> PathBuf {
         ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+            .as_nanos())
+        .wrapping_shl(20)
+            | ({
+                static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+            }))
     );
     dir.push(unique);
     fs::create_dir_all(&dir).unwrap();
@@ -76,7 +81,10 @@ fn repository_binding_excludes_runtime_state_directories_without_git() {
 fn repository_binding_git_backed_respects_gitignore() {
     let root = tempdir("legion-w2_042-repo-binding-git");
     run_git(&root, &["init", "--quiet"]);
-    run_git(&root, &["config", "user.email", "legion-tests@example.invalid"]);
+    run_git(
+        &root,
+        &["config", "user.email", "legion-tests@example.invalid"],
+    );
     run_git(&root, &["config", "user.name", "Legion Tests"]);
     fs::write(root.join(".gitignore"), "engine/target/\n").unwrap();
     fs::write(root.join("tracked.txt"), "tracked v1\n").unwrap();
@@ -167,8 +175,10 @@ fn verify_sealed_run_end_to_end_from_repository_binding_and_manifest() {
     let binding = bind_repository(&root, BindOptions::default()).unwrap();
     let binding_value = binding.to_value();
 
-    let manifest_artifact =
-        build_canonical_manifest(vec![], json!({"repositoryRevision": binding.digest.clone()}));
+    let manifest_artifact = build_canonical_manifest(
+        vec![],
+        json!({"repositoryRevision": binding.digest.clone()}),
+    );
     assert_eq!(manifest_artifact.value.kind, "legion-run-manifest");
 
     let prior = json!({"binding": binding_value.clone()});

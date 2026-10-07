@@ -52,20 +52,27 @@ const MAP: &[(&str, &str)] = &[
 
 fn is_sha256(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(|hex| {
-        hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        hex.len() == 64
+            && hex
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
     })
 }
 
-fn receipt_valid(receipt: &CapabilityReceipt, now_ms: i64, expected_binding: Option<&Value>) -> bool {
+fn receipt_valid(
+    receipt: &CapabilityReceipt,
+    now_ms: i64,
+    expected_binding: Option<&Value>,
+) -> bool {
     if expected_binding.is_none() {
         return false;
     }
     let digest_ok = same_binding(receipt.receipt_binding.as_ref(), expected_binding);
-    let artifact_ok = receipt
-        .artifact_digest
+    let artifact_ok = receipt.artifact_digest.as_deref().is_some_and(is_sha256);
+    let env_ok = receipt
+        .environment
         .as_deref()
-        .is_some_and(is_sha256);
-    let env_ok = receipt.environment.as_deref().is_some_and(|s| !s.is_empty());
+        .is_some_and(|s| !s.is_empty());
     let limitations_ok = receipt.limitations.is_some();
     let observed_ok = receipt.observed_at_ms.is_some_and(|t| t <= now_ms);
     let expires_ok = receipt.expires_at_ms.is_some_and(|t| t > now_ms);
@@ -83,8 +90,7 @@ pub fn evidence_capabilities(
         .map(|(host_key, id)| {
             let value = capabilities.get(*host_key);
             let available = value.is_some_and(|v| {
-                v.active
-                    && now_ms.is_some_and(|now| receipt_valid(v, now, binding))
+                v.active && now_ms.is_some_and(|now| receipt_valid(v, now, binding))
             });
             let reason = if available {
                 None
@@ -199,7 +205,9 @@ pub fn capability_impacts(
             control
                 .evidence
                 .iter()
-                .filter(move |item| !item.starts_with("provider:") && !available.contains(item.as_str()))
+                .filter(move |item| {
+                    !item.starts_with("provider:") && !available.contains(item.as_str())
+                })
                 .map(move |item| CapabilityImpact {
                     control_id: control.id.clone(),
                     target_ids: control.target_ids.clone(),

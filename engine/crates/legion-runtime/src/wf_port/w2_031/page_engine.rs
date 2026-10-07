@@ -39,7 +39,10 @@ pub fn validate_page_contract(cfg: &PageEngineConfig, contract: &Value) -> Vec<S
     let mut errors = Vec::new();
     let page_type = contract.get("page_type").and_then(Value::as_str);
     let Some(page_type) = page_type else {
-        errors.push(format!("unknown page_type: {}", display_none(contract.get("page_type"))));
+        errors.push(format!(
+            "unknown page_type: {}",
+            display_none(contract.get("page_type"))
+        ));
         return errors;
     };
     let Some(required_keys) = cfg.page_types.get(page_type) else {
@@ -81,7 +84,10 @@ pub fn validate_claims(cfg: &PageEngineConfig, claims: &[Value]) -> Vec<String> 
         if !state.is_some_and(|s| allowed.contains(s)) {
             errors.push(format!("claims[{i}].state invalid"));
         }
-        let use_in_output = claim.get("use_in_output").and_then(Value::as_bool).unwrap_or(false);
+        let use_in_output = claim
+            .get("use_in_output")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         if state == Some("approved") {
             let has_source = claim
                 .get("source")
@@ -93,7 +99,9 @@ pub fn validate_claims(cfg: &PageEngineConfig, claims: &[Value]) -> Vec<String> 
             }
         }
         if state == Some("requires_verification") && use_in_output {
-            errors.push(format!("claims[{i}] unverified claim cannot be used in output"));
+            errors.push(format!(
+                "claims[{i}] unverified claim cannot be used in output"
+            ));
         }
         if state == Some("banned") && use_in_output {
             errors.push(format!("claims[{i}] banned claim cannot be used in output"));
@@ -109,7 +117,10 @@ pub fn detect_blockers(bundle: &Value) -> Vec<Value> {
     if let Some(ownership) = bundle.get("query_ownership").and_then(Value::as_array) {
         for row in ownership {
             let kind = row.get("classification").and_then(Value::as_str);
-            if matches!(kind, Some("ownership switching") | Some("probable duplicate target")) {
+            if matches!(
+                kind,
+                Some("ownership switching") | Some("probable duplicate target")
+            ) {
                 blockers.push(json!({
                     "type": "multiple_owners_one_intent",
                     "subject": row.get("query").cloned().unwrap_or(Value::Null),
@@ -124,7 +135,10 @@ pub fn detect_blockers(bundle: &Value) -> Vec<Value> {
 
     let canonical_expected = page.get("canonical_expected");
     let canonical_observed = page.get("canonical_observed");
-    if truthy(canonical_expected) && truthy(canonical_observed) && canonical_expected != canonical_observed {
+    if truthy(canonical_expected)
+        && truthy(canonical_observed)
+        && canonical_expected != canonical_observed
+    {
         blockers.push(json!({
             "type": "canonical_mismatch",
             "subject": page.get("url").cloned().unwrap_or(Value::Null),
@@ -209,7 +223,11 @@ pub struct InformationGain {
 }
 
 pub fn information_gain(cfg: &PageEngineConfig, bundle: &Value) -> InformationGain {
-    let allowed: BTreeSet<&str> = cfg.information_gain_types.iter().map(String::as_str).collect();
+    let allowed: BTreeSet<&str> = cfg
+        .information_gain_types
+        .iter()
+        .map(String::as_str)
+        .collect();
     let gains = bundle
         .get("information_gain")
         .and_then(Value::as_array)
@@ -218,7 +236,10 @@ pub fn information_gain(cfg: &PageEngineConfig, bundle: &Value) -> InformationGa
     let mut valid = Vec::new();
     let mut invalid = Vec::new();
     for item in gains {
-        let type_ok = item.get("type").and_then(Value::as_str).is_some_and(|t| allowed.contains(t));
+        let type_ok = item
+            .get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|t| allowed.contains(t));
         let has_evidence = truthy(item.get("evidence"));
         if type_ok && has_evidence {
             valid.push(item);
@@ -226,8 +247,16 @@ pub fn information_gain(cfg: &PageEngineConfig, bundle: &Value) -> InformationGa
             invalid.push(item);
         }
     }
-    let status = if !valid.is_empty() { "demonstrated" } else { "not_demonstrated" };
-    InformationGain { status, valid, invalid_or_unsubstantiated: invalid }
+    let status = if !valid.is_empty() {
+        "demonstrated"
+    } else {
+        "not_demonstrated"
+    };
+    InformationGain {
+        status,
+        valid,
+        invalid_or_unsubstantiated: invalid,
+    }
 }
 
 /// `assess(bundle)` in Python. Returns the full result object as JSON,
@@ -261,8 +290,10 @@ pub fn assess(cfg: &PageEngineConfig, bundle: &Value) -> Value {
         }
     }
 
-    if matches!(requested_verdict, Some("EXPAND") | Some("SPLIT") | Some("REPOSITION"))
-        && gain.status != "demonstrated"
+    if matches!(
+        requested_verdict,
+        Some("EXPAND") | Some("SPLIT") | Some("REPOSITION")
+    ) && gain.status != "demonstrated"
     {
         errors.push(format!(
             "{} requires demonstrated information gain",
@@ -283,7 +314,11 @@ pub fn assess(cfg: &PageEngineConfig, bundle: &Value) -> Value {
 
     let recommended: String = match requested_verdict {
         None => {
-            let mut r = if !blockers.is_empty() { "INVESTIGATE" } else { "KEEP" };
+            let mut r = if !blockers.is_empty() {
+                "INVESTIGATE"
+            } else {
+                "KEEP"
+            };
             if !contract_present || !errors.is_empty() {
                 r = "INVESTIGATE";
             }

@@ -56,19 +56,31 @@ pub fn default_profile_policy(name: &str) -> Option<ProfileLimits> {
     })
 }
 
-fn validate_limits(name: &str, limits: Option<ProfileLimits>) -> Result<ProfileLimits, KernelError> {
-    let limits = limits.ok_or_else(|| policy_error(format!("profile limits missing for {name}")))?;
+fn validate_limits(
+    name: &str,
+    limits: Option<ProfileLimits>,
+) -> Result<ProfileLimits, KernelError> {
+    let limits =
+        limits.ok_or_else(|| policy_error(format!("profile limits missing for {name}")))?;
     if limits.max_packet_tasks < 1 {
-        return Err(policy_error(format!("{name}.maxPacketTasks must be a positive integer")));
+        return Err(policy_error(format!(
+            "{name}.maxPacketTasks must be a positive integer"
+        )));
     }
     if limits.max_concurrency < 1 {
-        return Err(policy_error(format!("{name}.maxConcurrency must be a positive integer")));
+        return Err(policy_error(format!(
+            "{name}.maxConcurrency must be a positive integer"
+        )));
     }
     if limits.max_mutation_concurrency < 1 {
-        return Err(policy_error(format!("{name}.maxMutationConcurrency must be a positive integer")));
+        return Err(policy_error(format!(
+            "{name}.maxMutationConcurrency must be a positive integer"
+        )));
     }
     if limits.max_mutation_concurrency > limits.max_concurrency {
-        return Err(policy_error("mutation concurrency cannot exceed total concurrency"));
+        return Err(policy_error(
+            "mutation concurrency cannot exceed total concurrency",
+        ));
     }
     Ok(limits)
 }
@@ -82,7 +94,10 @@ pub struct ModelProfile {
 }
 
 /// Port of `loadModelProfile(name, policy = DEFAULT_PROFILE_POLICY)`.
-pub fn load_model_profile(name: &str, policy: impl Fn(&str) -> Option<ProfileLimits>) -> Result<ModelProfile, KernelError> {
+pub fn load_model_profile(
+    name: &str,
+    policy: impl Fn(&str) -> Option<ProfileLimits>,
+) -> Result<ModelProfile, KernelError> {
     if !WORKER_PROFILES.contains(&name) {
         return Err(policy_error(format!("unknown worker profile: {name}")));
     }
@@ -112,7 +127,10 @@ pub fn downgrade_model_profile(
             },
         ));
     }
-    if requested_by.map(|r| r.eq_ignore_ascii_case("model")).unwrap_or(false) {
+    if requested_by
+        .map(|r| r.eq_ignore_ascii_case("model"))
+        .unwrap_or(false)
+    {
         return Err(KernelError::new(
             "AUTHORITY_DENIED",
             "model-requested profile changes are forbidden",
@@ -173,7 +191,9 @@ mod tests {
     #[test]
     fn downgrade_model_profile_steps_down_one_tier() {
         let profile = load_model_profile("advanced", default_profile_policy).unwrap();
-        let downgraded = downgrade_model_profile(&profile, "budget exceeded", None, default_profile_policy).unwrap();
+        let downgraded =
+            downgrade_model_profile(&profile, "budget exceeded", None, default_profile_policy)
+                .unwrap();
         assert_eq!(downgraded.name, "standard");
         assert_eq!(downgraded.downgrade.unwrap()["from"], "advanced");
     }
@@ -181,21 +201,26 @@ mod tests {
     #[test]
     fn downgrade_model_profile_floors_at_strict() {
         let profile = load_model_profile("strict", default_profile_policy).unwrap();
-        let downgraded = downgrade_model_profile(&profile, "budget exceeded", None, default_profile_policy).unwrap();
+        let downgraded =
+            downgrade_model_profile(&profile, "budget exceeded", None, default_profile_policy)
+                .unwrap();
         assert_eq!(downgraded.name, "strict");
     }
 
     #[test]
     fn downgrade_model_profile_rejects_model_requested_change() {
         let profile = load_model_profile("advanced", default_profile_policy).unwrap();
-        let error = downgrade_model_profile(&profile, "reason", Some("model"), default_profile_policy).unwrap_err();
+        let error =
+            downgrade_model_profile(&profile, "reason", Some("model"), default_profile_policy)
+                .unwrap_err();
         assert_eq!(error.code, "AUTHORITY_DENIED");
     }
 
     #[test]
     fn downgrade_model_profile_rejects_empty_reason() {
         let profile = load_model_profile("advanced", default_profile_policy).unwrap();
-        let error = downgrade_model_profile(&profile, "   ", None, default_profile_policy).unwrap_err();
+        let error =
+            downgrade_model_profile(&profile, "   ", None, default_profile_policy).unwrap_err();
         assert_eq!(error.code, "INVALID_ARGUMENT");
     }
 }

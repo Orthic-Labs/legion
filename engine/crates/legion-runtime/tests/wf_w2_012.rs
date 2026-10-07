@@ -15,8 +15,9 @@ use legion_runtime::wf_port::w2_012::css_cascade::{
 use legion_runtime::wf_port::w2_012::detect_text::{
     analyze_dark_glow, analyze_em_dash_overuse, analyze_flat_type_hierarchy,
     analyze_marketing_buzzword, analyze_monotonous_spacing, analyze_numbered_section_markers,
-    analyze_single_font, ext_from_file_path, has_border_radius, has_rounded, is_neutral_border_color,
-    is_safe_element, run_page_level_analyzers, should_run_page_analyzers, strip_html_to_text,
+    analyze_single_font, ext_from_file_path, has_border_radius, has_rounded,
+    is_neutral_border_color, is_safe_element, run_page_level_analyzers, should_run_page_analyzers,
+    strip_html_to_text,
 };
 use legion_runtime::wf_port::w2_012::sweep::{
     extract_links, missing_required_pages, page_is_linked, profiles_for, url_origin, url_pathname,
@@ -29,10 +30,7 @@ use legion_runtime::wf_port::w2_012::sweep::{
 
 #[test]
 fn sweep_extract_links_matches_js_filtering_rules() {
-    let html = std::fs::read_to_string(
-        "tests/fixtures/wf_w2_012/sweep_sample_page.html",
-    )
-    .unwrap();
+    let html = std::fs::read_to_string("tests/fixtures/wf_w2_012/sweep_sample_page.html").unwrap();
     let links = extract_links(&html, "https://example.com/");
     // 3 real internal links; mailto/tel/js/#/cdn-cgi all skipped.
     assert_eq!(links.len(), 3);
@@ -43,10 +41,7 @@ fn sweep_extract_links_matches_js_filtering_rules() {
 
 #[test]
 fn sweep_required_pages_end_to_end_for_ecommerce_profile() {
-    let html = std::fs::read_to_string(
-        "tests/fixtures/wf_w2_012/sweep_sample_page.html",
-    )
-    .unwrap();
+    let html = std::fs::read_to_string("tests/fixtures/wf_w2_012/sweep_sample_page.html").unwrap();
     let links = extract_links(&html, "https://example.com/");
     let base_origin = url_origin("https://example.com/").unwrap();
     let internal: Vec<_> = links
@@ -106,7 +101,10 @@ fn browser_cdp_frame_roundtrip_and_executable_lookup() {
     assert!(rest.is_empty());
 
     let candidates = browser_executable_candidates(true, Some("C:\\PF"), Some("C:\\PF86"), "");
-    assert_eq!(candidates[0], "C:\\PF\\Google\\Chrome\\Application\\chrome.exe");
+    assert_eq!(
+        candidates[0],
+        "C:\\PF\\Google\\Chrome\\Application\\chrome.exe"
+    );
     let found = find_browser_executable(None, &candidates, |p| p.ends_with("msedge.exe"));
     assert!(found.unwrap().ends_with("msedge.exe"));
 
@@ -135,8 +133,18 @@ fn css_cascade_border_shorthand_to_camel_and_priority() {
     assert_eq!(normalize_color_for_check("#336699"), "rgb(51, 102, 153)");
     assert_eq!(extract_static_color("2px dashed #336699"), "#336699");
 
-    let base = DeclMeta { important: false, inline: false, specificity: [0, 1, 0], order: 2 };
-    let stronger = DeclMeta { important: true, inline: false, specificity: [0, 0, 0], order: 0 };
+    let base = DeclMeta {
+        important: false,
+        inline: false,
+        specificity: [0, 1, 0],
+        order: 2,
+    };
+    let stronger = DeclMeta {
+        important: true,
+        inline: false,
+        specificity: [0, 0, 0],
+        order: 0,
+    };
     assert!(compare_static_priority(Some(&base), &stronger));
 }
 
@@ -155,9 +163,15 @@ fn css_cascade_box_font_transition_animation_and_style_attr() {
     let decls = parse_static_style_attribute("color:red!important", 5);
     assert_eq!(decls[0].order, 5);
     assert!(decls[0].important);
-    assert_eq!(static_color_to_css(0.0, 0.0, 0.0, 0.5), "rgba(0, 0, 0, 0.5)");
+    assert_eq!(
+        static_color_to_css(0.0, 0.0, 0.0, 0.5),
+        "rgba(0, 0, 0, 0.5)"
+    );
     assert_eq!(split_css_list("a, b(1, 2), c"), vec!["a", "b(1, 2)", "c"]);
-    assert_eq!(split_css_tokens("solid 1px red"), vec!["solid", "1px", "red"]);
+    assert_eq!(
+        split_css_tokens("solid 1px red"),
+        vec!["solid", "1px", "red"]
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -179,10 +193,9 @@ fn detect_text_gating_predicates() {
 
 #[test]
 fn detect_text_page_level_analyzers_on_fixture_page() {
-    let html = std::fs::read_to_string(
-        "tests/fixtures/wf_w2_012/detect_text_ai_generated_page.html",
-    )
-    .unwrap();
+    let html =
+        std::fs::read_to_string("tests/fixtures/wf_w2_012/detect_text_ai_generated_page.html")
+            .unwrap();
     let findings = run_page_level_analyzers(&html);
     let ids: Vec<&str> = findings.iter().map(|f| f.antipattern).collect();
     assert!(ids.contains(&"single-font"));
@@ -201,7 +214,10 @@ fn detect_text_individual_analyzer_thresholds() {
     let wide = "h1{font-size:64px}p{font-size:12px}span{font-size:10px}";
     assert!(analyze_flat_type_hierarchy(wide).is_none());
 
-    let repeated: String = (0..15).map(|_| "div{margin:24px}").collect::<Vec<_>>().join("");
+    let repeated: String = (0..15)
+        .map(|_| "div{margin:24px}")
+        .collect::<Vec<_>>()
+        .join("");
     assert!(analyze_monotonous_spacing(&repeated).is_some());
 
     let dark = "body{background-color:#0a0a0a}.x{box-shadow:0 0 30px rgba(255,0,150,0.6)}";

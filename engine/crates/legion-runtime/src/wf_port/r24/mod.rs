@@ -125,7 +125,10 @@ pub fn make_session_dir(annot_root: &Path) -> io::Result<std::path::PathBuf> {
             Err(e) => return Err(e),
         }
     }
-    Err(io::Error::new(io::ErrorKind::AlreadyExists, "could not create unique session dir"))
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "could not create unique session dir",
+    ))
 }
 
 pub fn find_open_port(start: u16) -> io::Result<(TcpListener, u16)> {
@@ -172,9 +175,12 @@ pub fn random_token() -> String {
     let digest = hasher.finalize();
     let hex = hex::encode(digest);
     let mut bytes = [0u8; 16];
-    bytes.copy_from_slice(&hex.as_bytes()[..32].chunks(2).map(|c| {
-        u8::from_str_radix(std::str::from_utf8(c).unwrap(), 16).unwrap()
-    }).collect::<Vec<u8>>());
+    bytes.copy_from_slice(
+        &hex.as_bytes()[..32]
+            .chunks(2)
+            .map(|c| u8::from_str_radix(std::str::from_utf8(c).unwrap(), 16).unwrap())
+            .collect::<Vec<u8>>(),
+    );
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     format!(
@@ -234,14 +240,21 @@ pub enum RunOutcome {
     HelpPrinted,
     Stopped,
     StopFailedNoServer,
-    AlreadyRunning { port: u16, pid: u32 },
+    AlreadyRunning {
+        port: u16,
+        pid: u32,
+    },
     ServerExited,
     /// `--background`: the detached child was spawned and (if
     /// `server.json` appeared within the readiness timeout) its connection
     /// info was printed. `ready` is `false` if the timeout elapsed first
     /// (JS gives no explicit timeout for this poll; a bounded wait here
     /// avoids hanging forever if the child fails silently).
-    BackgroundStarted { port: u16, pid: u32, ready: bool },
+    BackgroundStarted {
+        port: u16,
+        pid: u32,
+        ready: bool,
+    },
 }
 
 /// `stop` subcommand: read `server.json`, hit `GET /stop?token=...` on the
@@ -296,7 +309,11 @@ pub fn stop_running_server(project_root: &Path) -> RunOutcome {
 /// null handles; it is not killed by this process exiting, which is the
 /// behavior `--background` callers actually depend on.
 fn run_background(args: &[String], project_root: &Path) -> RunOutcome {
-    let child_args: Vec<String> = args.iter().filter(|a| a.as_str() != "--background").cloned().collect();
+    let child_args: Vec<String> = args
+        .iter()
+        .filter(|a| a.as_str() != "--background")
+        .cloned()
+        .collect();
     let exe = match env::current_exe() {
         Ok(p) => p,
         Err(e) => {
@@ -335,13 +352,21 @@ fn run_background(args: &[String], project_root: &Path) -> RunOutcome {
                     "{}",
                     serde_json::json!({ "pid": info.pid, "port": info.port, "token": info.token })
                 );
-                return RunOutcome::BackgroundStarted { port: info.port, pid: info.pid, ready: true };
+                return RunOutcome::BackgroundStarted {
+                    port: info.port,
+                    pid: info.pid,
+                    ready: true,
+                };
             }
         }
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
     eprintln!("Timed out waiting for live server to start.");
-    RunOutcome::BackgroundStarted { port: 0, pid: child_pid, ready: false }
+    RunOutcome::BackgroundStarted {
+        port: 0,
+        pid: child_pid,
+        ready: false,
+    }
 }
 
 /// Top-level CLI entry point, equivalent to the module-level script body
@@ -412,7 +437,8 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     // Annotation screenshots live under the project root, sessioned per run
     // (mirrors `state.sessionDir = fs.mkdtempSync(path.join(annotRoot,
     // 'session-'))`).
-    let annot_root = crate::wf_port::w2_016::impeccable_paths::get_live_annotations_dir(project_root);
+    let annot_root =
+        crate::wf_port::w2_016::impeccable_paths::get_live_annotations_dir(project_root);
     let session_dir = match make_session_dir(&annot_root) {
         Ok(d) => d,
         Err(e) => {
@@ -430,9 +456,18 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     // request (a per-request controller would silently drop that state
     // between requests).
     let callbacks = manual_edit_deps::QueueCallbacks { queue: &queue };
-    let manual_apply_controller =
-        crate::wf_port::w2_021::manual_apply::ManualApplyController::new(project_root.to_path_buf(), callbacks);
-    http_server::serve(listener, &token, &queue, project_root, &manual_apply_controller, &session_dir);
+    let manual_apply_controller = crate::wf_port::w2_021::manual_apply::ManualApplyController::new(
+        project_root.to_path_buf(),
+        callbacks,
+    );
+    http_server::serve(
+        listener,
+        &token,
+        &queue,
+        project_root,
+        &manual_apply_controller,
+        &session_dir,
+    );
     // `shutdown()`: cleanup order mirrors the JS source (Svelte session
     // cleanup, then server.json removal, then the annotation session dir).
     remove_all_svelte_component_sessions(project_root);

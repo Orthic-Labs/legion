@@ -153,7 +153,12 @@ fn product_topology_stage(artifact: Value) -> Value {
         .map(|items| {
             items
                 .iter()
-                .map(|item| item.get("conflicts").and_then(Value::as_array).map(|c| c.len()).unwrap_or(0))
+                .map(|item| {
+                    item.get("conflicts")
+                        .and_then(Value::as_array)
+                        .map(|c| c.len())
+                        .unwrap_or(0)
+                })
                 .sum::<usize>()
         })
         .unwrap_or(0);
@@ -202,7 +207,11 @@ fn product_topology_stage(artifact: Value) -> Value {
     })
 }
 
-fn inspect_product(projection: &Value, packs: &[Value], binding: Option<&Value>) -> Result<Value, String> {
+fn inspect_product(
+    projection: &Value,
+    packs: &[Value],
+    binding: Option<&Value>,
+) -> Result<Value, String> {
     let candidates = discover_targets(projection, binding)?;
     let portfolio = build_portfolio(&candidates, &[], &[], &[], &[], binding)?;
     let components = extract_components(&portfolio, projection, binding)?;
@@ -264,10 +273,23 @@ fn inspect_product(projection: &Value, packs: &[Value], binding: Option<&Value>)
     let release_contract = merge_release_contract(json!({}), binding)?;
     let product_context = build_product_context(projection, &release_contract);
     let journeys = build_journeys(&portfolio, &release_contract, projection, binding)?;
-    let baseline = compile_baseline(packs, &portfolio, &components, &stacks, &release_contract, binding)?;
+    let baseline = compile_baseline(
+        packs,
+        &portfolio,
+        &components,
+        &stacks,
+        &release_contract,
+        binding,
+    )?;
     let capabilities = evidence_capabilities(binding);
     let claim_impact = capability_impacts(&baseline, &capabilities);
-    let scenarios = compile_scenarios(&baseline, &journeys, &capabilities, binding, &release_contract);
+    let scenarios = compile_scenarios(
+        &baseline,
+        &journeys,
+        &capabilities,
+        binding,
+        &release_contract,
+    );
     let gaps = release_contract
         .get("missingDeclarations")
         .and_then(Value::as_array)
@@ -493,15 +515,12 @@ fn discover_targets(projection: &Value, binding: Option<&Value>) -> Result<Vec<V
             .and_then(Value::as_str)
             .or_else(|| output.as_str())
             .unwrap_or_default();
-        if results
-            .iter()
-            .any(|target| {
-                target
-                    .get("evidencePaths")
-                    .and_then(Value::as_array)
-                    .is_some_and(|paths| paths.iter().any(|item| item == &json!(path)))
-            })
-        {
+        if results.iter().any(|target| {
+            target
+                .get("evidencePaths")
+                .and_then(Value::as_array)
+                .is_some_and(|paths| paths.iter().any(|item| item == &json!(path)))
+        }) {
             continue;
         }
         let value = json!({
@@ -696,28 +715,24 @@ fn build_portfolio(
     let merged_conflicts = conflicts
         .iter()
         .cloned()
-        .chain(
-            targets
-                .iter()
-                .flat_map(|target| {
-                    let id = target.get("id").cloned().unwrap_or(Value::Null);
-                    target
-                        .get("conflicts")
-                        .and_then(Value::as_array)
-                        .cloned()
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(move |conflict| {
-                            if let Some(text) = conflict.as_str() {
-                                json!({ "targetId": id.clone(), "kind": text })
-                            } else {
-                                let mut object = conflict.as_object().cloned().unwrap_or_default();
-                                object.insert("targetId".into(), id.clone());
-                                Value::Object(object)
-                            }
-                        })
-                }),
-        )
+        .chain(targets.iter().flat_map(|target| {
+            let id = target.get("id").cloned().unwrap_or(Value::Null);
+            target
+                .get("conflicts")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .map(move |conflict| {
+                    if let Some(text) = conflict.as_str() {
+                        json!({ "targetId": id.clone(), "kind": text })
+                    } else {
+                        let mut object = conflict.as_object().cloned().unwrap_or_default();
+                        object.insert("targetId".into(), id.clone());
+                        Value::Object(object)
+                    }
+                })
+        }))
         .collect::<Vec<_>>();
     let value = json!({
         "schemaVersion": 1,
@@ -739,7 +754,12 @@ fn build_portfolio(
     Ok(Value::Object(object))
 }
 
-fn component(kind: &str, target_ids: &[String], evidence_paths: &[String], extra: Map<String, Value>) -> Value {
+fn component(
+    kind: &str,
+    target_ids: &[String],
+    evidence_paths: &[String],
+    extra: Map<String, Value>,
+) -> Value {
     let mut sorted_targets = target_ids.to_vec();
     sorted_targets.sort();
     let mut sorted_paths = evidence_paths
@@ -748,9 +768,11 @@ fn component(kind: &str, target_ids: &[String], evidence_paths: &[String], extra
         .collect::<Vec<_>>();
     sorted_paths.sort();
     let identity = json!([kind, sorted_targets, sorted_paths]);
-    let hex = hex::encode(
-        sha2::Sha256::digest(serde_json::to_string(&identity).unwrap_or_default().as_bytes()),
-    );
+    let hex = hex::encode(sha2::Sha256::digest(
+        serde_json::to_string(&identity)
+            .unwrap_or_default()
+            .as_bytes(),
+    ));
     let id = format!("component:{}", hex.chars().take(20).collect::<String>());
     let mut object = Map::new();
     object.insert("id".into(), json!(id));
@@ -805,7 +827,12 @@ fn extract_components(
             .and_then(Value::as_str)
             .or_else(|| output.as_str())
             .unwrap_or_default();
-        candidates.push(component("build-sign-release", &target_ids, &[path.to_owned()], Map::new()));
+        candidates.push(component(
+            "build-sign-release",
+            &target_ids,
+            &[path.to_owned()],
+            Map::new(),
+        ));
     }
     for path in files.iter().filter(|path| {
         Regex::new(r"next\.config|vite\.config|react|views?|pages?|components?")

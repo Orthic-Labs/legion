@@ -96,12 +96,23 @@ pub fn classify_calibration_drift(input: &CalibrationDriftInput) -> CalibrationC
         }
         _ => {
             return CalibrationConvergenceOutcome::PolicyFactsIncomplete {
-                required: vec!["measurement.metric", "measurement.value", "measurement.domain"],
+                required: vec![
+                    "measurement.metric",
+                    "measurement.value",
+                    "measurement.domain",
+                ],
             }
         }
     };
     let publication = match &input.publication {
-        Some(p) if matches!(p.target.as_deref(), Some("CALIBRATION_TABLE") | Some("PERMANENT_CANON")) => p,
+        Some(p)
+            if matches!(
+                p.target.as_deref(),
+                Some("CALIBRATION_TABLE") | Some("PERMANENT_CANON")
+            ) =>
+        {
+            p
+        }
         _ => {
             return CalibrationConvergenceOutcome::PolicyFactsIncomplete {
                 required: vec!["publication.target"],
@@ -137,12 +148,18 @@ pub struct ConvergeClarificationsInput {
 
 /// Resolve only questions that block current slice; preserve all others for
 /// later.
-pub fn converge_clarifications(input: &ConvergeClarificationsInput) -> CalibrationConvergenceOutcome {
+pub fn converge_clarifications(
+    input: &ConvergeClarificationsInput,
+) -> CalibrationConvergenceOutcome {
     let slice_id = match &input.slice_id {
         Some(s) if !s.is_empty() => s.clone(),
         _ => {
             return CalibrationConvergenceOutcome::PolicyFactsIncomplete {
-                required: vec!["slice_id", "questions[].id", "questions[].blocks_current_slice"],
+                required: vec![
+                    "slice_id",
+                    "questions[].id",
+                    "questions[].blocks_current_slice",
+                ],
             }
         }
     };
@@ -150,13 +167,19 @@ pub fn converge_clarifications(input: &ConvergeClarificationsInput) -> Calibrati
         Some(q) if !q.is_empty() && q.iter().all(|question| !question.id.is_empty()) => q,
         _ => {
             return CalibrationConvergenceOutcome::PolicyFactsIncomplete {
-                required: vec!["slice_id", "questions[].id", "questions[].blocks_current_slice"],
+                required: vec![
+                    "slice_id",
+                    "questions[].id",
+                    "questions[].blocks_current_slice",
+                ],
             }
         }
     };
 
-    let blockers: Vec<&ClarificationQuestion> =
-        questions.iter().filter(|q| q.blocks_current_slice).collect();
+    let blockers: Vec<&ClarificationQuestion> = questions
+        .iter()
+        .filter(|q| q.blocks_current_slice)
+        .collect();
     let deferred: Vec<String> = questions
         .iter()
         .filter(|q| !q.blocks_current_slice)
@@ -286,18 +309,36 @@ pub fn calibration_convergence_scenario_facts(id: &str) -> Option<ScenarioFacts>
         ScenarioFacts::Converge(ConvergeClarificationsInput {
             slice_id: Some("s11-current-slice".to_string()),
             questions: Some(vec![
-                ClarificationQuestion { id: "q-blocker".to_string(), blocks_current_slice: true },
-                ClarificationQuestion { id: "q-later-1".to_string(), blocks_current_slice: false },
-                ClarificationQuestion { id: "q-later-2".to_string(), blocks_current_slice: false },
-                ClarificationQuestion { id: "q-later-3".to_string(), blocks_current_slice: false },
-                ClarificationQuestion { id: "q-later-4".to_string(), blocks_current_slice: false },
+                ClarificationQuestion {
+                    id: "q-blocker".to_string(),
+                    blocks_current_slice: true,
+                },
+                ClarificationQuestion {
+                    id: "q-later-1".to_string(),
+                    blocks_current_slice: false,
+                },
+                ClarificationQuestion {
+                    id: "q-later-2".to_string(),
+                    blocks_current_slice: false,
+                },
+                ClarificationQuestion {
+                    id: "q-later-3".to_string(),
+                    blocks_current_slice: false,
+                },
+                ClarificationQuestion {
+                    id: "q-later-4".to_string(),
+                    blocks_current_slice: false,
+                },
             ]),
         }),
     );
     table.insert(
         "AE-CONVERGENCE-003",
         ScenarioFacts::Dispose(DisposeFrozenReviewFindingInput {
-            decision: Some(FrozenDecision { id: "D-3".to_string(), status: Some("FROZEN".to_string()) }),
+            decision: Some(FrozenDecision {
+                id: "D-3".to_string(),
+                status: Some("FROZEN".to_string()),
+            }),
             finding: Some(ReviewFinding {
                 id: "review-opportunity-1".to_string(),
                 kind: "IMPROVEMENT".to_string(),
@@ -340,10 +381,9 @@ pub fn validate_calibration_convergence_observation(
             CalibrationConvergenceOutcome::ResolveOne { deferred_question_ids, .. }
                 if deferred_question_ids.len() == 4
         ),
-        "AE-CONVERGENCE-003" => matches!(
-            value,
-            CalibrationConvergenceOutcome::FrozenRetained { .. }
-        ),
+        "AE-CONVERGENCE-003" => {
+            matches!(value, CalibrationConvergenceOutcome::FrozenRetained { .. })
+        }
         _ => false,
     }
 }
@@ -370,7 +410,9 @@ mod tests {
                 domain: Some("other".into()),
                 observation_id: None,
             }),
-            publication: Some(TargetPublication { target: Some("CALIBRATION_TABLE".into()) }),
+            publication: Some(TargetPublication {
+                target: Some("CALIBRATION_TABLE".into()),
+            }),
         };
         assert!(matches!(
             classify_calibration_drift(&input),
@@ -387,7 +429,9 @@ mod tests {
                 domain: Some("retry".into()),
                 observation_id: None,
             }),
-            publication: Some(TargetPublication { target: Some("CALIBRATION_TABLE".into()) }),
+            publication: Some(TargetPublication {
+                target: Some("CALIBRATION_TABLE".into()),
+            }),
         };
         assert!(matches!(
             classify_calibration_drift(&input),
@@ -404,14 +448,19 @@ mod tests {
                 domain: Some("retry".into()),
                 observation_id: Some("runtime-retry-17".into()),
             }),
-            publication: Some(TargetPublication { target: Some("PERMANENT_CANON".into()) }),
+            publication: Some(TargetPublication {
+                target: Some("PERMANENT_CANON".into()),
+            }),
         };
         match classify_calibration_drift(&input) {
             CalibrationConvergenceOutcome::DriftFailure { calibration } => {
                 assert_eq!(calibration.metric, "retry_threshold");
                 assert_eq!(calibration.value, 3.0);
                 assert_eq!(calibration.domain, "retry");
-                assert_eq!(calibration.observation_id.as_deref(), Some("runtime-retry-17"));
+                assert_eq!(
+                    calibration.observation_id.as_deref(),
+                    Some("runtime-retry-17")
+                );
             }
             other => panic!("expected DriftFailure, got {other:?}"),
         }
@@ -426,7 +475,9 @@ mod tests {
                 domain: Some("concurrency".into()),
                 observation_id: None,
             }),
-            publication: Some(TargetPublication { target: Some("CALIBRATION_TABLE".into()) }),
+            publication: Some(TargetPublication {
+                target: Some("CALIBRATION_TABLE".into()),
+            }),
         };
         assert!(matches!(
             classify_calibration_drift(&input),
@@ -456,7 +507,10 @@ mod tests {
             }]),
         };
         match converge_clarifications(&input) {
-            CalibrationConvergenceOutcome::NoBlockingQuestion { deferred_question_ids, .. } => {
+            CalibrationConvergenceOutcome::NoBlockingQuestion {
+                deferred_question_ids,
+                ..
+            } => {
                 assert_eq!(deferred_question_ids, vec!["q1".to_string()]);
             }
             other => panic!("expected NoBlockingQuestion, got {other:?}"),
@@ -468,8 +522,14 @@ mod tests {
         let input = ConvergeClarificationsInput {
             slice_id: Some("slice".into()),
             questions: Some(vec![
-                ClarificationQuestion { id: "q1".into(), blocks_current_slice: true },
-                ClarificationQuestion { id: "q2".into(), blocks_current_slice: true },
+                ClarificationQuestion {
+                    id: "q1".into(),
+                    blocks_current_slice: true,
+                },
+                ClarificationQuestion {
+                    id: "q2".into(),
+                    blocks_current_slice: true,
+                },
             ]),
         };
         assert!(matches!(
@@ -483,12 +543,22 @@ mod tests {
         let input = ConvergeClarificationsInput {
             slice_id: Some("slice".into()),
             questions: Some(vec![
-                ClarificationQuestion { id: "q1".into(), blocks_current_slice: true },
-                ClarificationQuestion { id: "q2".into(), blocks_current_slice: false },
+                ClarificationQuestion {
+                    id: "q1".into(),
+                    blocks_current_slice: true,
+                },
+                ClarificationQuestion {
+                    id: "q2".into(),
+                    blocks_current_slice: false,
+                },
             ]),
         };
         match converge_clarifications(&input) {
-            CalibrationConvergenceOutcome::ResolveOne { active_question_id, deferred_question_ids, .. } => {
+            CalibrationConvergenceOutcome::ResolveOne {
+                active_question_id,
+                deferred_question_ids,
+                ..
+            } => {
                 assert_eq!(active_question_id, "q1");
                 assert_eq!(deferred_question_ids, vec!["q2".to_string()]);
             }
@@ -499,7 +569,10 @@ mod tests {
     #[test]
     fn dispose_frozen_review_finding_rejects_non_frozen_decision() {
         let input = DisposeFrozenReviewFindingInput {
-            decision: Some(FrozenDecision { id: "D-1".into(), status: Some("DRAFT".into()) }),
+            decision: Some(FrozenDecision {
+                id: "D-1".into(),
+                status: Some("DRAFT".into()),
+            }),
             finding: Some(ReviewFinding {
                 id: "f1".into(),
                 kind: "IMPROVEMENT".into(),
@@ -515,7 +588,10 @@ mod tests {
     #[test]
     fn dispose_frozen_review_finding_reopen_on_failure() {
         let input = DisposeFrozenReviewFindingInput {
-            decision: Some(FrozenDecision { id: "D-1".into(), status: Some("FROZEN".into()) }),
+            decision: Some(FrozenDecision {
+                id: "D-1".into(),
+                status: Some("FROZEN".into()),
+            }),
             finding: Some(ReviewFinding {
                 id: "f1".into(),
                 kind: "FAILURE".into(),
@@ -531,7 +607,10 @@ mod tests {
     #[test]
     fn dispose_frozen_review_finding_reopen_when_invalidates() {
         let input = DisposeFrozenReviewFindingInput {
-            decision: Some(FrozenDecision { id: "D-1".into(), status: Some("FROZEN".into()) }),
+            decision: Some(FrozenDecision {
+                id: "D-1".into(),
+                status: Some("FROZEN".into()),
+            }),
             finding: Some(ReviewFinding {
                 id: "f1".into(),
                 kind: "IMPROVEMENT".into(),
@@ -547,7 +626,10 @@ mod tests {
     #[test]
     fn dispose_frozen_review_finding_retained() {
         let input = DisposeFrozenReviewFindingInput {
-            decision: Some(FrozenDecision { id: "D-1".into(), status: Some("FROZEN".into()) }),
+            decision: Some(FrozenDecision {
+                id: "D-1".into(),
+                status: Some("FROZEN".into()),
+            }),
             finding: Some(ReviewFinding {
                 id: "f1".into(),
                 kind: "IMPROVEMENT".into(),
@@ -563,13 +645,22 @@ mod tests {
     #[test]
     fn s11_scenarios_match_js_fixed_table() {
         let a = evaluate_calibration_convergence_case("AE-CONTROL-PLANE-BUDGETS-002").unwrap();
-        assert!(validate_calibration_convergence_observation("AE-CONTROL-PLANE-BUDGETS-002", &a));
+        assert!(validate_calibration_convergence_observation(
+            "AE-CONTROL-PLANE-BUDGETS-002",
+            &a
+        ));
 
         let b = evaluate_calibration_convergence_case("AE-CONVERGENCE-001").unwrap();
-        assert!(validate_calibration_convergence_observation("AE-CONVERGENCE-001", &b));
+        assert!(validate_calibration_convergence_observation(
+            "AE-CONVERGENCE-001",
+            &b
+        ));
 
         let c = evaluate_calibration_convergence_case("AE-CONVERGENCE-003").unwrap();
-        assert!(validate_calibration_convergence_observation("AE-CONVERGENCE-003", &c));
+        assert!(validate_calibration_convergence_observation(
+            "AE-CONVERGENCE-003",
+            &c
+        ));
     }
 
     #[test]

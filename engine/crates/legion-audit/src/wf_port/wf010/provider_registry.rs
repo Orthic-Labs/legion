@@ -158,20 +158,33 @@ pub fn build_selection_context(projection: &Value) -> SelectionContext {
     let mut package_scripts = HashSet::new();
     let mut dependency_evidence: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut script_evidence: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let audit_facts = get(projection, "auditFacts").cloned().unwrap_or(Value::Null);
-    let package_manifests = get(&audit_facts, "packageManifests").cloned().unwrap_or(Value::Null);
+    let audit_facts = get(projection, "auditFacts")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let package_manifests = get(&audit_facts, "packageManifests")
+        .cloned()
+        .unwrap_or(Value::Null);
     for record in arr_of(&package_manifests) {
-        let path = get(record, "path").and_then(str_of).unwrap_or("").to_string();
+        let path = get(record, "path")
+            .and_then(str_of)
+            .unwrap_or("")
+            .to_string();
         for dep in arr_of(get(record, "dependencies").unwrap_or(&Value::Null)) {
             if let Some(d) = dep.as_str() {
                 dependencies.insert(d.to_string());
-                dependency_evidence.entry(d.to_string()).or_default().push(path.clone());
+                dependency_evidence
+                    .entry(d.to_string())
+                    .or_default()
+                    .push(path.clone());
             }
         }
         for script in arr_of(get(record, "scripts").unwrap_or(&Value::Null)) {
             if let Some(s) = script.as_str() {
                 package_scripts.insert(s.to_string());
-                script_evidence.entry(s.to_string()).or_default().push(path.clone());
+                script_evidence
+                    .entry(s.to_string())
+                    .or_default()
+                    .push(path.clone());
             }
         }
     }
@@ -181,14 +194,18 @@ pub fn build_selection_context(projection: &Value) -> SelectionContext {
         let base = path.rsplit('/').next().unwrap_or(path);
         if let Some(dot) = base.rfind('.') {
             let ext = base[dot + 1..].to_lowercase();
-            extension_to_paths.entry(ext).or_default().push(path.clone());
+            extension_to_paths
+                .entry(ext)
+                .or_default()
+                .push(path.clone());
         }
     }
 
-    let parsed: HashSet<String> = arr_of(get(projection, "parsedExtensions").unwrap_or(&Value::Null))
-        .iter()
-        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-        .collect();
+    let parsed: HashSet<String> =
+        arr_of(get(projection, "parsedExtensions").unwrap_or(&Value::Null))
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect();
     let source_files: Vec<String> = files
         .iter()
         .filter(|path| {
@@ -252,16 +269,29 @@ pub fn evaluate_selector(
 ) -> SelectorVerdict {
     let op = get(selector, "op").and_then(str_of).unwrap_or_default();
     match op {
-        "always" => SelectorVerdict { matched: true, paths: vec![], reason: "always".into() },
+        "always" => SelectorVerdict {
+            matched: true,
+            paths: vec![],
+            reason: "always".into(),
+        },
         "anyPath" => {
             let patterns: Vec<String> = arr_of(get(selector, "patterns").unwrap_or(&Value::Null))
                 .iter()
                 .filter_map(|v| v.as_str().map(|s| s.to_string()))
                 .collect();
-            let paths: Vec<String> = context.files.iter().filter(|p| path_matches(p, &patterns)).cloned().collect();
+            let paths: Vec<String> = context
+                .files
+                .iter()
+                .filter(|p| path_matches(p, &patterns))
+                .cloned()
+                .collect();
             let matched = !paths.is_empty();
             SelectorVerdict {
-                reason: if matched { "path-match".into() } else { "no-path-match".into() },
+                reason: if matched {
+                    "path-match".into()
+                } else {
+                    "no-path-match".into()
+                },
                 matched,
                 paths,
             }
@@ -273,12 +303,22 @@ pub fn evaluate_selector(
                 .collect();
             let parts: Vec<Vec<String>> = exts
                 .iter()
-                .map(|e| context.extension_to_paths.get(e).cloned().unwrap_or_default())
+                .map(|e| {
+                    context
+                        .extension_to_paths
+                        .get(e)
+                        .cloned()
+                        .unwrap_or_default()
+                })
                 .collect();
             let paths = union_paths(&parts);
             let matched = !paths.is_empty();
             SelectorVerdict {
-                reason: if matched { "extension-match".into() } else { "no-extension-match".into() },
+                reason: if matched {
+                    "extension-match".into()
+                } else {
+                    "no-extension-match".into()
+                },
                 matched,
                 paths,
             }
@@ -288,48 +328,84 @@ pub fn evaluate_selector(
                 .iter()
                 .filter_map(|v| v.as_str().map(|s| s.to_string()))
                 .collect();
-            let matched_names: Vec<&String> = names.iter().filter(|n| context.dependencies.contains(*n)).collect();
+            let matched_names: Vec<&String> = names
+                .iter()
+                .filter(|n| context.dependencies.contains(*n))
+                .collect();
             let evidence_parts: Vec<Vec<String>> = matched_names
                 .iter()
-                .map(|n| context.dependency_evidence.get(*n).cloned().unwrap_or_default())
+                .map(|n| {
+                    context
+                        .dependency_evidence
+                        .get(*n)
+                        .cloned()
+                        .unwrap_or_default()
+                })
                 .collect();
             let evidence_paths = union_paths(&evidence_parts);
             let matched = !matched_names.is_empty();
-            let paths = if matched { source_denominator(context, &evidence_paths) } else { vec![] };
+            let paths = if matched {
+                source_denominator(context, &evidence_paths)
+            } else {
+                vec![]
+            };
             let reason = if matched {
                 format!(
                     "dependencies:{};manifest-evidence:{}",
-                    matched_names.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(","),
+                    matched_names
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(","),
                     evidence_paths.join(",")
                 )
             } else {
                 "no-dependency-match".into()
             };
-            SelectorVerdict { matched, paths, reason }
+            SelectorVerdict {
+                matched,
+                paths,
+                reason,
+            }
         }
         "anyPackageScript" => {
             let names: Vec<String> = arr_of(get(selector, "names").unwrap_or(&Value::Null))
                 .iter()
                 .filter_map(|v| v.as_str().map(|s| s.to_string()))
                 .collect();
-            let matched_names: Vec<&String> = names.iter().filter(|n| context.package_scripts.contains(*n)).collect();
+            let matched_names: Vec<&String> = names
+                .iter()
+                .filter(|n| context.package_scripts.contains(*n))
+                .collect();
             let evidence_parts: Vec<Vec<String>> = matched_names
                 .iter()
                 .map(|n| context.script_evidence.get(*n).cloned().unwrap_or_default())
                 .collect();
             let evidence_paths = union_paths(&evidence_parts);
             let matched = !matched_names.is_empty();
-            let paths = if matched { source_denominator(context, &evidence_paths) } else { vec![] };
+            let paths = if matched {
+                source_denominator(context, &evidence_paths)
+            } else {
+                vec![]
+            };
             let reason = if matched {
                 format!(
                     "scripts:{};manifest-evidence:{}",
-                    matched_names.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(","),
+                    matched_names
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(","),
                     evidence_paths.join(",")
                 )
             } else {
                 "no-script-match".into()
             };
-            SelectorVerdict { matched, paths, reason }
+            SelectorVerdict {
+                matched,
+                paths,
+                reason,
+            }
         }
         "sourceFilesAtLeast" => {
             let count = get(selector, "count").and_then(|v| v.as_i64()).unwrap_or(1);
@@ -346,15 +422,41 @@ pub fn evaluate_selector(
                 .iter()
                 .map(|s| evaluate_selector(s, context, selected_providers))
                 .collect();
-            let matched = if op == "any" { parts.iter().any(|p| p.matched) } else { parts.iter().all(|p| p.matched) };
-            let path_parts: Vec<Vec<String>> = parts.iter().filter(|p| p.matched).map(|p| p.paths.clone()).collect();
+            let matched = if op == "any" {
+                parts.iter().any(|p| p.matched)
+            } else {
+                parts.iter().all(|p| p.matched)
+            };
+            let path_parts: Vec<Vec<String>> = parts
+                .iter()
+                .filter(|p| p.matched)
+                .map(|p| p.paths.clone())
+                .collect();
             let paths = union_paths(&path_parts);
-            let reason = format!("{}:{}", op, parts.iter().map(|p| p.reason.clone()).collect::<Vec<_>>().join("|"));
-            SelectorVerdict { matched, paths, reason }
+            let reason = format!(
+                "{}:{}",
+                op,
+                parts
+                    .iter()
+                    .map(|p| p.reason.clone())
+                    .collect::<Vec<_>>()
+                    .join("|")
+            );
+            SelectorVerdict {
+                matched,
+                paths,
+                reason,
+            }
         }
         "securityCandidatesSelected" => {
-            let candidates: Vec<&SelectedRef> = selected_providers.iter().filter(|p| p.produces_security_candidates).collect();
-            let path_parts: Vec<Vec<String>> = candidates.iter().map(|c| c.denominator_paths.clone()).collect();
+            let candidates: Vec<&SelectedRef> = selected_providers
+                .iter()
+                .filter(|p| p.produces_security_candidates)
+                .collect();
+            let path_parts: Vec<Vec<String>> = candidates
+                .iter()
+                .map(|c| c.denominator_paths.clone())
+                .collect();
             let matched = !candidates.is_empty();
             SelectorVerdict {
                 matched,
@@ -362,7 +464,11 @@ pub fn evaluate_selector(
                 reason: format!("security-candidate-providers:{}", candidates.len()),
             }
         }
-        "confirmedSecurityFinding" => SelectorVerdict { matched: false, paths: vec![], reason: "runtime-trigger-only".into() },
+        "confirmedSecurityFinding" => SelectorVerdict {
+            matched: false,
+            paths: vec![],
+            reason: "runtime-trigger-only".into(),
+        },
         other => panic!("unsupported provider selector op: {other}"),
     }
 }
@@ -382,7 +488,9 @@ pub fn denominator(paths: &[String], projection: &Value) -> Value {
             "paths": normalized,
         })
     } else {
-        let file_count = get(projection, "files").map(|f| arr_of(f).len()).unwrap_or(0);
+        let file_count = get(projection, "files")
+            .map(|f| arr_of(f).len())
+            .unwrap_or(0);
         let path_digest = get(projection, "fileSetDigest")
             .and_then(str_of)
             .map(|s| s.to_string())
@@ -404,10 +512,19 @@ pub fn adapt_provider_v2_registry(raw: &Value) -> Value {
         if get(provider, "selectable").and_then(|v| v.as_bool()) == Some(false) {
             continue;
         }
-        let canonical_id = get(provider, "id").and_then(str_of).unwrap_or_default().to_string();
-        let id = canonical_id.strip_prefix("legacy.").unwrap_or(&canonical_id).to_string();
+        let canonical_id = get(provider, "id")
+            .and_then(str_of)
+            .unwrap_or_default()
+            .to_string();
+        let id = canonical_id
+            .strip_prefix("legacy.")
+            .unwrap_or(&canonical_id)
+            .to_string();
         let runner = get(provider, "runner").cloned().unwrap_or(Value::Null);
-        let role = get(provider, "role").and_then(str_of).unwrap_or_default().to_string();
+        let role = get(provider, "role")
+            .and_then(str_of)
+            .unwrap_or_default()
+            .to_string();
         let candidate = role == "candidate-generator";
         let phase_in = get(provider, "phase").and_then(str_of).unwrap_or_default();
         let phase = match phase_in {
@@ -424,10 +541,18 @@ pub fn adapt_provider_v2_registry(raw: &Value) -> Value {
         let mut out = Map::new();
         out.insert("id".into(), json!(id));
         out.insert("canonicalId".into(), json!(canonical_id));
-        out.insert("providerVersion".into(), get(provider, "providerVersion").cloned().unwrap_or(Value::Null));
+        out.insert(
+            "providerVersion".into(),
+            get(provider, "providerVersion")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
         out.insert("role".into(), json!(role));
         out.insert("phase".into(), json!(phase));
-        out.insert("selector".into(), get(provider, "selector").cloned().unwrap_or(Value::Null));
+        out.insert(
+            "selector".into(),
+            get(provider, "selector").cloned().unwrap_or(Value::Null),
+        );
         out.insert("allowWithoutBlueprint".into(), json!(id == "core.repo"));
         out.insert("runner".into(), out_runner);
         if runner_kind == "legacy-check" {
@@ -444,7 +569,10 @@ pub fn adapt_provider_v2_registry(raw: &Value) -> Value {
                 "backs": backs,
             });
             if phase_in == "runtime" {
-                manifest.as_object_mut().unwrap().insert("phase".into(), json!("P2"));
+                manifest
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("phase".into(), json!("P2"));
             }
             out.insert("manifest".into(), manifest);
         }
@@ -454,7 +582,10 @@ pub fn adapt_provider_v2_registry(raw: &Value) -> Value {
         } else {
             json!({"status": benchmark_in})
         };
-        benchmark.as_object_mut().unwrap().insert("requiredForCleanClaim".into(), json!(true));
+        benchmark
+            .as_object_mut()
+            .unwrap()
+            .insert("requiredForCleanClaim".into(), json!(true));
         out.insert("benchmark".into(), benchmark);
         out.insert("producesSecurityCandidates".into(), json!(candidate));
         out.insert("mayCloseOwnCandidates".into(), json!(!candidate));
@@ -469,7 +600,11 @@ pub fn adapt_provider_v2_registry(raw: &Value) -> Value {
         .filter_map(|p| get(p, "id").and_then(str_of).map(|s| s.to_string()))
         .collect();
 
-    let react_providers: Vec<Value> = ["react.hooks-config"].into_iter().filter(|id| ids.contains(*id)).map(|s| json!(s)).collect();
+    let react_providers: Vec<Value> = ["react.hooks-config"]
+        .into_iter()
+        .filter(|id| ids.contains(*id))
+        .map(|s| json!(s))
+        .collect();
     let tauri_providers: Vec<Value> = ["tauri.contract-mirror", "tauri.capabilities"]
         .into_iter()
         .filter(|id| ids.contains(*id))
@@ -549,45 +684,81 @@ pub fn validate_provider_registry(registry: &Value) -> Result<(), RegistryValida
     let mut ids: HashSet<String> = HashSet::new();
     let mut checks: HashSet<String> = HashSet::new();
     for provider in providers {
-        let id = get(provider, "id").and_then(str_of).unwrap_or_default().to_string();
+        let id = get(provider, "id")
+            .and_then(str_of)
+            .unwrap_or_default()
+            .to_string();
         if id.is_empty() || !ids.insert(id.clone()) {
             return Err(RegistryValidationError::DuplicateOrMissingProviderId(id));
         }
-        if get(provider, "selector").and_then(|s| get(s, "op")).and_then(str_of).is_none() {
+        if get(provider, "selector")
+            .and_then(|s| get(s, "op"))
+            .and_then(str_of)
+            .is_none()
+        {
             return Err(RegistryValidationError::NoSelector(id));
         }
-        let runner_kind = get(provider, "runner").and_then(|r| get(r, "kind")).and_then(str_of).unwrap_or_default();
+        let runner_kind = get(provider, "runner")
+            .and_then(|r| get(r, "kind"))
+            .and_then(str_of)
+            .unwrap_or_default();
         if !RUNNER_KINDS.contains(&runner_kind) {
-            return Err(RegistryValidationError::UnsupportedRunnerKind(id, runner_kind.to_string()));
+            return Err(RegistryValidationError::UnsupportedRunnerKind(
+                id,
+                runner_kind.to_string(),
+            ));
         }
         let role = get(provider, "role").and_then(str_of).unwrap_or_default();
-        if role == "candidate-generator" && get(provider, "mayCloseOwnCandidates").and_then(|v| v.as_bool()) != Some(false) {
-            return Err(RegistryValidationError::CandidateGeneratorMustCloseFalse(id));
+        if role == "candidate-generator"
+            && get(provider, "mayCloseOwnCandidates").and_then(|v| v.as_bool()) != Some(false)
+        {
+            return Err(RegistryValidationError::CandidateGeneratorMustCloseFalse(
+                id,
+            ));
         }
         if runner_kind == "legacy-check" {
-            let check = get(provider, "runner").and_then(|r| get(r, "check")).and_then(str_of).unwrap_or_default().to_string();
+            let check = get(provider, "runner")
+                .and_then(|r| get(r, "check"))
+                .and_then(str_of)
+                .unwrap_or_default()
+                .to_string();
             if check.is_empty() || !checks.insert(check.clone()) {
                 return Err(RegistryValidationError::DuplicateOrMissingCheck(check));
             }
-            let manifest_check = get(provider, "manifest").and_then(|m| get(m, "check")).and_then(str_of);
+            let manifest_check = get(provider, "manifest")
+                .and_then(|m| get(m, "check"))
+                .and_then(str_of);
             if manifest_check != Some(check.as_str()) {
                 return Err(RegistryValidationError::ManifestCheckMismatch(id));
             }
         }
     }
     for family in arr_of(get(registry, "coverageFamilies").unwrap_or(&Value::Null)) {
-        let id = get(family, "id").and_then(str_of).unwrap_or_default().to_string();
+        let id = get(family, "id")
+            .and_then(str_of)
+            .unwrap_or_default()
+            .to_string();
         if id.is_empty() || ids.contains(&id) {
             return Err(RegistryValidationError::DuplicateCoverageFamilyId(id));
         }
         ids.insert(id.clone());
-        if get(family, "selector").and_then(|s| get(s, "op")).and_then(str_of).is_none() {
+        if get(family, "selector")
+            .and_then(|s| get(s, "op"))
+            .and_then(str_of)
+            .is_none()
+        {
             return Err(RegistryValidationError::CoverageFamilyNoSelector(id));
         }
         for provider_id in arr_of(get(family, "providers").unwrap_or(&Value::Null)) {
             let pid = provider_id.as_str().unwrap_or_default();
-            if !providers.iter().any(|p| get(p, "id").and_then(str_of) == Some(pid)) {
-                return Err(RegistryValidationError::CoverageFamilyUnknownProvider(id, pid.to_string()));
+            if !providers
+                .iter()
+                .any(|p| get(p, "id").and_then(str_of) == Some(pid))
+            {
+                return Err(RegistryValidationError::CoverageFamilyUnknownProvider(
+                    id,
+                    pid.to_string(),
+                ));
             }
         }
     }
@@ -616,8 +787,18 @@ pub fn select_providers(
 ) -> Result<SelectionResult, RegistryValidationError> {
     validate_provider_registry(registry)?;
     let context = build_selection_context(projection);
-    let only: HashSet<&str> = options.only.iter().map(String::as_str).filter(|s| !s.is_empty()).collect();
-    let skip: HashSet<&str> = options.skip.iter().map(String::as_str).filter(|s| !s.is_empty()).collect();
+    let only: HashSet<&str> = options
+        .only
+        .iter()
+        .map(String::as_str)
+        .filter(|s| !s.is_empty())
+        .collect();
+    let skip: HashSet<&str> = options
+        .skip
+        .iter()
+        .map(String::as_str)
+        .filter(|s| !s.is_empty())
+        .collect();
 
     let mut selected: Vec<Value> = Vec::new();
     let mut selected_refs: Vec<SelectedRef> = Vec::new();
@@ -625,21 +806,34 @@ pub fn select_providers(
 
     let providers = arr_of(get(registry, "providers").unwrap_or(&Value::Null));
     for provider in providers {
-        let op = get(provider, "selector").and_then(|s| get(s, "op")).and_then(str_of).unwrap_or_default();
+        let op = get(provider, "selector")
+            .and_then(|s| get(s, "op"))
+            .and_then(str_of)
+            .unwrap_or_default();
         if op == "securityCandidatesSelected" || op == "confirmedSecurityFinding" {
             continue;
         }
-        let id = get(provider, "id").and_then(str_of).unwrap_or_default().to_string();
-        let runner_kind = get(provider, "runner").and_then(|r| get(r, "kind")).and_then(str_of).unwrap_or_default();
+        let id = get(provider, "id")
+            .and_then(str_of)
+            .unwrap_or_default()
+            .to_string();
+        let runner_kind = get(provider, "runner")
+            .and_then(|r| get(r, "kind"))
+            .and_then(str_of)
+            .unwrap_or_default();
         let check = if runner_kind == "legacy-check" {
-            get(provider, "runner").and_then(|r| get(r, "check")).and_then(str_of).map(|s| s.to_string())
+            get(provider, "runner")
+                .and_then(|r| get(r, "check"))
+                .and_then(str_of)
+                .map(|s| s.to_string())
         } else {
             None
         };
         if !only.is_empty() {
             if let Some(c) = &check {
                 if !only.contains(c.as_str()) {
-                    excluded.push(json!({"id": id, "check": check, "reason": "not-in-only-filter"}));
+                    excluded
+                        .push(json!({"id": id, "check": check, "reason": "not-in-only-filter"}));
                     continue;
                 }
             }
@@ -650,7 +844,9 @@ pub fn select_providers(
                 continue;
             }
         }
-        let allow_without_blueprint = get(provider, "allowWithoutBlueprint").and_then(|v| v.as_bool()).unwrap_or(false);
+        let allow_without_blueprint = get(provider, "allowWithoutBlueprint")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if !context.ready && !allow_without_blueprint {
             excluded.push(json!({"id": id, "check": check, "reason": "blueprint-unproven"}));
             continue;
@@ -664,14 +860,24 @@ pub fn select_providers(
         let mut rec = provider.clone();
         let obj = rec.as_object_mut().unwrap();
         obj.insert("selectionReason".into(), json!(verdict.reason));
-        obj.insert("denominator".into(), denominator(&verdict.paths, projection));
-        let produces = get(provider, "producesSecurityCandidates").and_then(|v| v.as_bool()).unwrap_or(false);
-        selected_refs.push(SelectedRef { produces_security_candidates: produces, denominator_paths: verdict.paths.clone() });
+        obj.insert(
+            "denominator".into(),
+            denominator(&verdict.paths, projection),
+        );
+        let produces = get(provider, "producesSecurityCandidates")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        selected_refs.push(SelectedRef {
+            produces_security_candidates: produces,
+            denominator_paths: verdict.paths.clone(),
+        });
         selected.push(rec);
     }
 
     // security.adjudication
-    let adjudicator = providers.iter().find(|p| get(p, "id").and_then(str_of) == Some("security.adjudication"));
+    let adjudicator = providers
+        .iter()
+        .find(|p| get(p, "id").and_then(str_of) == Some("security.adjudication"));
     let mut adjudicator_denominator: Option<Value> = None;
     if let Some(adjudicator) = adjudicator {
         let selector = get(adjudicator, "selector").cloned().unwrap_or(Value::Null);
@@ -690,21 +896,35 @@ pub fn select_providers(
     }
 
     // security.variant-analysis
-    let variant = providers.iter().find(|p| get(p, "id").and_then(str_of) == Some("security.variant-analysis"));
+    let variant = providers
+        .iter()
+        .find(|p| get(p, "id").and_then(str_of) == Some("security.variant-analysis"));
     if let Some(variant) = variant {
         if let Some(denom) = &adjudicator_denominator {
             let mut rec = variant.clone();
             let obj = rec.as_object_mut().unwrap();
-            obj.insert("selectionReason".into(), json!("conditional-on-confirmed-security-finding"));
-            obj.insert("conditionalActivation".into(), json!("confirmed-security-finding"));
+            obj.insert(
+                "selectionReason".into(),
+                json!("conditional-on-confirmed-security-finding"),
+            );
+            obj.insert(
+                "conditionalActivation".into(),
+                json!("confirmed-security-finding"),
+            );
             obj.insert("denominator".into(), denom.clone());
             selected.push(rec);
         } else {
-            excluded.push(json!({"id": get(variant, "id"), "reason": "no-security-adjudication-planned"}));
+            excluded.push(
+                json!({"id": get(variant, "id"), "reason": "no-security-adjudication-planned"}),
+            );
         }
     }
 
-    Ok(SelectionResult { context, selected, excluded })
+    Ok(SelectionResult {
+        context,
+        selected,
+        excluded,
+    })
 }
 
 /// Result of `evaluateCoverageFamilies`, mirrors `{families, gaps}`.
@@ -715,15 +935,26 @@ pub struct CoverageResult {
 
 /// Faithful port of `evaluateCoverageFamilies(registry, projection,
 /// selectedProviders)`.
-pub fn evaluate_coverage_families(registry: &Value, projection: &Value, selected_providers: &[Value]) -> CoverageResult {
+pub fn evaluate_coverage_families(
+    registry: &Value,
+    projection: &Value,
+    selected_providers: &[Value],
+) -> CoverageResult {
     let context = build_selection_context(projection);
     let selected_refs: Vec<SelectedRef> = selected_providers
         .iter()
         .map(|p| SelectedRef {
-            produces_security_candidates: get(p, "producesSecurityCandidates").and_then(|v| v.as_bool()).unwrap_or(false),
+            produces_security_candidates: get(p, "producesSecurityCandidates")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
             denominator_paths: get(p, "denominator")
                 .and_then(|d| get(d, "paths"))
-                .map(|paths| arr_of(paths).iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                .map(|paths| {
+                    arr_of(paths)
+                        .iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default(),
         })
         .collect();
@@ -740,12 +971,20 @@ pub fn evaluate_coverage_families(registry: &Value, projection: &Value, selected
         if !verdict.matched {
             continue;
         }
-        let family_providers: Vec<String> = arr_of(get(family, "providers").unwrap_or(&Value::Null))
+        let family_providers: Vec<String> =
+            arr_of(get(family, "providers").unwrap_or(&Value::Null))
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+        let missing_providers: Vec<String> = family_providers
             .iter()
-            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .filter(|id| !selected_ids.contains(*id))
+            .cloned()
             .collect();
-        let missing_providers: Vec<String> = family_providers.iter().filter(|id| !selected_ids.contains(*id)).cloned().collect();
-        let qualification = get(family, "qualification").and_then(str_of).unwrap_or_default().to_string();
+        let qualification = get(family, "qualification")
+            .and_then(str_of)
+            .unwrap_or_default()
+            .to_string();
         let denom = denominator(&verdict.paths, projection);
         let record = json!({
             "id": get(family, "id"),
@@ -887,7 +1126,10 @@ mod tests {
     fn adapt_strips_legacy_prefix_and_sets_candidate_flags() {
         let registry = adapt_provider_v2_registry(&sample_raw());
         let providers = registry.get("providers").unwrap().as_array().unwrap();
-        let scan = providers.iter().find(|p| p["canonicalId"] == "legacy.security.scan").unwrap();
+        let scan = providers
+            .iter()
+            .find(|p| p["canonicalId"] == "legacy.security.scan")
+            .unwrap();
         assert_eq!(scan["id"], "security.scan");
         assert_eq!(scan["producesSecurityCandidates"], true);
         assert_eq!(scan["mayCloseOwnCandidates"], false);
@@ -898,10 +1140,20 @@ mod tests {
     #[test]
     fn adapt_builds_coverage_families_only_for_present_providers() {
         let registry = adapt_provider_v2_registry(&sample_raw());
-        let families = registry.get("coverageFamilies").unwrap().as_array().unwrap();
-        let react = families.iter().find(|f| f["id"] == "framework.react").unwrap();
+        let families = registry
+            .get("coverageFamilies")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        let react = families
+            .iter()
+            .find(|f| f["id"] == "framework.react")
+            .unwrap();
         assert_eq!(react["providers"], json!(["react.hooks-config"]));
-        let tauri = families.iter().find(|f| f["id"] == "framework.tauri").unwrap();
+        let tauri = families
+            .iter()
+            .find(|f| f["id"] == "framework.tauri")
+            .unwrap();
         assert_eq!(tauri["providers"], json!([]));
     }
 
@@ -915,14 +1167,26 @@ mod tests {
     fn validate_rejects_bad_discovery_owner() {
         let mut registry = adapt_provider_v2_registry(&sample_raw());
         registry["discoveryOwner"] = json!("not-blueprint");
-        assert_eq!(validate_provider_registry(&registry), Err(RegistryValidationError::BadDiscoveryOwner));
+        assert_eq!(
+            validate_provider_registry(&registry),
+            Err(RegistryValidationError::BadDiscoveryOwner)
+        );
     }
 
     #[test]
     fn glob_matches_double_star_prefix_and_extension() {
-        assert!(path_matches("src/lib/core/index.mjs", &["src/**/*.mjs".to_string()]));
-        assert!(path_matches("src-tauri/Cargo.toml", &["src-tauri/**".to_string()]));
-        assert!(!path_matches("src/lib/core/index.rs", &["src/**/*.mjs".to_string()]));
+        assert!(path_matches(
+            "src/lib/core/index.mjs",
+            &["src/**/*.mjs".to_string()]
+        ));
+        assert!(path_matches(
+            "src-tauri/Cargo.toml",
+            &["src-tauri/**".to_string()]
+        ));
+        assert!(!path_matches(
+            "src/lib/core/index.rs",
+            &["src/**/*.mjs".to_string()]
+        ));
     }
 
     #[test]
@@ -930,7 +1194,11 @@ mod tests {
         let registry = adapt_provider_v2_registry(&sample_raw());
         let projection = json!({"state": "pending", "files": []});
         let result = select_providers(&registry, &projection, &SelectOptions::default()).unwrap();
-        let selected_ids: Vec<&str> = result.selected.iter().filter_map(|p| p["id"].as_str()).collect();
+        let selected_ids: Vec<&str> = result
+            .selected
+            .iter()
+            .filter_map(|p| p["id"].as_str())
+            .collect();
         assert!(selected_ids.contains(&"core.repo")); // allowWithoutBlueprint
         assert!(!selected_ids.contains(&"security.scan"));
     }
@@ -944,7 +1212,11 @@ mod tests {
             "auditFacts": {"packageManifests": [{"path": "package.json", "dependencies": ["express"], "scripts": []}]},
         });
         let result = select_providers(&registry, &projection, &SelectOptions::default()).unwrap();
-        let selected_ids: Vec<&str> = result.selected.iter().filter_map(|p| p["id"].as_str()).collect();
+        let selected_ids: Vec<&str> = result
+            .selected
+            .iter()
+            .filter_map(|p| p["id"].as_str())
+            .collect();
         assert!(selected_ids.contains(&"security.scan"));
     }
 
@@ -953,7 +1225,10 @@ mod tests {
         let registry = adapt_provider_v2_registry(&sample_raw());
         let projection = json!({"state": "ready", "files": ["src-tauri/Cargo.toml"]});
         let result = evaluate_coverage_families(&registry, &projection, &[]);
-        let tauri_gap = result.gaps.iter().find(|g| g["family"] == "framework.tauri");
+        let tauri_gap = result
+            .gaps
+            .iter()
+            .find(|g| g["family"] == "framework.tauri");
         assert!(tauri_gap.is_some());
     }
 

@@ -67,9 +67,33 @@ pub struct ViewportSpec {
 /// `VIEWPORTS` preset table (qa.mjs lines 87-91).
 pub fn viewport_presets() -> HashMap<&'static str, ViewportSpec> {
     let mut m = HashMap::new();
-    m.insert("desktop", ViewportSpec { width: 1440.0, height: 900.0, dpr: 1.0, mobile: false });
-    m.insert("tablet", ViewportSpec { width: 768.0, height: 1024.0, dpr: 2.0, mobile: true });
-    m.insert("mobile", ViewportSpec { width: 390.0, height: 844.0, dpr: 3.0, mobile: true });
+    m.insert(
+        "desktop",
+        ViewportSpec {
+            width: 1440.0,
+            height: 900.0,
+            dpr: 1.0,
+            mobile: false,
+        },
+    );
+    m.insert(
+        "tablet",
+        ViewportSpec {
+            width: 768.0,
+            height: 1024.0,
+            dpr: 2.0,
+            mobile: true,
+        },
+    );
+    m.insert(
+        "mobile",
+        ViewportSpec {
+            width: 390.0,
+            height: 844.0,
+            dpr: 3.0,
+            mobile: true,
+        },
+    );
     m
 }
 
@@ -82,13 +106,28 @@ pub fn parse_viewport(v: Option<&str>) -> Result<ViewportSpec, String> {
     }
     // `/^(\d+)x(\d+)$/` — ASCII digits only, no whitespace, exact match.
     if let Some((w, h)) = v.split_once('x') {
-        if !w.is_empty() && !h.is_empty() && w.bytes().all(|b| b.is_ascii_digit()) && h.bytes().all(|b| b.is_ascii_digit()) {
-            let width: f64 = w.parse().map_err(|_| format!("bad --viewport: {v} (use desktop|tablet|mobile or 1440x900)"))?;
-            let height: f64 = h.parse().map_err(|_| format!("bad --viewport: {v} (use desktop|tablet|mobile or 1440x900)"))?;
-            return Ok(ViewportSpec { width, height, dpr: 1.0, mobile: false });
+        if !w.is_empty()
+            && !h.is_empty()
+            && w.bytes().all(|b| b.is_ascii_digit())
+            && h.bytes().all(|b| b.is_ascii_digit())
+        {
+            let width: f64 = w.parse().map_err(|_| {
+                format!("bad --viewport: {v} (use desktop|tablet|mobile or 1440x900)")
+            })?;
+            let height: f64 = h.parse().map_err(|_| {
+                format!("bad --viewport: {v} (use desktop|tablet|mobile or 1440x900)")
+            })?;
+            return Ok(ViewportSpec {
+                width,
+                height,
+                dpr: 1.0,
+                mobile: false,
+            });
         }
     }
-    Err(format!("bad --viewport: {v} (use desktop|tablet|mobile or 1440x900)"))
+    Err(format!(
+        "bad --viewport: {v} (use desktop|tablet|mobile or 1440x900)"
+    ))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -101,8 +140,16 @@ pub struct ThrottleProfile {
 /// `THROTTLE` table (qa.mjs lines 101-104): DevTools-style bytes/sec + ms latency presets.
 pub fn throttle_profile(name: &str) -> Option<ThrottleProfile> {
     match name {
-        "slow-3g" => Some(ThrottleProfile { download_throughput: 50.0 * 1000.0, upload_throughput: 50.0 * 1000.0, latency: 400.0 }),
-        "slow-4g" => Some(ThrottleProfile { download_throughput: 200.0 * 1000.0, upload_throughput: 94.0 * 1000.0, latency: 150.0 }),
+        "slow-3g" => Some(ThrottleProfile {
+            download_throughput: 50.0 * 1000.0,
+            upload_throughput: 50.0 * 1000.0,
+            latency: 400.0,
+        }),
+        "slow-4g" => Some(ThrottleProfile {
+            download_throughput: 200.0 * 1000.0,
+            upload_throughput: 94.0 * 1000.0,
+            latency: 150.0,
+        }),
         _ => None,
     }
 }
@@ -163,13 +210,41 @@ pub fn parse_args(argv: &[String]) -> Result<Args, String> {
             "--actions" => args.actions = next(&mut i, argv),
             "--url" => args.url = next(&mut i, argv),
             "--start" => args.start = next(&mut i, argv),
-            "--route" => { if let Some(v) = next(&mut i, argv) { args.route = v; } }
-            "--out" => { if let Some(v) = next(&mut i, argv) { args.out = v; } }
-            "--width" => { if let Some(v) = next(&mut i, argv) { args.width = v.parse().unwrap_or(f64::NAN); } }
-            "--height" => { if let Some(v) = next(&mut i, argv) { args.height = v.parse().unwrap_or(f64::NAN); } }
-            "--port" => { if let Some(v) = next(&mut i, argv) { args.port = v.parse().unwrap_or(0); } }
-            "--cdp-port" => { if let Some(v) = next(&mut i, argv) { args.cdp_port = v.parse().unwrap_or(0); } }
-            "--qa-env" => { if let Some(v) = next(&mut i, argv) { args.qa_env = v; } }
+            "--route" => {
+                if let Some(v) = next(&mut i, argv) {
+                    args.route = v;
+                }
+            }
+            "--out" => {
+                if let Some(v) = next(&mut i, argv) {
+                    args.out = v;
+                }
+            }
+            "--width" => {
+                if let Some(v) = next(&mut i, argv) {
+                    args.width = v.parse().unwrap_or(f64::NAN);
+                }
+            }
+            "--height" => {
+                if let Some(v) = next(&mut i, argv) {
+                    args.height = v.parse().unwrap_or(f64::NAN);
+                }
+            }
+            "--port" => {
+                if let Some(v) = next(&mut i, argv) {
+                    args.port = v.parse().unwrap_or(0);
+                }
+            }
+            "--cdp-port" => {
+                if let Some(v) = next(&mut i, argv) {
+                    args.cdp_port = v.parse().unwrap_or(0);
+                }
+            }
+            "--qa-env" => {
+                if let Some(v) = next(&mut i, argv) {
+                    args.qa_env = v;
+                }
+            }
             "--viewport" => {
                 let v = next(&mut i, argv);
                 let p = parse_viewport(v.as_deref())?;
@@ -181,7 +256,11 @@ pub fn parse_args(argv: &[String]) -> Result<Args, String> {
             "--slow-3g" => args.throttle = Some("slow-3g".to_string()),
             "--slow-4g" => args.throttle = Some("slow-4g".to_string()),
             "--cpu-4x" => args.cpu = Some(4.0),
-            "--cpu-throttle" => { if let Some(v) = next(&mut i, argv) { args.cpu = Some(v.parse().unwrap_or(f64::NAN)); } }
+            "--cpu-throttle" => {
+                if let Some(v) = next(&mut i, argv) {
+                    args.cpu = Some(v.parse().unwrap_or(f64::NAN));
+                }
+            }
             "--save-session" => args.save_session = next(&mut i, argv),
             "--load-session" => args.load_session = next(&mut i, argv),
             other => return Err(format!("Unknown argument: {other}")),
@@ -201,7 +280,12 @@ pub fn split_qa_env(qa_env: &str) -> Option<(String, String)> {
         return None;
     }
     let value = parts.next().filter(|v| !v.is_empty());
-    Some((name.to_string(), value.map(|v| v.to_string()).unwrap_or_else(|| "1".to_string())))
+    Some((
+        name.to_string(),
+        value
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "1".to_string()),
+    ))
 }
 
 #[cfg(test)]
@@ -245,7 +329,15 @@ mod tests {
     #[test]
     fn viewport_wxh_parses_custom_size() {
         let p = parse_viewport(Some("1024x768")).unwrap();
-        assert_eq!(p, ViewportSpec { width: 1024.0, height: 768.0, dpr: 1.0, mobile: false });
+        assert_eq!(
+            p,
+            ViewportSpec {
+                width: 1024.0,
+                height: 768.0,
+                dpr: 1.0,
+                mobile: false
+            }
+        );
     }
 
     #[test]
@@ -296,9 +388,21 @@ mod tests {
 
     #[test]
     fn qa_env_split_defaults_value_to_one() {
-        assert_eq!(split_qa_env("FOO"), Some(("FOO".to_string(), "1".to_string())));
-        assert_eq!(split_qa_env("FOO="), Some(("FOO".to_string(), "1".to_string())));
-        assert_eq!(split_qa_env("FOO=bar"), Some(("FOO".to_string(), "bar".to_string())));
-        assert_eq!(split_qa_env("FOO=bar=baz"), Some(("FOO".to_string(), "bar=baz".to_string())));
+        assert_eq!(
+            split_qa_env("FOO"),
+            Some(("FOO".to_string(), "1".to_string()))
+        );
+        assert_eq!(
+            split_qa_env("FOO="),
+            Some(("FOO".to_string(), "1".to_string()))
+        );
+        assert_eq!(
+            split_qa_env("FOO=bar"),
+            Some(("FOO".to_string(), "bar".to_string()))
+        );
+        assert_eq!(
+            split_qa_env("FOO=bar=baz"),
+            Some(("FOO".to_string(), "bar=baz".to_string()))
+        );
     }
 }

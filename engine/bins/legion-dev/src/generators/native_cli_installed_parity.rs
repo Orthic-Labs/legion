@@ -42,8 +42,14 @@ fn run_inner(root: &Path) -> Result<bool, String> {
     let source = gate::source_identity(root)?;
     let local_app_data = std::env::var("LOCALAPPDATA").ok();
     let stable = gate::installed_executable_path(local_app_data.as_deref())?;
-    let installed_plugin_root = fs::canonicalize(stable.current_root.join("plugin")).unwrap_or_else(|_| stable.current_root.join("plugin"));
-    let evidence_path = gate::resolve_evidence_path(std::env::var("LEGION_NATIVE_BUILD_EVIDENCE").ok().as_deref(), root);
+    let installed_plugin_root = fs::canonicalize(stable.current_root.join("plugin"))
+        .unwrap_or_else(|_| stable.current_root.join("plugin"));
+    let evidence_path = gate::resolve_evidence_path(
+        std::env::var("LEGION_NATIVE_BUILD_EVIDENCE")
+            .ok()
+            .as_deref(),
+        root,
+    );
     let provenance = gate::validate_executable_provenance(
         &stable.executable,
         Some(evidence_path.as_path()),
@@ -71,11 +77,30 @@ fn run_inner(root: &Path) -> Result<bool, String> {
             .fixture
             .get("argv")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default();
-        let timeout_ms = row.fixture.get("timeoutMs").and_then(Value::as_u64).unwrap_or(gate::DEFAULT_TIMEOUT_MS);
-        let max_output = row.fixture.get("maxOutputBytes").and_then(Value::as_u64).unwrap_or(gate::DEFAULT_MAX_OUTPUT_BYTES as u64) as usize;
-        let mut observation = gate::run_bounded(&stable.executable, &argv, &sandbox.cwd, &sandbox.env, timeout_ms, max_output);
+        let timeout_ms = row
+            .fixture
+            .get("timeoutMs")
+            .and_then(Value::as_u64)
+            .unwrap_or(gate::DEFAULT_TIMEOUT_MS);
+        let max_output = row
+            .fixture
+            .get("maxOutputBytes")
+            .and_then(Value::as_u64)
+            .unwrap_or(gate::DEFAULT_MAX_OUTPUT_BYTES as u64) as usize;
+        let mut observation = gate::run_bounded(
+            &stable.executable,
+            &argv,
+            &sandbox.cwd,
+            &sandbox.env,
+            timeout_ms,
+            max_output,
+        );
         let after = gate::snapshot_sandbox_hashed(&sandbox);
         gate::remove_sandbox(&sandbox);
         let (after, after_sha256) = after?;
@@ -108,7 +133,9 @@ fn run_inner(root: &Path) -> Result<bool, String> {
             &row.fixture,
             &observation,
             baseline,
-            baseline_id_digest.as_ref().map(|(a, b)| (a.as_str(), b.as_str())),
+            baseline_id_digest
+                .as_ref()
+                .map(|(a, b)| (a.as_str(), b.as_str())),
             &row.fixture_sha256,
             &row.id,
             &temp_roots,
@@ -117,7 +144,8 @@ fn run_inner(root: &Path) -> Result<bool, String> {
         let mut installed_root_assertion = None;
         if row.id == "harness-install-codex" {
             let skills_root = installed_plugin_root.join("skills");
-            let problems = gate::validate_installed_skill_links(&observation.filesystem, &skills_root, root);
+            let problems =
+                gate::validate_installed_skill_links(&observation.filesystem, &skills_root, root);
             installed_root_assertion = Some(json!({
                 "requiredRoot": skills_root.display().to_string(),
                 "forbiddenRoot": root.display().to_string(),
@@ -156,7 +184,11 @@ fn run_inner(root: &Path) -> Result<bool, String> {
             "status": row_result.status,
             "comparison": row_result.comparison,
         });
-        fs::write(out_dir.join(format!("{}.json", row.id)), format!("{}\n", serde_json::to_string_pretty(&record).unwrap())).map_err(|e| e.to_string())?;
+        fs::write(
+            out_dir.join(format!("{}.json", row.id)),
+            format!("{}\n", serde_json::to_string_pretty(&record).unwrap()),
+        )
+        .map_err(|e| e.to_string())?;
         results.push(gate::RowSummaryInput {
             id: row.id.clone(),
             status: row_result.status.to_string(),
@@ -165,8 +197,12 @@ fn run_inner(root: &Path) -> Result<bool, String> {
         });
     }
 
-    let summarized = gate::summarize_results(&results, Some(&manifest.row_ids), Some(manifest.row_count));
-    let qualifying = summarized.get("qualifying").and_then(Value::as_bool).unwrap_or(false);
+    let summarized =
+        gate::summarize_results(&results, Some(&manifest.row_ids), Some(manifest.row_count));
+    let qualifying = summarized
+        .get("qualifying")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
 
     let summary = json!({
         "schemaVersion": 2,
@@ -190,7 +226,11 @@ fn run_inner(root: &Path) -> Result<bool, String> {
         "counts": summarized["counts"],
         "results": summarized["resultsNormalized"],
     });
-    fs::write(out_dir.join("summary.json"), format!("{}\n", serde_json::to_string_pretty(&summary).unwrap())).map_err(|e| e.to_string())?;
+    fs::write(
+        out_dir.join("summary.json"),
+        format!("{}\n", serde_json::to_string_pretty(&summary).unwrap()),
+    )
+    .map_err(|e| e.to_string())?;
     println!("{}", serde_json::to_string_pretty(&summary).unwrap());
     Ok(qualifying)
 }

@@ -127,8 +127,13 @@ const SECRET_PATTERNS: &[(&str, &str)] = &[
 fn label_value(text: &str, label: &str) -> Option<String> {
     let pattern = format!(r"(?m)^-\s*{}\s*(.*)$", regex::escape(label));
     let re = Regex::new(&pattern).expect("static label pattern is valid");
-    re.captures(text)
-        .map(|c| c.get(1).map(|m| m.as_str()).unwrap_or("").trim().to_string())
+    re.captures(text).map(|c| {
+        c.get(1)
+            .map(|m| m.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string()
+    })
 }
 
 /// Lexically normalizes a path the way Python's `Path(...).expanduser().resolve()` does
@@ -181,7 +186,9 @@ fn resolve_lexical(raw: &str, base: &Path) -> PathBuf {
 /// to get casefolded/Windows-drive comparison semantics, matching the Python original's
 /// `os.name` default when no explicit `platform_name` is supplied).
 fn normalized(value: &str, platform_windows: bool) -> String {
-    let raw = value.trim().trim_matches(|c| c == '`' || c == '"' || c == '\'');
+    let raw = value
+        .trim()
+        .trim_matches(|c| c == '`' || c == '"' || c == '\'');
     let raw = raw.replace('\\', "/");
 
     let windows_drive_re = Regex::new(r"^[A-Za-z]:/").expect("static pattern is valid");
@@ -221,7 +228,12 @@ fn table_rows(text: &str, start: &str, end: &str) -> Vec<Vec<String>> {
     for line in text[a..b].lines() {
         if line.starts_with('|') && !separator_re.is_match(line) {
             let trimmed = line.trim().trim_matches('|');
-            rows.push(trimmed.split('|').map(|cell| cell.trim().to_string()).collect());
+            rows.push(
+                trimmed
+                    .split('|')
+                    .map(|cell| cell.trim().to_string())
+                    .collect(),
+            );
         }
     }
     rows
@@ -333,8 +345,18 @@ pub fn validate_packet(
     }
 
     for (name, start, end, width) in [
-        ("failure", "## 3. What Went Wrong", "## 4. Current System & State", 3),
-        ("attempt", "## 6. Existing Attempts & Inputs", "## 7. Evidence Bundle", 3),
+        (
+            "failure",
+            "## 3. What Went Wrong",
+            "## 4. Current System & State",
+            3,
+        ),
+        (
+            "attempt",
+            "## 6. Existing Attempts & Inputs",
+            "## 7. Evidence Bundle",
+            3,
+        ),
     ] {
         let rows = table_rows(text, start, end);
         if rows.len() < 2 {
@@ -355,7 +377,8 @@ pub fn validate_packet(
         (Some(s), None) => &text[s..],
         (None, _) => "",
     };
-    let fenced_re = Regex::new(r"(?s)```(?:text)?\s*\n(.+?)\n```").expect("static pattern is valid");
+    let fenced_re =
+        Regex::new(r"(?s)```(?:text)?\s*\n(.+?)\n```").expect("static pattern is valid");
     let evidence_ok = fenced_re
         .captures(evidence)
         .map(|c| c.get(1).unwrap().as_str().trim().len() >= 60)
@@ -461,7 +484,10 @@ mod tests {
             false,
             false,
         );
-        assert_eq!(errors, vec!["Mode must be PACKET_ONLY — DO_NOT_RUN_COVENANT"]);
+        assert_eq!(
+            errors,
+            vec!["Mode must be PACKET_ONLY — DO_NOT_RUN_COVENANT"]
+        );
     }
 
     #[test]
@@ -477,7 +503,11 @@ mod tests {
                      |---|---|---|\n\
                      | Crash | some error text | broke build |\n\n\
                      ## 4. Current System & State\n";
-        let rows = table_rows(text, "## 3. What Went Wrong", "## 4. Current System & State");
+        let rows = table_rows(
+            text,
+            "## 3. What Went Wrong",
+            "## 4. Current System & State",
+        );
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[1], vec!["Crash", "some error text", "broke build"]);
     }

@@ -57,10 +57,9 @@ impl std::fmt::Display for GenerateError {
                 resolutions.sort_unstable();
                 write!(f, "Invalid resolution '{v}'. Valid: {resolutions:?}")
             }
-            Self::MissingApiKey => write!(
-                f,
-                "No API key. Set GOOGLE_AI_API_KEY env or pass --api-key"
-            ),
+            Self::MissingApiKey => {
+                write!(f, "No API key. Set GOOGLE_AI_API_KEY env or pass --api-key")
+            }
         }
     }
 }
@@ -242,7 +241,9 @@ pub fn extract_image(
 ) -> Result<ExtractedImage, ExtractError> {
     let Some((finish_reason, parts)) = candidates.first() else {
         return Err(ExtractError::NoCandidates {
-            block_reason: prompt_feedback_block_reason.unwrap_or("UNKNOWN").to_string(),
+            block_reason: prompt_feedback_block_reason
+                .unwrap_or("UNKNOWN")
+                .to_string(),
         });
     };
 
@@ -262,7 +263,9 @@ pub fn extract_image(
             text: text_response,
         }),
         None => Err(ExtractError::NoImage {
-            finish_reason: finish_reason.clone().unwrap_or_else(|| "UNKNOWN".to_string()),
+            finish_reason: finish_reason
+                .clone()
+                .unwrap_or_else(|| "UNKNOWN".to_string()),
         }),
     }
 }
@@ -290,7 +293,9 @@ pub struct GenerateResult {
 /// [`extract_image`] consumes, matching `result.get("candidates", [])`,
 /// each candidate's `content.parts` and `finishReason`, and
 /// `promptFeedback.blockReason`.
-pub fn parse_candidates(body: &Value) -> (Vec<(Option<String>, Vec<ResponsePart>)>, Option<String>) {
+pub fn parse_candidates(
+    body: &Value,
+) -> (Vec<(Option<String>, Vec<ResponsePart>)>, Option<String>) {
     let block_reason = body
         .get("promptFeedback")
         .and_then(|f| f.get("blockReason"))
@@ -410,7 +415,10 @@ pub fn run(
         // Aspect-ratio/resolution checks run before key resolution in
         // Python's `main()`; re-run just those two (key is checked next,
         // separately, since its message differs from `validate_inputs`'s).
-        if matches!(e, GenerateError::InvalidAspectRatio(_) | GenerateError::InvalidResolution(_)) {
+        if matches!(
+            e,
+            GenerateError::InvalidAspectRatio(_) | GenerateError::InvalidResolution(_)
+        ) {
             return error_outcome(e.to_string());
         }
     }
@@ -612,7 +620,9 @@ mod tests {
             Ok(())
         }
         fn write(&self, path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
-            self.written.borrow_mut().push((path.to_path_buf(), bytes.to_vec()));
+            self.written
+                .borrow_mut()
+                .push((path.to_path_buf(), bytes.to_vec()));
             Ok(())
         }
     }
@@ -835,7 +845,10 @@ mod tests {
     #[test]
     fn build_request_body_image_only_omits_text_modality() {
         let body = build_request_body("p", "1:1", "2K", Some("high"), true);
-        assert_eq!(body.generation_config.response_modalities, vec!["IMAGE".to_string()]);
+        assert_eq!(
+            body.generation_config.response_modalities,
+            vec!["IMAGE".to_string()]
+        );
         assert_eq!(
             body.generation_config.thinking_config,
             Some(ThinkingConfig {

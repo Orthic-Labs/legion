@@ -716,7 +716,10 @@ fn local_fix_proposal(
     body.insert("findingId".to_string(), json!(finding_id));
     body.insert("rootCauseDigest".to_string(), json!(root_cause_digest));
     body.insert("producer".to_string(), producer);
-    body.insert("targetPaths".to_string(), json!(sorted_strings(target_paths)));
+    body.insert(
+        "targetPaths".to_string(),
+        json!(sorted_strings(target_paths)),
+    );
     body.insert(
         "preconditions".to_string(),
         json!(sorted_strings(preconditions)),
@@ -795,7 +798,13 @@ pub fn agent_patch_proposal(
 /// Local port of `reasoningProposal` in `reasoning-packets.mjs`, only as far
 /// as `codeProposal` in `code-proposal.mjs` needs it: it stamps a
 /// packet-scoped, owner-scoped envelope around the caller's `extra` fields.
-fn local_reasoning_proposal(packet: &Value, owner: &str, changes: &Value, binding: &Value, extra: Map<String, Value>) -> Value {
+fn local_reasoning_proposal(
+    packet: &Value,
+    owner: &str,
+    changes: &Value,
+    binding: &Value,
+    extra: Map<String, Value>,
+) -> Value {
     let mut body = Map::new();
     body.insert("schemaVersion".to_string(), json!(1));
     body.insert("kind".to_string(), json!("legion-remediation-proposal"));
@@ -828,15 +837,22 @@ pub fn code_proposal(packet: &Value, changes: &[Value], binding: &Value) -> Valu
         "expectedBehavior".to_string(),
         json!(["the finding no longer reproduces and no unrelated behavior changes"]),
     );
-    extra.insert(
-        "affectedFamilies".to_string(),
-        json!(["security", "code"]),
-    );
+    extra.insert("affectedFamilies".to_string(), json!(["security", "code"]));
     extra.insert(
         "validationPlan".to_string(),
-        json!(["parse-check", "affected-provider-rerun", "baseline-gate-recheck"]),
+        json!([
+            "parse-check",
+            "affected-provider-rerun",
+            "baseline-gate-recheck"
+        ]),
     );
     extra.insert("patch".to_string(), patch);
 
-    local_reasoning_proposal(packet, "code", &Value::Array(changes.to_vec()), binding, extra)
+    local_reasoning_proposal(
+        packet,
+        "code",
+        &Value::Array(changes.to_vec()),
+        binding,
+        extra,
+    )
 }

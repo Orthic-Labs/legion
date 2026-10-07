@@ -39,7 +39,11 @@ const EXECUTOR_ESCALATION_OUTCOMES: [&str; 7] = [
 ];
 
 /// Port of `packet_repository_root()`.
-fn packet_repository_root(packet: &Value, artifact: &Path, errors: &mut Vec<String>) -> Option<PathBuf> {
+fn packet_repository_root(
+    packet: &Value,
+    artifact: &Path,
+    errors: &mut Vec<String>,
+) -> Option<PathBuf> {
     let declared = packet.get("repositoryRoot").and_then(|v| v.as_str());
     let root = match declared {
         Some(declared) => Some(resolve_declared_path(declared, artifact)),
@@ -76,12 +80,19 @@ fn all_same_char(s: &str) -> bool {
 }
 
 fn is_hex40(s: &str) -> bool {
-    s.len() == 40 && s.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    s.len() == 40
+        && s.bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
 }
 
 fn is_sha256_digest(s: &str) -> bool {
     match s.strip_prefix("sha256:") {
-        Some(hex) => hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
+        Some(hex) => {
+            hex.len() == 64
+                && hex
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        }
         None => false,
     }
 }
@@ -101,7 +112,12 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
 
     let packet_obj = match packet.as_object() {
         Some(obj) => obj,
-        None => return (vec!["authority packet must be an object".to_string()], references),
+        None => {
+            return (
+                vec!["authority packet must be an object".to_string()],
+                references,
+            )
+        }
     };
 
     let required = [
@@ -146,7 +162,9 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
         .to_string();
     let prompt_hex = prompt_digest.strip_prefix("sha256:").unwrap_or("");
     if !is_sha256_digest(&prompt_digest) || all_same_char(prompt_hex) {
-        errors.push("authority packet prompt digest must be a non-placeholder sha256 digest".to_string());
+        errors.push(
+            "authority packet prompt digest must be a non-placeholder sha256 digest".to_string(),
+        );
     }
 
     let root = packet_repository_root(packet, artifact, &mut errors);
@@ -171,7 +189,9 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
                 }
             }
         } else {
-            let revision = source_revision.strip_prefix("git:").unwrap_or(source_revision);
+            let revision = source_revision
+                .strip_prefix("git:")
+                .unwrap_or(source_revision);
             if is_hex40(revision) {
                 let resolved = Command::new("git")
                     .arg("-C")
@@ -208,7 +228,10 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
         if let Ok(bytes) = std::fs::read(&prompt_path) {
             let actual_prompt_digest = sha256_digest(&bytes);
             if prompt_digest != actual_prompt_digest {
-                errors.push("authority packet prompt digest does not bind prompt artifact bytes".to_string());
+                errors.push(
+                    "authority packet prompt digest does not bind prompt artifact bytes"
+                        .to_string(),
+                );
             }
         }
     }
@@ -217,10 +240,17 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
     let routing_ok = routing.and_then(|r| r.as_object()).is_some_and(|routing| {
         ["modelTier", "workerProfile", "routingRationale"]
             .iter()
-            .all(|key| routing.get(*key).and_then(|v| v.as_str()).is_some_and(|v| !v.is_empty()))
+            .all(|key| {
+                routing
+                    .get(*key)
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|v| !v.is_empty())
+            })
     });
     if !routing_ok {
-        errors.push("authority packet requires modelTier, workerProfile, routingRationale".to_string());
+        errors.push(
+            "authority packet requires modelTier, workerProfile, routingRationale".to_string(),
+        );
     }
 
     let packet_type = packet.get("packetType").and_then(|v| v.as_str());
@@ -229,7 +259,11 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
     // `{path, digest}` object via `digest_path`, then also append it to
     // `references` (unlike the bare `digest_path` call sites above, which
     // only validate).
-    let json_reference = |value: Option<&Value>, label: &str, errors: &mut Vec<String>, references: &mut Vec<Reference>| -> Option<PathBuf> {
+    let json_reference = |value: Option<&Value>,
+                          label: &str,
+                          errors: &mut Vec<String>,
+                          references: &mut Vec<Reference>|
+     -> Option<PathBuf> {
         // Mirror Python's `reference()`: `digest_path` is called even when
         // the field is absent (`value is None`), which itself reports
         // "{label} requires path and sha256 digest" for any non-object.
@@ -249,17 +283,29 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
 
     match packet_type {
         Some("direct") => {
-            direct_packet_errors(packet, artifact, root.as_deref(), &mut errors, &mut references);
+            direct_packet_errors(
+                packet,
+                artifact,
+                root.as_deref(),
+                &mut errors,
+                &mut references,
+            );
         }
         Some("sage") => {
             let route = packet.get("routeBundle");
-            let route_path = route.and_then(|r| r.get("path")).and_then(|v| v.as_str()).unwrap_or("");
+            let route_path = route
+                .and_then(|r| r.get("path"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let sage_route_re = {
                 static RE: OnceLock<Regex> = OnceLock::new();
                 RE.get_or_init(|| Regex::new(r"sage-adjudication(?:\.[a-z0-9]+)?$").unwrap())
             };
             if !route.is_some_and(|r| r.is_object()) || !sage_route_re.is_match(route_path) {
-                errors.push("Sage packet requires an exceptional sage-adjudication route bundle".to_string());
+                errors.push(
+                    "Sage packet requires an exceptional sage-adjudication route bundle"
+                        .to_string(),
+                );
             } else {
                 json_reference(route, "Sage route bundle", &mut errors, &mut references);
             }
@@ -277,13 +323,16 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
                 json_reference(lens, "Oracle lens", &mut errors, &mut references);
             }
             let scope_obj = scope.and_then(|s| s.as_object());
-            let read = scope_obj.and_then(|o| o.get("read")).and_then(|v| v.as_array());
-            let forbidden = scope_obj.and_then(|o| o.get("forbidden")).and_then(|v| v.as_array());
+            let read = scope_obj
+                .and_then(|o| o.get("read"))
+                .and_then(|v| v.as_array());
+            let forbidden = scope_obj
+                .and_then(|o| o.get("forbidden"))
+                .and_then(|v| v.as_array());
             if scope_obj.is_none() || read.is_none() || forbidden.is_none() {
                 errors.push("Oracle packet requires read-only scope".to_string());
             } else if let (Some(read), Some(forbidden)) = (read, forbidden) {
-                let read_set: BTreeSet<String> =
-                    read.iter().map(|v| v.to_string()).collect();
+                let read_set: BTreeSet<String> = read.iter().map(|v| v.to_string()).collect();
                 if forbidden.iter().any(|v| read_set.contains(&v.to_string())) {
                     errors.push("Oracle scope overlaps forbidden paths".to_string());
                 }
@@ -293,26 +342,43 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
         Some("alchemist") => {
             let contract = packet.get("executionContract");
             let scope = packet.get("scope");
-            let contract_id = contract.and_then(|c| c.get("id")).and_then(|v| v.as_str()).unwrap_or("");
+            let contract_id = contract
+                .and_then(|c| c.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let ec_id_re = {
                 static RE: OnceLock<Regex> = OnceLock::new();
                 RE.get_or_init(|| Regex::new(r"^EC-\d+$").unwrap())
             };
             let sealed = contract.and_then(|c| c.get("sealed")) == Some(&Value::Bool(true));
             let executable = contract.and_then(|c| c.get("executable")) == Some(&Value::Bool(true));
-            if !contract.is_some_and(|c| c.is_object()) || !ec_id_re.is_match(contract_id) || !sealed || !executable {
+            if !contract.is_some_and(|c| c.is_object())
+                || !ec_id_re.is_match(contract_id)
+                || !sealed
+                || !executable
+            {
                 errors.push("Alchemist packet requires sealed executable contract".to_string());
             } else {
-                json_reference(contract, "Alchemist execution contract", &mut errors, &mut references);
+                json_reference(
+                    contract,
+                    "Alchemist execution contract",
+                    &mut errors,
+                    &mut references,
+                );
             }
             let scope_obj = scope.and_then(|s| s.as_object());
-            let own = scope_obj.and_then(|o| o.get("own")).and_then(|v| v.as_array());
-            let contract_own = scope_obj.and_then(|o| o.get("contractOwn")).and_then(|v| v.as_array());
+            let own = scope_obj
+                .and_then(|o| o.get("own"))
+                .and_then(|v| v.as_array());
+            let contract_own = scope_obj
+                .and_then(|o| o.get("contractOwn"))
+                .and_then(|v| v.as_array());
             let subset_ok = match (own, contract_own) {
                 (Some(own), Some(contract_own)) => {
                     let contract_own_set: BTreeSet<String> =
                         contract_own.iter().map(|v| v.to_string()).collect();
-                    own.iter().all(|v| contract_own_set.contains(&v.to_string()))
+                    own.iter()
+                        .all(|v| contract_own_set.contains(&v.to_string()))
                 }
                 _ => false,
             };
@@ -321,22 +387,49 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
             }
         }
         Some("worker") => {
-            let capsule = json_reference(packet.get("workerCapsule"), "Worker capsule", &mut errors, &mut references);
+            let capsule = json_reference(
+                packet.get("workerCapsule"),
+                "Worker capsule",
+                &mut errors,
+                &mut references,
+            );
             if capsule.is_none() {
                 errors.push("worker packet requires canonical WorkerCapsule".to_string());
             }
             let task_projection = packet.get("taskProjection");
             let artifact_projection = packet.get("artifactProjection");
-            if !task_projection.is_some_and(|v| v.is_object()) || !artifact_projection.is_some_and(|v| v.is_object()) {
-                errors.push("worker packet requires lossless task and artifact projections".to_string());
+            if !task_projection.is_some_and(|v| v.is_object())
+                || !artifact_projection.is_some_and(|v| v.is_object())
+            {
+                errors.push(
+                    "worker packet requires lossless task and artifact projections".to_string(),
+                );
             } else {
-                json_reference(task_projection, "Worker task projection", &mut errors, &mut references);
-                json_reference(artifact_projection, "Worker artifact projection", &mut errors, &mut references);
+                json_reference(
+                    task_projection,
+                    "Worker task projection",
+                    &mut errors,
+                    &mut references,
+                );
+                json_reference(
+                    artifact_projection,
+                    "Worker artifact projection",
+                    &mut errors,
+                    &mut references,
+                );
             }
-            json_reference(packet.get("oracle"), "Worker oracle", &mut errors, &mut references);
+            json_reference(
+                packet.get("oracle"),
+                "Worker oracle",
+                &mut errors,
+                &mut references,
+            );
         }
         _ => {
-            errors.push("authority packet type must be direct, sage, oracle, alchemist, or worker".to_string());
+            errors.push(
+                "authority packet type must be direct, sage, oracle, alchemist, or worker"
+                    .to_string(),
+            );
         }
     }
 
@@ -359,7 +452,10 @@ fn direct_packet_errors(
     errors: &mut Vec<String>,
     references: &mut Vec<Reference>,
 ) {
-    let str_nonempty = |v: Option<&Value>| v.and_then(|v| v.as_str()).is_some_and(|s| !s.trim().is_empty());
+    let str_nonempty = |v: Option<&Value>| {
+        v.and_then(|v| v.as_str())
+            .is_some_and(|s| !s.trim().is_empty())
+    };
 
     if !str_nonempty(packet.get("objective")) {
         errors.push("direct packet requires objective".to_string());
@@ -370,7 +466,9 @@ fn direct_packet_errors(
     let authority = packet.get("authority").and_then(|v| v.as_array());
     match authority {
         None => errors.push("direct packet requires authority sources".to_string()),
-        Some(list) if list.is_empty() => errors.push("direct packet requires authority sources".to_string()),
+        Some(list) if list.is_empty() => {
+            errors.push("direct packet requires authority sources".to_string())
+        }
         Some(list) => {
             for (index, authority_path) in list.iter().enumerate() {
                 let label = format!("direct authority {}", index + 1);
@@ -383,7 +481,9 @@ fn direct_packet_errors(
     // File-touch policy.
     let mut planned_files: BTreeSet<String> = BTreeSet::new();
     let file_touch_policy = packet.get("fileTouchPolicy").and_then(|v| v.as_object());
-    let planned_files_raw = file_touch_policy.and_then(|p| p.get("plannedFiles")).and_then(|v| v.as_array());
+    let planned_files_raw = file_touch_policy
+        .and_then(|p| p.get("plannedFiles"))
+        .and_then(|v| v.as_array());
     let policy_ok = file_touch_policy.is_some_and(|p| {
         p.get("mode").and_then(|v| v.as_str()) == Some("once-end-to-end")
             && p.get("allowUnplannedFiles") == Some(&Value::Bool(false))
@@ -391,15 +491,22 @@ fn direct_packet_errors(
     if !policy_ok {
         errors.push("direct packet requires closed once-end-to-end file-touch policy".to_string());
     } else if let Some(raw_planned) = planned_files_raw {
-        if raw_planned.iter().any(|v| !v.as_str().is_some_and(|s| !s.trim().is_empty())) {
-            errors.push("direct plannedFiles requires exact repository-relative file paths".to_string());
+        if raw_planned
+            .iter()
+            .any(|v| !v.as_str().is_some_and(|s| !s.trim().is_empty()))
+        {
+            errors.push(
+                "direct plannedFiles requires exact repository-relative file paths".to_string(),
+            );
         } else {
             let normalized_planned: Vec<Option<String>> = raw_planned
                 .iter()
                 .map(|v| direct_file_allowlist_path(v.as_str().unwrap_or("")))
                 .collect();
             if normalized_planned.iter().any(|v| v.is_none()) {
-                errors.push("direct plannedFiles forbids globs, directories, and invalid paths".to_string());
+                errors.push(
+                    "direct plannedFiles forbids globs, directories, and invalid paths".to_string(),
+                );
             }
             planned_files = normalized_planned.into_iter().flatten().collect();
             if planned_files.len() != raw_planned.len() {
@@ -455,31 +562,44 @@ fn direct_packet_errors(
                 let deps_valid = dependencies_raw.is_some_and(|list| {
                     let strs: Vec<&str> = list.iter().filter_map(|v| v.as_str()).collect();
                     strs.len() == list.len()
-                        && list.iter().all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+                        && list
+                            .iter()
+                            .all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
                         && {
                             let set: BTreeSet<&str> = strs.iter().copied().collect();
                             set.len() == strs.len()
                         }
                 });
                 if !deps_valid {
-                    errors.push(format!("{label} dependsOn requires unique prior dispatch ids"));
+                    errors.push(format!(
+                        "{label} dependsOn requires unique prior dispatch ids"
+                    ));
                 } else if let Some(list) = dependencies_raw {
-                    dependencies = list.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+                    dependencies = list
+                        .iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect();
                     if dependencies.iter().any(|d| !prior_dispatches.contains(d)) {
-                        errors.push(format!("{label} dependsOn must reference only earlier dispatches"));
+                        errors.push(format!(
+                            "{label} dependsOn must reference only earlier dispatches"
+                        ));
                     }
                 }
                 if index == 0 && !dependencies.is_empty() {
                     errors.push("first direct dispatch wave cannot have dependencies".to_string());
                 }
                 if index > 0 && dependencies.is_empty() {
-                    errors.push(format!("{label} lacks dependency; move its lanes into first eligible wave"));
+                    errors.push(format!(
+                        "{label} lacks dependency; move its lanes into first eligible wave"
+                    ));
                 }
 
                 let lanes_raw = dispatch_obj.get("lanes").and_then(|v| v.as_array());
                 let lanes_valid = lanes_raw.is_some_and(|list| {
                     !list.is_empty()
-                        && list.iter().all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+                        && list
+                            .iter()
+                            .all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
                         && {
                             let strs: Vec<&str> = list.iter().filter_map(|v| v.as_str()).collect();
                             let set: BTreeSet<&str> = strs.iter().copied().collect();
@@ -490,20 +610,32 @@ fn direct_packet_errors(
                     errors.push(format!("{label} requires unique lane ids"));
                     dispatch_lanes.insert(dispatch_id.clone(), BTreeSet::new());
                 } else if let Some(list) = lanes_raw {
-                    let lane_set: BTreeSet<String> = list.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+                    let lane_set: BTreeSet<String> = list
+                        .iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect();
                     let overlap: Vec<&String> = declared_lanes.intersection(&lane_set).collect();
                     if !overlap.is_empty() {
                         let mut names: Vec<String> = overlap.into_iter().cloned().collect();
                         names.sort();
-                        errors.push(format!("direct lanes appear in multiple dispatches: {}", names.join(", ")));
+                        errors.push(format!(
+                            "direct lanes appear in multiple dispatches: {}",
+                            names.join(", ")
+                        ));
                     }
                     declared_lanes.extend(lane_set.clone());
                     dispatch_lanes.insert(dispatch_id.clone(), lane_set);
                 }
 
-                let completion_checks = dispatch_obj.get("completionChecks").and_then(|v| v.as_array());
-                let checks_valid = completion_checks
-                    .is_some_and(|list| !list.is_empty() && list.iter().all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty())));
+                let completion_checks = dispatch_obj
+                    .get("completionChecks")
+                    .and_then(|v| v.as_array());
+                let checks_valid = completion_checks.is_some_and(|list| {
+                    !list.is_empty()
+                        && list
+                            .iter()
+                            .all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+                });
                 if !checks_valid {
                     errors.push(format!("{label} requires completion checks"));
                 }
@@ -516,7 +648,9 @@ fn direct_packet_errors(
     let workers = packet.get("workers").and_then(|v| v.as_array());
     match workers {
         None => errors.push("direct packet requires at least one worker".to_string()),
-        Some(list) if list.is_empty() => errors.push("direct packet requires at least one worker".to_string()),
+        Some(list) if list.is_empty() => {
+            errors.push("direct packet requires at least one worker".to_string())
+        }
         Some(list) => {
             let mut worker_ids: BTreeSet<String> = BTreeSet::new();
             let mut owned_paths: BTreeMap<String, String> = BTreeMap::new();
@@ -547,7 +681,10 @@ fn direct_packet_errors(
                 let dispatch_id = worker_obj.get("dispatch").and_then(|v| v.as_str());
                 match dispatch_id {
                     Some(id) if dispatch_ids.contains(id) => {
-                        if !dispatch_lanes.get(id).is_some_and(|lanes| lanes.contains(&worker_id)) {
+                        if !dispatch_lanes
+                            .get(id)
+                            .is_some_and(|lanes| lanes.contains(&worker_id))
+                        {
                             errors.push(format!("{label} is not listed in dispatch {id}"));
                         }
                     }
@@ -556,29 +693,43 @@ fn direct_packet_errors(
 
                 let mut semantic_requirement: Option<&str> = None;
                 if worker_obj.contains_key("executorRequirement") {
-                    let executor_requirement = worker_obj.get("executorRequirement").and_then(|v| v.as_object());
+                    let executor_requirement = worker_obj
+                        .get("executorRequirement")
+                        .and_then(|v| v.as_object());
                     match executor_requirement {
-                        None => errors.push(format!("{label} executorRequirement must be an object")),
+                        None => {
+                            errors.push(format!("{label} executorRequirement must be an object"))
+                        }
                         Some(er) => {
-                            semantic_requirement = er.get("semanticRequirement").and_then(|v| v.as_str());
-                            if !semantic_requirement.is_some_and(|s| EXECUTOR_SEMANTIC_REQUIREMENTS.contains(&s)) {
-                                errors.push(format!("{label} executorRequirement has invalid semanticRequirement"));
+                            semantic_requirement =
+                                er.get("semanticRequirement").and_then(|v| v.as_str());
+                            if !semantic_requirement
+                                .is_some_and(|s| EXECUTOR_SEMANTIC_REQUIREMENTS.contains(&s))
+                            {
+                                errors.push(format!(
+                                    "{label} executorRequirement has invalid semanticRequirement"
+                                ));
                             }
                             for field_name in ["capabilities", "effects", "authorityCeiling"] {
                                 let values = er.get(field_name).and_then(|v| v.as_array());
                                 let ok = values.is_some_and(|list| {
                                     !list.is_empty()
                                         && list.iter().all(|v| {
-                                            v.as_str().is_some_and(|s| executor_token_re().is_match(s))
+                                            v.as_str()
+                                                .is_some_and(|s| executor_token_re().is_match(s))
                                         })
                                         && {
-                                            let strs: Vec<&str> = list.iter().filter_map(|v| v.as_str()).collect();
-                                            let set: BTreeSet<&str> = strs.iter().copied().collect();
+                                            let strs: Vec<&str> =
+                                                list.iter().filter_map(|v| v.as_str()).collect();
+                                            let set: BTreeSet<&str> =
+                                                strs.iter().copied().collect();
                                             set.len() == strs.len()
                                         }
                                 });
                                 if !ok {
-                                    errors.push(format!("{label} executorRequirement requires valid {field_name}"));
+                                    errors.push(format!(
+                                        "{label} executorRequirement requires valid {field_name}"
+                                    ));
                                 }
                             }
                             let completion = er.get("completion").and_then(|v| v.as_array());
@@ -586,13 +737,19 @@ fn direct_packet_errors(
                                 !list.is_empty()
                                     && list.iter().all(|check| {
                                         check.as_object().is_some_and(|c| {
-                                            c.get("kind").and_then(|v| v.as_str()).is_some_and(|s| executor_token_re().is_match(s))
-                                                && c.get("id").and_then(|v| v.as_str()).is_some_and(|s| !s.trim().is_empty())
+                                            c.get("kind")
+                                                .and_then(|v| v.as_str())
+                                                .is_some_and(|s| executor_token_re().is_match(s))
+                                                && c.get("id")
+                                                    .and_then(|v| v.as_str())
+                                                    .is_some_and(|s| !s.trim().is_empty())
                                         })
                                     })
                             });
                             if !completion_ok {
-                                errors.push(format!("{label} executorRequirement requires valid completion checks"));
+                                errors.push(format!(
+                                    "{label} executorRequirement requires valid completion checks"
+                                ));
                             } else if let Some(list) = completion {
                                 let ids: Vec<&str> = list
                                     .iter()
@@ -600,26 +757,37 @@ fn direct_packet_errors(
                                     .collect();
                                 let set: BTreeSet<&str> = ids.iter().copied().collect();
                                 if set.len() != ids.len() {
-                                    errors.push(format!("{label} executorRequirement completion ids must be unique"));
+                                    errors.push(format!(
+                                        "{label} executorRequirement completion ids must be unique"
+                                    ));
                                 }
                             }
                             let escalation = er.get("escalation").and_then(|v| v.as_object());
                             let mut permitted_on: Vec<String> = Vec::new();
                             let mut forbidden_on: Vec<String> = Vec::new();
                             match escalation {
-                                None => errors.push(format!("{label} executorRequirement requires escalation policy")),
+                                None => errors.push(format!(
+                                    "{label} executorRequirement requires escalation policy"
+                                )),
                                 Some(escalation) => {
                                     for (field_name, target) in [
                                         ("permittedOn", &mut permitted_on),
                                         ("forbiddenOn", &mut forbidden_on),
                                     ] {
-                                        let outcomes = escalation.get(field_name).and_then(|v| v.as_array());
+                                        let outcomes =
+                                            escalation.get(field_name).and_then(|v| v.as_array());
                                         let ok = outcomes.is_some_and(|list| {
                                             list.iter().all(|v| {
-                                                v.as_str().is_some_and(|s| EXECUTOR_ESCALATION_OUTCOMES.contains(&s))
+                                                v.as_str().is_some_and(|s| {
+                                                    EXECUTOR_ESCALATION_OUTCOMES.contains(&s)
+                                                })
                                             }) && {
-                                                let strs: Vec<&str> = list.iter().filter_map(|v| v.as_str()).collect();
-                                                let set: BTreeSet<&str> = strs.iter().copied().collect();
+                                                let strs: Vec<&str> = list
+                                                    .iter()
+                                                    .filter_map(|v| v.as_str())
+                                                    .collect();
+                                                let set: BTreeSet<&str> =
+                                                    strs.iter().copied().collect();
                                                 set.len() == strs.len()
                                             }
                                         });
@@ -627,40 +795,59 @@ fn direct_packet_errors(
                                             errors.push(format!("{label} executorRequirement requires valid escalation {field_name}"));
                                         }
                                         if let Some(list) = outcomes {
-                                            *target = list.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+                                            *target = list
+                                                .iter()
+                                                .filter_map(|v| v.as_str().map(String::from))
+                                                .collect();
                                         }
                                     }
-                                    let permitted_set: BTreeSet<&str> = permitted_on.iter().map(|s| s.as_str()).collect();
-                                    let forbidden_set: BTreeSet<&str> = forbidden_on.iter().map(|s| s.as_str()).collect();
+                                    let permitted_set: BTreeSet<&str> =
+                                        permitted_on.iter().map(|s| s.as_str()).collect();
+                                    let forbidden_set: BTreeSet<&str> =
+                                        forbidden_on.iter().map(|s| s.as_str()).collect();
                                     if !permitted_set.is_disjoint(&forbidden_set) {
                                         errors.push(format!("{label} executorRequirement escalation policies overlap"));
                                     }
                                     if permitted_set.contains("denied") {
-                                        errors.push(format!("{label} executorRequirement escalation permits denied"));
+                                        errors.push(format!(
+                                            "{label} executorRequirement escalation permits denied"
+                                        ));
                                     }
-                                    if semantic_requirement == Some("forbidden") && !permitted_on.is_empty() {
+                                    if semantic_requirement == Some("forbidden")
+                                        && !permitted_on.is_empty()
+                                    {
                                         errors.push(format!("{label} executorRequirement forbids semantic escalation"));
                                     }
-                                    if semantic_requirement == Some("conditional") && permitted_on.is_empty() {
+                                    if semantic_requirement == Some("conditional")
+                                        && permitted_on.is_empty()
+                                    {
                                         errors.push(format!("{label} executorRequirement conditional requires escalation"));
                                     }
                                 }
                             }
                         }
                     }
-                } else if !worker_obj.get("executor").and_then(|v| v.as_str()).is_some_and(|s| !s.trim().is_empty()) {
+                } else if !worker_obj
+                    .get("executor")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| !s.trim().is_empty())
+                {
                     errors.push(format!("{label} requires executor"));
                 }
 
                 // OWN/READ/FORBIDDEN scopes.
                 let mut normalized: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
-                for (scope_name, key, required_scope) in
-                    [("OWN", "allowlist", true), ("READ", "read", false), ("FORBIDDEN", "forbidden", false)]
-                {
+                for (scope_name, key, required_scope) in [
+                    ("OWN", "allowlist", true),
+                    ("READ", "read", false),
+                    ("FORBIDDEN", "forbidden", false),
+                ] {
                     let values = worker_obj.get(key).and_then(|v| v.as_array());
                     let values_ok = values.is_some_and(|list| {
                         (!required_scope || !list.is_empty())
-                            && list.iter().all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+                            && list
+                                .iter()
+                                .all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
                     });
                     if !values_ok {
                         errors.push(format!("{label} requires valid {scope_name} paths"));
@@ -725,8 +912,12 @@ fn direct_packet_errors(
                 }
 
                 let checks = worker_obj.get("checks").and_then(|v| v.as_array());
-                let checks_ok = checks
-                    .is_some_and(|list| !list.is_empty() && list.iter().all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty())));
+                let checks_ok = checks.is_some_and(|list| {
+                    !list.is_empty()
+                        && list
+                            .iter()
+                            .all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+                });
                 if !checks_ok {
                     errors.push(format!("{label} requires acceptance checks"));
                 }
@@ -735,11 +926,14 @@ fn direct_packet_errors(
                 let deps_ok = match dependencies {
                     None => true,
                     Some(list) => {
-                        list.iter().all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty())) && {
-                            let strs: Vec<&str> = list.iter().filter_map(|v| v.as_str()).collect();
-                            let set: BTreeSet<&str> = strs.iter().copied().collect();
-                            set.len() == strs.len()
-                        }
+                        list.iter()
+                            .all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+                            && {
+                                let strs: Vec<&str> =
+                                    list.iter().filter_map(|v| v.as_str()).collect();
+                                let set: BTreeSet<&str> = strs.iter().copied().collect();
+                                set.len() == strs.len()
+                            }
                     }
                 };
                 if !deps_ok {
@@ -757,11 +951,17 @@ fn direct_packet_errors(
                 let extra: Vec<&String> = worker_ids.difference(&declared_lanes).collect();
                 if !missing.is_empty() {
                     let names: Vec<String> = missing.into_iter().cloned().collect();
-                    errors.push(format!("direct dispatch lanes missing workers: {}", names.join(", ")));
+                    errors.push(format!(
+                        "direct dispatch lanes missing workers: {}",
+                        names.join(", ")
+                    ));
                 }
                 if !extra.is_empty() {
                     let names: Vec<String> = extra.into_iter().cloned().collect();
-                    errors.push(format!("direct workers missing dispatch lane membership: {}", names.join(", ")));
+                    errors.push(format!(
+                        "direct workers missing dispatch lane membership: {}",
+                        names.join(", ")
+                    ));
                 }
             }
             let owned_file_set: BTreeSet<String> = owned_paths.keys().cloned().collect();
@@ -769,11 +969,17 @@ fn direct_packet_errors(
             let unplanned_files: Vec<&String> = owned_file_set.difference(&planned_files).collect();
             if !missing_files.is_empty() {
                 let names: Vec<String> = missing_files.into_iter().cloned().collect();
-                errors.push(format!("direct planned files lack lane allowlist: {}", names.join(", ")));
+                errors.push(format!(
+                    "direct planned files lack lane allowlist: {}",
+                    names.join(", ")
+                ));
             }
             if !unplanned_files.is_empty() {
                 let names: Vec<String> = unplanned_files.into_iter().cloned().collect();
-                errors.push(format!("direct lane allowlist contains unplanned files: {}", names.join(", ")));
+                errors.push(format!(
+                    "direct lane allowlist contains unplanned files: {}",
+                    names.join(", ")
+                ));
             }
             for worker in list {
                 let worker_obj = match worker.as_object() {
@@ -785,9 +991,12 @@ fn direct_packet_errors(
                 if let Some(list) = dependencies {
                     for dependency in list.iter().filter_map(|v| v.as_str()) {
                         if dependency == worker_id {
-                            errors.push(format!("direct worker {worker_id} cannot depend on itself"));
+                            errors
+                                .push(format!("direct worker {worker_id} cannot depend on itself"));
                         } else if !known_ids.contains(dependency) {
-                            errors.push(format!("direct worker {worker_id} has unknown dependency: {dependency}"));
+                            errors.push(format!(
+                                "direct worker {worker_id} has unknown dependency: {dependency}"
+                            ));
                         } else {
                             errors.push(format!("direct lane {worker_id} dependencies belong on dispatch wave, not worker"));
                         }
@@ -810,25 +1019,45 @@ fn direct_packet_errors(
         audit.get("required") == Some(&Value::Bool(true))
             && audit.get("mode").and_then(|v| v.as_str()) == Some("adversarial")
             && audit.get("status").and_then(|v| v.as_str()) == Some("required-before-execution")
-            && audit.get("checks").and_then(|v| v.as_array()).is_some_and(|checks| {
-                let set: BTreeSet<&str> = checks.iter().filter_map(|v| v.as_str()).collect();
-                required_oracle_checks.iter().all(|c| set.contains(c))
-            })
+            && audit
+                .get("checks")
+                .and_then(|v| v.as_array())
+                .is_some_and(|checks| {
+                    let set: BTreeSet<&str> = checks.iter().filter_map(|v| v.as_str()).collect();
+                    required_oracle_checks.iter().all(|c| set.contains(c))
+                })
     });
     if !oracle_ok {
-        errors.push("direct packet requires adversarial Oracle pre-execution audit contract".to_string());
+        errors.push(
+            "direct packet requires adversarial Oracle pre-execution audit contract".to_string(),
+        );
     }
 
     // Recovery contract.
     let recovery = packet.get("recovery").and_then(|v| v.as_object());
     let recovery_ok = recovery.is_some_and(|recovery| {
-        let max_retries_ok = recovery.get("maxRetries").and_then(|v| v.as_i64()).is_some_and(|n| (0..=2).contains(&n));
-        let stop_ok = recovery.get("stopConditions").and_then(|v| v.as_array()).is_some_and(|list| {
-            !list.is_empty() && list.iter().all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
-        });
-        let return_ok = recovery.get("returnFields").and_then(|v| v.as_array()).is_some_and(|list| {
-            !list.is_empty() && list.iter().all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
-        });
+        let max_retries_ok = recovery
+            .get("maxRetries")
+            .and_then(|v| v.as_i64())
+            .is_some_and(|n| (0..=2).contains(&n));
+        let stop_ok = recovery
+            .get("stopConditions")
+            .and_then(|v| v.as_array())
+            .is_some_and(|list| {
+                !list.is_empty()
+                    && list
+                        .iter()
+                        .all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+            });
+        let return_ok = recovery
+            .get("returnFields")
+            .and_then(|v| v.as_array())
+            .is_some_and(|list| {
+                !list.is_empty()
+                    && list
+                        .iter()
+                        .all(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+            });
         max_retries_ok && stop_ok && return_ok
     });
     if !recovery_ok {
@@ -842,7 +1071,12 @@ mod tests {
     use std::path::PathBuf;
 
     fn git(dir: &Path, args: &[&str]) {
-        let status = Command::new("git").arg("-C").args([dir.to_str().unwrap()]).args(args).status().unwrap();
+        let status = Command::new("git")
+            .arg("-C")
+            .args([dir.to_str().unwrap()])
+            .args(args)
+            .status()
+            .unwrap();
         assert!(status.success(), "git {args:?} failed");
     }
 
@@ -862,7 +1096,13 @@ mod tests {
         git(&dir, &["add", "."]);
         git(&dir, &["commit", "-qm", "init"]);
         let revision = String::from_utf8(
-            Command::new("git").arg("-C").arg(&dir).args(["rev-parse", "HEAD"]).output().unwrap().stdout,
+            Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
         )
         .unwrap()
         .trim()
@@ -882,7 +1122,9 @@ mod tests {
         let artifact = dir.join("packet.json");
         let (errors, _) = authority_packet_errors(&packet, &artifact);
         assert!(
-            errors.contains(&"authority packet requires modelTier, workerProfile, routingRationale".to_string()),
+            errors.contains(
+                &"authority packet requires modelTier, workerProfile, routingRationale".to_string()
+            ),
             "{errors:?}"
         );
         std::fs::remove_dir_all(&dir).ok();
@@ -900,7 +1142,13 @@ mod tests {
         git(&dir, &["add", "."]);
         git(&dir, &["commit", "-qm", "init"]);
         let revision = String::from_utf8(
-            Command::new("git").arg("-C").arg(&dir).args(["rev-parse", "HEAD"]).output().unwrap().stdout,
+            Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
         )
         .unwrap()
         .trim()
@@ -948,7 +1196,13 @@ mod tests {
         git(&dir, &["add", "."]);
         git(&dir, &["commit", "-qm", "init"]);
         let revision = String::from_utf8(
-            Command::new("git").arg("-C").arg(&dir).args(["rev-parse", "HEAD"]).output().unwrap().stdout,
+            Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
         )
         .unwrap()
         .trim()
@@ -1017,7 +1271,10 @@ mod tests {
 
         let (errors, _) = authority_packet_errors(&direct_packet(false), &artifact);
         assert!(
-            errors.contains(&"direct packet requires adversarial Oracle pre-execution audit contract".to_string()),
+            errors.contains(
+                &"direct packet requires adversarial Oracle pre-execution audit contract"
+                    .to_string()
+            ),
             "{errors:?}"
         );
 
@@ -1054,9 +1311,17 @@ mod tests {
         });
         let mut errors = Vec::new();
         let mut references = Vec::new();
-        direct_packet_errors(&packet, Path::new("/nonexistent/packet.json"), None, &mut errors, &mut references);
+        direct_packet_errors(
+            &packet,
+            Path::new("/nonexistent/packet.json"),
+            None,
+            &mut errors,
+            &mut references,
+        );
         assert!(
-            errors.iter().any(|e| e.contains("direct OWN collision: a/b.rs overlaps a/b.rs owned by worker-1 and worker-2")),
+            errors.iter().any(|e| e.contains(
+                "direct OWN collision: a/b.rs overlaps a/b.rs owned by worker-1 and worker-2"
+            )),
             "{errors:?}"
         );
     }
@@ -1077,7 +1342,9 @@ mod tests {
             "{errors:?}"
         );
         assert!(
-            errors.contains(&"worker packet requires lossless task and artifact projections".to_string()),
+            errors.contains(
+                &"worker packet requires lossless task and artifact projections".to_string()
+            ),
             "{errors:?}"
         );
     }
@@ -1093,9 +1360,12 @@ mod tests {
         // Exercised through the full authority_packet_errors dispatcher;
         // unrelated base-shape errors are expected alongside it since the
         // fixture omits schemaVersion/kind/sourceRevision/etc.
-        let (all_errors, _refs) = authority_packet_errors(&packet, Path::new("/nonexistent/packet.json"));
+        let (all_errors, _refs) =
+            authority_packet_errors(&packet, Path::new("/nonexistent/packet.json"));
         assert!(
-            all_errors.iter().any(|e| e == "Oracle scope overlaps forbidden paths"),
+            all_errors
+                .iter()
+                .any(|e| e == "Oracle scope overlaps forbidden paths"),
             "{all_errors:?}"
         );
     }

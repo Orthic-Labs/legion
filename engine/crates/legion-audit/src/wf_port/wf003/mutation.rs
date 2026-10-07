@@ -20,8 +20,8 @@ use std::time::Duration;
 
 use serde::Serialize;
 
-use super::GauntletError;
 use super::diff::DiffFile;
+use super::GauntletError;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -206,7 +206,11 @@ fn find_return(line: &str) -> Option<(usize, usize)> {
             let prev = bytes[start - 1] as char;
             !(prev.is_alphanumeric() || prev == '_')
         };
-        let followed_ws = line[end..].chars().next().map(|c| c.is_whitespace()).unwrap_or(false);
+        let followed_ws = line[end..]
+            .chars()
+            .next()
+            .map(|c| c.is_whitespace())
+            .unwrap_or(false);
         if preceded_ok && followed_ws {
             let ws_len: usize = line[end..]
                 .chars()
@@ -256,7 +260,11 @@ pub struct MutationLayer {
 }
 
 /// Mirrors `runMutation({ cwd, files, testCommand })`.
-pub fn run_mutation(cwd: Option<&Path>, files: &[DiffFile], test_command: &str) -> Result<MutationLayer, GauntletError> {
+pub fn run_mutation(
+    cwd: Option<&Path>,
+    files: &[DiffFile],
+    test_command: &str,
+) -> Result<MutationLayer, GauntletError> {
     let abs = |p: &str| -> PathBuf {
         match cwd {
             Some(cwd) => cwd.join(p),
@@ -318,8 +326,9 @@ pub fn run_mutation(cwd: Option<&Path>, files: &[DiffFile], test_command: &str) 
             fs::copy(&path, &backup)
                 .map_err(|e| GauntletError::Io(format!("backup {}: {e}", path.display())))?;
             let run_result = (|| -> Result<MutationResult, GauntletError> {
-                fs::write(&path, &mutated_source)
-                    .map_err(|e| GauntletError::Io(format!("write mutant {}: {e}", path.display())))?;
+                fs::write(&path, &mutated_source).map_err(|e| {
+                    GauntletError::Io(format!("write mutant {}: {e}", path.display()))
+                })?;
                 let output = spawn_test_command(cwd, test_command);
                 Ok(match output {
                     Ok(out) => {
@@ -328,7 +337,11 @@ pub fn run_mutation(cwd: Option<&Path>, files: &[DiffFile], test_command: &str) 
                             file: file.path.clone(),
                             line: Some(line_no),
                             mutator: Some(mutator.as_str().to_string()),
-                            status: if survived { MutationStatus::Survived } else { MutationStatus::Killed },
+                            status: if survived {
+                                MutationStatus::Survived
+                            } else {
+                                MutationStatus::Killed
+                            },
                             reason: None,
                             exit_code: if survived { Some(0) } else { out.status.code() },
                             stderr_tail: if survived {
@@ -355,11 +368,22 @@ pub fn run_mutation(cwd: Option<&Path>, files: &[DiffFile], test_command: &str) 
             results.push(run_result?);
         }
     }
-    let survived = results.iter().filter(|r| matches!(r.status, MutationStatus::Survived)).count();
-    let killed = results.iter().filter(|r| matches!(r.status, MutationStatus::Killed)).count();
+    let survived = results
+        .iter()
+        .filter(|r| matches!(r.status, MutationStatus::Survived))
+        .count();
+    let killed = results
+        .iter()
+        .filter(|r| matches!(r.status, MutationStatus::Killed))
+        .count();
     let skipped = results
         .iter()
-        .filter(|r| matches!(r.status, MutationStatus::Skipped | MutationStatus::NoMutator))
+        .filter(|r| {
+            matches!(
+                r.status,
+                MutationStatus::Skipped | MutationStatus::NoMutator
+            )
+        })
         .count();
     Ok(MutationLayer {
         passed: killed,
@@ -377,7 +401,10 @@ fn with_extension_suffix(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(s)
 }
 
-fn spawn_test_command(cwd: Option<&Path>, test_command: &str) -> std::io::Result<std::process::Output> {
+fn spawn_test_command(
+    cwd: Option<&Path>,
+    test_command: &str,
+) -> std::io::Result<std::process::Output> {
     let mut cmd = Command::new("sh");
     cmd.arg("-c").arg(test_command);
     if let Some(cwd) = cwd {
@@ -406,34 +433,63 @@ mod tests {
 
     #[test]
     fn neq_flip_requires_word_before_eqeqeq() {
-        assert_eq!(mutate_neq_flip("if (x === 0) {"), Some("if (x !== 0) {".to_string()));
-        assert_eq!(mutate_neq_flip("a.b.c === 1"), Some("a.b.c !== 1".to_string()));
+        assert_eq!(
+            mutate_neq_flip("if (x === 0) {"),
+            Some("if (x !== 0) {".to_string())
+        );
+        assert_eq!(
+            mutate_neq_flip("a.b.c === 1"),
+            Some("a.b.c !== 1".to_string())
+        );
         assert_eq!(mutate_neq_flip("no operator here"), None);
     }
 
     #[test]
     fn or_swap_flips_first_occurrence_only() {
-        assert_eq!(mutate_or_swap("a && b && c"), Some("a || b && c".to_string()));
+        assert_eq!(
+            mutate_or_swap("a && b && c"),
+            Some("a || b && c".to_string())
+        );
         assert_eq!(mutate_or_swap("no ampersands"), None);
     }
 
     #[test]
     fn neg_flip_wraps_return_expression() {
-        assert_eq!(mutate_neg_flip("  return sum / len;"), Some("  return !(sum / len;)".to_string()));
-        assert_eq!(mutate_neg_flip("returnValue = 1;"), None, "must respect \\b on 'return'");
-        assert_eq!(mutate_neg_flip("  return"), None, "bare return with no following text is not mutated");
+        assert_eq!(
+            mutate_neg_flip("  return sum / len;"),
+            Some("  return !(sum / len;)".to_string())
+        );
+        assert_eq!(
+            mutate_neg_flip("returnValue = 1;"),
+            None,
+            "must respect \\b on 'return'"
+        );
+        assert_eq!(
+            mutate_neg_flip("  return"),
+            None,
+            "bare return with no following text is not mutated"
+        );
     }
 
     #[test]
     fn literal_zero_replaces_numeric_return() {
-        assert_eq!(mutate_literal_zero("  return 5;"), Some("  return 0;".to_string()));
+        assert_eq!(
+            mutate_literal_zero("  return 5;"),
+            Some("  return 0;".to_string())
+        );
         assert_eq!(mutate_literal_zero("  return x;"), None);
     }
 
     #[test]
     fn string_empty_clears_quoted_return() {
-        assert_eq!(mutate_string_empty("  return \"hello\";"), Some("  return \"\";".to_string()));
-        assert_eq!(mutate_string_empty("  return 'hi';"), Some("  return '';".to_string()));
+        assert_eq!(
+            mutate_string_empty("  return \"hello\";"),
+            Some("  return \"\";".to_string())
+        );
+        assert_eq!(
+            mutate_string_empty("  return 'hi';"),
+            Some("  return '';".to_string())
+        );
         assert_eq!(mutate_string_empty("  return x;"), None);
     }
 
@@ -453,14 +509,28 @@ mod tests {
         fs::write(&present, "line1\nline2\n").unwrap();
 
         let files = vec![
-            DiffFile { path: "present.js".to_string(), lines: vec![50] },
-            DiffFile { path: "missing.js".to_string(), lines: vec![1] },
+            DiffFile {
+                path: "present.js".to_string(),
+                lines: vec![50],
+            },
+            DiffFile {
+                path: "missing.js".to_string(),
+                lines: vec![1],
+            },
         ];
         let layer = run_mutation(Some(dir.as_path()), &files, "true").unwrap();
         assert_eq!(layer.total, 2);
         assert_eq!(layer.skipped, 2);
-        assert!(layer.results.iter().any(|r| matches!(r.status, MutationStatus::Skipped) && r.reason.as_deref() == Some("out_of_range")));
-        assert!(layer.results.iter().any(|r| matches!(r.status, MutationStatus::Skipped) && r.reason.as_deref() == Some("missing_locator")));
+        assert!(layer
+            .results
+            .iter()
+            .any(|r| matches!(r.status, MutationStatus::Skipped)
+                && r.reason.as_deref() == Some("out_of_range")));
+        assert!(layer
+            .results
+            .iter()
+            .any(|r| matches!(r.status, MutationStatus::Skipped)
+                && r.reason.as_deref() == Some("missing_locator")));
 
         let _ = fs::remove_dir_all(&dir);
     }

@@ -260,7 +260,11 @@ const DEFAULT_UNCERTAINTY: &str =
 const DEFAULT_CHAIN_ROLES: &[&str] = &["starter", "impact"];
 
 /// Mirrors `createPatternPack({ ... }).analyze(context)`.
-fn pattern_pack_analyze(ctx: &PackContext, family: &str, rules: &[PatternRule]) -> Vec<Observation> {
+fn pattern_pack_analyze(
+    ctx: &PackContext,
+    family: &str,
+    rules: &[PatternRule],
+) -> Vec<Observation> {
     let mut observations = Vec::new();
     for file in &ctx.files {
         let text = match ctx.read_file(file) {
@@ -287,7 +291,9 @@ fn pattern_pack_analyze(ctx: &PackContext, family: &str, rules: &[PatternRule]) 
                 effect_scope: Some(rule.effect_scope.unwrap_or(family).to_string()),
                 effect_environment: "application".to_string(),
                 chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                evidence_refs: artifact.map(|e| e.evidence_refs.clone()).unwrap_or_default(),
+                evidence_refs: artifact
+                    .map(|e| e.evidence_refs.clone())
+                    .unwrap_or_default(),
                 observed_controls: Vec::new(),
                 detector_metadata: json!({ "file": file, "patternFamily": family }),
                 uncertainty: vec![DEFAULT_UNCERTAINTY.to_string()],
@@ -401,7 +407,13 @@ pub mod output_handling {
         lexical_note: Option<&'static str>,
     }
 
-    fn test_around(pat: Option<&Regex>, text: &str, index: usize, match_len: usize, match_scope: bool) -> bool {
+    fn test_around(
+        pat: Option<&Regex>,
+        text: &str,
+        index: usize,
+        match_len: usize,
+        match_scope: bool,
+    ) -> bool {
         let Some(pat) = pat else { return false };
         if match_scope {
             pat.is_match(&text[index..index + match_len])
@@ -411,7 +423,11 @@ pub mod output_handling {
         }
     }
 
-    fn find_related_control<'a>(ctx: &'a PackContext, artifact_id: Option<&str>, control_types: &[&str]) -> Option<&'a Entity> {
+    fn find_related_control<'a>(
+        ctx: &'a PackContext,
+        artifact_id: Option<&str>,
+        control_types: &[&str],
+    ) -> Option<&'a Entity> {
         if let Some(aid) = artifact_id {
             for rel in ctx.relations_to(aid) {
                 if rel.kind != "protects" {
@@ -419,7 +435,9 @@ pub mod output_handling {
                 }
                 if let Some(control) = ctx.entity_by_id(&rel.from) {
                     if control.kind == "control"
-                        && control.attr_str("controlType").is_some_and(|t| control_types.contains(&t))
+                        && control
+                            .attr_str("controlType")
+                            .is_some_and(|t| control_types.contains(&t))
                     {
                         return Some(control);
                     }
@@ -427,7 +445,9 @@ pub mod output_handling {
             }
         }
         ctx.entities().iter().find(|e| {
-            e.kind == "control" && e.attr_str("controlType").is_some_and(|t| control_types.contains(&t))
+            e.kind == "control"
+                && e.attr_str("controlType")
+                    .is_some_and(|t| control_types.contains(&t))
         })
     }
 
@@ -682,16 +702,27 @@ pub mod output_handling {
                     if m.as_str().is_empty() {
                         continue;
                     }
-                    if test_around(suppress.as_ref(), text, m.start(), m.as_str().len(), rule.suppress_match_scope) {
+                    if test_around(
+                        suppress.as_ref(),
+                        text,
+                        m.start(),
+                        m.as_str().len(),
+                        rule.suppress_match_scope,
+                    ) {
                         continue;
                     }
 
                     let mut severity_hint = rule.severity_hint;
                     let mut observed_controls: Vec<String> = Vec::new();
-                    let mut uncertainty: Vec<String> = rule.uncertainty.iter().map(|s| s.to_string()).collect();
+                    let mut uncertainty: Vec<String> =
+                        rule.uncertainty.iter().map(|s| s.to_string()).collect();
 
                     if let Some(dg) = &rule.downgrade {
-                        if let Some(control) = find_related_control(ctx, artifact.map(|e| e.id.as_str()), dg.control_types) {
+                        if let Some(control) = find_related_control(
+                            ctx,
+                            artifact.map(|e| e.id.as_str()),
+                            dg.control_types,
+                        ) {
                             severity_hint = dg.severity_hint;
                             observed_controls = vec![control.id.clone()];
                             let ct = control.attr_str("controlType").unwrap_or("mitigating");
@@ -701,7 +732,11 @@ pub mod output_handling {
                             ));
                         } else if let Some(lp) = dg.lexical_pattern {
                             let lex = lp();
-                            let scope = if dg.lexical_match_scope { true } else { rule.suppress_match_scope };
+                            let scope = if dg.lexical_match_scope {
+                                true
+                            } else {
+                                rule.suppress_match_scope
+                            };
                             if test_around(Some(&lex), text, m.start(), m.as_str().len(), scope) {
                                 severity_hint = dg.severity_hint;
                                 uncertainty.push(
@@ -714,7 +749,11 @@ pub mod output_handling {
                     }
 
                     let trace = ctx.output_handling_trace(file, rule.output_context);
-                    let detection_method = if trace { "sast-trace" } else { "lexical-pattern" };
+                    let detection_method = if trace {
+                        "sast-trace"
+                    } else {
+                        "lexical-pattern"
+                    };
                     uncertainty.push(if trace {
                         "Confirmed by a recorded taint trace; reachability is still subject to adjudication.".to_string()
                     } else {
@@ -752,7 +791,9 @@ pub mod output_handling {
                         effect_scope: Some(rule.effect_scope.to_string()),
                         effect_environment: "application".to_string(),
                         chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                        evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                        evidence_refs: artifact
+                            .map(|a| a.evidence_refs.clone())
+                            .unwrap_or_default(),
                         observed_controls,
                         detector_metadata: json!({
                             "file": file,
@@ -802,7 +843,11 @@ pub mod parser_serialization {
         observations
     }
 
-    fn find_related_control<'a>(ctx: &'a PackContext, artifact_id: Option<&str>, control_types: &[&str]) -> Option<&'a Entity> {
+    fn find_related_control<'a>(
+        ctx: &'a PackContext,
+        artifact_id: Option<&str>,
+        control_types: &[&str],
+    ) -> Option<&'a Entity> {
         if let Some(aid) = artifact_id {
             for rel in ctx.relations_to(aid) {
                 if rel.kind != "protects" {
@@ -810,7 +855,9 @@ pub mod parser_serialization {
                 }
                 if let Some(control) = ctx.entity_by_id(&rel.from) {
                     if control.kind == "control"
-                        && control.attr_str("controlType").is_some_and(|t| control_types.contains(&t))
+                        && control
+                            .attr_str("controlType")
+                            .is_some_and(|t| control_types.contains(&t))
                     {
                         return Some(control);
                     }
@@ -818,7 +865,9 @@ pub mod parser_serialization {
             }
         }
         ctx.entities().iter().find(|e| {
-            e.kind == "control" && e.attr_str("controlType").is_some_and(|t| control_types.contains(&t))
+            e.kind == "control"
+                && e.attr_str("controlType")
+                    .is_some_and(|t| control_types.contains(&t))
         })
     }
 
@@ -883,14 +932,19 @@ pub mod parser_serialization {
             severity_hint: severity_hint.to_string(),
             sources: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
             sinks: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
-            attacker_capabilities: attacker_capabilities.iter().map(|s| s.to_string()).collect(),
+            attacker_capabilities: attacker_capabilities
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             effect_kind: effect_kind.to_string(),
             effect_action: effect_action.to_string(),
             effect_object: artifact.map(|a| a.id.clone()),
             effect_scope: Some(effect_scope.to_string()),
             effect_environment: environment.to_string(),
             chain_roles: chain_roles.iter().map(|s| s.to_string()).collect(),
-            evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+            evidence_refs: artifact
+                .map(|a| a.evidence_refs.clone())
+                .unwrap_or_default(),
             observed_controls,
             detector_metadata: json!({
                 "file": file,
@@ -905,7 +959,13 @@ pub mod parser_serialization {
         });
     }
 
-    fn unsafe_deserialization(ctx: &PackContext, file: &str, text: &str, artifact: Option<&Entity>, out: &mut Vec<Observation>) {
+    fn unsafe_deserialization(
+        ctx: &PackContext,
+        file: &str,
+        text: &str,
+        artifact: Option<&Entity>,
+        out: &mut Vec<Observation>,
+    ) {
         let re = Regex::new(r"\b(pickle\.loads|yaml\.load|ObjectInputStream|BinaryFormatter\.Deserialize|unserialize|Marshal\.load)\s*\(\s*([^()\n]*)\)").unwrap();
         let safe_loader = Regex::new(r"(?i)SafeLoader|safe_load|CSafeLoader").unwrap();
         for caps in re.captures_iter(text) {
@@ -915,7 +975,11 @@ pub mod parser_serialization {
             }
             let sink_api = caps.get(1).map(|c| c.as_str()).unwrap_or_default();
             let source_arg = caps.get(2).map(|c| c.as_str().trim()).unwrap_or_default();
-            let source_expr = if source_arg.is_empty() { "input-stream" } else { source_arg };
+            let source_expr = if source_arg.is_empty() {
+                "input-stream"
+            } else {
+                source_arg
+            };
             let (ws, we) = window_around(text, m.start(), m.as_str().len(), 150);
             let mitigated = safe_loader.is_match(&text[ws..we]);
             push_observation(
@@ -937,7 +1001,13 @@ pub mod parser_serialization {
         }
     }
 
-    fn xml_billion_laughs(ctx: &PackContext, file: &str, text: &str, artifact: Option<&Entity>, out: &mut Vec<Observation>) {
+    fn xml_billion_laughs(
+        ctx: &PackContext,
+        file: &str,
+        text: &str,
+        artifact: Option<&Entity>,
+        out: &mut Vec<Observation>,
+    ) {
         if !xml_parser_file_guard().is_match(text) {
             return;
         }
@@ -970,9 +1040,18 @@ pub mod parser_serialization {
         }
     }
 
-    fn decompression_bomb(ctx: &PackContext, file: &str, text: &str, artifact: Option<&Entity>, out: &mut Vec<Observation>) {
+    fn decompression_bomb(
+        ctx: &PackContext,
+        file: &str,
+        text: &str,
+        artifact: Option<&Entity>,
+        out: &mut Vec<Observation>,
+    ) {
         let re = Regex::new(r"\b(zlib\.(?:gunzip|inflate|unzip)(?:Sync)?|gzip\.decompress|gzip\.GzipFile|tarfile\.open|tarfile\.extractall|zipfile\.ZipFile)\s*\(").unwrap();
-        let limit_guard = Regex::new(r"(?i)maxSize|maxOutputSize|decompressionBomb|ZipBombProtection|limit\s*:\s*\d+").unwrap();
+        let limit_guard = Regex::new(
+            r"(?i)maxSize|maxOutputSize|decompressionBomb|ZipBombProtection|limit\s*:\s*\d+",
+        )
+        .unwrap();
         for caps in re.captures_iter(text) {
             let m = caps.get(0).unwrap();
             if m.as_str().is_empty() {
@@ -1008,7 +1087,13 @@ pub mod parser_serialization {
     /// (up to 400-char) body window for the *earliest* literal, word-boundaried call
     /// to that same name — mirroring the JS engine's lazy `{0,400}?` quantifier, which
     /// backtracks to the first position where `\b\1\s*\(` succeeds.
-    fn unbounded_recursion(ctx: &PackContext, file: &str, text: &str, artifact: Option<&Entity>, out: &mut Vec<Observation>) {
+    fn unbounded_recursion(
+        ctx: &PackContext,
+        file: &str,
+        text: &str,
+        artifact: Option<&Entity>,
+        out: &mut Vec<Observation>,
+    ) {
         let header = Regex::new(r"function\s+(\w*[Pp]arse\w*)\s*\(([^)]*)\)\s*\{").unwrap();
         let depth_guard = Regex::new(r"(?i)maxDepth|depthLimit|MAX_DEPTH|depth\s*[<>]=?").unwrap();
         for caps in header.captures_iter(text) {
@@ -1018,7 +1103,9 @@ pub mod parser_serialization {
             let window_end = ceil_char_boundary(text, body_start + 400);
             let window = &text[body_start..window_end];
             let call_re = Regex::new(&format!(r"\b{}\s*\(", regex::escape(name))).unwrap();
-            let Some(call_m) = call_re.find(window) else { continue };
+            let Some(call_m) = call_re.find(window) else {
+                continue;
+            };
             let full_match_end = body_start + call_m.end();
             let full_match = &text[m.start()..full_match_end];
 
@@ -1067,10 +1154,14 @@ pub mod observability_forensics {
         Regex::new(r"res\.status\(401\)\.(?:json|send)\(").unwrap()
     }
     fn privilege_change_marker_re() -> Regex {
-        Regex::new(r#"(?i)\.role\s*=\s*['"]\w+['"]|grantRole\(|setPermissions\(|updateRole\("#).unwrap()
+        Regex::new(r#"(?i)\.role\s*=\s*['"]\w+['"]|grantRole\(|setPermissions\(|updateRole\("#)
+            .unwrap()
     }
     fn data_export_marker_re() -> Regex {
-        Regex::new(r"(?i)res\.download\(|res\.attachment\(|exportToCsv\(|exportData\(|streamExport\(").unwrap()
+        Regex::new(
+            r"(?i)res\.download\(|res\.attachment\(|exportToCsv\(|exportData\(|streamExport\(",
+        )
+        .unwrap()
     }
     fn security_event_log_marker_re() -> Regex {
         Regex::new(r#"(?i)auditLog\(|securityEvent\(|logger\.(?:info|warn)\(\s*['"](?:auth|privilege|data)\."#).unwrap()
@@ -1082,7 +1173,14 @@ pub mod observability_forensics {
         Regex::new(r"(?i)sanitizeLog\(|stripControlChars\(|encodeURIComponent\(").unwrap()
     }
 
-    fn test_around(pat: &Regex, text: &str, index: usize, match_len: usize, before: usize, after: usize) -> bool {
+    fn test_around(
+        pat: &Regex,
+        text: &str,
+        index: usize,
+        match_len: usize,
+        before: usize,
+        after: usize,
+    ) -> bool {
         let start = floor_char_boundary(text, index.saturating_sub(before));
         let end = ceil_char_boundary(text, index + match_len + after);
         pat.is_match(&text[start..end])
@@ -1120,7 +1218,10 @@ pub mod observability_forensics {
             severity_hint: severity_hint.to_string(),
             sources: vec![artifact.id.clone()],
             sinks: vec![artifact.id.clone()],
-            attacker_capabilities: attacker_capabilities.iter().map(|s| s.to_string()).collect(),
+            attacker_capabilities: attacker_capabilities
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             effect_kind: effect_kind.to_string(),
             effect_action: effect_action.to_string(),
             effect_object: Some(artifact.id.clone()),
@@ -1151,7 +1252,9 @@ pub mod observability_forensics {
                 Some(t) if !t.is_empty() => t,
                 _ => continue,
             };
-            let Some(artifact) = ctx.artifact_for(file) else { continue };
+            let Some(artifact) = ctx.artifact_for(file) else {
+                continue;
+            };
             if artifact.evidence_refs.is_empty() {
                 continue;
             }
@@ -1196,13 +1299,22 @@ pub mod observability_forensics {
                 Some(t) if !t.is_empty() => t,
                 _ => continue,
             };
-            let Some(artifact) = ctx.artifact_for(file) else { continue };
+            let Some(artifact) = ctx.artifact_for(file) else {
+                continue;
+            };
             if artifact.evidence_refs.is_empty() {
                 continue;
             }
 
             for m in error_leak.find_iter(text) {
-                if test_around(&error_leak_guard, text, m.start(), m.as_str().len(), 150, 50) {
+                if test_around(
+                    &error_leak_guard,
+                    text,
+                    m.start(),
+                    m.as_str().len(),
+                    150,
+                    50,
+                ) {
                     continue;
                 }
                 observations.push(base_observation(
@@ -1221,7 +1333,14 @@ pub mod observability_forensics {
             }
 
             for m in log_injection.find_iter(text) {
-                if test_around(&log_injection_suppress, text, m.start(), m.as_str().len(), 0, 200) {
+                if test_around(
+                    &log_injection_suppress,
+                    text,
+                    m.start(),
+                    m.as_str().len(),
+                    0,
+                    200,
+                ) {
                     continue;
                 }
                 observations.push(base_observation(
@@ -1242,12 +1361,36 @@ pub mod observability_forensics {
 
         missing_event_rule(ctx, "observability.events.missing-auth-success", &auth_success_marker_re(), "auth.success",
             "A successful authentication path (session/token issuance) has no visible security-event record.", "low", "auth-success-event", &mut observations);
-        missing_event_rule(ctx, "observability.events.missing-auth-failure", &auth_failure_marker_re(), "auth.failure",
-            "A failed authentication branch (401 response) has no visible security-event record.", "low", "auth-failure-event", &mut observations);
-        missing_event_rule(ctx, "observability.events.missing-privilege-change", &privilege_change_marker_re(), "privilege.change",
-            "A role/permission mutation has no visible security-event record.", "medium", "privilege-change-event", &mut observations);
-        missing_event_rule(ctx, "observability.events.missing-data-export", &data_export_marker_re(), "data.export",
-            "A bulk data export/download path has no visible security-event record.", "medium", "data-export-event", &mut observations);
+        missing_event_rule(
+            ctx,
+            "observability.events.missing-auth-failure",
+            &auth_failure_marker_re(),
+            "auth.failure",
+            "A failed authentication branch (401 response) has no visible security-event record.",
+            "low",
+            "auth-failure-event",
+            &mut observations,
+        );
+        missing_event_rule(
+            ctx,
+            "observability.events.missing-privilege-change",
+            &privilege_change_marker_re(),
+            "privilege.change",
+            "A role/permission mutation has no visible security-event record.",
+            "medium",
+            "privilege-change-event",
+            &mut observations,
+        );
+        missing_event_rule(
+            ctx,
+            "observability.events.missing-data-export",
+            &data_export_marker_re(),
+            "data.export",
+            "A bulk data export/download path has no visible security-event record.",
+            "medium",
+            "data-export-event",
+            &mut observations,
+        );
 
         observations
     }
@@ -1288,7 +1431,8 @@ pub mod mobile {
         Regex::new(r"(?i)android:permission\s*=").unwrap()
     }
     fn bridge_origin_allowlist_re() -> Regex {
-        Regex::new(r"(?i)shouldOverrideUrlLoading|originWhitelist|allowlist|allowedOrigins").unwrap()
+        Regex::new(r"(?i)shouldOverrideUrlLoading|originWhitelist|allowlist|allowedOrigins")
+            .unwrap()
     }
     fn sensitive_storage_sink_re() -> Regex {
         Regex::new(r"\b(?:SharedPreferences|getSharedPreferences|NSUserDefaults|UserDefaults\.standard|localStorage\.setItem|AsyncStorage\.setItem)\b").unwrap()
@@ -1317,7 +1461,13 @@ pub mod mobile {
         ctx.read_file(file)
     }
 
-    fn scan_window(pattern: &Regex, text: &str, index: usize, length: usize, radius: usize) -> bool {
+    fn scan_window(
+        pattern: &Regex,
+        text: &str,
+        index: usize,
+        length: usize,
+        radius: usize,
+    ) -> bool {
         let start = floor_char_boundary(text, index.saturating_sub(radius));
         let end = ceil_char_boundary(text, index + length + radius);
         pattern.is_match(&text[start..end])
@@ -1330,14 +1480,19 @@ pub mod mobile {
     ];
 
     fn with_metadata(mut base: Value, hazards: &[&str], assumptions: &[&str]) -> Value {
-        let obj = base.as_object_mut().expect("base metadata must be an object");
+        let obj = base
+            .as_object_mut()
+            .expect("base metadata must be an object");
         obj.insert(
             "scope".to_string(),
             json!({ "static": true, "runtime": false, "description": STANDARD_SCOPE_DESCRIPTION }),
         );
         obj.insert("hazards".to_string(), json!(hazards));
         obj.insert("assumptions".to_string(), json!(assumptions));
-        obj.insert("authorityLimits".to_string(), json!(STANDARD_AUTHORITY_LIMITS));
+        obj.insert(
+            "authorityLimits".to_string(),
+            json!(STANDARD_AUTHORITY_LIMITS),
+        );
         base
     }
 
@@ -1366,7 +1521,10 @@ pub mod mobile {
             severity_hint: severity_hint.to_string(),
             sources,
             sinks,
-            attacker_capabilities: attacker_capabilities.iter().map(|s| s.to_string()).collect(),
+            attacker_capabilities: attacker_capabilities
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             effect_kind: effect_kind.to_string(),
             effect_action: effect_action.to_string(),
             effect_object,
@@ -1386,7 +1544,9 @@ pub mod mobile {
             if entity.kind != "permission-scope" {
                 continue;
             }
-            let Some(permission) = entity.attr_str("permission") else { continue };
+            let Some(permission) = entity.attr_str("permission") else {
+                continue;
+            };
             if !DANGEROUS_ANDROID_PERMISSIONS.contains(&permission) {
                 continue;
             }
@@ -1422,7 +1582,8 @@ pub mod mobile {
     fn analyze_deep_links(ctx: &PackContext, out: &mut Vec<Observation>) {
         let auto_verify = auto_verify_re();
         for entity in ctx.entities() {
-            if entity.kind != "entrypoint" || entity.attr_str("entrypointType") != Some("deep-link") {
+            if entity.kind != "entrypoint" || entity.attr_str("entrypointType") != Some("deep-link")
+            {
                 continue;
             }
             let file = entity.attr_str("file");
@@ -1435,7 +1596,11 @@ pub mod mobile {
                     uncertainty.push("Android App Links `autoVerify`/`applinks:` domain verification is present; downgraded pending adjudication of handler-side validation.".to_string());
                 }
             }
-            let schemes = entity.attributes.get("schemes").cloned().unwrap_or_else(|| json!([]));
+            let schemes = entity
+                .attributes
+                .get("schemes")
+                .cloned()
+                .unwrap_or_else(|| json!([]));
             push(
                 out,
                 "mobile.deep-link.entrypoint-unvalidated",
@@ -1459,7 +1624,9 @@ pub mod mobile {
     fn analyze_exported_components(ctx: &PackContext, out: &mut Vec<Observation>) {
         let gate = permission_gate_re();
         for entity in ctx.entities() {
-            if entity.kind != "entrypoint" || entity.attr_str("entrypointType") != Some("exported-component") {
+            if entity.kind != "entrypoint"
+                || entity.attr_str("entrypointType") != Some("exported-component")
+            {
                 continue;
             }
             let file = entity.attr_str("file");
@@ -1495,8 +1662,12 @@ pub mod mobile {
             if relation.kind != "calls" {
                 continue;
             }
-            let Some(source) = ctx.entity_by_id(&relation.from) else { continue };
-            let Some(sink) = ctx.entity_by_id(&relation.to) else { continue };
+            let Some(source) = ctx.entity_by_id(&relation.from) else {
+                continue;
+            };
+            let Some(sink) = ctx.entity_by_id(&relation.to) else {
+                continue;
+            };
             if source.kind != "source" || source.attr_str("sourceKind") != Some("webview-js") {
                 continue;
             }
@@ -1613,7 +1784,9 @@ pub mod mobile {
 
     fn analyze_transport(ctx: &PackContext, out: &mut Vec<Observation>) {
         for entity in ctx.entities() {
-            if entity.kind != "control" || entity.attr_str("controlType") != Some("transport-security") {
+            if entity.kind != "control"
+                || entity.attr_str("controlType") != Some("transport-security")
+            {
                 continue;
             }
             if entity.attr_str("controlState") != Some("absent") {

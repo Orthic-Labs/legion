@@ -1,7 +1,9 @@
 //! Integration tests for packet r46b's Markdown dispatch-document helpers
 //! (`legion_runtime::wf_port::r46::{headings,steps,tables,status,script_gate}`).
 
-use legion_runtime::wf_port::r46::{ordered_heading_errors, status_errors, step_errors, table_rows, REQUIRED_HEADINGS};
+use legion_runtime::wf_port::r46::{
+    ordered_heading_errors, status_errors, step_errors, table_rows, REQUIRED_HEADINGS,
+};
 
 #[test]
 fn ordered_heading_errors_is_clean_for_headings_in_declared_order() {
@@ -24,7 +26,10 @@ fn status_errors_single_allowed_value_is_clean() {
 #[test]
 fn step_errors_flags_missing_step_marker() {
     let errors = step_errors("## 5. Execution Procedure\nno steps declared\n", false);
-    assert_eq!(errors, vec!["missing execution step: expected '### Step N — name'".to_string()]);
+    assert_eq!(
+        errors,
+        vec!["missing execution step: expected '### Step N — name'".to_string()]
+    );
 }
 
 #[test]

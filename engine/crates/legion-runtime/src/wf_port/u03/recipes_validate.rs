@@ -43,7 +43,9 @@ pub trait RecipeSource {
 }
 
 /// Port of `validateInternalRecipes(root)`.
-pub fn validate_internal_recipes(source: &dyn RecipeSource) -> Result<(bool, Vec<RecipeFinding>, Vec<String>), String> {
+pub fn validate_internal_recipes(
+    source: &dyn RecipeSource,
+) -> Result<(bool, Vec<RecipeFinding>, Vec<String>), String> {
     let mut findings = Vec::new();
     let lens_ids: HashSet<String> = source.lens_ids()?.into_iter().collect();
 
@@ -51,7 +53,11 @@ pub fn validate_internal_recipes(source: &dyn RecipeSource) -> Result<(bool, Vec
     let listed: Vec<String> = index
         .get("recipes")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
 
     let mut records = Vec::new();
@@ -60,12 +66,19 @@ pub fn validate_internal_recipes(source: &dyn RecipeSource) -> Result<(bool, Vec
     }
     let by_id: HashMap<String, Value> = records
         .iter()
-        .filter_map(|record| record.get("id").and_then(Value::as_str).map(|id| (id.to_string(), record.clone())))
+        .filter_map(|record| {
+            record
+                .get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), record.clone()))
+        })
         .collect();
 
     let unique_listed: HashSet<&String> = listed.iter().collect();
     let expected: HashSet<&str> = EXPECTED_RECIPES.iter().copied().collect();
-    if unique_listed.len() != EXPECTED_RECIPES.len() || listed.iter().any(|id| !expected.contains(id.as_str())) {
+    if unique_listed.len() != EXPECTED_RECIPES.len()
+        || listed.iter().any(|id| !expected.contains(id.as_str()))
+    {
         findings.push(RecipeFinding {
             code: "recipe-roster".into(),
             recipe_id: None,
@@ -74,10 +87,15 @@ pub fn validate_internal_recipes(source: &dyn RecipeSource) -> Result<(bool, Vec
     }
 
     for record in &records {
-        let recipe_id = record.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+        let recipe_id = record
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
 
         let internal_ok = record.get("internal").and_then(Value::as_bool) == Some(true);
-        let availability_ok = record.get("availability").and_then(Value::as_str) == Some("unavailable");
+        let availability_ok =
+            record.get("availability").and_then(Value::as_str) == Some("unavailable");
         if !internal_ok || !availability_ok {
             findings.push(RecipeFinding {
                 code: "recipe-availability".into(),
@@ -87,7 +105,9 @@ pub fn validate_internal_recipes(source: &dyn RecipeSource) -> Result<(bool, Vec
         }
 
         let private_fields_ok = match record.get("privateFields").and_then(Value::as_array) {
-            Some(fields) => fields.iter().all(|f| f.as_str().is_some_and(|s| PRIVATE_FIELD.is_match(s))),
+            Some(fields) => fields
+                .iter()
+                .all(|f| f.as_str().is_some_and(|s| PRIVATE_FIELD.is_match(s))),
             None => false,
         };
         if !private_fields_ok {
@@ -98,7 +118,11 @@ pub fn validate_internal_recipes(source: &dyn RecipeSource) -> Result<(bool, Vec
             });
         }
 
-        for lens in record.get("lenses").and_then(Value::as_array).unwrap_or(&Vec::new()) {
+        for lens in record
+            .get("lenses")
+            .and_then(Value::as_array)
+            .unwrap_or(&Vec::new())
+        {
             if let Some(lens_id) = lens.as_str() {
                 if !lens_ids.contains(lens_id) {
                     findings.push(RecipeFinding {
@@ -110,7 +134,11 @@ pub fn validate_internal_recipes(source: &dyn RecipeSource) -> Result<(bool, Vec
             }
         }
 
-        for dep in record.get("dependsOn").and_then(Value::as_array).unwrap_or(&Vec::new()) {
+        for dep in record
+            .get("dependsOn")
+            .and_then(Value::as_array)
+            .unwrap_or(&Vec::new())
+        {
             if let Some(dep_id) = dep.as_str() {
                 if !by_id.contains_key(dep_id) {
                     findings.push(RecipeFinding {
@@ -163,7 +191,11 @@ fn visit(
     }
     active.insert(id.to_string());
     if let Some(record) = by_id.get(id) {
-        for dep in record.get("dependsOn").and_then(Value::as_array).unwrap_or(&Vec::new()) {
+        for dep in record
+            .get("dependsOn")
+            .and_then(Value::as_array)
+            .unwrap_or(&Vec::new())
+        {
             if let Some(dep_id) = dep.as_str() {
                 if by_id.contains_key(dep_id) {
                     visit(dep_id, by_id, active, done, findings);
@@ -276,8 +308,12 @@ mod tests {
         );
         let (ok, findings, _) = validate_internal_recipes(&source).unwrap();
         assert!(!ok);
-        assert!(findings.iter().any(|f| f.code == "recipe-reference" && f.detail.contains("unknown lens")));
-        assert!(findings.iter().any(|f| f.code == "recipe-reference" && f.detail.contains("unknown recipe")));
+        assert!(findings
+            .iter()
+            .any(|f| f.code == "recipe-reference" && f.detail.contains("unknown lens")));
+        assert!(findings
+            .iter()
+            .any(|f| f.code == "recipe-reference" && f.detail.contains("unknown recipe")));
         assert!(findings.iter().any(|f| f.code == "slash-skill"));
     }
 

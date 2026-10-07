@@ -199,10 +199,17 @@ pub fn run_executability_checks(contract: &ExecutionContract) -> Vec<ExecutableC
         ));
     }
 
-    for (latitude, list) in [("exact", &contract.artifacts.exact), ("bounded", &contract.artifacts.bounded)] {
+    for (latitude, list) in [
+        ("exact", &contract.artifacts.exact),
+        ("bounded", &contract.artifacts.bounded),
+    ] {
         for (index, unit) in list.iter().enumerate() {
             let unit_path = format!("$.artifacts.{latitude}[{index}]");
-            let id_label = if unit.id.is_empty() { unit_path.clone() } else { unit.id.clone() };
+            let id_label = if unit.id.is_empty() {
+                unit_path.clone()
+            } else {
+                unit.id.clone()
+            };
             if latitude == "exact" {
                 match &unit.content {
                     None => errors.push(err(
@@ -307,14 +314,18 @@ fn sort_errors(mut errors: Vec<ExecutableContractError>) -> Vec<ExecutableContra
 /// step before this is reached; this function assumes structural validity
 /// and only runs the executability rules, matching the JS function's
 /// behavior once `validateSchema` has produced zero structural issues.
-pub fn collect_executable_contract_errors(contract: &ExecutionContract) -> Vec<ExecutableContractError> {
+pub fn collect_executable_contract_errors(
+    contract: &ExecutionContract,
+) -> Vec<ExecutableContractError> {
     sort_errors(run_executability_checks(contract))
 }
 
 /// Port of `validateExecutableContract`: returns the contract on success, or
 /// the first sorted error's message as `Err`, matching the JS
 /// throw-first-sorted-failure behavior.
-pub fn validate_executable_contract(contract: ExecutionContract) -> Result<ExecutionContract, String> {
+pub fn validate_executable_contract(
+    contract: ExecutionContract,
+) -> Result<ExecutionContract, String> {
     let errors = collect_executable_contract_errors(&contract);
     if let Some(first) = errors.first() {
         return Err(first.message.clone());
@@ -346,7 +357,11 @@ mod tests {
             decisions: vec![],
             invariants: vec![],
             non_goals: vec![],
-            scope: Scope { own: vec![], read: vec![], forbidden: vec![] },
+            scope: Scope {
+                own: vec![],
+                read: vec![],
+                forbidden: vec![],
+            },
             artifacts: Artifacts {
                 exact: vec![ArtifactUnit {
                     id: "A-1".into(),
@@ -389,7 +404,9 @@ mod tests {
             blocks_artifacts: None,
         });
         let errors = collect_executable_contract_errors(&contract);
-        assert!(errors.iter().any(|e| e.code == "EXEC_OPEN_QUESTIONS_NONEMPTY"));
+        assert!(errors
+            .iter()
+            .any(|e| e.code == "EXEC_OPEN_QUESTIONS_NONEMPTY"));
     }
 
     #[test]
@@ -421,7 +438,9 @@ mod tests {
         });
         let errors = collect_executable_contract_errors(&contract);
         assert!(errors.iter().any(|e| e.code == "EXEC_BOUNDED_LOCKED_EMPTY"));
-        assert!(errors.iter().any(|e| e.code == "EXEC_BOUNDED_FREEDOM_EMPTY"));
+        assert!(errors
+            .iter()
+            .any(|e| e.code == "EXEC_BOUNDED_FREEDOM_EMPTY"));
     }
 
     #[test]
@@ -468,7 +487,10 @@ mod tests {
     #[test]
     fn unknown_field_is_rejected_structurally() {
         let mut value = serde_json::to_value(minimal_contract()).unwrap();
-        value.as_object_mut().unwrap().insert("bogus".into(), serde_json::json!(true));
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("bogus".into(), serde_json::json!(true));
         let parsed: Result<ExecutionContract, _> = serde_json::from_value(value);
         assert!(parsed.is_err());
     }

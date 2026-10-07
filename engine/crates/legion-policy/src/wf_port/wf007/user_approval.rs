@@ -106,7 +106,10 @@ pub struct ApprovalDenial {
 
 impl ApprovalDenial {
     fn new(code: &'static str, message: &str) -> Self {
-        Self { code, message: message.to_string() }
+        Self {
+            code,
+            message: message.to_string(),
+        }
     }
 }
 
@@ -197,7 +200,10 @@ pub struct UserApprovalAuthority<K: KeyLookup> {
 }
 
 impl<K: KeyLookup> UserApprovalAuthority<K> {
-    pub fn new(key_ring: Option<K>, approval_required_effect_classes: impl IntoIterator<Item = String>) -> Self {
+    pub fn new(
+        key_ring: Option<K>,
+        approval_required_effect_classes: impl IntoIterator<Item = String>,
+    ) -> Self {
         Self {
             key_ring,
             approval_required: approval_required_effect_classes.into_iter().collect(),
@@ -273,8 +279,15 @@ impl<K: KeyLookup> UserApprovalAuthority<K> {
     }
 
     /// Mirrors JS `consume(record, expected)`.
-    pub fn consume(&self, record: Option<&ApprovalRecord>, expected: &ExpectedBinding<'_>, now_ms: i64) -> Result<ApprovalGrant, ApprovalDenial> {
-        let record = record.ok_or_else(|| approval_denial("ARC_APPROVAL_REQUIRED", "required user approval is missing"))?;
+    pub fn consume(
+        &self,
+        record: Option<&ApprovalRecord>,
+        expected: &ExpectedBinding<'_>,
+        now_ms: i64,
+    ) -> Result<ApprovalGrant, ApprovalDenial> {
+        let record = record.ok_or_else(|| {
+            approval_denial("ARC_APPROVAL_REQUIRED", "required user approval is missing")
+        })?;
 
         if expected.session_id.is_empty()
             || expected.run_id.is_empty()
@@ -285,21 +298,41 @@ impl<K: KeyLookup> UserApprovalAuthority<K> {
             || expected.contract_version < 1
             || !self.requires_approval(expected.effect_class)
         {
-            return Err(approval_denial("ARC_APPROVAL_REQUIRED", "required user approval binding is invalid"));
+            return Err(approval_denial(
+                "ARC_APPROVAL_REQUIRED",
+                "required user approval binding is invalid",
+            ));
         }
 
         let turn = self
             .latest_approved_turn(expected.transcript_text)
-            .ok_or_else(|| approval_denial("ARC_APPROVAL_REQUIRED", "latest external user turn does not approve this effect"))?;
+            .ok_or_else(|| {
+                approval_denial(
+                    "ARC_APPROVAL_REQUIRED",
+                    "latest external user turn does not approve this effect",
+                )
+            })?;
 
         let issued = parse_iso8601_to_epoch_ms(&record.issued_at);
         let expires = parse_iso8601_to_epoch_ms(&record.expires_at);
         let (issued, expires) = match (issued, expires) {
             (Some(i), Some(e)) => (i, e),
-            _ => return Err(approval_denial("ARC_APPROVAL_REQUIRED", "required user approval is expired or unreadable")),
+            _ => {
+                return Err(approval_denial(
+                    "ARC_APPROVAL_REQUIRED",
+                    "required user approval is expired or unreadable",
+                ))
+            }
         };
-        if expires - issued > TTL_SECONDS * 1000 || expires <= issued || now_ms < issued || now_ms >= expires {
-            return Err(approval_denial("ARC_APPROVAL_REQUIRED", "required user approval is expired or unreadable"));
+        if expires - issued > TTL_SECONDS * 1000
+            || expires <= issued
+            || now_ms < issued
+            || now_ms >= expires
+        {
+            return Err(approval_denial(
+                "ARC_APPROVAL_REQUIRED",
+                "required user approval is expired or unreadable",
+            ));
         }
 
         let bound_session_digest = digest_session(expected.session_id);
@@ -315,36 +348,51 @@ impl<K: KeyLookup> UserApprovalAuthority<K> {
             || record.target_digest != bound_target_digest
             || record.user_turn_digest != bound_turn_digest
         {
-            return Err(approval_denial("ARC_BINDING_MISMATCH", "user approval binding differs"));
+            return Err(approval_denial(
+                "ARC_BINDING_MISMATCH",
+                "user approval binding differs",
+            ));
         }
 
-        let key_ring = self
-            .key_ring
-            .as_ref()
-            .ok_or_else(|| approval_denial("ARC_AUTH_KEY_UNAVAILABLE", "approval key unavailable"))?;
+        let key_ring = self.key_ring.as_ref().ok_or_else(|| {
+            approval_denial("ARC_AUTH_KEY_UNAVAILABLE", "approval key unavailable")
+        })?;
         let key = key_ring
             .get(&record.key_id)
             .map_err(|_| approval_denial("ARC_AUTH_KEY_UNAVAILABLE", "approval key unavailable"))?;
 
         let expected_mac = mac_for(record, &key);
         if !constant_time_equal(expected_mac.as_bytes(), record.mac.as_bytes()) {
-            return Err(approval_denial("ARC_AUTH_FORGED", "user approval authentication failed"));
+            return Err(approval_denial(
+                "ARC_AUTH_FORGED",
+                "user approval authentication failed",
+            ));
         }
 
         let replay_key = format!("{}:{}", record.key_id, record.mac);
         if self.used.borrow().contains(&replay_key) {
-            return Err(approval_denial("ARC_REPLAY_NONCE_SEEN", "user approval was already consumed"));
+            return Err(approval_denial(
+                "ARC_REPLAY_NONCE_SEEN",
+                "user approval was already consumed",
+            ));
         }
         self.used.borrow_mut().insert(replay_key);
 
-        Ok(ApprovalGrant { approval_digest: approval_digest_for(record), record: record.clone() })
+        Ok(ApprovalGrant {
+            approval_digest: approval_digest_for(record),
+            record: record.clone(),
+        })
     }
 
     /// Mirrors JS `derive(effectRequest, ctx)`: derives a fresh record from
     /// the transcript and immediately consumes it. `None` in the returned
     /// tuple's grant.record mirrors JS `evidence: null` when approval is not
     /// required for this effect class at all.
-    pub fn derive(&self, expected: &ExpectedBinding<'_>, now_ms: i64) -> Result<Option<ApprovalGrant>, ApprovalDenial> {
+    pub fn derive(
+        &self,
+        expected: &ExpectedBinding<'_>,
+        now_ms: i64,
+    ) -> Result<Option<ApprovalGrant>, ApprovalDenial> {
         if !self.requires_approval(expected.effect_class) {
             return Ok(None);
         }
@@ -361,7 +409,10 @@ pub(super) fn iso8601_from_epoch_ms(ms: i64) -> String {
     let (days, rem_ms) = {
         let total_seconds = ms.div_euclid(1000);
         let millis = ms.rem_euclid(1000);
-        (total_seconds.div_euclid(86_400), (total_seconds.rem_euclid(86_400), millis))
+        (
+            total_seconds.div_euclid(86_400),
+            (total_seconds.rem_euclid(86_400), millis),
+        )
     };
     let (secs_of_day, millis) = rem_ms;
     let (y, m, d) = civil_from_days(days);
@@ -411,7 +462,10 @@ mod tests {
     fn ring() -> TestKeyRing {
         let mut keys = BTreeMap::new();
         keys.insert("k1".to_string(), vec![7u8; 32]);
-        TestKeyRing { keys, active: Some("k1".to_string()) }
+        TestKeyRing {
+            keys,
+            active: Some("k1".to_string()),
+        }
     }
 
     fn user_execute_transcript() -> String {
@@ -439,7 +493,9 @@ mod tests {
         let exp = expected(&transcript);
         let now = 1_767_225_600_000;
         let record = authority.derive_record(&exp, now).expect("record derived");
-        let grant = authority.consume(Some(&record), &exp, now).expect("consumed");
+        let grant = authority
+            .consume(Some(&record), &exp, now)
+            .expect("consumed");
         assert!(!grant.approval_digest.is_empty());
     }
 

@@ -59,7 +59,8 @@ pub fn run(args: CommonArgs) -> CommandResult {
         Some("verify") => {
             let id = required_id(&registry, argv.get(1))?;
             let root = resolve_root(argv.get(2), &cwd);
-            let (mut value, _ok) = verify_response(&registry, &id, &root).map_err(map_harness_error)?;
+            let (mut value, _ok) =
+                verify_response(&registry, &id, &root).map_err(map_harness_error)?;
             // Node emits surfaces in descriptor order. The registry's
             // internal map is sorted for deterministic lookup, so restore
             // wire order at this boundary.
@@ -80,7 +81,9 @@ pub fn run(args: CommonArgs) -> CommandResult {
 }
 
 fn reorder_surfaces(value: &mut serde_json::Value) {
-    let Some(surfaces) = value.get_mut("surfaces").and_then(serde_json::Value::as_object_mut)
+    let Some(surfaces) = value
+        .get_mut("surfaces")
+        .and_then(serde_json::Value::as_object_mut)
     else {
         return;
     };
@@ -101,7 +104,9 @@ fn relativize_skill_target(value: &mut serde_json::Value, root: &Path) {
     let Some(target) = value.pointer_mut("/surfaces/skills/skills/targetDir") else {
         return;
     };
-    let Some(path) = target.as_str() else { return; };
+    let Some(path) = target.as_str() else {
+        return;
+    };
     if let Ok(relative) = Path::new(path).strip_prefix(root) {
         *target = serde_json::Value::String(relative.to_string_lossy().replace('/', "\\"));
     }

@@ -46,8 +46,10 @@ static COMMIT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)\bgit(?:\s+-C\s+(?:"[^"]+"|'[^']+'|[^\s;&|]+))?\s+commit\b"#).unwrap()
 });
 static NO_VERIFY: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)\bgit(?:\s+-C\s+(?:"[^"]+"|'[^']+'|[^\s;&|]+))?\s+commit\b[^\n;&|]*\s--no-verify\b"#)
-        .unwrap()
+    Regex::new(
+        r#"(?i)\bgit(?:\s+-C\s+(?:"[^"]+"|'[^']+'|[^\s;&|]+))?\s+commit\b[^\n;&|]*\s--no-verify\b"#,
+    )
+    .unwrap()
 });
 static GENERATED_LOCK: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)(?:^|[\\/])generated-lock\.json$").unwrap());
@@ -238,7 +240,10 @@ pub fn relative_path(from: &Path, to: &Path) -> String {
     let from_components: Vec<Component<'_>> = from.components().collect();
     let to_components: Vec<Component<'_>> = to.components().collect();
     let mut common = 0usize;
-    while common < from_components.len() && common < to_components.len() && from_components[common] == to_components[common] {
+    while common < from_components.len()
+        && common < to_components.len()
+        && from_components[common] == to_components[common]
+    {
         common += 1;
     }
     let mut parts: Vec<String> = Vec::new();
@@ -286,7 +291,11 @@ pub fn resolve_path(base: &str, rel: &str) -> String {
     let (rel_drive, rel_rest) = split_drive(&rel);
     let is_absolute = rel_rest.starts_with('/') || rel_drive.is_some();
     let drive = rel_drive.or(base_drive);
-    let joined = if is_absolute { rel_rest.to_string() } else { format!("{base_rest}/{rel_rest}") };
+    let joined = if is_absolute {
+        rel_rest.to_string()
+    } else {
+        format!("{base_rest}/{rel_rest}")
+    };
     let mut out: Vec<&str> = Vec::new();
     for segment in joined.split('/') {
         match segment {
@@ -321,7 +330,11 @@ pub fn commit_receipt_requirement(
     contracted: bool,
 ) -> CommitReceiptRequirement {
     if contracted {
-        return CommitReceiptRequirement { required: true, reason: "contracted-work", ..Default::default() };
+        return CommitReceiptRequirement {
+            required: true,
+            reason: "contracted-work",
+            ..Default::default()
+        };
     }
     let engine = match policy {
         DisciplinePolicy::Available(engine) => *engine,
@@ -329,7 +342,10 @@ pub fn commit_receipt_requirement(
             return CommitReceiptRequirement {
                 required: false,
                 reason: "policy-unavailable",
-                advisory: Some("commit tier could not be classified; ambient commit allowed with advisory".to_string()),
+                advisory: Some(
+                    "commit tier could not be classified; ambient commit allowed with advisory"
+                        .to_string(),
+                ),
                 ..Default::default()
             };
         }
@@ -350,9 +366,20 @@ pub fn commit_receipt_requirement(
     let path_refs: Vec<&str> = paths.iter().map(String::as_str).collect();
     let locked = engine.locked_domains_for(&path_refs);
     if !locked.is_empty() {
-        CommitReceiptRequirement { required: true, reason: "locked-domain", paths, locked, advisory: None }
+        CommitReceiptRequirement {
+            required: true,
+            reason: "locked-domain",
+            paths,
+            locked,
+            advisory: None,
+        }
     } else {
-        CommitReceiptRequirement { required: false, reason: "ambient", paths, ..Default::default() }
+        CommitReceiptRequirement {
+            required: false,
+            reason: "ambient",
+            paths,
+            ..Default::default()
+        }
     }
 }
 
@@ -417,12 +444,17 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 }
 
 fn iso8601_now() -> String {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = now.as_secs();
     let (y, m, d) = civil_from_days((secs / 86_400) as i64);
     let rem = secs % 86_400;
     let (hh, mm, ss) = (rem / 3600, (rem % 3600) / 60, rem % 60);
-    format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}.{:03}Z", now.subsec_millis())
+    format!(
+        "{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}.{:03}Z",
+        now.subsec_millis()
+    )
 }
 
 fn append_jsonl(path: &Path, value: &Value) -> std::io::Result<()> {
@@ -430,7 +462,10 @@ fn append_jsonl(path: &Path, value: &Value) -> std::io::Result<()> {
         std::fs::create_dir_all(parent)?;
     }
     use std::io::Write;
-    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     writeln!(file, "{}", serde_json::to_string(value).unwrap_or_default())
 }
 
@@ -456,9 +491,16 @@ pub struct DisciplineHostEvent {
 }
 
 /// Port of `auditSuccessfulCommit`.
-pub fn audit_successful_commit(payload: &DisciplinePayload, host_event: &DisciplineHostEvent, workspace: &Path) {
+pub fn audit_successful_commit(
+    payload: &DisciplinePayload,
+    host_event: &DisciplineHostEvent,
+    workspace: &Path,
+) {
     let command = extract_discipline_shell_command(payload);
-    if !is_commit_command(&command) || host_event.event_type.as_deref() != Some("post-effect") || host_event.outcome.as_deref() != Some("success") {
+    if !is_commit_command(&command)
+        || host_event.event_type.as_deref() != Some("post-effect")
+        || host_event.outcome.as_deref() != Some("success")
+    {
         return;
     }
     let mut truncated = command;
@@ -521,22 +563,53 @@ pub fn pre_effect_discipline(
         return None;
     }
 
-    let receipt_path = workspace.join(".audit").join("minimize").join("commit-receipt.json");
-    let policy_path = workspace.join("tools").join("skills").join("legion").join("packages").join("arcane").join("policy").join("minimize-policy.md");
-    let validator_path = workspace.join("tools").join("skills").join("legion").join("packages").join("arcane").join("lib").join("minimize.mjs");
+    let receipt_path = workspace
+        .join(".audit")
+        .join("minimize")
+        .join("commit-receipt.json");
+    let policy_path = workspace
+        .join("tools")
+        .join("skills")
+        .join("legion")
+        .join("packages")
+        .join("arcane")
+        .join("policy")
+        .join("minimize-policy.md");
+    let validator_path = workspace
+        .join("tools")
+        .join("skills")
+        .join("legion")
+        .join("packages")
+        .join("arcane")
+        .join("lib")
+        .join("minimize.mjs");
 
     if !receipt_path.exists() {
-        return Some(DisciplineDenial { code: "ARC_CLAIM_PREREQUISITE_UNMET", message: "commit receipt is missing".to_string() });
+        return Some(DisciplineDenial {
+            code: "ARC_CLAIM_PREREQUISITE_UNMET",
+            message: "commit receipt is missing".to_string(),
+        });
     }
     let receipt = match read_json(&receipt_path) {
         Ok(value) => value,
-        Err(error) => return Some(DisciplineDenial { code: "ARC_CLAIM_PREREQUISITE_UNMET", message: error.to_string() }),
+        Err(error) => {
+            return Some(DisciplineDenial {
+                code: "ARC_CLAIM_PREREQUISITE_UNMET",
+                message: error.to_string(),
+            })
+        }
     };
-    let receipt_paths = ReceiptPaths { policy_path: &policy_path, validator_path: &validator_path };
+    let receipt_paths = ReceiptPaths {
+        policy_path: &policy_path,
+        validator_path: &validator_path,
+    };
     let env = MinimizeEnv::default();
     match verify_receipt(&receipt, &receipt_paths, repository, &env) {
         Ok(_) => None,
-        Err(error) => Some(DisciplineDenial { code: "ARC_CLAIM_PREREQUISITE_UNMET", message: error.to_string() }),
+        Err(error) => Some(DisciplineDenial {
+            code: "ARC_CLAIM_PREREQUISITE_UNMET",
+            message: error.to_string(),
+        }),
     }
 }
 
@@ -608,12 +681,18 @@ mod tests {
             ..Default::default()
         };
         let targets = generated_lock_targets(&payload);
-        assert_eq!(targets, vec!["src/generated-lock.json", "pkg/generated-lock.json"]);
+        assert_eq!(
+            targets,
+            vec!["src/generated-lock.json", "pkg/generated-lock.json"]
+        );
     }
 
     #[test]
     fn generated_lock_targets_ignores_unrelated_files() {
-        let payload = DisciplinePayload { file_path: Some("src/main.rs".to_string()), ..Default::default() };
+        let payload = DisciplinePayload {
+            file_path: Some("src/main.rs".to_string()),
+            ..Default::default()
+        };
         assert!(generated_lock_targets(&payload).is_empty());
     }
 
@@ -640,7 +719,10 @@ mod tests {
 
     #[test]
     fn pre_effect_discipline_prefix_blocks_no_verify() {
-        let payload = DisciplinePayload { command: Some("git commit --no-verify".to_string()), ..Default::default() };
+        let payload = DisciplinePayload {
+            command: Some("git commit --no-verify".to_string()),
+            ..Default::default()
+        };
         let denial = pre_effect_discipline_prefix(&payload).unwrap();
         assert_eq!(denial.code, "ARC_EFFECT_CLASS_UNAUTHORIZED");
         assert!(denial.message.contains("no-verify"));
@@ -659,13 +741,19 @@ mod tests {
 
     #[test]
     fn pre_effect_discipline_prefix_allows_clean_commit() {
-        let payload = DisciplinePayload { command: Some("git commit -m x".to_string()), ..Default::default() };
+        let payload = DisciplinePayload {
+            command: Some("git commit -m x".to_string()),
+            ..Default::default()
+        };
         assert!(pre_effect_discipline_prefix(&payload).is_none());
     }
 
     #[test]
     fn relative_path_computes_ups_and_downs() {
-        assert_eq!(relative_path(Path::new("/a/b/c"), Path::new("/a/b/d/e")), "../d/e");
+        assert_eq!(
+            relative_path(Path::new("/a/b/c"), Path::new("/a/b/d/e")),
+            "../d/e"
+        );
         assert_eq!(relative_path(Path::new("/a/b"), Path::new("/a/b")), "");
         assert_eq!(relative_path(Path::new("/a"), Path::new("/a/b")), "b");
     }
@@ -673,7 +761,10 @@ mod tests {
     #[test]
     fn resolve_path_collapses_dot_segments() {
         assert_eq!(resolve_path("/workspace", "sub"), "/workspace/sub");
-        assert_eq!(resolve_path("/workspace/sub", "../other"), "/workspace/other");
+        assert_eq!(
+            resolve_path("/workspace/sub", "../other"),
+            "/workspace/other"
+        );
         assert_eq!(resolve_path("/workspace", "/abs/path"), "/abs/path");
     }
 
@@ -686,14 +777,22 @@ mod tests {
     fn temp_dir(name: &str) -> PathBuf {
         static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("legion-discipline-{}-{}-{n}", std::process::id(), name));
+        let dir = std::env::temp_dir().join(format!(
+            "legion-discipline-{}-{}-{n}",
+            std::process::id(),
+            name
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
 
     fn git_ok(cwd: &Path, args: &[&str]) {
-        let status = std::process::Command::new("git").current_dir(cwd).args(args).status().expect("git available");
+        let status = std::process::Command::new("git")
+            .current_dir(cwd)
+            .args(args)
+            .status()
+            .expect("git available");
         assert!(status.success(), "git {args:?} failed");
     }
 
@@ -711,7 +810,12 @@ mod tests {
     #[test]
     fn commit_receipt_requirement_contracted_is_always_required() {
         let workspace = temp_dir("contracted");
-        let req = commit_receipt_requirement(&workspace, &workspace, &DisciplinePolicy::Unavailable, true);
+        let req = commit_receipt_requirement(
+            &workspace,
+            &workspace,
+            &DisciplinePolicy::Unavailable,
+            true,
+        );
         assert!(req.required);
         assert_eq!(req.reason, "contracted-work");
     }
@@ -719,7 +823,12 @@ mod tests {
     #[test]
     fn commit_receipt_requirement_unavailable_policy_is_advisory() {
         let workspace = temp_dir("unavailable-policy");
-        let req = commit_receipt_requirement(&workspace, &workspace, &DisciplinePolicy::Unavailable, false);
+        let req = commit_receipt_requirement(
+            &workspace,
+            &workspace,
+            &DisciplinePolicy::Unavailable,
+            false,
+        );
         assert!(!req.required);
         assert_eq!(req.reason, "policy-unavailable");
         assert!(req.advisory.is_some());
@@ -728,7 +837,12 @@ mod tests {
     #[test]
     fn commit_receipt_requirement_fail_closed_policy_is_advisory() {
         let workspace = temp_dir("fail-closed-policy");
-        let req = commit_receipt_requirement(&workspace, &workspace, &DisciplinePolicy::FailClosed, false);
+        let req = commit_receipt_requirement(
+            &workspace,
+            &workspace,
+            &DisciplinePolicy::FailClosed,
+            false,
+        );
         assert!(!req.required);
         assert_eq!(req.reason, "policy-unavailable");
     }
@@ -801,7 +915,10 @@ mod tests {
     fn record_commit_advisory_appends_jsonl() {
         let workspace = temp_dir("advisory");
         record_commit_advisory(&workspace, "ambient commit allowed");
-        let path = workspace.join(".audit").join("arcane").join("commit-discipline-advisories.jsonl");
+        let path = workspace
+            .join(".audit")
+            .join("arcane")
+            .join("commit-discipline-advisories.jsonl");
         let text = std::fs::read_to_string(path).unwrap();
         assert!(text.contains("ambient commit allowed"));
         assert!(text.contains("arcane-commit-discipline-advisory"));
@@ -810,10 +927,20 @@ mod tests {
     #[test]
     fn audit_successful_commit_writes_only_on_post_effect_success() {
         let workspace = temp_dir("audit-commit");
-        let payload = DisciplinePayload { command: Some("git commit -m x".to_string()), ..Default::default() };
-        let non_matching = DisciplineHostEvent { event_type: Some("pre-effect".to_string()), outcome: Some("success".to_string()), ..Default::default() };
+        let payload = DisciplinePayload {
+            command: Some("git commit -m x".to_string()),
+            ..Default::default()
+        };
+        let non_matching = DisciplineHostEvent {
+            event_type: Some("pre-effect".to_string()),
+            outcome: Some("success".to_string()),
+            ..Default::default()
+        };
         audit_successful_commit(&payload, &non_matching, &workspace);
-        let path = workspace.join(".audit").join("arcane").join("commit-identity.jsonl");
+        let path = workspace
+            .join(".audit")
+            .join("arcane")
+            .join("commit-identity.jsonl");
         assert!(!path.exists());
 
         let matching = DisciplineHostEvent {
@@ -832,16 +959,36 @@ mod tests {
     #[test]
     fn pre_effect_discipline_short_circuits_on_no_verify_before_touching_policy() {
         let workspace = temp_dir("pre-effect-no-verify");
-        let payload = DisciplinePayload { command: Some("git commit --no-verify".to_string()), ..Default::default() };
-        let denial = pre_effect_discipline(&payload, &workspace, &DisciplinePolicy::Unavailable, false, true).unwrap();
+        let payload = DisciplinePayload {
+            command: Some("git commit --no-verify".to_string()),
+            ..Default::default()
+        };
+        let denial = pre_effect_discipline(
+            &payload,
+            &workspace,
+            &DisciplinePolicy::Unavailable,
+            false,
+            true,
+        )
+        .unwrap();
         assert_eq!(denial.code, "ARC_EFFECT_CLASS_UNAUTHORIZED");
     }
 
     #[test]
     fn pre_effect_discipline_skips_commit_check_when_disabled() {
         let workspace = temp_dir("pre-effect-skip");
-        let payload = DisciplinePayload { command: Some("git commit -m x".to_string()), ..Default::default() };
-        assert!(pre_effect_discipline(&payload, &workspace, &DisciplinePolicy::Unavailable, false, false).is_none());
+        let payload = DisciplinePayload {
+            command: Some("git commit -m x".to_string()),
+            ..Default::default()
+        };
+        assert!(pre_effect_discipline(
+            &payload,
+            &workspace,
+            &DisciplinePolicy::Unavailable,
+            false,
+            false
+        )
+        .is_none());
     }
 
     #[test]
@@ -851,11 +998,20 @@ mod tests {
         git_ok(&workspace, &["add", "-A"]);
         let engine = empty_policy_engine();
         let policy = DisciplinePolicy::Available(&engine);
-        let payload = DisciplinePayload { command: Some("git commit -m x".to_string()), ..Default::default() };
+        let payload = DisciplinePayload {
+            command: Some("git commit -m x".to_string()),
+            ..Default::default()
+        };
         let result = pre_effect_discipline(&payload, &workspace, &policy, false, true);
         assert!(result.is_none());
-        let advisory_path = workspace.join(".audit").join("arcane").join("commit-discipline-advisories.jsonl");
-        assert!(!advisory_path.exists(), "ambient reason carries no advisory to record");
+        let advisory_path = workspace
+            .join(".audit")
+            .join("arcane")
+            .join("commit-discipline-advisories.jsonl");
+        assert!(
+            !advisory_path.exists(),
+            "ambient reason carries no advisory to record"
+        );
     }
 
     #[test]
@@ -884,7 +1040,10 @@ mod tests {
             retention: Default::default(),
         });
         let policy = DisciplinePolicy::Available(&engine);
-        let payload = DisciplinePayload { command: Some("git commit -m x".to_string()), ..Default::default() };
+        let payload = DisciplinePayload {
+            command: Some("git commit -m x".to_string()),
+            ..Default::default()
+        };
         let denial = pre_effect_discipline(&payload, &workspace, &policy, false, true).unwrap();
         assert_eq!(denial.code, "ARC_CLAIM_PREREQUISITE_UNMET");
         assert!(denial.message.contains("missing"));

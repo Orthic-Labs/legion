@@ -278,9 +278,17 @@ mod tests {
             max_steps: 1.0,
             ..RunLimits::default()
         });
-        ledger.reserve(Reservation { steps: 1.0, ..Default::default() }).unwrap();
+        ledger
+            .reserve(Reservation {
+                steps: 1.0,
+                ..Default::default()
+            })
+            .unwrap();
         let err = ledger
-            .reserve(Reservation { steps: 1.0, ..Default::default() })
+            .reserve(Reservation {
+                steps: 1.0,
+                ..Default::default()
+            })
             .unwrap_err();
         assert_eq!(err.code, "LEGION_RUN_BUDGET");
         assert_eq!(err.reason, BreachReason::StepLimit);
@@ -297,7 +305,10 @@ mod tests {
             ..RunLimits::default()
         });
         let err = ledger
-            .reserve(Reservation { calls: 1.0, ..Default::default() })
+            .reserve(Reservation {
+                calls: 1.0,
+                ..Default::default()
+            })
             .unwrap_err();
         assert_eq!(err.reason, BreachReason::CallLimit);
     }
@@ -309,7 +320,10 @@ mod tests {
             ..RunLimits::default()
         });
         let err = ledger
-            .reserve(Reservation { spend_micros: 51.0, ..Default::default() })
+            .reserve(Reservation {
+                spend_micros: 51.0,
+                ..Default::default()
+            })
             .unwrap_err();
         assert_eq!(err.reason, BreachReason::SpendLimit);
     }
@@ -352,9 +366,7 @@ mod tests {
             SharedClock(shared.clone()),
         );
         shared.advance(11.0);
-        let err = ledger
-            .reserve(Reservation::default())
-            .unwrap_err();
+        let err = ledger.reserve(Reservation::default()).unwrap_err();
         assert_eq!(err.reason, BreachReason::WallTimeLimit);
     }
 
@@ -373,7 +385,10 @@ mod tests {
             max_steps: 0.0,
             ..RunLimits::default()
         });
-        let _ = ledger.reserve(Reservation { steps: 1.0, ..Default::default() });
+        let _ = ledger.reserve(Reservation {
+            steps: 1.0,
+            ..Default::default()
+        });
         let snap = ledger.snapshot();
         let terminal = snap.terminal.expect("terminal should be set after breach");
         assert_eq!(terminal.state, "STOPPED");

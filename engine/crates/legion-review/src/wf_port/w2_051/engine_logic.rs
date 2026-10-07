@@ -239,12 +239,19 @@ pub fn parse_juror_json(raw: Option<&str>) -> ParsedJuror {
 
 /// Port of `Engine._provider_prompts`: only the `nim` provider gets the
 /// compaction rewrite, and only for non-vision prompts.
-pub fn provider_prompts(provider_name: &str, system: &str, user: &str, is_vision: bool) -> (String, String) {
+pub fn provider_prompts(
+    provider_name: &str,
+    system: &str,
+    user: &str,
+    is_vision: bool,
+) -> (String, String) {
     if is_vision || provider_name != "nim" {
         return (system.to_string(), user.to_string());
     }
     let compact_system = "Return one minified JSON object only. No markdown. No prose.".to_string();
-    let rewritten = user.replace("RUBRIC:\n", "CRITERIA:\n").replace("\n\nINPUT:\n", "\n\nARTIFACT:\n");
+    let rewritten = user
+        .replace("RUBRIC:\n", "CRITERIA:\n")
+        .replace("\n\nINPUT:\n", "\n\nARTIFACT:\n");
     let compact_user = format!(
         "Evaluate ARTIFACT using CRITERIA. Return JSON matching the output schema.\n\n{rewritten}"
     );
@@ -264,14 +271,20 @@ pub struct JurorSeat {
 /// per-provider order, and unit order across providers follows each
 /// provider's first appearance in `jurors` (matching Python dict
 /// insertion-order iteration).
-pub fn execution_units(jurors: &[JurorSeat], parallel_safe: &dyn Fn(&str) -> bool) -> Vec<Vec<JurorSeat>> {
+pub fn execution_units(
+    jurors: &[JurorSeat],
+    parallel_safe: &dyn Fn(&str) -> bool,
+) -> Vec<Vec<JurorSeat>> {
     let mut order: Vec<String> = Vec::new();
     let mut grouped: HashMap<String, Vec<JurorSeat>> = HashMap::new();
     for j in jurors {
         if !grouped.contains_key(&j.provider) {
             order.push(j.provider.clone());
         }
-        grouped.entry(j.provider.clone()).or_default().push(j.clone());
+        grouped
+            .entry(j.provider.clone())
+            .or_default()
+            .push(j.clone());
     }
     let mut units = Vec::new();
     for provider_name in order {
@@ -305,7 +318,8 @@ pub fn triggered_escalations<'a>(
     flags: &HashMap<String, bool>,
 ) -> Vec<&'a EscalationRule> {
     let is_split = {
-        let distinct: std::collections::BTreeSet<&str> = verdicts.iter().map(|s| s.as_str()).collect();
+        let distinct: std::collections::BTreeSet<&str> =
+            verdicts.iter().map(|s| s.as_str()).collect();
         !verdicts.is_empty() && distinct.len() > 1
     };
 

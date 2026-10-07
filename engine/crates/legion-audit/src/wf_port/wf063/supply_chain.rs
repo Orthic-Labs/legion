@@ -57,7 +57,8 @@ fn build_output_path() -> &'static Regex {
 fn non_registry_source() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r#""[\w@/.-]+"\s*:\s*"(?:git\+[^"\n]+|https?://[^"\n]+|github:[^"\n]+)""#).unwrap()
+        Regex::new(r#""[\w@/.-]+"\s*:\s*"(?:git\+[^"\n]+|https?://[^"\n]+|github:[^"\n]+)""#)
+            .unwrap()
     })
 }
 
@@ -93,7 +94,8 @@ fn integrity_covered(text: &str) -> bool {
     static INTEGRITY: OnceLock<Regex> = OnceLock::new();
     static RESOLUTION_SHA: OnceLock<Regex> = OnceLock::new();
     let integrity = INTEGRITY.get_or_init(|| Regex::new(r"(?i)\bintegrity\b").unwrap());
-    let resolution_sha = RESOLUTION_SHA.get_or_init(|| Regex::new(r"(?is)\bresolution\b.*sha(256|512)").unwrap());
+    let resolution_sha =
+        RESOLUTION_SHA.get_or_init(|| Regex::new(r"(?is)\bresolution\b.*sha(256|512)").unwrap());
     integrity.is_match(text) || resolution_sha.is_match(text)
 }
 
@@ -270,7 +272,11 @@ fn matches_for(rule: &Rule, context: &Context) -> Vec<Match> {
             true,
         ),
         "supply-chain.lockfile.missing" => {
-            let manifests: Vec<&String> = context.files.iter().filter(|f| package_manifest().is_match(f)).collect();
+            let manifests: Vec<&String> = context
+                .files
+                .iter()
+                .filter(|f| package_manifest().is_match(f))
+                .collect();
             if manifests.is_empty() {
                 return vec![];
             }
@@ -280,7 +286,11 @@ fn matches_for(rule: &Rule, context: &Context) -> Vec<Match> {
             }
             manifests
                 .into_iter()
-                .map(|file| Match { file: file.clone(), line: 1, snippet: file.clone() })
+                .map(|file| Match {
+                    file: file.clone(),
+                    line: 1,
+                    snippet: file.clone(),
+                })
                 .collect()
         }
         "supply-chain.lockfile.integrity-hash-absent" => {
@@ -296,7 +306,11 @@ fn matches_for(rule: &Rule, context: &Context) -> Vec<Match> {
                 if integrity_covered(text) {
                     continue;
                 }
-                out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+                out.push(Match {
+                    file: file.clone(),
+                    line: 1,
+                    snippet: file.clone(),
+                });
             }
             out
         }
@@ -304,23 +318,42 @@ fn matches_for(rule: &Rule, context: &Context) -> Vec<Match> {
             if ignore_scripts_is_configured(context) {
                 return vec![];
             }
-            regex_matches(install_time_execution(), context, Some(package_manifest()), true)
+            regex_matches(
+                install_time_execution(),
+                context,
+                Some(package_manifest()),
+                true,
+            )
         }
-        "supply-chain.plugin.unpinned-remote-plugin" => regex_matches(unpinned_remote_plugin(), context, None, true),
+        "supply-chain.plugin.unpinned-remote-plugin" => {
+            regex_matches(unpinned_remote_plugin(), context, None, true)
+        }
         "supply-chain.artifact.committed-build-output" => context
             .files
             .iter()
             .filter(|f| build_output_path().is_match(f))
-            .map(|file| Match { file: file.clone(), line: 1, snippet: file.clone() })
+            .map(|file| Match {
+                file: file.clone(),
+                line: 1,
+                snippet: file.clone(),
+            })
             .collect(),
-        "supply-chain.cache.poisoning-surface" => {
-            regex_matches(cache_poisoning_surface(), context, Some(workflow_file()), false)
-        }
+        "supply-chain.cache.poisoning-surface" => regex_matches(
+            cache_poisoning_surface(),
+            context,
+            Some(workflow_file()),
+            false,
+        ),
         _ => vec![],
     }
 }
 
-fn regex_matches(pattern: &Regex, context: &Context, file_guard: Option<&Regex>, global: bool) -> Vec<Match> {
+fn regex_matches(
+    pattern: &Regex,
+    context: &Context,
+    file_guard: Option<&Regex>,
+    global: bool,
+) -> Vec<Match> {
     let mut out = Vec::new();
     for file in &context.files {
         if let Some(guard) = file_guard {
@@ -333,7 +366,11 @@ fn regex_matches(pattern: &Regex, context: &Context, file_guard: Option<&Regex>,
             continue;
         }
         for m in raw_matches(pattern, text, global) {
-            out.push(Match { file: file.clone(), line: line_of(text, m.index), snippet: m.whole });
+            out.push(Match {
+                file: file.clone(),
+                line: line_of(text, m.index),
+                snippet: m.whole,
+            });
         }
     }
     out
@@ -345,8 +382,13 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
     for rule in RULES {
         for m in matches_for(rule, context) {
             let artifact = context.find_artifact(&m.file);
-            let gate = if rule.execution_chain { Some(sandbox_gate(context)) } else { None };
-            let mut uncertainty: Vec<String> = rule.uncertainty.iter().map(|s| s.to_string()).collect();
+            let gate = if rule.execution_chain {
+                Some(sandbox_gate(context))
+            } else {
+                None
+            };
+            let mut uncertainty: Vec<String> =
+                rule.uncertainty.iter().map(|s| s.to_string()).collect();
             if let Some(g) = &gate {
                 uncertainty.push(g.note.clone());
             }
@@ -369,7 +411,10 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 severity_hint: rule.severity_hint.to_string(),
                 sources: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
                 sinks: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
-                attacker_capabilities: vec!["read-repository".to_string(), "control-repository-content".to_string()],
+                attacker_capabilities: vec![
+                    "read-repository".to_string(),
+                    "control-repository-content".to_string(),
+                ],
                 preconditions: vec![hostile_precondition(&m.file, rule.environment)],
                 effects: vec![Fact {
                     kind: rule.effect_kind.to_string(),
@@ -385,7 +430,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 required_controls: vec![],
                 observed_controls: vec![],
                 chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                evidence_refs: artifact
+                    .map(|a| a.evidence_refs.clone())
+                    .unwrap_or_default(),
                 detector_metadata,
                 uncertainty,
             });

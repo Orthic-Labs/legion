@@ -63,8 +63,16 @@ pub fn evaluate_risk(
         .iter()
         .filter(|r| applies_to(r, subject_kind, subject_id))
         .collect();
-    let active: Vec<&Value> = applicable.iter().filter(|r| !is_expired(r, now)).copied().collect();
-    let expired: Vec<Value> = applicable.iter().filter(|r| is_expired(r, now)).map(|r| (*r).clone()).collect();
+    let active: Vec<&Value> = applicable
+        .iter()
+        .filter(|r| !is_expired(r, now))
+        .copied()
+        .collect();
+    let expired: Vec<Value> = applicable
+        .iter()
+        .filter(|r| is_expired(r, now))
+        .map(|r| (*r).clone())
+        .collect();
     let binding_mismatch: Vec<&Value> = applicable
         .iter()
         .filter(|r| {
@@ -117,7 +125,10 @@ pub fn baseline_record(id: &str, revision: &Value, findings: &[Value], created_a
         })
         .collect();
     retained.sort_by(|a, b| {
-        a["fingerprint"].as_str().unwrap_or("").cmp(b["fingerprint"].as_str().unwrap_or(""))
+        a["fingerprint"]
+            .as_str()
+            .unwrap_or("")
+            .cmp(b["fingerprint"].as_str().unwrap_or(""))
     });
     json!({
         "schemaVersion": 1,
@@ -162,8 +173,14 @@ pub fn finding_fingerprint(finding: &Value) -> String {
 
 pub fn map_evidence_to_controls(report: &Value, controls: &[Value]) -> Vec<Value> {
     let empty = Vec::new();
-    let findings = report.get("findings").and_then(Value::as_array).unwrap_or(&empty);
-    let coverage_gaps = report.get("coverage_gaps").and_then(Value::as_array).unwrap_or(&empty);
+    let findings = report
+        .get("findings")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty);
+    let coverage_gaps = report
+        .get("coverage_gaps")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty);
     controls
         .iter()
         .map(|control| {
@@ -206,7 +223,13 @@ pub fn map_evidence_to_controls(report: &Value, controls: &[Value]) -> Vec<Value
 // ---- lineage.mjs ----
 
 pub const LINEAGE_STATES: [&str; 7] = [
-    "new", "unchanged", "resolved", "reopened", "accepted", "expired", "superseded",
+    "new",
+    "unchanged",
+    "resolved",
+    "reopened",
+    "accepted",
+    "expired",
+    "superseded",
 ];
 
 #[derive(Debug, Clone, Default)]
@@ -284,7 +307,10 @@ pub fn apply_policy(policy: &Value, plan: &Value, host_policy: &Value) -> Value 
         .and_then(Value::as_array)
         .map(|a| a.iter().filter_map(Value::as_str).collect())
         .unwrap_or_default();
-    let rollout = policy.get("rollout").and_then(Value::as_str).unwrap_or("advisory");
+    let rollout = policy
+        .get("rollout")
+        .and_then(Value::as_str)
+        .unwrap_or("advisory");
     let denominator_providers: Vec<&str> = plan
         .get("denominator")
         .and_then(|d| d.get("providerIds"))
@@ -351,7 +377,10 @@ mod tests {
 
     #[test]
     fn baseline_record_sorts_ids_and_fingerprints() {
-        let findings = vec![json!({"id": "b", "fingerprint": "fb"}), json!({"id": "a", "fingerprint": "fa"})];
+        let findings = vec![
+            json!({"id": "b", "fingerprint": "fb"}),
+            json!({"id": "a", "fingerprint": "fa"}),
+        ];
         let record = baseline_record("base1", &json!("r1"), &findings, "2026-01-01");
         assert_eq!(record["findingIds"], json!(["a", "b"]));
         assert_eq!(record["findingFingerprints"], json!(["fa", "fb"]));
@@ -380,7 +409,13 @@ mod tests {
 
     #[test]
     fn classify_lineage_prioritizes_supersession_then_reopen() {
-        let mut input = LineageInput { in_baseline: true, in_current: true, higher_impact_than_accepted: true, accepted_risk_active: true, ..Default::default() };
+        let mut input = LineageInput {
+            in_baseline: true,
+            in_current: true,
+            higher_impact_than_accepted: true,
+            accepted_risk_active: true,
+            ..Default::default()
+        };
         assert_eq!(classify_lineage(&input), "reopened");
         input.higher_impact_than_accepted = false;
         assert_eq!(classify_lineage(&input), "accepted");

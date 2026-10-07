@@ -13,7 +13,9 @@ use std::path::PathBuf;
 
 use legion_research::wf_port::wf026::patch_guard;
 use legion_research::wf_port::wf026::patcher;
-use legion_research::wf_port::wf026::{meter, patcher::DEFAULT_MAX_HUNKS, patcher::DEFAULT_MAX_HUNK_BYTES};
+use legion_research::wf_port::wf026::{
+    meter, patcher::DEFAULT_MAX_HUNKS, patcher::DEFAULT_MAX_HUNK_BYTES,
+};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
@@ -96,13 +98,17 @@ fn meter_consume_refuses_over_budget_worker_start() {
 fn patch_guard_receipt_is_rejected_by_patcher_validation_same_as_python() {
     let dir = scratch_dir("patch-guard-mismatch");
     let draft = fixtures_dir().join("draft.md");
-    let receipt = patch_guard::issue_receipt(&draft, "run-fixture-ok", Some(&dir.join("key"))).unwrap();
+    let receipt =
+        patch_guard::issue_receipt(&draft, "run-fixture-ok", Some(&dir.join("key"))).unwrap();
 
     let draft_bytes = fs::read(&draft).unwrap();
     let (ok, reason) =
         patcher::validate_correction_receipt(&receipt, Some(&draft_bytes), Some(&dir.join("key")));
     assert!(!ok);
-    assert_eq!(reason, "receipt must be an authenticated rhook patch receipt v2");
+    assert_eq!(
+        reason,
+        "receipt must be an authenticated rhook patch receipt v2"
+    );
 }
 
 /// Applying a correction diff directly (bypassing the receipt mismatch
@@ -149,7 +155,8 @@ fn valid_rhook_receipt_gates_a_successful_patch_apply() {
     let key = patch_guard::load_or_create_key(Some(&key_path)).unwrap();
     receipt["signature"] = json!(patch_guard::sign(&receipt, &key));
 
-    let (ok, reason) = patcher::validate_correction_receipt(&receipt, Some(&draft_bytes), Some(&key_path));
+    let (ok, reason) =
+        patcher::validate_correction_receipt(&receipt, Some(&draft_bytes), Some(&key_path));
     assert!(ok, "reason: {reason}");
 
     let diff = "--- a\n+++ b\n@@ -1,3 +1,3 @@\n line1\n-line2\n+LINE2\n line3\n";

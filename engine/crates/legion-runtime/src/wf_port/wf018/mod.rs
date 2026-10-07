@@ -106,7 +106,9 @@ fn owner_change_kinds(owner: &str) -> &'static [&'static str] {
 fn owner_authority_message(owner: &str) -> &'static str {
     match owner {
         "writing" => "writing proposals may change words only",
-        "designer" => "designer proposals may not change approved text; layout, style, and assets only",
+        "designer" => {
+            "designer proposals may not change approved text; layout, style, and assets only"
+        }
         "code" => "code proposals may change bounded source only",
         _ => "manual proposals change nothing automatically",
     }
@@ -144,7 +146,9 @@ pub fn assert_producer_is_not_verifier(proposal: &Value, verifier: &Value) -> Re
     let verifier_id = get_str(verifier, "id");
     if let (Some(p), Some(v)) = (producer_id, verifier_id) {
         if !p.is_empty() && p == v {
-            return Err("the producer may not verify its own proposal (identity match)".to_string());
+            return Err(
+                "the producer may not verify its own proposal (identity match)".to_string(),
+            );
         }
     }
     let producer_ctx = get_str(producer, "contextId");
@@ -170,7 +174,10 @@ fn matches_glob(path: &str, pattern: &str) -> bool {
         }
         escaped.push(ch);
     }
-    let escaped = escaped.replace("**", "\u{0}").replace('*', "[^/]*").replace('\u{0}', ".*");
+    let escaped = escaped
+        .replace("**", "\u{0}")
+        .replace('*', "[^/]*")
+        .replace('\u{0}', ".*");
     regex::Regex::new(&format!("^{escaped}$"))
         .map(|re| re.is_match(path))
         .unwrap_or(false)
@@ -222,7 +229,9 @@ fn local_reasoning_proposal(
     local_assert_owner(owner)?;
     let packet_owner = get_str(packet, "owner").unwrap_or("");
     if packet_owner != owner {
-        return Err(format!("packet owner {packet_owner} cannot produce a {owner} proposal"));
+        return Err(format!(
+            "packet owner {packet_owner} cannot produce a {owner} proposal"
+        ));
     }
     if changes.is_empty() {
         return Err("a proposal requires at least one change".to_string());
@@ -247,7 +256,12 @@ fn local_reasoning_proposal(
     let scope: Vec<String> = packet
         .get("scope")
         .and_then(Value::as_array)
-        .map(|values| values.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     let producer = packet.get("producer").cloned().unwrap_or_else(|| json!({}));
     let packet_digest = packet.get("digest").cloned().unwrap_or(Value::Null);
@@ -262,7 +276,10 @@ fn local_reasoning_proposal(
     body.insert("targetPaths".to_string(), json!(target_paths));
     body.insert(
         "preconditions".to_string(),
-        json!([format!("changes stay within packet scope {}", scope.join(", "))]),
+        json!([format!(
+            "changes stay within packet scope {}",
+            scope.join(", ")
+        )]),
     );
     body.insert("changes".to_string(), Value::Array(changes.to_vec()));
     body.insert("patch".to_string(), Value::Null);
@@ -286,7 +303,10 @@ fn local_reasoning_proposal(
 
 /// Local port of `blocksAutoApply` in `effect-graph.mjs`.
 fn local_blocks_auto_apply(effect_graph: &Value) -> bool {
-    if let Some(unplanned) = effect_graph.get("unplannedPublicSurfaceChanges").and_then(Value::as_array) {
+    if let Some(unplanned) = effect_graph
+        .get("unplannedPublicSurfaceChanges")
+        .and_then(Value::as_array)
+    {
         return !unplanned.is_empty();
     }
     effect_graph
@@ -303,12 +323,19 @@ fn local_blocks_auto_apply(effect_graph: &Value) -> bool {
 /// Port of `writingProposal` in `writing-proposal.mjs`. Words only — a
 /// non-text change or a change missing `contentItemId` is rejected outright
 /// rather than trimmed.
-pub fn writing_proposal(packet: &Value, changes: &[Value], binding: &Value) -> Result<Value, String> {
+pub fn writing_proposal(
+    packet: &Value,
+    changes: &[Value],
+    binding: &Value,
+) -> Result<Value, String> {
     for change in changes {
         // Authority first: a non-text change is rejected as an authority
         // breach, not as a missing-field problem.
         assert_owner_authority("writing", change)?;
-        if get_str(change, "contentItemId").map(|s| s.is_empty()).unwrap_or(true) {
+        if get_str(change, "contentItemId")
+            .map(|s| s.is_empty())
+            .unwrap_or(true)
+        {
             return Err("every writing change must name the content item it rewrites".to_string());
         }
     }
@@ -332,7 +359,11 @@ pub fn writing_proposal(packet: &Value, changes: &[Value], binding: &Value) -> R
     extra.insert("affectedFamilies".to_string(), json!(["copy", "narrative"]));
     extra.insert(
         "validationPlan".to_string(),
-        json!(["affected-provider-rerun:copy", "affected-provider-rerun:narrative", "claim-proof-recheck"]),
+        json!([
+            "affected-provider-rerun:copy",
+            "affected-provider-rerun:narrative",
+            "claim-proof-recheck"
+        ]),
     );
     extra.insert("contentItemIds".to_string(), json!(content_item_ids));
 
@@ -346,7 +377,12 @@ pub fn writing_proposal(packet: &Value, changes: &[Value], binding: &Value) -> R
 pub const VERIFICATION_SCHEMA_VERSION: u32 = 1;
 
 fn has_effects(effect_graph: &Value) -> bool {
-    for key in ["changedFiles", "changedSymbols", "changedConfig", "contentItems"] {
+    for key in [
+        "changedFiles",
+        "changedSymbols",
+        "changedConfig",
+        "contentItems",
+    ] {
         if effect_graph
             .get(key)
             .and_then(Value::as_array)
@@ -372,7 +408,10 @@ pub fn verify_proposal(
     gate_results: &[Value],
     binding: &Value,
 ) -> Result<Value, String> {
-    if get_str(verifier, "id").map(|s| s.is_empty()).unwrap_or(true) {
+    if get_str(verifier, "id")
+        .map(|s| s.is_empty())
+        .unwrap_or(true)
+    {
         return Err("verification requires a verifier identity".to_string());
     }
     assert_producer_is_not_verifier(proposal, verifier)?;
@@ -391,15 +430,24 @@ pub fn verify_proposal(
     let required_providers: Vec<String> = effect_graph
         .get("requiredProviders")
         .and_then(Value::as_array)
-        .map(|values| values.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     for provider_id in &required_providers {
         match result_by_provider.get(provider_id.as_str()) {
             None => {
-                coverage_gaps.push(json!({ "kind": "missing-affected-provider", "provider": provider_id }));
+                coverage_gaps
+                    .push(json!({ "kind": "missing-affected-provider", "provider": provider_id }));
             }
             Some(result) => {
-                let complete = result.get("complete").and_then(Value::as_bool).unwrap_or(false);
+                let complete = result
+                    .get("complete")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
                 if !complete {
                     coverage_gaps.push(json!({
                         "kind": "affected-provider-incomplete",
@@ -423,7 +471,12 @@ pub fn verify_proposal(
     let required_gates: Vec<String> = effect_graph
         .get("requiredGates")
         .and_then(Value::as_array)
-        .map(|values| values.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     for gate_id in &required_gates {
         match gate_by_id.get(gate_id.as_str()) {
@@ -451,7 +504,8 @@ pub fn verify_proposal(
             .get("unplannedPublicSurfaceChanges")
             .cloned()
             .unwrap_or_else(|| json!([]));
-        coverage_gaps.push(json!({ "kind": "unplanned-public-surface-change", "surfaces": surfaces }));
+        coverage_gaps
+            .push(json!({ "kind": "unplanned-public-surface-change", "surfaces": surfaces }));
     }
 
     coverage_gaps.sort_by(|a, b| {
@@ -463,9 +517,15 @@ pub fn verify_proposal(
     let valid = coverage_gaps.is_empty();
 
     let mut body = Map::new();
-    body.insert("schemaVersion".to_string(), json!(VERIFICATION_SCHEMA_VERSION));
+    body.insert(
+        "schemaVersion".to_string(),
+        json!(VERIFICATION_SCHEMA_VERSION),
+    );
     body.insert("kind".to_string(), json!("legion-remediation-verification"));
-    body.insert("proposalId".to_string(), proposal.get("id").cloned().unwrap_or(Value::Null));
+    body.insert(
+        "proposalId".to_string(),
+        proposal.get("id").cloned().unwrap_or(Value::Null),
+    );
     body.insert(
         "patchDigest".to_string(),
         proposal
@@ -494,7 +554,10 @@ pub fn verify_proposal(
         }),
     );
     body.insert("trustedProducerAssertions".to_string(), json!(false));
-    body.insert("providersChecked".to_string(), json!(required_providers.len()));
+    body.insert(
+        "providersChecked".to_string(),
+        json!(required_providers.len()),
+    );
     body.insert("gatesChecked".to_string(), json!(required_gates.len()));
     body.insert("coverageGaps".to_string(), Value::Array(coverage_gaps));
     body.insert("valid".to_string(), json!(valid));
@@ -573,7 +636,10 @@ pub struct ProcessSpec {
 /// Port of the injected `processRunner.run(spec)` contract used throughout
 /// the JS remediation modules.
 pub trait ProcessRunner {
-    fn run<'a>(&'a self, spec: ProcessSpec) -> Pin<Box<dyn Future<Output = ProcessOutcome> + Send + 'a>>;
+    fn run<'a>(
+        &'a self,
+        spec: ProcessSpec,
+    ) -> Pin<Box<dyn Future<Output = ProcessOutcome> + Send + 'a>>;
 }
 
 #[derive(Debug, Clone)]
@@ -641,7 +707,10 @@ pub async fn remove_remediation_worktree(
     path: &Path,
     process_runner: &dyn ProcessRunner,
 ) -> RemoveWorktreeResult {
-    let cwd = path.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
+    let cwd = path
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."));
     let result = process_runner
         .run(ProcessSpec {
             executable: "git".to_string(),

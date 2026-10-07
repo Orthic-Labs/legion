@@ -50,7 +50,8 @@ fn err(msg: impl Into<String>) -> BenchmarkError {
 fn canonical_digest<T: serde::Serialize>(value: &T) -> Result<String> {
     let canonical: serde_json::Value =
         serde_json::to_value(value).map_err(|e| err(format!("not serializable: {e}")))?;
-    let bytes = serde_json::to_vec(&canonical).map_err(|e| err(format!("not serializable: {e}")))?;
+    let bytes =
+        serde_json::to_vec(&canonical).map_err(|e| err(format!("not serializable: {e}")))?;
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
     Ok(format!("sha256:{}", hex::encode(hasher.finalize())))
@@ -105,7 +106,9 @@ pub fn file_bindings(paths: &[String], root: &Path) -> Result<Vec<Binding>> {
 /// `compositeBindingDigest`: stable composite digest over a binding array.
 pub fn composite_binding_digest(bindings: &[Binding]) -> Result<String> {
     if bindings.is_empty() {
-        return Err(err("compositeBindingDigest requires a non-empty binding array"));
+        return Err(err(
+            "compositeBindingDigest requires a non-empty binding array",
+        ));
     }
     canonical_digest(&bindings.to_vec())
 }
@@ -244,7 +247,10 @@ pub fn validate_fixtures(fixtures: &FixturesDoc) -> Result<FixtureStats> {
     let mut clean = 0usize;
     for c in &fixtures.cases {
         if c.id.is_empty() || !seen.insert(c.id.clone()) {
-            return Err(err(format!("duplicate or missing fixture case id: {}", c.id)));
+            return Err(err(format!(
+                "duplicate or missing fixture case id: {}",
+                c.id
+            )));
         }
         if c.file.is_empty() {
             return Err(err(format!("fixture case {}: file required", c.id)));
@@ -308,9 +314,16 @@ struct Candidate {
     line: i64,
 }
 
-fn normalize_candidate(raw: &RawCandidate, fallback_path: &str, case_id: &str) -> Result<Candidate> {
+fn normalize_candidate(
+    raw: &RawCandidate,
+    fallback_path: &str,
+    case_id: &str,
+) -> Result<Candidate> {
     let rule_id = raw.rule_id.clone();
-    let file = raw.file.clone().unwrap_or_else(|| fallback_path.to_string());
+    let file = raw
+        .file
+        .clone()
+        .unwrap_or_else(|| fallback_path.to_string());
     let line = raw.line;
     match (rule_id, line) {
         (Some(rule_id), Some(line)) if !rule_id.is_empty() && line >= 1 => {
@@ -401,8 +414,12 @@ pub fn measure_fixture_set(
     let mut fn_count = 0u64;
 
     for c in &fixtures.cases {
-        let raw = run_provider(c)
-            .map_err(|e| err(format!("provider runner failed on fixture case {}: {e}", c.id)))?;
+        let raw = run_provider(c).map_err(|e| {
+            err(format!(
+                "provider runner failed on fixture case {}: {e}",
+                c.id
+            ))
+        })?;
         let emitted = raw
             .iter()
             .map(|r| normalize_candidate(r, &c.file, &c.id))
@@ -430,7 +447,10 @@ pub fn measure_fixture_set(
                 fp += 1;
             }
         }
-        let case_fn = expected_keys.keys().filter(|k| !matched.contains(*k)).count();
+        let case_fn = expected_keys
+            .keys()
+            .filter(|k| !matched.contains(*k))
+            .count();
         fn_count += case_fn as u64;
         cases.push(CaseResult {
             case_id: c.id.clone(),
@@ -559,7 +579,10 @@ pub fn unmeasured_benchmark_record() -> BenchmarkRecord {
 
 /// `benchmarkRecordFor`: the benchmark record in the exact shape
 /// audit-plan/finalization consumes.
-pub fn benchmark_record_for(result: &BenchmarkResult, current: &ProviderBinding) -> BenchmarkRecord {
+pub fn benchmark_record_for(
+    result: &BenchmarkResult,
+    current: &ProviderBinding,
+) -> BenchmarkRecord {
     if !is_result_fresh(result, current) {
         return unmeasured_benchmark_record();
     }
@@ -652,7 +675,11 @@ pub fn measurement_evidence_from_file(
     required_providers: &[String],
 ) -> Result<Qualification> {
     let doc = load_benchmark_results(results_path)?;
-    Ok(qualification_from_results(&doc.results, current_by_provider, required_providers))
+    Ok(qualification_from_results(
+        &doc.results,
+        current_by_provider,
+        required_providers,
+    ))
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -756,7 +783,8 @@ pub struct LoadedResultsDoc {
 /// parse and validate a results document from disk. Never repairs.
 pub fn load_benchmark_results(path: &Path) -> Result<LoadedResultsDoc> {
     let text = fs::read_to_string(path)?;
-    let raw: ResultsDoc = serde_json::from_str(&text).map_err(|e| err(format!("invalid results document: {e}")))?;
+    let raw: ResultsDoc =
+        serde_json::from_str(&text).map_err(|e| err(format!("invalid results document: {e}")))?;
     assert_valid_results_doc(raw.schema_version, &raw.kind, &raw.results)?;
     Ok(LoadedResultsDoc {
         kind: raw.kind,
@@ -764,9 +792,15 @@ pub fn load_benchmark_results(path: &Path) -> Result<LoadedResultsDoc> {
     })
 }
 
-fn assert_valid_results_doc(schema_version: u32, kind: &str, results: &[BenchmarkResultRaw]) -> Result<()> {
+fn assert_valid_results_doc(
+    schema_version: u32,
+    kind: &str,
+    results: &[BenchmarkResultRaw],
+) -> Result<()> {
     if schema_version != BENCHMARK_SCHEMA_VERSION || kind != RESULTS_KIND {
-        return Err(err(format!("invalid {RESULTS_KIND}: schemaVersion/kind mismatch")));
+        return Err(err(format!(
+            "invalid {RESULTS_KIND}: schemaVersion/kind mismatch"
+        )));
     }
     for r in results {
         if r.kind != RESULT_KIND {
@@ -872,27 +906,35 @@ pub fn cmd_status(
     required: &[String],
     current_by_provider: &BTreeMap<String, ProviderBinding>,
 ) -> Result<StatusReport> {
-    let doc: ResultsDoc =
-        serde_json::from_str(results_json).map_err(|e| err(format!("invalid results JSON: {e}")))?;
-    let results: Vec<BenchmarkResult> = doc.results.into_iter().map(BenchmarkResult::from).collect();
+    let doc: ResultsDoc = serde_json::from_str(results_json)
+        .map_err(|e| err(format!("invalid results JSON: {e}")))?;
+    let results: Vec<BenchmarkResult> =
+        doc.results.into_iter().map(BenchmarkResult::from).collect();
     let qualification = qualification_from_results(&results, current_by_provider, required);
-    let exit_code = if qualification.unmeasured_providers.is_empty() { 0 } else { 1 };
-    Ok(StatusReport { qualification, exit_code })
+    let exit_code = if qualification.unmeasured_providers.is_empty() {
+        0
+    } else {
+        1
+    };
+    Ok(StatusReport {
+        qualification,
+        exit_code,
+    })
 }
 
 /// Parses a `--current-binding <bindings.json>` file's `{byProvider: {...}}`
 /// (or bare `{id: binding}`) shape into the map `cmd_status` expects.
 pub fn parse_current_binding_file(json_text: &str) -> Result<BTreeMap<String, ProviderBinding>> {
-    let value: serde_json::Value =
-        serde_json::from_str(json_text).map_err(|e| err(format!("invalid current-binding JSON: {e}")))?;
+    let value: serde_json::Value = serde_json::from_str(json_text)
+        .map_err(|e| err(format!("invalid current-binding JSON: {e}")))?;
     let by_provider = value.get("byProvider").cloned().unwrap_or(value);
     let obj = by_provider
         .as_object()
         .ok_or_else(|| err("current-binding file must be an object"))?;
     let mut out = BTreeMap::new();
     for (id, v) in obj {
-        let binding: ProviderBinding =
-            serde_json::from_value(v.clone()).map_err(|e| err(format!("invalid binding for {id}: {e}")))?;
+        let binding: ProviderBinding = serde_json::from_value(v.clone())
+            .map_err(|e| err(format!("invalid binding for {id}: {e}")))?;
         out.insert(id.clone(), binding);
     }
     Ok(out)
@@ -933,7 +975,9 @@ pub fn run_cli(argv: &[String]) -> i32 {
         }
         "verify" => {
             let Some(results_path) = flag_value(rest, "results") else {
-                eprintln!("usage: provider-benchmarks verify --results <results.json> [--root <dir>]");
+                eprintln!(
+                    "usage: provider-benchmarks verify --results <results.json> [--root <dir>]"
+                );
                 return 2;
             };
             let root = flag_value(rest, "root").map(PathBuf::from);

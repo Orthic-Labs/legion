@@ -28,7 +28,7 @@ pub use active_run::{
     activate, clear, current, executable_runs, run_cli as active_run_cli, selection, PointerValue,
     RunManifest, RunRecord, Selection,
 };
-pub use citecheck::{check as citecheck_check, CitePair, CiteCheckResult, SentenceRow};
+pub use citecheck::{check as citecheck_check, CiteCheckResult, CitePair, SentenceRow};
 pub use contradictions::{derive as contradictions_derive, Consensus, Contradiction, DeriveResult};
 pub use control::{
     checkpoint_shard, decide_stop, init_shards, resume_shards, run_cli as control_run_cli,

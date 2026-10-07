@@ -23,7 +23,12 @@ impl TempDir {
             ((std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+                .as_nanos())
+            .wrapping_shl(20)
+                | ({
+                    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                    u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+                }))
         ));
         fs::create_dir_all(&dir).unwrap();
         TempDir(dir)
@@ -148,5 +153,7 @@ fn insert_wrapper_lines_respect_position_and_syntax() {
     };
     let lines = insert::build_insert_wrapper_lines("s1", 2, "", &cs, false);
     assert_eq!(lines.len(), 5);
-    assert!(lines.iter().any(|l| l.contains("data-impeccable-mode=\"insert\"")));
+    assert!(lines
+        .iter()
+        .any(|l| l.contains("data-impeccable-mode=\"insert\"")));
 }

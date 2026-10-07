@@ -25,9 +25,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
         }
         index += 1;
     }
-    let id = id.ok_or_else(|| {
-        CommandError::usage("explain requires a finding or gap id")
-    })?;
+    let id = id.ok_or_else(|| CommandError::usage("explain requires a finding or gap id"))?;
     let source = run_dir.as_deref().and_then(load_run_source);
     let findings = source
         .as_ref()

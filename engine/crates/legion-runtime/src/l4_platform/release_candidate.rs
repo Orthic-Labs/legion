@@ -5,7 +5,11 @@ use serde_json::{json, Map, Value};
 
 /// `createReleaseCandidate(input)`.
 pub fn create_release_candidate(input: &Value) -> Value {
-    let raw_artifacts = input.get("artifacts").and_then(Value::as_array).cloned().unwrap_or_default();
+    let raw_artifacts = input
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let artifacts: Vec<Value> = raw_artifacts
         .iter()
         .map(|artifact| {
@@ -26,7 +30,11 @@ pub fn create_release_candidate(input: &Value) -> Value {
             path_missing || digest_missing
         })
         .map(|artifact| {
-            artifact.get("path").and_then(Value::as_str).unwrap_or("unknown").to_string()
+            artifact
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_string()
         })
         .collect();
 
@@ -62,7 +70,10 @@ pub fn create_release_candidate(input: &Value) -> Value {
 /// `verifyCandidateArtifact(candidate, artifact)`.
 pub fn verify_candidate_artifact(candidate: &Value, artifact: &Value) -> Value {
     let empty: Vec<Value> = Vec::new();
-    let candidate_artifacts = candidate.get("artifacts").and_then(Value::as_array).unwrap_or(&empty);
+    let candidate_artifacts = candidate
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty);
     let path = artifact.get("path");
     let id = artifact.get("id");
     let expected = candidate_artifacts.iter().find(|item| {
@@ -114,9 +125,15 @@ mod tests {
         let candidate = create_release_candidate(&json!({
             "artifacts": [{"path": "dist/pkg", "digest": "sha256:x"}],
         }));
-        let ok = verify_candidate_artifact(&candidate, &json!({"path": "dist/pkg", "digest": "sha256:x"}));
+        let ok = verify_candidate_artifact(
+            &candidate,
+            &json!({"path": "dist/pkg", "digest": "sha256:x"}),
+        );
         assert_eq!(ok["status"], "pass");
-        let bad = verify_candidate_artifact(&candidate, &json!({"path": "dist/pkg", "digest": "sha256:y"}));
+        let bad = verify_candidate_artifact(
+            &candidate,
+            &json!({"path": "dist/pkg", "digest": "sha256:y"}),
+        );
         assert_eq!(bad["status"], "fail");
         let unproven = verify_candidate_artifact(&candidate, &json!({"path": "dist/other"}));
         assert_eq!(unproven["status"], "unproven");

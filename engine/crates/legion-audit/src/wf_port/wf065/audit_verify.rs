@@ -146,14 +146,38 @@ pub fn classify_replay(planned_checks: &[String], network_sandbox_active: bool) 
 /// through to a replayed `collect-facts.mjs` child process.
 pub fn allowed_child_keys() -> BTreeSet<&'static str> {
     [
-        "PATH", "Path", "HOME", "USER", "SHELL", "TERM", "LANG", "LC_ALL", "TMPDIR", "TEMP", "TMP",
-        "SYSTEMROOT", "PATHEXT", "COMSPEC", "WINDIR",
-        "NODE", "NODE_PATH", "NODE_OPTIONS",
-        "AUDIT_OFFLINE", "AUDIT_NETWORK_GUARD",
-        "npm_config_offline", "CARGO_NET_OFFLINE", "PIP_NO_INDEX",
-        "GOPROXY", "GOSUMDB", "BUNDLE_FROZEN", "MAVEN_ARGS", "GRADLE_OPTS",
-        "CORTEX_BIN", "RESEARCH_RUN_ROOT",
-        "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED",
+        "PATH",
+        "Path",
+        "HOME",
+        "USER",
+        "SHELL",
+        "TERM",
+        "LANG",
+        "LC_ALL",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "SYSTEMROOT",
+        "PATHEXT",
+        "COMSPEC",
+        "WINDIR",
+        "NODE",
+        "NODE_PATH",
+        "NODE_OPTIONS",
+        "AUDIT_OFFLINE",
+        "AUDIT_NETWORK_GUARD",
+        "npm_config_offline",
+        "CARGO_NET_OFFLINE",
+        "PIP_NO_INDEX",
+        "GOPROXY",
+        "GOSUMDB",
+        "BUNDLE_FROZEN",
+        "MAVEN_ARGS",
+        "GRADLE_OPTS",
+        "CORTEX_BIN",
+        "RESEARCH_RUN_ROOT",
+        "PYTHONDONTWRITEBYTECODE",
+        "PYTHONUNBUFFERED",
     ]
     .into_iter()
     .collect()
@@ -306,14 +330,23 @@ pub fn frozen_contract(plan: &serde_json::Value) -> FrozenContract {
             .pointer("/binding/registryDigest")
             .cloned()
             .unwrap_or(serde_json::Value::Null),
-        denominator: plan.get("denominator").cloned().unwrap_or(serde_json::Value::Null),
+        denominator: plan
+            .get("denominator")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
         providers: providers
             .iter()
             .map(|p| FrozenProvider {
                 id: p.get("id").cloned().unwrap_or(serde_json::Value::Null),
                 runner: p.get("runner").cloned().unwrap_or(serde_json::Value::Null),
-                denominator: p.get("denominator").cloned().unwrap_or(serde_json::Value::Null),
-                benchmark: p.get("benchmark").cloned().unwrap_or(serde_json::Value::Null),
+                denominator: p
+                    .get("denominator")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null),
+                benchmark: p
+                    .get("benchmark")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null),
                 conditional_activation: p
                     .get("conditionalActivation")
                     .cloned()
@@ -329,7 +362,10 @@ pub fn frozen_contract(plan: &serde_json::Value) -> FrozenContract {
 
 /// `canonicalJson(frozenContract(priorPlan)) !== canonicalJson(frozenContract(recomputed))`
 /// — true when the two plans' frozen contracts MATCH.
-pub fn frozen_contracts_match(prior_plan: &serde_json::Value, recomputed_plan: &serde_json::Value) -> bool {
+pub fn frozen_contracts_match(
+    prior_plan: &serde_json::Value,
+    recomputed_plan: &serde_json::Value,
+) -> bool {
     let prior = canonical_digest(&frozen_contract(prior_plan));
     let recomputed = canonical_digest(&frozen_contract(recomputed_plan));
     match (prior, recomputed) {
@@ -409,7 +445,8 @@ impl ReplayRunner for NodeCollectFactsRunner {
         scope_args: &[String],
         env: &BTreeMap<String, String>,
     ) -> Result<serde_json::Value, String> {
-        std::fs::create_dir_all(out_dir).map_err(|e| format!("mkdir {}: {e}", out_dir.display()))?;
+        std::fs::create_dir_all(out_dir)
+            .map_err(|e| format!("mkdir {}: {e}", out_dir.display()))?;
         let mut cmd = std::process::Command::new(&self.node_bin);
         cmd.arg(&self.collect_facts_script)
             .arg(workspace)
@@ -583,7 +620,11 @@ pub fn run(args: &VerifyArgs, runner: &dyn ReplayRunner) -> (i32, RunOutcome) {
     let planned_checks: Vec<String> = prior_plan
         .pointer("/denominator/expectedChecks")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     let replay_plan = classify_replay(&planned_checks, network_sandbox_active);
     outcome.unproven_checks = replay_plan.unproven.clone();
@@ -597,7 +638,10 @@ pub fn run(args: &VerifyArgs, runner: &dyn ReplayRunner) -> (i32, RunOutcome) {
             .and_then(|v| v.as_str())
             .unwrap_or_default()
             .to_string();
-        let scope = prior_plan.get("scope").cloned().unwrap_or(serde_json::Value::Null);
+        let scope = prior_plan
+            .get("scope")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
         let scope_args = scope_replay_args(&scope);
         let mut parent_env: BTreeMap<String, String> = BTreeMap::new();
         for (k, v) in std::env::vars() {
@@ -610,7 +654,13 @@ pub fn run(args: &VerifyArgs, runner: &dyn ReplayRunner) -> (i32, RunOutcome) {
             std::process::id(),
             REPLAY_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
-        match runner.replay(&workspace, &replay_plan.replayable, &out_dir, &scope_args, &env) {
+        match runner.replay(
+            &workspace,
+            &replay_plan.replayable,
+            &out_dir,
+            &scope_args,
+            &env,
+        ) {
             Ok(f) => fresh = Some(f),
             Err(_) => {
                 // A replay spawn failure is itself drift: the checks could
@@ -626,11 +676,17 @@ pub fn run(args: &VerifyArgs, runner: &dyn ReplayRunner) -> (i32, RunOutcome) {
 
     if let Some(fresh_facts) = &fresh {
         let before: Vec<CheckResult> = serde_json::from_value(
-            prior.get("checks").cloned().unwrap_or(serde_json::Value::Array(vec![])),
+            prior
+                .get("checks")
+                .cloned()
+                .unwrap_or(serde_json::Value::Array(vec![])),
         )
         .unwrap_or_default();
         let after: Vec<CheckResult> = serde_json::from_value(
-            fresh_facts.get("checks").cloned().unwrap_or(serde_json::Value::Array(vec![])),
+            fresh_facts
+                .get("checks")
+                .cloned()
+                .unwrap_or(serde_json::Value::Array(vec![])),
         )
         .unwrap_or_default();
         let before_by_name: BTreeMap<&str, &CheckResult> =
@@ -692,7 +748,11 @@ mod run_tests {
             _scope_args: &[String],
             _env: &BTreeMap<String, String>,
         ) -> Result<serde_json::Value, String> {
-            self.result.lock().unwrap().take().unwrap_or(Err("no fixture set".into()))
+            self.result
+                .lock()
+                .unwrap()
+                .take()
+                .unwrap_or(Err("no fixture set".into()))
         }
     }
 
@@ -713,7 +773,9 @@ mod run_tests {
 
     #[test]
     fn missing_facts_flag_is_usage_error() {
-        let runner = FakeRunner { result: Mutex::new(None) };
+        let runner = FakeRunner {
+            result: Mutex::new(None),
+        };
         let (code, outcome) = run(&VerifyArgs::default(), &runner);
         assert_eq!(code, 2);
         assert!(outcome.usage_error.is_some());
@@ -724,8 +786,13 @@ mod run_tests {
         let dir = std::env::temp_dir().join(format!("avr-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let facts_path = write_json(&dir, "facts.json", &serde_json::json!({"workspace": "/x"}));
-        let runner = FakeRunner { result: Mutex::new(None) };
-        let args = VerifyArgs { facts: Some(facts_path), plan: Some(dir.join("nope.json").to_string_lossy().to_string()) };
+        let runner = FakeRunner {
+            result: Mutex::new(None),
+        };
+        let args = VerifyArgs {
+            facts: Some(facts_path),
+            plan: Some(dir.join("nope.json").to_string_lossy().to_string()),
+        };
         let (code, outcome) = run(&args, &runner);
         assert_eq!(code, 2);
         assert!(outcome.usage_error.unwrap().starts_with("plan missing"));
@@ -752,8 +819,13 @@ mod run_tests {
             "checks": [],
         });
         let facts_path = write_json(&dir, "facts.json", &facts);
-        let runner = FakeRunner { result: Mutex::new(None) };
-        let args = VerifyArgs { facts: Some(facts_path), plan: Some(plan_path) };
+        let runner = FakeRunner {
+            result: Mutex::new(None),
+        };
+        let args = VerifyArgs {
+            facts: Some(facts_path),
+            plan: Some(plan_path),
+        };
         let (code, outcome) = run(&args, &runner);
         // "build" is always unproven — 1 drift point, matching the JS
         // `unprovenChecks.length` contribution. The plan here is also
@@ -779,10 +851,8 @@ mod run_tests {
             "denominator": {"expectedChecks": ["types"]},
             "scope": {},
         });
-        let sealed_map = crate::wf_port::wf064::plan::seal_plan(
-            unsealed_plan.as_object().unwrap(),
-            None,
-        );
+        let sealed_map =
+            crate::wf_port::wf064::plan::seal_plan(unsealed_plan.as_object().unwrap(), None);
         let plan = serde_json::Value::Object(sealed_map);
         let plan_path = write_json(&dir, "plan.json", &plan);
         let facts = serde_json::json!({
@@ -795,7 +865,10 @@ mod run_tests {
         let runner = FakeRunner {
             result: Mutex::new(Some(Ok(facts.clone()))),
         };
-        let args = VerifyArgs { facts: Some(facts_path), plan: Some(plan_path) };
+        let args = VerifyArgs {
+            facts: Some(facts_path),
+            plan: Some(plan_path),
+        };
         let (code, outcome) = run(&args, &runner);
         std::env::remove_var("AUDIT_NETWORK_GUARD");
         assert_eq!(outcome.unproven_checks, Vec::<String>::new());
@@ -822,8 +895,13 @@ mod run_tests {
         });
         let facts_path = write_json(&dir, "facts.json", &facts);
         std::env::set_var("AUDIT_NETWORK_GUARD", "active");
-        let runner = FakeRunner { result: Mutex::new(Some(Err("boom".into()))) };
-        let args = VerifyArgs { facts: Some(facts_path), plan: Some(plan_path) };
+        let runner = FakeRunner {
+            result: Mutex::new(Some(Err("boom".into()))),
+        };
+        let args = VerifyArgs {
+            facts: Some(facts_path),
+            plan: Some(plan_path),
+        };
         let (code, outcome) = run(&args, &runner);
         std::env::remove_var("AUDIT_NETWORK_GUARD");
         assert_eq!(code, 1);

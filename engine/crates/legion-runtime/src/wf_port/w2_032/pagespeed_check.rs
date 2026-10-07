@@ -28,11 +28,41 @@ pub struct Threshold {
 }
 
 pub const CWV_THRESHOLDS: &[Threshold] = &[
-    Threshold { metric: "largest_contentful_paint", good: 2500.0, poor: 4000.0, unit: "ms", label: "LCP" },
-    Threshold { metric: "interaction_to_next_paint", good: 200.0, poor: 500.0, unit: "ms", label: "INP" },
-    Threshold { metric: "cumulative_layout_shift", good: 0.1, poor: 0.25, unit: "", label: "CLS" },
-    Threshold { metric: "first_contentful_paint", good: 1800.0, poor: 3000.0, unit: "ms", label: "FCP" },
-    Threshold { metric: "experimental_time_to_first_byte", good: 800.0, poor: 1800.0, unit: "ms", label: "TTFB" },
+    Threshold {
+        metric: "largest_contentful_paint",
+        good: 2500.0,
+        poor: 4000.0,
+        unit: "ms",
+        label: "LCP",
+    },
+    Threshold {
+        metric: "interaction_to_next_paint",
+        good: 200.0,
+        poor: 500.0,
+        unit: "ms",
+        label: "INP",
+    },
+    Threshold {
+        metric: "cumulative_layout_shift",
+        good: 0.1,
+        poor: 0.25,
+        unit: "",
+        label: "CLS",
+    },
+    Threshold {
+        metric: "first_contentful_paint",
+        good: 1800.0,
+        poor: 3000.0,
+        unit: "ms",
+        label: "FCP",
+    },
+    Threshold {
+        metric: "experimental_time_to_first_byte",
+        good: 800.0,
+        poor: 1800.0,
+        unit: "ms",
+        label: "TTFB",
+    },
 ];
 
 fn threshold_for(metric: &str) -> Option<&'static Threshold> {
@@ -45,7 +75,10 @@ pub const PSI_METRIC_MAP: &[(&str, &str)] = &[
     ("INTERACTION_TO_NEXT_PAINT", "interaction_to_next_paint"),
     ("CUMULATIVE_LAYOUT_SHIFT_SCORE", "cumulative_layout_shift"),
     ("FIRST_CONTENTFUL_PAINT_MS", "first_contentful_paint"),
-    ("EXPERIMENTAL_TIME_TO_FIRST_BYTE", "experimental_time_to_first_byte"),
+    (
+        "EXPERIMENTAL_TIME_TO_FIRST_BYTE",
+        "experimental_time_to_first_byte",
+    ),
 ];
 
 /// Mirrors `rate_metric`: "good" | "needs-improvement" | "poor" | "unknown".
@@ -74,7 +107,13 @@ pub fn validate_url(url: &str) -> bool {
         Some(h) if !h.is_empty() => h,
         _ => return false,
     };
-    const BLOCKED: &[&str] = &["localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal"];
+    const BLOCKED: &[&str] = &[
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "::1",
+        "metadata.google.internal",
+    ];
     if BLOCKED.contains(&host.as_str()) {
         return false;
     }
@@ -89,9 +128,7 @@ pub fn validate_url(url: &str) -> bool {
 fn is_private_or_loopback_or_link_local(ip: std::net::IpAddr) -> bool {
     match ip {
         std::net::IpAddr::V4(v4) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),
-        std::net::IpAddr::V6(v6) => {
-            v6.is_loopback() || (v6.segments()[0] & 0xffc0) == 0xfe80
-        }
+        std::net::IpAddr::V6(v6) => v6.is_loopback() || (v6.segments()[0] & 0xffc0) == 0xfe80,
     }
 }
 
@@ -117,7 +154,11 @@ fn parse_scheme_host(url: &str) -> Option<ParsedScheme> {
             Some(colon) => &host_port[..colon],
             None => host_port,
         };
-        if host.is_empty() { None } else { Some(host.to_lowercase()) }
+        if host.is_empty() {
+            None
+        } else {
+            Some(host.to_lowercase())
+        }
     };
     Some(ParsedScheme { scheme, hostname })
 }
@@ -199,9 +240,12 @@ pub struct PsiResult {
 }
 
 const LAB_AUDIT_IDS: &[&str] = &[
-    "first-contentful-paint", "largest-contentful-paint",
-    "total-blocking-time", "cumulative-layout-shift",
-    "speed-index", "interactive",
+    "first-contentful-paint",
+    "largest-contentful-paint",
+    "total-blocking-time",
+    "cumulative-layout-shift",
+    "speed-index",
+    "interactive",
 ];
 
 /// Parses a raw PSI v5 JSON response body into the same shape
@@ -212,13 +256,21 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
         strategy: strategy.to_string(),
         ..Default::default()
     };
-    result.analysis_timestamp = data.get("analysisUTCTimestamp").and_then(|v| v.as_str()).map(|s| s.to_string());
+    result.analysis_timestamp = data
+        .get("analysisUTCTimestamp")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     let lr = data.get("lighthouseResult").cloned().unwrap_or(Value::Null);
     if let Some(categories) = lr.get("categories").and_then(|c| c.as_object()) {
         for (cat_key, cat_data) in categories {
-            let score = cat_data.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
-            result.lighthouse_scores.insert(cat_key.clone(), (score * 100.0).round() as i64);
+            let score = cat_data
+                .get("score")
+                .and_then(|s| s.as_f64())
+                .unwrap_or(0.0);
+            result
+                .lighthouse_scores
+                .insert(cat_key.clone(), (score * 100.0).round() as i64);
         }
     }
 
@@ -229,9 +281,15 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
         for audit_id in LAB_AUDIT_IDS {
             if let Some(audit) = audits_obj.get(*audit_id) {
                 if let Some(nv) = audit.get("numericValue").and_then(|v| v.as_f64()) {
-                    let display = audit.get("displayValue").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let display = audit
+                        .get("displayValue")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
                     let score = audit.get("score").and_then(|v| v.as_f64());
-                    result.lab_metrics.insert(audit_id.to_string(), (nv, display, score));
+                    result
+                        .lab_metrics
+                        .insert(audit_id.to_string(), (nv, display, score));
                 }
             }
         }
@@ -241,14 +299,25 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
         let exp = data.get(exp_key).cloned().unwrap_or(Value::Null);
         let metrics = exp.get("metrics").and_then(|m| m.as_object());
         if let Some(metrics) = metrics {
-            let field_source = if exp_key == "loadingExperience" { "url" } else { "origin" };
+            let field_source = if exp_key == "loadingExperience" {
+                "url"
+            } else {
+                "origin"
+            };
             for (psi_name, crux_name) in PSI_METRIC_MAP {
                 if let Some(metric_data) = metrics.get(*psi_name) {
                     let p75 = metric_data.get("percentile").and_then(|v| v.as_f64());
-                    let category = metric_data.get("category").and_then(|v| v.as_str()).unwrap_or("NONE");
+                    let category = metric_data
+                        .get("category")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("NONE");
                     if let Some(p75) = p75 {
                         let p75_val = if *crux_name == "cumulative_layout_shift" {
-                            if p75 > 1.0 { p75 / 100.0 } else { p75 }
+                            if p75 > 1.0 {
+                                p75 / 100.0
+                            } else {
+                                p75
+                            }
                         } else {
                             p75
                         };
@@ -265,38 +334,79 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
 
     if let Some(audits_obj) = audits_obj {
         for (audit_id, audit) in audits_obj {
-            if audit.get("details").and_then(|d| d.get("type")).and_then(|t| t.as_str()) == Some("opportunity") {
-                if let Some(savings) = audit.get("details").and_then(|d| d.get("overallSavingsMs")).and_then(|v| v.as_f64()) {
+            if audit
+                .get("details")
+                .and_then(|d| d.get("type"))
+                .and_then(|t| t.as_str())
+                == Some("opportunity")
+            {
+                if let Some(savings) = audit
+                    .get("details")
+                    .and_then(|d| d.get("overallSavingsMs"))
+                    .and_then(|v| v.as_f64())
+                {
                     if savings > 0.0 {
                         result.opportunities.push(Opportunity {
                             id: audit_id.clone(),
-                            title: audit.get("title").and_then(|v| v.as_str()).unwrap_or(audit_id).to_string(),
+                            title: audit
+                                .get("title")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or(audit_id)
+                                .to_string(),
                             savings_ms: savings,
-                            description: audit.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                            description: audit
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
                         });
                     }
                 }
             }
         }
     }
-    result.opportunities.sort_by(|a, b| b.savings_ms.partial_cmp(&a.savings_ms).unwrap());
+    result
+        .opportunities
+        .sort_by(|a, b| b.savings_ms.partial_cmp(&a.savings_ms).unwrap());
 
     const DIAGNOSTIC_IDS: &[&str] = &[
-        "dom-size", "render-blocking-resources", "uses-long-cache-ttl",
-        "total-byte-weight", "mainthread-work-breakdown", "bootup-time",
-        "font-display", "third-party-summary", "largest-contentful-paint-element",
-        "layout-shifts", "long-tasks", "duplicated-javascript",
-        "legacy-javascript", "unused-javascript", "unused-css-rules",
+        "dom-size",
+        "render-blocking-resources",
+        "uses-long-cache-ttl",
+        "total-byte-weight",
+        "mainthread-work-breakdown",
+        "bootup-time",
+        "font-display",
+        "third-party-summary",
+        "largest-contentful-paint-element",
+        "layout-shifts",
+        "long-tasks",
+        "duplicated-javascript",
+        "legacy-javascript",
+        "unused-javascript",
+        "unused-css-rules",
     ];
     if let Some(audits_obj) = audits_obj {
         for diag_id in DIAGNOSTIC_IDS {
             if let Some(audit) = audits_obj.get(*diag_id) {
                 result.diagnostics.push(AuditFinding {
                     id: diag_id.to_string(),
-                    title: audit.get("title").and_then(|v| v.as_str()).unwrap_or(diag_id).to_string(),
-                    display: audit.get("displayValue").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    title: audit
+                        .get("title")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(diag_id)
+                        .to_string(),
+                    display: audit
+                        .get("displayValue")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                     score: audit.get("score").and_then(|v| v.as_f64()),
-                    description: audit.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    description: audit
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                 });
             }
         }
@@ -320,19 +430,36 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
             }
             result.failed_audits.push(AuditFinding {
                 id: audit_id.clone(),
-                title: audit.get("title").and_then(|v| v.as_str()).unwrap_or(audit_id).to_string(),
+                title: audit
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(audit_id)
+                    .to_string(),
                 score: Some(score),
-                display: audit.get("displayValue").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                description: audit.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                display: audit
+                    .get("displayValue")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                description: audit
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
             });
         }
     }
     result.passed_audits_count = passed_count;
     result.failed_audits.sort_by(|a, b| {
-        a.score.unwrap_or(1.0).partial_cmp(&b.score.unwrap_or(1.0)).unwrap()
+        a.score
+            .unwrap_or(1.0)
+            .partial_cmp(&b.score.unwrap_or(1.0))
+            .unwrap()
     });
 
-    if let (Some(seo_cat), Some(audits_obj)) = (lr.get("categories").and_then(|c| c.get("seo")), audits_obj) {
+    if let (Some(seo_cat), Some(audits_obj)) =
+        (lr.get("categories").and_then(|c| c.get("seo")), audits_obj)
+    {
         if let Some(refs) = seo_cat.get("auditRefs").and_then(|r| r.as_array()) {
             for r in refs {
                 let id = r.get("id").and_then(|v| v.as_str()).unwrap_or("");
@@ -340,7 +467,11 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
                     if let Some(score) = audit.get("score").and_then(|v| v.as_f64()) {
                         result.seo_audits.push(SeoAudit {
                             id: id.to_string(),
-                            title: audit.get("title").and_then(|v| v.as_str()).unwrap_or(id).to_string(),
+                            title: audit
+                                .get("title")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or(id)
+                                .to_string(),
                             score,
                             pass: score >= 0.9,
                         });
@@ -350,7 +481,10 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
         }
     }
 
-    if let (Some(a11y_cat), Some(audits_obj)) = (lr.get("categories").and_then(|c| c.get("accessibility")), audits_obj) {
+    if let (Some(a11y_cat), Some(audits_obj)) = (
+        lr.get("categories").and_then(|c| c.get("accessibility")),
+        audits_obj,
+    ) {
         if let Some(refs) = a11y_cat.get("auditRefs").and_then(|r| r.as_array()) {
             for r in refs {
                 let id = r.get("id").and_then(|v| v.as_str()).unwrap_or("");
@@ -359,8 +493,16 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
                         if score < 0.9 {
                             result.accessibility_audits.push(AuditFinding {
                                 id: id.to_string(),
-                                title: audit.get("title").and_then(|v| v.as_str()).unwrap_or(id).to_string(),
-                                display: audit.get("displayValue").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                                title: audit
+                                    .get("title")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or(id)
+                                    .to_string(),
+                                display: audit
+                                    .get("displayValue")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
                                 score: Some(score),
                                 description: String::new(),
                             });
@@ -411,7 +553,9 @@ pub struct CruxResult {
 pub fn parse_crux_response(record: &Value, target: &str, form_factor: Option<&str>) -> CruxResult {
     let mut result = CruxResult {
         target: target.to_string(),
-        form_factor: form_factor.map(|s| s.to_string()).unwrap_or_else(|| "ALL".to_string()),
+        form_factor: form_factor
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "ALL".to_string()),
         ..Default::default()
     };
 
@@ -460,7 +604,9 @@ pub fn parse_crux_response(record: &Value, target: &str, form_factor: Option<&st
             let mut m = CruxMetric {
                 p75: p75_val,
                 rating,
-                label: t.map(|t| t.label.to_string()).unwrap_or_else(|| metric_name.to_string()),
+                label: t
+                    .map(|t| t.label.to_string())
+                    .unwrap_or_else(|| metric_name.to_string()),
                 unit: t.map(|t| t.unit).unwrap_or(""),
                 good_threshold: t.map(|t| t.good),
                 poor_threshold: t.map(|t| t.poor),
@@ -501,7 +647,13 @@ pub fn parse_crux_response(record: &Value, target: &str, form_factor: Option<&st
 /// path), `Err(msg)` only for a transport-level failure or timeout
 /// (matching `requests.exceptions.RequestException`/`Timeout`).
 pub trait PsiClient {
-    fn get_psi(&self, url: &str, strategy: &str, api_key: Option<&str>, categories: &[&str]) -> Result<(u16, Value), String>;
+    fn get_psi(
+        &self,
+        url: &str,
+        strategy: &str,
+        api_key: Option<&str>,
+        categories: &[&str],
+    ) -> Result<(u16, Value), String>;
     fn post_crux(&self, body: &Value, api_key: &str) -> Result<(u16, Value), String>;
 }
 
@@ -509,7 +661,13 @@ pub trait PsiClient {
 pub struct ReqwestPsiClient;
 
 impl PsiClient for ReqwestPsiClient {
-    fn get_psi(&self, url: &str, strategy: &str, api_key: Option<&str>, categories: &[&str]) -> Result<(u16, Value), String> {
+    fn get_psi(
+        &self,
+        url: &str,
+        strategy: &str,
+        api_key: Option<&str>,
+        categories: &[&str],
+    ) -> Result<(u16, Value), String> {
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(120))
             .build()
@@ -530,13 +688,16 @@ impl PsiClient for ReqwestPsiClient {
             .send()
             .map_err(|e| {
                 if e.is_timeout() {
-                    "PageSpeed Insights request timed out (120s). The target page may be very slow.".to_string()
+                    "PageSpeed Insights request timed out (120s). The target page may be very slow."
+                        .to_string()
                 } else {
                     format!("Request failed: {e}")
                 }
             })?;
         let status = resp.status().as_u16();
-        let json = resp.json::<Value>().unwrap_or(Value::Object(Default::default()));
+        let json = resp
+            .json::<Value>()
+            .unwrap_or(Value::Object(Default::default()));
         Ok((status, json))
     }
 
@@ -551,7 +712,9 @@ impl PsiClient for ReqwestPsiClient {
             .send()
             .map_err(|e| format!("CrUX API request failed: {e}"))?;
         let status = resp.status().as_u16();
-        let json = resp.json::<Value>().unwrap_or(Value::Object(Default::default()));
+        let json = resp
+            .json::<Value>()
+            .unwrap_or(Value::Object(Default::default()));
         Ok((status, json))
     }
 }
@@ -571,7 +734,9 @@ pub fn run_pagespeed(
         return PsiResult {
             url: url.to_string(),
             strategy: strategy.to_string(),
-            error: Some("Invalid URL. Only http/https URLs to public hosts are accepted.".to_string()),
+            error: Some(
+                "Invalid URL. Only http/https URLs to public hosts are accepted.".to_string(),
+            ),
             ..Default::default()
         };
     }
@@ -593,7 +758,9 @@ pub fn run_pagespeed(
         return PsiResult {
             url: url.to_string(),
             strategy: strategy.to_string(),
-            error: Some("PSI rate limit exceeded (240 QPM / 25,000 QPD). Wait and retry.".to_string()),
+            error: Some(
+                "PSI rate limit exceeded (240 QPM / 25,000 QPD). Wait and retry.".to_string(),
+            ),
             ..Default::default()
         };
     }
@@ -620,14 +787,23 @@ pub fn run_pagespeed(
 /// Full port of `query_crux()`: validates the target, builds the request
 /// body (origin vs. URL, optional `formFactor`), calls the client, and
 /// parses the response with [`parse_crux_response`].
-pub fn query_crux(client: &dyn PsiClient, url_or_origin: &str, api_key: &str, form_factor: Option<&str>) -> CruxResult {
+pub fn query_crux(
+    client: &dyn PsiClient,
+    url_or_origin: &str,
+    api_key: &str,
+    form_factor: Option<&str>,
+) -> CruxResult {
     let form_factor_upper = form_factor.map(|f| f.to_uppercase());
 
     if !validate_url(url_or_origin) {
         return CruxResult {
             target: url_or_origin.to_string(),
-            form_factor: form_factor_upper.clone().unwrap_or_else(|| "ALL".to_string()),
-            error: Some("Invalid URL. Only http/https URLs to public hosts are accepted.".to_string()),
+            form_factor: form_factor_upper
+                .clone()
+                .unwrap_or_else(|| "ALL".to_string()),
+            error: Some(
+                "Invalid URL. Only http/https URLs to public hosts are accepted.".to_string(),
+            ),
             ..Default::default()
         };
     }
@@ -636,9 +812,14 @@ pub fn query_crux(client: &dyn PsiClient, url_or_origin: &str, api_key: &str, fo
 
     let mut body = serde_json::Map::new();
     if is_origin {
-        let (scheme, rest) = url_or_origin.split_once("://").unwrap_or(("", url_or_origin));
+        let (scheme, rest) = url_or_origin
+            .split_once("://")
+            .unwrap_or(("", url_or_origin));
         let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
-        body.insert("origin".to_string(), Value::String(format!("{scheme}://{}", &rest[..authority_end])));
+        body.insert(
+            "origin".to_string(),
+            Value::String(format!("{scheme}://{}", &rest[..authority_end])),
+        );
     } else {
         body.insert("url".to_string(), Value::String(url_or_origin.to_string()));
     }
@@ -673,7 +854,10 @@ pub fn query_crux(client: &dyn PsiClient, url_or_origin: &str, api_key: &str, fo
         return CruxResult {
             target: url_or_origin.to_string(),
             form_factor: form_factor_upper.unwrap_or_else(|| "ALL".to_string()),
-            error: Some("CrUX API rate limit exceeded (150 QPM shared with History API). Wait and retry.".to_string()),
+            error: Some(
+                "CrUX API rate limit exceeded (150 QPM shared with History API). Wait and retry."
+                    .to_string(),
+            ),
             ..Default::default()
         };
     }
@@ -702,13 +886,22 @@ pub struct CombinedResult {
 }
 
 /// Full port of `combined_check()`.
-pub fn combined_check(client: &dyn PsiClient, url: &str, api_key: Option<&str>, strategy: &str) -> CombinedResult {
+pub fn combined_check(
+    client: &dyn PsiClient,
+    url: &str,
+    api_key: Option<&str>,
+    strategy: &str,
+) -> CombinedResult {
     let mut result = CombinedResult {
         url: url.to_string(),
         ..Default::default()
     };
 
-    let strategies: Vec<&str> = if strategy == "both" { vec!["mobile", "desktop"] } else { vec![strategy] };
+    let strategies: Vec<&str> = if strategy == "both" {
+        vec!["mobile", "desktop"]
+    } else {
+        vec![strategy]
+    };
 
     for strat in strategies {
         let psi_result = run_pagespeed(client, url, strat, api_key, None);
@@ -728,7 +921,8 @@ pub fn combined_check(client: &dyn PsiClient, url: &str, api_key: Option<&str>, 
                 let origin_result = query_crux(client, &origin, key, None);
                 if origin_result.error.is_none() {
                     crux_result = origin_result;
-                    crux_result.note = Some("URL-level data unavailable; showing origin-level data".to_string());
+                    crux_result.note =
+                        Some("URL-level data unavailable; showing origin-level data".to_string());
                 }
             }
         }
@@ -790,7 +984,9 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
         }
         i += 1;
     }
-    out.url.clone().ok_or("the following arguments are required: url")?;
+    out.url
+        .clone()
+        .ok_or("the following arguments are required: url")?;
     Ok(out)
 }
 
@@ -798,7 +994,12 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
 /// and stdout/stderr sinks so it is testable without touching real I/O.
 /// Uses `google_auth::load_config().api_key` as the `get_api_key()`
 /// fallback when `--api-key` is not given. Returns the process exit code.
-pub fn run(args: &[String], client: &dyn PsiClient, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
+pub fn run(
+    args: &[String],
+    client: &dyn PsiClient,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
     let parsed = match parse_args(args) {
         Ok(p) => p,
         Err(e) => {
@@ -807,34 +1008,52 @@ pub fn run(args: &[String], client: &dyn PsiClient, stdout: &mut dyn Write, stde
         }
     };
 
-    let api_key = parsed.api_key.clone().or_else(|| crate::wf_port::w2_030::google_auth::load_config().api_key);
+    let api_key = parsed
+        .api_key
+        .clone()
+        .or_else(|| crate::wf_port::w2_030::google_auth::load_config().api_key);
     let url = parsed.url.clone().unwrap_or_default();
 
     let had_error;
     if parsed.crux_only {
         let Some(key) = &api_key else {
-            let _ = writeln!(stderr, "Error: CrUX API requires an API key. Use --api-key or configure GOOGLE_API_KEY.");
+            let _ = writeln!(
+                stderr,
+                "Error: CrUX API requires an API key. Use --api-key or configure GOOGLE_API_KEY."
+            );
             return 1;
         };
         let result = query_crux(client, &url, key, parsed.form_factor.as_deref());
         had_error = result.error.is_some();
         if parsed.json {
-            let _ = writeln!(stdout, "{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            let _ = writeln!(
+                stdout,
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_default()
+            );
         } else {
             print_crux_summary(stdout, &result);
         }
     } else if parsed.psi_only {
-        let strategies: Vec<&str> = if parsed.strategy == "both" { vec!["mobile", "desktop"] } else { vec![parsed.strategy.as_str()] };
+        let strategies: Vec<&str> = if parsed.strategy == "both" {
+            vec!["mobile", "desktop"]
+        } else {
+            vec![parsed.strategy.as_str()]
+        };
         let mut psi_map = std::collections::BTreeMap::new();
         for strat in &strategies {
-            psi_map.insert(strat.to_string(), run_pagespeed(client, &url, strat, api_key.as_deref(), None));
+            psi_map.insert(
+                strat.to_string(),
+                run_pagespeed(client, &url, strat, api_key.as_deref(), None),
+            );
         }
         had_error = psi_map.values().any(|r| r.error.is_some());
         if parsed.json {
             let _ = writeln!(
                 stdout,
                 "{}",
-                serde_json::to_string_pretty(&serde_json::json!({"psi": psi_map})).unwrap_or_default()
+                serde_json::to_string_pretty(&serde_json::json!({"psi": psi_map}))
+                    .unwrap_or_default()
             );
         } else {
             for psi in psi_map.values() {
@@ -845,7 +1064,11 @@ pub fn run(args: &[String], client: &dyn PsiClient, stdout: &mut dyn Write, stde
         let result = combined_check(client, &url, api_key.as_deref(), &parsed.strategy);
         had_error = result.error.is_some();
         if parsed.json {
-            let _ = writeln!(stdout, "{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            let _ = writeln!(
+                stdout,
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_default()
+            );
         } else {
             for psi in result.psi.values() {
                 print_psi_summary(stdout, psi);
@@ -872,7 +1095,11 @@ fn print_psi_summary(out: &mut dyn Write, psi: &PsiResult) {
 
     let _ = writeln!(out, "\n=== PageSpeed Insights ({}) ===", psi.strategy);
     let _ = writeln!(out, "URL: {}", psi.url);
-    let _ = writeln!(out, "Timestamp: {}", psi.analysis_timestamp.as_deref().unwrap_or("N/A"));
+    let _ = writeln!(
+        out,
+        "Timestamp: {}",
+        psi.analysis_timestamp.as_deref().unwrap_or("N/A")
+    );
 
     if !psi.lighthouse_scores.is_empty() {
         let _ = writeln!(out, "\nLighthouse Scores:");
@@ -884,7 +1111,11 @@ fn print_psi_summary(out: &mut dyn Write, psi: &PsiResult) {
     if !psi.lab_metrics.is_empty() {
         let _ = writeln!(out, "\nLab Metrics:");
         for (id, (value, display, _score)) in &psi.lab_metrics {
-            let shown = if display.is_empty() { value.to_string() } else { display.clone() };
+            let shown = if display.is_empty() {
+                value.to_string()
+            } else {
+                display.clone()
+            };
             let _ = writeln!(out, "  {id}: {shown}");
         }
     }
@@ -897,18 +1128,32 @@ fn print_psi_summary(out: &mut dyn Write, psi: &PsiResult) {
     }
 
     if !psi.failed_audits.is_empty() {
-        let _ = writeln!(out, "\nFailed/Warning Audits ({}):", psi.failed_audits.len());
+        let _ = writeln!(
+            out,
+            "\nFailed/Warning Audits ({}):",
+            psi.failed_audits.len()
+        );
         for a in psi.failed_audits.iter().take(10) {
-            let score_pct = a.score.map(|s| format!("{:.0}%", s * 100.0)).unwrap_or_else(|| "?".to_string());
+            let score_pct = a
+                .score
+                .map(|s| format!("{:.0}%", s * 100.0))
+                .unwrap_or_else(|| "?".to_string());
             let _ = writeln!(out, "  [{score_pct}] {} {}", a.title, a.display);
         }
     }
 
-    let notable_diags: Vec<&AuditFinding> = psi.diagnostics.iter().filter(|d| d.score.map(|s| s < 0.9).unwrap_or(false)).collect();
+    let notable_diags: Vec<&AuditFinding> = psi
+        .diagnostics
+        .iter()
+        .filter(|d| d.score.map(|s| s < 0.9).unwrap_or(false))
+        .collect();
     if !notable_diags.is_empty() {
         let _ = writeln!(out, "\nDiagnostics (needs attention):");
         for d in notable_diags.iter().take(5) {
-            let score_pct = d.score.map(|s| format!("{:.0}%", s * 100.0)).unwrap_or_else(|| "info".to_string());
+            let score_pct = d
+                .score
+                .map(|s| format!("{:.0}%", s * 100.0))
+                .unwrap_or_else(|| "info".to_string());
             let _ = writeln!(out, "  [{score_pct}] {}: {}", d.title, d.display);
         }
     }
@@ -924,9 +1169,16 @@ fn print_psi_summary(out: &mut dyn Write, psi: &PsiResult) {
     }
 
     if !psi.accessibility_audits.is_empty() {
-        let _ = writeln!(out, "\nAccessibility Issues ({}):", psi.accessibility_audits.len());
+        let _ = writeln!(
+            out,
+            "\nAccessibility Issues ({}):",
+            psi.accessibility_audits.len()
+        );
         for a in psi.accessibility_audits.iter().take(5) {
-            let pct = a.score.map(|s| format!("{:.0}%", s * 100.0)).unwrap_or_default();
+            let pct = a
+                .score
+                .map(|s| format!("{:.0}%", s * 100.0))
+                .unwrap_or_default();
             let _ = writeln!(out, "  [{pct}] {}", a.title);
         }
     }
@@ -965,13 +1217,25 @@ fn print_crux_summary(out: &mut dyn Write, crux: &CruxResult) {
             let good = data.good_threshold;
             if data.label == "CLS" {
                 let good_s = good.map(|g| format!("{g}")).unwrap_or_default();
-                let _ = writeln!(out, "  {}: {:.3} [{rating_icon}] (threshold: <={good_s})", data.label, data.p75);
+                let _ = writeln!(
+                    out,
+                    "  {}: {:.3} [{rating_icon}] (threshold: <={good_s})",
+                    data.label, data.p75
+                );
             } else {
                 let good_s = good.map(|g| format!("{g}")).unwrap_or_default();
-                let _ = writeln!(out, "  {}: {}{} [{rating_icon}] (threshold: <={good_s}{})", data.label, data.p75, data.unit, data.unit);
+                let _ = writeln!(
+                    out,
+                    "  {}: {}{} [{rating_icon}] (threshold: <={good_s}{})",
+                    data.label, data.p75, data.unit, data.unit
+                );
             }
             if let Some(dist) = &data.distribution {
-                let _ = writeln!(out, "       Good: {}% | NI: {}% | Poor: {}%", dist.good, dist.needs_improvement, dist.poor);
+                let _ = writeln!(
+                    out,
+                    "       Good: {}% | NI: {}% | Poor: {}%",
+                    dist.good, dist.needs_improvement, dist.poor
+                );
             }
         }
     }
@@ -985,7 +1249,10 @@ mod tests {
     #[test]
     fn rate_metric_boundaries() {
         assert_eq!(rate_metric("largest_contentful_paint", 2500.0), "good");
-        assert_eq!(rate_metric("largest_contentful_paint", 2501.0), "needs-improvement");
+        assert_eq!(
+            rate_metric("largest_contentful_paint", 2501.0),
+            "needs-improvement"
+        );
         assert_eq!(rate_metric("largest_contentful_paint", 4001.0), "poor");
         assert_eq!(rate_metric("unknown_metric", 1.0), "unknown");
     }
@@ -1036,7 +1303,14 @@ mod tests {
         });
         let result = parse_psi_response(&data, "https://example.com", "mobile");
         assert_eq!(result.lighthouse_scores.get("performance"), Some(&87));
-        assert_eq!(result.lab_metrics.get("largest-contentful-paint").unwrap().0, 2200.0);
+        assert_eq!(
+            result
+                .lab_metrics
+                .get("largest-contentful-paint")
+                .unwrap()
+                .0,
+            2200.0
+        );
         assert_eq!(result.opportunities.len(), 1);
         assert_eq!(result.opportunities[0].id, "uses-long-cache-ttl");
         assert_eq!(result.seo_audits.len(), 1);
@@ -1053,7 +1327,10 @@ mod tests {
             }
         });
         let result = parse_psi_response(&data, "https://example.com", "mobile");
-        let (val, rating, source) = result.field_metrics.get("url_cumulative_layout_shift").unwrap();
+        let (val, rating, source) = result
+            .field_metrics
+            .get("url_cumulative_layout_shift")
+            .unwrap();
         assert_eq!(*val, 0.12);
         assert_eq!(rating, "average");
         assert_eq!(source, "PSI url-level");
@@ -1077,7 +1354,10 @@ mod tests {
             }
         });
         let result = parse_crux_response(&record, "https://example.com", Some("PHONE"));
-        assert_eq!(result.collection_period, Some(("2026-01-01".to_string(), "2026-01-28".to_string())));
+        assert_eq!(
+            result.collection_period,
+            Some(("2026-01-01".to_string(), "2026-01-28".to_string()))
+        );
         let cls = result.metrics.get("cumulative_layout_shift").unwrap();
         assert_eq!(cls.p75, 0.05);
         assert_eq!(cls.rating, "good");
@@ -1106,7 +1386,13 @@ mod tests {
     }
 
     impl PsiClient for FakeClient {
-        fn get_psi(&self, _url: &str, _strategy: &str, _api_key: Option<&str>, _categories: &[&str]) -> Result<(u16, Value), String> {
+        fn get_psi(
+            &self,
+            _url: &str,
+            _strategy: &str,
+            _api_key: Option<&str>,
+            _categories: &[&str],
+        ) -> Result<(u16, Value), String> {
             Ok((self.psi_status, self.psi_body.clone()))
         }
         fn post_crux(&self, _body: &Value, _api_key: &str) -> Result<(u16, Value), String> {
@@ -1116,14 +1402,27 @@ mod tests {
 
     #[test]
     fn run_pagespeed_rejects_invalid_url() {
-        let client = FakeClient { psi_status: 200, psi_body: json!({}), crux_status: 200, crux_body: json!({}) };
+        let client = FakeClient {
+            psi_status: 200,
+            psi_body: json!({}),
+            crux_status: 200,
+            crux_body: json!({}),
+        };
         let result = run_pagespeed(&client, "http://localhost/", "mobile", None, None);
-        assert_eq!(result.error.as_deref(), Some("Invalid URL. Only http/https URLs to public hosts are accepted."));
+        assert_eq!(
+            result.error.as_deref(),
+            Some("Invalid URL. Only http/https URLs to public hosts are accepted.")
+        );
     }
 
     #[test]
     fn run_pagespeed_maps_status_codes_to_errors() {
-        let client = FakeClient { psi_status: 429, psi_body: json!({}), crux_status: 200, crux_body: json!({}) };
+        let client = FakeClient {
+            psi_status: 429,
+            psi_body: json!({}),
+            crux_status: 200,
+            crux_body: json!({}),
+        };
         let result = run_pagespeed(&client, "https://example.com", "mobile", None, None);
         assert!(result.error.unwrap().contains("rate limit"));
     }
@@ -1139,12 +1438,20 @@ mod tests {
         let result = run_pagespeed(&client, "https://example.com", "mobile", None, None);
         assert!(result.error.is_none());
         assert_eq!(result.lighthouse_scores.get("performance"), Some(&50));
-        assert_eq!(result.analysis_timestamp.as_deref(), Some("2026-01-01T00:00:00Z"));
+        assert_eq!(
+            result.analysis_timestamp.as_deref(),
+            Some("2026-01-01T00:00:00Z")
+        );
     }
 
     #[test]
     fn query_crux_maps_404_to_insufficient_traffic_message() {
-        let client = FakeClient { psi_status: 200, psi_body: json!({}), crux_status: 404, crux_body: json!({}) };
+        let client = FakeClient {
+            psi_status: 200,
+            psi_body: json!({}),
+            crux_status: 404,
+            crux_body: json!({}),
+        };
         let result = query_crux(&client, "https://example.com/page", "key", None);
         assert!(result.error.unwrap().contains("insufficient"));
     }
@@ -1160,7 +1467,10 @@ mod tests {
         let result = query_crux(&client, "https://example.com", "key", Some("phone"));
         assert!(result.error.is_none());
         assert_eq!(result.form_factor, "PHONE");
-        assert_eq!(result.metrics.get("largest_contentful_paint").unwrap().p75, 2000.0);
+        assert_eq!(
+            result.metrics.get("largest_contentful_paint").unwrap().p75,
+            2000.0
+        );
     }
 
     #[test]
@@ -1185,7 +1495,10 @@ mod tests {
 
     #[test]
     fn parse_args_parses_flags() {
-        let args: Vec<String> = ["https://example.com", "--strategy", "mobile", "--json"].iter().map(|s| s.to_string()).collect();
+        let args: Vec<String> = ["https://example.com", "--strategy", "mobile", "--json"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let parsed = parse_args(&args).unwrap();
         assert_eq!(parsed.url.as_deref(), Some("https://example.com"));
         assert_eq!(parsed.strategy, "mobile");
@@ -1194,13 +1507,23 @@ mod tests {
 
     #[test]
     fn run_crux_only_without_api_key_errors() {
-        let client = FakeClient { psi_status: 200, psi_body: json!({}), crux_status: 200, crux_body: json!({}) };
+        let client = FakeClient {
+            psi_status: 200,
+            psi_body: json!({}),
+            crux_status: 200,
+            crux_body: json!({}),
+        };
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let args: Vec<String> = ["https://example.com", "--crux-only"].iter().map(|s| s.to_string()).collect();
+        let args: Vec<String> = ["https://example.com", "--crux-only"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let code = run(&args, &client, &mut out, &mut err);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err).unwrap().contains("CrUX API requires an API key"));
+        assert!(String::from_utf8(err)
+            .unwrap()
+            .contains("CrUX API requires an API key"));
     }
 
     #[test]
@@ -1213,10 +1536,16 @@ mod tests {
         };
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let args: Vec<String> = ["https://example.com", "--psi-only", "--strategy", "mobile", "--json"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let args: Vec<String> = [
+            "https://example.com",
+            "--psi-only",
+            "--strategy",
+            "mobile",
+            "--json",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
         let code = run(&args, &client, &mut out, &mut err);
         assert_eq!(code, 0);
         let stdout = String::from_utf8(out).unwrap();

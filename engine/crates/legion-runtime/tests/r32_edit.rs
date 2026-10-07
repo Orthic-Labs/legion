@@ -3,9 +3,7 @@
 //! Detailed unit tests live alongside the source in `src/wf_port/r32/edit.rs`;
 //! this file checks the public API surface is reachable and wired together.
 
-use legion_runtime::wf_port::r32::edit::{
-    decode_base64, encode_base64, parse_args, DEFAULT_MODEL,
-};
+use legion_runtime::wf_port::r32::edit::{decode_base64, encode_base64, parse_args, DEFAULT_MODEL};
 
 #[test]
 fn public_api_is_reachable() {

@@ -80,9 +80,9 @@ fn validate_finding_partial_requires_scopes() {
         "observed_condition": "x",
     });
     let errors = validate("finding", &obj);
-    assert!(errors.contains(
-        &"partial finding requires tested_scope and untested_scope".to_string()
-    ));
+    assert!(
+        errors.contains(&"partial finding requires tested_scope and untested_scope".to_string())
+    );
 }
 
 #[test]
@@ -115,9 +115,8 @@ fn validate_action_executed_requires_effect_receipt() {
         "idempotency_key": "k", "rollback": "r", "status": "executed",
     });
     let errors = validate("action", &base);
-    assert!(errors.contains(
-        &"executed/verified action requires host-observed effect_receipt".to_string()
-    ));
+    assert!(errors
+        .contains(&"executed/verified action requires host-observed effect_receipt".to_string()));
 
     let mut with_receipt = base.clone();
     with_receipt["effect_receipt"] = json!("receipt-1");
@@ -347,7 +346,16 @@ fn detect_trends_degrading_when_p75_rises() {
     let (_p, metrics) = parse_history_record(&record);
     assert_eq!(
         metrics["cumulative_layout_shift"].p75_values,
-        vec![Some(0.05), Some(0.05), Some(0.05), Some(0.05), Some(0.2), Some(0.2), Some(0.2), Some(0.2)]
+        vec![
+            Some(0.05),
+            Some(0.05),
+            Some(0.05),
+            Some(0.05),
+            Some(0.2),
+            Some(0.2),
+            Some(0.2),
+            Some(0.2)
+        ]
     );
     let trends = detect_trends(&metrics);
     let trend = &trends["cumulative_layout_shift"];

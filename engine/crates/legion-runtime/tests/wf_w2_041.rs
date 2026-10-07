@@ -40,7 +40,8 @@ fn control_baseline_stage_end_to_end_missing_then_pass() {
     assert_eq!(missing["status"], json!("missing"));
 
     // Topology present, packs present, baseline with one control, no impacts.
-    let artifacts = json!({"product-portfolio": {"portfolio": {}, "components": {}, "stacks": {"stacks": []}}});
+    let artifacts =
+        json!({"product-portfolio": {"portfolio": {}, "components": {}, "stacks": {"stacks": []}}});
     let topology = resolve_topology(Some(&artifacts), None).unwrap().clone();
     let pass = control_baseline_stage(
         Some(&topology),
@@ -93,12 +94,19 @@ fn run_planning_stages_wires_product_topology_and_control_baseline_end_to_end() 
     let control_baseline = ControlBaseline;
     let stages: Vec<&dyn PlanStage> = vec![&product_topology, &control_baseline];
     let result = run_planning_stages(&stages, &json!({}), &json!({}), "inventory");
-    assert_eq!(result["artifacts"]["control-baseline"]["baseline"]["controls"], json!([{"id": "c1"}]));
+    assert_eq!(
+        result["artifacts"]["control-baseline"]["baseline"]["controls"],
+        json!([{"id": "c1"}])
+    );
     // repository-binding and blueprint-packet are still required for "inventory" and unregistered.
     let gaps = result["gaps"].as_array().unwrap();
-    assert!(gaps.iter().any(|g| g["stage"] == json!("repository-binding")));
+    assert!(gaps
+        .iter()
+        .any(|g| g["stage"] == json!("repository-binding")));
     assert!(gaps.iter().any(|g| g["stage"] == json!("blueprint-packet")));
-    assert!(!gaps.iter().any(|g| g["stage"] == json!("product-portfolio")));
+    assert!(!gaps
+        .iter()
+        .any(|g| g["stage"] == json!("product-portfolio")));
 }
 
 #[test]
@@ -121,9 +129,21 @@ fn reconcile_run_end_to_end_pass_when_every_provider_passes_cleanly() {
     let facts = reconcile_run(&plan, &receipts, None, "2026-09-23T00:00:00.000Z");
     assert_eq!(facts["incomplete"], json!(false));
     assert_eq!(facts["executionFailed"], json!(false));
-    assert_eq!(facts["provider_reconciliation"]["duplicateChecks"], json!([]));
-    assert_eq!(facts["provider_reconciliation"]["unplannedChecks"], json!([]));
-    assert_eq!(facts["provider_reconciliation"]["bindingMismatches"], json!([]));
-    assert_eq!(facts["provider_reconciliation"]["denominatorMismatches"], json!([]));
+    assert_eq!(
+        facts["provider_reconciliation"]["duplicateChecks"],
+        json!([])
+    );
+    assert_eq!(
+        facts["provider_reconciliation"]["unplannedChecks"],
+        json!([])
+    );
+    assert_eq!(
+        facts["provider_reconciliation"]["bindingMismatches"],
+        json!([])
+    );
+    assert_eq!(
+        facts["provider_reconciliation"]["denominatorMismatches"],
+        json!([])
+    );
     assert_eq!(facts["checks"][0]["verdict"], json!("pass"));
 }

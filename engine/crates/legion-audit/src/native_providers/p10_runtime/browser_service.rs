@@ -87,7 +87,9 @@ fn normalized_key(key: &str) -> String {
 fn is_sensitive_key(key: &str) -> bool {
     let normalized = normalized_key(key);
     SENSITIVE_KEYS.contains(&normalized.as_str())
-        || SENSITIVE_SUFFIXES.iter().any(|suffix| normalized.ends_with(suffix))
+        || SENSITIVE_SUFFIXES
+            .iter()
+            .any(|suffix| normalized.ends_with(suffix))
 }
 
 fn opaque(kind: &str, value: &str) -> String {
@@ -153,7 +155,9 @@ fn exact_binding(binding: &Value) -> ExactBindingResult {
     let invalid: Vec<&str> = BINDING_KEYS
         .iter()
         .copied()
-        .filter(|key| !matches!(source.get(*key), Some(Value::String(s)) if is_valid_binding_token(s)))
+        .filter(
+            |key| !matches!(source.get(*key), Some(Value::String(s)) if is_valid_binding_token(s)),
+        )
         .collect();
 
     let mut sorted_keys = BINDING_KEYS.to_vec();
@@ -163,14 +167,20 @@ fn exact_binding(binding: &Value) -> ExactBindingResult {
         let value = if invalid.contains(&key) {
             let raw = source.get(key).cloned().unwrap_or(Value::Null);
             let canon = canonicalize(&raw);
-            Value::String(opaque("binding", &serde_json::to_string(&canon).unwrap_or_default()))
+            Value::String(opaque(
+                "binding",
+                &serde_json::to_string(&canon).unwrap_or_default(),
+            ))
         } else {
             source.get(key).cloned().unwrap_or(Value::Null)
         };
         normalized.insert(key.to_string(), value);
     }
 
-    let extras: Vec<&String> = source.keys().filter(|key| !BINDING_KEYS.contains(&key.as_str())).collect();
+    let extras: Vec<&String> = source
+        .keys()
+        .filter(|key| !BINDING_KEYS.contains(&key.as_str()))
+        .collect();
     let mut gaps: Vec<String> = invalid.iter().map(|s| s.to_string()).collect();
     if extras.iter().any(|key| is_sensitive_key(key.as_str())) {
         gaps.push("binding-extra-sensitive".to_string());
@@ -192,7 +202,12 @@ fn normalize_bindings(value: &Value, key: &str, gaps: &mut Vec<String>) -> Value
         return result.binding;
     }
     match value {
-        Value::Array(items) => Value::Array(items.iter().map(|item| normalize_bindings(item, "", gaps)).collect()),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|item| normalize_bindings(item, "", gaps))
+                .collect(),
+        ),
         Value::Object(map) => {
             let mut keys: Vec<&String> = map.keys().collect();
             keys.sort();
@@ -222,7 +237,10 @@ fn finalize(kind: &str, value: Value) -> Value {
                 map.insert("proof".to_string(), json!(false));
             }
             let mut existing: BTreeSet<String> = match map.get("coverageGaps") {
-                Some(Value::Array(items)) => items.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
+                Some(Value::Array(items)) => items
+                    .iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect(),
                 _ => BTreeSet::new(),
             };
             for gap in &binding_gaps {
@@ -280,7 +298,9 @@ fn redact_value(value: &Value, key: &str) -> Value {
         return json!("[REDACTED]");
     }
     match value {
-        Value::Array(items) => Value::Array(items.iter().map(|item| redact_value(item, "")).collect()),
+        Value::Array(items) => {
+            Value::Array(items.iter().map(|item| redact_value(item, "")).collect())
+        }
         Value::Object(map) => {
             let mut out = Map::new();
             for (k, v) in map {
@@ -313,7 +333,12 @@ fn is_false(value: Option<&Value>) -> bool {
 fn string_array(value: Option<&Value>) -> Vec<String> {
     value
         .and_then(Value::as_array)
-        .map(|items| items.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -323,12 +348,19 @@ pub fn build_browser_surface_receipt(spec: &Value, observation: &Value) -> Value
     let obs_obj = observation.as_object();
 
     let allowed_actions: BTreeSet<String> =
-        string_array(spec_obj.and_then(|m| m.get("allowedActions"))).into_iter().collect();
+        string_array(spec_obj.and_then(|m| m.get("allowedActions")))
+            .into_iter()
+            .collect();
     let allowed_destinations: BTreeSet<String> =
-        string_array(spec_obj.and_then(|m| m.get("allowedDestinations"))).into_iter().collect();
+        string_array(spec_obj.and_then(|m| m.get("allowedDestinations")))
+            .into_iter()
+            .collect();
 
     let actions = string_array(obs_obj.and_then(|m| m.get("actions")));
-    let undeclared_actions: Vec<String> = actions.into_iter().filter(|a| !allowed_actions.contains(a)).collect();
+    let undeclared_actions: Vec<String> = actions
+        .into_iter()
+        .filter(|a| !allowed_actions.contains(a))
+        .collect();
 
     let requests: Vec<Value> = obs_obj
         .and_then(|m| m.get("requests"))
@@ -348,7 +380,10 @@ pub fn build_browser_surface_receipt(spec: &Value, observation: &Value) -> Value
     let shallow = !reached_meaningful_state;
     let failed_launch = truthy(obs_obj.and_then(|m| m.get("failedLaunch")));
     let credentials_missing = truthy(obs_obj.and_then(|m| m.get("credentialsMissing")));
-    let blocked = !undeclared_actions.is_empty() || !undeclared_destinations.is_empty() || failed_launch || credentials_missing;
+    let blocked = !undeclared_actions.is_empty()
+        || !undeclared_destinations.is_empty()
+        || failed_launch
+        || credentials_missing;
     let ready = is_true(obs_obj.and_then(|m| m.get("ready")));
     let status = if blocked {
         "blocked"
@@ -358,7 +393,10 @@ pub fn build_browser_surface_receipt(spec: &Value, observation: &Value) -> Value
         "pass"
     };
 
-    let console = obs_obj.and_then(|m| m.get("console")).cloned().unwrap_or(Value::Array(vec![]));
+    let console = obs_obj
+        .and_then(|m| m.get("console"))
+        .cloned()
+        .unwrap_or(Value::Array(vec![]));
     let redacted_console = redact_value(&console, "");
     let redacted_requests: Vec<Value> = requests.iter().map(|r| redact_value(r, "")).collect();
 
@@ -404,9 +442,14 @@ pub fn build_native_surface_receipt(spec: &Value, observation: &Value) -> Value 
     let spec_obj = spec.as_object();
     let obs_obj = observation.as_object();
 
-    let allowed: BTreeSet<String> = string_array(spec_obj.and_then(|m| m.get("allowedActions"))).into_iter().collect();
+    let allowed: BTreeSet<String> = string_array(spec_obj.and_then(|m| m.get("allowedActions")))
+        .into_iter()
+        .collect();
     let actions = string_array(obs_obj.and_then(|m| m.get("actions")));
-    let undeclared_actions: Vec<String> = actions.into_iter().filter(|a| !allowed.contains(a)).collect();
+    let undeclared_actions: Vec<String> = actions
+        .into_iter()
+        .filter(|a| !allowed.contains(a))
+        .collect();
 
     let bridge_unavailable = is_false(obs_obj.and_then(|m| m.get("bridgeAvailable")));
     let failed_launch = truthy(obs_obj.and_then(|m| m.get("failedLaunch")));
@@ -654,8 +697,12 @@ pub async fn assess_service_runtime(
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_string();
-        let status_ok = matches!(status_str.as_str(), "pass" | "fail" | "partial" | "unproven" | "blocked" | "error");
-        let terminal_ok = result.as_ref().and_then(|r| r.get("terminal")) == Some(&Value::Bool(true));
+        let status_ok = matches!(
+            status_str.as_str(),
+            "pass" | "fail" | "partial" | "unproven" | "blocked" | "error"
+        );
+        let terminal_ok =
+            result.as_ref().and_then(|r| r.get("terminal")) == Some(&Value::Bool(true));
         let valid = result.is_some() && status_ok && terminal_ok;
 
         let restartable = result
@@ -701,11 +748,21 @@ pub async fn assess_service_runtime(
 
     let failures = receipts
         .iter()
-        .filter(|r| matches!(r.get("status").and_then(Value::as_str), Some("fail") | Some("error")))
+        .filter(|r| {
+            matches!(
+                r.get("status").and_then(Value::as_str),
+                Some("fail") | Some("error")
+            )
+        })
         .count();
     let missing: Vec<&Value> = receipts
         .iter()
-        .filter(|r| !matches!(r.get("status").and_then(Value::as_str), Some("pass") | Some("fail")))
+        .filter(|r| {
+            !matches!(
+                r.get("status").and_then(Value::as_str),
+                Some("pass") | Some("fail")
+            )
+        })
         .collect();
 
     let status = if failures > 0 {
@@ -771,7 +828,10 @@ impl ServiceFixtureAdapter {
         }
     }
 
-    pub fn with_on_execute(mut self, callback: impl Fn(&str, &Value) + Send + Sync + 'static) -> Self {
+    pub fn with_on_execute(
+        mut self,
+        callback: impl Fn(&str, &Value) + Send + Sync + 'static,
+    ) -> Self {
         self.on_execute = Some(Box::new(callback));
         self
     }

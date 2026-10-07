@@ -18,10 +18,10 @@ use super::super::w2_013::file_system::{
     is_port_listening_tcp, walk_dir,
 };
 use super::super::w2_016::impeccable_config::{
-    filter_detection_findings, read_detection_config, should_ignore_detection_file, DetectionConfig,
-    Finding as ConfigFinding,
+    filter_detection_findings, read_detection_config, should_ignore_detection_file,
+    DetectionConfig, Finding as ConfigFinding,
 };
-use super::output::{format_findings, format_finding_summary, CliFinding};
+use super::output::{format_finding_summary, format_findings, CliFinding};
 
 /// Everything `main.mjs` does through `process.std{in,out,err}`, TTY
 /// detection, and the interactive `readline` confirm prompt.
@@ -55,9 +55,22 @@ pub fn parse_confirm_answer(answer: &str) -> bool {
 /// and doesn't reproduce; [`super::real_detectors`] is the production
 /// wiring.
 pub trait Detectors {
-    fn detect_text(&mut self, content: &str, file_path: &str, design_system: Option<&DesignSystem>) -> Vec<CliFinding>;
-    fn detect_html(&mut self, file_path: &str, design_system: Option<&DesignSystem>) -> Result<Vec<CliFinding>, String>;
-    fn detect_url(&mut self, url: &str, options: &UrlScanOptions) -> Result<Vec<CliFinding>, String>;
+    fn detect_text(
+        &mut self,
+        content: &str,
+        file_path: &str,
+        design_system: Option<&DesignSystem>,
+    ) -> Vec<CliFinding>;
+    fn detect_html(
+        &mut self,
+        file_path: &str,
+        design_system: Option<&DesignSystem>,
+    ) -> Result<Vec<CliFinding>, String>;
+    fn detect_url(
+        &mut self,
+        url: &str,
+        options: &UrlScanOptions,
+    ) -> Result<Vec<CliFinding>, String>;
     fn sweep_site(&mut self, url: &str, site_type: Option<&str>) -> Vec<CliFinding>;
 }
 
@@ -156,7 +169,10 @@ fn filter_findings(findings: Vec<CliFinding>, config: &DetectionConfig) -> Vec<C
 }
 
 fn findings_match(a: &ConfigFinding, b: &ConfigFinding) -> bool {
-    a.antipattern == b.antipattern && a.file == b.file && a.snippet == b.snippet && a.ignore_value == b.ignore_value
+    a.antipattern == b.antipattern
+        && a.file == b.file
+        && a.snippet == b.snippet
+        && a.ignore_value == b.ignore_value
 }
 
 /// Parsed argv, port of `detectCli`'s option/target extraction (excluding
@@ -233,7 +249,11 @@ fn parse_args(argv: &[String]) -> ParsedArgs {
         }
     }
 
-    let targets: Vec<String> = args.iter().filter(|a| !a.starts_with("--")).cloned().collect();
+    let targets: Vec<String> = args
+        .iter()
+        .filter(|a| !a.starts_with("--"))
+        .cloned()
+        .collect();
 
     ParsedArgs {
         json_mode,
@@ -295,8 +315,13 @@ pub fn run<I: Io, D: Detectors>(
         read_detection_config(cwd)
     };
 
-    let design_system_enabled = !parsed.no_config && !parsed.no_design_system && detection_config.design_system_enabled;
-    let effective_design_system = if design_system_enabled { design_system } else { None };
+    let design_system_enabled =
+        !parsed.no_config && !parsed.no_design_system && detection_config.design_system_enabled;
+    let effective_design_system = if design_system_enabled {
+        design_system
+    } else {
+        None
+    };
 
     let url_options = UrlScanOptions {
         viewport: parsed.viewport,
@@ -365,13 +390,18 @@ pub fn run<I: Io, D: Detectors>(
                     })
                     .collect();
 
-                if files.len() > 50 && io.stdin_is_tty() && !parsed.json_mode && !parsed.quiet_mode {
+                if files.len() > 50 && io.stdin_is_tty() && !parsed.json_mode && !parsed.quiet_mode
+                {
                     let html_exts = html_extensions();
                     let html_count = files
                         .iter()
                         .filter(|f| {
                             f.extension()
-                                .map(|e| html_exts.contains(format!(".{}", e.to_string_lossy().to_lowercase()).as_str()))
+                                .map(|e| {
+                                    html_exts.contains(
+                                        format!(".{}", e.to_string_lossy().to_lowercase()).as_str(),
+                                    )
+                                })
                                 .unwrap_or(false)
                         })
                         .count();
@@ -393,14 +423,18 @@ pub fn run<I: Io, D: Detectors>(
                 }
 
                 let graph = build_import_graph(&files);
-                let mut imported_by: std::collections::HashMap<PathBuf, Vec<String>> = std::collections::HashMap::new();
+                let mut imported_by: std::collections::HashMap<PathBuf, Vec<String>> =
+                    std::collections::HashMap::new();
                 for (importer, imports) in &graph {
                     let importer_name = importer
                         .file_name()
                         .map(|n| n.to_string_lossy().into_owned())
                         .unwrap_or_default();
                     for imported in imports {
-                        imported_by.entry(imported.clone()).or_default().push(importer_name.clone());
+                        imported_by
+                            .entry(imported.clone())
+                            .or_default()
+                            .push(importer_name.clone());
                     }
                 }
 
@@ -411,7 +445,9 @@ pub fn run<I: Io, D: Detectors>(
                         .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
                         .unwrap_or_default();
                     let mut file_findings = if html_exts.contains(ext.as_str()) {
-                        match detectors.detect_html(&file.to_string_lossy(), effective_design_system) {
+                        match detectors
+                            .detect_html(&file.to_string_lossy(), effective_design_system)
+                        {
                             Ok(f) => f,
                             Err(e) => {
                                 io.stderr(&format!("Error: {e}\n"));
@@ -420,7 +456,11 @@ pub fn run<I: Io, D: Detectors>(
                         }
                     } else {
                         match std::fs::read_to_string(file) {
-                            Ok(content) => detectors.detect_text(&content, &file.to_string_lossy(), effective_design_system),
+                            Ok(content) => detectors.detect_text(
+                                &content,
+                                &file.to_string_lossy(),
+                                effective_design_system,
+                            ),
                             Err(_) => Vec::new(),
                         }
                     };
@@ -434,7 +474,8 @@ pub fn run<I: Io, D: Detectors>(
                     all_findings.append(&mut file_findings);
                 }
             } else if metadata.is_file() {
-                if should_ignore_detection_file(&resolved.to_string_lossy(), cwd, &detection_config) {
+                if should_ignore_detection_file(&resolved.to_string_lossy(), cwd, &detection_config)
+                {
                     continue;
                 }
                 let ext = resolved
@@ -442,12 +483,18 @@ pub fn run<I: Io, D: Detectors>(
                     .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
                     .unwrap_or_default();
                 if html_extensions().contains(ext.as_str()) {
-                    match detectors.detect_html(&resolved.to_string_lossy(), effective_design_system) {
+                    match detectors
+                        .detect_html(&resolved.to_string_lossy(), effective_design_system)
+                    {
                         Ok(f) => all_findings.extend(f),
                         Err(e) => io.stderr(&format!("Error: {e}\n")),
                     }
                 } else if let Ok(content) = std::fs::read_to_string(&resolved) {
-                    all_findings.extend(detectors.detect_text(&content, &resolved.to_string_lossy(), effective_design_system));
+                    all_findings.extend(detectors.detect_text(
+                        &content,
+                        &resolved.to_string_lossy(),
+                        effective_design_system,
+                    ));
                 }
             }
         }
@@ -478,9 +525,17 @@ pub fn run<I: Io, D: Detectors>(
 /// `{ tool_input: { file_path } }` hook payload and read that file
 /// (dispatching HTML vs text the same way the directory loop does), else
 /// falls back to treating the raw input as `<stdin>` text content.
-fn handle_stdin<D: Detectors>(input: &str, detectors: &mut D, design_system: Option<&DesignSystem>) -> Vec<CliFinding> {
+fn handle_stdin<D: Detectors>(
+    input: &str,
+    detectors: &mut D,
+    design_system: Option<&DesignSystem>,
+) -> Vec<CliFinding> {
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(input) {
-        if let Some(fp) = parsed.get("tool_input").and_then(|t| t.get("file_path")).and_then(|v| v.as_str()) {
+        if let Some(fp) = parsed
+            .get("tool_input")
+            .and_then(|t| t.get("file_path"))
+            .and_then(|v| v.as_str())
+        {
             if Path::new(fp).exists() {
                 let ext = Path::new(fp)
                     .extension()
@@ -609,14 +664,23 @@ mod tests {
         text_findings: RefCell<Vec<CliFinding>>,
     }
     impl Detectors for FakeDetectors {
-        fn detect_text(&mut self, _c: &str, file_path: &str, _ds: Option<&DesignSystem>) -> Vec<CliFinding> {
+        fn detect_text(
+            &mut self,
+            _c: &str,
+            file_path: &str,
+            _ds: Option<&DesignSystem>,
+        ) -> Vec<CliFinding> {
             let mut v = self.text_findings.borrow().clone();
             for f in v.iter_mut() {
                 f.file = file_path.to_string();
             }
             v
         }
-        fn detect_html(&mut self, _f: &str, _ds: Option<&DesignSystem>) -> Result<Vec<CliFinding>, String> {
+        fn detect_html(
+            &mut self,
+            _f: &str,
+            _ds: Option<&DesignSystem>,
+        ) -> Result<Vec<CliFinding>, String> {
             Ok(Vec::new())
         }
         fn detect_url(&mut self, _u: &str, _o: &UrlScanOptions) -> Result<Vec<CliFinding>, String> {
@@ -633,7 +697,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "r05-cli-{tag}-{}-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
             n
         ));
         std::fs::create_dir_all(&dir).unwrap();
@@ -642,27 +709,69 @@ mod tests {
 
     #[test]
     fn help_prints_usage_and_exits_zero() {
-        let mut io = FakeIo { out: String::new(), err: String::new(), tty: true, stdin: String::new(), confirm_answer: true };
-        let mut d = FakeDetectors { text_findings: RefCell::new(Vec::new()) };
-        let code = run(&["--help".to_string()], Path::new("."), &mut io, &mut d, None);
+        let mut io = FakeIo {
+            out: String::new(),
+            err: String::new(),
+            tty: true,
+            stdin: String::new(),
+            confirm_answer: true,
+        };
+        let mut d = FakeDetectors {
+            text_findings: RefCell::new(Vec::new()),
+        };
+        let code = run(
+            &["--help".to_string()],
+            Path::new("."),
+            &mut io,
+            &mut d,
+            None,
+        );
         assert_eq!(code, 0);
         assert!(io.out.contains("Usage: impeccable detect"));
     }
 
     #[test]
     fn invalid_viewport_is_a_usage_error() {
-        let mut io = FakeIo { out: String::new(), err: String::new(), tty: true, stdin: String::new(), confirm_answer: true };
-        let mut d = FakeDetectors { text_findings: RefCell::new(Vec::new()) };
-        let code = run(&["--viewport=bad".to_string()], Path::new("."), &mut io, &mut d, None);
+        let mut io = FakeIo {
+            out: String::new(),
+            err: String::new(),
+            tty: true,
+            stdin: String::new(),
+            confirm_answer: true,
+        };
+        let mut d = FakeDetectors {
+            text_findings: RefCell::new(Vec::new()),
+        };
+        let code = run(
+            &["--viewport=bad".to_string()],
+            Path::new("."),
+            &mut io,
+            &mut d,
+            None,
+        );
         assert_eq!(code, 1);
         assert!(io.err.contains("--viewport expects WxH"));
     }
 
     #[test]
     fn invalid_site_type_is_a_usage_error() {
-        let mut io = FakeIo { out: String::new(), err: String::new(), tty: true, stdin: String::new(), confirm_answer: true };
-        let mut d = FakeDetectors { text_findings: RefCell::new(Vec::new()) };
-        let code = run(&["--site-type=bogus".to_string()], Path::new("."), &mut io, &mut d, None);
+        let mut io = FakeIo {
+            out: String::new(),
+            err: String::new(),
+            tty: true,
+            stdin: String::new(),
+            confirm_answer: true,
+        };
+        let mut d = FakeDetectors {
+            text_findings: RefCell::new(Vec::new()),
+        };
+        let code = run(
+            &["--site-type=bogus".to_string()],
+            Path::new("."),
+            &mut io,
+            &mut d,
+            None,
+        );
         assert_eq!(code, 1);
         assert!(io.err.contains("--site-type must be"));
     }
@@ -672,11 +781,23 @@ mod tests {
         let dir = tmp_dir("file");
         let path = dir.join("a.css");
         std::fs::write(&path, "a{}").unwrap();
-        let mut io = FakeIo { out: String::new(), err: String::new(), tty: true, stdin: String::new(), confirm_answer: true };
+        let mut io = FakeIo {
+            out: String::new(),
+            err: String::new(),
+            tty: true,
+            stdin: String::new(),
+            confirm_answer: true,
+        };
         let mut d = FakeDetectors {
             text_findings: RefCell::new(vec![CliFinding::new("side-tab", "x", 1, "s")]),
         };
-        let code = run(&[path.to_string_lossy().into_owned()], &dir, &mut io, &mut d, None);
+        let code = run(
+            &[path.to_string_lossy().into_owned()],
+            &dir,
+            &mut io,
+            &mut d,
+            None,
+        );
         assert_eq!(code, 2);
         assert!(io.err.contains("1 anti-pattern found."));
         let _ = std::fs::remove_dir_all(&dir);
@@ -687,9 +808,23 @@ mod tests {
         let dir = tmp_dir("clean");
         let path = dir.join("a.css");
         std::fs::write(&path, "a{}").unwrap();
-        let mut io = FakeIo { out: String::new(), err: String::new(), tty: true, stdin: String::new(), confirm_answer: true };
-        let mut d = FakeDetectors { text_findings: RefCell::new(Vec::new()) };
-        let code = run(&[path.to_string_lossy().into_owned()], &dir, &mut io, &mut d, None);
+        let mut io = FakeIo {
+            out: String::new(),
+            err: String::new(),
+            tty: true,
+            stdin: String::new(),
+            confirm_answer: true,
+        };
+        let mut d = FakeDetectors {
+            text_findings: RefCell::new(Vec::new()),
+        };
+        let code = run(
+            &[path.to_string_lossy().into_owned()],
+            &dir,
+            &mut io,
+            &mut d,
+            None,
+        );
         assert_eq!(code, 0);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -699,9 +834,23 @@ mod tests {
         let dir = tmp_dir("json-clean");
         let path = dir.join("a.css");
         std::fs::write(&path, "a{}").unwrap();
-        let mut io = FakeIo { out: String::new(), err: String::new(), tty: true, stdin: String::new(), confirm_answer: true };
-        let mut d = FakeDetectors { text_findings: RefCell::new(Vec::new()) };
-        let code = run(&["--json".to_string(), path.to_string_lossy().into_owned()], &dir, &mut io, &mut d, None);
+        let mut io = FakeIo {
+            out: String::new(),
+            err: String::new(),
+            tty: true,
+            stdin: String::new(),
+            confirm_answer: true,
+        };
+        let mut d = FakeDetectors {
+            text_findings: RefCell::new(Vec::new()),
+        };
+        let code = run(
+            &["--json".to_string(), path.to_string_lossy().into_owned()],
+            &dir,
+            &mut io,
+            &mut d,
+            None,
+        );
         assert_eq!(code, 0);
         assert_eq!(io.out, "[]\n");
         let _ = std::fs::remove_dir_all(&dir);
@@ -740,9 +889,27 @@ mod tests {
         let dir = tmp_dir("norm");
         let path = dir.join("a.css");
         std::fs::write(&path, "a{}").unwrap();
-        let mut io = FakeIo { out: String::new(), err: String::new(), tty: true, stdin: String::new(), confirm_answer: true };
-        let mut d = FakeDetectors { text_findings: RefCell::new(Vec::new()) };
-        let code = run(&["-json".to_string(), "-fast".to_string(), path.to_string_lossy().into_owned()], &dir, &mut io, &mut d, None);
+        let mut io = FakeIo {
+            out: String::new(),
+            err: String::new(),
+            tty: true,
+            stdin: String::new(),
+            confirm_answer: true,
+        };
+        let mut d = FakeDetectors {
+            text_findings: RefCell::new(Vec::new()),
+        };
+        let code = run(
+            &[
+                "-json".to_string(),
+                "-fast".to_string(),
+                path.to_string_lossy().into_owned(),
+            ],
+            &dir,
+            &mut io,
+            &mut d,
+            None,
+        );
         assert_eq!(code, 0);
         assert!(io.err.contains("--fast is deprecated"));
         assert_eq!(io.out, "[]\n");

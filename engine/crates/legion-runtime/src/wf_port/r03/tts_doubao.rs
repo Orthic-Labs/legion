@@ -505,9 +505,7 @@ fn resolve_text(args: &Args, io: &dyn FileIo) -> Result<Option<String>, String> 
         return Ok(Some(t.clone()));
     }
     if let Some(f) = &args.text_file {
-        let text = io
-            .read_to_string(Path::new(f))
-            .map_err(|e| e.to_string())?;
+        let text = io.read_to_string(Path::new(f)).map_err(|e| e.to_string())?;
         return Ok(Some(text.trim().to_string()));
     }
     Ok(None)
@@ -734,7 +732,12 @@ mod tests {
         body: String,
     }
     impl HttpPost for FakeHttp {
-        fn post_json(&self, _url: &str, _key: &str, _body: &Value) -> Result<(u16, String), String> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _key: &str,
+            _body: &Value,
+        ) -> Result<(u16, String), String> {
             Ok((self.status, self.body.clone()))
         }
     }

@@ -48,7 +48,7 @@
     {
       "path": "RIGHTS.json",
       "uri": "legion-skill://foundation/RIGHTS.json",
-      "digest": "sha256:40649c54c6f3421d574107488e2f9678e62dc1040f5d5d55bb320d94de84fc59"
+      "digest": "sha256:b824682f9d83af6a015b39cbdaceffce4527b85fd17aa78b7bf967086023bc47"
     },
     {
       "path": "SKILL.md",
@@ -78,7 +78,7 @@
     {
       "path": "references/protocol.md",
       "uri": "legion-skill://foundation/references/protocol.md",
-      "digest": "sha256:6c68e598454af139d98fac13442cb6e849ece88f9f0c807d5bb1a4cfca12dced"
+      "digest": "sha256:134679ec074dd563e36dde0449d7a5c4419859a3239c46f6616f26afa7947657"
     }
   ]
 }

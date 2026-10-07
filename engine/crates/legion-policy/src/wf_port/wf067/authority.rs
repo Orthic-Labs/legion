@@ -15,14 +15,24 @@ use super::errors::{ArcCode, ArcaneError, Decision};
 pub const ASSERTION_SOURCE: &[&str] = &["kernel", "host"];
 
 /// Field names that constitute a self-asserted authority claim in a payload.
-pub const PAYLOAD_AUTHORITY_FIELDS: &[&str] =
-    &["authority", "callerAuthority", "assertedAuthority", "trust_class", "trustClass", "executor"];
+pub const PAYLOAD_AUTHORITY_FIELDS: &[&str] = &[
+    "authority",
+    "callerAuthority",
+    "assertedAuthority",
+    "trust_class",
+    "trustClass",
+    "executor",
+];
 
 /// Mirrors `packages/contracts/enums.mjs` `AUTHORITY_ID`.
 pub const AUTHORITY_ID: &[&str] = &["legion", "sage", "alchemist", "oracle", "arcane", "kernel"];
 
 /// Mirrors `packages/contracts/enums.mjs` `AUTHENTICATION_METHOD`.
-pub const AUTHENTICATION_METHOD: &[&str] = &["host-connection-trust", "capability-signature", "unauthenticated"];
+pub const AUTHENTICATION_METHOD: &[&str] = &[
+    "host-connection-trust",
+    "capability-signature",
+    "unauthenticated",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Assertion {
@@ -61,7 +71,10 @@ pub struct AssertForTurnInput<'a> {
 
 impl AuthorityLedger {
     pub fn new(clock: impl Fn() -> i64 + Send + Sync + 'static) -> Self {
-        Self { turns: HashMap::new(), clock: Box::new(clock) }
+        Self {
+            turns: HashMap::new(),
+            clock: Box::new(clock),
+        }
     }
 
     /// Record the authority for a turn.
@@ -70,11 +83,18 @@ impl AuthorityLedger {
     /// permitted asserter, the authority is not a canonical `AUTHORITY_ID`,
     /// the verification method is unknown, or `perMessage` is combined with
     /// `host-connection-trust` (connection trust cannot be per-message).
-    pub fn assert_for_turn(&mut self, input: AssertForTurnInput<'_>) -> Result<Assertion, ArcaneError> {
+    pub fn assert_for_turn(
+        &mut self,
+        input: AssertForTurnInput<'_>,
+    ) -> Result<Assertion, ArcaneError> {
         if !ASSERTION_SOURCE.contains(&input.source) {
             return Err(ArcaneError::new(
                 ArcCode::ArcAuthorityModelClaimed,
-                format!("authority may only be asserted by {}, not '{}'", ASSERTION_SOURCE.join(" or "), input.source),
+                format!(
+                    "authority may only be asserted by {}, not '{}'",
+                    ASSERTION_SOURCE.join(" or "),
+                    input.source
+                ),
             )
             .with_detail("turnId", input.turn_id.to_string())
             .with_detail("source", input.source.to_string()));
@@ -90,7 +110,10 @@ impl AuthorityLedger {
         if !AUTHENTICATION_METHOD.contains(&input.verification_method) {
             return Err(ArcaneError::new(
                 ArcCode::ArcAuthorityModelClaimed,
-                format!("unknown verification method '{}'", input.verification_method),
+                format!(
+                    "unknown verification method '{}'",
+                    input.verification_method
+                ),
             )
             .with_detail("turnId", input.turn_id.to_string())
             .with_detail("verificationMethod", input.verification_method.to_string()));
@@ -112,7 +135,8 @@ impl AuthorityLedger {
             source: input.source.to_string(),
             asserted_at: (self.clock)(),
         };
-        self.turns.insert(input.turn_id.to_string(), assertion.clone());
+        self.turns
+            .insert(input.turn_id.to_string(), assertion.clone());
         Ok(assertion)
     }
 
@@ -135,7 +159,11 @@ impl AuthorityLedger {
 /// no code path may read an authority out of a payload. Mirrors JS
 /// `extractAuthorityFromPayload`.
 pub fn extract_authority_from_payload(payload_fields: &[&str]) -> ArcaneError {
-    let found: Vec<&str> = PAYLOAD_AUTHORITY_FIELDS.iter().copied().filter(|f| payload_fields.contains(f)).collect();
+    let found: Vec<&str> = PAYLOAD_AUTHORITY_FIELDS
+        .iter()
+        .copied()
+        .filter(|f| payload_fields.contains(f))
+        .collect();
     ArcaneError::new(
         ArcCode::ArcAuthorityModelClaimed,
         "authority cannot be read from a payload; it is asserted by kernel or host evidence per turn",
@@ -146,7 +174,9 @@ pub fn extract_authority_from_payload(payload_fields: &[&str]) -> ArcaneError {
 /// True when a payload (given as its field names) is trying to name its own
 /// authority. Mirrors JS `payloadClaimsAuthority`.
 pub fn payload_claims_authority(payload_fields: &[&str]) -> bool {
-    PAYLOAD_AUTHORITY_FIELDS.iter().any(|f| payload_fields.contains(f))
+    PAYLOAD_AUTHORITY_FIELDS
+        .iter()
+        .any(|f| payload_fields.contains(f))
 }
 
 pub struct RequireAuthorityOpts<'a> {
@@ -156,7 +186,10 @@ pub struct RequireAuthorityOpts<'a> {
 
 impl Default for RequireAuthorityOpts<'_> {
     fn default() -> Self {
-        Self { claimed_authority: None, require_per_message: false }
+        Self {
+            claimed_authority: None,
+            require_per_message: false,
+        }
     }
 }
 
@@ -180,15 +213,26 @@ pub fn require_authority(
             return Decision::deny(
                 ArcCode::ArcAuthorityModelClaimed,
                 "payload claims an authority the kernel did not assert for this turn",
-                vec![("turnId".into(), turn_id.into()), ("claimed".into(), claimed.into()), ("asserted".into(), assertion.authority.clone())],
+                vec![
+                    ("turnId".into(), turn_id.into()),
+                    ("claimed".into(), claimed.into()),
+                    ("asserted".into(), assertion.authority.clone()),
+                ],
             );
         }
     }
     if !allowed.contains(&assertion.authority.as_str()) {
         return Decision::deny(
             ArcCode::ArcAuthorityNotAsserted,
-            format!("authority '{}' is not permitted for this operation", assertion.authority),
-            vec![("turnId".into(), turn_id.into()), ("asserted".into(), assertion.authority.clone()), ("allowed".into(), allowed.join(","))],
+            format!(
+                "authority '{}' is not permitted for this operation",
+                assertion.authority
+            ),
+            vec![
+                ("turnId".into(), turn_id.into()),
+                ("asserted".into(), assertion.authority.clone()),
+                ("allowed".into(), allowed.join(",")),
+            ],
         );
     }
     if opts.require_per_message && !assertion.per_message {
@@ -198,18 +242,27 @@ pub fn require_authority(
             vec![("turnId".into(), turn_id.into()), ("verificationMethod".into(), assertion.verification_method.clone())],
         );
     }
-    Decision::allow(vec![("turnId".into(), turn_id.into()), ("authority".into(), assertion.authority.clone())])
+    Decision::allow(vec![
+        ("turnId".into(), turn_id.into()),
+        ("authority".into(), assertion.authority.clone()),
+    ])
 }
 
 /// Delegates host authority binding to an injected store. Mirrors JS
 /// `assertHostAuthorityForTurn`; a `None` store is `ARC_AUTHORITY_NOT_ASSERTED`.
-pub fn assert_host_authority_for_turn<F, T>(binding_store: Option<&F>, input: T) -> Result<Assertion, ArcaneError>
+pub fn assert_host_authority_for_turn<F, T>(
+    binding_store: Option<&F>,
+    input: T,
+) -> Result<Assertion, ArcaneError>
 where
     F: Fn(T) -> Result<Assertion, ArcaneError>,
 {
     match binding_store {
         Some(f) => f(input),
-        None => Err(ArcaneError::new(ArcCode::ArcAuthorityNotAsserted, "host authority binding store is required")),
+        None => Err(ArcaneError::new(
+            ArcCode::ArcAuthorityNotAsserted,
+            "host authority binding store is required",
+        )),
     }
 }
 
@@ -283,7 +336,12 @@ mod tests {
     #[test]
     fn require_authority_denies_when_no_assertion() {
         let l = ledger();
-        let d = require_authority(&l, "missing", &["alchemist"], RequireAuthorityOpts::default());
+        let d = require_authority(
+            &l,
+            "missing",
+            &["alchemist"],
+            RequireAuthorityOpts::default(),
+        );
         assert!(!d.allowed);
         assert_eq!(d.code, Some(ArcCode::ArcAuthorityNotAsserted));
     }
@@ -292,7 +350,10 @@ mod tests {
     fn require_authority_denies_claim_mismatch() {
         let mut l = ledger();
         l.assert_for_turn(ok_input("t1")).unwrap();
-        let opts = RequireAuthorityOpts { claimed_authority: Some("oracle"), require_per_message: false };
+        let opts = RequireAuthorityOpts {
+            claimed_authority: Some("oracle"),
+            require_per_message: false,
+        };
         let d = require_authority(&l, "t1", &["alchemist", "oracle"], opts);
         assert_eq!(d.code, Some(ArcCode::ArcAuthorityModelClaimed));
     }
@@ -312,7 +373,10 @@ mod tests {
         input.verification_method = "host-connection-trust";
         input.per_message = false;
         l.assert_for_turn(input).unwrap();
-        let opts = RequireAuthorityOpts { claimed_authority: None, require_per_message: true };
+        let opts = RequireAuthorityOpts {
+            claimed_authority: None,
+            require_per_message: true,
+        };
         let d = require_authority(&l, "t1", &["alchemist"], opts);
         assert_eq!(d.code, Some(ArcCode::ArcAuthorityNotAsserted));
     }
@@ -336,12 +400,19 @@ mod tests {
     fn extract_authority_from_payload_always_errors_and_lists_fields() {
         let err = extract_authority_from_payload(&["authority", "unrelated"]);
         assert_eq!(err.code, ArcCode::ArcAuthorityModelClaimed);
-        assert!(err.detail.iter().any(|(k, v)| k == "fields" && v.contains("authority")));
+        assert!(err
+            .detail
+            .iter()
+            .any(|(k, v)| k == "fields" && v.contains("authority")));
     }
 
     #[test]
     fn assert_host_authority_for_turn_errors_without_a_store() {
-        let err = assert_host_authority_for_turn::<fn(()) -> Result<Assertion, ArcaneError>, ()>(None, ()).unwrap_err();
+        let err = assert_host_authority_for_turn::<fn(()) -> Result<Assertion, ArcaneError>, ()>(
+            None,
+            (),
+        )
+        .unwrap_err();
         assert_eq!(err.code, ArcCode::ArcAuthorityNotAsserted);
     }
 

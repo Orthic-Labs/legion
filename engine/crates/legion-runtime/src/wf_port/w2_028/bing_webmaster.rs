@@ -72,7 +72,13 @@ pub fn build_request_url(method: &str, api_key: &str, params: &[(&str, Option<&s
     }
     let qs = query
         .into_iter()
-        .map(|(k, v)| format!("{}={}", url_encode_query_component(&k), url_encode_query_component(&v)))
+        .map(|(k, v)| {
+            format!(
+                "{}={}",
+                url_encode_query_component(&k),
+                url_encode_query_component(&v)
+            )
+        })
         .collect::<Vec<_>>()
         .join("&");
     format!("{BASE}/{method}?{qs}")
@@ -207,7 +213,11 @@ pub fn resolve_dispatch(
 /// which `call()` turns into `{"error": str(e), "method": method}`).
 pub trait Transport {
     fn get(&self, url: &str) -> Result<(u16, String), String>;
-    fn post_json(&self, url: &str, body: &BTreeMap<String, String>) -> Result<(u16, String), String>;
+    fn post_json(
+        &self,
+        url: &str,
+        body: &BTreeMap<String, String>,
+    ) -> Result<(u16, String), String>;
 }
 
 /// `call(method, params, body)`, generalized over any [`Transport`]:
@@ -223,8 +233,10 @@ pub fn call(
     params: &BTreeMap<String, String>,
     body: Option<&BTreeMap<String, String>>,
 ) -> CallResult {
-    let param_pairs: Vec<(&str, Option<&str>)> =
-        params.iter().map(|(k, v)| (k.as_str(), Some(v.as_str()))).collect();
+    let param_pairs: Vec<(&str, Option<&str>)> = params
+        .iter()
+        .map(|(k, v)| (k.as_str(), Some(v.as_str())))
+        .collect();
     let url = build_request_url(method, api_key, &param_pairs);
 
     let outcome = match body {
@@ -304,7 +316,9 @@ pub fn run(args: &BwtArgs, env_key: Option<&str>, transport: &dyn Transport) -> 
 
     let res = match dispatch {
         Dispatch::Get { method, params } => call(transport, &method, &api_key, &params, None),
-        Dispatch::Post { method, body } => call(transport, &method, &api_key, &BTreeMap::new(), Some(&body)),
+        Dispatch::Post { method, body } => {
+            call(transport, &method, &api_key, &BTreeMap::new(), Some(&body))
+        }
     };
 
     let full_json = serde_json::to_string_pretty(&res).unwrap_or_default();
@@ -356,7 +370,11 @@ impl Transport for ReqwestTransport {
         Ok((status, text))
     }
 
-    fn post_json(&self, url: &str, body: &BTreeMap<String, String>) -> Result<(u16, String), String> {
+    fn post_json(
+        &self,
+        url: &str,
+        body: &BTreeMap<String, String>,
+    ) -> Result<(u16, String), String> {
         let resp = self
             .client
             .post(url)
@@ -398,10 +416,20 @@ mod tests {
 
     impl Transport for FakeTransport {
         fn get(&self, _url: &str) -> Result<(u16, String), String> {
-            self.get_response.borrow_mut().take().expect("unexpected get")
+            self.get_response
+                .borrow_mut()
+                .take()
+                .expect("unexpected get")
         }
-        fn post_json(&self, _url: &str, _body: &BTreeMap<String, String>) -> Result<(u16, String), String> {
-            self.post_response.borrow_mut().take().expect("unexpected post")
+        fn post_json(
+            &self,
+            _url: &str,
+            _body: &BTreeMap<String, String>,
+        ) -> Result<(u16, String), String> {
+            self.post_response
+                .borrow_mut()
+                .take()
+                .expect("unexpected post")
         }
     }
 
@@ -438,7 +466,13 @@ mod tests {
         let mut body = BTreeMap::new();
         body.insert("siteUrl".to_string(), "https://example.com/".to_string());
         body.insert("url".to_string(), "https://example.com/new/".to_string());
-        let res = call(&transport, "SubmitUrl", "KEY", &BTreeMap::new(), Some(&body));
+        let res = call(
+            &transport,
+            "SubmitUrl",
+            "KEY",
+            &BTreeMap::new(),
+            Some(&body),
+        );
         assert!(!res.is_error());
     }
 
@@ -462,7 +496,11 @@ mod tests {
             fn get(&self, _url: &str) -> Result<(u16, String), String> {
                 panic!("must not be called");
             }
-            fn post_json(&self, _url: &str, _body: &BTreeMap<String, String>) -> Result<(u16, String), String> {
+            fn post_json(
+                &self,
+                _url: &str,
+                _body: &BTreeMap<String, String>,
+            ) -> Result<(u16, String), String> {
                 panic!("must not be called");
             }
         }
@@ -472,7 +510,10 @@ mod tests {
         };
         let outcome = run(&args, Some("KEY"), &PanicTransport);
         assert_eq!(outcome.exit_code, 2);
-        assert_eq!(outcome.usage_error, Some("traffic needs --site".to_string()));
+        assert_eq!(
+            outcome.usage_error,
+            Some("traffic needs --site".to_string())
+        );
     }
 
     #[test]

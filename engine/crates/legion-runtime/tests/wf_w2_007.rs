@@ -7,17 +7,28 @@
 //! (`pub mod wf_port;` in lib.rs already exists; `pub mod w2_007;` needs
 //! adding to `engine/crates/legion-runtime/src/wf_port/mod.rs`).
 
-use legion_runtime::wf_port::w2_007::{export_deck_stage_pdf, fetch_images, gen_deck_thumbs, html2pptx, mix_voiceover};
+use legion_runtime::wf_port::w2_007::{
+    export_deck_stage_pdf, fetch_images, gen_deck_thumbs, html2pptx, mix_voiceover,
+};
 use std::path::{Path, PathBuf};
 
 // ---- export_deck_stage_pdf.mjs -------------------------------------------
 
 #[test]
 fn export_deck_stage_pdf_full_cli_round_trip() {
-    let argv: Vec<String> = vec!["--html", "deck.html", "--out", "deck.pdf", "--width", "1600", "--height", "900"]
-        .into_iter()
-        .map(String::from)
-        .collect();
+    let argv: Vec<String> = vec![
+        "--html",
+        "deck.html",
+        "--out",
+        "deck.pdf",
+        "--width",
+        "1600",
+        "--height",
+        "900",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
     let args = export_deck_stage_pdf::parse_args(&argv).expect("valid args");
     assert_eq!(args.width, 1600);
     assert_eq!(args.height, 900);
@@ -47,11 +58,15 @@ fn fetch_images_end_to_end_candidate_pipeline() {
     let mut extmetadata = HashMap::new();
     extmetadata.insert(
         "LicenseShortName".to_string(),
-        fetch_images::ExtMetaValue { value: "CC BY-SA 4.0".to_string() },
+        fetch_images::ExtMetaValue {
+            value: "CC BY-SA 4.0".to_string(),
+        },
     );
     extmetadata.insert(
         "Artist".to_string(),
-        fetch_images::ExtMetaValue { value: "Jane Doe".to_string() },
+        fetch_images::ExtMetaValue {
+            value: "Jane Doe".to_string(),
+        },
     );
     let page = fetch_images::CommonsPage {
         title: Some("File:George Town street.jpg".to_string()),
@@ -104,7 +119,8 @@ fn gen_deck_thumbs_discovers_sorts_and_derives_outputs() {
         "01-cover.html".to_string(),
         "readme.md".to_string(),
     ];
-    let files = gen_deck_thumbs::discover_html_files_checked(&opts.slides_dir, true, &entries).unwrap();
+    let files =
+        gen_deck_thumbs::discover_html_files_checked(&opts.slides_dir, true, &entries).unwrap();
     assert_eq!(files, vec!["01-cover.html", "02-body.html"]);
 
     let out_path = gen_deck_thumbs::thumb_output_path(&opts.out_dir, &files[0]);
@@ -136,7 +152,12 @@ fn html2pptx_pipeline_from_computed_style_values_to_validation() {
 
     // Body overflow + layout-size validation feed into one combined error.
     let overflow_errors = html2pptx::body_overflow_errors(1920.0, 1080.0, 1920.0, 1090.0);
-    let dim_errors = html2pptx::validate_dimensions(1920.0, 1080.0, Some(10.0 * html2pptx::EMU_PER_IN), Some(5.625 * html2pptx::EMU_PER_IN));
+    let dim_errors = html2pptx::validate_dimensions(
+        1920.0,
+        1080.0,
+        Some(10.0 * html2pptx::EMU_PER_IN),
+        Some(5.625 * html2pptx::EMU_PER_IN),
+    );
     let mut all = Vec::new();
     all.extend(overflow_errors);
     all.extend(dim_errors);
@@ -152,27 +173,31 @@ fn html2pptx_rotation_and_shadow_and_radius_agree_with_js_semantics() {
     assert_eq!(html2pptx::get_rotation("none", "vertical-rl"), Some(90.0));
     let shadow = html2pptx::parse_box_shadow("rgba(0, 0, 0, 0.3) 2px 2px 8px 0px").unwrap();
     assert_eq!(shadow.angle, 45);
-    assert_eq!(html2pptx::border_radius_to_rect_radius("100%", 40.0, 40.0), 1.0);
+    assert_eq!(
+        html2pptx::border_radius_to_rect_radius("100%", 40.0, 40.0),
+        1.0
+    );
 }
 
 // ---- mix-voiceover.sh -------------------------------------------------------
 
 #[test]
 fn mix_voiceover_full_flow_voice_and_bgm_ducked() {
-    let opts = mix_voiceover::parse_args([
-        "anim.mp4",
-        "--voiceover=v.mp3",
-        "--bgm-mood=tech",
-    ])
-    .unwrap();
+    let opts =
+        mix_voiceover::parse_args(["anim.mp4", "--voiceover=v.mp3", "--bgm-mood=tech"]).unwrap();
     let script_dir = Path::new("/skills/designer/engine/huashu/scripts");
     let bgm = mix_voiceover::validate(&opts, |_| true, |_| true, |_| true, script_dir).unwrap();
     assert_eq!(
         bgm,
-        Some(PathBuf::from("/skills/designer/engine/huashu/scripts/../assets/bgm-tech.mp3"))
+        Some(PathBuf::from(
+            "/skills/designer/engine/huashu/scripts/../assets/bgm-tech.mp3"
+        ))
     );
 
-    let output = opts.out.clone().unwrap_or_else(|| mix_voiceover::default_output_path(opts.input.as_deref().unwrap()));
+    let output = opts
+        .out
+        .clone()
+        .unwrap_or_else(|| mix_voiceover::default_output_path(opts.input.as_deref().unwrap()));
     assert_eq!(output, "anim-voiced.mp4");
 
     let args = mix_voiceover::build_ffmpeg_args(
@@ -195,6 +220,7 @@ fn mix_voiceover_full_flow_voice_and_bgm_ducked() {
 #[test]
 fn mix_voiceover_missing_input_short_circuits_validation() {
     let opts = mix_voiceover::Options::default();
-    let err = mix_voiceover::validate(&opts, |_| false, |_| false, |_| false, Path::new("/s")).unwrap_err();
+    let err = mix_voiceover::validate(&opts, |_| false, |_| false, |_| false, Path::new("/s"))
+        .unwrap_err();
     assert_eq!(err, mix_voiceover::ValidationError::MissingOrNoSuchInput);
 }

@@ -37,23 +37,43 @@ pub struct TaxonomyError {
 
 impl TaxonomyError {
     pub fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into(), code: "LEGION_ERROR", exit_code: Exit::InternalError }
+        Self {
+            message: message.into(),
+            code: "LEGION_ERROR",
+            exit_code: Exit::InternalError,
+        }
     }
 
     pub fn usage(message: impl Into<String>) -> Self {
-        Self { message: message.into(), code: "USAGE", exit_code: Exit::Usage }
+        Self {
+            message: message.into(),
+            code: "USAGE",
+            exit_code: Exit::Usage,
+        }
     }
 
     pub fn integrity(message: impl Into<String>) -> Self {
-        Self { message: message.into(), code: "INTEGRITY", exit_code: Exit::Integrity }
+        Self {
+            message: message.into(),
+            code: "INTEGRITY",
+            exit_code: Exit::Integrity,
+        }
     }
 
     pub fn incomplete(message: impl Into<String>) -> Self {
-        Self { message: message.into(), code: "INCOMPLETE", exit_code: Exit::Incomplete }
+        Self {
+            message: message.into(),
+            code: "INCOMPLETE",
+            exit_code: Exit::Incomplete,
+        }
     }
 
     pub fn policy(message: impl Into<String>) -> Self {
-        Self { message: message.into(), code: "POLICY_FAIL", exit_code: Exit::PolicyFail }
+        Self {
+            message: message.into(),
+            code: "POLICY_FAIL",
+            exit_code: Exit::PolicyFail,
+        }
     }
 }
 
@@ -79,8 +99,7 @@ pub struct ExitReport {
 
 /// Port of `exitCodeForReport(report)`.
 pub fn exit_code_for_report(report: &ExitReport) -> Exit {
-    if report.integrity_valid == Some(false)
-        || report.gates_plan_binding.as_deref() == Some("fail")
+    if report.integrity_valid == Some(false) || report.gates_plan_binding.as_deref() == Some("fail")
     {
         return Exit::Integrity;
     }
@@ -124,24 +143,38 @@ mod tests {
 
     #[test]
     fn incomplete_flag_or_status_maps_to_incomplete() {
-        let by_flag = ExitReport { incomplete: Some(true), ..Default::default() };
-        let by_status =
-            ExitReport { audit_status: Some("incomplete".into()), ..Default::default() };
+        let by_flag = ExitReport {
+            incomplete: Some(true),
+            ..Default::default()
+        };
+        let by_status = ExitReport {
+            audit_status: Some("incomplete".into()),
+            ..Default::default()
+        };
         assert_eq!(exit_code_for_report(&by_flag), Exit::Incomplete);
         assert_eq!(exit_code_for_report(&by_status), Exit::Incomplete);
     }
 
     #[test]
     fn fail_status_or_quality_gate_maps_to_policy_fail() {
-        let by_status = ExitReport { audit_status: Some("fail".into()), ..Default::default() };
-        let by_gate = ExitReport { quality_gate: Some("fail".into()), ..Default::default() };
+        let by_status = ExitReport {
+            audit_status: Some("fail".into()),
+            ..Default::default()
+        };
+        let by_gate = ExitReport {
+            quality_gate: Some("fail".into()),
+            ..Default::default()
+        };
         assert_eq!(exit_code_for_report(&by_status), Exit::PolicyFail);
         assert_eq!(exit_code_for_report(&by_gate), Exit::PolicyFail);
     }
 
     #[test]
     fn pass_status_maps_to_pass() {
-        let report = ExitReport { audit_status: Some("pass".into()), ..Default::default() };
+        let report = ExitReport {
+            audit_status: Some("pass".into()),
+            ..Default::default()
+        };
         assert_eq!(exit_code_for_report(&report), Exit::Pass);
     }
 

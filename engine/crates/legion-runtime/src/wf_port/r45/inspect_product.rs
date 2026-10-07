@@ -42,15 +42,21 @@
 //! ```
 
 use crate::l3_inventory::{
-    components::extract_components, external_systems::discover_external_systems, journeys::build_journeys,
-    product_context::build_product_context, product_targets::{build_portfolio, discover_targets},
-    release_contract::merge_release_contract, stacks::build_stack_graph,
+    components::extract_components,
+    external_systems::discover_external_systems,
+    journeys::build_journeys,
+    product_context::build_product_context,
+    product_targets::{build_portfolio, discover_targets},
+    release_contract::merge_release_contract,
+    stacks::build_stack_graph,
 };
 use crate::p5_core::controls_support;
 use crate::wf_port::w2_038::registry::load_control_packs;
 use crate::wf_port::w2_038::scenarios::compile_scenarios;
 use crate::wf_port::w2_039::binding::digest;
-use crate::wf_port::w2_041::control_baseline::{compile_baseline_and_impacts_json, cv_to_json, json_to_cv};
+use crate::wf_port::w2_041::control_baseline::{
+    compile_baseline_and_impacts_json, cv_to_json, json_to_cv,
+};
 use serde_json::{json, Map, Value};
 use std::path::Path;
 
@@ -137,7 +143,12 @@ pub fn recompute_portfolio_digests(portfolio: &Value, components: &Value, stacks
 }
 
 /// Port of the `gaps` array assembly.
-pub fn build_gaps(release_contract: &Value, product_context: &Value, journeys: &Value, stacks: &Value) -> Vec<Value> {
+pub fn build_gaps(
+    release_contract: &Value,
+    product_context: &Value,
+    journeys: &Value,
+    stacks: &Value,
+) -> Vec<Value> {
     let mut gaps = Vec::new();
     for field in arr(release_contract, "missingDeclarations") {
         gaps.push(json!({"kind": "release-contract-missing", "field": field}));
@@ -267,7 +278,9 @@ pub struct InspectProductOptions<'a> {
 /// `p5_core::controls_evidence::{evidence_capabilities,
 /// capability_impacts}`), `w2_038::registry::load_control_packs`, and
 /// `w2_038::scenarios::compile_scenarios`.
-pub fn inspect_product_from_projection(options: InspectProductOptions<'_>) -> Result<Value, String> {
+pub fn inspect_product_from_projection(
+    options: InspectProductOptions<'_>,
+) -> Result<Value, String> {
     let candidates = discover_targets(options.projection, options.binding);
     let portfolio_raw = build_portfolio(
         candidates,
@@ -278,33 +291,68 @@ pub fn inspect_product_from_projection(options: InspectProductOptions<'_>) -> Re
         options.binding.clone(),
     )
     .map_err(|e| e.to_string())?;
-    let components = extract_components(&portfolio_raw, options.projection, options.binding).map_err(|e| e.to_string())?;
-    let stacks = build_stack_graph(&portfolio_raw, &components, options.projection, options.binding);
+    let components = extract_components(&portfolio_raw, options.projection, options.binding)
+        .map_err(|e| e.to_string())?;
+    let stacks = build_stack_graph(
+        &portfolio_raw,
+        &components,
+        options.projection,
+        options.binding,
+    );
     let portfolio = recompute_portfolio_digests(&portfolio_raw, &components, &stacks);
 
-    let external_systems = discover_external_systems(options.projection, &components, options.binding);
+    let external_systems =
+        discover_external_systems(options.projection, &components, options.binding);
 
-    let release_contract = if options.release_contract.get("kind").and_then(as_str) == Some("legion-release-contract") {
+    let release_contract = if options.release_contract.get("kind").and_then(as_str)
+        == Some("legion-release-contract")
+    {
         options.release_contract.clone()
     } else {
-        let observed = options.release_contract.get("observed").cloned().unwrap_or(json!({}));
-        let declared = options.release_contract.get("declared").cloned().unwrap_or(json!({}));
-        let policy = options.release_contract.get("policy").cloned().unwrap_or(json!({}));
+        let observed = options
+            .release_contract
+            .get("observed")
+            .cloned()
+            .unwrap_or(json!({}));
+        let declared = options
+            .release_contract
+            .get("declared")
+            .cloned()
+            .unwrap_or(json!({}));
+        let policy = options
+            .release_contract
+            .get("policy")
+            .cloned()
+            .unwrap_or(json!({}));
         let external_evidence = options
             .release_contract
             .get("externalEvidence")
             .cloned()
             .unwrap_or(json!({}));
-        merge_release_contract(observed, declared, policy, external_evidence, options.binding.clone())
-            .map_err(|e| e.to_string())?
+        merge_release_contract(
+            observed,
+            declared,
+            policy,
+            external_evidence,
+            options.binding.clone(),
+        )
+        .map_err(|e| e.to_string())?
     };
 
     let product_context = build_product_context(options.projection, &release_contract);
-    let journeys = build_journeys(&portfolio, &release_contract, options.projection, options.binding);
+    let journeys = build_journeys(
+        &portfolio,
+        &release_contract,
+        options.projection,
+        options.binding,
+    );
 
     let packs: Vec<Value> = match options.packs {
         Some(packs) => packs,
-        None => load_control_packs(options.repo_root)?.iter().map(cv_to_json).collect(),
+        None => load_control_packs(options.repo_root)?
+            .iter()
+            .map(cv_to_json)
+            .collect(),
     };
 
     let stacks_list: Vec<Value> = arr(&stacks, "stacks").to_vec();
@@ -329,7 +377,8 @@ pub fn inspect_product_from_projection(options: InspectProductOptions<'_>) -> Re
     // });
     // ```
     let baseline_cv = json_to_cv(&baseline);
-    let journeys_cv: Vec<controls_support::Value> = arr(&journeys, "journeys").iter().map(json_to_cv).collect();
+    let journeys_cv: Vec<controls_support::Value> =
+        arr(&journeys, "journeys").iter().map(json_to_cv).collect();
     let capabilities_cv: Vec<controls_support::Value> = capabilities
         .as_array()
         .into_iter()
@@ -342,18 +391,28 @@ pub fn inspect_product_from_projection(options: InspectProductOptions<'_>) -> Re
     } else {
         Some(binding_cv)
     };
-    let mut dimensions: std::collections::BTreeMap<String, Vec<controls_support::Value>> = std::collections::BTreeMap::new();
+    let mut dimensions: std::collections::BTreeMap<String, Vec<controls_support::Value>> =
+        std::collections::BTreeMap::new();
     dimensions.insert(
         "environment".to_string(),
-        arr(&release_contract, "environments").iter().map(json_to_cv).collect(),
+        arr(&release_contract, "environments")
+            .iter()
+            .map(json_to_cv)
+            .collect(),
     );
     dimensions.insert(
         "role".to_string(),
-        arr(&release_contract, "roles").iter().map(json_to_cv).collect(),
+        arr(&release_contract, "roles")
+            .iter()
+            .map(json_to_cv)
+            .collect(),
     );
     dimensions.insert(
         "platform".to_string(),
-        arr(&release_contract, "supportedPlatforms").iter().map(json_to_cv).collect(),
+        arr(&release_contract, "supportedPlatforms")
+            .iter()
+            .map(json_to_cv)
+            .collect(),
     );
     let scenarios_cv = compile_scenarios(
         &baseline_cv,
@@ -479,7 +538,13 @@ mod tests {
                 "gaps": [],
             })
         );
-        assert_eq!(result["portfolio"]["targets"][0]["componentIds"], json!(["c1"]));
-        assert!(result["portfolio"]["digest"].as_str().unwrap().starts_with("sha256:"));
+        assert_eq!(
+            result["portfolio"]["targets"][0]["componentIds"],
+            json!(["c1"])
+        );
+        assert!(result["portfolio"]["digest"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:"));
     }
 }

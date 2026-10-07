@@ -14,10 +14,11 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use legion_runtime::wf_port::r18::{
-    commit_manual_edits, rollback_changed_files, run_cli, snapshot_rollback_files,
-    CommitOptions,
+    commit_manual_edits, rollback_changed_files, run_cli, snapshot_rollback_files, CommitOptions,
 };
-use legion_runtime::wf_port::w2_018::copy_edit_agent::{ProcessRunResult, ProcessRunner, ProcessSpec};
+use legion_runtime::wf_port::w2_018::copy_edit_agent::{
+    ProcessRunResult, ProcessRunner, ProcessSpec,
+};
 use legion_runtime::wf_port::w2_020::wrap_cli;
 use serde_json::json;
 
@@ -25,11 +26,8 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let dir = std::env::temp_dir().join(format!(
-        "legion-r18r26-{tag}-{}-{}",
-        std::process::id(),
-        n
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("legion-r18r26-{tag}-{}-{}", std::process::id(), n));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }

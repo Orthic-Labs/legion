@@ -25,7 +25,11 @@ fn format_utc_seconds(total_secs: u64) -> String {
     // Civil-from-days algorithm (Howard Hinnant), avoids a chrono dependency.
     let days = (total_secs / 86_400) as i64;
     let secs_of_day = total_secs % 86_400;
-    let (h, m, s) = (secs_of_day / 3600, (secs_of_day % 3600) / 60, secs_of_day % 60);
+    let (h, m, s) = (
+        secs_of_day / 3600,
+        (secs_of_day % 3600) / 60,
+        secs_of_day % 60,
+    );
     let (y, mo, d) = civil_from_days(days);
     format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}Z")
 }
@@ -68,10 +72,7 @@ pub fn sha256_text(text: &str) -> String {
 pub fn atomic_write_text(path: &Path, text: &str) -> std::io::Result<()> {
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     fs::create_dir_all(parent)?;
-    let file_name = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("out");
+    let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("out");
     let tmp_path = parent.join(format!(".{file_name}.{}.tmp", std::process::id()));
     {
         let mut f = fs::File::create(&tmp_path)?;
@@ -95,7 +96,10 @@ pub fn append_jsonl(path: &Path, value: &serde_json::Value) -> std::io::Result<(
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     fs::create_dir_all(parent)?;
     let line = serde_json::to_string(value).unwrap_or_default() + "\n";
-    let mut f = fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut f = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     f.write_all(line.as_bytes())?;
     f.flush()?;
     f.sync_all()?;
@@ -121,7 +125,8 @@ mod tests {
 
     #[test]
     fn atomic_write_text_then_read_round_trips() {
-        let dir = std::env::temp_dir().join(format!("legion-research-port-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("legion-research-port-test-{}", std::process::id()));
         let path = dir.join("out.txt");
         atomic_write_text(&path, "hello\n").unwrap();
         assert_eq!(fs::read_to_string(&path).unwrap(), "hello\n");
@@ -130,7 +135,10 @@ mod tests {
 
     #[test]
     fn append_jsonl_appends_lines() {
-        let dir = std::env::temp_dir().join(format!("legion-research-port-test-jsonl-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "legion-research-port-test-jsonl-{}",
+            std::process::id()
+        ));
         let path = dir.join("events.jsonl");
         let _ = fs::remove_dir_all(&dir);
         append_jsonl(&path, &serde_json::json!({"a": 1})).unwrap();

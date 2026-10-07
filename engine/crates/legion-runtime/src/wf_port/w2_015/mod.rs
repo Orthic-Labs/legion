@@ -68,10 +68,7 @@ fn glob_to_regex(glob: &str) -> Option<regex::Regex> {
                 if let Some(end_offset) = chars[i..].iter().position(|&c| c == '}') {
                     let end = i + end_offset;
                     let body: String = chars[i + 1..end].iter().collect();
-                    let parts: Vec<String> = body
-                        .split(',')
-                        .map(|p| regex::escape(p))
-                        .collect();
+                    let parts: Vec<String> = body.split(',').map(|p| regex::escape(p)).collect();
                     re.push_str("(?:");
                     re.push_str(&parts.join("|"));
                     re.push(')');
@@ -231,9 +228,7 @@ fn is_valid_hex(hex: &str) -> bool {
 /// Port of `parseHexIgnoreColor(hex)`.
 fn parse_hex_color(hex: &str) -> Option<Rgba> {
     let nibble = |c: char| c.to_digit(16).map(|d| d as u8);
-    let byte_from_pair = |a: char, b: char| -> Option<u8> {
-        Some(nibble(a)? * 16 + nibble(b)?)
-    };
+    let byte_from_pair = |a: char, b: char| -> Option<u8> { Some(nibble(a)? * 16 + nibble(b)?) };
     match hex.len() {
         3 | 4 => {
             let chars: Vec<char> = hex.chars().collect();
@@ -487,11 +482,7 @@ const DIRECT_VALUE_RULES: [&str; 5] = [
 /// Port of `extractFindingIgnoreValueRaw` (display case preserved).
 pub fn extract_finding_ignore_value_raw(finding: &Finding) -> String {
     let rule = normalize_ignore_rule(&finding.antipattern);
-    if let Some(direct) = finding
-        .ignore_value
-        .as_deref()
-        .or(finding.value.as_deref())
-    {
+    if let Some(direct) = finding.ignore_value.as_deref().or(finding.value.as_deref()) {
         let cleaned = clean_ignore_value_display(direct);
         if !cleaned.is_empty() {
             return cleaned;
@@ -518,9 +509,7 @@ pub fn extract_finding_ignore_value_raw(finding: &Finding) -> String {
             return clean_ignore_value_display(&m);
         }
         if let Some(m) = regex_capture(text, r"(?i)[?&]family=([^&:;\n]+)") {
-            return clean_ignore_value_display(
-                &percent_decode(&m).unwrap_or_else(|| m.clone()),
-            );
+            return clean_ignore_value_display(&percent_decode(&m).unwrap_or_else(|| m.clone()));
         }
     }
 
@@ -632,8 +621,7 @@ fn is_ignored_finding_value(finding: &Finding, ignore_values: &[IgnoreValueEntry
     }
     ignore_values.iter().any(|entry| {
         let wildcard = entry.value == "*";
-        if entry.rule != rule || (!wildcard && !ignore_value_matches(&rule, &entry.value, &value))
-        {
+        if entry.rule != rule || (!wildcard && !ignore_value_matches(&rule, &entry.value, &value)) {
             return false;
         }
         if entry.files.is_empty() {
@@ -650,8 +638,10 @@ pub fn filter_findings(
     ignore_rules: &HashSet<String>,
     ignore_values: &[IgnoreValueEntry],
 ) -> Vec<Finding> {
-    let normalized_rules: HashSet<String> =
-        ignore_rules.iter().map(|r| normalize_ignore_rule(r)).collect();
+    let normalized_rules: HashSet<String> = ignore_rules
+        .iter()
+        .map(|r| normalize_ignore_rule(r))
+        .collect();
     findings
         .iter()
         .filter(|f| {
@@ -766,7 +756,10 @@ pub fn format_finding_line(f: &Finding) -> String {
     } else {
         String::new()
     };
-    let line = format!("{prefix} [{}] {name_segment} {desc}{ignore_segment}", f.antipattern);
+    let line = format!(
+        "{prefix} [{}] {name_segment} {desc}{ignore_segment}",
+        f.antipattern
+    );
     collapse_whitespace(&line).trim().to_string()
 }
 
@@ -813,12 +806,8 @@ pub enum Harness {
 /// Port of `payload(text, eventName, harness)`.
 pub fn payload(text: &str, event_name: &str, harness: Harness) -> String {
     match harness {
-        Harness::Cursor => {
-            serde_json::json!({ "additional_context": text }).to_string()
-        }
-        Harness::Github => {
-            serde_json::json!({ "additionalContext": text }).to_string()
-        }
+        Harness::Cursor => serde_json::json!({ "additional_context": text }).to_string(),
+        Harness::Github => serde_json::json!({ "additionalContext": text }).to_string(),
         Harness::Claude => serde_json::json!({
             "hookSpecificOutput": {
                 "hookEventName": event_name,
@@ -845,7 +834,10 @@ mod tests {
 
     #[test]
     fn glob_matches_double_star_and_alternation() {
-        let globs = vec!["**/*.generated.tsx".to_string(), "src/{a,b}/*.css".to_string()];
+        let globs = vec![
+            "**/*.generated.tsx".to_string(),
+            "src/{a,b}/*.css".to_string(),
+        ];
         assert!(matches_any_glob("app/foo/bar.generated.tsx", &globs));
         assert!(matches_any_glob("foo.generated.tsx", &globs)); // basename match
         assert!(matches_any_glob("src/a/x.css", &globs));
@@ -1002,7 +994,9 @@ mod tests {
         let mut f = finding("overused-font", 5);
         f.value = Some("Inter".to_string());
         let cmd = format_finding_ignore_command(&f);
-        assert!(cmd.starts_with("/designer hooks ignore-value overused-font Inter --shared --reason"));
+        assert!(
+            cmd.starts_with("/designer hooks ignore-value overused-font Inter --shared --reason")
+        );
     }
 
     #[test]

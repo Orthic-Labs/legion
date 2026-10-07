@@ -114,7 +114,10 @@ fn parse_scenes(body: &str) -> Vec<Scene> {
 
     let mut scenes = Vec::with_capacity(ids.len());
     for i in 0..ids.len() {
-        let content_end = heading_line_starts.get(i + 1).copied().unwrap_or(body.len());
+        let content_end = heading_line_starts
+            .get(i + 1)
+            .copied()
+            .unwrap_or(body.len());
         let raw = body[content_starts[i]..content_end].trim().to_string();
         scenes.push(Scene {
             id: ids[i].clone(),
@@ -238,7 +241,10 @@ mod tests {
         assert_eq!(parsed.scenes[0].id, "intro");
         assert_eq!(parsed.scenes[0].raw, "大家好。");
         assert_eq!(parsed.scenes[1].id, "what-is");
-        assert_eq!(parsed.scenes[1].raw, "LLM 全称，[[cue:bigmodel]]它是一个网络。");
+        assert_eq!(
+            parsed.scenes[1].raw,
+            "LLM 全称，[[cue:bigmodel]]它是一个网络。"
+        );
     }
 
     #[test]

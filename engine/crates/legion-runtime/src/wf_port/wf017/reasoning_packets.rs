@@ -7,8 +7,11 @@
 //! authority. Each packet has exactly one owner, and a producer never
 //! verifies its own proposal.
 
-use super::envelope::{detect_override_attempts, wrap_untrusted_evidence, UntrustedEvidenceInput, UntrustedEvidenceRecord};
 use super::digest_of;
+use super::envelope::{
+    detect_override_attempts, wrap_untrusted_evidence, UntrustedEvidenceInput,
+    UntrustedEvidenceRecord,
+};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::fmt;
@@ -73,7 +76,9 @@ impl ProposalOwner {
     pub fn authority_message(self) -> &'static str {
         match self {
             Self::Writing => "writing proposals may change words only",
-            Self::Designer => "designer proposals may not change approved text; layout, style, and assets only",
+            Self::Designer => {
+                "designer proposals may not change approved text; layout, style, and assets only"
+            }
             Self::Code => "code proposals may change bounded source only",
             Self::Manual => "manual proposals change nothing automatically",
         }
@@ -100,7 +105,8 @@ impl fmt::Display for PacketError {
 impl std::error::Error for PacketError {}
 
 pub fn assert_owner(owner: &str) -> Result<ProposalOwner, PacketError> {
-    ProposalOwner::parse(owner).ok_or_else(|| PacketError(format!("unknown proposal owner: {owner}")))
+    ProposalOwner::parse(owner)
+        .ok_or_else(|| PacketError(format!("unknown proposal owner: {owner}")))
 }
 
 /// One requested change; mirrors the shape of a JS `change` object closely
@@ -145,8 +151,12 @@ pub struct OwnerChangeGroup {
 pub fn split_cross_owner_changes(changes: &[Change]) -> Result<Vec<OwnerChangeGroup>, PacketError> {
     let mut by_owner: Vec<(ProposalOwner, Vec<Change>)> = Vec::new();
     for change in changes {
-        let owner = owner_for_change_kind(&change.kind)
-            .ok_or_else(|| PacketError(format!("no owner has authority over change kind {}", change.kind)))?;
+        let owner = owner_for_change_kind(&change.kind).ok_or_else(|| {
+            PacketError(format!(
+                "no owner has authority over change kind {}",
+                change.kind
+            ))
+        })?;
         if let Some(entry) = by_owner.iter_mut().find(|(o, _)| *o == owner) {
             entry.1.push(change.clone());
         } else {
@@ -188,12 +198,16 @@ pub fn assert_producer_is_not_verifier(
 ) -> Result<(), PacketError> {
     if let (Some(p), Some(v)) = (&producer.id, &verifier.id) {
         if p == v {
-            return Err(PacketError("the producer may not verify its own proposal (identity match)".into()));
+            return Err(PacketError(
+                "the producer may not verify its own proposal (identity match)".into(),
+            ));
         }
     }
     if let (Some(p), Some(v)) = (&producer.context_id, &verifier.context_id) {
         if p == v {
-            return Err(PacketError("the producer may not verify its own proposal (context reuse)".into()));
+            return Err(PacketError(
+                "the producer may not verify its own proposal (context reuse)".into(),
+            ));
         }
     }
     Ok(())
@@ -305,7 +319,9 @@ pub struct ProposalPacket {
 
 /// Build an owner-specific packet: only the relevant findings, root causes,
 /// and proof, plus the exact scope, protected surfaces, and stop conditions.
-pub fn build_proposal_packet(mut input: BuildProposalPacketInput) -> Result<ProposalPacket, PacketError> {
+pub fn build_proposal_packet(
+    mut input: BuildProposalPacketInput,
+) -> Result<ProposalPacket, PacketError> {
     let owner = assert_owner(&input.owner)?;
     assert_sandbox(input.sandbox.as_ref())?;
     let producer_id = input
@@ -345,8 +361,10 @@ pub fn build_proposal_packet(mut input: BuildProposalPacketInput) -> Result<Prop
         producer_map.insert("contextId".to_string(), Value::String(context_id.clone()));
     }
 
-    let omitted_evidence: Vec<super::envelope::Omission> =
-        enveloped.iter().flat_map(|record| record.omissions.clone()).collect();
+    let omitted_evidence: Vec<super::envelope::Omission> = enveloped
+        .iter()
+        .flat_map(|record| record.omissions.clone())
+        .collect();
     let truncated = enveloped.iter().any(|record| record.truncated);
     let injection_attempts = detect_override_attempts(&enveloped);
 
@@ -411,7 +429,9 @@ fn matches_glob(path: &str, pattern: &str) -> bool {
 pub fn assert_path_allowed(packet: &ProposalPacket, path: &str) -> Result<(), PacketError> {
     for pattern in &packet.protected_surfaces {
         if matches_glob(path, pattern) {
-            return Err(PacketError(format!("{path} is a protected surface in this packet")));
+            return Err(PacketError(format!(
+                "{path} is a protected surface in this packet"
+            )));
         }
     }
     let allowed = packet
@@ -477,7 +497,9 @@ pub fn reasoning_proposal(
         )));
     }
     if changes.is_empty() {
-        return Err(PacketError("a proposal requires at least one change".into()));
+        return Err(PacketError(
+            "a proposal requires at least one change".into(),
+        ));
     }
     for change in &changes {
         assert_owner_authority(owner, change)?;
@@ -495,7 +517,10 @@ pub fn reasoning_proposal(
         producer: packet.producer.clone(),
         packet_digest: packet.digest.clone(),
         target_paths,
-        preconditions: vec![format!("changes stay within packet scope {}", packet.scope.join(", "))],
+        preconditions: vec![format!(
+            "changes stay within packet scope {}",
+            packet.scope.join(", ")
+        )],
         changes,
         patch: None,
         expected_behavior: Vec::new(),

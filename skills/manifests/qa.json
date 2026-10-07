@@ -68,12 +68,12 @@
     {
       "path": "references/browser-automation.md",
       "uri": "legion-skill://qa/references/browser-automation.md",
-      "digest": "sha256:ce876da3e9f604f296351fb7e4bf43830ffc72e0ca8887b4f39f508eb69a443a"
+      "digest": "sha256:9d4826418470f245018c5a963c94ca5aa26d1d65b55d0defe8c3f711276bbbb5"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://qa/references/manual.md",
-      "digest": "sha256:c00ccbfdf6afcfd84be17cb2e0407a671528716dd3f22ff14de404ca000857da"
+      "digest": "sha256:e5f48160e39b9d2b87954819a490d2613d1c40cc6fe5e9322f88b5450ab4bc99"
     }
   ]
 }

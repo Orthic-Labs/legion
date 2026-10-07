@@ -62,7 +62,12 @@ fn required_for(level: &str) -> &'static [&'static str] {
     match level {
         "runtime" => &["platforms"],
         "product" => &["platforms", "environments", "criticalJourneys"],
-        "release" => &["platforms", "environments", "criticalJourneys", "exactReleaseCandidates"],
+        "release" => &[
+            "platforms",
+            "environments",
+            "criticalJourneys",
+            "exactReleaseCandidates",
+        ],
         _ => &[],
     }
 }
@@ -71,7 +76,11 @@ fn canonical(value: &Value) -> Value {
     match value {
         Value::Array(items) => {
             let mut canon: Vec<Value> = items.iter().map(canonical).collect();
-            canon.sort_by(|a, b| serde_json::to_string(a).unwrap_or_default().cmp(&serde_json::to_string(b).unwrap_or_default()));
+            canon.sort_by(|a, b| {
+                serde_json::to_string(a)
+                    .unwrap_or_default()
+                    .cmp(&serde_json::to_string(b).unwrap_or_default())
+            });
             Value::Array(canon)
         }
         Value::Object(map) => {
@@ -94,7 +103,9 @@ fn validate(source: &Value, label: &str) -> R<()> {
                 return Err(InventoryError::new(format!("host-owned field: {key}")));
             }
             if !ALLOWED.contains(&key.as_str()) {
-                return Err(InventoryError::new(format!("unknown release contract field: {label}.{key}")));
+                return Err(InventoryError::new(format!(
+                    "unknown release contract field: {label}.{key}"
+                )));
             }
         }
     }
@@ -121,10 +132,15 @@ pub fn merge_release_contract(
         let ext_binding = external_evidence.get("binding").cloned();
         let binding_matches = ext_binding
             .as_ref()
-            .map(|b| serde_json::to_string(&canonical(b)).unwrap_or_default() == serde_json::to_string(&canonical(&binding)).unwrap_or_default())
+            .map(|b| {
+                serde_json::to_string(&canonical(b)).unwrap_or_default()
+                    == serde_json::to_string(&canonical(&binding)).unwrap_or_default()
+            })
             .unwrap_or(false);
         if ext_binding.is_none() || !binding_matches {
-            return Err(InventoryError::new("external release evidence binding mismatch"));
+            return Err(InventoryError::new(
+                "external release evidence binding mismatch",
+            ));
         }
     }
 
@@ -235,10 +251,12 @@ pub fn load_release_contract(
 ) -> R<Value> {
     let declared: Value = match path {
         Some(p) => {
-            let text = std::fs::read_to_string(p)
-                .map_err(|error| InventoryError::new(format!("could not read release contract: {error}")))?;
-            serde_json::from_str(&text)
-                .map_err(|error| InventoryError::new(format!("invalid release contract JSON: {error}")))?
+            let text = std::fs::read_to_string(p).map_err(|error| {
+                InventoryError::new(format!("could not read release contract: {error}"))
+            })?;
+            serde_json::from_str(&text).map_err(|error| {
+                InventoryError::new(format!("invalid release contract JSON: {error}"))
+            })?
         }
         None => json!({}),
     };
@@ -258,20 +276,35 @@ mod tests {
     fn contract_conflicts_maps_fields() {
         let contract = json!({"conflicts": ["platforms"]});
         let result = contract_conflicts(&contract);
-        assert_eq!(result, vec![json!({"field": "platforms", "status": "conflict"})]);
+        assert_eq!(
+            result,
+            vec![json!({"field": "platforms", "status": "conflict"})]
+        );
     }
 
     #[test]
     fn merge_release_contract_rejects_unknown_field() {
-        let result = merge_release_contract(json!({"bogus": true}), json!({}), json!({}), json!({}), Value::Null);
+        let result = merge_release_contract(
+            json!({"bogus": true}),
+            json!({}),
+            json!({}),
+            json!({}),
+            Value::Null,
+        );
         assert!(result.is_err());
     }
 
     #[test]
     fn merge_release_contract_reports_missing_required_fields_for_product_level() {
         let observed = json!({"claimLevel": "product"});
-        let result = merge_release_contract(observed, json!({}), json!({}), json!({}), Value::Null).unwrap();
-        let missing: Vec<String> = result["missing"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let result =
+            merge_release_contract(observed, json!({}), json!({}), json!({}), Value::Null).unwrap();
+        let missing: Vec<String> = result["missing"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(missing.contains(&"platforms".to_string()));
     }
 }

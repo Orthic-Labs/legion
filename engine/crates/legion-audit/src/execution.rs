@@ -128,7 +128,11 @@ fn selected_reasoning_lenses(plan: &FrozenPlan) -> Vec<String> {
 
 fn is_pending_host(provider: &AuditProvider, result: &ProviderResult) -> bool {
     is_reasoning(provider)
-        && result.details.get("reasoningHostState").and_then(Value::as_str) == Some("pending-host")
+        && result
+            .details
+            .get("reasoningHostState")
+            .and_then(Value::as_str)
+            == Some("pending-host")
 }
 
 fn not_applicable_execution(provider: &AuditProvider) -> Result<ProviderExecution, AuditError> {

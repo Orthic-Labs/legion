@@ -10,7 +10,11 @@ fn sha256_id(parts: &[&str]) -> String {
 }
 
 /// Port of `discoverWebSurfaces({ artifacts, targetId, componentId })`.
-pub fn discover_web_surfaces(artifacts: &Value, target_id: Option<&str>, component_id: Option<&str>) -> Value {
+pub fn discover_web_surfaces(
+    artifacts: &Value,
+    target_id: Option<&str>,
+    component_id: Option<&str>,
+) -> Value {
     let empty: Vec<Value> = Vec::new();
     let items = artifacts.as_array().unwrap_or(&empty);
     let target_id_str = target_id.unwrap_or_default();
@@ -20,7 +24,11 @@ pub fn discover_web_surfaces(artifacts: &Value, target_id: Option<&str>, compone
         .map(|artifact| {
             let path = artifact.get("path").cloned().unwrap_or(Value::Null);
             let path_str = path.as_str().unwrap_or_default();
-            let kind = artifact.get("kind").and_then(Value::as_str).unwrap_or("page").to_string();
+            let kind = artifact
+                .get("kind")
+                .and_then(Value::as_str)
+                .unwrap_or("page")
+                .to_string();
             let id = sha256_id(&[target_id_str, path_str, &kind]);
             let component = artifact
                 .get("componentId")
@@ -42,11 +50,18 @@ pub fn discover_web_surfaces(artifacts: &Value, target_id: Option<&str>, compone
         })
         .collect();
 
-    let complete = surfaces.iter().all(|s| !s.get("componentId").map(Value::is_null).unwrap_or(true));
+    let complete = surfaces
+        .iter()
+        .all(|s| !s.get("componentId").map(Value::is_null).unwrap_or(true));
     let coverage_gaps: Vec<Value> = surfaces
         .iter()
         .filter(|s| s.get("componentId").map(Value::is_null).unwrap_or(true))
-        .map(|s| Value::String(format!("component-unbound:{}", s.get("id").and_then(Value::as_str).unwrap_or_default())))
+        .map(|s| {
+            Value::String(format!(
+                "component-unbound:{}",
+                s.get("id").and_then(Value::as_str).unwrap_or_default()
+            ))
+        })
         .collect();
 
     json!({

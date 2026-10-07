@@ -11,7 +11,9 @@ use legion_policy::wf_port::wf006::canonical::{canonical_json, digest_value, Jso
 use legion_policy::wf_port::wf006::capability_store::{CapabilityInput, CapabilityStore, CheckCtx};
 use legion_policy::wf_port::wf006::errors::ArcCode;
 use legion_policy::wf_port::wf006::preeffect_correlation::PreEffectCorrelationStore;
-use legion_policy::wf_port::wf006::preeffect_gate::{is_mutating, path_matches, workspace_relative};
+use legion_policy::wf_port::wf006::preeffect_gate::{
+    is_mutating, path_matches, workspace_relative,
+};
 use legion_policy::wf_port::wf006::receipt_auth::{
     sign_record, verify_record, PresentedAuth, StaticKeyRing, VerifyOpts,
 };
@@ -22,7 +24,10 @@ use std::fs;
 #[test]
 fn capability_lifecycle_issue_check_consume_revoke() {
     let mut store = CapabilityStore::new_in_memory();
-    let mut input = CapabilityInput { capability_id: "cap-e2e".into(), ..Default::default() };
+    let mut input = CapabilityInput {
+        capability_id: "cap-e2e".into(),
+        ..Default::default()
+    };
     input.max_uses = Some(1);
     let id = store.issue(input).unwrap();
 
@@ -31,11 +36,17 @@ fn capability_lifecycle_issue_check_consume_revoke() {
     let exhausted = store.check(&id, &CheckCtx::default());
     assert_eq!(exhausted.code, Some(ArcCode::ArcCapabilityExhausted));
 
-    let mut input2 = CapabilityInput { capability_id: "cap-e2e-2".into(), ..Default::default() };
+    let mut input2 = CapabilityInput {
+        capability_id: "cap-e2e-2".into(),
+        ..Default::default()
+    };
     input2.max_uses = Some(5);
     let id2 = store.issue(input2).unwrap();
     store.revoke(&id2, "operator abort").unwrap();
-    assert_eq!(store.check(&id2, &CheckCtx::default()).code, Some(ArcCode::ArcCapabilityRevoked));
+    assert_eq!(
+        store.check(&id2, &CheckCtx::default()).code,
+        Some(ArcCode::ArcCapabilityRevoked)
+    );
 }
 
 #[test]
@@ -55,8 +66,16 @@ fn receipt_auth_end_to_end_sign_verify_deny_paths() {
         mac_domain: None,
         bound_fields_digest: Some(&signed.bound_fields_digest),
     };
-    let opts = VerifyOpts { bound_fields: bound, expected_binding: BTreeMap::new(), force_mac_domain: None };
-    assert!(verify_record(&record, ok_auth, &ring, &opts).unwrap().allowed);
+    let opts = VerifyOpts {
+        bound_fields: bound,
+        expected_binding: BTreeMap::new(),
+        force_mac_domain: None,
+    };
+    assert!(
+        verify_record(&record, ok_auth, &ring, &opts)
+            .unwrap()
+            .allowed
+    );
 
     // Wrong key entirely -> unavailable, fail-closed error not a denial.
     let err = sign_record(&record, &ring, "no-such-key", bound, None).unwrap_err();
@@ -69,16 +88,34 @@ fn receipt_store_chain_survives_quarantine_and_stays_partially_verifiable() {
     let root = std::env::temp_dir().join(format!("wf006-it-receipts-{}", std::process::id()));
     let _ = fs::remove_dir_all(&root);
     let mut store = ReceiptStore::new(root.clone()).unwrap();
-    store.append(Json::Obj(vec![("receiptId".into(), Json::str("a")), ("runId".into(), Json::str("r1"))])).unwrap();
-    store.append(Json::Obj(vec![("receiptId".into(), Json::str("b")), ("runId".into(), Json::str("r1"))])).unwrap();
-    store.append(Json::Obj(vec![("receiptId".into(), Json::str("c")), ("runId".into(), Json::str("r1"))])).unwrap();
+    store
+        .append(Json::Obj(vec![
+            ("receiptId".into(), Json::str("a")),
+            ("runId".into(), Json::str("r1")),
+        ]))
+        .unwrap();
+    store
+        .append(Json::Obj(vec![
+            ("receiptId".into(), Json::str("b")),
+            ("runId".into(), Json::str("r1")),
+        ]))
+        .unwrap();
+    store
+        .append(Json::Obj(vec![
+            ("receiptId".into(), Json::str("c")),
+            ("runId".into(), Json::str("r1")),
+        ]))
+        .unwrap();
 
     assert!(store.verify_chain().ok);
     store.quarantine(2, "digest mismatch observed").unwrap();
     assert!(store.get("b").is_none());
     assert!(store.get("a").is_some());
     assert!(store.get("c").is_some());
-    assert!(store.verify_chain().ok, "chain stays verifiable across a tombstone boundary");
+    assert!(
+        store.verify_chain().ok,
+        "chain stays verifiable across a tombstone boundary"
+    );
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -89,7 +126,15 @@ fn preeffect_correlation_reserve_finalize_get_round_trip() {
     let store = PreEffectCorrelationStore::new(root.clone());
     let (request_id, created) = store.reserve("tool-use-e2e").unwrap();
     assert!(created);
-    let record = store.finalize("tool-use-e2e", &request_id, "cap-e2e", "requested", "authorized").unwrap();
+    let record = store
+        .finalize(
+            "tool-use-e2e",
+            &request_id,
+            "cap-e2e",
+            "requested",
+            "authorized",
+        )
+        .unwrap();
     assert_eq!(record.capability_id, "cap-e2e");
     let got = store.get_finalized("tool-use-e2e").unwrap();
     assert_eq!(got, record);
@@ -100,9 +145,15 @@ fn preeffect_correlation_reserve_finalize_get_round_trip() {
 fn preeffect_gate_utilities_glob_and_workspace_relative() {
     assert!(is_mutating("FILE_WRITE"));
     assert!(!is_mutating("FILE_READ"));
-    assert!(path_matches("engine/crates/**/*.rs", "engine/crates/legion-policy/src/lib.rs"));
+    assert!(path_matches(
+        "engine/crates/**/*.rs",
+        "engine/crates/legion-policy/src/lib.rs"
+    ));
     assert_eq!(
-        workspace_relative("/Repo/engine/crates/legion-policy/src/lib.rs", Some("/repo")),
+        workspace_relative(
+            "/Repo/engine/crates/legion-policy/src/lib.rs",
+            Some("/repo")
+        ),
         "engine/crates/legion-policy/src/lib.rs"
     );
 }

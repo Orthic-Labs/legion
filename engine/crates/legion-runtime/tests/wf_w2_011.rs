@@ -8,8 +8,8 @@
 
 use legion_runtime::wf_port::w2_011::{
     check_source_design_system, format_finding_summary, format_findings, is_allowed_color_raw,
-    is_allowed_font, is_allowed_radius_raw, merge_design_system_findings,
-    normalize_design_system, parse_frontmatter, usage_text, DesignFinding, Finding,
+    is_allowed_font, is_allowed_radius_raw, merge_design_system_findings, normalize_design_system,
+    parse_frontmatter, usage_text, DesignFinding, Finding,
 };
 
 fn finding(file: &str, line: u32, antipattern: &str, snippet: &str, description: &str) -> Finding {

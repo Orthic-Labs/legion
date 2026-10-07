@@ -1,6 +1,4 @@
-use legion_arcane::{
-    DeliveryGovernanceDispatcher, admit_capacity, dispatch_delivery_governance,
-};
+use legion_arcane::{admit_capacity, dispatch_delivery_governance, DeliveryGovernanceDispatcher};
 use serde_json::json;
 
 #[test]

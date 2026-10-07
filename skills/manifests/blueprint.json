@@ -45,7 +45,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://blueprint/SKILL.md",
-      "digest": "sha256:98686300761b688a07763ec941b0ace3a3eb1a12b3e916a335323dad6b589223"
+      "digest": "sha256:65ed6da26b1f284846e41ff01fc936720bd4e04222368010f075237c209e494a"
     },
     {
       "path": "agents/openai.yaml",

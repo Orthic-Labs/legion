@@ -49,9 +49,13 @@ pub fn scoped_host_capabilities(skill_root: &Path) -> BTreeSet<String> {
         return scoped;
     };
     for table in sections.values() {
-        let Some(table) = table.as_object() else { continue };
+        let Some(table) = table.as_object() else {
+            continue;
+        };
         for entries in table.values() {
-            let Some(entries) = entries.as_array() else { continue };
+            let Some(entries) = entries.as_array() else {
+                continue;
+            };
             for entry in entries {
                 if entry.get("class").and_then(Value::as_str) == Some("HOST_CAPABILITY") {
                     if let Some(capability) = entry.get("capability").and_then(Value::as_str) {
@@ -97,10 +101,14 @@ pub fn scoped_requirement_details(
     let capabilities = registry.get("capabilities").and_then(Value::as_object);
     let mut scoped = Vec::new();
     for (section, table) in sections {
-        let Some(table) = table.as_object() else { continue };
+        let Some(table) = table.as_object() else {
+            continue;
+        };
         let kind = scope_kind(section);
         for (key, entries) in table {
-            let Some(entries) = entries.as_array() else { continue };
+            let Some(entries) = entries.as_array() else {
+                continue;
+            };
             for entry in entries {
                 if entry.get("class").and_then(Value::as_str) != Some("HOST_CAPABILITY") {
                     continue;
@@ -117,10 +125,26 @@ pub fn scoped_requirement_details(
                     scope: format!("{kind}:{key}"),
                     scope_kind: kind.to_string(),
                     id: capability_id.to_string(),
-                    kind: capability.get("kind").and_then(Value::as_str).unwrap_or("").to_string(),
-                    summary: capability.get("summary").and_then(Value::as_str).unwrap_or("").to_string(),
-                    degradation: capability.get("degradation").and_then(Value::as_str).unwrap_or("").to_string(),
-                    remedy: capability.get("remedy").and_then(Value::as_str).unwrap_or("").to_string(),
+                    kind: capability
+                        .get("kind")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                    summary: capability
+                        .get("summary")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                    degradation: capability
+                        .get("degradation")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                    remedy: capability
+                        .get("remedy")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string(),
                     probe: capability.get("probe").cloned().filter(|v| !v.is_null()),
                 });
             }
@@ -138,7 +162,11 @@ mod tests {
 
     fn write_table(dir: &Path, value: &Value) {
         fs::create_dir_all(dir.join("references")).unwrap();
-        fs::write(dir.join(ROUTE_RESOURCES), serde_json::to_string(value).unwrap()).unwrap();
+        fs::write(
+            dir.join(ROUTE_RESOURCES),
+            serde_json::to_string(value).unwrap(),
+        )
+        .unwrap();
     }
 
     #[test]

@@ -228,51 +228,99 @@ struct RustInfo {
 
 fn classify_rust(handler: &str) -> RustInfo {
     if handler.contains("root_projection!") {
-        return RustInfo { tier: "stub", handler: "native_root_projection".into() };
+        return RustInfo {
+            tier: "stub",
+            handler: "native_root_projection".into(),
+        };
     }
     if handler.contains("common_projection!") {
-        return RustInfo { tier: "stub", handler: "native_common_projection".into() };
+        return RustInfo {
+            tier: "stub",
+            handler: "native_common_projection".into(),
+        };
     }
     if handler.contains("native_doctor") {
-        return RustInfo { tier: "partial", handler: "native_doctor".into() };
+        return RustInfo {
+            tier: "partial",
+            handler: "native_doctor".into(),
+        };
     }
     if handler.contains("native_plan") {
-        return RustInfo { tier: "partial", handler: "native_plan".into() };
+        return RustInfo {
+            tier: "partial",
+            handler: "native_plan".into(),
+        };
     }
     if handler.contains("native_run") {
-        return RustInfo { tier: "partial", handler: "native_run".into() };
+        return RustInfo {
+            tier: "partial",
+            handler: "native_run".into(),
+        };
     }
     if handler.contains("native_verify") {
-        return RustInfo { tier: "partial", handler: "native_verify".into() };
+        return RustInfo {
+            tier: "partial",
+            handler: "native_verify".into(),
+        };
     }
     if handler.contains("native_report") {
-        return RustInfo { tier: "partial", handler: "native_report".into() };
+        return RustInfo {
+            tier: "partial",
+            handler: "native_report".into(),
+        };
     }
     if handler.contains("native_completion") {
-        return RustInfo { tier: "partial", handler: "native_completion".into() };
+        return RustInfo {
+            tier: "partial",
+            handler: "native_completion".into(),
+        };
     }
     if handler.contains("native_state") {
-        return RustInfo { tier: "partial", handler: "native_state".into() };
+        return RustInfo {
+            tier: "partial",
+            handler: "native_state".into(),
+        };
     }
     if handler.contains("native_host") {
-        return RustInfo { tier: "partial", handler: "native_host".into() };
+        return RustInfo {
+            tier: "partial",
+            handler: "native_host".into(),
+        };
     }
     if handler.contains("native_schedule") {
-        return RustInfo { tier: "divergent", handler: "native_schedule".into() };
+        return RustInfo {
+            tier: "divergent",
+            handler: "native_schedule".into(),
+        };
     }
     if handler.starts_with("commands::") {
-        return RustInfo { tier: "native", handler: handler.to_string() };
+        return RustInfo {
+            tier: "native",
+            handler: handler.to_string(),
+        };
     }
     if handler.contains("native_m1_") {
-        return RustInfo { tier: "native", handler: handler.to_string() };
+        return RustInfo {
+            tier: "native",
+            handler: handler.to_string(),
+        };
     }
     if handler.contains("providers()") {
-        return RustInfo { tier: "static", handler: "providers".into() };
+        return RustInfo {
+            tier: "static",
+            handler: "providers".into(),
+        };
     }
     if handler.contains("languages()") {
-        return RustInfo { tier: "static", handler: "languages".into() };
+        return RustInfo {
+            tier: "static",
+            handler: "languages".into(),
+        };
     }
-    RustInfo { tier: "unknown", handler: handler.to_string() }
+    RustInfo {
+        tier: "unknown",
+        handler: handler.to_string(),
+    }
 }
 
 fn all_rust_module_sources(root: &Path) -> Result<BTreeMap<String, String>, String> {
@@ -282,7 +330,11 @@ fn all_rust_module_sources(root: &Path) -> Result<BTreeMap<String, String>, Stri
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            let stem = path.file_stem().unwrap().to_string_lossy().replace('_', "-");
+            let stem = path
+                .file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .replace('_', "-");
             let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
             out.insert(stem, text);
         }
@@ -335,7 +387,8 @@ fn run_inner(root: &Path) -> Result<bool, String> {
 
     let frozen_node_path = root.join("tests/native-cli-characterization/node-surface.json");
     let frozen_node: Value = serde_json::from_str(
-        &fs::read_to_string(&frozen_node_path).map_err(|e| format!("{}: {e}", frozen_node_path.display()))?,
+        &fs::read_to_string(&frozen_node_path)
+            .map_err(|e| format!("{}: {e}", frozen_node_path.display()))?,
     )
     .map_err(|e| format!("{}: {e}", frozen_node_path.display()))?;
     if frozen_node.get("schemaVersion").and_then(Value::as_i64) != Some(1)
@@ -345,11 +398,13 @@ fn run_inner(root: &Path) -> Result<bool, String> {
     }
 
     let rust_cli_path = root.join("engine/bins/legion/src/cli.rs");
-    let rust_cli = fs::read_to_string(&rust_cli_path).map_err(|e| format!("{}: {e}", rust_cli_path.display()))?;
+    let rust_cli = fs::read_to_string(&rust_cli_path)
+        .map_err(|e| format!("{}: {e}", rust_cli_path.display()))?;
 
     let fixtures_path = root.join("tests/native-cli-characterization/fixtures.json");
     let fixtures_doc: Value = serde_json::from_str(
-        &fs::read_to_string(&fixtures_path).map_err(|e| format!("{}: {e}", fixtures_path.display()))?,
+        &fs::read_to_string(&fixtures_path)
+            .map_err(|e| format!("{}: {e}", fixtures_path.display()))?,
     )
     .map_err(|e| format!("{}: {e}", fixtures_path.display()))?;
     let fixtures = fixtures_doc
@@ -365,12 +420,18 @@ fn run_inner(root: &Path) -> Result<bool, String> {
         .iter()
         .filter_map(|v| v.as_str().map(str::to_string))
         .collect();
-    let dispatched_routes = frozen_node["dispatchRoutes"].as_array().cloned().unwrap_or_default();
+    let dispatched_routes = frozen_node["dispatchRoutes"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     let dispatched: Vec<String> = dispatched_routes
         .iter()
         .filter_map(|r| r.get("command").and_then(Value::as_str).map(str::to_string))
         .collect();
-    let nested_node = frozen_node["nestedRoutes"].as_array().cloned().unwrap_or_default();
+    let nested_node = frozen_node["nestedRoutes"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     let nested_node_strings: Vec<String> = nested_node
         .iter()
         .filter_map(|r| r.get("route").and_then(Value::as_str).map(str::to_string))
@@ -412,7 +473,10 @@ fn run_inner(root: &Path) -> Result<bool, String> {
             gap = "rust-stub".to_string();
         } else if in_node
             && in_rust
-            && matches!(rust_info.as_ref().map(|i| i.tier), Some("partial") | Some("divergent"))
+            && matches!(
+                rust_info.as_ref().map(|i| i.tier),
+                Some("partial") | Some("divergent")
+            )
         {
             gap = format!("rust-{}", rust_info.as_ref().unwrap().tier);
         } else if in_node && in_rust && rust_info.as_ref().map(|i| i.tier) == Some("unknown") {
@@ -466,7 +530,10 @@ fn run_inner(root: &Path) -> Result<bool, String> {
     counts.insert("nodeRuntimeRoutes".into(), json!(dispatched_routes.len()));
     counts.insert("nestedNodeRoutes".into(), json!(nested_node.len()));
     counts.insert("nestedRustRoutes".into(), json!(nested_rust.len()));
-    counts.insert("nestedRouteMismatches".into(), json!(nested_route_mismatches.len()));
+    counts.insert(
+        "nestedRouteMismatches".into(),
+        json!(nested_route_mismatches.len()),
+    );
     counts.insert("rustStubs".into(), json!(rust_stubs));
     counts.insert("rustPartial".into(), json!(rust_partial));
     counts.insert("rustDivergent".into(), json!(rust_divergent));
@@ -483,7 +550,10 @@ fn run_inner(root: &Path) -> Result<bool, String> {
             .filter(|f| f.get("subcommand").map(|v| !v.is_null()).unwrap_or(false))
             .count()),
     );
-    counts.insert("uncharacterizedNodeCommands".into(), json!(uncharacterized.len()));
+    counts.insert(
+        "uncharacterizedNodeCommands".into(),
+        json!(uncharacterized.len()),
+    );
 
     let mut closure = inventory_closure(&counts);
     let mut closure_ok = closure["ok"].as_bool().unwrap_or(false);
@@ -517,10 +587,21 @@ fn run_inner(root: &Path) -> Result<bool, String> {
     inventory.insert("closure".into(), closure.clone());
 
     fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
-    let json_text = format!("{}\n", serde_json::to_string_pretty(&Value::Object(inventory)).map_err(|e| e.to_string())?);
+    let json_text = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&Value::Object(inventory)).map_err(|e| e.to_string())?
+    );
     fs::write(&out_json, &json_text).map_err(|e| e.to_string())?;
 
-    let md_lines = build_markdown(&counts, &nested_node, &nested_rust, &nested_route_mismatches, &rows, &node, &characterized);
+    let md_lines = build_markdown(
+        &counts,
+        &nested_node,
+        &nested_rust,
+        &nested_route_mismatches,
+        &rows,
+        &node,
+        &characterized,
+    );
     fs::create_dir_all(out_md.parent().unwrap()).map_err(|e| e.to_string())?;
     fs::write(&out_md, &md_lines).map_err(|e| e.to_string())?;
 
@@ -531,7 +612,10 @@ fn run_inner(root: &Path) -> Result<bool, String> {
         "counts": counts,
         "blockers": closure["blockers"],
     });
-    println!("{}", serde_json::to_string_pretty(&summary).map_err(|e| e.to_string())?);
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&summary).map_err(|e| e.to_string())?
+    );
 
     Ok(closure_ok)
 }
@@ -541,7 +625,9 @@ fn run_inner(root: &Path) -> Result<bool, String> {
 // UTC timestamp without pulling in a chrono dependency is sufficient here.
 fn chrono_now_iso() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = now.as_secs();
     let millis = now.subsec_millis();
     let days = secs / 86400;
@@ -604,13 +690,20 @@ fn build_markdown(
     lines.push(format!("Node routes: {node_routes_text}."));
     lines.push(String::new());
     let rust_routes_text = md_join(
-        nested_rust.iter().map(|r| format!("`{}`", r.route)).collect(),
+        nested_rust
+            .iter()
+            .map(|r| format!("`{}`", r.route))
+            .collect(),
         ", ",
         "none",
     );
     lines.push(format!("Rust routes: {rust_routes_text}."));
     lines.push(String::new());
-    let mismatch_text = md_join(mismatches.iter().map(|m| format!("`{m}`")).collect(), ", ", "none");
+    let mismatch_text = md_join(
+        mismatches.iter().map(|m| format!("`{m}`")).collect(),
+        ", ",
+        "none",
+    );
     lines.push(format!("Route mismatches: {mismatch_text}."));
     lines.push(String::new());
     lines.push("## Command matrix".to_string());
@@ -619,9 +712,21 @@ fn build_markdown(
     lines.push("| --- | --- | --- | --- | --- | --- |".to_string());
     for row in rows {
         let command = row["command"].as_str().unwrap_or_default();
-        let node_yes = if row["node"].as_bool().unwrap_or(false) { "yes" } else { "no" };
-        let dispatched_yes = if row["nodeDispatched"].as_bool().unwrap_or(false) { "yes" } else { "no" };
-        let rust_yes = if row["rust"].as_bool().unwrap_or(false) { "yes" } else { "no" };
+        let node_yes = if row["node"].as_bool().unwrap_or(false) {
+            "yes"
+        } else {
+            "no"
+        };
+        let dispatched_yes = if row["nodeDispatched"].as_bool().unwrap_or(false) {
+            "yes"
+        } else {
+            "no"
+        };
+        let rust_yes = if row["rust"].as_bool().unwrap_or(false) {
+            "yes"
+        } else {
+            "no"
+        };
         let tier = row["rustTier"].as_str().unwrap_or("\u{2014}");
         let gap = row["gap"].as_str().unwrap_or_default();
         lines.push(format!(
@@ -637,7 +742,9 @@ fn build_markdown(
         ", ",
         "none",
     );
-    lines.push(format!("Uncharacterized Node commands: {uncharacterized_text}."));
+    lines.push(format!(
+        "Uncharacterized Node commands: {uncharacterized_text}."
+    ));
     lines.push(String::new());
     lines.join("\n")
 }

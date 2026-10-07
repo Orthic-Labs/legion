@@ -295,13 +295,27 @@ pub fn fact(kind: &str, fields: FactFields<'_>, evidence_refs: &[String]) -> Val
 
 /// Mirrors `controlEntity(controlType, name, evidenceRefs, attributes = {})`: an `entity`
 /// of kind `control` with `controlType` merged into `attributes`.
-pub fn control_entity(control_type: &str, name: &str, evidence_refs: &[String], attributes: Value) -> Value {
+pub fn control_entity(
+    control_type: &str,
+    name: &str,
+    evidence_refs: &[String],
+    attributes: Value,
+) -> Value {
     let mut attrs = match attributes {
         Value::Object(m) => m,
         _ => Map::new(),
     };
-    attrs.insert("controlType".to_string(), Value::String(control_type.to_string()));
-    entity("control", name, Value::Object(attrs), evidence_refs, EntityOptions::default())
+    attrs.insert(
+        "controlType".to_string(),
+        Value::String(control_type.to_string()),
+    );
+    entity(
+        "control",
+        name,
+        Value::Object(attrs),
+        evidence_refs,
+        EntityOptions::default(),
+    )
 }
 
 /// The five arrays every extractor returns, ported as one struct. Mirrors the object
@@ -411,11 +425,17 @@ pub mod http {
     // requires uppercase `GET|POST|...`, both case-sensitively).
     fn express_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r#"(?:app|router)\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)['"]"#).unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r#"(?:app|router)\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)['"]"#)
+                .unwrap()
+        })
     }
     fn fastapi_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r#"@(?:app|router)\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)['"]"#).unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r#"@(?:app|router)\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)['"]"#)
+                .unwrap()
+        })
     }
     fn flask_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -424,23 +444,37 @@ pub mod http {
     fn go_web_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
         RE.get_or_init(|| {
-            Regex::new(r#"(?:r|router|e|app)\.(GET|POST|PUT|DELETE|PATCH)\(\s*['"]([^'"]+)['"]"#).unwrap()
+            Regex::new(r#"(?:r|router|e|app)\.(GET|POST|PUT|DELETE|PATCH)\(\s*['"]([^'"]+)['"]"#)
+                .unwrap()
         })
     }
 
     fn route_patterns() -> [RoutePattern; 4] {
         [
-            RoutePattern { framework: "express", regex: express_re },
-            RoutePattern { framework: "fastapi", regex: fastapi_re },
-            RoutePattern { framework: "flask", regex: flask_re },
-            RoutePattern { framework: "go-web", regex: go_web_re },
+            RoutePattern {
+                framework: "express",
+                regex: express_re,
+            },
+            RoutePattern {
+                framework: "fastapi",
+                regex: fastapi_re,
+            },
+            RoutePattern {
+                framework: "flask",
+                regex: flask_re,
+            },
+            RoutePattern {
+                framework: "go-web",
+                regex: go_web_re,
+            },
         ]
     }
 
     fn auth_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
         RE.get_or_init(|| {
-            Regex::new(r"auth|session|jwt|passport|getServerSession|requireAuth|@login_required").unwrap()
+            Regex::new(r"auth|session|jwt|passport|getServerSession|requireAuth|@login_required")
+                .unwrap()
         })
     }
 
@@ -489,16 +523,24 @@ pub mod http {
                     if let Some(p) = &path {
                         evidence_key.insert("path".to_string(), Value::String(p.clone()));
                     }
-                    let evidence_ref = stable_id("http-route-evidence", &Value::Object(evidence_key));
+                    let evidence_ref =
+                        stable_id("http-route-evidence", &Value::Object(evidence_key));
 
                     let mut entrypoint_attrs = Map::new();
-                    entrypoint_attrs.insert("protocol".to_string(), Value::String("http".to_string()));
+                    entrypoint_attrs
+                        .insert("protocol".to_string(), Value::String("http".to_string()));
                     entrypoint_attrs.insert("method".to_string(), Value::String(method.clone()));
                     if let Some(p) = &path {
                         entrypoint_attrs.insert("path".to_string(), Value::String(p.clone()));
                     }
-                    entrypoint_attrs.insert("environment".to_string(), Value::String("application".to_string()));
-                    entrypoint_attrs.insert("framework".to_string(), Value::String(pattern.framework.to_string()));
+                    entrypoint_attrs.insert(
+                        "environment".to_string(),
+                        Value::String("application".to_string()),
+                    );
+                    entrypoint_attrs.insert(
+                        "framework".to_string(),
+                        Value::String(pattern.framework.to_string()),
+                    );
 
                     let entrypoint = entity(
                         "entrypoint",
@@ -554,7 +596,10 @@ pub mod http {
                             &auth_control_id,
                             &[evidence_ref.clone()],
                             json!({}),
-                            EntityOptions { assertion: Some("observed"), evidence_strength: None },
+                            EntityOptions {
+                                assertion: Some("observed"),
+                                evidence_strength: None,
+                            },
                         ));
                     } else {
                         out.initial_facts.push(fact(
@@ -611,14 +656,28 @@ pub mod data {
     }
     fn sensitive_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)\b(?:password|token|secret|apiKey|ssn|email)\b").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)\b(?:password|token|secret|apiKey|ssn|email)\b").unwrap()
+        })
     }
 
     fn store_patterns() -> [StorePattern; 3] {
         [
-            StorePattern { kind: "data-store", name: "database client", regex: db_re },
-            StorePattern { kind: "data-store", name: "cache client", regex: cache_re },
-            StorePattern { kind: "data-store", name: "vector store client", regex: vector_re },
+            StorePattern {
+                kind: "data-store",
+                name: "database client",
+                regex: db_re,
+            },
+            StorePattern {
+                kind: "data-store",
+                name: "cache client",
+                regex: cache_re,
+            },
+            StorePattern {
+                kind: "data-store",
+                name: "vector store client",
+                regex: vector_re,
+            },
         ]
     }
 
@@ -640,7 +699,10 @@ pub mod data {
                 if !(pattern.regex)().is_match(text) {
                     continue;
                 }
-                let evidence_ref = stable_id("data-evidence", &json!({ "file": file, "kind": pattern.kind }));
+                let evidence_ref = stable_id(
+                    "data-evidence",
+                    &json!({ "file": file, "kind": pattern.kind }),
+                );
                 let store = entity(
                     pattern.kind,
                     &format!("{} {file}", pattern.name),
@@ -687,11 +749,24 @@ pub mod data {
 pub mod cloud {
     use super::*;
 
-    fn typed_entity(kind: &str, name: &str, attributes: Value, evidence_refs: &[String], opts: EntityOptions<'_>) -> Value {
+    fn typed_entity(
+        kind: &str,
+        name: &str,
+        attributes: Value,
+        evidence_refs: &[String],
+        opts: EntityOptions<'_>,
+    ) -> Value {
         assert_entity_kind(kind).expect("entity kind must be valid");
         entity(kind, name, attributes, evidence_refs, opts)
     }
-    fn typed_relation(kind: &str, from: &str, to: &str, evidence_refs: &[String], attributes: Value, opts: EntityOptions<'_>) -> Value {
+    fn typed_relation(
+        kind: &str,
+        from: &str,
+        to: &str,
+        evidence_refs: &[String],
+        attributes: Value,
+        opts: EntityOptions<'_>,
+    ) -> Value {
         assert_relation_kind(kind).expect("relation kind must be valid");
         relation(kind, from, to, evidence_refs, attributes, opts)
     }
@@ -699,7 +774,12 @@ pub mod cloud {
         assert_fact_kind(kind).expect("fact kind must be valid");
         fact(kind, fields, evidence_refs)
     }
-    fn typed_control_entity(control_type: &str, name: &str, evidence_refs: &[String], attributes: Value) -> Value {
+    fn typed_control_entity(
+        control_type: &str,
+        name: &str,
+        evidence_refs: &[String],
+        attributes: Value,
+    ) -> Value {
         assert_entity_kind("control").expect("control is a valid entity kind");
         control_entity(control_type, name, evidence_refs, attributes)
     }
@@ -726,11 +806,15 @@ pub mod cloud {
     }
     fn network_context_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)ingress|security_group|firewall|network|expose").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)ingress|security_group|firewall|network|expose").unwrap()
+        })
     }
     fn iam_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)iam|role|policy|principal|assume_role|serviceaccount").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)iam|role|policy|principal|assume_role|serviceaccount").unwrap()
+        })
     }
     fn policy_scope_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -738,7 +822,12 @@ pub mod cloud {
     }
     fn workload_identity_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)workload[_ -]?identity|irsa|federated[_ -]?identity|oidc[_ -]?provider").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(
+                r"(?i)workload[_ -]?identity|irsa|federated[_ -]?identity|oidc[_ -]?provider",
+            )
+            .unwrap()
+        })
     }
     fn storage_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -769,7 +858,10 @@ pub mod cloud {
         for manifest in package_manifests {
             for dep in &manifest.dependencies {
                 if cloud_sdk_re().is_match(dep) {
-                    found.push(CloudSdkDep { manifest: manifest.path.clone(), dependency: dep.clone() });
+                    found.push(CloudSdkDep {
+                        manifest: manifest.path.clone(),
+                        dependency: dep.clone(),
+                    });
                 }
             }
         }
@@ -813,8 +905,8 @@ pub mod cloud {
         }
 
         for file in files {
-            let looks_like_cloud_config =
-                cloud_file_re().is_match(file) || (release_files.contains(file) && file.to_lowercase().contains("dockerfile"));
+            let looks_like_cloud_config = cloud_file_re().is_match(file)
+                || (release_files.contains(file) && file.to_lowercase().contains("dockerfile"));
             if !looks_like_cloud_config {
                 continue;
             }
@@ -915,7 +1007,8 @@ pub mod cloud {
                 ));
 
                 if policy_scope_re().is_match(text) {
-                    let scope_ref = stable_id("cloud-policy-scope-evidence", &json!({ "file": file }));
+                    let scope_ref =
+                        stable_id("cloud-policy-scope-evidence", &json!({ "file": file }));
                     let scope = typed_entity(
                         "permission-scope",
                         &format!("IAM policy scope {file}"),
@@ -943,7 +1036,8 @@ pub mod cloud {
             }
 
             if workload_identity_re().is_match(text) {
-                let evidence_ref = stable_id("cloud-workload-identity-evidence", &json!({ "file": file }));
+                let evidence_ref =
+                    stable_id("cloud-workload-identity-evidence", &json!({ "file": file }));
                 let workload = typed_entity(
                     "identity",
                     &format!("workload identity {file}"),
@@ -1069,11 +1163,24 @@ pub mod cloud {
 pub mod developer_machine {
     use super::*;
 
-    fn typed_entity(kind: &str, name: &str, attributes: Value, evidence_refs: &[String], opts: EntityOptions<'_>) -> Value {
+    fn typed_entity(
+        kind: &str,
+        name: &str,
+        attributes: Value,
+        evidence_refs: &[String],
+        opts: EntityOptions<'_>,
+    ) -> Value {
         assert_entity_kind(kind).expect("entity kind must be valid");
         entity(kind, name, attributes, evidence_refs, opts)
     }
-    fn typed_relation(kind: &str, from: &str, to: &str, evidence_refs: &[String], attributes: Value, opts: EntityOptions<'_>) -> Value {
+    fn typed_relation(
+        kind: &str,
+        from: &str,
+        to: &str,
+        evidence_refs: &[String],
+        attributes: Value,
+        opts: EntityOptions<'_>,
+    ) -> Value {
         assert_relation_kind(kind).expect("relation kind must be valid");
         relation(kind, from, to, evidence_refs, attributes, opts)
     }
@@ -1081,7 +1188,12 @@ pub mod developer_machine {
         assert_fact_kind(kind).expect("fact kind must be valid");
         fact(kind, fields, evidence_refs)
     }
-    fn typed_control_entity(control_type: &str, name: &str, evidence_refs: &[String], attributes: Value) -> Value {
+    fn typed_control_entity(
+        control_type: &str,
+        name: &str,
+        evidence_refs: &[String],
+        attributes: Value,
+    ) -> Value {
         assert_entity_kind("control").expect("control is a valid entity kind");
         control_entity(control_type, name, evidence_refs, attributes)
     }
@@ -1099,7 +1211,10 @@ pub mod developer_machine {
     }
     fn process_grant_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)\bexec\s*\(|\bspawn\s*\(|child_process|Bash\s*\(|shell\s*=\s*true").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)\bexec\s*\(|\bspawn\s*\(|child_process|Bash\s*\(|shell\s*=\s*true")
+                .unwrap()
+        })
     }
     fn network_grant_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -1122,7 +1237,10 @@ pub mod developer_machine {
         for manifest in package_manifests {
             for script in &manifest.scripts {
                 if LIFECYCLE_HOOK_NAMES.contains(&script.as_str()) {
-                    found.push(HookScript { manifest: manifest.path.clone(), script: script.clone() });
+                    found.push(HookScript {
+                        manifest: manifest.path.clone(),
+                        script: script.clone(),
+                    });
                 }
             }
         }
@@ -1267,7 +1385,10 @@ pub mod developer_machine {
             }
 
             for grant_kind in grant_kinds_in(text) {
-                let grant_ref = stable_id("devmachine-grant-evidence", &json!({ "file": file, "grantKind": grant_kind }));
+                let grant_ref = stable_id(
+                    "devmachine-grant-evidence",
+                    &json!({ "file": file, "grantKind": grant_kind }),
+                );
                 let scope = typed_entity(
                     "permission-scope",
                     &format!("local tool grant {grant_kind} {file}"),
@@ -1294,7 +1415,10 @@ pub mod developer_machine {
             }
 
             if sandbox_bypass_re().is_match(text) {
-                let bypass_ref = stable_id("devmachine-sandbox-bypass-evidence", &json!({ "file": file }));
+                let bypass_ref = stable_id(
+                    "devmachine-sandbox-bypass-evidence",
+                    &json!({ "file": file }),
+                );
                 let control = typed_control_entity(
                     "local-sandbox",
                     &format!("local sandbox policy {file}"),

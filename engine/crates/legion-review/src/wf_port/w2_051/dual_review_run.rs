@@ -124,7 +124,10 @@ fn valid_disposition(value: &Value) -> Result<(), DualReviewError> {
             "revision disposition requires self_review: []".into(),
         ));
     }
-    if !obj.get("advisory_dispositions").is_some_and(Value::is_array) {
+    if !obj
+        .get("advisory_dispositions")
+        .is_some_and(Value::is_array)
+    {
         return Err(DualReviewError::Value(
             "revision disposition requires advisory_dispositions: []".into(),
         ));
@@ -323,7 +326,9 @@ fn jurors_verdicts_from_advisory(advisory: &Value) -> Vec<super::dual_review_log
                                     Value::Object(o) => {
                                         super::dual_review_logic::Blocker::Structured(o.clone())
                                     }
-                                    other => super::dual_review_logic::Blocker::Text(other.to_string()),
+                                    other => {
+                                        super::dual_review_logic::Blocker::Text(other.to_string())
+                                    }
                                 })
                                 .collect()
                         })
@@ -455,10 +460,18 @@ pub fn run_response_round(
             let (retry, retry_accounting) = invoke(&retry_prompt, seat);
             accounting.push(retry_accounting);
             juror["rewake_count"] = json!(1);
-            if retry.get("parsed_ok").and_then(Value::as_bool).unwrap_or(false) {
+            if retry
+                .get("parsed_ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
                 let missing_ids: std::collections::HashSet<String> = missing
                     .iter()
-                    .filter_map(|c| c.get("finding_id").and_then(Value::as_str).map(|s| s.to_string()))
+                    .filter_map(|c| {
+                        c.get("finding_id")
+                            .and_then(Value::as_str)
+                            .map(|s| s.to_string())
+                    })
                     .collect();
                 let retry_resolutions: Vec<Value> = retry
                     .get("blockers")
@@ -478,7 +491,11 @@ pub fn run_response_round(
                             .collect()
                     })
                     .unwrap_or_default();
-                if juror.get("parsed_ok").and_then(Value::as_bool).unwrap_or(false) {
+                if juror
+                    .get("parsed_ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                {
                     let entry = juror
                         .as_object_mut()
                         .expect("juror is an object")
@@ -487,7 +504,8 @@ pub fn run_response_round(
                     if let Some(arr) = entry.as_array_mut() {
                         arr.extend(retry_resolutions);
                     }
-                    juror["rewake_raw_response"] = retry.get("raw_response").cloned().unwrap_or(Value::Null);
+                    juror["rewake_raw_response"] =
+                        retry.get("raw_response").cloned().unwrap_or(Value::Null);
                 } else {
                     juror = retry;
                     juror["rewake_count"] = json!(1);
@@ -501,7 +519,12 @@ pub fn run_response_round(
             }
         }
 
-        if juror.get("juror_id").and_then(Value::as_str).unwrap_or("").is_empty() {
+        if juror
+            .get("juror_id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
             juror["juror_id"] = json!(seat_id);
             juror["parsed_ok"] = json!(false);
             juror["verdict"] = json!("ERROR");
@@ -541,7 +564,11 @@ pub struct RoomOptions<'a> {
 
 struct EvidenceAdapter;
 impl RunsEvidence for EvidenceAdapter {
-    fn verify_run_evidence(&self, run_dir: &Path, runs_root: &Path) -> Result<bool, RoomDriverError> {
+    fn verify_run_evidence(
+        &self,
+        run_dir: &Path,
+        runs_root: &Path,
+    ) -> Result<bool, RoomDriverError> {
         let v = review_evidence::verify_run_evidence(run_dir, runs_root)
             .map_err(|e| RoomDriverError(e.to_string()))?;
         Ok(v.get("ok").and_then(Value::as_bool).unwrap_or(false))
@@ -616,9 +643,8 @@ pub fn run_advisory_review(
     }
     if room {
         validate_input(skill, input_text, enforce_packet)?;
-        let opts = room_options.ok_or_else(|| {
-            DualReviewError::Value("--room requires RoomOptions".to_string())
-        })?;
+        let opts = room_options
+            .ok_or_else(|| DualReviewError::Value("--room requires RoomOptions".to_string()))?;
         let evidence = EvidenceAdapter;
         return room_driver::run_room_advisory(
             skill,
@@ -635,7 +661,9 @@ pub fn run_advisory_review(
         .map_err(|e| DualReviewError::Value(e.to_string()));
     }
 
-    let runs_root_canon = runs_root.canonicalize().unwrap_or_else(|_| runs_root.to_path_buf());
+    let runs_root_canon = runs_root
+        .canonicalize()
+        .unwrap_or_else(|_| runs_root.to_path_buf());
     if rebuttal {
         let out_parent = out_dir
             .canonicalize()
@@ -660,7 +688,11 @@ pub fn run_advisory_review(
         let state = read_json(&state_path)?;
         let matches = state.get("skill").and_then(Value::as_str) == Some(skill)
             && state.get("input_hash").and_then(Value::as_str) == Some(input_hash.as_str())
-            && state.get("rebuttal").and_then(Value::as_bool).unwrap_or(false) == rebuttal
+            && state
+                .get("rebuttal")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+                == rebuttal
             && state
                 .get("dissent_policy")
                 .and_then(Value::as_str)
@@ -670,7 +702,11 @@ pub fn run_advisory_review(
             if rebuttal {
                 let verification = verify_run_evidence(out_dir, runs_root)
                     .map_err(|e| DualReviewError::Value(e.to_string()))?;
-                if !verification.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                if !verification
+                    .get("ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                {
                     return Err(DualReviewError::Value(
                         "P-1 checkpoint evidence digest is invalid".to_string(),
                     ));
@@ -702,7 +738,14 @@ pub fn run_advisory_review(
     let mut advisory = run_result_to_value(&run);
 
     if rebuttal {
-        let mut second = run_rebuttal_round(engine, skill, input_text, &advisory, dissent_policy, vision_prep)?;
+        let mut second = run_rebuttal_round(
+            engine,
+            skill,
+            input_text,
+            &advisory,
+            dissent_policy,
+            vision_prep,
+        )?;
         strip_unsupported_adoptions(&mut second, &advisory);
         advisory["position_shifts"] = position_shifts_v(&advisory, &second);
         advisory["contest_audit"] = contest_audit_v(&second);
@@ -764,7 +807,10 @@ pub fn run_verdict_review(
     } else {
         json!({})
     };
-    let lane = prior_state.get("lane").and_then(Value::as_str).unwrap_or("");
+    let lane = prior_state
+        .get("lane")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if lane == "room-fallback" {
         let fallback_status = prior_state
             .get("fallback")
@@ -777,7 +823,8 @@ pub fn run_verdict_review(
         }
     }
     if matches!(lane, "room" | "room-fallback") {
-        verify_terminal_finding_ledger(out_dir).map_err(|e| DualReviewError::Value(e.to_string()))?;
+        verify_terminal_finding_ledger(out_dir)
+            .map_err(|e| DualReviewError::Value(e.to_string()))?;
     }
 
     let flags = BTreeMap::new();
@@ -795,7 +842,10 @@ pub fn run_verdict_review(
     let jury = run_result_to_value(&jury_run);
 
     let advisory = read_json(&advisory_path)?;
-    let original_hash = prior_state.get("input_hash").cloned().unwrap_or(Value::Null);
+    let original_hash = prior_state
+        .get("input_hash")
+        .cloned()
+        .unwrap_or(Value::Null);
     let revised_hash = digest(revised_input_text);
 
     let envelope = json!({
@@ -831,12 +881,17 @@ pub fn run_verdict_review(
     obj.insert("updated_at".to_string(), json!(now_iso()));
     write_json(&state_path, &next_state)?;
 
-    if next_state.get("auto_memory").and_then(Value::as_bool).unwrap_or(false) {
+    if next_state
+        .get("auto_memory")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         let runner = RealCommandRunner;
         let _ = archive_verified_room_memory(out_dir, None, "crypt", &runner);
     }
     if prior_state.get("evidence").is_some() {
-        pin_run_evidence(out_dir, runs_root_default(out_dir)).map_err(|e| DualReviewError::Value(e.to_string()))?;
+        pin_run_evidence(out_dir, runs_root_default(out_dir))
+            .map_err(|e| DualReviewError::Value(e.to_string()))?;
     }
     Ok(envelope)
 }
@@ -900,7 +955,9 @@ pub fn run_dual_review(
 pub fn render_cli_result(result: &Value, lens_questions: &BTreeMap<String, String>) -> String {
     match render_cli_result_route(result) {
         CliResultRoute::RoomNotificationRequired(text) => text,
-        CliResultRoute::RoomLinkDelivered => "Council Room link delivered. Room remains active.\n".to_string(),
+        CliResultRoute::RoomLinkDelivered => {
+            "Council Room link delivered. Room remains active.\n".to_string()
+        }
         CliResultRoute::NeedsRender(payload) => render_result(&payload, lens_questions),
     }
 }

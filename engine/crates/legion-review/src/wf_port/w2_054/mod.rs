@@ -31,9 +31,7 @@ pub(crate) fn now_iso() -> String {
     let rem = secs.rem_euclid(86_400);
     let (hour, minute, second) = (rem / 3600, (rem % 3600) / 60, rem % 60);
     let (year, month, day) = civil_from_days(days);
-    format!(
-        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}+00:00"
-    )
+    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}+00:00")
 }
 
 /// Days-since-epoch (1970-01-01) to (year, month, day). Hinnant's algorithm.

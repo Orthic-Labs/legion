@@ -24,7 +24,9 @@ fn has_placeholder_text(haystack: &str) -> bool {
         "[REPLACE]",
     ];
     let lower = haystack.to_ascii_lowercase();
-    TOKENS.iter().any(|t| lower.contains(&t.to_ascii_lowercase()))
+    TOKENS
+        .iter()
+        .any(|t| lower.contains(&t.to_ascii_lowercase()))
 }
 
 /// `"@type": "HowTo"` / `"@type": "SpecialAnnouncement"`, matching
@@ -153,10 +155,21 @@ pub fn check_files<'a, I: IntoIterator<Item = (&'a str, &'a str)>>(files: I) -> 
     for (path, content) in files {
         findings.extend(check_file(path, content));
     }
-    let errors = findings.iter().filter(|f| f.severity == Severity::Error).count();
-    let warnings = findings.iter().filter(|f| f.severity == Severity::Warning).count();
+    let errors = findings
+        .iter()
+        .filter(|f| f.severity == Severity::Error)
+        .count();
+    let warnings = findings
+        .iter()
+        .filter(|f| f.severity == Severity::Warning)
+        .count();
     let exit_code = if errors > 0 { 2 } else { 0 };
-    CheckReport { findings, errors, warnings, exit_code }
+    CheckReport {
+        findings,
+        errors,
+        warnings,
+        exit_code,
+    }
 }
 
 fn extract_first(haystack: &str, open: &str, close: &str) -> Option<String> {
@@ -181,7 +194,10 @@ fn img_missing_alt(content: &str) -> bool {
     let mut idx = 0;
     while let Some(pos) = content[idx..].find("<img") {
         let tag_start = idx + pos;
-        let tag_end = content[tag_start..].find('>').map(|e| tag_start + e).unwrap_or(content.len());
+        let tag_end = content[tag_start..]
+            .find('>')
+            .map(|e| tag_start + e)
+            .unwrap_or(content.len());
         let tag = &content[tag_start..tag_end];
         if !tag.contains("alt=") {
             return true;
@@ -211,22 +227,27 @@ mod tests {
     fn placeholder_text_is_an_error() {
         let content = r#"<script>{"name":"[Business Name]"}</script>"#;
         let findings = check_file("f.html", content);
-        assert!(findings.iter().any(|f| f.severity == Severity::Error
-            && f.message.contains("placeholder")));
+        assert!(findings
+            .iter()
+            .any(|f| f.severity == Severity::Error && f.message.contains("placeholder")));
     }
 
     #[test]
     fn title_length_out_of_range_warns() {
         let content = "<title>Short</title>";
         let findings = check_file("f.html", content);
-        assert!(findings.iter().any(|f| f.message.contains("Title tag length")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("Title tag length")));
     }
 
     #[test]
     fn title_length_in_range_is_clean() {
         let content = "<title>This is a perfectly reasonable title length</title>";
         let findings = check_file("f.html", content);
-        assert!(!findings.iter().any(|f| f.message.contains("Title tag length")));
+        assert!(!findings
+            .iter()
+            .any(|f| f.message.contains("Title tag length")));
     }
 
     #[test]
@@ -239,8 +260,9 @@ mod tests {
     fn deprecated_schema_type_is_an_error() {
         let content = r#"{"@type": "HowTo"}"#;
         let findings = check_file("f.html", content);
-        assert!(findings.iter().any(|f| f.severity == Severity::Error
-            && f.message.contains("deprecated schema")));
+        assert!(findings
+            .iter()
+            .any(|f| f.severity == Severity::Error && f.message.contains("deprecated schema")));
     }
 
     #[test]
@@ -254,12 +276,17 @@ mod tests {
     fn meta_description_length_checked() {
         let short = r#"<meta name="description" content="too short">"#;
         let findings = check_file("f.html", short);
-        assert!(findings.iter().any(|f| f.message.contains("Meta description length")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("Meta description length")));
     }
 
     #[test]
     fn batch_report_exit_code_matches_shell_contract() {
-        let clean = check_files(vec![("a.html", "<title>A perfectly fine title length here</title>")]);
+        let clean = check_files(vec![(
+            "a.html",
+            "<title>A perfectly fine title length here</title>",
+        )]);
         assert_eq!(clean.exit_code, 0);
         assert_eq!(clean.errors, 0);
 

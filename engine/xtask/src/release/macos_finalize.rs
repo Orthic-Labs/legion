@@ -10,7 +10,9 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::macos_build_installer::{macos_installer_plan, materialize_macos_installer};
-use super::paths::{is_revision_hex, is_stable_semver, sha256_file, CommandOptions, CommandRunner, ReleaseResult};
+use super::paths::{
+    is_revision_hex, is_stable_semver, sha256_file, CommandOptions, CommandRunner, ReleaseResult,
+};
 use crate::process_boundary::command_diagnostic;
 
 fn fail(message: impl Into<String>) -> String {
@@ -30,7 +32,12 @@ pub struct FinalizeRecord {
 }
 
 fn record(path: &Path, role: &'static str) -> ReleaseResult<FinalizeRecord> {
-    Ok(FinalizeRecord { size: fs::metadata(path).map_err(|e| fail(e.to_string()))?.len(), sha256: sha256_file(path)?, path: path.to_path_buf(), role })
+    Ok(FinalizeRecord {
+        size: fs::metadata(path).map_err(|e| fail(e.to_string()))?.len(),
+        sha256: sha256_file(path)?,
+        path: path.to_path_buf(),
+        role,
+    })
 }
 
 struct Evidence {
@@ -40,7 +47,10 @@ struct Evidence {
 }
 
 fn portable_evidence(root: &Path) -> ReleaseResult<Evidence> {
-    let entries: Vec<_> = fs::read_dir(root).map_err(|e| fail(e.to_string()))?.filter_map(|e| e.ok()).collect();
+    let entries: Vec<_> = fs::read_dir(root)
+        .map_err(|e| fail(e.to_string()))?
+        .filter_map(|e| e.ok())
+        .collect();
     for entry in &entries {
         let meta = fs::symlink_metadata(entry.path()).map_err(|e| fail(e.to_string()))?;
         if meta.is_symlink() || !meta.is_file() {
@@ -48,21 +58,42 @@ fn portable_evidence(root: &Path) -> ReleaseResult<Evidence> {
         }
     }
     let one = |suffix: &str, label: &str| -> ReleaseResult<PathBuf> {
-        let matches: Vec<_> = entries.iter().filter(|e| e.file_name().to_string_lossy().ends_with(suffix)).collect();
+        let matches: Vec<_> = entries
+            .iter()
+            .filter(|e| e.file_name().to_string_lossy().ends_with(suffix))
+            .collect();
         if matches.len() != 1 {
-            return Err(fail(format!("portable root must contain exactly one {label}")));
+            return Err(fail(format!(
+                "portable root must contain exactly one {label}"
+            )));
         }
         Ok(matches[0].path())
     };
-    Ok(Evidence { archive: one(".tar.gz", "portable archive")?, sbom: one(".cdx.json", "SBOM")?, provenance: one(".intoto.jsonl", "provenance")? })
+    Ok(Evidence {
+        archive: one(".tar.gz", "portable archive")?,
+        sbom: one(".cdx.json", "SBOM")?,
+        provenance: one(".intoto.jsonl", "provenance")?,
+    })
 }
 
 fn extract(runner: CommandRunner, archive: &Path, destination: &Path) -> ReleaseResult<()> {
     fs::create_dir_all(destination).map_err(|e| fail(e.to_string()))?;
     let options = CommandOptions::default();
-    let result = runner("tar", &["-xzf".to_string(), archive.to_string_lossy().to_string(), "-C".to_string(), destination.to_string_lossy().to_string()], &options);
+    let result = runner(
+        "tar",
+        &[
+            "-xzf".to_string(),
+            archive.to_string_lossy().to_string(),
+            "-C".to_string(),
+            destination.to_string_lossy().to_string(),
+        ],
+        &options,
+    );
     if result.error_message.is_some() || result.status != Some(0) {
-        return Err(fail(format!("portable extraction failed: {}", command_diagnostic(&result))));
+        return Err(fail(format!(
+            "portable extraction failed: {}",
+            command_diagnostic(&result)
+        )));
     }
     for name in ["bin", "plugin", "share"] {
         if !destination.join(name).is_dir() {
@@ -79,11 +110,18 @@ fn copy_evidence(input: &Evidence, output: &Path) -> ReleaseResult<Evidence> {
         let target = root.join(path.file_name().unwrap());
         fs::copy(path, &target).map_err(|e| fail(e.to_string()))?;
         if sha256_file(&target)? != sha256_file(path)? {
-            return Err(fail(format!("portable evidence copy mismatch: {}", path.display())));
+            return Err(fail(format!(
+                "portable evidence copy mismatch: {}",
+                path.display()
+            )));
         }
         Ok(target)
     };
-    Ok(Evidence { archive: copy(&input.archive)?, sbom: copy(&input.sbom)?, provenance: copy(&input.provenance)? })
+    Ok(Evidence {
+        archive: copy(&input.archive)?,
+        sbom: copy(&input.sbom)?,
+        provenance: copy(&input.provenance)?,
+    })
 }
 
 #[derive(Default)]
@@ -130,13 +168,23 @@ pub fn finalize_macos(
     if !is_architecture(&input.architecture) {
         return Err(fail("architecture must be x86_64 or arm64"));
     }
-    let portable = input.portable_root.clone().ok_or_else(|| fail("--portable-root is required"))?;
-    let output = input.output_root.clone().ok_or_else(|| fail("--output-root is required"))?;
+    let portable = input
+        .portable_root
+        .clone()
+        .ok_or_else(|| fail("--portable-root is required"))?;
+    let output = input
+        .output_root
+        .clone()
+        .ok_or_else(|| fail("--output-root is required"))?;
     if !portable.is_dir() {
         return Err(fail("portable root is missing or unsafe"));
     }
     fs::create_dir_all(&output).map_err(|e| fail(e.to_string()))?;
-    if fs::read_dir(&output).map_err(|e| fail(e.to_string()))?.next().is_some() {
+    if fs::read_dir(&output)
+        .map_err(|e| fail(e.to_string()))?
+        .next()
+        .is_some()
+    {
         return Err(fail("output root must be empty"));
     }
     let portable_input = portable_evidence(&portable)?;
@@ -145,8 +193,19 @@ pub fn finalize_macos(
     extract(runner, &portable_input.archive, &payload)?;
     let installer_output = output.join(".installer");
 
-    let plan = macos_installer_plan(swift_source, Some(&payload), Some(&installer_output), &input.version, developer_id, api_key_path, api_key, api_issuer).map_err(|e| fail(format!("macOS installer worker failed: {e}")))?;
-    let response = materialize_macos_installer(runner, &plan, now).map_err(|e| fail(format!("macOS installer worker failed: {e}")))?;
+    let plan = macos_installer_plan(
+        swift_source,
+        Some(&payload),
+        Some(&installer_output),
+        &input.version,
+        developer_id,
+        api_key_path,
+        api_key,
+        api_issuer,
+    )
+    .map_err(|e| fail(format!("macOS installer worker failed: {e}")))?;
+    let response = materialize_macos_installer(runner, &plan, now)
+        .map_err(|e| fail(format!("macOS installer worker failed: {e}")))?;
     if response.status != "verified" || response.version != input.version {
         return Err(fail("macOS installer worker response is invalid"));
     }

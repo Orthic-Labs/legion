@@ -42,7 +42,11 @@ pub struct FixProposalInput {
 /// right-hand side `JSON.stringify(body)` evaluates before the assignment
 /// completes), then `id` is appended as the body's last key.
 pub fn fix_proposal(input: FixProposalInput) -> Value {
-    let producer = if input.producer.is_null() { json!({}) } else { input.producer };
+    let producer = if input.producer.is_null() {
+        json!({})
+    } else {
+        input.producer
+    };
     let mut body = json!({
         "schemaVersion": 1,
         "kind": "legion-fix-proposal",
@@ -58,7 +62,9 @@ pub fn fix_proposal(input: FixProposalInput) -> Value {
         "tier": input.tier,
     });
     let id = digest_uncanonicalized(&body);
-    body.as_object_mut().expect("body is an object").insert("id".to_string(), Value::String(id));
+    body.as_object_mut()
+        .expect("body is an object")
+        .insert("id".to_string(), Value::String(id));
     body
 }
 
@@ -102,30 +108,57 @@ pub struct FixLoopDecision {
 pub fn evaluate_fix_loop(input: EvaluateFixLoopInput) -> FixLoopDecision {
     let max_batches = input.max_batches.unwrap_or(4);
     if input.batch_index >= max_batches {
-        return FixLoopDecision { stop: true, reason: Some("max-batches") };
+        return FixLoopDecision {
+            stop: true,
+            reason: Some("max-batches"),
+        };
     }
     if input.progress == Some(false) {
-        return FixLoopDecision { stop: true, reason: Some("no-progress") };
+        return FixLoopDecision {
+            stop: true,
+            reason: Some("no-progress"),
+        };
     }
     if input.regression {
-        return FixLoopDecision { stop: true, reason: Some("regression") };
+        return FixLoopDecision {
+            stop: true,
+            reason: Some("regression"),
+        };
     }
     if input.drift {
-        return FixLoopDecision { stop: true, reason: Some("plan-drift") };
+        return FixLoopDecision {
+            stop: true,
+            reason: Some("plan-drift"),
+        };
     }
     if input.new_high_critical {
-        return FixLoopDecision { stop: true, reason: Some("new-high-critical") };
+        return FixLoopDecision {
+            stop: true,
+            reason: Some("new-high-critical"),
+        };
     }
     if input.manual_required {
-        return FixLoopDecision { stop: true, reason: Some("manual-finding-required") };
+        return FixLoopDecision {
+            stop: true,
+            reason: Some("manual-finding-required"),
+        };
     }
     if input.missing_variant_proof {
-        return FixLoopDecision { stop: true, reason: Some("missing-variant-or-proof") };
+        return FixLoopDecision {
+            stop: true,
+            reason: Some("missing-variant-or-proof"),
+        };
     }
     if input.scope_expansion {
-        return FixLoopDecision { stop: true, reason: Some("scope-expansion") };
+        return FixLoopDecision {
+            stop: true,
+            reason: Some("scope-expansion"),
+        };
     }
-    FixLoopDecision { stop: false, reason: None }
+    FixLoopDecision {
+        stop: false,
+        reason: None,
+    }
 }
 
 #[cfg(test)]
@@ -184,20 +217,49 @@ mod tests {
 
     #[test]
     fn evaluate_fix_loop_max_batches() {
-        let decision = evaluate_fix_loop(EvaluateFixLoopInput { batch_index: 4, ..Default::default() });
-        assert_eq!(decision, FixLoopDecision { stop: true, reason: Some("max-batches") });
+        let decision = evaluate_fix_loop(EvaluateFixLoopInput {
+            batch_index: 4,
+            ..Default::default()
+        });
+        assert_eq!(
+            decision,
+            FixLoopDecision {
+                stop: true,
+                reason: Some("max-batches")
+            }
+        );
     }
 
     #[test]
     fn evaluate_fix_loop_custom_max_batches() {
-        let decision = evaluate_fix_loop(EvaluateFixLoopInput { batch_index: 2, max_batches: Some(2), ..Default::default() });
-        assert_eq!(decision, FixLoopDecision { stop: true, reason: Some("max-batches") });
+        let decision = evaluate_fix_loop(EvaluateFixLoopInput {
+            batch_index: 2,
+            max_batches: Some(2),
+            ..Default::default()
+        });
+        assert_eq!(
+            decision,
+            FixLoopDecision {
+                stop: true,
+                reason: Some("max-batches")
+            }
+        );
     }
 
     #[test]
     fn evaluate_fix_loop_no_progress() {
-        let decision = evaluate_fix_loop(EvaluateFixLoopInput { batch_index: 0, progress: Some(false), ..Default::default() });
-        assert_eq!(decision, FixLoopDecision { stop: true, reason: Some("no-progress") });
+        let decision = evaluate_fix_loop(EvaluateFixLoopInput {
+            batch_index: 0,
+            progress: Some(false),
+            ..Default::default()
+        });
+        assert_eq!(
+            decision,
+            FixLoopDecision {
+                stop: true,
+                reason: Some("no-progress")
+            }
+        );
     }
 
     #[test]
@@ -213,7 +275,17 @@ mod tests {
 
     #[test]
     fn evaluate_fix_loop_continues() {
-        let decision = evaluate_fix_loop(EvaluateFixLoopInput { batch_index: 0, progress: Some(true), ..Default::default() });
-        assert_eq!(decision, FixLoopDecision { stop: false, reason: None });
+        let decision = evaluate_fix_loop(EvaluateFixLoopInput {
+            batch_index: 0,
+            progress: Some(true),
+            ..Default::default()
+        });
+        assert_eq!(
+            decision,
+            FixLoopDecision {
+                stop: false,
+                reason: None
+            }
+        );
     }
 }

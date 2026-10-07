@@ -81,8 +81,8 @@ pub fn rect_is_usable_anchor(rect: Option<&Rect>) -> bool {
 /// character at a time.
 pub fn css_id_fallback(id: &str) -> String {
     const SPECIAL: &[char] = &[
-        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '.', '/', ':', ';',
-        '<', '=', '>', '?', '@', '[', '\\', ']', '^', '`', '{', '|', '}', '~',
+        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '.', '/', ':', ';', '<',
+        '=', '>', '?', '@', '[', '\\', ']', '^', '`', '{', '|', '}', '~',
     ];
     let mut out = String::with_capacity(id.len() * 2);
     for ch in id.chars() {

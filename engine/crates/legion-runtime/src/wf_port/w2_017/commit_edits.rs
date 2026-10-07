@@ -161,7 +161,12 @@ pub fn candidates_for_entry(batch: &Value, entry_id: &str) -> Vec<Value> {
                 out.push(hint.clone());
             }
         }
-        for key in ["textMatches", "objectKeyMatches", "locatorMatches", "contextTextMatches"] {
+        for key in [
+            "textMatches",
+            "objectKeyMatches",
+            "locatorMatches",
+            "contextTextMatches",
+        ] {
             if let Some(arr) = candidate.get(key).and_then(Value::as_array) {
                 out.extend(arr.iter().cloned());
             }
@@ -172,7 +177,11 @@ pub fn candidates_for_entry(batch: &Value, entry_id: &str) -> Vec<Value> {
 }
 
 /// Port of `normalizeFailedEntries(batch, result, fallbackReason)`.
-pub fn normalize_failed_entries(batch: &Value, result: &Value, fallback_reason: &str) -> Vec<Value> {
+pub fn normalize_failed_entries(
+    batch: &Value,
+    result: &Value,
+    fallback_reason: &str,
+) -> Vec<Value> {
     let mut failed_by_entry_id: std::collections::HashMap<String, Value> =
         std::collections::HashMap::new();
     if let Some(failed) = result.get("failed").and_then(Value::as_array) {
@@ -333,7 +342,12 @@ pub fn summarize_repair_failures(failures: &[Value]) -> Vec<Value> {
                 .get("reason")
                 .filter(|v| is_truthy(Some(v)))
                 .cloned()
-                .or_else(|| failure.get("detail").filter(|v| is_truthy(Some(v))).cloned())
+                .or_else(|| {
+                    failure
+                        .get("detail")
+                        .filter(|v| is_truthy(Some(v)))
+                        .cloned()
+                })
                 .unwrap_or_else(|| Value::String("validation_failed".to_string()));
             let mut out = Map::new();
             out.insert("reason".to_string(), reason);
@@ -342,7 +356,12 @@ pub fn summarize_repair_failures(failures: &[Value]) -> Vec<Value> {
                 .get("id")
                 .filter(|v| is_truthy(Some(v)))
                 .cloned()
-                .or_else(|| failure.get("entryId").filter(|v| is_truthy(Some(v))).cloned());
+                .or_else(|| {
+                    failure
+                        .get("entryId")
+                        .filter(|v| is_truthy(Some(v)))
+                        .cloned()
+                });
             if let Some(v) = entry_id {
                 out.insert("entryId".to_string(), v);
             }
@@ -379,9 +398,8 @@ pub fn summarize_repair_failures(failures: &[Value]) -> Vec<Value> {
                             "detail": item.get("detail").cloned().unwrap_or(Value::Null),
                         });
                         if let Some(cands) = item.get("candidates").and_then(Value::as_array) {
-                            sub["candidates"] = Value::Array(
-                                cands.iter().take(6).map(candidate_summary).collect(),
-                            );
+                            sub["candidates"] =
+                                Value::Array(cands.iter().take(6).map(candidate_summary).collect());
                         }
                         sub
                     })
@@ -448,7 +466,10 @@ pub fn line_shows_applied_op(line: &str, op: &Op) -> bool {
     if !line.contains(new_text) {
         return false;
     }
-    if !original_text.is_empty() && !new_text.contains(original_text) && line.contains(original_text) {
+    if !original_text.is_empty()
+        && !new_text.contains(original_text)
+        && line.contains(original_text)
+    {
         return false;
     }
     true
@@ -564,7 +585,11 @@ pub struct VerificationTarget {
 /// Port of `verificationTargetPassesLines(lines, target, op)`. `lines` is
 /// 0-indexed, matching the JS `String.split('\n')` array; `target.line`
 /// stays 1-based as in JS.
-pub fn verification_target_passes_lines(lines: &[&str], target: &VerificationTarget, op: &Op) -> bool {
+pub fn verification_target_passes_lines(
+    lines: &[&str],
+    target: &VerificationTarget,
+    op: &Op,
+) -> bool {
     let idx = target.line.checked_sub(1);
     let line = idx.and_then(|i| lines.get(i)).copied().unwrap_or("");
     if line_shows_applied_op(line, op) {
@@ -582,7 +607,11 @@ pub fn verification_target_passes_lines(lines: &[&str], target: &VerificationTar
     if !can_search_window {
         return false;
     }
-    let radius: i64 = if kind.contains("context_text_match") { 20 } else { 4 };
+    let radius: i64 = if kind.contains("context_text_match") {
+        20
+    } else {
+        4
+    };
     let target_line = target.line as i64;
     let start = (target_line - radius - 1).max(0) as usize;
     let end = ((target_line + radius) as usize).min(lines.len());
@@ -633,7 +662,14 @@ mod tests {
 
     #[test]
     fn unique_strings_dedupes_and_drops_blank() {
-        let values = vec![json!("a"), json!("a"), json!(""), json!("  "), json!(1), json!("b")];
+        let values = vec![
+            json!("a"),
+            json!("a"),
+            json!(""),
+            json!("  "),
+            json!(1),
+            json!("b"),
+        ];
         assert_eq!(unique_strings(&values), vec!["a", "b"]);
     }
 
@@ -738,11 +774,21 @@ mod tests {
 
     #[test]
     fn line_shows_applied_op_deletion_and_insertion() {
-        let deletion = Op { original_text: Some("old".into()), new_text: None, deleted: true, ..Default::default() };
+        let deletion = Op {
+            original_text: Some("old".into()),
+            new_text: None,
+            deleted: true,
+            ..Default::default()
+        };
         assert!(line_shows_applied_op("no trace here", &deletion));
         assert!(!line_shows_applied_op("still has old text", &deletion));
 
-        let insertion = Op { original_text: Some("hi".into()), new_text: Some("hi there".into()), deleted: false, ..Default::default() };
+        let insertion = Op {
+            original_text: Some("hi".into()),
+            new_text: Some("hi there".into()),
+            deleted: false,
+            ..Default::default()
+        };
         assert!(line_shows_applied_op("say hi there now", &insertion));
         assert!(!line_shows_applied_op("say hi now", &insertion));
     }
@@ -750,9 +796,18 @@ mod tests {
     #[test]
     fn op_has_locator_variants() {
         assert!(!op_has_locator(&Op::default()));
-        assert!(op_has_locator(&Op { tag: Some("div".into()), ..Default::default() }));
-        assert!(op_has_locator(&Op { element_id: Some("x".into()), ..Default::default() }));
-        assert!(op_has_locator(&Op { classes: vec!["a".into()], ..Default::default() }));
+        assert!(op_has_locator(&Op {
+            tag: Some("div".into()),
+            ..Default::default()
+        }));
+        assert!(op_has_locator(&Op {
+            element_id: Some("x".into()),
+            ..Default::default()
+        }));
+        assert!(op_has_locator(&Op {
+            classes: vec!["a".into()],
+            ..Default::default()
+        }));
     }
 
     #[test]
@@ -763,10 +818,22 @@ mod tests {
             classes: vec!["card".into()],
             ..Default::default()
         };
-        assert!(line_matches_manual_edit_locator(r#"<div id="hero" class="card">"#, &op));
-        assert!(!line_matches_manual_edit_locator(r#"<span id="hero" class="card">"#, &op));
-        assert!(!line_matches_manual_edit_locator(r#"<div id="other" class="card">"#, &op));
-        assert!(!line_matches_manual_edit_locator(r#"<div id="hero" class="thing">"#, &op));
+        assert!(line_matches_manual_edit_locator(
+            r#"<div id="hero" class="card">"#,
+            &op
+        ));
+        assert!(!line_matches_manual_edit_locator(
+            r#"<span id="hero" class="card">"#,
+            &op
+        ));
+        assert!(!line_matches_manual_edit_locator(
+            r#"<div id="other" class="card">"#,
+            &op
+        ));
+        assert!(!line_matches_manual_edit_locator(
+            r#"<div id="hero" class="thing">"#,
+            &op
+        ));
     }
 
     #[test]
@@ -779,25 +846,48 @@ mod tests {
 
     #[test]
     fn window_shows_applied_op_checks_normalized_text() {
-        let op = Op { original_text: Some("Hello".into()), new_text: Some("Hello World".into()), ..Default::default() };
-        assert!(window_shows_applied_op(&["prefix", "Hello   World", "suffix"], &op));
+        let op = Op {
+            original_text: Some("Hello".into()),
+            new_text: Some("Hello World".into()),
+            ..Default::default()
+        };
+        assert!(window_shows_applied_op(
+            &["prefix", "Hello   World", "suffix"],
+            &op
+        ));
         assert!(!window_shows_applied_op(&["nothing", "here"], &op));
     }
 
     #[test]
     fn verification_target_passes_lines_direct_and_window() {
-        let op = Op { original_text: Some("old".into()), new_text: Some("new".into()), ..Default::default() };
+        let op = Op {
+            original_text: Some("old".into()),
+            new_text: Some("new".into()),
+            ..Default::default()
+        };
         let lines = vec!["a", "has new here", "c"];
-        let target = VerificationTarget { line: 2, kind: "text_match".into(), reported: false };
+        let target = VerificationTarget {
+            line: 2,
+            kind: "text_match".into(),
+            reported: false,
+        };
         assert!(verification_target_passes_lines(&lines, &target, &op));
 
         let lines2 = vec!["a", "still has old", "c"];
-        let target2 = VerificationTarget { line: 2, kind: "text_match".into(), reported: false };
+        let target2 = VerificationTarget {
+            line: 2,
+            kind: "text_match".into(),
+            reported: false,
+        };
         assert!(!verification_target_passes_lines(&lines2, &target2, &op));
 
         // window search: reported target with match on a nearby line
         let lines3 = vec!["a", "unrelated", "b", "has new right here", "c"];
-        let target3 = VerificationTarget { line: 2, kind: "reported_locator_match".into(), reported: true };
+        let target3 = VerificationTarget {
+            line: 2,
+            kind: "reported_locator_match".into(),
+            reported: true,
+        };
         assert!(verification_target_passes_lines(&lines3, &target3, &op));
     }
 }

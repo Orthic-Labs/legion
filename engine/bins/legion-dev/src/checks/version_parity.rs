@@ -105,8 +105,8 @@ fn cargo_lock_packages(lock: &str) -> Vec<LockPackage> {
 pub fn report(root: &Path, stable: bool) -> Report {
     let mut issues = Vec::new();
 
-    let release = read_json(&root.join("release/version.json"))
-        .unwrap_or_else(|_| serde_json::json!({}));
+    let release =
+        read_json(&root.join("release/version.json")).unwrap_or_else(|_| serde_json::json!({}));
     let expected = release
         .get("version")
         .and_then(|v| v.as_str())
@@ -114,9 +114,11 @@ pub fn report(root: &Path, stable: bool) -> Report {
         .to_string();
 
     let schema_version_ok = release.get("schemaVersion").and_then(|v| v.as_i64()) == Some(1);
-    let kind_ok =
-        release.get("kind").and_then(|v| v.as_str()) == Some("legion-release-version");
-    let version_is_string = release.get("version").map(|v| v.is_string()).unwrap_or(false);
+    let kind_ok = release.get("kind").and_then(|v| v.as_str()) == Some("legion-release-version");
+    let version_is_string = release
+        .get("version")
+        .map(|v| v.is_string())
+        .unwrap_or(false);
     if !schema_version_ok || !kind_ok || !version_is_string {
         issues.push(Issue {
             path: "release/version.json".to_string(),
@@ -226,8 +228,7 @@ pub fn report(root: &Path, stable: bool) -> Report {
     if !library.contains("release/version.json") {
         issues.push(Issue {
             path: "engine/crates/legion-runtime/src/wf_port/u03/version.rs".to_string(),
-            reason: "library version does not consume canonical release version record"
-                .to_string(),
+            reason: "library version does not consume canonical release version record".to_string(),
         });
     }
 

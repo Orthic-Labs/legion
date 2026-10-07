@@ -10,8 +10,9 @@
 //! as `#[cfg(test)]` unit tests inside `wf_port::w2_036::stop_shape` itself.
 
 use legion_policy::wf_port::w2_036::stop_shape::{
-    continue_intent, deferred_defect_codes, escalated_this_session, evaluate_stop_shape, is_push_gate_laundering,
-    reserved_categories, scope_cut_match, tool_denial_match, work_left_stuck, StopShapeOptions,
+    continue_intent, deferred_defect_codes, escalated_this_session, evaluate_stop_shape,
+    is_push_gate_laundering, reserved_categories, scope_cut_match, tool_denial_match,
+    work_left_stuck, StopShapeOptions,
 };
 use legion_policy::wf_port::wf007::user_intent::{classify_latest_user_intent, Intent};
 
@@ -24,7 +25,9 @@ fn opts() -> StopShapeOptions {
 #[test]
 fn permission_question_blocks_and_completed_work_passes() {
     assert!(evaluate_stop_shape("Shall I proceed with the fix?", &opts()).block);
-    assert!(!evaluate_stop_shape("Fixed the parser, 12/12 tests, committed abc123.", &opts()).block);
+    assert!(
+        !evaluate_stop_shape("Fixed the parser, 12/12 tests, committed abc123.", &opts()).block
+    );
 }
 
 #[test]
@@ -34,7 +37,13 @@ fn a_reserved_blocker_is_legal_in_any_format() {
         "BLOCKED-ON-APPROVAL: publish @rightkit/ax@0.1.1 (publication/production mutation)",
         "blocked-on-approval: new spend — the Hetzner upgrade needs your card",
     ] {
-        let verdict = evaluate_stop_shape(ending, &StopShapeOptions { escalated: true, ..opts() });
+        let verdict = evaluate_stop_shape(
+            ending,
+            &StopShapeOptions {
+                escalated: true,
+                ..opts()
+            },
+        );
         assert!(!verdict.block, "{ending}");
     }
 }
@@ -51,7 +60,8 @@ fn deferral_offer_is_caught_exact_mac_escape() {
 fn push_gate_laundering_exempts_only_ordinary_pushes() {
     let laundered = "BLOCKED-ON-APPROVAL:\nGate: git push origin main in membrane (3 commits)\nReserved-reason: outward-facing and irreversible-in-effect\nDone: verified locally\nRemaining: push\nNo-ungated-work: true";
     assert!(is_push_gate_laundering(laundered));
-    let real_publish = "BLOCKED-ON-APPROVAL:\nGate: npm publish @rightkit/git 0.2.0, then push the tag to origin";
+    let real_publish =
+        "BLOCKED-ON-APPROVAL:\nGate: npm publish @rightkit/git 0.2.0, then push the tag to origin";
     assert!(!is_push_gate_laundering(real_publish));
     let force_push = "BLOCKED-ON-APPROVAL:\nGate: git push --force to rewrite shared main history";
     assert!(!is_push_gate_laundering(force_push));
@@ -71,19 +81,28 @@ fn deferred_defect_markers_and_carve_outs() {
 
 #[test]
 fn reserved_categories_names_the_canonical_five() {
-    assert_eq!(reserved_categories("this needs new spend of $40"), vec!["new-spend"]);
+    assert_eq!(
+        reserved_categories("this needs new spend of $40"),
+        vec!["new-spend"]
+    );
     assert!(reserved_categories("per HANDOFF this is reserved to the operator").is_empty());
 }
 
 #[test]
 fn escalation_evidence_requires_a_real_dispatch() {
-    assert!(!escalated_this_session("I considered dispatching Sage about this."));
-    assert!(escalated_this_session(r#"{"subagent_type":"sage","prompt":"..."}"#));
+    assert!(!escalated_this_session(
+        "I considered dispatching Sage about this."
+    ));
+    assert!(escalated_this_session(
+        r#"{"subagent_type":"sage","prompt":"..."}"#
+    ));
 }
 
 #[test]
 fn work_left_stuck_and_tool_denial_and_scope_cut_are_pure() {
-    assert!(work_left_stuck("The render is still queued and not running."));
+    assert!(work_left_stuck(
+        "The render is still queued and not running."
+    ));
     assert!(!work_left_stuck("All done, nothing pending."));
     assert!(tool_denial_match("I don't have web search.").is_some());
     assert!(scope_cut_match("I will drop the models.").is_some());
@@ -99,11 +118,28 @@ fn continue_intent_distinguishes_correction_from_plain_question() {
 #[test]
 fn end_to_end_reserved_decision_requires_escalation_unless_authorized() {
     let packet = "BLOCKED-ON-APPROVAL: flipping VCS_PUSH from deny to allow — reserved decision, it changes what the enforcement plane permits globally.";
-    assert_eq!(evaluate_stop_shape(packet, &opts()).shape.as_deref(), Some("unescalated-blocker"));
-    assert!(!evaluate_stop_shape(packet, &StopShapeOptions { escalated: true, ..opts() }).block);
+    assert_eq!(
+        evaluate_stop_shape(packet, &opts()).shape.as_deref(),
+        Some("unescalated-blocker")
+    );
+    assert!(
+        !evaluate_stop_shape(
+            packet,
+            &StopShapeOptions {
+                escalated: true,
+                ..opts()
+            }
+        )
+        .block
+    );
     let authorized = evaluate_stop_shape(
         packet,
-        &StopShapeOptions { escalated: true, authorized: true, authorized_evidence: Some("Go on, fix it.".to_string()), ..opts() },
+        &StopShapeOptions {
+            escalated: true,
+            authorized: true,
+            authorized_evidence: Some("Go on, fix it.".to_string()),
+            ..opts()
+        },
     );
     assert!(authorized.block);
     assert_eq!(authorized.shape.as_deref(), Some("already-authorized"));

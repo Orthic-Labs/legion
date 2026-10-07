@@ -37,16 +37,17 @@ static MOBILE_FILE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     )
     .expect("valid regex")
 });
-static MOBILE_DEP_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)^(react-native|expo|@capacitor/core|cordova|@ionic/)").expect("valid regex"));
+static MOBILE_DEP_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^(react-native|expo|@capacitor/core|cordova|@ionic/)").expect("valid regex")
+});
 
-static ANDROID_PERMISSION_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"<uses-permission[^>]*android:name="([^"]+)""#).expect("valid regex"));
+static ANDROID_PERMISSION_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"<uses-permission[^>]*android:name="([^"]+)""#).expect("valid regex")
+});
 static IOS_USAGE_DESCRIPTION_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"<key>(NS\w*UsageDescription)</key>").expect("valid regex"));
-static INTENT_FILTER_CONTEXT_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<intent-filter\b.*?</intent-filter>").expect("valid regex")
-});
+static INTENT_FILTER_CONTEXT_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)<intent-filter\b.*?</intent-filter>").expect("valid regex"));
 static ANDROID_SCHEME_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"android:scheme="([^"]+)""#).expect("valid regex"));
 static IOS_URL_SCHEME_PATTERN: LazyLock<Regex> =
@@ -88,7 +89,9 @@ pub struct MobileExtraction {
 /// Port of `isMobileDependency(projection)`: true if any package-manifest
 /// dependency name matches `MOBILE_DEP_PATTERN`.
 fn is_mobile_dependency(manifest_dependencies: &[String]) -> bool {
-    manifest_dependencies.iter().any(|dep| MOBILE_DEP_PATTERN.is_match(dep))
+    manifest_dependencies
+        .iter()
+        .any(|dep| MOBILE_DEP_PATTERN.is_match(dep))
 }
 
 /// Port of `extractMobile({ root, plan, projection, files, lensRegistry })`.
@@ -182,7 +185,10 @@ pub fn extract_mobile(files: &[MobileFile], manifest_dependencies: &[String]) ->
         // ported test's assertions (each test checks membership/shape, not
         // sequence, matching how the JS test suite for this file asserts).
         for name in &permission_names {
-            let evidence_ref = stable_id("mobile-permission-evidence", &json!({ "file": file, "name": name }));
+            let evidence_ref = stable_id(
+                "mobile-permission-evidence",
+                &json!({ "file": file, "name": name }),
+            );
             let permission = entity(
                 "permission-scope",
                 &format!("declared permission {name}"),
@@ -211,7 +217,11 @@ pub fn extract_mobile(files: &[MobileFile], manifest_dependencies: &[String]) ->
             || APP_LINKS_PATTERN.is_match(text);
         if has_deep_link {
             let evidence_ref = stable_id("mobile-deep-link-evidence", &json!({ "file": file }));
-            let schemes: Vec<Value> = deep_link_schemes.iter().cloned().map(Value::String).collect();
+            let schemes: Vec<Value> = deep_link_schemes
+                .iter()
+                .cloned()
+                .map(Value::String)
+                .collect();
             let entrypoint = entity(
                 "entrypoint",
                 &format!("deep link entrypoint {file}"),
@@ -281,7 +291,11 @@ pub fn extract_mobile(files: &[MobileFile], manifest_dependencies: &[String]) ->
 
         if ALLOW_BACKUP_TRUE_PATTERN.is_match(text) || ALLOW_BACKUP_FALSE_PATTERN.is_match(text) {
             let evidence_ref = stable_id("mobile-backup-evidence", &json!({ "file": file }));
-            let control_state = if ALLOW_BACKUP_TRUE_PATTERN.is_match(text) { "absent" } else { "enforced" };
+            let control_state = if ALLOW_BACKUP_TRUE_PATTERN.is_match(text) {
+                "absent"
+            } else {
+                "enforced"
+            };
             let control = crate::wf_port::wf055::common::control_entity(
                 "data-backup",
                 &format!("application backup policy {file}"),
@@ -332,7 +346,10 @@ mod tests {
 
     #[test]
     fn no_signal_at_all_reports_mobile_context_not_detected() {
-        let out = extract_mobile(&[("src/index.js".into(), Some("console.log('hi')".into()))], &[]);
+        let out = extract_mobile(
+            &[("src/index.js".into(), Some("console.log('hi')".into()))],
+            &[],
+        );
         assert_eq!(out.coverage_gaps.len(), 1);
         assert_eq!(out.coverage_gaps[0]["kind"], "mobile-context-not-detected");
     }
@@ -345,14 +362,21 @@ mod tests {
 
     #[test]
     fn android_manifest_permissions_are_extracted() {
-        let text = r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#;
-        let out = extract_mobile(&[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))], &[]);
+        let text =
+            r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#;
+        let out = extract_mobile(
+            &[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))],
+            &[],
+        );
         let permission = out
             .entities
             .iter()
             .find(|e| e["kind"] == "permission-scope")
             .expect("permission entity present");
-        assert_eq!(permission["attributes"]["permission"], "android.permission.CAMERA");
+        assert_eq!(
+            permission["attributes"]["permission"],
+            "android.permission.CAMERA"
+        );
         assert!(out.coverage_gaps.is_empty());
     }
 
@@ -365,13 +389,19 @@ mod tests {
             .iter()
             .find(|e| e["kind"] == "permission-scope")
             .expect("permission entity present");
-        assert_eq!(permission["attributes"]["permission"], "NSCameraUsageDescription");
+        assert_eq!(
+            permission["attributes"]["permission"],
+            "NSCameraUsageDescription"
+        );
     }
 
     #[test]
     fn deep_link_scheme_inside_intent_filter_produces_entrypoint_and_fact() {
         let text = r#"<intent-filter><data android:scheme="myapp"/></intent-filter>"#;
-        let out = extract_mobile(&[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))], &[]);
+        let out = extract_mobile(
+            &[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))],
+            &[],
+        );
         let entrypoint = out
             .entities
             .iter()
@@ -397,21 +427,34 @@ mod tests {
     #[test]
     fn exported_component_produces_entrypoint_and_inter_app_fact() {
         let text = r#"<activity android:name=".Main" android:exported="true"/>"#;
-        let out = extract_mobile(&[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))], &[]);
+        let out = extract_mobile(
+            &[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))],
+            &[],
+        );
         let exported = out
             .entities
             .iter()
             .find(|e| e["attributes"]["entrypointType"] == "exported-component")
             .expect("exported component present");
         assert_eq!(exported["kind"], "entrypoint");
-        assert_eq!(out.initial_facts[0]["attributes"]["vector"], "on-device-inter-app");
+        assert_eq!(
+            out.initial_facts[0]["attributes"]["vector"],
+            "on-device-inter-app"
+        );
     }
 
     #[test]
     fn allow_backup_true_reports_absent_control_state() {
         let text = r#"<application android:allowBackup="true"/>"#;
-        let out = extract_mobile(&[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))], &[]);
-        let control = out.entities.iter().find(|e| e["kind"] == "control").expect("control present");
+        let out = extract_mobile(
+            &[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))],
+            &[],
+        );
+        let control = out
+            .entities
+            .iter()
+            .find(|e| e["kind"] == "control")
+            .expect("control present");
         assert_eq!(control["attributes"]["controlType"], "data-backup");
         assert_eq!(control["attributes"]["controlState"], "absent");
     }
@@ -419,16 +462,30 @@ mod tests {
     #[test]
     fn allow_backup_false_reports_enforced_control_state() {
         let text = r#"<application android:allowBackup="false"/>"#;
-        let out = extract_mobile(&[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))], &[]);
-        let control = out.entities.iter().find(|e| e["kind"] == "control").expect("control present");
+        let out = extract_mobile(
+            &[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))],
+            &[],
+        );
+        let control = out
+            .entities
+            .iter()
+            .find(|e| e["kind"] == "control")
+            .expect("control present");
         assert_eq!(control["attributes"]["controlState"], "enforced");
     }
 
     #[test]
     fn cleartext_android_true_reports_absent_transport_security_control() {
         let text = r#"<application android:usesCleartextTraffic="true"/>"#;
-        let out = extract_mobile(&[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))], &[]);
-        let control = out.entities.iter().find(|e| e["kind"] == "control").expect("control present");
+        let out = extract_mobile(
+            &[("app/src/main/AndroidManifest.xml".into(), Some(text.into()))],
+            &[],
+        );
+        let control = out
+            .entities
+            .iter()
+            .find(|e| e["kind"] == "control")
+            .expect("control present");
         assert_eq!(control["attributes"]["controlType"], "transport-security");
         assert_eq!(control["attributes"]["controlState"], "absent");
     }
@@ -437,14 +494,24 @@ mod tests {
     fn cleartext_ios_arbitrary_loads_true_reports_absent_transport_security_control() {
         let text = "<key>NSAllowsArbitraryLoads</key>\n<true/>";
         let out = extract_mobile(&[("ios/App/Info.plist".into(), Some(text.into()))], &[]);
-        let control = out.entities.iter().find(|e| e["kind"] == "control").expect("control present");
+        let control = out
+            .entities
+            .iter()
+            .find(|e| e["kind"] == "control")
+            .expect("control present");
         assert_eq!(control["attributes"]["controlType"], "transport-security");
     }
 
     #[test]
     fn js_native_bridge_in_ordinary_source_file_is_detected_outside_manifest_pass() {
         let text = "class Bridge { @ReactMethod public void doThing() {} }";
-        let out = extract_mobile(&[("android/app/src/main/java/Bridge.java".into(), Some(text.into()))], &[]);
+        let out = extract_mobile(
+            &[(
+                "android/app/src/main/java/Bridge.java".into(),
+                Some(text.into()),
+            )],
+            &[],
+        );
         assert_eq!(out.relations.len(), 1);
         assert_eq!(out.relations[0]["kind"], "calls");
         assert_eq!(out.entities.len(), 2);
@@ -461,8 +528,14 @@ mod tests {
         // `!sawMobileSignal` still holds, so `mobile-context-not-detected`
         // is pushed too.
         assert_eq!(out.coverage_gaps.len(), 2);
-        assert_eq!(out.coverage_gaps[0]["kind"], "missing-rendered-configuration");
-        assert_eq!(out.coverage_gaps[0]["file"], "app/src/main/AndroidManifest.xml");
+        assert_eq!(
+            out.coverage_gaps[0]["kind"],
+            "missing-rendered-configuration"
+        );
+        assert_eq!(
+            out.coverage_gaps[0]["file"],
+            "app/src/main/AndroidManifest.xml"
+        );
         assert_eq!(out.coverage_gaps[1]["kind"], "mobile-context-not-detected");
     }
 
@@ -478,8 +551,15 @@ mod tests {
 
     #[test]
     fn pubspec_and_podfile_and_gradle_kts_match_the_file_pattern() {
-        for name in ["pubspec.yaml", "ios/Podfile", "android/app/build.gradle.kts"] {
-            assert!(MOBILE_FILE_PATTERN.is_match(name), "expected {name} to match");
+        for name in [
+            "pubspec.yaml",
+            "ios/Podfile",
+            "android/app/build.gradle.kts",
+        ] {
+            assert!(
+                MOBILE_FILE_PATTERN.is_match(name),
+                "expected {name} to match"
+            );
         }
     }
 }

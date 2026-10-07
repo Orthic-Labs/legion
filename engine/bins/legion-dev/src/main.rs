@@ -1,10 +1,10 @@
+#[cfg(test)]
+mod apple_skill_integrity;
 mod checks;
 mod generators;
 mod native_cli_gate;
 mod repo;
 mod shared;
-#[cfg(test)]
-mod apple_skill_integrity;
 
 use clap::{Parser, Subcommand};
 use std::process::ExitCode;
@@ -43,7 +43,10 @@ enum Command {
     CheckAuthorityParity,
     /// Grade recorded role decisions against independently labelled replay cases.
     EvaluateAuthorityReplay {
-        #[arg(long, default_value = "src/evals/architecture/authority-adoption.jsonl")]
+        #[arg(
+            long,
+            default_value = "src/evals/architecture/authority-adoption.jsonl"
+        )]
         cases: std::path::PathBuf,
         #[arg(long)]
         observations: std::path::PathBuf,
@@ -181,9 +184,10 @@ fn main() -> ExitCode {
         Command::CheckPublicationSurface => checks::publication_surface::run(&root),
         Command::CheckSkillReferences => checks::skill_references::run(&root),
         Command::CheckAuthorityParity => checks::authority_parity::run(&root),
-        Command::EvaluateAuthorityReplay { cases, observations } => {
-            checks::authority_replay::run(&root, &cases, &observations)
-        }
+        Command::EvaluateAuthorityReplay {
+            cases,
+            observations,
+        } => checks::authority_replay::run(&root, &cases, &observations),
         Command::GenerateCatalogs { check } => generators::catalogs::run(&root, check),
         Command::CheckCanonicalNames { json } => checks::canonical_names::run(&root, json),
         Command::CheckBlueprintConfig { json } => checks::blueprint_config::run(&root, json),
@@ -193,32 +197,37 @@ fn main() -> ExitCode {
         Command::CheckDistributionContract => checks::distribution_contract::run(&root),
         Command::CheckReleaseObligations => checks::release_obligations::run(&root),
         Command::GenerateSchemas { check } => generators::schemas::run(&root, check),
-        Command::GenerateManifest { check, registry, out } => {
-            generators::manifest::run(&root, check, registry.as_deref(), out.as_deref())
-        }
-        Command::NormalizeProviderResult { contract, raw, self_test } => {
-            generators::provider_result_cli::run(contract.as_deref(), raw.as_deref(), self_test)
-        }
+        Command::GenerateManifest {
+            check,
+            registry,
+            out,
+        } => generators::manifest::run(&root, check, registry.as_deref(), out.as_deref()),
+        Command::NormalizeProviderResult {
+            contract,
+            raw,
+            self_test,
+        } => generators::provider_result_cli::run(contract.as_deref(), raw.as_deref(), self_test),
         Command::NativeCliInventory => generators::native_cli_inventory::run(&root),
-        Command::CheckNativeCliSurface { phase } => {
-            checks::native_cli_surface::run(&root, &phase)
-        }
+        Command::CheckNativeCliSurface { phase } => checks::native_cli_surface::run(&root, &phase),
         Command::GenerateHostProjection { check } => generators::host_projection::run(&root, check),
         Command::GenerateSkillCatalog { check } => generators::skill_catalog::run(&root, check),
-        Command::GenerateCodexSkillSidecars { check } => generators::codex_skill_sidecars::run(&root, check),
+        Command::GenerateCodexSkillSidecars { check } => {
+            generators::codex_skill_sidecars::run(&root, check)
+        }
         Command::RefreshLocalSkillManifests { check, bundles } => {
             generators::refresh_local_skill_manifests::run_with_args(&root, check, &bundles)
         }
-        Command::VerifyPluginParity { check, structural_only } => {
-            generators::verify_plugin_parity::run_opts(&root, check, structural_only)
+        Command::VerifyPluginParity {
+            check,
+            structural_only,
+        } => generators::verify_plugin_parity::run_opts(&root, check, structural_only),
+        Command::ReportToSarif { report, out } => {
+            generators::report_to_sarif::run(&report, out.as_deref())
         }
-        Command::ReportToSarif { report, out } => generators::report_to_sarif::run(&report, out.as_deref()),
         Command::PluginDev => generators::plugin_dev::run(&root),
         Command::CheckDependencyClosure => checks::dependency_closure::run(&root),
         Command::CheckPackedImportClosure => checks::packed_import_closure::run(&root),
-        Command::NativeCliParityInstalled => {
-            generators::native_cli_installed_parity::run(&root)
-        }
+        Command::NativeCliParityInstalled => generators::native_cli_installed_parity::run(&root),
         Command::NativeCliCaptureRust { diagnostic } => {
             generators::native_cli_rust_characterization::run(&root, diagnostic)
         }

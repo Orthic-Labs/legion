@@ -125,10 +125,22 @@ mod tests {
             command: "gauntlet".into(),
             summary_ok: false,
             output: json!({"summary": {"ok": false}, "layers": {}}),
-            mutation: LayerSummary { passed: 0, failed: 1, total: 1 },
+            mutation: LayerSummary {
+                passed: 0,
+                failed: 1,
+                total: 1,
+            },
             coverage_percent: 0.0,
-            coverage: LayerSummary { passed: 0, failed: 0, total: 0 },
-            order: LayerSummary { passed: 0, failed: 0, total: 0 },
+            coverage: LayerSummary {
+                passed: 0,
+                failed: 0,
+                total: 0,
+            },
+            order: LayerSummary {
+                passed: 0,
+                failed: 0,
+                total: 0,
+            },
         };
         let receipt = build_receipt(input);
         assert_eq!(receipt["exit_code"], 1);

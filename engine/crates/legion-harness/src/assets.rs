@@ -10,7 +10,12 @@ pub fn resolve_legion_root() -> Result<PathBuf, HarnessError> {
             }
             return Ok(root);
         }
-        if root.join("src").join("registry").join("host-projection.json").is_file() {
+        if root
+            .join("src")
+            .join("registry")
+            .join("host-projection.json")
+            .is_file()
+        {
             return Ok(root);
         }
     }
@@ -20,7 +25,10 @@ pub fn resolve_legion_root() -> Result<PathBuf, HarnessError> {
 }
 
 pub fn host_projection_path(legion_root: &Path) -> PathBuf {
-    let direct = legion_root.join("src").join("registry").join("host-projection.json");
+    let direct = legion_root
+        .join("src")
+        .join("registry")
+        .join("host-projection.json");
     if direct.is_file() {
         return direct;
     }
@@ -44,7 +52,13 @@ fn legion_root_candidates() -> Vec<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
             roots.push(parent.to_path_buf());
-            roots.push(parent.join("..").join("plugin").canonicalize().unwrap_or(parent.join("..").join("plugin")));
+            roots.push(
+                parent
+                    .join("..")
+                    .join("plugin")
+                    .canonicalize()
+                    .unwrap_or(parent.join("..").join("plugin")),
+            );
         }
     }
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

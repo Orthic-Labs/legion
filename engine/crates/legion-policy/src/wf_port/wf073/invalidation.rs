@@ -250,8 +250,13 @@ impl DependencyLedger {
 
         for dep in &dependencies {
             let key = dep_key(&dep.dimension, &dep.reference);
-            self.dep_index.entry(key.clone()).or_default().insert(evidence_id.clone());
-            self.current_digest.entry(key).or_insert_with(|| dep.digest.clone());
+            self.dep_index
+                .entry(key.clone())
+                .or_default()
+                .insert(evidence_id.clone());
+            self.current_digest
+                .entry(key)
+                .or_insert_with(|| dep.digest.clone());
 
             if dep.dimension == "evidence" {
                 self.evidence_dependents
@@ -311,7 +316,12 @@ impl DependencyLedger {
     /// cascades transitively through `dimension:"evidence"` edges,
     /// recomputes affected criteria/claims, and returns exactly ONE
     /// structured invalidation event.
-    pub fn observe_change(&mut self, dimension: &str, reference: &str, digest: &str) -> InvalidationEvent {
+    pub fn observe_change(
+        &mut self,
+        dimension: &str,
+        reference: &str,
+        digest: &str,
+    ) -> InvalidationEvent {
         let key = dep_key(dimension, reference);
         let from = self.current_digest.get(&key).cloned();
         self.current_digest.insert(key.clone(), digest.to_string());
@@ -324,7 +334,9 @@ impl DependencyLedger {
             .unwrap_or_default();
         let mut staled_evidence = Vec::new();
         for id in &direct_ids {
-            let Some(rec) = self.evidence.get(id) else { continue };
+            let Some(rec) = self.evidence.get(id) else {
+                continue;
+            };
             if rec.stale {
                 continue;
             }
@@ -353,8 +365,10 @@ impl DependencyLedger {
 
         // --- transitive cascade through evidence edges ---
         let mut cascaded_evidence = Vec::new();
-        let mut touched: std::collections::HashSet<String> = staled_evidence.iter().cloned().collect();
-        let mut queue: std::collections::VecDeque<String> = staled_evidence.iter().cloned().collect();
+        let mut touched: std::collections::HashSet<String> =
+            staled_evidence.iter().cloned().collect();
+        let mut queue: std::collections::VecDeque<String> =
+            staled_evidence.iter().cloned().collect();
         while let Some(current) = queue.pop_front() {
             let dependents: Vec<String> = self
                 .evidence_dependents
@@ -403,7 +417,8 @@ impl DependencyLedger {
                 affected_criteria.push(criterion_id.clone());
             }
         }
-        let affected_criteria_set: std::collections::HashSet<String> = affected_criteria.iter().cloned().collect();
+        let affected_criteria_set: std::collections::HashSet<String> =
+            affected_criteria.iter().cloned().collect();
 
         // --- affected claims: any claim resting on an affected criterion ---
         let mut affected_claims = Vec::new();
@@ -423,7 +438,10 @@ impl DependencyLedger {
             .collect();
 
         self.event_seq += 1;
-        let event_id = format!("invevt_{}", self.derive_event_id_hex(dimension, reference, digest));
+        let event_id = format!(
+            "invevt_{}",
+            self.derive_event_id_hex(dimension, reference, digest)
+        );
 
         InvalidationEvent {
             event_id,
@@ -443,7 +461,10 @@ impl DependencyLedger {
     }
 
     fn derive_event_id_hex(&self, dimension: &str, reference: &str, digest: &str) -> String {
-        let meta = DependencyMeta { dimension, reference };
+        let meta = DependencyMeta {
+            dimension,
+            reference,
+        };
         let mut hasher = Sha256::new();
         if let Ok(bytes) = serde_json::to_vec(&meta) {
             hasher.update(bytes);
@@ -495,7 +516,11 @@ impl DependencyLedger {
     /// The record is never dropped — it stays in the ledger, quarantined,
     /// and readable, but blocks any criterion it supports from becoming
     /// `proven`.
-    pub fn mark_corrupt(&mut self, evidence_id: &str, reason: impl Into<String>) -> Result<(), ArcaneError> {
+    pub fn mark_corrupt(
+        &mut self,
+        evidence_id: &str,
+        reason: impl Into<String>,
+    ) -> Result<(), ArcaneError> {
         let reason = reason.into();
         let at = (self.clock)();
         let rec = self.evidence.get_mut(evidence_id).ok_or_else(|| {
@@ -521,7 +546,11 @@ impl DependencyLedger {
 
     /// Recompute proof/claim eligibility for a criterion.
     pub fn proof_eligibility(&self, criterion_id: &str) -> ProofEligibility {
-        let Some(ev_set) = self.criterion_evidence.get(criterion_id).filter(|s| !s.order.is_empty()) else {
+        let Some(ev_set) = self
+            .criterion_evidence
+            .get(criterion_id)
+            .filter(|s| !s.order.is_empty())
+        else {
             return ProofEligibility {
                 status: EligibilityStatus::Insufficient,
                 reasons: vec!["no evidence linked to criterion".to_string()],
@@ -567,7 +596,11 @@ impl DependencyLedger {
             EligibilityStatus::Proven
         };
 
-        ProofEligibility { status, reasons, stale_evidence }
+        ProofEligibility {
+            status,
+            reasons,
+            stale_evidence,
+        }
     }
 
     pub fn snapshot(&self) -> LedgerSnapshot {
@@ -589,12 +622,22 @@ impl DependencyLedger {
         let criteria = self
             .criterion_order
             .iter()
-            .map(|id| (id.clone(), self.criterion_evidence[id].iter().cloned().collect()))
+            .map(|id| {
+                (
+                    id.clone(),
+                    self.criterion_evidence[id].iter().cloned().collect(),
+                )
+            })
             .collect();
         let claims = self
             .claim_order
             .iter()
-            .map(|id| (id.clone(), self.claim_criteria[id].iter().cloned().collect()))
+            .map(|id| {
+                (
+                    id.clone(),
+                    self.claim_criteria[id].iter().cloned().collect(),
+                )
+            })
             .collect();
         LedgerSnapshot {
             evidence,

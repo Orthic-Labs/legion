@@ -23,7 +23,11 @@ pub struct GitlabCiAdapter {
     pub canonical_cli: bool,
 }
 
-pub fn gitlab_ci_adapter(job_name: Option<&str>, profile: Option<&str>, baseline: Option<&str>) -> GitlabCiAdapter {
+pub fn gitlab_ci_adapter(
+    job_name: Option<&str>,
+    profile: Option<&str>,
+    baseline: Option<&str>,
+) -> GitlabCiAdapter {
     let job_name = job_name.unwrap_or("legion-audit").to_string();
     let profile = profile.unwrap_or("standard");
     let baseline_flag = baseline
@@ -83,7 +87,10 @@ pub struct AzureDevopsAdapter {
     pub canonical_cli: bool,
 }
 
-pub fn azure_devops_adapter(pipeline_name: Option<&str>, profile: Option<&str>) -> AzureDevopsAdapter {
+pub fn azure_devops_adapter(
+    pipeline_name: Option<&str>,
+    profile: Option<&str>,
+) -> AzureDevopsAdapter {
     let pipeline_name = pipeline_name.unwrap_or("legion-audit").to_string();
     let profile = profile.unwrap_or("standard");
     AzureDevopsAdapter {
@@ -102,7 +109,12 @@ pub fn azure_devops_adapter(pipeline_name: Option<&str>, profile: Option<&str>) 
 /// `src/integrations/github-action/index.mjs`.
 pub fn action_summary(report: &Value, scoped: &Value, run_dir: &str) -> Value {
     let empty = json!([]);
-    let introduced = scoped.get("introduced").unwrap_or(&empty).as_array().cloned().unwrap_or_default();
+    let introduced = scoped
+        .get("introduced")
+        .unwrap_or(&empty)
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     let existing_count = scoped
         .get("existing")
         .and_then(|v| v.as_array())
@@ -153,7 +165,9 @@ pub fn sarif_upload_command(sarif_path: &str, github_token: Option<&str>) -> Val
 /// `src/integrations/mcp/install.mjs`.
 pub fn mcp_install_config(command: Option<&str>, args: Option<&[&str]>) -> Value {
     let command = command.unwrap_or("legion");
-    let args: Vec<&str> = args.map(|a| a.to_vec()).unwrap_or_else(|| vec!["serve", "--stdio"]);
+    let args: Vec<&str> = args
+        .map(|a| a.to_vec())
+        .unwrap_or_else(|| vec!["serve", "--stdio"]);
     json!({
         "mcpServers": {
             "legion": { "command": command, "args": args }

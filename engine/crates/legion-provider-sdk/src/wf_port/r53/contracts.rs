@@ -57,7 +57,10 @@ mod tests {
 
     #[test]
     fn assert_enum_accepts_member() {
-        assert_eq!(assert_enum("status", "pass", PROVIDER_STATUS).unwrap(), "pass");
+        assert_eq!(
+            assert_enum("status", "pass", PROVIDER_STATUS).unwrap(),
+            "pass"
+        );
     }
 
     #[test]

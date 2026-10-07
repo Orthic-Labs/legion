@@ -22,14 +22,22 @@ pub fn file_digest(path: &Path) -> Option<String> {
 pub fn safe_relative_path(root: &Path, path: &str) -> String {
     let resolved = normalize_join(root, path);
     let relative = pathdiff(&resolved, root);
-    if relative.is_empty() || relative == ".." || relative.starts_with("../") || relative.contains('\0') {
+    if relative.is_empty()
+        || relative == ".."
+        || relative.starts_with("../")
+        || relative.contains('\0')
+    {
         panic!("release artifact path escapes distribution root: {path}");
     }
     relative
 }
 
 fn normalize_join(root: &Path, path: &str) -> PathBuf {
-    let candidate = if Path::new(path).is_absolute() { PathBuf::from(path) } else { root.join(path) };
+    let candidate = if Path::new(path).is_absolute() {
+        PathBuf::from(path)
+    } else {
+        root.join(path)
+    };
     normalize_path(&candidate)
 }
 
@@ -69,14 +77,19 @@ fn pathdiff(target: &Path, root: &Path) -> String {
     let root = normalize_path(root);
     let target = normalize_path(target);
     match target.strip_prefix(&root) {
-        Ok(rest) => rest.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"),
+        Ok(rest) => rest
+            .to_string_lossy()
+            .replace(std::path::MAIN_SEPARATOR, "/"),
         Err(_) => {
             // target does not live under root: emulate `path.relative`
             // producing a `..`-prefixed path.
             let root_str = root.to_string_lossy();
             let target_str = target.to_string_lossy();
             if target_str.starts_with(root_str.as_ref()) {
-                target_str.trim_start_matches(root_str.as_ref()).trim_start_matches('/').to_string()
+                target_str
+                    .trim_start_matches(root_str.as_ref())
+                    .trim_start_matches('/')
+                    .to_string()
             } else {
                 "..".to_string()
             }
@@ -148,8 +161,15 @@ pub fn build_release_manifest(input: ReleaseManifestInput) -> Value {
         .channels
         .iter()
         .map(|channel| {
-            let decision = channel.get("decision").and_then(Value::as_str).unwrap_or("BLOCKED").to_string();
-            let artifact_decisions = channel.get("artifactDecisions").cloned().unwrap_or_else(|| json!({}));
+            let decision = channel
+                .get("decision")
+                .and_then(Value::as_str)
+                .unwrap_or("BLOCKED")
+                .to_string();
+            let artifact_decisions = channel
+                .get("artifactDecisions")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
             let artifacts: Vec<Value> = normalized
                 .iter()
                 .map(|artifact| {
@@ -216,8 +236,14 @@ mod tests {
             notarization: vec![],
             qualification_artifacts: vec![],
         });
-        assert!(manifest["artifacts"][0]["digest"].as_str().unwrap().starts_with("sha256:"));
-        assert_eq!(manifest["channels"][0]["artifacts"][0]["decision"], "BLOCKED");
+        assert!(manifest["artifacts"][0]["digest"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:"));
+        assert_eq!(
+            manifest["channels"][0]["artifacts"][0]["decision"],
+            "BLOCKED"
+        );
         let _ = fs::remove_dir_all(dir);
     }
 }

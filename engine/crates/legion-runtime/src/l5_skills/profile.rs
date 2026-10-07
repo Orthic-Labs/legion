@@ -9,19 +9,22 @@ use super::uri::skill_uri;
 use regex::{Captures, Regex};
 use std::sync::LazyLock;
 
-static DOCUMENT_EXT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(?:^|\.)(?:md|mdx|txt)$").unwrap());
-static LINK: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\]\((?P<target>[^)\s]+)\)").unwrap());
-static ALLOWED_TOOLS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?im)^allowed-tools:.*\n?").unwrap());
+static DOCUMENT_EXT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:^|\.)(?:md|mdx|txt)$").unwrap());
+static LINK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\]\((?P<target>[^)\s]+)\)").unwrap());
+static ALLOWED_TOOLS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?im)^allowed-tools:.*\n?").unwrap());
 static TOOLS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?im)^tools:.*\n?").unwrap());
-static PERMISSION_MODE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?im)^permission-mode:.*\n?").unwrap());
+static PERMISSION_MODE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?im)^permission-mode:.*\n?").unwrap());
 static AUTOMATIC_EFFECT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?im)^.*\b(?:publish|deploy|commit|push)\b.*automatically.*\n?").unwrap()
 });
 static MUTATION_LINE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?im)^\s*(?:[-*]|\d+[.)])?\s*(?:write|edit|bash|fix|apply|modify|implement|deploy|publish|commit|push)\b.*\n?").unwrap()
 });
-static AUDIT_FIX_REFERENCE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?im)^.*/(?:audit-fix|fix)\b.*\n?").unwrap());
+static AUDIT_FIX_REFERENCE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?im)^.*/(?:audit-fix|fix)\b.*\n?").unwrap());
 
 fn is_document(path: &str) -> bool {
     DOCUMENT_EXT.is_match(path)
@@ -60,30 +63,36 @@ fn dirname(path: &str) -> &str {
 fn rewrite_links(value: &str, bundle: &str, path: &str) -> String {
     let normalized_path = path.replace('\\', "/");
     let dir = dirname(&normalized_path);
-    LINK
-        .replace_all(value, |captures: &Captures| {
-            let target = &captures["target"];
-            if target.starts_with("http://")
-                || target.starts_with("https://")
-                || target.starts_with("mailto:")
-                || target.starts_with('#')
-                || target.starts_with("legion-skill:")
-            {
-                return captures[0].to_string();
-            }
-            let resolved = join_relative(dir, &target.replace('\\', "/"));
-            if resolved.starts_with("../") || resolved == ".." {
-                "](<external-reference>)".to_string()
-            } else {
-                format!("]({})", skill_uri(bundle, &resolved))
-            }
-        })
-        .into_owned()
+    LINK.replace_all(value, |captures: &Captures| {
+        let target = &captures["target"];
+        if target.starts_with("http://")
+            || target.starts_with("https://")
+            || target.starts_with("mailto:")
+            || target.starts_with('#')
+            || target.starts_with("legion-skill:")
+        {
+            return captures[0].to_string();
+        }
+        let resolved = join_relative(dir, &target.replace('\\', "/"));
+        if resolved.starts_with("../") || resolved == ".." {
+            "](<external-reference>)".to_string()
+        } else {
+            format!("]({})", skill_uri(bundle, &resolved))
+        }
+    })
+    .into_owned()
 }
 
 fn strip_audit_instructions(value: &str) -> String {
     let mut out = value.to_string();
-    for pattern in [&*ALLOWED_TOOLS, &*TOOLS, &*PERMISSION_MODE, &*AUTOMATIC_EFFECT, &*MUTATION_LINE, &*AUDIT_FIX_REFERENCE] {
+    for pattern in [
+        &*ALLOWED_TOOLS,
+        &*TOOLS,
+        &*PERMISSION_MODE,
+        &*AUTOMATIC_EFFECT,
+        &*MUTATION_LINE,
+        &*AUDIT_FIX_REFERENCE,
+    ] {
         out = pattern.replace_all(&out, "").into_owned();
     }
     out
@@ -132,7 +141,8 @@ mod tests {
 
     #[test]
     fn leaves_absolute_and_scheme_links_untouched() {
-        let text = "See [a](https://example.com) and [b](legion-skill://qa/x.md) and [c](#anchor).\n";
+        let text =
+            "See [a](https://example.com) and [b](legion-skill://qa/x.md) and [c](#anchor).\n";
         let projected = project_skill_text(text, "qa", "SKILL.md", "authoring");
         assert!(projected.contains("https://example.com"));
         assert!(projected.contains("legion-skill://qa/x.md"));

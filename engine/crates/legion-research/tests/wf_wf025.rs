@@ -12,11 +12,11 @@
 //! this file will not compile, mirroring wf024's `research_port_stopping.rs`
 //! precedent.
 
-use legion_research::wf_port::wf025::{
-    gap_critic_review, independence_cluster, ledger_check, ledger_render, record_event,
-};
 use legion_research::wf_port::wf025::manifest::{
     approve, attach_artifact, create_run, finalize, load_run, resume_position, set_stage,
+};
+use legion_research::wf_port::wf025::{
+    gap_critic_review, independence_cluster, ledger_check, ledger_render, record_event,
 };
 use serde_json::json;
 
@@ -101,24 +101,50 @@ fn manifest_run_lifecycle_blocks_approves_and_finalizes() {
     let resume = resume_position(&manifest);
     assert_eq!(resume["next_stage"], "acquire");
 
-    record_event(&run_id, "custom.checkpoint", Some(&json!({"note": "started"})), Some(&root))
-        .expect("record_event should append");
+    record_event(
+        &run_id,
+        "custom.checkpoint",
+        Some(&json!({"note": "started"})),
+        Some(&root),
+    )
+    .expect("record_event should append");
 
-    let blocked = set_stage(&run_id, "acquire", "blocked", Some("needs-human"), Some(&root))
-        .expect("set_stage should succeed");
+    let blocked = set_stage(
+        &run_id,
+        "acquire",
+        "blocked",
+        Some("needs-human"),
+        Some(&root),
+    )
+    .expect("set_stage should succeed");
     assert_eq!(blocked["status"], "blocked");
     assert_eq!(blocked["blocked_on"][0], "needs-human");
 
-    let approved = approve(&run_id, "needs-human", "approved by operator", "adrian", Some(&root))
-        .expect("approve should succeed");
+    let approved = approve(
+        &run_id,
+        "needs-human",
+        "approved by operator",
+        "adrian",
+        Some(&root),
+    )
+    .expect("approve should succeed");
     assert_eq!(approved["status"], "running");
     assert!(approved["blocked_on"].as_array().unwrap().is_empty());
     assert_eq!(approved["approvals"]["needs-human"]["actor"], "adrian");
 
     set_stage(&run_id, "acquire", "done", None, Some(&root)).expect("set_stage done");
-    let with_artifact = attach_artifact(&run_id, "report", "runs/report.md", Some("deadbeef"), Some(&root))
-        .expect("attach_artifact should succeed");
-    assert_eq!(with_artifact["artifacts"]["report"]["path"], "runs/report.md");
+    let with_artifact = attach_artifact(
+        &run_id,
+        "report",
+        "runs/report.md",
+        Some("deadbeef"),
+        Some(&root),
+    )
+    .expect("attach_artifact should succeed");
+    assert_eq!(
+        with_artifact["artifacts"]["report"]["path"],
+        "runs/report.md"
+    );
 
     let receipt = finalize(&run_id, "ship", &json!({"ledger_ok": true}), Some(&root))
         .expect("finalize should succeed");
@@ -132,7 +158,10 @@ fn manifest_run_lifecycle_blocks_approves_and_finalizes() {
 #[test]
 fn manifest_finalize_block_verdict_sets_ship_gate() {
     let mut root = std::env::temp_dir();
-    root.push(format!("legion-wf025-integration-block-{}", std::process::id()));
+    root.push(format!(
+        "legion-wf025-integration-block-{}",
+        std::process::id()
+    ));
 
     let manifest = create_run("q", &json!({}), &json!({}), Some(&root)).unwrap();
     let run_id = manifest["run_id"].as_str().unwrap().to_string();

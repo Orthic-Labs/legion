@@ -13,7 +13,9 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use super::report::{generate_report, ChromePdfRenderer, OutputFormat, PdfRenderer, ReportResult, ReportType};
+use super::report::{
+    generate_report, ChromePdfRenderer, OutputFormat, PdfRenderer, ReportResult, ReportType,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Args {
@@ -197,9 +199,8 @@ pub fn run(argv: &[String], timestamp: &str) -> i32 {
     } else {
         None
     };
-    let renderer: Option<&mut dyn PdfRenderer> = chrome_renderer
-        .as_mut()
-        .map(|r| r as &mut dyn PdfRenderer);
+    let renderer: Option<&mut dyn PdfRenderer> =
+        chrome_renderer.as_mut().map(|r| r as &mut dyn PdfRenderer);
 
     let (result, lines) = run_with_data(&args, &data, timestamp, renderer);
     if let Some(err) = &result.error {
@@ -231,7 +232,15 @@ mod tests {
     #[test]
     fn parse_args_supports_short_flags() {
         let args = parse_args(&a(&[
-            "-t", "cwv-audit", "--domain", "x.com", "-o", "/tmp/out", "-f", "html", "-j",
+            "-t",
+            "cwv-audit",
+            "--domain",
+            "x.com",
+            "-o",
+            "/tmp/out",
+            "-f",
+            "html",
+            "-j",
         ]))
         .unwrap();
         assert_eq!(args.report_type, ReportType::CwvAudit);
@@ -242,7 +251,10 @@ mod tests {
 
     #[test]
     fn parse_args_requires_type_and_domain() {
-        assert_eq!(parse_args(&a(&["--domain", "x.com"])), Err(ParseArgsError::MissingType));
+        assert_eq!(
+            parse_args(&a(&["--domain", "x.com"])),
+            Err(ParseArgsError::MissingType)
+        );
         assert_eq!(
             parse_args(&a(&["--type", "full"])),
             Err(ParseArgsError::MissingDomain)
@@ -272,7 +284,10 @@ mod tests {
 
     #[test]
     fn load_data_prefers_file_over_stdin() {
-        let args = parse_args(&a(&["--type", "full", "--domain", "x.com", "--data", "d.json"])).unwrap();
+        let args = parse_args(&a(&[
+            "--type", "full", "--domain", "x.com", "--data", "d.json",
+        ]))
+        .unwrap();
         let src = FakeSource {
             file: Some(Ok(r#"{"a":1}"#.to_string())),
             stdin: Some(Ok(r#"{"b":2}"#.to_string())),
@@ -284,7 +299,10 @@ mod tests {
     #[test]
     fn load_data_errors_without_file_or_stdin() {
         let args = parse_args(&a(&["--type", "full", "--domain", "x.com"])).unwrap();
-        let src = FakeSource { file: None, stdin: None };
+        let src = FakeSource {
+            file: None,
+            stdin: None,
+        };
         assert!(load_data(&args, &src).is_err());
     }
 
@@ -306,7 +324,10 @@ mod tests {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        let mut args = parse_args(&a(&["--type", "full", "--domain", "x.com", "--format", "html"])).unwrap();
+        let mut args = parse_args(&a(&[
+            "--type", "full", "--domain", "x.com", "--format", "html",
+        ]))
+        .unwrap();
         args.output_dir = dir.clone();
         let data = serde_json::json!({});
         let (_result, lines) = run_with_data(&args, &data, "Jan 1, 2026", None);

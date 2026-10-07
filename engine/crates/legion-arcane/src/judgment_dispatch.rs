@@ -1,9 +1,9 @@
 use crate::advisory_judgment::{find_current_advisory_judgment, persist_advisory_judgment};
+use crate::decision::decision;
 use crate::deficit_governance::{
     acknowledge_downstream_deficits, classify_acceptance_deficits, convert_deficits_to_debt,
     evaluate_outcome_closure,
 };
-use crate::decision::decision;
 use crate::finding_lifecycle::{
     apply_scoped_recheck, filter_findings_by_threshold, verify_finding_closure,
     FindingLifecycleStore,
@@ -84,7 +84,10 @@ fn exact_payload(value: &Value) -> bool {
     let object = value.as_object();
     object.is_some_and(|object| {
         object.len() == 2
-            && object.get("operation").and_then(Value::as_str).is_some_and(|op| !op.is_empty())
+            && object
+                .get("operation")
+                .and_then(Value::as_str)
+                .is_some_and(|op| !op.is_empty())
             && object.get("payload").is_some_and(Value::is_object)
     })
 }
@@ -118,7 +121,10 @@ fn wrap_result(value: Value) -> Value {
     }
 }
 
-fn call_host_value(host: &Option<Box<dyn Fn() -> Value + Send + Sync>>, label: &str) -> Result<Value, String> {
+fn call_host_value(
+    host: &Option<Box<dyn Fn() -> Value + Send + Sync>>,
+    label: &str,
+) -> Result<Value, String> {
     host.as_ref()
         .map(|callback| callback())
         .ok_or_else(|| format!("state.{label} is not a function"))
@@ -174,11 +180,15 @@ fn dispatch_operation(
         }
         "deficit.classify" => {
             let items = call_host_items(&capability.host.acceptance_items, "acceptanceItems")?;
-            Ok(classify_acceptance_deficits(&json!({ "acceptanceItems": items })))
+            Ok(classify_acceptance_deficits(
+                &json!({ "acceptanceItems": items }),
+            ))
         }
         "deficit.convert" => {
             let items = call_host_items(&capability.host.acceptance_items, "acceptanceItems")?;
-            Ok(convert_deficits_to_debt(&json!({ "acceptanceItems": items })))
+            Ok(convert_deficits_to_debt(
+                &json!({ "acceptanceItems": items }),
+            ))
         }
         "deficit.acknowledge" => {
             let source = call_host_value(
@@ -188,16 +198,25 @@ fn dispatch_operation(
             Ok(acknowledge_downstream_deficits(&source))
         }
         "outcome.evaluate-closure" => {
-            let surface = call_host_value(&capability.host.acceptance_surface, "acceptanceSurface")?;
-            Ok(evaluate_outcome_closure(&json!({ "acceptanceSurface": surface })))
+            let surface =
+                call_host_value(&capability.host.acceptance_surface, "acceptanceSurface")?;
+            Ok(evaluate_outcome_closure(
+                &json!({ "acceptanceSurface": surface }),
+            ))
         }
         "advisory.consume" => {
             let receipt = payload.get("receipt").cloned().unwrap_or(Value::Null);
-            Ok(persist_advisory_judgment(&capability.receipt_store, &receipt))
+            Ok(persist_advisory_judgment(
+                &capability.receipt_store,
+                &receipt,
+            ))
         }
         "advisory.query" => {
             let expected = payload.get("expected").cloned().unwrap_or(json!({}));
-            Ok(find_current_advisory_judgment(&capability.receipt_store, &expected))
+            Ok(find_current_advisory_judgment(
+                &capability.receipt_store,
+                &expected,
+            ))
         }
         "scope.verify" => Ok(verify_current_user_scope_amendment(
             payload,
@@ -232,7 +251,11 @@ pub fn dispatch_governance_judgment(
     if capability.is_none() {
         return diagnostic_only(operation);
     }
-    match dispatch_operation(operation, request.get("payload").unwrap_or(&Value::Null), capability.unwrap()) {
+    match dispatch_operation(
+        operation,
+        request.get("payload").unwrap_or(&Value::Null),
+        capability.unwrap(),
+    ) {
         Ok(value) => wrap_result(value),
         Err(error) => failed(error),
     }

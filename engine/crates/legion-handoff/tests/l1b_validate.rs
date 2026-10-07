@@ -1,6 +1,8 @@
 //! Tests for the L1b `validate_handoff.py` port.
 
-use legion_handoff::l1b_port::{concrete, label_value, normalized_path, table_rows, validate_handoff};
+use legion_handoff::l1b_port::{
+    concrete, label_value, normalized_path, table_rows, validate_handoff,
+};
 
 fn template_text() -> String {
     // Minimal skeleton exercising ordered headings + all labels with
@@ -84,7 +86,10 @@ fn concrete_rejects_generic_and_short_values() {
 #[test]
 fn label_value_extracts_trailing_text() {
     let text = "- **Handoff ID:** abc-123\n";
-    assert_eq!(label_value(text, "**Handoff ID:**").as_deref(), Some("abc-123"));
+    assert_eq!(
+        label_value(text, "**Handoff ID:**").as_deref(),
+        Some("abc-123")
+    );
     assert_eq!(label_value(text, "**Missing:**"), None);
 }
 
@@ -102,9 +107,18 @@ fn table_rows_skips_separator_row() {
 
 #[test]
 fn normalized_path_lowercases_only_on_windows() {
-    assert_eq!(normalized_path("/Workspace/Repo/legion", false), "/Workspace/Repo/legion");
-    assert_eq!(normalized_path("/Workspace/Repo/legion", true), "/workspace/repo/legion");
-    assert_eq!(normalized_path("C:/Users/example/", false), "C:/Users/example");
+    assert_eq!(
+        normalized_path("/Workspace/Repo/legion", false),
+        "/Workspace/Repo/legion"
+    );
+    assert_eq!(
+        normalized_path("/Workspace/Repo/legion", true),
+        "/workspace/repo/legion"
+    );
+    assert_eq!(
+        normalized_path("C:/Users/example/", false),
+        "C:/Users/example"
+    );
 }
 
 #[test]
@@ -120,7 +134,9 @@ fn secret_pattern_is_flagged_outside_template_mode() {
     let mut text = template_text();
     text.push_str("api_key: sk-abcdefghijklmnopqrstuvwx\n");
     let errors = validate_handoff(&text, false);
-    assert!(errors.iter().any(|e| e.contains("possible secret detected")));
+    assert!(errors
+        .iter()
+        .any(|e| e.contains("possible secret detected")));
 }
 
 #[test]
@@ -128,5 +144,7 @@ fn secret_pattern_is_not_checked_in_template_mode() {
     let mut text = template_text();
     text.push_str("api_key: sk-abcdefghijklmnopqrstuvwx\n");
     let errors = validate_handoff(&text, true);
-    assert!(!errors.iter().any(|e| e.contains("possible secret detected")));
+    assert!(!errors
+        .iter()
+        .any(|e| e.contains("possible secret detected")));
 }

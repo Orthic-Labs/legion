@@ -35,11 +35,16 @@ pub fn classify(stage: &str, payload: &serde_json::Value) -> Vec<String> {
     let mut out: BTreeSet<String> = BTreeSet::new();
     let get = |key: &str| payload.get(key);
     let str_or_empty = |v: Option<&serde_json::Value>| -> String {
-        v.and_then(|v| v.as_str()).map(str::to_string).unwrap_or_default()
+        v.and_then(|v| v.as_str())
+            .map(str::to_string)
+            .unwrap_or_default()
     };
-    let bool_default_true = |v: Option<&serde_json::Value>| v.and_then(|v| v.as_bool()).unwrap_or(true);
-    let bool_or_false = |v: Option<&serde_json::Value>| v.and_then(|v| v.as_bool()).unwrap_or(false);
-    let array = |v: Option<&serde_json::Value>| v.and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let bool_default_true =
+        |v: Option<&serde_json::Value>| v.and_then(|v| v.as_bool()).unwrap_or(true);
+    let bool_or_false =
+        |v: Option<&serde_json::Value>| v.and_then(|v| v.as_bool()).unwrap_or(false);
+    let array =
+        |v: Option<&serde_json::Value>| v.and_then(|v| v.as_array()).cloned().unwrap_or_default();
 
     if stage == "route" {
         let route_truthy = match get("route") {
@@ -90,7 +95,9 @@ pub fn classify(stage: &str, payload: &serde_json::Value) -> Vec<String> {
             if text.contains("primary-source") {
                 out.insert("primary_source_missing".into());
             }
-            if v.get("verdict").and_then(|x| x.as_str()) == Some("downgrade") && text.contains("independent") {
+            if v.get("verdict").and_then(|x| x.as_str()) == Some("downgrade")
+                && text.contains("independent")
+            {
                 out.insert("source_independent_lt_2".into());
             }
         }
@@ -113,14 +120,19 @@ pub fn classify(stage: &str, payload: &serde_json::Value) -> Vec<String> {
     {
         out.insert("notebooklm_answer_ledger".into());
     }
-    if stage == "patch" && !bool_or_false(get("ok")) && str_or_empty(get("reason")).to_lowercase().contains("hunk") {
+    if stage == "patch"
+        && !bool_or_false(get("ok"))
+        && str_or_empty(get("reason")).to_lowercase().contains("hunk")
+    {
         out.insert("patch_hunk_overflow".into());
     }
     if stage == "domain" {
         if bool_or_false(get("criminal")) && bool_or_false(get("consumer_refs_loaded")) {
             out.insert("criminal_consumer_cross".into());
         }
-        if get("patient_kind").and_then(|x| x.as_str()) == Some("anonymous") && bool_or_false(get("history_loaded")) {
+        if get("patient_kind").and_then(|x| x.as_str()) == Some("anonymous")
+            && bool_or_false(get("history_loaded"))
+        {
             out.insert("personal_medical_default".into());
         }
     }
@@ -151,7 +163,10 @@ mod tests {
         });
         let mut got = classify("route", &payload);
         got.sort();
-        assert_eq!(got, vec!["approval_pending", "gate_block", "route_unresolved"]);
+        assert_eq!(
+            got,
+            vec!["approval_pending", "gate_block", "route_unresolved"]
+        );
     }
 
     #[test]
@@ -162,7 +177,10 @@ mod tests {
 
     #[test]
     fn budget_stage() {
-        assert_eq!(classify("budget", &json!({"ok": false})), vec!["budget_exceeded"]);
+        assert_eq!(
+            classify("budget", &json!({"ok": false})),
+            vec!["budget_exceeded"]
+        );
         assert!(classify("budget", &json!({"ok": true})).is_empty());
         assert!(classify("budget", &json!({})).is_empty());
     }
@@ -185,7 +203,10 @@ mod tests {
         });
         let mut got = classify("ledger", &payload);
         got.sort();
-        assert_eq!(got, vec!["primary_source_missing", "source_independent_lt_2"]);
+        assert_eq!(
+            got,
+            vec!["primary_source_missing", "source_independent_lt_2"]
+        );
     }
 
     #[test]
@@ -202,7 +223,10 @@ mod tests {
     #[test]
     fn notebooklm_stage() {
         let payload = json!({"promoted_to_ledger": true, "underlying_opened": false});
-        assert_eq!(classify("notebooklm", &payload), vec!["notebooklm_answer_ledger"]);
+        assert_eq!(
+            classify("notebooklm", &payload),
+            vec!["notebooklm_answer_ledger"]
+        );
     }
 
     #[test]
@@ -216,7 +240,10 @@ mod tests {
         let payload = json!({"criminal": true, "consumer_refs_loaded": true, "patient_kind": "anonymous", "history_loaded": true});
         let mut got = classify("domain", &payload);
         got.sort();
-        assert_eq!(got, vec!["criminal_consumer_cross", "personal_medical_default"]);
+        assert_eq!(
+            got,
+            vec!["criminal_consumer_cross", "personal_medical_default"]
+        );
     }
 
     #[test]
@@ -229,7 +256,10 @@ mod tests {
 
     #[test]
     fn gap_stage() {
-        assert_eq!(classify("gap", &json!({"complete": false})), vec!["gap_unresolved"]);
+        assert_eq!(
+            classify("gap", &json!({"complete": false})),
+            vec!["gap_unresolved"]
+        );
         assert!(classify("gap", &json!({"complete": true})).is_empty());
         assert!(classify("gap", &json!({})).is_empty());
     }

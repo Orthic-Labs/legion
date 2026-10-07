@@ -46,7 +46,9 @@ pub struct MissingMutator;
 
 impl std::fmt::Display for MissingMutator {
     fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        out.write_str("rollback requires a host mutator; the audit engine does not mutate repositories")
+        out.write_str(
+            "rollback requires a host mutator; the audit engine does not mutate repositories",
+        )
     }
 }
 impl std::error::Error for MissingMutator {}
@@ -103,11 +105,9 @@ pub async fn rollback_apply(
     let error = if restored {
         None
     } else {
-        Some(
-            result
-                .error
-                .unwrap_or_else(|| "restored fingerprint does not match the pre-apply state".to_string()),
-        )
+        Some(result.error.unwrap_or_else(|| {
+            "restored fingerprint does not match the pre-apply state".to_string()
+        }))
     };
     let recovery = if restored {
         RecoveryHint {

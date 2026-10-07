@@ -43,7 +43,13 @@ pub fn canonical(value: &Value) -> String {
             }
             let parts: Vec<String> = keys
                 .into_iter()
-                .map(|k| format!("{}:{}", serde_json::to_string(k).unwrap(), canonical(&map[k])))
+                .map(|k| {
+                    format!(
+                        "{}:{}",
+                        serde_json::to_string(k).unwrap(),
+                        canonical(&map[k])
+                    )
+                })
                 .collect();
             format!("{{{}}}", parts.join(","))
         }
@@ -75,7 +81,11 @@ pub fn find_forbidden_token(value: &Value) -> Option<&'static str> {
 pub fn allowed_outcomes(mode: &str) -> Option<&'static [&'static str]> {
     match mode {
         "DECISION_CHALLENGE" => Some(&["SUPPORTED", "REVISE", "UNRESOLVED"]),
-        "BLOCKER_CONSULT" => Some(&["CONTRACT_SAFE", "AMENDMENT_REQUIRED", "INSUFFICIENT_EVIDENCE"]),
+        "BLOCKER_CONSULT" => Some(&[
+            "CONTRACT_SAFE",
+            "AMENDMENT_REQUIRED",
+            "INSUFFICIENT_EVIDENCE",
+        ]),
         "DISPUTE_REVIEW" => Some(&["SUPPORTED", "REVISE", "UNRESOLVED"]),
         _ => None,
     }
@@ -185,9 +195,15 @@ fn validate_dispositions(record: &Value, errors: &mut Vec<String>) {
         .get("callerDispositions")
         .and_then(Value::as_array)
         .unwrap_or(&empty);
-    let findings = record.get("findings").and_then(Value::as_array).unwrap_or(&empty);
+    let findings = record
+        .get("findings")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty);
     for finding in findings {
-        let finding_id = finding.get("findingId").and_then(Value::as_str).unwrap_or("");
+        let finding_id = finding
+            .get("findingId")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let item = dispositions
             .iter()
             .find(|d| d.get("findingId").and_then(Value::as_str) == Some(finding_id));
@@ -197,9 +213,16 @@ fn validate_dispositions(record: &Value, errors: &mut Vec<String>) {
             ));
             continue;
         };
-        let disposition = item.get("disposition").and_then(Value::as_str).unwrap_or("");
+        let disposition = item
+            .get("disposition")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if disposition == "REJECT" {
-            let rationale = item.get("rationale").and_then(Value::as_str).unwrap_or("").trim();
+            let rationale = item
+                .get("rationale")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim();
             if rationale.is_empty() {
                 errors.push(format!(
                     "$.callerDispositions {finding_id} REJECT requires rationale"
@@ -207,7 +230,11 @@ fn validate_dispositions(record: &Value, errors: &mut Vec<String>) {
             }
         }
         if disposition == "DEFER_TO_PHASE" {
-            let owning_phase = item.get("owningPhase").and_then(Value::as_str).unwrap_or("").trim();
+            let owning_phase = item
+                .get("owningPhase")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim();
             if owning_phase.is_empty() {
                 errors.push(format!(
                     "$.callerDispositions {finding_id} DEFER_TO_PHASE requires owningPhase"
@@ -246,9 +273,18 @@ mod tests {
 
     #[test]
     fn aggregate_decision_verdict_prioritizes_unresolved_then_revise() {
-        assert_eq!(aggregate_decision_verdict(["SUPPORTED", "PROVIDER_FAILURE: x"]), "UNRESOLVED");
-        assert_eq!(aggregate_decision_verdict(["SUPPORTED", "REVISE"]), "REVISE");
-        assert_eq!(aggregate_decision_verdict(["SUPPORTED", "SUPPORTED"]), "SUPPORTED");
+        assert_eq!(
+            aggregate_decision_verdict(["SUPPORTED", "PROVIDER_FAILURE: x"]),
+            "UNRESOLVED"
+        );
+        assert_eq!(
+            aggregate_decision_verdict(["SUPPORTED", "REVISE"]),
+            "REVISE"
+        );
+        assert_eq!(
+            aggregate_decision_verdict(["SUPPORTED", "SUPPORTED"]),
+            "SUPPORTED"
+        );
     }
 
     #[test]
@@ -264,7 +300,9 @@ mod tests {
             "seatRecords": [{"isolated": true}],
         });
         let errors = validate_record_fields(&record, Some(&request));
-        assert!(errors.iter().any(|e| e.contains("requestId does not match")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("requestId does not match")));
         assert!(errors.iter().any(|e| e.contains("outcome is invalid")));
     }
 
@@ -276,7 +314,9 @@ mod tests {
             "integrity": {"digestVerified": false},
         });
         let errors = validate_record_fields(&record, None);
-        assert!(errors.iter().any(|e| e.contains("digestVerified must be true")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("digestVerified must be true")));
     }
 
     #[test]
@@ -289,6 +329,8 @@ mod tests {
             "callerDispositions": [],
         });
         let errors = validate_record_fields(&record, None);
-        assert!(errors.iter().any(|e| e.contains("missing terminal disposition for F1")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("missing terminal disposition for F1")));
     }
 }

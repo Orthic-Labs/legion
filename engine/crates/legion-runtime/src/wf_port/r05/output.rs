@@ -33,7 +33,12 @@ pub struct CliFinding {
 }
 
 impl CliFinding {
-    pub fn new(antipattern: impl Into<String>, file: impl Into<String>, line: u32, snippet: impl Into<String>) -> Self {
+    pub fn new(
+        antipattern: impl Into<String>,
+        file: impl Into<String>,
+        line: u32,
+        snippet: impl Into<String>,
+    ) -> Self {
         CliFinding {
             antipattern: antipattern.into(),
             name: None,
@@ -50,7 +55,10 @@ impl CliFinding {
 
 /// Port of `formatFindingSummary(count)`.
 pub fn format_finding_summary(count: usize) -> String {
-    format!("{count} anti-pattern{} found.", if count == 1 { "" } else { "s" })
+    format!(
+        "{count} anti-pattern{} found.",
+        if count == 1 { "" } else { "s" }
+    )
 }
 
 /// Port of `formatFindings(findings, jsonMode)`'s JSON branch:
@@ -75,7 +83,8 @@ pub fn format_findings_text(findings: &[CliFinding]) -> String {
     // Map<file, Vec<&CliFinding>>, but keep insertion order without pulling
     // in indexmap: track key order separately, matching JS's own
     // insertion-ordered plain-object grouping.
-    let mut groups: std::collections::HashMap<String, Vec<&CliFinding>> = std::collections::HashMap::new();
+    let mut groups: std::collections::HashMap<String, Vec<&CliFinding>> =
+        std::collections::HashMap::new();
     for f in findings {
         if !groups.contains_key(&f.file) {
             order.push(f.file.clone());
@@ -97,8 +106,14 @@ pub fn format_findings_text(findings: &[CliFinding]) -> String {
             } else {
                 String::new()
             };
-            out.push(format!("  {line_prefix}[{}] {}", item.antipattern, item.snippet));
-            out.push(format!("    \u{2192} {}", item.description.clone().unwrap_or_default()));
+            out.push(format!(
+                "  {line_prefix}[{}] {}",
+                item.antipattern, item.snippet
+            ));
+            out.push(format!(
+                "    \u{2192} {}",
+                item.description.clone().unwrap_or_default()
+            ));
         }
     }
     out.push(format!("\n{}", format_finding_summary(findings.len())));

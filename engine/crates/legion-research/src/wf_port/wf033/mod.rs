@@ -102,8 +102,7 @@ pub const REQUIRED_TOP_KEYS: [&str; 16] = [
 // --------------------------------------------------------------------------
 
 fn get<'a>(v: &'a Value, key: &str) -> Result<&'a Value, String> {
-    v.get(key)
-        .ok_or_else(|| format!("missing key '{key}'"))
+    v.get(key).ok_or_else(|| format!("missing key '{key}'"))
 }
 
 fn get_str(v: &Value, key: &str) -> Result<String, String> {
@@ -115,7 +114,10 @@ fn get_i64(v: &Value, key: &str) -> Result<i64, String> {
 }
 
 fn get_seq<'a>(v: &'a Value, key: &str) -> Result<Vec<&'a Value>, String> {
-    Ok(get(v, key)?.as_sequence().map(|s| s.iter().collect()).unwrap_or_default())
+    Ok(get(v, key)?
+        .as_sequence()
+        .map(|s| s.iter().collect())
+        .unwrap_or_default())
 }
 
 fn opt_str(v: &Value, key: &str) -> String {
@@ -298,7 +300,11 @@ pub fn party_block(case: &Value) -> Result<Vec<String>, String> {
         }
         let address = opt_str(op, "address");
         if !address.is_empty() {
-            let label = if is_individual { "Address: " } else { "Registered Office: " };
+            let label = if is_individual {
+                "Address: "
+            } else {
+                "Registered Office: "
+            };
             lines.push(format!("{label}{address}"));
         }
         let mut contact = Vec::new();
@@ -404,7 +410,11 @@ pub fn build_proforma_pairs(case: &Value) -> Result<Vec<(String, String)>, Strin
     for (i, extra) in ops.iter().enumerate().skip(1) {
         let name = opt_str(extra, "name");
         let addr = opt_str(extra, "address");
-        let value = if addr.is_empty() { name } else { format!("{name} \u{2014} {addr}") };
+        let value = if addr.is_empty() {
+            name
+        } else {
+            format!("{name} \u{2014} {addr}")
+        };
         pairs.push((format!("Name of Opposite Party No. {}", i + 1), value));
     }
 
@@ -416,7 +426,10 @@ pub fn build_proforma_pairs(case: &Value) -> Result<Vec<(String, String)>, Strin
         .iter()
         .enumerate()
         .map(|(i, p)| {
-            let text = p.as_str().unwrap_or_default().trim_end_matches(['.', ';', ' ']);
+            let text = p
+                .as_str()
+                .unwrap_or_default()
+                .trim_end_matches(['.', ';', ' ']);
             format!("({}) {}", (b'a' + i as u8) as char, text)
         })
         .collect::<Vec<_>>()
@@ -505,7 +518,9 @@ pub fn complaint_numbered_paragraphs(case: &Value) -> Result<Vec<(usize, String)
 
     let expected = complaint_para_count(case)?;
     if n != expected {
-        return Err(format!("para-count drift: counted {n} but computed {expected}"));
+        return Err(format!(
+            "para-count drift: counted {n} but computed {expected}"
+        ));
     }
     Ok(out)
 }
@@ -517,8 +532,14 @@ pub fn grounds_lines(case: &Value) -> Result<Vec<String>, String> {
         .iter()
         .enumerate()
         .map(|(gi, ground)| {
-            let marker = ROMAN.get(gi).map(|s| s.to_string()).unwrap_or_else(|| (gi + 1).to_string());
-            Ok(format!("({marker}) {}", ground.as_str().unwrap_or_default()))
+            let marker = ROMAN
+                .get(gi)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| (gi + 1).to_string());
+            Ok(format!(
+                "({marker}) {}",
+                ground.as_str().unwrap_or_default()
+            ))
         })
         .collect()
 }
@@ -528,7 +549,13 @@ pub fn prayer_lines(case: &Value) -> Result<Vec<String>, String> {
     get_seq(case, "prayer")?
         .iter()
         .enumerate()
-        .map(|(pi, prayer)| Ok(format!("({}) {}", (b'a' + pi as u8) as char, prayer.as_str().unwrap_or_default())))
+        .map(|(pi, prayer)| {
+            Ok(format!(
+                "({}) {}",
+                (b'a' + pi as u8) as char,
+                prayer.as_str().unwrap_or_default()
+            ))
+        })
         .collect()
 }
 
@@ -568,7 +595,11 @@ pub fn affidavit_averments(case: &Value, n: usize) -> Result<Vec<String>, String
     let true_copies = format!(
         "That the Annexures {anx_range} produced with the Complaint are true and faithful \
 copies of their respective originals{}.",
-        if !note.is_empty() { format!(", {note}") } else { String::new() }
+        if !note.is_empty() {
+            format!(", {note}")
+        } else {
+            String::new()
+        }
     );
     Ok(vec![
         "That I am the Complainant in the accompanying Consumer Complaint and I am well \
@@ -769,10 +800,7 @@ party_in_person: true
         case.as_mapping_mut().unwrap().remove("money");
         case.as_mapping_mut().unwrap().remove("prayer");
         let err = validate(&case).unwrap_err();
-        assert_eq!(
-            err,
-            "Case YAML is missing required keys: money, prayer"
-        );
+        assert_eq!(err, "Case YAML is missing required keys: money, prayer");
     }
 
     #[test]
@@ -789,7 +817,8 @@ party_in_person: true
 
     #[test]
     fn validate_rejects_non_sequential_annexure_ids() {
-        let case: Value = serde_yaml::from_str(&min_case_yaml().replace("id: \"A-2\"", "id: \"A-3\"")).unwrap();
+        let case: Value =
+            serde_yaml::from_str(&min_case_yaml().replace("id: \"A-2\"", "id: \"A-3\"")).unwrap();
         let err = validate(&case).unwrap_err();
         assert_eq!(
             err,
@@ -808,11 +837,33 @@ party_in_person: true
         let case = min_case();
         let paras = complaint_numbered_paragraphs(&case).unwrap();
         assert_eq!(paras.len(), 7);
-        assert_eq!(paras[0], (1, "That the Complainant is a consumer within the meaning of Section 2(7).".to_string()));
-        assert_eq!(paras[2], (3, "That the cause of action arose on 01 Jan 2026.".to_string()));
-        assert_eq!(paras[3], (4, "That the Complaint is within the limitation period.".to_string()));
+        assert_eq!(
+            paras[0],
+            (
+                1,
+                "That the Complainant is a consumer within the meaning of Section 2(7)."
+                    .to_string()
+            )
+        );
+        assert_eq!(
+            paras[2],
+            (
+                3,
+                "That the cause of action arose on 01 Jan 2026.".to_string()
+            )
+        );
+        assert_eq!(
+            paras[3],
+            (
+                4,
+                "That the Complaint is within the limitation period.".to_string()
+            )
+        );
         assert_eq!(paras[6].0, 7);
-        assert_eq!(paras[6].1, "That the conduct of the Opposite Parties constitutes:");
+        assert_eq!(
+            paras[6].1,
+            "That the conduct of the Opposite Parties constitutes:"
+        );
     }
 
     #[test]
@@ -877,8 +928,14 @@ party_in_person: true
     fn build_index_rows_include_annexures_after_the_six_fixed_rows() {
         let rows = build_index_rows(&min_case());
         assert_eq!(rows.len(), 6 + 1 + 2); // six fixed + "ANNEXURES" header + 2 annexures
-        assert_eq!(rows[0], ["1".to_string(), "Index".to_string(), "1".to_string()]);
-        assert_eq!(rows[6], ["ANNEXURES".to_string(), "".to_string(), "".to_string()]);
+        assert_eq!(
+            rows[0],
+            ["1".to_string(), "Index".to_string(), "1".to_string()]
+        );
+        assert_eq!(
+            rows[6],
+            ["ANNEXURES".to_string(), "".to_string(), "".to_string()]
+        );
         assert_eq!(rows[7][0], "A-1");
         assert_eq!(rows[8][0], "A-2");
     }
@@ -886,13 +943,19 @@ party_in_person: true
     #[test]
     fn build_proforma_pairs_include_pecuniary_jurisdiction_literal() {
         let pairs = build_proforma_pairs(&min_case()).unwrap();
-        let (_, pj) = pairs.iter().find(|(k, _)| k == "Pecuniary Jurisdiction").unwrap();
+        let (_, pj) = pairs
+            .iter()
+            .find(|(k, _)| k == "Pecuniary Jurisdiction")
+            .unwrap();
         assert_eq!(
             pj,
             "The value of the consideration paid (\u{20b9} 125,000/-) is below \u{20b9} 50,00,000/-. This Hon\u{2019}ble District Commission has pecuniary jurisdiction under Section 34(1) of the Act."
         );
         let (_, relief) = pairs.iter().find(|(k, _)| k == "Relief Sought").unwrap();
-        assert_eq!(relief, "(a) Direct refund of the amount paid; (b) Award compensation.");
+        assert_eq!(
+            relief,
+            "(a) Direct refund of the amount paid; (b) Award compensation."
+        );
     }
 
     #[test]
@@ -922,7 +985,8 @@ party_in_person: true
         assert_eq!(av.len(), 6);
         assert!(av[1].contains("Annexures A-1 to A-2"));
         assert!(av[2].contains("paragraphs 1 to 7"));
-        assert!(av[4].contains("Annexures A-1 to A-2 produced with the Complaint are true and faithful"));
+        assert!(av[4]
+            .contains("Annexures A-1 to A-2 produced with the Complaint are true and faithful"));
     }
 
     #[test]

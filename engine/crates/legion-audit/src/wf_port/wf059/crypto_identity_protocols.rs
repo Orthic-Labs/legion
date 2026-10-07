@@ -6,9 +6,9 @@
 //! layers never imply each other, exactly as the JS module comment states.
 
 use super::common::{digest, line_of, window_around, Context, Fact, Observation};
-use std::sync::LazyLock;
 use regex::Regex;
 use serde_json::json;
+use std::sync::LazyLock;
 
 static SECURITY_CONTEXT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)password|passwd|secret|token|session|credential|\bauth\b|signature|hmac|api[_-]?key|reset[_-]?code|otp\b").unwrap()
@@ -18,51 +18,73 @@ static SECURITY_CONTEXT: LazyLock<Regex> = LazyLock::new(|| {
 // separately in `classify_hash_use_context` below since the `regex` crate
 // has no lookaround; every other alternative is a plain regex.
 static NON_SECURITY_CONTEXT_PLAIN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)cache[_-]?key|etag|checksum|dedup(?:e|licat)?|idempotenc|content[_-]?hash").unwrap()
+    Regex::new(r"(?i)cache[_-]?key|etag|checksum|dedup(?:e|licat)?|idempotenc|content[_-]?hash")
+        .unwrap()
 });
-static FINGERPRINT_WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)fingerprint").unwrap());
+static FINGERPRINT_WORD: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)fingerprint").unwrap());
 static PASSWORD_WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)password").unwrap());
 
-static HMAC_GUARD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(?i)createHmac\s*\(\s*['"](?:md5|sha1)['"]"#).unwrap());
+static HMAC_GUARD: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?i)createHmac\s*\(\s*['"](?:md5|sha1)['"]"#).unwrap());
 
-static WEAK_HASH_CALL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\b(md5|sha1)\s*\(").unwrap());
+static WEAK_HASH_CALL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\b(md5|sha1)\s*\(").unwrap());
 
 static WEAK_CIPHER_CALL: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?i)createCipher(?:iv)?\s*\(\s*['"]([\w-]+)['"]"#).unwrap());
 static WEAK_ALGO_NAMES: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)^(?:des(?:-ede3)?(?:-cbc)?|rc4(?:-40)?|bf-ecb|(?:aes-(?:128|192|256)-)?ecb|.*-ecb)$").unwrap()
+    Regex::new(
+        r"(?i)^(?:des(?:-ede3)?(?:-cbc)?|rc4(?:-40)?|bf-ecb|(?:aes-(?:128|192|256)-)?ecb|.*-ecb)$",
+    )
+    .unwrap()
 });
 
-static MATH_RANDOM_CALL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"Math\.random\(\)").unwrap());
+static MATH_RANDOM_CALL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"Math\.random\(\)").unwrap());
 static RANDOMNESS_SECURITY_CONTEXT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)token|otp\b|session|reset[_-]?code|password|api[_-]?key|nonce|salt|secret|verification[_-]?code|session[_-]?id").unwrap()
 });
-static SECURE_RANDOM_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)crypto\.randomBytes|crypto\.randomUUID|randomBytes\s*\(|getRandomValues|secureRandom").unwrap());
+static SECURE_RANDOM_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)crypto\.randomBytes|crypto\.randomUUID|randomBytes\s*\(|getRandomValues|secureRandom",
+    )
+    .unwrap()
+});
 
-static HARDCODED_CIPHER_KEY: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)createCipheriv\s*\(\s*['"][\w-]+['"]\s*,\s*['"][^'"$]{8,}['"]"#).unwrap());
+static HARDCODED_CIPHER_KEY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)createCipheriv\s*\(\s*['"][\w-]+['"]\s*,\s*['"][^'"$]{8,}['"]"#).unwrap()
+});
 static HARDCODED_JWT_SECRET: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?i)jwt\.sign\s*\(\s*[^,]+,\s*['"][^'"$]{8,}['"]"#).unwrap());
 
 static ENCRYPTION_USAGE_MARKER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)createCipheriv\s*\(|crypto\.createCipher\s*\(").unwrap());
-static KEY_ROTATION_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)key[_-]?rotation|rotateKey|kms\.|KeyManagementService|SecretsManager|key[_-]?vault").unwrap());
+static KEY_ROTATION_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)key[_-]?rotation|rotateKey|kms\.|KeyManagementService|SecretsManager|key[_-]?vault",
+    )
+    .unwrap()
+});
 
-static UNSALTED_PASSWORD_HASH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\b(?:md5|sha1|sha256|sha512)\s*\(\s*(?:password|pwd|passwd)\b").unwrap());
-static PASSWORD_KDF_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)bcrypt|scrypt|argon2|pbkdf2").unwrap());
+static UNSALTED_PASSWORD_HASH: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:md5|sha1|sha256|sha512)\s*\(\s*(?:password|pwd|passwd)\b").unwrap()
+});
+static PASSWORD_KDF_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)bcrypt|scrypt|argon2|pbkdf2").unwrap());
 
-static OAUTH_AUTHORIZE_URL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)/(?:oauth2?/)?authorize\?[^\n'"`]*client_id=[^\n'"`]*"#).unwrap());
+static OAUTH_AUTHORIZE_URL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)/(?:oauth2?/)?authorize\?[^\n'"`]*client_id=[^\n'"`]*"#).unwrap()
+});
 static STATE_PARAM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)[?&]state=").unwrap());
 static PKCE_PARAM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)code_challenge=").unwrap());
-static OPENID_SCOPE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(?i)scope=[^&\n'"`]*openid"#).unwrap());
+static OPENID_SCOPE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?i)scope=[^&\n'"`]*openid"#).unwrap());
 static NONCE_PARAM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)[?&]nonce=").unwrap());
 
-static SAML_RESPONSE_HANDLER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\bsaml\w*\.(?:validate|parse|process)(?:Response|Assertion)?\s*\(").unwrap());
+static SAML_RESPONSE_HANDLER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\bsaml\w*\.(?:validate|parse|process)(?:Response|Assertion)?\s*\(").unwrap()
+});
 static SAML_SIGNATURE_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)verifySignature|checkSignature|validateSignature|wantAssertionsSigned\s*:\s*true|certificate\s*[:=]").unwrap()
 });
@@ -70,10 +92,13 @@ static SAML_EXPLICIT_DISABLE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)wantAssertionsSigned\s*:\s*false|ignoreSignature\s*:\s*true|disableSignatureValidation").unwrap()
 });
 
-static TOKEN_VERIFY_CALL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\b(?:jwt\.verify|jose\.jwtVerify|verifyIdToken)\s*\(").unwrap());
-static AUDIENCE_OPTION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\baudience\s*[:=]|\baud\s*[:=]").unwrap());
-static ISSUER_OPTION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\bissuer\s*[:=]|\biss\s*[:=]").unwrap());
+static TOKEN_VERIFY_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:jwt\.verify|jose\.jwtVerify|verifyIdToken)\s*\(").unwrap()
+});
+static AUDIENCE_OPTION: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\baudience\s*[:=]|\baud\s*[:=]").unwrap());
+static ISSUER_OPTION: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\bissuer\s*[:=]|\biss\s*[:=]").unwrap());
 
 struct UseContext {
     use_context: String,
@@ -87,18 +112,30 @@ struct UseContext {
 fn classify_hash_use_context(text: &str, index: usize, match_len: usize) -> UseContext {
     let win = window_around(text, index, match_len, 200);
     if let Some(m) = SECURITY_CONTEXT.find(win) {
-        return UseContext { use_context: m.as_str().to_lowercase(), severity_hint: "high" };
+        return UseContext {
+            use_context: m.as_str().to_lowercase(),
+            severity_hint: "high",
+        };
     }
     if let Some(m) = NON_SECURITY_CONTEXT_PLAIN.find(win) {
-        return UseContext { use_context: m.as_str().to_lowercase(), severity_hint: "low" };
+        return UseContext {
+            use_context: m.as_str().to_lowercase(),
+            severity_hint: "low",
+        };
     }
     if let Some(m) = FINGERPRINT_WORD.find(win) {
         let after = &win[m.end()..];
         if !PASSWORD_WORD.is_match(after) {
-            return UseContext { use_context: "fingerprint".to_string(), severity_hint: "low" };
+            return UseContext {
+                use_context: "fingerprint".to_string(),
+                severity_hint: "low",
+            };
         }
     }
-    UseContext { use_context: "unspecified".to_string(), severity_hint: "medium" }
+    UseContext {
+        use_context: "unspecified".to_string(),
+        severity_hint: "medium",
+    }
 }
 
 struct RawFinding {
@@ -120,9 +157,15 @@ struct RawFinding {
 fn make_observation(rule_id: &str, ctx: &Context, f: RawFinding) -> Observation {
     let artifact = f.file.as_deref().and_then(|file| ctx.find_artifact(file));
     let attacker_capabilities = if f.layer == "protocol" {
-        vec!["craft-malicious-link".to_string(), "control-network-position".to_string()]
+        vec![
+            "craft-malicious-link".to_string(),
+            "control-network-position".to_string(),
+        ]
     } else {
-        vec!["read-repository".to_string(), "compromise-key-material".to_string()]
+        vec![
+            "read-repository".to_string(),
+            "compromise-key-material".to_string(),
+        ]
     };
     let precondition_action = if f.layer == "protocol" {
         "induce-protocol-flow"
@@ -313,7 +356,11 @@ fn detect_hardcoded_encryption_key(ctx: &Context) -> Vec<RawFinding> {
         }
         for (pattern, primitive, use_context) in [
             (&*HARDCODED_CIPHER_KEY, "cipher-key", "symmetric-encryption"),
-            (&*HARDCODED_JWT_SECRET, "jwt-signing-secret", "token-signing"),
+            (
+                &*HARDCODED_JWT_SECRET,
+                "jwt-signing-secret",
+                "token-signing",
+            ),
         ] {
             for m in pattern.find_iter(text) {
                 let claim = format!(
@@ -342,7 +389,12 @@ fn detect_hardcoded_encryption_key(ctx: &Context) -> Vec<RawFinding> {
 }
 
 fn detect_key_rotation_absent(ctx: &Context) -> Vec<RawFinding> {
-    let combined: String = ctx.files.iter().map(|f| ctx.read_file(f)).collect::<Vec<_>>().join("\n");
+    let combined: String = ctx
+        .files
+        .iter()
+        .map(|f| ctx.read_file(f))
+        .collect::<Vec<_>>()
+        .join("\n");
     if !ENCRYPTION_USAGE_MARKER.is_match(&combined) {
         return vec![];
     }
@@ -377,7 +429,11 @@ fn detect_unsalted_password_hash(ctx: &Context) -> Vec<RawFinding> {
             if PASSWORD_KDF_MARKER.is_match(window_around(text, m.start(), m.len(), 150)) {
                 continue;
             }
-            let algo = m.as_str().split(|c: char| !c.is_alphanumeric()).next().unwrap_or("");
+            let algo = m
+                .as_str()
+                .split(|c: char| !c.is_alphanumeric())
+                .next()
+                .unwrap_or("");
             out.push(RawFinding {
                 file: Some(file.clone()),
                 line: Some(line_of(text, m.start())),
@@ -463,7 +519,8 @@ fn detect_saml_signature(ctx: &Context) -> Vec<RawFinding> {
             let claim = if explicit_disable {
                 "SAML assertion-signature validation is explicitly disabled on the response-processing path.".to_string()
             } else {
-                "A SAML response/assertion is processed with no visible signature-validation call.".to_string()
+                "A SAML response/assertion is processed with no visible signature-validation call."
+                    .to_string()
             };
             out.push(RawFinding {
                 file: Some(file.clone()),
@@ -533,22 +590,46 @@ fn detect_oidc_audience_issuer(ctx: &Context) -> Vec<RawFinding> {
 pub fn analyze(ctx: &Context) -> Vec<Observation> {
     let mut out = Vec::new();
     for f in detect_weak_hash(ctx) {
-        out.push(make_observation("crypto.primitive.weak-hash-security-context", ctx, f));
+        out.push(make_observation(
+            "crypto.primitive.weak-hash-security-context",
+            ctx,
+            f,
+        ));
     }
     for f in detect_weak_cipher(ctx) {
-        out.push(make_observation("crypto.primitive.weak-cipher-algorithm", ctx, f));
+        out.push(make_observation(
+            "crypto.primitive.weak-cipher-algorithm",
+            ctx,
+            f,
+        ));
     }
     for f in detect_insecure_randomness(ctx) {
-        out.push(make_observation("crypto.primitive.insecure-randomness", ctx, f));
+        out.push(make_observation(
+            "crypto.primitive.insecure-randomness",
+            ctx,
+            f,
+        ));
     }
     for f in detect_hardcoded_encryption_key(ctx) {
-        out.push(make_observation("crypto.primitive.hardcoded-encryption-key", ctx, f));
+        out.push(make_observation(
+            "crypto.primitive.hardcoded-encryption-key",
+            ctx,
+            f,
+        ));
     }
     for f in detect_key_rotation_absent(ctx) {
-        out.push(make_observation("crypto.primitive.key-rotation-absent", ctx, f));
+        out.push(make_observation(
+            "crypto.primitive.key-rotation-absent",
+            ctx,
+            f,
+        ));
     }
     for f in detect_unsalted_password_hash(ctx) {
-        out.push(make_observation("crypto.primitive.password-hash-unsalted-fast", ctx, f));
+        out.push(make_observation(
+            "crypto.primitive.password-hash-unsalted-fast",
+            ctx,
+            f,
+        ));
     }
     for (f, _) in detect_authorize_url_gap(
         ctx,
@@ -581,10 +662,18 @@ pub fn analyze(ctx: &Context) -> Vec<Observation> {
         out.push(make_observation("crypto.protocol.oidc-missing-nonce", ctx, f));
     }
     for f in detect_saml_signature(ctx) {
-        out.push(make_observation("crypto.protocol.saml-assertion-signature-unvalidated", ctx, f));
+        out.push(make_observation(
+            "crypto.protocol.saml-assertion-signature-unvalidated",
+            ctx,
+            f,
+        ));
     }
     for f in detect_oidc_audience_issuer(ctx) {
-        out.push(make_observation("crypto.protocol.oidc-missing-audience-issuer-check", ctx, f));
+        out.push(make_observation(
+            "crypto.protocol.oidc-missing-audience-issuer-check",
+            ctx,
+            f,
+        ));
     }
     out
 }

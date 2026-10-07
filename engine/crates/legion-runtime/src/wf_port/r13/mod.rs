@@ -239,7 +239,9 @@ pub fn has_fragment_edit_content(input: &ToolInput) -> bool {
         return true;
     }
     if let Some(edits) = &input.edits {
-        return edits.iter().any(|e| e.old_string.is_some() || e.new_string.is_some());
+        return edits
+            .iter()
+            .any(|e| e.old_string.is_some() || e.new_string.is_some());
     }
     false
 }
@@ -419,10 +421,8 @@ pub fn shell_redirect_path(command: &str) -> String {
     if command.is_empty() {
         return String::new();
     }
-    let re = regex::Regex::new(
-        r#"(?:^|[\s;&|])(?:>>?|1>>?)\s*(?:"([^"]+)"|'([^']+)'|([^<>\s]+))"#,
-    )
-    .expect("static regex");
+    let re = regex::Regex::new(r#"(?:^|[\s;&|])(?:>>?|1>>?)\s*(?:"([^"]+)"|'([^']+)'|([^<>\s]+))"#)
+        .expect("static regex");
     if let Some(caps) = re.captures(command) {
         for i in 1..=3 {
             if let Some(m) = caps.get(i) {
@@ -524,7 +524,8 @@ pub fn shell_python_write_destination(command: &str) -> String {
         paths_by_var.insert(caps[1].to_string(), value);
     }
 
-    let write_var_re = regex::Regex::new(r"\b([A-Za-z_]\w*)\.write_text\s*\(").expect("static regex");
+    let write_var_re =
+        regex::Regex::new(r"\b([A-Za-z_]\w*)\.write_text\s*\(").expect("static regex");
     for caps in write_var_re.captures_iter(command) {
         if let Some(candidate) = paths_by_var.get(&caps[1]) {
             return candidate.clone();
@@ -563,8 +564,8 @@ pub fn shell_heredoc_content(command: &str) -> String {
     if command.is_empty() {
         return String::new();
     }
-    let marker_re =
-        regex::Regex::new(r#"<<-?\s*['"]?([A-Za-z0-9_.-]+)['"]?[^\r\n]*\r?\n"#).expect("static regex");
+    let marker_re = regex::Regex::new(r#"<<-?\s*['"]?([A-Za-z0-9_.-]+)['"]?[^\r\n]*\r?\n"#)
+        .expect("static regex");
     let Some(marker_match) = marker_re.find(command) else {
         return String::new();
     };
@@ -639,7 +640,11 @@ pub fn shell_python_write_content(command: &str) -> String {
         return String::new();
     }
     let heredoc = shell_heredoc_content(command);
-    let script = if heredoc.is_empty() { command } else { &heredoc };
+    let script = if heredoc.is_empty() {
+        command
+    } else {
+        &heredoc
+    };
 
     let write_text_re = regex::Regex::new(r"\.write_text\s*\(\s*").expect("static regex");
     let via_write_text = python_string_arg(script, &write_text_re);
@@ -717,7 +722,10 @@ pub struct RunDeps<'a> {
 }
 
 fn value_str<'a>(event: &'a Value, key: &str) -> Option<&'a str> {
-    event.get(key).and_then(|v| v.as_str()).filter(|s| !s.is_empty())
+    event
+        .get(key)
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
 }
 
 fn tool_input_from_value(input: &Value) -> ToolInput {
@@ -770,17 +778,28 @@ fn tool_input_from_value(input: &Value) -> ToolInput {
 
 fn tool_event_from_value(event: &Value) -> ToolEvent {
     let empty = serde_json::json!({});
-    let input = event.get("tool_input").filter(|v| v.is_object()).unwrap_or(&empty);
+    let input = event
+        .get("tool_input")
+        .filter(|v| v.is_object())
+        .unwrap_or(&empty);
     ToolEvent {
         tool_input: tool_input_from_value(input),
-        event_file_path: event.get("file_path").and_then(|v| v.as_str()).map(String::from),
+        event_file_path: event
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .map(String::from),
     }
 }
 
 /// Mirrors `cursorBlockMessage(findings, filePath, config, cwd)`: the
 /// `renderTemplate` header rewritten to make explicit that the write is
 /// being blocked, truncated to 4000 chars.
-fn cursor_block_message(findings: &[Finding], file_path: &str, config: &crate::wf_port::r14::Config, cwd: &Path) -> String {
+fn cursor_block_message(
+    findings: &[Finding],
+    file_path: &str,
+    config: &crate::wf_port::r14::Config,
+    cwd: &Path,
+) -> String {
     let rendered = render_template(findings, file_path, config, cwd);
     let blocked = rendered.replace(
         "[impeccable@1] Design hook findings requiring review",
@@ -844,7 +863,8 @@ pub fn run(deps: RunDeps<'_>) -> GateOutcome {
     let now = (deps.now_millis)();
 
     let allow = |extra: Value, cwd: &str| -> GateOutcome {
-        let mut audit = serde_json::json!({ "ts": iso8601_from_millis(now), "event": "preToolUse" });
+        let mut audit =
+            serde_json::json!({ "ts": iso8601_from_millis(now), "event": "preToolUse" });
         if let (Some(a), Some(e)) = (audit.as_object_mut(), extra.as_object()) {
             for (k, v) in e {
                 a.insert(k.clone(), v.clone());
@@ -859,12 +879,13 @@ pub fn run(deps: RunDeps<'_>) -> GateOutcome {
         }
     };
 
-    let allow_with_message = |extra: Value, cwd: &str, user_message: String, agent_message: String| -> GateOutcome {
-        let mut outcome = allow(extra, cwd);
-        outcome.user_message = Some(user_message);
-        outcome.agent_message = Some(agent_message);
-        outcome
-    };
+    let allow_with_message =
+        |extra: Value, cwd: &str, user_message: String, agent_message: String| -> GateOutcome {
+            let mut outcome = allow(extra, cwd);
+            outcome.user_message = Some(user_message);
+            outcome.agent_message = Some(agent_message);
+            outcome
+        };
 
     let deny = |message: String, extra: Value, cwd: &str| -> GateOutcome {
         let mut audit = serde_json::json!({
@@ -887,15 +908,26 @@ pub fn run(deps: RunDeps<'_>) -> GateOutcome {
     };
 
     if truthy(deps.env.get("IMPECCABLE_HOOK_DISABLED").map(|s| s.as_str())) {
-        return allow(serde_json::json!({ "skipped": "env-disabled" }), deps.cwd_fallback);
+        return allow(
+            serde_json::json!({ "skipped": "env-disabled" }),
+            deps.cwd_fallback,
+        );
     }
 
     let event: Value = match serde_json::from_str(deps.stdin_json) {
         Ok(v) => v,
-        Err(_) => return allow(serde_json::json!({ "skipped": "stdin-malformed" }), deps.cwd_fallback),
+        Err(_) => {
+            return allow(
+                serde_json::json!({ "skipped": "stdin-malformed" }),
+                deps.cwd_fallback,
+            )
+        }
     };
     if !event.is_object() {
-        return allow(serde_json::json!({ "skipped": "stdin-empty" }), deps.cwd_fallback);
+        return allow(
+            serde_json::json!({ "skipped": "stdin-empty" }),
+            deps.cwd_fallback,
+        );
     }
 
     let cwd = resolve_project_cwd(&event, deps.env, deps.cwd_fallback);
@@ -919,16 +951,28 @@ pub fn run(deps: RunDeps<'_>) -> GateOutcome {
     };
 
     if file_path.is_empty() {
-        return allow(base_audit(serde_json::json!({ "skipped": "no-file-path" })), &cwd);
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "no-file-path" })),
+            &cwd,
+        );
     }
     if !is_inside_project(&file_path, &cwd) {
-        return allow(base_audit(serde_json::json!({ "skipped": "outside-project" })), &cwd);
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "outside-project" })),
+            &cwd,
+        );
     }
     if is_sensitive_path(&file_path) {
-        return allow(base_audit(serde_json::json!({ "skipped": "sensitive" })), &cwd);
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "sensitive" })),
+            &cwd,
+        );
     }
     if is_generated_path(&file_path) {
-        return allow(base_audit(serde_json::json!({ "skipped": "generated" })), &cwd);
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "generated" })),
+            &cwd,
+        );
     }
 
     let ext = Path::new(&file_path)
@@ -936,7 +980,10 @@ pub fn run(deps: RunDeps<'_>) -> GateOutcome {
         .map(|e| format!(".{}", e.to_string_lossy().to_ascii_lowercase()))
         .unwrap_or_default();
     if !allowed_exts().contains(&ext.as_str()) {
-        return allow(base_audit(serde_json::json!({ "skipped": "extension", "ext": ext })), &cwd);
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "extension", "ext": ext })),
+            &cwd,
+        );
     }
 
     let edit_projection = projected_edit_content(
@@ -974,21 +1021,32 @@ pub fn run(deps: RunDeps<'_>) -> GateOutcome {
     let content_result = proposed_content(&tool_event.tool_input, edit_projection, shell_fallback);
     let content = match &content_result {
         ProposedContent::Skipped(reason) => {
-            return allow(base_audit(serde_json::json!({ "skipped": *reason, "ext": ext })), &cwd);
+            return allow(
+                base_audit(serde_json::json!({ "skipped": *reason, "ext": ext })),
+                &cwd,
+            );
         }
         ProposedContent::Content(text) => text.clone(),
     };
     if content.is_empty() {
-        return allow(base_audit(serde_json::json!({ "skipped": "no-proposed-content", "ext": ext })), &cwd);
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "no-proposed-content", "ext": ext })),
+            &cwd,
+        );
     }
 
     let config = read_config(Path::new(&cwd));
     if !config.enabled {
-        return allow(base_audit(serde_json::json!({ "skipped": "config-disabled", "ext": ext })), &cwd);
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "config-disabled", "ext": ext })),
+            &cwd,
+        );
     }
 
     let rel = relative_path(&file_path, &cwd);
-    if matches_any_glob(&rel, &config.ignore_files) || matches_any_glob(&file_path, &config.ignore_files) {
+    if matches_any_glob(&rel, &config.ignore_files)
+        || matches_any_glob(&file_path, &config.ignore_files)
+    {
         return allow(
             base_audit(serde_json::json!({ "skipped": "config-ignore-file", "ext": ext })),
             &cwd,
@@ -996,7 +1054,10 @@ pub fn run(deps: RunDeps<'_>) -> GateOutcome {
     }
 
     let Some(detector) = deps.detector else {
-        return allow(base_audit(serde_json::json!({ "skipped": "detector-missing", "ext": ext })), &cwd);
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "detector-missing", "ext": ext })),
+            &cwd,
+        );
     };
     let scan_options: ScanOptions = design_system_options(&config, detector, Path::new(&cwd));
 
@@ -1005,11 +1066,15 @@ pub fn run(deps: RunDeps<'_>) -> GateOutcome {
     })) {
         Ok(f) => f,
         Err(_) => {
-            return allow(base_audit(serde_json::json!({ "error": "detector-threw", "ext": ext })), &cwd);
+            return allow(
+                base_audit(serde_json::json!({ "error": "detector-threw", "ext": ext })),
+                &cwd,
+            );
         }
     };
 
-    let ignore_rules_set: std::collections::HashSet<String> = config.ignore_rules.iter().cloned().collect();
+    let ignore_rules_set: std::collections::HashSet<String> =
+        config.ignore_rules.iter().cloned().collect();
     let filtered = filter_findings(&findings, &ignore_rules_set, &config.ignore_values);
     if filtered.is_empty() {
         return allow(
@@ -1155,10 +1220,7 @@ mod tests {
 
     #[test]
     fn replace_once_replaces_first_only() {
-        assert_eq!(
-            replace_once("aXbXc", "X", "-"),
-            Some("a-bXc".to_string())
-        );
+        assert_eq!(replace_once("aXbXc", "X", "-"), Some("a-bXc".to_string()));
         assert_eq!(replace_once("abc", "z", "-"), None);
         assert_eq!(replace_once("abc", "", "-"), None);
     }
@@ -1330,7 +1392,10 @@ mod tests {
     #[test]
     fn shell_tee_destination_skips_flags() {
         assert_eq!(shell_tee_destination("echo hi | tee -a out.txt"), "out.txt");
-        assert_eq!(shell_tee_destination("echo hi | tee out.txt && true"), "out.txt");
+        assert_eq!(
+            shell_tee_destination("echo hi | tee out.txt && true"),
+            "out.txt"
+        );
         assert_eq!(shell_tee_destination("echo hi"), "");
     }
 
@@ -1450,7 +1515,12 @@ p.write_text('x')""#
     }
 
     impl Detector for FakeDetector {
-        fn detect_text(&self, _content: &str, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
+        fn detect_text(
+            &self,
+            _content: &str,
+            _file_path: &str,
+            _scan_options: &ScanOptions,
+        ) -> Vec<Finding> {
             self.findings.clone()
         }
         fn detect_html(&self, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
@@ -1462,11 +1532,7 @@ p.write_text('x')""#
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
-            "legion-r13-{}-{}",
-            std::process::id(),
-            n
-        ));
+        let dir = std::env::temp_dir().join(format!("legion-r13-{}-{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -1517,7 +1583,10 @@ p.write_text('x')""#
         assert!(message.contains("Impeccable design hook blocked this write"));
         assert!(message.contains("side-tab"));
         assert_eq!(
-            outcome.audit.get("cursorDenialCount").and_then(|v| v.as_u64()),
+            outcome
+                .audit
+                .get("cursorDenialCount")
+                .and_then(|v| v.as_u64()),
             Some(1)
         );
         cleanup(&dir);
@@ -1550,7 +1619,10 @@ p.write_text('x')""#
         });
         assert_eq!(outcome.permission, "allow");
         assert_eq!(
-            outcome.audit.get("blockedFindings").and_then(|v| v.as_u64()),
+            outcome
+                .audit
+                .get("blockedFindings")
+                .and_then(|v| v.as_u64()),
             Some(0)
         );
         cleanup(&dir);

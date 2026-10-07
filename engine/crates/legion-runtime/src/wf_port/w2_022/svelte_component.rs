@@ -133,7 +133,9 @@ fn trailing_dot_or_bracket_ident(expr: &str) -> Option<String> {
     }
     // Walk back over \w characters.
     let mut word_start = word_end;
-    while word_start > 0 && (chars[word_start - 1].is_alphanumeric() || chars[word_start - 1] == '_') {
+    while word_start > 0
+        && (chars[word_start - 1].is_alphanumeric() || chars[word_start - 1] == '_')
+    {
         word_start -= 1;
     }
     if word_start == word_end {
@@ -197,13 +199,19 @@ pub fn parse_svelte_component_file(content: &str) -> ParsedSvelteFile {
     let style_re = style_block_regex();
     let style_match = style_re.find(without_script);
     let (markup, style_block) = match style_match {
-        Some(m) => (without_script[..m.start()].trim().to_string(), m.as_str().to_string()),
+        Some(m) => (
+            without_script[..m.start()].trim().to_string(),
+            m.as_str().to_string(),
+        ),
         None => (without_script.trim().to_string(), String::new()),
     };
 
     let mut css_lines: Vec<String> = if !style_block.is_empty() {
         let inner = strip_style_tags(&style_block);
-        inner.split('\n').map(|l| l.trim_end().to_string()).collect()
+        inner
+            .split('\n')
+            .map(|l| l.trim_end().to_string())
+            .collect()
     } else {
         Vec::new()
     };
@@ -214,7 +222,11 @@ pub fn parse_svelte_component_file(content: &str) -> ParsedSvelteFile {
         css_lines.pop();
     }
 
-    ParsedSvelteFile { markup, css_lines, style_block }
+    ParsedSvelteFile {
+        markup,
+        css_lines,
+        style_block,
+    }
 }
 
 fn script_block_regex() -> regex::Regex {
@@ -251,17 +263,28 @@ pub fn build_props_script(contract: &[PropContractEntry]) -> String {
         return "<script>\n  /** @type {Record<string, never>} */\n  let {} = $props();\n</script>\n"
             .to_string();
     }
-    let names = contract.iter().map(|c| c.prop.as_str()).collect::<Vec<_>>().join(", ");
+    let names = contract
+        .iter()
+        .map(|c| c.prop.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
     let type_fields = contract
         .iter()
         .map(|c| format!("    {}: string;", c.prop))
         .collect::<Vec<_>>()
         .join("\n");
-    format!("<script>\n  /** @type {{{{\n{}\n  }}}} */\n  let {{ {} }} = $props();\n</script>\n", type_fields, names)
+    format!(
+        "<script>\n  /** @type {{{{\n{}\n  }}}} */\n  let {{ {} }} = $props();\n</script>\n",
+        type_fields, names
+    )
 }
 
 /// Port of `buildVariantStub`.
-pub fn build_variant_stub(variant_num: i64, original_with_props: &str, contract: &[PropContractEntry]) -> String {
+pub fn build_variant_stub(
+    variant_num: i64,
+    original_with_props: &str,
+    contract: &[PropContractEntry],
+) -> String {
     let props_comment = if !contract.is_empty() {
         let joined = contract
             .iter()
@@ -310,7 +333,10 @@ pub fn match_opening_tag(markup: &str) -> Option<OpeningTag> {
         raw: whole.as_str().to_string(),
         prefix: caps.get(1)?.as_str().to_string(),
         tag: caps.get(2)?.as_str().to_string(),
-        attrs: caps.get(3).map(|m| m.as_str().to_string()).unwrap_or_default(),
+        attrs: caps
+            .get(3)
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default(),
         close: caps.get(4)?.as_str().to_string(),
         index: whole.start(),
     })
@@ -341,7 +367,12 @@ pub fn parse_attr_segments(attrs: &str) -> Vec<AttrSegment> {
         let raw = m.as_str().to_string();
         let name_caps = re.captures(m.as_str()).unwrap();
         let name = name_caps.get(1).unwrap().as_str().to_string();
-        let seg = AttrSegment { name: name.clone(), raw, start: m.start(), end: m.end() };
+        let seg = AttrSegment {
+            name: name.clone(),
+            raw,
+            start: m.start(),
+            end: m.end(),
+        };
         if let Some(existing) = out.iter_mut().find(|s| s.name == name) {
             *existing = seg;
         } else {
@@ -356,13 +387,15 @@ fn find_attr<'a>(segs: &'a [AttrSegment], name: &str) -> Option<&'a AttrSegment>
 }
 
 /// Port of `mergeStaticClassAttr`.
-pub fn merge_static_class_attr(original_class: &AttrSegment, variant_class: &AttrSegment) -> Option<String> {
+pub fn merge_static_class_attr(
+    original_class: &AttrSegment,
+    variant_class: &AttrSegment,
+) -> Option<String> {
     // JS uses a backreference (`(["'])(.*?)\1`) to require the same quote
     // character on both sides; the `regex` crate has no backreference
     // support, so this expands into an explicit alternation over the two
     // quote characters, which is equivalent.
-    let class_value_re =
-        regex::Regex::new(r#"class\s*=\s*(?:"([^"]*)"|'([^']*)')"#).unwrap();
+    let class_value_re = regex::Regex::new(r#"class\s*=\s*(?:"([^"]*)"|'([^']*)')"#).unwrap();
     let original_value = class_value_re.captures(&original_class.raw)?;
     let variant_value = class_value_re.captures(&variant_class.raw)?;
     let (quote, variant_text) = match (variant_value.get(1), variant_value.get(2)) {
@@ -376,7 +409,10 @@ pub fn merge_static_class_attr(original_class: &AttrSegment, variant_class: &Att
         .as_str();
     let mut seen = HashSet::new();
     let mut classes = Vec::new();
-    for cls in variant_text.split_whitespace().chain(original_text.split_whitespace()) {
+    for cls in variant_text
+        .split_whitespace()
+        .chain(original_text.split_whitespace())
+    {
         if !cls.is_empty() && seen.insert(cls) {
             classes.push(cls);
         }
@@ -435,7 +471,10 @@ pub fn merge_original_top_level_attrs(markup: &str, original_markup: &str) -> St
     }
 
     let addition_str: String = additions.iter().map(|a| format!(" {}", a.trim())).collect();
-    let next_open = format!("{}{}{}{}{}", variant_open.prefix, variant_open.tag, attrs, addition_str, variant_open.close);
+    let next_open = format!(
+        "{}{}{}{}{}",
+        variant_open.prefix, variant_open.tag, attrs, addition_str, variant_open.close
+    );
     format!(
         "{}{}{}",
         &markup[..variant_open.index],
@@ -446,9 +485,15 @@ pub fn merge_original_top_level_attrs(markup: &str, original_markup: &str) -> St
 
 /// Port of `svelteMarkupHasVisibleContent`.
 pub fn svelte_markup_has_visible_content(markup: &str) -> bool {
-    let script_re = regex::RegexBuilder::new(r"(?is)<script[\s\S]*?</script>").build().unwrap();
-    let style_re = regex::RegexBuilder::new(r"(?is)<style[\s\S]*?</style>").build().unwrap();
-    let comment_re = regex::RegexBuilder::new(r"(?s)<!--[\s\S]*?-->").build().unwrap();
+    let script_re = regex::RegexBuilder::new(r"(?is)<script[\s\S]*?</script>")
+        .build()
+        .unwrap();
+    let style_re = regex::RegexBuilder::new(r"(?is)<style[\s\S]*?</style>")
+        .build()
+        .unwrap();
+    let comment_re = regex::RegexBuilder::new(r"(?s)<!--[\s\S]*?-->")
+        .build()
+        .unwrap();
     let tag_re = regex::Regex::new(r"<[^>]+>").unwrap();
     let ws_re = regex::Regex::new(r"\s+").unwrap();
 
@@ -498,7 +543,11 @@ pub fn parse_css_rules(css: &str) -> Vec<CssRule> {
         if i >= n {
             break;
         }
-        let prelude: String = chars[prelude_start..i].iter().collect::<String>().trim().to_string();
+        let prelude: String = chars[prelude_start..i]
+            .iter()
+            .collect::<String>()
+            .trim()
+            .to_string();
         i += 1;
         let body_start = i;
         let mut depth = 1i32;
@@ -626,7 +675,10 @@ struct ParamRewrite {
 /// JSON-ish string value (JS receives arbitrary JSON values coerced with
 /// `String(actual)`); callers pass the already-stringified value plus a
 /// `false_like` flag for the falsy-check branch.
-fn rewrite_param_selectors(selector: &str, param_values: Option<&std::collections::HashMap<String, ParamValue>>) -> ParamRewrite {
+fn rewrite_param_selectors(
+    selector: &str,
+    param_values: Option<&std::collections::HashMap<String, ParamValue>>,
+) -> ParamRewrite {
     // JS uses a backreference (`=(["'])(.*?)\2`) to require the same quote
     // character on both sides; the `regex` crate has no backreference
     // support, so this expands into an explicit alternation over the two
@@ -660,7 +712,10 @@ fn rewrite_param_selectors(selector: &str, param_values: Option<&std::collection
         out.push_str(&selector[last..]);
         out
     };
-    ParamRewrite { keep, selector: result }
+    ParamRewrite {
+        keep,
+        selector: result,
+    }
 }
 
 /// A param value as passed to CSS rewriting: mirrors JS's loose typing
@@ -709,12 +764,16 @@ fn rewrite_accepted_svelte_selector_part(
     from_scope: bool,
 ) -> String {
     let mut out = selector.trim().to_string();
-    let has_variant = regex::Regex::new(r"data-impeccable-variant").unwrap().is_match(&out);
+    let has_variant = regex::Regex::new(r"data-impeccable-variant")
+        .unwrap()
+        .is_match(&out);
     if has_variant && !selector_has_variant(&out, variant_num) {
         return String::new();
     }
     if has_variant {
-        out = variant_selector_regex(variant_num).replace_all(&out, "").into_owned();
+        out = variant_selector_regex(variant_num)
+            .replace_all(&out, "")
+            .into_owned();
         let attr_re = regex::Regex::new(r#"\[data-impeccable-variant=(["']).*?\1\]"#).unwrap();
         out = attr_re.replace_all(&out, "").into_owned();
     }
@@ -736,7 +795,11 @@ fn rewrite_accepted_svelte_selector_part(
     out = combinator_re.replace(&out, "").trim().to_string();
 
     if out.is_empty() && (has_variant || from_scope) {
-        return if !root_tag.is_empty() { root_tag.to_string() } else { ":global(*)".to_string() };
+        return if !root_tag.is_empty() {
+            root_tag.to_string()
+        } else {
+            ":global(*)".to_string()
+        };
     }
     out
 }
@@ -752,7 +815,13 @@ fn rewrite_accepted_svelte_selector(
     split_selector_list(prelude)
         .into_iter()
         .filter_map(|selector| {
-            let next = rewrite_accepted_svelte_selector_part(&selector, variant_num, param_values, root_tag, from_scope);
+            let next = rewrite_accepted_svelte_selector_part(
+                &selector,
+                variant_num,
+                param_values,
+                root_tag,
+                from_scope,
+            );
             if next.is_empty() {
                 None
             } else {
@@ -782,7 +851,10 @@ fn append_sanitized_css_rule(
         return;
     }
 
-    let scope_re = regex::RegexBuilder::new(r"^@scope\b").case_insensitive(true).build().unwrap();
+    let scope_re = regex::RegexBuilder::new(r"^@scope\b")
+        .case_insensitive(true)
+        .build()
+        .unwrap();
     if scope_re.is_match(prelude) {
         let variant_attr_re = regex::Regex::new(r"data-impeccable-variant").unwrap();
         if variant_attr_re.is_match(prelude) && !selector_has_variant(prelude, variant_num) {
@@ -790,8 +862,13 @@ fn append_sanitized_css_rule(
         }
         let inner = parse_css_rules(body);
         for inner_rule in inner {
-            let rewritten_prelude =
-                rewrite_accepted_svelte_selector(&inner_rule.prelude, variant_num, param_values, root_tag, true);
+            let rewritten_prelude = rewrite_accepted_svelte_selector(
+                &inner_rule.prelude,
+                variant_num,
+                param_values,
+                root_tag,
+                true,
+            );
             if rewritten_prelude.is_empty() || ready_re.is_match(inner_rule.body.trim()) {
                 continue;
             }
@@ -800,7 +877,8 @@ fn append_sanitized_css_rule(
         return;
     }
 
-    let rewritten_prelude = rewrite_accepted_svelte_selector(prelude, variant_num, param_values, root_tag, false);
+    let rewritten_prelude =
+        rewrite_accepted_svelte_selector(prelude, variant_num, param_values, root_tag, false);
     if rewritten_prelude.is_empty() {
         return;
     }
@@ -852,7 +930,9 @@ pub fn bake_param_values_in_css(
                 let var_name = format!("--p-{}", key);
                 let pat = format!(r"var\({}(?:,\s*[^)]+)?\)", escape_regexp(&var_name));
                 let re = regex::Regex::new(&pat).unwrap();
-                out = re.replace_all(&out, value.as_display().as_str()).into_owned();
+                out = re
+                    .replace_all(&out, value.as_display().as_str())
+                    .into_owned();
             }
             out
         })
@@ -1029,23 +1109,30 @@ pub fn scaffold_svelte_component_session(
         })
         .collect();
 
-    let component_dir_rel = to_forward_slashes(
-        dir.strip_prefix(cwd).unwrap_or(&dir),
-    );
+    let component_dir_rel = to_forward_slashes(dir.strip_prefix(cwd).unwrap_or(&dir));
 
     let mut manifest = Map::new();
     manifest.insert("id".into(), Value::String(input.id.to_string()));
-    manifest.insert("previewMode".into(), Value::String("svelte-component".into()));
+    manifest.insert(
+        "previewMode".into(),
+        Value::String("svelte-component".into()),
+    );
     manifest.insert(
         "sourceFile".into(),
         Value::String(input.source_file.replace('\\', "/")),
     );
-    manifest.insert("sourceStartLine".into(), Value::from(input.source_start_line));
+    manifest.insert(
+        "sourceStartLine".into(),
+        Value::from(input.source_start_line),
+    );
     manifest.insert("sourceEndLine".into(), Value::from(input.source_end_line));
     manifest.insert("count".into(), Value::from(input.count));
     manifest.insert("propContract".into(), Value::Array(contract_json));
     manifest.insert("originalMarkup".into(), Value::String(original_markup));
-    manifest.insert("componentDir".into(), Value::String(component_dir_rel.clone()));
+    manifest.insert(
+        "componentDir".into(),
+        Value::String(component_dir_rel.clone()),
+    );
     manifest.insert(
         "runtimeModule".into(),
         Value::String(format!("/{}", SVELTE_RUNTIME_FILE)),
@@ -1070,7 +1157,9 @@ pub fn scaffold_svelte_component_session(
 
     Ok(ScaffoldSessionResult {
         manifest,
-        manifest_file: to_forward_slashes(manifest_path.strip_prefix(cwd).unwrap_or(&manifest_path)),
+        manifest_file: to_forward_slashes(
+            manifest_path.strip_prefix(cwd).unwrap_or(&manifest_path),
+        ),
         component_dir: component_dir_rel,
         prop_contract: contract,
     })
@@ -1103,7 +1192,10 @@ pub fn scaffold_svelte_component_insert_session(
     let mut manifest = Map::new();
     manifest.insert("id".into(), Value::String(input.id.to_string()));
     manifest.insert("mode".into(), Value::String("insert".into()));
-    manifest.insert("previewMode".into(), Value::String("svelte-component".into()));
+    manifest.insert(
+        "previewMode".into(),
+        Value::String("svelte-component".into()),
+    );
     manifest.insert(
         "sourceFile".into(),
         Value::String(input.source_file.replace('\\', "/")),
@@ -1112,17 +1204,29 @@ pub fn scaffold_svelte_component_insert_session(
     manifest.insert("position".into(), Value::String(input.position.to_string()));
     manifest.insert(
         "anchorStartLine".into(),
-        input.anchor_start_line.map(Value::from).unwrap_or(Value::Null),
+        input
+            .anchor_start_line
+            .map(Value::from)
+            .unwrap_or(Value::Null),
     );
     manifest.insert(
         "anchorEndLine".into(),
-        input.anchor_end_line.map(Value::from).unwrap_or(Value::Null),
+        input
+            .anchor_end_line
+            .map(Value::from)
+            .unwrap_or(Value::Null),
     );
-    manifest.insert("originalMarkup".into(), Value::String(anchor_markup.clone()));
+    manifest.insert(
+        "originalMarkup".into(),
+        Value::String(anchor_markup.clone()),
+    );
     manifest.insert("anchorMarkup".into(), Value::String(anchor_markup));
     manifest.insert("count".into(), Value::from(input.count));
     manifest.insert("propContract".into(), Value::Array(Vec::new()));
-    manifest.insert("componentDir".into(), Value::String(component_dir_rel.clone()));
+    manifest.insert(
+        "componentDir".into(),
+        Value::String(component_dir_rel.clone()),
+    );
     manifest.insert(
         "runtimeModule".into(),
         Value::String(format!("/{}", SVELTE_RUNTIME_FILE)),
@@ -1144,7 +1248,9 @@ pub fn scaffold_svelte_component_insert_session(
 
     Ok(ScaffoldSessionResult {
         manifest,
-        manifest_file: to_forward_slashes(manifest_path.strip_prefix(cwd).unwrap_or(&manifest_path)),
+        manifest_file: to_forward_slashes(
+            manifest_path.strip_prefix(cwd).unwrap_or(&manifest_path),
+        ),
         component_dir: component_dir_rel,
         prop_contract: Vec::new(),
     })
@@ -1154,8 +1260,8 @@ pub fn scaffold_svelte_component_insert_session(
 /// `manifestPath` (mirrors the JS spread `{ ...data, manifestPath }`).
 pub fn read_manifest(manifest_path: &Path) -> io::Result<Value> {
     let data = std::fs::read_to_string(manifest_path)?;
-    let mut value: Value = serde_json::from_str(&data)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let mut value: Value =
+        serde_json::from_str(&data).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     if let Value::Object(map) = &mut value {
         map.insert(
             "manifestPath".into(),
@@ -1208,7 +1314,9 @@ pub fn resolve_source_file(source_file: &str, cwd: &Path) -> Result<PathBuf, Str
         _ => return Err("Svelte-component source file escapes project root".to_string()),
     }
     if !full.exists() {
-        return Err(format!("Svelte-component source file not found: {source_file}"));
+        return Err(format!(
+            "Svelte-component source file not found: {source_file}"
+        ));
     }
     Ok(full)
 }
@@ -1226,8 +1334,16 @@ pub struct InlineAcceptResult {
 }
 
 fn inline_result_base(manifest: &Value) -> InlineAcceptResult {
-    let source_file = manifest.get("sourceFile").and_then(Value::as_str).unwrap_or_default().to_string();
-    let component_dir = manifest.get("componentDir").and_then(Value::as_str).unwrap_or_default().to_string();
+    let source_file = manifest
+        .get("sourceFile")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let component_dir = manifest
+        .get("componentDir")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
     InlineAcceptResult {
         handled: true,
         error: None,
@@ -1265,7 +1381,10 @@ pub fn inline_svelte_component_accept(
     param_values: Option<&std::collections::HashMap<String, ParamValue>>,
     cwd: &Path,
 ) -> InlineAcceptResult {
-    let source_file_str = manifest.get("sourceFile").and_then(Value::as_str).unwrap_or_default();
+    let source_file_str = manifest
+        .get("sourceFile")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let mut base = inline_result_base(manifest);
 
     let source_file = match resolve_source_file(source_file_str, cwd) {
@@ -1277,8 +1396,13 @@ pub fn inline_svelte_component_accept(
         }
     };
 
-    let component_dir = manifest.get("componentDir").and_then(Value::as_str).unwrap_or_default();
-    let variant_path = cwd.join(component_dir).join(format!("v{variant_num}.svelte"));
+    let component_dir = manifest
+        .get("componentDir")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let variant_path = cwd
+        .join(component_dir)
+        .join(format!("v{variant_num}.svelte"));
     if !variant_path.exists() {
         base.handled = false;
         base.error = Some(format!("Variant {variant_num} not found"));
@@ -1308,9 +1432,14 @@ pub fn inline_svelte_component_accept(
         );
     }
 
-    let root_tag = match_opening_tag(&parsed.markup).map(|t| t.tag).unwrap_or_else(|| "div".to_string());
+    let root_tag = match_opening_tag(&parsed.markup)
+        .map(|t| t.tag)
+        .unwrap_or_else(|| "div".to_string());
     let contract = manifest_prop_contract(manifest);
-    let original_markup = manifest.get("originalMarkup").and_then(Value::as_str).unwrap_or_default();
+    let original_markup = manifest
+        .get("originalMarkup")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let merged_markup = merge_original_top_level_attrs(&parsed.markup, original_markup);
     let restored_markup: Vec<String> = substitute_props_with_exprs(&merged_markup, &contract)
         .split('\n')
@@ -1326,13 +1455,24 @@ pub fn inline_svelte_component_accept(
         }
     };
     let source_lines: Vec<String> = source_content.split('\n').map(String::from).collect();
-    let start = manifest.get("sourceStartLine").and_then(Value::as_i64).unwrap_or(0) - 1;
-    let end = manifest.get("sourceEndLine").and_then(Value::as_i64).unwrap_or(0) - 1;
+    let start = manifest
+        .get("sourceStartLine")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        - 1;
+    let end = manifest
+        .get("sourceEndLine")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        - 1;
     if start < 0 || end < start || end as usize >= source_lines.len() {
         base.handled = false;
         base.error = Some(format!(
             "Invalid source line range for {}",
-            manifest.get("sourceFile").and_then(Value::as_str).unwrap_or_default()
+            manifest
+                .get("sourceFile")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
         ));
         return base;
     }
@@ -1362,7 +1502,8 @@ pub fn inline_svelte_component_accept(
         .chain(source_lines[end + 1..].iter().cloned())
         .collect();
 
-    let sanitized_css = sanitize_accepted_svelte_css(&parsed.css_lines, variant_num, param_values, &root_tag);
+    let sanitized_css =
+        sanitize_accepted_svelte_css(&parsed.css_lines, variant_num, param_values, &root_tag);
     let baked_css = bake_param_values_in_css(&sanitized_css, param_values);
     if !baked_css.is_empty() {
         new_lines = append_css_to_svelte_style(&new_lines, &baked_css);
@@ -1374,7 +1515,10 @@ pub fn inline_svelte_component_accept(
         return base;
     }
 
-    let id = manifest.get("id").and_then(Value::as_str).unwrap_or_default();
+    let id = manifest
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     remove_svelte_component_session(id, cwd);
 
     base
@@ -1400,13 +1544,19 @@ fn inline_svelte_component_insert_accept(
     if data_impeccable_re.is_match(markup) {
         base.handled = false;
         base.error = Some(
-            "Accepted Svelte insert variant contains preview-only data-impeccable attributes".to_string(),
+            "Accepted Svelte insert variant contains preview-only data-impeccable attributes"
+                .to_string(),
         );
         return base;
     }
 
-    let root_tag = match_opening_tag(markup).map(|t| t.tag).unwrap_or_else(|| "div".to_string());
-    let restored_markup: Vec<String> = markup.split('\n').map(|l| l.trim_end().to_string()).collect();
+    let root_tag = match_opening_tag(markup)
+        .map(|t| t.tag)
+        .unwrap_or_else(|| "div".to_string());
+    let restored_markup: Vec<String> = markup
+        .split('\n')
+        .map(|l| l.trim_end().to_string())
+        .collect();
 
     let source_content = match std::fs::read_to_string(source_file) {
         Ok(c) => c,
@@ -1417,12 +1567,19 @@ fn inline_svelte_component_insert_accept(
         }
     };
     let source_lines: Vec<String> = source_content.split('\n').map(String::from).collect();
-    let insert_index = manifest.get("insertLine").and_then(Value::as_i64).unwrap_or(0) - 1;
+    let insert_index = manifest
+        .get("insertLine")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        - 1;
     if insert_index < 0 || insert_index as usize > source_lines.len() {
         base.handled = false;
         base.error = Some(format!(
             "Invalid insert line for {}",
-            manifest.get("sourceFile").and_then(Value::as_str).unwrap_or_default()
+            manifest
+                .get("sourceFile")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
         ));
         return base;
     }
@@ -1430,7 +1587,11 @@ fn inline_svelte_component_insert_accept(
 
     let nearby_line = source_lines
         .get(insert_index)
-        .or_else(|| insert_index.checked_sub(1).and_then(|i| source_lines.get(i)))
+        .or_else(|| {
+            insert_index
+                .checked_sub(1)
+                .and_then(|i| source_lines.get(i))
+        })
         .cloned()
         .unwrap_or_default();
     let indent_re = regex::Regex::new(r"^(\s*)").unwrap();
@@ -1457,7 +1618,8 @@ fn inline_svelte_component_insert_accept(
         .chain(source_lines[insert_index..].iter().cloned())
         .collect();
 
-    let sanitized_css = sanitize_accepted_svelte_css(css_lines, variant_num, param_values, &root_tag);
+    let sanitized_css =
+        sanitize_accepted_svelte_css(css_lines, variant_num, param_values, &root_tag);
     let baked_css = bake_param_values_in_css(&sanitized_css, param_values);
     if !baked_css.is_empty() {
         new_lines = append_css_to_svelte_style(&new_lines, &baked_css);
@@ -1469,7 +1631,10 @@ fn inline_svelte_component_insert_accept(
         return base;
     }
 
-    let id = manifest.get("id").and_then(Value::as_str).unwrap_or_default();
+    let id = manifest
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     remove_svelte_component_session(id, cwd);
 
     base
@@ -1508,7 +1673,11 @@ pub fn deferred_accepts_path(cwd: &Path) -> PathBuf {
     let mut hasher = Sha256::new();
     hasher.update(resolved.to_string_lossy().as_bytes());
     let digest = hasher.finalize();
-    let key: String = digest.iter().map(|b| format!("{b:02x}")).collect::<String>()[..16].to_string();
+    let key: String = digest
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>()[..16]
+        .to_string();
     std::env::temp_dir()
         .join("impeccable-live")
         .join(key)
@@ -1538,17 +1707,25 @@ pub fn write_deferred_accept(entry: Value, cwd: &Path) -> io::Result<()> {
         std::fs::create_dir_all(parent)?;
     }
     let mut data = read_deferred_accepts(cwd);
-    let entry_id = entry.get("id").and_then(Value::as_str).map(|s| s.to_string());
-    data.accepts.retain(|item| item.get("id").and_then(Value::as_str).map(|s| s.to_string()) != entry_id);
+    let entry_id = entry
+        .get("id")
+        .and_then(Value::as_str)
+        .map(|s| s.to_string());
+    data.accepts.retain(|item| {
+        item.get("id")
+            .and_then(Value::as_str)
+            .map(|s| s.to_string())
+            != entry_id
+    });
     let mut entry = entry;
     if let Value::Object(map) = &mut entry {
-        map.insert(
-            "createdAt".into(),
-            Value::String(chrono_like_now_iso8601()),
-        );
+        map.insert("createdAt".into(), Value::String(chrono_like_now_iso8601()));
     }
     data.accepts.push(entry);
-    std::fs::write(&file, format!("{}\n", serde_json::to_string_pretty(&data).unwrap()))
+    std::fs::write(
+        &file,
+        format!("{}\n", serde_json::to_string_pretty(&data).unwrap()),
+    )
 }
 
 /// Minimal RFC3339 "now" stamp (`YYYY-MM-DDTHH:MM:SS.sssZ`) without pulling
@@ -1595,7 +1772,11 @@ pub fn apply_deferred_svelte_component_accepts(cwd: &Path) -> io::Result<ApplyDe
     let mut remaining = Vec::new();
 
     for entry in data.accepts {
-        let Some(id) = entry.get("id").and_then(Value::as_str).map(|s| s.to_string()) else {
+        let Some(id) = entry
+            .get("id")
+            .and_then(Value::as_str)
+            .map(|s| s.to_string())
+        else {
             failed += 1;
             remaining.push(entry);
             continue;
@@ -1607,7 +1788,8 @@ pub fn apply_deferred_svelte_component_accepts(cwd: &Path) -> io::Result<ApplyDe
         };
         let variant_num = entry.get("variantNum").and_then(Value::as_i64).unwrap_or(0);
         let param_values = entry.get("paramValues").and_then(parse_param_values_json);
-        let result = inline_svelte_component_accept(&manifest, variant_num, param_values.as_ref(), cwd);
+        let result =
+            inline_svelte_component_accept(&manifest, variant_num, param_values.as_ref(), cwd);
         if result.handled {
             applied += 1;
         } else {
@@ -1621,7 +1803,10 @@ pub fn apply_deferred_svelte_component_accepts(cwd: &Path) -> io::Result<ApplyDe
         if let Some(parent) = file.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&file, format!("{}\n", serde_json::to_string_pretty(&doc).unwrap()))?;
+        std::fs::write(
+            &file,
+            format!("{}\n", serde_json::to_string_pretty(&doc).unwrap()),
+        )?;
     } else {
         let _ = std::fs::remove_file(&file);
     }
@@ -1655,12 +1840,19 @@ mod tests {
     #[test]
     fn extracts_ordered_unique_mustache_expressions() {
         let text = "<p>{a.b}</p>\n<span>{c[d]}</span>\n<!-- {skipped} -->\n<p>{a.b}</p>";
-        assert_eq!(extract_mustache_expressions(text), vec!["a.b".to_string(), "c[d]".to_string()]);
+        assert_eq!(
+            extract_mustache_expressions(text),
+            vec!["a.b".to_string(), "c[d]".to_string()]
+        );
     }
 
     #[test]
     fn derives_prop_names_from_trailing_ident() {
-        let contract = build_prop_contract(&["user.name".to_string(), "items[0]".to_string(), "weird!!".to_string()]);
+        let contract = build_prop_contract(&[
+            "user.name".to_string(),
+            "items[0]".to_string(),
+            "weird!!".to_string(),
+        ]);
         assert_eq!(contract[0].prop, "name");
         // "items[0]": tail "0" is not a valid identifier start (digit), so it
         // falls back to `prop<index>` — index 1 here.
@@ -1751,8 +1943,18 @@ mod tests {
 
     #[test]
     fn merges_static_class_attrs() {
-        let variant = AttrSegment { name: "class".into(), raw: r#"class="foo bar""#.into(), start: 0, end: 0 };
-        let original = AttrSegment { name: "class".into(), raw: r#"class="bar baz""#.into(), start: 0, end: 0 };
+        let variant = AttrSegment {
+            name: "class".into(),
+            raw: r#"class="foo bar""#.into(),
+            start: 0,
+            end: 0,
+        };
+        let original = AttrSegment {
+            name: "class".into(),
+            raw: r#"class="bar baz""#.into(),
+            start: 0,
+            end: 0,
+        };
         let merged = merge_static_class_attr(&original, &variant).unwrap();
         assert_eq!(merged, r#"class="foo bar baz""#);
     }
@@ -1770,13 +1972,18 @@ mod tests {
     fn merge_returns_unchanged_when_tags_differ() {
         let variant_markup = "<span>x</span>";
         let original_markup = "<div>y</div>";
-        assert_eq!(merge_original_top_level_attrs(variant_markup, original_markup), variant_markup);
+        assert_eq!(
+            merge_original_top_level_attrs(variant_markup, original_markup),
+            variant_markup
+        );
     }
 
     #[test]
     fn detects_visible_content() {
         assert!(svelte_markup_has_visible_content("<p>Hello</p>"));
-        assert!(!svelte_markup_has_visible_content("<!-- just a comment -->"));
+        assert!(!svelte_markup_has_visible_content(
+            "<!-- just a comment -->"
+        ));
         assert!(svelte_markup_has_visible_content(r#"<img src="x.png" />"#));
         assert!(!svelte_markup_has_visible_content("  \n  "));
     }
@@ -1791,7 +1998,8 @@ mod tests {
 
     #[test]
     fn parses_nested_scope_css_rule() {
-        let rules = parse_css_rules("@scope ([data-impeccable-variant=\"1\"]) { .row { padding: 4px; } }");
+        let rules =
+            parse_css_rules("@scope ([data-impeccable-variant=\"1\"]) { .row { padding: 4px; } }");
         assert_eq!(rules.len(), 1);
         assert!(rules[0].prelude.starts_with("@scope"));
         assert!(rules[0].body.contains(".row"));
@@ -1820,7 +2028,10 @@ mod tests {
     fn rewrites_param_selectors_dropping_falsy() {
         let mut params = HashMap::new();
         params.insert("show".to_string(), ParamValue::Bool(false));
-        let css = vec![r#"@scope ([data-impeccable-variant="1"]) { .row[data-p-show] { display: block; } }"#.to_string()];
+        let css = vec![
+            r#"@scope ([data-impeccable-variant="1"]) { .row[data-p-show] { display: block; } }"#
+                .to_string(),
+        ];
         let out = sanitize_accepted_svelte_css(&css, 1, Some(&params), "div");
         // The rule's selector becomes empty after the param drop (falsy show),
         // so it should be filtered out entirely (rewrite_param_selectors keeps=false).
@@ -1874,6 +2085,9 @@ mod tests {
     #[test]
     fn constants_match_js_source() {
         assert_eq!(SVELTE_COMPONENT_ROOT, "node_modules/.impeccable-live");
-        assert_eq!(DEFERRED_ACCEPTS_FILE, ".impeccable/live/deferred-svelte-component-accepts.json");
+        assert_eq!(
+            DEFERRED_ACCEPTS_FILE,
+            ".impeccable/live/deferred-svelte-component-accepts.json"
+        );
     }
 }

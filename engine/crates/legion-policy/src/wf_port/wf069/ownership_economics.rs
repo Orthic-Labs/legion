@@ -9,7 +9,8 @@ use std::collections::{BTreeSet, HashSet};
 
 use super::errors::{ArcCode, ArcaneError, Decision};
 
-pub const ADVERSARIAL_OWNERSHIP_ECONOMICS_IDS: [&str; 2] = ["AE-ADVERSARIAL-006", "AE-ADVERSARIAL-007"];
+pub const ADVERSARIAL_OWNERSHIP_ECONOMICS_IDS: [&str; 2] =
+    ["AE-ADVERSARIAL-006", "AE-ADVERSARIAL-007"];
 
 pub const REQUIRED_ADVERSE_ECONOMIC_METRICS: [&str; 4] =
     ["outageCost", "overageCost", "egressCost", "exitCost"];
@@ -54,14 +55,21 @@ pub fn compare_evidence_candidates<'a, C>(
             }
         }
         if !failures.is_empty() {
-            eliminated.push(EliminatedCandidate { candidate, failures });
+            eliminated.push(EliminatedCandidate {
+                candidate,
+                failures,
+            });
         } else {
             eligible.push(candidate);
         }
     }
     let mut ranked: Vec<(&C, f64)> = eligible.iter().map(|c| (*c, score(c))).collect();
     ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    ComparisonResult { eligible, eliminated, ranked }
+    ComparisonResult {
+        eligible,
+        eliminated,
+        ranked,
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -90,7 +98,9 @@ pub struct OwnershipConflict {
 /// that only need the pass/fail `Decision` (the JS `detail.ownershipConflicts`
 /// array is a nested structure the flat `Decision.detail` string-pair list
 /// can't hold — use the `_detailed` variant when that list is needed).
-pub fn assess_source_of_truth_ownership(sources: &[OwnershipSource]) -> Result<Decision, ArcaneError> {
+pub fn assess_source_of_truth_ownership(
+    sources: &[OwnershipSource],
+) -> Result<Decision, ArcaneError> {
     assess_source_of_truth_ownership_detailed(sources).map(|(decision, _)| decision)
 }
 
@@ -100,7 +110,10 @@ pub fn assess_source_of_truth_ownership_detailed(
     sources: &[OwnershipSource],
 ) -> Result<(Decision, Vec<OwnershipConflict>), ArcaneError> {
     if sources.is_empty() {
-        return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "sources must be a non-empty array"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcSchemaInvalid,
+            "sources must be a non-empty array",
+        ));
     }
     // Re-run the same logic to recover the structured conflicts (the plain
     // `assess_source_of_truth_ownership` above intentionally mirrors the JS
@@ -115,10 +128,16 @@ pub fn assess_source_of_truth_ownership_detailed(
             || source.authorities.is_empty()
             || source.authorities.iter().any(|a| a.trim().is_empty())
         {
-            return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "source is malformed"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcSchemaInvalid,
+                "source is malformed",
+            ));
         }
         if !source_ids.insert(source.source_id.clone()) {
-            return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "source.sourceId must be unique"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcSchemaInvalid,
+                "source.sourceId must be unique",
+            ));
         }
         let authorities: BTreeSet<String> = source.authorities.iter().cloned().collect();
         for authority in authorities {
@@ -131,13 +150,23 @@ pub fn assess_source_of_truth_ownership_detailed(
     let mut conflicts: Vec<OwnershipConflict> = claims_by_authority
         .into_iter()
         .filter(|(_, claims)| {
-            claims.len() > 1 && claims.iter().map(|(_, owner)| owner.clone()).collect::<HashSet<_>>().len() > 1
+            claims.len() > 1
+                && claims
+                    .iter()
+                    .map(|(_, owner)| owner.clone())
+                    .collect::<HashSet<_>>()
+                    .len()
+                    > 1
         })
         .map(|(authority, claims)| {
             let mut owners: Vec<String> = claims.iter().map(|(_, owner)| owner.clone()).collect();
             owners.sort();
             owners.dedup();
-            OwnershipConflict { authority, sources: claims, owners }
+            OwnershipConflict {
+                authority,
+                sources: claims,
+                owners,
+            }
         })
         .collect();
     conflicts.sort_by(|a, b| a.authority.cmp(&b.authority));
@@ -151,7 +180,10 @@ pub fn assess_source_of_truth_ownership_detailed(
     } else {
         Decision::allow(
             "authority ownership is unambiguous for selection",
-            vec![("disposition".to_string(), "ELIGIBLE_FOR_SELECTION".to_string())],
+            vec![(
+                "disposition".to_string(),
+                "ELIGIBLE_FOR_SELECTION".to_string(),
+            )],
         )
     };
     Ok((decision, conflicts))
@@ -205,25 +237,40 @@ pub fn admit_vendor_selection(
     selected_candidate_id: &str,
 ) -> Result<VendorSelectionOutcome, ArcaneError> {
     if candidates.is_empty() {
-        return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "candidates must be a non-empty array"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcSchemaInvalid,
+            "candidates must be a non-empty array",
+        ));
     }
     if selected_candidate_id.trim().is_empty() {
-        return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "selectedCandidateId must be a non-empty string"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcSchemaInvalid,
+            "selectedCandidateId must be a non-empty string",
+        ));
     }
     let mut ids = HashSet::new();
     for c in candidates {
         if c.candidate_id.trim().is_empty() {
-            return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "candidate.candidateId must be a non-empty string"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcSchemaInvalid,
+                "candidate.candidateId must be a non-empty string",
+            ));
         }
         if !ids.insert(c.candidate_id.clone()) {
-            return Err(ArcaneError::new(ArcCode::ArcSchemaInvalid, "candidate.candidateId must be unique"));
+            return Err(ArcaneError::new(
+                ArcCode::ArcSchemaInvalid,
+                "candidate.candidateId must be unique",
+            ));
         }
     }
     let selected = candidates
         .iter()
         .find(|c| c.candidate_id == selected_candidate_id)
         .ok_or_else(|| {
-            ArcaneError::new(ArcCode::ArcSchemaInvalid, "selectedCandidateId must identify a candidate")
+            ArcaneError::new(
+                ArcCode::ArcSchemaInvalid,
+                "selectedCandidateId must identify a candidate",
+            )
         })?;
 
     let default_econ = AdverseCaseEconomics::default();
@@ -236,7 +283,12 @@ pub fn admit_vendor_selection(
     let comparison = compare_evidence_candidates(candidates, &hard_gates, |c| c.score);
     let _ = comparison; // comparison detail is informational in the JS result; not required by callers here.
 
-    let (complete, missing) = metric_set(selected.adverse_case_economics.as_ref().unwrap_or(&default_econ));
+    let (complete, missing) = metric_set(
+        selected
+            .adverse_case_economics
+            .as_ref()
+            .unwrap_or(&default_econ),
+    );
     if !complete {
         return Ok(VendorSelectionOutcome {
             decision: Decision::deny(
@@ -244,7 +296,10 @@ pub fn admit_vendor_selection(
                 "selected vendor lacks adverse-case economic evidence",
                 vec![
                     ("disposition".to_string(), "BLOCK_SELECTION".to_string()),
-                    ("selectedCandidateId".to_string(), selected_candidate_id.to_string()),
+                    (
+                        "selectedCandidateId".to_string(),
+                        selected_candidate_id.to_string(),
+                    ),
                 ],
             ),
             missing_economic_metrics: missing,
@@ -254,8 +309,14 @@ pub fn admit_vendor_selection(
         decision: Decision::allow(
             "selected vendor has complete adverse-case economic evidence",
             vec![
-                ("disposition".to_string(), "ELIGIBLE_FOR_SELECTION".to_string()),
-                ("selectedCandidateId".to_string(), selected_candidate_id.to_string()),
+                (
+                    "disposition".to_string(),
+                    "ELIGIBLE_FOR_SELECTION".to_string(),
+                ),
+                (
+                    "selectedCandidateId".to_string(),
+                    selected_candidate_id.to_string(),
+                ),
             ],
         ),
         missing_economic_metrics: vec![],
@@ -328,7 +389,10 @@ mod tests {
         }];
         let outcome = admit_vendor_selection(&candidates, "vendor-a").unwrap();
         assert!(!outcome.decision.allowed);
-        assert_eq!(outcome.decision.code, Some(ArcCode::ArcEvidenceInsufficient));
+        assert_eq!(
+            outcome.decision.code,
+            Some(ArcCode::ArcEvidenceInsufficient)
+        );
         assert!(outcome.missing_economic_metrics.contains(&"egressCost"));
         assert!(outcome.missing_economic_metrics.contains(&"exitCost"));
     }
@@ -352,7 +416,11 @@ mod tests {
 
     #[test]
     fn vendor_selection_rejects_unknown_selected_id() {
-        let candidates = vec![VendorCandidate { candidate_id: "vendor-a".into(), score: 1.0, adverse_case_economics: None }];
+        let candidates = vec![VendorCandidate {
+            candidate_id: "vendor-a".into(),
+            score: 1.0,
+            adverse_case_economics: None,
+        }];
         let err = admit_vendor_selection(&candidates, "vendor-z").unwrap_err();
         assert_eq!(err.code, ArcCode::ArcSchemaInvalid);
     }
@@ -360,7 +428,11 @@ mod tests {
     #[test]
     fn compare_evidence_candidates_eliminates_hard_gate_failures() {
         let candidates = vec![
-            VendorCandidate { candidate_id: "a".into(), score: 10.0, adverse_case_economics: None },
+            VendorCandidate {
+                candidate_id: "a".into(),
+                score: 10.0,
+                adverse_case_economics: None,
+            },
             VendorCandidate {
                 candidate_id: "b".into(),
                 score: 5.0,

@@ -88,10 +88,20 @@ pub struct Decision {
 }
 
 fn allow(message: impl Into<String>) -> Decision {
-    Decision { allowed: true, code: None, message: message.into(), enforcement_health: None }
+    Decision {
+        allowed: true,
+        code: None,
+        message: message.into(),
+        enforcement_health: None,
+    }
 }
 fn deny(code: &'static str, message: impl Into<String>) -> Decision {
-    Decision { allowed: false, code: Some(code), message: message.into(), enforcement_health: None }
+    Decision {
+        allowed: false,
+        code: Some(code),
+        message: message.into(),
+        enforcement_health: None,
+    }
 }
 
 /// Single source of truth for enforcement ordering, matching JS
@@ -105,7 +115,11 @@ pub const ENFORCEMENT_RANK: &[(&str, u8)] = &[
 ];
 
 fn rank(level: &str) -> u8 {
-    ENFORCEMENT_RANK.iter().find(|(name, _)| *name == level).map(|(_, r)| *r).unwrap_or(0)
+    ENFORCEMENT_RANK
+        .iter()
+        .find(|(name, _)| *name == level)
+        .map(|(_, r)| *r)
+        .unwrap_or(0)
 }
 
 pub fn enforcement_at_least(actual: &str, required: &str) -> bool {
@@ -122,7 +136,11 @@ impl PolicyEngine {
     /// `this.#approvalRequired`). Bundle *validation* itself is the
     /// caller's job in this port (see module doc).
     pub fn new(bundle: PolicyBundle) -> Self {
-        let rules = bundle.effect_rules.iter().map(|r| (r.effect_class.clone(), r.clone())).collect();
+        let rules = bundle
+            .effect_rules
+            .iter()
+            .map(|r| (r.effect_class.clone(), r.clone()))
+            .collect();
         Self { bundle, rules }
     }
 
@@ -157,11 +175,17 @@ impl PolicyEngine {
         if rule.rule == "deny" {
             return deny(
                 "ARC_EFFECT_CLASS_UNAUTHORIZED",
-                format!("policy {} v{} denies {effect_class}", self.bundle.policy_id, self.bundle.version),
+                format!(
+                    "policy {} v{} denies {effect_class}",
+                    self.bundle.policy_id, self.bundle.version
+                ),
             );
         }
         if rule.approval_required && approval_digest.is_none() {
-            return deny("ARC_APPROVAL_REQUIRED", format!("{effect_class} requires a bound approval digest"));
+            return deny(
+                "ARC_APPROVAL_REQUIRED",
+                format!("{effect_class} requires a bound approval digest"),
+            );
         }
         allow(format!(
             "{effect_class} authorized (trustMinimum={}, requiredEnforcement={})",
@@ -193,12 +217,20 @@ impl PolicyEngine {
     }
 
     /// Mirrors JS `lockedDomainsFor(paths)`.
-    pub fn locked_domains_for(&self, paths: &[&str]) -> Vec<(String, String, String, Option<String>)> {
+    pub fn locked_domains_for(
+        &self,
+        paths: &[&str],
+    ) -> Vec<(String, String, String, Option<String>)> {
         let mut matches = Vec::new();
         for &p in paths {
             for entry in &self.bundle.locked_domains {
                 if path_matches(&entry.pattern, p) {
-                    matches.push((p.to_string(), entry.pattern.clone(), entry.claim_level.clone(), entry.note.clone()));
+                    matches.push((
+                        p.to_string(),
+                        entry.pattern.clone(),
+                        entry.claim_level.clone(),
+                        entry.note.clone(),
+                    ));
                 }
             }
         }
@@ -207,7 +239,11 @@ impl PolicyEngine {
 
     /// `'fail-closed' | 'downgrade'`. Never `'allow'`.
     pub fn degradation(&self, capability: &str) -> String {
-        self.bundle.degradation.get(capability).cloned().unwrap_or_else(|| "fail-closed".to_string())
+        self.bundle
+            .degradation
+            .get(capability)
+            .cloned()
+            .unwrap_or_else(|| "fail-closed".to_string())
     }
 
     /// Mirrors JS `mayWaive(authority)`.
@@ -217,21 +253,36 @@ impl PolicyEngine {
         }
         deny(
             "ARC_CLAIM_PREREQUISITE_UNMET",
-            format!("authority '{authority}' is not a waiver authority under {}", self.bundle.policy_id),
+            format!(
+                "authority '{authority}' is not a waiver authority under {}",
+                self.bundle.policy_id
+            ),
         )
     }
 
     /// Mirrors JS `evaluateClaimPrerequisites(levelName, ctx)`.
-    pub fn evaluate_claim_prerequisites(&self, level_name: &str, ctx: &ClaimContext<'_>) -> Decision {
+    pub fn evaluate_claim_prerequisites(
+        &self,
+        level_name: &str,
+        ctx: &ClaimContext<'_>,
+    ) -> Decision {
         let level = match self.claim_level(level_name) {
             Some(l) => l,
-            None => return deny("ARC_CLAIM_PREREQUISITE_UNMET", format!("no claim level '{level_name}' in {}", self.bundle.policy_id)),
+            None => {
+                return deny(
+                    "ARC_CLAIM_PREREQUISITE_UNMET",
+                    format!("no claim level '{level_name}' in {}", self.bundle.policy_id),
+                )
+            }
         };
 
         if !level.allow_stale_evidence && ctx.stale_evidence_count > 0 {
             return deny(
                 "ARC_EVIDENCE_STALE",
-                format!("{} supporting evidence record(s) are stale", ctx.stale_evidence_count),
+                format!(
+                    "{} supporting evidence record(s) are stale",
+                    ctx.stale_evidence_count
+                ),
             );
         }
 
@@ -244,14 +295,20 @@ impl PolicyEngine {
         if !missing_classes.is_empty() {
             return deny(
                 "ARC_EVIDENCE_INSUFFICIENT",
-                format!("missing required evidence class(es): {}", missing_classes.join(", ")),
+                format!(
+                    "missing required evidence class(es): {}",
+                    missing_classes.join(", ")
+                ),
             );
         }
 
         if !enforcement_at_least(ctx.enforcement_health, &level.required_enforcement) {
             let mut d = deny(
                 "ARC_CLAIM_PREREQUISITE_UNMET",
-                format!("claim '{level_name}' requires {} enforcement; host is {}", level.required_enforcement, ctx.enforcement_health),
+                format!(
+                    "claim '{level_name}' requires {} enforcement; host is {}",
+                    level.required_enforcement, ctx.enforcement_health
+                ),
             );
             d.enforcement_health = Some(ctx.enforcement_health.to_string());
             return d;
@@ -266,12 +323,18 @@ impl PolicyEngine {
         if !missing_fields.is_empty() {
             if let Some(waived_by) = ctx.waived_by {
                 if self.may_waive(waived_by).allowed {
-                    return allow(format!("claim '{level_name}' waived by {waived_by}: {}", missing_fields.join(", ")));
+                    return allow(format!(
+                        "claim '{level_name}' waived by {waived_by}: {}",
+                        missing_fields.join(", ")
+                    ));
                 }
             }
             return deny(
                 "ARC_CLAIM_PREREQUISITE_UNMET",
-                format!("claim '{level_name}' is missing required field(s): {}", missing_fields.join(", ")),
+                format!(
+                    "claim '{level_name}' is missing required field(s): {}",
+                    missing_fields.join(", ")
+                ),
             );
         }
 
@@ -284,7 +347,11 @@ impl PolicyEngine {
     /// triple to attach to a capability or receipt rather than mutating a
     /// caller-owned record type this port does not know the shape of.
     pub fn policy_identity(&self) -> (String, i64, String) {
-        (self.bundle.policy_id.clone(), self.bundle.version, self.bundle.digest.clone())
+        (
+            self.bundle.policy_id.clone(),
+            self.bundle.version,
+            self.bundle.digest.clone(),
+        )
     }
 }
 
@@ -298,7 +365,13 @@ pub struct ClaimContext<'a> {
 
 impl Default for ClaimContext<'_> {
     fn default() -> Self {
-        Self { evidence_classes: &[], stale_evidence_count: 0, enforcement_health: "unsupported", fields: &[], waived_by: None }
+        Self {
+            evidence_classes: &[],
+            stale_evidence_count: 0,
+            enforcement_health: "unsupported",
+            fields: &[],
+            waived_by: None,
+        }
     }
 }
 
@@ -310,23 +383,43 @@ pub struct FailClosedEngine {
 
 impl FailClosedEngine {
     pub fn new(reason: impl Into<String>) -> Self {
-        Self { reason: reason.into() }
+        Self {
+            reason: reason.into(),
+        }
     }
 
     pub fn effect_decision(&self, effect_class: &str) -> Decision {
-        let mut d = deny("ARC_POLICY_UNAVAILABLE", format!("no policy available to authorize {effect_class} ({})", self.reason));
+        let mut d = deny(
+            "ARC_POLICY_UNAVAILABLE",
+            format!(
+                "no policy available to authorize {effect_class} ({})",
+                self.reason
+            ),
+        );
         d.enforcement_health = Some("unsupported".to_string());
         d
     }
 
     pub fn evaluate_claim_prerequisites(&self, level_name: &str) -> Decision {
-        let mut d = deny("ARC_POLICY_UNAVAILABLE", format!("no policy available to evaluate claim '{level_name}' ({})", self.reason));
+        let mut d = deny(
+            "ARC_POLICY_UNAVAILABLE",
+            format!(
+                "no policy available to evaluate claim '{level_name}' ({})",
+                self.reason
+            ),
+        );
         d.enforcement_health = Some("unsupported".to_string());
         d
     }
 
     pub fn may_waive(&self) -> Decision {
-        let mut d = deny("ARC_POLICY_UNAVAILABLE", format!("no policy available to name a waiver authority ({})", self.reason));
+        let mut d = deny(
+            "ARC_POLICY_UNAVAILABLE",
+            format!(
+                "no policy available to name a waiver authority ({})",
+                self.reason
+            ),
+        );
         d.enforcement_health = Some("unsupported".to_string());
         d
     }
@@ -334,7 +427,11 @@ impl FailClosedEngine {
     /// Conservative defaults so a caller that reads a limit without
     /// checking gets the strictest possible value, never a permissive one.
     pub fn capability_limits(&self) -> BTreeMap<&'static str, String> {
-        BTreeMap::from([("ttlSeconds", "0".to_string()), ("maxUses", "0".to_string()), ("delegable", "false".to_string())])
+        BTreeMap::from([
+            ("ttlSeconds", "0".to_string()),
+            ("maxUses", "0".to_string()),
+            ("delegable", "false".to_string()),
+        ])
     }
     pub fn replay_limits(&self) -> BTreeMap<&'static str, String> {
         BTreeMap::from([
@@ -353,7 +450,10 @@ impl FailClosedEngine {
         ])
     }
     pub fn host_enforcement(&self) -> BTreeMap<&'static str, &'static str> {
-        BTreeMap::from([("requiredForMutation", "strong"), ("requiredForReadOnly", "strong")])
+        BTreeMap::from([
+            ("requiredForMutation", "strong"),
+            ("requiredForReadOnly", "strong"),
+        ])
     }
     pub fn degradation(&self) -> &'static str {
         "fail-closed"
@@ -366,7 +466,10 @@ impl FailClosedEngine {
         ])
     }
     pub fn retention_policy(&self) -> BTreeMap<&'static str, String> {
-        BTreeMap::from([("excerptMaxBytes", "0".to_string()), ("storePayloads", "false".to_string())])
+        BTreeMap::from([
+            ("excerptMaxBytes", "0".to_string()),
+            ("storePayloads", "false".to_string()),
+        ])
     }
 }
 
@@ -436,7 +539,10 @@ const POLICY_BUNDLE_SCHEMA_TEXT: &str = include_str!("schemas_r49/policy-bundle-
 fn policy_bundle_schema() -> &'static JsonValue {
     use std::sync::OnceLock;
     static SCHEMA: OnceLock<JsonValue> = OnceLock::new();
-    SCHEMA.get_or_init(|| serde_json::from_str(POLICY_BUNDLE_SCHEMA_TEXT).expect("embedded policy-bundle-v1.schema.json must parse"))
+    SCHEMA.get_or_init(|| {
+        serde_json::from_str(POLICY_BUNDLE_SCHEMA_TEXT)
+            .expect("embedded policy-bundle-v1.schema.json must parse")
+    })
 }
 
 /// Mirrors JS `validatePolicyBundle(bundle)`: structural validation of a raw
@@ -453,7 +559,13 @@ pub fn validate_policy_bundle(bundle: &JsonValue) -> (bool, Vec<String>) {
 pub fn canonical_json_value(value: &JsonValue) -> String {
     match value {
         JsonValue::Null => "null".to_string(),
-        JsonValue::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
+        JsonValue::Bool(b) => {
+            if *b {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
         JsonValue::Number(n) => n.to_string(),
         JsonValue::String(s) => serde_json::to_string(s).expect("string always encodes"),
         JsonValue::Array(items) => {
@@ -465,7 +577,13 @@ pub fn canonical_json_value(value: &JsonValue) -> String {
             keys.sort();
             let parts: Vec<String> = keys
                 .into_iter()
-                .map(|k| format!("{}:{}", serde_json::to_string(k).expect("key always encodes"), canonical_json_value(&map[k])))
+                .map(|k| {
+                    format!(
+                        "{}:{}",
+                        serde_json::to_string(k).expect("key always encodes"),
+                        canonical_json_value(&map[k])
+                    )
+                })
                 .collect();
             format!("{{{}}}", parts.join(","))
         }
@@ -520,10 +638,22 @@ pub fn load_policy(bundle_path: &Path) -> Result<LoadedPolicy, PolicyLoadError> 
             issues,
         });
     }
-    let policy_id = bundle.get("policyId").and_then(JsonValue::as_str).unwrap_or_default().to_string();
-    let version = bundle.get("version").and_then(JsonValue::as_i64).unwrap_or_default();
+    let policy_id = bundle
+        .get("policyId")
+        .and_then(JsonValue::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let version = bundle
+        .get("version")
+        .and_then(JsonValue::as_i64)
+        .unwrap_or_default();
     let digest = digest_value_json(&bundle);
-    Ok(LoadedPolicy { bundle, policy_id, version, digest })
+    Ok(LoadedPolicy {
+        bundle,
+        policy_id,
+        version,
+        digest,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -546,23 +676,38 @@ pub struct AuditResult {
 /// JS original works directly against the filesystem).
 pub fn policy_duplication_audit(files: &[&Path]) -> AuditResult {
     let forbidden: [(&str, &'static str); 6] = [
-        (r"\ballowed\s*:\s*true\b", "mints an allow decision outside the policy engine"),
+        (
+            r"\ballowed\s*:\s*true\b",
+            "mints an allow decision outside the policy engine",
+        ),
         (r"\beffectRules\b", "reads the policy rule table directly"),
         (r"\bwaiverAuthority\b", "reimplements waiver authority"),
         (r"\bclaimLevels\b", "reimplements claim-level policy"),
         (r"\blockedDomains\b", "reimplements locked-domain policy"),
-        (r"ENFORCEMENT_RANK\s*=", "re-declares the enforcement ordering instead of importing it"),
+        (
+            r"ENFORCEMENT_RANK\s*=",
+            "re-declares the enforcement ordering instead of importing it",
+        ),
     ];
-    let compiled: Vec<(Regex, &'static str)> = forbidden.iter().map(|(p, why)| (Regex::new(p).expect("static pattern"), *why)).collect();
+    let compiled: Vec<(Regex, &'static str)> = forbidden
+        .iter()
+        .map(|(p, why)| (Regex::new(p).expect("static pattern"), *why))
+        .collect();
 
     let mut result = AuditResult::default();
     for file in files {
-        let Ok(src) = std::fs::read_to_string(file) else { continue };
+        let Ok(src) = std::fs::read_to_string(file) else {
+            continue;
+        };
         let file_str = file.display().to_string();
         result.scanned.push(file_str.clone());
         for (re, why) in &compiled {
             if re.is_match(&src) {
-                result.violations.push(AuditViolation { file: file_str.clone(), pattern: re.as_str().to_string(), why });
+                result.violations.push(AuditViolation {
+                    file: file_str.clone(),
+                    pattern: re.as_str().to_string(),
+                    why,
+                });
             }
         }
     }
@@ -577,21 +722,30 @@ pub fn capability_issuance_audit(files: &[&Path]) -> AuditResult {
     let allowed_basenames = ["preeffect-gate.mjs", "receipt-store.mjs"];
     let issue_call = Regex::new(r"\.issue\(").expect("static pattern");
     let receiver_of_issue = Regex::new(r"\b([A-Za-z_$][\w$]*)\.issue\(").expect("static pattern");
-    let proof_issuer_binding = Regex::new(r"\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+AuthorityInvocationProofIssuer\s*\(").expect("static pattern");
+    let proof_issuer_binding =
+        Regex::new(r"\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+AuthorityInvocationProofIssuer\s*\(")
+            .expect("static pattern");
 
     let mut result = AuditResult::default();
     for file in files {
-        let Ok(src) = std::fs::read_to_string(file) else { continue };
+        let Ok(src) = std::fs::read_to_string(file) else {
+            continue;
+        };
         let file_str = file.display().to_string();
         result.scanned.push(file_str.clone());
 
-        let basename = file.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+        let basename = file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
         if allowed_basenames.contains(&basename) {
             continue;
         }
 
-        let proof_issuers: std::collections::HashSet<String> =
-            proof_issuer_binding.captures_iter(&src).map(|c| c[1].to_string()).collect();
+        let proof_issuers: std::collections::HashSet<String> = proof_issuer_binding
+            .captures_iter(&src)
+            .map(|c| c[1].to_string())
+            .collect();
 
         let unexempted = src.lines().any(|line| {
             if !issue_call.is_match(line) {
@@ -624,9 +778,27 @@ mod tests {
             version: 1,
             digest: "sha256:deadbeef".into(),
             effect_rules: vec![
-                EffectRule { effect_class: "FILE_WRITE".into(), rule: "allow".into(), approval_required: false, trust_minimum: "capability-signature".into(), required_enforcement: "strong".into() },
-                EffectRule { effect_class: "FILE_DELETE".into(), rule: "allow".into(), approval_required: true, trust_minimum: "capability-signature".into(), required_enforcement: "strong".into() },
-                EffectRule { effect_class: "VCS_PUSH".into(), rule: "deny".into(), approval_required: false, trust_minimum: "capability-signature".into(), required_enforcement: "strong".into() },
+                EffectRule {
+                    effect_class: "FILE_WRITE".into(),
+                    rule: "allow".into(),
+                    approval_required: false,
+                    trust_minimum: "capability-signature".into(),
+                    required_enforcement: "strong".into(),
+                },
+                EffectRule {
+                    effect_class: "FILE_DELETE".into(),
+                    rule: "allow".into(),
+                    approval_required: true,
+                    trust_minimum: "capability-signature".into(),
+                    required_enforcement: "strong".into(),
+                },
+                EffectRule {
+                    effect_class: "VCS_PUSH".into(),
+                    rule: "deny".into(),
+                    approval_required: false,
+                    trust_minimum: "capability-signature".into(),
+                    required_enforcement: "strong".into(),
+                },
             ],
             waiver_authority: vec!["operator".into()],
             claim_levels: BTreeMap::from([(
@@ -638,7 +810,11 @@ mod tests {
                     required_fields: vec!["sha".into()],
                 },
             )]),
-            locked_domains: vec![LockedDomainEntry { pattern: "docs/*".into(), claim_level: "L1".into(), note: None }],
+            locked_domains: vec![LockedDomainEntry {
+                pattern: "docs/*".into(),
+                claim_level: "L1".into(),
+                note: None,
+            }],
             degradation: BTreeMap::from([("capabilityX".to_string(), "downgrade".to_string())]),
             ..Default::default()
         }
@@ -698,7 +874,13 @@ mod tests {
     #[test]
     fn evaluate_claim_prerequisites_denies_stale_evidence() {
         let engine = PolicyEngine::new(bundle());
-        let ctx = ClaimContext { stale_evidence_count: 1, evidence_classes: &["test-run"], enforcement_health: "observed", fields: &["sha"], waived_by: None };
+        let ctx = ClaimContext {
+            stale_evidence_count: 1,
+            evidence_classes: &["test-run"],
+            enforcement_health: "observed",
+            fields: &["sha"],
+            waived_by: None,
+        };
         let d = engine.evaluate_claim_prerequisites("L1", &ctx);
         assert_eq!(d.code, Some("ARC_EVIDENCE_STALE"));
     }
@@ -706,7 +888,12 @@ mod tests {
     #[test]
     fn evaluate_claim_prerequisites_denies_missing_evidence_class() {
         let engine = PolicyEngine::new(bundle());
-        let ctx = ClaimContext { evidence_classes: &[], enforcement_health: "observed", fields: &["sha"], ..Default::default() };
+        let ctx = ClaimContext {
+            evidence_classes: &[],
+            enforcement_health: "observed",
+            fields: &["sha"],
+            ..Default::default()
+        };
         let d = engine.evaluate_claim_prerequisites("L1", &ctx);
         assert_eq!(d.code, Some("ARC_EVIDENCE_INSUFFICIENT"));
     }
@@ -714,7 +901,12 @@ mod tests {
     #[test]
     fn evaluate_claim_prerequisites_denies_insufficient_enforcement() {
         let engine = PolicyEngine::new(bundle());
-        let ctx = ClaimContext { evidence_classes: &["test-run"], enforcement_health: "advisory", fields: &["sha"], ..Default::default() };
+        let ctx = ClaimContext {
+            evidence_classes: &["test-run"],
+            enforcement_health: "advisory",
+            fields: &["sha"],
+            ..Default::default()
+        };
         let d = engine.evaluate_claim_prerequisites("L1", &ctx);
         assert_eq!(d.code, Some("ARC_CLAIM_PREREQUISITE_UNMET"));
     }
@@ -722,7 +914,13 @@ mod tests {
     #[test]
     fn evaluate_claim_prerequisites_allows_missing_field_when_waived() {
         let engine = PolicyEngine::new(bundle());
-        let ctx = ClaimContext { evidence_classes: &["test-run"], enforcement_health: "observed", fields: &[], waived_by: Some("operator"), stale_evidence_count: 0 };
+        let ctx = ClaimContext {
+            evidence_classes: &["test-run"],
+            enforcement_health: "observed",
+            fields: &[],
+            waived_by: Some("operator"),
+            stale_evidence_count: 0,
+        };
         let d = engine.evaluate_claim_prerequisites("L1", &ctx);
         assert!(d.allowed);
     }
@@ -730,7 +928,13 @@ mod tests {
     #[test]
     fn evaluate_claim_prerequisites_denies_missing_field_without_waiver() {
         let engine = PolicyEngine::new(bundle());
-        let ctx = ClaimContext { evidence_classes: &["test-run"], enforcement_health: "observed", fields: &[], waived_by: None, stale_evidence_count: 0 };
+        let ctx = ClaimContext {
+            evidence_classes: &["test-run"],
+            enforcement_health: "observed",
+            fields: &[],
+            waived_by: None,
+            stale_evidence_count: 0,
+        };
         let d = engine.evaluate_claim_prerequisites("L1", &ctx);
         assert_eq!(d.code, Some("ARC_CLAIM_PREREQUISITE_UNMET"));
     }

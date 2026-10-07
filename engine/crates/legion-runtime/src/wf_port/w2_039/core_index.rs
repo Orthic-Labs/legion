@@ -204,7 +204,10 @@ mod tests {
         let mut a = record("a.json", None);
         a.status = Some("missing".to_string());
         let manifest = build_run_manifest(&[b, a], None);
-        assert_eq!(manifest.terminal_absences, vec!["a.json".to_string(), "b.json".to_string()]);
+        assert_eq!(
+            manifest.terminal_absences,
+            vec!["a.json".to_string(), "b.json".to_string()]
+        );
     }
 
     #[test]

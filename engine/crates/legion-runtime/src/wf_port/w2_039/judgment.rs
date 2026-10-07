@@ -378,12 +378,11 @@ pub fn adjudicate_subjects_with_reviewer(
         let receipt = JudgmentReceipt {
             schema_version: 1,
             kind: "legion-judgment-receipt".to_string(),
-            subject_id: packet
-                .subject
-                .get("id")
-                .cloned()
-                .unwrap_or(Value::Null),
-            status: value.status.clone().unwrap_or_else(|| "unproven".to_string()),
+            subject_id: packet.subject.get("id").cloned().unwrap_or(Value::Null),
+            status: value
+                .status
+                .clone()
+                .unwrap_or_else(|| "unproven".to_string()),
             complete: value.complete,
             binding: binding.cloned(),
             context_id: review_policy.context_id.clone(),
@@ -421,8 +420,8 @@ mod tests {
 
     #[test]
     fn unknown_mode_is_rejected() {
-        let err = adjudicate_subjects_without_reviewer(&[], "bogus", None, None, false)
-            .unwrap_err();
+        let err =
+            adjudicate_subjects_without_reviewer(&[], "bogus", None, None, false).unwrap_err();
         assert_eq!(err.to_string(), "unknown reasoning mode: bogus");
     }
 
@@ -430,8 +429,7 @@ mod tests {
     fn disabled_mode_produces_skipped_receipts_and_is_complete() {
         let subjects = vec![subject(1, vec![json!("ev-1")])];
         let result =
-            adjudicate_subjects_without_reviewer(&subjects, "disabled", None, None, false)
-                .unwrap();
+            adjudicate_subjects_without_reviewer(&subjects, "disabled", None, None, false).unwrap();
         assert!(result.complete);
         assert_eq!(result.receipts.len(), 1);
         let receipt = &result.receipts[0];
@@ -446,8 +444,7 @@ mod tests {
     fn required_mode_with_no_reviewer_is_unproven_and_not_complete() {
         let subjects = vec![subject(1, vec![])];
         let result =
-            adjudicate_subjects_without_reviewer(&subjects, "required", None, None, false)
-                .unwrap();
+            adjudicate_subjects_without_reviewer(&subjects, "required", None, None, false).unwrap();
         assert!(!result.complete);
         let receipt = &result.receipts[0];
         assert_eq!(receipt.status, "unproven");
@@ -469,8 +466,7 @@ mod tests {
     fn context_prefix_defaults_to_review() {
         let subjects = vec![subject(1, vec![]), subject(2, vec![])];
         let result =
-            adjudicate_subjects_without_reviewer(&subjects, "disabled", None, None, false)
-                .unwrap();
+            adjudicate_subjects_without_reviewer(&subjects, "disabled", None, None, false).unwrap();
         assert_eq!(result.receipts[0].context_id, "review-0");
         assert_eq!(result.receipts[1].context_id, "review-1");
     }
@@ -478,14 +474,9 @@ mod tests {
     #[test]
     fn context_prefix_is_honored_when_supplied() {
         let subjects = vec![subject(1, vec![])];
-        let result = adjudicate_subjects_without_reviewer(
-            &subjects,
-            "disabled",
-            None,
-            Some("audit"),
-            false,
-        )
-        .unwrap();
+        let result =
+            adjudicate_subjects_without_reviewer(&subjects, "disabled", None, Some("audit"), false)
+                .unwrap();
         assert_eq!(result.receipts[0].context_id, "audit-0");
     }
 
@@ -618,7 +609,10 @@ mod tests {
         assert!(packet.omitted.is_empty());
         assert_eq!(packet.reviewer_role, json!("sage"));
         assert!(packet.lens.is_none());
-        assert_eq!(packet.verdicts, ["confirmed", "rejected", "unproven", "needs-human"]);
+        assert_eq!(
+            packet.verdicts,
+            ["confirmed", "rejected", "unproven", "needs-human"]
+        );
         assert_eq!(packet.budget, json!(100));
         assert!(packet.to_json().get("lens").is_none());
     }
@@ -665,7 +659,10 @@ mod tests {
     }
 
     fn adjudication_subject(id: i64, evidence: Vec<Value>) -> AdjudicationSubject {
-        Subject { id: json!(id), evidence }
+        Subject {
+            id: json!(id),
+            evidence,
+        }
     }
 
     fn base_policy() -> AdjudicationPolicy {
@@ -801,12 +798,13 @@ mod tests {
             verdict: None,
             gaps: vec![],
         });
-        let err =
-            adjudicate_subjects_with_reviewer(&subjects, &policy, &reviewer_id, None, &fake)
-                .unwrap_err();
+        let err = adjudicate_subjects_with_reviewer(&subjects, &policy, &reviewer_id, None, &fake)
+            .unwrap_err();
         assert!(matches!(
             err,
-            AdjudicateWithReviewerError::InvalidReceipt("complete judgment receipt requires verdict")
+            AdjudicateWithReviewerError::InvalidReceipt(
+                "complete judgment receipt requires verdict"
+            )
         ));
     }
 }

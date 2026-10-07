@@ -15,7 +15,8 @@ use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-static SLASH_SKILL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(^|\s)/[a-z][a-z0-9-]*").unwrap());
+static SLASH_SKILL_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(^|\s)/[a-z][a-z0-9-]*").unwrap());
 
 /// Port of `hasSlashSkill`.
 pub fn has_slash_skill(value: &Value) -> bool {
@@ -52,7 +53,11 @@ pub fn validate_lens_records(
         });
     }
     for (position, record) in records.iter().enumerate() {
-        let record_id = record.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+        let record_id = record
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
         let expected_id = registered_ids.get(position).map(String::as_str);
         let availability = record.get("availability").and_then(Value::as_str);
         if Some(record_id.as_str()) != expected_id || availability != Some("available") {
@@ -67,7 +72,8 @@ pub fn validate_lens_records(
                 findings.push(LensFinding {
                     code: "lens-group".into(),
                     lens_id: Some(record_id.clone()),
-                    detail: "optional grouping metadata must resolve to a current routing group".into(),
+                    detail: "optional grouping metadata must resolve to a current routing group"
+                        .into(),
                 });
             }
         }
@@ -79,7 +85,8 @@ pub fn validate_lens_records(
             });
         }
         let overlay = record.get("privateOverlay");
-        let state_ok = overlay.and_then(|o| o.get("state")).and_then(Value::as_str) == Some("optional");
+        let state_ok =
+            overlay.and_then(|o| o.get("state")).and_then(Value::as_str) == Some("optional");
         let fields_empty = overlay
             .and_then(|o| o.get("fields"))
             .and_then(Value::as_array)
@@ -111,7 +118,9 @@ mod tests {
     fn has_slash_skill_detects_embedded_command() {
         assert!(has_slash_skill(&json!("run /audit now")));
         assert!(!has_slash_skill(&json!("no command here")));
-        assert!(has_slash_skill(&json!({"note": ["ok", "/audit-fix please"]})));
+        assert!(has_slash_skill(
+            &json!({"note": ["ok", "/audit-fix please"]})
+        ));
     }
 
     #[test]
@@ -124,7 +133,9 @@ mod tests {
     #[test]
     fn validate_lens_records_flags_mismatched_or_unavailable_lens() {
         let ids = vec!["a".to_string()];
-        let records = vec![json!({"id": "a", "availability": "retired", "privateOverlay": {"state": "optional", "fields": []}})];
+        let records = vec![
+            json!({"id": "a", "availability": "retired", "privateOverlay": {"state": "optional", "fields": []}}),
+        ];
         let findings = validate_lens_records(&ids, &records, &HashSet::new());
         assert!(findings.iter().any(|f| f.code == "lens-availability"));
     }

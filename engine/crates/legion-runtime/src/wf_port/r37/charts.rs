@@ -303,7 +303,10 @@ pub fn chart_top_queries(gsc_data: &Value) -> Option<String> {
         return None;
     }
 
-    let impressions: Vec<f64> = top.iter().map(|r| get_f64_or(r, "impressions", 0.0)).collect();
+    let impressions: Vec<f64> = top
+        .iter()
+        .map(|r| get_f64_or(r, "impressions", 0.0))
+        .collect();
     let max_impr = impressions.iter().cloned().fold(0.0_f64, f64::max);
     if max_impr < 3.0 {
         return None;
@@ -335,7 +338,11 @@ pub fn chart_top_queries(gsc_data: &Value) -> Option<String> {
     let chart_w = 380.0;
     let h = (top_pad * 2.0 + row_h * labels.len() as f64) as u32;
     let mut svg = svg_open(w, h);
-    let scale = if max_impr > 0.0 { chart_w / max_impr } else { 0.0 };
+    let scale = if max_impr > 0.0 {
+        chart_w / max_impr
+    } else {
+        0.0
+    };
 
     for (i, (label, impr)) in labels.iter().zip(impressions.iter()).enumerate() {
         let y = top_pad + row_h * i as f64;

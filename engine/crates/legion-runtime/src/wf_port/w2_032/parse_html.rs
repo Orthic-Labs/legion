@@ -364,7 +364,8 @@ pub fn parse_html(html: &str, base_url: Option<&str>) -> ParseResult {
 pub fn run(file: Option<&str>, base_url: Option<&str>, json_output: bool) -> (i32, String, String) {
     let html = match file {
         Some(path) => {
-            let real_path = std::fs::canonicalize(path).unwrap_or_else(|_| Path::new(path).to_path_buf());
+            let real_path =
+                std::fs::canonicalize(path).unwrap_or_else(|_| Path::new(path).to_path_buf());
             if !real_path.is_file() {
                 return (1, String::new(), format!("Error: File not found: {path}\n"));
             }
@@ -376,7 +377,11 @@ pub fn run(file: Option<&str>, base_url: Option<&str>, json_output: bool) -> (i3
         None => {
             let mut buf = String::new();
             if std::io::stdin().read_to_string(&mut buf).is_err() {
-                return (1, String::new(), "Error: failed to read stdin\n".to_string());
+                return (
+                    1,
+                    String::new(),
+                    "Error: failed to read stdin\n".to_string(),
+                );
             }
             buf
         }
@@ -390,7 +395,10 @@ pub fn run(file: Option<&str>, base_url: Option<&str>, json_output: bool) -> (i3
     }
 
     let mut out = String::new();
-    out.push_str(&format!("Title: {}\n", result.title.as_deref().unwrap_or("None")));
+    out.push_str(&format!(
+        "Title: {}\n",
+        result.title.as_deref().unwrap_or("None")
+    ));
     out.push_str(&format!(
         "Meta Description: {}\n",
         result.meta_description.as_deref().unwrap_or("None")
@@ -402,8 +410,14 @@ pub fn run(file: Option<&str>, base_url: Option<&str>, json_output: bool) -> (i3
     out.push_str(&format!("H1 Tags: {}\n", result.h1.len()));
     out.push_str(&format!("H2 Tags: {}\n", result.h2.len()));
     out.push_str(&format!("Images: {}\n", result.images.len()));
-    out.push_str(&format!("Internal Links: {}\n", result.links.internal.len()));
-    out.push_str(&format!("External Links: {}\n", result.links.external.len()));
+    out.push_str(&format!(
+        "Internal Links: {}\n",
+        result.links.internal.len()
+    ));
+    out.push_str(&format!(
+        "External Links: {}\n",
+        result.links.external.len()
+    ));
     out.push_str(&format!("Schema Blocks: {}\n", result.schema.len()));
     out.push_str(&format!("Word Count: {}\n", result.word_count));
     (0, out, String::new())
@@ -454,7 +468,10 @@ mod tests {
     #[test]
     fn classify_link_skips_fragment_and_js_hrefs() {
         assert_eq!(classify_link("https://example.com", "#top"), None);
-        assert_eq!(classify_link("https://example.com", "javascript:void(0)"), None);
+        assert_eq!(
+            classify_link("https://example.com", "javascript:void(0)"),
+            None
+        );
         assert_eq!(classify_link("https://example.com", ""), None);
     }
 
@@ -478,7 +495,11 @@ mod tests {
 
     #[test]
     fn extract_open_graph_filters_and_lowercases() {
-        let props = vec![("OG:Title", "Hello"), ("twitter:card", "summary"), ("og:image", "x.png")];
+        let props = vec![
+            ("OG:Title", "Hello"),
+            ("twitter:card", "summary"),
+            ("og:image", "x.png"),
+        ];
         let og = extract_open_graph(props);
         assert_eq!(og.len(), 2);
         assert_eq!(og.get("og:title").map(|s| s.as_str()), Some("Hello"));
@@ -527,10 +548,7 @@ mod tests {
             Some("An example page for tests")
         );
         assert_eq!(result.meta_robots.as_deref(), Some("index,follow"));
-        assert_eq!(
-            result.canonical.as_deref(),
-            Some("/canonical-page")
-        );
+        assert_eq!(result.canonical.as_deref(), Some("/canonical-page"));
         assert_eq!(result.hreflang.len(), 1);
         assert_eq!(result.hreflang[0].lang, "fr");
         assert_eq!(result.h1, vec!["Main Heading".to_string()]);
@@ -539,11 +557,17 @@ mod tests {
         assert_eq!(result.images[0].src, "https://example.com/img/a.png");
         assert_eq!(result.images[0].alt.as_deref(), Some("A"));
         assert_eq!(result.links.internal.len(), 1);
-        assert_eq!(result.links.internal[0].href, "https://example.com/internal");
+        assert_eq!(
+            result.links.internal[0].href,
+            "https://example.com/internal"
+        );
         assert_eq!(result.links.external.len(), 1);
         assert_eq!(result.links.external[0].href, "https://other.example/x");
         assert_eq!(result.schema.len(), 1);
-        assert_eq!(result.open_graph.get("og:title").map(|s| s.as_str()), Some("OG Title"));
+        assert_eq!(
+            result.open_graph.get("og:title").map(|s| s.as_str()),
+            Some("OG Title")
+        );
         assert_eq!(
             result.twitter_card.get("twitter:card").map(|s| s.as_str()),
             Some("summary")

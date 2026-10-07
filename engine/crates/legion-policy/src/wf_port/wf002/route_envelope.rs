@@ -202,7 +202,10 @@ pub fn compile_arcane_route(
     }
 
     let uncertain = input.uncertain;
-    let requested_tier = input.model_tier.clone().unwrap_or_else(|| "balanced".to_string());
+    let requested_tier = input
+        .model_tier
+        .clone()
+        .unwrap_or_else(|| "balanced".to_string());
 
     let route_id = canonical_digest(&DirectDigestInput {
         prompt: input.prompt.clone(),
@@ -216,13 +219,21 @@ pub fn compile_arcane_route(
     } else {
         Some(requested_tier.clone())
     };
-    let model_calls = if uncertain { 1 } else { input.model_calls.unwrap_or(0) };
+    let model_calls = if uncertain {
+        1
+    } else {
+        input.model_calls.unwrap_or(0)
+    };
 
     Ok(RouteEnvelope {
         schema_version: 1,
         kind: "arcane-route-envelope",
         route_id,
-        mode: if uncertain { "UNCERTAINTY_ESCALATION" } else { "DIRECT" },
+        mode: if uncertain {
+            "UNCERTAINTY_ESCALATION"
+        } else {
+            "DIRECT"
+        },
         model_calls,
         selected_model_tier,
         stages,
@@ -315,7 +326,9 @@ where
 
 /// Port of `routeEnvelopeContext`: `ARCANE_ROUTE:<json>` when `envelope` is a
 /// genuine route envelope, else `None`.
-pub fn route_envelope_context(envelope: &RouteEnvelope) -> Result<Option<String>, ArcaneRouteError> {
+pub fn route_envelope_context(
+    envelope: &RouteEnvelope,
+) -> Result<Option<String>, ArcaneRouteError> {
     if envelope.kind != "arcane-route-envelope" {
         return Ok(None);
     }
@@ -456,9 +469,11 @@ mod tests {
     #[test]
     fn falsification_pass_rejects_bad_result() {
         let evidence = vec!["e1".to_string()];
-        let err = run_falsification_pass("claim", &evidence, 0, |_claim, _evidence| ChallengeOutcome {
-            result: "MAYBE".into(),
-            reason: None,
+        let err = run_falsification_pass("claim", &evidence, 0, |_claim, _evidence| {
+            ChallengeOutcome {
+                result: "MAYBE".into(),
+                reason: None,
+            }
         })
         .unwrap_err();
         assert!(matches!(err, ChallengeError::InvalidResult));
@@ -467,9 +482,11 @@ mod tests {
     #[test]
     fn falsification_pass_rejects_reuse() {
         let evidence = vec!["e1".to_string()];
-        let err = run_falsification_pass("claim", &evidence, 1, |_claim, _evidence| ChallengeOutcome {
-            result: "KEEP".into(),
-            reason: None,
+        let err = run_falsification_pass("claim", &evidence, 1, |_claim, _evidence| {
+            ChallengeOutcome {
+                result: "KEEP".into(),
+                reason: None,
+            }
         })
         .unwrap_err();
         assert!(matches!(err, ChallengeError::Recursion));

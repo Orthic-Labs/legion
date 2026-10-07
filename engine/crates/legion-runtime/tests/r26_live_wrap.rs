@@ -109,10 +109,22 @@ fn manual_edit_may_affect_wrap_true_when_original_text_is_in_selection() {
     let target_abs = cwd.join(target);
 
     let hit = op("Old Text", "New Text");
-    assert!(manual_edit_may_affect_wrap(&hit, &target_abs, &lines, 0, &cwd));
+    assert!(manual_edit_may_affect_wrap(
+        &hit,
+        &target_abs,
+        &lines,
+        0,
+        &cwd
+    ));
 
     let miss = op("Nonexistent Text", "New Text");
-    assert!(!manual_edit_may_affect_wrap(&miss, &target_abs, &lines, 0, &cwd));
+    assert!(!manual_edit_may_affect_wrap(
+        &miss,
+        &target_abs,
+        &lines,
+        0,
+        &cwd
+    ));
 }
 
 #[test]

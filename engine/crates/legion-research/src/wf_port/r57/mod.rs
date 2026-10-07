@@ -126,9 +126,8 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
         }
         i += 1;
     }
-    let case_yaml = case_yaml.ok_or_else(|| {
-        "the following arguments are required: case_yaml".to_string()
-    })?;
+    let case_yaml =
+        case_yaml.ok_or_else(|| "the following arguments are required: case_yaml".to_string())?;
     Ok(Args { case_yaml, out })
 }
 

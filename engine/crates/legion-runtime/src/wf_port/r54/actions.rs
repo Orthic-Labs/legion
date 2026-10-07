@@ -15,13 +15,19 @@ pub enum Action {
     #[serde(rename = "sleep")]
     Sleep { ms: Option<u64> },
     #[serde(rename = "waitFor")]
-    WaitFor { selector: String, timeout: Option<u64> },
+    WaitFor {
+        selector: String,
+        timeout: Option<u64>,
+    },
     #[serde(rename = "waitForText")]
     WaitForText { text: String, timeout: Option<u64> },
     #[serde(rename = "click")]
     Click { selector: String },
     #[serde(rename = "hover")]
-    Hover { selector: String, settle: Option<u64> },
+    Hover {
+        selector: String,
+        settle: Option<u64>,
+    },
     #[serde(rename = "type")]
     Type { text: Option<String> },
     #[serde(rename = "press")]
@@ -29,17 +35,41 @@ pub enum Action {
     #[serde(rename = "eval")]
     Eval { expression: String },
     #[serde(rename = "assertVisible")]
-    AssertVisible { selector: String, timeout: Option<u64> },
+    AssertVisible {
+        selector: String,
+        timeout: Option<u64>,
+    },
     #[serde(rename = "assertText")]
     AssertText { selector: String, text: String },
     #[serde(rename = "assertAriaLabel")]
-    AssertAriaLabel { selector: String, label: String, exact: Option<bool> },
+    AssertAriaLabel {
+        selector: String,
+        label: String,
+        exact: Option<bool>,
+    },
     #[serde(rename = "assertCursor")]
-    AssertCursor { selector: String, cursor: Option<String> },
+    AssertCursor {
+        selector: String,
+        cursor: Option<String>,
+    },
     #[serde(rename = "assertStyle")]
-    AssertStyle { selector: String, property: String, value: String, exact: Option<bool> },
+    AssertStyle {
+        selector: String,
+        property: String,
+        value: String,
+        exact: Option<bool>,
+    },
     #[serde(rename = "wheel")]
-    Wheel { x: Option<f64>, y: Option<f64>, clicks: Option<u32>, #[serde(rename = "deltaX")] delta_x: Option<f64>, #[serde(rename = "deltaY")] delta_y: Option<f64>, gap: Option<u64> },
+    Wheel {
+        x: Option<f64>,
+        y: Option<f64>,
+        clicks: Option<u32>,
+        #[serde(rename = "deltaX")]
+        delta_x: Option<f64>,
+        #[serde(rename = "deltaY")]
+        delta_y: Option<f64>,
+        gap: Option<u64>,
+    },
     #[serde(rename = "screenshot")]
     Screenshot { out: String },
 }
@@ -76,16 +106,29 @@ fn action_type_name(a: &Action) -> &'static str {
 /// Port of `runAction(client, action, index)` (qa.mjs lines 504-600). Returns the `[qa] <label>
 /// ok` line on success (matching the trailing `console.log` every branch falls through to) or an
 /// `Err` message matching the JS `throw new Error(...)` text, prefixed with the `N:type` label.
-pub fn run_action(session: &mut dyn BrowserSession, action: &Action, index: usize) -> Result<String, String> {
+pub fn run_action(
+    session: &mut dyn BrowserSession,
+    action: &Action,
+    index: usize,
+) -> Result<String, String> {
     let label = format!("{}:{}", index + 1, action_type_name(action));
     match action {
         Action::Sleep { ms } => session.wait(ms.unwrap_or(250)),
         Action::WaitFor { selector, timeout } => {
-            session.wait_for_eval(&format!("(() => ({{ ok: !!document.querySelector({}) }}))()", js_string(selector)), timeout.unwrap_or(10000))?;
+            session.wait_for_eval(
+                &format!(
+                    "(() => ({{ ok: !!document.querySelector({}) }}))()",
+                    js_string(selector)
+                ),
+                timeout.unwrap_or(10000),
+            )?;
         }
         Action::WaitForText { text, timeout } => {
             session.wait_for_eval(
-                &format!("(() => ({{ ok: (document.body?.innerText || \"\").includes({}) }}))()", js_string(text)),
+                &format!(
+                    "(() => ({{ ok: (document.body?.innerText || \"\").includes({}) }}))()",
+                    js_string(text)
+                ),
                 timeout.unwrap_or(10000),
             )?;
         }
@@ -124,7 +167,11 @@ pub fn run_action(session: &mut dyn BrowserSession, action: &Action, index: usiz
                 return Err(format!("{label} text assertion failed: {value}"));
             }
         }
-        Action::AssertAriaLabel { selector, label: expected, exact } => {
+        Action::AssertAriaLabel {
+            selector,
+            label: expected,
+            exact,
+        } => {
             let cmp = if exact.unwrap_or(false) {
                 format!("label === {}", js_string(expected))
             } else {
@@ -151,8 +198,17 @@ pub fn run_action(session: &mut dyn BrowserSession, action: &Action, index: usiz
                 return Err(format!("{label} cursor assertion failed: {value}"));
             }
         }
-        Action::AssertStyle { selector, property, value: expected, exact } => {
-            let cmp = if exact.unwrap_or(false) { "actual.trim() === expected" } else { "actual.includes(expected)" };
+        Action::AssertStyle {
+            selector,
+            property,
+            value: expected,
+            exact,
+        } => {
+            let cmp = if exact.unwrap_or(false) {
+                "actual.trim() === expected"
+            } else {
+                "actual.includes(expected)"
+            };
             let expr = format!(
                 "(() => {{ const el = document.querySelector({sel}); const actual = el ? getComputedStyle(el).getPropertyValue({prop}) : \"\"; const expected = {exp}; return {{ ok: {cmp}, actual }}; }})()",
                 sel = js_string(selector),
@@ -164,7 +220,14 @@ pub fn run_action(session: &mut dyn BrowserSession, action: &Action, index: usiz
                 return Err(format!("{label} style assertion failed: {value}"));
             }
         }
-        Action::Wheel { x, y, clicks, delta_x, delta_y, gap } => {
+        Action::Wheel {
+            x,
+            y,
+            clicks,
+            delta_x,
+            delta_y,
+            gap,
+        } => {
             let x = x.unwrap_or(400.0);
             let y = y.unwrap_or(400.0);
             for _ in 0..clicks.unwrap_or(1) {
@@ -213,13 +276,26 @@ mod tests {
             self.waited_ms.push(ms);
         }
         fn wait_for_eval(&mut self, _expr: &str, _timeout_ms: u64) -> Result<Value, String> {
-            if self.wait_for_ok { Ok(json!({"ok": true})) } else { Err("Timed out waiting for expression. Last result: null".to_string()) }
+            if self.wait_for_ok {
+                Ok(json!({"ok": true}))
+            } else {
+                Err("Timed out waiting for expression. Last result: null".to_string())
+            }
         }
         fn eval(&mut self, _expr: &str) -> Result<Value, String> {
             Ok(self.eval_result.clone())
         }
         fn element_point(&mut self, _selector: &str) -> Result<ElementPoint, String> {
-            Ok(point(10.0, 20.0, Rect { left: 0.0, top: 0.0, width: 5.0, height: 5.0 }))
+            Ok(point(
+                10.0,
+                20.0,
+                Rect {
+                    left: 0.0,
+                    top: 0.0,
+                    width: 5.0,
+                    height: 5.0,
+                },
+            ))
         }
         fn click(&mut self, x: f64, y: f64) -> Result<(), String> {
             self.clicked.push((x, y));
@@ -244,17 +320,28 @@ mod tests {
         fn capture(&mut self, _out: &str) -> Result<String, String> {
             Ok(self.capture_path.clone())
         }
-        fn apply_conditions(&mut self, _conditions: &crate::wf_port::r54::session_client::Conditions) -> Result<(), String> {
+        fn apply_conditions(
+            &mut self,
+            _conditions: &crate::wf_port::r54::session_client::Conditions,
+        ) -> Result<(), String> {
             Ok(())
         }
         fn navigate(&mut self, _url: &str) -> Result<(), String> {
             Ok(())
         }
-        fn load_session(&mut self, _data: &crate::wf_port::r54::session_client::SessionData) -> Result<(), String> {
+        fn load_session(
+            &mut self,
+            _data: &crate::wf_port::r54::session_client::SessionData,
+        ) -> Result<(), String> {
             Ok(())
         }
-        fn save_session(&mut self) -> Result<crate::wf_port::r54::session_client::SessionData, String> {
-            Ok(crate::wf_port::r54::session_client::SessionData { cookies: Value::Array(vec![]), local_storage: Value::Object(Default::default()) })
+        fn save_session(
+            &mut self,
+        ) -> Result<crate::wf_port::r54::session_client::SessionData, String> {
+            Ok(crate::wf_port::r54::session_client::SessionData {
+                cookies: Value::Array(vec![]),
+                local_storage: Value::Object(Default::default()),
+            })
         }
         fn take_console_errors(&mut self) -> Vec<String> {
             Vec::new()
@@ -285,23 +372,36 @@ mod tests {
     #[test]
     fn click_resolves_point_then_clicks() {
         let mut s = FakeSession::default();
-        let a = Action::Click { selector: "#go".into() };
+        let a = Action::Click {
+            selector: "#go".into(),
+        };
         run_action(&mut s, &a, 3).unwrap();
         assert_eq!(s.clicked, vec![(10.0, 20.0)]);
     }
 
     #[test]
     fn eval_not_ok_errors_with_label() {
-        let mut s = FakeSession { eval_result: json!({"ok": false}), ..Default::default() };
-        let a = Action::Eval { expression: "1".into() };
+        let mut s = FakeSession {
+            eval_result: json!({"ok": false}),
+            ..Default::default()
+        };
+        let a = Action::Eval {
+            expression: "1".into(),
+        };
         let e = run_action(&mut s, &a, 0).unwrap_err();
         assert!(e.starts_with("1:eval eval returned not ok"));
     }
 
     #[test]
     fn assert_text_failure_reports_label_and_type() {
-        let mut s = FakeSession { eval_result: json!({"ok": false, "text": "nope"}), ..Default::default() };
-        let a = Action::AssertText { selector: "#t".into(), text: "hi".into() };
+        let mut s = FakeSession {
+            eval_result: json!({"ok": false, "text": "nope"}),
+            ..Default::default()
+        };
+        let a = Action::AssertText {
+            selector: "#t".into(),
+            text: "hi".into(),
+        };
         let e = run_action(&mut s, &a, 4).unwrap_err();
         assert!(e.starts_with("5:assertText text assertion failed"));
     }
@@ -309,7 +409,14 @@ mod tests {
     #[test]
     fn wheel_repeats_clicks_times() {
         let mut s = FakeSession::default();
-        let a = Action::Wheel { x: None, y: None, clicks: Some(3), delta_x: None, delta_y: None, gap: Some(0) };
+        let a = Action::Wheel {
+            x: None,
+            y: None,
+            clicks: Some(3),
+            delta_x: None,
+            delta_y: None,
+            gap: Some(0),
+        };
         run_action(&mut s, &a, 0).unwrap();
         assert_eq!(s.wheels.len(), 3);
         assert_eq!(s.wheels[0], (400.0, 400.0, 0.0, 100.0));
@@ -317,8 +424,13 @@ mod tests {
 
     #[test]
     fn screenshot_logs_both_lines() {
-        let mut s = FakeSession { capture_path: "/out/a.png".into(), ..Default::default() };
-        let a = Action::Screenshot { out: "a.png".into() };
+        let mut s = FakeSession {
+            capture_path: "/out/a.png".into(),
+            ..Default::default()
+        };
+        let a = Action::Screenshot {
+            out: "a.png".into(),
+        };
         let out = run_action(&mut s, &a, 0).unwrap();
         assert_eq!(out, "[qa] screenshot /out/a.png\n[qa] 1:screenshot ok");
     }

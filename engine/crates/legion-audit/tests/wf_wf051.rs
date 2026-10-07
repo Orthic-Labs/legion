@@ -33,7 +33,8 @@
 #[test]
 fn wf051_service_runtime_scenarios_agree_across_native_copies() {
     let desktop = legion_audit::native_providers::p10_runtime::desktop::SERVICE_RUNTIME_SCENARIOS;
-    let browser = legion_audit::native_providers::p10_runtime::browser_service::SERVICE_RUNTIME_SCENARIOS;
+    let browser =
+        legion_audit::native_providers::p10_runtime::browser_service::SERVICE_RUNTIME_SCENARIOS;
 
     let expected: &[&str] = &[
         "api-contract",

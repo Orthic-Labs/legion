@@ -140,8 +140,16 @@ pub fn flatten_serialized_groups(groups: &Value) -> Vec<RawFinding> {
             continue;
         };
         for f in findings {
-            let id = f.get("type").and_then(Value::as_str).unwrap_or("").to_string();
-            let snippet = f.get("detail").and_then(Value::as_str).unwrap_or("").to_string();
+            let id = f
+                .get("type")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let snippet = f
+                .get("detail")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             let ignore_value = f
                 .get("ignoreValue")
                 .and_then(Value::as_str)
@@ -309,8 +317,16 @@ mod tests {
             present: true,
             has_colors: true,
             allowed_color_keys: vec![
-                Rgb { r: 1.0, g: 2.0, b: 3.0 },
-                Rgb { r: f64::NAN, g: 0.0, b: 0.0 },
+                Rgb {
+                    r: 1.0,
+                    g: 2.0,
+                    b: 3.0,
+                },
+                Rgb {
+                    r: f64::NAN,
+                    g: 0.0,
+                    b: 0.0,
+                },
             ],
             has_radii: true,
             allowed_radii: vec![4.0, f64::INFINITY],
@@ -348,7 +364,8 @@ mod tests {
         };
         let reg = registry();
         let opts = DetectUrlOptions::default();
-        let out = detect_url_cdp(&mut driver, &reg, "https://x.test", "/* script */", &opts).unwrap();
+        let out =
+            detect_url_cdp(&mut driver, &reg, "https://x.test", "/* script */", &opts).unwrap();
         assert_eq!(driver.navigated_to, vec!["https://x.test".to_string()]);
         assert_eq!(driver.evaluated.len(), 3);
         assert!(driver.evaluated[1].contains("/* script */"));
@@ -366,9 +383,14 @@ mod tests {
         };
         let reg = registry();
         let opts = DetectUrlOptions::default(); // visual_contrast: false
-        let out = detect_url(&mut driver, &reg, "https://x.test", "/* s */", &opts, |_| {
-            panic!("must not be called when visual_contrast is false")
-        })
+        let out = detect_url(
+            &mut driver,
+            &reg,
+            "https://x.test",
+            "/* s */",
+            &opts,
+            |_| panic!("must not be called when visual_contrast is false"),
+        )
         .unwrap();
         assert!(out.is_empty());
     }
@@ -393,9 +415,14 @@ mod tests {
             }],
             &[],
         );
-        let out = detect_url(&mut driver, &reg, "https://x.test", "/* s */", &opts, |_| {
-            Ok(extra.clone())
-        })
+        let out = detect_url(
+            &mut driver,
+            &reg,
+            "https://x.test",
+            "/* s */",
+            &opts,
+            |_| Ok(extra.clone()),
+        )
         .unwrap();
         assert_eq!(out.len(), 1);
     }

@@ -63,7 +63,11 @@ pub fn run(cwd: &Path, args: &[String]) -> RunOutcome {
         original_cwd.clone()
     };
 
-    RunOutcome::Resolved(resolve_live_target(&original_cwd, target_path.as_deref(), &project_root))
+    RunOutcome::Resolved(resolve_live_target(
+        &original_cwd,
+        target_path.as_deref(),
+        &project_root,
+    ))
 }
 
 /// Port of `resolveLiveTarget`'s return shape (the parts this module

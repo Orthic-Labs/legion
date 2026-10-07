@@ -105,7 +105,12 @@ pub trait FileSystem {
 /// matching `page.goto(..., {waitUntil:'load'})`, `waitForTimeout(2800)`,
 /// `page.screenshot({type:'png', clip:{x:0,y:0,width:W,height:H}})`.
 pub trait ThumbBrowser {
-    fn screenshot_png(&mut self, file_url: &str, canvas_w: u32, canvas_h: u32) -> Result<Vec<u8>, String>;
+    fn screenshot_png(
+        &mut self,
+        file_url: &str,
+        canvas_w: u32,
+        canvas_h: u32,
+    ) -> Result<Vec<u8>, String>;
 }
 
 /// `sharp(buf).resize(width).jpeg({ quality }).toFile(out)`: decode PNG,
@@ -116,7 +121,11 @@ pub fn resize_to_jpeg(png_bytes: &[u8], width: u32, quality: u8) -> Result<Vec<u
         .map_err(|e| e.to_string())?;
     let ratio = width as f64 / img.width() as f64;
     let target_h = (img.height() as f64 * ratio).round() as u32;
-    let resized = img.resize_exact(width, target_h.max(1), image::imageops::FilterType::Lanczos3);
+    let resized = img.resize_exact(
+        width,
+        target_h.max(1),
+        image::imageops::FilterType::Lanczos3,
+    );
     let mut buf = Vec::new();
     let mut cursor = std::io::Cursor::new(&mut buf);
     let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, quality);
@@ -227,7 +236,12 @@ impl ChromeThumbBrowser {
 }
 
 impl ThumbBrowser for ChromeThumbBrowser {
-    fn screenshot_png(&mut self, file_url: &str, _canvas_w: u32, _canvas_h: u32) -> Result<Vec<u8>, String> {
+    fn screenshot_png(
+        &mut self,
+        file_url: &str,
+        _canvas_w: u32,
+        _canvas_h: u32,
+    ) -> Result<Vec<u8>, String> {
         self.tab.navigate_to(file_url).map_err(|e| e.to_string())?;
         self.tab.wait_until_navigated().map_err(|e| e.to_string())?;
         std::thread::sleep(std::time::Duration::from_millis(2800));
@@ -256,10 +270,19 @@ mod tests {
 
     #[test]
     fn parse_args_overrides() {
-        let argv: Vec<String> = ["--slides", "s", "--out", "o", "--width", "800", "--quality", "70"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let argv: Vec<String> = [
+            "--slides",
+            "s",
+            "--out",
+            "o",
+            "--width",
+            "800",
+            "--quality",
+            "70",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
         let args = parse_args(&argv);
         assert_eq!(args.slides, PathBuf::from("s"));
         assert_eq!(args.width, 800);
@@ -268,7 +291,11 @@ mod tests {
 
     #[test]
     fn html_files_filters_and_sorts() {
-        let entries = vec!["b.html".to_string(), "a.html".to_string(), "notes.txt".to_string()];
+        let entries = vec![
+            "b.html".to_string(),
+            "a.html".to_string(),
+            "notes.txt".to_string(),
+        ];
         assert_eq!(html_files(&entries), vec!["a.html", "b.html"]);
     }
 
@@ -293,7 +320,9 @@ mod tests {
             Ok(self.entries.get(path).cloned().unwrap_or_default())
         }
         fn write(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-            self.writes.borrow_mut().insert(path.to_path_buf(), bytes.to_vec());
+            self.writes
+                .borrow_mut()
+                .insert(path.to_path_buf(), bytes.to_vec());
             Ok(())
         }
     }
@@ -337,7 +366,10 @@ mod tests {
         };
         let mut browser = FakeBrowser;
         let args = Args::default();
-        assert_eq!(run(&fs, &mut browser, &args), Err(GenError::NoHtmlFiles(slides)));
+        assert_eq!(
+            run(&fs, &mut browser, &args),
+            Err(GenError::NoHtmlFiles(slides))
+        );
     }
 
     #[test]

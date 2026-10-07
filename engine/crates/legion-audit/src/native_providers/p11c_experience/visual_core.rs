@@ -102,7 +102,11 @@ struct BitReader<'a> {
 
 impl<'a> BitReader<'a> {
     fn new(data: &'a [u8]) -> Self {
-        Self { data, byte: 0, bit: 0 }
+        Self {
+            data,
+            byte: 0,
+            bit: 0,
+        }
     }
 
     fn align_to_byte(&mut self) {
@@ -113,7 +117,10 @@ impl<'a> BitReader<'a> {
     }
 
     fn read_bit(&mut self) -> Result<u32, String> {
-        let byte = *self.data.get(self.byte).ok_or("inflate: unexpected end of stream")?;
+        let byte = *self
+            .data
+            .get(self.byte)
+            .ok_or("inflate: unexpected end of stream")?;
         let value = u32::from((byte >> self.bit) & 1);
         self.bit += 1;
         if self.bit == 8 {
@@ -132,8 +139,14 @@ impl<'a> BitReader<'a> {
     }
 
     fn read_u16_le(&mut self) -> Result<u16, String> {
-        let lo = *self.data.get(self.byte).ok_or("inflate: unexpected end of stream")?;
-        let hi = *self.data.get(self.byte + 1).ok_or("inflate: unexpected end of stream")?;
+        let lo = *self
+            .data
+            .get(self.byte)
+            .ok_or("inflate: unexpected end of stream")?;
+        let hi = *self
+            .data
+            .get(self.byte + 1)
+            .ok_or("inflate: unexpected end of stream")?;
         self.byte += 2;
         Ok(u16::from(lo) | (u16::from(hi) << 8))
     }
@@ -241,9 +254,15 @@ fn dynamic_huffman(reader: &mut BitReader) -> Result<(Huffman, Huffman), String>
             }
             16 => {
                 let repeat = reader.read_bits(2)? + 3;
-                let previous = if i == 0 { return Err("inflate: repeat with no previous length".into()) } else { lengths[i - 1] };
+                let previous = if i == 0 {
+                    return Err("inflate: repeat with no previous length".into());
+                } else {
+                    lengths[i - 1]
+                };
                 for _ in 0..repeat {
-                    if i >= lengths.len() { break; }
+                    if i >= lengths.len() {
+                        break;
+                    }
                     lengths[i] = previous;
                     i += 1;
                 }
@@ -265,7 +284,12 @@ fn dynamic_huffman(reader: &mut BitReader) -> Result<(Huffman, Huffman), String>
     Ok((lit_huff, dist_huff))
 }
 
-fn inflate_block(reader: &mut BitReader, out: &mut Vec<u8>, lit: &Huffman, dist: &Huffman) -> Result<(), String> {
+fn inflate_block(
+    reader: &mut BitReader,
+    out: &mut Vec<u8>,
+    lit: &Huffman,
+    dist: &Huffman,
+) -> Result<(), String> {
     loop {
         let symbol = decode_symbol(reader, lit)?;
         if symbol < 256 {
@@ -277,12 +301,14 @@ fn inflate_block(reader: &mut BitReader, out: &mut Vec<u8>, lit: &Huffman, dist:
             if index >= LENGTH_BASE.len() {
                 return Err("inflate: invalid length symbol".into());
             }
-            let length = LENGTH_BASE[index] as usize + reader.read_bits(u32::from(LENGTH_EXTRA[index]))? as usize;
+            let length = LENGTH_BASE[index] as usize
+                + reader.read_bits(u32::from(LENGTH_EXTRA[index]))? as usize;
             let dist_symbol = decode_symbol(reader, dist)? as usize;
             if dist_symbol >= DIST_BASE.len() {
                 return Err("inflate: invalid distance symbol".into());
             }
-            let distance = DIST_BASE[dist_symbol] as usize + reader.read_bits(u32::from(DIST_EXTRA[dist_symbol]))? as usize;
+            let distance = DIST_BASE[dist_symbol] as usize
+                + reader.read_bits(u32::from(DIST_EXTRA[dist_symbol]))? as usize;
             if distance == 0 || distance > out.len() {
                 return Err("inflate: invalid back-reference distance".into());
             }
@@ -308,7 +334,10 @@ fn inflate_raw(data: &[u8]) -> Result<Vec<u8>, String> {
                 let len = reader.read_u16_le()?;
                 let _nlen = reader.read_u16_le()?;
                 for _ in 0..len {
-                    let byte = *reader.data.get(reader.byte).ok_or("inflate: unexpected end of stream")?;
+                    let byte = *reader
+                        .data
+                        .get(reader.byte)
+                        .ok_or("inflate: unexpected end of stream")?;
                     out.push(byte);
                     reader.byte += 1;
                 }
@@ -441,7 +470,11 @@ pub fn decode_png(buffer: &[u8]) -> Result<DecodedImage, String> {
     let stride = width as usize * channels;
     let expected = height as usize * (stride + 1);
     if raw.len() != expected {
-        return Err(format!("PNG data length mismatch: {} != {}", raw.len(), expected));
+        return Err(format!(
+            "PNG data length mismatch: {} != {}",
+            raw.len(),
+            expected
+        ));
     }
     let mut decoded = vec![0u8; height as usize * stride];
     let mut source = 0usize;
@@ -452,9 +485,21 @@ pub fn decode_png(buffer: &[u8]) -> Result<DecodedImage, String> {
         for x in 0..stride {
             let value = raw[source];
             source += 1;
-            let left = if x >= channels { decoded[row_start + x - channels] } else { 0 };
-            let up = if y > 0 { decoded[row_start - stride + x] } else { 0 };
-            let up_left = if y > 0 && x >= channels { decoded[row_start - stride + x - channels] } else { 0 };
+            let left = if x >= channels {
+                decoded[row_start + x - channels]
+            } else {
+                0
+            };
+            let up = if y > 0 {
+                decoded[row_start - stride + x]
+            } else {
+                0
+            };
+            let up_left = if y > 0 && x >= channels {
+                decoded[row_start - stride + x - channels]
+            } else {
+                0
+            };
             let recon: u8 = match filter {
                 0 => value,
                 1 => value.wrapping_add(left),
@@ -484,7 +529,12 @@ pub fn decode_png(buffer: &[u8]) -> Result<DecodedImage, String> {
             }
         }
     }
-    Ok(DecodedImage { width, height, rgba, digest: sha256_digest(buffer) })
+    Ok(DecodedImage {
+        width,
+        height,
+        rgba,
+        digest: sha256_digest(buffer),
+    })
 }
 
 // ---------------------------------------------------------------------
@@ -516,10 +566,16 @@ fn masks_from(value: &Value) -> Vec<Mask> {
 }
 
 fn in_mask(x: i64, y: i64, masks: &[Mask]) -> bool {
-    masks.iter().any(|mask| x >= mask.x && y >= mask.y && x < mask.x + mask.width && y < mask.y + mask.height)
+    masks.iter().any(|mask| {
+        x >= mask.x && y >= mask.y && x < mask.x + mask.width && y < mask.y + mask.height
+    })
 }
 
-pub fn compare_png(expected_bytes: &[u8], actual_bytes: &[u8], options: &Value) -> Result<Value, String> {
+pub fn compare_png(
+    expected_bytes: &[u8],
+    actual_bytes: &[u8],
+    options: &Value,
+) -> Result<Value, String> {
     let expected = decode_png(expected_bytes)?;
     let actual = decode_png(actual_bytes)?;
     if expected.width != actual.width || expected.height != actual.height {
@@ -531,9 +587,18 @@ pub fn compare_png(expected_bytes: &[u8], actual_bytes: &[u8], options: &Value) 
             "changedRatio": 1,
         }));
     }
-    let threshold = options.get("channelThreshold").and_then(Value::as_i64).unwrap_or(0);
-    let max_changed_ratio = options.get("maxChangedRatio").and_then(Value::as_f64).unwrap_or(0.0);
-    let masks_value = options.get("masks").cloned().unwrap_or(Value::Array(vec![]));
+    let threshold = options
+        .get("channelThreshold")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let max_changed_ratio = options
+        .get("maxChangedRatio")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let masks_value = options
+        .get("masks")
+        .cloned()
+        .unwrap_or(Value::Array(vec![]));
     let masks = masks_from(&masks_value);
     let mut compared_pixels: u64 = 0;
     let mut changed_pixels: u64 = 0;
@@ -548,7 +613,9 @@ pub fn compare_png(expected_bytes: &[u8], actual_bytes: &[u8], options: &Value) 
             let offset = ((y as u32 * expected.width + x as u32) * 4) as usize;
             let mut changed = false;
             for channel in 0..4 {
-                let delta = (i64::from(expected.rgba[offset + channel]) - i64::from(actual.rgba[offset + channel])).abs();
+                let delta = (i64::from(expected.rgba[offset + channel])
+                    - i64::from(actual.rgba[offset + channel]))
+                .abs();
                 max_channel_delta = max_channel_delta.max(delta);
                 total_channel_delta += delta;
                 if delta > threshold {
@@ -560,7 +627,11 @@ pub fn compare_png(expected_bytes: &[u8], actual_bytes: &[u8], options: &Value) 
             }
         }
     }
-    let changed_ratio = if compared_pixels > 0 { changed_pixels as f64 / compared_pixels as f64 } else { 0.0 };
+    let changed_ratio = if compared_pixels > 0 {
+        changed_pixels as f64 / compared_pixels as f64
+    } else {
+        0.0
+    };
     Ok(serde_json::json!({
         "status": if changed_ratio <= max_changed_ratio { "match" } else { "different" },
         "width": expected.width,
@@ -582,7 +653,10 @@ pub fn compare_png(expected_bytes: &[u8], actual_bytes: &[u8], options: &Value) 
 // ---------------------------------------------------------------------
 
 fn field(item: &Value, key: &str) -> String {
-    item.get(key).and_then(Value::as_str).unwrap_or("default").to_string()
+    item.get(key)
+        .and_then(Value::as_str)
+        .unwrap_or("default")
+        .to_string()
 }
 
 fn case_key(item: &Value) -> String {
@@ -599,7 +673,14 @@ fn case_key(item: &Value) -> String {
 }
 
 fn cartesian(dimensions: &Value) -> Result<Vec<Value>, String> {
-    let names = ["routes", "states", "viewports", "themes", "locales", "platforms"];
+    let names = [
+        "routes",
+        "states",
+        "viewports",
+        "themes",
+        "locales",
+        "platforms",
+    ];
     let short = ["route", "state", "viewport", "theme", "locale", "platform"];
     let mut rows: Vec<Map<String, Value>> = vec![Map::new()];
     for (name, key) in names.iter().zip(short.iter()) {
@@ -619,7 +700,10 @@ fn cartesian(dimensions: &Value) -> Result<Vec<Value>, String> {
         }
         rows = next;
         if rows.len() > 10_000 {
-            return Err("visual coverage matrix exceeds 10,000 cases; provide explicit expected.cases".to_string());
+            return Err(
+                "visual coverage matrix exceeds 10,000 cases; provide explicit expected.cases"
+                    .to_string(),
+            );
         }
     }
     Ok(rows.into_iter().map(Value::Object).collect())
@@ -632,7 +716,11 @@ pub fn build_coverage_matrix(spec: &Value) -> Result<Value, String> {
         Some(cases) => cases,
         None => cartesian(&expected)?,
     };
-    let captures: Vec<Value> = spec.get("captures").and_then(Value::as_array).cloned().unwrap_or_default();
+    let captures: Vec<Value> = spec
+        .get("captures")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut capture_by_key: HashMap<String, &Value> = HashMap::new();
     for capture in &captures {
         capture_by_key.insert(case_key(capture), capture);
@@ -640,7 +728,11 @@ pub fn build_coverage_matrix(spec: &Value) -> Result<Value, String> {
     let cases: Vec<Value> = expected_cases
         .iter()
         .map(|item| {
-            let route = item.get("route").and_then(Value::as_str).unwrap_or("/").to_string();
+            let route = item
+                .get("route")
+                .and_then(Value::as_str)
+                .unwrap_or("/")
+                .to_string();
             let mut normalized = serde_json::json!({
                 "route": route,
                 "state": field(item, "state"),
@@ -653,11 +745,20 @@ pub fn build_coverage_matrix(spec: &Value) -> Result<Value, String> {
             let capture = capture_by_key.get(&key).copied();
             let object = normalized.as_object_mut().unwrap();
             object.insert("covered".into(), Value::Bool(capture.is_some()));
-            object.insert("captureId".into(), capture.and_then(|c| c.get("id")).cloned().unwrap_or(Value::Null));
+            object.insert(
+                "captureId".into(),
+                capture
+                    .and_then(|c| c.get("id"))
+                    .cloned()
+                    .unwrap_or(Value::Null),
+            );
             normalized
         })
         .collect();
-    let covered_count = cases.iter().filter(|item| item.get("covered") == Some(&Value::Bool(true))).count();
+    let covered_count = cases
+        .iter()
+        .filter(|item| item.get("covered") == Some(&Value::Bool(true)))
+        .count();
     let missing_count = cases.len() - covered_count;
     let complete = missing_count == 0;
     Ok(serde_json::json!({
@@ -677,8 +778,15 @@ pub fn audit_visual_artifacts(root: &std::path::Path, spec: &Value) -> Result<Va
     let coverage = build_coverage_matrix(spec)?;
     let mut captures: Vec<Value> = Vec::new();
     let mut findings: Vec<Value> = Vec::new();
-    let raw_captures: Vec<Value> = spec.get("captures").and_then(Value::as_array).cloned().unwrap_or_default();
-    let diff_defaults = spec.get("diff").cloned().unwrap_or(Value::Object(Map::new()));
+    let raw_captures: Vec<Value> = spec
+        .get("captures")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let diff_defaults = spec
+        .get("diff")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
 
     for capture in &raw_captures {
         let id = capture.get("id").cloned().unwrap_or(Value::Null);
@@ -703,14 +811,24 @@ pub fn audit_visual_artifacts(root: &std::path::Path, spec: &Value) -> Result<Va
             captures.push(serde_json::json!({ "id": id, "status": "unproven", "reason": "baseline-missing", "path": path, "baseline": baseline }));
             continue;
         }
-        let capture_diff_options = capture.get("diff").cloned().unwrap_or_else(|| diff_defaults.clone());
+        let capture_diff_options = capture
+            .get("diff")
+            .cloned()
+            .unwrap_or_else(|| diff_defaults.clone());
         let expected_bytes = std::fs::read(&baseline_path).map_err(|error| error.to_string())?;
         let actual_bytes = std::fs::read(&actual_path).map_err(|error| error.to_string())?;
         let diff = compare_png(&expected_bytes, &actual_bytes, &capture_diff_options)?;
-        let status = diff.get("status").and_then(Value::as_str).unwrap_or("different").to_string();
+        let status = diff
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("different")
+            .to_string();
         captures.push(serde_json::json!({ "id": id, "status": status, "path": path, "baseline": baseline, "diff": diff }));
         if status != "match" {
-            let changed_ratio = diff.get("changedRatio").and_then(Value::as_f64).unwrap_or(1.0);
+            let changed_ratio = diff
+                .get("changedRatio")
+                .and_then(Value::as_f64)
+                .unwrap_or(1.0);
             let detail = if status == "different-dimensions" {
                 "Rendered dimensions differ from the baseline.".to_string()
             } else {
@@ -727,12 +845,23 @@ pub fn audit_visual_artifacts(root: &std::path::Path, spec: &Value) -> Result<Va
         }
     }
 
-    let review_required = captures.iter().any(|item| item.get("status") == Some(&Value::String("captured-no-baseline".into())));
-    let cases = coverage.get("cases").and_then(Value::as_array).cloned().unwrap_or_default();
-    let expected_count = coverage.get("expectedCount").and_then(Value::as_u64).unwrap_or(0);
+    let review_required = captures
+        .iter()
+        .any(|item| item.get("status") == Some(&Value::String("captured-no-baseline".into())));
+    let cases = coverage
+        .get("cases")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let expected_count = coverage
+        .get("expectedCount")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
     let empty_matrix = expected_count == 0;
     let coverage_complete = coverage.get("complete") == Some(&Value::Bool(true));
-    let unproven = captures.iter().any(|item| item.get("status") == Some(&Value::String("unproven".into())))
+    let unproven = captures
+        .iter()
+        .any(|item| item.get("status") == Some(&Value::String("unproven".into())))
         || !coverage_complete
         || review_required
         || empty_matrix;
@@ -741,20 +870,32 @@ pub fn audit_visual_artifacts(root: &std::path::Path, spec: &Value) -> Result<Va
     if empty_matrix {
         coverage_gaps.push(serde_json::json!({ "kind": "visual-cases-missing", "detail": "visual spec declares no expected cases; nothing is proven" }));
     }
-    for item in cases.iter().filter(|item| item.get("covered") != Some(&Value::Bool(true))) {
+    for item in cases
+        .iter()
+        .filter(|item| item.get("covered") != Some(&Value::Bool(true)))
+    {
         coverage_gaps.push(serde_json::json!({ "kind": "missing-visual-case", "case": item }));
     }
-    for item in captures.iter().filter(|item| item.get("status") == Some(&Value::String("unproven".into()))) {
+    for item in captures
+        .iter()
+        .filter(|item| item.get("status") == Some(&Value::String("unproven".into())))
+    {
         coverage_gaps.push(serde_json::json!({ "kind": item.get("reason").cloned().unwrap_or(Value::Null), "captureId": item.get("id").cloned().unwrap_or(Value::Null) }));
     }
-    for item in captures.iter().filter(|item| item.get("status") == Some(&Value::String("captured-no-baseline".into()))) {
+    for item in captures
+        .iter()
+        .filter(|item| item.get("status") == Some(&Value::String("captured-no-baseline".into())))
+    {
         coverage_gaps.push(serde_json::json!({ "kind": "visual-review-or-baseline-required", "captureId": item.get("id").cloned().unwrap_or(Value::Null) }));
     }
 
-    let examined = captures.iter().filter(|item| {
-        let status = item.get("status").and_then(Value::as_str);
-        status.is_some() && status != Some("unproven")
-    }).count();
+    let examined = captures
+        .iter()
+        .filter(|item| {
+            let status = item.get("status").and_then(Value::as_str);
+            status.is_some() && status != Some("unproven")
+        })
+        .count();
 
     Ok(serde_json::json!({
         "schemaVersion": 1,

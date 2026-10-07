@@ -25,10 +25,7 @@ pub fn is_absolute_path(value: &str) -> bool {
 
 fn is_drive_absolute(raw: &str) -> bool {
     let bytes = raw.as_bytes();
-    bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && bytes[2] == b'/'
+    bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
 }
 
 /// Port of `repository_root()`: walk upward from `path` (resolving to its

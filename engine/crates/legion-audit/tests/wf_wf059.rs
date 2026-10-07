@@ -24,10 +24,15 @@
 //! it) into `legion_audit`'s crate root.
 
 use legion_audit::wf_port::wf059::common::{Context, Entity, Relation};
-use legion_audit::wf_port::wf059::{crypto_identity_protocols, data_privacy, developer_machine, embedded_iot, file_boundaries};
+use legion_audit::wf_port::wf059::{
+    crypto_identity_protocols, data_privacy, developer_machine, embedded_iot, file_boundaries,
+};
 use serde_json::json;
 
-fn find<'a>(obs: &'a [legion_audit::wf_port::wf059::common::Observation], rule_id: &str) -> Vec<&'a legion_audit::wf_port::wf059::common::Observation> {
+fn find<'a>(
+    obs: &'a [legion_audit::wf_port::wf059::common::Observation],
+    rule_id: &str,
+) -> Vec<&'a legion_audit::wf_port::wf059::common::Observation> {
     obs.iter().filter(|o| o.rule_id == rule_id).collect()
 }
 
@@ -43,16 +48,28 @@ fn crypto_weak_hash_in_security_context_is_high_severity() {
     );
     let obs = crypto_identity_protocols::analyze(&ctx);
     let hits = find(&obs, "crypto.primitive.weak-hash-security-context");
-    assert_eq!(hits.len(), 1, "expected exactly one weak-hash finding, got {:?}", obs.iter().map(|o| &o.rule_id).collect::<Vec<_>>());
+    assert_eq!(
+        hits.len(),
+        1,
+        "expected exactly one weak-hash finding, got {:?}",
+        obs.iter().map(|o| &o.rule_id).collect::<Vec<_>>()
+    );
     let hit = hits[0];
     assert_eq!(hit.layer(), "primitive");
-    assert!(hit.severity_hint == "high" || hit.severity_hint == "medium", "severity was {}", hit.severity_hint);
+    assert!(
+        hit.severity_hint == "high" || hit.severity_hint == "medium",
+        "severity was {}",
+        hit.severity_hint
+    );
     assert_eq!(hit.detector_metadata["primitive"], json!("md5"));
 }
 
 #[test]
 fn crypto_weak_hash_cache_key_use_is_downgraded_low() {
-    let ctx = Context::new().with_file("src/cache.js", "const cacheKey = md5(url); // used as a cache-key");
+    let ctx = Context::new().with_file(
+        "src/cache.js",
+        "const cacheKey = md5(url); // used as a cache-key",
+    );
     let obs = crypto_identity_protocols::analyze(&ctx);
     let hits = find(&obs, "crypto.primitive.weak-hash-security-context");
     assert_eq!(hits.len(), 1);
@@ -66,12 +83,18 @@ fn crypto_weak_hash_fingerprint_without_password_nearby_is_downgraded_low() {
     // "fingerprint" alone (no "password" anywhere after it in the window, and no
     // other NON_SECURITY_CONTEXT/SECURITY_CONTEXT keyword present) is a
     // non-security signal.
-    let ctx = Context::new().with_file("src/content.js", "const h = sha1(body); // content fingerprint value");
+    let ctx = Context::new().with_file(
+        "src/content.js",
+        "const h = sha1(body); // content fingerprint value",
+    );
     let obs = crypto_identity_protocols::analyze(&ctx);
     let hits = find(&obs, "crypto.primitive.weak-hash-security-context");
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].severity_hint, "low");
-    assert_eq!(hits[0].detector_metadata["useContext"], json!("fingerprint"));
+    assert_eq!(
+        hits[0].detector_metadata["useContext"],
+        json!("fingerprint")
+    );
 }
 
 #[test]
@@ -102,19 +125,28 @@ fn crypto_weak_hash_unspecified_when_no_keyword_present() {
     let hits = find(&obs, "crypto.primitive.weak-hash-security-context");
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].severity_hint, "medium");
-    assert_eq!(hits[0].detector_metadata["useContext"], json!("unspecified"));
+    assert_eq!(
+        hits[0].detector_metadata["useContext"],
+        json!("unspecified")
+    );
 }
 
 #[test]
 fn crypto_hmac_md5_is_not_flagged_as_weak_hash() {
-    let ctx = Context::new().with_file("src/hmac.js", "const mac = createHmac('md5', key).update(data).digest('hex');");
+    let ctx = Context::new().with_file(
+        "src/hmac.js",
+        "const mac = createHmac('md5', key).update(data).digest('hex');",
+    );
     let obs = crypto_identity_protocols::analyze(&ctx);
     assert!(find(&obs, "crypto.primitive.weak-hash-security-context").is_empty());
 }
 
 #[test]
 fn crypto_weak_cipher_ecb_flagged_high() {
-    let ctx = Context::new().with_file("src/cipher.js", "const c = crypto.createCipheriv('aes-128-ecb', key, iv);");
+    let ctx = Context::new().with_file(
+        "src/cipher.js",
+        "const c = crypto.createCipheriv('aes-128-ecb', key, iv);",
+    );
     let obs = crypto_identity_protocols::analyze(&ctx);
     let hits = find(&obs, "crypto.primitive.weak-cipher-algorithm");
     assert_eq!(hits.len(), 1);
@@ -124,14 +156,20 @@ fn crypto_weak_cipher_ecb_flagged_high() {
 
 #[test]
 fn crypto_strong_cipher_not_flagged() {
-    let ctx = Context::new().with_file("src/cipher.js", "const c = crypto.createCipheriv('aes-256-gcm', key, iv);");
+    let ctx = Context::new().with_file(
+        "src/cipher.js",
+        "const c = crypto.createCipheriv('aes-256-gcm', key, iv);",
+    );
     let obs = crypto_identity_protocols::analyze(&ctx);
     assert!(find(&obs, "crypto.primitive.weak-cipher-algorithm").is_empty());
 }
 
 #[test]
 fn crypto_math_random_for_token_is_flagged() {
-    let ctx = Context::new().with_file("src/token.js", "const resetToken = Math.random().toString(36);");
+    let ctx = Context::new().with_file(
+        "src/token.js",
+        "const resetToken = Math.random().toString(36);",
+    );
     let obs = crypto_identity_protocols::analyze(&ctx);
     let hits = find(&obs, "crypto.primitive.insecure-randomness");
     assert_eq!(hits.len(), 1);
@@ -152,16 +190,23 @@ fn crypto_math_random_with_secure_random_marker_nearby_is_suppressed() {
 
 #[test]
 fn crypto_hardcoded_jwt_secret_flagged() {
-    let ctx = Context::new().with_file("src/jwt.js", "jwt.sign(payload, 'super-secret-value-123');");
+    let ctx =
+        Context::new().with_file("src/jwt.js", "jwt.sign(payload, 'super-secret-value-123');");
     let obs = crypto_identity_protocols::analyze(&ctx);
     let hits = find(&obs, "crypto.primitive.hardcoded-encryption-key");
     assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].detector_metadata["primitive"], json!("jwt-signing-secret"));
+    assert_eq!(
+        hits[0].detector_metadata["primitive"],
+        json!("jwt-signing-secret")
+    );
 }
 
 #[test]
 fn crypto_key_rotation_absent_is_repository_wide_low() {
-    let ctx = Context::new().with_file("src/cipher.js", "crypto.createCipheriv('aes-256-gcm', key, iv);");
+    let ctx = Context::new().with_file(
+        "src/cipher.js",
+        "crypto.createCipheriv('aes-256-gcm', key, iv);",
+    );
     let obs = crypto_identity_protocols::analyze(&ctx);
     let hits = find(&obs, "crypto.primitive.key-rotation-absent");
     assert_eq!(hits.len(), 1);
@@ -190,7 +235,8 @@ fn crypto_unsalted_password_hash_flagged() {
 
 #[test]
 fn crypto_bcrypt_password_hash_not_flagged() {
-    let ctx = Context::new().with_file("src/user.js", "const hash = bcrypt.hashSync(password, 10);");
+    let ctx =
+        Context::new().with_file("src/user.js", "const hash = bcrypt.hashSync(password, 10);");
     let obs = crypto_identity_protocols::analyze(&ctx);
     assert!(find(&obs, "crypto.primitive.password-hash-unsalted-fast").is_empty());
 }
@@ -258,11 +304,17 @@ fn crypto_saml_signature_with_control_not_flagged() {
 
 #[test]
 fn crypto_oidc_token_verify_missing_audience_and_issuer() {
-    let ctx = Context::new().with_file("src/verify.js", "jwt.verify(token, publicKey, { algorithms: ['RS256'] });");
+    let ctx = Context::new().with_file(
+        "src/verify.js",
+        "jwt.verify(token, publicKey, { algorithms: ['RS256'] });",
+    );
     let obs = crypto_identity_protocols::analyze(&ctx);
     let hits = find(&obs, "crypto.protocol.oidc-missing-audience-issuer-check");
     assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].detector_metadata["missing"], json!(["audience", "issuer"]));
+    assert_eq!(
+        hits[0].detector_metadata["missing"],
+        json!(["audience", "issuer"])
+    );
 }
 
 #[test]
@@ -281,19 +333,28 @@ fn crypto_oidc_token_verify_with_audience_and_issuer_not_flagged() {
 
 #[test]
 fn privacy_log_sensitive_field_capped_medium_without_observed_classification() {
-    let ctx = Context::new().with_file("src/handler.js", "logger.info('login', user.email, user.token);");
+    let ctx = Context::new().with_file(
+        "src/handler.js",
+        "logger.info('login', user.email, user.token);",
+    );
     let obs = data_privacy::analyze(&ctx);
     let hits = find(&obs, "privacy.log.sensitive-data-unredacted");
     assert_eq!(hits.len(), 1);
     // baseSeverity 'high' capped to 'medium' when no observed classification exists.
     assert_eq!(hits[0].severity_hint, "medium");
-    assert_eq!(hits[0].detector_metadata["classificationObserved"], json!(false));
+    assert_eq!(
+        hits[0].detector_metadata["classificationObserved"],
+        json!(false)
+    );
 }
 
 #[test]
 fn privacy_log_sensitive_field_stays_high_with_observed_classification() {
     let ctx = Context::new()
-        .with_file("src/handler.js", "logger.info('login', user.email, user.token);")
+        .with_file(
+            "src/handler.js",
+            "logger.info('login', user.email, user.token);",
+        )
         .with_entity(Entity {
             id: "asset:1".to_string(),
             kind: "asset".to_string(),
@@ -303,12 +364,18 @@ fn privacy_log_sensitive_field_stays_high_with_observed_classification() {
     let hits = find(&obs, "privacy.log.sensitive-data-unredacted");
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].severity_hint, "high");
-    assert_eq!(hits[0].detector_metadata["classificationObserved"], json!(true));
+    assert_eq!(
+        hits[0].detector_metadata["classificationObserved"],
+        json!(true)
+    );
 }
 
 #[test]
 fn privacy_log_redacted_field_not_flagged() {
-    let ctx = Context::new().with_file("src/handler.js", "logger.info('login', redact(user.email));");
+    let ctx = Context::new().with_file(
+        "src/handler.js",
+        "logger.info('login', redact(user.email));",
+    );
     let obs = data_privacy::analyze(&ctx);
     assert!(find(&obs, "privacy.log.sensitive-data-unredacted").is_empty());
 }
@@ -339,7 +406,10 @@ fn privacy_unencrypted_pii_storage_flagged() {
 
 #[test]
 fn privacy_encrypted_pii_storage_not_flagged() {
-    let ctx = Context::new().with_file("src/user.js", "db.users.save({ email: encrypt(e), ssn: encrypt(s) });");
+    let ctx = Context::new().with_file(
+        "src/user.js",
+        "db.users.save({ email: encrypt(e), ssn: encrypt(s) });",
+    );
     let obs = data_privacy::analyze(&ctx);
     assert!(find(&obs, "privacy.store.unencrypted-pii").is_empty());
 }
@@ -363,14 +433,20 @@ fn privacy_unbounded_retention_flagged_when_pii_stored_with_no_retention_marker(
 
 #[test]
 fn privacy_retention_marker_suppresses_unbounded_retention_finding() {
-    let ctx = Context::new().with_file("src/user.js", "db.users.save({ email: e, expiresAt: ttl });");
+    let ctx = Context::new().with_file(
+        "src/user.js",
+        "db.users.save({ email: e, expiresAt: ttl });",
+    );
     let obs = data_privacy::analyze(&ctx);
     assert!(find(&obs, "privacy.retain.unbounded-retention").is_empty());
 }
 
 #[test]
 fn privacy_backup_file_with_unencrypted_pii_flagged() {
-    let ctx = Context::new().with_file("scripts/backup-users.js", "const dump = { email: user.email };");
+    let ctx = Context::new().with_file(
+        "scripts/backup-users.js",
+        "const dump = { email: user.email };",
+    );
     let obs = data_privacy::analyze(&ctx);
     assert_eq!(find(&obs, "privacy.retain.backup-unencrypted").len(), 1);
 }
@@ -382,7 +458,10 @@ fn privacy_unrestricted_export_function_flagged() {
         "function exportUsers(req, res) { const rows = db.users.find({}); }",
     );
     let obs = data_privacy::analyze(&ctx);
-    assert_eq!(find(&obs, "privacy.export.unrestricted-data-export").len(), 1);
+    assert_eq!(
+        find(&obs, "privacy.export.unrestricted-data-export").len(),
+        1
+    );
 }
 
 #[test]
@@ -429,11 +508,18 @@ fn privacy_marketing_claim_contradiction_flagged() {
 
 #[test]
 fn developer_machine_command_invocation_in_editor_config_flagged() {
-    let ctx = Context::new().with_file(".vscode/tasks.json", "child_process.exec('rm -rf /tmp/x');");
+    let ctx =
+        Context::new().with_file(".vscode/tasks.json", "child_process.exec('rm -rf /tmp/x');");
     let obs = developer_machine::analyze(&ctx);
-    let hits = find_dm(&obs, "developer-machine.local-executable.command-invocation");
+    let hits = find_dm(
+        &obs,
+        "developer-machine.local-executable.command-invocation",
+    );
     assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].detector_metadata["requiresSandboxReceipt"], json!(true));
+    assert_eq!(
+        hits[0].detector_metadata["requiresSandboxReceipt"],
+        json!(true)
+    );
     assert!(hits[0]
         .uncertainty
         .iter()
@@ -446,7 +532,10 @@ fn developer_machine_sandbox_receipt_present_changes_uncertainty_note() {
         .with_file(".vscode/tasks.json", "child_process.exec('rm -rf /tmp/x');")
         .with_sandbox_receipt(true);
     let obs = developer_machine::analyze(&ctx);
-    let hits = find_dm(&obs, "developer-machine.local-executable.command-invocation");
+    let hits = find_dm(
+        &obs,
+        "developer-machine.local-executable.command-invocation",
+    );
     assert_eq!(hits.len(), 1);
     assert!(hits[0]
         .uncertainty
@@ -458,31 +547,53 @@ fn developer_machine_sandbox_receipt_present_changes_uncertainty_note() {
 fn developer_machine_command_invocation_outside_config_dir_not_flagged() {
     let ctx = Context::new().with_file("src/build.js", "child_process.exec('build');");
     let obs = developer_machine::analyze(&ctx);
-    assert!(find_dm(&obs, "developer-machine.local-executable.command-invocation").is_empty());
+    assert!(find_dm(
+        &obs,
+        "developer-machine.local-executable.command-invocation"
+    )
+    .is_empty());
 }
 
 #[test]
 fn developer_machine_credential_store_reference_flagged_anywhere() {
-    let ctx = Context::new().with_file("src/creds.js", "const token = readFileSync('~/.aws/credentials');");
+    let ctx = Context::new().with_file(
+        "src/creds.js",
+        "const token = readFileSync('~/.aws/credentials');",
+    );
     let obs = developer_machine::analyze(&ctx);
-    assert_eq!(find_dm(&obs, "developer-machine.credential-store.access-pattern").len(), 1);
+    assert_eq!(
+        find_dm(&obs, "developer-machine.credential-store.access-pattern").len(),
+        1
+    );
 }
 
 #[test]
 fn developer_machine_mcp_config_with_command_flagged() {
-    let ctx = Context::new().with_file(".mcp.json", "{ \"mcpServers\": { \"x\": { \"command\": \"node\", \"args\": [\"server.js\"] } } }");
+    let ctx = Context::new().with_file(
+        ".mcp.json",
+        "{ \"mcpServers\": { \"x\": { \"command\": \"node\", \"args\": [\"server.js\"] } } }",
+    );
     let obs = developer_machine::analyze(&ctx);
-    assert_eq!(find_dm(&obs, "developer-machine.agent-skill-config.execution-path").len(), 1);
+    assert_eq!(
+        find_dm(&obs, "developer-machine.agent-skill-config.execution-path").len(),
+        1
+    );
 }
 
 #[test]
 fn developer_machine_sandbox_bypass_flag_flagged() {
     let ctx = Context::new().with_file(".claude/settings.json", "{ \"bypassPermissions\": true }");
     let obs = developer_machine::analyze(&ctx);
-    assert_eq!(find_dm(&obs, "developer-machine.sandbox-bypass.permission-override").len(), 1);
+    assert_eq!(
+        find_dm(&obs, "developer-machine.sandbox-bypass.permission-override").len(),
+        1
+    );
 }
 
-fn find_dm<'a>(obs: &'a [legion_audit::wf_port::wf059::common::Observation], rule_id: &str) -> Vec<&'a legion_audit::wf_port::wf059::common::Observation> {
+fn find_dm<'a>(
+    obs: &'a [legion_audit::wf_port::wf059::common::Observation],
+    rule_id: &str,
+) -> Vec<&'a legion_audit::wf_port::wf059::common::Observation> {
     obs.iter().filter(|o| o.rule_id == rule_id).collect()
 }
 
@@ -492,9 +603,15 @@ fn find_dm<'a>(obs: &'a [legion_audit::wf_port::wf059::common::Observation], rul
 
 #[test]
 fn embedded_iot_firmware_update_without_verification_flagged() {
-    let ctx = Context::new().with_file("main.c", "download_firmware_image(url); flash_image(buf, len);");
+    let ctx = Context::new().with_file(
+        "main.c",
+        "download_firmware_image(url); flash_image(buf, len);",
+    );
     let obs = embedded_iot::analyze(&ctx);
-    let hits = find(&obs, "embedded-iot.firmware.update-without-signature-verification");
+    let hits = find(
+        &obs,
+        "embedded-iot.firmware.update-without-signature-verification",
+    );
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].severity_hint, "critical");
 }
@@ -506,12 +623,19 @@ fn embedded_iot_firmware_update_with_verification_marker_suppressed() {
         "if (!verify_signature(buf)) return; download_firmware_image(url); flash_image(buf, len);",
     );
     let obs = embedded_iot::analyze(&ctx);
-    assert!(find(&obs, "embedded-iot.firmware.update-without-signature-verification").is_empty());
+    assert!(find(
+        &obs,
+        "embedded-iot.firmware.update-without-signature-verification"
+    )
+    .is_empty());
 }
 
 #[test]
 fn embedded_iot_non_firmware_file_extension_not_scanned() {
-    let ctx = Context::new().with_file("README.md", "download_firmware_image(url); flash_image(buf, len);");
+    let ctx = Context::new().with_file(
+        "README.md",
+        "download_firmware_image(url); flash_image(buf, len);",
+    );
     let obs = embedded_iot::analyze(&ctx);
     assert!(obs.is_empty());
 }
@@ -520,7 +644,10 @@ fn embedded_iot_non_firmware_file_extension_not_scanned() {
 fn embedded_iot_hardcoded_wifi_secret_flagged() {
     let ctx = Context::new().with_file("main.c", "char wifi_psk[] = \"SuperSecretPassword1\";");
     let obs = embedded_iot::analyze(&ctx);
-    assert_eq!(find(&obs, "embedded-iot.credentials.hardcoded-secret").len(), 1);
+    assert_eq!(
+        find(&obs, "embedded-iot.credentials.hardcoded-secret").len(),
+        1
+    );
 }
 
 #[test]
@@ -530,9 +657,15 @@ fn embedded_iot_shared_device_key_flagged() {
     // — no `=` between the identifier and the quote, unlike the sibling
     // hardcoded-secret rule's pattern — so `DEVICE_KEY = "..."` does not
     // match in JS either; only `DEVICE_KEY "..."` does.
-    let ctx = Context::new().with_file("main.c", "const char* DEVICE_KEY \"fleetwide-shared-secret\";");
+    let ctx = Context::new().with_file(
+        "main.c",
+        "const char* DEVICE_KEY \"fleetwide-shared-secret\";",
+    );
     let obs = embedded_iot::analyze(&ctx);
-    assert_eq!(find(&obs, "embedded-iot.identity.shared-static-device-key").len(), 1);
+    assert_eq!(
+        find(&obs, "embedded-iot.identity.shared-static-device-key").len(),
+        1
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -558,7 +691,10 @@ fn file_boundaries_path_traversal_with_lexical_normalization_downgraded_low() {
     // The sink itself doesn't reference req.query directly here, so this only
     // exercises non-detection; use a fixture where the sink DOES take the raw
     // request value but a normalization call is nearby.
-    assert!(find(&obs, "file.path-traversal-unvalidated").is_empty() || obs.iter().all(|o| o.severity_hint == "low"));
+    assert!(
+        find(&obs, "file.path-traversal-unvalidated").is_empty()
+            || obs.iter().all(|o| o.severity_hint == "low")
+    );
 
     let ctx2 = Context::new().with_file(
         "src/download.js",
@@ -593,14 +729,18 @@ fn file_boundaries_path_traversal_downgraded_by_observed_control_entity() {
 
 #[test]
 fn file_boundaries_zip_slip_flagged() {
-    let ctx = Context::new().with_file("src/extract.js", "fs.writeFileSync(path.join(dest, entry.fileName), buf);");
+    let ctx = Context::new().with_file(
+        "src/extract.js",
+        "fs.writeFileSync(path.join(dest, entry.fileName), buf);",
+    );
     let obs = file_boundaries::analyze(&ctx);
     assert_eq!(find(&obs, "file.archive-zip-slip").len(), 1);
 }
 
 #[test]
 fn file_boundaries_symlink_unchecked_flagged() {
-    let ctx = Context::new().with_file("src/extract.js", "extract(archive, { dereference: true });");
+    let ctx =
+        Context::new().with_file("src/extract.js", "extract(archive, { dereference: true });");
     let obs = file_boundaries::analyze(&ctx);
     let hits = find(&obs, "file.symlink-unchecked");
     assert_eq!(hits.len(), 1);

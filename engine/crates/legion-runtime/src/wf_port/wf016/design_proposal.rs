@@ -34,9 +34,14 @@ impl std::fmt::Display for DesignProposalError {
 }
 
 /// Faithful port of `assertApprovedTextPreserved`.
-fn assert_approved_text_preserved(packet: &Value, preserved_text_digests: &Value) -> Result<(), DesignProposalError> {
+fn assert_approved_text_preserved(
+    packet: &Value,
+    preserved_text_digests: &Value,
+) -> Result<(), DesignProposalError> {
     let approved = packet.get("approvedTextDigests").and_then(Value::as_object);
-    let Some(approved) = approved else { return Ok(()) };
+    let Some(approved) = approved else {
+        return Ok(());
+    };
     for (content_item_id, approved_digest) in approved {
         let returned = preserved_text_digests.get(content_item_id.as_str());
         if returned != Some(approved_digest) {
@@ -54,29 +59,66 @@ fn assert_approved_text_preserved(packet: &Value, preserved_text_digests: &Value
 /// `assertPathAllowed`'s full change-kind/protected-surface checks are
 /// folded into the two checks below, matching what a `designer`-owner call
 /// with `change.kind` always `'style'|'layout'|'asset'` actually exercises).
-fn reasoning_proposal_scaffold(packet: &Value, owner: &str, changes: &[Value], binding: &Value, extra: Value) -> Result<Value, DesignProposalError> {
-    let packet_owner = packet.get("owner").and_then(Value::as_str).unwrap_or_default();
+fn reasoning_proposal_scaffold(
+    packet: &Value,
+    owner: &str,
+    changes: &[Value],
+    binding: &Value,
+    extra: Value,
+) -> Result<Value, DesignProposalError> {
+    let packet_owner = packet
+        .get("owner")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if packet_owner != owner {
-        return Err(DesignProposalError(format!("packet owner {packet_owner} cannot produce a {owner} proposal")));
+        return Err(DesignProposalError(format!(
+            "packet owner {packet_owner} cannot produce a {owner} proposal"
+        )));
     }
     if changes.is_empty() {
-        return Err(DesignProposalError("a proposal requires at least one change".to_string()));
+        return Err(DesignProposalError(
+            "a proposal requires at least one change".to_string(),
+        ));
     }
-    let scope: Vec<String> = packet.get("scope").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
+    let scope: Vec<String> = packet
+        .get("scope")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default();
     let protected_surfaces: Vec<String> = packet
         .get("protectedSurfaces")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
         .unwrap_or_default();
     let mut target_paths: Vec<String> = Vec::new();
     for change in changes {
-        let path = change.get("path").and_then(Value::as_str).unwrap_or_default();
-        if protected_surfaces.iter().any(|pattern| matches_glob(pattern, path)) {
-            return Err(DesignProposalError(format!("{path} is a protected surface in this packet")));
+        let path = change
+            .get("path")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if protected_surfaces
+            .iter()
+            .any(|pattern| matches_glob(pattern, path))
+        {
+            return Err(DesignProposalError(format!(
+                "{path} is a protected surface in this packet"
+            )));
         }
-        let allowed = scope.iter().any(|pattern| pattern == path || matches_glob(pattern, path));
+        let allowed = scope
+            .iter()
+            .any(|pattern| pattern == path || matches_glob(pattern, path));
         if !allowed {
-            return Err(DesignProposalError(format!("{path} is outside the packet scope")));
+            return Err(DesignProposalError(format!(
+                "{path} is outside the packet scope"
+            )));
         }
         if !target_paths.iter().any(|p| p == path) {
             target_paths.push(path.to_string());
@@ -114,7 +156,9 @@ fn reasoning_proposal_scaffold(packet: &Value, owner: &str, changes: &[Value], b
         }
     }
     let id = digest_of("remediation-proposal", &body);
-    body.as_object_mut().unwrap().insert("id".to_string(), Value::String(id));
+    body.as_object_mut()
+        .unwrap()
+        .insert("id".to_string(), Value::String(id));
     Ok(body)
 }
 
@@ -131,14 +175,24 @@ pub struct DesignProposalInput {
 /// Faithful port of `designProposal`.
 pub fn design_proposal(input: DesignProposalInput) -> Result<Value, DesignProposalError> {
     assert_approved_text_preserved(&input.packet, &input.preserved_text_digests)?;
-    let preserved: Value = if let Value::Object(m) = &input.preserved_text_digests { Value::Object(m.clone()) } else { json!({}) };
+    let preserved: Value = if let Value::Object(m) = &input.preserved_text_digests {
+        Value::Object(m.clone())
+    } else {
+        json!({})
+    };
     let extra = json!({
         "expectedBehavior": ["the named surfaces render as proposed with approved text intact"],
         "affectedFamilies": ["design", "ux", "visual"],
         "validationPlan": ["affected-provider-rerun:visual", "affected-provider-rerun:ux", "approved-text-digest-recheck"],
         "preservedTextDigests": preserved,
     });
-    reasoning_proposal_scaffold(&input.packet, "designer", &input.changes, &input.binding, extra)
+    reasoning_proposal_scaffold(
+        &input.packet,
+        "designer",
+        &input.changes,
+        &input.binding,
+        extra,
+    )
 }
 
 #[cfg(test)]
@@ -182,8 +236,14 @@ mod tests {
         assert_eq!(proposal["owner"], json!("designer"));
         assert_eq!(proposal["tier"], json!("DESIGN"));
         assert_eq!(proposal["targetPaths"], json!(["src/ui/Hero.css"]));
-        assert_eq!(proposal["affectedFamilies"], json!(["design", "ux", "visual"]));
-        assert_eq!(proposal["preservedTextDigests"], json!({ "hero-copy": "sha256:approved" }));
+        assert_eq!(
+            proposal["affectedFamilies"],
+            json!(["design", "ux", "visual"])
+        );
+        assert_eq!(
+            proposal["preservedTextDigests"],
+            json!({ "hero-copy": "sha256:approved" })
+        );
         assert!(proposal["id"].as_str().unwrap().starts_with("sha256:"));
     }
 

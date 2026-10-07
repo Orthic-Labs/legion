@@ -10,10 +10,7 @@
 
 use serde_json::{json, Value};
 
-const PACKET_SCHEMAS: [&str; 2] = [
-    "membrane.context-packet.v1",
-    "membrane.blueprint-packet.v1",
-];
+const PACKET_SCHEMAS: [&str; 2] = ["membrane.context-packet.v1", "membrane.blueprint-packet.v1"];
 
 fn unavailable(reason: &str) -> Value {
     json!({
@@ -55,7 +52,10 @@ pub trait MembraneTransport {
 }
 
 /// Port of `requestMembraneContext({ transport, request })`.
-pub fn request_membrane_context(transport: Option<&dyn MembraneTransport>, request: &Value) -> Value {
+pub fn request_membrane_context(
+    transport: Option<&dyn MembraneTransport>,
+    request: &Value,
+) -> Value {
     let Some(transport) = transport else {
         return unavailable("membrane-transport-unavailable");
     };
@@ -115,7 +115,9 @@ mod tests {
     #[test]
     fn validates_known_schemas() {
         assert!(validate_context_packet(&json!({"schema": "membrane.context-packet.v1"})).is_ok());
-        assert!(validate_context_packet(&json!({"schema": "membrane.blueprint-packet.v1"})).is_ok());
+        assert!(
+            validate_context_packet(&json!({"schema": "membrane.blueprint-packet.v1"})).is_ok()
+        );
     }
 
     #[test]
@@ -162,7 +164,9 @@ mod tests {
     #[test]
     fn request_returns_valid_packet() {
         let packet = json!({"schema": "membrane.context-packet.v1", "data": true});
-        let transport = FakeTransport { result: Ok(packet.clone()) };
+        let transport = FakeTransport {
+            result: Ok(packet.clone()),
+        };
         let result = request_membrane_context(Some(&transport), &json!({}));
         assert_eq!(result, packet);
     }

@@ -58,7 +58,10 @@ fn parses_title_and_schema_version() {
 fn parses_overview_north_star_and_key_characteristics() {
     let model = parse_design_md(SAMPLE);
     let overview = model.overview.expect("overview present");
-    assert_eq!(overview.creative_north_star.as_deref(), Some("Calm confidence"));
+    assert_eq!(
+        overview.creative_north_star.as_deref(),
+        Some("Calm confidence")
+    );
     assert_eq!(overview.key_characteristics, vec!["Warm", "Precise"]);
     assert!(!overview.philosophy.is_empty());
 }
@@ -83,8 +86,14 @@ fn parses_typography_fonts_and_character() {
     // The legacy regex captures everything inside `(with ...)` verbatim
     // (`fm[3] = ([^)]+)` in design-parser.mjs), including the literal word
     // "fallback" from the source text — it does not strip it.
-    assert_eq!(typography.fonts["display"].fallback.as_deref(), Some("system-ui fallback"));
-    assert_eq!(typography.character.as_deref(), Some("Confident and modern, never loud."));
+    assert_eq!(
+        typography.fonts["display"].fallback.as_deref(),
+        Some("system-ui fallback")
+    );
+    assert_eq!(
+        typography.character.as_deref(),
+        Some("Confident and modern, never loud.")
+    );
     // The legacy `parseTypeBullet` regex is `^\*\*(.+?)\*\*\s*\(([^)]+)\):\s*(.*)$`:
     // `[^)]+` cannot span the nested `clamp(2rem, 4vw, 4rem)` in the sample
     // bullet, so the JS match fails and the bullet is dropped (verified against
@@ -153,7 +162,11 @@ fn coverage_counts_reflect_parsed_model() {
     let model = parse_design_md(SAMPLE);
     let coverage = assess_coverage(&model);
     match coverage.colors {
-        Some(SectionCoverage::Colors { total_colors, rules, .. }) => {
+        Some(SectionCoverage::Colors {
+            total_colors,
+            rules,
+            ..
+        }) => {
             assert_eq!(total_colors, 2);
             assert_eq!(rules, 1);
         }
@@ -173,7 +186,16 @@ fn frontmatter_is_parsed_when_present() {
     let md = "---\ntitle: \"Stitch Spec\"\ncolor:\n  primary: \"#00478d\"\n---\n\n# Title\n\n## Overview\nSome text.\n";
     let model = parse_design_md(md);
     let fm = model.frontmatter.expect("frontmatter present");
-    assert_eq!(fm.get("title").and_then(|v| v.as_str()), Some("Stitch Spec"));
-    let color = fm.get("color").and_then(|v| v.as_map()).expect("nested map");
-    assert_eq!(color.get("primary").and_then(|v| v.as_str()), Some("#00478d"));
+    assert_eq!(
+        fm.get("title").and_then(|v| v.as_str()),
+        Some("Stitch Spec")
+    );
+    let color = fm
+        .get("color")
+        .and_then(|v| v.as_map())
+        .expect("nested map");
+    assert_eq!(
+        color.get("primary").and_then(|v| v.as_str()),
+        Some("#00478d")
+    );
 }

@@ -364,10 +364,7 @@ impl ProcessRunner for RealProcessRunner {
                 .into(),
             bytes: json.get("bytes").and_then(|v| v.as_u64()).unwrap_or(0),
             duration: json.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            text_chars: json
-                .get("text_chars")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize,
+            text_chars: json.get("text_chars").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
         })
     }
 
@@ -463,13 +460,18 @@ pub struct PipelineOutcome {
 
 /// Mirrors `main()`'s orchestration, given already-parsed, validated
 /// `--script`/`--out-dir` paths and a [`ProcessRunner`].
-pub fn run(script_path: &Path, out_dir: &Path, runner: &dyn ProcessRunner) -> Result<PipelineOutcome, PipelineError> {
+pub fn run(
+    script_path: &Path,
+    out_dir: &Path,
+    runner: &dyn ProcessRunner,
+) -> Result<PipelineOutcome, PipelineError> {
     let audio_dir = out_dir.join("audio");
     let tmp_dir = out_dir.join(".tmp");
     std::fs::create_dir_all(&audio_dir).map_err(|e| PipelineError::Failed(e.to_string()))?;
     std::fs::create_dir_all(&tmp_dir).map_err(|e| PipelineError::Failed(e.to_string()))?;
 
-    let md = std::fs::read_to_string(script_path).map_err(|e| PipelineError::Failed(e.to_string()))?;
+    let md =
+        std::fs::read_to_string(script_path).map_err(|e| PipelineError::Failed(e.to_string()))?;
     let ParsedScript { meta, scenes } = parse_script(&md);
     if scenes.is_empty() {
         return Err(PipelineError::NoScenes);
@@ -564,7 +566,11 @@ pub fn run(script_path: &Path, out_dir: &Path, runner: &dyn ProcessRunner) -> Re
                 absolute_end: cursor + scene_internal_cursor,
             });
             let preview: String = chunk.text.chars().take(30).collect();
-            let ellipsis = if chunk.text.chars().count() > 30 { "…" } else { "" };
+            let ellipsis = if chunk.text.chars().count() > 30 {
+                "…"
+            } else {
+                ""
+            };
             log_lines.push(format!(
                 "  chunk {}: {:.2}s · {} 字 · {}{}",
                 j,
@@ -580,7 +586,8 @@ pub fn run(script_path: &Path, out_dir: &Path, runner: &dyn ProcessRunner) -> Re
 
         let scene_audio = audio_dir.join(format!("{}.mp3", scene.id));
         if chunk_files.len() == 1 {
-            std::fs::copy(&chunk_files[0], &scene_audio).map_err(|e| PipelineError::Failed(e.to_string()))?;
+            std::fs::copy(&chunk_files[0], &scene_audio)
+                .map_err(|e| PipelineError::Failed(e.to_string()))?;
         } else {
             runner
                 .ffmpeg_concat(&chunk_files, &scene_audio)
@@ -631,9 +638,10 @@ pub fn run(script_path: &Path, out_dir: &Path, runner: &dyn ProcessRunner) -> Re
     timeline.voiceover = Some("voiceover.mp3".to_string());
 
     let timeline_path = out_dir.join("timeline.json");
-    let timeline_json =
-        serde_json::to_string_pretty(&timeline).map_err(|e| PipelineError::Failed(e.to_string()))?;
-    std::fs::write(&timeline_path, timeline_json).map_err(|e| PipelineError::Failed(e.to_string()))?;
+    let timeline_json = serde_json::to_string_pretty(&timeline)
+        .map_err(|e| PipelineError::Failed(e.to_string()))?;
+    std::fs::write(&timeline_path, timeline_json)
+        .map_err(|e| PipelineError::Failed(e.to_string()))?;
 
     std::fs::remove_dir_all(&tmp_dir).ok();
 
@@ -742,7 +750,10 @@ mod tests {
         assert_eq!(parsed.scenes.len(), 2);
         assert_eq!(parsed.scenes[0].id, "intro");
         assert_eq!(parsed.scenes[0].raw, "大家好。");
-        assert_eq!(parsed.scenes[1].raw, "LLM 全称，[[cue:bigmodel]]它是一个网络。");
+        assert_eq!(
+            parsed.scenes[1].raw,
+            "LLM 全称，[[cue:bigmodel]]它是一个网络。"
+        );
     }
 
     #[test]
@@ -756,9 +767,18 @@ mod tests {
         assert_eq!(
             chunks,
             vec![
-                Chunk { text: "A".into(), cue_after: Some("x".into()) },
-                Chunk { text: "B".into(), cue_after: Some("y".into()) },
-                Chunk { text: "C".into(), cue_after: None },
+                Chunk {
+                    text: "A".into(),
+                    cue_after: Some("x".into())
+                },
+                Chunk {
+                    text: "B".into(),
+                    cue_after: Some("y".into())
+                },
+                Chunk {
+                    text: "C".into(),
+                    cue_after: None
+                },
             ]
         );
     }
@@ -769,8 +789,14 @@ mod tests {
         assert_eq!(
             chunks,
             vec![
-                Chunk { text: "".into(), cue_after: Some("x".into()) },
-                Chunk { text: "".into(), cue_after: Some("y".into()) },
+                Chunk {
+                    text: "".into(),
+                    cue_after: Some("x".into())
+                },
+                Chunk {
+                    text: "".into(),
+                    cue_after: Some("y".into())
+                },
             ]
         );
     }
@@ -820,7 +846,9 @@ mod tests {
             ));
             std::fs::write(out_path, b"fake-mp3").map_err(|e| e.to_string())?;
             let duration = 1.5;
-            self.durations.borrow_mut().insert(out_path.to_path_buf(), duration);
+            self.durations
+                .borrow_mut()
+                .insert(out_path.to_path_buf(), duration);
             Ok(TtsCallResult {
                 path: out_path.to_path_buf(),
                 bytes: 8,
@@ -844,13 +872,17 @@ mod tests {
                 .map(|p| self.durations.borrow().get(p).copied().unwrap_or(0.3))
                 .sum();
             std::fs::write(output, b"concat").map_err(|e| e.to_string())?;
-            self.durations.borrow_mut().insert(output.to_path_buf(), total);
+            self.durations
+                .borrow_mut()
+                .insert(output.to_path_buf(), total);
             Ok(())
         }
 
         fn make_silence(&self, duration: f64, out_path: &Path) -> Result<(), String> {
             std::fs::write(out_path, b"silence").map_err(|e| e.to_string())?;
-            self.durations.borrow_mut().insert(out_path.to_path_buf(), duration);
+            self.durations
+                .borrow_mut()
+                .insert(out_path.to_path_buf(), duration);
             Ok(())
         }
     }
@@ -882,10 +914,14 @@ mod tests {
         assert_eq!(outcome.timeline.voiceover.as_deref(), Some("voiceover.mp3"));
         assert!(outcome.voiceover_path.exists());
         assert!(outcome.timeline_path.exists());
-        assert!(!out_dir.join(".tmp").exists(), "tmp dir should be cleaned up");
+        assert!(
+            !out_dir.join(".tmp").exists(),
+            "tmp dir should be cleaned up"
+        );
 
         let saved: Timeline =
-            serde_json::from_str(&std::fs::read_to_string(&outcome.timeline_path).unwrap()).unwrap();
+            serde_json::from_str(&std::fs::read_to_string(&outcome.timeline_path).unwrap())
+                .unwrap();
         assert_eq!(saved, outcome.timeline);
 
         std::fs::remove_dir_all(&tmp).ok();

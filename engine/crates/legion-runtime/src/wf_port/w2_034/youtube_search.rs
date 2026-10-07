@@ -22,12 +22,19 @@ use serde::Serialize;
 use serde_json::Value;
 
 fn get_str(v: &Value, key: &str) -> String {
-    v.get(key).and_then(|x| x.as_str()).unwrap_or("").to_string()
+    v.get(key)
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 fn get_u64(v: &Value, key: &str) -> u64 {
     v.get(key)
-        .and_then(|x| x.as_str().and_then(|s| s.parse().ok()).or_else(|| x.as_u64()))
+        .and_then(|x| {
+            x.as_str()
+                .and_then(|s| s.parse().ok())
+                .or_else(|| x.as_u64())
+        })
         .unwrap_or(0)
 }
 
@@ -76,7 +83,11 @@ pub fn video_stats_from_item(item: &Value) -> VideoStats {
 /// `items[]` snippet and its matched `VideoStats` (or `None` when the batched
 /// statistics call returned nothing for that id, matching `stats_map.get(vid, {})`
 /// defaulting every field to its zero value).
-pub fn shape_search_video(video_id: &str, snippet: &Value, stats: Option<&VideoStats>) -> SearchVideo {
+pub fn shape_search_video(
+    video_id: &str,
+    snippet: &Value,
+    stats: Option<&VideoStats>,
+) -> SearchVideo {
     let default_stats = VideoStats::default();
     let stats = stats.unwrap_or(&default_stats);
     let description = get_str(snippet, "description");
@@ -118,7 +129,8 @@ pub fn classify_search_error(raw_error: &str) -> String {
 
 /// Port of the `"No API key..."` short-circuit in every function when
 /// `_build_youtube_service` returns `None` (no configured key).
-pub const NO_API_KEY_ERROR_SEARCH: &str = "No API key. Set GOOGLE_API_KEY or add 'api_key' to config.";
+pub const NO_API_KEY_ERROR_SEARCH: &str =
+    "No API key. Set GOOGLE_API_KEY or add 'api_key' to config.";
 pub const NO_API_KEY_ERROR_OTHER: &str = "No API key configured.";
 
 /// Shaped video details, matching `get_video_details()`'s `result["details"]` dict.
@@ -153,12 +165,20 @@ pub fn shape_video_details(video_id: &str, item: &Value) -> VideoDetails {
     let tags = snip
         .get("tags")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     let topic_categories = topics
         .get("topicCategories")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
 
     VideoDetails {
@@ -173,7 +193,11 @@ pub fn shape_video_details(video_id: &str, item: &Value) -> VideoDetails {
         definition: get_str(&content, "definition"),
         caption: {
             let c = get_str(&content, "caption");
-            if c.is_empty() { "false".to_string() } else { c }
+            if c.is_empty() {
+                "false".to_string()
+            } else {
+                c
+            }
         },
         views: get_u64(&stats, "viewCount"),
         likes: get_u64(&stats, "likeCount"),
@@ -346,7 +370,10 @@ impl YouTubeApi for ReqwestYouTubeApi {
     }
 
     fn videos_list(&self, ids: &[String], parts: &str) -> Result<Value, String> {
-        self.get("videos", &[("id", ids.join(",")), ("part", parts.to_string())])
+        self.get(
+            "videos",
+            &[("id", ids.join(",")), ("part", parts.to_string())],
+        )
     }
 
     fn channels_list(&self, channel_id: &str) -> Result<Value, String> {
@@ -390,8 +417,18 @@ pub struct SearchResult {
 /// Port of `search_videos(query, max_results, order, api_key)`. `api`
 /// mirrors `_build_youtube_service(api_key)` returning `None` when
 /// `api is None` (no configured key).
-pub fn search_videos(api: Option<&dyn YouTubeApi>, query: &str, max_results: i64, order: &str) -> SearchResult {
-    let mut result = SearchResult { query: query.to_string(), videos: Vec::new(), total_results: 0, error: None };
+pub fn search_videos(
+    api: Option<&dyn YouTubeApi>,
+    query: &str,
+    max_results: i64,
+    order: &str,
+) -> SearchResult {
+    let mut result = SearchResult {
+        query: query.to_string(),
+        videos: Vec::new(),
+        total_results: 0,
+        error: None,
+    };
     let api = match api {
         Some(api) => api,
         None => {
@@ -412,13 +449,24 @@ pub fn search_videos(api: Option<&dyn YouTubeApi>, query: &str, max_results: i64
         .and_then(Value::as_u64)
         .unwrap_or(0);
 
-    let items = response.get("items").and_then(Value::as_array).cloned().unwrap_or_default();
+    let items = response
+        .get("items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut video_ids: Vec<String> = Vec::new();
     let mut snippets: std::collections::HashMap<String, Value> = std::collections::HashMap::new();
     for item in &items {
-        if let Some(vid) = item.get("id").and_then(|i| i.get("videoId")).and_then(Value::as_str) {
+        if let Some(vid) = item
+            .get("id")
+            .and_then(|i| i.get("videoId"))
+            .and_then(Value::as_str)
+        {
             video_ids.push(vid.to_string());
-            snippets.insert(vid.to_string(), item.get("snippet").cloned().unwrap_or(Value::Null));
+            snippets.insert(
+                vid.to_string(),
+                item.get("snippet").cloned().unwrap_or(Value::Null),
+            );
         }
     }
     if video_ids.is_empty() {
@@ -431,8 +479,14 @@ pub fn search_videos(api: Option<&dyn YouTubeApi>, query: &str, max_results: i64
             return result;
         }
     };
-    let mut stats_map: std::collections::HashMap<String, VideoStats> = std::collections::HashMap::new();
-    for item in stats_response.get("items").and_then(Value::as_array).cloned().unwrap_or_default() {
+    let mut stats_map: std::collections::HashMap<String, VideoStats> =
+        std::collections::HashMap::new();
+    for item in stats_response
+        .get("items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
         if let Some(id) = item.get("id").and_then(Value::as_str) {
             stats_map.insert(id.to_string(), video_stats_from_item(&item));
         }
@@ -440,7 +494,9 @@ pub fn search_videos(api: Option<&dyn YouTubeApi>, query: &str, max_results: i64
     for vid in &video_ids {
         let empty = Value::Null;
         let snippet = snippets.get(vid).unwrap_or(&empty);
-        result.videos.push(shape_search_video(vid, snippet, stats_map.get(vid)));
+        result
+            .videos
+            .push(shape_search_video(vid, snippet, stats_map.get(vid)));
     }
     result
 }
@@ -456,7 +512,12 @@ pub struct VideoDetailsResult {
 
 /// Port of `get_video_details(video_id, api_key)`.
 pub fn get_video_details(api: Option<&dyn YouTubeApi>, video_id: &str) -> VideoDetailsResult {
-    let mut result = VideoDetailsResult { video_id: video_id.to_string(), details: None, comments: Vec::new(), error: None };
+    let mut result = VideoDetailsResult {
+        video_id: video_id.to_string(),
+        details: None,
+        comments: Vec::new(),
+        error: None,
+    };
     let api = match api {
         Some(api) => api,
         None => {
@@ -464,14 +525,21 @@ pub fn get_video_details(api: Option<&dyn YouTubeApi>, video_id: &str) -> VideoD
             return result;
         }
     };
-    let response = match api.videos_list(&[video_id.to_string()], "snippet,statistics,contentDetails,topicDetails") {
+    let response = match api.videos_list(
+        &[video_id.to_string()],
+        "snippet,statistics,contentDetails,topicDetails",
+    ) {
         Ok(response) => response,
         Err(e) => {
             result.error = Some(format!("YouTube API error: {e}"));
             return result;
         }
     };
-    let items = response.get("items").and_then(Value::as_array).cloned().unwrap_or_default();
+    let items = response
+        .get("items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let Some(item) = items.first() else {
         result.error = Some(format!("Video not found: {video_id}"));
         return result;
@@ -480,7 +548,11 @@ pub fn get_video_details(api: Option<&dyn YouTubeApi>, video_id: &str) -> VideoD
     // `except Exception: pass` — comments are best-effort in Python; a
     // failed comments call never touches `result.error`.
     if let Ok(comments_response) = api.comment_threads_list(video_id) {
-        let threads = comments_response.get("items").and_then(Value::as_array).cloned().unwrap_or_default();
+        let threads = comments_response
+            .get("items")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         for thread in threads.iter().take(10) {
             result.comments.push(shape_comment(thread));
         }
@@ -498,7 +570,11 @@ pub struct ChannelResult {
 
 /// Port of `get_channel_info(channel_id, api_key)`.
 pub fn get_channel_info(api: Option<&dyn YouTubeApi>, channel_id: &str) -> ChannelResult {
-    let mut result = ChannelResult { channel_id: channel_id.to_string(), channel: None, error: None };
+    let mut result = ChannelResult {
+        channel_id: channel_id.to_string(),
+        channel: None,
+        error: None,
+    };
     let api = match api {
         Some(api) => api,
         None => {
@@ -513,7 +589,11 @@ pub fn get_channel_info(api: Option<&dyn YouTubeApi>, channel_id: &str) -> Chann
             return result;
         }
     };
-    let items = response.get("items").and_then(Value::as_array).cloned().unwrap_or_default();
+    let items = response
+        .get("items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let Some(item) = items.first() else {
         result.error = Some(format!("Channel not found: {channel_id}"));
         return result;
@@ -593,12 +673,25 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, CliParseError> {
         }
         i += 1;
     }
-    let command = positionals.first().cloned().ok_or(CliParseError::MissingQuery)?;
+    let command = positionals
+        .first()
+        .cloned()
+        .ok_or(CliParseError::MissingQuery)?;
     if !["search", "video", "channel"].contains(&command.as_str()) {
         return Err(CliParseError::UnknownCommand(command));
     }
-    let query = positionals.get(1).cloned().ok_or(CliParseError::MissingQuery)?;
-    Ok(CliArgs { command, query, limit, order, api_key, json })
+    let query = positionals
+        .get(1)
+        .cloned()
+        .ok_or(CliParseError::MissingQuery)?;
+    Ok(CliArgs {
+        command,
+        query,
+        limit,
+        order,
+        api_key,
+        json,
+    })
 }
 
 /// Outcome of a CLI run, mirroring `main()`'s `print(...)`/`sys.exit(...)`
@@ -614,19 +707,30 @@ fn format_search_text(result: &SearchResult) -> String {
     out.push_str(&format!("Results: {}\n", result.total_results));
     for (i, v) in result.videos.iter().enumerate() {
         out.push_str(&format!("\n  {}. {}\n", i + 1, v.title));
-        out.push_str(&format!("     {} | {} views | {} likes | {}\n", v.channel, v.views, v.likes, v.duration));
+        out.push_str(&format!(
+            "     {} | {} views | {} likes | {}\n",
+            v.channel, v.views, v.likes, v.duration
+        ));
         out.push_str(&format!("     {}\n", v.url));
     }
     out
 }
 
 fn format_video_text(result: &VideoDetailsResult) -> String {
-    let Some(d) = &result.details else { return String::new() };
+    let Some(d) = &result.details else {
+        return String::new();
+    };
     let mut out = format!("=== {} ===\n", d.title);
     out.push_str(&format!("Channel: {}\n", d.channel));
-    out.push_str(&format!("Views: {} | Likes: {} | Comments: {}\n", d.views, d.likes, d.comments_count));
+    out.push_str(&format!(
+        "Views: {} | Likes: {} | Comments: {}\n",
+        d.views, d.likes, d.comments_count
+    ));
     let published_date: String = d.published.chars().take(10).collect();
-    out.push_str(&format!("Published: {} | Duration: {}\n", published_date, d.duration));
+    out.push_str(&format!(
+        "Published: {} | Duration: {}\n",
+        published_date, d.duration
+    ));
     if !d.tags.is_empty() {
         let shown: Vec<&str> = d.tags.iter().take(10).map(String::as_str).collect();
         out.push_str(&format!("Tags: {}\n", shown.join(", ")));
@@ -642,9 +746,14 @@ fn format_video_text(result: &VideoDetailsResult) -> String {
 }
 
 fn format_channel_text(result: &ChannelResult) -> String {
-    let Some(c) = &result.channel else { return String::new() };
+    let Some(c) = &result.channel else {
+        return String::new();
+    };
     let mut out = format!("=== {} ===\n", c.title);
-    out.push_str(&format!("Subscribers: {} | Videos: {} | Views: {}\n", c.subscribers, c.videos, c.views));
+    out.push_str(&format!(
+        "Subscribers: {} | Videos: {} | Views: {}\n",
+        c.subscribers, c.videos, c.views
+    ));
     out
 }
 
@@ -652,11 +761,19 @@ fn format_channel_text(result: &ChannelResult) -> String {
 /// (`load_config().api_key`); `client_for_key` builds the real
 /// [`ReqwestYouTubeApi`] for a resolved key — injected so tests never make
 /// a real HTTP call.
-pub fn run(args: &[String], env_api_key: Option<String>, client_for_key: impl FnOnce(String) -> Box<dyn YouTubeApi>) -> CliOutcome {
+pub fn run(
+    args: &[String],
+    env_api_key: Option<String>,
+    client_for_key: impl FnOnce(String) -> Box<dyn YouTubeApi>,
+) -> CliOutcome {
     let parsed = match parse_cli_args(args) {
         Ok(parsed) => parsed,
         Err(e) => {
-            return CliOutcome { exit_code: 2, stdout: String::new(), stderr: format!("{e}\n") };
+            return CliOutcome {
+                exit_code: 2,
+                stdout: String::new(),
+                stderr: format!("{e}\n"),
+            };
         }
     };
     let resolved_key = parsed.api_key.clone().or(env_api_key);
@@ -713,7 +830,11 @@ pub fn run(args: &[String], env_api_key: Option<String>, client_for_key: impl Fn
         _ => unreachable!("validated by parse_cli_args"),
     }
 
-    CliOutcome { exit_code, stdout, stderr }
+    CliOutcome {
+        exit_code,
+        stdout,
+        stderr,
+    }
 }
 
 #[cfg(test)]
@@ -738,7 +859,9 @@ mod network_and_cli_tests {
             self.channels.clone().unwrap()
         }
         fn comment_threads_list(&self, _id: &str) -> Result<Value, String> {
-            self.comments.clone().unwrap_or_else(|| Ok(json!({"items": []})))
+            self.comments
+                .clone()
+                .unwrap_or_else(|| Ok(json!({"items": []})))
         }
     }
 
@@ -756,7 +879,9 @@ mod network_and_cli_tests {
                 "pageInfo": {"totalResults": 42},
                 "items": [{"id": {"videoId": "abc"}, "snippet": {"title": "T", "channelTitle": "C"}}]
             }))),
-            videos: Some(Ok(json!({"items": [{"id": "abc", "statistics": {"viewCount": "5"}, "contentDetails": {"duration": "PT1M"}}]}))),
+            videos: Some(Ok(
+                json!({"items": [{"id": "abc", "statistics": {"viewCount": "5"}, "contentDetails": {"duration": "PT1M"}}]}),
+            )),
             channels: None,
             comments: None,
         };
@@ -769,14 +894,27 @@ mod network_and_cli_tests {
 
     #[test]
     fn search_videos_classifies_403_error() {
-        let api = FakeApi { search: Some(Err("403 Forbidden".to_string())), videos: None, channels: None, comments: None };
+        let api = FakeApi {
+            search: Some(Err("403 Forbidden".to_string())),
+            videos: None,
+            channels: None,
+            comments: None,
+        };
         let result = search_videos(Some(&api), "q", 10, "relevance");
-        assert!(result.error.unwrap().starts_with("YouTube Data API access denied"));
+        assert!(result
+            .error
+            .unwrap()
+            .starts_with("YouTube Data API access denied"));
     }
 
     #[test]
     fn get_video_details_not_found() {
-        let api = FakeApi { search: None, videos: Some(Ok(json!({"items": []}))), channels: None, comments: None };
+        let api = FakeApi {
+            search: None,
+            videos: Some(Ok(json!({"items": []}))),
+            channels: None,
+            comments: None,
+        };
         let result = get_video_details(Some(&api), "missing");
         assert_eq!(result.error, Some("Video not found: missing".to_string()));
         assert!(result.details.is_none());
@@ -786,9 +924,13 @@ mod network_and_cli_tests {
     fn get_video_details_happy_path_includes_comments() {
         let api = FakeApi {
             search: None,
-            videos: Some(Ok(json!({"items": [{"snippet": {"title": "T"}, "statistics": {"viewCount": "1"}, "contentDetails": {"duration": "PT1M"}}]}))),
+            videos: Some(Ok(
+                json!({"items": [{"snippet": {"title": "T"}, "statistics": {"viewCount": "1"}, "contentDetails": {"duration": "PT1M"}}]}),
+            )),
             channels: None,
-            comments: Some(Ok(json!({"items": [{"snippet": {"topLevelComment": {"snippet": {"authorDisplayName": "A", "textDisplay": "hi", "likeCount": 2}}}}]}))),
+            comments: Some(Ok(
+                json!({"items": [{"snippet": {"topLevelComment": {"snippet": {"authorDisplayName": "A", "textDisplay": "hi", "likeCount": 2}}}}]}),
+            )),
         };
         let result = get_video_details(Some(&api), "abc");
         assert!(result.error.is_none());
@@ -798,7 +940,12 @@ mod network_and_cli_tests {
 
     #[test]
     fn get_channel_info_not_found() {
-        let api = FakeApi { search: None, videos: None, channels: Some(Ok(json!({"items": []}))), comments: None };
+        let api = FakeApi {
+            search: None,
+            videos: None,
+            channels: Some(Ok(json!({"items": []}))),
+            comments: None,
+        };
         let result = get_channel_info(Some(&api), "missing");
         assert_eq!(result.error, Some("Channel not found: missing".to_string()));
     }
@@ -806,7 +953,10 @@ mod network_and_cli_tests {
     #[test]
     fn parse_cli_args_rejects_unknown_command() {
         let args: Vec<String> = ["bogus", "q"].iter().map(|s| s.to_string()).collect();
-        assert!(matches!(parse_cli_args(&args), Err(CliParseError::UnknownCommand(_))));
+        assert!(matches!(
+            parse_cli_args(&args),
+            Err(CliParseError::UnknownCommand(_))
+        ));
     }
 
     #[test]
@@ -829,15 +979,26 @@ mod network_and_cli_tests {
 
     #[test]
     fn parse_cli_args_rejects_unknown_order() {
-        let args: Vec<String> = ["search", "q", "--order", "bogus"].iter().map(|s| s.to_string()).collect();
-        assert!(matches!(parse_cli_args(&args), Err(CliParseError::UnknownOrder(_))));
+        let args: Vec<String> = ["search", "q", "--order", "bogus"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert!(matches!(
+            parse_cli_args(&args),
+            Err(CliParseError::UnknownOrder(_))
+        ));
     }
 
     #[test]
     fn run_reports_missing_api_key_and_exits_nonzero_in_text_mode() {
         let args: Vec<String> = ["search", "q"].iter().map(|s| s.to_string()).collect();
         let outcome = run(&args, None, |_key| {
-            Box::new(FakeApi { search: Some(Ok(json!({}))), videos: None, channels: None, comments: None })
+            Box::new(FakeApi {
+                search: Some(Ok(json!({}))),
+                videos: None,
+                channels: None,
+                comments: None,
+            })
         });
         assert_eq!(outcome.exit_code, 1);
         assert!(outcome.stderr.contains("No API key"));
@@ -859,7 +1020,10 @@ mod network_and_cli_tests {
             })
         });
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stdout.contains("\"totalResults\"") || outcome.stdout.contains("\"total_results\""));
+        assert!(
+            outcome.stdout.contains("\"totalResults\"")
+                || outcome.stdout.contains("\"total_results\"")
+        );
     }
 }
 
@@ -878,7 +1042,12 @@ mod tests {
             "description": "x".repeat(400),
             "thumbnails": {"high": {"url": "https://img.example/high.jpg"}}
         });
-        let stats = VideoStats { views: 1000, likes: 50, comments: 3, duration: "PT5M".to_string() };
+        let stats = VideoStats {
+            views: 1000,
+            likes: 50,
+            comments: 3,
+            duration: "PT5M".to_string(),
+        };
         let shaped = shape_search_video("abc123", &snippet, Some(&stats));
         assert_eq!(shaped.video_id, "abc123");
         assert_eq!(shaped.description.chars().count(), 300);

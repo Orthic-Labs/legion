@@ -1,22 +1,46 @@
 use serde_json::{json, Value};
-use std::{fs, io::Write, path::PathBuf, process::{Command, Stdio}, sync::atomic::{AtomicU64, Ordering}, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    fs,
+    io::Write,
+    path::PathBuf,
+    process::{Command, Stdio},
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 fn fixture() -> PathBuf {
     // Parallel tests can observe the same clock tick on macOS.
     static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
-    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let sequence = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
-    let root = std::env::temp_dir().join(format!("legion-codex-stop-{}-{nonce}-{sequence}", std::process::id()));
+    let root = std::env::temp_dir().join(format!(
+        "legion-codex-stop-{}-{nonce}-{sequence}",
+        std::process::id()
+    ));
     fs::create_dir(&root).unwrap();
     root
 }
 
 fn invoke(input: &Value, config: &PathBuf, codex: bool) -> std::process::Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_legion-hook"));
-    if codex { command.args(["--host", "codex"]); }
-    command.env("CODEX_HOME", config).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    if codex {
+        command.args(["--host", "codex"]);
+    }
+    command
+        .env("CODEX_HOME", config)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     let mut child = command.spawn().unwrap();
-    child.stdin.take().unwrap().write_all(input.to_string().as_bytes()).unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.to_string().as_bytes())
+        .unwrap();
     child.wait_with_output().unwrap()
 }
 
@@ -30,11 +54,24 @@ fn stop() -> Value {
 #[test]
 fn codex_stop_preserves_acceptance_when_cleanup_runtime_is_retired() {
     let root = fixture();
-    fs::write(root.join("computer-use-stop.json"), json!({"command":[root.join("retired").join("codex-computer-use.exe"), "turn-ended"]}).to_string()).unwrap();
+    fs::write(
+        root.join("computer-use-stop.json"),
+        json!({"command":[root.join("retired").join("codex-computer-use.exe"), "turn-ended"]})
+            .to_string(),
+    )
+    .unwrap();
     let output = invoke(&stop(), &root, true);
     fs::remove_dir_all(root).unwrap();
-    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(serde_json::from_slice::<Value>(&output.stdout).unwrap(), json!({}));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&output.stdout).unwrap(),
+        json!({})
+    );
     #[cfg(windows)]
     assert!(String::from_utf8_lossy(&output.stderr).contains("LEGION_STOP_CLEANUP_FAILED"));
 }

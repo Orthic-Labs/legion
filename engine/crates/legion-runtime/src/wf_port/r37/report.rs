@@ -81,10 +81,16 @@ impl OutputFormat {
     }
 
     fn wants_html(self) -> bool {
-        matches!(self, OutputFormat::Html | OutputFormat::Both | OutputFormat::All)
+        matches!(
+            self,
+            OutputFormat::Html | OutputFormat::Both | OutputFormat::All
+        )
     }
     fn wants_pdf(self) -> bool {
-        matches!(self, OutputFormat::Pdf | OutputFormat::Both | OutputFormat::All)
+        matches!(
+            self,
+            OutputFormat::Pdf | OutputFormat::Both | OutputFormat::All
+        )
     }
     fn wants_xlsx(self) -> bool {
         matches!(self, OutputFormat::Xlsx | OutputFormat::All)
@@ -102,16 +108,28 @@ fn write_chart(dir: &Path, name: &str, svg: Option<String>) -> Option<String> {
 }
 
 /// Port of the "Generate Charts" block inside `generate_report`.
-pub fn generate_charts(report_type: ReportType, data: &Value, charts_dir: &Path) -> ChartPaths<'static> {
+pub fn generate_charts(
+    report_type: ReportType,
+    data: &Value,
+    charts_dir: &Path,
+) -> ChartPaths<'static> {
     let mut chart_paths: ChartPaths<'static> = HashMap::new();
 
     if matches!(report_type, ReportType::CwvAudit | ReportType::Full) {
-        let psi = if data.get("psi").is_some() { obj(data, "psi") } else { data };
+        let psi = if data.get("psi").is_some() {
+            obj(data, "psi")
+        } else {
+            data
+        };
         let mobile = {
             let inner = obj(psi, "psi");
             inner.get("mobile").cloned().unwrap_or_else(|| psi.clone())
         };
-        if let Some(p) = write_chart(charts_dir, "lighthouse_gauges", charts::chart_lighthouse_gauges(&mobile)) {
+        if let Some(p) = write_chart(
+            charts_dir,
+            "lighthouse_gauges",
+            charts::chart_lighthouse_gauges(&mobile),
+        ) {
             chart_paths.insert("gauges_path", p);
         }
 
@@ -130,16 +148,25 @@ pub fn generate_charts(report_type: ReportType, data: &Value, charts_dir: &Path)
         }
 
         let history = obj(data, "crux_history");
-        if history.as_object().map(|m| !m.is_empty()).unwrap_or(false) && history.get("error").is_none()
+        if history.as_object().map(|m| !m.is_empty()).unwrap_or(false)
+            && history.get("error").is_none()
         {
-            if let Some(p) = write_chart(charts_dir, "cwv_timeline", charts::chart_cwv_timeline(history)) {
+            if let Some(p) = write_chart(
+                charts_dir,
+                "cwv_timeline",
+                charts::chart_cwv_timeline(history),
+            ) {
                 chart_paths.insert("timeline_path", p);
             }
         }
     }
 
     if matches!(report_type, ReportType::GscPerformance | ReportType::Full) {
-        let gsc = if data.get("gsc").is_some() { obj(data, "gsc") } else { data };
+        let gsc = if data.get("gsc").is_some() {
+            obj(data, "gsc")
+        } else {
+            data
+        };
         if let Some(p) = write_chart(charts_dir, "top_queries", charts::chart_top_queries(gsc)) {
             chart_paths.insert("top_queries_path", p);
         }
@@ -151,7 +178,11 @@ pub fn generate_charts(report_type: ReportType, data: &Value, charts_dir: &Path)
         } else {
             data
         };
-        if let Some(p) = write_chart(charts_dir, "index_status", charts::chart_index_status(inspect)) {
+        if let Some(p) = write_chart(
+            charts_dir,
+            "index_status",
+            charts::chart_index_status(inspect),
+        ) {
             chart_paths.insert("index_status_path", p);
         }
     }
@@ -174,7 +205,10 @@ pub fn build_report_html(
     let psi_root = obj(data, "psi");
     let mobile = {
         let inner = obj(psi_root, "psi");
-        inner.get("mobile").cloned().unwrap_or_else(|| psi_root.clone())
+        inner
+            .get("mobile")
+            .cloned()
+            .unwrap_or_else(|| psi_root.clone())
     };
     let perf_score = mobile
         .get("lighthouse_scores")
@@ -189,25 +223,61 @@ pub fn build_report_html(
                 "Performance &amp; User Experience Analysis",
                 perf_score.map(|s| format!("{s:.0}")).as_deref(),
                 Some("Lighthouse Performance Score"),
-                &[timestamp.to_string(), "PageSpeed Insights + CrUX".to_string()],
+                &[
+                    timestamp.to_string(),
+                    "PageSpeed Insights + CrUX".to_string(),
+                ],
                 None,
             ));
             sections.push(build_toc(&[
-                TocSection { num: 1, title: "Executive Summary".into(), score: None, subs: vec!["Key Metrics &amp; Critical Issues".into()] },
-                TocSection { num: 2, title: "Core Web Vitals &amp; Performance".into(), score: perf_score, subs: vec![
-                    "Lighthouse Scores".into(), "Lab Metrics".into(), "CrUX Field Data".into(), "Failed Audits &amp; SEO Checks".into(),
-                ] },
-                TocSection { num: 3, title: "Recommendations".into(), score: None, subs: vec!["Prioritized Action Items".into()] },
-                TocSection { num: 4, title: "Data Sources &amp; Methodology".into(), score: None, subs: vec![] },
+                TocSection {
+                    num: 1,
+                    title: "Executive Summary".into(),
+                    score: None,
+                    subs: vec!["Key Metrics &amp; Critical Issues".into()],
+                },
+                TocSection {
+                    num: 2,
+                    title: "Core Web Vitals &amp; Performance".into(),
+                    score: perf_score,
+                    subs: vec![
+                        "Lighthouse Scores".into(),
+                        "Lab Metrics".into(),
+                        "CrUX Field Data".into(),
+                        "Failed Audits &amp; SEO Checks".into(),
+                    ],
+                },
+                TocSection {
+                    num: 3,
+                    title: "Recommendations".into(),
+                    score: None,
+                    subs: vec!["Prioritized Action Items".into()],
+                },
+                TocSection {
+                    num: 4,
+                    title: "Data Sources &amp; Methodology".into(),
+                    score: None,
+                    subs: vec![],
+                },
             ]));
             sections.push(build_executive_summary(domain, timestamp, data));
-            let (cwv_html, _fig) = build_cwv_section(data, obj(data, "crux"), chart_paths, data.get("crux_history"), 2);
+            let (cwv_html, _fig) = build_cwv_section(
+                data,
+                obj(data, "crux"),
+                chart_paths,
+                data.get("crux_history"),
+                2,
+            );
             sections.push(cwv_html);
             sections.push(build_recommendations(data, 3));
             sections.push(build_methodology_footer(domain, timestamp));
         }
         ReportType::GscPerformance => {
-            let gsc = if data.get("gsc").is_some() { obj(data, "gsc") } else { data };
+            let gsc = if data.get("gsc").is_some() {
+                obj(data, "gsc")
+            } else {
+                data
+            };
             let clicks = gsc
                 .get("totals")
                 .and_then(|t| t.get("clicks"))
@@ -219,16 +289,42 @@ pub fn build_report_html(
                 "Google Search Analytics Report",
                 Some(&super::jget::thousands(clicks)),
                 Some("Total Clicks"),
-                &[timestamp.to_string(), "Google Search Console API".to_string()],
+                &[
+                    timestamp.to_string(),
+                    "Google Search Console API".to_string(),
+                ],
                 None,
             ));
             sections.push(build_toc(&[
-                TocSection { num: 1, title: "Executive Summary".into(), score: None, subs: vec!["Key Metrics &amp; Quick Wins".into()] },
-                TocSection { num: 2, title: "Search Console Performance".into(), score: None, subs: vec![
-                    "Key Metrics".into(), "Top Queries by Clicks".into(), "Query Detail Table".into(), "Position Analysis &amp; Quick Wins".into(),
-                ] },
-                TocSection { num: 3, title: "Recommendations".into(), score: None, subs: vec!["Prioritized Action Items".into()] },
-                TocSection { num: 4, title: "Data Sources &amp; Methodology".into(), score: None, subs: vec![] },
+                TocSection {
+                    num: 1,
+                    title: "Executive Summary".into(),
+                    score: None,
+                    subs: vec!["Key Metrics &amp; Quick Wins".into()],
+                },
+                TocSection {
+                    num: 2,
+                    title: "Search Console Performance".into(),
+                    score: None,
+                    subs: vec![
+                        "Key Metrics".into(),
+                        "Top Queries by Clicks".into(),
+                        "Query Detail Table".into(),
+                        "Position Analysis &amp; Quick Wins".into(),
+                    ],
+                },
+                TocSection {
+                    num: 3,
+                    title: "Recommendations".into(),
+                    score: None,
+                    subs: vec!["Prioritized Action Items".into()],
+                },
+                TocSection {
+                    num: 4,
+                    title: "Data Sources &amp; Methodology".into(),
+                    score: None,
+                    subs: vec![],
+                },
             ]));
             sections.push(build_executive_summary(domain, timestamp, data));
             let (gsc_html, _fig) = build_gsc_section(gsc, chart_paths, 2, 1);
@@ -253,10 +349,30 @@ pub fn build_report_html(
                 None,
             ));
             sections.push(build_toc(&[
-                TocSection { num: 1, title: "Executive Summary".into(), score: None, subs: vec!["Index Coverage Overview".into()] },
-                TocSection { num: 2, title: "Indexation Status".into(), score: None, subs: vec!["Index Coverage Overview".into(), "Per-URL Results".into()] },
-                TocSection { num: 3, title: "Recommendations".into(), score: None, subs: vec!["Prioritized Action Items".into()] },
-                TocSection { num: 4, title: "Data Sources &amp; Methodology".into(), score: None, subs: vec![] },
+                TocSection {
+                    num: 1,
+                    title: "Executive Summary".into(),
+                    score: None,
+                    subs: vec!["Index Coverage Overview".into()],
+                },
+                TocSection {
+                    num: 2,
+                    title: "Indexation Status".into(),
+                    score: None,
+                    subs: vec!["Index Coverage Overview".into(), "Per-URL Results".into()],
+                },
+                TocSection {
+                    num: 3,
+                    title: "Recommendations".into(),
+                    score: None,
+                    subs: vec!["Prioritized Action Items".into()],
+                },
+                TocSection {
+                    num: 4,
+                    title: "Data Sources &amp; Methodology".into(),
+                    score: None,
+                    subs: vec![],
+                },
             ]));
             sections.push(build_executive_summary(domain, timestamp, data));
             let (idx_html, _fig) = build_indexation_section(inspect, chart_paths, 2, 1);
@@ -270,7 +386,11 @@ pub fn build_report_html(
                 "Google SEO Intelligence Report",
                 "Comprehensive Analysis",
                 perf_score.map(|s| format!("{s:.0}")).as_deref(),
-                if perf_score.is_some() { Some("Lighthouse Performance Score") } else { None },
+                if perf_score.is_some() {
+                    Some("Lighthouse Performance Score")
+                } else {
+                    None
+                },
                 &[timestamp.to_string(), "All Google APIs".to_string()],
                 None,
             ));
@@ -282,7 +402,8 @@ pub fn build_report_html(
                 subs: vec!["Key Metrics, Critical Issues &amp; Quick Wins".into()],
             }];
             let mut sec_num = 2u32;
-            let has_psi_or_crux = super::jget::truthy(data.get("psi")) || super::jget::truthy(data.get("crux"));
+            let has_psi_or_crux =
+                super::jget::truthy(data.get("psi")) || super::jget::truthy(data.get("crux"));
             if has_psi_or_crux {
                 toc.push(TocSection {
                     num: sec_num,
@@ -301,7 +422,10 @@ pub fn build_report_html(
                     num: sec_num,
                     title: "Search Console Performance".into(),
                     score: None,
-                    subs: vec!["Key Metrics &amp; Top Queries".into(), "Position Analysis &amp; Quick Wins".into()],
+                    subs: vec![
+                        "Key Metrics &amp; Top Queries".into(),
+                        "Position Analysis &amp; Quick Wins".into(),
+                    ],
                 });
                 sec_num += 1;
             }
@@ -355,7 +479,8 @@ pub fn build_report_html(
             }
             if super::jget::truthy(data.get("inspection")) {
                 let inspection = data.get("inspection").unwrap();
-                let (html, _fig) = build_indexation_section(inspection, chart_paths, current_sec, fig_num);
+                let (html, _fig) =
+                    build_indexation_section(inspection, chart_paths, current_sec, fig_num);
                 sections.push(html);
                 current_sec += 1;
             }
@@ -390,13 +515,18 @@ impl ChromePdfRenderer {
     pub fn launch() -> Result<Self, String> {
         let browser = headless_chrome::Browser::default().map_err(|e| e.to_string())?;
         let tab = browser.new_tab().map_err(|e| e.to_string())?;
-        Ok(Self { tab, _browser: browser })
+        Ok(Self {
+            tab,
+            _browser: browser,
+        })
     }
 }
 
 impl PdfRenderer for ChromePdfRenderer {
     fn render(&mut self, html_file_url: &str) -> Result<Vec<u8>, String> {
-        self.tab.navigate_to(html_file_url).map_err(|e| e.to_string())?;
+        self.tab
+            .navigate_to(html_file_url)
+            .map_err(|e| e.to_string())?;
         self.tab.wait_until_navigated().map_err(|e| e.to_string())?;
         self.tab.print_to_pdf(None).map_err(|e| e.to_string())
     }
@@ -424,7 +554,9 @@ pub fn review_pdf(pdf_bytes_len: Option<usize>, html_content: &str) -> PdfReview
 
     let empty_imgs = html_content.matches("src=\"\"").count();
     if empty_imgs > 0 {
-        review.issues.push(format!("{empty_imgs} empty image tag(s) found"));
+        review
+            .issues
+            .push(format!("{empty_imgs} empty image tag(s) found"));
     }
 
     // Section text-length check: mirrors `html_content.split('div class="section"')`,
@@ -474,7 +606,11 @@ fn strip_tags(s: &str) -> String {
 }
 
 fn collapse_whitespace(s: &str) -> String {
-    s.split_whitespace().collect::<Vec<_>>().join(" ").trim().to_string()
+    s.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string()
 }
 
 fn extract_tables(html: &str) -> Vec<String> {
@@ -565,7 +701,9 @@ pub fn generate_report(
     }
 
     if output_format.wants_xlsx() {
-        if let Some(path) = super::xlsx::generate_xlsx(data, domain, report_type.as_str(), output_dir, timestamp) {
+        if let Some(path) =
+            super::xlsx::generate_xlsx(data, domain, report_type.as_str(), output_dir, timestamp)
+        {
             result.files.push(path.to_string_lossy().to_string());
         }
     }
@@ -595,7 +733,13 @@ mod tests {
     #[test]
     fn build_report_html_cwv_audit_contains_title_and_score() {
         let data = json!({"psi": {"lighthouse_scores": {"performance": 77}}});
-        let html = build_report_html(ReportType::CwvAudit, &data, "example.com", &ChartPaths::new(), "Jan 1, 2026");
+        let html = build_report_html(
+            ReportType::CwvAudit,
+            &data,
+            "example.com",
+            &ChartPaths::new(),
+            "Jan 1, 2026",
+        );
         assert!(html.contains("Core Web Vitals Audit"));
         assert!(html.contains("example.com"));
         assert!(html.contains("77"));
@@ -605,7 +749,13 @@ mod tests {
     #[test]
     fn build_report_html_full_includes_only_present_data_sections() {
         let data = json!({"gsc": {"totals": {"clicks": 10}}});
-        let html = build_report_html(ReportType::Full, &data, "x.com", &ChartPaths::new(), "Jan 1, 2026");
+        let html = build_report_html(
+            ReportType::Full,
+            &data,
+            "x.com",
+            &ChartPaths::new(),
+            "Jan 1, 2026",
+        );
         assert!(html.contains("Search Console Performance"));
         assert!(!html.contains("Indexation Status</h2>"));
     }
@@ -640,7 +790,9 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let data = json!({"psi": {"lighthouse_scores": {"performance": 50}}});
-        let mut fake = FakeRenderer { bytes: vec![1, 2, 3, 4] };
+        let mut fake = FakeRenderer {
+            bytes: vec![1, 2, 3, 4],
+        };
         let result = generate_report(
             ReportType::CwvAudit,
             &data,

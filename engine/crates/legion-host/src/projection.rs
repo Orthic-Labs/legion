@@ -194,11 +194,10 @@ pub fn project_mcp(
                 // A document, not a bare value: `parse::<toml::Value>()` in
                 // toml 1.x reads a single value and rejects every real
                 // config.toml with "unexpected content, expected nothing".
-                toml::from_str::<toml::Value>(text)
-                    .map_err(|_| HostError::HarnessConflict {
-                        path: path.into(),
-                        reason: "existing TOML does not parse".into(),
-                    })?;
+                toml::from_str::<toml::Value>(text).map_err(|_| HostError::HarnessConflict {
+                    path: path.into(),
+                    reason: "existing TOML does not parse".into(),
+                })?;
             }
             let table = mechanism.table.as_deref().unwrap_or("mcp_servers");
             let header = format!("[{table}.legion]");
@@ -235,8 +234,10 @@ args = [{}]",
                         let existing_end = (start + 1..lines.len())
                             .find(|index| lines[*index].trim_start().starts_with('['))
                             .unwrap_or(lines.len());
-                        let existing = lines[start..existing_end].join("
-");
+                        let existing = lines[start..existing_end].join(
+                            "
+",
+                        );
                         // Compare parsed values, not bytes. An older build
                         // wrote basic strings where this one writes literal
                         // strings, so a byte compare rejects an entry that is
@@ -265,7 +266,8 @@ args = [{}]",
                 // `# /legion-owned` footer comment. Read-back verification
                 // must stop at the same place, or the digest never matches
                 // its own prior output.
-                let footer = (start + 1..lines.len()).find(|index| lines[*index].trim() == "# /legion-owned");
+                let footer = (start + 1..lines.len())
+                    .find(|index| lines[*index].trim() == "# /legion-owned");
                 let payload_end = footer.unwrap_or_else(|| {
                     (start + 1..lines.len())
                         .find(|index| lines[*index].trim_start().starts_with('['))

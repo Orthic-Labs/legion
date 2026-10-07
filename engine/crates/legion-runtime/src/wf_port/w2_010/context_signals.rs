@@ -99,14 +99,22 @@ pub struct GitSignals {
 /// git binary, detached HEAD, etc) degrades gracefully rather than erroring.
 pub fn git_signals(cwd: &Path) -> GitSignals {
     let run = |args: &[&str]| -> Option<String> {
-        let out = Command::new("git").args(args).current_dir(cwd).output().ok()?;
+        let out = Command::new("git")
+            .args(args)
+            .current_dir(cwd)
+            .output()
+            .ok()?;
         if !out.status.success() {
             return None;
         }
         Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
     };
     let run_raw = |args: &[&str]| -> Option<String> {
-        let out = Command::new("git").args(args).current_dir(cwd).output().ok()?;
+        let out = Command::new("git")
+            .args(args)
+            .current_dir(cwd)
+            .output()
+            .ok()?;
         if !out.status.success() {
             return None;
         }
@@ -134,7 +142,10 @@ pub fn git_signals(cwd: &Path) -> GitSignals {
     let from_status = run_raw(&["-c", "core.quotepath=false", "status", "--porcelain"]);
 
     let changed: Vec<String> = if let Some(diff) = from_diff.filter(|s| !s.is_empty()) {
-        diff.split('\n').filter(|s| !s.is_empty()).map(String::from).collect()
+        diff.split('\n')
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect()
     } else if let Some(status) = from_status.filter(|s| !s.is_empty()) {
         status
             .split("\r\n")

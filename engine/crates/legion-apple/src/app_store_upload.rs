@@ -4,9 +4,9 @@
 //! upload operations.  Only URLs returned by that authenticated response are
 //! used for asset transfer; ASC credentials never cross into asset hosts.
 
+use md5::Md5;
 use reqwest::{Client, Method, Url};
 use serde_json::{json, Map, Value};
-use md5::Md5;
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom};
@@ -27,9 +27,13 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
     let file = inspect_artifact(&artifact)?;
     let app_id = required_string(object, &["appId", "app_id", "app"])?;
     let version = required_string(object, &["version", "cfBundleShortVersionString"])?;
-    let build_number = required_string(object, &["buildNumber", "build_number", "cfBundleVersion"])?;
+    let build_number =
+        required_string(object, &["buildNumber", "build_number", "cfBundleVersion"])?;
     let platform = platform(object, &artifact)?;
-    let execute = object.get("execute").and_then(Value::as_bool).unwrap_or(false);
+    let execute = object
+        .get("execute")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let effect = effect_classification(execute);
     if !execute {
         return Ok(json!({
@@ -66,18 +70,27 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
     let attributes = resource_data(&file_reservation)
         .and_then(|data| data.get("attributes"))
         .ok_or_else(|| "App Store Connect upload file response omitted attributes".to_string())?;
-    let expected_size = attributes.get("fileSize").and_then(Value::as_u64).unwrap_or(file.size);
+    let expected_size = attributes
+        .get("fileSize")
+        .and_then(Value::as_u64)
+        .unwrap_or(file.size);
     if expected_size != file.size {
-        return Err(format!("App Store Connect reserved file size {expected_size} differs from local file size {}", file.size));
+        return Err(format!(
+            "App Store Connect reserved file size {expected_size} differs from local file size {}",
+            file.size
+        ));
     }
     let operations = parse_operations(attributes.get("uploadOperations"))?;
     let mut source = file
         .source
         .try_clone()
         .map_err(|_| "could not clone inspected upload artifact handle".to_string())?;
-    tokio::time::timeout(MAX_UPLOAD_DURATION, upload_operations(&mut source, &operations, file.size))
-        .await
-        .map_err(|_| "presigned upload exceeded total deadline".to_string())??;
+    tokio::time::timeout(
+        MAX_UPLOAD_DURATION,
+        upload_operations(&mut source, &operations, file.size),
+    )
+    .await
+    .map_err(|_| "presigned upload exceeded total deadline".to_string())??;
     let checksums = attributes.get("sourceFileChecksums").cloned();
     let computed = if let Some(expected) = checksums.as_ref() {
         Some(verify_checksums(&mut source, expected, file.size)?)
@@ -94,55 +107,62 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
         json!({"data":{"type":"buildUploadFiles","id":file_id,"attributes":commit_attributes}}),
     )
     .await;
-    let (committed, commit_outcome, reconciled_parent, state_readback_error) = match commit_attempt {
-        Ok(value) => {
-            match api_json("GET", &format!("/v1/buildUploads/{upload_id}"), Value::Null).await {
-                Ok(parent) => (value, "confirmed", Some(parent), None),
-                Err(error) => (value, "confirmed", None, Some(error.message)),
-            }
-        }
-        Err(error) if error.is_ambiguous() => {
-            let parent = match api_json("GET", &format!("/v1/buildUploads/{upload_id}"), Value::Null).await {
-                Ok(value) => value,
-                Err(reconciliation_error) => {
-                    return Ok(unknown_commit_result(
-                        &effect,
-                        &file,
-                        platform,
-                        &reservation,
-                        &file_reservation,
-                        &reconciliation_error.message,
-                    ));
-                }
-            };
-            match parent_state(&parent).as_deref() {
-                Some("PROCESSING") | Some("COMPLETE") => {
-                    (json!({"reconciled": true}), "reconciled", Some(parent), None)
-                }
-                Some(state) => {
-                    return Ok(unknown_commit_result(
-                        &effect,
-                        &file,
-                        platform,
-                        &reservation,
-                        &file_reservation,
-                        &format!("commit outcome unknown after reconciliation state {state}"),
-                    ));
-                }
-                None => {
-                    return Ok(unknown_commit_result(
-                        &effect,
-                        &file,
-                        platform,
-                        &reservation,
-                        &file_reservation,
-                        "commit outcome unknown after reconciliation returned no state",
-                    ));
+    let (committed, commit_outcome, reconciled_parent, state_readback_error) =
+        match commit_attempt {
+            Ok(value) => {
+                match api_json("GET", &format!("/v1/buildUploads/{upload_id}"), Value::Null).await {
+                    Ok(parent) => (value, "confirmed", Some(parent), None),
+                    Err(error) => (value, "confirmed", None, Some(error.message)),
                 }
             }
-        }
-        Err(error) => return Err(api_failure_text(error)),
-    };
+            Err(error) if error.is_ambiguous() => {
+                let parent =
+                    match api_json("GET", &format!("/v1/buildUploads/{upload_id}"), Value::Null)
+                        .await
+                    {
+                        Ok(value) => value,
+                        Err(reconciliation_error) => {
+                            return Ok(unknown_commit_result(
+                                &effect,
+                                &file,
+                                platform,
+                                &reservation,
+                                &file_reservation,
+                                &reconciliation_error.message,
+                            ));
+                        }
+                    };
+                match parent_state(&parent).as_deref() {
+                    Some("PROCESSING") | Some("COMPLETE") => (
+                        json!({"reconciled": true}),
+                        "reconciled",
+                        Some(parent),
+                        None,
+                    ),
+                    Some(state) => {
+                        return Ok(unknown_commit_result(
+                            &effect,
+                            &file,
+                            platform,
+                            &reservation,
+                            &file_reservation,
+                            &format!("commit outcome unknown after reconciliation state {state}"),
+                        ));
+                    }
+                    None => {
+                        return Ok(unknown_commit_result(
+                            &effect,
+                            &file,
+                            platform,
+                            &reservation,
+                            &file_reservation,
+                            "commit outcome unknown after reconciliation returned no state",
+                        ));
+                    }
+                }
+            }
+            Err(error) => return Err(api_failure_text(error)),
+        };
     Ok(json!({
         "ok": true,
         "dryRun": false,
@@ -186,17 +206,22 @@ fn artifact_path(object: &Map<String, Value>) -> Result<String, String> {
 
 fn inspect_artifact(path: &str) -> Result<Artifact, String> {
     let path_ref = Path::new(path);
-    let link_metadata = fs::symlink_metadata(path_ref).map_err(|_| "could not inspect upload artifact".to_string())?;
+    let link_metadata = fs::symlink_metadata(path_ref)
+        .map_err(|_| "could not inspect upload artifact".to_string())?;
     if link_metadata.file_type().is_symlink() || !link_metadata.is_file() {
         return Err("upload artifact must be a regular non-symlink file".to_string());
     }
     let size = link_metadata.len();
     if size == 0 || size > MAX_ARTIFACT_BYTES {
-        return Err(format!("upload artifact size must be between 1 and {MAX_ARTIFACT_BYTES} bytes"));
+        return Err(format!(
+            "upload artifact size must be between 1 and {MAX_ARTIFACT_BYTES} bytes"
+        ));
     }
     let source = open_without_following_links(path)
         .map_err(|_| "could not open upload artifact without following links".to_string())?;
-    let source_metadata = source.metadata().map_err(|_| "could not stat upload artifact".to_string())?;
+    let source_metadata = source
+        .metadata()
+        .map_err(|_| "could not stat upload artifact".to_string())?;
     if source_metadata.file_type().is_symlink()
         || !source_metadata.is_file()
         || source_metadata.len() != size
@@ -207,7 +232,11 @@ fn inspect_artifact(path: &str) -> Result<Artifact, String> {
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| "upload artifact filename is invalid".to_string())?;
-    let extension = path_ref.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    let extension = path_ref
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
     let uti = match extension.as_str() {
         "ipa" => "com.apple.itunes.ipa",
         "pkg" => "com.apple.installer-package",
@@ -216,20 +245,31 @@ fn inspect_artifact(path: &str) -> Result<Artifact, String> {
     if name.len() > MAX_STRING_BYTES {
         return Err("upload artifact filename exceeds limit".to_string());
     }
-    Ok(Artifact {name: name.to_string(), size, uti, source})
+    Ok(Artifact {
+        name: name.to_string(),
+        size,
+        uti,
+        source,
+    })
 }
 
 fn open_without_following_links(path: &str) -> std::io::Result<File> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
-        return OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(path);
+        return OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(path);
     }
     #[cfg(windows)]
     {
         use std::os::windows::fs::OpenOptionsExt;
         const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
-        return OpenOptions::new().read(true).custom_flags(FILE_FLAG_OPEN_REPARSE_POINT).open(path);
+        return OpenOptions::new()
+            .read(true)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(path);
     }
     #[allow(unreachable_code)]
     OpenOptions::new().read(true).open(path)
@@ -244,11 +284,16 @@ fn required_string(object: &Map<String, Value>, keys: &[&str]) -> Result<String,
             }
         }
     }
-    Err(format!("required upload field is missing or invalid: {}", keys[0]))
+    Err(format!(
+        "required upload field is missing or invalid: {}",
+        keys[0]
+    ))
 }
 
 fn safe_id(value: &str) -> bool {
-    !value.chars().any(|character| character.is_control() || matches!(character, '/' | '\\' | '?' | '#'))
+    !value
+        .chars()
+        .any(|character| character.is_control() || matches!(character, '/' | '\\' | '?' | '#'))
 }
 
 fn platform(object: &Map<String, Value>, path: &str) -> Result<&'static str, String> {
@@ -261,7 +306,11 @@ fn platform(object: &Map<String, Value>, path: &str) -> Result<&'static str, Str
             _ => Err("platform must be IOS, MAC_OS, TV_OS, or VISION_OS".to_string()),
         };
     }
-    if path.to_ascii_lowercase().ends_with(".pkg") { Ok("MAC_OS") } else { Ok("IOS") }
+    if path.to_ascii_lowercase().ends_with(".pkg") {
+        Ok("MAC_OS")
+    } else {
+        Ok("IOS")
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -274,64 +323,116 @@ struct UploadOperation {
 }
 
 fn parse_operations(value: Option<&Value>) -> Result<Vec<UploadOperation>, String> {
-    let values = value.and_then(Value::as_array).ok_or_else(|| "App Store Connect returned no upload operations".to_string())?;
+    let values = value
+        .and_then(Value::as_array)
+        .ok_or_else(|| "App Store Connect returned no upload operations".to_string())?;
     if values.is_empty() || values.len() > MAX_UPLOAD_OPERATIONS {
         return Err("App Store Connect upload operation count is outside limit".to_string());
     }
     let mut result = Vec::with_capacity(values.len());
     for value in values {
-        let object = value.as_object().ok_or_else(|| "upload operation must be an object".to_string())?;
-        let method = match object.get("method").and_then(Value::as_str).unwrap_or("PUT").to_ascii_uppercase().as_str() {
+        let object = value
+            .as_object()
+            .ok_or_else(|| "upload operation must be an object".to_string())?;
+        let method = match object
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or("PUT")
+            .to_ascii_uppercase()
+            .as_str()
+        {
             "PUT" => Method::PUT,
             "POST" => Method::POST,
             _ => return Err("upload operation method must be PUT or POST".to_string()),
         };
-        let raw_url = object.get("url").and_then(Value::as_str).ok_or_else(|| "upload operation URL is missing".to_string())?;
-        let url = Url::parse(raw_url).map_err(|_| "Apple upload operation URL is invalid".to_string())?;
-        if url.scheme() != "https" || url.username() != "" || url.password().is_some() || url.fragment().is_some() {
-            return Err("Apple upload operation URL must be HTTPS without credentials or fragments".to_string());
+        let raw_url = object
+            .get("url")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "upload operation URL is missing".to_string())?;
+        let url =
+            Url::parse(raw_url).map_err(|_| "Apple upload operation URL is invalid".to_string())?;
+        if url.scheme() != "https"
+            || url.username() != ""
+            || url.password().is_some()
+            || url.fragment().is_some()
+        {
+            return Err(
+                "Apple upload operation URL must be HTTPS without credentials or fragments"
+                    .to_string(),
+            );
         }
-        let offset = object.get("offset").and_then(Value::as_u64).ok_or_else(|| "upload operation offset is missing".to_string())?;
-        let length = object.get("length").and_then(Value::as_u64).ok_or_else(|| "upload operation length is missing".to_string())?;
+        let offset = object
+            .get("offset")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "upload operation offset is missing".to_string())?;
+        let length = object
+            .get("length")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "upload operation length is missing".to_string())?;
         if length == 0 || length > MAX_OPERATION_BYTES as u64 {
             return Err("upload operation length exceeds bound".to_string());
         }
         let mut headers = Vec::new();
         if let Some(values) = object.get("requestHeaders").and_then(Value::as_array) {
             for value in values {
-                let value = value.as_object().ok_or_else(|| "upload request header must be an object".to_string())?;
-                let name = value.get("name").and_then(Value::as_str).unwrap_or("").trim();
+                let value = value
+                    .as_object()
+                    .ok_or_else(|| "upload request header must be an object".to_string())?;
+                let name = value
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .trim();
                 let header_value = value.get("value").and_then(Value::as_str).unwrap_or("");
                 if name.is_empty()
                     || name.len() > MAX_STRING_BYTES
                     || header_value.len() > MAX_STRING_BYTES
-                    || ["authorization", "host", "content-length"].iter().any(|blocked| name.eq_ignore_ascii_case(blocked))
+                    || ["authorization", "host", "content-length"]
+                        .iter()
+                        .any(|blocked| name.eq_ignore_ascii_case(blocked))
                 {
                     return Err("upload request header is invalid".to_string());
                 }
                 headers.push((name.to_string(), header_value.to_string()));
             }
         }
-        result.push(UploadOperation {method, url, offset, length, headers});
+        result.push(UploadOperation {
+            method,
+            url,
+            offset,
+            length,
+            headers,
+        });
     }
     Ok(result)
 }
 
 fn validate_operations(operations: &[UploadOperation], size: u64) -> Result<(), String> {
-    let mut ranges = operations.iter().map(|operation| (operation.offset, operation.length)).collect::<Vec<_>>();
+    let mut ranges = operations
+        .iter()
+        .map(|operation| (operation.offset, operation.length))
+        .collect::<Vec<_>>();
     ranges.sort_unstable_by_key(|range| range.0);
     let mut expected = 0u64;
     for (offset, length) in ranges {
         if offset != expected || offset.checked_add(length).is_none() {
-            return Err("Apple upload operations do not form an exact contiguous file plan".to_string());
+            return Err(
+                "Apple upload operations do not form an exact contiguous file plan".to_string(),
+            );
         }
         expected += length;
     }
-    if expected != size { return Err("Apple upload operations do not cover exact artifact size".to_string()); }
+    if expected != size {
+        return Err("Apple upload operations do not cover exact artifact size".to_string());
+    }
     Ok(())
 }
 
-async fn upload_operations(file: &mut File, operations: &[UploadOperation], size: u64) -> Result<(), String> {
+async fn upload_operations(
+    file: &mut File,
+    operations: &[UploadOperation],
+    size: u64,
+) -> Result<(), String> {
     validate_operations(operations, size)?;
     let client = Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -339,27 +440,47 @@ async fn upload_operations(file: &mut File, operations: &[UploadOperation], size
         .build()
         .map_err(|_| "could not construct presigned upload client".to_string())?;
     for operation in operations {
-        file.seek(SeekFrom::Start(operation.offset)).map_err(|_| "could not seek upload artifact".to_string())?;
+        file.seek(SeekFrom::Start(operation.offset))
+            .map_err(|_| "could not seek upload artifact".to_string())?;
         let mut body = vec![0u8; operation.length as usize];
-        file.read_exact(&mut body).map_err(|_| "could not read upload artifact chunk".to_string())?;
-        let mut request = client.request(operation.method.clone(), operation.url.clone()).body(body);
-        for (name, value) in &operation.headers { request = request.header(name, value); }
-        let response = request.send().await.map_err(|_| "presigned upload request failed".to_string())?;
+        file.read_exact(&mut body)
+            .map_err(|_| "could not read upload artifact chunk".to_string())?;
+        let mut request = client
+            .request(operation.method.clone(), operation.url.clone())
+            .body(body);
+        for (name, value) in &operation.headers {
+            request = request.header(name, value);
+        }
+        let response = request
+            .send()
+            .await
+            .map_err(|_| "presigned upload request failed".to_string())?;
         let status = response.status();
         consume_upload_response(response).await?;
-        if !status.is_success() { return Err(format!("presigned upload returned HTTP {status}")); }
+        if !status.is_success() {
+            return Err(format!("presigned upload returned HTTP {status}"));
+        }
     }
     Ok(())
 }
 
 async fn consume_upload_response(mut response: reqwest::Response) -> Result<(), String> {
-    if response.content_length().is_some_and(|length| length > MAX_UPLOAD_RESPONSE_BYTES as u64) {
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_UPLOAD_RESPONSE_BYTES as u64)
+    {
         return Err("presigned upload response exceeds bound".to_string());
     }
     let mut length = 0usize;
-    while let Some(chunk) = response.chunk().await.map_err(|_| "could not read presigned upload response".to_string())? {
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| "could not read presigned upload response".to_string())?
+    {
         length = length.saturating_add(chunk.len());
-        if length > MAX_UPLOAD_RESPONSE_BYTES { return Err("presigned upload response exceeds bound".to_string()); }
+        if length > MAX_UPLOAD_RESPONSE_BYTES {
+            return Err("presigned upload response exceeds bound".to_string());
+        }
     }
     Ok(())
 }
@@ -381,14 +502,26 @@ async fn api_json(method: &str, path: &str, body: Value) -> Result<Value, ApiFai
     if method != "GET" {
         request["body"] = body;
     }
-    let request = request
-        .as_object()
-        .ok_or_else(|| ApiFailure {status: None, message: "upload API request plan is not an object".to_string()})?;
-    let result = super::invoke_request(request).await.map_err(|message| ApiFailure {status: None, message})?;
+    let request = request.as_object().ok_or_else(|| ApiFailure {
+        status: None,
+        message: "upload API request plan is not an object".to_string(),
+    })?;
+    let result = super::invoke_request(request)
+        .await
+        .map_err(|message| ApiFailure {
+            status: None,
+            message,
+        })?;
     if !result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         return Err(ApiFailure {
-            status: result.get("status").and_then(Value::as_u64).and_then(|status| u16::try_from(status).ok()),
-            message: format!("App Store Connect upload API returned HTTP {}", result.get("status").and_then(Value::as_u64).unwrap_or(0)),
+            status: result
+                .get("status")
+                .and_then(Value::as_u64)
+                .and_then(|status| u16::try_from(status).ok()),
+            message: format!(
+                "App Store Connect upload API returned HTTP {}",
+                result.get("status").and_then(Value::as_u64).unwrap_or(0)
+            ),
         });
     }
     Ok(result)
@@ -399,8 +532,13 @@ fn api_failure_text(error: ApiFailure) -> String {
 }
 
 fn data_id(value: &Value) -> Result<String, String> {
-    let id = resource_data(value).and_then(|data| data.get("id")).and_then(Value::as_str).ok_or_else(|| "App Store Connect response omitted resource ID".to_string())?;
-    if !safe_id(id) || id.is_empty() { return Err("App Store Connect resource ID is invalid".to_string()); }
+    let id = resource_data(value)
+        .and_then(|data| data.get("id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| "App Store Connect response omitted resource ID".to_string())?;
+    if !safe_id(id) || id.is_empty() {
+        return Err("App Store Connect resource ID is invalid".to_string());
+    }
     Ok(id.to_string())
 }
 
@@ -414,11 +552,20 @@ fn resource_data(value: &Value) -> Option<&Value> {
 fn verify_checksums(file: &mut File, expected: &Value, size: u64) -> Result<Value, String> {
     let mut result = Map::new();
     for key in ["file", "composite"] {
-        let Some(checksum) = expected.get(key).and_then(Value::as_object) else { continue };
-        let algorithm = checksum.get("algorithm").and_then(Value::as_str).unwrap_or("").to_ascii_uppercase();
+        let Some(checksum) = expected.get(key).and_then(Value::as_object) else {
+            continue;
+        };
+        let algorithm = checksum
+            .get("algorithm")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_uppercase();
         let expected_hash = checksum.get("hash").and_then(Value::as_str).unwrap_or("");
-        if expected_hash.is_empty() { return Err("App Store Connect checksum hash is missing".to_string()); }
-        file.seek(SeekFrom::Start(0)).map_err(|_| "could not seek artifact for checksum".to_string())?;
+        if expected_hash.is_empty() {
+            return Err("App Store Connect checksum hash is missing".to_string());
+        }
+        file.seek(SeekFrom::Start(0))
+            .map_err(|_| "could not seek artifact for checksum".to_string())?;
         let actual = match algorithm.as_str() {
             "SHA_256" => {
                 let mut hasher = Sha256::new();
@@ -430,10 +577,19 @@ fn verify_checksums(file: &mut File, expected: &Value, size: u64) -> Result<Valu
                 read_hash_input(file, size, |chunk| hasher.update(chunk))?;
                 hex::encode(hasher.finalize())
             }
-            _ => return Err(format!("unsupported App Store Connect checksum algorithm: {algorithm}")),
+            _ => {
+                return Err(format!(
+                    "unsupported App Store Connect checksum algorithm: {algorithm}"
+                ))
+            }
         };
-        if !actual.eq_ignore_ascii_case(expected_hash) { return Err(format!("{key} checksum mismatch")); }
-        result.insert(key.to_string(), json!({"hash": actual, "algorithm": algorithm}));
+        if !actual.eq_ignore_ascii_case(expected_hash) {
+            return Err(format!("{key} checksum mismatch"));
+        }
+        result.insert(
+            key.to_string(),
+            json!({"hash": actual, "algorithm": algorithm}),
+        );
     }
     if result.is_empty() {
         return Err("App Store Connect provided no checksum algorithms".to_string());
@@ -441,12 +597,20 @@ fn verify_checksums(file: &mut File, expected: &Value, size: u64) -> Result<Valu
     Ok(Value::Object(result))
 }
 
-fn read_hash_input(file: &mut File, size: u64, mut update: impl FnMut(&[u8])) -> Result<(), String> {
+fn read_hash_input(
+    file: &mut File,
+    size: u64,
+    mut update: impl FnMut(&[u8]),
+) -> Result<(), String> {
     let mut remaining = size;
     let mut buffer = [0u8; 1024 * 1024];
     while remaining > 0 {
-        let read = file.read(&mut buffer).map_err(|_| "could not read artifact for checksum".to_string())?;
-        if read == 0 { return Err("artifact ended before checksum size".to_string()); }
+        let read = file
+            .read(&mut buffer)
+            .map_err(|_| "could not read artifact for checksum".to_string())?;
+        if read == 0 {
+            return Err("artifact ended before checksum size".to_string());
+        }
         update(&buffer[..read]);
         remaining -= read as u64;
     }
@@ -457,7 +621,11 @@ fn processing_state(value: &Value) -> Value {
     value
         .get("processingState")
         .cloned()
-        .or_else(|| resource_data(value).and_then(|data| data.pointer("/attributes/state/state")).cloned())
+        .or_else(|| {
+            resource_data(value)
+                .and_then(|data| data.pointer("/attributes/state/state"))
+                .cloned()
+        })
         .unwrap_or(Value::Null)
 }
 
@@ -470,7 +638,10 @@ fn parent_state_value(value: &Value) -> Option<Value> {
     data.pointer("/attributes/state/state")
         .cloned()
         .or_else(|| data.pointer("/attributes/state").cloned())
-        .or_else(|| data.pointer("/attributes/assetDeliveryState/state").cloned())
+        .or_else(|| {
+            data.pointer("/attributes/assetDeliveryState/state")
+                .cloned()
+        })
 }
 
 /// Keep useful resource IDs, attributes, status, and processing state while
@@ -481,7 +652,10 @@ fn redacted_api_result(value: &Value) -> Value {
             let mut result = Map::new();
             for (key, child) in object {
                 let lower = key.to_ascii_lowercase();
-                if matches!(lower.as_str(), "url" | "uploadoperations" | "requestheaders" | "headers") {
+                if matches!(
+                    lower.as_str(),
+                    "url" | "uploadoperations" | "requestheaders" | "headers"
+                ) {
                     continue;
                 }
                 if lower == "authorization" {
@@ -544,15 +718,33 @@ mod tests {
     #[test]
     fn operation_ranges_must_cover_exact_file() {
         let url = Url::parse("https://uploads.example.invalid/chunk").unwrap();
-        let operation = UploadOperation {method: Method::PUT, url, offset: 0, length: 2, headers: Vec::new()};
+        let operation = UploadOperation {
+            method: Method::PUT,
+            url,
+            offset: 0,
+            length: 2,
+            headers: Vec::new(),
+        };
         assert!(validate_operations(&[operation], 3).is_err());
     }
 
     #[test]
     fn ambiguous_commit_status_is_reconciled_once() {
-        assert!(ApiFailure {status: None, message: String::new()}.is_ambiguous());
-        assert!(ApiFailure {status: Some(500), message: String::new()}.is_ambiguous());
-        assert!(!ApiFailure {status: Some(422), message: String::new()}.is_ambiguous());
+        assert!(ApiFailure {
+            status: None,
+            message: String::new()
+        }
+        .is_ambiguous());
+        assert!(ApiFailure {
+            status: Some(500),
+            message: String::new()
+        }
+        .is_ambiguous());
+        assert!(!ApiFailure {
+            status: Some(422),
+            message: String::new()
+        }
+        .is_ambiguous());
     }
 
     #[test]
@@ -566,6 +758,9 @@ mod tests {
         assert_eq!(parent_state(&fixture).as_deref(), Some("PROCESSING"));
         let redacted = redacted_api_result(&fixture);
         assert!(redacted.to_string().find("signed.invalid").is_none());
-        assert_eq!(redacted.pointer("/data/data/id").and_then(Value::as_str), Some("upload-1"));
+        assert_eq!(
+            redacted.pointer("/data/data/id").and_then(Value::as_str),
+            Some("upload-1")
+        );
     }
 }

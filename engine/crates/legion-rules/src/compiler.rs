@@ -1,7 +1,7 @@
 use crate::{
     error::{Result, RuleError},
     lexical::LexicalEngine,
-    schema::{AnalysisRulePack, StructuralSelector, NativePackManifest, RuleClass},
+    schema::{AnalysisRulePack, NativePackManifest, RuleClass, StructuralSelector},
 };
 use std::collections::BTreeMap;
 

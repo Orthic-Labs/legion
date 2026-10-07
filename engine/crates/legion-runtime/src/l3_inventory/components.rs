@@ -81,10 +81,7 @@ pub fn path_of(item: &Value) -> String {
 }
 
 fn str_vec(value: Option<&Value>) -> Vec<Value> {
-    value
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
+    value.and_then(Value::as_array).cloned().unwrap_or_default()
 }
 
 /// Port of `componentId` (sha256 of `[kind, sortedTargetIds, sortedPortableEvidence]`).
@@ -122,13 +119,7 @@ pub fn component(
     );
     record.insert(
         "rootPaths".into(),
-        Value::Array(
-            evidence_sorted
-                .iter()
-                .cloned()
-                .map(Value::String)
-                .collect(),
-        ),
+        Value::Array(evidence_sorted.iter().cloned().map(Value::String).collect()),
     );
     record.insert(
         "evidencePaths".into(),
@@ -184,9 +175,7 @@ pub fn validate_component_graph(graph: &Value) -> R<()> {
             )));
         }
         if ids.contains(&id) {
-            return Err(InventoryError::new(format!(
-                "duplicate component ID: {id}"
-            )));
+            return Err(InventoryError::new(format!("duplicate component ID: {id}")));
         }
         ids.insert(id);
     }
@@ -307,7 +296,10 @@ const LOGICAL_RULES: &[(&str, &str)] = &[
 
 /// Port of `extractLogicalComponents`.
 pub fn extract_logical_components(portfolio: &Value, projection: &Value) -> Vec<Value> {
-    let paths: Vec<String> = str_vec(projection.get("files")).iter().map(path_of).collect();
+    let paths: Vec<String> = str_vec(projection.get("files"))
+        .iter()
+        .map(path_of)
+        .collect();
     let ids = target_ids_of(portfolio);
     let mut out = Vec::new();
     for (kind, pattern) in LOGICAL_RULES {
@@ -315,7 +307,10 @@ pub fn extract_logical_components(portfolio: &Value, projection: &Value) -> Vec<
         let evidence: Vec<String> = paths.iter().filter(|p| re.is_match(p)).cloned().collect();
         if !evidence.is_empty() {
             let mut extra = Map::new();
-            extra.insert("classificationBasis".into(), Value::String("observed".into()));
+            extra.insert(
+                "classificationBasis".into(),
+                Value::String("observed".into()),
+            );
             out.push(component(kind, &ids, &evidence, extra));
         }
     }
@@ -378,11 +373,19 @@ pub fn extract_deployment_components(portfolio: &Value, projection: &Value) -> V
                     .cloned()
                     .unwrap_or_else(|| Value::String("deployment".into())),
             );
-            extra.insert("privilege".into(), item.get("privilege").cloned().unwrap_or(Value::Null));
-            extra.insert("identity".into(), item.get("identity").cloned().unwrap_or(Value::Null));
+            extra.insert(
+                "privilege".into(),
+                item.get("privilege").cloned().unwrap_or(Value::Null),
+            );
+            extra.insert(
+                "identity".into(),
+                item.get("identity").cloned().unwrap_or(Value::Null),
+            );
             extra.insert(
                 "environmentIds".into(),
-                item.get("environments").cloned().unwrap_or_else(|| json!([])),
+                item.get("environments")
+                    .cloned()
+                    .unwrap_or_else(|| json!([])),
             );
             extra.insert(
                 "deploymentKind".into(),
@@ -437,11 +440,19 @@ pub fn extract_runtime_components(portfolio: &Value, projection: &Value) -> Vec<
                     .cloned()
                     .unwrap_or_else(|| Value::String("process".into())),
             );
-            extra.insert("privilege".into(), item.get("privilege").cloned().unwrap_or(Value::Null));
-            extra.insert("identity".into(), item.get("identity").cloned().unwrap_or(Value::Null));
+            extra.insert(
+                "privilege".into(),
+                item.get("privilege").cloned().unwrap_or(Value::Null),
+            );
+            extra.insert(
+                "identity".into(),
+                item.get("identity").cloned().unwrap_or(Value::Null),
+            );
             extra.insert(
                 "environmentIds".into(),
-                item.get("environments").cloned().unwrap_or_else(|| json!([])),
+                item.get("environments")
+                    .cloned()
+                    .unwrap_or_else(|| json!([])),
             );
             component(kind, &target_ids, &[path], extra)
         })
@@ -485,7 +496,10 @@ pub fn extract_components(portfolio: &Value, projection: &Value, binding: &Value
     candidates.extend(extract_deployment_components(portfolio, projection));
     candidates.extend(extract_runtime_components(portfolio, projection));
 
-    let files: Vec<String> = str_vec(projection.get("files")).iter().map(path_of).collect();
+    let files: Vec<String> = str_vec(projection.get("files"))
+        .iter()
+        .map(path_of)
+        .collect();
     let ui_re = ui_regex();
     let ui: Vec<String> = files.into_iter().filter(|p| ui_re.is_match(p)).collect();
     if !ui.is_empty() {
@@ -674,18 +688,14 @@ mod tests {
 
     #[test]
     fn build_component_graph_rejects_unknown_target() {
-        let bad = component("api", &["target:missing".into()], &["a.ts".into()], Map::new());
-        let result = build_component_graph(
-            &portfolio(),
-            vec![bad],
-            vec![],
-            Value::Null,
-            0,
-            0,
-            0,
-            0,
-            0,
+        let bad = component(
+            "api",
+            &["target:missing".into()],
+            &["a.ts".into()],
+            Map::new(),
         );
+        let result =
+            build_component_graph(&portfolio(), vec![bad], vec![], Value::Null, 0, 0, 0, 0, 0);
         assert!(result.is_err());
     }
 

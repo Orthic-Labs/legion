@@ -210,7 +210,10 @@ impl<F: ArtifactFs> RunArtifactStore<F> {
         let seq = self.temp_counter.fetch_add(1, Ordering::SeqCst);
         let temp = target.with_file_name(format!(
             "{}.{}.{}.tmp",
-            target.file_name().and_then(|n| n.to_str()).unwrap_or("artifact"),
+            target
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("artifact"),
             pid,
             seq
         ));
@@ -263,7 +266,10 @@ impl<F: ArtifactFs> RunArtifactStore<F> {
             .get(path)
             .cloned()
             .ok_or_else(|| {
-                io::Error::new(io::ErrorKind::NotFound, format!("unregistered artifact: {path}"))
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("unregistered artifact: {path}"),
+                )
             })?;
         let bytes = self.fs.read(&self.root.join(path))?;
         if digest_bytes(&bytes) != record.digest {
@@ -402,12 +408,10 @@ mod tests {
         let store = RunArtifactStore::with_fs("/run/root", FakeFs::default());
         let record = store.write_bytes(spec("out/hello.txt", b"hi")).unwrap();
         // Tamper with the stored bytes behind the store's back.
-        store
-            .fs
-            .files
-            .lock()
-            .unwrap()
-            .insert(PathBuf::from("/run/root").join(&record.path), b"tampered".to_vec());
+        store.fs.files.lock().unwrap().insert(
+            PathBuf::from("/run/root").join(&record.path),
+            b"tampered".to_vec(),
+        );
         let err = store.read_verified("out/hello.txt").unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
         assert!(err.to_string().contains("digest mismatch"));

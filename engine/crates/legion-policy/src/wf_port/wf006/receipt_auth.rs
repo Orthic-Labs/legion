@@ -9,26 +9,63 @@
 
 use std::collections::BTreeMap;
 
-use super::canonical::{canonical_json, constant_time_equal, digest, hmac_sha256_hex, project_bound_fields, Json};
+use super::canonical::{
+    canonical_json, constant_time_equal, digest, hmac_sha256_hex, project_bound_fields, Json,
+};
 use super::errors::{ArcCode, ArcaneError, Decision};
 
 pub const MAC_ALGORITHM: &str = "HMAC-SHA256";
 
 pub const EFFECT_RECEIPT_BOUND_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "receiptId", "requestId", "runId", "contractId", "taskId",
-    "requested", "authorized", "observed", "match", "sourceRevision", "idempotencyKey", "observedAt",
+    "schemaVersion",
+    "kind",
+    "receiptId",
+    "requestId",
+    "runId",
+    "contractId",
+    "taskId",
+    "requested",
+    "authorized",
+    "observed",
+    "match",
+    "sourceRevision",
+    "idempotencyKey",
+    "observedAt",
 ];
 
 pub const EVIDENCE_RECEIPT_BOUND_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "evidenceId", "runId", "taskId", "contractId", "producerAuthority",
-    "capability", "observation", "evidenceClass", "sourceRevision", "dependsOn", "observedAt",
+    "schemaVersion",
+    "kind",
+    "evidenceId",
+    "runId",
+    "taskId",
+    "contractId",
+    "producerAuthority",
+    "capability",
+    "observation",
+    "evidenceClass",
+    "sourceRevision",
+    "dependsOn",
+    "observedAt",
 ];
 
-const SELF_ASSERTED_AUTHORITY_FIELDS: &[&str] =
-    &["authority", "callerAuthority", "assertedAuthority", "trust_class", "trustClass"];
+const SELF_ASSERTED_AUTHORITY_FIELDS: &[&str] = &[
+    "authority",
+    "callerAuthority",
+    "assertedAuthority",
+    "trust_class",
+    "trustClass",
+];
 
-const BINDING_FIELDS: &[&str] =
-    &["runId", "taskId", "workspace", "workspaceId", "operation", "sessionId", "contractId"];
+const BINDING_FIELDS: &[&str] = &[
+    "runId",
+    "taskId",
+    "workspace",
+    "workspaceId",
+    "operation",
+    "sessionId",
+    "contractId",
+];
 
 fn digest_of_bound_field_list(bound_fields: &[&str]) -> String {
     let arr = Json::Arr(bound_fields.iter().map(|f| Json::str(*f)).collect());
@@ -48,10 +85,13 @@ pub struct StaticKeyRing {
 
 impl StaticKeyRing {
     pub fn new() -> Self {
-        Self { keys: BTreeMap::new() }
+        Self {
+            keys: BTreeMap::new(),
+        }
     }
     pub fn with_key(mut self, key_id: &str, key: &[u8], revoked: bool) -> Self {
-        self.keys.insert(key_id.to_string(), (key.to_vec(), revoked));
+        self.keys
+            .insert(key_id.to_string(), (key.to_vec(), revoked));
         self
     }
 }
@@ -60,15 +100,25 @@ impl KeyRing for StaticKeyRing {
     fn get(&self, key_id: &str) -> Result<(&str, &[u8], bool), ArcaneError> {
         match self.keys.get_key_value(key_id) {
             Some((k, (key, revoked))) => Ok((k.as_str(), key.as_slice(), *revoked)),
-            None => Err(ArcaneError::new(ArcCode::ArcAuthKeyUnavailable, format!("signing key {key_id} is unavailable"))
-                .with_detail("keyId", key_id)),
+            None => Err(ArcaneError::new(
+                ArcCode::ArcAuthKeyUnavailable,
+                format!("signing key {key_id} is unavailable"),
+            )
+            .with_detail("keyId", key_id)),
         }
     }
 }
 
-fn mac_over(key: &[u8], record: &Json, bound_fields: &[&str], mac_domain: Option<&str>) -> Result<String, ArcaneError> {
-    let projected = project_bound_fields(record, bound_fields)
-        .map_err(|e| ArcaneError::new(ArcCode::ArcAuthForged, e.message.clone()).with_detail("field", e.path.clone()))?;
+fn mac_over(
+    key: &[u8],
+    record: &Json,
+    bound_fields: &[&str],
+    mac_domain: Option<&str>,
+) -> Result<String, ArcaneError> {
+    let projected = project_bound_fields(record, bound_fields).map_err(|e| {
+        ArcaneError::new(ArcCode::ArcAuthForged, e.message.clone())
+            .with_detail("field", e.path.clone())
+    })?;
     let bound_fields_json = Json::Arr(bound_fields.iter().map(|f| Json::str(*f)).collect());
     let message = match mac_domain {
         None => Json::Obj(vec![
@@ -83,7 +133,8 @@ fn mac_over(key: &[u8], record: &Json, bound_fields: &[&str], mac_domain: Option
             ("subject".into(), projected),
         ]),
     };
-    let text = canonical_json(&message).map_err(|e| ArcaneError::new(ArcCode::ArcAuthForged, e.message.clone()))?;
+    let text = canonical_json(&message)
+        .map_err(|e| ArcaneError::new(ArcCode::ArcAuthForged, e.message.clone()))?;
     Ok(hmac_sha256_hex(key, text.as_bytes()))
 }
 
@@ -106,7 +157,10 @@ pub fn sign_record(
     mac_domain: Option<&str>,
 ) -> Result<SignedAuth, ArcaneError> {
     if bound_fields.is_empty() {
-        return Err(ArcaneError::new(ArcCode::ArcAuthForged, "signRecord requires a non-empty boundFields list"));
+        return Err(ArcaneError::new(
+            ArcCode::ArcAuthForged,
+            "signRecord requires a non-empty boundFields list",
+        ));
     }
     let (resolved_key_id, key, _revoked) = keyring.get(key_id)?;
     Ok(SignedAuth {
@@ -123,7 +177,13 @@ pub fn sign_record(
 pub enum PresentedAuth<'a> {
     None,
     LegacyDigest,
-    Signed { alg: &'a str, key_id: &'a str, mac: &'a str, mac_domain: Option<&'a str>, bound_fields_digest: Option<&'a str> },
+    Signed {
+        alg: &'a str,
+        key_id: &'a str,
+        mac: &'a str,
+        mac_domain: Option<&'a str>,
+        bound_fields_digest: Option<&'a str>,
+    },
 }
 
 pub struct VerifyOpts<'a> {
@@ -164,16 +224,23 @@ pub fn verify_record(
             ))
         }
         PresentedAuth::LegacyDigest => unreachable!(),
-        PresentedAuth::Signed { alg, key_id, mac, mac_domain, bound_fields_digest } => {
-            (*alg, *key_id, *mac, *mac_domain, *bound_fields_digest)
-        }
+        PresentedAuth::Signed {
+            alg,
+            key_id,
+            mac,
+            mac_domain,
+            bound_fields_digest,
+        } => (*alg, *key_id, *mac, *mac_domain, *bound_fields_digest),
     };
 
     if alg != MAC_ALGORITHM {
         return Ok(Decision::deny(
             ArcCode::ArcAuthForged,
             format!("unsupported MAC algorithm: {alg}"),
-            vec![("alg".into(), alg.into()), ("expected".into(), MAC_ALGORITHM.into())],
+            vec![
+                ("alg".into(), alg.into()),
+                ("expected".into(), MAC_ALGORITHM.into()),
+            ],
         ));
     }
 
@@ -192,7 +259,10 @@ pub fn verify_record(
 
     // 3. The covered field list must be exactly the one the verifier demands.
     let expected_fields_digest = digest_of_bound_field_list(opts.bound_fields);
-    if !constant_time_equal(bound_fields_digest.unwrap_or("").as_bytes(), expected_fields_digest.as_bytes()) {
+    if !constant_time_equal(
+        bound_fields_digest.unwrap_or("").as_bytes(),
+        expected_fields_digest.as_bytes(),
+    ) {
         return Ok(Decision::deny(
             ArcCode::ArcAuthForged,
             "signed bound-field list does not match the verifier's required field list",
@@ -214,13 +284,24 @@ pub fn verify_record(
     }
 
     // 5. The MAC itself.
-    let effective_domain = if opts.force_mac_domain.is_some() { opts.force_mac_domain.unwrap() } else { mac_domain };
+    let effective_domain = if opts.force_mac_domain.is_some() {
+        opts.force_mac_domain.unwrap()
+    } else {
+        mac_domain
+    };
     let expected_mac = match mac_over(key, record, opts.bound_fields, effective_domain) {
         Ok(m) => m,
         Err(e) => {
             return Ok(Decision::deny(
                 ArcCode::ArcAuthForged,
-                format!("record is missing a bound field: {}", e.detail.iter().find(|(k, _)| k == "field").map(|(_, v)| v.as_str()).unwrap_or("unknown")),
+                format!(
+                    "record is missing a bound field: {}",
+                    e.detail
+                        .iter()
+                        .find(|(k, _)| k == "field")
+                        .map(|(_, v)| v.as_str())
+                        .unwrap_or("unknown")
+                ),
                 e.detail,
             ))
         }
@@ -256,7 +337,11 @@ pub fn verify_record(
                 return Ok(Decision::deny(
                     ArcCode::ArcBindingMismatch,
                     format!("authenticated record is bound to a different {field}"),
-                    vec![("field".into(), (*field).into()), ("expected".into(), (*expected).into()), ("actual".into(), actual.into())],
+                    vec![
+                        ("field".into(), (*field).into()),
+                        ("expected".into(), (*expected).into()),
+                        ("actual".into(), actual.into()),
+                    ],
                 ));
             }
         }
@@ -270,7 +355,12 @@ mod tests {
     use super::*;
 
     fn record(pairs: Vec<(&str, &str)>) -> Json {
-        Json::Obj(pairs.into_iter().map(|(k, v)| (k.to_string(), Json::str(v))).collect())
+        Json::Obj(
+            pairs
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), Json::str(v)))
+                .collect(),
+        )
     }
 
     #[test]
@@ -286,7 +376,11 @@ mod tests {
             mac_domain: signed.mac_domain.as_deref(),
             bound_fields_digest: Some(&signed.bound_fields_digest),
         };
-        let opts = VerifyOpts { bound_fields: bound, expected_binding: BTreeMap::new(), force_mac_domain: None };
+        let opts = VerifyOpts {
+            bound_fields: bound,
+            expected_binding: BTreeMap::new(),
+            force_mac_domain: None,
+        };
         let d = verify_record(&record, auth, &keyring, &opts).unwrap();
         assert!(d.allowed, "{d:?}");
     }
@@ -305,7 +399,11 @@ mod tests {
             mac_domain: None,
             bound_fields_digest: Some(&signed.bound_fields_digest),
         };
-        let opts = VerifyOpts { bound_fields: bound, expected_binding: BTreeMap::new(), force_mac_domain: None };
+        let opts = VerifyOpts {
+            bound_fields: bound,
+            expected_binding: BTreeMap::new(),
+            force_mac_domain: None,
+        };
         let d = verify_record(&tampered, auth, &keyring, &opts).unwrap();
         assert!(!d.allowed);
         assert_eq!(d.code, Some(ArcCode::ArcAuthForged));
@@ -313,7 +411,18 @@ mod tests {
 
     fn record_with(base: &Json, key: &str, value: &str) -> Json {
         if let Json::Obj(pairs) = base {
-            Json::Obj(pairs.iter().map(|(k, v)| if k == key { (k.clone(), Json::str(value)) } else { (k.clone(), v.clone()) }).collect())
+            Json::Obj(
+                pairs
+                    .iter()
+                    .map(|(k, v)| {
+                        if k == key {
+                            (k.clone(), Json::str(value))
+                        } else {
+                            (k.clone(), v.clone())
+                        }
+                    })
+                    .collect(),
+            )
         } else {
             base.clone()
         }
@@ -323,7 +432,11 @@ mod tests {
     fn legacy_digest_is_refused() {
         let keyring = StaticKeyRing::new();
         let record = record(vec![("runId", "run-1")]);
-        let opts = VerifyOpts { bound_fields: &["runId"], expected_binding: BTreeMap::new(), force_mac_domain: None };
+        let opts = VerifyOpts {
+            bound_fields: &["runId"],
+            expected_binding: BTreeMap::new(),
+            force_mac_domain: None,
+        };
         let d = verify_record(&record, PresentedAuth::LegacyDigest, &keyring, &opts).unwrap();
         assert_eq!(d.code, Some(ArcCode::ArcAuthLegacyDigest));
     }
@@ -332,7 +445,11 @@ mod tests {
     fn no_auth_material_is_unauthenticated() {
         let keyring = StaticKeyRing::new();
         let record = record(vec![("runId", "run-1")]);
-        let opts = VerifyOpts { bound_fields: &["runId"], expected_binding: BTreeMap::new(), force_mac_domain: None };
+        let opts = VerifyOpts {
+            bound_fields: &["runId"],
+            expected_binding: BTreeMap::new(),
+            force_mac_domain: None,
+        };
         let d = verify_record(&record, PresentedAuth::None, &keyring, &opts).unwrap();
         assert_eq!(d.code, Some(ArcCode::ArcAuthUnauthenticated));
     }
@@ -350,7 +467,11 @@ mod tests {
             mac_domain: None,
             bound_fields_digest: Some(&signed.bound_fields_digest),
         };
-        let opts = VerifyOpts { bound_fields: bound, expected_binding: BTreeMap::new(), force_mac_domain: None };
+        let opts = VerifyOpts {
+            bound_fields: bound,
+            expected_binding: BTreeMap::new(),
+            force_mac_domain: None,
+        };
         let d = verify_record(&record, auth, &keyring, &opts).unwrap();
         assert_eq!(d.code, Some(ArcCode::ArcAuthorityModelClaimed));
     }
@@ -371,7 +492,11 @@ mod tests {
             mac_domain: None,
             bound_fields_digest: Some(&signed.bound_fields_digest),
         };
-        let opts = VerifyOpts { bound_fields: bound, expected_binding: BTreeMap::new(), force_mac_domain: None };
+        let opts = VerifyOpts {
+            bound_fields: bound,
+            expected_binding: BTreeMap::new(),
+            force_mac_domain: None,
+        };
         let d = verify_record(&record, auth, &keyring, &opts).unwrap();
         assert_eq!(d.code, Some(ArcCode::ArcCapabilityRevoked));
     }
@@ -391,7 +516,11 @@ mod tests {
         };
         let mut expected_binding = BTreeMap::new();
         expected_binding.insert("runId", "run-OTHER");
-        let opts = VerifyOpts { bound_fields: bound, expected_binding, force_mac_domain: None };
+        let opts = VerifyOpts {
+            bound_fields: bound,
+            expected_binding,
+            force_mac_domain: None,
+        };
         let d = verify_record(&record, auth, &keyring, &opts).unwrap();
         assert_eq!(d.code, Some(ArcCode::ArcBindingMismatch));
     }
@@ -419,7 +548,11 @@ mod tests {
             mac_domain: None,
             bound_fields_digest: Some(&signed.bound_fields_digest),
         };
-        let opts = VerifyOpts { bound_fields: &["runId", "taskId"], expected_binding: BTreeMap::new(), force_mac_domain: None };
+        let opts = VerifyOpts {
+            bound_fields: &["runId", "taskId"],
+            expected_binding: BTreeMap::new(),
+            force_mac_domain: None,
+        };
         let d = verify_record(&record, auth, &keyring, &opts).unwrap();
         assert_eq!(d.code, Some(ArcCode::ArcAuthForged));
     }

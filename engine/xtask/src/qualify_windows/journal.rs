@@ -31,7 +31,10 @@ pub fn integration_journal_record(input: IntegrationJournalInput) -> Value {
     let active_health = input.current_health.or(input.prior_health);
 
     let integration = |health: Option<&Value>| {
-        let complete = health.and_then(|h| h.get("complete")).and_then(|v| v.as_bool()).unwrap_or(false);
+        let complete = health
+            .and_then(|h| h.get("complete"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         json!({
             "state": if complete { "current" } else { "unproven" },
             "commandProofRef": health.and_then(|h| h.pointer("/qualificationProofs/commandPath")).cloned().unwrap_or(Value::Null),
@@ -78,12 +81,18 @@ pub fn integration_journal_record(input: IntegrationJournalInput) -> Value {
 /// Mirrors `writeIntegrationJournal`.
 pub fn write_integration_journal(path: &Path, record: Value) -> Result<Value, String> {
     if has_forbidden_binding_segment(&path.to_string_lossy()) {
-        return Err(format!("integration journal path escapes installed state: {}", path.display()));
+        return Err(format!(
+            "integration journal path escapes installed state: {}",
+            path.display()
+        ));
     }
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let text = format!("{}\n", serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?);
+    let text = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?
+    );
     fs::write(path, text).map_err(|e| e.to_string())?;
     read_json(path, "integration journal")
 }
@@ -99,13 +108,19 @@ pub fn write_pointer(path: &Path, target: &Path) -> Result<bool, String> {
 /// Mirrors `writeReceipt` (write-to-temp then rename).
 pub fn write_receipt(path: &Path, receipt: &Value) -> Result<PathBuf, String> {
     if path.exists() && path.is_dir() {
-        return Err(format!("qualification receipt path is a directory: {}", path.display()));
+        return Err(format!(
+            "qualification receipt path is a directory: {}",
+            path.display()
+        ));
     }
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let temporary = PathBuf::from(format!("{}.{}.tmp", path.display(), std::process::id()));
-    let text = format!("{}\n", serde_json::to_string_pretty(receipt).map_err(|e| e.to_string())?);
+    let text = format!(
+        "{}\n",
+        serde_json::to_string_pretty(receipt).map_err(|e| e.to_string())?
+    );
     let result = (|| -> Result<(), String> {
         fs::write(&temporary, &text).map_err(|e| e.to_string())?;
         fs::rename(&temporary, path).map_err(|e| e.to_string())?;

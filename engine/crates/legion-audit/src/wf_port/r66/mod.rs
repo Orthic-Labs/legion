@@ -54,7 +54,12 @@ impl Entity {
         self.attributes.get(key).and_then(Value::as_str)
     }
 
-    pub fn control(id: impl Into<String>, control_type: &str, name: &str, evidence_refs: Vec<String>) -> Self {
+    pub fn control(
+        id: impl Into<String>,
+        control_type: &str,
+        name: &str,
+        evidence_refs: Vec<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             kind: "control".to_string(),
@@ -180,8 +185,16 @@ impl Context {
     pub fn find_untrusted_source(&self, file: &str) -> Option<&Entity> {
         self.entities
             .iter()
-            .find(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted") && e.attr_str("file") == Some(file))
-            .or_else(|| self.entities.iter().find(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted")))
+            .find(|e| {
+                e.kind == "source"
+                    && e.attr_str("trust") == Some("untrusted")
+                    && e.attr_str("file") == Some(file)
+            })
+            .or_else(|| {
+                self.entities
+                    .iter()
+                    .find(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted"))
+            })
     }
 
     /// Mirrors `findInvocationProcess(context, file)`.
@@ -203,7 +216,10 @@ impl Context {
     /// Mirrors `runtimeHeaderCompliance(context, headerKey, isCompliant)`'s
     /// snapshot lookup: `context.projection?.auditFacts?.runtimeHeaders?.headers`.
     pub fn runtime_header(&self, key: &str) -> Option<&Value> {
-        self.audit_facts.runtime_headers.as_ref().and_then(|h| h.get(key))
+        self.audit_facts
+            .runtime_headers
+            .as_ref()
+            .and_then(|h| h.get(key))
     }
 
     /// Mirrors `deploymentGate`'s evidence check:

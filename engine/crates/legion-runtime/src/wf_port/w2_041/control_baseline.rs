@@ -28,11 +28,20 @@ use serde_json::{json, Value};
 ///   ?? options.artifacts?.['product-topology']
 ///   ?? options.productInspection;
 /// ```
-pub fn resolve_topology<'a>(artifacts: Option<&'a Value>, product_inspection: Option<&'a Value>) -> Option<&'a Value> {
-    if let Some(v) = artifacts.and_then(|a| a.get("product-portfolio")).filter(|v| !v.is_null()) {
+pub fn resolve_topology<'a>(
+    artifacts: Option<&'a Value>,
+    product_inspection: Option<&'a Value>,
+) -> Option<&'a Value> {
+    if let Some(v) = artifacts
+        .and_then(|a| a.get("product-portfolio"))
+        .filter(|v| !v.is_null())
+    {
         return Some(v);
     }
-    if let Some(v) = artifacts.and_then(|a| a.get("product-topology")).filter(|v| !v.is_null()) {
+    if let Some(v) = artifacts
+        .and_then(|a| a.get("product-topology"))
+        .filter(|v| !v.is_null())
+    {
         return Some(v);
     }
     product_inspection.filter(|v| !v.is_null())
@@ -130,9 +139,11 @@ mod live {
             JVal::Number(n) => CVal::Number(n.as_f64().unwrap_or(0.0)),
             JVal::String(s) => CVal::String(s.clone()),
             JVal::Array(items) => CVal::Array(items.iter().map(json_to_cv).collect()),
-            JVal::Object(map) => {
-                CVal::Object(map.iter().map(|(k, v)| (k.clone(), json_to_cv(v))).collect())
-            }
+            JVal::Object(map) => CVal::Object(
+                map.iter()
+                    .map(|(k, v)| (k.clone(), json_to_cv(v)))
+                    .collect(),
+            ),
         }
     }
 
@@ -349,7 +360,8 @@ mod live {
         let baseline_json = cv_to_json(&baseline_cv);
 
         let controls = controls_from_baseline(&baseline_cv);
-        let capability_statuses = evidence_capabilities(&capabilities_map, now_ms, host_binding_cv.as_ref());
+        let capability_statuses =
+            evidence_capabilities(&capabilities_map, now_ms, host_binding_cv.as_ref());
         let capabilities_json = JVal::Array(
             capability_statuses
                 .iter()
@@ -383,7 +395,9 @@ mod live {
     }
 }
 
-pub use live::{compile_baseline_and_impacts_json, control_baseline_stage_live, cv_to_json, json_to_cv};
+pub use live::{
+    compile_baseline_and_impacts_json, control_baseline_stage_live, cv_to_json, json_to_cv,
+};
 
 #[cfg(test)]
 mod tests {
@@ -411,11 +425,17 @@ mod tests {
             },
             |_| Vec::new(),
         );
-        assert!(!compiled, "compile_baseline must not run when packs are empty");
+        assert!(
+            !compiled,
+            "compile_baseline must not run when packs are empty"
+        );
         assert_eq!(result["status"], json!("missing"));
         assert_eq!(result["detail"], json!("control-packs-required"));
         assert_eq!(result["artifact"]["baseline"], Value::Null);
-        assert_eq!(result["artifact"]["impacts"], json!([{"kind": "control-denominator-missing"}]));
+        assert_eq!(
+            result["artifact"]["impacts"],
+            json!([{"kind": "control-denominator-missing"}])
+        );
     }
 
     #[test]
@@ -464,7 +484,8 @@ mod tests {
 
     #[test]
     fn resolve_topology_prefers_product_portfolio_over_product_topology_and_inspection() {
-        let artifacts = json!({"product-portfolio": {"k": "portfolio"}, "product-topology": {"k": "topology"}});
+        let artifacts =
+            json!({"product-portfolio": {"k": "portfolio"}, "product-topology": {"k": "topology"}});
         let inspection = json!({"k": "inspection"});
         let resolved = resolve_topology(Some(&artifacts), Some(&inspection)).unwrap();
         assert_eq!(resolved, &json!({"k": "portfolio"}));

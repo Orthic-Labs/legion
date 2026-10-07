@@ -70,11 +70,7 @@ fn lexical_resolve(raw: &str) -> String {
         }
     }
     let joined = stack.join("/");
-    let prefixed = if is_abs {
-        format!("/{joined}")
-    } else {
-        joined
-    };
+    let prefixed = if is_abs { format!("/{joined}") } else { joined };
     prefixed.trim_end_matches('/').to_string()
 }
 
@@ -96,8 +92,10 @@ pub fn storage_errors(
     windows: bool,
 ) -> Vec<String> {
     let mut errors = Vec::new();
-    let declared_artifact = clean_path_value(&label_value(text, "**Packet path:**").unwrap_or_default());
-    let declared_receipt = clean_path_value(&label_value(text, "**Receipt path:**").unwrap_or_default());
+    let declared_artifact =
+        clean_path_value(&label_value(text, "**Packet path:**").unwrap_or_default());
+    let declared_receipt =
+        clean_path_value(&label_value(text, "**Receipt path:**").unwrap_or_default());
     let actual_artifact = artifact.to_path_buf();
     let receipt_arg = write_receipt.or(verify_receipt);
 
@@ -112,11 +110,14 @@ pub fn storage_errors(
         errors.push("declared handoff packet path does not match validated file".to_string());
     }
 
-    let artifact_parts: BTreeSet<String> = normalized_path(&actual_artifact.to_string_lossy(), windows)
-        .split('/')
-        .map(|s| s.to_string())
-        .collect();
-    if artifact_parts.iter().any(|p| FORBIDDEN_STORAGE_PARTS.contains(&p.as_str()))
+    let artifact_parts: BTreeSet<String> =
+        normalized_path(&actual_artifact.to_string_lossy(), windows)
+            .split('/')
+            .map(|s| s.to_string())
+            .collect();
+    if artifact_parts
+        .iter()
+        .any(|p| FORBIDDEN_STORAGE_PARTS.contains(&p.as_str()))
         || artifact_parts.iter().any(|p| p.starts_with(".validator-"))
     {
         errors.push("canonical handoff cannot use temporary/cache/review-run storage".to_string());
@@ -166,7 +167,9 @@ pub fn storage_errors(
         .split('/')
         .map(|s| s.to_string())
         .collect();
-    if receipt_parts.iter().any(|p| FORBIDDEN_STORAGE_PARTS.contains(&p.as_str()))
+    if receipt_parts
+        .iter()
+        .any(|p| FORBIDDEN_STORAGE_PARTS.contains(&p.as_str()))
         || receipt_parts.iter().any(|p| p.starts_with(".validator-"))
     {
         errors.push("handoff receipt cannot use temporary/cache/review-run storage".to_string());
@@ -195,44 +198,111 @@ pub const HEADINGS: &[&str] = &[
 ];
 
 pub const LABELS: &[&str] = &[
-    "**Handoff ID:**", "**Created:**", "**Source task / chat:**", "**Target:**",
-    "**Author:**", "**Receiver role:**", "**Proceed mode:**", "**Readiness:**",
-    "**Handoff reason:**", "**Source evidence mode:**",
-    "**Transcript evidence path:**", "**Source prefix receipt:**",
-    "**Packet path:**", "**Receipt path:**",
-    "**Original user intent verbatim:**", "**Underlying goal:**",
-    "**Current objective:**", "**Definition of success:**", "**Out of scope:**",
-    "**First responsibility:**", "**Must not do first:**", "**Phase:**",
-    "**Completed:**", "**In progress:**", "**Blocked:**", "**Not started:**",
-    "**Last action:**", "**Last observed result:**", "**Active goal / plan:**",
-    "**Current hypothesis:**", "**Work type:**", "**Workspace / repo:**",
-    "**Branch / version:**", "**Baseline revision:**", "**Dirty state:**",
-    "**OS / shell:**", "**Tools / dependencies:**", "**Services / processes:**",
-    "**Agents / tasks / threads:**", "**Scheduled work:**",
-    "**Credentials / access:**", "**May do:**", "**Do not change:**",
-    "**Do not run:**", "**Irreversible / production actions:**",
-    "**Spend / external effects:**", "**Secrets handling:**",
-    "**Reserved decisions:**", "**Verification command:**", "**Expected state:**",
-    "**Invalidated by:**", "**Refresh action:**", "**Validator command:**",
-    "**Receiver receipt check:**", "**First deliverable after readback:**",
-    "**Gap report format:**", "**Gap summary:**", "**Safe-to-proceed scope:**",
-    "**Fatal recovery owner:**", "**Exact recovery sequence:**",
+    "**Handoff ID:**",
+    "**Created:**",
+    "**Source task / chat:**",
+    "**Target:**",
+    "**Author:**",
+    "**Receiver role:**",
+    "**Proceed mode:**",
+    "**Readiness:**",
+    "**Handoff reason:**",
+    "**Source evidence mode:**",
+    "**Transcript evidence path:**",
+    "**Source prefix receipt:**",
+    "**Packet path:**",
+    "**Receipt path:**",
+    "**Original user intent verbatim:**",
+    "**Underlying goal:**",
+    "**Current objective:**",
+    "**Definition of success:**",
+    "**Out of scope:**",
+    "**First responsibility:**",
+    "**Must not do first:**",
+    "**Phase:**",
+    "**Completed:**",
+    "**In progress:**",
+    "**Blocked:**",
+    "**Not started:**",
+    "**Last action:**",
+    "**Last observed result:**",
+    "**Active goal / plan:**",
+    "**Current hypothesis:**",
+    "**Work type:**",
+    "**Workspace / repo:**",
+    "**Branch / version:**",
+    "**Baseline revision:**",
+    "**Dirty state:**",
+    "**OS / shell:**",
+    "**Tools / dependencies:**",
+    "**Services / processes:**",
+    "**Agents / tasks / threads:**",
+    "**Scheduled work:**",
+    "**Credentials / access:**",
+    "**May do:**",
+    "**Do not change:**",
+    "**Do not run:**",
+    "**Irreversible / production actions:**",
+    "**Spend / external effects:**",
+    "**Secrets handling:**",
+    "**Reserved decisions:**",
+    "**Verification command:**",
+    "**Expected state:**",
+    "**Invalidated by:**",
+    "**Refresh action:**",
+    "**Validator command:**",
+    "**Receiver receipt check:**",
+    "**First deliverable after readback:**",
+    "**Gap report format:**",
+    "**Gap summary:**",
+    "**Safe-to-proceed scope:**",
+    "**Fatal recovery owner:**",
+    "**Exact recovery sequence:**",
 ];
 
 pub const STEP_LABELS: &[&str] = &[
-    "**Owner:**", "**Working directory / system:**", "**Exact action:**",
-    "**Expected result:**", "**Evidence path:**", "**Timeout / retry:**",
-    "**If failure:**", "**Depends on:**",
+    "**Owner:**",
+    "**Working directory / system:**",
+    "**Exact action:**",
+    "**Expected result:**",
+    "**Evidence path:**",
+    "**Timeout / retry:**",
+    "**If failure:**",
+    "**Depends on:**",
 ];
 
 const GENERIC: &[&str] = &[
-    "", "value", "example", "placeholder", "fixture-value", "todo", "tbd", "n/a", "none",
+    "",
+    "value",
+    "example",
+    "placeholder",
+    "fixture-value",
+    "todo",
+    "tbd",
+    "n/a",
+    "none",
 ];
 const ENUM_VALUES: &[&str] = &[
-    "READY", "READY_WITH_GAPS", "NOT_READY", "IMMEDIATE", "READBACK_ONLY",
-    "REVIEW_ONLY", "DECISION", "CODE", "DOCUMENT", "RESEARCH", "OPERATIONS",
-    "MIXED", "LOCKED", "ACTIVE_ASSUMPTION", "REVISIT_ON", "FATAL", "HIGH",
-    "MEDIUM", "LOW", "NONE",
+    "READY",
+    "READY_WITH_GAPS",
+    "NOT_READY",
+    "IMMEDIATE",
+    "READBACK_ONLY",
+    "REVIEW_ONLY",
+    "DECISION",
+    "CODE",
+    "DOCUMENT",
+    "RESEARCH",
+    "OPERATIONS",
+    "MIXED",
+    "LOCKED",
+    "ACTIVE_ASSUMPTION",
+    "REVISIT_ON",
+    "FATAL",
+    "HIGH",
+    "MEDIUM",
+    "LOW",
+    "NONE",
 ];
 
 fn banned_patterns() -> &'static [(&'static str, Regex)] {
@@ -269,7 +339,8 @@ fn step_re() -> &'static Regex {
     &RE
 }
 fn path_re() -> &'static Regex {
-    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?:[A-Za-z]:[\\/]|/)[^\s`|]+").unwrap());
+    static RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?:[A-Za-z]:[\\/]|/)[^\s`|]+").unwrap());
     &RE
 }
 fn action_re() -> &'static Regex {
@@ -347,7 +418,9 @@ pub fn table_errors(name: &str, rows: &[Vec<String>], width: usize, template: bo
             for (cell_index, cell) in row.iter().enumerate() {
                 let cell_index = cell_index + 1;
                 if !concrete(cell) {
-                    errors.push(format!("{name} row {row_index} cell {cell_index} is too vague"));
+                    errors.push(format!(
+                        "{name} row {row_index} cell {cell_index} is too vague"
+                    ));
                 }
             }
         }
@@ -384,7 +457,10 @@ pub fn resume_errors(text: &str, template: bool) -> Vec<String> {
         .find("## 11. State Verification & Invalidation")
         .unwrap_or(text.len());
     for (index, m) in matches.iter().enumerate() {
-        let end = matches.get(index + 1).map(|n| n.start()).unwrap_or(section_end);
+        let end = matches
+            .get(index + 1)
+            .map(|n| n.start())
+            .unwrap_or(section_end);
         let block = &text[m.start()..end];
         let name = m.as_str();
         for &label in STEP_LABELS {
@@ -437,11 +513,15 @@ pub fn validate(text: &str, template: bool) -> Vec<String> {
             Some(value) => {
                 let is_optional_empty = matches!(
                     label,
-                    "**Verification command:**" | "**Validator command:**" | "**Receiver receipt check:**"
+                    "**Verification command:**"
+                        | "**Validator command:**"
+                        | "**Receiver receipt check:**"
                 );
                 if value.is_empty() && !is_optional_empty {
                     errors.push(format!("empty value: {label}"));
-                } else if !template && GENERIC.contains(&value.trim().trim_matches('`').to_lowercase().as_str()) {
+                } else if !template
+                    && GENERIC.contains(&value.trim().trim_matches('`').to_lowercase().as_str())
+                {
                     errors.push(format!("generic filler value: {label}"));
                 }
             }
@@ -451,13 +531,39 @@ pub fn validate(text: &str, template: bool) -> Vec<String> {
     errors.extend(resume_errors(text, template));
 
     let tables: [(&str, &str, &str, usize); 5] = [
-        ("decision log", "## 4. Decisions, Invariants & User Corrections", "## 5. Artifacts & Evidence", 5),
-        ("artifact map", "## 5. Artifacts & Evidence", "## 6. Failures, Dead Ends & Attempts", 6),
-        ("failure map", "## 6. Failures, Dead Ends & Attempts", "## 7. Learnings, Gotchas & Landmines", 7),
-        ("gotcha map", "## 7. Learnings, Gotchas & Landmines", "## 8. Open Loops & Context Gaps", 4),
-        ("gap map", "## 8. Open Loops & Context Gaps", "## 9. Safety, Authority & Boundaries", 6),
+        (
+            "decision log",
+            "## 4. Decisions, Invariants & User Corrections",
+            "## 5. Artifacts & Evidence",
+            5,
+        ),
+        (
+            "artifact map",
+            "## 5. Artifacts & Evidence",
+            "## 6. Failures, Dead Ends & Attempts",
+            6,
+        ),
+        (
+            "failure map",
+            "## 6. Failures, Dead Ends & Attempts",
+            "## 7. Learnings, Gotchas & Landmines",
+            7,
+        ),
+        (
+            "gotcha map",
+            "## 7. Learnings, Gotchas & Landmines",
+            "## 8. Open Loops & Context Gaps",
+            4,
+        ),
+        (
+            "gap map",
+            "## 8. Open Loops & Context Gaps",
+            "## 9. Safety, Authority & Boundaries",
+            6,
+        ),
     ];
-    let mut parsed: std::collections::BTreeMap<&str, Vec<Vec<String>>> = std::collections::BTreeMap::new();
+    let mut parsed: std::collections::BTreeMap<&str, Vec<Vec<String>>> =
+        std::collections::BTreeMap::new();
     for (name, start, end, width) in tables {
         let rows = table_rows(text, start, end);
         errors.extend(table_errors(name, &rows, width, template));
@@ -485,31 +591,55 @@ pub fn validate(text: &str, template: bool) -> Vec<String> {
         let evidence_path = label_value(text, "**Transcript evidence path:**").unwrap_or_default();
         let source_receipt = label_value(text, "**Source prefix receipt:**").unwrap_or_default();
         if !["TRANSCRIPT_INGEST", "LIVE_CONTEXT"].contains(&source_mode.as_str()) {
-            errors.push("Source evidence mode must be TRANSCRIPT_INGEST or LIVE_CONTEXT".to_string());
+            errors
+                .push("Source evidence mode must be TRANSCRIPT_INGEST or LIVE_CONTEXT".to_string());
         }
         if source_mode == "TRANSCRIPT_INGEST" {
             if !path_re().is_match(&evidence_path) {
                 errors.push("TRANSCRIPT_INGEST requires absolute Legion context path".to_string());
             }
             let upper = source_receipt.to_uppercase();
-            for token in ["PLATFORM:", "SESSION_ID:", "CUTOFF_BYTES:", "SHA256:", "PARSER_VERSION:"] {
+            for token in [
+                "PLATFORM:",
+                "SESSION_ID:",
+                "CUTOFF_BYTES:",
+                "SHA256:",
+                "PARSER_VERSION:",
+            ] {
                 if !upper.contains(token) {
-                    errors.push(format!("TRANSCRIPT_INGEST source prefix receipt missing {token}"));
+                    errors.push(format!(
+                        "TRANSCRIPT_INGEST source prefix receipt missing {token}"
+                    ));
                 }
             }
-            if !Regex::new(r"(?i)\bSHA256:[0-9a-f]{64}\b").unwrap().is_match(&source_receipt) {
-                errors.push("TRANSCRIPT_INGEST source prefix receipt requires 64-hex SHA256".to_string());
+            if !Regex::new(r"(?i)\bSHA256:[0-9a-f]{64}\b")
+                .unwrap()
+                .is_match(&source_receipt)
+            {
+                errors.push(
+                    "TRANSCRIPT_INGEST source prefix receipt requires 64-hex SHA256".to_string(),
+                );
             }
-            if !Regex::new(r"(?i)\bCUTOFF_BYTES:[1-9]\d*\b").unwrap().is_match(&source_receipt) {
-                errors.push("TRANSCRIPT_INGEST source prefix receipt requires positive cutoff".to_string());
+            if !Regex::new(r"(?i)\bCUTOFF_BYTES:[1-9]\d*\b")
+                .unwrap()
+                .is_match(&source_receipt)
+            {
+                errors.push(
+                    "TRANSCRIPT_INGEST source prefix receipt requires positive cutoff".to_string(),
+                );
             }
         } else {
             let na_re = Regex::new(r"(?i)^NOT_APPLICABLE:\s*\S").unwrap();
             if !na_re.is_match(&evidence_path) {
-                errors.push("LIVE_CONTEXT transcript evidence path requires NOT_APPLICABLE reason".to_string());
+                errors.push(
+                    "LIVE_CONTEXT transcript evidence path requires NOT_APPLICABLE reason"
+                        .to_string(),
+                );
             }
             if !na_re.is_match(&source_receipt) {
-                errors.push("LIVE_CONTEXT source prefix receipt requires NOT_APPLICABLE reason".to_string());
+                errors.push(
+                    "LIVE_CONTEXT source prefix receipt requires NOT_APPLICABLE reason".to_string(),
+                );
             }
         }
 
@@ -547,12 +677,19 @@ pub fn validate(text: &str, template: bool) -> Vec<String> {
             errors.push("state verification lacks executable fenced command/action".to_string());
         }
         let validator_command = fenced_after(text, "**Validator command:**").unwrap_or_default();
-        let receiver_command = fenced_after(text, "**Receiver receipt check:**").unwrap_or_default();
-        let declared_packet = clean_path_value(&label_value(text, "**Packet path:**").unwrap_or_default());
-        let declared_receipt = clean_path_value(&label_value(text, "**Receipt path:**").unwrap_or_default());
+        let receiver_command =
+            fenced_after(text, "**Receiver receipt check:**").unwrap_or_default();
+        let declared_packet =
+            clean_path_value(&label_value(text, "**Packet path:**").unwrap_or_default());
+        let declared_receipt =
+            clean_path_value(&label_value(text, "**Receipt path:**").unwrap_or_default());
         for (label, command, flag) in [
             ("Validator command", &validator_command, "--write-receipt"),
-            ("Receiver receipt check", &receiver_command, "--verify-receipt"),
+            (
+                "Receiver receipt check",
+                &receiver_command,
+                "--verify-receipt",
+            ),
         ] {
             let normalized_command = normalized_path(command, false);
             let ok = command.contains("validate-handoff.py")
@@ -560,24 +697,38 @@ pub fn validate(text: &str, template: bool) -> Vec<String> {
                 && normalized_command.contains(&normalized_path(&declared_packet, false))
                 && normalized_command.contains(&normalized_path(&declared_receipt, false));
             if !ok {
-                errors.push(format!("{label} must execute validate-handoff.py with bound paths and {flag}"));
+                errors.push(format!(
+                    "{label} must execute validate-handoff.py with bound paths and {flag}"
+                ));
             }
         }
-        for label in ["**Packet path:**", "**Receipt path:**", "**Workspace / repo:**"] {
+        for label in [
+            "**Packet path:**",
+            "**Receipt path:**",
+            "**Workspace / repo:**",
+        ] {
             let value = label_value(text, label).unwrap_or_default();
             if !path_re().is_match(&value) {
                 errors.push(format!("{label} lacks explicit path"));
             }
         }
-        let first_start = text.find("## 13. Ready-to-Paste First Message").unwrap_or(0);
+        let first_start = text
+            .find("## 13. Ready-to-Paste First Message")
+            .unwrap_or(0);
         let first_end = text.find("## 14. Context Gap Report").unwrap_or(text.len());
-        let first_message = if first_end > first_start { &text[first_start..first_end] } else { "" };
+        let first_message = if first_end > first_start {
+            &text[first_start..first_end]
+        } else {
+            ""
+        };
         if !first_message.contains("READBACK") || !first_message.contains("Proceed mode") {
             errors.push("first message must require READBACK + Proceed mode".to_string());
         }
     }
 
-    let author_start = text.find("## 15. Handoff Author Gate").unwrap_or(text.len());
+    let author_start = text
+        .find("## 15. Handoff Author Gate")
+        .unwrap_or(text.len());
     let author = &text[author_start..];
     if !template {
         if placeholder_re().is_match(text) {
@@ -604,7 +755,11 @@ pub fn validate(text: &str, template: bool) -> Vec<String> {
         }
     }
 
-    let mut unique: Vec<String> = errors.into_iter().collect::<BTreeSet<_>>().into_iter().collect();
+    let mut unique: Vec<String> = errors
+        .into_iter()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
     unique.sort();
     unique
 }

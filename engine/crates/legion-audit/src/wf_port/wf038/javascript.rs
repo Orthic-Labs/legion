@@ -17,7 +17,10 @@ pub fn detect(projection: &Projection) -> bool {
         .iter()
         .map(|ext| ext.to_ascii_lowercase())
         .collect();
-    extensions.contains("js") || extensions.contains("ts") || extensions.contains("jsx") || extensions.contains("tsx")
+    extensions.contains("js")
+        || extensions.contains("ts")
+        || extensions.contains("jsx")
+        || extensions.contains("tsx")
 }
 
 /// `commands({ root, files, manifests, profile })`.

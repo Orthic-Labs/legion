@@ -187,7 +187,11 @@ fn snapshot(args: &[String]) -> CommandResult {
     }
     // Repeated/aliased --path arguments resolve to one observed surface in the
     // artifact. Count the final map, as Node does, not discarded duplicates.
-    let files: usize = surfaces.values().filter_map(Value::as_object).map(Map::len).sum();
+    let files: usize = surfaces
+        .values()
+        .filter_map(Value::as_object)
+        .map(Map::len)
+        .sum();
     let snapshot = json!({"schema":SNAPSHOT_SCHEMA,"takenAt":iso_now(),"surfaces":surfaces});
     let output = resolve_path(&cwd, &out);
     if let Some(parent) = output.parent() {
@@ -201,8 +205,10 @@ fn snapshot(args: &[String]) -> CommandResult {
         ),
     )
     .map_err(super::io_error)?;
-    let rendered = serde_json::to_string(&json!({"kind":"legion-state-snapshot","surfaces":paths.len(),"files":files,"out":output}))
-        .map_err(super::io_error)?;
+    let rendered = serde_json::to_string(
+        &json!({"kind":"legion-state-snapshot","surfaces":paths.len(),"files":files,"out":output}),
+    )
+    .map_err(super::io_error)?;
     Ok(json!({"__raw": format!("{rendered}\n")}))
 }
 
@@ -217,16 +223,18 @@ fn verify(args: &[String]) -> CommandResult {
             i += 1;
             supplied = args.get(i).map(String::as_str);
             if supplied.is_none() {
-                return Err(CommandError::usage("state verify requires --snapshot <snapshot.json>"));
+                return Err(CommandError::usage(
+                    "state verify requires --snapshot <snapshot.json>",
+                ));
             }
         } else {
             return Err(CommandError::usage(format!("unknown option: {}", args[i])));
         }
         i += 1;
     }
-    let supplied = supplied.filter(|value| !value.is_empty()).ok_or_else(|| {
-        CommandError::usage("state verify requires --snapshot <snapshot.json>")
-    })?;
+    let supplied = supplied
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| CommandError::usage("state verify requires --snapshot <snapshot.json>"))?;
     let snapshot_path = resolve_path(&cwd, supplied);
     let snapshot: Value =
         serde_json::from_slice(&std::fs::read(&snapshot_path).map_err(|error| {
@@ -271,12 +279,17 @@ fn verify(args: &[String]) -> CommandResult {
     if deltas.is_empty() {
         Ok(json!({"kind":"legion-state-verify","verdict":"clean","deltas":[]}))
     } else {
-        eprintln!("STATE BOUNDARY BREACH: {} delta(s) under snapshotted production state", deltas.len());
+        eprintln!(
+            "STATE BOUNDARY BREACH: {} delta(s) under snapshotted production state",
+            deltas.len()
+        );
         for delta in deltas.iter().take(20) {
-            eprintln!("  {}: {} :: {}",
+            eprintln!(
+                "  {}: {} :: {}",
                 delta["change"].as_str().unwrap_or_default(),
                 delta["surface"].as_str().unwrap_or_default(),
-                delta["path"].as_str().unwrap_or_default());
+                delta["path"].as_str().unwrap_or_default()
+            );
         }
         Ok(json!({"kind":"legion-state-verify","verdict":"breach","deltas":deltas}))
     }

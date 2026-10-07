@@ -24,8 +24,14 @@ pub const BYPASS_PATTERNS: &[(&str, &str)] = &[
         r"\b(figure it out|use (your )?best judgment|whatever works)\b",
     ),
     ("unfinished placeholder", r"\b(TODO|TBD|TK)\b"),
-    ("vague scope", r"\b(relevant files|usual commands|standard checks)\b"),
-    ("optional requirement", r"\b(if needed|if possible|try to)\b"),
+    (
+        "vague scope",
+        r"\b(relevant files|usual commands|standard checks)\b",
+    ),
+    (
+        "optional requirement",
+        r"\b(if needed|if possible|try to)\b",
+    ),
     (
         "non-operational instruction",
         r"\b(make it work|clean up|best effort|if appropriate|as needed)\b",
@@ -125,7 +131,9 @@ mod tests {
     #[test]
     fn detects_secret_pattern() {
         let errors = secret_pattern_errors("token: abcdefghijklmnopqrst");
-        assert!(errors.iter().any(|e| e.contains("literal secret assignment")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("literal secret assignment")));
     }
 
     #[test]

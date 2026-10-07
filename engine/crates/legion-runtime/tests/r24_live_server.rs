@@ -18,7 +18,10 @@ use legion_runtime::wf_port::w2_021::manual_apply::ManualApplyController;
 fn http_get(port: u16, path: &str) -> String {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
     stream
-        .write_all(format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").as_bytes())
+        .write_all(
+            format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                .as_bytes(),
+        )
         .unwrap();
     let mut resp = String::new();
     stream.read_to_string(&mut resp).unwrap();
@@ -64,10 +67,22 @@ fn server_serves_health_events_and_poll_over_real_tcp() {
         thread::spawn(move || {
             let local_queue = QueueState::new();
             local_queue.enqueue_event(serde_json::json!({"id": "seed", "type": "noop"}));
-            let controller = ManualApplyController::new(root.clone(), QueueCallbacks { queue: &local_queue });
+            let controller = ManualApplyController::new(
+                root.clone(),
+                QueueCallbacks {
+                    queue: &local_queue,
+                },
+            );
             let session_dir = root.join("session");
             std::fs::create_dir_all(&session_dir).unwrap();
-            http_server::serve(listener, &token, &local_queue, &root, &controller, &session_dir);
+            http_server::serve(
+                listener,
+                &token,
+                &local_queue,
+                &root,
+                &controller,
+                &session_dir,
+            );
         })
     };
     // Give the accept loop a moment to start (best-effort; the connect
@@ -80,14 +95,20 @@ fn server_serves_health_events_and_poll_over_real_tcp() {
 
     let poll = http_get(port, &format!("/poll?token={token}"));
     assert!(poll.contains("200 OK"));
-    assert!(poll.contains("\"id\":\"seed\""), "expected seeded event in poll response: {poll}");
+    assert!(
+        poll.contains("\"id\":\"seed\""),
+        "expected seeded event in poll response: {poll}"
+    );
 
     let post = http_post(
         port,
         &format!("/events?token={token}"),
         r#"{"id":"e2","type":"generate"}"#,
     );
-    assert!(post.contains("\"ok\":true"), "unexpected /events response: {post}");
+    assert!(
+        post.contains("\"ok\":true"),
+        "unexpected /events response: {post}"
+    );
 
     let unauthorized = http_get(port, "/poll?token=wrong");
     assert!(unauthorized.contains("401"));

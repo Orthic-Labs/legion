@@ -60,7 +60,10 @@ mod tests {
 
     #[test]
     fn builds_uri_and_strips_dot_slash_prefix() {
-        assert_eq!(skill_uri("qa", "./references/a.md"), "legion-skill://qa/references/a.md");
+        assert_eq!(
+            skill_uri("qa", "./references/a.md"),
+            "legion-skill://qa/references/a.md"
+        );
         assert_eq!(skill_uri("qa", "a\\b.md"), "legion-skill://qa/a/b.md");
     }
 }

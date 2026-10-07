@@ -223,12 +223,16 @@ impl StaticStylesheet {
             let mut font_family = None;
             let mut font_size = None;
             for decl in body.split(';') {
-                let Some(colon) = decl.find(':') else { continue };
+                let Some(colon) = decl.find(':') else {
+                    continue;
+                };
                 let prop = decl[..colon].trim().to_ascii_lowercase();
                 let mut value = decl[colon + 1..].trim().to_string();
                 let important = value.to_ascii_lowercase().ends_with("!important");
                 if important {
-                    value = value[..value.len() - "!important".len()].trim_end().to_string();
+                    value = value[..value.len() - "!important".len()]
+                        .trim_end()
+                        .to_string();
                 }
                 match prop.as_str() {
                     "font-family" => font_family = Some((value, important)),
@@ -323,10 +327,7 @@ impl StaticStylesheet {
             }
         }
 
-        (
-            best_family.map(|(_, v)| v),
-            best_size.map(|(_, v)| v),
-        )
+        (best_family.map(|(_, v)| v), best_size.map(|(_, v)| v))
     }
 }
 
@@ -386,9 +387,16 @@ pub fn check_static_page_typography(
         let Some(family) = family else { continue };
         let stack: Vec<String> = family
             .split(',')
-            .map(|f| f.trim().trim_matches(|c| c == '\'' || c == '"').to_ascii_lowercase())
+            .map(|f| {
+                f.trim()
+                    .trim_matches(|c| c == '\'' || c == '"')
+                    .to_ascii_lowercase()
+            })
             .collect();
-        let Some(primary) = stack.iter().find(|f| !f.is_empty() && !generic_fonts.contains(f.as_str())) else {
+        let Some(primary) = stack
+            .iter()
+            .find(|f| !f.is_empty() && !generic_fonts.contains(f.as_str()))
+        else {
             continue;
         };
         fonts.insert(primary.clone());
@@ -421,7 +429,9 @@ pub fn check_static_page_typography(
     for el in document.select(&size_selector) {
         let (_, size) = stylesheet.resolve(&el);
         let Some(size) = size else { continue };
-        let Some(px) = resolve_px_literal(&size) else { continue };
+        let Some(px) = resolve_px_literal(&size) else {
+            continue;
+        };
         if px >= 8.0 && px < 200.0 {
             sizes.insert((px * 10.0).round() as u64);
         }
@@ -474,7 +484,12 @@ pub fn static_element_findings(doc: &StaticDocument) -> Vec<Finding> {
         let radius = sa::resolve_border_radius_px_for(&style);
         findings.extend(sa::check_element_borders(&tag, &style, Some(radius)));
         findings.extend(sa::check_element_colors(el, doc, &style, &tag));
-        let parent_bg = sa::resolve_background(el.parent().and_then(scraper::ElementRef::wrap).unwrap_or(el), doc);
+        let parent_bg = sa::resolve_background(
+            el.parent()
+                .and_then(scraper::ElementRef::wrap)
+                .unwrap_or(el),
+            doc,
+        );
         findings.extend(sa::check_element_glow(&tag, &style, parent_bg));
         findings.extend(sa::check_element_motion(&tag, &style));
         if matches!(tag.as_str(), "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
@@ -489,7 +504,10 @@ pub fn static_element_findings(doc: &StaticDocument) -> Vec<Finding> {
         }
         if tag == "img" {
             if let Some(snippet) = classify_img_src(el.value().attr("src")) {
-                findings.push(Finding { id: BROKEN_IMAGE_ANTIPATTERN_ID, snippet });
+                findings.push(Finding {
+                    id: BROKEN_IMAGE_ANTIPATTERN_ID,
+                    snippet,
+                });
             }
         }
         findings.extend(sa::check_element_quality(el, doc, &style, &tag));
@@ -533,17 +551,26 @@ mod tests {
 
     #[test]
     fn empty_src_is_flagged() {
-        assert_eq!(classify_img_src(Some("")), Some(r#"<img src="">"#.to_string()));
+        assert_eq!(
+            classify_img_src(Some("")),
+            Some(r#"<img src="">"#.to_string())
+        );
     }
 
     #[test]
     fn whitespace_only_src_is_flagged() {
-        assert_eq!(classify_img_src(Some("   ")), Some(r#"<img src="   ">"#.to_string()));
+        assert_eq!(
+            classify_img_src(Some("   ")),
+            Some(r#"<img src="   ">"#.to_string())
+        );
     }
 
     #[test]
     fn hash_placeholder_src_is_flagged() {
-        assert_eq!(classify_img_src(Some("#")), Some(r##"<img src="#">"##.to_string()));
+        assert_eq!(
+            classify_img_src(Some("#")),
+            Some(r##"<img src="#">"##.to_string())
+        );
     }
 
     #[test]
@@ -565,7 +592,9 @@ mod tests {
 
     #[test]
     fn is_full_page_ignores_tags_inside_comments() {
-        assert!(!is_full_page("<!-- <html><head></head></html> --><div>x</div>"));
+        assert!(!is_full_page(
+            "<!-- <html><head></head></html> --><div>x</div>"
+        ));
     }
 
     #[test]
@@ -620,7 +649,8 @@ mod tests {
 
     #[test]
     fn stylesheet_skips_at_rule_blocks() {
-        let css = "@media (min-width: 900px) { p { font-family: Georgia; } } p { font-family: Arial; }";
+        let css =
+            "@media (min-width: 900px) { p { font-family: Georgia; } } p { font-family: Arial; }";
         let sheet = StaticStylesheet::from_css_text(css);
         let html = "<p>hi</p>";
         let document = scraper::Html::parse_fragment(html);
@@ -653,7 +683,9 @@ mod tests {
         let generic = font_set(&["serif", "sans-serif"]);
         let overused = font_set(&["arial"]);
         let findings = check_static_page_typography(&document, &sheet, &generic, &overused);
-        assert!(findings.iter().any(|f| f.id == "overused-font" && f.snippet.contains("arial")));
+        assert!(findings
+            .iter()
+            .any(|f| f.id == "overused-font" && f.snippet.contains("arial")));
     }
 
     #[test]
@@ -670,7 +702,9 @@ mod tests {
         let generic = font_set(&["serif", "sans-serif"]);
         let overused = font_set(&[]);
         let findings = check_static_page_typography(&document, &sheet, &generic, &overused);
-        assert!(findings.iter().any(|f| f.id == "single-font" && f.snippet.contains("brand sans")));
+        assert!(findings
+            .iter()
+            .any(|f| f.id == "single-font" && f.snippet.contains("brand sans")));
     }
 
     #[test]

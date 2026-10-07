@@ -17,7 +17,14 @@
 use super::shared::{denominator, exact_binding, finalize, redact, same_binding};
 use serde_json::{Map, Value};
 
-const OPERATION_TYPES: &[&str] = &["query", "migration", "queue", "cache", "lifecycle", "restore"];
+const OPERATION_TYPES: &[&str] = &[
+    "query",
+    "migration",
+    "queue",
+    "cache",
+    "lifecycle",
+    "restore",
+];
 const RESULT_STATUSES: &[&str] = &["pass", "fail", "partial", "unproven", "blocked", "error"];
 
 fn sha256_re() -> regex::Regex {
@@ -74,32 +81,58 @@ fn artifact_result(
         && artifact.get("schemaVersion").and_then(Value::as_str) == Some(schema_version)
         && artifact.get("engineVersion") == engine_version
         && same_binding(binding, artifact.get("binding").unwrap_or(&Value::Null));
-    ArtifactResult { valid, sensitive, artifact: sanitized }
+    ArtifactResult {
+        valid,
+        sensitive,
+        artifact: sanitized,
+    }
 }
 
-fn definition_gaps(definition: &Value, binding: &Value, dataset: &str, schema_version: &str) -> Vec<String> {
+fn definition_gaps(
+    definition: &Value,
+    binding: &Value,
+    dataset: &str,
+    schema_version: &str,
+) -> Vec<String> {
     let id = str_field(definition, "id").unwrap_or("missing");
     if !definition.is_object()
-        || !OPERATION_TYPES.contains(&definition.get("operationType").and_then(Value::as_str).unwrap_or(""))
+        || !OPERATION_TYPES.contains(
+            &definition
+                .get("operationType")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+        )
     {
         return vec![format!("data-case-definition-untyped:{id}")];
     }
     let mut gaps = Vec::new();
     let dataset_obj = definition.get("dataset");
-    if dataset_obj.and_then(|d| d.get("id")).and_then(Value::as_str) != Some(dataset)
-        || !dataset_obj.and_then(|d| d.get("digest")).is_some_and(|d| is_sha256(d))
+    if dataset_obj
+        .and_then(|d| d.get("id"))
+        .and_then(Value::as_str)
+        != Some(dataset)
+        || !dataset_obj
+            .and_then(|d| d.get("digest"))
+            .is_some_and(|d| is_sha256(d))
     {
         gaps.push(format!("data-case-dataset-binding-invalid:{id}"));
     }
     let schema_obj = definition.get("schema");
-    if schema_obj.and_then(|s| s.get("version")).and_then(Value::as_str) != Some(schema_version)
-        || !schema_obj.and_then(|s| s.get("digest")).is_some_and(is_sha256)
+    if schema_obj
+        .and_then(|s| s.get("version"))
+        .and_then(Value::as_str)
+        != Some(schema_version)
+        || !schema_obj
+            .and_then(|s| s.get("digest"))
+            .is_some_and(is_sha256)
     {
         gaps.push(format!("data-case-schema-binding-invalid:{id}"));
     }
     let engine = definition.get("engine");
     let engine_name = engine.and_then(|e| e.get("name")).and_then(Value::as_str);
-    let engine_ver = engine.and_then(|e| e.get("version")).and_then(Value::as_str);
+    let engine_ver = engine
+        .and_then(|e| e.get("version"))
+        .and_then(Value::as_str);
     if engine_name.unwrap_or("").is_empty()
         || engine_ver.unwrap_or("").is_empty()
         || !engine.and_then(|e| e.get("digest")).is_some_and(is_sha256)
@@ -108,23 +141,47 @@ fn definition_gaps(definition: &Value, binding: &Value, dataset: &str, schema_ve
     }
     let isolation = definition.get("isolation");
     let isolation_id = isolation.and_then(|i| i.get("id")).and_then(Value::as_str);
-    let isolation_env = isolation.and_then(|i| i.get("environment")).and_then(Value::as_str);
+    let isolation_env = isolation
+        .and_then(|i| i.get("environment"))
+        .and_then(Value::as_str);
     let binding_env = binding.get("environment").and_then(Value::as_str);
     if isolation_id.unwrap_or("").is_empty()
         || isolation_env != binding_env
-        || !same_binding(binding, isolation.and_then(|i| i.get("binding")).unwrap_or(&Value::Null))
+        || !same_binding(
+            binding,
+            isolation
+                .and_then(|i| i.get("binding"))
+                .unwrap_or(&Value::Null),
+        )
     {
         gaps.push(format!("data-case-isolation-binding-invalid:{id}"));
     }
     let cleanup = definition.get("cleanupBinding");
-    if cleanup.and_then(|c| c.get("datasetId")).and_then(Value::as_str) != Some(dataset)
-        || cleanup.and_then(|c| c.get("schemaVersion")).and_then(Value::as_str) != Some(schema_version)
-        || cleanup.and_then(|c| c.get("environment")).and_then(Value::as_str) != binding_env
-        || !same_binding(binding, cleanup.and_then(|c| c.get("binding")).unwrap_or(&Value::Null))
+    if cleanup
+        .and_then(|c| c.get("datasetId"))
+        .and_then(Value::as_str)
+        != Some(dataset)
+        || cleanup
+            .and_then(|c| c.get("schemaVersion"))
+            .and_then(Value::as_str)
+            != Some(schema_version)
+        || cleanup
+            .and_then(|c| c.get("environment"))
+            .and_then(Value::as_str)
+            != binding_env
+        || !same_binding(
+            binding,
+            cleanup
+                .and_then(|c| c.get("binding"))
+                .unwrap_or(&Value::Null),
+        )
     {
         gaps.push(format!("data-case-cleanup-binding-invalid:{id}"));
     }
-    let op_type = definition.get("operationType").and_then(Value::as_str).unwrap_or("");
+    let op_type = definition
+        .get("operationType")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     match op_type {
         "query" => {
             if !definition.get("statementDigest").is_some_and(is_sha256) {
@@ -132,29 +189,48 @@ fn definition_gaps(definition: &Value, binding: &Value, dataset: &str, schema_ve
             }
         }
         "migration" => {
-            if !definition.get("fromSchemaVersion").is_some_and(Value::is_string)
-                || !definition.get("toSchemaVersion").is_some_and(Value::is_string)
+            if !definition
+                .get("fromSchemaVersion")
+                .is_some_and(Value::is_string)
+                || !definition
+                    .get("toSchemaVersion")
+                    .is_some_and(Value::is_string)
                 || !definition.get("migrationDigest").is_some_and(is_sha256)
             {
                 gaps.push(format!("data-case-migration-contract-invalid:{id}"));
             }
         }
         "queue" => {
-            let queue_name = definition.get("queueName").and_then(Value::as_str).unwrap_or("");
-            let message_id = definition.get("messageId").and_then(Value::as_str).unwrap_or("");
+            let queue_name = definition
+                .get("queueName")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let message_id = definition
+                .get("messageId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             if queue_name.is_empty() || message_id.is_empty() {
                 gaps.push(format!("data-case-queue-contract-invalid:{id}"));
             }
         }
         "cache" => {
-            let cache_key = definition.get("cacheKey").and_then(Value::as_str).unwrap_or("");
-            let consistency = definition.get("consistency").and_then(Value::as_str).unwrap_or("");
+            let cache_key = definition
+                .get("cacheKey")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let consistency = definition
+                .get("consistency")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             if cache_key.is_empty() || !["eventual", "strong"].contains(&consistency) {
                 gaps.push(format!("data-case-cache-contract-invalid:{id}"));
             }
         }
         "lifecycle" => {
-            let phase = definition.get("phase").and_then(Value::as_str).unwrap_or("");
+            let phase = definition
+                .get("phase")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             if !["create", "delete", "read", "update"].contains(&phase) {
                 gaps.push(format!("data-case-lifecycle-contract-invalid:{id}"));
             }
@@ -177,7 +253,10 @@ pub struct DataAdapter<'a> {
 
 impl<'a> Default for DataAdapter<'a> {
     fn default() -> Self {
-        Self { exercise: None, cleanup: None }
+        Self {
+            exercise: None,
+            cleanup: None,
+        }
     }
 }
 
@@ -219,7 +298,14 @@ pub fn verify_data_exercise(
 
     let mut execution_gaps: Vec<String> = definitions
         .iter()
-        .flat_map(|d| definition_gaps(d, binding, dataset.unwrap_or(""), schema_version.unwrap_or("")))
+        .flat_map(|d| {
+            definition_gaps(
+                d,
+                binding,
+                dataset.unwrap_or(""),
+                schema_version.unwrap_or(""),
+            )
+        })
         .collect();
 
     let mut cleanup: Value = serde_json::json!({ "status": "unproven", "residualDamage": [] });
@@ -230,7 +316,10 @@ pub fn verify_data_exercise(
     if binding.get("environment").and_then(Value::as_str) == Some("production") {
         execution_gaps.push("production-effect-forbidden".to_string());
     }
-    if definitions.iter().any(|d| d.get("destructive") == Some(&Value::Bool(true))) {
+    if definitions
+        .iter()
+        .any(|d| d.get("destructive") == Some(&Value::Bool(true)))
+    {
         execution_gaps.push("destructive-effect-forbidden".to_string());
     }
     let preflight_invalid = !exact_binding(binding).gaps.is_empty()
@@ -266,7 +355,10 @@ pub fn verify_data_exercise(
                 match exercise(&exercise_input) {
                     Err(error) => {
                         adapter_status = "error".to_string();
-                        let message = error.get("message").and_then(Value::as_str).map(str::to_string)
+                        let message = error
+                            .get("message")
+                            .and_then(Value::as_str)
+                            .map(str::to_string)
                             .unwrap_or_else(|| error.to_string());
                         receipts.extend(ids.iter().map(|id| {
                             serde_json::json!({ "id": id, "status": "error", "terminal": true, "error": redact(&Value::String(message.clone()), "") })
@@ -279,16 +371,28 @@ pub fn verify_data_exercise(
                             .unwrap_or("error")
                             .to_string();
                         if !reported_status.is_some_and(|s| RESULT_STATUSES.contains(&s)) {
-                            execution_gaps.push(format!("adapter-status-invalid:{}", reported_status.unwrap_or("missing")));
+                            execution_gaps.push(format!(
+                                "adapter-status-invalid:{}",
+                                reported_status.unwrap_or("missing")
+                            ));
                         }
                         if result.get("terminal") != Some(&Value::Bool(true)) {
                             execution_gaps.push("adapter-result-nonterminal".to_string());
                             adapter_status = "error".to_string();
                         }
-                        let rows: Vec<Value> = result.get("cases").and_then(Value::as_array).cloned().unwrap_or_default();
-                        let mut grouped: std::collections::BTreeMap<String, Vec<&Value>> = std::collections::BTreeMap::new();
+                        let rows: Vec<Value> = result
+                            .get("cases")
+                            .and_then(Value::as_array)
+                            .cloned()
+                            .unwrap_or_default();
+                        let mut grouped: std::collections::BTreeMap<String, Vec<&Value>> =
+                            std::collections::BTreeMap::new();
                         for row in &rows {
-                            let id = row.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+                            let id = row
+                                .get("id")
+                                .and_then(Value::as_str)
+                                .unwrap_or("")
+                                .to_string();
                             grouped.entry(id).or_default().push(row);
                         }
                         for (id, matches) in &grouped {
@@ -369,9 +473,16 @@ pub fn verify_data_exercise(
                         cleanup = Value::Object(obj);
                     }
                     Err(error) => {
-                        let message = error.get("message").and_then(Value::as_str).map(str::to_string)
+                        let message = error
+                            .get("message")
+                            .and_then(Value::as_str)
+                            .map(str::to_string)
                             .unwrap_or_else(|| error.to_string());
-                        let residual = error.get("residualDamage").and_then(Value::as_array).cloned().unwrap_or_default();
+                        let residual = error
+                            .get("residualDamage")
+                            .and_then(Value::as_array)
+                            .cloned()
+                            .unwrap_or_default();
                         cleanup = serde_json::json!({
                             "status": "error",
                             "error": redact(&Value::String(message), ""),
@@ -384,9 +495,16 @@ pub fn verify_data_exercise(
         }
     }
 
-    let receipt_ids: Vec<String> = receipts.iter().filter_map(|r| r.get("id").and_then(Value::as_str).map(str::to_string)).collect();
+    let receipt_ids: Vec<String> = receipts
+        .iter()
+        .filter_map(|r| r.get("id").and_then(Value::as_str).map(str::to_string))
+        .collect();
     let counts = denominator(&ids, &receipt_ids, &[]);
-    let mut gaps: Vec<String> = exact_binding(binding).gaps.iter().map(|k| format!("binding-missing:{k}")).collect();
+    let mut gaps: Vec<String> = exact_binding(binding)
+        .gaps
+        .iter()
+        .map(|k| format!("binding-missing:{k}"))
+        .collect();
     gaps.extend(execution_gaps);
     if case_list.is_empty() {
         gaps.push("data-case-denominator-empty".to_string());
@@ -414,10 +532,19 @@ pub fn verify_data_exercise(
             gaps.push("cleanup-binding-mismatch".to_string());
         }
     }
-    if cleanup.get("residualDamage").and_then(Value::as_array).is_some_and(|a| !a.is_empty()) {
+    if cleanup
+        .get("residualDamage")
+        .and_then(Value::as_array)
+        .is_some_and(|a| !a.is_empty())
+    {
         gaps.push("cleanup-residual-damage".to_string());
     }
-    gaps.extend(counts.missing.iter().map(|id| format!("data-case-missing:{id}")));
+    gaps.extend(
+        counts
+            .missing
+            .iter()
+            .map(|id| format!("data-case-missing:{id}")),
+    );
 
     let mut statuses: std::collections::HashSet<String> = std::collections::HashSet::new();
     statuses.insert(adapter_status);
@@ -480,8 +607,14 @@ pub fn verify_service_data(
     receipt.remove("kind");
     receipt.remove("schemaVersion");
     let mut wrapped = Map::new();
-    wrapped.insert("provider".to_string(), Value::String("runtime.service.data".to_string()));
-    wrapped.insert("claimLevel".to_string(), Value::String("runtime".to_string()));
+    wrapped.insert(
+        "provider".to_string(),
+        Value::String("runtime.service.data".to_string()),
+    );
+    wrapped.insert(
+        "claimLevel".to_string(),
+        Value::String("runtime".to_string()),
+    );
     for (k, v) in receipt {
         wrapped.insert(k, v);
     }
@@ -497,7 +630,10 @@ mod tests {
         for key in super::super::shared::BINDING_KEYS {
             m.insert(key.to_string(), Value::String(format!("{key}-v")));
         }
-        m.insert("environment".to_string(), Value::String("staging".to_string()));
+        m.insert(
+            "environment".to_string(),
+            Value::String("staging".to_string()),
+        );
         Value::Object(m)
     }
 
@@ -513,10 +649,22 @@ mod tests {
         // "blocked" before it ever reaches the `'unproven'` fallback.
         let binding = full_binding();
         let mut adapter = DataAdapter::default();
-        let out = verify_service_data(&binding, Some("ds"), Some("v1"), &mut adapter, &Value::Array(vec![]));
+        let out = verify_service_data(
+            &binding,
+            Some("ds"),
+            Some("v1"),
+            &mut adapter,
+            &Value::Array(vec![]),
+        );
         assert_eq!(out["status"], "blocked");
-        assert!(out.get("digest").is_some(), "finalize re-adds its own digest");
-        assert_eq!(out["kind"], "legion-service-data-provider", "finalize re-adds its own kind");
+        assert!(
+            out.get("digest").is_some(),
+            "finalize re-adds its own digest"
+        );
+        assert_eq!(
+            out["kind"], "legion-service-data-provider",
+            "finalize re-adds its own kind"
+        );
         assert_eq!(out["provider"], "runtime.service.data");
         assert_eq!(out["claimLevel"], "runtime");
     }
@@ -537,7 +685,12 @@ mod tests {
         let cases = Value::Array(vec![Value::String("case-1".to_string())]);
         let out = verify_service_data(&binding, Some("ds"), Some("v1"), &mut adapter, &cases);
         assert_eq!(out["status"], "blocked");
-        let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+        let gaps: Vec<&str> = out["coverageGaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
         assert!(gaps.contains(&"data-preflight-invalid"));
         assert!(gaps.contains(&"data-case-definition-untyped:case-1"));
     }
@@ -548,12 +701,20 @@ mod tests {
         for key in super::super::shared::BINDING_KEYS {
             m.insert(key.to_string(), Value::String(format!("{key}-v")));
         }
-        m.insert("environment".to_string(), Value::String("production".to_string()));
+        m.insert(
+            "environment".to_string(),
+            Value::String("production".to_string()),
+        );
         let binding = Value::Object(m);
         let mut adapter = DataAdapter::default();
         let cases = Value::Array(vec![Value::String("case-1".to_string())]);
         let out = verify_service_data(&binding, Some("ds"), Some("v1"), &mut adapter, &cases);
-        let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+        let gaps: Vec<&str> = out["coverageGaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
         assert!(gaps.contains(&"production-effect-forbidden"));
     }
 }

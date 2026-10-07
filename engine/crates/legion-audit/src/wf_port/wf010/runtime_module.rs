@@ -64,17 +64,24 @@ pub fn verify_sealed_runtime_module(
     }
     let actual = sha256_digest(module_bytes);
     if actual != module_digest {
-        return Err(RuntimeModuleError::DigestMismatch { script: script.to_string() });
+        return Err(RuntimeModuleError::DigestMismatch {
+            script: script.to_string(),
+        });
     }
     Ok(resolved)
 }
 
 /// Faithful port of the module/provider-id cross-check:
 /// `if (module.default?.id && module.default.id !== provider.id) throw ...`.
-pub fn verify_module_provider_id(module_declared_id: Option<&str>, provider_id: &str) -> Result<(), RuntimeModuleError> {
+pub fn verify_module_provider_id(
+    module_declared_id: Option<&str>,
+    provider_id: &str,
+) -> Result<(), RuntimeModuleError> {
     if let Some(declared) = module_declared_id {
         if declared != provider_id {
-            return Err(RuntimeModuleError::ProviderMismatch { provider_id: provider_id.to_string() });
+            return Err(RuntimeModuleError::ProviderMismatch {
+                provider_id: provider_id.to_string(),
+            });
         }
     }
     Ok(())

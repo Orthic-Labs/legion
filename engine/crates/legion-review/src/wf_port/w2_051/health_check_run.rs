@@ -137,7 +137,8 @@ pub fn run_probes(
             .get(&provider_name)
             .and_then(|c| c.disabled)
             .unwrap_or(false);
-        let classify = probe_and_classify(providers.get(&provider_name).map(|b| b.as_ref()), &model);
+        let classify =
+            probe_and_classify(providers.get(&provider_name).map(|b| b.as_ref()), &model);
         rows.push(HealthRow {
             provider: provider_name,
             model,
@@ -183,10 +184,14 @@ pub fn render_table(rows: &[HealthRow]) -> String {
     }
     let broken: Vec<&HealthRow> = rows
         .iter()
-        .filter(|r| r.primary && matches!(r.classify.status.as_str(), "unreachable" | "auth" | "error"))
+        .filter(|r| {
+            r.primary && matches!(r.classify.status.as_str(), "unreachable" | "auth" | "error")
+        })
         .collect();
     if !broken.is_empty() {
-        out.push_str("\n\u{26D4} PRIMARY seats unreachable (panels silently collapse to fallbacks):\n");
+        out.push_str(
+            "\n\u{26D4} PRIMARY seats unreachable (panels silently collapse to fallbacks):\n",
+        );
         for r in &broken {
             out.push_str(&format!(
                 "   {}/{} \u{2014} seats: {}\n",
@@ -233,9 +238,14 @@ pub fn render_json(rows: &[HealthRow]) -> serde_json::Value {
         .collect();
     let broken: Vec<&HealthRow> = rows
         .iter()
-        .filter(|r| r.primary && matches!(r.classify.status.as_str(), "unreachable" | "auth" | "error"))
+        .filter(|r| {
+            r.primary && matches!(r.classify.status.as_str(), "unreachable" | "auth" | "error")
+        })
         .collect();
-    let primary_broken: Vec<String> = broken.iter().map(|r| format!("{}/{}", r.provider, r.model)).collect();
+    let primary_broken: Vec<String> = broken
+        .iter()
+        .map(|r| format!("{}/{}", r.provider, r.model))
+        .collect();
     serde_json::json!({ "results": results, "primary_broken": primary_broken })
 }
 
@@ -258,7 +268,11 @@ pub fn run(
             status: r.classify.status.clone(),
         })
         .collect();
-    let exit_code = if primary_broken(&row_refs).is_empty() { 0 } else { 1 };
+    let exit_code = if primary_broken(&row_refs).is_empty() {
+        0
+    } else {
+        1
+    };
 
     let output = if json {
         serde_json::to_string_pretty(&render_json(&rows)).unwrap_or_default()

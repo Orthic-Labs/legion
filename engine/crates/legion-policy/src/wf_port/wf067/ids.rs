@@ -100,12 +100,16 @@ fn matches_seq(value: &str, prefix: &str) -> bool {
 
 /// `^T-\d+(\.\d+)*$`
 fn matches_execution_task(value: &str) -> bool {
-    let Some(rest) = value.strip_prefix("T-") else { return false };
+    let Some(rest) = value.strip_prefix("T-") else {
+        return false;
+    };
     if rest.is_empty() {
         return false;
     }
     let mut segments = rest.split('.');
-    let Some(first) = segments.next() else { return false };
+    let Some(first) = segments.next() else {
+        return false;
+    };
     if first.is_empty() || !first.bytes().all(|b| b.is_ascii_digit()) {
         return false;
     }
@@ -148,7 +152,10 @@ pub fn assert_id(family: Family, value: &str, label: Option<&str>) -> Result<(),
         let label = label.unwrap_or_else(|| family_name(family));
         return Err(ArcaneError::new(
             ArcCode::ArcIdInvalid,
-            format!("{label} does not match the ids.md grammar for {}", family_name(family)),
+            format!(
+                "{label} does not match the ids.md grammar for {}",
+                family_name(family)
+            ),
         )
         .with_detail("family", family_name(family))
         .with_detail("value", value.to_string()));
@@ -165,7 +172,10 @@ struct MonotonicState {
     last_random: Option<[u8; 10]>,
 }
 
-static STATE: Mutex<MonotonicState> = Mutex::new(MonotonicState { last_time: -1, last_random: None });
+static STATE: Mutex<MonotonicState> = Mutex::new(MonotonicState {
+    last_time: -1,
+    last_random: None,
+});
 
 fn encode_time(ms: u64) -> String {
     let mut out = [0u8; 10];
@@ -256,8 +266,12 @@ pub fn ulid(now_ms: u64) -> String {
 /// Mint an opaque handle of `family`. Mirrors JS `mintId`; panics'-worth
 /// JS throw on a non-mintable family becomes `Err`.
 pub fn mint_id(family: Family, now_ms: u64) -> Result<String, ArcaneError> {
-    let prefix = handle_prefix(family)
-        .ok_or_else(|| ArcaneError::new(ArcCode::ArcIdInvalid, format!("unknown handle family: {}", family_name(family))))?;
+    let prefix = handle_prefix(family).ok_or_else(|| {
+        ArcaneError::new(
+            ArcCode::ArcIdInvalid,
+            format!("unknown handle family: {}", family_name(family)),
+        )
+    })?;
     Ok(format!("{prefix}{}", ulid(now_ms)))
 }
 

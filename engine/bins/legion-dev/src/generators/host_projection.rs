@@ -4,8 +4,8 @@ use serde_json::{Map, Value};
 use std::fs;
 use std::path::Path;
 
-use crate::shared::capabilities::load_capability_registry;
 use super::host_adapters::host_adapters;
+use crate::shared::capabilities::load_capability_registry;
 use crate::shared::route_resources::scoped_requirement_details;
 use crate::shared::skill_frontmatter::parse_skill_frontmatter_map as parse_skill_frontmatter;
 
@@ -67,15 +67,34 @@ fn requirement_details(registry: &Value, ids: &[String]) -> Result<Vec<Value>, S
             let entry = registry.get("capabilities").and_then(|c| c.get(id));
             let entry = match entry {
                 Some(e) if !e.is_null() => e,
-                _ => return Err(format!("skills declare host requirement absent from registry: {id}")),
+                _ => {
+                    return Err(format!(
+                        "skills declare host requirement absent from registry: {id}"
+                    ))
+                }
             };
             let mut out = Map::new();
             out.insert("id".into(), Value::from(id.clone()));
-            out.insert("kind".into(), entry.get("kind").cloned().unwrap_or(Value::Null));
-            out.insert("summary".into(), entry.get("summary").cloned().unwrap_or(Value::Null));
-            out.insert("degradation".into(), entry.get("degradation").cloned().unwrap_or(Value::Null));
-            out.insert("remedy".into(), entry.get("remedy").cloned().unwrap_or(Value::Null));
-            out.insert("probe".into(), entry.get("probe").cloned().unwrap_or(Value::Null));
+            out.insert(
+                "kind".into(),
+                entry.get("kind").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "summary".into(),
+                entry.get("summary").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "degradation".into(),
+                entry.get("degradation").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "remedy".into(),
+                entry.get("remedy").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "probe".into(),
+                entry.get("probe").cloned().unwrap_or(Value::Null),
+            );
             Ok(Value::Object(out))
         })
         .collect()
@@ -110,39 +129,91 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
     let mut capabilities = Vec::new();
     for id in &skill_ids {
         let rel_path = format!("skills/{id}/SKILL.md");
-        let text = fs::read_to_string(root.join(&rel_path)).map_err(|e| format!("{rel_path}: {e}"))?;
+        let text =
+            fs::read_to_string(root.join(&rel_path)).map_err(|e| format!("{rel_path}: {e}"))?;
         let fm = parse_skill_frontmatter(&text, &rel_path)?;
-        let kind = fm.get("kind").and_then(Value::as_str).unwrap_or("capability").to_string();
-        let discoverability = fm.get("discoverability").and_then(Value::as_str).unwrap_or("public").to_string();
+        let kind = fm
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or("capability")
+            .to_string();
+        let discoverability = fm
+            .get("discoverability")
+            .and_then(Value::as_str)
+            .unwrap_or("public")
+            .to_string();
         let public_capability = kind == "capability" && discoverability == "public";
         let (inv_user, inv_model) = match discoverability.as_str() {
             "public" => (true, true),
             "explicit" => (true, false),
             _ => (false, false),
         };
-        let domain = fm.get("domain").and_then(Value::as_str).filter(|s| *s != "null" && !s.is_empty()).map(Value::from).unwrap_or(Value::Null);
+        let domain = fm
+            .get("domain")
+            .and_then(Value::as_str)
+            .filter(|s| *s != "null" && !s.is_empty())
+            .map(Value::from)
+            .unwrap_or(Value::Null);
         let host_requirements: Vec<String> = fm
             .get("hostRequirements")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
         let mut cap = Map::new();
         cap.insert("id".into(), Value::from(id.clone()));
-        cap.insert("name".into(), fm.get("name").cloned().unwrap_or_else(|| Value::from(id.clone())));
-        cap.insert("description".into(), fm.get("description").cloned().unwrap_or_else(|| Value::from("")));
-        cap.insert("kind".into(), Value::from(if public_capability { "domain-capability" } else { "entrypoint" }));
-        cap.insert("discoverability".into(), Value::from(if public_capability { "public".to_string() } else { discoverability.clone() }));
+        cap.insert(
+            "name".into(),
+            fm.get("name")
+                .cloned()
+                .unwrap_or_else(|| Value::from(id.clone())),
+        );
+        cap.insert(
+            "description".into(),
+            fm.get("description")
+                .cloned()
+                .unwrap_or_else(|| Value::from("")),
+        );
+        cap.insert(
+            "kind".into(),
+            Value::from(if public_capability {
+                "domain-capability"
+            } else {
+                "entrypoint"
+            }),
+        );
+        cap.insert(
+            "discoverability".into(),
+            Value::from(if public_capability {
+                "public".to_string()
+            } else {
+                discoverability.clone()
+            }),
+        );
         let mut invocation = Map::new();
         invocation.insert("user".into(), Value::from(inv_user));
         invocation.insert("model".into(), Value::from(inv_model));
         cap.insert("invocation".into(), Value::Object(invocation));
         cap.insert("domain".into(), domain);
-        cap.insert("hostRequirements".into(), Value::Array(host_requirements.iter().cloned().map(Value::from).collect()));
-        cap.insert("hostRequirementDetails".into(), Value::Array(requirement_details(&registry, &host_requirements)?));
+        cap.insert(
+            "hostRequirements".into(),
+            Value::Array(host_requirements.iter().cloned().map(Value::from).collect()),
+        );
+        cap.insert(
+            "hostRequirementDetails".into(),
+            Value::Array(requirement_details(&registry, &host_requirements)?),
+        );
         cap.insert(
             "scopedRequirements".into(),
-            Value::Array(scoped_requirement_details(&skills_dir.join(id), &registry, id)?),
+            Value::Array(scoped_requirement_details(
+                &skills_dir.join(id),
+                &registry,
+                id,
+            )?),
         );
         cap.insert("source".into(), Value::from(rel_path));
         capabilities.push(Value::Object(cap));
@@ -164,10 +235,15 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
             let fm = roster_frontmatter(&text);
             let mut role = Map::new();
             role.insert("id".into(), Value::from(f.trim_end_matches(".md")));
-            role.insert("description".into(), Value::from(fm.get("description").cloned().unwrap_or_default()));
+            role.insert(
+                "description".into(),
+                Value::from(fm.get("description").cloned().unwrap_or_default()),
+            );
             role.insert(
                 "modelTier".into(),
-                fm.get("modelTier").map(|s| Value::from(s.clone())).unwrap_or(Value::Null),
+                fm.get("modelTier")
+                    .map(|s| Value::from(s.clone()))
+                    .unwrap_or(Value::Null),
             );
             role.insert("source".into(), Value::from(rel));
             Value::Object(role)
@@ -200,7 +276,12 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    host_capabilities.sort_by(|a, b| a["id"].as_str().unwrap_or_default().cmp(b["id"].as_str().unwrap_or_default()));
+    host_capabilities.sort_by(|a, b| {
+        a["id"]
+            .as_str()
+            .unwrap_or_default()
+            .cmp(b["id"].as_str().unwrap_or_default())
+    });
 
     let mut reference_classes: Vec<String> = registry
         .get("classes")
@@ -213,11 +294,23 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
         .iter()
         .map(|adapter| {
             let mut fidelity = Map::new();
-            fidelity.insert("instructions".into(), Value::from(adapter.surfaces[0].1.fidelity));
-            fidelity.insert("skillDiscovery".into(), Value::from(adapter.surfaces[1].1.fidelity));
-            fidelity.insert("authorityAgents".into(), Value::from(adapter.surfaces[2].1.fidelity));
+            fidelity.insert(
+                "instructions".into(),
+                Value::from(adapter.surfaces[0].1.fidelity),
+            );
+            fidelity.insert(
+                "skillDiscovery".into(),
+                Value::from(adapter.surfaces[1].1.fidelity),
+            );
+            fidelity.insert(
+                "authorityAgents".into(),
+                Value::from(adapter.surfaces[2].1.fidelity),
+            );
             fidelity.insert("mcp".into(), Value::from(adapter.surfaces[3].1.fidelity));
-            fidelity.insert("guardEnforcement".into(), Value::from(adapter.surfaces[4].1.fidelity));
+            fidelity.insert(
+                "guardEnforcement".into(),
+                Value::from(adapter.surfaces[4].1.fidelity),
+            );
             let mut mechanisms = Map::new();
             for (name, surface) in &adapter.surfaces {
                 mechanisms.insert((*name).into(), Value::from(surface.mechanism_kind));
@@ -255,7 +348,10 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
     out.insert("roles".into(), Value::Array(roles));
     out.insert("modelTiers".into(), model_tiers);
     out.insert("hostCapabilities".into(), Value::Array(host_capabilities));
-    out.insert("referenceClasses".into(), Value::Array(reference_classes.into_iter().map(Value::from).collect()));
+    out.insert(
+        "referenceClasses".into(),
+        Value::Array(reference_classes.into_iter().map(Value::from).collect()),
+    );
     out.insert("harnesses".into(), Value::Array(harnesses));
     Ok(Value::Object(out))
 }
@@ -325,9 +421,15 @@ pub fn run(root: &Path, check: bool) -> bool {
         eprintln!("generate-host-projection: failed to write output");
         return false;
     }
-    let capabilities_len = projection["capabilities"].as_array().map(|a| a.len()).unwrap_or(0);
+    let capabilities_len = projection["capabilities"]
+        .as_array()
+        .map(|a| a.len())
+        .unwrap_or(0);
     let roles_len = projection["roles"].as_array().map(|a| a.len()).unwrap_or(0);
-    let harnesses_len = projection["harnesses"].as_array().map(|a| a.len()).unwrap_or(0);
+    let harnesses_len = projection["harnesses"]
+        .as_array()
+        .map(|a| a.len())
+        .unwrap_or(0);
     println!("wrote {OUT} ({capabilities_len} capabilities, {roles_len} roles, {harnesses_len} harnesses)");
     true
 }

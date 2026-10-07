@@ -99,7 +99,11 @@ fn collapse_ws(s: &str) -> String {
 fn find_meta_content(html: &str, name: &str) -> Option<String> {
     static META_TAG: OnceLock<Regex> = OnceLock::new();
     let meta_tag_re = META_TAG.get_or_init(|| Regex::new(r"(?is)<meta\b[^>]*>").unwrap());
-    let name_re = Regex::new(&format!(r#"(?is)\bname\s*=\s*["']{}["']"#, regex::escape(name))).unwrap();
+    let name_re = Regex::new(&format!(
+        r#"(?is)\bname\s*=\s*["']{}["']"#,
+        regex::escape(name)
+    ))
+    .unwrap();
     let content_re = Regex::new(r#"(?is)\bcontent\s*=\s*["'](.*?)["']"#).unwrap();
     for m in meta_tag_re.find_iter(html) {
         let tag = m.as_str();
@@ -121,8 +125,8 @@ fn find_canonical_href(html: &str) -> Option<String> {
     static REL_CANONICAL: OnceLock<Regex> = OnceLock::new();
     static HREF: OnceLock<Regex> = OnceLock::new();
     let link_tag_re = LINK_TAG.get_or_init(|| Regex::new(r"(?is)<link\b[^>]*>").unwrap());
-    let rel_canonical_re =
-        REL_CANONICAL.get_or_init(|| Regex::new(r#"(?is)\brel\s*=\s*["'][^"']*canonical[^"']*["']"#).unwrap());
+    let rel_canonical_re = REL_CANONICAL
+        .get_or_init(|| Regex::new(r#"(?is)\brel\s*=\s*["'][^"']*canonical[^"']*["']"#).unwrap());
     let href_re = HREF.get_or_init(|| Regex::new(r#"(?is)\bhref\s*=\s*["']([^"']+)"#).unwrap());
     for m in link_tag_re.find_iter(html) {
         let tag = m.as_str();
@@ -154,25 +158,35 @@ pub fn parse(html: &str) -> PageSignals {
         Regex::new(r"(?is)<script\b.*?</script>|<style\b.*?</style>|<!--.*?-->").unwrap()
     });
     let img_re = IMG.get_or_init(|| Regex::new(r"(?is)<img\b[^>]*>").unwrap());
-    let img_alt_re = IMG_ALT.get_or_init(|| Regex::new(r#"(?is)\balt\s*=\s*["'][^"']*["']"#).unwrap());
-    let viewport_re =
-        VIEWPORT.get_or_init(|| Regex::new(r#"(?is)<meta[^>]+name\s*=\s*["']viewport["']"#).unwrap());
+    let img_alt_re =
+        IMG_ALT.get_or_init(|| Regex::new(r#"(?is)\balt\s*=\s*["'][^"']*["']"#).unwrap());
+    let viewport_re = VIEWPORT
+        .get_or_init(|| Regex::new(r#"(?is)<meta[^>]+name\s*=\s*["']viewport["']"#).unwrap());
     let robots_noindex_re = ROBOTS_NOINDEX.get_or_init(|| {
-        Regex::new(r#"(?is)<meta[^>]+name\s*=\s*["']robots["'][^>]+content\s*=\s*["'][^"']*noindex"#).unwrap()
+        Regex::new(
+            r#"(?is)<meta[^>]+name\s*=\s*["']robots["'][^>]+content\s*=\s*["'][^"']*noindex"#,
+        )
+        .unwrap()
     });
-    let mixed_content_re =
-        MIXED_CONTENT.get_or_init(|| Regex::new(r#"(?is)\b(?:src|href)\s*=\s*["']http://"#).unwrap());
+    let mixed_content_re = MIXED_CONTENT
+        .get_or_init(|| Regex::new(r#"(?is)\b(?:src|href)\s*=\s*["']http://"#).unwrap());
 
     let title = title_re
         .captures(html)
         .map(|c| collapse_ws(&strip_tags(&c[1])))
         .unwrap_or_default();
     let meta_desc = find_meta_content(html, "description").unwrap_or_default();
-    let h1: Vec<String> = h1_re.captures_iter(html).map(|c| c[1].to_string()).collect();
+    let h1: Vec<String> = h1_re
+        .captures_iter(html)
+        .map(|c| c[1].to_string())
+        .collect();
     let canonical = find_canonical_href(html);
 
     let body = script_style_comment_re.replace_all(html, " ");
-    let words = collapse_ws(&strip_tags(&body)).split(' ').filter(|w| !w.is_empty()).count();
+    let words = collapse_ws(&strip_tags(&body))
+        .split(' ')
+        .filter(|w| !w.is_empty())
+        .count();
 
     let img_tags: Vec<&str> = img_re.find_iter(html).map(|m| m.as_str()).collect();
     let imgs = img_tags.len();
@@ -196,10 +210,12 @@ pub fn parse(html: &str) -> PageSignals {
 /// `robots_text or ''` fallback for a `None`/failed fetch.
 pub fn discover_sitemaps(origin: &str, robots_text: Option<&str>) -> Vec<String> {
     static SITEMAP_LINE: OnceLock<Regex> = OnceLock::new();
-    let re = SITEMAP_LINE
-        .get_or_init(|| Regex::new(r"(?im)^\s*Sitemap\s*:\s*(\S+)\s*$").unwrap());
+    let re = SITEMAP_LINE.get_or_init(|| Regex::new(r"(?im)^\s*Sitemap\s*:\s*(\S+)\s*$").unwrap());
     let text = robots_text.unwrap_or("");
-    let mut found: Vec<String> = re.captures_iter(text).map(|c| c[1].trim().to_string()).collect();
+    let mut found: Vec<String> = re
+        .captures_iter(text)
+        .map(|c| c[1].trim().to_string())
+        .collect();
     if found.is_empty() {
         found = vec![format!("{origin}/sitemap.xml")];
     }
@@ -218,7 +234,9 @@ pub fn discover_sitemaps(origin: &str, robots_text: Option<&str>) -> Vec<String>
 pub fn extract_sitemap_locs(xml: &str) -> Vec<String> {
     static LOC: OnceLock<Regex> = OnceLock::new();
     let re = LOC.get_or_init(|| Regex::new(r"(?i)<loc>\s*([^<\s]+)").unwrap());
-    re.captures_iter(xml).map(|c| c[1].trim().to_string()).collect()
+    re.captures_iter(xml)
+        .map(|c| c[1].trim().to_string())
+        .collect()
 }
 
 /// Port of the `'<sitemapindex' in xml.lower()` check.
@@ -303,9 +321,10 @@ pub fn build_report(
     target_host: impl Fn(&str) -> String,
 ) -> IssuesReport {
     let mut issues: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
-    let mut push = |issues: &mut BTreeMap<&'static str, Vec<String>>, key: &'static str, v: String| {
-        issues.entry(key).or_default().push(v);
-    };
+    let mut push =
+        |issues: &mut BTreeMap<&'static str, Vec<String>>, key: &'static str, v: String| {
+            issues.entry(key).or_default().push(v);
+        };
 
     // `ok = {u: s for u, s in pages.items() if s.get('status') == 200 and 'title' in s}`
     let ok: Vec<(&String, &PageSignals)> = pages
@@ -359,13 +378,21 @@ pub fn build_report(
         if sig.h1.is_empty() {
             push(&mut issues, "missing_h1", (*url).clone());
         } else if sig.h1.len() > 1 {
-            push(&mut issues, "multiple_h1", format!("{url} ({})", sig.h1.len()));
+            push(
+                &mut issues,
+                "multiple_h1",
+                format!("{url} ({})", sig.h1.len()),
+            );
         }
         match &sig.canonical {
             None => push(&mut issues, "missing_canonical", (*url).clone()),
             Some(canon) => {
                 if normalize(canon) != normalize(url) && target_host(canon) == host {
-                    push(&mut issues, "canonical_points_elsewhere", format!("{url} -> {canon}"));
+                    push(
+                        &mut issues,
+                        "canonical_points_elsewhere",
+                        format!("{url} -> {canon}"),
+                    );
                 }
             }
         }
@@ -376,7 +403,11 @@ pub fn build_report(
             .unwrap_or(false);
         let noindex = sig.noindex || x_robots_noindex;
         if sig.words < 200 && !noindex {
-            push(&mut issues, "thin_content", format!("{url} ({}w)", sig.words));
+            push(
+                &mut issues,
+                "thin_content",
+                format!("{url} ({}w)", sig.words),
+            );
         }
         if sig.img_no_alt > 0 {
             push(
@@ -404,12 +435,18 @@ pub fn build_report(
     let mut sitemap_sorted: Vec<&String> = sitemap.iter().collect();
     sitemap_sorted.sort();
     for loc in sitemap_sorted {
-        let status = redirects.get(loc).map(|r| r.status).or_else(|| {
-            pages.get(loc).map(|p| p.status)
-        }).or_else(|| broken.get(loc).map(|b| b.status));
+        let status = redirects
+            .get(loc)
+            .map(|r| r.status)
+            .or_else(|| pages.get(loc).map(|p| p.status))
+            .or_else(|| broken.get(loc).map(|b| b.status));
         if let Some(status) = status {
             if (300..400).contains(&status) {
-                push(&mut issues, "redirect_in_sitemap", format!("{loc} ({status})"));
+                push(
+                    &mut issues,
+                    "redirect_in_sitemap",
+                    format!("{loc} ({status})"),
+                );
             } else if status >= 400 {
                 push(&mut issues, "4xx_in_sitemap", format!("{loc} ({status})"));
             }
@@ -430,8 +467,16 @@ pub fn build_report(
     }
 
     let severity = Severity {
-        errors: ERROR_KEYS.iter().copied().filter(|k| issues.contains_key(k)).collect(),
-        warnings: WARNING_KEYS.iter().copied().filter(|k| issues.contains_key(k)).collect(),
+        errors: ERROR_KEYS
+            .iter()
+            .copied()
+            .filter(|k| issues.contains_key(k))
+            .collect(),
+        warnings: WARNING_KEYS
+            .iter()
+            .copied()
+            .filter(|k| issues.contains_key(k))
+            .collect(),
     };
 
     IssuesReport { issues, severity }
@@ -484,7 +529,11 @@ pub fn urljoin(base: &str, href: &str) -> String {
         return format!("{origin}{path}?{query}");
     }
     if href.starts_with('#') {
-        return format!("{base}{href}").split('#').next().unwrap_or(base).to_string();
+        return format!("{base}{href}")
+            .split('#')
+            .next()
+            .unwrap_or(base)
+            .to_string();
     }
     if let Some(stripped) = href.strip_prefix('/') {
         return format!("{origin}/{}", resolve_dot_segments(stripped));
@@ -575,7 +624,12 @@ impl Fetcher for ReqwestFetcher {
                     }
                 }
                 let body = resp.text().unwrap_or_default();
-                GetResponse { status, final_url, body, headers }
+                GetResponse {
+                    status,
+                    final_url,
+                    body,
+                    headers,
+                }
             }
             Err(e) => GetResponse {
                 status: 0,
@@ -659,7 +713,11 @@ pub fn audit(fetcher: &dyn Fetcher, start: &str, maxpages: usize) -> AuditReport
     let host = netloc;
 
     let robots_resp = fetcher.get(&format!("{origin}/robots.txt"));
-    let robots_text = if robots_resp.status == 200 { Some(robots_resp.body.as_str()) } else { None };
+    let robots_text = if robots_resp.status == 200 {
+        Some(robots_resp.body.as_str())
+    } else {
+        None
+    };
     let sitemap_roots = discover_sitemaps(&origin, robots_text);
 
     let mut sitemap: HashSet<String> = HashSet::new();
@@ -711,7 +769,10 @@ pub fn audit(fetcher: &dyn Fetcher, start: &str, maxpages: usize) -> AuditReport
                 obj.insert("img_no_alt".into(), serde_json::json!(parsed.img_no_alt));
                 obj.insert("viewport".into(), serde_json::json!(parsed.viewport));
                 obj.insert("noindex".into(), serde_json::json!(parsed.noindex));
-                obj.insert("mixed_content".into(), serde_json::json!(parsed.mixed_content));
+                obj.insert(
+                    "mixed_content".into(),
+                    serde_json::json!(parsed.mixed_content),
+                );
             }
 
             for cap in href_re().captures_iter(&resp.body) {
@@ -725,13 +786,19 @@ pub fn audit(fetcher: &dyn Fetcher, start: &str, maxpages: usize) -> AuditReport
                 }
                 let absolute = urljoin(&resp.final_url, href);
                 let (a_scheme, a_netloc, a_path) = urlsplit3(&absolute);
-                if (a_scheme != "http" && a_scheme != "https") || is_asset_url(&absolute) || a_path.contains("/cdn-cgi/") {
+                if (a_scheme != "http" && a_scheme != "https")
+                    || is_asset_url(&absolute)
+                    || a_path.contains("/cdn-cgi/")
+                {
                     continue;
                 }
                 link_targets.insert(absolute.clone());
                 if a_netloc == host {
                     let normalized = normalize(&absolute);
-                    inlinks.entry(normalized.clone()).or_default().insert(url.clone());
+                    inlinks
+                        .entry(normalized.clone())
+                        .or_default()
+                        .insert(url.clone());
                     if !seen.contains(&normalized) {
                         queue.push_back(normalized);
                     }
@@ -741,7 +808,11 @@ pub fn audit(fetcher: &dyn Fetcher, start: &str, maxpages: usize) -> AuditReport
         }
         pages.insert(
             url.clone(),
-            FetchedPage { status: resp.status, x_robots_tag, signals },
+            FetchedPage {
+                status: resp.status,
+                x_robots_tag,
+                signals,
+            },
         );
         pages_json.insert(url.clone(), sig_json);
     }
@@ -758,17 +829,41 @@ pub fn audit(fetcher: &dyn Fetcher, start: &str, maxpages: usize) -> AuditReport
         } else {
             fetcher.status_only(target)
         };
-        let inlink_count = inlinks.get(&normalize(target)).map(HashSet::len).unwrap_or(0);
+        let inlink_count = inlinks
+            .get(&normalize(target))
+            .map(HashSet::len)
+            .unwrap_or(0);
         if status >= 400 || status == 0 {
-            broken.insert(target.clone(), BrokenLink { status, inlinks: inlink_count });
+            broken.insert(
+                target.clone(),
+                BrokenLink {
+                    status,
+                    inlinks: inlink_count,
+                },
+            );
         } else if matches!(status, 301 | 302 | 303 | 307 | 308) {
-            redirects.insert(target.clone(), RedirectLink { status, to: location, inlinks: inlink_count });
+            redirects.insert(
+                target.clone(),
+                RedirectLink {
+                    status,
+                    to: location,
+                    inlinks: inlink_count,
+                },
+            );
         }
     }
 
     let inlink_counts: HashMap<String, usize> =
         inlinks.iter().map(|(k, v)| (k.clone(), v.len())).collect();
-    let report = build_report(&pages, &sitemap, &host, &inlink_counts, &broken, &redirects, netloc_of);
+    let report = build_report(
+        &pages,
+        &sitemap,
+        &host,
+        &inlink_counts,
+        &broken,
+        &redirects,
+        netloc_of,
+    );
 
     let robots_sitemaps = discover_sitemaps(&origin, robots_text);
 
@@ -779,11 +874,21 @@ pub fn audit(fetcher: &dyn Fetcher, start: &str, maxpages: usize) -> AuditReport
         robots_sitemaps,
         broken_links_all: broken
             .into_iter()
-            .map(|(k, v)| (k, serde_json::json!({"status": v.status, "inlinks": v.inlinks})))
+            .map(|(k, v)| {
+                (
+                    k,
+                    serde_json::json!({"status": v.status, "inlinks": v.inlinks}),
+                )
+            })
             .collect(),
         redirects: redirects
             .into_iter()
-            .map(|(k, v)| (k, serde_json::json!({"status": v.status, "to": v.to, "inlinks": v.inlinks})))
+            .map(|(k, v)| {
+                (
+                    k,
+                    serde_json::json!({"status": v.status, "to": v.to, "inlinks": v.inlinks}),
+                )
+            })
             .collect(),
         pages: pages_json.into_iter().collect(),
         report,
@@ -834,8 +939,14 @@ pub fn run(fetcher: &dyn Fetcher, args: &[String]) -> i32 {
         }
     }
     if summary || json_path.is_none() {
-        println!("{} — crawled {} pages, sitemap {} urls", result.url, result.crawled, result.sitemap_urls);
-        for (band, keys) in [("ERRORS", &result.report.severity.errors), ("WARNINGS", &result.report.severity.warnings)] {
+        println!(
+            "{} — crawled {} pages, sitemap {} urls",
+            result.url, result.crawled, result.sitemap_urls
+        );
+        for (band, keys) in [
+            ("ERRORS", &result.report.severity.errors),
+            ("WARNINGS", &result.report.severity.warnings),
+        ] {
             if !keys.is_empty() {
                 println!("  {band}:");
                 for key in keys.iter() {
@@ -862,11 +973,26 @@ mod tests {
     #[test]
     fn normalize_appends_slash_to_bare_and_extensionless_paths() {
         assert_eq!(normalize("https://example.com"), "https://example.com/");
-        assert_eq!(normalize("https://example.com/about"), "https://example.com/about/");
-        assert_eq!(normalize("https://example.com/about/"), "https://example.com/about/");
-        assert_eq!(normalize("https://example.com/img.png"), "https://example.com/img.png");
-        assert_eq!(normalize("https://example.com/about?x=1"), "https://example.com/about?x=1");
-        assert_eq!(normalize("https://example.com/about#frag"), "https://example.com/about/");
+        assert_eq!(
+            normalize("https://example.com/about"),
+            "https://example.com/about/"
+        );
+        assert_eq!(
+            normalize("https://example.com/about/"),
+            "https://example.com/about/"
+        );
+        assert_eq!(
+            normalize("https://example.com/img.png"),
+            "https://example.com/img.png"
+        );
+        assert_eq!(
+            normalize("https://example.com/about?x=1"),
+            "https://example.com/about?x=1"
+        );
+        assert_eq!(
+            normalize("https://example.com/about#frag"),
+            "https://example.com/about/"
+        );
     }
 
     #[test]
@@ -913,7 +1039,10 @@ mod tests {
         let robots = "User-agent: *\nSitemap: https://example.com/sitemap-a.xml\nSitemap: https://example.com/sitemap-b.xml\n";
         assert_eq!(
             discover_sitemaps("https://example.com", Some(robots)),
-            vec!["https://example.com/sitemap-a.xml", "https://example.com/sitemap-b.xml"]
+            vec![
+                "https://example.com/sitemap-a.xml",
+                "https://example.com/sitemap-b.xml"
+            ]
         );
         assert_eq!(
             discover_sitemaps("https://example.com", None),
@@ -933,11 +1062,17 @@ mod tests {
             vec!["https://example.com/a", "https://example.com/b"]
         );
         assert!(!is_sitemap_index(xml));
-        assert!(is_sitemap_index("<sitemapindex><sitemap><loc>x</loc></sitemap></sitemapindex>"));
+        assert!(is_sitemap_index(
+            "<sitemapindex><sitemap><loc>x</loc></sitemap></sitemapindex>"
+        ));
     }
 
     fn host_of(u: &str) -> String {
-        u.split("://").nth(1).and_then(|r| r.split('/').next()).unwrap_or("").to_string()
+        u.split("://")
+            .nth(1)
+            .and_then(|r| r.split('/').next())
+            .unwrap_or("")
+            .to_string()
     }
 
     #[test]
@@ -966,7 +1101,15 @@ mod tests {
         let inlinks = HashMap::new();
         let broken = HashMap::new();
         let redirects = HashMap::new();
-        let report = build_report(&pages, &sitemap, "example.com", &inlinks, &broken, &redirects, host_of);
+        let report = build_report(
+            &pages,
+            &sitemap,
+            "example.com",
+            &inlinks,
+            &broken,
+            &redirects,
+            host_of,
+        );
         assert!(report.issues["missing_title"].contains(&"https://example.com/".to_string()));
         assert!(report.issues["thin_content"][0].starts_with("https://example.com/ (10w)"));
         assert!(report.severity.errors.contains(&"missing_title"));
@@ -1001,10 +1144,21 @@ mod tests {
         let mut broken = HashMap::new();
         broken.insert(
             "https://example.com/dead".to_string(),
-            BrokenLink { status: 404, inlinks: 3 },
+            BrokenLink {
+                status: 404,
+                inlinks: 3,
+            },
         );
         let redirects = HashMap::new();
-        let report = build_report(&pages, &sitemap, "example.com", &inlinks, &broken, &redirects, host_of);
+        let report = build_report(
+            &pages,
+            &sitemap,
+            "example.com",
+            &inlinks,
+            &broken,
+            &redirects,
+            host_of,
+        );
         assert!(report.issues["orphan_in_sitemap"].contains(&"https://example.com/ok".to_string()));
         assert_eq!(
             report.issues["broken_internal_links"][0],
@@ -1033,25 +1187,51 @@ mod tests {
 
     impl Fetcher for FakeFetcher {
         fn get(&self, url: &str) -> GetResponse {
-            self.routes.get(url).map(|r| GetResponse {
-                status: r.status,
-                final_url: r.final_url.clone(),
-                body: r.body.clone(),
-                headers: r.headers.clone(),
-            }).unwrap_or(GetResponse { status: 404, final_url: url.to_string(), body: String::new(), headers: HashMap::new() })
+            self.routes
+                .get(url)
+                .map(|r| GetResponse {
+                    status: r.status,
+                    final_url: r.final_url.clone(),
+                    body: r.body.clone(),
+                    headers: r.headers.clone(),
+                })
+                .unwrap_or(GetResponse {
+                    status: 404,
+                    final_url: url.to_string(),
+                    body: String::new(),
+                    headers: HashMap::new(),
+                })
         }
         fn status_only(&self, url: &str) -> (i32, Option<String>) {
-            self.routes.get(url).map(|r| (r.status, None)).unwrap_or((404, None))
+            self.routes
+                .get(url)
+                .map(|r| (r.status, None))
+                .unwrap_or((404, None))
         }
     }
 
     #[test]
     fn urljoin_resolves_relative_absolute_and_protocol_relative() {
-        assert_eq!(urljoin("https://example.com/dir/page", "sub"), "https://example.com/dir/sub");
-        assert_eq!(urljoin("https://example.com/dir/page", "/root"), "https://example.com/root");
-        assert_eq!(urljoin("https://example.com/dir/page", "https://other.com/x"), "https://other.com/x");
-        assert_eq!(urljoin("https://example.com/dir/page", "//cdn.example.com/x"), "https://cdn.example.com/x");
-        assert_eq!(urljoin("https://example.com/a/b/", "../c"), "https://example.com/a/c");
+        assert_eq!(
+            urljoin("https://example.com/dir/page", "sub"),
+            "https://example.com/dir/sub"
+        );
+        assert_eq!(
+            urljoin("https://example.com/dir/page", "/root"),
+            "https://example.com/root"
+        );
+        assert_eq!(
+            urljoin("https://example.com/dir/page", "https://other.com/x"),
+            "https://other.com/x"
+        );
+        assert_eq!(
+            urljoin("https://example.com/dir/page", "//cdn.example.com/x"),
+            "https://cdn.example.com/x"
+        );
+        assert_eq!(
+            urljoin("https://example.com/a/b/", "../c"),
+            "https://example.com/a/c"
+        );
     }
 
     #[test]
@@ -1105,7 +1285,9 @@ mod tests {
 
     #[test]
     fn run_returns_2_without_url_and_1_when_errors_found() {
-        let fetcher = FakeFetcher { routes: HashMap::new() };
+        let fetcher = FakeFetcher {
+            routes: HashMap::new(),
+        };
         assert_eq!(run(&fetcher, &[]), 2);
 
         let mut routes = HashMap::new();
@@ -1119,10 +1301,17 @@ mod tests {
         );
         routes.insert(
             "https://example.com/".to_string(),
-            FakeFetcher::html(200, "https://example.com/", "<html><body>no title here</body></html>"),
+            FakeFetcher::html(
+                200,
+                "https://example.com/",
+                "<html><body>no title here</body></html>",
+            ),
         );
         let fetcher = FakeFetcher { routes };
-        let args: Vec<String> = ["--url", "https://example.com", "--summary"].iter().map(|s| s.to_string()).collect();
+        let args: Vec<String> = ["--url", "https://example.com", "--summary"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         assert_eq!(run(&fetcher, &args), 1);
     }
 }

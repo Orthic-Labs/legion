@@ -20,11 +20,15 @@ use std::collections::BTreeMap;
 use serde_json::{json, Map, Value};
 
 use super::route_detect::{
+    country as detect_country, issue as detect_issue, legal_area as detect_legal_area,
+};
+use super::route_detect::{
     detect_assurance, detect_domain, detect_methods, detect_operation, detect_provider,
     detect_scale, detect_sensitivity, is_other_patient, is_personal_first_person, unique,
 };
-use super::route_detect::{country as detect_country, issue as detect_issue, legal_area as detect_legal_area};
-use super::route_detect::{ASSURANCE, DOMAIN_VALUES, METHODS, OPERATIONS, PROVIDERS, SCALE, SENSITIVITY};
+use super::route_detect::{
+    ASSURANCE, DOMAIN_VALUES, METHODS, OPERATIONS, PROVIDERS, SCALE, SENSITIVITY,
+};
 
 /// Context supplied by the caller in place of `context: dict[str, Any] |
 /// None` — every key the Python reads from `context` via `.get`, kept as
@@ -34,7 +38,10 @@ use super::route_detect::{ASSURANCE, DOMAIN_VALUES, METHODS, OPERATIONS, PROVIDE
 pub type Context = Map<String, Value>;
 
 fn get_str<'a>(context: &'a Context, key: &str) -> Option<&'a str> {
-    context.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
+    context
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
 }
 
 fn get_nonempty<'a>(context: &'a Context, key: &str) -> Option<&'a Value> {
@@ -63,7 +70,9 @@ pub fn build_subject(intent: &str, domain: &str, context: &Context) -> Value {
             .as_deref()
             .map(|p| std::path::Path::new(p).is_file())
             .unwrap_or(false);
-        let issue_text = get_str(context, "issue").map(str::to_string).unwrap_or_else(|| detect_issue(intent));
+        let issue_text = get_str(context, "issue")
+            .map(str::to_string)
+            .unwrap_or_else(|| detect_issue(intent));
         let urgency = get_str(context, "urgency").unwrap_or("routine").to_string();
         return json!({
             "patient": {
@@ -76,16 +85,34 @@ pub fn build_subject(intent: &str, domain: &str, context: &Context) -> Value {
         });
     }
     if domain == "legal" {
-        let country_val = get_str(context, "country").map(str::to_string).or_else(|| detect_country(intent).map(str::to_string));
-        let area_val = get_str(context, "area").map(str::to_string).or_else(|| detect_legal_area(intent).map(str::to_string));
-        let issue_text = get_str(context, "issue").map(str::to_string).unwrap_or_else(|| detect_issue(intent));
+        let country_val = get_str(context, "country")
+            .map(str::to_string)
+            .or_else(|| detect_country(intent).map(str::to_string));
+        let area_val = get_str(context, "area")
+            .map(str::to_string)
+            .or_else(|| detect_legal_area(intent).map(str::to_string));
+        let issue_text = get_str(context, "issue")
+            .map(str::to_string)
+            .unwrap_or_else(|| detect_issue(intent));
         let mut subject = Map::new();
-        subject.insert("country".into(), country_val.map(Value::String).unwrap_or(Value::Null));
-        subject.insert("area".into(), area_val.map(Value::String).unwrap_or(Value::Null));
+        subject.insert(
+            "country".into(),
+            country_val.map(Value::String).unwrap_or(Value::Null),
+        );
+        subject.insert(
+            "area".into(),
+            area_val.map(Value::String).unwrap_or(Value::Null),
+        );
         subject.insert("issue".into(), Value::String(issue_text));
         for key in [
-            "state_or_region", "forum_or_regulator", "posture", "role_or_side",
-            "pecuniary_value", "cause_of_action_date", "notice_status", "desired_outcome",
+            "state_or_region",
+            "forum_or_regulator",
+            "posture",
+            "role_or_side",
+            "pecuniary_value",
+            "cause_of_action_date",
+            "notice_status",
+            "desired_outcome",
             "intended_external_action",
         ] {
             if let Some(v) = get_nonempty(context, key) {
@@ -121,12 +148,17 @@ fn default_output(domain: &str, operation: &str) -> &'static str {
 
 /// `route_resolve.resolve`.
 pub fn resolve(intent: &str, context: &Context) -> Result<Value, String> {
-    let domain = get_str(context, "domain").unwrap_or_else(|| detect_domain(intent)).to_string();
-    let operation = get_str(context, "operation").unwrap_or_else(|| detect_operation(intent)).to_string();
+    let domain = get_str(context, "domain")
+        .unwrap_or_else(|| detect_domain(intent))
+        .to_string();
+    let operation = get_str(context, "operation")
+        .unwrap_or_else(|| detect_operation(intent))
+        .to_string();
     let methods: Vec<String> = match context.get("methods") {
-        Some(Value::Array(arr)) if !arr.is_empty() => {
-            arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()
-        }
+        Some(Value::Array(arr)) if !arr.is_empty() => arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect(),
         _ => detect_methods(intent),
     };
     let provider = get_str(context, "provider")
@@ -135,17 +167,28 @@ pub fn resolve(intent: &str, context: &Context) -> Result<Value, String> {
     let assurance = get_str(context, "assurance")
         .map(str::to_string)
         .unwrap_or_else(|| detect_assurance(intent, &domain, &operation).to_string());
-    let scale = get_str(context, "scale").map(str::to_string).unwrap_or_else(|| detect_scale(intent).to_string());
+    let scale = get_str(context, "scale")
+        .map(str::to_string)
+        .unwrap_or_else(|| detect_scale(intent).to_string());
     let subject = build_subject(intent, &domain, context);
     let patient_kind = if domain == "medical" {
-        subject.get("patient").and_then(|p| p.get("kind")).and_then(Value::as_str).map(str::to_string)
+        subject
+            .get("patient")
+            .and_then(|p| p.get("kind"))
+            .and_then(Value::as_str)
+            .map(str::to_string)
     } else {
         None
     };
     let sensitivity = get_str(context, "sensitivity")
         .map(str::to_string)
-        .unwrap_or_else(|| detect_sensitivity(intent, &domain, patient_kind.as_deref()).to_string());
-    let decision = get_str(context, "decision").unwrap_or(intent).trim().to_string();
+        .unwrap_or_else(|| {
+            detect_sensitivity(intent, &domain, patient_kind.as_deref()).to_string()
+        });
+    let decision = get_str(context, "decision")
+        .unwrap_or(intent)
+        .trim()
+        .to_string();
     let output = get_str(context, "output")
         .map(str::to_string)
         .unwrap_or_else(|| default_output(&domain, &operation).to_string());
@@ -179,7 +222,10 @@ fn field_str<'a>(route: &'a Value, key: &str) -> &'a str {
 }
 
 fn subject_str<'a>(subject: &'a Value, key: &str) -> Option<&'a str> {
-    subject.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
+    subject
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
 }
 
 /// Mirrors Python's `subject.get(key) in (None, '')`: any present,
@@ -200,7 +246,10 @@ pub fn pending_gates(route: &Value) -> (Vec<String>, Vec<String>) {
     let domain = field_str(route, "domain");
     let subject = route.get("subject").cloned().unwrap_or(Value::Null);
     if domain == "medical" {
-        let kind = subject.get("patient").and_then(|p| p.get("kind")).and_then(Value::as_str);
+        let kind = subject
+            .get("patient")
+            .and_then(|p| p.get("kind"))
+            .and_then(Value::as_str);
         if matches!(kind, Some("self") | Some("other-identified")) {
             gates.push("confirm-personal-medical-route".to_string());
         }
@@ -218,11 +267,15 @@ pub fn pending_gates(route: &Value) -> (Vec<String>, Vec<String>) {
         let country = subject_str(&subject, "country");
         let area = subject_str(&subject, "area");
         if country == Some("IN") && area == Some("criminal") {
-            forbidden.push("skills/research/references/domains/legal/india/consumer/**".to_string());
+            forbidden
+                .push("skills/research/references/domains/legal/india/consumer/**".to_string());
             forbidden.push("src/lib/research-core/workflows/legal/india/consumer/**".to_string());
         }
         let operation = field_str(route, "operation");
-        if country == Some("IN") && area == Some("consumer") && matches!(operation, "draft" | "procedure") {
+        if country == Some("IN")
+            && area == Some("consumer")
+            && matches!(operation, "draft" | "procedure")
+        {
             let required = ["pecuniary_value", "cause_of_action_date", "notice_status"];
             if required.iter().any(|key| subject_missing(&subject, key)) {
                 gates.push("confirm-consumer-filing-facts".to_string());
@@ -238,8 +291,14 @@ pub fn pending_gates(route: &Value) -> (Vec<String>, Vec<String>) {
         gates.push("approve-notebooklm-upload".to_string());
     }
     if domain == "legal" {
-        let action = subject_str(&subject, "intended_external_action").unwrap_or("").to_lowercase();
-        if ["send", "sign", "file", "notarise", "notarize", "accept", "rely"].contains(&action.as_str()) {
+        let action = subject_str(&subject, "intended_external_action")
+            .unwrap_or("")
+            .to_lowercase();
+        if [
+            "send", "sign", "file", "notarise", "notarize", "accept", "rely",
+        ]
+        .contains(&action.as_str())
+        {
             gates.push("approve-send-sign-file".to_string());
         }
     }
@@ -262,13 +321,18 @@ pub fn gate_verdicts(route: &Value, approvals: Option<&Map<String, Value>>) -> V
                 .and_then(Value::as_str)
                 .map(|text| !text.trim().is_empty())
                 .unwrap_or(false);
-            verdicts.push(json!({"gate": gate_str, "verdict": if approved { "ok" } else { "ask" }}));
+            verdicts
+                .push(json!({"gate": gate_str, "verdict": if approved { "ok" } else { "ask" }}));
         }
     }
     let domain = field_str(route, "domain");
     let subject = route.get("subject").cloned().unwrap_or(Value::Null);
     if domain == "medical" {
-        let kind = subject.get("patient").and_then(|p| p.get("kind")).and_then(Value::as_str).unwrap_or("");
+        let kind = subject
+            .get("patient")
+            .and_then(|p| p.get("kind"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if kind == "anonymous" {
             verdicts.push(json!({"gate": "medical.anonymous-no-history", "verdict": "ok"}));
         } else if !subject
@@ -296,8 +360,13 @@ pub fn gate_verdicts(route: &Value, approvals: Option<&Map<String, Value>>) -> V
             "verdict": if missing.is_empty() { "ok" } else { "ask" },
             "missing": missing,
         }));
-        if subject_str(&subject, "country") == Some("IN") && subject_str(&subject, "area") == Some("criminal") {
-            let forbidden = route.get("forbidden_resources").cloned().unwrap_or_else(|| json!([]));
+        if subject_str(&subject, "country") == Some("IN")
+            && subject_str(&subject, "area") == Some("criminal")
+        {
+            let forbidden = route
+                .get("forbidden_resources")
+                .cloned()
+                .unwrap_or_else(|| json!([]));
             verdicts.push(json!({
                 "gate": "legal.criminal-consumer-isolation",
                 "verdict": "ok",
@@ -318,12 +387,23 @@ pub fn grant_effects(
     validate_route(route, Stage::Route)?;
     let verdicts = gate_verdicts(route, approvals);
     let mut granted = route.clone();
-    if verdicts.iter().any(|v| v.get("verdict").and_then(Value::as_str) != Some("ok")) {
+    if verdicts
+        .iter()
+        .any(|v| v.get("verdict").and_then(Value::as_str) != Some("ok"))
+    {
         granted["allowed_effects"] = json!(Vec::<String>::new());
         return Ok((granted, verdicts));
     }
-    let mut effects: Vec<String> =
-        vec!["read-local", "search", "extract", "synthesize", "write-output"].into_iter().map(String::from).collect();
+    let mut effects: Vec<String> = vec![
+        "read-local",
+        "search",
+        "extract",
+        "synthesize",
+        "write-output",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
     let provider = field_str(route, "provider");
     let assurance = field_str(route, "assurance");
     let domain = field_str(route, "domain");
@@ -339,7 +419,11 @@ pub fn grant_effects(
         effects.push("patch-sourced-draft".to_string());
     }
     let subject = route.get("subject").cloned().unwrap_or(Value::Null);
-    let patient_kind = subject.get("patient").and_then(|p| p.get("kind")).and_then(Value::as_str).unwrap_or("");
+    let patient_kind = subject
+        .get("patient")
+        .and_then(|p| p.get("kind"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if domain == "medical" && patient_kind != "anonymous" {
         effects.push("read-sensitive".to_string());
         effects.push("load-medical-history".to_string());
@@ -365,13 +449,29 @@ pub enum Stage {
 
 /// `route_resolve.validate_route`.
 pub fn validate_route(route: &Value, stage: Stage) -> Result<(), String> {
-    let obj = route.as_object().ok_or_else(|| "route must be an object".to_string())?;
+    let obj = route
+        .as_object()
+        .ok_or_else(|| "route must be an object".to_string())?;
     let required = [
-        "route_version", "domain", "operation", "methods", "provider", "assurance", "scale",
-        "subject", "sensitivity", "decision", "output", "allowed_effects", "human_gates",
+        "route_version",
+        "domain",
+        "operation",
+        "methods",
+        "provider",
+        "assurance",
+        "scale",
+        "subject",
+        "sensitivity",
+        "decision",
+        "output",
+        "allowed_effects",
+        "human_gates",
         "forbidden_resources",
     ];
-    let missing: Vec<&str> = required.into_iter().filter(|key| !obj.contains_key(*key)).collect();
+    let missing: Vec<&str> = required
+        .into_iter()
+        .filter(|key| !obj.contains_key(*key))
+        .collect();
     if !missing.is_empty() {
         return Err(format!("route missing keys: {missing:?}"));
     }
@@ -394,7 +494,8 @@ pub fn validate_route(route: &Value, stage: Stage) -> Result<(), String> {
     let provider = field_str(route, "provider");
     let assurance = field_str(route, "assurance");
     let scale = field_str(route, "scale");
-    if !PROVIDERS.contains(&provider) || !ASSURANCE.contains(&assurance) || !SCALE.contains(&scale) {
+    if !PROVIDERS.contains(&provider) || !ASSURANCE.contains(&assurance) || !SCALE.contains(&scale)
+    {
         return Err("invalid provider/assurance/scale".to_string());
     }
     let sensitivity = field_str(route, "sensitivity");
@@ -408,7 +509,11 @@ pub fn validate_route(route: &Value, stage: Stage) -> Result<(), String> {
     }
     if domain == "medical" {
         let subject = route.get("subject").cloned().unwrap_or(Value::Null);
-        let kind = subject.get("patient").and_then(|p| p.get("kind")).and_then(Value::as_str).unwrap_or("");
+        let kind = subject
+            .get("patient")
+            .and_then(|p| p.get("kind"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if !matches!(kind, "anonymous" | "self" | "other-identified") {
             return Err("medical route requires subject.patient.kind".to_string());
         }
@@ -455,8 +560,12 @@ mod tests {
         assert_eq!(route["human_gates"], json!([]));
         let (granted, verdicts) = grant_effects(&route, None).unwrap();
         assert!(verdicts.iter().all(|v| v["verdict"] == "ok"));
-        let effects: Vec<String> =
-            granted["allowed_effects"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let effects: Vec<String> = granted["allowed_effects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(effects.contains(&"search".to_string()));
         assert!(effects.contains(&"fetch".to_string()));
         validate_route(&granted, Stage::Grant).unwrap();
@@ -467,8 +576,12 @@ mod tests {
         let ctx = Context::new();
         let route = resolve("please review this document about a contract dispute", &ctx).unwrap();
         assert_eq!(route["domain"], "legal");
-        let gates: Vec<String> =
-            route["human_gates"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let gates: Vec<String> = route["human_gates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(gates.contains(&"confirm-jurisdiction".to_string()));
         let (granted, verdicts) = grant_effects(&route, None).unwrap();
         assert!(granted["allowed_effects"].as_array().unwrap().is_empty());
@@ -484,8 +597,12 @@ mod tests {
             ("issue", json!("bail application")),
         ]);
         let route = resolve("help with a criminal matter", &ctx).unwrap();
-        let forbidden: Vec<String> =
-            route["forbidden_resources"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let forbidden: Vec<String> = route["forbidden_resources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(forbidden.iter().any(|f| f.contains("consumer")));
     }
 
@@ -499,8 +616,12 @@ mod tests {
             ("issue", json!("refund dispute")),
         ]);
         let route = resolve("draft a consumer complaint notice", &ctx).unwrap();
-        let gates: Vec<String> =
-            route["human_gates"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let gates: Vec<String> = route["human_gates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(gates.contains(&"confirm-consumer-filing-facts".to_string()));
     }
 
@@ -510,8 +631,12 @@ mod tests {
         let route = resolve("what dose of a drug should i take", &ctx).unwrap();
         assert_eq!(route["domain"], "medical");
         assert_eq!(route["subject"]["patient"]["kind"], "self");
-        let gates: Vec<String> =
-            route["human_gates"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let gates: Vec<String> = route["human_gates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(gates.contains(&"confirm-personal-medical-route".to_string()));
         let mut approvals = Map::new();
         approvals.insert(
@@ -519,7 +644,10 @@ mod tests {
             json!({"text": "approved by operator"}),
         );
         let verdicts = gate_verdicts(&route, Some(&approvals));
-        let blocked = verdicts.iter().find(|v| v["gate"] == "medical.history-available").unwrap();
+        let blocked = verdicts
+            .iter()
+            .find(|v| v["gate"] == "medical.history-available")
+            .unwrap();
         assert_eq!(blocked["verdict"], "block");
     }
 
@@ -530,8 +658,12 @@ mod tests {
         assert_eq!(route["subject"]["patient"]["kind"], "anonymous");
         let (granted, verdicts) = grant_effects(&route, None).unwrap();
         assert!(verdicts.iter().all(|v| v["verdict"] == "ok"));
-        let effects: Vec<String> =
-            granted["allowed_effects"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let effects: Vec<String> = granted["allowed_effects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(!effects.contains(&"read-sensitive".to_string()));
     }
 
@@ -542,8 +674,12 @@ mod tests {
             ("sensitivity", json!("private")),
         ]);
         let route = resolve("summarize my private notebooklm sources", &ctx).unwrap();
-        let gates: Vec<String> =
-            route["human_gates"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let gates: Vec<String> = route["human_gates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(gates.contains(&"approve-notebooklm-upload".to_string()));
     }
 
@@ -552,8 +688,12 @@ mod tests {
         let ctx = context_from([("scale", json!("dossier"))]);
         let route = resolve("broad landscape scan", &ctx).unwrap();
         let (granted, _verdicts) = grant_effects(&route, None).unwrap();
-        let effects: Vec<String> =
-            granted["allowed_effects"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let effects: Vec<String> = granted["allowed_effects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
         assert!(effects.contains(&"spawn-worker".to_string()));
     }
 

@@ -328,7 +328,11 @@ fn is_canonical_base64(s: &str) -> bool {
 }
 
 fn safe_path(value: &str) -> bool {
-    if value.is_empty() || value.contains('\\') || value.starts_with('/') || re_drive_letter().is_match(value) {
+    if value.is_empty()
+        || value.contains('\\')
+        || value.starts_with('/')
+        || re_drive_letter().is_match(value)
+    {
         return false;
     }
     let segments: Vec<&str> = value.split('/').collect();
@@ -348,7 +352,10 @@ fn valid_binding_value(value: &str) -> bool {
 }
 
 fn opaque(kind: &str, value: &str) -> String {
-    format!("opaque-{}", &hex::encode(Sha256::digest(format!("{kind}:{value}").as_bytes()))[..24])
+    format!(
+        "opaque-{}",
+        &hex::encode(Sha256::digest(format!("{kind}:{value}").as_bytes()))[..24]
+    )
 }
 
 fn normalized_key(key: &str) -> String {
@@ -364,7 +371,8 @@ fn is_sensitive_key(key: &str) -> bool {
 }
 
 fn is_sensitive_key_common(n: &str) -> bool {
-    COMMON_SENSITIVE_SUFFIXES.iter().any(|suf| n.ends_with(suf)) || COMMON_SENSITIVE_EXACT.contains(&n)
+    COMMON_SENSITIVE_SUFFIXES.iter().any(|suf| n.ends_with(suf))
+        || COMMON_SENSITIVE_EXACT.contains(&n)
 }
 
 fn sanitize_string(value: &str) -> String {
@@ -376,7 +384,9 @@ fn sanitize_string(value: &str) -> String {
 }
 
 fn redact_value_string(value: &str) -> String {
-    re_bearer_email_narrow().replace_all(value, "[REDACTED]").into_owned()
+    re_bearer_email_narrow()
+        .replace_all(value, "[REDACTED]")
+        .into_owned()
 }
 
 /// Port of `web/shared.mjs`'s `redact`.
@@ -412,7 +422,11 @@ fn exact_binding(binding: &Value) -> (Value, Vec<String>) {
             invalid.push(key.to_string());
         }
     }
-    let extras: Vec<String> = obj.keys().filter(|k| !BINDING_KEYS.contains(&k.as_str())).cloned().collect();
+    let extras: Vec<String> = obj
+        .keys()
+        .filter(|k| !BINDING_KEYS.contains(&k.as_str()))
+        .cloned()
+        .collect();
     let mut sorted_keys = BINDING_KEYS.to_vec();
     sorted_keys.sort();
     let mut normalized = serde_json::Map::new();
@@ -420,7 +434,8 @@ fn exact_binding(binding: &Value) -> (Value, Vec<String>) {
         let value = if invalid.contains(&key.to_string()) {
             Value::String(opaque(
                 "binding",
-                &serde_json::to_string(&canonicalize(obj.get(key).unwrap_or(&Value::Null))).unwrap_or_default(),
+                &serde_json::to_string(&canonicalize(obj.get(key).unwrap_or(&Value::Null)))
+                    .unwrap_or_default(),
             ))
         } else {
             obj.get(key).cloned().unwrap_or(Value::Null)
@@ -438,9 +453,9 @@ fn exact_binding(binding: &Value) -> (Value, Vec<String>) {
 }
 
 fn same_binding(expected: &Value, actual: &Value) -> bool {
-    BINDING_KEYS
-        .iter()
-        .all(|key| expected.get(key).and_then(Value::as_str) == actual.get(key).and_then(Value::as_str))
+    BINDING_KEYS.iter().all(|key| {
+        expected.get(key).and_then(Value::as_str) == actual.get(key).and_then(Value::as_str)
+    })
 }
 
 fn denominator(expected: &[String], receipts: &[Value], omitted: &[Value]) -> Value {
@@ -449,7 +464,11 @@ fn denominator(expected: &[String], receipts: &[Value], omitted: &[Value]) -> Va
     expected_ids.dedup();
     let receipt_ids: HashSet<String> = receipts
         .iter()
-        .filter_map(|r| r.get("id").or_else(|| r.get("controlId")).and_then(Value::as_str))
+        .filter_map(|r| {
+            r.get("id")
+                .or_else(|| r.get("controlId"))
+                .and_then(Value::as_str)
+        })
         .map(String::from)
         .collect();
     let omitted_ids: HashSet<String> = omitted
@@ -502,7 +521,12 @@ fn normalize_bindings(value: &Value, key: &str, gaps: &mut Vec<String>) -> Value
         return normalized;
     }
     match value {
-        Value::Array(items) => Value::Array(items.iter().map(|v| normalize_bindings(v, "", gaps)).collect()),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|v| normalize_bindings(v, "", gaps))
+                .collect(),
+        ),
         Value::Object(map) => {
             let mut keys: Vec<&String> = map.keys().collect();
             keys.sort();
@@ -533,7 +557,11 @@ fn finalize(kind: &str, value: Value) -> Value {
             let mut existing: Vec<String> = map
                 .get("coverageGaps")
                 .and_then(Value::as_array)
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             for g in &binding_gaps {
                 existing.push(if g.starts_with("binding-extra-") {
@@ -592,7 +620,12 @@ fn utc_millis(s: &str) -> Option<i64> {
     let minute = digits(14, 2)?;
     let second = digits(17, 2)?;
     let millis = if bytes.len() == 24 { digits(20, 3)? } else { 0 };
-    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || minute > 59 || second > 60 {
+    if !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 60
+    {
         return None;
     }
     // Howard Hinnant's days-from-civil algorithm.
@@ -613,7 +646,10 @@ fn configured_keys(fields: &[String]) -> Vec<String> {
     fields
         .iter()
         .map(|f| {
-            let m = re_identifier_tail().find(f).map(|m| m.as_str()).unwrap_or(f.as_str());
+            let m = re_identifier_tail()
+                .find(f)
+                .map(|m| m.as_str())
+                .unwrap_or(f.as_str());
             normalized_key(m)
         })
         .collect()
@@ -621,7 +657,12 @@ fn configured_keys(fields: &[String]) -> Vec<String> {
 
 fn sanitize_value_rec(value: &Value, configured: &[String], changed: &mut bool) -> Value {
     match value {
-        Value::Array(items) => Value::Array(items.iter().map(|v| sanitize_value_rec(v, configured, changed)).collect()),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|v| sanitize_value_rec(v, configured, changed))
+                .collect(),
+        ),
         Value::Object(map) => {
             let mut out = serde_json::Map::new();
             for (k, v) in map {
@@ -692,7 +733,10 @@ fn sanitize_artifact_content(artifact: &Value, sensitive_fields: &[String]) -> (
     rest.remove("bytesBase64");
     rest.remove("digest");
     rest.insert("content".to_string(), Value::String(sanitized_text.clone()));
-    rest.insert("digest".to_string(), Value::String(digest_string(&sanitized_text)));
+    rest.insert(
+        "digest".to_string(),
+        Value::String(digest_string(&sanitized_text)),
+    );
     (Value::Object(rest), true)
 }
 
@@ -702,12 +746,22 @@ fn sanitize_produced_artifact(artifact: &Value) -> (Option<Value>, bool, bool) {
         return (None, false, false);
     }
     let has_content = artifact.get("content").and_then(Value::as_str).is_some();
-    let has_bytes = artifact.get("bytesBase64").and_then(Value::as_str).is_some();
+    let has_bytes = artifact
+        .get("bytesBase64")
+        .and_then(Value::as_str)
+        .is_some();
     if has_content == has_bytes {
         return (None, false, false);
     }
     let bytes: Option<Vec<u8>> = if has_content {
-        Some(artifact.get("content").and_then(Value::as_str).unwrap().as_bytes().to_vec())
+        Some(
+            artifact
+                .get("content")
+                .and_then(Value::as_str)
+                .unwrap()
+                .as_bytes()
+                .to_vec(),
+        )
     } else {
         let b64s = artifact.get("bytesBase64").and_then(Value::as_str).unwrap();
         if is_canonical_base64(b64s) {
@@ -793,7 +847,10 @@ pub fn validate_external_evidence(evidence: &Value, expected: &Value) -> Value {
     gaps.push("issuedAt-invalid".to_string());
     gaps.push("checkedAt-invalid".to_string());
     gaps.push("expiresAt-invalid".to_string());
-    let now = expected.get("now").and_then(Value::as_str).and_then(utc_millis);
+    let now = expected
+        .get("now")
+        .and_then(Value::as_str)
+        .and_then(utc_millis);
     if now.is_none() {
         gaps.push("clock-invalid".to_string());
     }
@@ -803,7 +860,11 @@ pub fn validate_external_evidence(evidence: &Value, expected: &Value) -> Value {
     }
     // artifacts are always [] because the payload is always None.
     gaps.push("produced-artifact-invalid".to_string());
-    if expected.get("requiresExercise").and_then(Value::as_bool).unwrap_or(false) {
+    if expected
+        .get("requiresExercise")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         gaps.push("exercise-required".to_string());
         if evidence.get("exerciseReceipt").is_some() {
             gaps.push("envelope-exercise-mismatch".to_string());
@@ -827,7 +888,9 @@ pub fn validate_external_evidence(evidence: &Value, expected: &Value) -> Value {
 // ---------------------------------------------------------------------------------------------
 fn applicability_source_valid(source: Option<&Value>, binding: &Value) -> bool {
     let Some(source) = source else { return false };
-    if source.get("kind").and_then(Value::as_str) != Some("frozen-conditional-provider-applicability") {
+    if source.get("kind").and_then(Value::as_str)
+        != Some("frozen-conditional-provider-applicability")
+    {
         return false;
     }
     if source.get("id").and_then(Value::as_str) != Some("web:conditional-providers") {
@@ -854,13 +917,19 @@ fn applicability_source_valid(source: Option<&Value>, binding: &Value) -> bool {
             .unwrap_or("")
             .cmp(b.get("id").and_then(Value::as_str).unwrap_or(""))
     });
-    let ids: Vec<&str> = sorted.iter().map(|p| p.get("id").and_then(Value::as_str).unwrap_or("")).collect();
+    let ids: Vec<&str> = sorted
+        .iter()
+        .map(|p| p.get("id").and_then(Value::as_str).unwrap_or(""))
+        .collect();
     if ids != CONDITIONAL_PROVIDERS.to_vec() {
         return false;
     }
     if sorted.iter().any(|p| {
         p.get("applicable").and_then(Value::as_bool) != Some(false)
-            || p.get("reason").and_then(Value::as_str).map(str::is_empty).unwrap_or(true)
+            || p.get("reason")
+                .and_then(Value::as_str)
+                .map(str::is_empty)
+                .unwrap_or(true)
     }) {
         return false;
     }
@@ -874,7 +943,10 @@ fn applicability_source_valid(source: Option<&Value>, binding: &Value) -> bool {
 
 /// Always fails closed: the payload behind a signed "not applicable" receipt can never be
 /// trusted without real signature verification (divergence 1), so `valid` is always `false`.
-fn signed_not_applicable(envelope: &Value, trusted_producers: &[Value]) -> (Option<String>, bool, Vec<String>) {
+fn signed_not_applicable(
+    envelope: &Value,
+    trusted_producers: &[Value],
+) -> (Option<String>, bool, Vec<String>) {
     let mut gaps = Vec::new();
     let producer_id = envelope.get("producer").and_then(Value::as_str);
     let trusted = trusted_producers
@@ -890,7 +962,10 @@ fn signed_not_applicable(envelope: &Value, trusted_producers: &[Value]) -> (Opti
         gaps.push("signature-invalid".to_string());
     }
     gaps.push("not-applicable-receipt-invalid".to_string());
-    let provider = envelope.get("provider").and_then(Value::as_str).map(String::from);
+    let provider = envelope
+        .get("provider")
+        .and_then(Value::as_str)
+        .map(String::from);
     (provider, false, gaps)
 }
 
@@ -918,9 +993,17 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
     let applicable_providers: Vec<String> = input
         .get("applicableProviders")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
-    let exercises = input.get("exercises").and_then(Value::as_array).cloned().unwrap_or_default();
+    let exercises = input
+        .get("exercises")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let applicability_source = input.get("applicabilitySource").filter(|v| !v.is_null());
     let not_applicable_receipts = input
         .get("notApplicableReceipts")
@@ -935,11 +1018,23 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
     let now = input.get("now").and_then(Value::as_str).map(String::from);
     let max_age_ms = input.get("maxAgeMs").and_then(Value::as_f64);
 
-    let collections_ok = input.get("configuredProviders").map(Value::is_array).unwrap_or(true)
-        && input.get("applicableProviders").map(Value::is_array).unwrap_or(true)
+    let collections_ok = input
+        .get("configuredProviders")
+        .map(Value::is_array)
+        .unwrap_or(true)
+        && input
+            .get("applicableProviders")
+            .map(Value::is_array)
+            .unwrap_or(true)
         && input.get("exercises").map(Value::is_array).unwrap_or(true)
-        && input.get("notApplicableReceipts").map(Value::is_array).unwrap_or(true)
-        && input.get("trustedProducers").map(Value::is_array).unwrap_or(true)
+        && input
+            .get("notApplicableReceipts")
+            .map(Value::is_array)
+            .unwrap_or(true)
+        && input
+            .get("trustedProducers")
+            .map(Value::is_array)
+            .unwrap_or(true)
         && configured_providers.iter().all(Value::is_object)
         && exercises.iter().all(Value::is_object)
         && not_applicable_receipts.iter().all(Value::is_object)
@@ -1017,7 +1112,11 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
     let configured_map: HashMap<String, Value> = if configured_valid {
         configured_providers
             .iter()
-            .filter_map(|p| p.get("key").and_then(Value::as_str).map(|k| (k.to_string(), p.clone())))
+            .filter_map(|p| {
+                p.get("key")
+                    .and_then(Value::as_str)
+                    .map(|k| (k.to_string(), p.clone()))
+            })
             .collect()
     } else {
         HashMap::new()
@@ -1032,13 +1131,23 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
                 .and_then(Value::as_array)
                 .unwrap()
                 .iter()
-                .any(|p| p.get("id").and_then(Value::as_str) == Some(id) && p.get("applicable").and_then(Value::as_bool) == Some(false))
+                .any(|p| {
+                    p.get("id").and_then(Value::as_str) == Some(id)
+                        && p.get("applicable").and_then(Value::as_bool) == Some(false)
+                })
     };
     let conditional_fallback = applicable_providers.is_empty() && config_keys.is_empty();
     let expected: Vec<String> = if conditional_fallback {
-        CONDITIONAL_PROVIDERS.iter().map(|s| s.to_string()).collect()
+        CONDITIONAL_PROVIDERS
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
     } else {
-        let mut e: Vec<String> = applicable_providers.iter().cloned().chain(config_keys.iter().cloned()).collect();
+        let mut e: Vec<String> = applicable_providers
+            .iter()
+            .cloned()
+            .chain(config_keys.iter().cloned())
+            .collect();
         e.sort();
         e.dedup();
         e
@@ -1061,7 +1170,8 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
     }
 
     let mut global_gaps: Vec<String> = Vec::new();
-    if conditional_fallback && applicability_source.is_none() && not_applicable_receipts.is_empty() {
+    if conditional_fallback && applicability_source.is_none() && not_applicable_receipts.is_empty()
+    {
         global_gaps.push("conditional-provider-applicability-source-missing".to_string());
     }
     if conditional_fallback && applicability_source.is_some() && !source_valid {
@@ -1096,7 +1206,11 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
         global_gaps.push(format!("provider-config-adapter-duplicate:{a}"));
     }
     for p in &configured_providers {
-        let key_ok = p.get("key").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false);
+        let key_ok = p
+            .get("key")
+            .and_then(Value::as_str)
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
         let adapter_ok = p
             .get("adapterId")
             .and_then(Value::as_str)
@@ -1148,12 +1262,20 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
                 "maxAgeMs": max_age_ms,
             }),
         );
-        let source = validation.get("payload").filter(|p| !p.is_null()).cloned().unwrap_or_else(|| raw.clone());
+        let source = validation
+            .get("payload")
+            .filter(|p| !p.is_null())
+            .cloned()
+            .unwrap_or_else(|| raw.clone());
         let mut item = redact(&source, "").as_object().cloned().unwrap_or_default();
         let mut gaps: Vec<String> = validation
             .get("gaps")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
         if provider_cfg.is_none() {
             gaps.push("provider-not-configured".to_string());
@@ -1177,7 +1299,10 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
             gaps.push("provider-duplicate".to_string());
             global_gaps.push(format!("provider-duplicate:{id}"));
         }
-        let environment = item.get("environment").and_then(Value::as_str).unwrap_or("");
+        let environment = item
+            .get("environment")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if !["sandbox", "test"].contains(&environment) {
             gaps.push("non-test-environment".to_string());
         }
@@ -1199,11 +1324,25 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
         if !same_binding(&binding, item.get("binding").unwrap_or(&Value::Null)) {
             gaps.push("binding-mismatch".to_string());
         }
-        let issued = raw.get("issuedAt").and_then(Value::as_str).and_then(utc_millis);
-        let checked = raw.get("checkedAt").and_then(Value::as_str).and_then(utc_millis);
-        let expires = raw.get("expiresAt").and_then(Value::as_str).and_then(utc_millis);
+        let issued = raw
+            .get("issuedAt")
+            .and_then(Value::as_str)
+            .and_then(utc_millis);
+        let checked = raw
+            .get("checkedAt")
+            .and_then(Value::as_str)
+            .and_then(utc_millis);
+        let expires = raw
+            .get("expiresAt")
+            .and_then(Value::as_str)
+            .and_then(utc_millis);
         let current = now.as_deref().and_then(utc_millis);
-        for (k, v) in [("issuedAt", issued), ("checkedAt", checked), ("expiresAt", expires), ("now", current)] {
+        for (k, v) in [
+            ("issuedAt", issued),
+            ("checkedAt", checked),
+            ("expiresAt", expires),
+            ("now", current),
+        ] {
             if v.is_none() {
                 gaps.push(format!("{k}-timestamp-invalid"));
             }
@@ -1225,7 +1364,10 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
         }
         let state_vals: HashSet<String> = ["client", "backend", "providerState", "userState"]
             .iter()
-            .map(|k| serde_json::to_string(&canonicalize(item.get(*k).unwrap_or(&Value::Null))).unwrap_or_default())
+            .map(|k| {
+                serde_json::to_string(&canonicalize(item.get(*k).unwrap_or(&Value::Null)))
+                    .unwrap_or_default()
+            })
             .collect();
         if state_vals.len() != 1 {
             gaps.push("state-divergence".to_string());
@@ -1241,14 +1383,24 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
         item.insert("provider".to_string(), Value::String(id.clone()));
         item.insert(
             "adapterId".to_string(),
-            provider_cfg.and_then(|p| p.get("adapterId")).cloned().unwrap_or(Value::Null),
+            provider_cfg
+                .and_then(|p| p.get("adapterId"))
+                .cloned()
+                .unwrap_or(Value::Null),
         );
         item.insert(
             "status".to_string(),
-            Value::String(if gaps.is_empty() { "pass".to_string() } else { "unproven".to_string() }),
+            Value::String(if gaps.is_empty() {
+                "pass".to_string()
+            } else {
+                "unproven".to_string()
+            }),
         );
         item.insert("terminal".to_string(), Value::Bool(true));
-        item.insert("coverageGaps".to_string(), Value::Array(gaps.into_iter().map(Value::String).collect()));
+        item.insert(
+            "coverageGaps".to_string(),
+            Value::Array(gaps.into_iter().map(Value::String).collect()),
+        );
         receipts.push(Value::Object(item));
     }
     let receipts = sort_by_id(receipts);
@@ -1257,18 +1409,34 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
     let missing_ids: Vec<String> = counts
         .get("missing")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     let unplanned: Vec<String> = {
-        let mut u: Vec<String> = grouped.keys().filter(|k| !expected.contains(k)).cloned().collect();
+        let mut u: Vec<String> = grouped
+            .keys()
+            .filter(|k| !expected.contains(k))
+            .cloned()
+            .collect();
         u.sort();
         u
     };
     let mut gaps: Vec<String> = global_gaps;
     let (_, bgaps) = exact_binding(&binding);
     gaps.extend(bgaps.iter().map(|k| format!("binding-missing:{k}")));
-    gaps.extend(missing_ids.iter().map(|id| format!("provider-missing:{id}")));
-    gaps.extend(unplanned.iter().map(|id| format!("provider-unplanned:{id}")));
+    gaps.extend(
+        missing_ids
+            .iter()
+            .map(|id| format!("provider-missing:{id}")),
+    );
+    gaps.extend(
+        unplanned
+            .iter()
+            .map(|id| format!("provider-unplanned:{id}")),
+    );
     for r in &receipts {
         let rid = r.get("id").and_then(Value::as_str).unwrap_or("");
         if let Some(cg) = r.get("coverageGaps").and_then(Value::as_array) {
@@ -1296,7 +1464,11 @@ pub fn verify_third_party_exercise(input: &Value) -> Value {
 // web/operations/index.mjs port
 // ---------------------------------------------------------------------------------------------
 fn valid_operation_artifact(artifact: &Value, binding: &Value) -> bool {
-    let path_ok = artifact.get("path").and_then(Value::as_str).map(safe_path).unwrap_or(false);
+    let path_ok = artifact
+        .get("path")
+        .and_then(Value::as_str)
+        .map(safe_path)
+        .unwrap_or(false);
     if !path_ok {
         return false;
     }
@@ -1310,10 +1482,15 @@ fn valid_operation_artifact(artifact: &Value, binding: &Value) -> bool {
 /// envelope, matching the JS fallback when the signed payload cannot be trusted.
 fn ops_unwrap(envelope: &Value, trusted_producers: &[Value]) -> Value {
     let mut gaps: Vec<String> = Vec::new();
-    let producer_id = envelope.get("producer").and_then(Value::as_str).map(String::from);
-    let trusted = producer_id
-        .as_ref()
-        .and_then(|pid| trusted_producers.iter().find(|p| p.get("id").and_then(Value::as_str) == Some(pid.as_str())));
+    let producer_id = envelope
+        .get("producer")
+        .and_then(Value::as_str)
+        .map(String::from);
+    let trusted = producer_id.as_ref().and_then(|pid| {
+        trusted_producers
+            .iter()
+            .find(|p| p.get("id").and_then(Value::as_str) == Some(pid.as_str()))
+    });
     let signed_content = envelope.get("signedContent").and_then(Value::as_str);
     let signature = envelope.get("signature").and_then(Value::as_str);
     let mut record = envelope.clone();
@@ -1333,7 +1510,9 @@ fn ops_unwrap(envelope: &Value, trusted_producers: &[Value]) -> Value {
     let binding_for_artifacts = record.get("binding").cloned().unwrap_or(Value::Null);
     let artifacts_valid = match &original_artifacts {
         None => true,
-        Some(Value::Array(items)) => items.iter().all(|a| valid_operation_artifact(a, &binding_for_artifacts)),
+        Some(Value::Array(items)) => items
+            .iter()
+            .all(|a| valid_operation_artifact(a, &binding_for_artifacts)),
         _ => false,
     };
     if !artifacts_valid {
@@ -1355,13 +1534,17 @@ fn ops_unwrap(envelope: &Value, trusted_producers: &[Value]) -> Value {
         if admissions.iter().any(|(_, sens)| *sens) {
             gaps.push("operation-artifact-sanitized".to_string());
         }
-        let sanitized_artifacts: Vec<Value> = admissions.into_iter().filter_map(|(a, _)| a).collect();
+        let sanitized_artifacts: Vec<Value> =
+            admissions.into_iter().filter_map(|(a, _)| a).collect();
         if let Value::Object(map) = &mut final_record {
             map.insert("artifacts".to_string(), Value::Array(sanitized_artifacts));
         }
     }
     record = final_record;
-    let id = record.get("id").cloned().unwrap_or_else(|| envelope.get("id").cloned().unwrap_or(Value::Null));
+    let id = record
+        .get("id")
+        .cloned()
+        .unwrap_or_else(|| envelope.get("id").cloned().unwrap_or(Value::Null));
     json!({
         "id": id,
         "record": record,
@@ -1374,7 +1557,11 @@ fn ops_unwrap(envelope: &Value, trusted_producers: &[Value]) -> Value {
 /// Port of `web/operations/index.mjs`'s `verifyOperationsExercise`.
 pub fn verify_operations_exercise(input: &Value) -> Value {
     let binding = input.get("binding").cloned().unwrap_or_else(|| json!({}));
-    let exercises = input.get("exercises").and_then(Value::as_array).cloned().unwrap_or_default();
+    let exercises = input
+        .get("exercises")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let trusted_producers = input
         .get("trustedProducers")
         .and_then(Value::as_array)
@@ -1384,7 +1571,10 @@ pub fn verify_operations_exercise(input: &Value) -> Value {
     let max_age_ms = input.get("maxAgeMs").and_then(Value::as_f64);
 
     let collections_ok = input.get("exercises").map(Value::is_array).unwrap_or(true)
-        && input.get("trustedProducers").map(Value::is_array).unwrap_or(true)
+        && input
+            .get("trustedProducers")
+            .map(Value::is_array)
+            .unwrap_or(true)
         && exercises.iter().all(Value::is_object)
         && trusted_producers.iter().all(Value::is_object);
     if !collections_ok {
@@ -1423,22 +1613,41 @@ pub fn verify_operations_exercise(input: &Value) -> Value {
         );
     }
 
-    let verified = sort_by_id(exercises.iter().map(|e| ops_unwrap(e, &trusted_producers)).collect());
+    let verified = sort_by_id(
+        exercises
+            .iter()
+            .map(|e| ops_unwrap(e, &trusted_producers))
+            .collect(),
+    );
     let mut grouped: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     for item in &verified {
-        let id = item.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+        let id = item
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         grouped.entry(id).or_default().push(item.clone());
     }
 
     let mut global_gaps: Vec<String> = Vec::new();
     for (id, rows) in &grouped {
         if !OPERATION_IDS.contains(&id.as_str()) {
-            global_gaps.push(format!("operation-unplanned:{}", if id.is_empty() { "missing" } else { id }));
+            global_gaps.push(format!(
+                "operation-unplanned:{}",
+                if id.is_empty() { "missing" } else { id }
+            ));
         }
         if rows.len() > 1 {
             global_gaps.push(format!("operation-id-duplicate:{id}"));
         }
-        let has_gap = |name: &str| rows.iter().any(|r| r.get("gaps").and_then(Value::as_array).map(|g| g.iter().any(|x| x.as_str() == Some(name))).unwrap_or(false));
+        let has_gap = |name: &str| {
+            rows.iter().any(|r| {
+                r.get("gaps")
+                    .and_then(Value::as_array)
+                    .map(|g| g.iter().any(|x| x.as_str() == Some(name)))
+                    .unwrap_or(false)
+            })
+        };
         if has_gap("signature-unproven") {
             global_gaps.push(format!("operation-signature-unproven:{id}"));
         }
@@ -1593,12 +1802,21 @@ pub fn verify_operations_exercise(input: &Value) -> Value {
     if exercises.is_empty() {
         gaps.push("operations-denominator-empty".to_string());
     }
-    let statuses: Vec<&str> = receipts.iter().filter_map(|r| r.get("status").and_then(Value::as_str)).collect();
+    let statuses: Vec<&str> = receipts
+        .iter()
+        .filter_map(|r| r.get("status").and_then(Value::as_str))
+        .collect();
     let status = ["error", "fail", "blocked", "partial", "unproven"]
         .iter()
         .find(|s| statuses.contains(s))
         .map(|s| s.to_string())
-        .unwrap_or_else(|| if !gaps.is_empty() { "unproven".to_string() } else { "pass".to_string() });
+        .unwrap_or_else(|| {
+            if !gaps.is_empty() {
+                "unproven".to_string()
+            } else {
+                "pass".to_string()
+            }
+        });
     gaps.sort();
     gaps.dedup();
 
@@ -1630,15 +1848,24 @@ pub fn verify_infrastructure_exercise(input: &Value) -> Value {
         .cloned()
         .unwrap_or_default();
 
-    let producers_valid = input.get("trustedProducers").map(Value::is_array).unwrap_or(true)
+    let producers_valid = input
+        .get("trustedProducers")
+        .map(Value::is_array)
+        .unwrap_or(true)
         && trusted_producers.iter().all(|p| {
             p.is_object()
-                && p.get("id").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false)
+                && p.get("id")
+                    .and_then(Value::as_str)
+                    .map(|s| !s.is_empty())
+                    .unwrap_or(false)
                 && p.get("publicKey").is_some()
         });
     if !producers_valid {
         let (_, bgaps) = exact_binding(&binding);
-        let mut gaps: Vec<String> = bgaps.iter().map(|k| format!("binding-missing:{k}")).collect();
+        let mut gaps: Vec<String> = bgaps
+            .iter()
+            .map(|k| format!("binding-missing:{k}"))
+            .collect();
         gaps.push("trusted-producers-invalid".to_string());
         gaps.sort();
         gaps.dedup();
@@ -1653,19 +1880,35 @@ pub fn verify_infrastructure_exercise(input: &Value) -> Value {
     }
 
     let (_, bgaps) = exact_binding(&binding);
-    let mut gaps: Vec<String> = bgaps.iter().map(|k| format!("binding-missing:{k}")).collect();
-    let producer_id = evidence.as_ref().and_then(|e| e.get("producer")).and_then(Value::as_str).map(String::from);
-    let producer = producer_id
+    let mut gaps: Vec<String> = bgaps
+        .iter()
+        .map(|k| format!("binding-missing:{k}"))
+        .collect();
+    let producer_id = evidence
         .as_ref()
-        .and_then(|pid| trusted_producers.iter().find(|p| p.get("id").and_then(Value::as_str) == Some(pid.as_str())));
+        .and_then(|e| e.get("producer"))
+        .and_then(Value::as_str)
+        .map(String::from);
+    let producer = producer_id.as_ref().and_then(|pid| {
+        trusted_producers
+            .iter()
+            .find(|p| p.get("id").and_then(Value::as_str) == Some(pid.as_str()))
+    });
     if evidence.is_none() {
         gaps.push("supplied-evidence-missing".to_string());
     }
     if producer.is_none() {
         gaps.push("producer-untrusted".to_string());
     }
-    let signed_content = evidence.as_ref().and_then(|e| e.get("signedContent")).and_then(Value::as_str).map(String::from);
-    let signature = evidence.as_ref().and_then(|e| e.get("signature")).and_then(Value::as_str);
+    let signed_content = evidence
+        .as_ref()
+        .and_then(|e| e.get("signedContent"))
+        .and_then(Value::as_str)
+        .map(String::from);
+    let signature = evidence
+        .as_ref()
+        .and_then(|e| e.get("signature"))
+        .and_then(Value::as_str);
     if signed_content.is_none() || signature.is_none() {
         gaps.push("signature-unproven".to_string());
     } else if !is_canonical_base64(signature.unwrap()) {
@@ -1695,7 +1938,11 @@ pub fn verify_infrastructure_exercise(input: &Value) -> Value {
 
 /// Port of `src/providers/runtime/external-evidence/index.mjs`'s `importExternalEvidence`.
 pub fn import_external_evidence(input: &Value) -> Value {
-    let evidence = input.get("evidence").and_then(Value::as_array).cloned().unwrap_or_default();
+    let evidence = input
+        .get("evidence")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let expected = input.get("expected").cloned().unwrap_or_else(|| json!({}));
     let mut coverage_gaps: Vec<String> = Vec::new();
     if evidence.is_empty() {
@@ -1718,7 +1965,11 @@ pub fn import_external_evidence(input: &Value) -> Value {
         validations.push(json!({"evidence": item, "validation": validation}));
     }
     coverage_gaps.sort();
-    let status = if !coverage_gaps.is_empty() || !all_pass { "unproven" } else { "pass" };
+    let status = if !coverage_gaps.is_empty() || !all_pass {
+        "unproven"
+    } else {
+        "pass"
+    };
     json!({
         "schemaVersion": 1,
         "provider": "runtime.external-evidence",
@@ -1757,7 +2008,10 @@ pub fn verify_analytics_evidence(input: &Value) -> Value {
     let merged = merge_wrapper(
         receipt,
         vec![
-            ("provider", Value::String("runtime.external.analytics".into())),
+            (
+                "provider",
+                Value::String("runtime.external.analytics".into()),
+            ),
             ("family", Value::String("analytics".into())),
             ("networkAttempted", Value::Bool(false)),
         ],
@@ -1800,7 +2054,10 @@ pub fn verify_commerce_evidence(input: &Value) -> Value {
     let merged = merge_wrapper(
         receipt,
         vec![
-            ("provider", Value::String("runtime.external.commerce".into())),
+            (
+                "provider",
+                Value::String("runtime.external.commerce".into()),
+            ),
             ("family", Value::String("commerce".into())),
             ("networkAttempted", Value::Bool(false)),
         ],
@@ -1841,7 +2098,10 @@ pub fn verify_incident_evidence(input: &Value) -> Value {
     let merged = merge_wrapper(
         receipt,
         vec![
-            ("provider", Value::String("runtime.external.incidents".into())),
+            (
+                "provider",
+                Value::String("runtime.external.incidents".into()),
+            ),
             ("family", Value::String("incidents".into())),
             ("claimLevel", Value::String("external".into())),
             ("suppliedOnly", Value::Bool(true)),
@@ -1857,7 +2117,10 @@ pub fn verify_third_party_evidence(input: &Value) -> Value {
     let merged = merge_wrapper(
         receipt,
         vec![
-            ("provider", Value::String("runtime.external.third-party".into())),
+            (
+                "provider",
+                Value::String("runtime.external.third-party".into()),
+            ),
             ("family", Value::String("third-party".into())),
             ("networkAttempted", Value::Bool(false)),
         ],

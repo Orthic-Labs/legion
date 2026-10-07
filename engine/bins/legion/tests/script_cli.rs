@@ -292,7 +292,11 @@ fn native_script_tasklist_validate_tasklist_missing_args_exits_2() {
 #[test]
 fn native_script_tasklist_validate_tasklist_missing_packet_exits_2() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "tasklist/validate-tasklist", "/nonexistent/packet.json"])
+        .args([
+            "script",
+            "tasklist/validate-tasklist",
+            "/nonexistent/packet.json",
+        ])
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2), "{output:?}");
@@ -494,7 +498,11 @@ fn native_script_list_includes_sc4d_ports() {
 #[test]
 fn native_script_covenant_validate_external_review_packet_missing_file_exits_2() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "covenant/validate-external-review-packet", "/nonexistent/packet.md"])
+        .args([
+            "script",
+            "covenant/validate-external-review-packet",
+            "/nonexistent/packet.md",
+        ])
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2), "{output:?}");
@@ -503,12 +511,21 @@ fn native_script_covenant_validate_external_review_packet_missing_file_exits_2()
 #[test]
 fn native_script_brand_identity_color_check_contrast() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "brand-identity/color-check", "contrast", "#000000", "#ffffff"])
+        .args([
+            "script",
+            "brand-identity/color-check",
+            "contrast",
+            "#000000",
+            "#ffffff",
+        ])
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("\"ratio\": 21.0") || stdout.contains("\"ratio\": 21"), "{stdout}");
+    assert!(
+        stdout.contains("\"ratio\": 21.0") || stdout.contains("\"ratio\": 21"),
+        "{stdout}"
+    );
 }
 
 #[test]
@@ -767,7 +784,14 @@ fn native_script_designer_hook_before_edit_malformed_stdin_allows() {
 /// Exercise native incoming continuity through installed-style script routing.
 #[test]
 fn native_script_continuity_roundtrip_and_tamper_rejection() {
-    let dir = std::env::temp_dir().join(format!("legion-continuity-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    let dir = std::env::temp_dir().join(format!(
+        "legion-continuity-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
     std::fs::create_dir_all(&dir).unwrap();
     let home = dir.as_path();
     let sessions = home.join(".codex/sessions/2026/10/08");
@@ -779,30 +803,74 @@ fn native_script_continuity_roundtrip_and_tamper_rejection() {
         serde_json::json!({"type":"response_item","payload":{"type":"message","id":"message-1","role":"user","content":[{"type":"input_text","text":"Continue continuity repair & preserve source binding."}]}}),
         serde_json::json!({"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Native implementation is in progress."}]}}),
     ];
-    let transcript = rows.iter().map(|row| format!("{row}\n")).collect::<String>();
+    let transcript = rows
+        .iter()
+        .map(|row| format!("{row}\n"))
+        .collect::<String>();
     std::fs::write(&source, &transcript).unwrap();
     let bootstrap = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "handoff/transcript-handoff", "bootstrap", "--platform", "codex", "--session-id", "session-1", "--workspace", workspace, "--home", workspace, "--json"])
-        .output().unwrap();
+        .args([
+            "script",
+            "handoff/transcript-handoff",
+            "bootstrap",
+            "--platform",
+            "codex",
+            "--session-id",
+            "session-1",
+            "--workspace",
+            workspace,
+            "--home",
+            workspace,
+            "--json",
+        ])
+        .output()
+        .unwrap();
     assert!(bootstrap.status.success(), "{bootstrap:?}");
     let pointer = home.join("pointer.json");
     std::fs::write(&pointer, &bootstrap.stdout).unwrap();
     // Source may continue writing after bootstrap; target must ignore that tail.
-    std::fs::write(&source, format!("{transcript}{{\"type\":\"untrusted_tail\"}}\n")).unwrap();
+    std::fs::write(
+        &source,
+        format!("{transcript}{{\"type\":\"untrusted_tail\"}}\n"),
+    )
+    .unwrap();
     let context_path = home.join("session.context.json");
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "handoff/transcript-handoff", "continuity", "--pointer", pointer.to_str().unwrap(), "--output", context_path.to_str().unwrap()])
-        .output().unwrap();
+        .args([
+            "script",
+            "handoff/transcript-handoff",
+            "continuity",
+            "--pointer",
+            pointer.to_str().unwrap(),
+            "--output",
+            context_path.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
     assert!(output.status.success(), "{output:?}");
     let bytes = std::fs::read(&context_path).unwrap();
     let context: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(context["source"]["prefixVerified"], true);
-    assert_eq!(context["userRequests"][0]["text"], "Continue continuity repair & preserve source binding.");
+    assert_eq!(
+        context["userRequests"][0]["text"],
+        "Continue continuity repair & preserve source binding."
+    );
     assert!(!String::from_utf8_lossy(&bytes).contains("untrusted_tail"));
     let receipt = home.join("session.context.receipt.json");
-    let verify = || Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "handoff/transcript-handoff", "continuity", "--output", context_path.to_str().unwrap(), "--verify-receipt", receipt.to_str().unwrap()])
-        .output().unwrap();
+    let verify = || {
+        Command::new(env!("CARGO_BIN_EXE_legion"))
+            .args([
+                "script",
+                "handoff/transcript-handoff",
+                "continuity",
+                "--output",
+                context_path.to_str().unwrap(),
+                "--verify-receipt",
+                receipt.to_str().unwrap(),
+            ])
+            .output()
+            .unwrap()
+    };
     assert!(verify().status.success());
     let mut tampered = bytes.clone();
     tampered.push(b' ');
@@ -811,8 +879,17 @@ fn native_script_continuity_roundtrip_and_tamper_rejection() {
     assert_eq!(std::fs::read(&context_path).unwrap(), tampered);
     let original_source = std::fs::read(&source).unwrap();
     let overwrite = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "handoff/transcript-handoff", "continuity", "--pointer", pointer.to_str().unwrap(), "--output", source.to_str().unwrap()])
-        .output().unwrap();
+        .args([
+            "script",
+            "handoff/transcript-handoff",
+            "continuity",
+            "--pointer",
+            pointer.to_str().unwrap(),
+            "--output",
+            source.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
     assert!(!overwrite.status.success());
     assert_eq!(std::fs::read(&source).unwrap(), original_source);
     std::fs::remove_dir_all(&dir).unwrap();
@@ -899,15 +976,25 @@ fn seo_closure_native_entries_match_script_list_and_catalog() {
         .map(|s| s.to_string())
         .collect();
     gate.sort();
-    assert_eq!(listed, gate, "seo_closure::NATIVE_ENTRIES drifted from the dispatch table");
+    assert_eq!(
+        listed, gate,
+        "seo_closure::NATIVE_ENTRIES drifted from the dispatch table"
+    );
 
-    let catalog = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../skills/seo/config/control-catalog.json");
+    let catalog = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../skills/seo/config/control-catalog.json");
     if let Ok(text) = std::fs::read_to_string(&catalog) {
         let catalog: serde_json::Value = serde_json::from_str(&text).unwrap();
         for phase in catalog["phases"].as_array().into_iter().flatten() {
             for script in phase["scripts"].as_array().into_iter().flatten() {
-                let name = script.as_str().unwrap().trim_start_matches("legion script ");
-                assert!(listed.iter().any(|l| format!("seo/{l}") == name), "catalog names unknown entry {name}");
+                let name = script
+                    .as_str()
+                    .unwrap()
+                    .trim_start_matches("legion script ");
+                assert!(
+                    listed.iter().any(|l| format!("seo/{l}") == name),
+                    "catalog names unknown entry {name}"
+                );
             }
         }
     }

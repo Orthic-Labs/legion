@@ -110,7 +110,8 @@ static LABEL_LINE_RES: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
 });
 static FENCED_EVIDENCE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?s)```(?:text)?\s*\n(.+?)\n```").unwrap());
-static TABLE_SEPARATOR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\|[\s:|-]+\|$").unwrap());
+static TABLE_SEPARATOR_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\|[\s:|-]+\|$").unwrap());
 static SECRET_RES: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
     SECRET_PATTERNS
         .iter()
@@ -188,7 +189,12 @@ pub fn table_rows(text: &str, start: &str, end: &str) -> Vec<Vec<String>> {
     for line in text[a..b].lines() {
         if line.starts_with('|') && !TABLE_SEPARATOR_RE.is_match(line) {
             let trimmed = line.trim().trim_matches('|');
-            rows.push(trimmed.split('|').map(|cell| cell.trim().to_string()).collect());
+            rows.push(
+                trimmed
+                    .split('|')
+                    .map(|cell| cell.trim().to_string())
+                    .collect(),
+            );
         }
     }
     rows
@@ -246,7 +252,9 @@ pub fn validate(text: &str, path: &Path, inline: bool, template: bool) -> Vec<St
         errors.push(format!("Mode must be {CANONICAL_MODE}"));
     }
 
-    let declared = label_value(text, "**Packet path:**").unwrap_or("").to_string();
+    let declared = label_value(text, "**Packet path:**")
+        .unwrap_or("")
+        .to_string();
     if inline {
         if declared.trim_matches('`').to_uppercase() != "INLINE" {
             errors.push("inline packet must declare Packet path INLINE".to_string());
@@ -265,9 +273,13 @@ pub fn validate(text: &str, path: &Path, inline: bool, template: bool) -> Vec<St
             let resolved_norm = normalized(&resolved_path.to_string_lossy(), None);
             let path_parts: std::collections::HashSet<&str> = resolved_norm.split('/').collect();
             if FORBIDDEN_STORAGE.iter().any(|f| path_parts.contains(f))
-                || path_parts.iter().any(|part| part.starts_with(".validator-"))
+                || path_parts
+                    .iter()
+                    .any(|part| part.starts_with(".validator-"))
             {
-                errors.push("durable packet cannot use temporary/cache/review-run storage".to_string());
+                errors.push(
+                    "durable packet cannot use temporary/cache/review-run storage".to_string(),
+                );
             }
         }
         let ext_is_md = path
@@ -295,7 +307,12 @@ pub fn validate(text: &str, path: &Path, inline: bool, template: bool) -> Vec<St
     }
 
     for (name, start, end, width) in [
-        ("failure", "## 3. What Went Wrong", "## 4. Current System & State", 3usize),
+        (
+            "failure",
+            "## 3. What Went Wrong",
+            "## 4. Current System & State",
+            3usize,
+        ),
         (
             "attempt",
             "## 6. Existing Attempts & Inputs",
@@ -375,7 +392,10 @@ pub fn run(text: &str, path: &Path, inline: bool, template_self_check: bool) -> 
         for error in &errors {
             message.push_str(&format!("\n- {error}"));
         }
-        ValidationOutcome { exit_code: 1, message }
+        ValidationOutcome {
+            exit_code: 1,
+            message,
+        }
     }
 }
 
@@ -385,8 +405,8 @@ mod tests {
     use std::path::PathBuf;
 
     fn template_text() -> String {
-        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/wf_w2_003/template.md");
+        let fixture =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/wf_w2_003/template.md");
         std::fs::read_to_string(fixture).expect("template fixture present")
     }
 
@@ -397,7 +417,10 @@ mod tests {
         let template_path = PathBuf::from("template.md");
 
         let errors = validate(&template, &template_path, false, true);
-        assert!(errors.is_empty(), "canonical template should self-check clean: {errors:?}");
+        assert!(
+            errors.is_empty(),
+            "canonical template should self-check clean: {errors:?}"
+        );
 
         let mutated = template.replacen(CANONICAL_MODE, "RUN_COVENANT", 1);
         let errors = validate(&mutated, &template_path, false, true);
@@ -421,7 +444,10 @@ mod tests {
         // Same headings but with #3 and #4 swapped in the body.
         let template = template_text();
         let mut lines: Vec<&str> = template.lines().collect();
-        let idx3 = lines.iter().position(|l| *l == "## 3. What Went Wrong").unwrap();
+        let idx3 = lines
+            .iter()
+            .position(|l| *l == "## 3. What Went Wrong")
+            .unwrap();
         let idx4 = lines
             .iter()
             .position(|l| *l == "## 4. Current System & State")
@@ -430,7 +456,9 @@ mod tests {
         let swapped = lines.join("\n");
         let errors = validate(&swapped, &PathBuf::from("x.md"), false, true);
         assert!(
-            errors.iter().any(|e| e.contains("## 4. Current System & State")),
+            errors
+                .iter()
+                .any(|e| e.contains("## 4. Current System & State")),
             "expected an out-of-order complaint, got {errors:?}"
         );
     }
@@ -448,9 +476,16 @@ mod tests {
     #[test]
     fn table_rows_skips_separator_and_header_is_included() {
         let text = "## 3. What Went Wrong\n\n| Failure | Exact symptom/evidence | Consequence |\n|---|---|---|\n| Foo bug | it broke badly | users blocked |\n\n## 4. Current System & State\n";
-        let rows = table_rows(text, "## 3. What Went Wrong", "## 4. Current System & State");
+        let rows = table_rows(
+            text,
+            "## 3. What Went Wrong",
+            "## 4. Current System & State",
+        );
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0], vec!["Failure", "Exact symptom/evidence", "Consequence"]);
+        assert_eq!(
+            rows[0],
+            vec!["Failure", "Exact symptom/evidence", "Consequence"]
+        );
         assert_eq!(rows[1], vec!["Foo bug", "it broke badly", "users blocked"]);
     }
 
@@ -477,7 +512,9 @@ mod tests {
         let filled = fill_all_placeholders(&template);
         let errors = validate(&filled, &PathBuf::from("ignored.md"), true, false);
         assert!(
-            !errors.iter().any(|e| e.contains("inline packet must declare")),
+            !errors
+                .iter()
+                .any(|e| e.contains("inline packet must declare")),
             "unexpected inline-path error: {errors:?}"
         );
     }

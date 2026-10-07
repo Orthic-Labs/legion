@@ -36,7 +36,12 @@ fn tmp_dir(name: &str) -> std::path::PathBuf {
         ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+            .as_nanos())
+        .wrapping_shl(20)
+            | ({
+                static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+            }))
     ));
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -316,7 +321,8 @@ fn clamp_and_resize_placeholder() {
     let resized = resize_placeholder_from_edge(start, 'e', 50.0, 0.0, 1000.0, ClampOpts::default());
     assert_eq!(resized.width, 250.0);
 
-    let resized_w = resize_placeholder_from_edge(start, 'w', 50.0, 0.0, 1000.0, ClampOpts::default());
+    let resized_w =
+        resize_placeholder_from_edge(start, 'w', 50.0, 0.0, 1000.0, ClampOpts::default());
     assert_eq!(resized_w.width, 150.0);
     assert_eq!(resized_w.margin_left, 50.0);
 }
@@ -447,7 +453,10 @@ fn stage_entry_merges_by_page_and_ref_keeping_original_text() {
     )
     .unwrap();
     assert_eq!(buf.entries.len(), 1);
-    assert_eq!(buf.entries[0].ops[0].original_text.as_deref(), Some("Hello"));
+    assert_eq!(
+        buf.entries[0].ops[0].original_text.as_deref(),
+        Some("Hello")
+    );
     assert_eq!(buf.entries[0].ops[0].new_text.as_deref(), Some("Hi"));
 
     // Re-editing the same (pageUrl, ref) keeps the true originalText and
@@ -491,7 +500,14 @@ fn stage_entry_adds_new_op_for_new_ref() {
 #[test]
 fn remove_entries_counts_ops_and_prunes_empties() {
     let dir = tmp_dir("buffer-remove");
-    stage_entry(&dir, "e1", "page-a", None, vec![op("r1", "a"), op("r2", "b")]).unwrap();
+    stage_entry(
+        &dir,
+        "e1",
+        "page-a",
+        None,
+        vec![op("r1", "a"), op("r2", "b")],
+    )
+    .unwrap();
     stage_entry(&dir, "e2", "page-b", None, vec![op("r3", "c")]).unwrap();
 
     let removed = remove_entries(&dir, |entry| entry.page_url.as_deref() == Some("page-a"));
@@ -506,7 +522,14 @@ fn remove_entries_counts_ops_and_prunes_empties() {
 #[test]
 fn truncate_buffer_empties_and_returns_removed_count() {
     let dir = tmp_dir("buffer-truncate");
-    stage_entry(&dir, "e1", "page-a", None, vec![op("r1", "a"), op("r2", "b")]).unwrap();
+    stage_entry(
+        &dir,
+        "e1",
+        "page-a",
+        None,
+        vec![op("r1", "a"), op("r2", "b")],
+    )
+    .unwrap();
     let removed = truncate_buffer(&dir);
     assert_eq!(removed, 2);
     let buf = read_buffer(&dir);
@@ -530,7 +553,14 @@ fn read_buffer_missing_file_returns_empty() {
 #[test]
 fn summarize_pending_batch_filters_by_page() {
     let dir = tmp_dir("routes-summary");
-    stage_entry(&dir, "e1", "page-a", None, vec![op("r1", "a"), op("r2", "b")]).unwrap();
+    stage_entry(
+        &dir,
+        "e1",
+        "page-a",
+        None,
+        vec![op("r1", "a"), op("r2", "b")],
+    )
+    .unwrap();
     stage_entry(&dir, "e2", "page-b", None, vec![op("r3", "c")]).unwrap();
 
     let all = summarize_pending_manual_edit_batch(&dir, None);
@@ -604,9 +634,7 @@ fn append_event_requires_id_and_type() {
         .unwrap_err();
     assert_eq!(err, "event id required");
 
-    let err2 = store
-        .append_event(json!({ "id": "s1" }), None)
-        .unwrap_err();
+    let err2 = store.append_event(json!({ "id": "s1" }), None).unwrap_err();
     assert_eq!(err2, "event type required");
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -62,7 +62,8 @@ mod tests {
     #[test]
     fn passes_when_digests_match() {
         let qa = json!({"digest": "sha256:qa", "artifacts": [{"id": "a1", "digest": "sha256:x"}]});
-        let promoted = vec![json!({"sourceArtifactId": "a1", "path": "out/a", "digest": "sha256:x"})];
+        let promoted =
+            vec![json!({"sourceArtifactId": "a1", "path": "out/a", "digest": "sha256:x"})];
         let result = promotion_equivalence(Some(&qa), &promoted);
         assert_eq!(result["status"], "pass");
     }

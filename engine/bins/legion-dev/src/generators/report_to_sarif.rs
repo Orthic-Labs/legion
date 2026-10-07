@@ -41,7 +41,11 @@ fn sanitize_rule_name(rule_id: &str) -> String {
 
 /// Faithful port of `reportToSarif(report)`.
 pub fn report_to_sarif(report: &Value) -> Value {
-    let findings: Vec<Value> = report.get("findings").and_then(Value::as_array).cloned().unwrap_or_default();
+    let findings: Vec<Value> = report
+        .get("findings")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let attack_paths: Vec<Value> = report
         .get("security")
         .and_then(|s| s.get("attackPaths"))
@@ -74,7 +78,10 @@ pub fn report_to_sarif(report: &Value) -> Value {
         });
 
         let mut properties = Map::new();
-        properties.insert("severity".into(), finding.get("severity").cloned().unwrap_or(Value::Null));
+        properties.insert(
+            "severity".into(),
+            finding.get("severity").cloned().unwrap_or(Value::Null),
+        );
         properties.insert(
             "evidenceStrength".into(),
             finding
@@ -83,23 +90,50 @@ pub fn report_to_sarif(report: &Value) -> Value {
                 .cloned()
                 .unwrap_or(Value::Null),
         );
-        properties.insert("judgment".into(), finding.get("judgment").cloned().unwrap_or(Value::Null));
-        properties.insert("status".into(), finding.get("status").cloned().unwrap_or(Value::Null));
-        properties.insert("tier".into(), finding.get("tier").cloned().unwrap_or(Value::Null));
-        properties.insert("evidence".into(), finding.get("evidence").cloned().unwrap_or(Value::Null));
-        properties.insert("action".into(), finding.get("action").cloned().unwrap_or(Value::Null));
-        properties.insert("sources".into(), finding.get("sources").cloned().unwrap_or(Value::Array(vec![])));
+        properties.insert(
+            "judgment".into(),
+            finding.get("judgment").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "status".into(),
+            finding.get("status").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "tier".into(),
+            finding.get("tier").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "evidence".into(),
+            finding.get("evidence").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "action".into(),
+            finding.get("action").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "sources".into(),
+            finding
+                .get("sources")
+                .cloned()
+                .unwrap_or(Value::Array(vec![])),
+        );
         if let Some(cid) = finding.get("candidateId").filter(|v| !v.is_null()) {
             properties.insert("candidateId".into(), cid.clone());
         }
-        let root_cause = finding.get("rootCauseDigest").filter(|v| !v.is_null()).or_else(|| finding.get("rootCauseSignature").filter(|v| !v.is_null()));
+        let root_cause = finding
+            .get("rootCauseDigest")
+            .filter(|v| !v.is_null())
+            .or_else(|| finding.get("rootCauseSignature").filter(|v| !v.is_null()));
         if let Some(rc) = root_cause {
             properties.insert("rootCauseDigest".into(), rc.clone());
         }
         if let Some(v) = finding.get("variantReceiptId").filter(|v| !v.is_null()) {
             properties.insert("variantReceiptId".into(), v.clone());
         }
-        let related = finding.get("relatedAttackPathIds").and_then(Value::as_array).filter(|a| !a.is_empty());
+        let related = finding
+            .get("relatedAttackPathIds")
+            .and_then(Value::as_array)
+            .filter(|a| !a.is_empty());
         if let Some(r) = related {
             properties.insert("relatedAttackPathIds".into(), Value::Array(r.clone()));
         }
@@ -115,7 +149,9 @@ pub fn report_to_sarif(report: &Value) -> Value {
         };
 
         let file = finding.get("file").and_then(Value::as_str);
-        let line = finding.get("line").and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|f| f as i64)));
+        let line = finding
+            .get("line")
+            .and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|f| f as i64)));
 
         let mut fingerprints = Map::new();
         let fp_id = finding
@@ -123,9 +159,19 @@ pub fn report_to_sarif(report: &Value) -> Value {
             .or_else(|| finding.get("candidateId"))
             .cloned()
             .unwrap_or_else(|| Value::from(rule_id.clone()));
-        fingerprints.insert("legionFinding/v1".into(), Value::from(value_to_string(&fp_id)));
-        if let Some(rc) = finding.get("rootCauseDigest").filter(|v| !v.is_null()).or_else(|| finding.get("rootCauseSignature").filter(|v| !v.is_null())) {
-            fingerprints.insert("legionRootCause/v1".into(), Value::from(value_to_string(rc)));
+        fingerprints.insert(
+            "legionFinding/v1".into(),
+            Value::from(value_to_string(&fp_id)),
+        );
+        if let Some(rc) = finding
+            .get("rootCauseDigest")
+            .filter(|v| !v.is_null())
+            .or_else(|| finding.get("rootCauseSignature").filter(|v| !v.is_null()))
+        {
+            fingerprints.insert(
+                "legionRootCause/v1".into(),
+                Value::from(value_to_string(rc)),
+            );
         }
 
         results.push(json!({
@@ -139,7 +185,11 @@ pub fn report_to_sarif(report: &Value) -> Value {
     }
 
     for path in &attack_paths {
-        let objective_id = path.get("objective").and_then(|o| o.get("id")).and_then(Value::as_str).unwrap_or("proven-path");
+        let objective_id = path
+            .get("objective")
+            .and_then(|o| o.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or("proven-path");
         let rule_id = format!("security.attack-path.{objective_id}");
         let severity = path.get("severity").and_then(Value::as_str);
         rules.entry(rule_id.clone()).or_insert_with(|| {
@@ -152,7 +202,11 @@ pub fn report_to_sarif(report: &Value) -> Value {
             })
         });
 
-        let step_assessments = path.get("stepAssessments").and_then(Value::as_array).cloned().unwrap_or_default();
+        let step_assessments = path
+            .get("stepAssessments")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         let thread_flow: Vec<Value> = step_assessments
             .iter()
             .enumerate()
@@ -160,23 +214,42 @@ pub fn report_to_sarif(report: &Value) -> Value {
                 let file = step.get("file").and_then(Value::as_str);
                 let line = step.get("line").and_then(|v| v.as_i64());
                 let loc = location_for(file, line);
-                loc.into_iter().next().map(|location| json!({ "order": index, "location": location }))
+                loc.into_iter()
+                    .next()
+                    .map(|location| json!({ "order": index, "location": location }))
             })
             .collect();
 
-        let path_id = path.get("id").or_else(|| path.get("pathId")).cloned().unwrap_or(Value::Null);
+        let path_id = path
+            .get("id")
+            .or_else(|| path.get("pathId"))
+            .cloned()
+            .unwrap_or(Value::Null);
         let mut result = Map::new();
         result.insert("ruleId".into(), Value::from(rule_id));
-        result.insert("level".into(), Value::from(if severity.is_some() { level_for(severity) } else { "error" }));
+        result.insert(
+            "level".into(),
+            Value::from(if severity.is_some() {
+                level_for(severity)
+            } else {
+                "error"
+            }),
+        );
         let severity_label = severity.unwrap_or("unknown");
         result.insert(
             "message".into(),
             json!({ "text": format!("Proven attack path: {} ({})", objective_id_or_empty(path), severity_label) }),
         );
-        let locations = thread_flow.first().map(|t| vec![t["location"].clone()]).unwrap_or_default();
+        let locations = thread_flow
+            .first()
+            .map(|t| vec![t["location"].clone()])
+            .unwrap_or_default();
         result.insert("locations".into(), Value::Array(locations));
         let mut fp = Map::new();
-        fp.insert("legionPath/v1".into(), Value::from(value_to_string(&path_id)));
+        fp.insert(
+            "legionPath/v1".into(),
+            Value::from(value_to_string(&path_id)),
+        );
         result.insert("partialFingerprints".into(), Value::Object(fp));
         if !thread_flow.is_empty() {
             result.insert(
@@ -198,7 +271,12 @@ pub fn report_to_sarif(report: &Value) -> Value {
     }
 
     let mut sorted_rules: Vec<Value> = rules.into_values().collect();
-    sorted_rules.sort_by(|a, b| a["id"].as_str().unwrap_or_default().cmp(b["id"].as_str().unwrap_or_default()));
+    sorted_rules.sort_by(|a, b| {
+        a["id"]
+            .as_str()
+            .unwrap_or_default()
+            .cmp(b["id"].as_str().unwrap_or_default())
+    });
 
     let semantic_version = report
         .get("tool")
@@ -211,14 +289,20 @@ pub fn report_to_sarif(report: &Value) -> Value {
     driver.insert("name".into(), Value::from("Legion"));
     driver.insert("fullName".into(), Value::from("Orthic Labs Legion"));
     driver.insert("organization".into(), Value::from("Orthic Labs"));
-    driver.insert("informationUri".into(), Value::from("https://github.com/Orthic-Labs/legion"));
+    driver.insert(
+        "informationUri".into(),
+        Value::from("https://github.com/Orthic-Labs/legion"),
+    );
     driver.insert("semanticVersion".into(), semantic_version);
     driver.insert("rules".into(), Value::Array(sorted_rules));
 
     let mut run = Map::new();
     run.insert("tool".into(), json!({ "driver": Value::Object(driver) }));
     if let Some(commit) = report.get("commit").filter(|v| !v.is_null()) {
-        run.insert("automationDetails".into(), json!({ "id": value_to_string(commit) }));
+        run.insert(
+            "automationDetails".into(),
+            json!({ "id": value_to_string(commit) }),
+        );
     }
     run.insert("results".into(), Value::Array(results));
     run.insert(
@@ -242,7 +326,11 @@ pub fn report_to_sarif(report: &Value) -> Value {
 }
 
 fn objective_id_or_empty(path: &Value) -> String {
-    path.get("objective").and_then(|o| o.get("id")).and_then(Value::as_str).unwrap_or("").to_string()
+    path.get("objective")
+        .and_then(|o| o.get("id"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string()
 }
 
 fn value_to_string(v: &Value) -> String {

@@ -78,7 +78,12 @@ pub struct PatternPack {
 /// Mirrors `createPatternPack`'s constructor-time `TypeError` checks:
 /// `id` must start with `'security.'`; `family` must be non-empty;
 /// `rules` must be a non-empty array.
-pub fn build(id: &str, family: &str, description: &str, rules: Vec<PatternRule>) -> Result<PatternPack, String> {
+pub fn build(
+    id: &str,
+    family: &str,
+    description: &str,
+    rules: Vec<PatternRule>,
+) -> Result<PatternPack, String> {
     if !id.starts_with("security.") || family.is_empty() || rules.is_empty() {
         return Err("pattern pack requires security id, family, and rules".to_string());
     }
@@ -102,7 +107,8 @@ impl PatternPack {
                 continue;
             }
             let artifact = context.find_artifact(file);
-            let artifact_ids: Vec<String> = artifact.map(|a| vec![a.id.clone()]).unwrap_or_default();
+            let artifact_ids: Vec<String> =
+                artifact.map(|a| vec![a.id.clone()]).unwrap_or_default();
             for rule in &self.rules {
                 if !rule.pattern.is_match(text) {
                     continue;
@@ -171,7 +177,13 @@ mod tests {
 
     #[test]
     fn build_rejects_empty_family_or_empty_rules() {
-        assert!(build("security.x", "", "desc", vec![PatternRule::simple("x", Regex::new("x").unwrap(), "c")]).is_err());
+        assert!(build(
+            "security.x",
+            "",
+            "desc",
+            vec![PatternRule::simple("x", Regex::new("x").unwrap(), "c")]
+        )
+        .is_err());
         assert!(build("security.x", "family", "desc", Vec::new()).is_err());
     }
 
@@ -181,7 +193,11 @@ mod tests {
             "security.demo",
             "demo-family",
             "desc",
-            vec![PatternRule::simple("demo.hit", Regex::new(r"danger\(").unwrap(), "Danger call present.")],
+            vec![PatternRule::simple(
+                "demo.hit",
+                Regex::new(r"danger\(").unwrap(),
+                "Danger call present.",
+            )],
         )
         .unwrap();
         let context = Context::new().with_file("app.mjs", "danger(1);");
@@ -202,10 +218,16 @@ mod tests {
             "security.demo",
             "demo-family",
             "desc",
-            vec![PatternRule::simple("demo.hit", Regex::new(r"danger\(").unwrap(), "Danger call present.")],
+            vec![PatternRule::simple(
+                "demo.hit",
+                Regex::new(r"danger\(").unwrap(),
+                "Danger call present.",
+            )],
         )
         .unwrap();
-        let context = Context::new().with_file("empty.mjs", "").with_file("neutral.mjs", "export const value = 1;");
+        let context = Context::new()
+            .with_file("empty.mjs", "")
+            .with_file("neutral.mjs", "export const value = 1;");
         assert!(pack.analyze(&context).is_empty());
     }
 }

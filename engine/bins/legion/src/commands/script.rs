@@ -17,9 +17,9 @@ use legion_handoff::{l1_port, l1b_port};
 use legion_provider_sdk::l1b_port::execution as coder_execution;
 use legion_runtime::p9_skills;
 use legion_runtime::wf_port::{
-    r00, r02, r03, r04, r05, r07, r08, r12, r13, r14, r18, r22, r24, r32, r37, r46, r54, w2_005, w2_006,
-    w2_007, w2_010, w2_016, w2_017, w2_018, w2_019, w2_020, w2_023, w2_028, w2_029, w2_030,
-    w2_031, w2_032, w2_033, w2_034, w2_044, w2_027, w2_028,
+    r00, r02, r03, r04, r05, r07, r08, r12, r13, r14, r18, r22, r24, r32, r37, r46, r54, w2_005,
+    w2_006, w2_007, w2_010, w2_016, w2_017, w2_018, w2_019, w2_020, w2_023, w2_027, w2_028, w2_029,
+    w2_030, w2_031, w2_032, w2_033, w2_034, w2_044,
 };
 use sha2::{Digest, Sha256};
 
@@ -58,8 +58,14 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("alchemist/viewer", alchemist_viewer),
     ("brand-identity/color-check", brand_identity_color_check),
     ("coder/api-worker", coder_api_worker),
-    ("coder/enforce_cheap_review_routing", coder_enforce_cheap_review_routing),
-    ("covenant/validate-external-review-packet", covenant_validate_external_review_packet),
+    (
+        "coder/enforce_cheap_review_routing",
+        coder_enforce_cheap_review_routing,
+    ),
+    (
+        "covenant/validate-external-review-packet",
+        covenant_validate_external_review_packet,
+    ),
     ("designer/add-music", designer_add_music),
     ("designer/context", designer_context),
     ("designer/context-signals", designer_context_signals),
@@ -69,7 +75,10 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/detect-csp", designer_detect_csp),
     ("designer/export-deck-pdf", designer_export_deck_pdf),
     ("designer/export-deck-pptx", designer_export_deck_pptx),
-    ("designer/export-deck-stage-pdf", designer_export_deck_stage_pdf),
+    (
+        "designer/export-deck-stage-pdf",
+        designer_export_deck_stage_pdf,
+    ),
     ("designer/fetch-images", designer_fetch_images),
     ("designer/gen-deck-thumbs", designer_gen_deck_thumbs),
     ("designer/hook", designer_hook),
@@ -77,7 +86,10 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/hook-before-edit", designer_hook_before_edit),
     ("designer/live", designer_live),
     ("designer/live-accept", designer_live_accept),
-    ("designer/live-commit-manual-edits", designer_live_commit_manual_edits),
+    (
+        "designer/live-commit-manual-edits",
+        designer_live_commit_manual_edits,
+    ),
     ("designer/live-complete", designer_live_complete),
     ("designer/live-inject", designer_live_inject),
     ("designer/live-insert", designer_live_insert),
@@ -97,7 +109,10 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/verify", designer_verify),
     ("dispatch/validate-dispatch", dispatch_validate_dispatch),
     ("dispatch/validate-route", dispatch_validate_route),
-    ("foundation/validate-atom-report", foundation_validate_atom_report),
+    (
+        "foundation/validate-atom-report",
+        foundation_validate_atom_report,
+    ),
     ("handoff/transcript-handoff", handoff_transcript_handoff),
     ("handoff/validate-handoff", handoff_validate_handoff),
     ("ios-development/tool_preflight", apple_tool_preflight),
@@ -156,7 +171,10 @@ pub fn run(args: ScriptArgs) -> CommandResult {
             "Usage: legion script <skill>/<stem> [args...]\n       legion script --list",
         ));
     };
-    match TABLE.iter().find(|(candidate, _)| *candidate == name.as_str()) {
+    match TABLE
+        .iter()
+        .find(|(candidate, _)| *candidate == name.as_str())
+    {
         Some((_, entry)) => {
             let code = entry(rest);
             Ok(json!({ "__exit_code": code }))
@@ -198,7 +216,10 @@ fn apple_tool_preflight(args: &[String]) -> i32 {
             println!("{}", serde_json::to_string_pretty(&value).unwrap());
             0
         }
-        Err(error) => { eprintln!("{error}"); 4 }
+        Err(error) => {
+            eprintln!("{error}");
+            4
+        }
     }
 }
 
@@ -537,7 +558,9 @@ fn designer_live_accept(args: &[String]) -> i32 {
 fn designer_live_server(args: &[String]) -> i32 {
     let root = cwd();
     match r24::run(args, &root) {
-        r24::RunOutcome::HelpPrinted | r24::RunOutcome::Stopped | r24::RunOutcome::ServerExited => 0,
+        r24::RunOutcome::HelpPrinted | r24::RunOutcome::Stopped | r24::RunOutcome::ServerExited => {
+            0
+        }
         r24::RunOutcome::StopFailedNoServer => 1,
         r24::RunOutcome::AlreadyRunning { port, pid } => {
             println!("already running: pid={pid} port={port}");
@@ -675,7 +698,8 @@ fn read_stdin_to_string() -> String {
 /// audit log, and always exits 0 — never breaks the caller's turn.
 fn designer_hook(_args: &[String]) -> i32 {
     let mut env: std::collections::HashMap<String, String> = std::env::vars().collect();
-    env.entry("IMPECCABLE_HOOK_DEPTH".to_string()).or_insert_with(|| "1".to_string());
+    env.entry("IMPECCABLE_HOOK_DEPTH".to_string())
+        .or_insert_with(|| "1".to_string());
 
     let stdin_json = read_stdin_to_string();
     let cwd = cwd();
@@ -768,7 +792,11 @@ fn handoff_validate_handoff(args: &[String]) -> i32 {
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
     let code = l1b_port::run(args, &mut stdout, &mut stderr);
-    print_cli_outcome(code, &String::from_utf8_lossy(&stdout), &String::from_utf8_lossy(&stderr))
+    print_cli_outcome(
+        code,
+        &String::from_utf8_lossy(&stdout),
+        &String::from_utf8_lossy(&stderr),
+    )
 }
 
 /// Native hash-bound transcript bootstrap, continuity & receipt verification.
@@ -778,7 +806,11 @@ fn handoff_transcript_handoff(args: &[String]) -> i32 {
         .or_else(|_| std::env::var("USERPROFILE"))
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let env = l1_port::RunEnv { home, cwd: cwd(), today };
+    let env = l1_port::RunEnv {
+        home,
+        cwd: cwd(),
+        today,
+    };
     let mut stdout = Vec::new();
     let code = l1_port::run(args, &env, &mut stdout);
     print_cli_outcome(code, &String::from_utf8_lossy(&stdout), "")
@@ -880,8 +912,9 @@ fn designer_critique_storage(args: &[String]) -> i32 {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_millis() as i64)
                 .unwrap_or(0);
-            match w2_010::critique_storage::write_snapshot(&cwd, &options, slug, meta, &raw, now_millis)
-            {
+            match w2_010::critique_storage::write_snapshot(
+                &cwd, &options, slug, meta, &raw, now_millis,
+            ) {
                 Ok(path) => {
                     println!("{}", path.display());
                     0
@@ -1026,9 +1059,8 @@ fn designer_detect(args: &[String]) -> i32 {
 
     // A driver is only constructed (launching a real browser) if this
     // invocation actually needs one; file/dir/text scans never touch it.
-    let mut maybe_driver = executable.and_then(|exe| {
-        r07::RealChromeDriver::new(exe, r07::Viewport::default()).ok()
-    });
+    let mut maybe_driver =
+        executable.and_then(|exe| r07::RealChromeDriver::new(exe, r07::Viewport::default()).ok());
 
     struct NullDriver;
     impl r07::ChromeDriver for NullDriver {
@@ -1063,7 +1095,11 @@ fn designer_detect(args: &[String]) -> i32 {
     outcome
 }
 
-fn run_r05<D: r05::cli::Detectors>(cwd: &std::path::Path, args: &[String], detectors: &mut D) -> i32 {
+fn run_r05<D: r05::cli::Detectors>(
+    cwd: &std::path::Path,
+    args: &[String],
+    detectors: &mut D,
+) -> i32 {
     struct RealIo {
         cwd: std::path::PathBuf,
     }
@@ -1092,7 +1128,9 @@ fn run_r05<D: r05::cli::Detectors>(cwd: &std::path::Path, args: &[String], detec
             r05::cli::parse_confirm_answer(&line)
         }
     }
-    let mut io = RealIo { cwd: cwd.to_path_buf() };
+    let mut io = RealIo {
+        cwd: cwd.to_path_buf(),
+    };
     let design_system = r05::design_system_loader::load_design_system_for_cwd(&io.cwd);
     r05::cli::run(args, cwd, &mut io, detectors, design_system.as_ref())
 }
@@ -1155,7 +1193,12 @@ fn designer_export_deck_pptx(args: &[String]) -> i32 {
                     r00::export_deck_pptx::ConvertLogLine::Ok { index, total, file } => {
                         println!("  [{index}/{total}] {file} \u{2713}");
                     }
-                    r00::export_deck_pptx::ConvertLogLine::Fail { index, total, file, error } => {
+                    r00::export_deck_pptx::ConvertLogLine::Fail {
+                        index,
+                        total,
+                        file,
+                        error,
+                    } => {
                         eprintln!("  [{index}/{total}] {file} \u{2717} {error}");
                     }
                 }
@@ -1220,16 +1263,14 @@ fn designer_export_deck_stage_pdf(args: &[String]) -> i32 {
 fn designer_gen_deck_thumbs(args: &[String]) -> i32 {
     let parsed = r00::gen_deck_thumbs::parse_args(args);
     let fs = RealThumbsFs;
-    let mut browser = match r00::gen_deck_thumbs::ChromeThumbBrowser::launch(
-        parsed.canvas_w,
-        parsed.canvas_h,
-    ) {
-        Ok(b) => b,
-        Err(e) => {
-            eprintln!("failed to launch headless chrome: {e}");
-            return 1;
-        }
-    };
+    let mut browser =
+        match r00::gen_deck_thumbs::ChromeThumbBrowser::launch(parsed.canvas_w, parsed.canvas_h) {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!("failed to launch headless chrome: {e}");
+                return 1;
+            }
+        };
     match r00::gen_deck_thumbs::run(&fs, &mut browser, &parsed) {
         Ok(outcome) => {
             for line in &outcome.log {
@@ -1260,7 +1301,9 @@ fn designer_fetch_images(args: &[String]) -> i32 {
     let parsed = match r00::fetch_images::parse_args(args) {
         Ok(a) => a,
         Err(_) => {
-            eprintln!("usage: fetch_images.py --query <q...> --out <dir> [--count 2] [--width 1600]");
+            eprintln!(
+                "usage: fetch_images.py --query <q...> --out <dir> [--count 2] [--width 1600]"
+            );
             return 1;
         }
     };
@@ -1275,8 +1318,12 @@ fn designer_fetch_images(args: &[String]) -> i32 {
     let ensure_dir = |path: &std::path::Path| std::fs::create_dir_all(path);
 
     let (got, log, summary, exit_code) = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(r00::fetch_images::run(&client, &write_file, &ensure_dir, &parsed))
+        tokio::runtime::Handle::current().block_on(r00::fetch_images::run(
+            &client,
+            &write_file,
+            &ensure_dir,
+            &parsed,
+        ))
     });
     let _ = &got;
     for line in &log {
@@ -1311,7 +1358,15 @@ fn designer_render_video(args: &[String]) -> i32 {
         std::process::id(),
         COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     );
-    match r03::render_video::run(args, &cwd, &suffix, &mut recorder, &ffmpeg, &fs, &mut stdout) {
+    match r03::render_video::run(
+        args,
+        &cwd,
+        &suffix,
+        &mut recorder,
+        &ffmpeg,
+        &fs,
+        &mut stdout,
+    ) {
         Ok(path) => {
             println!("\u{2713} Wrote {}", path.display());
             0
@@ -1428,7 +1483,10 @@ fn designer_mix_voiceover(args: &[String]) -> i32 {
         opts.ducking,
         &output,
     );
-    match std::process::Command::new("ffmpeg").args(&ffmpeg_args).status() {
+    match std::process::Command::new("ffmpeg")
+        .args(&ffmpeg_args)
+        .status()
+    {
         Ok(status) if status.success() => {
             println!("\u{2713} 完成: {output}");
             0
@@ -1533,13 +1591,15 @@ fn designer_render_narration(args: &[String]) -> i32 {
             Ok(parsed) => match r02::render_video_seek::HeadlessChromeDriver::launch() {
                 Ok(driver) => {
                     let encoder = r02::render_video_seek::RealFfmpegEncoder;
-                    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                    static COUNTER: std::sync::atomic::AtomicU64 =
+                        std::sync::atomic::AtomicU64::new(0);
                     let suffix = format!(
                         "{}-{}",
                         std::process::id(),
                         COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
                     );
-                    let tmp_dir = std::env::temp_dir().join(format!("legion-render-narration-{suffix}"));
+                    let tmp_dir =
+                        std::env::temp_dir().join(format!("legion-render-narration-{suffix}"));
                     match r02::render_video_seek::run(&parsed, &driver, &encoder, &tmp_dir) {
                         Ok(outcome) => {
                             for line in &outcome.log_lines {
@@ -1760,7 +1820,9 @@ fn parse_dispatch_args(argv: &[String]) -> Result<DispatchArgs, String> {
         match argv[i].as_str() {
             "--packet-type" => {
                 i += 1;
-                let v = argv.get(i).ok_or("argument --packet-type: expected one argument")?;
+                let v = argv
+                    .get(i)
+                    .ok_or("argument --packet-type: expected one argument")?;
                 if !["authority", "worker", "legacy"].contains(&v.as_str()) {
                     return Err(format!(
                         "argument --packet-type: invalid choice: '{v}' (choose from 'authority', 'worker', 'legacy')"
@@ -1771,12 +1833,16 @@ fn parse_dispatch_args(argv: &[String]) -> Result<DispatchArgs, String> {
             "--template-self-check" => template_self_check = true,
             "--write-receipt" => {
                 i += 1;
-                let v = argv.get(i).ok_or("argument --write-receipt: expected one argument")?;
+                let v = argv
+                    .get(i)
+                    .ok_or("argument --write-receipt: expected one argument")?;
                 write_receipt = Some(std::path::PathBuf::from(v));
             }
             "--verify-receipt" => {
                 i += 1;
-                let v = argv.get(i).ok_or("argument --verify-receipt: expected one argument")?;
+                let v = argv
+                    .get(i)
+                    .ok_or("argument --verify-receipt: expected one argument")?;
                 verify_receipt = Some(std::path::PathBuf::from(v));
             }
             other => dispatch = Some(std::path::PathBuf::from(other)),
@@ -1784,7 +1850,9 @@ fn parse_dispatch_args(argv: &[String]) -> Result<DispatchArgs, String> {
         i += 1;
     }
     if write_receipt.is_some() && verify_receipt.is_some() {
-        return Err("argument --verify-receipt: not allowed with argument --write-receipt".to_string());
+        return Err(
+            "argument --verify-receipt: not allowed with argument --write-receipt".to_string(),
+        );
     }
     Ok(DispatchArgs {
         dispatch: dispatch.ok_or("the following arguments are required: dispatch")?,
@@ -1807,26 +1875,59 @@ fn run_dispatch_validate(argv: &[String]) -> (i32, String, String) {
         Err(e) => return (2, String::new(), format!("{e}\n")),
     };
     if !args.dispatch.is_file() {
-        return (2, String::new(), format!("FAIL: dispatch file not found: {}\n", args.dispatch.display()));
+        return (
+            2,
+            String::new(),
+            format!(
+                "FAIL: dispatch file not found: {}\n",
+                args.dispatch.display()
+            ),
+        );
     }
     if !args.template_self_check && args.write_receipt.is_none() && args.verify_receipt.is_none() {
-        return (1, String::new(), "FAIL: exactly one receipt mode is required\n".to_string());
+        return (
+            1,
+            String::new(),
+            "FAIL: exactly one receipt mode is required\n".to_string(),
+        );
     }
     let raw_bytes = match std::fs::read(&args.dispatch) {
         Ok(b) => b,
-        Err(e) => return (2, String::new(), format!("FAIL: dispatch file not found: {e}\n")),
+        Err(e) => {
+            return (
+                2,
+                String::new(),
+                format!("FAIL: dispatch file not found: {e}\n"),
+            )
+        }
     };
 
     if args.packet_type == "authority" || args.packet_type == "worker" {
         let packet: serde_json::Value = match serde_json::from_slice(&raw_bytes) {
             Ok(v) => v,
-            Err(e) => return (1, format!("FAIL: authority packet is not valid JSON: {e}\n"), String::new()),
+            Err(e) => {
+                return (
+                    1,
+                    format!("FAIL: authority packet is not valid JSON: {e}\n"),
+                    String::new(),
+                )
+            }
         };
-        if args.packet_type == "worker" && packet.get("packetType").and_then(|v| v.as_str()) != Some("worker") {
-            return (1, "FAIL: worker mode requires worker packet\n".to_string(), String::new());
+        if args.packet_type == "worker"
+            && packet.get("packetType").and_then(|v| v.as_str()) != Some("worker")
+        {
+            return (
+                1,
+                "FAIL: worker mode requires worker packet\n".to_string(),
+                String::new(),
+            );
         }
-        let resolved = args.dispatch.canonicalize().unwrap_or_else(|_| args.dispatch.clone());
-        let (errors, references) = w2_044::authority_packet::authority_packet_errors(&packet, &resolved);
+        let resolved = args
+            .dispatch
+            .canonicalize()
+            .unwrap_or_else(|_| args.dispatch.clone());
+        let (errors, references) =
+            w2_044::authority_packet::authority_packet_errors(&packet, &resolved);
         if !errors.is_empty() {
             let mut out = format!("FAIL: {} authority dispatch defect(s)\n", errors.len());
             for e in &errors {
@@ -1853,11 +1954,18 @@ fn run_dispatch_validate(argv: &[String]) -> (i32, String, String) {
                 Ok(v) => v,
                 Err(e) => return (1, format!("FAIL: invalid receipt: {e}\n"), String::new()),
             };
-            let refs_match = receipt.get("referenced_artifacts").cloned().unwrap_or(serde_json::Value::Null)
+            let refs_match = receipt
+                .get("referenced_artifacts")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null)
                 == serde_json::Value::Array(references_json.clone());
             if receipt.get("sha256").and_then(|v| v.as_str()) != Some(digest.as_str())
                 || !refs_match
-                || receipt.get("authority_binding").cloned().unwrap_or(serde_json::Value::Null) != authority_binding
+                || receipt
+                    .get("authority_binding")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null)
+                    != authority_binding
             {
                 return (
                     1,
@@ -1874,17 +1982,27 @@ fn run_dispatch_validate(argv: &[String]) -> (i32, String, String) {
                 "referenced_artifacts": references_json,
                 "authority_binding": authority_binding,
             });
-            let body = format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap_or_default());
+            let body = format!(
+                "{}\n",
+                serde_json::to_string_pretty(&receipt).unwrap_or_default()
+            );
             if let Some(parent) = write_receipt.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
             if let Err(e) = std::fs::write(write_receipt, body) {
-                return (1, format!("FAIL: could not write receipt: {e}\n"), String::new());
+                return (
+                    1,
+                    format!("FAIL: could not write receipt: {e}\n"),
+                    String::new(),
+                );
             }
         }
         return (
             0,
-            format!("PASS: {} packet is structurally complete (sha256={digest})\n", args.packet_type),
+            format!(
+                "PASS: {} packet is structurally complete (sha256={digest})\n",
+                args.packet_type
+            ),
             String::new(),
         );
     }
@@ -1924,13 +2042,22 @@ impl w2_044::tasklist::CommandRunner for InProcessValidateDispatch {
         // rest is `<dispatch> --packet-type <type> --<mode>-receipt <path>`,
         // matching `run_cli`'s own child_args construction.
         let (code, stdout, stderr) = run_dispatch_validate(&args[1..]);
-        Ok(w2_044::tasklist::ProcessOutput { stdout, stderr, code })
+        Ok(w2_044::tasklist::ProcessOutput {
+            stdout,
+            stderr,
+            code,
+        })
     }
 }
 
 fn tasklist_validate_tasklist(args: &[String]) -> i32 {
     let runner = InProcessValidateDispatch;
-    let outcome = w2_044::tasklist::run_cli(args, "legion-in-process", std::path::Path::new("validate-dispatch"), &runner);
+    let outcome = w2_044::tasklist::run_cli(
+        args,
+        "legion-in-process",
+        std::path::Path::new("validate-dispatch"),
+        &runner,
+    );
     print_cli_outcome(outcome.code, &outcome.stdout, &outcome.stderr)
 }
 
@@ -1949,7 +2076,13 @@ fn seo_google_report(args: &[String]) -> i32 {
                 return None;
             }
             let mut buf = String::new();
-            Some(std::io::stdin().lock().read_to_string(&mut buf).map(|_| buf).map_err(|e| e.to_string()))
+            Some(
+                std::io::stdin()
+                    .lock()
+                    .read_to_string(&mut buf)
+                    .map(|_| buf)
+                    .map_err(|e| e.to_string()),
+            )
         }
     }
     let parsed = match r37::cli::parse_args(args) {
@@ -1983,7 +2116,9 @@ fn seo_google_report(args: &[String]) -> i32 {
         &parsed,
         &data,
         &timestamp,
-        renderer.as_mut().map(|r| r as &mut dyn r37::report::PdfRenderer),
+        renderer
+            .as_mut()
+            .map(|r| r as &mut dyn r37::report::PdfRenderer),
     );
     for line in stdout_lines {
         println!("{line}");
@@ -2110,7 +2245,9 @@ fn designer_export_deck_pdf(args: &[String]) -> i32 {
 /// `skills/qa/scripts/qa-shot.mjs`'s wrapper around `qa-shot.mjs` /
 /// `qa.mjs`.
 fn qa_qa_shot(args: &[String]) -> i32 {
-    let has_shot = args.iter().any(|a| a == "--shot" || a.starts_with("--shot="));
+    let has_shot = args
+        .iter()
+        .any(|a| a == "--shot" || a.starts_with("--shot="));
     let forwarded: Vec<String> = if has_shot {
         args.to_vec()
     } else {
@@ -2131,7 +2268,9 @@ fn qa_qa_shot(args: &[String]) -> i32 {
 /// `args.includes("--actions") || args.some(a => a.startsWith("--actions="))
 /// ? args : ["--help"]`).
 fn qa_qa_functional(args: &[String]) -> i32 {
-    let has_actions = args.iter().any(|a| a == "--actions" || a.starts_with("--actions="));
+    let has_actions = args
+        .iter()
+        .any(|a| a == "--actions" || a.starts_with("--actions="));
     let forwarded: Vec<String> = if has_actions {
         args.to_vec()
     } else {
@@ -2273,14 +2412,19 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
                         v.as_array().map(|arr| {
                             (
                                 k.clone(),
-                                arr.iter().filter_map(|e| e.as_str().map(|s| s.to_string())).collect(),
+                                arr.iter()
+                                    .filter_map(|e| e.as_str().map(|s| s.to_string()))
+                                    .collect(),
                             )
                         })
                     })
                     .collect()
             })
             .unwrap_or_default();
-        manifest = Some(w2_005::validate_atom_report::Manifest { repo_roots, scope_repos });
+        manifest = Some(w2_005::validate_atom_report::Manifest {
+            repo_roots,
+            scope_repos,
+        });
     }
 
     let opts = w2_005::validate_atom_report::ValidateOptions {
@@ -2329,7 +2473,13 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
                 "manifest": manifest_json,
                 "argv": args,
             });
-            if let Err(e) = std::fs::write(&receipt_path, format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap_or_default())) {
+            if let Err(e) = std::fs::write(
+                &receipt_path,
+                format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&receipt).unwrap_or_default()
+                ),
+            ) {
                 println!("FAIL: could not write PASS receipt: {e}");
                 return 1;
             }
@@ -2365,7 +2515,11 @@ fn seo_banana_presets(args: &[String]) -> i32 {
                 return 0;
             }
             let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(&presets_dir)
-                .map(|rd| rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|e| e == "json")).collect())
+                .map(|rd| {
+                    rd.filter_map(|e| e.ok().map(|e| e.path()))
+                        .filter(|p| p.extension().is_some_and(|e| e == "json"))
+                        .collect()
+                })
                 .unwrap_or_default();
             entries.sort();
             if entries.is_empty() {
@@ -2374,7 +2528,10 @@ fn seo_banana_presets(args: &[String]) -> i32 {
             }
             println!("Available presets:");
             for path in entries {
-                let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                let stem = path
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_default();
                 let parsed = std::fs::read_to_string(&path)
                     .ok()
                     .and_then(|t| serde_json::from_str::<presets::Preset>(&t).ok());
@@ -2411,12 +2568,35 @@ fn seo_banana_presets(args: &[String]) -> i32 {
                 eprintln!("usage: presets.py create <name> [--colors ...] [--style ...] ...");
                 return 1;
             };
-            let mut input = presets::CreatePresetInput { name: name.as_str(), ..Default::default() };
+            let mut input = presets::CreatePresetInput {
+                name: name.as_str(),
+                ..Default::default()
+            };
             let mut i = 2;
-            let (mut colors, mut style, mut typography, mut lighting, mut mood, mut description, mut ratio, mut resolution) =
-                (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
+            let (
+                mut colors,
+                mut style,
+                mut typography,
+                mut lighting,
+                mut mood,
+                mut description,
+                mut ratio,
+                mut resolution,
+            ) = (
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+            );
             while i < args.len() {
-                let (flag, val) = (args[i].as_str(), args.get(i + 1).cloned().unwrap_or_default());
+                let (flag, val) = (
+                    args[i].as_str(),
+                    args.get(i + 1).cloned().unwrap_or_default(),
+                );
                 match flag {
                     "--colors" => colors = val,
                     "--style" => style = val,
@@ -2512,12 +2692,17 @@ fn load_banana_ledger() -> legion_runtime::wf_port::w2_025::cost_tracker::CostLe
         .unwrap_or_default()
 }
 
-fn save_banana_ledger(ledger: &legion_runtime::wf_port::w2_025::cost_tracker::CostLedger) -> std::io::Result<()> {
+fn save_banana_ledger(
+    ledger: &legion_runtime::wf_port::w2_025::cost_tracker::CostLedger,
+) -> std::io::Result<()> {
     let path = banana_ledger_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(path, serde_json::to_string_pretty(ledger).unwrap_or_default())
+    std::fs::write(
+        path,
+        serde_json::to_string_pretty(ledger).unwrap_or_default(),
+    )
 }
 
 /// `legion script seo/banana-cost-tracker <log|summary|today|estimate|reset> ...`,
@@ -2546,7 +2731,10 @@ fn seo_banana_cost_tracker(args: &[String]) -> i32 {
                 i += 1;
             }
             key if key.starts_with("--") => {
-                flags.insert(key.trim_start_matches("--").to_string(), args.get(i + 1).cloned().unwrap_or_default());
+                flags.insert(
+                    key.trim_start_matches("--").to_string(),
+                    args.get(i + 1).cloned().unwrap_or_default(),
+                );
                 i += 2;
             }
             _ => {
@@ -2564,11 +2752,23 @@ fn seo_banana_cost_tracker(args: &[String]) -> i32 {
             let today = civil_today();
             let today_str = format!("{:04}-{:02}-{:02}", today.year, today.month, today.day);
             let now_str = format!("{today_str}T00:00:00");
-            let (result, warnings) = cost_tracker::log_entry(&mut ledger, &model, &resolution, &prompt, batch, &today_str, &now_str);
+            let (result, warnings) = cost_tracker::log_entry(
+                &mut ledger,
+                &model,
+                &resolution,
+                &prompt,
+                batch,
+                &today_str,
+                &now_str,
+            );
             for w in warnings {
                 match w {
-                    cost_tracker::CostWarning::UnknownModel(m) => eprintln!("Warning: unknown model '{m}', using default pricing"),
-                    cost_tracker::CostWarning::UnknownResolution(r) => eprintln!("Warning: unknown resolution '{r}', using 1K pricing"),
+                    cost_tracker::CostWarning::UnknownModel(m) => {
+                        eprintln!("Warning: unknown model '{m}', using default pricing")
+                    }
+                    cost_tracker::CostWarning::UnknownResolution(r) => {
+                        eprintln!("Warning: unknown resolution '{r}', using 1K pricing")
+                    }
                 }
             }
             if let Err(e) = save_banana_ledger(&ledger) {
@@ -2596,14 +2796,18 @@ fn seo_banana_cost_tracker(args: &[String]) -> i32 {
             let today = civil_today();
             let today_str = format!("{:04}-{:02}-{:02}", today.year, today.month, today.day);
             let usage = cost_tracker::today_usage(&ledger, &today_str);
-            println!("Today ({today_str}): {} images, ${:.3}", usage.count, usage.cost);
+            println!(
+                "Today ({today_str}): {} images, ${:.3}",
+                usage.count, usage.cost
+            );
             0
         }
         "estimate" => {
             let model = flags.get("model").cloned().unwrap_or_default();
             let resolution = flags.get("resolution").cloned().unwrap_or_default();
             let count: u64 = flags.get("count").and_then(|v| v.parse().ok()).unwrap_or(0);
-            let (lookup, total, batch_total) = cost_tracker::estimate(&model, &resolution, count, batch);
+            let (lookup, total, batch_total) =
+                cost_tracker::estimate(&model, &resolution, count, batch);
             println!("Model:      {model}");
             println!("Resolution: {resolution}");
             println!("Count:      {count}");
@@ -2691,7 +2895,14 @@ fn seo_banana_generate(args: &[String]) -> i32 {
         .map(|d| d.as_micros())
         .unwrap_or(0);
     let today = civil_today();
-    let timestamp = format!("{:04}{:02}{:02}_{:06}_{:06}", today.year, today.month, today.day, (now / 1_000_000) % 1_000_000, now % 1_000_000);
+    let timestamp = format!(
+        "{:04}{:02}{:02}_{:06}_{:06}",
+        today.year,
+        today.month,
+        today.day,
+        (now / 1_000_000) % 1_000_000,
+        now % 1_000_000
+    );
 
     let outcome = generate::run(
         &parsed,
@@ -2760,7 +2971,11 @@ fn emit_json_report(value: &serde_json::Value, out: Option<&str>) {
 
 fn today_date() -> w2_034::date_math::Date {
     let today = civil_today();
-    w2_034::date_math::Date { year: today.year, month: today.month, day: today.day }
+    w2_034::date_math::Date {
+        year: today.year,
+        month: today.month,
+        day: today.day,
+    }
 }
 
 fn rfc3339_now() -> String {
@@ -2772,7 +2987,12 @@ fn rfc3339_now() -> String {
     let rem = secs % 86_400;
     format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}+00:00",
-        today.year, today.month, today.day, rem / 3600, (rem % 3600) / 60, rem % 60
+        today.year,
+        today.month,
+        today.day,
+        rem / 3600,
+        (rem % 3600) / 60,
+        rem % 60
     )
 }
 
@@ -2803,7 +3023,11 @@ fn seo_coverage(args: &[String]) -> i32 {
     let ok = result.status == "pass";
     let value = serde_json::to_value(&result).unwrap_or_default();
     emit_json_report(&value, out.as_deref());
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
 }
 
 fn seo_contracts(args: &[String]) -> i32 {
@@ -2825,7 +3049,11 @@ fn seo_contracts(args: &[String]) -> i32 {
     let result = w2_029::contracts::validate_bundle(&payload);
     let ok = result.get("status").and_then(|v| v.as_str()) == Some("pass");
     emit_json_report(&result, None);
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
 }
 
 fn seo_page_engine(args: &[String]) -> i32 {
@@ -2858,7 +3086,11 @@ fn seo_page_engine(args: &[String]) -> i32 {
     let result = w2_031::page_engine::assess(&cfg, &bundle);
     let ok = result.get("status").and_then(|v| v.as_str()) == Some("pass");
     emit_json_report(&result, out.as_deref());
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
 }
 
 fn seo_source_freshness(args: &[String]) -> i32 {
@@ -2936,10 +3168,16 @@ fn seo_ai_visibility_import(args: &[String]) -> i32 {
     };
     let (rendered, count) = if provider == "google" {
         let result = w2_028::ai_visibility_import::google(&rows, &input);
-        (serde_json::to_string_pretty(&result).unwrap_or_default(), result.rows.len())
+        (
+            serde_json::to_string_pretty(&result).unwrap_or_default(),
+            result.rows.len(),
+        )
     } else {
         let result = w2_028::ai_visibility_import::bing(&rows, &input);
-        (serde_json::to_string_pretty(&result).unwrap_or_default(), result.rows.len())
+        (
+            serde_json::to_string_pretty(&result).unwrap_or_default(),
+            result.rows.len(),
+        )
     };
     if let Err(e) = std::fs::write(&out, format!("{rendered}\n")) {
         eprintln!("error: could not write {out}: {e}");
@@ -3029,7 +3267,8 @@ fn seo_checklist_compiler(args: &[String]) -> i32 {
             0
         }
         "verify" => {
-            let (Some(source), Some(sha), Some(line_count)) = (positional.first(), sha, line_count) else {
+            let (Some(source), Some(sha), Some(line_count)) = (positional.first(), sha, line_count)
+            else {
                 eprintln!("{USAGE}");
                 return 2;
             };
@@ -3040,7 +3279,8 @@ fn seo_checklist_compiler(args: &[String]) -> i32 {
                     return 2;
                 }
             };
-            let (ok, got_sha, got_lines) = w2_028::checklist_compiler::verify(&text, &sha, line_count);
+            let (ok, got_sha, got_lines) =
+                w2_028::checklist_compiler::verify(&text, &sha, line_count);
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({
@@ -3050,7 +3290,11 @@ fn seo_checklist_compiler(args: &[String]) -> i32 {
                 }))
                 .unwrap_or_default()
             );
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         "diff" => {
             let (Some(old_path), Some(new_path)) = (positional.first(), positional.get(1)) else {
@@ -3059,7 +3303,8 @@ fn seo_checklist_compiler(args: &[String]) -> i32 {
             };
             let load = |path: &str| -> Result<w2_028::checklist_compiler::CompileResult, String> {
                 let text = read_text_file(path)?;
-                serde_json::from_str(&text).map_err(|e| format!("invalid compiled checklist {path}: {e}"))
+                serde_json::from_str(&text)
+                    .map_err(|e| format!("invalid compiled checklist {path}: {e}"))
             };
             let (old, new) = match (load(old_path), load(new_path)) {
                 (Ok(old), Ok(new)) => (old, new),
@@ -3069,7 +3314,10 @@ fn seo_checklist_compiler(args: &[String]) -> i32 {
                 }
             };
             let diff = w2_028::checklist_compiler::semantic_diff(&old, &new);
-            println!("{}", serde_json::to_string_pretty(&diff).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&diff).unwrap_or_default()
+            );
             0
         }
         _ => {
@@ -3104,7 +3352,8 @@ fn seo_validate_schema(args: &[String]) -> i32 {
             }
         }
     };
-    if !std::path::Path::new(&filepath).is_file() || !w2_027::is_schema_checked_extension(&filepath) {
+    if !std::path::Path::new(&filepath).is_file() || !w2_027::is_schema_checked_extension(&filepath)
+    {
         return 0;
     }
     let content = match std::fs::read(&filepath) {
@@ -3132,7 +3381,8 @@ fn seo_validate_schema(args: &[String]) -> i32 {
 }
 
 fn coder_enforce_cheap_review_routing(args: &[String]) -> i32 {
-    const USAGE: &str = "Usage: legion script coder/enforce_cheap_review_routing <dispatch-packet.json>";
+    const USAGE: &str =
+        "Usage: legion script coder/enforce_cheap_review_routing <dispatch-packet.json>";
     if wants_help(args) {
         println!("{USAGE}");
         return 0;
@@ -3148,7 +3398,10 @@ fn coder_enforce_cheap_review_routing(args: &[String]) -> i32 {
             return 2;
         }
     };
-    let errors = legion_runtime::wf_port::w2_044::routing::routing_errors(&packet, std::path::Path::new(path));
+    let errors = legion_runtime::wf_port::w2_044::routing::routing_errors(
+        &packet,
+        std::path::Path::new(path),
+    );
     if errors.is_empty() {
         println!("PASS");
         0
@@ -3198,7 +3451,8 @@ fn dispatch_validate_route(args: &[String]) -> i32 {
         eprintln!("{USAGE}");
         return 2;
     }
-    let route_path = std::fs::canonicalize(&route).unwrap_or_else(|_| std::path::PathBuf::from(&route));
+    let route_path =
+        std::fs::canonicalize(&route).unwrap_or_else(|_| std::path::PathBuf::from(&route));
     let raw = match std::fs::read(&route_path) {
         Ok(raw) => raw,
         Err(e) => {
@@ -3215,7 +3469,8 @@ fn dispatch_validate_route(args: &[String]) -> i32 {
     };
     let mut errors = grv::validate_route(&data);
     if let Some(receipt) = &verify_receipt {
-        let receipt_path = std::fs::canonicalize(receipt).unwrap_or_else(|_| std::path::PathBuf::from(receipt));
+        let receipt_path =
+            std::fs::canonicalize(receipt).unwrap_or_else(|_| std::path::PathBuf::from(receipt));
         errors.extend(grv::validate_receipt(&route_path, &receipt_path, &raw));
     }
     if !errors.is_empty() {
@@ -3225,11 +3480,19 @@ fn dispatch_validate_route(args: &[String]) -> i32 {
         }
         return 1;
     }
-    let selected_id = data.get("selected_route_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let selected_id = data
+        .get("selected_route_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
     let expected_ms = data
         .get("candidates")
         .and_then(|v| v.as_array())
-        .and_then(|cands| cands.iter().find(|c| c.get("id").and_then(|v| v.as_str()) == Some(selected_id.as_str())))
+        .and_then(|cands| {
+            cands
+                .iter()
+                .find(|c| c.get("id").and_then(|v| v.as_str()) == Some(selected_id.as_str()))
+        })
         .and_then(|c| c.get("expected_time_to_verified_b_ms"))
         .cloned()
         .unwrap_or(serde_json::Value::Null);
@@ -3250,12 +3513,22 @@ fn dispatch_validate_route(args: &[String]) -> i32 {
             "route_revision": data.get("invalidation").and_then(|v| v.get("revision")).cloned().unwrap_or(serde_json::Value::Null),
             "created_at": rfc3339_now(),
         });
-        if let Err(e) = std::fs::write(&receipt_path, format!("{}\n", serde_json::to_string_pretty(&body).unwrap_or_default())) {
+        if let Err(e) = std::fs::write(
+            &receipt_path,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&body).unwrap_or_default()
+            ),
+        ) {
             println!("FAIL: could not write receipt: {e}");
             return 2;
         }
     }
-    let prefix = if verify_receipt.is_some() { "RECEIPT_PASS" } else { "PASS" };
+    let prefix = if verify_receipt.is_some() {
+        "RECEIPT_PASS"
+    } else {
+        "PASS"
+    };
     println!(
         "{prefix}: schema={} selected={selected_id} expected_ms={expected_ms} sha256={digest}",
         grv::SCHEMA
@@ -3326,11 +3599,21 @@ fn designer_add_music(args: &[String]) -> i32 {
         }
     };
     if !plan.music.is_file() {
-        eprintln!("{}", am::AddMusicError::MusicNotFound(plan.music.display().to_string()));
+        eprintln!(
+            "{}",
+            am::AddMusicError::MusicNotFound(plan.music.display().to_string())
+        );
         return 1;
     }
     let probe = std::process::Command::new("ffprobe")
-        .args(["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1"])
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+        ])
         .arg(&plan.input)
         .output();
     let duration: Option<f64> = probe
@@ -3340,7 +3623,10 @@ fn designer_add_music(args: &[String]) -> i32 {
         eprintln!("{}", am::AddMusicError::DurationUnreadable);
         return 1;
     };
-    match std::process::Command::new("ffmpeg").args(am::ffmpeg_args(&plan, duration)).status() {
+    match std::process::Command::new("ffmpeg")
+        .args(am::ffmpeg_args(&plan, duration))
+        .status()
+    {
         Ok(status) if status.success() => {
             println!("{}", plan.output.display());
             0
@@ -3367,7 +3653,10 @@ fn seo_analyze_visual(args: &[String]) -> i32 {
         match args[i].as_str() {
             "--timeout" | "-t" => {
                 i += 1;
-                timeout_ms = args.get(i).and_then(|v| v.parse().ok()).unwrap_or(timeout_ms);
+                timeout_ms = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(timeout_ms);
             }
             other => {
                 if url.is_none() {
@@ -3384,7 +3673,10 @@ fn seo_analyze_visual(args: &[String]) -> i32 {
     let mut browser = match probe::ChromePageBrowser::launch() {
         Ok(b) => b,
         Err(e) => {
-            println!("{}", json!({"url": url, "error": format!("browser unavailable: {e}")}));
+            println!(
+                "{}",
+                json!({"url": url, "error": format!("browser unavailable: {e}")})
+            );
             return 1;
         }
     };
@@ -3406,8 +3698,15 @@ fn seo_analyze_visual(args: &[String]) -> i32 {
         },
         "error": result.error,
     });
-    println!("{}", serde_json::to_string_pretty(&value).unwrap_or_default());
-    if result.error.is_some() { 1 } else { 0 }
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&value).unwrap_or_default()
+    );
+    if result.error.is_some() {
+        1
+    } else {
+        0
+    }
 }
 
 fn seo_capture_screenshot(args: &[String]) -> i32 {
@@ -3442,7 +3741,10 @@ fn seo_capture_screenshot(args: &[String]) -> i32 {
             "--full" | "-f" => full = true,
             "--timeout" | "-t" => {
                 i += 1;
-                timeout_ms = args.get(i).and_then(|v| v.parse().ok()).unwrap_or(timeout_ms);
+                timeout_ms = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(timeout_ms);
             }
             other => {
                 if url.is_none() {
@@ -3457,13 +3759,14 @@ fn seo_capture_screenshot(args: &[String]) -> i32 {
         return 2;
     };
     let home = dirs_home();
-    let output_dir = match probe::resolve_and_check_output_dir(std::path::Path::new(&output), &cwd(), &home) {
-        Ok(dir) => dir,
-        Err(e) => {
-            eprintln!("Error: {e}");
-            return 1;
-        }
-    };
+    let output_dir =
+        match probe::resolve_and_check_output_dir(std::path::Path::new(&output), &cwd(), &home) {
+            Ok(dir) => dir,
+            Err(e) => {
+                eprintln!("Error: {e}");
+                return 1;
+            }
+        };
     if let Err(e) = std::fs::create_dir_all(&output) {
         eprintln!("Error: could not create {output}: {e}");
         return 1;
@@ -3477,7 +3780,10 @@ fn seo_capture_screenshot(args: &[String]) -> i32 {
     };
     let hostname = parsed.hostname.unwrap_or_default();
     let viewports: Vec<String> = if all {
-        probe::VIEWPORTS.iter().map(|v| v.name.to_string()).collect()
+        probe::VIEWPORTS
+            .iter()
+            .map(|v| v.name.to_string())
+            .collect()
     } else {
         vec![viewport]
     };

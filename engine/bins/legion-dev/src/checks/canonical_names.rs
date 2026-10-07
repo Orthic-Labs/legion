@@ -183,7 +183,10 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
     let expected = vec!["alchemist", "arcane", "oracle", "sage"];
     let canonical = canonical_authority_ids(registry);
     if canonical != expected {
-        issues.push(mk("src/config/naming-registry.json", "canonical authority set mismatch"));
+        issues.push(mk(
+            "src/config/naming-registry.json",
+            "canonical authority set mismatch",
+        ));
     }
     let product_id = registry
         .pointer("/product/id")
@@ -229,9 +232,19 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
         ));
     }
     if let Ok(readme) = std::fs::read_to_string(root.join("README.md")) {
-        for display in ["Legion", "Sage", "Alchemist", "Oracle", "Arcane", "Covenant"] {
+        for display in [
+            "Legion",
+            "Sage",
+            "Alchemist",
+            "Oracle",
+            "Arcane",
+            "Covenant",
+        ] {
             if !readme.contains(&format!("| **{display}** |")) {
-                issues.push(mk("README.md", &format!("authority table missing {display}")));
+                issues.push(mk(
+                    "README.md",
+                    &format!("authority table missing {display}"),
+                ));
             }
         }
     }
@@ -243,7 +256,10 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
             .unwrap_or_default();
         for id in ["legion", "alchemist", "arcane", "sage", "covenant"] {
             if !keywords.contains(&id) {
-                issues.push(mk("package.json", &format!("missing canonical keyword {id}")));
+                issues.push(mk(
+                    "package.json",
+                    &format!("missing canonical keyword {id}"),
+                ));
             }
         }
         let files: Vec<&str> = pkg
@@ -252,7 +268,10 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
             .map(|a| a.iter().filter_map(|x| x.as_str()).collect())
             .unwrap_or_default();
         if files.contains(&"packages/seer/") {
-            issues.push(mk("package.json", "published files retain legacy assurance package"));
+            issues.push(mk(
+                "package.json",
+                "published files retain legacy assurance package",
+            ));
         }
     }
     if let Ok(manifest) = read_json(&root.join("MANIFEST.package.json")) {
@@ -270,7 +289,10 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
     }
     for path in [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"] {
         if let Ok(manifest) = read_json(&root.join(path)) {
-            let description = manifest.get("description").and_then(|v| v.as_str()).unwrap_or("");
+            let description = manifest
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             for display in ["Legion", "Sage", "Alchemist", "Oracle", "Arcane"] {
                 if !description.contains(display) {
                     issues.push(mk(path, &format!("description missing {display}")));
@@ -281,7 +303,10 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
     if root.join("packages/seer").exists() {
         issues.push(mk("packages/seer", "legacy assurance package still exists"));
     }
-    if root.join("registry/rules/opengrep/nemesis-core.yml").exists() {
+    if root
+        .join("registry/rules/opengrep/nemesis-core.yml")
+        .exists()
+    {
         issues.push(mk(
             "registry/rules/opengrep/nemesis-core.yml",
             "legacy product filename still exists",
@@ -294,9 +319,14 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
         let fn_re = RegexBuilder::new(r"fn authority_for_agent_type[^{]*\{([\s\S]*?)\n\}")
             .build()
             .unwrap();
-        let literal =
-            fn_re.captures(&source).and_then(|c| c.get(1)).map(|m| m.as_str().to_string()).unwrap_or_default();
-        let value_re = RegexBuilder::new(r#"Some\(\s*"([^"]+)"\s*\)"#).build().unwrap();
+        let literal = fn_re
+            .captures(&source)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default();
+        let value_re = RegexBuilder::new(r#"Some\(\s*"([^"]+)"\s*\)"#)
+            .build()
+            .unwrap();
         let mut observed: BTreeSet<String> = BTreeSet::new();
         for cap in value_re.captures_iter(&literal) {
             observed.insert(cap[1].to_string());
@@ -305,7 +335,10 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
         let mut expected_sorted = vec!["alchemist", "legion", "oracle", "sage"];
         expected_sorted.sort();
         if observed != expected_sorted {
-            issues.push(mk(abs_path, "runtime authority registry differs from canonical set"));
+            issues.push(mk(
+                abs_path,
+                "runtime authority registry differs from canonical set",
+            ));
         }
     }
     issues
@@ -436,7 +469,11 @@ pub fn check_canonical_names(root: &Path) -> Result<Report, String> {
 fn tracked_files_naming(root: &Path) -> Vec<String> {
     tracked_files(root)
         .into_iter()
-        .filter(|p| !SKIP_PREFIXES.iter().any(|prefix| format!("{p}/").starts_with(prefix)))
+        .filter(|p| {
+            !SKIP_PREFIXES
+                .iter()
+                .any(|prefix| format!("{p}/").starts_with(prefix))
+        })
         .collect()
 }
 

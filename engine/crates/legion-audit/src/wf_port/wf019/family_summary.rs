@@ -247,7 +247,14 @@ pub fn build_family_summary(
 mod tests {
     use super::*;
 
-    fn result(id: &str, family: &str, status: &str, complete: bool, exp: f64, exam: f64) -> FamilyResult {
+    fn result(
+        id: &str,
+        family: &str,
+        status: &str,
+        complete: bool,
+        exp: f64,
+        exam: f64,
+    ) -> FamilyResult {
         FamilyResult {
             id: Some(id.to_string()),
             provider: None,
@@ -327,7 +334,8 @@ mod tests {
     #[test]
     fn incomplete_denominator_is_flagged() {
         let results = vec![result("a", "data-integrity", "pass", true, 4.0, 2.0)];
-        let summary = build_family_summary(&results, Some("data-integrity"), &["a".to_string()], &[]);
+        let summary =
+            build_family_summary(&results, Some("data-integrity"), &["a".to_string()], &[]);
         assert!(!summary.clean);
         assert_eq!(summary.status, "incomplete");
         let gap = summary
@@ -343,7 +351,8 @@ mod tests {
     fn missing_denominator_counts_as_incomplete() {
         let mut result = result("a", "architecture", "pass", true, 1.0, 1.0);
         result.denominator = None;
-        let summary = build_family_summary(&[result], Some("architecture"), &["a".to_string()], &[]);
+        let summary =
+            build_family_summary(&[result], Some("architecture"), &["a".to_string()], &[]);
         assert!(!summary.clean);
     }
 
@@ -374,7 +383,11 @@ mod tests {
             .collect();
         assert_eq!(ids, vec!["dup", "r2", "s2"]);
         // "dup" is in selectedProviderIds too, so its kind is the selected variant.
-        let dup_gap = summary.gaps.iter().find(|g| g.provider_id.as_deref() == Some("dup")).unwrap();
+        let dup_gap = summary
+            .gaps
+            .iter()
+            .find(|g| g.provider_id.as_deref() == Some("dup"))
+            .unwrap();
         assert_eq!(dup_gap.kind, "selected-provider-result-missing");
     }
 }

@@ -170,7 +170,9 @@ pub struct ReqwestPoster {
 
 impl ReqwestPoster {
     pub fn new() -> Self {
-        Self { client: reqwest::blocking::Client::new() }
+        Self {
+            client: reqwest::blocking::Client::new(),
+        }
     }
 }
 
@@ -237,7 +239,10 @@ pub fn complete_through_server_or_store(
     let server_info = read_live_server_info(cwd).map(|i| i.raw);
     if let Some(info) = &server_info {
         if let Some(server_result) = complete_through_server(poster, info, args) {
-            let ok = server_result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+            let ok = server_result
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             if ok {
                 if let Ok(mut store) = LiveSessionStore::new(cwd, Some(id.to_string())) {
                     let snapshot = store.get_snapshot(Some(id), true).ok().flatten();
@@ -304,7 +309,10 @@ pub fn completion_cli(poster: &dyn HttpPoster, cwd: &Path, argv: &[String]) -> (
         let usage = "Usage: node live-complete.mjs --id SESSION_ID [--discarded|--error MESSAGE]\n\nAppend the final durable session acknowledgement. Use after accept/discard cleanup is verified.";
         return (code, usage.to_string());
     }
-    let id = args.id.clone().expect("usage_exit_code guarantees id is present");
+    let id = args
+        .id
+        .clone()
+        .expect("usage_exit_code guarantees id is present");
     let result = complete_through_server_or_store(poster, cwd, &id, &args);
     (0, serde_json::to_string_pretty(&result).unwrap())
 }
@@ -333,7 +341,10 @@ mod tests {
 
     #[test]
     fn parse_args_discarded_variants() {
-        assert_eq!(parse_args(&args(&["--discarded"])).status, Status::Discarded);
+        assert_eq!(
+            parse_args(&args(&["--discarded"])).status,
+            Status::Discarded
+        );
         assert_eq!(parse_args(&args(&["--discard"])).status, Status::Discarded);
     }
 
@@ -342,7 +353,9 @@ mod tests {
         let parsed = parse_args(&args(&["--error", "boom"]));
         assert_eq!(
             parsed.status,
-            Status::AgentError { message: "boom".to_string() }
+            Status::AgentError {
+                message: "boom".to_string()
+            }
         );
     }
 
@@ -351,14 +364,21 @@ mod tests {
         let parsed = parse_args(&args(&["--error"]));
         assert_eq!(
             parsed.status,
-            Status::AgentError { message: "unknown error".to_string() }
+            Status::AgentError {
+                message: "unknown error".to_string()
+            }
         );
     }
 
     #[test]
     fn parse_args_error_equals_form_empty_message_kept_empty() {
         let parsed = parse_args(&args(&["--error="]));
-        assert_eq!(parsed.status, Status::AgentError { message: String::new() });
+        assert_eq!(
+            parsed.status,
+            Status::AgentError {
+                message: String::new()
+            }
+        );
     }
 
     #[test]
@@ -369,34 +389,68 @@ mod tests {
 
     #[test]
     fn usage_exit_code_help_takes_priority() {
-        let parsed = ParsedArgs { status: Status::Complete, id: None, help: true };
+        let parsed = ParsedArgs {
+            status: Status::Complete,
+            id: None,
+            help: true,
+        };
         assert_eq!(usage_exit_code(&parsed), Some(0));
     }
 
     #[test]
     fn usage_exit_code_missing_id_is_error() {
-        let parsed = ParsedArgs { status: Status::Complete, id: None, help: false };
+        let parsed = ParsedArgs {
+            status: Status::Complete,
+            id: None,
+            help: false,
+        };
         assert_eq!(usage_exit_code(&parsed), Some(1));
     }
 
     #[test]
     fn usage_exit_code_ok_when_id_present() {
-        let parsed = ParsedArgs { status: Status::Complete, id: Some("x".into()), help: false };
+        let parsed = ParsedArgs {
+            status: Status::Complete,
+            id: Some("x".into()),
+            help: false,
+        };
         assert_eq!(usage_exit_code(&parsed), None);
     }
 
     #[test]
     fn build_event_variants() {
-        assert_eq!(build_event("id1", &Status::Complete), CompletionEvent::Complete { id: "id1".into() });
-        assert_eq!(build_event("id1", &Status::Discarded), CompletionEvent::Discarded { id: "id1".into() });
         assert_eq!(
-            build_event("id1", &Status::AgentError { message: "oops".into() }),
-            CompletionEvent::AgentError { id: "id1".into(), message: "oops".into() }
+            build_event("id1", &Status::Complete),
+            CompletionEvent::Complete { id: "id1".into() }
+        );
+        assert_eq!(
+            build_event("id1", &Status::Discarded),
+            CompletionEvent::Discarded { id: "id1".into() }
+        );
+        assert_eq!(
+            build_event(
+                "id1",
+                &Status::AgentError {
+                    message: "oops".into()
+                }
+            ),
+            CompletionEvent::AgentError {
+                id: "id1".into(),
+                message: "oops".into()
+            }
         );
         // empty message falls back to 'unknown error', matching `args.message || 'unknown error'`
         assert_eq!(
-            build_event("id1", &Status::AgentError { message: String::new() }),
-            CompletionEvent::AgentError { id: "id1".into(), message: "unknown error".into() }
+            build_event(
+                "id1",
+                &Status::AgentError {
+                    message: String::new()
+                }
+            ),
+            CompletionEvent::AgentError {
+                id: "id1".into(),
+                message: "unknown error".into()
+            }
         );
     }
 
@@ -405,7 +459,9 @@ mod tests {
         assert_eq!(server_poll_type(&Status::Complete), "complete");
         assert_eq!(server_poll_type(&Status::Discarded), "discarded");
         assert_eq!(
-            server_poll_type(&Status::AgentError { message: "x".into() }),
+            server_poll_type(&Status::AgentError {
+                message: "x".into()
+            }),
             "error"
         );
     }

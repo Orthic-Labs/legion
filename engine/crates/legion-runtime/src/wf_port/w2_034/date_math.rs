@@ -57,9 +57,15 @@ impl Date {
         if parts.len() != 3 {
             return Err(DateParseError(s.to_string()));
         }
-        let year: i64 = parts[0].parse().map_err(|_| DateParseError(s.to_string()))?;
-        let month: u32 = parts[1].parse().map_err(|_| DateParseError(s.to_string()))?;
-        let day: u32 = parts[2].parse().map_err(|_| DateParseError(s.to_string()))?;
+        let year: i64 = parts[0]
+            .parse()
+            .map_err(|_| DateParseError(s.to_string()))?;
+        let month: u32 = parts[1]
+            .parse()
+            .map_err(|_| DateParseError(s.to_string()))?;
+        let day: u32 = parts[2]
+            .parse()
+            .map_err(|_| DateParseError(s.to_string()))?;
         if !(1..=12).contains(&month) || day == 0 {
             return Err(DateParseError(s.to_string()));
         }
@@ -95,7 +101,14 @@ mod tests {
     #[test]
     fn parses_and_formats_round_trip() {
         let d = Date::parse("2026-09-23").unwrap();
-        assert_eq!(d, Date { year: 2026, month: 9, day: 23 });
+        assert_eq!(
+            d,
+            Date {
+                year: 2026,
+                month: 9,
+                day: 23
+            }
+        );
         assert_eq!(d.isoformat(), "2026-09-23");
     }
 

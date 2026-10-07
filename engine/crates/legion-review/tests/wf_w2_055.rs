@@ -19,7 +19,10 @@ fn value_gate_report_renders_a_full_page_for_one_sample() {
     let mut blind = std::collections::HashMap::new();
     blind.insert(
         "f1".to_string(),
-        value_gate_report::Disposition { action: "raised".into(), rationale: "no bound".into() },
+        value_gate_report::Disposition {
+            action: "raised".into(),
+            rationale: "no bound".into(),
+        },
     );
     let mut peer = std::collections::HashMap::new();
     peer.insert(
@@ -44,7 +47,9 @@ fn value_gate_report_renders_a_full_page_for_one_sample() {
         },
         changes: vec!["revised retry bound".into()],
         inflation: 1.0,
-        room: value_gate_report::RoomAccounting { escalation_rate: 0.0 },
+        room: value_gate_report::RoomAccounting {
+            escalation_rate: 0.0,
+        },
         findings: rows,
     };
     let html = value_gate_report::render(&[sample]);
@@ -102,9 +107,9 @@ fn vision_input_prepares_payload_from_markdown_paths() {
             std::fs::metadata(path).ok().map(|m| m.len())
         }
         fn base64(&self, path: &str) -> Option<String> {
-            std::fs::read(path).ok().map(|bytes| {
-                bytes.iter().map(|b| format!("{b:02x}")).collect::<String>()
-            })
+            std::fs::read(path)
+                .ok()
+                .map(|bytes| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>())
         }
         fn video_keyframes(&self, _video_path: &str) -> Vec<String> {
             Vec::new()
@@ -113,9 +118,10 @@ fn vision_input_prepares_payload_from_markdown_paths() {
 
     let text = format!("See attached: {image_path_str}");
     let source = RealFsSource;
-    let payload = vision_input::prepare_vision_payload(&text, vision_input::MAX_IMAGES, &source, |p| {
-        std::path::Path::new(p).exists()
-    });
+    let payload =
+        vision_input::prepare_vision_payload(&text, vision_input::MAX_IMAGES, &source, |p| {
+            std::path::Path::new(p).exists()
+        });
     assert_eq!(payload.len(), 1);
     assert_eq!(payload[0].mime, "image/png");
     assert_eq!(payload[0].source, image_path_str);
@@ -129,7 +135,9 @@ fn evidence_envelope_already_covers_untrusted_evidence_envelope_mjs() {
     // (B7-029): ALREADY-NATIVE-VERIFIED via legion_review::review_port.
     // A fresh envelope must exist and the defence-in-depth constants must
     // still match the JS source's contract.
-    assert_eq!(legion_review::review_port::evidence_envelope::UNTRUSTED_EVIDENCE_SCHEMA_VERSION, 1);
-    assert!(legion_review::review_port::evidence_envelope::REVIEW_FAMILIES
-        .contains(&"security"));
+    assert_eq!(
+        legion_review::review_port::evidence_envelope::UNTRUSTED_EVIDENCE_SCHEMA_VERSION,
+        1
+    );
+    assert!(legion_review::review_port::evidence_envelope::REVIEW_FAMILIES.contains(&"security"));
 }

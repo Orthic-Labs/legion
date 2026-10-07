@@ -55,7 +55,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://tasklist/SKILL.md",
-      "digest": "sha256:8d31981d9e0d8543f0b4626dbe974db7f2c9e286346d6ff529e11119f982282b"
+      "digest": "sha256:810abdb70b7d2068db604fdd800242bbd5cc865cba1ec59bc61e780c4c181088"
     },
     {
       "path": "agents/openai.yaml",
@@ -70,7 +70,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://tasklist/dependencies.json",
-      "digest": "sha256:fe72207c01cd0eeb0f130f24dd79e8d71fa3c8d84a3a419cc951ab97ab7fa59a"
+      "digest": "sha256:8a34d459970a98a73a95601f078181a474bd698c07290b1d1ca2b8c506230384"
     },
     {
       "path": "evals/evals.json",

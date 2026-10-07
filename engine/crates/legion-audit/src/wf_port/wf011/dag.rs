@@ -41,13 +41,20 @@ pub fn topological_providers(providers: &[Value]) -> Result<Vec<Value>, SdkError
 
     let mut incoming: BTreeMap<String, BTreeSet<String>> = providers
         .iter()
-        .map(|provider| (provider_id(provider), string_array(provider, "dependsOn").into_iter().collect()))
+        .map(|provider| {
+            (
+                provider_id(provider),
+                string_array(provider, "dependsOn").into_iter().collect(),
+            )
+        })
         .collect();
 
     for (id, deps) in &incoming {
         for dependency in deps {
             if !by_id.contains_key(dependency) {
-                return Err(SdkError::new(format!("provider {id} depends on unknown {dependency}")));
+                return Err(SdkError::new(format!(
+                    "provider {id} depends on unknown {dependency}"
+                )));
             }
             if dependency == id {
                 return Err(SdkError::new(format!("provider {id} depends on itself")));
@@ -76,7 +83,9 @@ pub fn topological_providers(providers: &[Value]) -> Result<Vec<Value>, SdkError
         // queued), enqueue it.
         let other_ids: Vec<String> = incoming.keys().cloned().collect();
         for other_id in other_ids {
-            let deps = incoming.get_mut(&other_id).expect("key from incoming.keys()");
+            let deps = incoming
+                .get_mut(&other_id)
+                .expect("key from incoming.keys()");
             let removed = deps.remove(&id);
             if !removed || !deps.is_empty() {
                 continue;
@@ -100,7 +109,9 @@ pub fn topological_providers(providers: &[Value]) -> Result<Vec<Value>, SdkError
             .collect();
         cyclic.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
         let cyclic_json = Value::Array(cyclic).to_string();
-        return Err(SdkError::new(format!("provider dependency cycle: {cyclic_json}")));
+        return Err(SdkError::new(format!(
+            "provider dependency cycle: {cyclic_json}"
+        )));
     }
 
     Ok(ordered)
@@ -109,13 +120,48 @@ pub fn topological_providers(providers: &[Value]) -> Result<Vec<Value>, SdkError
 /// Role/output authority table from the Security Appendix Phase 7.
 pub fn role_output_authority(role: &str) -> Option<[(&'static str, bool); 4]> {
     match role {
-        "model-builder" => Some([("candidates", false), ("hypotheses", false), ("verdicts", false), ("findings", false)]),
-        "candidate-generator" => Some([("candidates", true), ("hypotheses", false), ("verdicts", false), ("findings", false)]),
-        "hypothesis-generator" => Some([("candidates", false), ("hypotheses", true), ("verdicts", false), ("findings", false)]),
-        "adjudicator" => Some([("candidates", false), ("hypotheses", false), ("verdicts", true), ("findings", false)]),
-        "variant-analyzer" => Some([("candidates", false), ("hypotheses", false), ("verdicts", false), ("findings", false)]),
-        "evidence-synthesizer" => Some([("candidates", false), ("hypotheses", false), ("verdicts", false), ("findings", true)]),
-        "deterministic" => Some([("candidates", true), ("hypotheses", false), ("verdicts", false), ("findings", true)]),
+        "model-builder" => Some([
+            ("candidates", false),
+            ("hypotheses", false),
+            ("verdicts", false),
+            ("findings", false),
+        ]),
+        "candidate-generator" => Some([
+            ("candidates", true),
+            ("hypotheses", false),
+            ("verdicts", false),
+            ("findings", false),
+        ]),
+        "hypothesis-generator" => Some([
+            ("candidates", false),
+            ("hypotheses", true),
+            ("verdicts", false),
+            ("findings", false),
+        ]),
+        "adjudicator" => Some([
+            ("candidates", false),
+            ("hypotheses", false),
+            ("verdicts", true),
+            ("findings", false),
+        ]),
+        "variant-analyzer" => Some([
+            ("candidates", false),
+            ("hypotheses", false),
+            ("verdicts", false),
+            ("findings", false),
+        ]),
+        "evidence-synthesizer" => Some([
+            ("candidates", false),
+            ("hypotheses", false),
+            ("verdicts", false),
+            ("findings", true),
+        ]),
+        "deterministic" => Some([
+            ("candidates", true),
+            ("hypotheses", false),
+            ("verdicts", false),
+            ("findings", true),
+        ]),
         _ => None,
     }
 }
@@ -133,7 +179,11 @@ pub const ROLE_OUTPUT_AUTHORITY: &[&str] = &[
 ];
 
 fn authority_flag(authority: [(&str, bool); 4], key: &str) -> bool {
-    authority.iter().find(|(name, _)| *name == key).map(|(_, flag)| *flag).unwrap_or(false)
+    authority
+        .iter()
+        .find(|(name, _)| *name == key)
+        .map(|(_, flag)| *flag)
+        .unwrap_or(false)
 }
 
 /// Faithful port of `validateRoleOutput`.
@@ -141,20 +191,34 @@ pub fn validate_role_output(provider: &Value) -> Result<bool, SdkError> {
     let id = provider_id(provider);
     let role = provider.get("role").and_then(Value::as_str).unwrap_or("");
     let Some(authority) = role_output_authority(role) else {
-        return Err(SdkError::new(format!("provider {id} has unknown role {role}")));
+        return Err(SdkError::new(format!(
+            "provider {id} has unknown role {role}"
+        )));
     };
     let produced = string_array(provider, "produces");
-    if produced.iter().any(|a| a == "security-candidates") && !authority_flag(authority, "candidates") {
-        return Err(SdkError::new(format!("provider {id} role {role} may not produce security-candidates")));
+    if produced.iter().any(|a| a == "security-candidates")
+        && !authority_flag(authority, "candidates")
+    {
+        return Err(SdkError::new(format!(
+            "provider {id} role {role} may not produce security-candidates"
+        )));
     }
-    if produced.iter().any(|a| a == "attack-path-hypotheses") && !authority_flag(authority, "hypotheses") {
-        return Err(SdkError::new(format!("provider {id} role {role} may not produce attack-path-hypotheses")));
+    if produced.iter().any(|a| a == "attack-path-hypotheses")
+        && !authority_flag(authority, "hypotheses")
+    {
+        return Err(SdkError::new(format!(
+            "provider {id} role {role} may not produce attack-path-hypotheses"
+        )));
     }
     if produced.iter().any(|a| a == "security-verdicts") && !authority_flag(authority, "verdicts") {
-        return Err(SdkError::new(format!("provider {id} role {role} may not produce security-verdicts")));
+        return Err(SdkError::new(format!(
+            "provider {id} role {role} may not produce security-verdicts"
+        )));
     }
     if produced.iter().any(|a| a == "findings") && !authority_flag(authority, "findings") {
-        return Err(SdkError::new(format!("provider {id} role {role} may not produce findings")));
+        return Err(SdkError::new(format!(
+            "provider {id} role {role} may not produce findings"
+        )));
     }
     Ok(true)
 }
@@ -198,7 +262,9 @@ pub fn validate_provider_dag(providers: &[Value]) -> Result<bool, SdkError> {
         let id = provider_id(provider);
         for artifact in string_array(provider, "consumes") {
             if !produced.contains(&artifact) {
-                return Err(SdkError::new(format!("provider {id} consumes unproduced artifact {artifact}")));
+                return Err(SdkError::new(format!(
+                    "provider {id} consumes unproduced artifact {artifact}"
+                )));
             }
         }
     }
@@ -235,13 +301,15 @@ mod tests {
 
     #[test]
     fn unknown_dependency_is_rejected() {
-        let err = topological_providers(&[p("a", vec!["ghost"], vec![], vec![], "deterministic")]).unwrap_err();
+        let err = topological_providers(&[p("a", vec!["ghost"], vec![], vec![], "deterministic")])
+            .unwrap_err();
         assert!(err.0.contains("depends on unknown"), "{}", err.0);
     }
 
     #[test]
     fn self_dependency_is_rejected() {
-        let err = topological_providers(&[p("a", vec!["a"], vec![], vec![], "deterministic")]).unwrap_err();
+        let err = topological_providers(&[p("a", vec!["a"], vec![], vec![], "deterministic")])
+            .unwrap_err();
         assert!(err.0.contains("depends on itself"), "{}", err.0);
     }
 
@@ -271,8 +339,20 @@ mod tests {
     #[test]
     fn duplicate_singleton_producer_is_rejected() {
         let err = validate_provider_dag(&[
-            p("a", vec![], vec!["security-candidates"], vec![], "deterministic"),
-            p("b", vec![], vec!["security-candidates"], vec![], "deterministic"),
+            p(
+                "a",
+                vec![],
+                vec!["security-candidates"],
+                vec![],
+                "deterministic",
+            ),
+            p(
+                "b",
+                vec![],
+                vec!["security-candidates"],
+                vec![],
+                "deterministic",
+            ),
         ])
         .unwrap_err();
         assert!(err.0.contains("produced by both"), "{}", err.0);
@@ -280,14 +360,22 @@ mod tests {
 
     #[test]
     fn role_output_authority_violations_are_rejected() {
-        assert!(validate_role_output(&p("a", vec![], vec!["security-candidates"], vec![], "model-builder"))
-            .unwrap_err()
-            .0
-            .contains("may not produce"));
-        assert!(validate_role_output(&p("a", vec![], vec!["findings"], vec![], "adjudicator"))
-            .unwrap_err()
-            .0
-            .contains("may not produce"));
+        assert!(validate_role_output(&p(
+            "a",
+            vec![],
+            vec!["security-candidates"],
+            vec![],
+            "model-builder"
+        ))
+        .unwrap_err()
+        .0
+        .contains("may not produce"));
+        assert!(
+            validate_role_output(&p("a", vec![], vec!["findings"], vec![], "adjudicator"))
+                .unwrap_err()
+                .0
+                .contains("may not produce")
+        );
         assert!(validate_role_output(&p(
             "a",
             vec![],
@@ -298,19 +386,33 @@ mod tests {
         .unwrap_err()
         .0
         .contains("may not produce"));
-        assert!(validate_role_output(&p("a", vec![], vec!["findings"], vec![], "evidence-synthesizer")).is_ok());
+        assert!(validate_role_output(&p(
+            "a",
+            vec![],
+            vec!["findings"],
+            vec![],
+            "evidence-synthesizer"
+        ))
+        .is_ok());
     }
 
     #[test]
     fn unknown_role_is_rejected() {
-        let err = validate_role_output(&json!({"id": "x", "role": "not-a-role", "produces": []})).unwrap_err();
+        let err = validate_role_output(&json!({"id": "x", "role": "not-a-role", "produces": []}))
+            .unwrap_err();
         assert!(err.0.contains("unknown role"), "{}", err.0);
     }
 
     #[test]
     fn valid_dag_validates_cleanly() {
         let ok = validate_provider_dag(&[
-            p("surface", vec![], vec!["security-surface-model"], vec![], "model-builder"),
+            p(
+                "surface",
+                vec![],
+                vec!["security-surface-model"],
+                vec![],
+                "model-builder",
+            ),
             p(
                 "packs",
                 vec!["surface"],

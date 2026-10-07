@@ -340,10 +340,13 @@ pub mod authentication_session {
                     effect_scope: CANDIDATE_CLASS.to_string(),
                     effect_environment: "application".to_string(),
                     chain_roles: vec!["starter".to_string(), "impact".to_string()],
-                    evidence_refs: artifact.map(|e| e.evidence_refs.clone()).unwrap_or_default(),
+                    evidence_refs: artifact
+                        .map(|e| e.evidence_refs.clone())
+                        .unwrap_or_default(),
                     detector_metadata: json!({ "file": file, "patternFamily": CANDIDATE_CLASS }),
                     uncertainty: vec![
-                        "Reachability and compensating controls require independent adjudication.".to_string(),
+                        "Reachability and compensating controls require independent adjudication."
+                            .to_string(),
                     ],
                 });
             }
@@ -375,19 +378,28 @@ pub mod authorization_tenant {
 
     fn object_write_sink() -> &'static Regex {
         static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)\b(?:update|patch|put|set|save)\w*\s*\([^)]*(?:id|params|request)").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)\b(?:update|patch|put|set|save)\w*\s*\([^)]*(?:id|params|request)")
+                .unwrap()
+        })
     }
     fn owner_guard() -> &'static Regex {
         static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)owner|tenant|org_?id|authorize|canAccess|permission").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)owner|tenant|org_?id|authorize|canAccess|permission").unwrap()
+        })
     }
     fn privileged_function() -> &'static Regex {
         static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)\b(?:delete|remove|grant|promote|impersonate|admin)\w*\s*\(").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)\b(?:delete|remove|grant|promote|impersonate|admin)\w*\s*\(").unwrap()
+        })
     }
     fn role_guard() -> &'static Regex {
         static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)role|permission|isAdmin|requireAdmin|authorize").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)role|permission|isAdmin|requireAdmin|authorize").unwrap()
+        })
     }
 
     pub fn analyze(ctx: &PackContext) -> Vec<Observation> {
@@ -429,7 +441,8 @@ pub mod authorization_tenant {
                 observations.push(Observation {
                     rule_id: "authorization.privileged-function.missing-role-check".to_string(),
                     candidate_class: CANDIDATE_CLASS.to_string(),
-                    claim: "A privileged function has no visible role or policy enforcement.".to_string(),
+                    claim: "A privileged function has no visible role or policy enforcement."
+                        .to_string(),
                     severity_hint: "high".to_string(),
                     sources: ids.clone(),
                     sinks: ids,
@@ -442,7 +455,10 @@ pub mod authorization_tenant {
                     chain_roles: vec!["privilege-escalation".to_string(), "impact".to_string()],
                     evidence_refs: vec![],
                     detector_metadata: json!({ "file": file, "sourceKind": "privileged-function" }),
-                    uncertainty: vec!["A framework-level policy may enforce roles outside this call path.".to_string()],
+                    uncertainty: vec![
+                        "A framework-level policy may enforce roles outside this call path."
+                            .to_string(),
+                    ],
                 });
             }
         }
@@ -451,7 +467,9 @@ pub mod authorization_tenant {
 
     /// Mirrors `variantStrategies['authorization.object-write.missing-owner-check'].enumerate`.
     pub fn enumerate_object_write_missing_owner_check(ctx: &PackContext) -> Value {
-        let object_write = Regex::new(r"(?i)(?:update|patch|put|set|save)\s*\([^)]*(?:id|params|request)").unwrap();
+        let object_write =
+            Regex::new(r"(?i)(?:update|patch|put|set|save)\s*\([^)]*(?:id|params|request)")
+                .unwrap();
         let owner_guard_narrow = Regex::new(r"owner|tenant|org_?id|authorize").unwrap();
         let mut matches = Vec::new();
         for file in &ctx.files {
@@ -507,7 +525,10 @@ pub mod automation {
     }
     fn updater_config() -> &'static Regex {
         static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)electron-builder\.(ya?ml|json5?|toml)$|(^|/)app-update\.ya?ml$").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)electron-builder\.(ya?ml|json5?|toml)$|(^|/)app-update\.ya?ml$")
+                .unwrap()
+        })
     }
     fn dependency_update_config() -> &'static Regex {
         static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
@@ -555,7 +576,9 @@ pub mod automation {
         }
         let window = &text[m.start()..end];
         Regex::new(r"write-all").unwrap().is_match(window)
-            || Regex::new(r"contents\s*:\s*write").unwrap().is_match(window)
+            || Regex::new(r"contents\s*:\s*write")
+                .unwrap()
+                .is_match(window)
     }
 
     struct Match {
@@ -601,7 +624,11 @@ pub mod automation {
             if Regex::new(r"\bpermissions\s*:").unwrap().is_match(text) {
                 continue;
             }
-            out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+            out.push(Match {
+                file: file.clone(),
+                line: 1,
+                snippet: file.clone(),
+            });
         }
         out
     }
@@ -616,21 +643,36 @@ pub mod automation {
                 Some(t) if !t.is_empty() => t,
                 _ => continue,
             };
-            let insecure_transport = Regex::new(r"(?i)(?:update|download|artifact)[\s\S]{0,180}http://").unwrap().is_match(text);
-            let disabled_signature = Regex::new(r"verifyUpdateCodeSignature\s*:\s*false").unwrap().is_match(text);
+            let insecure_transport =
+                Regex::new(r"(?i)(?:update|download|artifact)[\s\S]{0,180}http://")
+                    .unwrap()
+                    .is_match(text);
+            let disabled_signature = Regex::new(r"verifyUpdateCodeSignature\s*:\s*false")
+                .unwrap()
+                .is_match(text);
             if !insecure_transport && !disabled_signature {
                 continue;
             }
-            out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+            out.push(Match {
+                file: file.clone(),
+                line: 1,
+                snippet: file.clone(),
+            });
         }
         out
     }
 
     fn matches_signing_disabled(ctx: &PackContext) -> Vec<Match> {
-        let pattern = Regex::new(r"\bsign\s*:\s*false\b|\bskipSign\s*:\s*true\b|verifyUpdateCodeSignature\s*:\s*false").unwrap();
+        let pattern = Regex::new(
+            r"\bsign\s*:\s*false\b|\bskipSign\s*:\s*true\b|verifyUpdateCodeSignature\s*:\s*false",
+        )
+        .unwrap();
         let mut out = Vec::new();
         for file in &ctx.files {
-            if !(workflow_file().is_match(file) || release_config().is_match(file) || updater_config().is_match(file)) {
+            if !(workflow_file().is_match(file)
+                || release_config().is_match(file)
+                || updater_config().is_match(file))
+            {
                 continue;
             }
             let text = match ctx.read_file(file) {
@@ -638,7 +680,11 @@ pub mod automation {
                 _ => continue,
             };
             if let Some(m) = pattern.find(text) {
-                out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
+                out.push(Match {
+                    file: file.clone(),
+                    line: line_of(text, m.start()),
+                    snippet: m.as_str().to_string(),
+                });
             }
         }
         out
@@ -654,7 +700,9 @@ pub mod automation {
                 Some(t) if !t.is_empty() => t,
                 _ => continue,
             };
-            let hostile = Regex::new(r"\bpull_request_target\b").unwrap().is_match(text)
+            let hostile = Regex::new(r"\bpull_request_target\b")
+                .unwrap()
+                .is_match(text)
                 || Regex::new(r"\bworkflow_run\b").unwrap().is_match(text)
                 || Regex::new(r"\bissue_comment\b").unwrap().is_match(text);
             if !hostile {
@@ -663,7 +711,11 @@ pub mod automation {
             if !permission_scope_is_elevated(text) {
                 continue;
             }
-            out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+            out.push(Match {
+                file: file.clone(),
+                line: 1,
+                snippet: file.clone(),
+            });
         }
         out
     }
@@ -678,16 +730,27 @@ pub mod automation {
                 Some(t) if !t.is_empty() => t,
                 _ => continue,
             };
-            let automerge = Regex::new(r#""automerge"\s*:\s*true"#).unwrap().is_match(text)
-                || Regex::new(r"\bautomerge\s*:\s*true\b").unwrap().is_match(text);
+            let automerge = Regex::new(r#""automerge"\s*:\s*true"#)
+                .unwrap()
+                .is_match(text)
+                || Regex::new(r"\bautomerge\s*:\s*true\b")
+                    .unwrap()
+                    .is_match(text);
             if !automerge {
                 continue;
             }
-            let review_gate = Regex::new(r"(?i)requiredReviews|requireStatusChecks|minimumApprovals").unwrap().is_match(text);
+            let review_gate =
+                Regex::new(r"(?i)requiredReviews|requireStatusChecks|minimumApprovals")
+                    .unwrap()
+                    .is_match(text);
             if review_gate {
                 continue;
             }
-            out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+            out.push(Match {
+                file: file.clone(),
+                line: 1,
+                snippet: file.clone(),
+            });
         }
         out
     }
@@ -792,14 +855,19 @@ pub mod automation {
                     severity_hint: rule.severity_hint.to_string(),
                     sources: ids.clone(),
                     sinks: ids,
-                    attacker_capabilities: vec!["read-repository".to_string(), "control-repository-content".to_string()],
+                    attacker_capabilities: vec![
+                        "read-repository".to_string(),
+                        "control-repository-content".to_string(),
+                    ],
                     effect_kind: rule.effect_kind.to_string(),
                     effect_action: rule.effect_action.to_string(),
                     effect_object: artifact.map(|e| e.id.clone()),
                     effect_scope: rule.effect_scope.to_string(),
                     effect_environment: rule.environment.to_string(),
                     chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                    evidence_refs: artifact.map(|e| e.evidence_refs.clone()).unwrap_or_default(),
+                    evidence_refs: artifact
+                        .map(|e| e.evidence_refs.clone())
+                        .unwrap_or_default(),
                     detector_metadata,
                     uncertainty,
                 });
@@ -997,7 +1065,11 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
     fn deployment_gate(ctx: &PackContext, subject: &str) -> Gate {
         let has_evidence = ctx.runtime_headers.is_some() || ctx.deployment_evidence;
         if has_evidence {
-            Gate { severity_cap: None, uncertainty: vec![], deployment_assumption: None }
+            Gate {
+                severity_cap: None,
+                uncertainty: vec![],
+                deployment_assumption: None,
+            }
         } else {
             Gate {
                 severity_cap: Some("medium"),
@@ -1025,10 +1097,10 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
         uncertainty: Vec<String>,
     ) -> Observation {
         let mut metadata = detector_metadata;
-        metadata
-            .as_object_mut()
-            .unwrap()
-            .insert("primitiveClass".to_string(), Value::String(primitive_class.to_string()));
+        metadata.as_object_mut().unwrap().insert(
+            "primitiveClass".to_string(),
+            Value::String(primitive_class.to_string()),
+        );
         Observation {
             rule_id: rule_id.to_string(),
             candidate_class: CANDIDATE_CLASS.to_string(),
@@ -1036,7 +1108,10 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
             severity_hint,
             sources,
             sinks,
-            attacker_capabilities: attacker_capabilities.into_iter().map(String::from).collect(),
+            attacker_capabilities: attacker_capabilities
+                .into_iter()
+                .map(String::from)
+                .collect(),
             effect_kind: String::new(),
             effect_action: String::new(),
             effect_object: None,
@@ -1051,7 +1126,10 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
 
     fn state_changing_route() -> &'static Regex {
         static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-        RE.get_or_init(|| Regex::new(r#"(?i)\b(?:app|router)\.(post|put|patch|delete)\(\s*['"]([^'"]+)['"]"#).unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r#"(?i)\b(?:app|router)\.(post|put|patch|delete)\(\s*['"]([^'"]+)['"]"#)
+                .unwrap()
+        })
     }
 
     pub fn analyze(ctx: &PackContext) -> Vec<Observation> {
@@ -1065,37 +1143,52 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
         };
 
         let csrf_marker = Regex::new(r"(?i)csrf|csurf|xsrf|_csrf|antiforgery").unwrap();
-        let cookie_session_marker = Regex::new(r"(?i)cookie-session|req\.session|res\.cookie|express-session").unwrap();
+        let cookie_session_marker =
+            Regex::new(r"(?i)cookie-session|req\.session|res\.cookie|express-session").unwrap();
         // JS: /SameSite=None(?![\s\S]{0,80}Secure)/gi — a negative lookahead
         // the `regex` crate cannot express directly, so it is reproduced
         // below via an explicit marker match plus a manual window check
         // instead of a single lookahead pattern.
         let samesite_none_marker = Regex::new(r"(?i)SameSite=None").unwrap();
-        let session_cookie_statement =
-            Regex::new(r#"(?i)(?:res\.cookie|Set-Cookie)[^\n]{0,40}(?:session|auth|token|jwt)[^\n]{0,150}"#).unwrap();
+        let session_cookie_statement = Regex::new(
+            r#"(?i)(?:res\.cookie|Set-Cookie)[^\n]{0,40}(?:session|auth|token|jwt)[^\n]{0,150}"#,
+        )
+        .unwrap();
         let cors_wildcard_credentials = Regex::new(
             r#"(?is)Access-Control-Allow-Origin['"]?\s*[:,]\s*['"]?\*[\s\S]{0,300}Access-Control-Allow-Credentials['"]?\s*[:,]\s*['"]?(?:true|1)"#,
         )
         .unwrap();
         let cors_reflected_origin =
             Regex::new(r"(?i)Access-Control-Allow-Origin['\x22]?\s*[:,]\s*(?:req|request|ctx)\.(?:headers\.)?origin").unwrap();
-        let cors_allowlist_marker = Regex::new(r"(?i)allow(?:ed)?Origins?|origin\s*===|includes\(\s*origin\s*\)").unwrap();
+        let cors_allowlist_marker =
+            Regex::new(r"(?i)allow(?:ed)?Origins?|origin\s*===|includes\(\s*origin\s*\)").unwrap();
         let frame_protection_marker = Regex::new(r"(?i)X-Frame-Options|frame-ancestors").unwrap();
-        let serves_html_marker =
-            Regex::new(r#"(?i)<html|res\.render|getServerSideProps|\.ejs\b|\.hbs\b|app\.get\(\s*['"]/"#).unwrap();
-        let open_redirect = Regex::new(r"(?i)res\.redirect\(\s*(?:req|request)\.(?:query|params|body)\.[a-zA-Z_]\w*").unwrap();
-        let redirect_allowlist_marker = Regex::new(r#"(?i)allowedRedirects|isValidRedirect|startsWith\(\s*['"]/"#).unwrap();
+        let serves_html_marker = Regex::new(
+            r#"(?i)<html|res\.render|getServerSideProps|\.ejs\b|\.hbs\b|app\.get\(\s*['"]/"#,
+        )
+        .unwrap();
+        let open_redirect = Regex::new(
+            r"(?i)res\.redirect\(\s*(?:req|request)\.(?:query|params|body)\.[a-zA-Z_]\w*",
+        )
+        .unwrap();
+        let redirect_allowlist_marker =
+            Regex::new(r#"(?i)allowedRedirects|isValidRedirect|startsWith\(\s*['"]/"#).unwrap();
         let oauth_redirect_from_request =
-            Regex::new(r"(?i)redirect_uri['\x22]?\s*[:=]\s*(?:req|request)\.(?:query|params|body)").unwrap();
-        let oauth_allowlist_marker = Regex::new(r#"(?i)redirectUriAllowlist|exact.?match|===\s*['"]https?://"#).unwrap();
+            Regex::new(r"(?i)redirect_uri['\x22]?\s*[:=]\s*(?:req|request)\.(?:query|params|body)")
+                .unwrap();
+        let oauth_allowlist_marker =
+            Regex::new(r#"(?i)redirectUriAllowlist|exact.?match|===\s*['"]https?://"#).unwrap();
         let csp_marker = Regex::new(r"(?i)Content-Security-Policy").unwrap();
-        let csp_unsafe_inline = Regex::new(r"(?i)Content-Security-Policy[^\n]*unsafe-inline").unwrap();
+        let csp_unsafe_inline =
+            Regex::new(r"(?i)Content-Security-Policy[^\n]*unsafe-inline").unwrap();
         let csp_unsafe_eval = Regex::new(r"(?i)Content-Security-Policy[^\n]*unsafe-eval").unwrap();
         // JS uses a negative lookbehind `(?<![\w.-])` / lookahead `(?![\w.-])`
         // around the wildcard; the `regex` crate has no lookaround, so this is
         // approximated with an explicit boundary check on the match.
-        let csp_wildcard_source_core =
-            Regex::new(r"(?i)Content-Security-Policy[^;\n]*(?:script-src|default-src|connect-src)[^;\n]*\*").unwrap();
+        let csp_wildcard_source_core = Regex::new(
+            r"(?i)Content-Security-Policy[^;\n]*(?:script-src|default-src|connect-src)[^;\n]*\*",
+        )
+        .unwrap();
 
         for file in &ctx.files {
             let text = match ctx.read_file(file) {
@@ -1103,7 +1196,9 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
                 _ => continue,
             };
             let artifact = find_artifact(ctx, file);
-            let evidence_refs = artifact.map(|e| e.evidence_refs.clone()).unwrap_or_default();
+            let evidence_refs = artifact
+                .map(|e| e.evidence_refs.clone())
+                .unwrap_or_default();
             if evidence_refs.is_empty() {
                 continue;
             }
@@ -1255,7 +1350,10 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
                     let gate = deployment_gate(ctx, &format!("Content-Security-Policy {token}"));
                     let mut metadata = json!({ "file": file, "line": line_of(text, m.start()), "header": "Content-Security-Policy", "directive": token });
                     if let Some(da) = &gate.deployment_assumption {
-                        metadata.as_object_mut().unwrap().insert("deploymentAssumption".to_string(), da.clone());
+                        metadata
+                            .as_object_mut()
+                            .unwrap()
+                            .insert("deploymentAssumption".to_string(), da.clone());
                     }
                     let mut uncertainty = vec!["A CSP weakness is only exploitable in combination with an independent injection point; it is not itself proof of one.".to_string()];
                     uncertainty.extend(gate.uncertainty.clone());
@@ -1297,7 +1395,10 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
                 let gate = deployment_gate(ctx, &format!("Content-Security-Policy {token}"));
                 let mut metadata = json!({ "file": file, "line": line_of(text, m.start()), "header": "Content-Security-Policy", "directive": token });
                 if let Some(da) = &gate.deployment_assumption {
-                    metadata.as_object_mut().unwrap().insert("deploymentAssumption".to_string(), da.clone());
+                    metadata
+                        .as_object_mut()
+                        .unwrap()
+                        .insert("deploymentAssumption".to_string(), da.clone());
                 }
                 let mut uncertainty = vec!["A CSP weakness is only exploitable in combination with an independent injection point; it is not itself proof of one.".to_string()];
                 uncertainty.extend(gate.uncertainty.clone());
@@ -1321,10 +1422,12 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
 
         if serves_html_marker.is_match(&combined_text) {
             let source_compliant = frame_protection_marker.is_match(&combined_text);
-            let runtime_compliant = runtime_header_compliance(ctx, "x-frame-options", |v| !v.is_null())
-                .or_else(|| {
+            let runtime_compliant =
+                runtime_header_compliance(ctx, "x-frame-options", |v| !v.is_null()).or_else(|| {
                     runtime_header_compliance(ctx, "content-security-policy", |v| {
-                        Regex::new(r"(?i)frame-ancestors").unwrap().is_match(&value_as_display(v))
+                        Regex::new(r"(?i)frame-ancestors")
+                            .unwrap()
+                            .is_match(&value_as_display(v))
                     })
                 });
             if let Some(outcome) = evaluate_deployment_aware_claim(
@@ -1340,10 +1443,16 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
                     "filesExamined": ctx.files.len(),
                 });
                 if let Some(d) = &outcome.disagreement {
-                    metadata.as_object_mut().unwrap().insert("disagreement".to_string(), d.clone());
+                    metadata
+                        .as_object_mut()
+                        .unwrap()
+                        .insert("disagreement".to_string(), d.clone());
                 }
                 if let Some(da) = &outcome.deployment_assumption {
-                    metadata.as_object_mut().unwrap().insert("deploymentAssumption".to_string(), da.clone());
+                    metadata
+                        .as_object_mut()
+                        .unwrap()
+                        .insert("deploymentAssumption".to_string(), da.clone());
                 }
                 observations.push(base_observation(
                     "clickjacking.missing-frame-protection",
@@ -1363,7 +1472,8 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
 
         {
             let source_compliant = csp_marker.is_match(&combined_text);
-            let runtime_compliant = runtime_header_compliance(ctx, "content-security-policy", |v| !v.is_null());
+            let runtime_compliant =
+                runtime_header_compliance(ctx, "content-security-policy", |v| !v.is_null());
             if let Some(outcome) = evaluate_deployment_aware_claim(
                 "Content-Security-Policy header",
                 source_compliant,
@@ -1377,10 +1487,16 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
                     "filesExamined": ctx.files.len(),
                 });
                 if let Some(d) = &outcome.disagreement {
-                    metadata.as_object_mut().unwrap().insert("disagreement".to_string(), d.clone());
+                    metadata
+                        .as_object_mut()
+                        .unwrap()
+                        .insert("disagreement".to_string(), d.clone());
                 }
                 if let Some(da) = &outcome.deployment_assumption {
-                    metadata.as_object_mut().unwrap().insert("deploymentAssumption".to_string(), da.clone());
+                    metadata
+                        .as_object_mut()
+                        .unwrap()
+                        .insert("deploymentAssumption".to_string(), da.clone());
                 }
                 observations.push(base_observation(
                     "csp.missing",
@@ -1419,7 +1535,8 @@ pub mod ai_prompt_injection {
 
     pub const CANDIDATE_CLASS: &str = "ai-prompt-injection";
 
-    const TRUST_LABEL_HINT: &str = r"(?i)trust_label|sanitize|escape|allowlist|provenance|content_filter";
+    const TRUST_LABEL_HINT: &str =
+        r"(?i)trust_label|sanitize|escape|allowlist|provenance|content_filter";
 
     struct Rule {
         id: &'static str,
@@ -1530,12 +1647,22 @@ pub mod ai_prompt_injection {
 
     fn find_invocation_process<'a>(ctx: &'a PackContext<'a>, file: &str) -> Option<&'a Entity> {
         let name = format!("model invocation {file}");
-        ctx.find_entity(|e| e.kind == "process" && e.attr_str("processKind") == Some("model-invocation") && e.name == name)
+        ctx.find_entity(|e| {
+            e.kind == "process"
+                && e.attr_str("processKind") == Some("model-invocation")
+                && e.name == name
+        })
     }
 
     fn find_untrusted_source<'a>(ctx: &'a PackContext<'a>, file: &str) -> Option<&'a Entity> {
-        ctx.find_entity(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted") && e.attr_str("file") == Some(file))
-            .or_else(|| ctx.find_entity(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted")))
+        ctx.find_entity(|e| {
+            e.kind == "source"
+                && e.attr_str("trust") == Some("untrusted")
+                && e.attr_str("file") == Some(file)
+        })
+        .or_else(|| {
+            ctx.find_entity(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted"))
+        })
     }
 
     fn find_data_store<'a>(ctx: &'a PackContext<'a>, store_kind: &str) -> Option<&'a Entity> {
@@ -1573,15 +1700,24 @@ pub mod ai_prompt_injection {
                     }
                 }
 
-                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types).is_some() {
+                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types)
+                    .is_some()
+                {
                     continue; // observed, model-grounded control suppresses the candidate entirely.
                 }
 
-                let sources: Vec<String> = source_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
-                let sinks: Vec<String> = sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
+                let sources: Vec<String> = source_entity
+                    .map(|e| vec![e.id.clone()])
+                    .unwrap_or_default();
+                let sinks: Vec<String> =
+                    sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
                 let evidence_refs = union_refs(
-                    source_entity.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
-                    sink_entity.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
+                    source_entity
+                        .map(|e| e.evidence_refs.as_slice())
+                        .unwrap_or(&[]),
+                    sink_entity
+                        .map(|e| e.evidence_refs.as_slice())
+                        .unwrap_or(&[]),
                 );
 
                 observations.push(Observation {
@@ -1621,7 +1757,9 @@ mod digest_self_check {
     #[test]
     fn digest_matches_known_js_shape() {
         // Sanity check only: the JS `digest` is `sha256:` + 64 hex chars.
-        let d = digest(&json!({ "ruleId": "ai.prompt-injection.indirect-untrusted-content", "file": "app.mjs" }));
+        let d = digest(
+            &json!({ "ruleId": "ai.prompt-injection.indirect-untrusted-content", "file": "app.mjs" }),
+        );
         assert!(d.starts_with("sha256:"));
         assert_eq!(d.len(), "sha256:".len() + 64);
     }

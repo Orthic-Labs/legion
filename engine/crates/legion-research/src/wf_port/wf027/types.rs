@@ -65,7 +65,10 @@ impl OpenedSource {
         out.insert("retrieved_at".into(), self.retrieved_at.clone().into());
         out.insert("content".into(), self.content.clone().into());
         out.insert("content_sha256".into(), self.content_sha256.clone().into());
-        out.insert("instructionPolicy".into(), self.instruction_policy.clone().into());
+        out.insert(
+            "instructionPolicy".into(),
+            self.instruction_policy.clone().into(),
+        );
         out.insert("provider".into(), self.provider.clone().into());
         out.insert("metadata".into(), Value::Object(self.metadata.clone()));
         Value::Object(out)
@@ -107,5 +110,6 @@ pub trait Provider {
         seed_chain: &[String],
     ) -> Result<Vec<SearchHit>, WfError>;
     fn open(&self, url: &str) -> Result<OpenedSource, WfError>;
-    fn find(&self, opened: &OpenedSource, pattern: &str) -> Result<Option<LocatedPassage>, WfError>;
+    fn find(&self, opened: &OpenedSource, pattern: &str)
+        -> Result<Option<LocatedPassage>, WfError>;
 }

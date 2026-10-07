@@ -17,6 +17,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use legion_research::research_port::effects;
 use legion_research::wf_port::wf023::control::{
     checkpoint_shard, decide_stop, init_shards, resume_shards, ControlManifest, DecideStopRequest,
 };
@@ -24,7 +25,6 @@ use legion_research::wf_port::wf023::shards::{ShardPlan, ShardRow, WorkItem};
 use legion_research::wf_port::wf024::{domain_verify, draft_integrity, effect_audit};
 use legion_research::wf_port::wf026::meter;
 use legion_research::wf_port::wf028::resource_guard;
-use legion_research::research_port::effects;
 use serde_json::{json, Map, Value};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -47,12 +47,8 @@ fn resource_guard_authorizes_sourced_draft_outside_forbidden_patterns() {
     fs::create_dir_all(&workspace).ok();
     let source = workspace.join("source.md");
     fs::write(&source, "sourced draft\n").unwrap();
-    let verdict = resource_guard::authorize(
-        &["private/**".to_string()],
-        "source.md",
-        &workspace,
-        true,
-    );
+    let verdict =
+        resource_guard::authorize(&["private/**".to_string()], "source.md", &workspace, true);
     assert!(verdict.ok, "{:?}", verdict.reason);
 }
 
@@ -103,13 +99,19 @@ impl ControlManifest for MockStore {
             .ok_or_else(|| "no plan".to_string())
     }
     fn save_shard_plan(&self, run_id: &str, plan: &ShardPlan) {
-        self.plans.borrow_mut().insert(run_id.to_string(), plan.clone());
+        self.plans
+            .borrow_mut()
+            .insert(run_id.to_string(), plan.clone());
     }
 }
 
 #[test]
 fn stopping_and_shard_resume_state_persist_in_the_run_manifest() {
-    let store = MockStore { used: 0, budget: 12, ..Default::default() };
+    let store = MockStore {
+        used: 0,
+        budget: 12,
+        ..Default::default()
+    };
 
     let decision = decide_stop(
         &store,
@@ -128,8 +130,14 @@ fn stopping_and_shard_resume_state_persist_in_the_run_manifest() {
         &store,
         "run-1",
         &[
-            WorkItem { key: "pricing".into(), payload: json!({"query": "price"}) },
-            WorkItem { key: "privacy".into(), payload: json!({"query": "privacy"}) },
+            WorkItem {
+                key: "pricing".into(),
+                payload: json!({"query": "price"}),
+            },
+            WorkItem {
+                key: "privacy".into(),
+                payload: json!({"query": "privacy"}),
+            },
         ],
     )
     .unwrap();

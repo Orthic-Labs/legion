@@ -41,7 +41,11 @@ pub fn reconcile_attack_paths(
 
     let mut hypotheses_out = Vec::with_capacity(hypotheses_in.len());
     for path in hypotheses_in {
-        let steps = path.get("steps").and_then(Value::as_array).cloned().unwrap_or_default();
+        let steps = path
+            .get("steps")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
 
         let step_verdicts: Vec<Value> = steps
             .iter()
@@ -88,9 +92,15 @@ pub fn reconcile_attack_paths(
         let (status, reason) = if !missing.is_empty() {
             ("UNPROVEN", "one or more primitive steps have no verdict")
         } else if !refuted.is_empty() {
-            ("REFUTED", "one or more mandatory primitive steps were refuted")
+            (
+                "REFUTED",
+                "one or more mandatory primitive steps were refuted",
+            )
         } else if !unsupported.is_empty() {
-            ("UNPROVEN", "one or more steps did not survive as vulnerabilities")
+            (
+                "UNPROVEN",
+                "one or more steps did not survive as vulnerabilities",
+            )
         } else {
             (
                 "PARTIALLY_SUPPORTED",
@@ -98,10 +108,9 @@ pub fn reconcile_attack_paths(
             )
         };
 
-        let mut out = path
-            .as_object()
-            .cloned()
-            .ok_or_else(|| super::contracts::SecurityContractError::new("hypothesis must be an object"))?;
+        let mut out = path.as_object().cloned().ok_or_else(|| {
+            super::contracts::SecurityContractError::new("hypothesis must be an object")
+        })?;
         out.insert("status".to_string(), json!(status));
         out.insert(
             "reconciliation".to_string(),
@@ -114,15 +123,26 @@ pub fn reconcile_attack_paths(
         hypotheses_out.push(Value::Object(out));
     }
 
-    let mut out = hypotheses_artifact
-        .as_object()
-        .cloned()
-        .ok_or_else(|| super::contracts::SecurityContractError::new("hypothesesArtifact must be an object"))?;
-    out.insert("kind".to_string(), json!("reconciled-attack-path-hypotheses"));
+    let mut out = hypotheses_artifact.as_object().cloned().ok_or_else(|| {
+        super::contracts::SecurityContractError::new("hypothesesArtifact must be an object")
+    })?;
+    out.insert(
+        "kind".to_string(),
+        json!("reconciled-attack-path-hypotheses"),
+    );
     out.insert("hypotheses".to_string(), Value::Array(hypotheses_out));
-    let adjudication_complete = adjudication.get("complete").and_then(Value::as_bool).unwrap_or(false);
-    let hypotheses_complete = hypotheses_artifact.get("complete").and_then(Value::as_bool).unwrap_or(false);
-    out.insert("complete".to_string(), json!(adjudication_complete && hypotheses_complete));
+    let adjudication_complete = adjudication
+        .get("complete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let hypotheses_complete = hypotheses_artifact
+        .get("complete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    out.insert(
+        "complete".to_string(),
+        json!(adjudication_complete && hypotheses_complete),
+    );
 
     Ok(Value::Object(out))
 }

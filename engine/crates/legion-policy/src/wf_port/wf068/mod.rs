@@ -20,4 +20,6 @@ pub use errors::ArcaneError;
 pub use runtime_schema::RuntimeSchemaSet;
 pub use schema::validate_schema;
 pub use state_paths::{key_hex, state_file, state_paths, state_root, StatePaths};
-pub use validate::{assert_valid, load_schema, validate_against, validate_against_def, ValidationOutcome};
+pub use validate::{
+    assert_valid, load_schema, validate_against, validate_against_def, ValidationOutcome,
+};

@@ -507,11 +507,15 @@ pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError>
     if !is_stable_current_executable_at(&evidence.executable, &current_root) {
         return Err(ReleaseBindingError::Mismatch {
             component: "resolved executable",
-            expected: current_root.join("bin").join(if cfg!(windows) {
-                "legion.exe"
-            } else {
-                "legion"
-            }).display().to_string(),
+            expected: current_root
+                .join("bin")
+                .join(if cfg!(windows) {
+                    "legion.exe"
+                } else {
+                    "legion"
+                })
+                .display()
+                .to_string(),
             actual: executable.display().to_string(),
             remediation: REPAIR_COMMAND,
         });
@@ -539,7 +543,11 @@ pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError>
         &manifest.runtime.architecture,
         current_runtime_architecture(),
     )?;
-    check_file("runtime digest", &manifest.runtime.sha256, &evidence.executable)?;
+    check_file(
+        "runtime digest",
+        &manifest.runtime.sha256,
+        &evidence.executable,
+    )?;
     Ok(InstalledRelease {
         manifest,
         manifest_path,
@@ -607,11 +615,7 @@ pub fn verify_stable_current_binding(
     }
     if !same_path(&evidence.executable, &runtime_path)
         && !(cfg!(windows)
-            && windows_localcache_equivalent(
-                &evidence.executable,
-                &runtime_path,
-                root,
-            ))
+            && windows_localcache_equivalent(&evidence.executable, &runtime_path, root))
     {
         return Err(ReleaseBindingError::Mismatch {
             component: "runtime executable",
@@ -1499,11 +1503,18 @@ mod tests {
             return;
         }
         let short_executable = short_current.join("bin/legion.exe");
-        assert!(short_current.is_dir(), "short path must resolve: {short_current:?}");
-        assert!(is_stable_current_executable_at(&executable, &short_current),
-            "long executable {executable:?}, short root {short_current:?}");
-        assert!(is_stable_current_executable_at(&short_executable, &current),
-            "short executable {short_executable:?}, long root {current:?}");
+        assert!(
+            short_current.is_dir(),
+            "short path must resolve: {short_current:?}"
+        );
+        assert!(
+            is_stable_current_executable_at(&executable, &short_current),
+            "long executable {executable:?}, short root {short_current:?}"
+        );
+        assert!(
+            is_stable_current_executable_at(&short_executable, &current),
+            "short executable {short_executable:?}, long root {current:?}"
+        );
         fs::remove_dir_all(root).expect("cleanup");
     }
 
@@ -1532,7 +1543,11 @@ mod tests {
         let virtual_manifest = PathBuf::from(
             r"\\?\C:\Users\operator\AppData\Local\Packages\OpenAI.Codex_example\LocalCache\Local\Orthic Labs\Legion\current\share\legion\release.json",
         );
-        assert!(windows_localcache_within(&current, &virtual_manifest, &install_root));
+        assert!(windows_localcache_within(
+            &current,
+            &virtual_manifest,
+            &install_root
+        ));
     }
 
     #[cfg(windows)]
@@ -1563,7 +1578,6 @@ mod tests {
         fs::remove_dir_all(root).expect("cleanup");
     }
 }
-
 
 /// Packet U01: Rust port of `right-release.config.mjs`, the RightKit release
 /// pipeline's declarative Windows/macOS packaging config. Live callers of
@@ -1633,10 +1647,16 @@ pub mod right_release_config {
         pub architecture: &'static str,
         pub target_triple: &'static str,
     }
-    pub const MACOS_ARM64: MacArchSpec =
-        MacArchSpec { platform: "macos", architecture: "arm64", target_triple: "aarch64-apple-darwin" };
-    pub const MACOS_X86_64: MacArchSpec =
-        MacArchSpec { platform: "macos", architecture: "x86_64", target_triple: "x86_64-apple-darwin" };
+    pub const MACOS_ARM64: MacArchSpec = MacArchSpec {
+        platform: "macos",
+        architecture: "arm64",
+        target_triple: "aarch64-apple-darwin",
+    };
+    pub const MACOS_X86_64: MacArchSpec = MacArchSpec {
+        platform: "macos",
+        architecture: "x86_64",
+        target_triple: "x86_64-apple-darwin",
+    };
 
     fn macos_arch(name: &str) -> Option<&'static MacArchSpec> {
         match name {
@@ -1723,7 +1743,9 @@ pub mod right_release_config {
             .trim()
             .to_lowercase();
         let selected_mac = macos_arch(&mac_architecture).ok_or_else(|| {
-            ConfigError(format!("unsupported LEGION_MACOS_ARCH: {mac_architecture}; expected arm64 or x86_64"))
+            ConfigError(format!(
+                "unsupported LEGION_MACOS_ARCH: {mac_architecture}; expected arm64 or x86_64"
+            ))
         })?;
 
         let selected_candidate = env
@@ -1737,15 +1759,26 @@ pub mod right_release_config {
 
         let windows_assembly_root = windows_assembly_root(selected_windows, release_version);
         let windows_archive = windows_archive_name(selected_windows, release_version);
-        let selected_output = format!("dist/releases/windows/{release_version}/{}", selected_windows.architecture);
-        let selected_receipt =
-            format!(".right-release/receipts/windows-{}-raw-exe.json", selected_windows.architecture);
-        let selected_provenance =
-            format!(".right-release/receipts/windows-{}-provenance.json", selected_windows.architecture);
-        let selected_qualification =
-            format!(".right-release/receipts/windows-{}-qualification.json", selected_windows.architecture);
-        let selected_candidate_receipt =
-            format!(".right-release/receipts/windows-{}-candidate-input.json", selected_windows.architecture);
+        let selected_output = format!(
+            "dist/releases/windows/{release_version}/{}",
+            selected_windows.architecture
+        );
+        let selected_receipt = format!(
+            ".right-release/receipts/windows-{}-raw-exe.json",
+            selected_windows.architecture
+        );
+        let selected_provenance = format!(
+            ".right-release/receipts/windows-{}-provenance.json",
+            selected_windows.architecture
+        );
+        let selected_qualification = format!(
+            ".right-release/receipts/windows-{}-qualification.json",
+            selected_windows.architecture
+        );
+        let selected_candidate_receipt = format!(
+            ".right-release/receipts/windows-{}-candidate-input.json",
+            selected_windows.architecture
+        );
 
         let selected_candidate_pre_package = node_command(&[
             "scripts/prepare-windows-candidate-finalization.mjs".to_string(),
@@ -1763,15 +1796,18 @@ pub mod right_release_config {
             selected_candidate_receipt.clone(),
         ]);
 
-        let mac_assembly_root = format!("dist/native/macos-{mac_architecture}/legion-{release_version}");
+        let mac_assembly_root =
+            format!("dist/native/macos-{mac_architecture}/legion-{release_version}");
         let mac_output = format!("dist/releases/mac/{release_version}/{mac_architecture}");
         let mac_stem = format!("legion-{release_version}-macos-{mac_architecture}");
         let mac_archive = format!("{mac_output}/{mac_stem}.tar.gz");
         let mac_sbom = format!("{mac_output}/{mac_stem}.cdx.json");
         let mac_provenance = format!("{mac_output}/{mac_stem}.intoto.jsonl");
         let mac_notarization_archive = format!(".right-release/notary/{mac_stem}.zip");
-        let mac_candidate_receipt = format!(".right-release/receipts/macos-{mac_architecture}-candidate-input.json");
-        let mac_signing_receipt = format!(".right-release/receipts/macos-{mac_architecture}-signing.json");
+        let mac_candidate_receipt =
+            format!(".right-release/receipts/macos-{mac_architecture}-candidate-input.json");
+        let mac_signing_receipt =
+            format!(".right-release/receipts/macos-{mac_architecture}-signing.json");
         let mac_notarization_receipt =
             format!(".right-release/receipts/macos-{mac_architecture}-notarization.json");
 
@@ -2035,8 +2071,8 @@ pub mod right_release_config {
     pub fn read_release_version(repo_root: &Path) -> Result<String, ConfigError> {
         let raw = std::fs::read_to_string(repo_root.join("release/version.json"))
             .map_err(|e| ConfigError(format!("reading release/version.json: {e}")))?;
-        let value: Value =
-            serde_json::from_str(&raw).map_err(|e| ConfigError(format!("parsing release/version.json: {e}")))?;
+        let value: Value = serde_json::from_str(&raw)
+            .map_err(|e| ConfigError(format!("parsing release/version.json: {e}")))?;
         value
             .get("version")
             .and_then(Value::as_str)
@@ -2061,22 +2097,34 @@ pub mod right_release_config {
 
         #[test]
         fn windows_arch_env_selects_arm64() {
-            let env = ConfigEnv { legion_windows_arch: Some(" ARM64 ".to_string()), ..Default::default() };
+            let env = ConfigEnv {
+                legion_windows_arch: Some(" ARM64 ".to_string()),
+                ..Default::default()
+            };
             let cfg = build_config("2.0.0", &env).unwrap();
             assert_eq!(cfg["targets"]["win"]["selectedArchitecture"], "arm64");
-            assert_eq!(cfg["targets"]["win"]["targetTriple"], "aarch64-pc-windows-msvc");
+            assert_eq!(
+                cfg["targets"]["win"]["targetTriple"],
+                "aarch64-pc-windows-msvc"
+            );
         }
 
         #[test]
         fn unsupported_windows_arch_is_rejected() {
-            let env = ConfigEnv { legion_windows_arch: Some("mips".to_string()), ..Default::default() };
+            let env = ConfigEnv {
+                legion_windows_arch: Some("mips".to_string()),
+                ..Default::default()
+            };
             let err = build_config("1.0.0", &env).unwrap_err();
             assert!(err.0.contains("unsupported LEGION_WINDOWS_ARCH: mips"));
         }
 
         #[test]
         fn unsupported_macos_arch_is_rejected() {
-            let env = ConfigEnv { legion_macos_arch: Some("risc".to_string()), ..Default::default() };
+            let env = ConfigEnv {
+                legion_macos_arch: Some("risc".to_string()),
+                ..Default::default()
+            };
             let err = build_config("1.0.0", &env).unwrap_err();
             assert!(err.0.contains("unsupported LEGION_MACOS_ARCH: risc"));
         }
@@ -2085,7 +2133,10 @@ pub mod right_release_config {
         fn mac_artifacts_use_version_and_architecture() {
             let cfg = build_config("9.9.9", &ConfigEnv::default()).unwrap();
             let artifacts = cfg["targets"]["mac"]["artifacts"].as_array().unwrap();
-            assert_eq!(artifacts[0], "dist/releases/mac/9.9.9/arm64/legion-9.9.9-macos-arm64.tar.gz");
+            assert_eq!(
+                artifacts[0],
+                "dist/releases/mac/9.9.9/arm64/legion-9.9.9-macos-arm64.tar.gz"
+            );
         }
 
         #[test]

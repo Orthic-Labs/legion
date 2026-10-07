@@ -23,11 +23,19 @@ pub struct ArcaneError {
 
 impl ArcaneError {
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self { code, message: message.into(), details: None }
+        Self {
+            code,
+            message: message.into(),
+            details: None,
+        }
     }
 
     pub fn with_details(code: &'static str, message: impl Into<String>, details: Value) -> Self {
-        Self { code, message: message.into(), details: Some(details) }
+        Self {
+            code,
+            message: message.into(),
+            details: Some(details),
+        }
     }
 }
 

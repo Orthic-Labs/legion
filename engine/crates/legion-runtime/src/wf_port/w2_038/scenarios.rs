@@ -58,12 +58,17 @@ pub fn compile_scenarios(
     };
 
     for control in get(baseline, "controls").map(arr).unwrap_or(&[]) {
-        let control_id = get(control, "id").and_then(as_str).unwrap_or("").to_string();
+        let control_id = get(control, "id")
+            .and_then(as_str)
+            .unwrap_or("")
+            .to_string();
 
         let templates: Vec<String> = match get(control, "scenarios") {
-            Some(Value::Array(items)) if !items.is_empty() => {
-                items.iter().filter_map(as_str).map(str::to_string).collect()
-            }
+            Some(Value::Array(items)) if !items.is_empty() => items
+                .iter()
+                .filter_map(as_str)
+                .map(str::to_string)
+                .collect(),
             _ => vec![format!("{control_id}.default")],
         };
         let linked: Vec<Option<&Value>> = if journeys.is_empty() {
@@ -78,8 +83,12 @@ pub fn compile_scenarios(
             .filter_map(as_str)
             .map(str::to_string)
             .collect();
-        let providers = get(control, "providers").cloned().unwrap_or_else(|| Value::Array(vec![]));
-        let claim_levels = get(control, "claimLevels").cloned().unwrap_or_else(|| Value::Array(vec![]));
+        let providers = get(control, "providers")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(vec![]));
+        let claim_levels = get(control, "claimLevels")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(vec![]));
         let missing_evidence_effect = get(control, "missingEvidenceEffect")
             .and_then(as_str)
             .unwrap_or("unproven")
@@ -90,7 +99,9 @@ pub fn compile_scenarios(
                 for combination in &matrix {
                     let missing: Vec<String> = required
                         .iter()
-                        .filter(|id| !id.starts_with("provider:") && !available.contains(id.as_str()))
+                        .filter(|id| {
+                            !id.starts_with("provider:") && !available.contains(id.as_str())
+                        })
                         .cloned()
                         .collect();
 
@@ -108,7 +119,9 @@ pub fn compile_scenarios(
                     let invariants = journey
                         .and_then(|j| get(j, "invariants"))
                         .cloned()
-                        .unwrap_or_else(|| Value::Array(vec![Value::str("no-unaccounted-side-effects")]));
+                        .unwrap_or_else(|| {
+                            Value::Array(vec![Value::str("no-unaccounted-side-effects")])
+                        });
 
                     let mut row: BTreeMap<String, Value> = BTreeMap::new();
                     row.insert("id".to_string(), Value::str(id));
@@ -118,7 +131,10 @@ pub fn compile_scenarios(
                         "journeyId".to_string(),
                         journey_id.map(Value::str).unwrap_or(Value::Null),
                     );
-                    row.insert("combination".to_string(), Value::Object(combination.clone()));
+                    row.insert(
+                        "combination".to_string(),
+                        Value::Object(combination.clone()),
+                    );
                     row.insert("providers".to_string(), providers.clone());
                     row.insert(
                         "requiredCapabilities".to_string(),
@@ -139,7 +155,10 @@ pub fn compile_scenarios(
                             "missingCapabilities".to_string(),
                             Value::Array(missing.into_iter().map(Value::str).collect()),
                         );
-                        row.insert("coverageEffect".to_string(), Value::str(missing_evidence_effect.clone()));
+                        row.insert(
+                            "coverageEffect".to_string(),
+                            Value::str(missing_evidence_effect.clone()),
+                        );
                         omitted.push(Value::Object(row));
                     }
                 }
@@ -156,11 +175,18 @@ pub fn compile_scenarios(
     value_map.insert("kind".to_string(), Value::str("legion-scenario-matrix"));
     value_map.insert(
         "axes".to_string(),
-        Value::Object(axes.into_iter().map(|(k, v)| (k, Value::Array(v))).collect()),
+        Value::Object(
+            axes.into_iter()
+                .map(|(k, v)| (k, Value::Array(v)))
+                .collect(),
+        ),
     );
     value_map.insert("scenarios".to_string(), Value::Array(scenarios));
     value_map.insert("omitted".to_string(), Value::Array(omitted));
-    value_map.insert("binding".to_string(), binding.cloned().unwrap_or(Value::Null));
+    value_map.insert(
+        "binding".to_string(),
+        binding.cloned().unwrap_or(Value::Null),
+    );
     value_map.insert("complete".to_string(), Value::Bool(complete));
     let value = Value::Object(value_map);
     let d = digest(&value);
@@ -179,7 +205,10 @@ mod tests {
     fn control(id: &str, evidence: Vec<&str>) -> Value {
         Value::object([
             ("id", Value::str(id)),
-            ("evidence", Value::array(evidence.into_iter().map(Value::str))),
+            (
+                "evidence",
+                Value::array(evidence.into_iter().map(Value::str)),
+            ),
             ("providers", Value::array([])),
             ("claimLevels", Value::array([Value::str("inventory")])),
         ])
@@ -192,12 +221,16 @@ mod tests {
     #[test]
     fn empty_dimensions_produce_mandatory_omission_and_incomplete_result() {
         let baseline = baseline_with(vec![control("c1", vec![])]);
-        let result = compile_scenarios(&baseline, &[], &[], None, &BTreeMap::new(), &[], &[]).unwrap();
+        let result =
+            compile_scenarios(&baseline, &[], &[], None, &BTreeMap::new(), &[], &[]).unwrap();
         assert_eq!(get(&result, "scenarios"), Some(&Value::array([])));
         assert_eq!(get(&result, "complete"), Some(&Value::Bool(false)));
         if let Value::Array(omitted) = get(&result, "omitted").unwrap() {
             assert_eq!(omitted.len(), 1);
-            assert_eq!(get(&omitted[0], "id"), Some(&Value::str("scenario-matrix:dimensions")));
+            assert_eq!(
+                get(&omitted[0], "id"),
+                Some(&Value::str("scenario-matrix:dimensions"))
+            );
         } else {
             panic!("expected omitted array");
         }
@@ -206,10 +239,14 @@ mod tests {
     #[test]
     fn available_evidence_produces_a_scenario_per_dimension_value() {
         let baseline = baseline_with(vec![control("c1", vec!["ev.a"])]);
-        let capabilities = vec![Value::object([("id", Value::str("ev.a")), ("available", Value::Bool(true))])];
+        let capabilities = vec![Value::object([
+            ("id", Value::str("ev.a")),
+            ("available", Value::Bool(true)),
+        ])];
         let mut dims = BTreeMap::new();
         dims.insert("os".to_string(), vec![Value::str("mac"), Value::str("win")]);
-        let result = compile_scenarios(&baseline, &[], &capabilities, None, &dims, &[], &[]).unwrap();
+        let result =
+            compile_scenarios(&baseline, &[], &capabilities, None, &dims, &[], &[]).unwrap();
         if let Value::Array(scenarios) = get(&result, "scenarios").unwrap() {
             assert_eq!(scenarios.len(), 2);
             for s in scenarios {
@@ -230,7 +267,10 @@ mod tests {
         assert_eq!(get(&result, "scenarios"), Some(&Value::array([])));
         if let Value::Array(omitted) = get(&result, "omitted").unwrap() {
             assert_eq!(omitted.len(), 1);
-            assert_eq!(get(&omitted[0], "reason"), Some(&Value::str("missing-capability")));
+            assert_eq!(
+                get(&omitted[0], "reason"),
+                Some(&Value::str("missing-capability"))
+            );
             assert_eq!(
                 get(&omitted[0], "missingCapabilities"),
                 Some(&Value::array([Value::str("ev.missing")]))

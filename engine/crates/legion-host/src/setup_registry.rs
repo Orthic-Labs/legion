@@ -587,10 +587,9 @@ pub fn repair_client_projection(
         .is_some_and(|value| ledger_metadata_matches(value, input));
     let mut repaired = Vec::new();
     let mut preserved = Vec::new();
-    let mut next_files = prior_ledger.as_ref().map_or_else(
-        BTreeMap::new,
-        |value| value.files.clone(),
-    );
+    let mut next_files = prior_ledger
+        .as_ref()
+        .map_or_else(BTreeMap::new, |value| value.files.clone());
     for (relative, (source, source_digest)) in &expected {
         let destination = input.target_root.join(relative);
         let linked_by_this_repair = linked_units_created
@@ -1446,9 +1445,8 @@ impl<S: SetupStore> SetupRegistry<S> {
             // part of default lifecycle request merely because its host
             // directory exists; an operator must select Pi by id.
             .filter(|item| match selector {
-                ClientSelector::AllSupported => client_boundary(&item.client_id).is_some_and(
-                    |profile| !(profile.explicit_only && item.client_id == CLIENT_PI),
-                ),
+                ClientSelector::AllSupported => client_boundary(&item.client_id)
+                    .is_some_and(|profile| !(profile.explicit_only && item.client_id == CLIENT_PI)),
                 ClientSelector::ClientId(_) => true,
             })
             .map(detected)
@@ -1526,10 +1524,9 @@ impl<S: SetupStore> SetupRegistry<S> {
             ));
         }
         let state = self.store.load_state()?;
-        let generation = state.as_ref().map_or_else(
-            || "0".into(),
-            |state| state.migration_generation.clone(),
-        );
+        let generation = state
+            .as_ref()
+            .map_or_else(|| "0".into(), |state| state.migration_generation.clone());
         let mutations = clients
             .iter()
             .map(|client| {
@@ -1764,10 +1761,10 @@ impl<S: SetupStore> SetupRegistry<S> {
         client_id: String,
         generation: String,
     ) -> Result<RuntimeLease, SetupError> {
-        let current = self.store.load_state()?.map_or_else(
-            || "0".into(),
-            |state| state.migration_generation,
-        );
+        let current = self
+            .store
+            .load_state()?
+            .map_or_else(|| "0".into(), |state| state.migration_generation);
         if generation != current {
             return Err(err(
                 SetupErrorCode::RuntimeLeaseActive,
@@ -2205,11 +2202,7 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
         || !install_root.is_dir()
         || !resolved_current_is_active
         || (!installed_path_starts_with(&executable, &current_root)
-            && !windows_localcache_within(
-                &lexical_current_root,
-                &executable,
-                lexical_install_root,
-            ))
+            && !windows_localcache_within(&lexical_current_root, &executable, lexical_install_root))
     {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
@@ -2421,8 +2414,7 @@ fn projection_missing_surfaces(
         missing.push("executableToolSurface".into());
         missing.push("mcpLifecycle".into());
     }
-    if input.projection == "devin-user"
-        && !expected.keys().any(|path| path.starts_with("agents/"))
+    if input.projection == "devin-user" && !expected.keys().any(|path| path.starts_with("agents/"))
     {
         // Devin role exposure lives in its user agents/ directory; without it
         // the projection supplies skills only and roles stay unavailable.
@@ -2561,9 +2553,9 @@ fn devin_hooks_present(home: &Path) -> bool {
         .and_then(|hooks| hooks.as_object())
         .is_some_and(|events| {
             events.values().any(|entries| {
-                entries.as_array().is_some_and(|list| {
-                    list.iter().any(|entry| devin_hook_entry_is_legion(entry))
-                })
+                entries
+                    .as_array()
+                    .is_some_and(|list| list.iter().any(|entry| devin_hook_entry_is_legion(entry)))
             })
         })
 }
@@ -2692,7 +2684,9 @@ fn devin_mcp_descriptor() -> HostDescriptor {
 
 fn host_projection_error(error: HostError) -> SetupError {
     match &error {
-        HostError::HarnessConflict { .. } => err(SetupErrorCode::ConfigOwnershipConflict, error.to_string()),
+        HostError::HarnessConflict { .. } => {
+            err(SetupErrorCode::ConfigOwnershipConflict, error.to_string())
+        }
         _ => err(SetupErrorCode::ConfigParseRefused, error.to_string()),
     }
 }
@@ -2767,7 +2761,9 @@ fn host_registration_diagnosis(input: &ClientProjectionInput, home: &Path) -> St
         CLIENT_CLAUDE | CLIENT_DEVIN => serde_json::from_slice::<serde_json::Value>(&bytes)
             .err()
             .map(|error| error.to_string()),
-        _ => toml::from_str::<toml::Value>(&text).err().map(|error| error.to_string()),
+        _ => toml::from_str::<toml::Value>(&text)
+            .err()
+            .map(|error| error.to_string()),
     };
     let head = text
         .lines()
@@ -2882,8 +2878,8 @@ fn write_devin_hooks(input: &ClientProjectionInput, home: &Path) -> Result<(), S
         .unwrap_or_else(|| "legion-hook".into());
     let mut packaged: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
     if path_exists(&hooks_source)? {
-        let value: serde_json::Value = serde_json::from_slice(&read(&hooks_source)?)
-            .map_err(|error| {
+        let value: serde_json::Value =
+            serde_json::from_slice(&read(&hooks_source)?).map_err(|error| {
                 err(
                     SetupErrorCode::ConfigParseRefused,
                     format!("packaged hooks.json does not parse: {error}"),
@@ -3156,11 +3152,7 @@ fn remove_devin_hooks(home: &Path) -> Result<(), SetupError> {
             list.retain(|entry| !devin_hook_entry_is_legion(entry));
         }
     }
-    hooks_map.retain(|_, entries| {
-        entries
-            .as_array()
-            .is_some_and(|list| !list.is_empty())
-    });
+    hooks_map.retain(|_, entries| entries.as_array().is_some_and(|list| !list.is_empty()));
     let mut bytes = serde_json::to_vec_pretty(&config).map_err(|_| {
         err(
             SetupErrorCode::StateSerializationFailed,
@@ -3187,7 +3179,9 @@ fn projection_claim_path(input: &ClientProjectionInput) -> PathBuf {
         .join(format!("{}.claim.json", input.client_id))
 }
 
-fn read_projection_claim(input: &ClientProjectionInput) -> Result<Option<ClientProjectionClaim>, SetupError> {
+fn read_projection_claim(
+    input: &ClientProjectionInput,
+) -> Result<Option<ClientProjectionClaim>, SetupError> {
     let path = projection_claim_path(input);
     require_contained(&input.state_root, &path)?;
     if !path.exists() {
@@ -3260,8 +3254,7 @@ fn ledger_binding_path_match(
                 return true;
             }
             if let Some(root) = install_root {
-                cfg!(windows)
-                    && windows_localcache_equivalent(ledger_path, input_path, root)
+                cfg!(windows) && windows_localcache_equivalent(ledger_path, input_path, root)
             } else {
                 false
             }
@@ -3607,10 +3600,7 @@ fn ensure_projection_target_safe(
             allowed_target_root_link,
         );
     }
-    ensure_projection_parent_safe_with_allowed_root(
-        &input.target_root,
-        allowed_target_root_link,
-    )?;
+    ensure_projection_parent_safe_with_allowed_root(&input.target_root, allowed_target_root_link)?;
     if path_exists(&input.target_root)? {
         let metadata = fs::symlink_metadata(&input.target_root).map_err(io)?;
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
@@ -3752,8 +3742,7 @@ fn ensure_projection_tree_safe_with_allowed_root(
         && allowed_symlink_root.is_some_and(|allowed| paths_equal(root, allowed));
     if (!allowed_root_symlink && metadata.file_type().is_symlink())
         || (!metadata.is_dir()
-            && !(allowed_root_symlink
-                && fs::metadata(root).is_ok_and(|value| value.is_dir())))
+            && !(allowed_root_symlink && fs::metadata(root).is_ok_and(|value| value.is_dir())))
     {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
@@ -3787,8 +3776,9 @@ fn paths_equal(left: &Path, right: &Path) -> bool {
         // this alias without broadening the accepted path shape.
         (path_starts_with(left, right) && path_starts_with(right, left))
             || match (fs::canonicalize(left), fs::canonicalize(right)) {
-                (Ok(left), Ok(right)) => path_starts_with(&left, &right)
-                    && path_starts_with(&right, &left),
+                (Ok(left), Ok(right)) => {
+                    path_starts_with(&left, &right) && path_starts_with(&right, &left)
+                }
                 _ => false,
             }
     } else {
@@ -4620,9 +4610,11 @@ mod tests {
         );
         assert_eq!(preview.clients[0].fidelity, "Full");
         assert!(preview.clients[0].missing_surfaces.is_empty());
-        assert!(preview.external_qualification.missing_evidence.iter().any(|item| {
-            item == "qualified client evidence: claude-code"
-        }));
+        assert!(preview
+            .external_qualification
+            .missing_evidence
+            .iter()
+            .any(|item| { item == "qualified client evidence: claude-code" }));
         let wrong = PlanConfirmation {
             plan_id: "wrong".into(),
             plan_digest: preview.plan_digest.clone(),
@@ -5038,10 +5030,19 @@ mod tests {
 
         let inspection = inspect_client_projection(&input).unwrap();
         let client_root = inspection.client_root.expect("client root reported");
-        assert_eq!(client_root.declared, home.join(".claude").display().to_string());
+        assert_eq!(
+            client_root.declared,
+            home.join(".claude").display().to_string()
+        );
         assert_eq!(
             client_root.resolved.as_deref(),
-            Some(fs::canonicalize(&relocated).unwrap().display().to_string().as_str())
+            Some(
+                fs::canonicalize(&relocated)
+                    .unwrap()
+                    .display()
+                    .to_string()
+                    .as_str()
+            )
         );
     }
 
@@ -5084,7 +5085,8 @@ mod tests {
         fs::create_dir_all(hooks_source.parent().unwrap()).unwrap();
         let hooks_v1 = br#"{"description":"v1","hooks":{}}"#;
         let hooks_v2 = br#"{"description":"v2","hooks":{"PreToolUse":[{"matcher":"mcp__.*"}]}}"#;
-        let hooks_intermediate = br#"{"description":"v1.5","hooks":{"PreToolUse":[{"matcher":"shell"}]}}"#;
+        let hooks_intermediate =
+            br#"{"description":"v1.5","hooks":{"PreToolUse":[{"matcher":"shell"}]}}"#;
         fs::write(&hooks_source, hooks_v1).unwrap();
 
         repair_client_projection(&input).unwrap();
@@ -5100,7 +5102,10 @@ mod tests {
         let result = repair_client_projection(&input).unwrap();
 
         assert_eq!(result.inspection.state, "current");
-        assert!(result.repaired.iter().any(|path| path.ends_with("hooks.json")));
+        assert!(result
+            .repaired
+            .iter()
+            .any(|path| path.ends_with("hooks.json")));
         assert_eq!(fs::read(&hooks_dest).unwrap(), hooks_v2);
     }
 
@@ -5109,11 +5114,18 @@ mod tests {
         let root = TestRoot::new("claude-native-mcp-manifest");
         let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
         let native = input.source_root.join(".mcp.json");
-        fs::write(&native, br#"{"mcpServers":{"legion":{"command":"legion","args":["serve","--stdio"]}}}"#).unwrap();
+        fs::write(
+            &native,
+            br#"{"mcpServers":{"legion":{"command":"legion","args":["serve","--stdio"]}}}"#,
+        )
+        .unwrap();
 
         let files = projection_source_files(&input).unwrap();
         assert_eq!(files.get(".mcp.json").unwrap().0, native);
-        assert_ne!(files.get(".mcp.json").unwrap().0, files.get("mcp.json").unwrap().0);
+        assert_ne!(
+            files.get(".mcp.json").unwrap().0,
+            files.get("mcp.json").unwrap().0
+        );
     }
 
     #[test]
@@ -5218,8 +5230,7 @@ mod tests {
         let ledger_path = projection_ledger_path(&input);
         let mut value: serde_json::Value =
             serde_json::from_slice(&fs::read(&ledger_path).unwrap()).unwrap();
-        value["files"]["hooks/hooks.json"] =
-            serde_json::Value::String("sha256:deadbeef".into());
+        value["files"]["hooks/hooks.json"] = serde_json::Value::String("sha256:deadbeef".into());
         fs::write(&ledger_path, serde_json::to_vec(&value).unwrap()).unwrap();
 
         let before = inspect_client_projection(&input).unwrap();
@@ -5294,7 +5305,9 @@ mod tests {
             install_root: Some(install_root),
             ..input
         };
-        assert!(read_projection_ledger(&virtualized_input).unwrap().is_some());
+        assert!(read_projection_ledger(&virtualized_input)
+            .unwrap()
+            .is_some());
     }
 
     #[cfg(windows)]

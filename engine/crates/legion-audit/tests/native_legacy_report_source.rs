@@ -28,7 +28,12 @@ fn root(tag: &str) -> PathBuf {
     let nonce = ((SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }));
+        .as_nanos())
+    .wrapping_shl(20)
+        | ({
+            static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+        }));
     let root = std::env::temp_dir().join(format!(
         "legion-report-source-test-{tag}-{}-{nonce}",
         std::process::id()
@@ -95,9 +100,7 @@ fn real_external_tool(root: &PathBuf) -> Arc<dyn legion_provider_sdk::ExternalPr
         legion_effects::ArtifactWriter::new(root),
         policy,
     );
-    Arc::new(
-        legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects),
-    )
+    Arc::new(legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects))
 }
 
 fn provider(
@@ -109,10 +112,15 @@ fn provider(
     let _ = inventory;
     plan.providers()
         .iter()
-        .find(|provider| provider.id == id && provider.configuration.get("runner")
-            .and_then(|runner| runner.get("check"))
-            .and_then(serde_json::Value::as_str)
-            == Some(check))
+        .find(|provider| {
+            provider.id == id
+                && provider
+                    .configuration
+                    .get("runner")
+                    .and_then(|runner| runner.get("check"))
+                    .and_then(serde_json::Value::as_str)
+                    == Some(check)
+        })
         .cloned()
         .expect("provider present in frozen plan")
 }
@@ -141,7 +149,12 @@ fn cargo_deny_diagnostics_are_read_from_stderr() {
         "cargo_deny",
         "candidate-generator",
     );
-    let provider = provider(&inventory, &plan, "legacy.security.rust-policy", "cargo_deny");
+    let provider = provider(
+        &inventory,
+        &plan,
+        "legacy.security.rust-policy",
+        "cargo_deny",
+    );
     let registry =
         NativeProviderRegistry::new(&root).with_external_project_tool(real_external_tool(&root));
     let result = tokio::runtime::Runtime::new()
@@ -213,7 +226,12 @@ fn jscpd_report_is_read_from_its_output_file() {
         "duplication",
         "deterministic",
     );
-    let provider = provider(&inventory, &plan, "legacy.quality.duplication", "duplication");
+    let provider = provider(
+        &inventory,
+        &plan,
+        "legacy.quality.duplication",
+        "duplication",
+    );
     let registry =
         NativeProviderRegistry::new(&root).with_external_project_tool(real_external_tool(&root));
     let result = tokio::runtime::Runtime::new()
@@ -236,7 +254,9 @@ fn jscpd_report_is_read_from_its_output_file() {
     assert_eq!(receipt["state"], "completed");
     let report = &receipt["report"];
     assert!(
-        report["digest"].as_str().is_some_and(|d| d.starts_with("sha256:")),
+        report["digest"]
+            .as_str()
+            .is_some_and(|d| d.starts_with("sha256:")),
         "expected a digested report artifact in the receipt: {receipt:?}"
     );
     assert_eq!(
@@ -254,6 +274,9 @@ fn jscpd_report_is_read_from_its_output_file() {
                 .to_string_lossy()
                 .starts_with("legion-audit-report-duplication-")
         });
-    assert!(!leftovers, "report temp dir must be cleaned up after the run");
+    assert!(
+        !leftovers,
+        "report temp dir must be cleaned up after the run"
+    );
     fs::remove_dir_all(&root).ok();
 }

@@ -323,12 +323,7 @@ fn js_licenses(value: &Value) -> ParseOutcome {
             flagged += 1;
         }
     }
-    ParseOutcome::ok(
-        "legacy.js_licenses.license-checker",
-        "high",
-        Some(flagged),
-    )
-    .with_meta(vec![
+    ParseOutcome::ok("legacy.js_licenses.license-checker", "high", Some(flagged)).with_meta(vec![
         ("totalDeps", Value::from(total)),
         ("copyleft", Value::from(flagged)),
     ])
@@ -339,14 +334,14 @@ fn js_licenses(value: &Value) -> ParseOutcome {
 // Explicit rule: count === null -> status 'error' ("scan not proven"), same class as secrets.
 fn deps_cve(value: &Value) -> ParseOutcome {
     let vulnerabilities = value.get("metadata").and_then(|m| m.get("vulnerabilities"));
-    let count = vulnerabilities.and_then(|v| v.get("total")).and_then(Value::as_u64).or_else(|| {
-        vulnerabilities.and_then(Value::as_object).map(|object| {
-            object
-                .values()
-                .filter_map(Value::as_u64)
-                .sum::<u64>()
-        })
-    });
+    let count = vulnerabilities
+        .and_then(|v| v.get("total"))
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            vulnerabilities
+                .and_then(Value::as_object)
+                .map(|object| object.values().filter_map(Value::as_u64).sum::<u64>())
+        });
     match count {
         Some(count) => ParseOutcome::ok("legacy.deps_cve.audit", "critical", Some(count)),
         None => ParseOutcome::malformed("legacy.deps_cve.audit", "critical"),
@@ -360,12 +355,7 @@ fn py_deps_cve(value: &Value) -> ParseOutcome {
     let deps = value
         .as_array()
         .cloned()
-        .or_else(|| {
-            value
-                .get("dependencies")
-                .and_then(Value::as_array)
-                .cloned()
-        });
+        .or_else(|| value.get("dependencies").and_then(Value::as_array).cloned());
     let count = deps.map(|deps| {
         deps.iter()
             .map(|dep| {
@@ -429,9 +419,14 @@ fn cargo_machete(text: &str) -> ParseOutcome {
         .filter(|line| {
             let indented = line.starts_with(' ') || line.starts_with('\t');
             let has_content = !line.trim().is_empty();
-            let is_header = ["Analyzing", "If you", "cargo-machete", "found the following"]
-                .iter()
-                .any(|needle| line.contains(needle));
+            let is_header = [
+                "Analyzing",
+                "If you",
+                "cargo-machete",
+                "found the following",
+            ]
+            .iter()
+            .any(|needle| line.contains(needle));
             indented && has_content && !is_header
         })
         .count() as u64;
@@ -470,10 +465,8 @@ fn outdated(value: &Value) -> ParseOutcome {
         .values()
         .filter(|entry| major_behind(entry, "current", "latest"))
         .count() as u64;
-    ParseOutcome::ok("legacy.outdated.pkg-mgr", "low", Some(total)).with_meta(vec![(
-        "majorsBehind",
-        Value::from(majors),
-    )])
+    ParseOutcome::ok("legacy.outdated.pkg-mgr", "low", Some(total))
+        .with_meta(vec![("majorsBehind", Value::from(majors))])
 }
 
 // ---------- cargo_outdated (cargo outdated --format json --root-deps-only) ----------
@@ -532,7 +525,9 @@ fn debt_markers(text: &str) -> ParseOutcome {
         .iter()
         .filter(|l| {
             let lower = l.to_ascii_lowercase();
-            !(lower.contains("upgrade") || lower.contains("ceiling") || contains_word_ci(&lower, "if"))
+            !(lower.contains("upgrade")
+                || lower.contains("ceiling")
+                || contains_word_ci(&lower, "if"))
         })
         .count() as u64;
     let todos = lines
@@ -595,10 +590,7 @@ mod tests {
     // from each tool's documented JSON/text output shape.
     macro_rules! fixture {
         ($name:literal) => {
-            include_str!(concat!(
-                "../../../tests/fixtures/legacy_parse/",
-                $name
-            ))
+            include_str!(concat!("../../../tests/fixtures/legacy_parse/", $name))
         };
     }
 
@@ -630,7 +622,8 @@ mod tests {
 
     #[test]
     fn biome_counts_diagnostics_array() {
-        let outcome = lint_json(&json(fixture!("biome-lint-output.json"))).expect("biome shape recognized");
+        let outcome =
+            lint_json(&json(fixture!("biome-lint-output.json"))).expect("biome shape recognized");
         assert_eq!(outcome.rule, "legacy.lint.biome");
         assert_eq!(outcome.findings_count, Some(2));
     }
@@ -666,7 +659,8 @@ mod tests {
 
     #[test]
     fn actionlint_counts_top_level_array() {
-        let value = json(r#"[{"message":"shellcheck reported issue"},{"message":"unpinned action"}]"#);
+        let value =
+            json(r#"[{"message":"shellcheck reported issue"},{"message":"unpinned action"}]"#);
         let outcome = actionlint(&value);
         assert_eq!(outcome.findings_count, Some(2));
     }

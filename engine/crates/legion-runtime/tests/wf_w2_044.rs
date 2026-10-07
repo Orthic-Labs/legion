@@ -12,7 +12,12 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn git(dir: &std::path::Path, args: &[&str]) {
-    let status = Command::new("git").arg("-C").arg(dir).args(args).status().unwrap();
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .status()
+        .unwrap();
     assert!(status.success(), "git {args:?} failed");
 }
 
@@ -85,8 +90,7 @@ fn enforce_cheap_review_routing_tests() {
     let path = fixture(&dir);
 
     // CHEAP_STRICT + strict passes.
-    let packet: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let packet: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     let errors = routing_errors(&packet, &path);
     assert!(errors.is_empty(), "{errors:?}");
 
@@ -96,7 +100,10 @@ fn enforce_cheap_review_routing_tests() {
     std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
     let errors = routing_errors(&value, &path);
     assert_eq!(errors.len(), 1, "{errors:?}");
-    assert!(errors[0].contains("CHEAP_STRICT requires strict"), "{errors:?}");
+    assert!(
+        errors[0].contains("CHEAP_STRICT requires strict"),
+        "{errors:?}"
+    );
 
     // Missing routingRationale fails on the base authority-packet check.
     let mut value = value;
@@ -107,7 +114,9 @@ fn enforce_cheap_review_routing_tests() {
     std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
     let errors = routing_errors(&value, &path);
     assert!(
-        errors.iter().any(|e| e.contains("modelTier, workerProfile, routingRationale")),
+        errors
+            .iter()
+            .any(|e| e.contains("modelTier, workerProfile, routingRationale")),
         "{errors:?}"
     );
 
@@ -125,7 +134,8 @@ fn tasklist_tests() {
     let mut value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     value["modelRouting"]["modelTier"] = serde_json::json!("FRONTIER");
-    value["modelRouting"]["routingRationale"] = serde_json::json!("material ownership adjudication");
+    value["modelRouting"]["routingRationale"] =
+        serde_json::json!("material ownership adjudication");
     std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
 
     let result = validate_and_write_receipt(&path, None).unwrap();
@@ -146,12 +156,17 @@ fn tasklist_tests() {
     let result = validate_and_write_receipt(&path, None).unwrap();
     match result {
         TasklistResult::Fail { errors } => assert!(
-            errors.iter().any(|e| e.contains("modelTier, workerProfile, routingRationale")),
+            errors
+                .iter()
+                .any(|e| e.contains("modelTier, workerProfile, routingRationale")),
             "{errors:?}"
         ),
         TasklistResult::Pass { .. } => panic!("expected failure"),
     }
-    assert!(!receipt_path.exists(), "receipt must not be written on failure");
+    assert!(
+        !receipt_path.exists(),
+        "receipt must not be written on failure"
+    );
 
     std::fs::remove_dir_all(&dir).ok();
 }

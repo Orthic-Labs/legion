@@ -38,7 +38,11 @@ pub struct EngineDispatch {
 }
 
 pub fn build_dispatch(verb: QaVerb, repo_root: &str, extra_args: &[String]) -> EngineDispatch {
-    let engine_path = format!("{}/{}", repo_root.trim_end_matches('/'), verb.engine_relative_path());
+    let engine_path = format!(
+        "{}/{}",
+        repo_root.trim_end_matches('/'),
+        verb.engine_relative_path()
+    );
     let mut args = vec![engine_path];
     args.extend(extra_args.iter().cloned());
     EngineDispatch {
@@ -59,8 +63,14 @@ mod tests {
 
     #[test]
     fn each_verb_resolves_to_its_engine_script() {
-        assert_eq!(QaVerb::Qa.engine_relative_path(), "src/lib/qa-engine/qa.mjs");
-        assert_eq!(QaVerb::QaShot.engine_relative_path(), "src/lib/qa-engine/qa-shot.mjs");
+        assert_eq!(
+            QaVerb::Qa.engine_relative_path(),
+            "src/lib/qa-engine/qa.mjs"
+        );
+        assert_eq!(
+            QaVerb::QaShot.engine_relative_path(),
+            "src/lib/qa-engine/qa-shot.mjs"
+        );
         assert_eq!(
             QaVerb::QaFunctional.engine_relative_path(),
             "src/lib/qa-engine/qa-functional.mjs"

@@ -12,13 +12,16 @@ use std::sync::LazyLock;
 use crate::wf_port::wf052::contracts::stable_id;
 use crate::wf_port::wf055::common::{entity, relation};
 
-static FILE_PATH_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\.env|config\.|plugin|hook|mcp|skill|extension|\.agent/").expect("valid regex"));
+static FILE_PATH_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\.env|config\.|plugin|hook|mcp|skill|extension|\.agent/").expect("valid regex")
+});
 static TEXT_MARKER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\.env|loadConfig|plugin|hook|mcp").expect("valid regex"));
-static EXEC_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?:exec|spawn|child_process|Command::new|subprocess)").expect("valid regex"));
-static UPDATER_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"updater|autoUpdater|update").expect("valid regex"));
+static EXEC_MARKER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:exec|spawn|child_process|Command::new|subprocess)").expect("valid regex")
+});
+static UPDATER_MARKER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"updater|autoUpdater|update").expect("valid regex"));
 
 #[derive(Default, Clone)]
 pub struct NativeWorkspaceExtraction {
@@ -130,7 +133,11 @@ mod tests {
     fn env_file_path_alone_produces_workspace_config_and_loads_relation() {
         let out = extract_native_workspace(&[(".env".into(), "SECRET=1".into())]);
         assert_eq!(out.entities.len(), 2);
-        let entrypoint = out.entities.iter().find(|e| e["kind"] == "entrypoint").expect("entrypoint present");
+        let entrypoint = out
+            .entities
+            .iter()
+            .find(|e| e["kind"] == "entrypoint")
+            .expect("entrypoint present");
         assert_eq!(entrypoint["attributes"]["entrypointType"], "workspace-open");
         let artifact = out
             .entities
@@ -144,20 +151,33 @@ mod tests {
 
     #[test]
     fn text_marker_alone_without_matching_file_path_also_triggers_workspace_config() {
-        let out = extract_native_workspace(&[("src/setup.js".into(), "loadConfig('./settings.json')".into())]);
+        let out = extract_native_workspace(&[(
+            "src/setup.js".into(),
+            "loadConfig('./settings.json')".into(),
+        )]);
         assert!(out.entities.iter().any(|e| e["kind"] == "entrypoint"));
     }
 
     #[test]
     fn process_execution_sink_detected() {
-        let out = extract_native_workspace(&[("src/runner.js".into(), "child_process.exec('ls')".into())]);
-        let sink = out.entities.iter().find(|e| e["kind"] == "sink").expect("sink present");
+        let out = extract_native_workspace(&[(
+            "src/runner.js".into(),
+            "child_process.exec('ls')".into(),
+        )]);
+        let sink = out
+            .entities
+            .iter()
+            .find(|e| e["kind"] == "sink")
+            .expect("sink present");
         assert_eq!(sink["attributes"]["sinkKind"], "process");
     }
 
     #[test]
     fn updater_config_detected() {
-        let out = extract_native_workspace(&[("src/updater.js".into(), "autoUpdater.checkForUpdates()".into())]);
+        let out = extract_native_workspace(&[(
+            "src/updater.js".into(),
+            "autoUpdater.checkForUpdates()".into(),
+        )]);
         let asset = out
             .entities
             .iter()
@@ -174,12 +194,18 @@ mod tests {
         )]);
         assert!(out.entities.iter().any(|e| e["kind"] == "entrypoint"));
         assert!(out.entities.iter().any(|e| e["kind"] == "sink"));
-        assert!(out.entities.iter().any(|e| e["attributes"]["assetKind"] == "updater"));
+        assert!(out
+            .entities
+            .iter()
+            .any(|e| e["attributes"]["assetKind"] == "updater"));
     }
 
     #[test]
     fn irrelevant_file_produces_nothing() {
-        let out = extract_native_workspace(&[("src/math.js".into(), "export const add = (a, b) => a + b;".into())]);
+        let out = extract_native_workspace(&[(
+            "src/math.js".into(),
+            "export const add = (a, b) => a + b;".into(),
+        )]);
         assert!(out.entities.is_empty());
         assert!(out.relations.is_empty());
         assert!(out.evidence.is_empty());

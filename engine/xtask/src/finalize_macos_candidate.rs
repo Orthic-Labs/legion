@@ -61,7 +61,11 @@ fn assert_below(path: &Path, root: &Path, label: &str) -> Result<PathBuf, String
 /// Exposed so tests can wrap it (record the call, then still perform it) the
 /// same way the JS test's `commandRunner` wraps real `spawnSync`.
 pub fn real_run_tar(args: &[String], cwd: &Path) -> Result<(i32, String, String), String> {
-    let output = Command::new("tar").args(args).current_dir(cwd).output().map_err(|e| e.to_string())?;
+    let output = Command::new("tar")
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .map_err(|e| e.to_string())?;
     Ok((
         output.status.code().unwrap_or(-1),
         String::from_utf8_lossy(&output.stdout).to_string(),
@@ -78,12 +82,20 @@ pub struct MacosFinalizeDeps<'a> {
 
 impl<'a> Default for MacosFinalizeDeps<'a> {
     fn default() -> Self {
-        Self { run_tar: Box::new(|args, cwd| real_run_tar(args, cwd)) }
+        Self {
+            run_tar: Box::new(|args, cwd| real_run_tar(args, cwd)),
+        }
     }
 }
 
-fn assert_safe_archive_entries(archive: &Path, run_tar: &mut dyn FnMut(&[String], &Path) -> Result<(i32, String, String), String>) -> Result<(), String> {
-    let args = vec!["-tzf".to_string(), archive.file_name().unwrap().to_string_lossy().to_string()];
+fn assert_safe_archive_entries(
+    archive: &Path,
+    run_tar: &mut dyn FnMut(&[String], &Path) -> Result<(i32, String, String), String>,
+) -> Result<(), String> {
+    let args = vec![
+        "-tzf".to_string(),
+        archive.file_name().unwrap().to_string_lossy().to_string(),
+    ];
     let (status, stdout, stderr) = run_tar(&args, archive.parent().unwrap())?;
     if status != 0 {
         let msg = if !stderr.is_empty() { stderr } else { stdout };
@@ -96,7 +108,11 @@ fn assert_safe_archive_entries(archive: &Path, run_tar: &mut dyn FnMut(&[String]
         }
         let entry = raw.strip_prefix("./").unwrap_or(raw);
         let windows_drive = Regex::new(r"^[A-Za-z]:").unwrap();
-        if entry.is_empty() || entry.starts_with('/') || windows_drive.is_match(entry) || entry.split('/').any(|seg| seg == "..") {
+        if entry.is_empty()
+            || entry.starts_with('/')
+            || windows_drive.is_match(entry)
+            || entry.split('/').any(|seg| seg == "..")
+        {
             return Err(format!("unsafe candidate archive entry: {raw}"));
         }
     }
@@ -109,12 +125,18 @@ fn assert_safe_tree(root: &Path, directory: &Path) -> Result<(), String> {
         let path = entry.path();
         let meta = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
         if meta.file_type().is_symlink() {
-            return Err(format!("candidate archive contains symlink: {}", path.strip_prefix(root).unwrap().display()));
+            return Err(format!(
+                "candidate archive contains symlink: {}",
+                path.strip_prefix(root).unwrap().display()
+            ));
         }
         if meta.is_dir() {
             assert_safe_tree(root, &path)?;
         } else if !meta.is_file() {
-            return Err(format!("candidate archive contains non-file: {}", path.strip_prefix(root).unwrap().display()));
+            return Err(format!(
+                "candidate archive contains non-file: {}",
+                path.strip_prefix(root).unwrap().display()
+            ));
         }
     }
     Ok(())
@@ -124,11 +146,17 @@ fn find_release_root(extracted: &Path) -> Result<PathBuf, String> {
     let mut candidates = vec![extracted.to_path_buf()];
     for entry in fs::read_dir(extracted).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
-        if fs::symlink_metadata(entry.path()).map(|m| m.is_dir()).unwrap_or(false) {
+        if fs::symlink_metadata(entry.path())
+            .map(|m| m.is_dir())
+            .unwrap_or(false)
+        {
             candidates.push(entry.path());
         }
     }
-    let matches: Vec<_> = candidates.into_iter().filter(|p| p.join("bin/legion").exists()).collect();
+    let matches: Vec<_> = candidates
+        .into_iter()
+        .filter(|p| p.join("bin/legion").exists())
+        .collect();
     if matches.len() != 1 {
         return Err("candidate archive must contain exactly one Legion release root".to_string());
     }
@@ -173,14 +201,31 @@ pub struct PrepareArgs {
     pub receipt_path: Option<PathBuf>,
 }
 
-pub fn prepare_macos_candidate_finalization(repository_root: &Path, args: PrepareArgs) -> Result<Value, String> {
-    prepare_macos_candidate_finalization_with(repository_root, args, &mut MacosFinalizeDeps::default())
+pub fn prepare_macos_candidate_finalization(
+    repository_root: &Path,
+    args: PrepareArgs,
+) -> Result<Value, String> {
+    prepare_macos_candidate_finalization_with(
+        repository_root,
+        args,
+        &mut MacosFinalizeDeps::default(),
+    )
 }
 
-pub fn prepare_macos_candidate_finalization_with(repository_root: &Path, args: PrepareArgs, deps: &mut MacosFinalizeDeps) -> Result<Value, String> {
-    let candidate_root = args.candidate_root.ok_or("LEGION_UNSIGNED_CANDIDATE_ROOT or --candidate is required")?;
+pub fn prepare_macos_candidate_finalization_with(
+    repository_root: &Path,
+    args: PrepareArgs,
+    deps: &mut MacosFinalizeDeps,
+) -> Result<Value, String> {
+    let candidate_root = args
+        .candidate_root
+        .ok_or("LEGION_UNSIGNED_CANDIDATE_ROOT or --candidate is required")?;
     let output_root = args.output_root.ok_or("--output is required")?;
-    let output = assert_below(&output_root, &repository_root.join("dist/native"), "candidate extraction output")?;
+    let output = assert_below(
+        &output_root,
+        &repository_root.join("dist/native"),
+        "candidate extraction output",
+    )?;
     let checked = prepare_unsigned_candidate::check_unsigned_candidate(
         repository_root,
         CheckArgs {
@@ -191,7 +236,12 @@ pub fn prepare_macos_candidate_finalization_with(repository_root: &Path, args: P
             version: args.version.clone(),
         },
     )?;
-    let archive = PathBuf::from(checked.get("archive").and_then(|v| v.as_str()).unwrap_or_default());
+    let archive = PathBuf::from(
+        checked
+            .get("archive")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default(),
+    );
     assert_safe_archive_entries(&archive, deps.run_tar.as_mut())?;
 
     let pid = std::process::id();
@@ -211,7 +261,10 @@ pub fn prepare_macos_candidate_finalization_with(repository_root: &Path, args: P
         assert_safe_tree(&staging, &staging)?;
         let release_root = find_release_root(&staging)?;
         if output.exists() {
-            return Err(format!("candidate extraction output already exists: {}", output.display()));
+            return Err(format!(
+                "candidate extraction output already exists: {}",
+                output.display()
+            ));
         }
         copy_dir_recursive(&release_root, &output).map_err(|e| e.to_string())?;
         Ok(())
@@ -236,7 +289,11 @@ pub fn prepare_macos_candidate_finalization_with(repository_root: &Path, args: P
         if let Some(parent) = receipt_path.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
-        fs::write(receipt_path, format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap())).map_err(|e| e.to_string())?;
+        fs::write(
+            receipt_path,
+            format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap()),
+        )
+        .map_err(|e| e.to_string())?;
     }
     receipt["receipt"] = match &args.receipt_path {
         Some(p) => Value::String(p.display().to_string()),
@@ -250,7 +307,11 @@ fn pathdiff_lexical(from: &Path, to: &Path) -> String {
     let to = normalize_lexical(to);
     let from_c: Vec<_> = from.components().collect();
     let to_c: Vec<_> = to.components().collect();
-    let common = from_c.iter().zip(to_c.iter()).take_while(|(a, b)| a == b).count();
+    let common = from_c
+        .iter()
+        .zip(to_c.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
     let mut parts: Vec<String> = Vec::new();
     for _ in common..from_c.len() {
         parts.push("..".to_string());
@@ -301,7 +362,9 @@ pub struct MacosPackageDeps<'a> {
 /// `Default` impl).
 fn real_macos_package_deps(repository_root: &Path) -> MacosPackageDeps<'_> {
     MacosPackageDeps {
-        create_archive: Box::new(|root, src, out| rightkit_release_bridge::create_portable_archive(root, src, out)),
+        create_archive: Box::new(|root, src, out| {
+            rightkit_release_bridge::create_portable_archive(root, src, out)
+        }),
         rebind: Box::new(move |req| {
             assemble_native_release::run(
                 repository_root,
@@ -329,8 +392,15 @@ fn real_macos_package_deps(repository_root: &Path) -> MacosPackageDeps<'_> {
                 .output()
                 .map_err(|e| e.to_string())?;
             if !zipped.status.success() {
-                let msg = if !zipped.stderr.is_empty() { zipped.stderr } else { zipped.stdout };
-                return Err(format!("notarization archive failed: {}", String::from_utf8_lossy(&msg).trim()));
+                let msg = if !zipped.stderr.is_empty() {
+                    zipped.stderr
+                } else {
+                    zipped.stdout
+                };
+                return Err(format!(
+                    "notarization archive failed: {}",
+                    String::from_utf8_lossy(&msg).trim()
+                ));
             }
             Ok(())
         }),
@@ -342,14 +412,36 @@ pub fn package_macos_candidate(repository_root: &Path, args: PackageArgs) -> Res
     package_macos_candidate_with(repository_root, args, &mut deps)
 }
 
-pub fn package_macos_candidate_with(repository_root: &Path, args: PackageArgs, deps: &mut MacosPackageDeps) -> Result<Value, String> {
-    let input = assert_below(&args.input_root, &repository_root.join("dist/native"), "signed macOS input")?;
-    let output = assert_below(&args.output_root, &repository_root.join("dist/releases/mac"), "signed macOS output")?;
-    let notary_zip = assert_below(&args.notarization_archive, &repository_root.join(".right-release/notary"), "notarization archive")?;
-    if !Regex::new(r"^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$").unwrap().is_match(&args.version) {
+pub fn package_macos_candidate_with(
+    repository_root: &Path,
+    args: PackageArgs,
+    deps: &mut MacosPackageDeps,
+) -> Result<Value, String> {
+    let input = assert_below(
+        &args.input_root,
+        &repository_root.join("dist/native"),
+        "signed macOS input",
+    )?;
+    let output = assert_below(
+        &args.output_root,
+        &repository_root.join("dist/releases/mac"),
+        "signed macOS output",
+    )?;
+    let notary_zip = assert_below(
+        &args.notarization_archive,
+        &repository_root.join(".right-release/notary"),
+        "notarization archive",
+    )?;
+    if !Regex::new(r"^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$")
+        .unwrap()
+        .is_match(&args.version)
+    {
         return Err("stable version is required".to_string());
     }
-    if !Regex::new(r"(?i)^[a-f0-9]{40,64}$").unwrap().is_match(&args.source_revision) {
+    if !Regex::new(r"(?i)^[a-f0-9]{40,64}$")
+        .unwrap()
+        .is_match(&args.source_revision)
+    {
         return Err("source revision is required".to_string());
     }
     executable_records(&input)?;
@@ -360,19 +452,33 @@ pub fn package_macos_candidate_with(repository_root: &Path, args: PackageArgs, d
     // Windows does through nativeAssembly.finalizer, before anything is
     // archived.
     let signed_runtime = sha256_file(&input.join("bin/legion"))?;
-    let target = if args.architecture == "arm64" { "aarch64-apple-darwin".to_string() } else { "x86_64-apple-darwin".to_string() };
-    let provenance = format!("rightkit-release://macos-{}/{signed_runtime}", args.architecture);
+    let target = if args.architecture == "arm64" {
+        "aarch64-apple-darwin".to_string()
+    } else {
+        "x86_64-apple-darwin".to_string()
+    };
+    let provenance = format!(
+        "rightkit-release://macos-{}/{signed_runtime}",
+        args.architecture
+    );
     let bin_dir = input.join("bin");
     let rebind_request = RebindRequest {
         args: vec![
-            "--profile".to_string(), "release".to_string(),
-            "--platform".to_string(), "macos".to_string(),
-            "--architecture".to_string(), args.architecture.clone(),
-            "--target".to_string(), target.clone(),
-            "--out".to_string(), input.display().to_string(),
-            "--bin-dir".to_string(), bin_dir.display().to_string(),
+            "--profile".to_string(),
+            "release".to_string(),
+            "--platform".to_string(),
+            "macos".to_string(),
+            "--architecture".to_string(),
+            args.architecture.clone(),
+            "--target".to_string(),
+            target.clone(),
+            "--out".to_string(),
+            input.display().to_string(),
+            "--bin-dir".to_string(),
+            bin_dir.display().to_string(),
             "--finalize-signed".to_string(),
-            "--provenance".to_string(), provenance.clone(),
+            "--provenance".to_string(),
+            provenance.clone(),
         ],
         platform: "macos".to_string(),
         architecture: args.architecture.clone(),
@@ -383,11 +489,19 @@ pub fn package_macos_candidate_with(repository_root: &Path, args: PackageArgs, d
     };
     (deps.rebind)(&rebind_request)?;
 
-    let bound: Value = serde_json::from_str(&fs::read_to_string(input.join("share/legion/release.json")).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
-    let bound_runtime = bound.get("runtime").and_then(|r| r.get("sha256")).and_then(|v| v.as_str()).unwrap_or_default();
+    let bound: Value = serde_json::from_str(
+        &fs::read_to_string(input.join("share/legion/release.json")).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    let bound_runtime = bound
+        .get("runtime")
+        .and_then(|r| r.get("sha256"))
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
     if bound_runtime != signed_runtime {
-        return Err(format!("signed macOS release.json binds {bound_runtime}, runtime is {signed_runtime}"));
+        return Err(format!(
+            "signed macOS release.json binds {bound_runtime}, runtime is {signed_runtime}"
+        ));
     }
 
     fs::create_dir_all(&output).map_err(|e| e.to_string())?;
@@ -401,13 +515,21 @@ pub fn package_macos_candidate_with(repository_root: &Path, args: PackageArgs, d
 
     (deps.run_ditto)(&input, &notary_zip)?;
     if !notary_zip.is_file() {
-        return Err(format!("notarization archive missing: {}", notary_zip.display()));
+        return Err(format!(
+            "notarization archive missing: {}",
+            notary_zip.display()
+        ));
     }
 
     let created_at = std::time::SystemTime::now();
     let created_at_iso = {
-        let dur = created_at.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
-        crate::prepare_unsigned_candidate::iso8601_utc_millis(dur.as_secs() as i64, dur.subsec_millis())
+        let dur = created_at
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
+        crate::prepare_unsigned_candidate::iso8601_utc_millis(
+            dur.as_secs() as i64,
+            dur.subsec_millis(),
+        )
     };
     let signed_archive = json!({
         "name": archive.file_name().unwrap().to_string_lossy(),
@@ -461,14 +583,23 @@ mod tests {
     #[test]
     fn assert_below_rejects_output_outside_dist_native() {
         let root = Path::new("/tmp/legion-repo");
-        let err = assert_below(Path::new("/tmp/elsewhere"), &root.join("dist/native"), "candidate extraction output").unwrap_err();
+        let err = assert_below(
+            Path::new("/tmp/elsewhere"),
+            &root.join("dist/native"),
+            "candidate extraction output",
+        )
+        .unwrap_err();
         assert!(err.contains("must be below"));
     }
 
     #[test]
     fn assert_below_accepts_nested_output() {
         let root = Path::new("/tmp/legion-repo");
-        let ok = assert_below(&root.join("dist/native/macos-arm64/legion-0.1.0"), &root.join("dist/native"), "candidate extraction output");
+        let ok = assert_below(
+            &root.join("dist/native/macos-arm64/legion-0.1.0"),
+            &root.join("dist/native"),
+            "candidate extraction output",
+        );
         assert!(ok.is_ok());
     }
 
@@ -485,11 +616,18 @@ mod tests {
     /// `@rightkit/release` bridge, real SBOM/provenance) the way
     /// `prepare_unsigned_candidate` fixtures do, so the finalization tests
     /// below have a real `.tar.gz` to extract.
-    fn build_unsigned_macos_candidate(repository_root: &Path, input: &Path, output_root: &Path, binaries: &[&str], source_revision: &str) -> Value {
+    fn build_unsigned_macos_candidate(
+        repository_root: &Path,
+        input: &Path,
+        output_root: &Path,
+        binaries: &[&str],
+        source_revision: &str,
+    ) -> Value {
         fs::create_dir_all(repository_root.join("release")).unwrap();
         fs::write(
             repository_root.join("release/version.json"),
-            json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": "0.1.0" }).to_string(),
+            json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": "0.1.0" })
+                .to_string(),
         )
         .unwrap();
         fs::create_dir_all(input.join("bin")).unwrap();
@@ -526,9 +664,16 @@ mod tests {
         let receipt_path = repository_root.join(".right-release/receipts/macos-candidate.json");
         let source_revision = "c".repeat(40);
 
-        let candidate = build_unsigned_macos_candidate(&repository_root, &input, &output_root, &["legion", "legion-hook", "legion-mcp"], &source_revision);
+        let candidate = build_unsigned_macos_candidate(
+            &repository_root,
+            &input,
+            &output_root,
+            &["legion", "legion-hook", "legion-mcp"],
+            &source_revision,
+        );
 
-        let captured: std::rc::Rc<std::cell::RefCell<Option<(Vec<String>, PathBuf)>>> = std::rc::Rc::new(std::cell::RefCell::new(None));
+        let captured: std::rc::Rc<std::cell::RefCell<Option<(Vec<String>, PathBuf)>>> =
+            std::rc::Rc::new(std::cell::RefCell::new(None));
         let captured_clone = captured.clone();
         let mut deps = MacosFinalizeDeps {
             run_tar: Box::new(move |args, cwd| {
@@ -553,13 +698,27 @@ mod tests {
         .unwrap();
 
         assert_eq!(result["candidateArchiveSha256"], candidate["archiveSha256"]);
-        let files: Vec<String> = result["files"].as_array().unwrap().iter().map(|f| f["file"].as_str().unwrap().to_string()).collect();
-        assert_eq!(files, vec!["bin/legion", "bin/legion-hook", "bin/legion-mcp"]);
-        let receipt: Value = serde_json::from_str(&fs::read_to_string(&receipt_path).unwrap()).unwrap();
-        assert_eq!(receipt["candidateArchiveSha256"], candidate["archiveSha256"]);
+        let files: Vec<String> = result["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f["file"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            files,
+            vec!["bin/legion", "bin/legion-hook", "bin/legion-mcp"]
+        );
+        let receipt: Value =
+            serde_json::from_str(&fs::read_to_string(&receipt_path).unwrap()).unwrap();
+        assert_eq!(
+            receipt["candidateArchiveSha256"],
+            candidate["archiveSha256"]
+        );
 
         let captured = captured.borrow();
-        let (args, cwd) = captured.as_ref().expect("extraction must have been invoked");
+        let (args, cwd) = captured
+            .as_ref()
+            .expect("extraction must have been invoked");
         assert!(!args.contains(&"-C".to_string()));
         assert!(!Regex::new(r"^[A-Za-z]:").unwrap().is_match(&args[1]));
         assert!(cwd.to_string_lossy().contains("candidate-extract"));
@@ -587,7 +746,8 @@ mod tests {
             fs::write(input.join("bin").join(name), format!("signed-{name}\n")).unwrap();
         }
 
-        let rebinds: std::rc::Rc<std::cell::RefCell<Vec<RebindRequest>>> = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let rebinds: std::rc::Rc<std::cell::RefCell<Vec<RebindRequest>>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
         let rebinds_clone = rebinds.clone();
         let input_for_rebind = input.clone();
         let mut deps = MacosPackageDeps {
@@ -597,7 +757,8 @@ mod tests {
                 Ok(json!({ "path": out.to_string_lossy() }))
             }),
             rebind: Box::new(move |req| {
-                fs::create_dir_all(input_for_rebind.join("share/legion")).map_err(|e| e.to_string())?;
+                fs::create_dir_all(input_for_rebind.join("share/legion"))
+                    .map_err(|e| e.to_string())?;
                 fs::write(
                     input_for_rebind.join("share/legion/release.json"),
                     json!({ "runtime": { "sha256": req.provenance.rsplit('/').next().unwrap(), "provenance": req.provenance.clone() } }).to_string(),
@@ -641,18 +802,34 @@ mod tests {
         };
 
         let rebinds = rebinds.borrow();
-        assert_eq!(rebinds.len(), 1, "signed runtime must be rebound exactly once before archiving");
-        assert_eq!(rebinds[0].provenance, format!("rightkit-release://macos-arm64/{signed_runtime}"));
+        assert_eq!(
+            rebinds.len(),
+            1,
+            "signed runtime must be rebound exactly once before archiving"
+        );
+        assert_eq!(
+            rebinds[0].provenance,
+            format!("rightkit-release://macos-arm64/{signed_runtime}")
+        );
         assert_eq!(rebinds[0].out, input);
         // Compare resolved paths: Windows temp dirs may come back as 8.3 short names.
         assert_eq!(
             fs::canonicalize(result["notarizationArchive"].as_str().unwrap()).unwrap(),
             fs::canonicalize(&notary_zip).unwrap()
         );
-        let sbom: Value = serde_json::from_str(&fs::read_to_string(result["sbom"].as_str().unwrap()).unwrap()).unwrap();
-        assert_eq!(sbom["components"][0]["name"], "legion-0.1.0-macos-arm64.tar.gz");
-        let provenance = first_jsonl_object_local(Path::new(result["provenance"].as_str().unwrap()));
-        assert_eq!(provenance["subject"][0]["digest"]["sha256"], result["archiveSha256"]);
+        let sbom: Value =
+            serde_json::from_str(&fs::read_to_string(result["sbom"].as_str().unwrap()).unwrap())
+                .unwrap();
+        assert_eq!(
+            sbom["components"][0]["name"],
+            "legion-0.1.0-macos-arm64.tar.gz"
+        );
+        let provenance =
+            first_jsonl_object_local(Path::new(result["provenance"].as_str().unwrap()));
+        assert_eq!(
+            provenance["subject"][0]["digest"]["sha256"],
+            result["archiveSha256"]
+        );
 
         let _ = fs::remove_dir_all(&root);
     }

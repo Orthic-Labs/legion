@@ -16,7 +16,13 @@ use std::fmt::Write as _;
 pub fn canonical_json(value: &Value) -> String {
     match value {
         Value::Null => "null".to_string(),
-        Value::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
+        Value::Bool(b) => {
+            if *b {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
         Value::Number(n) => {
             if let Some(f) = n.as_f64() {
                 if f == 0.0 {
@@ -118,7 +124,9 @@ pub fn hmac_sha256_hex(key: &[u8], message: &[u8]) -> String {
 /// `projectBoundFields`: a missing bound field is an error, not an implicit
 /// null.
 pub fn project_bound_fields(record: &Value, fields: &[&str]) -> Result<Value, String> {
-    let map = record.as_object().ok_or_else(|| "record must be an object".to_string())?;
+    let map = record
+        .as_object()
+        .ok_or_else(|| "record must be an object".to_string())?;
     let mut out = Map::new();
     for field in fields {
         match map.get(*field) {

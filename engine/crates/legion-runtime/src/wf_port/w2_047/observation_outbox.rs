@@ -43,7 +43,12 @@ struct OutboxState {
 
 impl Default for OutboxState {
     fn default() -> Self {
-        Self { schema_version: 1, pending: Vec::new(), delivered: Vec::new(), dead_letter: Vec::new() }
+        Self {
+            schema_version: 1,
+            pending: Vec::new(),
+            delivered: Vec::new(),
+            dead_letter: Vec::new(),
+        }
     }
 }
 
@@ -83,7 +88,9 @@ fn default_clock() -> String {
     // RFC3339-ish millisecond timestamp, matching `new Date().toISOString()`'s
     // shape closely enough for outbox bookkeeping (not asserted byte-for-byte
     // anywhere downstream).
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     format!("{}", now.as_millis())
 }
 
@@ -95,7 +102,11 @@ impl ObservationOutbox {
         if root.as_os_str().is_empty() {
             return Err(OutboxError::MissingRoot);
         }
-        Ok(Self { root: root.to_path_buf(), max_attempts: 3, clock: Box::new(default_clock) })
+        Ok(Self {
+            root: root.to_path_buf(),
+            max_attempts: 3,
+            clock: Box::new(default_clock),
+        })
     }
 
     pub fn with_max_attempts(mut self, max_attempts: u32) -> Self {
@@ -123,7 +134,11 @@ impl ObservationOutbox {
 
     fn write(&self, state: &OutboxState) -> Result<(), OutboxError> {
         fs::create_dir_all(&self.root)?;
-        let temp = self.root.join(format!(".outbox-{}-{}.tmp", std::process::id(), (self.clock)()));
+        let temp = self.root.join(format!(
+            ".outbox-{}-{}.tmp",
+            std::process::id(),
+            (self.clock)()
+        ));
         fs::write(&temp, serde_json::to_vec(state)?)?;
         fs::rename(&temp, self.file())?;
         Ok(())
@@ -131,10 +146,26 @@ impl ObservationOutbox {
 
     /// Mirrors `enqueue(observation)`. `event_id` mirrors `observation.eventId
     /// ?? digestValue(observation)`.
-    pub fn enqueue(&self, observation: Json, event_id: Option<String>) -> Result<(String, bool), OutboxError> {
+    pub fn enqueue(
+        &self,
+        observation: Json,
+        event_id: Option<String>,
+    ) -> Result<(String, bool), OutboxError> {
         let mut state = self.read()?;
-        let event_id = event_id.or_else(|| observation.get("eventId").and_then(|v| v.as_str()).map(str::to_string)).unwrap_or_else(|| digest_value(&observation));
-        let already = state.pending.iter().chain(state.delivered.iter()).chain(state.dead_letter.iter()).any(|e| e.event_id == event_id);
+        let event_id = event_id
+            .or_else(|| {
+                observation
+                    .get("eventId")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+            })
+            .unwrap_or_else(|| digest_value(&observation));
+        let already = state
+            .pending
+            .iter()
+            .chain(state.delivered.iter())
+            .chain(state.dead_letter.iter())
+            .any(|e| e.event_id == event_id);
         if already {
             return Ok((event_id, true));
         }
@@ -154,7 +185,11 @@ impl ObservationOutbox {
     }
 
     /// Mirrors `nextBatch({maxCount, maxBytes})`.
-    pub fn next_batch(&self, max_count: usize, max_bytes: usize) -> Result<Vec<OutboxEntry>, OutboxError> {
+    pub fn next_batch(
+        &self,
+        max_count: usize,
+        max_bytes: usize,
+    ) -> Result<Vec<OutboxEntry>, OutboxError> {
         let state = self.read()?;
         let mut batch = Vec::new();
         let mut bytes = 0usize;
@@ -170,7 +205,11 @@ impl ObservationOutbox {
     }
 
     /// Mirrors `acknowledge(eventIds, destinationReceipt)`.
-    pub fn acknowledge(&self, event_ids: &[String], destination_receipt: Option<Json>) -> Result<usize, OutboxError> {
+    pub fn acknowledge(
+        &self,
+        event_ids: &[String],
+        destination_receipt: Option<Json>,
+    ) -> Result<usize, OutboxError> {
         let mut state = self.read()?;
         let ids: std::collections::HashSet<&str> = event_ids.iter().map(String::as_str).collect();
         let mut moved = Vec::new();
@@ -244,14 +283,27 @@ impl ObservationOutbox {
     /// Mirrors `inspect()`.
     pub fn inspect(&self) -> Result<(usize, usize, usize), OutboxError> {
         let state = self.read()?;
-        Ok((state.pending.len(), state.delivered.len(), state.dead_letter.len()))
+        Ok((
+            state.pending.len(),
+            state.delivered.len(),
+            state.dead_letter.len(),
+        ))
     }
 
     /// Mirrors `aggregateUsage({runId, taskId})`.
-    pub fn aggregate_usage(&self, run_id: Option<&str>, task_id: Option<&str>) -> Result<UsageTotals, OutboxError> {
+    pub fn aggregate_usage(
+        &self,
+        run_id: Option<&str>,
+        task_id: Option<&str>,
+    ) -> Result<UsageTotals, OutboxError> {
         let state = self.read()?;
         let mut total = UsageTotals::default();
-        for entry in state.pending.iter().chain(state.delivered.iter()).chain(state.dead_letter.iter()) {
+        for entry in state
+            .pending
+            .iter()
+            .chain(state.delivered.iter())
+            .chain(state.dead_letter.iter())
+        {
             let obs = &entry.observation;
             if let Some(rid) = run_id {
                 if obs.get("runId").and_then(|v| v.as_str()) != Some(rid) {
@@ -264,11 +316,27 @@ impl ObservationOutbox {
                 }
             }
             let usage = obs.get("usage");
-            total.calls += usage.and_then(|u| u.get("calls")).and_then(Json::as_i64).unwrap_or(0);
-            total.input_tokens += usage.and_then(|u| u.get("inputTokens")).and_then(Json::as_i64).unwrap_or(0);
-            total.output_tokens += usage.and_then(|u| u.get("outputTokens")).and_then(Json::as_i64).unwrap_or(0);
-            total.cost_micros += usage.and_then(|u| u.get("costMicros")).and_then(Json::as_i64).unwrap_or(0);
-            if usage.and_then(|u| u.get("complete")).and_then(Json::as_bool) == Some(false) {
+            total.calls += usage
+                .and_then(|u| u.get("calls"))
+                .and_then(Json::as_i64)
+                .unwrap_or(0);
+            total.input_tokens += usage
+                .and_then(|u| u.get("inputTokens"))
+                .and_then(Json::as_i64)
+                .unwrap_or(0);
+            total.output_tokens += usage
+                .and_then(|u| u.get("outputTokens"))
+                .and_then(Json::as_i64)
+                .unwrap_or(0);
+            total.cost_micros += usage
+                .and_then(|u| u.get("costMicros"))
+                .and_then(Json::as_i64)
+                .unwrap_or(0);
+            if usage
+                .and_then(|u| u.get("complete"))
+                .and_then(Json::as_bool)
+                == Some(false)
+            {
                 total.incomplete = true;
             }
         }
@@ -298,7 +366,12 @@ mod tests {
         fn new() -> Self {
             static COUNTER: AtomicU64 = AtomicU64::new(0);
             let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-            let dir = std::env::temp_dir().join(format!("wf_w2_047_outbox_{}_{}_{}", std::process::id(), n, default_clock()));
+            let dir = std::env::temp_dir().join(format!(
+                "wf_w2_047_outbox_{}_{}_{}",
+                std::process::id(),
+                n,
+                default_clock()
+            ));
             fs::create_dir_all(&dir).unwrap();
             Self(dir)
         }
@@ -321,8 +394,12 @@ mod tests {
     #[test]
     fn enqueue_dedupes_by_event_id() {
         let (outbox, _dir) = tmp_outbox();
-        let (id1, dup1) = outbox.enqueue(json!({"a": 1}), Some("ev1".to_string())).unwrap();
-        let (id2, dup2) = outbox.enqueue(json!({"a": 2}), Some("ev1".to_string())).unwrap();
+        let (id1, dup1) = outbox
+            .enqueue(json!({"a": 1}), Some("ev1".to_string()))
+            .unwrap();
+        let (id2, dup2) = outbox
+            .enqueue(json!({"a": 2}), Some("ev1".to_string()))
+            .unwrap();
         assert_eq!(id1, "ev1");
         assert_eq!(id2, "ev1");
         assert!(!dup1);
@@ -335,7 +412,9 @@ mod tests {
     fn acknowledge_moves_pending_to_delivered() {
         let (outbox, _dir) = tmp_outbox();
         outbox.enqueue(json!({}), Some("ev1".to_string())).unwrap();
-        let delivered = outbox.acknowledge(&["ev1".to_string()], Some(json!({"ok": true}))).unwrap();
+        let delivered = outbox
+            .acknowledge(&["ev1".to_string()], Some(json!({"ok": true})))
+            .unwrap();
         assert_eq!(delivered, 1);
         let (pending, delivered_count, dead) = outbox.inspect().unwrap();
         assert_eq!((pending, delivered_count, dead), (0, 1, 0));
@@ -344,7 +423,9 @@ mod tests {
     #[test]
     fn fail_retries_until_max_attempts_then_dead_letters() {
         let (outbox, _dir) = tmp_outbox();
-        let outbox = ObservationOutbox::new(outbox.root.clone()).unwrap().with_max_attempts(2);
+        let outbox = ObservationOutbox::new(outbox.root.clone())
+            .unwrap()
+            .with_max_attempts(2);
         outbox.enqueue(json!({}), Some("ev1".to_string())).unwrap();
 
         let (retried1, dead1) = outbox.fail(&["ev1".to_string()], "boom").unwrap();
@@ -361,7 +442,9 @@ mod tests {
     #[test]
     fn redrive_moves_dead_letter_back_to_pending_and_resets_attempts() {
         let (outbox, _dir) = tmp_outbox();
-        let outbox = ObservationOutbox::new(outbox.root.clone()).unwrap().with_max_attempts(1);
+        let outbox = ObservationOutbox::new(outbox.root.clone())
+            .unwrap()
+            .with_max_attempts(1);
         outbox.enqueue(json!({}), Some("ev1".to_string())).unwrap();
         outbox.fail(&["ev1".to_string()], "boom").unwrap();
         let (_, _, dead) = outbox.inspect().unwrap();
@@ -377,7 +460,9 @@ mod tests {
     fn next_batch_respects_max_count_and_bytes() {
         let (outbox, _dir) = tmp_outbox();
         for i in 0..5 {
-            outbox.enqueue(json!({"i": i}), Some(format!("ev{i}"))).unwrap();
+            outbox
+                .enqueue(json!({"i": i}), Some(format!("ev{i}")))
+                .unwrap();
         }
         let batch = outbox.next_batch(2, usize::MAX).unwrap();
         assert_eq!(batch.len(), 2);
@@ -394,7 +479,12 @@ mod tests {
         outbox
             .enqueue(json!({"runId": "r1", "taskId": "t1", "usage": {"calls": 1, "inputTokens": 3, "outputTokens": 1, "costMicros": 10, "complete": false}}), Some("ev2".to_string()))
             .unwrap();
-        outbox.enqueue(json!({"runId": "r2", "taskId": "t2", "usage": {"calls": 99}}), Some("ev3".to_string())).unwrap();
+        outbox
+            .enqueue(
+                json!({"runId": "r2", "taskId": "t2", "usage": {"calls": 99}}),
+                Some("ev3".to_string()),
+            )
+            .unwrap();
 
         let totals = outbox.aggregate_usage(Some("r1"), Some("t1")).unwrap();
         assert_eq!(totals.calls, 3);

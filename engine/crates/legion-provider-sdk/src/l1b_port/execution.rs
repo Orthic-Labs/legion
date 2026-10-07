@@ -19,8 +19,15 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 /// `run_pi` distinguishes (`Popen`/`communicate` success, `FileNotFoundError`,
 /// `TimeoutExpired`, other `OSError`).
 pub enum ProcessOutcome {
-    Completed { stdout: String, stderr: String, exit_code: i32 },
-    TimedOut { partial_stdout: String, partial_stderr: String },
+    Completed {
+        stdout: String,
+        stderr: String,
+        exit_code: i32,
+    },
+    TimedOut {
+        partial_stdout: String,
+        partial_stderr: String,
+    },
     Missing,
     LaunchFailed(String),
 }
@@ -40,10 +47,11 @@ pub struct RealProcessRunner;
 
 impl ProcessRunner for RealProcessRunner {
     fn which(&self, cmd: &str) -> bool {
-        let Some(paths) = std::env::var_os("PATH") else { return false };
-        std::env::split_paths(&paths).any(|dir| {
-            dir.join(cmd).is_file() || dir.join(format!("{cmd}.exe")).is_file()
-        })
+        let Some(paths) = std::env::var_os("PATH") else {
+            return false;
+        };
+        std::env::split_paths(&paths)
+            .any(|dir| dir.join(cmd).is_file() || dir.join(format!("{cmd}.exe")).is_file())
     }
 
     fn run(&self, argv: &[String], timeout: Duration) -> ProcessOutcome {
@@ -101,12 +109,18 @@ impl ProcessRunner for RealProcessRunner {
                 stderr,
                 exit_code: status.code().unwrap_or(-1),
             },
-            None => ProcessOutcome::TimedOut { partial_stdout: stdout, partial_stderr: stderr },
+            None => ProcessOutcome::TimedOut {
+                partial_stdout: stdout,
+                partial_stderr: stderr,
+            },
         }
     }
 }
 
-fn drain_thread<R>(pipe: Option<R>, into: Arc<Mutex<Vec<u8>>>) -> Option<std::thread::JoinHandle<()>>
+fn drain_thread<R>(
+    pipe: Option<R>,
+    into: Arc<Mutex<Vec<u8>>>,
+) -> Option<std::thread::JoinHandle<()>>
 where
     R: Read + Send + 'static,
 {
@@ -143,7 +157,9 @@ fn generate_run_id() -> String {
 /// `2026-09-24T12:00:00.000+00:00` (matches Python's
 /// `datetime.now(timezone.utc).isoformat(timespec="milliseconds")`).
 pub fn utc_now_iso() -> String {
-    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let dur = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = dur.as_secs();
     let millis = dur.subsec_millis();
     let days = secs / 86_400;
@@ -239,7 +255,12 @@ impl RunResult {
 
 /// Port of `run_pi`: run exactly one bounded Pi invocation and return output
 /// plus receipt.
-pub fn run_pi(runner: &dyn ProcessRunner, model: &str, prompt: &str, timeout_secs: u32) -> RunResult {
+pub fn run_pi(
+    runner: &dyn ProcessRunner,
+    model: &str,
+    prompt: &str,
+    timeout_secs: u32,
+) -> RunResult {
     let model = match validate_model(model) {
         Ok(m) => m,
         Err(e) => return failure_result(None, e, 0),
@@ -259,12 +280,22 @@ pub fn run_pi(runner: &dyn ProcessRunner, model: &str, prompt: &str, timeout_sec
     let receipt = receipt_base(&run_id, Some(&model), Some(&argv));
 
     if !runner.which(PI_COMMAND) {
-        let receipt = finish_receipt(receipt, started_monotonic, &started_at, "pi_missing", None, "");
+        let receipt = finish_receipt(
+            receipt,
+            started_monotonic,
+            &started_at,
+            "pi_missing",
+            None,
+            "",
+        );
         return RunResult {
             id: None,
             ok: false,
             output: String::new(),
-            error: Some(("pi_missing".into(), "Pi CLI executable 'pi' was not found".into())),
+            error: Some((
+                "pi_missing".into(),
+                "Pi CLI executable 'pi' was not found".into(),
+            )),
             receipt,
             attempts: 1,
         };
@@ -272,18 +303,35 @@ pub fn run_pi(runner: &dyn ProcessRunner, model: &str, prompt: &str, timeout_sec
 
     match runner.run(&argv, Duration::from_secs(timeout_secs as u64)) {
         ProcessOutcome::Missing => {
-            let receipt = finish_receipt(receipt, started_monotonic, &started_at, "pi_missing", None, "");
+            let receipt = finish_receipt(
+                receipt,
+                started_monotonic,
+                &started_at,
+                "pi_missing",
+                None,
+                "",
+            );
             RunResult {
                 id: None,
                 ok: false,
                 output: String::new(),
-                error: Some(("pi_missing".into(), "Pi CLI executable 'pi' was not found".into())),
+                error: Some((
+                    "pi_missing".into(),
+                    "Pi CLI executable 'pi' was not found".into(),
+                )),
                 receipt,
                 attempts: 1,
             }
         }
         ProcessOutcome::LaunchFailed(msg) => {
-            let receipt = finish_receipt(receipt, started_monotonic, &started_at, "launch_failed", None, &msg);
+            let receipt = finish_receipt(
+                receipt,
+                started_monotonic,
+                &started_at,
+                "launch_failed",
+                None,
+                &msg,
+            );
             RunResult {
                 id: None,
                 ok: false,
@@ -293,22 +341,42 @@ pub fn run_pi(runner: &dyn ProcessRunner, model: &str, prompt: &str, timeout_sec
                 attempts: 1,
             }
         }
-        ProcessOutcome::TimedOut { partial_stdout, partial_stderr } => {
-            let receipt = finish_receipt(receipt, started_monotonic, &started_at, "timeout", None, &partial_stderr);
+        ProcessOutcome::TimedOut {
+            partial_stdout,
+            partial_stderr,
+        } => {
+            let receipt = finish_receipt(
+                receipt,
+                started_monotonic,
+                &started_at,
+                "timeout",
+                None,
+                &partial_stderr,
+            );
             RunResult {
                 id: None,
                 ok: false,
                 output: clip(&partial_stdout, MAX_OUTPUT_CHARS),
-                error: Some(("timeout".into(), format!("Pi exceeded {timeout_secs}s timeout"))),
+                error: Some((
+                    "timeout".into(),
+                    format!("Pi exceeded {timeout_secs}s timeout"),
+                )),
                 receipt,
                 attempts: 1,
             }
         }
-        ProcessOutcome::Completed { stdout, stderr, exit_code } => {
+        ProcessOutcome::Completed {
+            stdout,
+            stderr,
+            exit_code,
+        } => {
             let stdout = strip_think(&stdout);
-            let model_err_re =
-                regex_model_unavailable();
-            let mut status = if exit_code == 0 && !stdout.is_empty() { "ok" } else { "failed" };
+            let model_err_re = regex_model_unavailable();
+            let mut status = if exit_code == 0 && !stdout.is_empty() {
+                "ok"
+            } else {
+                "failed"
+            };
             if exit_code != 0 && model_err_re.is_match(&stderr) {
                 status = "model_unavailable";
             }
@@ -332,19 +400,28 @@ pub fn run_pi(runner: &dyn ProcessRunner, model: &str, prompt: &str, timeout_sec
                 }
             } else {
                 let (code, message) = if status == "model_unavailable" {
-                    ("model_unavailable".to_string(), if stderr_clipped.is_empty() {
-                        format!("Pi exited with status {exit_code}")
-                    } else {
-                        stderr_clipped.clone()
-                    })
+                    (
+                        "model_unavailable".to_string(),
+                        if stderr_clipped.is_empty() {
+                            format!("Pi exited with status {exit_code}")
+                        } else {
+                            stderr_clipped.clone()
+                        },
+                    )
                 } else if stdout.is_empty() && exit_code == 0 {
-                    ("empty_output".to_string(), "Pi returned no analysis output".to_string())
+                    (
+                        "empty_output".to_string(),
+                        "Pi returned no analysis output".to_string(),
+                    )
                 } else {
-                    ("pi_failed".to_string(), if stderr_clipped.is_empty() {
-                        format!("Pi exited with status {exit_code}")
-                    } else {
-                        stderr_clipped.clone()
-                    })
+                    (
+                        "pi_failed".to_string(),
+                        if stderr_clipped.is_empty() {
+                            format!("Pi exited with status {exit_code}")
+                        } else {
+                            stderr_clipped.clone()
+                        },
+                    )
                 };
                 RunResult {
                     id: None,
@@ -360,8 +437,9 @@ pub fn run_pi(runner: &dyn ProcessRunner, model: &str, prompt: &str, timeout_sec
 }
 
 fn regex_model_unavailable() -> &'static regex::Regex {
-    static RE: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)model|catalog|unknown.*model|not found").unwrap());
+    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"(?i)model|catalog|unknown.*model|not found").unwrap()
+    });
     &RE
 }
 
@@ -404,12 +482,18 @@ impl ManifestItem {
         Self {
             id: v.get("id").and_then(|x| x.as_str()).map(str::to_string),
             prompt: v.get("prompt").and_then(|x| x.as_str()).map(str::to_string),
-            prompt_file: v.get("prompt_file").and_then(|x| x.as_str()).map(str::to_string),
+            prompt_file: v
+                .get("prompt_file")
+                .and_then(|x| x.as_str())
+                .map(str::to_string),
             system: v.get("system").and_then(|x| x.as_str()).map(str::to_string),
             max_tokens: v.get("max_tokens").and_then(|x| x.as_i64()),
             model: v.get("model").and_then(|x| x.as_str()).map(str::to_string),
             tier: v.get("tier").and_then(|x| x.as_str()).map(str::to_string),
-            fallback: v.get("fallback").and_then(|x| x.as_str()).map(str::to_string),
+            fallback: v
+                .get("fallback")
+                .and_then(|x| x.as_str())
+                .map(str::to_string),
             timeout: v.get("timeout").and_then(|x| x.as_u64()).map(|x| x as u32),
             has_unsupported_route: v.get("provider").is_some()
                 || v.get("endpoint").is_some()
@@ -437,7 +521,11 @@ pub fn run_item(runner: &dyn ProcessRunner, item: &ManifestItem) -> RunResult {
         match read_input(Some(pf)) {
             Ok(p) => p,
             Err(e) => {
-                return failure_result(item.id.clone(), WorkerFailure::new("invalid_job", e.to_string()), 0)
+                return failure_result(
+                    item.id.clone(),
+                    WorkerFailure::new("invalid_job", e.to_string()),
+                    0,
+                )
             }
         }
     } else {
@@ -463,7 +551,10 @@ pub fn run_item(runner: &dyn ProcessRunner, item: &ManifestItem) -> RunResult {
         Ok(m) => m,
         Err(e) => return failure_result(item.id.clone(), e, 0),
     };
-    let timeout = item.timeout.unwrap_or(DEFAULT_TIMEOUT_SECONDS).min(MAX_TIMEOUT_SECONDS);
+    let timeout = item
+        .timeout
+        .unwrap_or(DEFAULT_TIMEOUT_SECONDS)
+        .min(MAX_TIMEOUT_SECONDS);
 
     let mut last = None;
     let mut attempts = 0usize;
@@ -572,7 +663,14 @@ pub fn run_with_io(
     if self_test {
         assert_eq!(strip_think("<think>noise</think>\nanswer"), "answer");
         let argv = build_argv(FREE_PRIMARY_MODELS[0], "review this").unwrap();
-        assert_eq!(&argv[..3], &["pi".to_string(), "--tools".to_string(), "read,grep,find,ls".to_string()]);
+        assert_eq!(
+            &argv[..3],
+            &[
+                "pi".to_string(),
+                "--tools".to_string(),
+                "read,grep,find,ls".to_string()
+            ]
+        );
         let _ = writeln!(out, "pi coder worker self-test passed");
         return 0;
     }
@@ -592,14 +690,22 @@ pub fn run_with_io(
                 return 1;
             }
             Err(msg) => {
-                let _ = writeln!(out, "{}", json!({"ok": false, "error": {"code": "invalid_manifest", "message": msg}}));
+                let _ = writeln!(
+                    out,
+                    "{}",
+                    json!({"ok": false, "error": {"code": "invalid_manifest", "message": msg}})
+                );
                 return 1;
             }
         };
         let results = run_batch(runner, &items, pool_size);
         let all_ok = results.iter().all(|r| r.ok);
         let json_results: Vec<Value> = results.iter().map(RunResult::to_json).collect();
-        let _ = writeln!(out, "{}", serde_json::to_string_pretty(&json_results).unwrap_or_default());
+        let _ = writeln!(
+            out,
+            "{}",
+            serde_json::to_string_pretty(&json_results).unwrap_or_default()
+        );
         return if all_ok { 0 } else { 1 };
     }
 
@@ -614,7 +720,10 @@ pub fn run_with_io(
     let result = (|| -> Result<RunResult, WorkerFailure> {
         let prompt = prepare_prompt(&prompt_raw, &system, max_tokens)?;
         if model.is_some() && fallback.is_some() {
-            return Err(WorkerFailure::new("ambiguous_selection", "use --model without --fallback"));
+            return Err(WorkerFailure::new(
+                "ambiguous_selection",
+                "use --model without --fallback",
+            ));
         }
         let models: Vec<String> = if let Some(m) = &model {
             vec![validate_model(m)?]
@@ -643,11 +752,18 @@ pub fn run_with_io(
     };
 
     if as_json {
-        let _ = writeln!(out, "{}", serde_json::to_string_pretty(&result.to_json()).unwrap_or_default());
+        let _ = writeln!(
+            out,
+            "{}",
+            serde_json::to_string_pretty(&result.to_json()).unwrap_or_default()
+        );
     } else if result.ok {
         let _ = writeln!(out, "{}", result.output);
     } else {
-        let (code, message) = result.error.clone().unwrap_or(("unknown".into(), String::new()));
+        let (code, message) = result
+            .error
+            .clone()
+            .unwrap_or(("unknown".into(), String::new()));
         let _ = writeln!(err_out, "CODER_FAILURE [{code}]: {message}");
     }
     let receipt_line = serde_json::to_string(&sorted_keys(&result.receipt)).unwrap_or_default();

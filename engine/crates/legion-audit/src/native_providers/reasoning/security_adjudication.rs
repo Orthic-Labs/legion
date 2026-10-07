@@ -149,9 +149,7 @@ pub fn create_security_candidate(
         alleged_trigger: input.alleged_trigger,
         alleged_impact: input.alleged_impact,
         evidence: input.evidence,
-        generated_at: input
-            .generated_at
-            .unwrap_or_else(|| chrono_now_rfc3339()),
+        generated_at: input.generated_at.unwrap_or_else(|| chrono_now_rfc3339()),
     })
 }
 
@@ -337,7 +335,9 @@ pub fn finalize_security_verdict(
         return Err(SecurityAdjudicationError::MissingSeverity(result.verdict));
     }
     if !surviving && result.severity.is_some() {
-        return Err(SecurityAdjudicationError::UnexpectedSeverity(result.verdict));
+        return Err(SecurityAdjudicationError::UnexpectedSeverity(
+            result.verdict,
+        ));
     }
     let attacker_control = result
         .attacker_control
@@ -352,7 +352,9 @@ pub fn finalize_security_verdict(
         if result.proof.is_none() {
             return Err(SecurityAdjudicationError::MissingProof(result.verdict));
         }
-        let strength = result.evidence_strength.unwrap_or(EvidenceStrength::Possible);
+        let strength = result
+            .evidence_strength
+            .unwrap_or(EvidenceStrength::Possible);
         if strength.rank() == 0 {
             return Err(SecurityAdjudicationError::WeakEvidenceStrength(
                 result.verdict,
@@ -372,7 +374,9 @@ pub fn finalize_security_verdict(
         candidate_provider: packet.candidate.provider.clone(),
         adjudicator_provider: packet.adjudicator.provider.clone(),
         adjudicator_context_id: packet.adjudicator.context_id.clone(),
-        evidence_strength: result.evidence_strength.unwrap_or(EvidenceStrength::Possible),
+        evidence_strength: result
+            .evidence_strength
+            .unwrap_or(EvidenceStrength::Possible),
         verdict: result.verdict,
         severity: result.severity,
         exploitability: result.exploitability,
@@ -454,8 +458,7 @@ mod tests {
     #[test]
     fn same_provider_cannot_adjudicate_its_own_candidate() {
         let c = candidate("reasoning.security", "ctx-1");
-        let error =
-            create_adjudication_packet(c, "reasoning.security", "ctx-2", None).unwrap_err();
+        let error = create_adjudication_packet(c, "reasoning.security", "ctx-2", None).unwrap_err();
         assert!(matches!(
             error,
             SecurityAdjudicationError::SelfAdjudication(_, _)
@@ -465,9 +468,8 @@ mod tests {
     #[test]
     fn same_context_is_rejected_even_for_a_different_provider() {
         let c = candidate("reasoning.security", "ctx-1");
-        let error =
-            create_adjudication_packet(c, "legacy.security.adjudication", "ctx-1", None)
-                .unwrap_err();
+        let error = create_adjudication_packet(c, "legacy.security.adjudication", "ctx-1", None)
+            .unwrap_err();
         assert!(matches!(error, SecurityAdjudicationError::SameContext(_)));
     }
 

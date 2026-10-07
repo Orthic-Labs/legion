@@ -21,7 +21,9 @@ use std::sync::OnceLock;
 
 use regex::{Regex, RegexBuilder};
 
-use super::super::w2_012::detect_text::{has_border_radius, has_rounded, is_neutral_border_color, is_safe_element};
+use super::super::w2_012::detect_text::{
+    has_border_radius, has_rounded, is_neutral_border_color, is_safe_element,
+};
 
 /// One raw regex-matcher hit: antipattern id, formatted snippet, and the
 /// 1-based line number (already offset for extracted blocks).
@@ -36,7 +38,10 @@ fn re(pat: &str) -> Regex {
     Regex::new(pat).unwrap()
 }
 fn rei(pat: &str) -> Regex {
-    RegexBuilder::new(pat).case_insensitive(true).build().unwrap()
+    RegexBuilder::new(pat)
+        .case_insensitive(true)
+        .build()
+        .unwrap()
 }
 
 /// Context string used by a matcher's `test`: either the single line (JS
@@ -177,7 +182,9 @@ fn animate_bounce_re() -> &'static Regex {
 }
 fn animation_name_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| rei(r"animation(?:-name)?\s*:\s*([^;{}]*(?:bounce|elastic|wobble|jiggle|spring)[^;{}]*)"))
+    RE.get_or_init(|| {
+        rei(r"animation(?:-name)?\s*:\s*([^;{}]*(?:bounce|elastic|wobble|jiggle|spring)[^;{}]*)")
+    })
 }
 fn bounce_token_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -185,7 +192,9 @@ fn bounce_token_re() -> &'static Regex {
 }
 fn cubic_bezier_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| re(r"cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)"))
+    RE.get_or_init(|| {
+        re(r"cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)")
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -237,14 +246,22 @@ fn has_src_re() -> &'static Regex {
 }
 
 fn push(hits: &mut Vec<MatcherHit>, id: &'static str, snippet: String, line: u32) {
-    hits.push(MatcherHit { antipattern: id, snippet, line });
+    hits.push(MatcherHit {
+        antipattern: id,
+        snippet,
+        line,
+    });
 }
 
 /// Port of `runRegexMatchers(lines, filePath, lineOffset, blockContext)`
 /// (the `profile` instrumentation wrapper is not ported — no profiler in
 /// this crate; behavior is identical either way). `lines` are already
 /// split on `\n`; `line_offset` and `block_context` mirror the JS params.
-pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool) -> Vec<MatcherHit> {
+pub fn run_regex_matchers(
+    lines: &[&str],
+    line_offset: u32,
+    block_context: bool,
+) -> Vec<MatcherHit> {
     let mut hits = Vec::new();
 
     // --- side-tab (6 regexes) ---
@@ -254,7 +271,12 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
             let ctx = context_for(lines, i, block_context);
             let ok = if has_rounded(&ctx) { n >= 2 } else { n >= 4 };
             if ok {
-                push(&mut hits, "side-tab", caps[0].to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "side-tab",
+                    caps[0].to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
         for caps in side_tab_css_re().captures_iter(line) {
@@ -267,37 +289,66 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
                 continue;
             }
             let n: i64 = caps[1].parse().unwrap();
-            let ok = if has_border_radius(&ctx) { n >= 2 } else { n >= 3 };
+            let ok = if has_border_radius(&ctx) {
+                n >= 2
+            } else {
+                n >= 3
+            };
             if ok {
                 let trimmed = whole.trim_end_matches(|c: char| c == ';' || c.is_whitespace());
-                push(&mut hits, "side-tab", trimmed.to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "side-tab",
+                    trimmed.to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
         for caps in side_tab_width_re().captures_iter(line) {
             let ctx = context_for(lines, i, block_context);
             let n: i64 = caps[1].parse().unwrap();
             if !is_safe_element(&ctx) && n >= 3 {
-                push(&mut hits, "side-tab", caps[0].to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "side-tab",
+                    caps[0].to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
         for caps in side_tab_inline_re().captures_iter(line) {
             let ctx = context_for(lines, i, block_context);
             let n: i64 = caps[1].parse().unwrap();
             if !is_safe_element(&ctx) && n >= 3 {
-                push(&mut hits, "side-tab", caps[0].to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "side-tab",
+                    caps[0].to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
         for caps in side_tab_inline_width_re().captures_iter(line) {
             let ctx = context_for(lines, i, block_context);
             let n: i64 = caps[1].parse().unwrap();
             if !is_safe_element(&ctx) && n >= 3 {
-                push(&mut hits, "side-tab", caps[0].to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "side-tab",
+                    caps[0].to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
         for caps in side_tab_js_re().captures_iter(line) {
             let n: i64 = caps[1].parse().unwrap();
             if n >= 3 {
-                push(&mut hits, "side-tab", caps[0].to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "side-tab",
+                    caps[0].to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
     }
@@ -308,14 +359,24 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
             let ctx = context_for(lines, i, block_context);
             let n: i64 = caps[1].parse().unwrap();
             if has_rounded(&ctx) && n >= 1 {
-                push(&mut hits, "border-accent-on-rounded", caps[0].to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "border-accent-on-rounded",
+                    caps[0].to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
         for caps in accent_css_re().captures_iter(line) {
             let ctx = context_for(lines, i, block_context);
             let n: i64 = caps[1].parse().unwrap();
             if n >= 3 && has_border_radius(&ctx) {
-                push(&mut hits, "border-accent-on-rounded", caps[0].to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "border-accent-on-rounded",
+                    caps[0].to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
     }
@@ -323,11 +384,21 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
     // --- overused-font (2 regexes) ---
     for (i, line) in lines.iter().enumerate() {
         for caps in overused_font_css_re().captures_iter(line) {
-            push(&mut hits, "overused-font", caps[0].to_string(), i as u32 + 1 + line_offset);
+            push(
+                &mut hits,
+                "overused-font",
+                caps[0].to_string(),
+                i as u32 + 1 + line_offset,
+            );
         }
         for caps in overused_font_gf_re().captures_iter(line) {
             let name = caps[1].replace('+', " ");
-            push(&mut hits, "overused-font", format!("Google Fonts: {name}"), i as u32 + 1 + line_offset);
+            push(
+                &mut hits,
+                "overused-font",
+                format!("Google Fonts: {name}"),
+                i as u32 + 1 + line_offset,
+            );
         }
     }
 
@@ -337,13 +408,23 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
             let ctx = context_for(lines, i, block_context);
             let _ = &caps[0];
             if gradient_word_re().is_match(&ctx) {
-                push(&mut hits, "gradient-text", "background-clip: text + gradient".to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "gradient-text",
+                    "background-clip: text + gradient".to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
         for _caps in bg_clip_text_tw_re().find_iter(line) {
             let ctx = context_for(lines, i, block_context);
             if bg_gradient_to_re().is_match(&ctx) {
-                push(&mut hits, "gradient-text", "bg-clip-text + bg-gradient".to_string(), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "gradient-text",
+                    "bg-clip-text + bg-gradient".to_string(),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
     }
@@ -353,9 +434,19 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
         for caps in gray_text_re().captures_iter(line) {
             let ctx = context_for(lines, i, block_context);
             if let Some(bgm) = colored_bg_re().find(&ctx) {
-                push(&mut hits, "gray-on-color", format!("{} on {}", &caps[0], bgm.as_str()), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "gray-on-color",
+                    format!("{} on {}", &caps[0], bgm.as_str()),
+                    i as u32 + 1 + line_offset,
+                );
             } else if colored_bg_re().is_match(&ctx) {
-                push(&mut hits, "gray-on-color", format!("{} on ?", &caps[0]), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "gray-on-color",
+                    format!("{} on ?", &caps[0]),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
     }
@@ -365,13 +456,23 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
         for caps in ai_text_re().captures_iter(line) {
             let ctx = context_for(lines, i, block_context);
             if heading_ctx_re().is_match(&ctx) {
-                push(&mut hits, "ai-color-palette", format!("{} on heading", &caps[0]), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "ai-color-palette",
+                    format!("{} on heading", &caps[0]),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
         for caps in ai_from_re().captures_iter(line) {
             let ctx = context_for(lines, i, block_context);
             if ai_to_re().is_match(&ctx) {
-                push(&mut hits, "ai-color-palette", format!("{} gradient", &caps[0]), i as u32 + 1 + line_offset);
+                push(
+                    &mut hits,
+                    "ai-color-palette",
+                    format!("{} gradient", &caps[0]),
+                    i as u32 + 1 + line_offset,
+                );
             }
         }
     }
@@ -379,7 +480,12 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
     // --- bounce-easing (3 regexes) ---
     for (i, line) in lines.iter().enumerate() {
         for _caps in animate_bounce_re().find_iter(line) {
-            push(&mut hits, "bounce-easing", "animate-bounce (Tailwind)".to_string(), i as u32 + 1 + line_offset);
+            push(
+                &mut hits,
+                "bounce-easing",
+                "animate-bounce (Tailwind)".to_string(),
+                i as u32 + 1 + line_offset,
+            );
         }
         for caps in animation_name_re().captures_iter(line) {
             let val = &caps[1];
@@ -388,7 +494,12 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
                 .find(|part| bounce_token_re().is_match(part))
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| val.trim().to_string());
-            push(&mut hits, "bounce-easing", format!("animation: {token}"), i as u32 + 1 + line_offset);
+            push(
+                &mut hits,
+                "bounce-easing",
+                format!("animation: {token}"),
+                i as u32 + 1 + line_offset,
+            );
         }
         for caps in cubic_bezier_re().captures_iter(line) {
             let y1: f64 = caps[2].parse().unwrap();
@@ -397,7 +508,10 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
                 push(
                     &mut hits,
                     "bounce-easing",
-                    format!("cubic-bezier({}, {}, {}, {})", &caps[1], &caps[2], &caps[3], &caps[4]),
+                    format!(
+                        "cubic-bezier({}, {}, {}, {})",
+                        &caps[1], &caps[2], &caps[3], &caps[4]
+                    ),
                     i as u32 + 1 + line_offset,
                 );
             }
@@ -411,18 +525,42 @@ pub fn run_regex_matchers(lines: &[&str], line_offset: u32, block_context: bool)
             if layout_prop_all_re().is_match(&val) || !layout_prop_test_re().is_match(&val) {
                 continue;
             }
-            let found: Vec<&str> = layout_prop_found_re().find_iter(&caps[1]).map(|m| m.as_str()).collect();
-            let snippet = if found.is_empty() { caps[1].trim().to_string() } else { found.join(", ") };
-            push(&mut hits, "layout-transition", format!("transition: {snippet}"), i as u32 + 1 + line_offset);
+            let found: Vec<&str> = layout_prop_found_re()
+                .find_iter(&caps[1])
+                .map(|m| m.as_str())
+                .collect();
+            let snippet = if found.is_empty() {
+                caps[1].trim().to_string()
+            } else {
+                found.join(", ")
+            };
+            push(
+                &mut hits,
+                "layout-transition",
+                format!("transition: {snippet}"),
+                i as u32 + 1 + line_offset,
+            );
         }
         for caps in transition_property_re().captures_iter(line) {
             let val = caps[1].to_lowercase();
             if layout_prop_all_re().is_match(&val) || !layout_prop_test_re().is_match(&val) {
                 continue;
             }
-            let found: Vec<&str> = layout_prop_found_re().find_iter(&caps[1]).map(|m| m.as_str()).collect();
-            let snippet = if found.is_empty() { caps[1].trim().to_string() } else { found.join(", ") };
-            push(&mut hits, "layout-transition", format!("transition-property: {snippet}"), i as u32 + 1 + line_offset);
+            let found: Vec<&str> = layout_prop_found_re()
+                .find_iter(&caps[1])
+                .map(|m| m.as_str())
+                .collect();
+            let snippet = if found.is_empty() {
+                caps[1].trim().to_string()
+            } else {
+                found.join(", ")
+            };
+            push(
+                &mut hits,
+                "layout-transition",
+                format!("transition-property: {snippet}"),
+                i as u32 + 1 + line_offset,
+            );
         }
     }
 
@@ -456,7 +594,12 @@ pub struct ExtractedBlock {
 
 fn style_block_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| RegexBuilder::new(r"<style[^>]*>([\s\S]*?)</style>").case_insensitive(true).build().unwrap())
+    RE.get_or_init(|| {
+        RegexBuilder::new(r"<style[^>]*>([\s\S]*?)</style>")
+            .case_insensitive(true)
+            .build()
+            .unwrap()
+    })
 }
 
 /// Port of `extractStyleBlocks(content, ext)`. `ext` is matched
@@ -471,7 +614,10 @@ pub fn extract_style_blocks(content: &str, ext: &str) -> Vec<ExtractedBlock> {
         let whole = caps.get(0).unwrap();
         let before = &content[..whole.start()];
         let start_line = before.matches('\n').count() as u32 + 2;
-        blocks.push(ExtractedBlock { content: caps[1].to_string(), start_line });
+        blocks.push(ExtractedBlock {
+            content: caps[1].to_string(),
+            start_line,
+        });
     }
     blocks
 }
@@ -496,7 +642,10 @@ pub fn extract_css_in_js(content: &str, ext: &str) -> Vec<ExtractedBlock> {
         // Note: JS uses `startLine = before.split('\n').length` (no +1),
         // unlike extractStyleBlocks's `+ 1`. Ported verbatim.
         let start_line = before.matches('\n').count() as u32 + 1;
-        blocks.push(ExtractedBlock { content: caps[1].to_string(), start_line });
+        blocks.push(ExtractedBlock {
+            content: caps[1].to_string(),
+            start_line,
+        });
     }
     blocks
 }

@@ -31,7 +31,8 @@ pub fn sha256_bytes(bytes: &[u8]) -> String {
 
 /// Mirrors `assertFile`: must exist, be a regular file, and not a symlink.
 pub fn assert_file(path: &Path, label: &str) -> ReleaseResult<()> {
-    let meta = fs::symlink_metadata(path).map_err(|_| format!("{label} is missing: {}", path.display()))?;
+    let meta = fs::symlink_metadata(path)
+        .map_err(|_| format!("{label} is missing: {}", path.display()))?;
     if meta.is_symlink() || !meta.is_file() {
         return Err(format!("{label} is not a regular file: {}", path.display()));
     }
@@ -47,16 +48,25 @@ pub fn assert_directory(path: &Path, label: &str, create: bool) -> ReleaseResult
         }
         fs::create_dir_all(path).map_err(|e| format!("{label} could not be created: {e}"))?;
     }
-    let meta = fs::symlink_metadata(path).map_err(|_| format!("{label} is missing: {}", path.display()))?;
+    let meta = fs::symlink_metadata(path)
+        .map_err(|_| format!("{label} is missing: {}", path.display()))?;
     if meta.is_symlink() || !meta.is_dir() {
-        return Err(format!("{label} is not a regular directory: {}", path.display()));
+        return Err(format!(
+            "{label} is not a regular directory: {}",
+            path.display()
+        ));
     }
     Ok(())
 }
 
 /// Mirrors `inside`: resolves `candidate` and refuses to return it unless it
 /// is strictly (or, with `allow_root`, exactly) below `root`.
-pub fn inside(root: &Path, candidate: &Path, label: &str, allow_root: bool) -> ReleaseResult<PathBuf> {
+pub fn inside(
+    root: &Path,
+    candidate: &Path,
+    label: &str,
+    allow_root: bool,
+) -> ReleaseResult<PathBuf> {
     let base = dunce_canonicalize_lenient(root);
     let value = dunce_canonicalize_lenient(candidate);
     match value.strip_prefix(&base) {
@@ -99,7 +109,11 @@ pub fn path_from(root: &Path, value: &str, label: &str) -> ReleaseResult<PathBuf
         return Err(format!("{label} path is invalid"));
     }
     let candidate = Path::new(value);
-    let joined = if candidate.is_absolute() { candidate.to_path_buf() } else { root.join(candidate) };
+    let joined = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        root.join(candidate)
+    };
     inside(root, &joined, label, false)
 }
 
@@ -114,8 +128,10 @@ pub fn read_json(path: &Path, label: &str) -> ReleaseResult<serde_json::Value> {
 /// for values with the same key order (this crate uses `serde_json`'s
 /// `preserve_order` feature, so struct/`Map` field order is preserved).
 pub fn write_json_pretty(path: &Path, value: &serde_json::Value) -> ReleaseResult<()> {
-    let text = serde_json::to_string_pretty(value).map_err(|e| format!("failed to serialize {}: {e}", path.display()))?;
-    fs::write(path, format!("{text}\n")).map_err(|e| format!("failed to write {}: {e}", path.display()))
+    let text = serde_json::to_string_pretty(value)
+        .map_err(|e| format!("failed to serialize {}: {e}", path.display()))?;
+    fs::write(path, format!("{text}\n"))
+        .map_err(|e| format!("failed to write {}: {e}", path.display()))
 }
 
 /// Options mirroring the subset of Node `spawnSync` options the release
@@ -174,16 +190,28 @@ pub fn run_json(
 ) -> ReleaseResult<serde_json::Value> {
     let result = runner(command, args, options);
     if result.error_message.is_some() || result.status != Some(0) {
-        return Err(format!("{label} failed: {}", process_boundary::command_diagnostic(&result)));
+        return Err(format!(
+            "{label} failed: {}",
+            process_boundary::command_diagnostic(&result)
+        ));
     }
     let stdout = result.stdout.unwrap_or_default();
     serde_json::from_str(stdout.trim()).map_err(|_| format!("{label} must emit one JSON object"))
 }
 
-pub fn run_ok(runner: CommandRunner, command: &str, args: &[String], options: &CommandOptions, label: &str) -> ReleaseResult<CommandResult> {
+pub fn run_ok(
+    runner: CommandRunner,
+    command: &str,
+    args: &[String],
+    options: &CommandOptions,
+    label: &str,
+) -> ReleaseResult<CommandResult> {
     let result = runner(command, args, options);
     if result.error_message.is_some() || result.status != Some(0) {
-        return Err(format!("{label} failed: {}", process_boundary::command_diagnostic(&result)));
+        return Err(format!(
+            "{label} failed: {}",
+            process_boundary::command_diagnostic(&result)
+        ));
     }
     Ok(result)
 }
@@ -203,5 +231,9 @@ pub fn is_stable_semver(value: &str) -> bool {
     if parts.len() != 3 {
         return false;
     }
-    parts.iter().all(|part| !part.is_empty() && (part == &"0" || (!part.starts_with('0') && part.chars().all(|c| c.is_ascii_digit()))))
+    parts.iter().all(|part| {
+        !part.is_empty()
+            && (part == &"0"
+                || (!part.starts_with('0') && part.chars().all(|c| c.is_ascii_digit())))
+    })
 }

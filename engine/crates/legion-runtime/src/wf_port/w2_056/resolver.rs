@@ -23,8 +23,8 @@ static COMMAND: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^/([a-z][a-z0-9-]*)(?:\s|$)").unwrap());
 
 fn read_json(path: &Path) -> Result<Value, String> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|error| format!("{}: {error}", path.display()))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
     serde_json::from_str(&text).map_err(|error| format!("{}: {error}", path.display()))
 }
 
@@ -59,7 +59,11 @@ pub fn resolve_skill_invocation(input: &str, root: &Path) -> Result<InvocationRe
     let supplied_arguments = text[captures[0].len()..].trim().to_string();
 
     let aliases_doc = read_json(&root.join("src/config/capability-aliases.json"))?;
-    let aliases = aliases_doc.get("aliases").and_then(Value::as_object).cloned().unwrap_or_default();
+    let aliases = aliases_doc
+        .get("aliases")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
 
     let mut target = requested.clone();
     let mut alias_arguments = String::new();
@@ -76,7 +80,11 @@ pub fn resolve_skill_invocation(input: &str, root: &Path) -> Result<InvocationRe
         }
         seen.insert(target.clone());
         let declaration = declaration.trim();
-        let next_target = declaration.split_whitespace().next().unwrap_or(declaration).to_string();
+        let next_target = declaration
+            .split_whitespace()
+            .next()
+            .unwrap_or(declaration)
+            .to_string();
         let declared_arguments = declaration[next_target.len()..].trim().to_string();
         alias_arguments = [declared_arguments, alias_arguments]
             .into_iter()
@@ -88,13 +96,29 @@ pub fn resolve_skill_invocation(input: &str, root: &Path) -> Result<InvocationRe
 
     let canonical = target.trim_start_matches('/').to_string();
     let index = read_json(&root.join("src/registry/skills/index.json"))?;
-    let bundles = index.get("bundles").and_then(Value::as_array).cloned().unwrap_or_default();
-    let Some(record) = bundles.iter().find(|b| b.get("id").and_then(Value::as_str) == Some(canonical.as_str())) else {
-        return Ok(InvocationResolution::NotFound { requested, canonical: Some(canonical) });
+    let bundles = index
+        .get("bundles")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let Some(record) = bundles
+        .iter()
+        .find(|b| b.get("id").and_then(Value::as_str) == Some(canonical.as_str()))
+    else {
+        return Ok(InvocationResolution::NotFound {
+            requested,
+            canonical: Some(canonical),
+        });
     };
-    let manifest_path = record.get("manifest").and_then(Value::as_str).unwrap_or("").to_string();
+    let manifest_path = record
+        .get("manifest")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let manifest_doc = read_json(&root.join(&manifest_path))?;
-    let manifest = validate_skill_bundle(&manifest_doc).map_err(|error| error.to_string())?.clone();
+    let manifest = validate_skill_bundle(&manifest_doc)
+        .map_err(|error| error.to_string())?
+        .clone();
 
     let argument_text = [alias_arguments, supplied_arguments]
         .into_iter()
@@ -153,33 +177,63 @@ pub fn validate_capability_selection(
     root: &Path,
 ) -> Result<SelectionResolution, String> {
     let index = read_json(&root.join("src/registry/skills/index.json"))?;
-    let bundles = index.get("bundles").and_then(Value::as_array).cloned().unwrap_or_default();
+    let bundles = index
+        .get("bundles")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
 
     let mut resolved = Vec::new();
     let mut invalid = Vec::new();
     for id in ids {
-        let Some(record) = bundles.iter().find(|b| b.get("id").and_then(Value::as_str) == Some(id.as_str())) else {
-            invalid.push(SelectionInvalid { id: id.clone(), reason: "not-found" });
+        let Some(record) = bundles
+            .iter()
+            .find(|b| b.get("id").and_then(Value::as_str) == Some(id.as_str()))
+        else {
+            invalid.push(SelectionInvalid {
+                id: id.clone(),
+                reason: "not-found",
+            });
             continue;
         };
         if matches!(source, SelectionSource::Semantic) {
             if record.get("kind").and_then(Value::as_str) != Some("capability") {
-                invalid.push(SelectionInvalid { id: id.clone(), reason: "not-capability" });
+                invalid.push(SelectionInvalid {
+                    id: id.clone(),
+                    reason: "not-capability",
+                });
                 continue;
             }
             if record.get("discoverability").and_then(Value::as_str) != Some("public") {
-                invalid.push(SelectionInvalid { id: id.clone(), reason: "not-public" });
+                invalid.push(SelectionInvalid {
+                    id: id.clone(),
+                    reason: "not-public",
+                });
                 continue;
             }
         }
-        let manifest_path = record.get("manifest").and_then(Value::as_str).unwrap_or("").to_string();
+        let manifest_path = record
+            .get("manifest")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         let manifest_doc = read_json(&root.join(&manifest_path))?;
-        let manifest = validate_skill_bundle(&manifest_doc).map_err(|error| error.to_string())?.clone();
-        resolved.push(SelectionResolved { id: id.clone(), manifest_path, manifest });
+        let manifest = validate_skill_bundle(&manifest_doc)
+            .map_err(|error| error.to_string())?
+            .clone();
+        resolved.push(SelectionResolved {
+            id: id.clone(),
+            manifest_path,
+            manifest,
+        });
     }
 
     Ok(SelectionResolution {
-        status: if invalid.is_empty() { "resolved" } else { "invalid" },
+        status: if invalid.is_empty() {
+            "resolved"
+        } else {
+            "invalid"
+        },
         source,
         resolved,
         invalid,
@@ -233,7 +287,11 @@ mod tests {
             json!({"bundles": [{"id": "foo", "manifest": "skills/foo/manifest.json"}]}).to_string(),
         )
         .unwrap();
-        fs::write(dir.path().join("skills/foo/manifest.json"), valid_manifest("foo").to_string()).unwrap();
+        fs::write(
+            dir.path().join("skills/foo/manifest.json"),
+            valid_manifest("foo").to_string(),
+        )
+        .unwrap();
         dir
     }
 
@@ -249,7 +307,12 @@ mod tests {
         let dir = scaffold();
         let result = resolve_skill_invocation("/foo hello world", dir.path()).unwrap();
         match result {
-            InvocationResolution::Resolved { canonical, argument_text, resolved_invocation, .. } => {
+            InvocationResolution::Resolved {
+                canonical,
+                argument_text,
+                resolved_invocation,
+                ..
+            } => {
                 assert_eq!(canonical, "foo");
                 assert_eq!(argument_text, "hello world");
                 assert_eq!(resolved_invocation, "/foo hello world");
@@ -263,7 +326,12 @@ mod tests {
         let dir = scaffold();
         let result = resolve_skill_invocation("/f arg1", dir.path()).unwrap();
         match result {
-            InvocationResolution::Resolved { requested, canonical, argument_text, .. } => {
+            InvocationResolution::Resolved {
+                requested,
+                canonical,
+                argument_text,
+                ..
+            } => {
                 assert_eq!(requested, "/f");
                 assert_eq!(canonical, "foo");
                 assert_eq!(argument_text, "arg1");
@@ -276,7 +344,12 @@ mod tests {
     fn detects_alias_cycle() {
         let dir = scaffold();
         let result = resolve_skill_invocation("/loop", dir.path()).unwrap();
-        assert_eq!(result, InvocationResolution::AliasCycle { requested: "/loop".to_string() });
+        assert_eq!(
+            result,
+            InvocationResolution::AliasCycle {
+                requested: "/loop".to_string()
+            }
+        );
     }
 
     #[test]
@@ -285,7 +358,10 @@ mod tests {
         let result = resolve_skill_invocation("/nope", dir.path()).unwrap();
         assert_eq!(
             result,
-            InvocationResolution::NotFound { requested: "/nope".to_string(), canonical: Some("nope".to_string()) }
+            InvocationResolution::NotFound {
+                requested: "/nope".to_string(),
+                canonical: Some("nope".to_string())
+            }
         );
     }
 
@@ -304,17 +380,32 @@ mod tests {
             .to_string(),
         )
         .unwrap();
-        fs::write(dir.path().join("skills/a/manifest.json"), valid_manifest("a").to_string()).unwrap();
-        fs::write(dir.path().join("skills/b/manifest.json"), valid_manifest("b").to_string()).unwrap();
+        fs::write(
+            dir.path().join("skills/a/manifest.json"),
+            valid_manifest("a").to_string(),
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("skills/b/manifest.json"),
+            valid_manifest("b").to_string(),
+        )
+        .unwrap();
 
         let ids = vec!["a".to_string(), "b".to_string(), "missing".to_string()];
-        let result = validate_capability_selection(&ids, SelectionSource::Semantic, dir.path()).unwrap();
+        let result =
+            validate_capability_selection(&ids, SelectionSource::Semantic, dir.path()).unwrap();
         assert_eq!(result.status, "invalid");
         assert_eq!(result.resolved.len(), 1);
         assert_eq!(result.resolved[0].id, "a");
         assert_eq!(result.invalid.len(), 2);
-        assert!(result.invalid.iter().any(|i| i.id == "b" && i.reason == "not-capability"));
-        assert!(result.invalid.iter().any(|i| i.id == "missing" && i.reason == "not-found"));
+        assert!(result
+            .invalid
+            .iter()
+            .any(|i| i.id == "b" && i.reason == "not-capability"));
+        assert!(result
+            .invalid
+            .iter()
+            .any(|i| i.id == "missing" && i.reason == "not-found"));
     }
 
     #[test]
@@ -330,8 +421,17 @@ mod tests {
             .to_string(),
         )
         .unwrap();
-        fs::write(dir.path().join("skills/b/manifest.json"), valid_manifest("b").to_string()).unwrap();
-        let result = validate_capability_selection(&["b".to_string()], SelectionSource::Explicit, dir.path()).unwrap();
+        fs::write(
+            dir.path().join("skills/b/manifest.json"),
+            valid_manifest("b").to_string(),
+        )
+        .unwrap();
+        let result = validate_capability_selection(
+            &["b".to_string()],
+            SelectionSource::Explicit,
+            dir.path(),
+        )
+        .unwrap();
         assert_eq!(result.status, "resolved");
         assert_eq!(result.resolved.len(), 1);
     }

@@ -31,7 +31,11 @@ fn ran_lenses(facts: &Value) -> Vec<String> {
     let set: BTreeSet<String> = facts
         .get("lenses_ran")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     set.into_iter().collect()
 }
@@ -42,7 +46,11 @@ fn ran_lenses(facts: &Value) -> Vec<String> {
 fn candidate_generator_ids(facts: &Value) -> BTreeSet<String> {
     as_array(facts, "/plan/providers")
         .iter()
-        .filter(|p| p.get("producesSecurityCandidates").and_then(|v| v.as_bool()) == Some(true))
+        .filter(|p| {
+            p.get("producesSecurityCandidates")
+                .and_then(|v| v.as_bool())
+                == Some(true)
+        })
         .filter_map(|p| p.get("id").and_then(|v| v.as_str()).map(String::from))
         .collect()
 }
@@ -178,10 +186,15 @@ pub fn orphan_security_verdicts(adjudication: &Value, candidates: &Value) -> Vec
 const SURVIVING_VERDICTS: [&str; 2] = ["TRUE_POSITIVE", "LIKELY_TRUE_POSITIVE"];
 
 fn security_findings(adjudication: &Value, candidates: &Value) -> Vec<Value> {
-    let candidate_by_id: std::collections::BTreeMap<String, &Value> = as_array(candidates, "/candidates")
-        .iter()
-        .filter_map(|c| c.get("id").and_then(|v| v.as_str()).map(|id| (id.to_string(), c)))
-        .collect();
+    let candidate_by_id: std::collections::BTreeMap<String, &Value> =
+        as_array(candidates, "/candidates")
+            .iter()
+            .filter_map(|c| {
+                c.get("id")
+                    .and_then(|v| v.as_str())
+                    .map(|id| (id.to_string(), c))
+            })
+            .collect();
     as_array(adjudication, "/verdicts")
         .iter()
         .filter(|v| {
@@ -256,11 +269,16 @@ fn non_security_gaps(facts: &Value) -> Vec<Value> {
     }
     for provider in as_array(&reconciliation, "/providerResults") {
         let provider_name = provider.get("provider").and_then(|v| v.as_str());
-        if provider_name == Some("security.adjudication") || provider_name == Some("security.variant-analysis") {
+        if provider_name == Some("security.adjudication")
+            || provider_name == Some("security.variant-analysis")
+        {
             continue;
         }
         let complete_false = provider.get("complete").and_then(|v| v.as_bool()) == Some(false);
-        let status = provider.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+        let status = provider
+            .get("status")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
         if complete_false
             || ["missing", "skipped", "error", "unproven", "pending", "fail"].contains(&status)
         {
@@ -279,7 +297,11 @@ fn non_security_gaps(facts: &Value) -> Vec<Value> {
             gaps.push(json!({"kind": "missing-reasoning-lens", "lens": lens}));
         }
     }
-    if facts.pointer("/network_policy/mode").and_then(|v| v.as_str()) != Some("deny") {
+    if facts
+        .pointer("/network_policy/mode")
+        .and_then(|v| v.as_str())
+        != Some("deny")
+    {
         gaps.push(json!({"kind": "network-policy", "detail": facts.get("network_policy").cloned().unwrap_or(Value::Null)}));
     }
     if facts.get("incomplete").and_then(|v| v.as_bool()) == Some(true) && gaps.is_empty() {
@@ -336,7 +358,8 @@ fn canonical_counts(
 /// ported — it names process-launch commands, not analysis output.
 pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -> Value {
     let mut gaps = non_security_gaps(facts);
-    let adjudication_complete = adjudication.get("complete").and_then(|v| v.as_bool()) == Some(true);
+    let adjudication_complete =
+        adjudication.get("complete").and_then(|v| v.as_bool()) == Some(true);
     if !adjudication_complete {
         gaps.push(json!({"kind": "security-adjudication", "detail": adjudication}));
     }
@@ -362,7 +385,11 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -
     let mut seen_finding_ids = BTreeSet::new();
     let mut duplicate_findings = Vec::new();
     for finding in &findings {
-        let id = finding.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        let id = finding
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
         if seen_finding_ids.contains(&id) {
             duplicate_findings.push(id.clone());
         }
@@ -375,7 +402,11 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -
     let mut seen_candidate_ids = BTreeSet::new();
     let mut duplicate_candidates = Vec::new();
     for candidate in as_array(candidates, "/candidates") {
-        let id = candidate.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        let id = candidate
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
         if seen_candidate_ids.contains(&id) {
             duplicate_candidates.push(id.clone());
         }
@@ -387,16 +418,28 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -
 
     let lenses = ran_lenses(facts);
     let required_lens_list = required_lenses(facts);
-    let summary = canonical_counts(facts, &findings, candidates, adjudication, &lenses, &required_lens_list);
-    let incomplete = facts.get("incomplete").and_then(|v| v.as_bool()) == Some(true) || !gaps.is_empty();
+    let summary = canonical_counts(
+        facts,
+        &findings,
+        candidates,
+        adjudication,
+        &lenses,
+        &required_lens_list,
+    );
+    let incomplete =
+        facts.get("incomplete").and_then(|v| v.as_bool()) == Some(true) || !gaps.is_empty();
     let execution_failed = as_array(facts, "/checks").iter().any(|check| {
-        let verdict = check.get("verdict").and_then(|v| v.as_str()).map(String::from).unwrap_or_else(|| {
-            if check.get("status").and_then(|v| v.as_str()) == Some("ran") {
-                "pass".to_string()
-            } else {
-                "unproven".to_string()
-            }
-        });
+        let verdict = check
+            .get("verdict")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .unwrap_or_else(|| {
+                if check.get("status").and_then(|v| v.as_str()) == Some("ran") {
+                    "pass".to_string()
+                } else {
+                    "unproven".to_string()
+                }
+            });
         verdict == "fail"
     });
     let has_findings = !findings.is_empty();
@@ -410,7 +453,10 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -
     let quality_gate = if incomplete {
         "unproven"
     } else if findings.iter().any(|f| {
-        matches!(f.get("severity").and_then(|v| v.as_str()), Some("critical") | Some("high"))
+        matches!(
+            f.get("severity").and_then(|v| v.as_str()),
+            Some("critical") | Some("high")
+        )
     }) {
         "blocked"
     } else if has_findings {
@@ -424,10 +470,16 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -
             .get("execution_status")
             .or_else(|| check.get("status"))
             .and_then(|v| v.as_str());
-        let verdict = check.get("verdict").and_then(|v| v.as_str()).unwrap_or("pass");
+        let verdict = check
+            .get("verdict")
+            .and_then(|v| v.as_str())
+            .unwrap_or("pass");
         execution_status == Some("ran") && verdict == "pass"
     });
-    let provider_reconciliation_gate = if gaps.iter().any(|g| g.get("kind").and_then(|v| v.as_str()) != Some("security-adjudication")) {
+    let provider_reconciliation_gate = if gaps
+        .iter()
+        .any(|g| g.get("kind").and_then(|v| v.as_str()) != Some("security-adjudication"))
+    {
         "unproven"
     } else {
         "pass"
@@ -517,7 +569,9 @@ mod tests {
         assert_eq!(report["audit_status"], json!("incomplete"));
         assert_eq!(report["quality_gate"], json!("unproven"));
         let gaps = report["coverage_gaps"].as_array().unwrap();
-        assert!(gaps.iter().any(|g| g["kind"] == json!("security-adjudication")));
+        assert!(gaps
+            .iter()
+            .any(|g| g["kind"] == json!("security-adjudication")));
     }
 
     #[test]
@@ -540,7 +594,9 @@ mod tests {
         let adjudication = json!({"complete": true, "verdicts": []});
         let report = finalize_audit(&facts, &candidates, &adjudication);
         let gaps = report["coverage_gaps"].as_array().unwrap();
-        assert!(gaps.iter().any(|g| g["kind"] == json!("candidate-provider-contract-violation")));
+        assert!(gaps
+            .iter()
+            .any(|g| g["kind"] == json!("candidate-provider-contract-violation")));
         // A candidate-generator's findings never surface as report findings directly.
         assert!(report["findings"].as_array().unwrap().is_empty());
     }
@@ -567,7 +623,10 @@ mod tests {
         let findings = report["findings"].as_array().unwrap();
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0]["file"], json!("a.rs"));
-        assert_eq!(findings[0]["redacted_secret"]["secretDigest"], json!("sha256:xyz"));
+        assert_eq!(
+            findings[0]["redacted_secret"]["secretDigest"],
+            json!("sha256:xyz")
+        );
         assert_eq!(report["summary"]["security_findings_surviving"], json!(1));
     }
 
@@ -598,6 +657,9 @@ mod tests {
         let report = finalize_audit(&facts, &candidates, &adjudication);
         assert_eq!(report["audit_status"], json!("incomplete"));
         let gaps = report["coverage_gaps"].as_array().unwrap();
-        assert!(gaps.iter().any(|g| g["kind"] == json!("missing-reasoning-lens") && g["lens"] == json!("reasoning.security")));
+        assert!(gaps
+            .iter()
+            .any(|g| g["kind"] == json!("missing-reasoning-lens")
+                && g["lens"] == json!("reasoning.security")));
     }
 }

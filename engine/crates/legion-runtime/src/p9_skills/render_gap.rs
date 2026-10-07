@@ -130,7 +130,13 @@ pub fn diff_signals(url: &str, raw: SeoSignals, rendered: SeoSignals) -> RenderG
     let mut client_only = Vec::new();
     let mut server_only = Vec::new();
 
-    let title = diff_string("title", raw.title, rendered.title, &mut client_only, &mut server_only);
+    let title = diff_string(
+        "title",
+        raw.title,
+        rendered.title,
+        &mut client_only,
+        &mut server_only,
+    );
     let meta_description = diff_string(
         "meta_description",
         raw.meta_description,
@@ -153,7 +159,13 @@ pub fn diff_signals(url: &str, raw: SeoSignals, rendered: SeoSignals) -> RenderG
         &mut client_only,
         &mut server_only,
     );
-    let h1 = diff_string("h1", raw.h1, rendered.h1, &mut client_only, &mut server_only);
+    let h1 = diff_string(
+        "h1",
+        raw.h1,
+        rendered.h1,
+        &mut client_only,
+        &mut server_only,
+    );
     let main_text_length = diff_numeric(
         "main_text_length",
         raw.main_text_length,
@@ -197,7 +209,10 @@ pub fn diff_signals(url: &str, raw: SeoSignals, rendered: SeoSignals) -> RenderG
                 server_only.join(", ")
             ));
         }
-        format!("render_gap: {url} — {total} gap(s) found. {}.", parts.join("; "))
+        format!(
+            "render_gap: {url} — {total} gap(s) found. {}.",
+            parts.join("; ")
+        )
     };
 
     RenderGapDiff {
@@ -281,8 +296,7 @@ pub fn extract_raw(html: &str, url: &str) -> SeoSignals {
     let robots_re2 =
         regex::Regex::new(r#"(?is)<meta\s[^>]*content=["']([^"']*)[^>]*name=["']robots["']"#)
             .unwrap();
-    let meta_robots =
-        first_capture(&robots_re1, html).or_else(|| first_capture(&robots_re2, html));
+    let meta_robots = first_capture(&robots_re1, html).or_else(|| first_capture(&robots_re2, html));
 
     SeoSignals {
         title,
@@ -325,7 +339,13 @@ pub trait RawFetcher {
 /// `spawn` + raw-CDP-WebSocket dance in `render_gap.mjs` (headless_chrome replaces that
 /// hand-rolled CDP client; same navigate -> wait-for-load -> evaluate flow).
 pub trait RenderedFetcher {
-    fn fetch(&self, url: &str, width: u32, height: u32, timeout_ms: u64) -> Result<SeoSignals, String>;
+    fn fetch(
+        &self,
+        url: &str,
+        width: u32,
+        height: u32,
+        timeout_ms: u64,
+    ) -> Result<SeoSignals, String>;
 }
 
 fn parse_dom_extract_json(raw: &serde_json::Value) -> SeoSignals {
@@ -363,7 +383,10 @@ impl RawFetcher for ReqwestRawFetcher {
             .map_err(|e| e.to_string())?;
         let resp = client
             .get(url)
-            .header("User-Agent", "Googlebot/2.1 (+http://www.google.com/bot.html)")
+            .header(
+                "User-Agent",
+                "Googlebot/2.1 (+http://www.google.com/bot.html)",
+            )
             .send()
             .map_err(|e| e.to_string())?;
         resp.text().map_err(|e| e.to_string())
@@ -377,7 +400,13 @@ impl RawFetcher for ReqwestRawFetcher {
 pub struct ChromeRenderedFetcher;
 
 impl RenderedFetcher for ChromeRenderedFetcher {
-    fn fetch(&self, url: &str, width: u32, height: u32, timeout_ms: u64) -> Result<SeoSignals, String> {
+    fn fetch(
+        &self,
+        url: &str,
+        width: u32,
+        height: u32,
+        timeout_ms: u64,
+    ) -> Result<SeoSignals, String> {
         let browser = headless_chrome::Browser::default().map_err(|e| e.to_string())?;
         let tab = browser.new_tab().map_err(|e| e.to_string())?;
         let _ = tab.set_bounds(headless_chrome::types::Bounds::Normal {
@@ -439,16 +468,26 @@ pub fn parse_args(argv: &[String]) -> Result<RenderGapArgs, String> {
             .and_then(|i| argv.get(i + 1))
             .cloned()
     };
-    let url = flag("--url").ok_or_else(|| {
-        "Error: --url <url> is required. Run with --help for usage.".to_string()
-    })?;
+    let url = flag("--url")
+        .ok_or_else(|| "Error: --url <url> is required. Run with --help for usage.".to_string())?;
     let timeout_ms = flag("--timeout")
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(15000);
-    let width = flag("--width").and_then(|v| v.parse::<u32>().ok()).unwrap_or(1280);
-    let height = flag("--height").and_then(|v| v.parse::<u32>().ok()).unwrap_or(800);
+    let width = flag("--width")
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(1280);
+    let height = flag("--height")
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(800);
     let json_only = argv.iter().any(|a| a == "--json");
-    Ok(RenderGapArgs { url, timeout_ms, width, height, json_only, help: false })
+    Ok(RenderGapArgs {
+        url,
+        timeout_ms,
+        width,
+        height,
+        json_only,
+        help: false,
+    })
 }
 
 const HELP_TEXT: &str = r#"
@@ -506,13 +545,14 @@ pub fn run(
     let raw_signals = extract_raw(&raw_html, &args.url);
 
     let render_start = std::time::Instant::now();
-    let rendered_signals = match rendered_fetcher.fetch(&args.url, args.width, args.height, args.timeout_ms) {
-        Ok(s) => s,
-        Err(e) => {
-            let _ = writeln!(stderr, "Error: CDP render failed — {e}");
-            return 1;
-        }
-    };
+    let rendered_signals =
+        match rendered_fetcher.fetch(&args.url, args.width, args.height, args.timeout_ms) {
+            Ok(s) => s,
+            Err(e) => {
+                let _ = writeln!(stderr, "Error: CDP render failed — {e}");
+                return 1;
+            }
+        };
     let render_ms = render_start.elapsed().as_millis() as i64;
 
     let diff = diff_signals(&args.url, raw_signals, rendered_signals);
@@ -625,7 +665,10 @@ mod tests {
 
     #[test]
     fn extract_raw_missing_signals_are_none() {
-        let s = extract_raw("<html><body>no signals</body></html>", "https://example.com");
+        let s = extract_raw(
+            "<html><body>no signals</body></html>",
+            "https://example.com",
+        );
         assert_eq!(s.title, None);
         assert_eq!(s.meta_description, None);
         assert_eq!(s.canonical, None);
@@ -649,10 +692,14 @@ mod tests {
     #[test]
     fn parse_args_reads_flags() {
         let argv = vec![
-            "--url".to_string(), "https://example.com".to_string(),
-            "--timeout".to_string(), "5000".to_string(),
-            "--width".to_string(), "800".to_string(),
-            "--height".to_string(), "600".to_string(),
+            "--url".to_string(),
+            "https://example.com".to_string(),
+            "--timeout".to_string(),
+            "5000".to_string(),
+            "--width".to_string(),
+            "800".to_string(),
+            "--height".to_string(),
+            "600".to_string(),
             "--json".to_string(),
         ];
         let args = parse_args(&argv).unwrap();
@@ -687,7 +734,11 @@ mod tests {
         let mut out = Vec::new();
         let mut err = Vec::new();
         let code = run(
-            &["--url".to_string(), "https://example.com".to_string(), "--json".to_string()],
+            &[
+                "--url".to_string(),
+                "https://example.com".to_string(),
+                "--json".to_string(),
+            ],
             &raw,
             &rendered,
             &mut out,

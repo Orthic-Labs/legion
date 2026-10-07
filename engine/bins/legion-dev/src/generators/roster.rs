@@ -10,8 +10,16 @@ use std::path::{Path, PathBuf};
 pub const ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle"];
 const MODEL_TIERS: &[&str] = &["frontier-judgment", "balanced-executor", "mechanical-cheap"];
 const PROJECTION_SECTIONS: &[&str] = &[
-    "Purpose", "Triggers", "Routes", "Capabilities", "Inputs", "Outputs", "Boundaries", "Handoffs",
-    "Evidence rules", "Model policy",
+    "Purpose",
+    "Triggers",
+    "Routes",
+    "Capabilities",
+    "Inputs",
+    "Outputs",
+    "Boundaries",
+    "Handoffs",
+    "Evidence rules",
+    "Model policy",
 ];
 
 fn route_method(id: &str) -> &'static str {
@@ -33,7 +41,10 @@ pub struct RosterRole {
     pub body: String,
 }
 
-fn parse_frontmatter(text: &str, path: &Path) -> Result<(std::collections::BTreeMap<String, String>, String), String> {
+fn parse_frontmatter(
+    text: &str,
+    path: &Path,
+) -> Result<(std::collections::BTreeMap<String, String>, String), String> {
     if !text.starts_with("---") {
         return Err(format!("{}: missing frontmatter", path.display()));
     }
@@ -51,7 +62,10 @@ fn parse_frontmatter(text: &str, path: &Path) -> Result<(std::collections::BTree
     for line in fm_block.split('\n') {
         if let Some(idx) = line.find(':') {
             if idx > 0 {
-                values.insert(line[..idx].trim().to_string(), line[idx + 1..].trim().to_string());
+                values.insert(
+                    line[..idx].trim().to_string(),
+                    line[idx + 1..].trim().to_string(),
+                );
             }
         }
     }
@@ -101,23 +115,48 @@ pub fn load_roster_role(root: &Path, id: &str) -> Result<RosterRole, String> {
     }
     let description = values.get("description").cloned().unwrap_or_default();
     if !description.contains("Dispatch") {
-        return Err(format!("{}: description must contain Dispatch", path.display()));
+        return Err(format!(
+            "{}: description must contain Dispatch",
+            path.display()
+        ));
     }
     let model_tier = values.get("modelTier").cloned().unwrap_or_default();
     if !MODEL_TIERS.contains(&model_tier.as_str()) {
-        return Err(format!("{}: unsupported modelTier {}", path.display(), if model_tier.is_empty() { "<missing>" } else { &model_tier }));
+        return Err(format!(
+            "{}: unsupported modelTier {}",
+            path.display(),
+            if model_tier.is_empty() {
+                "<missing>"
+            } else {
+                &model_tier
+            }
+        ));
     }
     let delegation_tiers = values.get("delegationTiers").cloned().unwrap_or_default();
-    Ok(RosterRole { id: id.to_string(), path, name, description, model_tier, delegation_tiers, body })
+    Ok(RosterRole {
+        id: id.to_string(),
+        path,
+        name,
+        description,
+        model_tier,
+        delegation_tiers,
+        body,
+    })
 }
 
 pub fn roster_roles(root: &Path) -> Result<Vec<RosterRole>, String> {
-    ROLE_IDS.iter().map(|id| load_roster_role(root, id)).collect()
+    ROLE_IDS
+        .iter()
+        .map(|id| load_roster_role(root, id))
+        .collect()
 }
 
 pub fn role_projection(root: &Path, id: &str) -> Result<String, String> {
     let role = load_roster_role(root, id)?;
-    let sections: Vec<String> = PROJECTION_SECTIONS.iter().filter_map(|name| section(&role.body, name)).collect();
+    let sections: Vec<String> = PROJECTION_SECTIONS
+        .iter()
+        .filter_map(|name| section(&role.body, name))
+        .collect();
     let mut name_cap = role.name.clone();
     if let Some(c) = name_cap.get_mut(0..1) {
         c.make_ascii_uppercase();
@@ -144,10 +183,18 @@ pub fn low_fidelity_projection(root: &Path) -> Result<String, String> {
     let roles = roster_roles(root)?;
     let mut lines = vec!["# Legion authority context".to_string(), String::new()];
     for role in &roles {
-        lines.push(format!("- **{}** — {} Model tier: `{}`.", role.name, role.description, role.model_tier));
+        lines.push(format!(
+            "- **{}** — {} Model tier: `{}`.",
+            role.name, role.description, role.model_tier
+        ));
     }
-    lines.push("- **Covenant seat** — doctrine-only advisory review seat; not an authority.".to_string());
+    lines.push(
+        "- **Covenant seat** — doctrine-only advisory review seat; not an authority.".to_string(),
+    );
     lines.push(String::new());
-    lines.push("Use Legion routing. Do not edit generated harness files; rerun `legion bind --write`.".to_string());
+    lines.push(
+        "Use Legion routing. Do not edit generated harness files; rerun `legion bind --write`."
+            .to_string(),
+    );
     Ok(lines.join("\n"))
 }

@@ -204,14 +204,26 @@ pub fn parse_batch_csv(text: &str) -> Result<BatchPlan, BatchCsvError> {
         rows.push(BatchRow {
             row: line,
             prompt,
-            ratio: if ratio.is_empty() { DEFAULT_RATIO.to_string() } else { ratio },
+            ratio: if ratio.is_empty() {
+                DEFAULT_RATIO.to_string()
+            } else {
+                ratio
+            },
             resolution: if resolution.is_empty() {
                 DEFAULT_RESOLUTION.to_string()
             } else {
                 resolution
             },
-            model: if model.is_empty() { DEFAULT_MODEL.to_string() } else { model },
-            preset: if preset.is_empty() { None } else { Some(preset) },
+            model: if model.is_empty() {
+                DEFAULT_MODEL.to_string()
+            } else {
+                model
+            },
+            preset: if preset.is_empty() {
+                None
+            } else {
+                Some(preset)
+            },
         });
     }
 
@@ -249,7 +261,10 @@ mod tests {
     #[test]
     fn missing_prompt_column_errors() {
         let csv = "foo,bar\n1,2\n";
-        assert_eq!(parse_batch_csv(csv), Err(BatchCsvError::MissingPromptColumn));
+        assert_eq!(
+            parse_batch_csv(csv),
+            Err(BatchCsvError::MissingPromptColumn)
+        );
     }
 
     #[test]
@@ -276,7 +291,10 @@ mod tests {
     fn estimate_cost_matches_pricing_table() {
         assert_eq!(estimate_cost("gemini-3.1-flash-image-preview", "2K"), 0.078);
         assert_eq!(estimate_cost("unknown-model", "1K"), 0.039);
-        assert_eq!(estimate_cost("gemini-3.1-flash-image-preview", "unknown-res"), 0.039);
+        assert_eq!(
+            estimate_cost("gemini-3.1-flash-image-preview", "unknown-res"),
+            0.039
+        );
     }
 
     #[test]

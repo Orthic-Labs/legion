@@ -10,7 +10,13 @@
 use serde_json::{Map, Value};
 
 pub const TIERS: [&str; 7] = [
-    "inventory", "parser", "native", "cross-file", "measured-pack", "runtime", "remediation",
+    "inventory",
+    "parser",
+    "native",
+    "cross-file",
+    "measured-pack",
+    "runtime",
+    "remediation",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,7 +29,12 @@ impl std::fmt::Display for CoverageError {
 impl std::error::Error for CoverageError {}
 
 /// Port of `validateCoverageEvidence`.
-pub fn validate_coverage_evidence(record: &Value, qualification: &Value, artifact: &Value, corpus: &Value) -> Result<(), CoverageError> {
+pub fn validate_coverage_evidence(
+    record: &Value,
+    qualification: &Value,
+    artifact: &Value,
+    corpus: &Value,
+) -> Result<(), CoverageError> {
     let id = record.get("id").and_then(Value::as_str).unwrap_or_default();
     let err = |msg: &str| Err(CoverageError(format!("{id} {msg}")));
 
@@ -35,28 +46,43 @@ pub fn validate_coverage_evidence(record: &Value, qualification: &Value, artifac
     let same = |a: &str, b: &str| {
         qualification.get(a).and_then(Value::as_str) == record.get(b).and_then(Value::as_str)
     };
-    if !same("corpusRoot", "corpusRoot") || !same("corpusDigest", "corpusDigest") || !same("artifactDigest", "artifactDigest") {
+    if !same("corpusRoot", "corpusRoot")
+        || !same("corpusDigest", "corpusDigest")
+        || !same("artifactDigest", "artifactDigest")
+    {
         return err("qualification digest binding mismatch");
     }
     let equal_json = |a: Option<&Value>, b: Option<&Value>| {
         serde_json::to_string(&a.cloned().unwrap_or(Value::Null)).ok()
             == serde_json::to_string(&b.cloned().unwrap_or(Value::Null)).ok()
     };
-    if !equal_json(qualification.get("providerVersions"), record.get("providerVersions"))
-        || !equal_json(artifact.get("providerVersions"), record.get("providerVersions"))
-    {
+    if !equal_json(
+        qualification.get("providerVersions"),
+        record.get("providerVersions"),
+    ) || !equal_json(
+        artifact.get("providerVersions"),
+        record.get("providerVersions"),
+    ) {
         return err("qualification provider versions mismatch");
     }
     let mut required: Vec<String> = qualification
         .get("casesRequired")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     required.sort();
     let mut cases: Vec<String> = corpus
         .get("cases")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|c| c.get("id").and_then(Value::as_str).map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|c| c.get("id").and_then(Value::as_str).map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     cases.sort();
     if required.is_empty() || required != cases {
@@ -68,8 +94,15 @@ pub fn validate_coverage_evidence(record: &Value, qualification: &Value, artifac
         .and_then(Value::as_str)
         .is_some_and(|d| is_sha256(d));
     let status_ok = artifact.get("status").and_then(Value::as_str) == Some("pass");
-    let test_path_ok = artifact.get("testPath").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
-    let raw_log_path_ok = artifact.get("rawLog").and_then(|r| r.get("path")).and_then(Value::as_str).is_some();
+    let test_path_ok = artifact
+        .get("testPath")
+        .and_then(Value::as_str)
+        .is_some_and(|s| !s.is_empty());
+    let raw_log_path_ok = artifact
+        .get("rawLog")
+        .and_then(|r| r.get("path"))
+        .and_then(Value::as_str)
+        .is_some();
     let bytes_ok = artifact
         .get("rawLog")
         .and_then(|r| r.get("bytes"))
@@ -81,7 +114,9 @@ pub fn validate_coverage_evidence(record: &Value, qualification: &Value, artifac
 }
 
 fn is_sha256(value: &str) -> bool {
-    value.strip_prefix("sha256:").is_some_and(|hex| hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit()))
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
 fn tiers_monotone(tiers: &Map<String, Value>) -> bool {
@@ -108,7 +143,10 @@ pub fn validate_coverage_record_shape(
         .and_then(Value::as_object)
         .ok_or_else(|| CoverageError(format!("{id} missing tiers")))?;
     for tier in TIERS {
-        let ok = tiers.get(tier).and_then(Value::as_i64).is_some_and(|v| v >= 0);
+        let ok = tiers
+            .get(tier)
+            .and_then(Value::as_i64)
+            .is_some_and(|v| v >= 0);
         if !ok {
             return Err(CoverageError(format!("invalid tier {id}:{tier}")));
         }
@@ -121,9 +159,15 @@ pub fn validate_coverage_record_shape(
         return Err(CoverageError(format!("{id} tier schema parity mismatch")));
     }
     if !tiers_monotone(tiers) {
-        return Err(CoverageError(format!("{id} coverage tiers must be monotone")));
+        return Err(CoverageError(format!(
+            "{id} coverage tiers must be monotone"
+        )));
     }
-    let measured_pack = tiers.get("measured-pack").and_then(Value::as_i64).unwrap_or(0) != 0;
+    let measured_pack = tiers
+        .get("measured-pack")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        != 0;
     if measured_pack {
         let record_providers: Vec<&str> = record
             .get("providers")
@@ -151,7 +195,9 @@ pub fn validate_coverage_record_shape(
     }
     let runtime = tiers.get("runtime").and_then(Value::as_i64).unwrap_or(0) != 0;
     if runtime && record.get("qualificationVersion").is_none() {
-        return Err(CoverageError("runtime tier requires qualification".to_string()));
+        return Err(CoverageError(
+            "runtime tier requires qualification".to_string(),
+        ));
     }
     Ok(())
 }
@@ -182,7 +228,10 @@ pub fn account_coverage(detected: &[String], registry_records: &[Value]) -> Vec<
                     ("id".to_string(), Value::from(format!("unknown.{value}"))),
                     ("kind".to_string(), Value::from("unknown")),
                     ("tiers".to_string(), Value::Object(tiers)),
-                    ("limitations".to_string(), Value::Array(vec![Value::from("unaccounted format")])),
+                    (
+                        "limitations".to_string(),
+                        Value::Array(vec![Value::from("unaccounted format")]),
+                    ),
                     ("cleanClaim".to_string(), Value::from("never")),
                 ]))
             })
@@ -243,13 +292,15 @@ mod tests {
     fn record_shape_requires_qualification_version_for_runtime_tier() {
         let record = json!({"id": "r1", "tiers": sample_tiers(1, 1)});
         assert!(validate_coverage_record_shape(&record, &[]).is_err());
-        let record2 = json!({"id": "r1", "tiers": sample_tiers(1, 1), "qualificationVersion": "v1"});
+        let record2 =
+            json!({"id": "r1", "tiers": sample_tiers(1, 1), "qualificationVersion": "v1"});
         assert!(validate_coverage_record_shape(&record2, &[]).is_ok());
     }
 
     #[test]
     fn record_shape_rejects_measured_pack_over_accounting_only_providers() {
-        let record = json!({"id": "r1", "tiers": sample_tiers(2, 0), "providers": ["scope-provider"]});
+        let record =
+            json!({"id": "r1", "tiers": sample_tiers(2, 0), "providers": ["scope-provider"]});
         let providers = vec![json!({"id": "scope-provider", "denominatorKind": "selected-scope"})];
         assert!(validate_coverage_record_shape(&record, &providers).is_err());
     }

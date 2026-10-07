@@ -6,8 +6,17 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 
 const ACTIONS: &[&str] = &[
-    "launch", "foreground", "background", "suspend", "resume", "restart", "terminate", "install",
-    "uninstall", "update", "rollback",
+    "launch",
+    "foreground",
+    "background",
+    "suspend",
+    "resume",
+    "restart",
+    "terminate",
+    "install",
+    "uninstall",
+    "update",
+    "rollback",
 ];
 
 /// Mirrors the JS `adapter[action]()` shape: the adapter exposes a method
@@ -54,8 +63,15 @@ pub async fn run_lifecycle_action(
             "coverageGaps": ["lifecycle-adapter-missing"],
         })),
         Some(Ok(observed)) => {
-            let status = observed.get("status").and_then(Value::as_str).unwrap_or("pass").to_string();
-            let coverage_gaps = observed.get("coverageGaps").cloned().unwrap_or_else(|| json!([]));
+            let status = observed
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("pass")
+                .to_string();
+            let coverage_gaps = observed
+                .get("coverageGaps")
+                .cloned()
+                .unwrap_or_else(|| json!([]));
             lifecycle_receipt(&json!({
                 "action": action, "targetId": target_id, "binding": binding, "status": status,
                 "observed": observed, "coverageGaps": coverage_gaps,
@@ -100,27 +116,52 @@ mod tests {
 
     #[tokio::test]
     async fn blocked_on_unsupported_action() {
-        let result = run_lifecycle_action("nuke", Some(&StubAdapter), None, Value::Null, json!({}), false).await;
+        let result = run_lifecycle_action(
+            "nuke",
+            Some(&StubAdapter),
+            None,
+            Value::Null,
+            json!({}),
+            false,
+        )
+        .await;
         assert_eq!(result["status"], "blocked");
         assert_eq!(result["coverageGaps"][0], "lifecycle-action-unsupported");
     }
 
     #[tokio::test]
     async fn blocked_without_capability() {
-        let result = run_lifecycle_action("launch", Some(&StubAdapter), None, Value::Null, json!({}), false).await;
+        let result = run_lifecycle_action(
+            "launch",
+            Some(&StubAdapter),
+            None,
+            Value::Null,
+            json!({}),
+            false,
+        )
+        .await;
         assert_eq!(result["status"], "blocked");
     }
 
     #[tokio::test]
     async fn passes_with_available_capability() {
         let cap = json!({"status": "available"});
-        let result = run_lifecycle_action("launch", Some(&StubAdapter), Some(&cap), Value::Null, json!({}), false).await;
+        let result = run_lifecycle_action(
+            "launch",
+            Some(&StubAdapter),
+            Some(&cap),
+            Value::Null,
+            json!({}),
+            false,
+        )
+        .await;
         assert_eq!(result["status"], "pass");
     }
 
     #[test]
     fn receipt_redacts_sensitive_fields() {
-        let receipt = lifecycle_receipt(&json!({"action": "launch", "observed": {"password": "secret"}}));
+        let receipt =
+            lifecycle_receipt(&json!({"action": "launch", "observed": {"password": "secret"}}));
         assert_eq!(receipt["observed"]["password"], "[REDACTED]");
     }
 }

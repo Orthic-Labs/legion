@@ -52,7 +52,11 @@ pub struct ArcaneError {
 
 impl ArcaneError {
     pub fn new(code: ArcCode, message: impl Into<String>) -> Self {
-        Self { code, message: message.into(), detail: Vec::new() }
+        Self {
+            code,
+            message: message.into(),
+            detail: Vec::new(),
+        }
     }
     pub fn with_detail(mut self, key: &str, value: impl Into<String>) -> Self {
         self.detail.push((key.to_string(), value.into()));
@@ -79,9 +83,19 @@ pub struct Decision {
 
 impl Decision {
     pub fn allow(detail: Vec<(String, String)>) -> Self {
-        Self { allowed: true, code: None, message: String::new(), detail }
+        Self {
+            allowed: true,
+            code: None,
+            message: String::new(),
+            detail,
+        }
     }
     pub fn deny(code: ArcCode, message: impl Into<String>, detail: Vec<(String, String)>) -> Self {
-        Self { allowed: false, code: Some(code), message: message.into(), detail }
+        Self {
+            allowed: false,
+            code: Some(code),
+            message: message.into(),
+            detail,
+        }
     }
 }

@@ -111,10 +111,7 @@ impl VersionFetcher for HttpVersionFetcher {
             .timeout(Duration::from_millis(FETCH_TIMEOUT_MS))
             .build()
             .ok()?;
-        let res = client
-            .get(format!("{host}/api/version"))
-            .send()
-            .ok()?;
+        let res = client.get(format!("{host}/api/version")).send().ok()?;
         if !res.status().is_success() {
             return None;
         }
@@ -174,7 +171,11 @@ fn version_from_frontmatter(content: &str) -> Option<String> {
             let unquoted = trimmed
                 .strip_prefix('"')
                 .and_then(|s| s.strip_suffix('"'))
-                .or_else(|| trimmed.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
+                .or_else(|| {
+                    trimmed
+                        .strip_prefix('\'')
+                        .and_then(|s| s.strip_suffix('\''))
+                })
                 .unwrap_or(trimmed);
             return Some(unquoted.to_string());
         }
@@ -465,12 +466,8 @@ mod tests {
             c.set(v + 1);
             v
         });
-        let dir = std::env::temp_dir().join(format!(
-            "r04-update-{}-{}-{}",
-            std::process::id(),
-            label,
-            n
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("r04-update-{}-{}-{}", std::process::id(), label, n));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

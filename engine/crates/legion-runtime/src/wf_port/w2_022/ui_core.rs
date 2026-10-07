@@ -39,12 +39,27 @@ pub const LIVE_UI_SURFACES: &[LiveUiSurface] = &[
             "impeccable-live-page-chat-input",
             "impeccable-live-page-chat-voice",
         ],
-        states: &["rest", "hover", "focus-visible", "pressed", "active", "tooltip"],
+        states: &[
+            "rest",
+            "hover",
+            "focus-visible",
+            "pressed",
+            "active",
+            "tooltip",
+        ],
     },
     LiveUiSurface {
         key: "pending-copy-edit-dock",
         ids: &["impeccable-live-pending-dock"],
-        states: &["closed", "open", "hover", "pressed", "loading", "rollback", "keep-fixing"],
+        states: &[
+            "closed",
+            "open",
+            "hover",
+            "pressed",
+            "loading",
+            "rollback",
+            "keep-fixing",
+        ],
     },
     LiveUiSurface {
         key: "element-selection-chrome",
@@ -67,7 +82,14 @@ pub const LIVE_UI_SURFACES: &[LiveUiSurface] = &[
     LiveUiSurface {
         key: "edit-chrome",
         ids: &["impeccable-live-edit-badge"],
-        states: &["enabled", "disabled", "editing", "cancel", "save", "edited-content"],
+        states: &[
+            "enabled",
+            "disabled",
+            "editing",
+            "cancel",
+            "save",
+            "edited-content",
+        ],
     },
     LiveUiSurface {
         key: "generating-row",
@@ -91,7 +113,14 @@ pub const LIVE_UI_SURFACES: &[LiveUiSurface] = &[
     LiveUiSurface {
         key: "variant-params-panel",
         ids: &["impeccable-live-params-panel"],
-        states: &["closed", "open-above", "open-below", "range", "steps", "toggle"],
+        states: &[
+            "closed",
+            "open-above",
+            "open-below",
+            "range",
+            "steps",
+            "toggle",
+        ],
     },
     LiveUiSurface {
         key: "saving-confirmed-rows",
@@ -109,7 +138,15 @@ pub const LIVE_UI_SURFACES: &[LiveUiSurface] = &[
             "impeccable-live-insert-create",
             "impeccable-live-insert-create-tooltip",
         ],
-        states: &["toggle-active", "line", "placeholder", "resize", "enabled", "disabled", "tooltip"],
+        states: &[
+            "toggle-active",
+            "line",
+            "placeholder",
+            "resize",
+            "enabled",
+            "disabled",
+            "tooltip",
+        ],
     },
     LiveUiSurface {
         key: "annotation-chrome",
@@ -162,9 +199,36 @@ pub fn escape_css_ident(value: &str) -> String {
     for ch in value.chars() {
         if matches!(
             ch,
-            ' ' | '!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | '.'
-                | '/' | ':' | ';' | '<' | '=' | '>' | '?' | '@' | '[' | '\\' | ']' | '^' | '`'
-                | '{' | '|' | '}' | '~'
+            ' ' | '!'
+                | '"'
+                | '#'
+                | '$'
+                | '%'
+                | '&'
+                | '\''
+                | '('
+                | ')'
+                | '*'
+                | '+'
+                | ','
+                | '.'
+                | '/'
+                | ':'
+                | ';'
+                | '<'
+                | '='
+                | '>'
+                | '?'
+                | '@'
+                | '['
+                | '\\'
+                | ']'
+                | '^'
+                | '`'
+                | '{'
+                | '|'
+                | '}'
+                | '~'
         ) {
             out.push('\\');
         }
@@ -179,14 +243,20 @@ mod tests {
 
     #[test]
     fn mount_contract_matches_js_order() {
-        assert_eq!(LIVE_CHROME_MOUNT_CONTRACT, ["root", "transport", "state", "actions"]);
+        assert_eq!(
+            LIVE_CHROME_MOUNT_CONTRACT,
+            ["root", "transport", "state", "actions"]
+        );
     }
 
     #[test]
     fn fourteen_surfaces_present() {
         assert_eq!(LIVE_UI_SURFACES.len(), 14);
         assert_eq!(LIVE_UI_SURFACES[0].key, "global-bottom-bar");
-        assert_eq!(LIVE_UI_SURFACES.last().unwrap().key, "css-isolation-boundary");
+        assert_eq!(
+            LIVE_UI_SURFACES.last().unwrap().key,
+            "css-isolation-boundary"
+        );
     }
 
     #[test]
@@ -194,9 +264,15 @@ mod tests {
         let ids = live_ui_component_ids();
         // "impeccable-live-bar" appears in three surfaces; it must show up
         // exactly once, at its first-seen position.
-        let bar_count = ids.iter().filter(|id| **id == "impeccable-live-bar").count();
+        let bar_count = ids
+            .iter()
+            .filter(|id| **id == "impeccable-live-bar")
+            .count();
         assert_eq!(bar_count, 1);
-        let bar_pos = ids.iter().position(|id| *id == "impeccable-live-bar").unwrap();
+        let bar_pos = ids
+            .iter()
+            .position(|id| *id == "impeccable-live-bar")
+            .unwrap();
         // First seen inside "element-selection-chrome" (before
         // "generating-row"/"variant-cycling-row"/"saving-confirmed-rows").
         assert!(ids[..bar_pos].contains(&"impeccable-live-tooltip"));

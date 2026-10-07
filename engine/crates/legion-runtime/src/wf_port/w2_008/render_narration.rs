@@ -148,7 +148,8 @@ mod tests {
 
     #[test]
     fn defaults_match_script_initializers() {
-        let parsed = parse_args(&args(&["demo.html", "--timeline=_narration/timeline.json"])).unwrap();
+        let parsed =
+            parse_args(&args(&["demo.html", "--timeline=_narration/timeline.json"])).unwrap();
         assert_eq!(parsed.html.as_deref(), Some("demo.html"));
         assert_eq!(parsed.timeline.as_deref(), Some("_narration/timeline.json"));
         assert_eq!(parsed.bgm_volume, "0.18");

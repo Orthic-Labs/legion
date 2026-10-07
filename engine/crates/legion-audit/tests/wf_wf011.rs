@@ -10,8 +10,9 @@
 //! inside it) into `legion-audit`'s `src/lib.rs`.
 
 use legion_audit::wf_port::wf011::{
-    normalize_provider_result, topological_providers, validate_artifact_authority, validate_provider_dag,
-    validate_provider_output_authority, validate_provider_v2, validate_role_output,
+    normalize_provider_result, topological_providers, validate_artifact_authority,
+    validate_provider_dag, validate_provider_output_authority, validate_provider_v2,
+    validate_role_output,
 };
 use serde_json::json;
 
@@ -43,7 +44,13 @@ fn topological_providers_is_exported_through_the_sdk() {
 
 // --- provider-dag.test.mjs ---
 
-fn p(id: &str, deps: Vec<&str>, produces: Vec<&str>, consumes: Vec<&str>, role: &str) -> serde_json::Value {
+fn p(
+    id: &str,
+    deps: Vec<&str>,
+    produces: Vec<&str>,
+    consumes: Vec<&str>,
+    role: &str,
+) -> serde_json::Value {
     json!({
         "id": id, "providerVersion": "1.0.0", "role": role, "phase": "runtime",
         "dependsOn": deps, "produces": produces, "consumes": consumes,
@@ -66,13 +73,15 @@ fn topological_order_respects_dependencies() {
 
 #[test]
 fn unknown_dependency_is_rejected() {
-    let err = topological_providers(&[p("a", vec!["ghost"], vec![], vec![], "deterministic")]).unwrap_err();
+    let err = topological_providers(&[p("a", vec!["ghost"], vec![], vec![], "deterministic")])
+        .unwrap_err();
     assert!(err.0.contains("depends on unknown"));
 }
 
 #[test]
 fn self_dependency_is_rejected() {
-    let err = topological_providers(&[p("a", vec!["a"], vec![], vec![], "deterministic")]).unwrap_err();
+    let err =
+        topological_providers(&[p("a", vec!["a"], vec![], vec![], "deterministic")]).unwrap_err();
     assert!(err.0.contains("depends on itself"));
 }
 
@@ -88,16 +97,34 @@ fn dependency_cycle_is_rejected() {
 
 #[test]
 fn unproduced_consumed_artifact_is_rejected() {
-    let err =
-        validate_provider_dag(&[p("a", vec![], vec![], vec!["security-surface-model"], "deterministic")]).unwrap_err();
+    let err = validate_provider_dag(&[p(
+        "a",
+        vec![],
+        vec![],
+        vec!["security-surface-model"],
+        "deterministic",
+    )])
+    .unwrap_err();
     assert!(err.0.contains("consumes unproduced"));
 }
 
 #[test]
 fn duplicate_singleton_producer_is_rejected() {
     let err = validate_provider_dag(&[
-        p("a", vec![], vec!["security-candidates"], vec![], "deterministic"),
-        p("b", vec![], vec!["security-candidates"], vec![], "deterministic"),
+        p(
+            "a",
+            vec![],
+            vec!["security-candidates"],
+            vec![],
+            "deterministic",
+        ),
+        p(
+            "b",
+            vec![],
+            vec!["security-candidates"],
+            vec![],
+            "deterministic",
+        ),
     ])
     .unwrap_err();
     assert!(err.0.contains("produced by both"));
@@ -105,14 +132,22 @@ fn duplicate_singleton_producer_is_rejected() {
 
 #[test]
 fn role_output_authority_violations_are_rejected() {
-    assert!(validate_role_output(&p("a", vec![], vec!["security-candidates"], vec![], "model-builder"))
-        .unwrap_err()
-        .0
-        .contains("may not produce"));
-    assert!(validate_role_output(&p("a", vec![], vec!["findings"], vec![], "adjudicator"))
-        .unwrap_err()
-        .0
-        .contains("may not produce"));
+    assert!(validate_role_output(&p(
+        "a",
+        vec![],
+        vec!["security-candidates"],
+        vec![],
+        "model-builder"
+    ))
+    .unwrap_err()
+    .0
+    .contains("may not produce"));
+    assert!(
+        validate_role_output(&p("a", vec![], vec!["findings"], vec![], "adjudicator"))
+            .unwrap_err()
+            .0
+            .contains("may not produce")
+    );
     assert!(validate_role_output(&p(
         "a",
         vec![],
@@ -123,19 +158,33 @@ fn role_output_authority_violations_are_rejected() {
     .unwrap_err()
     .0
     .contains("may not produce"));
-    assert!(validate_role_output(&p("a", vec![], vec!["findings"], vec![], "evidence-synthesizer")).is_ok());
+    assert!(validate_role_output(&p(
+        "a",
+        vec![],
+        vec!["findings"],
+        vec![],
+        "evidence-synthesizer"
+    ))
+    .is_ok());
 }
 
 #[test]
 fn unknown_role_is_rejected() {
-    let err = validate_role_output(&json!({"id": "x", "role": "not-a-role", "produces": []})).unwrap_err();
+    let err = validate_role_output(&json!({"id": "x", "role": "not-a-role", "produces": []}))
+        .unwrap_err();
     assert!(err.0.contains("unknown role"));
 }
 
 #[test]
 fn valid_dag_validates_cleanly() {
     let ok = validate_provider_dag(&[
-        p("surface", vec![], vec!["security-surface-model"], vec![], "model-builder"),
+        p(
+            "surface",
+            vec![],
+            vec!["security-surface-model"],
+            vec![],
+            "model-builder",
+        ),
         p(
             "packs",
             vec!["surface"],
@@ -159,7 +208,8 @@ fn artifact_authority_rejects_duplicate_producer_and_unproduced_consumer() {
     .unwrap_err();
     assert_eq!(dup.0, "duplicate artifact producer: x");
 
-    let unproduced = validate_artifact_authority(&[json!({"id": "a", "consumes": ["ghost"]})]).unwrap_err();
+    let unproduced =
+        validate_artifact_authority(&[json!({"id": "a", "consumes": ["ghost"]})]).unwrap_err();
     assert_eq!(unproduced.0, "unproduced artifact: ghost");
 
     let owners = validate_artifact_authority(&[

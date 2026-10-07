@@ -89,7 +89,10 @@ fn sha256_file(path: &Path) -> std::io::Result<String> {
 }
 
 /// `run` must be an immediate child of `runs_root`. Mirrors `_canonical_run_dir`.
-fn canonical_run_dir(run_dir: &Path, runs_root: &Path) -> std::result::Result<PathBuf, EvidenceError> {
+fn canonical_run_dir(
+    run_dir: &Path,
+    runs_root: &Path,
+) -> std::result::Result<PathBuf, EvidenceError> {
     let run = run_dir
         .canonicalize()
         .map_err(|e| EvidenceError::new(format!("cannot resolve run dir: {e}")))?;
@@ -124,7 +127,12 @@ fn artifact_paths(run_dir: &Path) -> std::io::Result<Vec<PathBuf>> {
         .into_iter()
         .collect();
     let mut out = Vec::new();
-    fn walk(dir: &Path, run_dir: &Path, excluded: &HashSet<PathBuf>, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    fn walk(
+        dir: &Path,
+        run_dir: &Path,
+        excluded: &HashSet<PathBuf>,
+        out: &mut Vec<PathBuf>,
+    ) -> std::io::Result<()> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -240,7 +248,11 @@ pub fn verify_run_evidence(run_dir: &Path, runs_root: &Path) -> Result<Value> {
         .unwrap_or_default();
     let expected: BTreeMap<String, &Value> = manifest_artifacts
         .iter()
-        .filter_map(|item| item.get("path").and_then(Value::as_str).map(|p| (p.to_string(), item)))
+        .filter_map(|item| {
+            item.get("path")
+                .and_then(Value::as_str)
+                .map(|p| (p.to_string(), item))
+        })
         .collect();
     let actual_paths_vec = artifact_paths(&run)?;
     let actual_paths: HashMap<String, PathBuf> = actual_paths_vec
@@ -287,10 +299,9 @@ pub fn schedule_finding(
     source_ledger_digest: &str,
 ) -> Result<Value> {
     if source_phase.is_empty() || owner_phase.is_empty() {
-        return Err(EvidenceError::new(
-            "scheduled finding requires named source and owner phases",
-        )
-        .into());
+        return Err(
+            EvidenceError::new("scheduled finding requires named source and owner phases").into(),
+        );
     }
     if source_ledger_digest.len() != 64 {
         return Err(EvidenceError::new(
@@ -306,7 +317,10 @@ pub fn schedule_finding(
     if state.get("scheduled_findings").is_none() {
         state["scheduled_findings"] = json!([]);
     }
-    let scheduled = state["scheduled_findings"].as_array().cloned().unwrap_or_default();
+    let scheduled = state["scheduled_findings"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     if let Some(prior) = scheduled
         .iter()
         .find(|item| item.get("finding_id").and_then(Value::as_str) == Some(finding_id))
@@ -314,10 +328,9 @@ pub fn schedule_finding(
         if prior.get("status").and_then(Value::as_str) == Some("Open") {
             return Err(EvidenceError::new("open finding cannot be rescheduled").into());
         }
-        return Err(EvidenceError::new(format!(
-            "scheduled finding already exists: {finding_id}"
-        ))
-        .into());
+        return Err(
+            EvidenceError::new(format!("scheduled finding already exists: {finding_id}")).into(),
+        );
     }
     let record = json!({
         "finding_id": finding_id,
@@ -427,10 +440,13 @@ pub fn persist_finding_ledger(
         .as_array()
         .unwrap()
         .iter()
-        .filter(|f| {
-            !terminal.contains(&f.get("status").and_then(Value::as_str).unwrap_or(""))
+        .filter(|f| !terminal.contains(&f.get("status").and_then(Value::as_str).unwrap_or("")))
+        .map(|f| {
+            json!(f
+                .get("finding_id")
+                .map(value_to_str_lossy)
+                .unwrap_or_default())
         })
-        .map(|f| json!(f.get("finding_id").map(value_to_str_lossy).unwrap_or_default()))
         .collect();
     let state_path = out_dir.join(STATE_NAME);
     let mut state: Value = if state_path.is_file() {
@@ -486,8 +502,13 @@ pub fn verify_terminal_finding_ledger(out_dir: &Path) -> Result<Value> {
     } else {
         ledger_path.clone()
     };
-    if ledger_path_resolved.strip_prefix(&out_dir_resolved).is_err() {
-        return Err(EvidenceError::new("room finding ledger is outside the review directory").into());
+    if ledger_path_resolved
+        .strip_prefix(&out_dir_resolved)
+        .is_err()
+    {
+        return Err(
+            EvidenceError::new("room finding ledger is outside the review directory").into(),
+        );
     }
     if !ledger_path_resolved.is_file() || sha256_file(&ledger_path_resolved)? != expected_digest {
         return Err(EvidenceError::new("room finding ledger digest is invalid").into());
@@ -511,16 +532,26 @@ pub fn verify_terminal_finding_ledger(out_dir: &Path) -> Result<Value> {
         let receipt_id = receipt.get("receipt_id").and_then(Value::as_str);
         let receipt_id = match receipt_id {
             Some(id) if !id.is_empty() && !receipt_index.contains_key(id) => id,
-            _ => return Err(EvidenceError::new("room finding ledger receipt id is invalid").into()),
+            _ => {
+                return Err(EvidenceError::new("room finding ledger receipt id is invalid").into())
+            }
         };
         let kind = receipt.get("kind").and_then(Value::as_str).unwrap_or("");
-        if !matches!(kind, "file" | "artifact" | "measurement" | "web" | "scope_motion") {
+        if !matches!(
+            kind,
+            "file" | "artifact" | "measurement" | "web" | "scope_motion"
+        ) {
             return Err(EvidenceError::new(format!(
                 "room finding ledger receipt kind is invalid: {receipt_id}"
             ))
             .into());
         }
-        if receipt.get("locator").and_then(Value::as_str).unwrap_or("").is_empty() {
+        if receipt
+            .get("locator")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
             return Err(EvidenceError::new(format!(
                 "room finding ledger receipt locator is missing: {receipt_id}"
             ))
@@ -531,7 +562,10 @@ pub fn verify_terminal_finding_ledger(out_dir: &Path) -> Result<Value> {
     let open_ids: Vec<String> = findings
         .iter()
         .filter(|f| {
-            !matches!(f.get("status").and_then(Value::as_str), Some("Folded") | Some("Refuted"))
+            !matches!(
+                f.get("status").and_then(Value::as_str),
+                Some("Folded") | Some("Refuted")
+            )
         })
         .map(|f| value_to_str_lossy(f.get("finding_id").unwrap_or(&Value::Null)))
         .collect();
@@ -545,14 +579,24 @@ pub fn verify_terminal_finding_ledger(out_dir: &Path) -> Result<Value> {
     }
     let dispositions_by_finding: HashMap<String, &Value> = dispositions
         .iter()
-        .map(|d| (value_to_str_lossy(d.get("finding_id").unwrap_or(&Value::Null)), d))
+        .map(|d| {
+            (
+                value_to_str_lossy(d.get("finding_id").unwrap_or(&Value::Null)),
+                d,
+            )
+        })
         .collect();
     for finding in findings {
         let finding_id = value_to_str_lossy(finding.get("finding_id").unwrap_or(&Value::Null));
         let disposition = dispositions_by_finding.get(&finding_id).ok_or_else(|| {
-            EvidenceError::new(format!("room finding ledger lacks disposition: {finding_id}"))
+            EvidenceError::new(format!(
+                "room finding ledger lacks disposition: {finding_id}"
+            ))
         })?;
-        let status = disposition.get("status").and_then(Value::as_str).unwrap_or("");
+        let status = disposition
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if !matches!(status, "Accepted" | "Ruled") {
             return Err(EvidenceError::new(format!(
                 "room finding ledger exit is not accepted: {finding_id}"
@@ -614,7 +658,11 @@ impl CommandRunner for RealCommandRunner {
     }
 }
 
-fn verify_relative_artifact(directory: &Path, relative: &str, expected_digest: &str) -> Result<PathBuf> {
+fn verify_relative_artifact(
+    directory: &Path,
+    relative: &str,
+    expected_digest: &str,
+) -> Result<PathBuf> {
     let path = directory.join(relative);
     let resolved = if path.exists() {
         path.canonicalize()
@@ -632,7 +680,9 @@ fn verify_relative_artifact(directory: &Path, relative: &str, expected_digest: &
         .into());
     }
     if !resolved.is_file() || sha256_file(&resolved)? != expected_digest {
-        return Err(EvidenceError::new(format!("fallback artifact digest is invalid: {relative}")).into());
+        return Err(
+            EvidenceError::new(format!("fallback artifact digest is invalid: {relative}")).into(),
+        );
     }
     Ok(resolved)
 }
@@ -669,7 +719,10 @@ pub fn archive_verified_room_memory(
     } else {
         json!({})
     };
-    let transcript_relative = state.get("transcript_path").and_then(Value::as_str).map(str::to_string);
+    let transcript_relative = state
+        .get("transcript_path")
+        .and_then(Value::as_str)
+        .map(str::to_string);
     let mut transcript_digest: Option<String> = None;
     if let Some(rel) = &transcript_relative {
         let transcript = directory.join(rel);
@@ -681,7 +734,9 @@ pub fn archive_verified_room_memory(
             transcript.clone()
         };
         if resolved.strip_prefix(&directory).is_err() {
-            return Err(EvidenceError::new("room transcript is outside the review directory").into());
+            return Err(
+                EvidenceError::new("room transcript is outside the review directory").into(),
+            );
         }
         if resolved.is_file() {
             transcript_digest = Some(sha256_file(&resolved)?);
@@ -694,7 +749,12 @@ pub fn archive_verified_room_memory(
         .cloned()
         .unwrap_or_default()
         .into_iter()
-        .map(|d| (value_to_str_lossy(d.get("finding_id").unwrap_or(&Value::Null)), d))
+        .map(|d| {
+            (
+                value_to_str_lossy(d.get("finding_id").unwrap_or(&Value::Null)),
+                d,
+            )
+        })
         .collect();
     let findings_all: Vec<Value> = ledger["findings"].as_array().cloned().unwrap_or_default();
     let mut findings_lines = Vec::new();
@@ -720,10 +780,15 @@ pub fn archive_verified_room_memory(
     let mut content_lines = vec![
         "---".to_string(),
         "source: agent-room".to_string(),
-        format!("ledger_sha256: {}", ledger_digest.clone().unwrap_or_default()),
+        format!(
+            "ledger_sha256: {}",
+            ledger_digest.clone().unwrap_or_default()
+        ),
         format!(
             "transcript_sha256: {}",
-            transcript_digest.clone().unwrap_or_else(|| "unavailable".to_string())
+            transcript_digest
+                .clone()
+                .unwrap_or_else(|| "unavailable".to_string())
         ),
         "verified_terminal_ledger: true".to_string(),
         "---".to_string(),
@@ -845,7 +910,10 @@ pub fn advance_room_fallback(
     let directory = state_path.parent().unwrap_or(Path::new("."));
     let mut state = read_json(state_path)?;
     let fallback = state.get("fallback").cloned().unwrap_or(json!({}));
-    let merge_forbidden = fallback.get("merge_forbidden").and_then(Value::as_bool).unwrap_or(false);
+    let merge_forbidden = fallback
+        .get("merge_forbidden")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if state.get("lane").and_then(Value::as_str) != Some("room-fallback") || !merge_forbidden {
         return Err(EvidenceError::new("room fallback state is invalid").into());
     }
@@ -925,7 +993,12 @@ pub(crate) fn material_changes(sample: &Value) -> Vec<&'static str> {
     let refute_actions: BTreeSet<&str> = ["refuted", "refute"].into_iter().collect();
     let mut disposition_flipped = false;
     if let (Some(bd), Some(dd)) = (blind_d, debate_d) {
-        let common: BTreeSet<&String> = bd.keys().collect::<BTreeSet<_>>().intersection(&dd.keys().collect()).cloned().collect();
+        let common: BTreeSet<&String> = bd
+            .keys()
+            .collect::<BTreeSet<_>>()
+            .intersection(&dd.keys().collect())
+            .cloned()
+            .collect();
         for finding_id in common {
             let bv = value_to_str_lossy(&bd[finding_id]).to_lowercase();
             let dv = value_to_str_lossy(&dd[finding_id]).to_lowercase();
@@ -1030,14 +1103,31 @@ pub(crate) fn branch_outcome(run_dir: &Path) -> Result<Value> {
         .and_then(|s| s.get("majority_verdict"))
         .and_then(Value::as_str);
     let tier = tier.ok_or_else(|| {
-        EvidenceError::new(format!("Jury artifact lacks majority verdict: {}", run_dir.display()))
+        EvidenceError::new(format!(
+            "Jury artifact lacks majority verdict: {}",
+            run_dir.display()
+        ))
     })?;
     let mut blockers: BTreeSet<String> = BTreeSet::new();
-    for juror in jury.get("jurors").and_then(Value::as_array).unwrap_or(&vec![]).to_owned() {
-        if !juror.get("parsed_ok").map(|v| v.as_bool().unwrap_or(true)).unwrap_or(true) {
+    for juror in jury
+        .get("jurors")
+        .and_then(Value::as_array)
+        .unwrap_or(&vec![])
+        .to_owned()
+    {
+        if !juror
+            .get("parsed_ok")
+            .map(|v| v.as_bool().unwrap_or(true))
+            .unwrap_or(true)
+        {
             continue;
         }
-        for blocker in juror.get("blockers").and_then(Value::as_array).cloned().unwrap_or_default() {
+        for blocker in juror
+            .get("blockers")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+        {
             let normalized = match &blocker {
                 Value::String(s) => s.trim().to_string(),
                 Value::Object(m) if m.get("finding_id").is_some() => {
@@ -1088,10 +1178,14 @@ pub(crate) fn peer_round_accounting(run_dir: &Path) -> Result<Value> {
         }
         calls += call_count.and_then(Value::as_i64).unwrap_or(0);
         tokens += total_tokens.and_then(Value::as_i64).unwrap_or(0);
-        complete = complete && accounting.get("usage_complete").and_then(Value::as_bool) == Some(true);
+        complete =
+            complete && accounting.get("usage_complete").and_then(Value::as_bool) == Some(true);
     }
     let response = read_json(&run_dir.join("council.response.json"))?;
-    let audit = response.get("resolution_audit").cloned().unwrap_or(json!({}));
+    let audit = response
+        .get("resolution_audit")
+        .cloned()
+        .unwrap_or(json!({}));
     let resolutions = audit.get("resolutions").and_then(Value::as_array);
     let resolutions = match resolutions {
         Some(r) if !r.is_empty() => r,
@@ -1141,11 +1235,18 @@ fn validate_experiment_pair(blind: &Path, debate: &Path, review_kind: &str) -> R
     }
     let blind_state = read_json(&blind.join(STATE_NAME))?;
     let debate_state = read_json(&debate.join(STATE_NAME))?;
-    let same_packet = sha256_file(&blind.join("packet.md"))? == sha256_file(&debate.join("packet.md"))?;
-    let blind_hash = blind_state.get("input_hash").and_then(Value::as_str).filter(|s| !s.is_empty());
-    let same_input_hash = blind_hash.is_some() && blind_hash == debate_state.get("input_hash").and_then(Value::as_str);
+    let same_packet =
+        sha256_file(&blind.join("packet.md"))? == sha256_file(&debate.join("packet.md"))?;
+    let blind_hash = blind_state
+        .get("input_hash")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty());
+    let same_input_hash = blind_hash.is_some()
+        && blind_hash == debate_state.get("input_hash").and_then(Value::as_str);
     if !same_packet || !same_input_hash {
-        return Err(EvidenceError::new("gate branches must use the same pinned input packet").into());
+        return Err(
+            EvidenceError::new("gate branches must use the same pinned input packet").into(),
+        );
     }
     if blind_state.get("skill").and_then(Value::as_str) != Some(review_kind)
         || debate_state.get("skill").and_then(Value::as_str) != Some(review_kind)
@@ -1183,7 +1284,11 @@ pub fn build_value_gate_sample(
     if run_id.is_empty() || Path::new(run_id).file_name().and_then(|n| n.to_str()) != Some(run_id) {
         return Err(EvidenceError::new("run_id must be one path-safe segment").into());
     }
-    if operator_adjudication.get("adjudicated_by").and_then(Value::as_str) != Some(FROZEN_ADJUDICATOR) {
+    if operator_adjudication
+        .get("adjudicated_by")
+        .and_then(Value::as_str)
+        != Some(FROZEN_ADJUDICATOR)
+    {
         return Err(EvidenceError::new("value sample requires the operator adjudication").into());
     }
 
@@ -1202,10 +1307,19 @@ pub fn build_value_gate_sample(
         .map_err(|e| EvidenceError::new(format!("cannot resolve runs root: {e}")))?
         .join(run_id);
     if output.exists() {
-        return Err(EvidenceError::new(format!("value-gate run already exists: {}", output.display())).into());
+        return Err(EvidenceError::new(format!(
+            "value-gate run already exists: {}",
+            output.display()
+        ))
+        .into());
     }
 
-    let blind_names = ["packet.md", STATE_NAME, "review.disposition.json", "jury.verdict.json"];
+    let blind_names = [
+        "packet.md",
+        STATE_NAME,
+        "review.disposition.json",
+        "jury.verdict.json",
+    ];
     let debate_names = [
         "packet.md",
         STATE_NAME,
@@ -1295,8 +1409,15 @@ pub fn evaluate_frozen_value_gate(run_dirs: &[PathBuf], runs_root: &Path) -> Res
     for run in &runs {
         let run_name = run.file_name().and_then(|n| n.to_str()).unwrap_or_default();
         let verification = verify_run_evidence(run, runs_root)?;
-        if !verification.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-            return Err(EvidenceError::new(format!("run evidence is not pinned or digest-valid: {run_name}")).into());
+        if !verification
+            .get("ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            return Err(EvidenceError::new(format!(
+                "run evidence is not pinned or digest-valid: {run_name}"
+            ))
+            .into());
         }
         let sample_path = run.join(SAMPLE_NAME);
         if !sample_path.is_file() {
@@ -1306,7 +1427,11 @@ pub fn evaluate_frozen_value_gate(run_dirs: &[PathBuf], runs_root: &Path) -> Res
         if sample.get("run_id").and_then(Value::as_str) != Some(run_name) {
             return Err(EvidenceError::new(format!("sample run_id mismatch: {run_name}")).into());
         }
-        if sample.get("self_referential").and_then(Value::as_bool).unwrap_or(false) {
+        if sample
+            .get("self_referential")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
             return Err(EvidenceError::new(
                 "self-referential jury-plan packets are excluded from the gate",
             )
@@ -1315,21 +1440,38 @@ pub fn evaluate_frozen_value_gate(run_dirs: &[PathBuf], runs_root: &Path) -> Res
         if sample.get("loop").and_then(Value::as_i64) != Some(FROZEN_REQUIRED_LOOP)
             || sample.get("real_review").and_then(Value::as_bool) != Some(true)
         {
-            return Err(EvidenceError::new(format!("sample is not a real Loop-2 review: {run_name}")).into());
+            return Err(EvidenceError::new(format!(
+                "sample is not a real Loop-2 review: {run_name}"
+            ))
+            .into());
         }
-        let adjudication = sample.get("operator_adjudication").cloned().unwrap_or(json!({}));
+        let adjudication = sample
+            .get("operator_adjudication")
+            .cloned()
+            .unwrap_or(json!({}));
         if adjudication.get("adjudicated_by").and_then(Value::as_str) != Some(FROZEN_ADJUDICATOR) {
-            return Err(EvidenceError::new(format!("missing the operator adjudication: {run_name}")).into());
+            return Err(EvidenceError::new(format!(
+                "missing the operator adjudication: {run_name}"
+            ))
+            .into());
         }
         let room_metrics = sample.get("room").cloned().unwrap_or(json!({}));
         let calls = room_metrics.get("calls");
         let tokens = room_metrics.get("tokens");
-        let calls_ok = calls.and_then(Value::as_i64).is_some_and(|c| c >= 0) && !matches!(calls, Some(Value::Bool(_)));
-        let tokens_ok = tokens.and_then(Value::as_i64).is_some_and(|t| t >= 0) && !matches!(tokens, Some(Value::Bool(_)));
+        let calls_ok = calls.and_then(Value::as_i64).is_some_and(|c| c >= 0)
+            && !matches!(calls, Some(Value::Bool(_)));
+        let tokens_ok = tokens.and_then(Value::as_i64).is_some_and(|t| t >= 0)
+            && !matches!(tokens, Some(Value::Bool(_)));
         if !calls_ok || !tokens_ok {
-            return Err(EvidenceError::new(format!("room calls/tokens accounting is required: {run_name}")).into());
+            return Err(EvidenceError::new(format!(
+                "room calls/tokens accounting is required: {run_name}"
+            ))
+            .into());
         }
-        let usage_source = room_metrics.get("usage_source").and_then(Value::as_str).unwrap_or("");
+        let usage_source = room_metrics
+            .get("usage_source")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if room_metrics.get("usage_complete").and_then(Value::as_bool) != Some(true)
             || !matches!(usage_source, "provider" | "cli_self_report")
         {
@@ -1340,11 +1482,25 @@ pub fn evaluate_frozen_value_gate(run_dirs: &[PathBuf], runs_root: &Path) -> Res
         }
 
         let changes = material_changes(&sample);
-        let blind_blockers = sample["blind"].get("blockers").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0);
-        let debate_blockers = sample["peer_debate"].get("blockers").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0);
+        let blind_blockers = sample["blind"]
+            .get("blockers")
+            .and_then(Value::as_array)
+            .map(|a| a.len())
+            .unwrap_or(0);
+        let debate_blockers = sample["peer_debate"]
+            .get("blockers")
+            .and_then(Value::as_array)
+            .map(|a| a.len())
+            .unwrap_or(0);
         let inflation = inflation_ratio(blind_blockers, debate_blockers);
-        let minority_erased = adjudication.get("correct_minority_erased").and_then(Value::as_bool).unwrap_or(false);
-        let escalation_rate = room_metrics.get("escalation_rate").and_then(Value::as_f64).unwrap_or(1.0);
+        let minority_erased = adjudication
+            .get("correct_minority_erased")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let escalation_rate = room_metrics
+            .get("escalation_rate")
+            .and_then(Value::as_f64)
+            .unwrap_or(1.0);
         if inflation > FROZEN_MAX_BLOCKER_INFLATION {
             failures.insert("blocker_inflation");
         }
@@ -1368,7 +1524,11 @@ pub fn evaluate_frozen_value_gate(run_dirs: &[PathBuf], runs_root: &Path) -> Res
 
     let material_count = rows
         .iter()
-        .filter(|r| r["material_changes"].as_array().is_some_and(|a| !a.is_empty()))
+        .filter(|r| {
+            r["material_changes"]
+                .as_array()
+                .is_some_and(|a| !a.is_empty())
+        })
         .count();
     if material_count == 0 {
         failures.insert("no_material_change");
@@ -1435,7 +1595,9 @@ fn positionals(args: &[String]) -> Vec<String> {
 
 fn run_inner(args: &[String], default_runs_root: &Path) -> std::result::Result<i32, String> {
     let mut iter = args.iter();
-    let command = iter.next().ok_or("a command is required: pin|verify|evaluate|sample")?;
+    let command = iter
+        .next()
+        .ok_or("a command is required: pin|verify|evaluate|sample")?;
     let rest: Vec<String> = iter.cloned().collect();
     let runs_root_arg = flag_value(&rest, "--runs-root");
     let runs_root = runs_root_arg
@@ -1448,13 +1610,15 @@ fn run_inner(args: &[String], default_runs_root: &Path) -> std::result::Result<i
     match command.as_str() {
         "pin" => {
             let run_dir = pos.first().ok_or("pin requires run_dir")?;
-            let result = pin_run_evidence(Path::new(run_dir), &runs_root).map_err(|e| e.to_string())?;
+            let result =
+                pin_run_evidence(Path::new(run_dir), &runs_root).map_err(|e| e.to_string())?;
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
             Ok(0)
         }
         "verify" => {
             let run_dir = pos.first().ok_or("verify requires run_dir")?;
-            let result = verify_run_evidence(Path::new(run_dir), &runs_root).map_err(|e| e.to_string())?;
+            let result =
+                verify_run_evidence(Path::new(run_dir), &runs_root).map_err(|e| e.to_string())?;
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
             let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
             Ok(if ok { 0 } else { 1 })
@@ -1464,24 +1628,31 @@ fn run_inner(args: &[String], default_runs_root: &Path) -> std::result::Result<i
                 return Err("evaluate requires exactly 3 run_dirs".to_string());
             }
             let run_dirs: Vec<PathBuf> = pos.iter().map(PathBuf::from).collect();
-            let result = evaluate_frozen_value_gate(&run_dirs, &runs_root).map_err(|e| e.to_string())?;
+            let result =
+                evaluate_frozen_value_gate(&run_dirs, &runs_root).map_err(|e| e.to_string())?;
             if let Some(output) = flag_value(&rest, "--output") {
                 write_json(Path::new(&output), &result).map_err(|e| e.to_string())?;
             }
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
-            let passed = result.get("passed").and_then(Value::as_bool).unwrap_or(false);
+            let passed = result
+                .get("passed")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             Ok(if passed { 0 } else { 1 })
         }
         "sample" => {
             let run_id = pos.first().ok_or("sample requires run_id")?;
-            let blind_run = flag_value(&rest, "--blind-run").ok_or("sample requires --blind-run")?;
-            let peer_debate_run =
-                flag_value(&rest, "--peer-debate-run").ok_or("sample requires --peer-debate-run")?;
-            let review_kind = flag_value(&rest, "--review-kind").ok_or("sample requires --review-kind")?;
+            let blind_run =
+                flag_value(&rest, "--blind-run").ok_or("sample requires --blind-run")?;
+            let peer_debate_run = flag_value(&rest, "--peer-debate-run")
+                .ok_or("sample requires --peer-debate-run")?;
+            let review_kind =
+                flag_value(&rest, "--review-kind").ok_or("sample requires --review-kind")?;
             let self_referential = flag_present(&rest, "--self-referential");
             let adjudication_path =
                 flag_value(&rest, "--adjudication").ok_or("sample requires --adjudication")?;
-            let adjudication = read_json(Path::new(&adjudication_path)).map_err(|e| e.to_string())?;
+            let adjudication =
+                read_json(Path::new(&adjudication_path)).map_err(|e| e.to_string())?;
             let result = build_value_gate_sample(
                 run_id,
                 Path::new(&blind_run),
@@ -1598,14 +1769,26 @@ mod tests {
         fs::create_dir_all(&run).unwrap();
         let verification = verify_run_evidence(&run, &root).unwrap();
         assert_eq!(verification["ok"], json!(false));
-        assert_eq!(verification["mismatches"][0]["reason"], json!("pin_missing"));
+        assert_eq!(
+            verification["mismatches"][0]["reason"],
+            json!("pin_missing")
+        );
     }
 
     #[test]
     fn schedule_finding_rejects_short_digest() {
         let root = tempdir();
         let state_path = root.join(STATE_NAME);
-        let err = schedule_finding(&state_path, "f1", "phase-a", "phase-b", "claim", "missing", "short").unwrap_err();
+        let err = schedule_finding(
+            &state_path,
+            "f1",
+            "phase-a",
+            "phase-b",
+            "claim",
+            "missing",
+            "short",
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("SHA-256"));
     }
 
@@ -1614,13 +1797,35 @@ mod tests {
         let root = tempdir();
         let state_path = root.join(STATE_NAME);
         let digest = "a".repeat(64);
-        schedule_finding(&state_path, "f1", "phase-a", "phase-b", "claim", "missing", &digest).unwrap();
+        schedule_finding(
+            &state_path,
+            "f1",
+            "phase-a",
+            "phase-b",
+            "claim",
+            "missing",
+            &digest,
+        )
+        .unwrap();
         // Reconcile at the owner phase first, which flips the scheduled
         // finding to "Open" (mirrors `reconcile_moves_scheduled_to_open_at_owner_phase`);
         // only an Open finding gets the specific "cannot be rescheduled" message.
-        let phases = vec!["phase-a".to_string(), "phase-b".to_string(), "phase-c".to_string()];
+        let phases = vec![
+            "phase-a".to_string(),
+            "phase-b".to_string(),
+            "phase-c".to_string(),
+        ];
         reconcile_scheduled_findings(&state_path, "phase-b", &phases).unwrap();
-        let err = schedule_finding(&state_path, "f1", "phase-a", "phase-b", "claim", "missing", &digest).unwrap_err();
+        let err = schedule_finding(
+            &state_path,
+            "f1",
+            "phase-a",
+            "phase-b",
+            "claim",
+            "missing",
+            &digest,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("cannot be rescheduled"));
     }
 
@@ -1629,8 +1834,21 @@ mod tests {
         let root = tempdir();
         let state_path = root.join(STATE_NAME);
         let digest = "a".repeat(64);
-        schedule_finding(&state_path, "f1", "phase-a", "phase-b", "claim", "missing", &digest).unwrap();
-        let phases = vec!["phase-a".to_string(), "phase-b".to_string(), "phase-c".to_string()];
+        schedule_finding(
+            &state_path,
+            "f1",
+            "phase-a",
+            "phase-b",
+            "claim",
+            "missing",
+            &digest,
+        )
+        .unwrap();
+        let phases = vec![
+            "phase-a".to_string(),
+            "phase-b".to_string(),
+            "phase-c".to_string(),
+        ];
         let state = reconcile_scheduled_findings(&state_path, "phase-b", &phases).unwrap();
         assert_eq!(state["scheduled_findings"][0]["status"], json!("Open"));
     }
@@ -1640,8 +1858,21 @@ mod tests {
         let root = tempdir();
         let state_path = root.join(STATE_NAME);
         let digest = "a".repeat(64);
-        schedule_finding(&state_path, "f1", "phase-a", "phase-b", "claim", "missing", &digest).unwrap();
-        let phases = vec!["phase-a".to_string(), "phase-b".to_string(), "phase-c".to_string()];
+        schedule_finding(
+            &state_path,
+            "f1",
+            "phase-a",
+            "phase-b",
+            "claim",
+            "missing",
+            &digest,
+        )
+        .unwrap();
+        let phases = vec![
+            "phase-a".to_string(),
+            "phase-b".to_string(),
+            "phase-c".to_string(),
+        ];
         let state = reconcile_scheduled_findings(&state_path, "phase-c", &phases).unwrap();
         assert_eq!(state["scheduled_findings"][0]["status"], json!("Escalated"));
         assert!(state["escalation_queue"]

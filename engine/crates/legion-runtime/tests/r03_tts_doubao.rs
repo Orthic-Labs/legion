@@ -45,7 +45,11 @@ fn dotenv_parsing_and_precedence() {
     let mut env = HashMap::new();
     env.insert("A".to_string(), "preset".to_string());
     apply_dotenv(&mut env, &pairs);
-    assert_eq!(env.get("A").unwrap(), "preset", "existing env wins over .env");
+    assert_eq!(
+        env.get("A").unwrap(),
+        "preset",
+        "existing env wins over .env"
+    );
     assert_eq!(env.get("B").unwrap(), "two");
 }
 
@@ -97,7 +101,9 @@ impl FileIo for FakeIo {
         Ok(())
     }
     fn write(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-        self.writes.borrow_mut().insert(path.to_path_buf(), bytes.to_vec());
+        self.writes
+            .borrow_mut()
+            .insert(path.to_path_buf(), bytes.to_vec());
         Ok(())
     }
 }

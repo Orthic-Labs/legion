@@ -46,6 +46,6 @@ pub use verify::{
     coupled_object_key_failures_for_op_ref, locator_targets_in_file, normalize_project_source_path,
     object_key_candidates_for_op, object_key_match_still_uses_original,
     sibling_candidates_for_entry, source_hint_window_failure, verification_failures_for_entries,
-    verification_targets_for_op, verify_applied_entry, verify_entries_after_repair,
-    FsSourceStore, InMemorySourceStore, SourceStore,
+    verification_targets_for_op, verify_applied_entry, verify_entries_after_repair, FsSourceStore,
+    InMemorySourceStore, SourceStore,
 };

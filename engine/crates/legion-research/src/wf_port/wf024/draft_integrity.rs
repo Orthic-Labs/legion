@@ -47,7 +47,10 @@ pub fn check(run_dir: &Path, manifest_doc: &Value) -> Value {
     let patch_exists = run_dir.join("applied.patch").is_file();
 
     let (expected, authority) = if patch_exists {
-        match patched.and_then(|p| p.get("sha256")).and_then(Value::as_str) {
+        match patched
+            .and_then(|p| p.get("sha256"))
+            .and_then(Value::as_str)
+        {
             None => {
                 return json!({
                     "ok": false,
@@ -69,7 +72,10 @@ pub fn check(run_dir: &Path, manifest_doc: &Value) -> Value {
                 "reason": "patched-draft artifact exists without applied.patch",
             });
         }
-        match sourced.and_then(|s| s.get("sha256")).and_then(Value::as_str) {
+        match sourced
+            .and_then(|s| s.get("sha256"))
+            .and_then(Value::as_str)
+        {
             None => {
                 return json!({
                     "ok": false,
@@ -134,7 +140,10 @@ mod tests {
     fn missing_draft_fails() {
         let dir = temp_dir("missing");
         let result = check(&dir, &json!({}));
-        assert_eq!(result, json!({"ok": false, "reason": "draft.md is missing"}));
+        assert_eq!(
+            result,
+            json!({"ok": false, "reason": "draft.md is missing"})
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 

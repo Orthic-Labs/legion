@@ -73,7 +73,10 @@ pub struct GoogleApiConfig {
 /// Pure core of `load_config()`: merges a parsed config-file JSON object (if any) with an env
 /// map, exactly matching the python precedence (file value wins if truthy/non-empty string,
 /// otherwise fall back to the matching environment variable).
-pub fn merge_config(file_config: Option<&Value>, env: &BTreeMap<String, String>) -> GoogleApiConfig {
+pub fn merge_config(
+    file_config: Option<&Value>,
+    env: &BTreeMap<String, String>,
+) -> GoogleApiConfig {
     let mut cfg = GoogleApiConfig::default();
 
     if let Some(Value::Object(map)) = file_config {
@@ -129,7 +132,9 @@ pub fn load_config() -> GoogleApiConfig {
 }
 
 fn config_path() -> Option<std::path::PathBuf> {
-    std::env::var("HOME").ok().map(|home| std::path::Path::new(&home).join(CONFIG_PATH_SUFFIX))
+    std::env::var("HOME")
+        .ok()
+        .map(|home| std::path::Path::new(&home).join(CONFIG_PATH_SUFFIX))
 }
 
 /// Faithful port of `validate_url()`: accepts only public `http(s)` URLs, rejecting
@@ -165,7 +170,13 @@ pub fn validate_url(url: &str) -> bool {
         return false;
     }
     let host_lower = host.to_ascii_lowercase();
-    const BLOCKED: [&str; 5] = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal"];
+    const BLOCKED: [&str; 5] = [
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "::1",
+        "metadata.google.internal",
+    ];
     if BLOCKED.contains(&host_lower.as_str()) {
         return false;
     }
@@ -218,7 +229,11 @@ pub struct CredentialCheck {
 
 /// Faithful port of `check_credentials()`'s branching, taking an already-resolved
 /// [`CredentialState`] in place of the python function's own file/OAuth I/O.
-pub fn check_credentials(service: &str, cfg: &GoogleApiConfig, state: &CredentialState) -> CredentialCheck {
+pub fn check_credentials(
+    service: &str,
+    cfg: &GoogleApiConfig,
+    state: &CredentialState,
+) -> CredentialCheck {
     let mut result = CredentialCheck {
         available: false,
         method: service_auth(service).unwrap_or("unknown").to_string(),
@@ -249,7 +264,9 @@ pub fn check_credentials(service: &str, cfg: &GoogleApiConfig, state: &Credentia
                         "Token expired but refresh_token available (will auto-refresh)".to_string(),
                     );
                 } else if !usable {
-                    result.error = Some("OAuth token expired and no refresh_token. Re-run --auth.".to_string());
+                    result.error = Some(
+                        "OAuth token expired and no refresh_token. Re-run --auth.".to_string(),
+                    );
                 }
             } else {
                 match &state.service_account {
@@ -258,7 +275,8 @@ pub fn check_credentials(service: &str, cfg: &GoogleApiConfig, state: &Credentia
                     }
                     Some(sa) => {
                         if !sa.exists {
-                            result.error = Some(format!("Service account file not found: {}", sa.path));
+                            result.error =
+                                Some(format!("Service account file not found: {}", sa.path));
                         } else if !sa.has_required_fields {
                             result.error = Some(
                                 "Service account JSON missing required fields (client_email, private_key)"
@@ -295,7 +313,8 @@ pub fn check_credentials(service: &str, cfg: &GoogleApiConfig, state: &Credentia
 }
 
 fn no_api_key_error() -> String {
-    "No API key found. Set GOOGLE_API_KEY environment variable or add 'api_key' to config".to_string()
+    "No API key found. Set GOOGLE_API_KEY environment variable or add 'api_key' to config"
+        .to_string()
 }
 
 fn no_credentials_error() -> String {
@@ -326,7 +345,11 @@ pub fn detect_tier(cfg: &GoogleApiConfig, state: &CredentialState) -> TierInfo {
         }
     }
 
-    let has_ga4 = has_authenticated && cfg.ga4_property_id.as_deref().is_some_and(|s| !s.is_empty());
+    let has_ga4 = has_authenticated
+        && cfg
+            .ga4_property_id
+            .as_deref()
+            .is_some_and(|s| !s.is_empty());
 
     if has_ga4 {
         TierInfo {
@@ -357,7 +380,9 @@ pub fn detect_tier(cfg: &GoogleApiConfig, state: &CredentialState) -> TierInfo {
                 "Sitemaps",
                 "Indexing API",
             ],
-            missing: Some("Add 'ga4_property_id' to unlock GA4 organic traffic reports".to_string()),
+            missing: Some(
+                "Add 'ga4_property_id' to unlock GA4 organic traffic reports".to_string(),
+            ),
         }
     } else if has_api_key {
         TierInfo {
@@ -383,7 +408,9 @@ pub fn detect_tier(cfg: &GoogleApiConfig, state: &CredentialState) -> TierInfo {
 }
 
 fn token_path() -> Option<PathBuf> {
-    std::env::var("HOME").ok().map(|home| Path::new(&home).join(TOKEN_PATH_SUFFIX))
+    std::env::var("HOME")
+        .ok()
+        .map(|home| Path::new(&home).join(TOKEN_PATH_SUFFIX))
 }
 
 fn now_unix_secs() -> f64 {
@@ -410,16 +437,36 @@ pub fn expand_home(path: &str) -> String {
 pub fn resolve_service_account(path: &str) -> ServiceAccountState {
     let expanded = expand_home(path);
     if !std::path::Path::new(&expanded).exists() {
-        return ServiceAccountState { exists: false, has_required_fields: false, client_email: None, path: expanded };
+        return ServiceAccountState {
+            exists: false,
+            has_required_fields: false,
+            client_email: None,
+            path: expanded,
+        };
     }
-    let parsed = std::fs::read_to_string(&expanded).ok().and_then(|s| serde_json::from_str::<Value>(&s).ok());
+    let parsed = std::fs::read_to_string(&expanded)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok());
     match parsed {
         Some(Value::Object(map)) => {
             let has_fields = map.contains_key("client_email") && map.contains_key("private_key");
-            let client_email = map.get("client_email").and_then(Value::as_str).map(str::to_string);
-            ServiceAccountState { exists: true, has_required_fields: has_fields, client_email, path: expanded }
+            let client_email = map
+                .get("client_email")
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            ServiceAccountState {
+                exists: true,
+                has_required_fields: has_fields,
+                client_email,
+                path: expanded,
+            }
         }
-        _ => ServiceAccountState { exists: true, has_required_fields: false, client_email: None, path: expanded },
+        _ => ServiceAccountState {
+            exists: true,
+            has_required_fields: false,
+            client_email: None,
+            path: expanded,
+        },
     }
 }
 
@@ -447,16 +494,25 @@ pub fn resolve_oauth_token_state(token_path: &Path) -> (Option<bool>, bool) {
         Some(t) => t,
         None => return (None, false),
     };
-    let has_access_token = token.get("access_token").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
+    let has_access_token = token
+        .get("access_token")
+        .and_then(Value::as_str)
+        .is_some_and(|s| !s.is_empty());
     if !has_access_token {
         return (None, false);
     }
-    let expires_at = token.get("expires_at").and_then(Value::as_f64).unwrap_or(0.0);
+    let expires_at = token
+        .get("expires_at")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
     let expired = now_unix_secs() > expires_at - 60.0;
     if !expired {
         return (Some(true), false);
     }
-    let has_refresh = token.get("refresh_token").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
+    let has_refresh = token
+        .get("refresh_token")
+        .and_then(Value::as_str)
+        .is_some_and(|s| !s.is_empty());
     if has_refresh {
         (Some(true), true)
     } else {
@@ -470,11 +526,14 @@ pub fn resolve_oauth_token_state(token_path: &Path) -> (Option<bool>, bool) {
 /// back to service account` precedence: the service-account file is only probed when there is no
 /// usable OAuth token on disk.
 pub fn resolve_credential_state(cfg: &GoogleApiConfig) -> CredentialState {
-    let (oauth_token_usable, oauth_token_expired_refreshable) =
-        token_path().map(|p| resolve_oauth_token_state(&p)).unwrap_or((None, false));
+    let (oauth_token_usable, oauth_token_expired_refreshable) = token_path()
+        .map(|p| resolve_oauth_token_state(&p))
+        .unwrap_or((None, false));
 
     let service_account = if oauth_token_usable.is_none() {
-        cfg.service_account_path.as_deref().map(resolve_service_account)
+        cfg.service_account_path
+            .as_deref()
+            .map(resolve_service_account)
     } else {
         None
     };
@@ -500,7 +559,10 @@ pub struct OauthClient {
 /// Faithful port of `_load_oauth_client()`'s JSON shape: pulls the `web` or `installed` object
 /// out of a parsed client_secret document.
 pub fn parse_oauth_client(doc: &Value) -> Option<OauthClient> {
-    let obj = doc.get("web").or_else(|| doc.get("installed"))?.as_object()?;
+    let obj = doc
+        .get("web")
+        .or_else(|| doc.get("installed"))?
+        .as_object()?;
     let client_id = obj.get("client_id")?.as_str()?.to_string();
     let client_secret = obj.get("client_secret")?.as_str()?.to_string();
     let auth_uri = obj
@@ -513,15 +575,23 @@ pub fn parse_oauth_client(doc: &Value) -> Option<OauthClient> {
         .and_then(Value::as_str)
         .unwrap_or("https://oauth2.googleapis.com/token")
         .to_string();
-    Some(OauthClient { client_id, client_secret, auth_uri, token_uri })
+    Some(OauthClient {
+        client_id,
+        client_secret,
+        auth_uri,
+        token_uri,
+    })
 }
 
 /// Faithful port of `_load_oauth_client()`'s file I/O.
 pub fn load_oauth_client_file(path: &Path) -> Result<OauthClient, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("Error reading OAuth client file: {e}"))?;
-    let doc: Value = serde_json::from_str(&text).map_err(|e| format!("Error reading OAuth client file: {e}"))?;
-    parse_oauth_client(&doc)
-        .ok_or_else(|| "Error reading OAuth client file: missing client_id/client_secret".to_string())
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("Error reading OAuth client file: {e}"))?;
+    let doc: Value =
+        serde_json::from_str(&text).map_err(|e| format!("Error reading OAuth client file: {e}"))?;
+    parse_oauth_client(&doc).ok_or_else(|| {
+        "Error reading OAuth client file: missing client_id/client_secret".to_string()
+    })
 }
 
 /// Minimal percent-encoder matching python's `urllib.parse.quote()` default safe set (letters,
@@ -530,7 +600,9 @@ pub fn quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'/' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'/' => {
+                out.push(b as char)
+            }
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -543,7 +615,9 @@ fn percent_decode(s: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(byte) = u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16) {
+            if let Ok(byte) =
+                u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+            {
                 out.push(byte);
                 i += 3;
                 continue;
@@ -592,7 +666,11 @@ pub struct ReqwestTokenClient;
 impl TokenHttpClient for ReqwestTokenClient {
     fn post_form(&self, url: &str, params: &[(&str, &str)]) -> Result<Value, String> {
         let client = reqwest::blocking::Client::new();
-        let resp = client.post(url).form(params).send().map_err(|e| e.to_string())?;
+        let resp = client
+            .post(url)
+            .form(params)
+            .send()
+            .map_err(|e| e.to_string())?;
         resp.json::<Value>().map_err(|e| e.to_string())
     }
 }
@@ -603,15 +681,25 @@ impl TokenHttpClient for ReqwestTokenClient {
 pub fn apply_refresh_response(mut token: Value, response: &Value) -> Option<Value> {
     {
         let obj = token.as_object()?;
-        if !obj.get("refresh_token").and_then(Value::as_str).is_some_and(|s| !s.is_empty()) {
+        if !obj
+            .get("refresh_token")
+            .and_then(Value::as_str)
+            .is_some_and(|s| !s.is_empty())
+        {
             return None;
         }
     }
     let access_token = response.get("access_token")?.as_str()?.to_string();
-    let expires_in = response.get("expires_in").and_then(Value::as_f64).unwrap_or(3600.0);
+    let expires_in = response
+        .get("expires_in")
+        .and_then(Value::as_f64)
+        .unwrap_or(3600.0);
     let obj = token.as_object_mut()?;
     obj.insert("access_token".to_string(), Value::String(access_token));
-    obj.insert("expires_at".to_string(), serde_json::json!(now_unix_secs() + expires_in));
+    obj.insert(
+        "expires_at".to_string(),
+        serde_json::json!(now_unix_secs() + expires_in),
+    );
     Some(token)
 }
 
@@ -621,11 +709,18 @@ pub fn refresh_oauth_token(
     client: &OauthClient,
     token: Value,
 ) -> Result<Option<Value>, String> {
-    let has_refresh = token.get("refresh_token").and_then(Value::as_str).is_some_and(|s| !s.is_empty());
+    let has_refresh = token
+        .get("refresh_token")
+        .and_then(Value::as_str)
+        .is_some_and(|s| !s.is_empty());
     if !has_refresh {
         return Ok(None);
     }
-    let refresh_token = token.get("refresh_token").and_then(Value::as_str).unwrap_or("").to_string();
+    let refresh_token = token
+        .get("refresh_token")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let response = http.post_form(
         &client.token_uri,
         &[
@@ -640,7 +735,11 @@ pub fn refresh_oauth_token(
 
 /// Faithful port of `_exchange_code()`'s token-shaping (`expires_at`/`client_id` injection,
 /// `client_secret` scrub before persisting), over the [`TokenHttpClient`] abstraction.
-pub fn exchange_code(http: &dyn TokenHttpClient, client: &OauthClient, code: &str) -> Result<Value, String> {
+pub fn exchange_code(
+    http: &dyn TokenHttpClient,
+    client: &OauthClient,
+    code: &str,
+) -> Result<Value, String> {
     let mut response = http.post_form(
         &client.token_uri,
         &[
@@ -651,10 +750,19 @@ pub fn exchange_code(http: &dyn TokenHttpClient, client: &OauthClient, code: &st
             ("grant_type", "authorization_code"),
         ],
     )?;
-    let expires_in = response.get("expires_in").and_then(Value::as_f64).unwrap_or(3600.0);
+    let expires_in = response
+        .get("expires_in")
+        .and_then(Value::as_f64)
+        .unwrap_or(3600.0);
     if let Some(obj) = response.as_object_mut() {
-        obj.insert("expires_at".to_string(), serde_json::json!(now_unix_secs() + expires_in));
-        obj.insert("client_id".to_string(), Value::String(client.client_id.clone()));
+        obj.insert(
+            "expires_at".to_string(),
+            serde_json::json!(now_unix_secs() + expires_in),
+        );
+        obj.insert(
+            "client_id".to_string(),
+            Value::String(client.client_id.clone()),
+        );
         // SECURITY: never persist client_secret in the token file (matches the python comment).
         obj.remove("client_secret");
     }
@@ -681,7 +789,9 @@ impl BrowserOpener for SystemBrowserOpener {
         }
         #[cfg(target_os = "windows")]
         {
-            let _ = std::process::Command::new("cmd").args(["/C", "start", url]).status();
+            let _ = std::process::Command::new("cmd")
+                .args(["/C", "start", url])
+                .status();
         }
     }
 }
@@ -759,7 +869,11 @@ fn check_to_json(result: &CredentialCheck) -> Value {
     obj.insert("service".to_string(), Value::String(result.service.clone()));
     obj.insert(
         "error".to_string(),
-        result.error.clone().map(Value::String).unwrap_or(Value::Null),
+        result
+            .error
+            .clone()
+            .map(Value::String)
+            .unwrap_or(Value::Null),
     );
     if let Some(note) = &result.note {
         obj.insert("note".to_string(), Value::String(note.clone()));
@@ -771,7 +885,11 @@ fn check_to_json(result: &CredentialCheck) -> Value {
 }
 
 fn print_tier_text(info: &TierInfo, out: &mut dyn Write) {
-    let _ = writeln!(out, "Credential Tier: {} -- {}", info.tier, info.description);
+    let _ = writeln!(
+        out,
+        "Credential Tier: {} -- {}",
+        info.tier, info.description
+    );
     if !info.capabilities.is_empty() {
         let _ = writeln!(out, "Available APIs: {}", info.capabilities.join(", "));
     }
@@ -780,8 +898,16 @@ fn print_tier_text(info: &TierInfo, out: &mut dyn Write) {
     }
 }
 
-fn print_check_text(tier_info: &TierInfo, results: &[(String, CredentialCheck)], out: &mut dyn Write) {
-    let _ = writeln!(out, "Credential Tier: {} -- {}", tier_info.tier, tier_info.description);
+fn print_check_text(
+    tier_info: &TierInfo,
+    results: &[(String, CredentialCheck)],
+    out: &mut dyn Write,
+) {
+    let _ = writeln!(
+        out,
+        "Credential Tier: {} -- {}",
+        tier_info.tier, tier_info.description
+    );
     let _ = writeln!(out);
     for (_svc, result) in results {
         let status = if result.available { "OK" } else { "MISSING" };
@@ -912,7 +1038,13 @@ pub fn run_with_io(
             let _ = writeln!(err, "Error: --creds is required with --auth");
             return 1;
         };
-        return match run_oauth_flow(Path::new(&creds_path), http, browser, std::time::Duration::from_secs(300), out) {
+        return match run_oauth_flow(
+            Path::new(&creds_path),
+            http,
+            browser,
+            std::time::Duration::from_secs(300),
+            out,
+        ) {
             Ok(token) => {
                 if let Some(p) = token_path() {
                     let _ = save_oauth_token_file(&p, &token);
@@ -930,7 +1062,10 @@ pub fn run_with_io(
 
     if exchange {
         let (Some(creds_path), Some(code)) = (creds, code) else {
-            let _ = writeln!(err, "Error: --creds and --code are required with --exchange");
+            let _ = writeln!(
+                err,
+                "Error: --creds and --code are required with --exchange"
+            );
             return 1;
         };
         let client = match load_oauth_client_file(Path::new(&creds_path)) {
@@ -966,7 +1101,11 @@ pub fn run_with_io(
         let state = resolve_credential_state(&cfg);
         let info = detect_tier(&cfg, &state);
         if json {
-            let _ = writeln!(out, "{}", serde_json::to_string_pretty(&tier_to_json(&info)).unwrap_or_default());
+            let _ = writeln!(
+                out,
+                "{}",
+                serde_json::to_string_pretty(&tier_to_json(&info)).unwrap_or_default()
+            );
         } else {
             print_tier_text(&info, out);
         }
@@ -977,18 +1116,30 @@ pub fn run_with_io(
         let cfg = load_config();
         let state = resolve_credential_state(&cfg);
         let services: Vec<String> = if svc == "all" {
-            ["psi", "crux", "crux_history", "gsc", "indexing", "ga4"].iter().map(|s| s.to_string()).collect()
+            ["psi", "crux", "crux_history", "gsc", "indexing", "ga4"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect()
         } else {
             vec![svc]
         };
-        let results: Vec<(String, CredentialCheck)> =
-            services.iter().map(|s| (s.clone(), check_credentials(s, &cfg, &state))).collect();
+        let results: Vec<(String, CredentialCheck)> = services
+            .iter()
+            .map(|s| (s.clone(), check_credentials(s, &cfg, &state)))
+            .collect();
         let tier_info = detect_tier(&cfg, &state);
         if json {
-            let services_obj: serde_json::Map<String, Value> =
-                results.iter().map(|(s, r)| (s.clone(), check_to_json(r))).collect();
-            let out_json = serde_json::json!({"tier": tier_to_json(&tier_info), "services": services_obj});
-            let _ = writeln!(out, "{}", serde_json::to_string_pretty(&out_json).unwrap_or_default());
+            let services_obj: serde_json::Map<String, Value> = results
+                .iter()
+                .map(|(s, r)| (s.clone(), check_to_json(r)))
+                .collect();
+            let out_json =
+                serde_json::json!({"tier": tier_to_json(&tier_info), "services": services_obj});
+            let _ = writeln!(
+                out,
+                "{}",
+                serde_json::to_string_pretty(&out_json).unwrap_or_default()
+            );
         } else {
             print_check_text(&tier_info, &results, out);
         }
@@ -1000,9 +1151,17 @@ pub fn run_with_io(
     let state = resolve_credential_state(&cfg);
     let info = detect_tier(&cfg, &state);
     if json {
-        let _ = writeln!(out, "{}", serde_json::to_string_pretty(&tier_to_json(&info)).unwrap_or_default());
+        let _ = writeln!(
+            out,
+            "{}",
+            serde_json::to_string_pretty(&tier_to_json(&info)).unwrap_or_default()
+        );
     } else {
-        let _ = writeln!(out, "Credential Tier: {} -- {}", info.tier, info.description);
+        let _ = writeln!(
+            out,
+            "Credential Tier: {} -- {}",
+            info.tier, info.description
+        );
         if info.missing.is_some() {
             let _ = writeln!(out, "Run --setup for configuration instructions.");
         }
@@ -1026,17 +1185,26 @@ mod tests {
         let file = serde_json::json!({"api_key": "from-file", "default_property": ""});
         let mut env = BTreeMap::new();
         env.insert("GOOGLE_API_KEY".to_string(), "from-env".to_string());
-        env.insert("GSC_PROPERTY".to_string(), "sc-domain:example.com".to_string());
+        env.insert(
+            "GSC_PROPERTY".to_string(),
+            "sc-domain:example.com".to_string(),
+        );
         let cfg = merge_config(Some(&file), &env);
         assert_eq!(cfg.api_key.as_deref(), Some("from-file"));
         // empty string in file is falsy in python -> falls back to env
-        assert_eq!(cfg.default_property.as_deref(), Some("sc-domain:example.com"));
+        assert_eq!(
+            cfg.default_property.as_deref(),
+            Some("sc-domain:example.com")
+        );
     }
 
     #[test]
     fn merge_config_no_file_uses_env_only() {
         let mut env = BTreeMap::new();
-        env.insert("GOOGLE_APPLICATION_CREDENTIALS".to_string(), "/path/sa.json".to_string());
+        env.insert(
+            "GOOGLE_APPLICATION_CREDENTIALS".to_string(),
+            "/path/sa.json".to_string(),
+        );
         let cfg = merge_config(None, &env);
         assert_eq!(cfg.service_account_path.as_deref(), Some("/path/sa.json"));
         assert_eq!(cfg.api_key, None);
@@ -1074,7 +1242,10 @@ mod tests {
 
     #[test]
     fn detect_tier_api_key_only() {
-        let cfg = GoogleApiConfig { api_key: Some("k".into()), ..Default::default() };
+        let cfg = GoogleApiConfig {
+            api_key: Some("k".into()),
+            ..Default::default()
+        };
         let state = CredentialState::default();
         let tier = detect_tier(&cfg, &state);
         assert_eq!(tier.tier, 0);
@@ -1082,8 +1253,14 @@ mod tests {
 
     #[test]
     fn detect_tier_authenticated_without_ga4() {
-        let cfg = GoogleApiConfig { api_key: Some("k".into()), ..Default::default() };
-        let state = CredentialState { oauth_token_usable: Some(true), ..Default::default() };
+        let cfg = GoogleApiConfig {
+            api_key: Some("k".into()),
+            ..Default::default()
+        };
+        let state = CredentialState {
+            oauth_token_usable: Some(true),
+            ..Default::default()
+        };
         let tier = detect_tier(&cfg, &state);
         assert_eq!(tier.tier, 1);
         assert!(tier.missing.unwrap().contains("ga4_property_id"));
@@ -1096,7 +1273,10 @@ mod tests {
             ga4_property_id: Some("properties/1".into()),
             ..Default::default()
         };
-        let state = CredentialState { oauth_token_usable: Some(true), ..Default::default() };
+        let state = CredentialState {
+            oauth_token_usable: Some(true),
+            ..Default::default()
+        };
         let tier = detect_tier(&cfg, &state);
         assert_eq!(tier.tier, 2);
         assert!(tier.missing.is_none());
@@ -1145,7 +1325,10 @@ mod tests {
     #[test]
     fn check_credentials_ga4_needs_property_id() {
         let cfg = GoogleApiConfig::default();
-        let state = CredentialState { oauth_token_usable: Some(true), ..Default::default() };
+        let state = CredentialState {
+            oauth_token_usable: Some(true),
+            ..Default::default()
+        };
         let result = check_credentials("ga4", &cfg, &state);
         assert!(!result.available);
         assert!(result.error.unwrap().contains("GA4 property ID"));

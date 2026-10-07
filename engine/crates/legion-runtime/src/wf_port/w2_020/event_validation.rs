@@ -33,7 +33,11 @@ const INSERT_POSITIONS: &[&str] = &["before", "after"];
 
 fn is_valid_id(v: &Value) -> bool {
     match v.as_str() {
-        Some(s) => s.len() == 8 && s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        Some(s) => {
+            s.len() == 8
+                && s.chars()
+                    .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        }
         None => false,
     }
 }
@@ -46,9 +50,16 @@ fn is_valid_variant_id(v: &Value) -> bool {
 }
 
 /// Mirrors `canCreateInsert({ prompt, comments, strokes })`.
-pub fn can_create_insert(prompt: Option<&str>, comments: Option<&Value>, strokes: Option<&Value>) -> bool {
+pub fn can_create_insert(
+    prompt: Option<&str>,
+    comments: Option<&Value>,
+    strokes: Option<&Value>,
+) -> bool {
     let has_prompt = prompt.map(|p| !p.trim().is_empty()).unwrap_or(false);
-    let has_comments = comments.and_then(Value::as_array).map(|a| !a.is_empty()).unwrap_or(false);
+    let has_comments = comments
+        .and_then(Value::as_array)
+        .map(|a| !a.is_empty())
+        .unwrap_or(false);
     let has_strokes = strokes
         .and_then(Value::as_array)
         .map(|strokes| {
@@ -104,9 +115,20 @@ fn validate_insert_generate(msg: &Value) -> Option<String> {
         _ => return Some("generate: insert.anchor required".to_string()),
     };
     let has_tag_name = anchor.get("tagName").map(|v| !v.is_null()).unwrap_or(false)
-        && anchor.get("tagName").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false);
-    let has_outer_html = anchor.get("outerHTML").map(|v| !v.is_null()).unwrap_or(false)
-        && anchor.get("outerHTML").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false);
+        && anchor
+            .get("tagName")
+            .and_then(Value::as_str)
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
+    let has_outer_html = anchor
+        .get("outerHTML")
+        .map(|v| !v.is_null())
+        .unwrap_or(false)
+        && anchor
+            .get("outerHTML")
+            .and_then(Value::as_str)
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
     let has_classes = anchor
         .get("classes")
         .and_then(Value::as_array)
@@ -119,8 +141,16 @@ fn validate_insert_generate(msg: &Value) -> Option<String> {
         Some(v) if v.is_object() => v,
         _ => return Some("generate: insert mode requires placeholder dimensions".to_string()),
     };
-    let width_ok = placeholder.get("width").and_then(Value::as_f64).map(f64::is_finite).unwrap_or(false);
-    let height_ok = placeholder.get("height").and_then(Value::as_f64).map(f64::is_finite).unwrap_or(false);
+    let width_ok = placeholder
+        .get("width")
+        .and_then(Value::as_f64)
+        .map(f64::is_finite)
+        .unwrap_or(false);
+    let height_ok = placeholder
+        .get("height")
+        .and_then(Value::as_f64)
+        .map(f64::is_finite)
+        .unwrap_or(false);
     if !width_ok || !height_ok {
         return Some("generate: placeholder width and height must be numbers".to_string());
     }
@@ -156,7 +186,12 @@ fn validate_manual_edit_event(msg: &Value, label: &str) -> Option<String> {
     if !is_valid_id(&id) {
         return Some(format!("{label}: missing or malformed id"));
     }
-    if !msg.get("pageUrl").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false) {
+    if !msg
+        .get("pageUrl")
+        .and_then(Value::as_str)
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+    {
         return Some(format!("{label}: missing pageUrl"));
     }
     if !msg.get("element").map(|v| v.is_object()).unwrap_or(false) {
@@ -190,7 +225,11 @@ fn validate_manual_edit_event(msg: &Value, label: &str) -> Option<String> {
             }
             let forbidden = validate_manual_edit_text(new_text);
             if !forbidden.is_empty() {
-                let joined: String = forbidden.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" ");
+                let joined: String = forbidden
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ");
                 return Some(format!(
                     "{label}: newText cannot contain {joined} (plain text only; ask the AI to insert markup)"
                 ));
@@ -216,7 +255,14 @@ pub fn validate_event(msg: Option<&Value>) -> Option<String> {
             }
             let count = msg.get("count").and_then(Value::as_i64);
             let count_ok = match count {
-                Some(c) => (1..=8).contains(&c) && msg.get("count").and_then(Value::as_f64).map(|f| f.fract() == 0.0).unwrap_or(false),
+                Some(c) => {
+                    (1..=8).contains(&c)
+                        && msg
+                            .get("count")
+                            .and_then(Value::as_f64)
+                            .map(|f| f.fract() == 0.0)
+                            .unwrap_or(false)
+                }
                 None => false,
             };
             if !count_ok {
@@ -261,7 +307,11 @@ pub fn validate_event(msg: Option<&Value>) -> Option<String> {
                 .and_then(Value::as_i64)
                 .map(|r| r >= 0)
                 .unwrap_or(false)
-                && msg.get("revision").and_then(Value::as_f64).map(|f| f.fract() == 0.0).unwrap_or(false);
+                && msg
+                    .get("revision")
+                    .and_then(Value::as_f64)
+                    .map(|f| f.fract() == 0.0)
+                    .unwrap_or(false);
             if !revision_ok {
                 return Some("checkpoint: revision must be a non-negative integer".to_string());
             }
@@ -274,7 +324,12 @@ pub fn validate_event(msg: Option<&Value>) -> Option<String> {
         }
         "exit" => None,
         "prefetch" => {
-            if msg.get("pageUrl").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false) {
+            if msg
+                .get("pageUrl")
+                .and_then(Value::as_str)
+                .map(|s| !s.is_empty())
+                .unwrap_or(false)
+            {
                 None
             } else {
                 Some("prefetch: missing pageUrl".to_string())
@@ -311,9 +366,18 @@ mod tests {
 
     #[test]
     fn missing_message() {
-        assert_eq!(validate_event(None), Some("Missing or invalid message".to_string()));
-        assert_eq!(validate_event(Some(&json!({}))), Some("Missing or invalid message".to_string()));
-        assert_eq!(validate_event(Some(&json!("nope"))), Some("Missing or invalid message".to_string()));
+        assert_eq!(
+            validate_event(None),
+            Some("Missing or invalid message".to_string())
+        );
+        assert_eq!(
+            validate_event(Some(&json!({}))),
+            Some("Missing or invalid message".to_string())
+        );
+        assert_eq!(
+            validate_event(Some(&json!("nope"))),
+            Some("Missing or invalid message".to_string())
+        );
     }
 
     #[test]
@@ -331,11 +395,15 @@ mod tests {
             Some("generate: missing or malformed id".to_string())
         );
         assert_eq!(
-            validate_event(Some(&json!({"type": "generate", "id": "0123abcd", "count": 9}))),
+            validate_event(Some(
+                &json!({"type": "generate", "id": "0123abcd", "count": 9})
+            )),
             Some("generate: count must be 1-8".to_string())
         );
         assert_eq!(
-            validate_event(Some(&json!({"type": "generate", "id": "0123abcd", "count": 1.5}))),
+            validate_event(Some(
+                &json!({"type": "generate", "id": "0123abcd", "count": 1.5})
+            )),
             Some("generate: count must be 1-8".to_string())
         );
     }
@@ -344,10 +412,16 @@ mod tests {
     fn generate_replace_mode_validates_action_and_element() {
         let base = json!({"type": "generate", "id": "0123abcd", "count": 2});
         let mut msg = base.clone();
-        assert_eq!(validate_event(Some(&msg)), Some("generate: invalid action".to_string()));
+        assert_eq!(
+            validate_event(Some(&msg)),
+            Some("generate: invalid action".to_string())
+        );
 
         msg["action"] = json!("bolder");
-        assert_eq!(validate_event(Some(&msg)), Some("generate: missing element context".to_string()));
+        assert_eq!(
+            validate_event(Some(&msg)),
+            Some("generate: missing element context".to_string())
+        );
 
         msg["element"] = json!({"outerHTML": "<div></div>"});
         assert_eq!(validate_event(Some(&msg)), None);
@@ -370,7 +444,10 @@ mod tests {
         );
 
         msg["insert"]["position"] = json!("before");
-        assert_eq!(validate_event(Some(&msg)), Some("generate: insert.anchor required".to_string()));
+        assert_eq!(
+            validate_event(Some(&msg)),
+            Some("generate: insert.anchor required".to_string())
+        );
 
         msg["insert"]["anchor"] = json!({});
         assert_eq!(
@@ -403,32 +480,45 @@ mod tests {
     #[test]
     fn accept_requires_id_and_variant_id() {
         assert_eq!(
-            validate_event(Some(&json!({"type": "accept", "id": "0123abcd", "variantId": "abc"}))),
+            validate_event(Some(
+                &json!({"type": "accept", "id": "0123abcd", "variantId": "abc"})
+            )),
             Some("accept: missing or malformed variantId".to_string())
         );
         assert_eq!(
-            validate_event(Some(&json!({"type": "accept", "id": "0123abcd", "variantId": "1", "paramValues": [1]}))),
+            validate_event(Some(
+                &json!({"type": "accept", "id": "0123abcd", "variantId": "1", "paramValues": [1]})
+            )),
             Some("accept: paramValues must be an object".to_string())
         );
         assert_eq!(
-            validate_event(Some(&json!({"type": "accept", "id": "0123abcd", "variantId": "1"}))),
+            validate_event(Some(
+                &json!({"type": "accept", "id": "0123abcd", "variantId": "1"})
+            )),
             None
         );
     }
 
     #[test]
     fn discard_and_checkpoint_and_exit_and_prefetch() {
-        assert_eq!(validate_event(Some(&json!({"type": "discard", "id": "0123abcd"}))), None);
+        assert_eq!(
+            validate_event(Some(&json!({"type": "discard", "id": "0123abcd"}))),
+            None
+        );
         assert_eq!(
             validate_event(Some(&json!({"type": "discard", "id": "bad"}))),
             Some("discard: missing or malformed id".to_string())
         );
         assert_eq!(
-            validate_event(Some(&json!({"type": "checkpoint", "id": "0123abcd", "revision": -1}))),
+            validate_event(Some(
+                &json!({"type": "checkpoint", "id": "0123abcd", "revision": -1})
+            )),
             Some("checkpoint: revision must be a non-negative integer".to_string())
         );
         assert_eq!(
-            validate_event(Some(&json!({"type": "checkpoint", "id": "0123abcd", "revision": 0}))),
+            validate_event(Some(
+                &json!({"type": "checkpoint", "id": "0123abcd", "revision": 0})
+            )),
             None
         );
         assert_eq!(validate_event(Some(&json!({"type": "exit"}))), None);
@@ -436,25 +526,39 @@ mod tests {
             validate_event(Some(&json!({"type": "prefetch"}))),
             Some("prefetch: missing pageUrl".to_string())
         );
-        assert_eq!(validate_event(Some(&json!({"type": "prefetch", "pageUrl": "/x"}))), None);
+        assert_eq!(
+            validate_event(Some(&json!({"type": "prefetch", "pageUrl": "/x"}))),
+            None
+        );
     }
 
     #[test]
     fn steer_validates_message_length_and_page_url() {
         assert_eq!(
-            validate_event(Some(&json!({"type": "steer", "id": "0123abcd", "message": "  "}))),
+            validate_event(Some(
+                &json!({"type": "steer", "id": "0123abcd", "message": "  "})
+            )),
             Some("steer: message required".to_string())
         );
         let long = "a".repeat(4001);
         assert_eq!(
-            validate_event(Some(&json!({"type": "steer", "id": "0123abcd", "message": long}))),
+            validate_event(Some(
+                &json!({"type": "steer", "id": "0123abcd", "message": long})
+            )),
             Some("steer: message too long".to_string())
         );
         assert_eq!(
-            validate_event(Some(&json!({"type": "steer", "id": "0123abcd", "message": "hi", "pageUrl": 5}))),
+            validate_event(Some(
+                &json!({"type": "steer", "id": "0123abcd", "message": "hi", "pageUrl": 5})
+            )),
             Some("steer: pageUrl must be string".to_string())
         );
-        assert_eq!(validate_event(Some(&json!({"type": "steer", "id": "0123abcd", "message": "hi"}))), None);
+        assert_eq!(
+            validate_event(Some(
+                &json!({"type": "steer", "id": "0123abcd", "message": "hi"})
+            )),
+            None
+        );
     }
 
     #[test]
@@ -494,8 +598,16 @@ mod tests {
         assert!(!can_create_insert(Some("  "), None, None));
         assert!(can_create_insert(None, Some(&json!([{"a": 1}])), None));
         assert!(!can_create_insert(None, Some(&json!([])), None));
-        assert!(can_create_insert(None, None, Some(&json!([{"points": [[0, 0], [1, 1]]}]))));
-        assert!(!can_create_insert(None, None, Some(&json!([{"points": [[0, 0]]}]))));
+        assert!(can_create_insert(
+            None,
+            None,
+            Some(&json!([{"points": [[0, 0], [1, 1]]}]))
+        ));
+        assert!(!can_create_insert(
+            None,
+            None,
+            Some(&json!([{"points": [[0, 0]]}]))
+        ));
         assert!(!can_create_insert(None, None, None));
     }
 }

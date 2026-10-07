@@ -20,7 +20,10 @@ pub fn run(args: CommonArgs) -> CommandResult {
             "Usage: legion governance execution|delivery|judgment --json <structured-request> [--key-dir <dir>]\n",
         ));
     }
-    if !matches!(domain, Some("execution") | Some("delivery") | Some("judgment")) {
+    if !matches!(
+        domain,
+        Some("execution") | Some("delivery") | Some("judgment")
+    ) {
         return Err(CommandError::usage(format!(
             "governance requires execution, delivery, or judgment (got {})",
             domain.unwrap_or("<none>")
@@ -50,7 +53,10 @@ pub fn run(args: CommonArgs) -> CommandResult {
     if requires_authenticated_stores(operation) && !authenticated {
         return Ok(compact(auth_unavailable_result()));
     }
-    Ok(compact(dispatch_governance_judgment(&request, Some(&capability))))
+    Ok(compact(dispatch_governance_judgment(
+        &request,
+        Some(&capability),
+    )))
 }
 
 fn parse_json_request(argv: &[String]) -> Result<(Value, Option<PathBuf>), CommandError> {
@@ -67,16 +73,19 @@ fn parse_json_request(argv: &[String]) -> Result<(Value, Option<PathBuf>), Comma
                 index += 1;
                 key_dir = argv.get(index).map(PathBuf::from);
             }
-            flag => return Err(CommandError::usage(format!("unknown governance option: {flag}"))),
+            flag => {
+                return Err(CommandError::usage(format!(
+                    "unknown governance option: {flag}"
+                )))
+            }
         }
         index += 1;
     }
-    let json_payload = json_payload.filter(|value| !value.is_empty()).ok_or_else(|| {
-        CommandError::usage("governance requires --json <structured-request>")
-    })?;
-    let request = serde_json::from_str(&json_payload).map_err(|_| {
-        CommandError::usage("governance --json must be valid JSON")
-    })?;
+    let json_payload = json_payload
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| CommandError::usage("governance requires --json <structured-request>"))?;
+    let request = serde_json::from_str(&json_payload)
+        .map_err(|_| CommandError::usage("governance --json must be valid JSON"))?;
     Ok((request, key_dir))
 }
 

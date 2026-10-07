@@ -67,7 +67,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://social/dependencies.json",
-      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+      "digest": "sha256:09a77eb08fca24af91f9dd37225bb8d75cc5441e3e116765a5b84adf1a5cc051"
     },
     {
       "path": "evals/evals.json",
@@ -102,7 +102,7 @@
     {
       "path": "references/instagram/reference.md",
       "uri": "legion-skill://social/references/instagram/reference.md",
-      "digest": "sha256:1e0dd1f4f7bf98867e1dd29d81292886b4e9d6c6d2205fb8a2f988068b603799"
+      "digest": "sha256:61a16b71240fd42f442c5fa4e98fd22851d3521cc3ac2c3b5593ad907d34864a"
     },
     {
       "path": "references/manual.md",
@@ -112,7 +112,7 @@
     {
       "path": "references/pinterest/reference.md",
       "uri": "legion-skill://social/references/pinterest/reference.md",
-      "digest": "sha256:bfdf46029b31778d559d08328439f8eecf8b1f45ddc4d840c61492ef38bd385a"
+      "digest": "sha256:1494efb0d1377ec94cfdce01d94d2b78cef8be017bfd111e8508d9c0cae1e2b7"
     },
     {
       "path": "references/twitter/reference.md",
@@ -122,7 +122,7 @@
     {
       "path": "references/youtube/reference.md",
       "uri": "legion-skill://social/references/youtube/reference.md",
-      "digest": "sha256:fcf0dea97429d32689d1fa7d4da1814fc2328ae4dd34e752c2b46a354e63f20f"
+      "digest": "sha256:c3fa22fe1f122f9fec11b49e1efec1afa2319ef9d20ac6356300c8b6e668cdb6"
     }
   ]
 }

@@ -53,7 +53,11 @@ pub fn create_content_brief(explicit: &Value, inferred: &Value) -> Value {
 pub fn build_claim_proof_ledger(claims: &[Value], evidence: &[Value]) -> Value {
     let source: std::collections::HashMap<String, &Value> = evidence
         .iter()
-        .filter_map(|item| item.get("id").and_then(Value::as_str).map(|id| (id.to_string(), item)))
+        .filter_map(|item| {
+            item.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), item))
+        })
         .collect();
     let out_claims: Vec<Value> = claims
         .iter()
@@ -123,7 +127,12 @@ pub fn classify_content_lineage(
                 Some(old) if old.text_digest == item.text_digest => {
                     let old_file = old.source.as_ref().and_then(|s| s.get("file"));
                     let new_file = item.source.as_ref().and_then(|s| s.get("file"));
-                    if old_file == new_file { "unchanged" } else { "moved" }.to_string()
+                    if old_file == new_file {
+                        "unchanged"
+                    } else {
+                        "moved"
+                    }
+                    .to_string()
                 }
                 Some(_) => "revised".to_string(),
             };
@@ -181,7 +190,11 @@ pub fn create_text_lock(
     scope: Option<&str>,
     supersedes: Option<&str>,
 ) -> Result<Value, TextLockError> {
-    if content_id.is_empty() || text.is_empty() || approver.is_empty() || reason.is_empty() || approved_at.is_empty()
+    if content_id.is_empty()
+        || text.is_empty()
+        || approver.is_empty()
+        || reason.is_empty()
+        || approved_at.is_empty()
     {
         return Err(TextLockError);
     }
@@ -199,7 +212,8 @@ pub fn create_text_lock(
 }
 
 pub fn verify_text_lock(lock: &Value, text: &str) -> Value {
-    let matches = lock.get("textDigest").and_then(Value::as_str) == Some(text_digest(text).as_str());
+    let matches =
+        lock.get("textDigest").and_then(Value::as_str) == Some(text_digest(text).as_str());
     if matches {
         json!({"status": "pass"})
     } else {
@@ -217,8 +231,16 @@ pub fn create_content_inventory(items: &[Value], binding: &Value) -> Value {
             let source = item.get("source").cloned().unwrap_or(json!({}));
             let surface = item.get("surface").cloned().unwrap_or(json!({}));
             let file = item.get("source").and_then(ContentSource::from_json_file);
-            let route = item.get("surface").and_then(|s| s.get("route")).and_then(Value::as_str).map(String::from);
-            let kind = item.get("surface").and_then(|s| s.get("kind")).and_then(Value::as_str).map(String::from);
+            let route = item
+                .get("surface")
+                .and_then(|s| s.get("route"))
+                .and_then(Value::as_str)
+                .map(String::from);
+            let kind = item
+                .get("surface")
+                .and_then(|s| s.get("kind"))
+                .and_then(Value::as_str)
+                .map(String::from);
             let id = item
                 .get("id")
                 .and_then(Value::as_str)
@@ -248,7 +270,9 @@ pub fn create_content_inventory(items: &[Value], binding: &Value) -> Value {
         })
         .collect();
     let complete = normalized.iter().all(|item| {
-        item.get("text").and_then(Value::as_str).is_some_and(|s| !s.is_empty())
+        item.get("text")
+            .and_then(Value::as_str)
+            .is_some_and(|s| !s.is_empty())
             && item
                 .get("source")
                 .and_then(|s| s.get("file"))
@@ -263,7 +287,12 @@ pub fn create_content_inventory(items: &[Value], binding: &Value) -> Value {
                 .and_then(Value::as_str)
                 .is_none()
         })
-        .map(|item| json!(format!("source-missing:{}", item.get("id").and_then(Value::as_str).unwrap_or(""))))
+        .map(|item| {
+            json!(format!(
+                "source-missing:{}",
+                item.get("id").and_then(Value::as_str).unwrap_or("")
+            ))
+        })
         .collect();
     json!({
         "schemaVersion": 1,
@@ -283,7 +312,8 @@ impl ContentSource {
 
 // ---- extract.mjs ----
 
-static TEXT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r">\s*([^<>{}\n][^<>{}]*?)\s*<").unwrap());
+static TEXT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r">\s*([^<>{}\n][^<>{}]*?)\s*<").unwrap());
 static QUOTED_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)(?:title|label|placeholder|aria-label|accessibilityLabel|message)\s*[:=]\s*["'`]([^"'`]+)["'`]"#).unwrap()
 });
@@ -405,15 +435,43 @@ mod tests {
     #[test]
     fn content_lineage_classifies_new_unchanged_moved_revised() {
         let previous = vec![
-            ContentLineageItem { id: "a".into(), text_digest: "d1".into(), source: Some(json!({"file": "f1"})) },
-            ContentLineageItem { id: "b".into(), text_digest: "d2".into(), source: Some(json!({"file": "f2"})) },
-            ContentLineageItem { id: "c".into(), text_digest: "d3".into(), source: Some(json!({"file": "f3"})) },
+            ContentLineageItem {
+                id: "a".into(),
+                text_digest: "d1".into(),
+                source: Some(json!({"file": "f1"})),
+            },
+            ContentLineageItem {
+                id: "b".into(),
+                text_digest: "d2".into(),
+                source: Some(json!({"file": "f2"})),
+            },
+            ContentLineageItem {
+                id: "c".into(),
+                text_digest: "d3".into(),
+                source: Some(json!({"file": "f3"})),
+            },
         ];
         let current = vec![
-            ContentLineageItem { id: "a".into(), text_digest: "d1".into(), source: Some(json!({"file": "f1"})) }, // unchanged
-            ContentLineageItem { id: "b".into(), text_digest: "d2".into(), source: Some(json!({"file": "f2-moved"})) }, // moved
-            ContentLineageItem { id: "c".into(), text_digest: "d3-new".into(), source: Some(json!({"file": "f3"})) }, // revised
-            ContentLineageItem { id: "d".into(), text_digest: "d4".into(), source: Some(json!({"file": "f4"})) }, // new
+            ContentLineageItem {
+                id: "a".into(),
+                text_digest: "d1".into(),
+                source: Some(json!({"file": "f1"})),
+            }, // unchanged
+            ContentLineageItem {
+                id: "b".into(),
+                text_digest: "d2".into(),
+                source: Some(json!({"file": "f2-moved"})),
+            }, // moved
+            ContentLineageItem {
+                id: "c".into(),
+                text_digest: "d3-new".into(),
+                source: Some(json!({"file": "f3"})),
+            }, // revised
+            ContentLineageItem {
+                id: "d".into(),
+                text_digest: "d4".into(),
+                source: Some(json!({"file": "f4"})),
+            }, // new
         ];
         let entries = classify_content_lineage(&previous, &current);
         assert_eq!(entries[0].disposition, "unchanged");
@@ -424,7 +482,16 @@ mod tests {
 
     #[test]
     fn text_lock_round_trips_and_reopens_on_edit() {
-        let lock = create_text_lock("c1", "hello", "adrian", "approved", "2026-01-01", None, None).unwrap();
+        let lock = create_text_lock(
+            "c1",
+            "hello",
+            "adrian",
+            "approved",
+            "2026-01-01",
+            None,
+            None,
+        )
+        .unwrap();
         assert_eq!(verify_text_lock(&lock, "hello")["status"], "pass");
         assert_eq!(verify_text_lock(&lock, "hello!")["status"], "reopened");
     }
@@ -439,7 +506,10 @@ mod tests {
         let items = vec![json!({"text": "hi", "source": {}, "surface": {}})];
         let inv = create_content_inventory(&items, &json!({}));
         assert_eq!(inv["complete"], false);
-        assert!(inv["coverageGaps"][0].as_str().unwrap().starts_with("source-missing:"));
+        assert!(inv["coverageGaps"][0]
+            .as_str()
+            .unwrap()
+            .starts_with("source-missing:"));
     }
 
     #[test]
@@ -463,8 +533,16 @@ mod tests {
     #[test]
     fn skill_compiler_excludes_authoring_instructions() {
         let entries = vec![
-            SkillEntry { id: Some("s1".into()), text: Some("write the changelog".into()), ..Default::default() },
-            SkillEntry { id: Some("s2".into()), text: Some("check tone consistency".into()), ..Default::default() },
+            SkillEntry {
+                id: Some("s1".into()),
+                text: Some("write the changelog".into()),
+                ..Default::default()
+            },
+            SkillEntry {
+                id: Some("s2".into()),
+                text: Some("check tone consistency".into()),
+                ..Default::default()
+            },
         ];
         let profile = compile_writing_audit_profile(&entries, "legion-skill://writing/");
         assert_eq!(profile["exclusions"].as_array().unwrap().len(), 1);

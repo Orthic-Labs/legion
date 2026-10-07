@@ -18,4 +18,6 @@ pub use receipt::{
     TimingEvidence,
 };
 pub use request::{ExternalToolRequest, RedactedRequest, SandboxReceipt, Sensitivity, ToolOrigin};
-pub use sandbox::{authenticate as authenticate_sandbox, SandboxAuthentication, SandboxGap, SandboxMode};
+pub use sandbox::{
+    authenticate as authenticate_sandbox, SandboxAuthentication, SandboxGap, SandboxMode,
+};

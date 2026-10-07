@@ -5,8 +5,8 @@
 use std::cell::RefCell;
 
 use legion_runtime::wf_port::w2_029::ga4_report::{
-    classify_error, country_breakdown, device_breakdown, organic_traffic_report, parse_args,
-    run, top_pages_report, CivilDate, CliArgs, Ga4Http, Ga4HttpError,
+    classify_error, country_breakdown, device_breakdown, organic_traffic_report, parse_args, run,
+    top_pages_report, CivilDate, CliArgs, Ga4Http, Ga4HttpError,
 };
 use serde_json::{json, Value};
 
@@ -28,7 +28,9 @@ impl FakeGa4Http {
 
 impl Ga4Http for FakeGa4Http {
     fn run_report(&self, property: &str, body: &Value) -> Result<Value, Ga4HttpError> {
-        self.calls.borrow_mut().push((property.to_string(), body.clone()));
+        self.calls
+            .borrow_mut()
+            .push((property.to_string(), body.clone()));
         let mut r = self.responses.borrow_mut();
         if r.is_empty() {
             return Ok(json!({"rows": []}));
@@ -47,21 +49,30 @@ fn today() -> CivilDate {
 
 #[test]
 fn classify_error_permission_denied() {
-    let e = Ga4HttpError { status: 403, message: "PERMISSION_DENIED".into() };
+    let e = Ga4HttpError {
+        status: 403,
+        message: "PERMISSION_DENIED".into(),
+    };
     let msg = classify_error("123", &e);
     assert!(msg.contains("Permission denied for property '123'"));
 }
 
 #[test]
 fn classify_error_not_found() {
-    let e = Ga4HttpError { status: 404, message: "not found".into() };
+    let e = Ga4HttpError {
+        status: 404,
+        message: "not found".into(),
+    };
     let msg = classify_error("123", &e);
     assert!(msg.contains("Property '123' not found"));
 }
 
 #[test]
 fn classify_error_generic() {
-    let e = Ga4HttpError { status: 500, message: "boom".into() };
+    let e = Ga4HttpError {
+        status: 500,
+        message: "boom".into(),
+    };
     let msg = classify_error("123", &e);
     assert_eq!(msg, "GA4 API error: boom");
 }
@@ -108,9 +119,15 @@ fn organic_traffic_report_happy_path() {
 
 #[test]
 fn organic_traffic_report_daily_error_short_circuits() {
-    let client = FakeGa4Http::new(vec![Err(Ga4HttpError { status: 403, message: "PERMISSION_DENIED".into() })]);
+    let client = FakeGa4Http::new(vec![Err(Ga4HttpError {
+        status: 403,
+        message: "PERMISSION_DENIED".into(),
+    })]);
     let result = organic_traffic_report(&client, "999", 28, 50, today());
-    assert!(result["error"].as_str().unwrap().contains("Permission denied"));
+    assert!(result["error"]
+        .as_str()
+        .unwrap()
+        .contains("Permission denied"));
     assert_eq!(result["daily_data"], json!([]));
     assert_eq!(result["totals"], json!({}));
     // Only the daily request should have been attempted.
@@ -120,7 +137,13 @@ fn organic_traffic_report_daily_error_short_circuits() {
 #[test]
 fn organic_traffic_report_pages_error_is_nonfatal() {
     let daily = json!({"rows": []});
-    let client = FakeGa4Http::new(vec![Ok(daily), Err(Ga4HttpError { status: 500, message: "down".into() })]);
+    let client = FakeGa4Http::new(vec![
+        Ok(daily),
+        Err(Ga4HttpError {
+            status: 500,
+            message: "down".into(),
+        }),
+    ]);
     let result = organic_traffic_report(&client, "123", 28, 50, today());
     assert!(result["error"].is_null());
     assert_eq!(result["pages_error"], "Error fetching top pages: down");
@@ -176,8 +199,20 @@ fn parse_args_defaults() {
 
 #[test]
 fn parse_args_full() {
-    let args: Vec<String> = ["--property", "42", "--days", "7", "--report", "top-pages", "--limit", "5", "--json"]
-        .iter().map(|s| s.to_string()).collect();
+    let args: Vec<String> = [
+        "--property",
+        "42",
+        "--days",
+        "7",
+        "--report",
+        "top-pages",
+        "--limit",
+        "5",
+        "--json",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
     let parsed = parse_args(&args).unwrap();
     assert_eq!(parsed.property, Some("42".to_string()));
     assert_eq!(parsed.days, 7);
@@ -188,7 +223,10 @@ fn parse_args_full() {
 
 #[test]
 fn parse_args_bad_report_choice() {
-    let args: Vec<String> = ["--report", "bogus"].iter().map(|s| s.to_string()).collect();
+    let args: Vec<String> = ["--report", "bogus"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let err = parse_args(&args).unwrap_err();
     assert!(err.contains("invalid choice"));
 }
@@ -214,8 +252,14 @@ fn run_uses_config_property_stripping_prefix() {
 
 #[test]
 fn run_json_output_on_error_does_not_exit_nonzero() {
-    let client = FakeGa4Http::new(vec![Err(Ga4HttpError { status: 404, message: "NOT_FOUND".into() })]);
-    let args: Vec<String> = ["--property", "1", "--json"].iter().map(|s| s.to_string()).collect();
+    let client = FakeGa4Http::new(vec![Err(Ga4HttpError {
+        status: 404,
+        message: "NOT_FOUND".into(),
+    })]);
+    let args: Vec<String> = ["--property", "1", "--json"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let out = run(&args, &client, today(), None);
     // Mirrors: `if not args.json: sys.exit(1)` — json mode stays exit 0.
     assert_eq!(out.exit_code, 0);
@@ -232,7 +276,10 @@ fn run_top_pages_text_output() {
         {"value": "5"}, {"value": "4"}, {"value": "3"}, {"value": "0.1"}, {"value": "0.2"}
     ]}]});
     let client = FakeGa4Http::new(vec![Ok(daily), Ok(pages)]);
-    let args: Vec<String> = ["--property", "1", "--report", "top-pages"].iter().map(|s| s.to_string()).collect();
+    let args: Vec<String> = ["--property", "1", "--report", "top-pages"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let out = run(&args, &client, today(), None);
     assert_eq!(out.exit_code, 0);
     assert!(out.stdout.contains("Top Organic Landing Pages"));

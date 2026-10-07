@@ -28,7 +28,9 @@ use serde_json::{json, Value};
 
 use crate::wf_port::r24;
 use crate::wf_port::w2_016::live_accept;
-use crate::wf_port::w2_020::completion::{completion_ack_for_accept_result, completion_type_for_accept_result};
+use crate::wf_port::w2_020::completion::{
+    completion_ack_for_accept_result, completion_type_for_accept_result,
+};
 
 /// Mirrors `PER_REQUEST_TIMEOUT_MS`.
 pub const PER_REQUEST_TIMEOUT_MS: u64 = 270_000;
@@ -193,10 +195,7 @@ pub fn parse_reply_args(args: &[String]) -> Result<Option<ParsedReply>, ReplyArg
     let file_next = file_idx.map(|i| i + 1);
     let data_next = data_idx.map(|i| i + 1);
     let message = args.iter().enumerate().find_map(|(i, a)| {
-        if i > reply_idx + 2
-            && !a.starts_with("--")
-            && Some(i) != file_next
-            && Some(i) != data_next
+        if i > reply_idx + 2 && !a.starts_with("--") && Some(i) != file_next && Some(i) != data_next
         {
             Some(a.clone())
         } else {
@@ -226,7 +225,11 @@ pub struct AcceptEvent {
 /// Mirrors `buildAcceptScriptArgs(event)`.
 pub fn build_accept_script_args(event: &AcceptEvent) -> Vec<String> {
     let mut args = if event.event_type == "discard" {
-        vec!["--id".to_string(), event.id.clone(), "--discard".to_string()]
+        vec![
+            "--id".to_string(),
+            event.id.clone(),
+            "--discard".to_string(),
+        ]
     } else {
         vec![
             "--id".to_string(),
@@ -276,10 +279,16 @@ pub struct PollError {
 
 impl PollError {
     fn plain(message: impl Into<String>) -> Self {
-        Self { code: None, message: message.into() }
+        Self {
+            code: None,
+            message: message.into(),
+        }
     }
     fn auth_failed() -> Self {
-        Self { code: Some("AUTH_FAILED"), message: "Authentication failed. The server token may have changed.".to_string() }
+        Self {
+            code: Some("AUTH_FAILED"),
+            message: "Authentication failed. The server token may have changed.".to_string(),
+        }
     }
 }
 
@@ -329,8 +338,12 @@ pub fn post_reply(base: &str, token: &str, reply: &ParsedReply) -> Result<(), Po
     if !res.status().is_success() {
         let body: Value = res.json().unwrap_or(Value::Null);
         let parts: Vec<String> = [
-            body.get("error").and_then(Value::as_str).map(str::to_string),
-            body.get("reason").and_then(Value::as_str).map(str::to_string),
+            body.get("error")
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            body.get("reason")
+                .and_then(Value::as_str)
+                .map(str::to_string),
             body.get("hint").and_then(Value::as_str).map(str::to_string),
         ]
         .into_iter()
@@ -359,11 +372,18 @@ pub fn fetch_server_status(base: &str, token: &str) -> Result<Value, PollError> 
             res.status().canonical_reason().unwrap_or("")
         )));
     }
-    res.json::<Value>().map_err(|e| PollError::plain(e.to_string()))
+    res.json::<Value>()
+        .map_err(|e| PollError::plain(e.to_string()))
 }
 
 /// Mirrors `waitForEventAck(base, token, eventId, { pollIntervalMs, maxWaitMs })`.
-pub fn wait_for_event_ack(base: &str, token: &str, event_id: &str, poll_interval_ms: u64, max_wait_ms: u64) -> Result<bool, PollError> {
+pub fn wait_for_event_ack(
+    base: &str,
+    token: &str,
+    event_id: &str,
+    poll_interval_ms: u64,
+    max_wait_ms: u64,
+) -> Result<bool, PollError> {
     let deadline = std::time::Instant::now() + Duration::from_millis(max_wait_ms);
     while std::time::Instant::now() < deadline {
         let status = fetch_server_status(base, token)?;
@@ -376,7 +396,11 @@ pub fn wait_for_event_ack(base: &str, token: &str, event_id: &str, poll_interval
 }
 
 /// Mirrors `fetchNextEvent(base, token, { totalDeadline })`.
-pub fn fetch_next_event(base: &str, token: &str, total_deadline: Option<std::time::Instant>) -> Result<Value, PollError> {
+pub fn fetch_next_event(
+    base: &str,
+    token: &str,
+    total_deadline: Option<std::time::Instant>,
+) -> Result<Value, PollError> {
     let client = http_client();
     loop {
         if let Some(deadline) = total_deadline {
@@ -385,7 +409,10 @@ pub fn fetch_next_event(base: &str, token: &str, total_deadline: Option<std::tim
             }
         }
         let remaining_ms = total_deadline
-            .map(|d| d.saturating_duration_since(std::time::Instant::now()).as_millis() as u64)
+            .map(|d| {
+                d.saturating_duration_since(std::time::Instant::now())
+                    .as_millis() as u64
+            })
             .unwrap_or(PER_REQUEST_TIMEOUT_MS);
         let slice_ms = remaining_ms.clamp(1_000, PER_REQUEST_TIMEOUT_MS);
 
@@ -430,17 +457,39 @@ pub fn fetch_next_event(base: &str, token: &str, total_deadline: Option<std::tim
 /// module doc comment) and stashes `_acceptResult`/`_completionAck` on the
 /// event object, exactly like the JS mutating `event._acceptResult` /
 /// `event._completionAck`.
-pub fn augment_event_with_accept_handling(mut event: Value, base: &str, token: &str, cwd: &Path) -> Value {
-    let event_type = event.get("type").and_then(Value::as_str).unwrap_or("").to_string();
+pub fn augment_event_with_accept_handling(
+    mut event: Value,
+    base: &str,
+    token: &str,
+    cwd: &Path,
+) -> Value {
+    let event_type = event
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     if event_type != "accept" && event_type != "discard" {
         return event;
     }
 
     let accept_event = AcceptEvent {
         event_type: event_type.clone(),
-        id: event.get("id").map(|v| v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())).unwrap_or_default(),
-        variant_id: event.get("variantId").and_then(Value::as_str).map(str::to_string),
-        page_url: event.get("pageUrl").and_then(Value::as_str).map(str::to_string),
+        id: event
+            .get("id")
+            .map(|v| {
+                v.as_str()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| v.to_string())
+            })
+            .unwrap_or_default(),
+        variant_id: event
+            .get("variantId")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        page_url: event
+            .get("pageUrl")
+            .and_then(Value::as_str)
+            .map(str::to_string),
         param_values: event.get("paramValues").and_then(Value::as_object).cloned(),
     };
     let script_args = build_accept_script_args(&accept_event);
@@ -452,12 +501,19 @@ pub fn augment_event_with_accept_handling(mut event: Value, base: &str, token: &
         json!({ "handled": false, "mode": "error", "error": output })
     };
 
-    let completion_type = completion_type_for_accept_result(&event_type, Some(&accept_result)).to_string();
+    let completion_type =
+        completion_type_for_accept_result(&event_type, Some(&accept_result)).to_string();
     let reply = ParsedReply {
         id: accept_event.id.clone(),
         reply_type: completion_type.clone(),
-        message: accept_result.get("error").and_then(Value::as_str).map(str::to_string),
-        file: accept_result.get("file").and_then(Value::as_str).map(str::to_string),
+        message: accept_result
+            .get("error")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        file: accept_result
+            .get("file")
+            .and_then(Value::as_str)
+            .map(str::to_string),
         data: if accept_result.get("carbonize").and_then(Value::as_bool) == Some(true) {
             Some(json!({ "carbonize": true }))
         } else {
@@ -466,7 +522,11 @@ pub fn augment_event_with_accept_handling(mut event: Value, base: &str, token: &
     };
 
     let completion_ack = match post_reply(base, token, &reply) {
-        Ok(()) => completion_ack_for_accept_result(&accept_event.id, &completion_type, Some(&accept_result)),
+        Ok(()) => completion_ack_for_accept_result(
+            &accept_event.id,
+            &completion_type,
+            Some(&accept_result),
+        ),
         Err(err) => json!({ "ok": false, "error": err.message }),
     };
 
@@ -480,9 +540,17 @@ pub fn augment_event_with_accept_handling(mut event: Value, base: &str, token: &
 /// Mirrors `writeCarbonizeBanner(event)`.
 pub fn write_carbonize_banner(event: &Value) {
     if event.get("type").and_then(Value::as_str) == Some("manual_edit_apply") {
-        eprintln!("\n{}\n", manual_apply_poll_banner(event.get("id").and_then(Value::as_str)));
+        eprintln!(
+            "\n{}\n",
+            manual_apply_poll_banner(event.get("id").and_then(Value::as_str))
+        );
     }
-    if event.get("_acceptResult").and_then(|r| r.get("carbonize")).and_then(Value::as_bool) == Some(true) {
+    if event
+        .get("_acceptResult")
+        .and_then(|r| r.get("carbonize"))
+        .and_then(Value::as_bool)
+        == Some(true)
+    {
         let id = event.get("id").and_then(Value::as_str).unwrap_or("");
         eprintln!(
             "\n\u{26A0} Carbonize cleanup REQUIRED before next poll. After cleanup, run live-complete.mjs --id {id}. See reference/live.md \"Required after accept\".\n"
@@ -496,7 +564,12 @@ pub fn print_poll_event(event: &Value) {
 }
 
 /// Mirrors `runPollOnce(base, token, { totalTimeout })`.
-pub fn run_poll_once(base: &str, token: &str, total_timeout_ms: u64, cwd: &Path) -> Result<Value, PollError> {
+pub fn run_poll_once(
+    base: &str,
+    token: &str,
+    total_timeout_ms: u64,
+    cwd: &Path,
+) -> Result<Value, PollError> {
     let deadline = std::time::Instant::now() + Duration::from_millis(total_timeout_ms);
     let event = fetch_next_event(base, token, Some(deadline))?;
     let event = augment_event_with_accept_handling(event, base, token, cwd);
@@ -509,7 +582,12 @@ pub fn run_poll_once(base: &str, token: &str, total_timeout_ms: u64, cwd: &Path)
 /// `shouldContinue` in JS is always `() => true` at every real call site;
 /// modeled here as a plain loop that returns on `type: "exit"` or an ack
 /// timeout, exactly like the JS's only reachable exit paths.
-pub fn run_poll_stream(base: &str, token: &str, ack_timeout_ms: u64, cwd: &Path) -> Result<Option<Value>, PollError> {
+pub fn run_poll_stream(
+    base: &str,
+    token: &str,
+    ack_timeout_ms: u64,
+    cwd: &Path,
+) -> Result<Option<Value>, PollError> {
     eprintln!("[impeccable-poll] stream mode: one JSON object per line on stdout; use --reply while this process stays running");
     let ack_poll_interval_ms = 400;
     loop {
@@ -525,9 +603,13 @@ pub fn run_poll_stream(base: &str, token: &str, ack_timeout_ms: u64, cwd: &Path)
         let event_type = event.get("type").and_then(Value::as_str);
         if requires_agent_reply(event_type) {
             let event_id = event.get("id").and_then(Value::as_str).unwrap_or("");
-            let acked = wait_for_event_ack(base, token, event_id, ack_poll_interval_ms, ack_timeout_ms)?;
+            let acked =
+                wait_for_event_ack(base, token, event_id, ack_poll_interval_ms, ack_timeout_ms)?;
             if !acked {
-                return Err(PollError { code: Some("ACK_TIMEOUT"), message: format!("Timed out waiting for --reply on event {event_id}") });
+                return Err(PollError {
+                    code: Some("ACK_TIMEOUT"),
+                    message: format!("Timed out waiting for --reply on event {event_id}"),
+                });
             }
         }
     }

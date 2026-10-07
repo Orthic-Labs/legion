@@ -109,15 +109,28 @@ mod tests {
         assert_eq!(
             values,
             vec![
-                "impeccable", "bolder", "quieter", "distill", "polish", "typeset", "colorize",
-                "layout", "morph", "animate", "delight", "overdrive",
+                "impeccable",
+                "bolder",
+                "quieter",
+                "distill",
+                "polish",
+                "typeset",
+                "colorize",
+                "layout",
+                "morph",
+                "animate",
+                "delight",
+                "overdrive",
             ]
         );
     }
 
     #[test]
     fn visual_actions_matches_command_values() {
-        assert_eq!(visual_actions(), live_commands().iter().map(|c| c.value).collect::<Vec<_>>());
+        assert_eq!(
+            visual_actions(),
+            live_commands().iter().map(|c| c.value).collect::<Vec<_>>()
+        );
     }
 
     #[test]

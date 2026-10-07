@@ -34,7 +34,7 @@
 
 use std::collections::HashMap;
 
-use super::canon::{Json, canonical_json};
+use super::canon::{canonical_json, Json};
 
 /// Composite replay scope. Missing fields normalize to `None`, matching the
 /// JS destructuring defaults (`issuerId = null`, ...).
@@ -94,11 +94,19 @@ pub struct ReplayDecision {
 }
 
 fn allow() -> ReplayDecision {
-    ReplayDecision { allowed: true, code: ReplayCode::Allowed, message: String::new() }
+    ReplayDecision {
+        allowed: true,
+        code: ReplayCode::Allowed,
+        message: String::new(),
+    }
 }
 
 fn deny(code: ReplayCode, message: impl Into<String>) -> ReplayDecision {
-    ReplayDecision { allowed: false, code, message: message.into() }
+    ReplayDecision {
+        allowed: false,
+        code,
+        message: message.into(),
+    }
 }
 
 /// A replay-check request. `timestamp` is an RFC 3339 / ISO 8601 string, as
@@ -119,7 +127,11 @@ pub struct ReplayGuardOptions {
 
 impl Default for ReplayGuardOptions {
     fn default() -> Self {
-        Self { freshness_window_seconds: 300, max_skew_seconds: 60, max_entries: 100_000 }
+        Self {
+            freshness_window_seconds: 300,
+            max_skew_seconds: 60,
+            max_entries: 100_000,
+        }
     }
 }
 
@@ -160,20 +172,32 @@ impl ReplayGuard {
 
         let age_seconds = (now_ms - ts_ms) as f64 / 1000.0;
         if age_seconds > self.freshness_window_seconds as f64 {
-            return deny(ReplayCode::Stale, "timestamp is older than the freshness window");
+            return deny(
+                ReplayCode::Stale,
+                "timestamp is older than the freshness window",
+            );
         }
         if -age_seconds > self.max_skew_seconds as f64 {
-            return deny(ReplayCode::Stale, "timestamp is further in the future than the allowed clock skew");
+            return deny(
+                ReplayCode::Stale,
+                "timestamp is further in the future than the allowed clock skew",
+            );
         }
 
         let nonce_key = format!("{key}\0{}", req.nonce);
         if self.nonces.contains_key(&nonce_key) {
-            return deny(ReplayCode::NonceSeen, "nonce already consumed in this scope");
+            return deny(
+                ReplayCode::NonceSeen,
+                "nonce already consumed in this scope",
+            );
         }
 
         if let Some(&last_sequence) = self.sequences.get(&key) {
             if req.sequence <= last_sequence {
-                return deny(ReplayCode::SequenceRegression, "sequence must be strictly increasing within a scope");
+                return deny(
+                    ReplayCode::SequenceRegression,
+                    "sequence must be strictly increasing within a scope",
+                );
             }
         }
 
@@ -208,7 +232,11 @@ impl ReplayGuard {
     pub fn prune(&mut self, now_ms: i64) {
         let cutoff_ms = now_ms - self.freshness_window_seconds * 1000;
         self.nonce_order.retain(|k| {
-            let keep = self.nonces.get(k).map(|&ts| ts >= cutoff_ms).unwrap_or(false);
+            let keep = self
+                .nonces
+                .get(k)
+                .map(|&ts| ts >= cutoff_ms)
+                .unwrap_or(false);
             if !keep {
                 self.nonces.remove(k);
             }
@@ -256,7 +284,12 @@ pub(super) fn parse_rfc3339_ms(input: &str) -> Option<i64> {
     if input.as_bytes().get(idx) == Some(&b'.') {
         idx += 1;
         let start = idx;
-        while input.as_bytes().get(idx).map(|b| b.is_ascii_digit()).unwrap_or(false) {
+        while input
+            .as_bytes()
+            .get(idx)
+            .map(|b| b.is_ascii_digit())
+            .unwrap_or(false)
+        {
             idx += 1;
         }
         let frac = &input[start..idx];
@@ -287,7 +320,12 @@ pub(super) fn parse_rfc3339_ms(input: &str) -> Option<i64> {
     if !consumed_all {
         return None;
     }
-    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || minute > 59 || second > 60 {
+    if !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 60
+    {
         return None;
     }
 
@@ -313,7 +351,12 @@ mod tests {
     use super::*;
 
     fn scope(session: &str) -> ReplayScope {
-        ReplayScope { issuer_id: Some("iss".into()), session_id: Some(session.into()), run_id: Some("run".into()), workspace_id: Some("ws".into()) }
+        ReplayScope {
+            issuer_id: Some("iss".into()),
+            session_id: Some(session.into()),
+            run_id: Some("run".into()),
+            workspace_id: Some("ws".into()),
+        }
     }
 
     const T0: &str = "2026-01-01T00:00:00.000Z";
@@ -328,7 +371,15 @@ mod tests {
     #[test]
     fn rejects_unparsable_timestamp() {
         let mut g = ReplayGuard::new(ReplayGuardOptions::default());
-        let d = g.check(ReplayCheck { scope: &scope("s"), nonce: "n1", sequence: 1, timestamp: "not-a-date" }, T0_MS);
+        let d = g.check(
+            ReplayCheck {
+                scope: &scope("s"),
+                nonce: "n1",
+                sequence: 1,
+                timestamp: "not-a-date",
+            },
+            T0_MS,
+        );
         assert!(!d.allowed);
         assert_eq!(d.code, ReplayCode::Stale);
     }
@@ -337,9 +388,25 @@ mod tests {
     fn accepts_first_message_then_rejects_repeated_nonce() {
         let mut g = ReplayGuard::new(ReplayGuardOptions::default());
         let s = scope("s");
-        let d1 = g.check(ReplayCheck { scope: &s, nonce: "n1", sequence: 1, timestamp: T0 }, T0_MS);
+        let d1 = g.check(
+            ReplayCheck {
+                scope: &s,
+                nonce: "n1",
+                sequence: 1,
+                timestamp: T0,
+            },
+            T0_MS,
+        );
         assert!(d1.allowed);
-        let d2 = g.check(ReplayCheck { scope: &s, nonce: "n1", sequence: 2, timestamp: T0 }, T0_MS);
+        let d2 = g.check(
+            ReplayCheck {
+                scope: &s,
+                nonce: "n1",
+                sequence: 2,
+                timestamp: T0,
+            },
+            T0_MS,
+        );
         assert!(!d2.allowed);
         assert_eq!(d2.code, ReplayCode::NonceSeen);
     }
@@ -348,10 +415,37 @@ mod tests {
     fn rejects_sequence_regression_including_repeat() {
         let mut g = ReplayGuard::new(ReplayGuardOptions::default());
         let s = scope("s");
-        assert!(g.check(ReplayCheck { scope: &s, nonce: "n1", sequence: 5, timestamp: T0 }, T0_MS).allowed);
-        let repeat = g.check(ReplayCheck { scope: &s, nonce: "n2", sequence: 5, timestamp: T0 }, T0_MS);
+        assert!(
+            g.check(
+                ReplayCheck {
+                    scope: &s,
+                    nonce: "n1",
+                    sequence: 5,
+                    timestamp: T0
+                },
+                T0_MS
+            )
+            .allowed
+        );
+        let repeat = g.check(
+            ReplayCheck {
+                scope: &s,
+                nonce: "n2",
+                sequence: 5,
+                timestamp: T0,
+            },
+            T0_MS,
+        );
         assert_eq!(repeat.code, ReplayCode::SequenceRegression);
-        let regress = g.check(ReplayCheck { scope: &s, nonce: "n3", sequence: 4, timestamp: T0 }, T0_MS);
+        let regress = g.check(
+            ReplayCheck {
+                scope: &s,
+                nonce: "n3",
+                sequence: 4,
+                timestamp: T0,
+            },
+            T0_MS,
+        );
         assert_eq!(regress.code, ReplayCode::SequenceRegression);
     }
 
@@ -360,46 +454,137 @@ mod tests {
         let mut g = ReplayGuard::new(ReplayGuardOptions::default());
         let a = scope("a");
         let b = scope("b");
-        assert!(g.check(ReplayCheck { scope: &a, nonce: "n1", sequence: 9, timestamp: T0 }, T0_MS).allowed);
+        assert!(
+            g.check(
+                ReplayCheck {
+                    scope: &a,
+                    nonce: "n1",
+                    sequence: 9,
+                    timestamp: T0
+                },
+                T0_MS
+            )
+            .allowed
+        );
         // Same nonce, different scope: allowed.
-        assert!(g.check(ReplayCheck { scope: &b, nonce: "n1", sequence: 1, timestamp: T0 }, T0_MS).allowed);
+        assert!(
+            g.check(
+                ReplayCheck {
+                    scope: &b,
+                    nonce: "n1",
+                    sequence: 1,
+                    timestamp: T0
+                },
+                T0_MS
+            )
+            .allowed
+        );
     }
 
     #[test]
     fn rejects_stale_timestamp_beyond_freshness_window() {
-        let mut g = ReplayGuard::new(ReplayGuardOptions { freshness_window_seconds: 300, ..ReplayGuardOptions::default() });
+        let mut g = ReplayGuard::new(ReplayGuardOptions {
+            freshness_window_seconds: 300,
+            ..ReplayGuardOptions::default()
+        });
         let now = T0_MS + 400_000; // 400s later, window is 300s
-        let d = g.check(ReplayCheck { scope: &scope("s"), nonce: "n1", sequence: 1, timestamp: T0 }, now);
+        let d = g.check(
+            ReplayCheck {
+                scope: &scope("s"),
+                nonce: "n1",
+                sequence: 1,
+                timestamp: T0,
+            },
+            now,
+        );
         assert_eq!(d.code, ReplayCode::Stale);
     }
 
     #[test]
     fn rejects_timestamp_beyond_clock_skew_allowance() {
-        let mut g = ReplayGuard::new(ReplayGuardOptions { max_skew_seconds: 60, ..ReplayGuardOptions::default() });
+        let mut g = ReplayGuard::new(ReplayGuardOptions {
+            max_skew_seconds: 60,
+            ..ReplayGuardOptions::default()
+        });
         let now = T0_MS - 120_000; // timestamp is 120s in the guard's future
-        let d = g.check(ReplayCheck { scope: &scope("s"), nonce: "n1", sequence: 1, timestamp: T0 }, now);
+        let d = g.check(
+            ReplayCheck {
+                scope: &scope("s"),
+                nonce: "n1",
+                sequence: 1,
+                timestamp: T0,
+            },
+            now,
+        );
         assert_eq!(d.code, ReplayCode::Stale);
     }
 
     #[test]
     fn evicts_oldest_nonce_when_full() {
-        let mut g = ReplayGuard::new(ReplayGuardOptions { max_entries: 2, ..ReplayGuardOptions::default() });
+        let mut g = ReplayGuard::new(ReplayGuardOptions {
+            max_entries: 2,
+            ..ReplayGuardOptions::default()
+        });
         let s = scope("s");
-        assert!(g.check(ReplayCheck { scope: &s, nonce: "n1", sequence: 1, timestamp: T0 }, T0_MS).allowed);
-        assert!(g.check(ReplayCheck { scope: &s, nonce: "n2", sequence: 2, timestamp: T0 }, T0_MS).allowed);
+        assert!(
+            g.check(
+                ReplayCheck {
+                    scope: &s,
+                    nonce: "n1",
+                    sequence: 1,
+                    timestamp: T0
+                },
+                T0_MS
+            )
+            .allowed
+        );
+        assert!(
+            g.check(
+                ReplayCheck {
+                    scope: &s,
+                    nonce: "n2",
+                    sequence: 2,
+                    timestamp: T0
+                },
+                T0_MS
+            )
+            .allowed
+        );
         assert_eq!(g.size(), 2);
-        assert!(g.check(ReplayCheck { scope: &s, nonce: "n3", sequence: 3, timestamp: T0 }, T0_MS).allowed);
+        assert!(
+            g.check(
+                ReplayCheck {
+                    scope: &s,
+                    nonce: "n3",
+                    sequence: 3,
+                    timestamp: T0
+                },
+                T0_MS
+            )
+            .allowed
+        );
         assert_eq!(g.size(), 2);
         // n1 was evicted, so a fresh sequence reuse of it is now representable
         // as a *new* nonce entry — sequence monotonicity still blocks replay
         // via the sequence map, which is never pruned.
-        let d = g.check(ReplayCheck { scope: &s, nonce: "n1", sequence: 4, timestamp: T0 }, T0_MS);
+        let d = g.check(
+            ReplayCheck {
+                scope: &s,
+                nonce: "n1",
+                sequence: 4,
+                timestamp: T0,
+            },
+            T0_MS,
+        );
         assert!(d.allowed);
     }
 
     #[test]
     fn scope_key_normalizes_missing_fields_to_null_and_sorts_keys() {
         let s = ReplayScope::default();
-        assert_eq!(scope_key(&s), r#"{"issuerId":null,"runId":null,"sessionId":null,"workspaceId":null}"#);
+        assert_eq!(
+            scope_key(&s),
+            r#"{"issuerId":null,"runId":null,"sessionId":null,"workspaceId":null}"#
+        );
     }
 }

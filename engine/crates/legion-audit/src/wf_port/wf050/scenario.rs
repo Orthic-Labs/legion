@@ -20,11 +20,22 @@
 
 use serde_json::{json, Value};
 
-use super::shared::{canonicalize, denominator, exact_binding, finalize, redact, same_binding, unique_sorted};
+use super::shared::{
+    canonicalize, denominator, exact_binding, finalize, redact, same_binding, unique_sorted,
+};
 
 const RESULT_STATUSES: &[&str] = &["pass", "fail", "partial", "unproven", "blocked", "error"];
-const BROWSER_DIAGNOSTICS: &[&str] =
-    &["cache", "console", "cookies", "cors", "csp", "error", "headers", "hydration", "network"];
+const BROWSER_DIAGNOSTICS: &[&str] = &[
+    "cache",
+    "console",
+    "cookies",
+    "cors",
+    "csp",
+    "error",
+    "headers",
+    "hydration",
+    "network",
+];
 
 fn is_safe_identifier(value: &str) -> bool {
     let mut chars = value.chars();
@@ -32,7 +43,10 @@ fn is_safe_identifier(value: &str) -> bool {
         Some(c) if c.is_ascii_alphanumeric() => {}
         _ => return false,
     }
-    value.len() <= 80 && value.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '-'))
+    value.len() <= 80
+        && value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '-'))
 }
 
 fn unequal(expected: &Value, actual: &Value) -> bool {
@@ -69,7 +83,8 @@ fn artifact_evidence(
                 .iter()
                 .map(|artifact| {
                     let (valid, sensitive, sanitized) = sanitize_artifact(artifact);
-                    let bound = same_binding(binding, artifact.get("binding").unwrap_or(&json!({})));
+                    let bound =
+                        same_binding(binding, artifact.get("binding").unwrap_or(&json!({})));
                     (valid && bound, sensitive, sanitized)
                 })
                 .collect();
@@ -79,7 +94,10 @@ fn artifact_evidence(
                 .map(|(_, _, sanitized)| sanitized.clone())
                 .collect();
             let mut gaps = Vec::new();
-            if processed.iter().any(|(valid_and_bound, _, _)| !*valid_and_bound) {
+            if processed
+                .iter()
+                .any(|(valid_and_bound, _, _)| !*valid_and_bound)
+            {
                 gaps.push("artifact-evidence-invalid".to_string());
             }
             if processed.iter().any(|(_, sensitive, _)| *sensitive) {
@@ -101,17 +119,33 @@ fn browser_diagnostic_gaps(value: Option<&Value>, binding: &Value) -> Vec<String
     let denominator_ids: Vec<String> = value
         .get("denominator")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
-    let mut deduped: Vec<String> = denominator_ids.iter().cloned().collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+    let mut deduped: Vec<String> = denominator_ids
+        .iter()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     deduped.sort();
     let expected: Vec<String> = BROWSER_DIAGNOSTICS.iter().map(|s| s.to_string()).collect();
     if deduped != expected {
         gaps.push("browser-diagnostics-denominator-mismatch".to_string());
     }
-    let facts: Vec<Value> = value.get("facts").and_then(Value::as_array).cloned().unwrap_or_default();
+    let facts: Vec<Value> = value
+        .get("facts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     for id in BROWSER_DIAGNOSTICS {
-        let matches: Vec<&Value> = facts.iter().filter(|item| item.get("id").and_then(Value::as_str) == Some(*id)).collect();
+        let matches: Vec<&Value> = facts
+            .iter()
+            .filter(|item| item.get("id").and_then(Value::as_str) == Some(*id))
+            .collect();
         if matches.is_empty() {
             gaps.push(format!("browser-diagnostic-missing:{id}"));
         } else {
@@ -119,7 +153,9 @@ fn browser_diagnostic_gaps(value: Option<&Value>, binding: &Value) -> Vec<String
                 gaps.push(format!("browser-diagnostic-duplicate:{id}"));
             }
             let fact = matches[0];
-            if fact.get("status").and_then(Value::as_str) != Some("pass") || fact.get("terminal") != Some(&Value::Bool(true)) {
+            if fact.get("status").and_then(Value::as_str) != Some("pass")
+                || fact.get("terminal") != Some(&Value::Bool(true))
+            {
                 gaps.push(format!("browser-diagnostic-unproven:{id}"));
             }
             if !same_binding(binding, fact.get("binding").unwrap_or(&json!({}))) {
@@ -129,15 +165,25 @@ fn browser_diagnostic_gaps(value: Option<&Value>, binding: &Value) -> Vec<String
     }
     for fact in &facts {
         let id = fact.get("id").and_then(Value::as_str);
-        if id.map(|id| !BROWSER_DIAGNOSTICS.contains(&id)).unwrap_or(true) {
-            gaps.push(format!("browser-diagnostic-unplanned:{}", id.unwrap_or("missing")));
+        if id
+            .map(|id| !BROWSER_DIAGNOSTICS.contains(&id))
+            .unwrap_or(true)
+        {
+            gaps.push(format!(
+                "browser-diagnostic-unplanned:{}",
+                id.unwrap_or("missing")
+            ));
         }
     }
     gaps
 }
 
 /// Port of `serverAuthorizationGaps(value, binding, controlId)`.
-fn server_authorization_gaps(value: Option<&Value>, binding: &Value, control_id: &str) -> Vec<String> {
+fn server_authorization_gaps(
+    value: Option<&Value>,
+    binding: &Value,
+    control_id: &str,
+) -> Vec<String> {
     let value = match value {
         Some(v) if v.is_object() => v,
         _ => return vec!["server-authorization-evidence-missing".to_string()],
@@ -158,11 +204,19 @@ fn server_authorization_gaps(value: Option<&Value>, binding: &Value, control_id:
     if value.get("controlId").and_then(Value::as_str) != Some(control_id) {
         gaps.push("server-authorization-control-mismatch".to_string());
     }
-    if value.get("status").and_then(Value::as_str) != Some("pass") || value.get("terminal") != Some(&Value::Bool(true)) {
+    if value.get("status").and_then(Value::as_str) != Some("pass")
+        || value.get("terminal") != Some(&Value::Bool(true))
+    {
         gaps.push("server-authorization-unproven".to_string());
     }
     let ids = value.get("authorizationIds").and_then(Value::as_array);
-    let ids_valid = ids.map(|a| !a.is_empty() && a.iter().all(|id| matches!(id, Value::String(s) if !s.is_empty()))).unwrap_or(false);
+    let ids_valid = ids
+        .map(|a| {
+            !a.is_empty()
+                && a.iter()
+                    .all(|id| matches!(id, Value::String(s) if !s.is_empty()))
+        })
+        .unwrap_or(false);
     if !ids_valid {
         gaps.push("server-authorization-denominator-empty".to_string());
     }
@@ -199,17 +253,33 @@ pub fn run_web_scenario(
     journey_invoke: Option<&dyn Fn(&str, &Value, &Value, &Value) -> AdapterCallResult>,
     protocol_invoke: Option<&dyn Fn(&str, &Value, &Value) -> AdapterCallResult>,
 ) -> Value {
-    let required_controls: Vec<String> =
-        journeys.iter().filter_map(|j| j.get("controlId").and_then(Value::as_str).map(str::to_string)).collect();
+    let required_controls: Vec<String> = journeys
+        .iter()
+        .filter_map(|j| {
+            j.get("controlId")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .collect();
     let route_controls: std::collections::HashSet<String> = journeys
         .iter()
-        .filter(|j| j.get("directApplicable") == Some(&Value::Bool(true)) || j.get("deepApplicable") == Some(&Value::Bool(true)))
-        .filter_map(|j| j.get("controlId").and_then(Value::as_str).map(str::to_string))
+        .filter(|j| {
+            j.get("directApplicable") == Some(&Value::Bool(true))
+                || j.get("deepApplicable") == Some(&Value::Bool(true))
+        })
+        .filter_map(|j| {
+            j.get("controlId")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
         .collect();
 
     let controls_arr = controls.as_array();
     let protocols_arr = protocols.as_array();
-    if controls_arr.is_none() || protocols_arr.is_none() || protocols_arr.unwrap().iter().any(|p| !p.is_object()) {
+    if controls_arr.is_none()
+        || protocols_arr.is_none()
+        || protocols_arr.unwrap().iter().any(|p| !p.is_object())
+    {
         return finalize(
             "legion-web-scenario",
             json!({
@@ -225,10 +295,15 @@ pub fn run_web_scenario(
     let controls_arr = controls_arr.unwrap();
     let protocols_arr = protocols_arr.unwrap();
 
-    let controls_ids_invalid =
-        controls_arr.iter().any(|id| id.as_str().map(|s| !is_safe_identifier(s)).unwrap_or(true));
+    let controls_ids_invalid = controls_arr
+        .iter()
+        .any(|id| id.as_str().map(|s| !is_safe_identifier(s)).unwrap_or(true));
     let protocols_ids_invalid = protocols_arr.iter().any(|item| {
-        let name_ok = item.get("name").and_then(Value::as_str).map(is_safe_identifier).unwrap_or(false);
+        let name_ok = item
+            .get("name")
+            .and_then(Value::as_str)
+            .map(is_safe_identifier)
+            .unwrap_or(false);
         let id_ok = match item.get("id") {
             None => true,
             Some(Value::String(s)) => is_safe_identifier(s),
@@ -250,9 +325,19 @@ pub fn run_web_scenario(
         );
     }
 
-    let supplied_controls: Vec<String> = controls_arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
-    let mut ids: Vec<String> = journeys.iter().filter_map(|j| j.get("id").and_then(Value::as_str).map(str::to_string)).collect();
-    ids.extend(protocol_plan.iter().filter_map(|p| p.get("id").and_then(Value::as_str).map(str::to_string)));
+    let supplied_controls: Vec<String> = controls_arr
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
+    let mut ids: Vec<String> = journeys
+        .iter()
+        .filter_map(|j| j.get("id").and_then(Value::as_str).map(str::to_string))
+        .collect();
+    ids.extend(
+        protocol_plan
+            .iter()
+            .filter_map(|p| p.get("id").and_then(Value::as_str).map(str::to_string)),
+    );
     ids.sort();
 
     let binding_gaps = exact_binding(binding).gaps;
@@ -280,7 +365,12 @@ pub fn run_web_scenario(
     let supplied_ids: Vec<String> = supplied_controls
         .iter()
         .map(|c| format!("control:{c}"))
-        .chain(protocols_arr.iter().map(|p| format!("protocol:{}", p.get("name").and_then(Value::as_str).unwrap_or(""))))
+        .chain(protocols_arr.iter().map(|p| {
+            format!(
+                "protocol:{}",
+                p.get("name").and_then(Value::as_str).unwrap_or("")
+            )
+        }))
         .collect();
     let mut duplicate_ids: Vec<String> = supplied_ids
         .iter()
@@ -292,8 +382,10 @@ pub fn run_web_scenario(
         .collect();
     duplicate_ids.sort();
 
-    let supplied_set: std::collections::HashSet<&str> = supplied_controls.iter().map(String::as_str).collect();
-    let mut protocols_by_name: std::collections::HashMap<String, &Value> = std::collections::HashMap::new();
+    let supplied_set: std::collections::HashSet<&str> =
+        supplied_controls.iter().map(String::as_str).collect();
+    let mut protocols_by_name: std::collections::HashMap<String, &Value> =
+        std::collections::HashMap::new();
     for item in protocols_arr {
         if let Some(name) = item.get("name").and_then(Value::as_str) {
             protocols_by_name.entry(name.to_string()).or_insert(item);
@@ -313,9 +405,16 @@ pub fn run_web_scenario(
         .iter()
         .filter(|item| {
             let name = item.get("name").and_then(Value::as_str);
-            !protocol_plan.iter().any(|row| row.get("protocolId").and_then(Value::as_str) == name)
+            !protocol_plan
+                .iter()
+                .any(|row| row.get("protocolId").and_then(Value::as_str) == name)
         })
-        .map(|item| item.get("name").and_then(Value::as_str).unwrap_or("missing").to_string())
+        .map(|item| {
+            item.get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("missing")
+                .to_string()
+        })
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect();
@@ -343,8 +442,16 @@ pub fn run_web_scenario(
         || !duplicate_ids.is_empty();
 
     for journey in journeys {
-        let id = journey.get("id").and_then(Value::as_str).unwrap_or("").to_string();
-        let control = journey.get("controlId").and_then(Value::as_str).unwrap_or("").to_string();
+        let id = journey
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let control = journey
+            .get("controlId")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         if !supplied_set.contains(control.as_str()) {
             receipts.push(json!({ "id": id, "control": control, "journeyId": id, "status": "unproven", "terminal": true, "coverageGaps": ["journey-not-observed"] }));
             continue;
@@ -366,7 +473,11 @@ pub fn run_web_scenario(
                     receipts.push(json!({ "id": id, "control": control, "journeyId": id, "status": "error", "terminal": true, "errors": [{ "name": name, "message": redact(&Value::String(message)) }] }));
                 }
                 AdapterCallResult::Ok(raw_observed) => {
-                    let (artifacts, artifact_gaps) = artifact_evidence(raw_observed.get("artifacts"), binding, sanitize_artifact);
+                    let (artifacts, artifact_gaps) = artifact_evidence(
+                        raw_observed.get("artifacts"),
+                        binding,
+                        sanitize_artifact,
+                    );
                     let mut observed_input = raw_observed.clone();
                     if let Value::Object(map) = &mut observed_input {
                         map.remove("artifacts");
@@ -374,11 +485,14 @@ pub fn run_web_scenario(
                     let observed = redact(&observed_input);
                     let mut coverage_gaps: Vec<String> = Vec::new();
                     let adapter_status = raw_observed.get("status").and_then(Value::as_str);
-                    let adapter_status_valid = adapter_status.is_none() || RESULT_STATUSES.contains(&adapter_status.unwrap());
+                    let adapter_status_valid = adapter_status.is_none()
+                        || RESULT_STATUSES.contains(&adapter_status.unwrap());
                     if !adapter_status_valid {
                         coverage_gaps.push("adapter-status-invalid".to_string());
                     }
-                    if adapter_status.is_some() && raw_observed.get("terminal") != Some(&Value::Bool(true)) {
+                    if adapter_status.is_some()
+                        && raw_observed.get("terminal") != Some(&Value::Bool(true))
+                    {
                         coverage_gaps.push("adapter-result-nonterminal".to_string());
                     }
                     if adapter_status_valid {
@@ -411,7 +525,10 @@ pub fn run_web_scenario(
                         let route = observed.get("routeEvidence");
                         match route {
                             None => coverage_gaps.push("route-evidence-missing".to_string()),
-                            Some(r) if r.get("kind").and_then(Value::as_str) != Some("web-route-navigation") => {
+                            Some(r)
+                                if r.get("kind").and_then(Value::as_str)
+                                    != Some("web-route-navigation") =>
+                            {
                                 coverage_gaps.push("route-evidence-missing".to_string())
                             }
                             Some(r) => {
@@ -421,13 +538,29 @@ pub fn run_web_scenario(
                             }
                         }
                     }
-                    coverage_gaps.extend(browser_diagnostic_gaps(observed.get("browserDiagnostics"), binding));
-                    coverage_gaps.extend(server_authorization_gaps(observed.get("serverAuthorization"), binding, &control));
+                    coverage_gaps.extend(browser_diagnostic_gaps(
+                        observed.get("browserDiagnostics"),
+                        binding,
+                    ));
+                    coverage_gaps.extend(server_authorization_gaps(
+                        observed.get("serverAuthorization"),
+                        binding,
+                        &control,
+                    ));
 
-                    let status = if !adapter_status_valid || (adapter_status.is_some() && raw_observed.get("terminal") != Some(&Value::Bool(true))) {
+                    let status = if !adapter_status_valid
+                        || (adapter_status.is_some()
+                            && raw_observed.get("terminal") != Some(&Value::Bool(true)))
+                    {
                         "error".to_string()
                     } else if let Some(s) = adapter_status {
-                        if s != "pass" { s.to_string() } else if coverage_gaps.is_empty() { "pass".to_string() } else { "unproven".to_string() }
+                        if s != "pass" {
+                            s.to_string()
+                        } else if coverage_gaps.is_empty() {
+                            "pass".to_string()
+                        } else {
+                            "unproven".to_string()
+                        }
                     } else if coverage_gaps.is_empty() {
                         "pass".to_string()
                     } else {
@@ -461,8 +594,16 @@ pub fn run_web_scenario(
     }
 
     for plan_protocol in protocol_plan {
-        let id = plan_protocol.get("id").and_then(Value::as_str).unwrap_or("").to_string();
-        let protocol_name = plan_protocol.get("protocolId").and_then(Value::as_str).unwrap_or("").to_string();
+        let id = plan_protocol
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let protocol_name = plan_protocol
+            .get("protocolId")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         let protocol = protocols_by_name.get(&protocol_name).copied();
         let protocol = match protocol {
             None => {
@@ -492,15 +633,31 @@ pub fn run_web_scenario(
         if !plan_applicable {
             let evidence = protocol.get("evidence");
             let reason_matches = protocol.get("reason") == plan_protocol.get("reason");
-            let evidence_valid = evidence.map(|e| {
-                e.get("kind").and_then(Value::as_str) == Some("configured-protocol-applicability")
-                    && e.get("reason") == protocol.get("reason")
-                    && e.get("source").and_then(Value::as_str).map(|s| !s.is_empty()).unwrap_or(false)
-                    && e.get("digest").and_then(Value::as_str).map(is_sha256_digest).unwrap_or(false)
-                    && same_binding(binding, e.get("binding").unwrap_or(&json!({})))
-            }).unwrap_or(false);
+            let evidence_valid = evidence
+                .map(|e| {
+                    e.get("kind").and_then(Value::as_str)
+                        == Some("configured-protocol-applicability")
+                        && e.get("reason") == protocol.get("reason")
+                        && e.get("source")
+                            .and_then(Value::as_str)
+                            .map(|s| !s.is_empty())
+                            .unwrap_or(false)
+                        && e.get("digest")
+                            .and_then(Value::as_str)
+                            .map(is_sha256_digest)
+                            .unwrap_or(false)
+                        && same_binding(binding, e.get("binding").unwrap_or(&json!({})))
+                })
+                .unwrap_or(false);
             let valid = reason_matches && evidence_valid;
-            let coverage_gaps = if valid { vec!["protocol-excluded".to_string()] } else { vec!["protocol-excluded".to_string(), "protocol-exclusion-evidence-missing".to_string()] };
+            let coverage_gaps = if valid {
+                vec!["protocol-excluded".to_string()]
+            } else {
+                vec![
+                    "protocol-excluded".to_string(),
+                    "protocol-exclusion-evidence-missing".to_string(),
+                ]
+            };
             receipts.push(json!({
                 "id": id,
                 "protocol": protocol_name,
@@ -521,18 +678,25 @@ pub fn run_web_scenario(
                     receipts.push(json!({ "id": id, "protocol": protocol_name, "status": "error", "terminal": true, "errors": [{ "name": name, "message": redact(&Value::String(message)) }], "coverageGaps": ["protocol-exercise-error"] }));
                 }
                 AdapterCallResult::Ok(raw_observed) => {
-                    let (artifacts, mut coverage_gaps) = artifact_evidence(raw_observed.get("artifacts"), binding, sanitize_artifact);
+                    let (artifacts, mut coverage_gaps) = artifact_evidence(
+                        raw_observed.get("artifacts"),
+                        binding,
+                        sanitize_artifact,
+                    );
                     let mut observed_input = raw_observed.clone();
                     if let Value::Object(map) = &mut observed_input {
                         map.remove("artifacts");
                     }
                     let observed = redact(&observed_input);
                     let adapter_status = raw_observed.get("status").and_then(Value::as_str);
-                    let adapter_status_valid = adapter_status.is_none() || RESULT_STATUSES.contains(&adapter_status.unwrap());
+                    let adapter_status_valid = adapter_status.is_none()
+                        || RESULT_STATUSES.contains(&adapter_status.unwrap());
                     if !adapter_status_valid {
                         coverage_gaps.push("adapter-status-invalid".to_string());
                     }
-                    if adapter_status.is_some() && raw_observed.get("terminal") != Some(&Value::Bool(true)) {
+                    if adapter_status.is_some()
+                        && raw_observed.get("terminal") != Some(&Value::Bool(true))
+                    {
                         coverage_gaps.push("adapter-result-nonterminal".to_string());
                     }
                     if adapter_status_valid {
@@ -544,7 +708,8 @@ pub fn run_web_scenario(
                     }
                     let observed_state = observed.get("observedState").cloned();
                     let durable_state = observed.get("durableState").cloned();
-                    let os_missing = observed_state.is_none() || observed_state == Some(Value::Null);
+                    let os_missing =
+                        observed_state.is_none() || observed_state == Some(Value::Null);
                     let ds_missing = durable_state.is_none() || durable_state == Some(Value::Null);
                     if os_missing || ds_missing {
                         coverage_gaps.push("protocol-unexercised".to_string());
@@ -559,10 +724,19 @@ pub fn run_web_scenario(
                             coverage_gaps.push("durable-state-mismatch".to_string());
                         }
                     }
-                    let status = if !adapter_status_valid || (adapter_status.is_some() && raw_observed.get("terminal") != Some(&Value::Bool(true))) {
+                    let status = if !adapter_status_valid
+                        || (adapter_status.is_some()
+                            && raw_observed.get("terminal") != Some(&Value::Bool(true)))
+                    {
                         "error".to_string()
                     } else if let Some(s) = adapter_status {
-                        if s != "pass" { s.to_string() } else if coverage_gaps.is_empty() { "pass".to_string() } else { "unproven".to_string() }
+                        if s != "pass" {
+                            s.to_string()
+                        } else if coverage_gaps.is_empty() {
+                            "pass".to_string()
+                        } else {
+                            "unproven".to_string()
+                        }
                     } else if coverage_gaps.is_empty() {
                         "pass".to_string()
                     } else {
@@ -583,36 +757,72 @@ pub fn run_web_scenario(
         }
     }
 
-    let receipt_ids: Vec<String> = receipts.iter().filter_map(|r| r.get("id").and_then(Value::as_str).map(str::to_string)).collect();
+    let receipt_ids: Vec<String> = receipts
+        .iter()
+        .filter_map(|r| r.get("id").and_then(Value::as_str).map(str::to_string))
+        .collect();
     let counts = denominator(&ids, &receipt_ids, &[]);
 
-    let mut gaps: Vec<String> = binding_gaps.iter().map(|k| format!("binding-missing:{k}")).collect();
+    let mut gaps: Vec<String> = binding_gaps
+        .iter()
+        .map(|k| format!("binding-missing:{k}"))
+        .collect();
     if preflight_invalid {
         gaps.push("scenario-preflight-invalid".to_string());
     }
     if ids.is_empty() || (supplied_controls.is_empty() && protocols_arr.is_empty()) {
         gaps.push("scenario-denominator-empty".to_string());
     }
-    gaps.extend(supplied_controls.iter().filter(|c| !required_controls.contains(c)).map(|c| format!("control-unrecognized:{c}")));
-    gaps.extend(protocols_arr.iter().filter(|item| {
-        let name = item.get("name").and_then(Value::as_str);
-        !protocol_plan.iter().any(|row| row.get("protocolId").and_then(Value::as_str) == name)
-    }).map(|item| format!("protocol-unrecognized:{}", item.get("name").and_then(Value::as_str).unwrap_or(""))));
+    gaps.extend(
+        supplied_controls
+            .iter()
+            .filter(|c| !required_controls.contains(c))
+            .map(|c| format!("control-unrecognized:{c}")),
+    );
+    gaps.extend(
+        protocols_arr
+            .iter()
+            .filter(|item| {
+                let name = item.get("name").and_then(Value::as_str);
+                !protocol_plan
+                    .iter()
+                    .any(|row| row.get("protocolId").and_then(Value::as_str) == name)
+            })
+            .map(|item| {
+                format!(
+                    "protocol-unrecognized:{}",
+                    item.get("name").and_then(Value::as_str).unwrap_or("")
+                )
+            }),
+    );
     for journey in journeys {
-        let control = journey.get("controlId").and_then(Value::as_str).unwrap_or("");
+        let control = journey
+            .get("controlId")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if !supplied_set.contains(control) {
             gaps.push(format!("control-missing:{control}"));
-            gaps.push(format!("journey-omitted:{}", journey.get("id").and_then(Value::as_str).unwrap_or("")));
+            gaps.push(format!(
+                "journey-omitted:{}",
+                journey.get("id").and_then(Value::as_str).unwrap_or("")
+            ));
         }
     }
     for row in protocol_plan {
         let protocol_id = row.get("protocolId").and_then(Value::as_str).unwrap_or("");
         if !protocols_by_name.contains_key(protocol_id) {
-            gaps.push(format!("protocol-omitted:{}", row.get("id").and_then(Value::as_str).unwrap_or("")));
+            gaps.push(format!(
+                "protocol-omitted:{}",
+                row.get("id").and_then(Value::as_str).unwrap_or("")
+            ));
         }
     }
     gaps.extend(unrecognized_gaps);
-    gaps.extend(duplicate_ids.iter().map(|id| format!("scenario-id-duplicate:{id}")));
+    gaps.extend(
+        duplicate_ids
+            .iter()
+            .map(|id| format!("scenario-id-duplicate:{id}")),
+    );
     for item in &receipts {
         let item_id = item.get("id").and_then(Value::as_str).unwrap_or("");
         if let Some(item_gaps) = item.get("coverageGaps").and_then(Value::as_array) {
@@ -623,18 +833,37 @@ pub fn run_web_scenario(
             }
         }
         let status = item.get("status").and_then(Value::as_str).unwrap_or("");
-        let no_gaps = item.get("coverageGaps").and_then(Value::as_array).map(|a| a.is_empty()).unwrap_or(true);
+        let no_gaps = item
+            .get("coverageGaps")
+            .and_then(Value::as_array)
+            .map(|a| a.is_empty())
+            .unwrap_or(true);
         if !["pass", "unsupported"].contains(&status) && no_gaps {
             gaps.push(format!("control-{status}:{item_id}"));
         }
     }
-    gaps.extend(counts.missing.iter().map(|id| format!("receipt-missing:{id}")));
+    gaps.extend(
+        counts
+            .missing
+            .iter()
+            .map(|id| format!("receipt-missing:{id}")),
+    );
 
     let status = ["error", "fail", "blocked", "partial", "unproven"]
         .iter()
-        .find(|candidate| receipts.iter().any(|item| item.get("status").and_then(Value::as_str) == Some(**candidate)))
+        .find(|candidate| {
+            receipts
+                .iter()
+                .any(|item| item.get("status").and_then(Value::as_str) == Some(**candidate))
+        })
         .map(|s| s.to_string())
-        .unwrap_or_else(|| if !gaps.is_empty() { "partial".to_string() } else { "pass".to_string() });
+        .unwrap_or_else(|| {
+            if !gaps.is_empty() {
+                "partial".to_string()
+            } else {
+                "pass".to_string()
+            }
+        });
 
     finalize(
         "legion-web-scenario",
@@ -651,5 +880,13 @@ pub fn run_web_scenario(
 }
 
 fn is_sha256_digest(value: &str) -> bool {
-    value.strip_prefix("sha256:").map(|hex| hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())).unwrap_or(false)
+    value
+        .strip_prefix("sha256:")
+        .map(|hex| {
+            hex.len() == 64
+                && hex
+                    .chars()
+                    .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        })
+        .unwrap_or(false)
 }

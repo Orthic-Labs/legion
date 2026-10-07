@@ -3,7 +3,10 @@ use std::process::Command;
 
 fn apple(args: &[&str]) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_legion"))
-        .arg("apple").args(args).output().unwrap()
+        .arg("apple")
+        .args(args)
+        .output()
+        .unwrap()
 }
 
 #[test]
@@ -17,7 +20,10 @@ fn catalog_is_available_without_xcode_or_account_credentials() {
 
 #[test]
 fn structured_input_rejects_non_objects() {
-    assert_eq!(apple(&["preflight", "--input", "[]"]).status.code(), Some(4));
+    assert_eq!(
+        apple(&["preflight", "--input", "[]"]).status.code(),
+        Some(4)
+    );
 }
 
 #[test]
@@ -31,9 +37,18 @@ fn account_request_defaults_to_inspectable_plan() {
 
 #[test]
 fn tool_preflight_aliases_have_identical_native_catalogs() {
-    let outputs: Vec<_> = ["ios-development/tool_preflight", "macos-development/tool_preflight"]
-        .iter().map(|name| Command::new(env!("CARGO_BIN_EXE_legion"))
-            .args(["script", name, "--list"]).output().unwrap()).collect();
+    let outputs: Vec<_> = [
+        "ios-development/tool_preflight",
+        "macos-development/tool_preflight",
+    ]
+    .iter()
+    .map(|name| {
+        Command::new(env!("CARGO_BIN_EXE_legion"))
+            .args(["script", name, "--list"])
+            .output()
+            .unwrap()
+    })
+    .collect();
     for output in &outputs {
         assert!(output.status.success(), "{output:?}");
         let value: Value = serde_json::from_slice(&output.stdout).unwrap();
@@ -44,6 +59,13 @@ fn tool_preflight_aliases_have_identical_native_catalogs() {
 
 #[test]
 fn execution_cannot_promote_caller_context_to_host_authority() {
-    let output = apple(&["app-store", "--input", r#"{"action":"apps","execute":true}"#]);
-    assert!(!output.status.success(), "unguarded effect must not run: {output:?}");
+    let output = apple(&[
+        "app-store",
+        "--input",
+        r#"{"action":"apps","execute":true}"#,
+    ]);
+    assert!(
+        !output.status.success(),
+        "unguarded effect must not run: {output:?}"
+    );
 }

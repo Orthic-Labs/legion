@@ -410,8 +410,14 @@ fn plugin_root_accepts_a_core_that_carries_agents() {
     let relative = format!("agents/{agent}.md");
     let path = plugin_root.join(&relative);
     fs::create_dir_all(path.parent().expect("agents parent")).expect("agents dir");
-    fs::write(&path, format!("# {agent}
-")).expect("agent file");
+    fs::write(
+        &path,
+        format!(
+            "# {agent}
+"
+        ),
+    )
+    .expect("agent file");
 
     let contract_path = plugin_root.join("rightax-portable-core.json");
     let mut contract: Value =
@@ -486,13 +492,19 @@ fn plugin_root_accepts_a_core_that_ships_more_skills_than_the_binary_predates() 
     let extra_relative = format!("skills/{extra}/SKILL.md");
     let extra_path = plugin_root.join(&extra_relative);
     fs::create_dir_all(extra_path.parent().expect("extra skill parent")).expect("extra skill dir");
-    fs::write(&extra_path, format!("---\nname: {extra}\n---\nUse {extra}.\n")).expect("extra skill");
+    fs::write(
+        &extra_path,
+        format!("---\nname: {extra}\n---\nUse {extra}.\n"),
+    )
+    .expect("extra skill");
 
     let contract_path = plugin_root.join("rightax-portable-core.json");
     let mut contract: Value =
         serde_json::from_slice(&fs::read(&contract_path).expect("RightAX contract"))
             .expect("RightAX contract JSON");
-    let skills = contract["publicSkills"].as_array_mut().expect("publicSkills");
+    let skills = contract["publicSkills"]
+        .as_array_mut()
+        .expect("publicSkills");
     skills.push(json!(extra));
     let files = contract["publicFiles"].as_array_mut().expect("publicFiles");
     files.push(json!(extra_relative));
@@ -593,8 +605,8 @@ fn plugin_root_rejects_a_release_without_the_portable_core_anchor() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);
     let manifest_path = fixture.root.join("release.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("manifest")).expect("manifest JSON");
+    let mut manifest: Value = serde_json::from_slice(&fs::read(&manifest_path).expect("manifest"))
+        .expect("manifest JSON");
     manifest
         .as_object_mut()
         .expect("manifest object")
@@ -637,18 +649,28 @@ fn plugin_root_accepts_the_claude_dotted_mcp_copy() {
 fn plugin_root_accepts_the_shipped_claude_native_mcp_descriptor() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);
-    let mut native: Value = serde_json::from_slice(
-        &fs::read(plugin_root.join("mcp.json")).expect("portable MCP"),
-    ).expect("portable MCP JSON");
+    let mut native: Value =
+        serde_json::from_slice(&fs::read(plugin_root.join("mcp.json")).expect("portable MCP"))
+            .expect("portable MCP JSON");
     native["mcpServers"]["legion"]["args"] = json!(["serve", "--stdio"]);
     fs::write(plugin_root.join(".mcp.json"), native.to_string()).expect("native Claude MCP");
     // Antigravity retains the Agent Plugins contract, independently of Claude.
-    fs::copy(plugin_root.join("mcp.json"), plugin_root.join("mcp_config.json")).expect("Antigravity MCP");
+    fs::copy(
+        plugin_root.join("mcp.json"),
+        plugin_root.join("mcp_config.json"),
+    )
+    .expect("Antigravity MCP");
 
     let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
-    let initialized = request(&mut stdin, &mut stdout,
-        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}));
-    assert_eq!(initialized["result"]["releaseIdentity"]["releaseVersion"], env!("CARGO_PKG_VERSION"));
+    let initialized = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}),
+    );
+    assert_eq!(
+        initialized["result"]["releaseIdentity"]["releaseVersion"],
+        env!("CARGO_PKG_VERSION")
+    );
     drop(stdin);
     assert!(child.wait().expect("server exit").success());
 }
@@ -659,20 +681,26 @@ fn plugin_root_rejects_modified_claude_native_mcp_descriptors() {
         ("command", json!("other-binary")),
         ("type", json!("http")),
         ("args", json!(["serve", "--stdio", "--other"])),
-        ("args", json!(["serve", "--stdio", "--plugin-root", "/unapproved"])),
+        (
+            "args",
+            json!(["serve", "--stdio", "--plugin-root", "/unapproved"]),
+        ),
         ("env", json!({"LEGION_M1_CONFIG":"unapproved"})),
     ] {
         let fixture = fixture();
         let plugin_root = portable_package(&fixture);
-        let mut native: Value = serde_json::from_slice(
-            &fs::read(plugin_root.join("mcp.json")).expect("portable MCP"),
-        ).expect("portable MCP JSON");
+        let mut native: Value =
+            serde_json::from_slice(&fs::read(plugin_root.join("mcp.json")).expect("portable MCP"))
+                .expect("portable MCP JSON");
         native["mcpServers"]["legion"]["args"] = json!(["serve", "--stdio"]);
         native["mcpServers"]["legion"][field] = value;
         fs::write(plugin_root.join(".mcp.json"), native.to_string()).expect("modified MCP");
         let output = serve_output(&plugin_root, &fixture.config);
         assert_eq!(output.status.code(), Some(2));
-        assert!(output.stdout.is_empty(), "modified MCP must not start transport");
+        assert!(
+            output.stdout.is_empty(),
+            "modified MCP must not start transport"
+        );
         assert!(String::from_utf8_lossy(&output.stderr).contains("approved Claude projection"));
     }
 }
@@ -681,15 +709,17 @@ fn plugin_root_rejects_modified_claude_native_mcp_descriptors() {
 fn plugin_root_rejects_claude_arguments_in_antigravity_alias() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);
-    let mut native: Value = serde_json::from_slice(
-        &fs::read(plugin_root.join("mcp.json")).expect("portable MCP"),
-    ).expect("portable MCP JSON");
+    let mut native: Value =
+        serde_json::from_slice(&fs::read(plugin_root.join("mcp.json")).expect("portable MCP"))
+            .expect("portable MCP JSON");
     native["mcpServers"]["legion"]["args"] = json!(["serve", "--stdio"]);
     fs::write(plugin_root.join("mcp_config.json"), native.to_string()).expect("incorrect alias");
     let output = serve_output(&plugin_root, &fixture.config);
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("mcp_config.json does not match mcp.json"));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("mcp_config.json does not match mcp.json")
+    );
 }
 
 #[test]
@@ -698,7 +728,11 @@ fn plugin_root_accepts_the_claude_projection_manifest_copy() {
     let plugin_root = portable_package(&fixture);
     let projected = plugin_root.join(".claude-plugin");
     fs::create_dir_all(&projected).expect("claude-plugin dir");
-    fs::copy(plugin_root.join("plugin.json"), projected.join("plugin.json")).expect("copy plugin.json");
+    fs::copy(
+        plugin_root.join("plugin.json"),
+        projected.join("plugin.json"),
+    )
+    .expect("copy plugin.json");
 
     let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
     let initialized = request(
@@ -739,8 +773,11 @@ fn plugin_root_accepts_the_declared_host_projection_asset() {
         .as_array_mut()
         .expect("publicFiles")
         .push(json!("share/legion/src/registry/host-projection.json"));
-    fs::write(&contract_path, serde_json::to_vec(&contract).expect("contract JSON"))
-        .expect("declared contract");
+    fs::write(
+        &contract_path,
+        serde_json::to_vec(&contract).expect("contract JSON"),
+    )
+    .expect("declared contract");
     anchor_release(&fixture, &plugin_root);
 
     let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
@@ -780,7 +817,9 @@ fn junction(link: &Path, target: &Path) {
     // `mklink` rejects the `\\?\` verbatim prefix that `canonicalize` produces.
     let plain = |path: &Path| {
         let text = path.to_string_lossy().into_owned();
-        text.strip_prefix(r"\\?\").map(str::to_owned).unwrap_or(text)
+        text.strip_prefix(r"\\?\")
+            .map(str::to_owned)
+            .unwrap_or(text)
     };
     let status = Command::new("cmd")
         .args(["/c", "mklink", "/J", &plain(link), &plain(target)])

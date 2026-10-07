@@ -98,7 +98,8 @@ impl std::error::Error for HostEventInvalid {}
 /// Mirrors JS `DIGEST_PATTERN` (`contracts/arcane/canonical.mjs`).
 const DIGEST_RE: &str = r"^sha256:[0-9a-f]{64}$";
 /// Mirrors JS `DATE_TIME_RE` (`host-event.mjs`).
-const DATE_TIME_RE: &str = r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$";
+const DATE_TIME_RE: &str =
+    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$";
 
 /// Mirrors JS `EFFECT_CLASS` (`packages/contracts/enums.mjs`) — the frozen
 /// 12-value enum `EFFECT_IDENTITY_SCHEMA.properties.effectClass` checks
@@ -260,9 +261,21 @@ fn host_event_schema() -> Json {
 
 /// Mirrors JS `HOST_EVENT_BOUND_FIELDS`.
 pub const HOST_EVENT_BOUND_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "eventId", "eventType", "time",
-    "runId", "taskId", "requestId", "contractId", "workspace",
-    "operation", "effect", "result", "sourceRevision", "idempotencyKey",
+    "schemaVersion",
+    "kind",
+    "eventId",
+    "eventType",
+    "time",
+    "runId",
+    "taskId",
+    "requestId",
+    "contractId",
+    "workspace",
+    "operation",
+    "effect",
+    "result",
+    "sourceRevision",
+    "idempotencyKey",
 ];
 
 /// Structural validation only. Mirrors `validateHostEvent(e)`: rejects a
@@ -299,8 +312,12 @@ pub fn normalize_host_event(
         .map(Json::from)
         .unwrap_or(Json::Null);
 
-    let event_id = get("eventId").filter(|v| !v.is_null()).unwrap_or_else(|| Json::from(event_id_gen()));
-    let time = get("time").filter(|v| !v.is_null()).unwrap_or_else(|| Json::from(now_iso()));
+    let event_id = get("eventId")
+        .filter(|v| !v.is_null())
+        .unwrap_or_else(|| Json::from(event_id_gen()));
+    let time = get("time")
+        .filter(|v| !v.is_null())
+        .unwrap_or_else(|| Json::from(now_iso()));
 
     let mut candidate = json!({
         "schemaVersion": 1,
@@ -362,12 +379,27 @@ pub fn normalize_host_event(
 /// "no policy supplied" (JS: `policy && typeof policy.effectRule ===
 /// 'function'`), so that branch is skipped exactly as in JS when no rule
 /// function is given.
-pub fn classify_observation(event: &Json, effect_rule: Option<&dyn Fn(&str) -> bool>) -> &'static str {
-    let outcome = event.get("result").and_then(|r| r.get("outcome")).and_then(Json::as_str);
-    let exit_code = event.get("result").and_then(|r| r.get("exitCode")).and_then(Json::as_i64);
-    let effect_class = event.get("effect").and_then(|e| e.get("effectClass")).and_then(Json::as_str);
+pub fn classify_observation(
+    event: &Json,
+    effect_rule: Option<&dyn Fn(&str) -> bool>,
+) -> &'static str {
+    let outcome = event
+        .get("result")
+        .and_then(|r| r.get("outcome"))
+        .and_then(Json::as_str);
+    let exit_code = event
+        .get("result")
+        .and_then(|r| r.get("exitCode"))
+        .and_then(Json::as_i64);
+    let effect_class = event
+        .get("effect")
+        .and_then(|e| e.get("effectClass"))
+        .and_then(Json::as_str);
 
-    if outcome == Some("failure") || outcome == Some("blocked") || matches!(exit_code, Some(c) if c != 0) {
+    if outcome == Some("failure")
+        || outcome == Some("blocked")
+        || matches!(exit_code, Some(c) if c != 0)
+    {
         return "failure";
     }
 
@@ -385,7 +417,11 @@ pub fn classify_observation(event: &Json, effect_rule: Option<&dyn Fn(&str) -> b
                 .and_then(Json::as_str)
                 .map(|s| !s.is_empty())
                 .unwrap_or(false);
-            return if has_check { "deterministic-check-candidate" } else { "source-observation" };
+            return if has_check {
+                "deterministic-check-candidate"
+            } else {
+                "source-observation"
+            };
         }
     } else {
         let event_type = event.get("eventType").and_then(Json::as_str).unwrap_or("");
@@ -442,16 +478,21 @@ mod tests {
 
     #[test]
     fn normalizes_legacy_event_type() {
-        let out = normalize_host_event(&schema_valid_raw("PreToolUse"), None, gen_id, gen_time).unwrap();
+        let out =
+            normalize_host_event(&schema_valid_raw("PreToolUse"), None, gen_id, gen_time).unwrap();
         assert_eq!(out["eventType"], "pre-effect");
         assert_eq!(out["kind"], "arcane-host-event");
         assert_eq!(out["schemaVersion"], 1);
-        assert_eq!(out["hostEnforcement"], json!({"capabilities": [], "knownBypasses": []}));
+        assert_eq!(
+            out["hostEnforcement"],
+            json!({"capabilities": [], "knownBypasses": []})
+        );
     }
 
     #[test]
     fn passes_through_already_canonical_event_type() {
-        let out = normalize_host_event(&schema_valid_raw("pre-effect"), None, gen_id, gen_time).unwrap();
+        let out =
+            normalize_host_event(&schema_valid_raw("pre-effect"), None, gen_id, gen_time).unwrap();
         assert_eq!(out["eventType"], "pre-effect");
     }
 
@@ -459,14 +500,22 @@ mod tests {
     fn rejects_unknown_event_type() {
         let raw = json!({"eventType": "NotARealEvent", "workspace": "/repo"});
         let err = normalize_host_event(&raw, None, gen_id, gen_time).unwrap_err();
-        assert!(err.issues.iter().any(|s| s.contains("eventType")), "{:?}", err.issues);
+        assert!(
+            err.issues.iter().any(|s| s.contains("eventType")),
+            "{:?}",
+            err.issues
+        );
     }
 
     #[test]
     fn rejects_empty_workspace() {
         let raw = json!({"eventType": "pre-effect", "workspace": ""});
         let err = normalize_host_event(&raw, None, gen_id, gen_time).unwrap_err();
-        assert!(err.issues.iter().any(|s| s.contains("workspace")), "{:?}", err.issues);
+        assert!(
+            err.issues.iter().any(|s| s.contains("workspace")),
+            "{:?}",
+            err.issues
+        );
     }
 
     #[test]
@@ -476,9 +525,23 @@ mod tests {
         // required, non-nullable objects — so an otherwise-complete raw
         // event without them still fails `validateHostEvent`.
         let err = normalize_host_event(&ok_raw(), None, gen_id, gen_time).unwrap_err();
-        assert!(err.issues.iter().any(|s| s.contains("adapter")), "{:?}", err.issues);
-        assert!(err.issues.iter().any(|s| s.contains("client")), "{:?}", err.issues);
-        assert!(err.issues.iter().any(|s| s.contains("host") && !s.contains("hostEnforcement")), "{:?}", err.issues);
+        assert!(
+            err.issues.iter().any(|s| s.contains("adapter")),
+            "{:?}",
+            err.issues
+        );
+        assert!(
+            err.issues.iter().any(|s| s.contains("client")),
+            "{:?}",
+            err.issues
+        );
+        assert!(
+            err.issues
+                .iter()
+                .any(|s| s.contains("host") && !s.contains("hostEnforcement")),
+            "{:?}",
+            err.issues
+        );
     }
 
     #[test]
@@ -522,11 +585,16 @@ mod tests {
 
     #[test]
     fn validate_host_event_rejects_unknown_field() {
-        let mut out = normalize_host_event(&schema_valid_raw("Stop"), None, gen_id, gen_time).unwrap();
+        let mut out =
+            normalize_host_event(&schema_valid_raw("Stop"), None, gen_id, gen_time).unwrap();
         out["notAField"] = json!(true);
         let (valid, issues) = validate_host_event(&out);
         assert!(!valid);
-        assert!(issues.iter().any(|s| s.contains("notAField")), "{:?}", issues);
+        assert!(
+            issues.iter().any(|s| s.contains("notAField")),
+            "{:?}",
+            issues
+        );
     }
 
     #[test]
@@ -534,13 +602,17 @@ mod tests {
         let schema = host_event_schema();
         let props = schema["properties"].as_object().unwrap();
         for field in HOST_EVENT_BOUND_FIELDS {
-            assert!(props.contains_key(*field), "{field} missing from HOST_EVENT_SCHEMA properties");
+            assert!(
+                props.contains_key(*field),
+                "{field} missing from HOST_EVENT_SCHEMA properties"
+            );
         }
     }
 
     #[test]
     fn classify_failure_outcome_first() {
-        let event = json!({"result": {"outcome": "failure"}, "effect": {"effectClass": "FILE_WRITE"}});
+        let event =
+            json!({"result": {"outcome": "failure"}, "effect": {"effectClass": "FILE_WRITE"}});
         assert_eq!(classify_observation(&event, None), "failure");
     }
 
@@ -558,15 +630,29 @@ mod tests {
 
     #[test]
     fn classify_other_mutating_classes() {
-        for ec in ["NETWORK_EGRESS", "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT", "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT"] {
+        for ec in [
+            "NETWORK_EGRESS",
+            "PROCESS_SPAWN",
+            "CREDENTIAL_ACCESS",
+            "DEPENDENCY_INSTALL",
+            "VCS_COMMIT",
+            "VCS_PUSH",
+            "PUBLISH",
+            "EXTERNAL_SIDE_EFFECT",
+        ] {
             let event = json!({"result": {"outcome": "success"}, "effect": {"effectClass": ec}});
-            assert_eq!(classify_observation(&event, None), "mutation-observation", "class {ec}");
+            assert_eq!(
+                classify_observation(&event, None),
+                "mutation-observation",
+                "class {ec}"
+            );
         }
     }
 
     #[test]
     fn classify_command_exec_without_check_is_source_observation() {
-        let event = json!({"result": {"outcome": "success"}, "effect": {"effectClass": "COMMAND_EXEC"}});
+        let event =
+            json!({"result": {"outcome": "success"}, "effect": {"effectClass": "COMMAND_EXEC"}});
         assert_eq!(classify_observation(&event, None), "source-observation");
     }
 
@@ -577,13 +663,19 @@ mod tests {
             "effect": {"effectClass": "COMMAND_EXEC"},
             "checkCorrelation": {"declaredCheckId": "chk_1", "method": "manual"},
         });
-        assert_eq!(classify_observation(&event, None), "deterministic-check-candidate");
+        assert_eq!(
+            classify_observation(&event, None),
+            "deterministic-check-candidate"
+        );
     }
 
     #[test]
     fn classify_no_effect_class_lifecycle_is_non_qualifying() {
         let event = json!({"result": null, "eventType": "session-start"});
-        assert_eq!(classify_observation(&event, None), "non-qualifying-telemetry");
+        assert_eq!(
+            classify_observation(&event, None),
+            "non-qualifying-telemetry"
+        );
     }
 
     #[test]

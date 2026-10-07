@@ -19,8 +19,8 @@ use legion_review::wf_port::w2_051::dual_review_logic::{
     JurorVerdict, PEER_DEBATE_INSTRUCTION, REQUIRED_CONTEST_INSTRUCTION,
 };
 use legion_review::wf_port::w2_051::engine_logic::{
-    accounting, execution_units, normalized_usage, parse_juror_json, provider_prompts,
-    synthesize, triggered_escalations, EscalationRule, JurorResultSummary, JurorSeat, Usage,
+    accounting, execution_units, normalized_usage, parse_juror_json, provider_prompts, synthesize,
+    triggered_escalations, EscalationRule, JurorResultSummary, JurorSeat, Usage,
 };
 use legion_review::wf_port::w2_051::health_check_logic::{
     classify, enumerate_models, primary_broken, ClassifyResult, EscalationSpec, JurorSpec,
@@ -49,7 +49,9 @@ fn round_trip_save_and_load_ledger() {
     let mut juror_blockers = BTreeMap::new();
     juror_blockers.insert(
         "code_specialist".to_string(),
-        vec![RawBlocker::Text("[P0] unhandled timeout in capture-loop".to_string())],
+        vec![RawBlocker::Text(
+            "[P0] unhandled timeout in capture-loop".to_string(),
+        )],
     );
     register_verdict_round(&mut ledger, "out/shot3.verdict.json", &juror_blockers);
 
@@ -62,7 +64,10 @@ fn round_trip_save_and_load_ledger() {
     assert_eq!(loaded.rounds[0].round, 1);
     assert_eq!(loaded.rounds[0].blockers.len(), 1);
     assert_eq!(loaded.rounds[0].blockers[0].tier, "P0");
-    assert_eq!(loaded.rounds[0].blockers[0].text, "unhandled timeout in capture-loop");
+    assert_eq!(
+        loaded.rounds[0].blockers[0].text,
+        "unhandled timeout in capture-loop"
+    );
     assert!(!loaded.is_clean());
 
     std::fs::remove_dir_all(&dir).ok();
@@ -133,7 +138,10 @@ fn register_verdict_round_inherits_prior_disposition_by_text_match() {
     let round2 = ledger.latest_round().unwrap();
     assert_eq!(round2.round, 2);
     assert_eq!(round2.blockers[0].disposition.as_deref(), Some("fixed"));
-    assert_eq!(round2.blockers[0].evidence.as_deref(), Some("src/retry.rs:10"));
+    assert_eq!(
+        round2.blockers[0].evidence.as_deref(),
+        Some("src/retry.rs:10")
+    );
 }
 
 #[test]
@@ -168,11 +176,15 @@ fn dispose_blocker_updates_latest_round_only() {
         }],
     });
 
-    let updated = dispose_blocker(&mut ledger, "b1", "fixed", Some("src/x.rs:1".to_string())).unwrap();
+    let updated =
+        dispose_blocker(&mut ledger, "b1", "fixed", Some("src/x.rs:1".to_string())).unwrap();
     assert!(updated);
     // Round 1's b1 must remain untouched.
     assert!(ledger.rounds[0].blockers[0].disposition.is_none());
-    assert_eq!(ledger.rounds[1].blockers[0].disposition.as_deref(), Some("fixed"));
+    assert_eq!(
+        ledger.rounds[1].blockers[0].disposition.as_deref(),
+        Some("fixed")
+    );
 
     let missing = dispose_blocker(&mut ledger, "b99", "fixed", None).unwrap();
     assert!(!missing);
@@ -232,7 +244,10 @@ fn parse_dispose_arg_splits_id_disposition_evidence() {
 fn status_payload_reports_pending_and_clean_flags() {
     let mut ledger = Ledger::new("a.mp4");
     let mut jb = BTreeMap::new();
-    jb.insert("j".to_string(), vec![RawBlocker::Text("[P1] x".to_string())]);
+    jb.insert(
+        "j".to_string(),
+        vec![RawBlocker::Text("[P1] x".to_string())],
+    );
     register_verdict_round(&mut ledger, "v.json", &jb);
     let payload = status_payload(&ledger, std::path::Path::new("a.verdict.ledger.json"));
     assert_eq!(payload.rounds, 1);
@@ -276,7 +291,11 @@ fn accounting_sums_calls_usage_and_cache_hits() {
         JurorResultSummary {
             juror_id: "a".to_string(),
             call_count: 1,
-            usage: Usage { input_tokens: 10, output_tokens: 5, total_tokens: 15 },
+            usage: Usage {
+                input_tokens: 10,
+                output_tokens: 5,
+                total_tokens: 15,
+            },
             usage_complete: true,
             cache_hit: true,
             ..Default::default()
@@ -284,7 +303,11 @@ fn accounting_sums_calls_usage_and_cache_hits() {
         JurorResultSummary {
             juror_id: "b".to_string(),
             call_count: 2,
-            usage: Usage { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+            usage: Usage {
+                input_tokens: 1,
+                output_tokens: 1,
+                total_tokens: 2,
+            },
             usage_complete: false,
             cache_hit: false,
             ..Default::default()
@@ -312,7 +335,10 @@ fn parse_juror_json_extracts_substring_when_surrounded_by_prose() {
     let raw = "Sure, here is my verdict: {\"verdict\": \"FAIL\", \"score\": 2} thanks!";
     let parsed = parse_juror_json(Some(raw));
     assert!(parsed.parsed_ok);
-    assert_eq!(parsed.object.unwrap().get("verdict").unwrap().as_str(), Some("FAIL"));
+    assert_eq!(
+        parsed.object.unwrap().get("verdict").unwrap().as_str(),
+        Some("FAIL")
+    );
 }
 
 #[test]
@@ -333,7 +359,10 @@ fn parse_juror_json_handles_none_response() {
 #[test]
 fn provider_prompts_compacts_only_for_nim_text() {
     let (sys, user) = provider_prompts("nim", "system text", "RUBRIC:\nR\n\nINPUT:\nI\n", false);
-    assert_eq!(sys, "Return one minified JSON object only. No markdown. No prose.");
+    assert_eq!(
+        sys,
+        "Return one minified JSON object only. No markdown. No prose."
+    );
     assert!(user.contains("CRITERIA:\nR"));
     assert!(user.contains("ARTIFACT:\nI"));
 
@@ -350,15 +379,22 @@ fn provider_prompts_compacts_only_for_nim_text() {
 #[test]
 fn execution_units_splits_parallel_safe_and_serializes_others() {
     let jurors = vec![
-        JurorSeat { provider: "openai".to_string() },
-        JurorSeat { provider: "nim".to_string() },
-        JurorSeat { provider: "nim".to_string() },
+        JurorSeat {
+            provider: "openai".to_string(),
+        },
+        JurorSeat {
+            provider: "nim".to_string(),
+        },
+        JurorSeat {
+            provider: "nim".to_string(),
+        },
     ];
     let units = execution_units(&jurors, &|p| p == "openai");
     // openai is parallel_safe -> its own singleton unit; nim is not -> one
     // unit holding both nim seats.
     assert_eq!(units.len(), 2);
-    let openai_units: Vec<&Vec<JurorSeat>> = units.iter().filter(|u| u[0].provider == "openai").collect();
+    let openai_units: Vec<&Vec<JurorSeat>> =
+        units.iter().filter(|u| u[0].provider == "openai").collect();
     assert_eq!(openai_units.len(), 1);
     assert_eq!(openai_units[0].len(), 1);
     let nim_units: Vec<&Vec<JurorSeat>> = units.iter().filter(|u| u[0].provider == "nim").collect();
@@ -369,11 +405,27 @@ fn execution_units_splits_parallel_safe_and_serializes_others() {
 #[test]
 fn triggered_escalations_matches_always_flag_and_split_and_dedups() {
     let rules = vec![
-        EscalationRule { trigger: "always".to_string(), provider: "p1".to_string(), model: "m1".to_string() },
-        EscalationRule { trigger: "flag.irreversible".to_string(), provider: "p2".to_string(), model: "m2".to_string() },
-        EscalationRule { trigger: "jury_split".to_string(), provider: "p3".to_string(), model: "m3".to_string() },
+        EscalationRule {
+            trigger: "always".to_string(),
+            provider: "p1".to_string(),
+            model: "m1".to_string(),
+        },
+        EscalationRule {
+            trigger: "flag.irreversible".to_string(),
+            provider: "p2".to_string(),
+            model: "m2".to_string(),
+        },
+        EscalationRule {
+            trigger: "jury_split".to_string(),
+            provider: "p3".to_string(),
+            model: "m3".to_string(),
+        },
         // duplicate provider+model as an "always" rule should be de-duped.
-        EscalationRule { trigger: "always".to_string(), provider: "p1".to_string(), model: "m1".to_string() },
+        EscalationRule {
+            trigger: "always".to_string(),
+            provider: "p1".to_string(),
+            model: "m1".to_string(),
+        },
     ];
     let mut flags = std::collections::HashMap::new();
     flags.insert("irreversible".to_string(), true);
@@ -398,10 +450,33 @@ fn triggered_escalations_no_split_when_verdicts_agree() {
 #[test]
 fn synthesize_reports_majority_split_and_avg_score() {
     let results = vec![
-        JurorResultSummary { juror_id: "a".to_string(), parsed_ok: true, verdict: "PASS".to_string(), score: 8, ..Default::default() },
-        JurorResultSummary { juror_id: "b".to_string(), parsed_ok: true, verdict: "PASS".to_string(), score: 6, ..Default::default() },
-        JurorResultSummary { juror_id: "c".to_string(), parsed_ok: true, verdict: "FAIL".to_string(), score: 3, ..Default::default() },
-        JurorResultSummary { juror_id: "d".to_string(), parsed_ok: false, verdict: "ERROR".to_string(), ..Default::default() },
+        JurorResultSummary {
+            juror_id: "a".to_string(),
+            parsed_ok: true,
+            verdict: "PASS".to_string(),
+            score: 8,
+            ..Default::default()
+        },
+        JurorResultSummary {
+            juror_id: "b".to_string(),
+            parsed_ok: true,
+            verdict: "PASS".to_string(),
+            score: 6,
+            ..Default::default()
+        },
+        JurorResultSummary {
+            juror_id: "c".to_string(),
+            parsed_ok: true,
+            verdict: "FAIL".to_string(),
+            score: 3,
+            ..Default::default()
+        },
+        JurorResultSummary {
+            juror_id: "d".to_string(),
+            parsed_ok: false,
+            verdict: "ERROR".to_string(),
+            ..Default::default()
+        },
     ];
     let synth = synthesize(&results, &[]);
     assert_eq!(synth.majority_verdict, "PASS");
@@ -435,8 +510,18 @@ fn digest_matches_known_sha256() {
 #[test]
 fn sum_accounting_treats_missing_summary_as_incomplete() {
     let summaries = vec![
-        AccountingSummaryInput { calls: 2, input_tokens: 10, output_tokens: 5, total_tokens: 15, usage_complete: true, present: true },
-        AccountingSummaryInput { present: false, ..Default::default() },
+        AccountingSummaryInput {
+            calls: 2,
+            input_tokens: 10,
+            output_tokens: 5,
+            total_tokens: 15,
+            usage_complete: true,
+            present: true,
+        },
+        AccountingSummaryInput {
+            present: false,
+            ..Default::default()
+        },
     ];
     let out = sum_accounting(&summaries);
     assert_eq!(out.calls, 2);
@@ -447,8 +532,18 @@ fn sum_accounting_treats_missing_summary_as_incomplete() {
 #[test]
 fn sum_accounting_complete_only_when_every_summary_complete() {
     let summaries = vec![
-        AccountingSummaryInput { calls: 1, usage_complete: true, present: true, ..Default::default() },
-        AccountingSummaryInput { calls: 1, usage_complete: false, present: true, ..Default::default() },
+        AccountingSummaryInput {
+            calls: 1,
+            usage_complete: true,
+            present: true,
+            ..Default::default()
+        },
+        AccountingSummaryInput {
+            calls: 1,
+            usage_complete: false,
+            present: true,
+            ..Default::default()
+        },
     ];
     let out = sum_accounting(&summaries);
     assert!(!out.usage_complete);
@@ -459,21 +554,39 @@ fn render_blocker_preserves_tier_prefix() {
     let mut obj = serde_json::Map::new();
     obj.insert("tier".to_string(), serde_json::json!("P0"));
     obj.insert("text".to_string(), serde_json::json!("critical issue"));
-    assert_eq!(render_blocker(&Blocker::Structured(obj)), "[P0] critical issue");
+    assert_eq!(
+        render_blocker(&Blocker::Structured(obj)),
+        "[P0] critical issue"
+    );
 
     let mut obj2 = serde_json::Map::new();
     obj2.insert("text".to_string(), serde_json::json!("no tier field"));
     assert_eq!(render_blocker(&Blocker::Structured(obj2)), "no tier field");
 
-    assert_eq!(render_blocker(&Blocker::Text("legacy string".to_string())), "legacy string");
+    assert_eq!(
+        render_blocker(&Blocker::Text("legacy string".to_string())),
+        "legacy string"
+    );
 }
 
 #[test]
 fn finding_records_skips_unparsed_jurors_and_empty_claims() {
     let jurors = vec![
-        JurorVerdict { juror_id: "unparsed".to_string(), parsed_ok: false, blockers: vec![Blocker::Text("x".to_string())] },
-        JurorVerdict { juror_id: "empty".to_string(), parsed_ok: true, blockers: vec![Blocker::Text("   ".to_string())] },
-        JurorVerdict { juror_id: "good".to_string(), parsed_ok: true, blockers: vec![Blocker::Text("real finding".to_string())] },
+        JurorVerdict {
+            juror_id: "unparsed".to_string(),
+            parsed_ok: false,
+            blockers: vec![Blocker::Text("x".to_string())],
+        },
+        JurorVerdict {
+            juror_id: "empty".to_string(),
+            parsed_ok: true,
+            blockers: vec![Blocker::Text("   ".to_string())],
+        },
+        JurorVerdict {
+            juror_id: "good".to_string(),
+            parsed_ok: true,
+            blockers: vec![Blocker::Text("real finding".to_string())],
+        },
     ];
     let findings = finding_records(&jurors);
     assert_eq!(findings.len(), 1);
@@ -488,7 +601,10 @@ fn finding_records_are_stable_and_unique_per_author_index_claim() {
     let jurors = vec![JurorVerdict {
         juror_id: "j".to_string(),
         parsed_ok: true,
-        blockers: vec![Blocker::Text("a".to_string()), Blocker::Text("b".to_string())],
+        blockers: vec![
+            Blocker::Text("a".to_string()),
+            Blocker::Text("b".to_string()),
+        ],
     }];
     let f1 = finding_records(&jurors);
     let f2 = finding_records(&jurors);
@@ -501,8 +617,14 @@ fn finding_records_uses_structured_fields_when_present() {
     let mut obj = serde_json::Map::new();
     obj.insert("text".to_string(), serde_json::json!("structured claim"));
     obj.insert("tier".to_string(), serde_json::json!("P0"));
-    obj.insert("rationale".to_string(), serde_json::json!("because reasons"));
-    obj.insert("proposed_change".to_string(), serde_json::json!("do the fix"));
+    obj.insert(
+        "rationale".to_string(),
+        serde_json::json!("because reasons"),
+    );
+    obj.insert(
+        "proposed_change".to_string(),
+        serde_json::json!("do the fix"),
+    );
     obj.insert("confidence".to_string(), serde_json::json!(0.9));
     let jurors = vec![JurorVerdict {
         juror_id: "j".to_string(),
@@ -539,23 +661,50 @@ fn enumerate_models_notes_primary_and_fallback_seats() {
                 model: "gpt-x".to_string(),
                 fallbacks: vec![],
             }],
-            vec![EscalationSpec { provider: Some("groq".to_string()), model: Some("k2".to_string()) }],
+            vec![EscalationSpec {
+                provider: Some("groq".to_string()),
+                model: Some("k2".to_string()),
+            }],
         ),
     );
     let models = enumerate_models(&cfg);
-    let openai = models.get(&("openai".to_string(), "gpt-x".to_string())).unwrap();
-    assert_eq!(openai.primary_seats, vec!["panel:jury:j1".to_string(), "review-code:s1".to_string()]);
-    let fallback = models.get(&("anthropic".to_string(), "claude-x".to_string())).unwrap();
-    assert_eq!(fallback.fallback_seats, vec!["panel:jury:j1.fb".to_string()]);
+    let openai = models
+        .get(&("openai".to_string(), "gpt-x".to_string()))
+        .unwrap();
+    assert_eq!(
+        openai.primary_seats,
+        vec!["panel:jury:j1".to_string(), "review-code:s1".to_string()]
+    );
+    let fallback = models
+        .get(&("anthropic".to_string(), "claude-x".to_string()))
+        .unwrap();
+    assert_eq!(
+        fallback.fallback_seats,
+        vec!["panel:jury:j1.fb".to_string()]
+    );
     let escalation = models.get(&("groq".to_string(), "k2".to_string())).unwrap();
     assert!(escalation.primary_seats.is_empty());
-    assert_eq!(escalation.fallback_seats, vec!["review-code:escalation".to_string()]);
+    assert_eq!(
+        escalation.fallback_seats,
+        vec!["review-code:escalation".to_string()]
+    );
 }
 
 #[test]
 fn classify_ok_truncates_and_trims_detail() {
-    let result = classify(&ProbeOutcome::Ok { raw: Some("  ok  ".to_string()), latency_ms: 12 });
-    assert_eq!(result, ClassifyResult { status: "ok".to_string(), http: None, detail: "ok".to_string(), latency_ms: Some(12) });
+    let result = classify(&ProbeOutcome::Ok {
+        raw: Some("  ok  ".to_string()),
+        latency_ms: 12,
+    });
+    assert_eq!(
+        result,
+        ClassifyResult {
+            status: "ok".to_string(),
+            http: None,
+            detail: "ok".to_string(),
+            latency_ms: Some(12)
+        }
+    );
 }
 
 #[test]
@@ -606,7 +755,10 @@ fn classify_no_provider_and_other_exception() {
     let np = classify(&ProbeOutcome::NoProvider);
     assert_eq!(np.status, "no_provider");
 
-    let other = classify(&ProbeOutcome::Other { type_name: "ValueError".to_string(), message: "boom".to_string() });
+    let other = classify(&ProbeOutcome::Other {
+        type_name: "ValueError".to_string(),
+        message: "boom".to_string(),
+    });
     assert_eq!(other.status, "error");
     assert_eq!(other.detail, "ValueError: boom");
 }
@@ -614,10 +766,22 @@ fn classify_no_provider_and_other_exception() {
 #[test]
 fn primary_broken_filters_primary_unreachable_only() {
     let rows = vec![
-        ModelRow { primary: true, status: "unreachable".to_string() },
-        ModelRow { primary: false, status: "unreachable".to_string() }, // fallback-only: not counted
-        ModelRow { primary: true, status: "ok".to_string() },
-        ModelRow { primary: true, status: "auth".to_string() },
+        ModelRow {
+            primary: true,
+            status: "unreachable".to_string(),
+        },
+        ModelRow {
+            primary: false,
+            status: "unreachable".to_string(),
+        }, // fallback-only: not counted
+        ModelRow {
+            primary: true,
+            status: "ok".to_string(),
+        },
+        ModelRow {
+            primary: true,
+            status: "auth".to_string(),
+        },
     ];
     let broken = primary_broken(&rows);
     assert_eq!(broken.len(), 2);
@@ -681,10 +845,12 @@ fn resolution_record_v_requires_valid_choice_id_and_reason() {
     let concede = serde_json::json!({"resolution": {"finding_id": "f1", "choice": "concede", "reason": "moved me", "evidence_refs": []}});
     assert!(resolution_record_v(&concede).is_some());
 
-    let bad_choice = serde_json::json!({"resolution": {"finding_id": "f1", "choice": "shrug", "reason": "r"}});
+    let bad_choice =
+        serde_json::json!({"resolution": {"finding_id": "f1", "choice": "shrug", "reason": "r"}});
     assert!(resolution_record_v(&bad_choice).is_none());
 
-    let blank_reason = serde_json::json!({"resolution": {"finding_id": "f1", "choice": "sustain", "reason": ""}});
+    let blank_reason =
+        serde_json::json!({"resolution": {"finding_id": "f1", "choice": "sustain", "reason": ""}});
     assert!(resolution_record_v(&blank_reason).is_none());
 }
 
@@ -725,7 +891,11 @@ fn strip_unsupported_adoptions_discards_unsupported_restatement_keeps_contest_an
     strip_unsupported_adoptions(&mut rebuttal, &advisory);
     let juror = &rebuttal["jurors"][0];
     let kept = juror["blockers"].as_array().unwrap();
-    assert_eq!(kept.len(), 2, "unsupported restatement dropped, supported + contest kept");
+    assert_eq!(
+        kept.len(),
+        2,
+        "unsupported restatement dropped, supported + contest kept"
+    );
     let discarded = juror["discarded_adoptions"].as_array().unwrap();
     assert_eq!(discarded.len(), 1);
 }
@@ -869,7 +1039,10 @@ fn synthesize_combined_notes_disagreement_and_defaults_to_undecided() {
     assert_eq!(combined["jury_majority"], "FAIL");
     let notes = combined["notes"].as_array().unwrap();
     assert_eq!(notes.len(), 1);
-    assert!(notes[0].as_str().unwrap().contains("advisory=PASS vs verdict=FAIL"));
+    assert!(notes[0]
+        .as_str()
+        .unwrap()
+        .contains("advisory=PASS vs verdict=FAIL"));
 
     let empty_jury = serde_json::json!({});
     let combined2 = synthesize_combined(&council, &empty_jury);
@@ -892,7 +1065,10 @@ fn render_cli_result_route_dispatches_room_notification_delivered_and_render() {
     }
 
     let delivered = serde_json::json!({"status": "room_active"});
-    assert_eq!(render_cli_result_route(&delivered), CliResultRoute::RoomLinkDelivered);
+    assert_eq!(
+        render_cli_result_route(&delivered),
+        CliResultRoute::RoomLinkDelivered
+    );
 
     let normal = serde_json::json!({"jury": {"result": {"verdict": "PASS"}}});
     match render_cli_result_route(&normal) {

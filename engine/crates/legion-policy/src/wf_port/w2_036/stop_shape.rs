@@ -18,10 +18,15 @@ use std::sync::OnceLock;
 use regex::{Regex, RegexBuilder};
 use serde_json::Value;
 
-use crate::wf_port::wf007::user_intent::{classify_latest_user_intent, latest_external_user_turn, Intent};
+use crate::wf_port::wf007::user_intent::{
+    classify_latest_user_intent, latest_external_user_turn, Intent,
+};
 
 fn ci(pattern: &str) -> Regex {
-    RegexBuilder::new(pattern).case_insensitive(true).build().expect("valid regex")
+    RegexBuilder::new(pattern)
+        .case_insensitive(true)
+        .build()
+        .expect("valid regex")
 }
 fn plain(pattern: &str) -> Regex {
     Regex::new(pattern).expect("valid regex")
@@ -33,7 +38,9 @@ const MAX_PUSHES: u32 = 2;
 
 fn hard_blocker_re() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
-    CELL.get_or_init(|| ci(r"\b(?:HARD BLOCKER|BLOCKED-ON-APPROVAL)\b\s*:?\s*(?:\S|(?:\r?\n\s*)+\S)"))
+    CELL.get_or_init(|| {
+        ci(r"\b(?:HARD BLOCKER|BLOCKED-ON-APPROVAL)\b\s*:?\s*(?:\S|(?:\r?\n\s*)+\S)")
+    })
 }
 
 fn reserved_categories_table() -> &'static Vec<(&'static str, Regex)> {
@@ -128,8 +135,12 @@ fn continue_blocker_re() -> &'static Regex {
 
 /// The latest genuine user turn's continuation-intent evidence, if any.
 pub fn continue_intent(user_text: &str) -> Option<String> {
-    let normalized = user_text.replace(['\u{2019}', '\u{2018}'], "'").replace(['\u{201c}', '\u{201d}'], "\"");
-    continue_intent_re().find(&normalized).map(|m| m.as_str().chars().take(120).collect())
+    let normalized = user_text
+        .replace(['\u{2019}', '\u{2018}'], "'")
+        .replace(['\u{201c}', '\u{201d}'], "\"");
+    continue_intent_re()
+        .find(&normalized)
+        .map(|m| m.as_str().chars().take(120).collect())
 }
 
 // --- SHAPES table ------------------------------------------------------------
@@ -225,7 +236,9 @@ pub fn work_left_stuck(text: &str) -> bool {
     if work_left_action_taken().is_match(&cleaned) {
         return false;
     }
-    if work_left_hard_blocker_mention().is_match(&cleaned) && work_left_review_self().is_match(&cleaned) {
+    if work_left_hard_blocker_mention().is_match(&cleaned)
+        && work_left_review_self().is_match(&cleaned)
+    {
         return false;
     }
     true
@@ -240,7 +253,9 @@ fn tool_denial_pattern() -> &'static Regex {
 
 /// The specific matched phrase claiming a tool is missing, or `None`.
 pub fn tool_denial_match(text: &str) -> Option<String> {
-    tool_denial_pattern().find(text).map(|m| m.as_str().to_string())
+    tool_denial_pattern()
+        .find(text)
+        .map(|m| m.as_str().to_string())
 }
 
 // --- D-5: scope-cut-after-explicit-directive ----------------------------------
@@ -252,7 +267,9 @@ fn scope_cut_pattern() -> &'static Regex {
 
 /// The specific matched scope-cut phrase, or `None`.
 pub fn scope_cut_match(text: &str) -> Option<String> {
-    scope_cut_pattern().find(text).map(|m| m.as_str().to_string())
+    scope_cut_pattern()
+        .find(text)
+        .map(|m| m.as_str().to_string())
 }
 
 // --- deferred-defect shapes ----------------------------------------------------
@@ -305,7 +322,10 @@ pub fn deferred_defect_codes(text: &str) -> Vec<&'static str> {
         // plain "\n\n" split is equivalent for the fixtures this gate reads
         // (transcripts never carry trailing-whitespace-only blank lines) and
         // avoids a manual regex-split reimplementation.
-        if deferred_defect_carve_outs().iter().any(|re| re.is_match(paragraph)) {
+        if deferred_defect_carve_outs()
+            .iter()
+            .any(|re| re.is_match(paragraph))
+        {
             continue;
         }
         for (code, pattern) in deferred_defect_markers() {
@@ -378,12 +398,19 @@ fn content_blocks(entry: &Value) -> Vec<ContentBlock> {
         return items
             .iter()
             .map(|block| ContentBlock {
-                kind: block.get("type").and_then(Value::as_str).unwrap_or_default().to_string(),
+                kind: block
+                    .get("type")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
                 id: block.get("id").and_then(Value::as_str).map(String::from),
                 name: block.get("name").and_then(Value::as_str).map(String::from),
                 input: block.get("input").cloned().unwrap_or(Value::Null),
                 text: block.get("text").and_then(Value::as_str).map(String::from),
-                tool_use_id: block.get("tool_use_id").and_then(Value::as_str).map(String::from),
+                tool_use_id: block
+                    .get("tool_use_id")
+                    .and_then(Value::as_str)
+                    .map(String::from),
                 is_error: block.get("is_error").and_then(Value::as_bool),
             })
             .collect();
@@ -398,7 +425,11 @@ fn content_blocks(entry: &Value) -> Vec<ContentBlock> {
                         .iter()
                         .filter_map(|block| {
                             let t = block.get("type").and_then(Value::as_str)?;
-                            let mapped = if matches!(t, "input_text" | "output_text") { "text" } else { t };
+                            let mapped = if matches!(t, "input_text" | "output_text") {
+                                "text"
+                            } else {
+                                t
+                            };
                             Some(ContentBlock {
                                 kind: mapped.to_string(),
                                 id: None,
@@ -413,13 +444,19 @@ fn content_blocks(entry: &Value) -> Vec<ContentBlock> {
                 }
                 return Vec::new();
             }
-            if matches!(payload_type, Some("custom_tool_call") | Some("function_call")) {
+            if matches!(
+                payload_type,
+                Some("custom_tool_call") | Some("function_call")
+            ) {
                 let call_id = payload
                     .get("call_id")
                     .and_then(Value::as_str)
                     .or_else(|| payload.get("id").and_then(Value::as_str))
                     .map(String::from);
-                let name = payload.get("name").and_then(Value::as_str).map(String::from);
+                let name = payload
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .map(String::from);
                 let input = payload
                     .get("input")
                     .or_else(|| payload.get("arguments"))
@@ -435,10 +472,20 @@ fn content_blocks(entry: &Value) -> Vec<ContentBlock> {
                     is_error: None,
                 }];
             }
-            if matches!(payload_type, Some("custom_tool_call_output") | Some("function_call_output")) {
-                let output_json = serde_json::to_string(payload.get("output").unwrap_or(&Value::String(String::new())))
-                    .unwrap_or_default();
-                let tool_use_id = payload.get("call_id").and_then(Value::as_str).map(String::from);
+            if matches!(
+                payload_type,
+                Some("custom_tool_call_output") | Some("function_call_output")
+            ) {
+                let output_json = serde_json::to_string(
+                    payload
+                        .get("output")
+                        .unwrap_or(&Value::String(String::new())),
+                )
+                .unwrap_or_default();
+                let tool_use_id = payload
+                    .get("call_id")
+                    .and_then(Value::as_str)
+                    .map(String::from);
                 return vec![ContentBlock {
                     kind: "tool_result".to_string(),
                     id: None,
@@ -461,7 +508,10 @@ fn entry_role(entry: &Value) -> Option<String> {
     if entry.get("type").and_then(Value::as_str) == Some("response_item") {
         if let Some(payload) = entry.get("payload") {
             if payload.get("type").and_then(Value::as_str) == Some("message") {
-                return payload.get("role").and_then(Value::as_str).map(String::from);
+                return payload
+                    .get("role")
+                    .and_then(Value::as_str)
+                    .map(String::from);
             }
         }
     }
@@ -473,7 +523,10 @@ fn latest_external_user_index(entries: &[Value]) -> Option<usize> {
         if entry_role(entry).as_deref() != Some("user") {
             continue;
         }
-        if content_blocks(entry).iter().any(|b| b.kind == "tool_result") {
+        if content_blocks(entry)
+            .iter()
+            .any(|b| b.kind == "tool_result")
+        {
             continue;
         }
         return Some(i);
@@ -629,10 +682,22 @@ pub struct StopVerdict {
 
 impl StopVerdict {
     fn no_block(reason: &str) -> Self {
-        StopVerdict { block: false, reason: Some(reason.to_string()), shape: None, instruction: None, advisory: None }
+        StopVerdict {
+            block: false,
+            reason: Some(reason.to_string()),
+            shape: None,
+            instruction: None,
+            advisory: None,
+        }
     }
     fn blocked(shape: &str, instruction: String) -> Self {
-        StopVerdict { block: true, reason: None, shape: Some(shape.to_string()), instruction: Some(instruction), advisory: None }
+        StopVerdict {
+            block: true,
+            reason: None,
+            shape: Some(shape.to_string()),
+            instruction: Some(instruction),
+            advisory: None,
+        }
     }
 }
 
@@ -702,7 +767,13 @@ pub fn evaluate_stop_shape(final_text: &str, options: &StopShapeOptions) -> Stop
         } else {
             None
         };
-        return StopVerdict { block: false, reason: Some("stop-circuit-open".to_string()), shape: None, instruction: None, advisory };
+        return StopVerdict {
+            block: false,
+            reason: Some("stop-circuit-open".to_string()),
+            shape: None,
+            instruction: None,
+            advisory,
+        };
     }
 
     // Packet parsing stays on the RAW text (see JS comment: structured
@@ -765,7 +836,10 @@ pub fn evaluate_stop_shape(final_text: &str, options: &StopShapeOptions) -> Stop
                 }
             }
             let escalation = ESCALATION[(options.pushes as usize).min(ESCALATION.len() - 1)];
-            return StopVerdict::blocked(shape.name, format!("{} {}", shape.instruction, escalation));
+            return StopVerdict::blocked(
+                shape.name,
+                format!("{} {}", shape.instruction, escalation),
+            );
         }
     }
 
@@ -884,7 +958,10 @@ mod tests {
     }
 
     fn with_escalated() -> StopShapeOptions {
-        StopShapeOptions { escalated: true, ..opts() }
+        StopShapeOptions {
+            escalated: true,
+            ..opts()
+        }
     }
 
     // --- permission-question / deferral / caveat / deferred-work shapes ---
@@ -905,12 +982,16 @@ mod tests {
     fn caveats_and_deferred_promises_block() {
         assert!(evaluate_stop_shape("Fixed. One caveat: the cache is stale.", &opts()).block);
         assert!(evaluate_stop_shape("Tests green. I'll fix that later.", &opts()).block);
-        assert!(evaluate_stop_shape("Works, but the retry path remains to be built.", &opts()).block);
+        assert!(
+            evaluate_stop_shape("Works, but the retry path remains to be built.", &opts()).block
+        );
     }
 
     #[test]
     fn completed_work_passes() {
-        assert!(!evaluate_stop_shape("Fixed the parser, 12/12 tests, committed abc123.", &opts()).block);
+        assert!(
+            !evaluate_stop_shape("Fixed the parser, 12/12 tests, committed abc123.", &opts()).block
+        );
     }
 
     #[test]
@@ -935,20 +1016,54 @@ mod tests {
 
     #[test]
     fn block_instructions_escalate_across_pushes() {
-        let first = evaluate_stop_shape("Say go and I execute.", &StopShapeOptions { pushes: 0, ..opts() });
-        let second = evaluate_stop_shape("Say go and I execute.", &StopShapeOptions { pushes: 1, ..opts() });
+        let first = evaluate_stop_shape(
+            "Say go and I execute.",
+            &StopShapeOptions {
+                pushes: 0,
+                ..opts()
+            },
+        );
+        let second = evaluate_stop_shape(
+            "Say go and I execute.",
+            &StopShapeOptions {
+                pushes: 1,
+                ..opts()
+            },
+        );
         assert!(first.block);
         assert!(second.block);
         assert_ne!(first.instruction, second.instruction);
         assert!(first.instruction.as_deref().unwrap().contains("Sage"));
         assert!(!second.instruction.as_deref().unwrap().contains("Covenant"));
-        assert!(second.instruction.as_deref().unwrap().contains("CURRENT state"));
+        assert!(second
+            .instruction
+            .as_deref()
+            .unwrap()
+            .contains("CURRENT state"));
     }
 
     #[test]
     fn push_cap_ends_the_loop() {
-        assert!(evaluate_stop_shape("Say go and I execute.", &StopShapeOptions { pushes: 1, ..opts() }).block);
-        assert!(!evaluate_stop_shape("Say go and I execute.", &StopShapeOptions { pushes: 2, ..opts() }).block);
+        assert!(
+            evaluate_stop_shape(
+                "Say go and I execute.",
+                &StopShapeOptions {
+                    pushes: 1,
+                    ..opts()
+                }
+            )
+            .block
+        );
+        assert!(
+            !evaluate_stop_shape(
+                "Say go and I execute.",
+                &StopShapeOptions {
+                    pushes: 2,
+                    ..opts()
+                }
+            )
+            .block
+        );
     }
 
     #[test]
@@ -957,7 +1072,11 @@ mod tests {
         let verdict = evaluate_stop_shape(escaped, &opts());
         assert!(verdict.block);
         assert_eq!(verdict.shape.as_deref(), Some("deferral-offer"));
-        for variant in ["Or I can add it for you.", "If you want, I can wire that in.", "Tell me to and I'll do it."] {
+        for variant in [
+            "Or I can add it for you.",
+            "If you want, I can wire that in.",
+            "Tell me to and I'll do it.",
+        ] {
             assert!(evaluate_stop_shape(variant, &opts()).block, "{variant}");
         }
     }
@@ -980,11 +1099,18 @@ mod tests {
         );
         assert!(unrecorded.block);
         assert_eq!(unrecorded.shape.as_deref(), Some("unrecorded-finding"));
-        assert!(unrecorded.instruction.as_deref().unwrap().contains("GOTCHAS.md"));
+        assert!(unrecorded
+            .instruction
+            .as_deref()
+            .unwrap()
+            .contains("GOTCHAS.md"));
 
         let recorded = evaluate_stop_shape(
             "Fixed and verified. Worth noting for the pattern file: hooks are additive.",
-            &StopShapeOptions { recorded: true, ..opts() },
+            &StopShapeOptions {
+                recorded: true,
+                ..opts()
+            },
         );
         assert!(!recorded.block);
     }
@@ -996,7 +1122,17 @@ mod tests {
             "Wired both machines and verified: 0 duplicates, exit 0.",
             "Note: the suite takes about 40 seconds.",
         ] {
-            assert!(!evaluate_stop_shape(ending, &StopShapeOptions { recorded: false, ..opts() }).block, "{ending}");
+            assert!(
+                !evaluate_stop_shape(
+                    ending,
+                    &StopShapeOptions {
+                        recorded: false,
+                        ..opts()
+                    }
+                )
+                .block,
+                "{ending}"
+            );
         }
     }
 
@@ -1013,13 +1149,24 @@ mod tests {
         let write = serde_json::json!({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "w1", "name": "Write", "input": {"file_path": "D:/workspace/docs/GOTCHAS.md"}}]}});
         let ok = serde_json::json!({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "w1", "content": "ok"}]}});
         let failed = serde_json::json!({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "w1", "is_error": true, "content": "failed"}]}});
-        assert!(recorded_this_turn(&transcript_after_user(&[write.clone(), ok])));
-        assert!(!recorded_this_turn(&transcript_after_user(&[write.clone()])), "an attempted write is not a receipt");
-        assert!(!recorded_this_turn(&transcript_after_user(&[write, failed])));
+        assert!(recorded_this_turn(&transcript_after_user(&[
+            write.clone(),
+            ok
+        ])));
+        assert!(
+            !recorded_this_turn(&transcript_after_user(&[write.clone()])),
+            "an attempted write is not a receipt"
+        );
+        assert!(!recorded_this_turn(&transcript_after_user(&[
+            write, failed
+        ])));
 
         let read_use = serde_json::json!({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "r1", "name": "Read", "input": {"file_path": "D:/workspace/docs/GOTCHAS.md"}}]}});
         let read_result = serde_json::json!({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "r1"}]}});
-        assert!(!recorded_this_turn(&transcript_after_user(&[read_use, read_result])));
+        assert!(!recorded_this_turn(&transcript_after_user(&[
+            read_use,
+            read_result
+        ])));
 
         let text_only = serde_json::json!({"type": "assistant", "message": {"content": [{"type": "text", "text": "docs/plans/legion/HANDOFF.md"}]}});
         assert!(!recorded_this_turn(&transcript_after_user(&[text_only])));
@@ -1029,15 +1176,24 @@ mod tests {
     fn recorded_this_turn_accepts_apply_patch_and_crypt_only() {
         let patch_use = serde_json::json!({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "p1", "name": "apply_patch", "input": "*** Update File: docs/GOTCHAS.md"}]}});
         let patch_result = serde_json::json!({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "p1"}]}});
-        assert!(recorded_this_turn(&transcript_after_user(&[patch_use, patch_result])));
+        assert!(recorded_this_turn(&transcript_after_user(&[
+            patch_use,
+            patch_result
+        ])));
 
         let memory_use = serde_json::json!({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "m1", "name": "Bash", "input": {"command": "crypt put hook-lesson --scope claude"}}]}});
         let memory_result = serde_json::json!({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "m1"}]}});
-        assert!(recorded_this_turn(&transcript_after_user(&[memory_use, memory_result])));
+        assert!(recorded_this_turn(&transcript_after_user(&[
+            memory_use,
+            memory_result
+        ])));
 
         let retired_use = serde_json::json!({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "m2", "name": "Bash", "input": {"command": "memright put hook-lesson --scope claude"}}]}});
         let retired_result = serde_json::json!({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "m2"}]}});
-        assert!(!recorded_this_turn(&transcript_after_user(&[retired_use, retired_result])));
+        assert!(!recorded_this_turn(&transcript_after_user(&[
+            retired_use,
+            retired_result
+        ])));
     }
 
     #[test]
@@ -1047,8 +1203,12 @@ mod tests {
         let ok = serde_json::json!({"type": "response_item", "payload": {"type": "custom_tool_call_output", "call_id": "c1", "output": [{"type": "input_text", "text": "Script completed\nOutput: {}"}]}}).to_string();
         let failed = serde_json::json!({"type": "response_item", "payload": {"type": "custom_tool_call_output", "call_id": "c1", "output": [{"type": "input_text", "text": "Script failed\nExit code: 1"}]}}).to_string();
 
-        assert!(recorded_this_turn(&[user.clone(), call.clone(), ok].join("\n")));
-        assert!(!recorded_this_turn(&[user.clone(), call.clone(), failed].join("\n")));
+        assert!(recorded_this_turn(
+            &[user.clone(), call.clone(), ok].join("\n")
+        ));
+        assert!(!recorded_this_turn(
+            &[user.clone(), call.clone(), failed].join("\n")
+        ));
         assert!(tool_use_after_last_user(&[user, call].join("\n")));
     }
 
@@ -1065,11 +1225,20 @@ mod tests {
     fn open_circuit_makes_missing_durability_advisory_not_blocking() {
         let verdict = evaluate_stop_shape(
             "Fixed it. Worth noting for future reference: rename scans can explode.",
-            &StopShapeOptions { pushes: 2, recorded: false, ..opts() },
+            &StopShapeOptions {
+                pushes: 2,
+                recorded: false,
+                ..opts()
+            },
         );
         assert!(!verdict.block);
         assert_eq!(verdict.reason.as_deref(), Some("stop-circuit-open"));
-        assert!(verdict.advisory.as_deref().unwrap().to_lowercase().contains("no successful post-user write"));
+        assert!(verdict
+            .advisory
+            .as_deref()
+            .unwrap()
+            .to_lowercase()
+            .contains("no successful post-user write"));
     }
 
     // --- deferred-defect ----------------------------------------------------
@@ -1107,7 +1276,10 @@ mod tests {
     #[test]
     fn carve_outs_are_paragraph_scoped() {
         let laundered = "Fixed the parser and already fixed the lint config too.\n\nWorth flagging for later: the release lane still double-signs. That's a separate cleanup.";
-        assert!(evaluate_stop_shape(laundered, &opts()).block, "an unrelated carve-out must not launder a real deferral");
+        assert!(
+            evaluate_stop_shape(laundered, &opts()).block,
+            "an unrelated carve-out must not launder a real deferral"
+        );
     }
 
     #[test]
@@ -1125,7 +1297,16 @@ mod tests {
     #[test]
     fn push_cap_releases_a_deferral_block_too() {
         let text = "Worth flagging for later: that's a separate cleanup.";
-        assert!(!evaluate_stop_shape(text, &StopShapeOptions { pushes: 2, ..opts() }).block);
+        assert!(
+            !evaluate_stop_shape(
+                text,
+                &StopShapeOptions {
+                    pushes: 2,
+                    ..opts()
+                }
+            )
+            .block
+        );
     }
 
     #[test]
@@ -1136,7 +1317,12 @@ mod tests {
         );
         assert!(v.block);
         assert_eq!(v.shape.as_deref(), Some("unreserved-blocker"));
-        assert!(v.instruction.as_deref().unwrap().to_lowercase().contains("five"));
+        assert!(v
+            .instruction
+            .as_deref()
+            .unwrap()
+            .to_lowercase()
+            .contains("five"));
     }
 
     #[test]
@@ -1149,13 +1335,19 @@ mod tests {
             "BLOCKED-ON-APPROVAL: needs your 2FA code (private input)",
             "HARD BLOCKER: the Cloudflare token only the operator can supply.",
         ] {
-            assert!(!evaluate_stop_shape(ending, &with_escalated()).block, "{ending}");
+            assert!(
+                !evaluate_stop_shape(ending, &with_escalated()).block,
+                "{ending}"
+            );
         }
     }
 
     #[test]
     fn reserved_categories_identifies_the_canonical_five() {
-        assert_eq!(reserved_categories("this needs new spend of $40"), vec!["new-spend"]);
+        assert_eq!(
+            reserved_categories("this needs new spend of $40"),
+            vec!["new-spend"]
+        );
         assert!(reserved_categories("per HANDOFF this is reserved to the operator").is_empty());
     }
 
@@ -1175,13 +1367,15 @@ mod tests {
 
     #[test]
     fn hard_blocker_never_requires_escalation() {
-        let packet = "HARD BLOCKER: the Azure signing profile name, which is not in any config I can read.";
+        let packet =
+            "HARD BLOCKER: the Azure signing profile name, which is not in any config I can read.";
         assert!(!evaluate_stop_shape(packet, &opts()).block);
     }
 
     #[test]
     fn invented_category_still_blocks_with_escalation() {
-        let packet = "BLOCKED-ON-APPROVAL: deploying the binary — reserved to the operator per HANDOFF.";
+        let packet =
+            "BLOCKED-ON-APPROVAL: deploying the binary — reserved to the operator per HANDOFF.";
         let verdict = evaluate_stop_shape(packet, &with_escalated());
         assert!(verdict.block);
         assert_eq!(verdict.shape.as_deref(), Some("unreserved-blocker"));
@@ -1189,9 +1383,15 @@ mod tests {
 
     #[test]
     fn escalation_evidence_comes_from_real_dispatches() {
-        assert!(!escalated_this_session("I considered dispatching Sage about this."));
-        assert!(escalated_this_session(r#"{"subagent_type":"sage","prompt":"..."}"#));
-        assert!(!escalated_this_session(r#"{"subagent_type":"legion:covenant-seat"}"#));
+        assert!(!escalated_this_session(
+            "I considered dispatching Sage about this."
+        ));
+        assert!(escalated_this_session(
+            r#"{"subagent_type":"sage","prompt":"..."}"#
+        ));
+        assert!(!escalated_this_session(
+            r#"{"subagent_type":"legion:covenant-seat"}"#
+        ));
     }
 
     #[test]
@@ -1199,23 +1399,51 @@ mod tests {
         let packet = "BLOCKED-ON-APPROVAL: flipping VCS_PUSH to allow — reserved decision.";
         let verdict = evaluate_stop_shape(
             packet,
-            &StopShapeOptions { escalated: true, authorized: true, authorized_evidence: Some("Go on, fix it.".to_string()), ..opts() },
+            &StopShapeOptions {
+                escalated: true,
+                authorized: true,
+                authorized_evidence: Some("Go on, fix it.".to_string()),
+                ..opts()
+            },
         );
         assert!(verdict.block);
         assert_eq!(verdict.shape.as_deref(), Some("already-authorized"));
-        assert!(verdict.instruction.as_deref().unwrap().contains("Go on, fix it"));
+        assert!(verdict
+            .instruction
+            .as_deref()
+            .unwrap()
+            .contains("Go on, fix it"));
     }
 
     #[test]
     fn hard_blocker_outranks_authorization() {
         let packet = "HARD BLOCKER: the Cloudflare token only the operator can supply.";
-        assert!(!evaluate_stop_shape(packet, &StopShapeOptions { authorized: true, ..opts() }).block);
+        assert!(
+            !evaluate_stop_shape(
+                packet,
+                &StopShapeOptions {
+                    authorized: true,
+                    ..opts()
+                }
+            )
+            .block
+        );
     }
 
     #[test]
     fn without_authorization_ordinary_blocker_rules_still_apply() {
         let packet = "BLOCKED-ON-APPROVAL: destruction — drop the legacy table.";
-        assert!(!evaluate_stop_shape(packet, &StopShapeOptions { escalated: true, authorized: false, ..opts() }).block);
+        assert!(
+            !evaluate_stop_shape(
+                packet,
+                &StopShapeOptions {
+                    escalated: true,
+                    authorized: false,
+                    ..opts()
+                }
+            )
+            .block
+        );
     }
 
     #[test]
@@ -1231,7 +1459,10 @@ mod tests {
 
     #[test]
     fn recovered_deferral_offer_selftest_cases_block() {
-        for ending in ["Let me know and I'll rebuild it.", "I can trace it if you want."] {
+        for ending in [
+            "Let me know and I'll rebuild it.",
+            "I can trace it if you want.",
+        ] {
             assert!(evaluate_stop_shape(ending, &opts()).block, "{ending}");
         }
     }
@@ -1256,7 +1487,13 @@ mod tests {
 
     #[test]
     fn same_trigger_phrase_unquoted_still_blocks() {
-        assert!(evaluate_stop_shape("Everything is staged. Shall I proceed with the commit?", &opts()).block);
+        assert!(
+            evaluate_stop_shape(
+                "Everything is staged. Shall I proceed with the commit?",
+                &opts()
+            )
+            .block
+        );
     }
 
     #[test]
@@ -1289,10 +1526,15 @@ mod tests {
 
     #[test]
     fn authorized_push_gate_laundering_still_clears_via_already_authorized() {
-        let packet = "BLOCKED-ON-APPROVAL: git push origin main — irreversible-in-effect publication.";
+        let packet =
+            "BLOCKED-ON-APPROVAL: git push origin main — irreversible-in-effect publication.";
         let verdict = evaluate_stop_shape(
             packet,
-            &StopShapeOptions { authorized: true, authorized_evidence: Some("push it".to_string()), ..opts() },
+            &StopShapeOptions {
+                authorized: true,
+                authorized_evidence: Some("push it".to_string()),
+                ..opts()
+            },
         );
         assert!(verdict.block);
         assert_eq!(verdict.shape.as_deref(), Some("already-authorized"));
@@ -1343,39 +1585,59 @@ mod tests {
 
     #[test]
     fn work_left_stuck_is_pure() {
-        assert!(work_left_stuck("The render is still queued and not running."));
+        assert!(work_left_stuck(
+            "The render is still queued and not running."
+        ));
         assert!(!work_left_stuck("gstack is a third-party skill bundle."));
         assert!(!work_left_stuck("All done, nothing pending."));
     }
 
     #[test]
     fn claiming_missing_tool_without_verifying_blocks() {
-        let v = evaluate_stop_shape("I don't have webfetch in this session, so I can't check the URL.", &opts());
+        let v = evaluate_stop_shape(
+            "I don't have webfetch in this session, so I can't check the URL.",
+            &opts(),
+        );
         assert!(v.block);
         assert_eq!(v.shape.as_deref(), Some("tool-denial"));
-        assert!(tool_denial_match("I don't have web search.").unwrap().to_lowercase().contains("don"));
+        assert!(tool_denial_match("I don't have web search.")
+            .unwrap()
+            .to_lowercase()
+            .contains("don"));
     }
 
     #[test]
     fn scope_cut_after_explicit_no_deferral_directive_blocks() {
         let v = evaluate_stop_shape(
             "Given the time, I will drop the legacy models and ship 5 of 8 tonight.",
-            &StopShapeOptions { explicit_directive_evidence: vec!["no deferring, do all 8".to_string()], ..opts() },
+            &StopShapeOptions {
+                explicit_directive_evidence: vec!["no deferring, do all 8".to_string()],
+                ..opts()
+            },
         );
         assert!(v.block);
         assert_eq!(v.shape.as_deref(), Some("scope-cut"));
-        assert!(v.instruction.as_deref().unwrap().contains("no deferring, do all 8"));
+        assert!(v
+            .instruction
+            .as_deref()
+            .unwrap()
+            .contains("no deferring, do all 8"));
     }
 
     #[test]
     fn scope_cut_language_without_explicit_directive_does_not_trip_d5() {
-        let v = evaluate_stop_shape("Given the time, I will drop the legacy models and ship 5 of 8 tonight.", &opts());
+        let v = evaluate_stop_shape(
+            "Given the time, I will drop the legacy models and ship 5 of 8 tonight.",
+            &opts(),
+        );
         assert_ne!(v.shape.as_deref(), Some("scope-cut"));
     }
 
     #[test]
     fn scope_cut_match_is_pure() {
-        assert!(scope_cut_match("I will drop the models.").unwrap().contains("drop"));
+        assert!(scope_cut_match("I will drop the models.")
+            .unwrap()
+            .contains("drop"));
         assert!(scope_cut_match("Nothing scope-related here.").is_none());
     }
 
@@ -1385,7 +1647,11 @@ mod tests {
         assert!(evidence.is_some());
         let v = evaluate_stop_shape(
             "Yes, we can do that. I would add a Stop hook.",
-            &StopShapeOptions { continue_intent_evidence: evidence, continue_tools_used: false, ..opts() },
+            &StopShapeOptions {
+                continue_intent_evidence: evidence,
+                continue_tools_used: false,
+                ..opts()
+            },
         );
         assert!(v.block);
         assert_eq!(v.shape.as_deref(), Some("continue-intent"));
@@ -1414,14 +1680,25 @@ mod tests {
         let evidence = continue_intent("why is the old hook still there?");
         let v1 = evaluate_stop_shape(
             "Removed the stale registration; receipts attached.",
-            &StopShapeOptions { continue_intent_evidence: evidence.clone(), continue_tools_used: true, ..opts() },
+            &StopShapeOptions {
+                continue_intent_evidence: evidence.clone(),
+                continue_tools_used: true,
+                ..opts()
+            },
         );
         assert!(!v1.block);
         let v2 = evaluate_stop_shape(
             "I looked into it. I can remove the old registration next.",
-            &StopShapeOptions { continue_intent_evidence: evidence, continue_tools_used: true, ..opts() },
+            &StopShapeOptions {
+                continue_intent_evidence: evidence,
+                continue_tools_used: true,
+                ..opts()
+            },
         );
-        assert!(v2.block, "acting and then handing back is the same stop-short");
+        assert!(
+            v2.block,
+            "acting and then handing back is the same stop-short"
+        );
     }
 
     #[test]
@@ -1454,7 +1731,10 @@ mod tests {
         for intent in ["PLAN", "QUESTION", "REVOKE", "SCOPE_NARROW", "UNKNOWN"] {
             let v = evaluate_stop_shape(
                 "Plan is ready; implementation remains pending. Say go to execute.",
-                &StopShapeOptions { intent: intent.to_string(), ..opts() },
+                &StopShapeOptions {
+                    intent: intent.to_string(),
+                    ..opts()
+                },
             );
             assert!(!v.block, "{intent}");
         }
@@ -1462,7 +1742,16 @@ mod tests {
 
     #[test]
     fn execute_and_continue_retain_anti_stall_enforcement() {
-        assert!(evaluate_stop_shape("Implementation is ready. Say go and I execute.", &StopShapeOptions { intent: "EXECUTE".to_string(), ..opts() }).block);
+        assert!(
+            evaluate_stop_shape(
+                "Implementation is ready. Say go and I execute.",
+                &StopShapeOptions {
+                    intent: "EXECUTE".to_string(),
+                    ..opts()
+                }
+            )
+            .block
+        );
         let v = evaluate_stop_shape(
             "Yes, we can do that. I would add a Stop hook.",
             &StopShapeOptions {

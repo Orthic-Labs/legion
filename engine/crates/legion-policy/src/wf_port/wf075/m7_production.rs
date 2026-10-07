@@ -27,7 +27,9 @@
 use std::collections::BTreeMap;
 
 use crate::wf_port::wf070::canon::{digest_value, is_digest, CanonVal};
-use crate::wf_port::wf070::event_store::{ArchitectureEventStore, EventProposal, KeyRing, ReceiptStore};
+use crate::wf_port::wf070::event_store::{
+    ArchitectureEventStore, EventProposal, KeyRing, ReceiptStore,
+};
 use crate::wf_port::wf070::state::create_architecture_state;
 
 const NOW: &str = "2026-08-15T00:00:00.000Z";
@@ -37,13 +39,17 @@ fn ledger(id: &str) -> CanonVal {
         .set("schema", CanonVal::Str("acceptance-ledger.v1".to_string()))
         .set("ledger_version", CanonVal::Int(1))
         .set("intent_epoch", CanonVal::Int(1))
-        .set("acceptance_fingerprint", CanonVal::Str(digest_value(&CanonVal::Str(id.to_string()))))
+        .set(
+            "acceptance_fingerprint",
+            CanonVal::Str(digest_value(&CanonVal::Str(id.to_string()))),
+        )
         .set("frozen_at", CanonVal::Str(NOW.to_string()))
         .set("items", CanonVal::Arr(vec![]))
 }
 
 fn state(id: &str) -> CanonVal {
-    create_architecture_state(&format!("s11:{id}"), ledger(id), &format!("s11:{id}")).expect("valid fixture state")
+    create_architecture_state(&format!("s11:{id}"), ledger(id), &format!("s11:{id}"))
+        .expect("valid fixture state")
 }
 
 /// Mirrors `observation(producer, consumer, value)`.
@@ -55,7 +61,11 @@ pub struct Observation {
 }
 
 fn observation(producer: &'static str, consumer: &'static str, value: CanonVal) -> Observation {
-    Observation { producer, consumer, value }
+    Observation {
+        producer,
+        consumer,
+        value,
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -84,7 +94,10 @@ struct FixedKeyRing(BTreeMap<String, Vec<u8>>);
 impl FixedKeyRing {
     fn single(key_id: &str) -> Self {
         let mut m = BTreeMap::new();
-        m.insert(key_id.to_string(), b"wf075-m7-production-test-fixture-key".to_vec());
+        m.insert(
+            key_id.to_string(),
+            b"wf075-m7-production-test-fixture-key".to_vec(),
+        );
         FixedKeyRing(m)
     }
 }
@@ -129,9 +142,12 @@ pub fn full_replay() -> Observation {
     let mut store = MemoryReceiptStore(vec![]);
     let key_ring = FixedKeyRing::single("k1");
     let mut event_store =
-        ArchitectureEventStore::new(&mut store, &key_ring, "k1", Box::new(|| NOW.to_string())).expect("event store constructs");
+        ArchitectureEventStore::new(&mut store, &key_ring, "k1", Box::new(|| NOW.to_string()))
+            .expect("event store constructs");
 
-    let replayed = event_store.replay(lineage, &initial).expect("initial replay succeeds");
+    let replayed = event_store
+        .replay(lineage, &initial)
+        .expect("initial replay succeeds");
     let mut expected_fp = replayed.state_fingerprint.clone();
     // Mirrors the JS harness reading `accepted.state.intent.intent_epoch`
     // fresh before every `accept()` call: `CANCEL_RECORDED` below advances
@@ -146,7 +162,10 @@ pub fn full_replay() -> Observation {
 
     let mut append = |event_type: &str, payload: CanonVal| {
         let accepted = event_store
-            .accept(&proposal(lineage, current_intent_epoch, event_type, payload), Some(expected_fp.as_str()))
+            .accept(
+                &proposal(lineage, current_intent_epoch, event_type, payload),
+                Some(expected_fp.as_str()),
+            )
             .unwrap_or_else(|e| panic!("event rejected: {event_type}: {e}"));
         expected_fp = accepted.state_fingerprint.clone();
         current_intent_epoch = accepted
@@ -160,7 +179,9 @@ pub fn full_replay() -> Observation {
 
     append(
         "ARCHITECTURE_TRANSITIONED",
-        CanonVal::obj().set("from", CanonVal::Str("UNROUTED".into())).set("to", CanonVal::Str("TAILORED".into())),
+        CanonVal::obj()
+            .set("from", CanonVal::Str("UNROUTED".into()))
+            .set("to", CanonVal::Str("TAILORED".into())),
     );
     append(
         "EFFECT_RECORDED",
@@ -184,15 +205,26 @@ pub fn full_replay() -> Observation {
             .set("id", CanonVal::Str("cancel-1".into()))
             .set("intent_epoch", CanonVal::Int(2))
             .set("reason", CanonVal::Str("PAUSE".into()))
-            .set("unverified_candidate_ids", CanonVal::Arr(vec![CanonVal::Str("candidate-1".into())])),
+            .set(
+                "unverified_candidate_ids",
+                CanonVal::Arr(vec![CanonVal::Str("candidate-1".into())]),
+            ),
     );
     append(
         "RECOVERY_RECORDED",
         CanonVal::obj()
             .set("id", CanonVal::Str("recovery-1".into()))
-            .set("checkpoint_digest", CanonVal::Str(digest_value(&CanonVal::obj().set("checkpoint", CanonVal::Int(1)))))
+            .set(
+                "checkpoint_digest",
+                CanonVal::Str(digest_value(
+                    &CanonVal::obj().set("checkpoint", CanonVal::Int(1)),
+                )),
+            )
             .set("reason", CanonVal::Str("resume denied".into()))
-            .set("candidate_ids", CanonVal::Arr(vec![CanonVal::Str("candidate-1".into())])),
+            .set(
+                "candidate_ids",
+                CanonVal::Arr(vec![CanonVal::Str("candidate-1".into())]),
+            ),
     );
     let accepted = append(
         "SUPERSESSION_RECORDED",
@@ -203,20 +235,58 @@ pub fn full_replay() -> Observation {
             .set("reason", CanonVal::Str("new evidence".into())),
     );
 
-    let restored = event_store.replay(lineage, &initial).expect("restore replay succeeds");
+    let restored = event_store
+        .replay(lineage, &initial)
+        .expect("restore replay succeeds");
 
-    let effects = restored.state.get("execution").and_then(|e| e.get("effects")).and_then(CanonVal::as_arr).map(Vec::len).unwrap_or(0);
-    let denials = restored.state.get("execution").and_then(|e| e.get("denials")).and_then(CanonVal::as_arr).map(Vec::len).unwrap_or(0);
-    let cancellations = restored.state.get("execution").and_then(|e| e.get("cancellations")).and_then(CanonVal::as_arr).map(Vec::len).unwrap_or(0);
-    let recoveries = restored.state.get("execution").and_then(|e| e.get("recovery_refs")).and_then(CanonVal::as_arr).map(Vec::len).unwrap_or(0);
-    let supersessions = restored.state.get("execution").and_then(|e| e.get("supersession_refs")).and_then(CanonVal::as_arr).map(Vec::len).unwrap_or(0);
+    let effects = restored
+        .state
+        .get("execution")
+        .and_then(|e| e.get("effects"))
+        .and_then(CanonVal::as_arr)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let denials = restored
+        .state
+        .get("execution")
+        .and_then(|e| e.get("denials"))
+        .and_then(CanonVal::as_arr)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let cancellations = restored
+        .state
+        .get("execution")
+        .and_then(|e| e.get("cancellations"))
+        .and_then(CanonVal::as_arr)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let recoveries = restored
+        .state
+        .get("execution")
+        .and_then(|e| e.get("recovery_refs"))
+        .and_then(CanonVal::as_arr)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let supersessions = restored
+        .state
+        .get("execution")
+        .and_then(|e| e.get("supersession_refs"))
+        .and_then(CanonVal::as_arr)
+        .map(Vec::len)
+        .unwrap_or(0);
 
     observation(
         "ArchitectureEventStore.accept/replay",
         "authenticated trajectory receipt store",
         CanonVal::obj()
-            .set("acceptedFingerprint", CanonVal::Str(accepted.state_fingerprint))
-            .set("replayFingerprint", CanonVal::Str(restored.state_fingerprint))
+            .set(
+                "acceptedFingerprint",
+                CanonVal::Str(accepted.state_fingerprint),
+            )
+            .set(
+                "replayFingerprint",
+                CanonVal::Str(restored.state_fingerprint),
+            )
             .set("eventCount", CanonVal::Int(restored.event_count))
             .set("effects", CanonVal::Int(effects as i64))
             .set("denials", CanonVal::Int(denials as i64))
@@ -240,7 +310,10 @@ pub fn revision_tripwire() -> Observation {
                 .set("id", CanonVal::Str(format!("revision-{revision}")))
                 .set("decision_id", CanonVal::Str("D-2".into()))
                 .set("revision", CanonVal::Int(revision))
-                .set("live_candidate_ids", CanonVal::Arr(vec![CanonVal::Str("a".into()), CanonVal::Str("b".into())]))
+                .set(
+                    "live_candidate_ids",
+                    CanonVal::Arr(vec![CanonVal::Str("a".into()), CanonVal::Str("b".into())]),
+                )
                 .set("terminal_disposition", CanonVal::Null),
         )
         .expect("revision recorded");
@@ -252,8 +325,14 @@ pub fn revision_tripwire() -> Observation {
             .set("id", CanonVal::Str("revision-3".into()))
             .set("decision_id", CanonVal::Str("D-2".into()))
             .set("revision", CanonVal::Int(3))
-            .set("live_candidate_ids", CanonVal::Arr(vec![CanonVal::Str("a".into()), CanonVal::Str("b".into())]))
-            .set("terminal_disposition", CanonVal::Str("DECIDE_WITH_DEBT".into())),
+            .set(
+                "live_candidate_ids",
+                CanonVal::Arr(vec![CanonVal::Str("a".into()), CanonVal::Str("b".into())]),
+            )
+            .set(
+                "terminal_disposition",
+                CanonVal::Str("DECIDE_WITH_DEBT".into()),
+            ),
     )
     .expect("terminal revision recorded");
 
@@ -264,14 +343,25 @@ pub fn revision_tripwire() -> Observation {
             .set("id", CanonVal::Str("revision-4".into()))
             .set("decision_id", CanonVal::Str("D-2".into()))
             .set("revision", CanonVal::Int(4))
-            .set("live_candidate_ids", CanonVal::Arr(vec![CanonVal::Str("a".into()), CanonVal::Str("b".into())]))
+            .set(
+                "live_candidate_ids",
+                CanonVal::Arr(vec![CanonVal::Str("a".into()), CanonVal::Str("b".into())]),
+            )
             .set("terminal_disposition", CanonVal::Null),
     );
     let fourth_rejected = fourth.is_err();
 
-    let revisions = current.get("convergence").and_then(|c| c.get("revisions")).and_then(CanonVal::as_arr).map(Vec::len).unwrap_or(0);
-    let terminal_disposition =
-        current.get("convergence").and_then(|c| c.get("terminal_disposition")).cloned().unwrap_or(CanonVal::Null);
+    let revisions = current
+        .get("convergence")
+        .and_then(|c| c.get("revisions"))
+        .and_then(CanonVal::as_arr)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let terminal_disposition = current
+        .get("convergence")
+        .and_then(|c| c.get("terminal_disposition"))
+        .cloned()
+        .unwrap_or(CanonVal::Null);
 
     observation(
         "applyArchitectureEvent",
@@ -313,20 +403,48 @@ pub fn create_execution_checkpoint(
     event_sequence: i64,
     event_digest: &str,
 ) -> ExecutionCheckpoint {
-    let objective_lineage_id = state.get("task").and_then(|t| t.get("objective_lineage_id")).and_then(CanonVal::as_str).expect("lineage present").to_string();
-    let intent_epoch = state.get("intent").and_then(|i| i.get("intent_epoch")).and_then(CanonVal::as_int).expect("intent_epoch present");
-    let continuation_epoch = state.get("intent").and_then(|i| i.get("continuation_epoch")).and_then(CanonVal::as_int).expect("continuation_epoch present");
-    assert!(is_digest(repository_state), "repository_state must be a digest");
+    let objective_lineage_id = state
+        .get("task")
+        .and_then(|t| t.get("objective_lineage_id"))
+        .and_then(CanonVal::as_str)
+        .expect("lineage present")
+        .to_string();
+    let intent_epoch = state
+        .get("intent")
+        .and_then(|i| i.get("intent_epoch"))
+        .and_then(CanonVal::as_int)
+        .expect("intent_epoch present");
+    let continuation_epoch = state
+        .get("intent")
+        .and_then(|i| i.get("continuation_epoch"))
+        .and_then(CanonVal::as_int)
+        .expect("continuation_epoch present");
+    assert!(
+        is_digest(repository_state),
+        "repository_state must be a digest"
+    );
     assert!(is_digest(event_digest), "event_digest must be a digest");
     assert!(event_sequence >= 0, "event sequence must be non-negative");
 
     let body = CanonVal::obj()
-        .set("schema", CanonVal::Str("execution-checkpoint.v1".to_string()))
-        .set("objective_lineage_id", CanonVal::Str(objective_lineage_id.clone()))
+        .set(
+            "schema",
+            CanonVal::Str("execution-checkpoint.v1".to_string()),
+        )
+        .set(
+            "objective_lineage_id",
+            CanonVal::Str(objective_lineage_id.clone()),
+        )
         .set("intent_epoch", CanonVal::Int(intent_epoch))
         .set("continuation_epoch", CanonVal::Int(continuation_epoch))
-        .set("repository_state", CanonVal::Str(repository_state.to_string()))
-        .set("contract_fingerprint", CanonVal::Str(contract_fingerprint.to_string()))
+        .set(
+            "repository_state",
+            CanonVal::Str(repository_state.to_string()),
+        )
+        .set(
+            "contract_fingerprint",
+            CanonVal::Str(contract_fingerprint.to_string()),
+        )
         .set("event_sequence", CanonVal::Int(event_sequence))
         .set("event_digest", CanonVal::Str(event_digest.to_string()));
     let checkpoint_digest = digest_value(&body);
@@ -364,7 +482,10 @@ pub struct CurrentContinuity {
 
 /// Mirrors `verifyExecutionCheckpoint`, narrowed to the mismatch classes
 /// `epochMismatch` exercises (digest integrity + the binding-mismatch set).
-pub fn verify_execution_checkpoint(checkpoint: &ExecutionCheckpoint, current: &CurrentContinuity) -> CheckpointVerification {
+pub fn verify_execution_checkpoint(
+    checkpoint: &ExecutionCheckpoint,
+    current: &CurrentContinuity,
+) -> CheckpointVerification {
     let mut mismatches: Vec<&'static str> = Vec::new();
     if checkpoint.objective_lineage_id != current.objective_lineage_id {
         mismatches.push("objective_lineage");
@@ -381,13 +502,23 @@ pub fn verify_execution_checkpoint(checkpoint: &ExecutionCheckpoint, current: &C
     if checkpoint.contract_fingerprint != current.contract_fingerprint {
         mismatches.push("acceptance_contract");
     }
-    if checkpoint.event_sequence != current.event_sequence || checkpoint.event_digest != current.event_digest {
+    if checkpoint.event_sequence != current.event_sequence
+        || checkpoint.event_digest != current.event_digest
+    {
         mismatches.push("event_continuity");
     }
     if !mismatches.is_empty() {
-        return CheckpointVerification { valid: false, reason: Some("binding_mismatch"), resume_authorized: false };
+        return CheckpointVerification {
+            valid: false,
+            reason: Some("binding_mismatch"),
+            resume_authorized: false,
+        };
     }
-    CheckpointVerification { valid: true, reason: None, resume_authorized: true }
+    CheckpointVerification {
+        valid: true,
+        reason: None,
+        resume_authorized: true,
+    }
 }
 
 /// Mirrors `epochMismatch`.
@@ -397,7 +528,13 @@ pub fn epoch_mismatch() -> Observation {
     let contract_fingerprint = digest_value(&CanonVal::obj().set("contract", CanonVal::Int(1)));
     let event_digest = digest_value(&CanonVal::obj().set("event", CanonVal::Int(0)));
 
-    let checkpoint = create_execution_checkpoint(&initial, &contract_fingerprint, &repository_state, 0, &event_digest);
+    let checkpoint = create_execution_checkpoint(
+        &initial,
+        &contract_fingerprint,
+        &repository_state,
+        0,
+        &event_digest,
+    );
 
     let current = CurrentContinuity {
         objective_lineage_id: checkpoint.objective_lineage_id.clone(),
@@ -415,14 +552,27 @@ pub fn epoch_mismatch() -> Observation {
         "continuity admission",
         CanonVal::obj()
             .set("valid", CanonVal::Bool(result.valid))
-            .set("reason", result.reason.map(|r| CanonVal::Str(r.to_string())).unwrap_or(CanonVal::Null))
-            .set("resume_authorized", CanonVal::Bool(result.resume_authorized)),
+            .set(
+                "reason",
+                result
+                    .reason
+                    .map(|r| CanonVal::Str(r.to_string()))
+                    .unwrap_or(CanonVal::Null),
+            )
+            .set(
+                "resume_authorized",
+                CanonVal::Bool(result.resume_authorized),
+            ),
     )
 }
 
 /// Mirrors `m7BindingIds`.
 pub fn m7_binding_ids() -> Vec<&'static str> {
-    let mut ids = vec!["AE-STATE-TRANSITIONS-REPLAY-002", "AE-CONVERGENCE-006", "AE-TRAJECTORY-RESUME-002"];
+    let mut ids = vec![
+        "AE-STATE-TRANSITIONS-REPLAY-002",
+        "AE-CONVERGENCE-006",
+        "AE-TRAJECTORY-RESUME-002",
+    ];
     ids.sort_unstable();
     ids
 }
@@ -443,7 +593,14 @@ mod tests {
 
     #[test]
     fn binding_ids_are_sorted() {
-        assert_eq!(m7_binding_ids(), vec!["AE-CONVERGENCE-006", "AE-STATE-TRANSITIONS-REPLAY-002", "AE-TRAJECTORY-RESUME-002"]);
+        assert_eq!(
+            m7_binding_ids(),
+            vec![
+                "AE-CONVERGENCE-006",
+                "AE-STATE-TRANSITIONS-REPLAY-002",
+                "AE-TRAJECTORY-RESUME-002"
+            ]
+        );
     }
 
     #[test]
@@ -469,7 +626,10 @@ mod tests {
         let obs = revision_tripwire();
         let v = &obs.value;
         assert_eq!(v.get("revisions"), Some(&CanonVal::Int(3)));
-        assert_eq!(v.get("terminalDisposition"), Some(&CanonVal::Str("DECIDE_WITH_DEBT".to_string())));
+        assert_eq!(
+            v.get("terminalDisposition"),
+            Some(&CanonVal::Str("DECIDE_WITH_DEBT".to_string()))
+        );
         assert_eq!(v.get("fourthRejected"), Some(&CanonVal::Bool(true)));
     }
 
@@ -478,7 +638,10 @@ mod tests {
         let obs = epoch_mismatch();
         let v = &obs.value;
         assert_eq!(v.get("valid"), Some(&CanonVal::Bool(false)));
-        assert_eq!(v.get("reason"), Some(&CanonVal::Str("binding_mismatch".to_string())));
+        assert_eq!(
+            v.get("reason"),
+            Some(&CanonVal::Str("binding_mismatch".to_string()))
+        );
         assert_eq!(v.get("resume_authorized"), Some(&CanonVal::Bool(false)));
     }
 
@@ -488,7 +651,13 @@ mod tests {
         let repository_state = digest_value(&CanonVal::obj().set("repository", CanonVal::Int(1)));
         let contract_fingerprint = digest_value(&CanonVal::obj().set("contract", CanonVal::Int(1)));
         let event_digest = digest_value(&CanonVal::obj().set("event", CanonVal::Int(0)));
-        let checkpoint = create_execution_checkpoint(&initial, &contract_fingerprint, &repository_state, 0, &event_digest);
+        let checkpoint = create_execution_checkpoint(
+            &initial,
+            &contract_fingerprint,
+            &repository_state,
+            0,
+            &event_digest,
+        );
         let current = CurrentContinuity {
             objective_lineage_id: checkpoint.objective_lineage_id.clone(),
             intent_epoch: checkpoint.intent_epoch,

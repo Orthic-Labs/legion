@@ -166,9 +166,7 @@ mod tests {
         let dir = tmp_dir("errors");
         let cache = Cache::new(&dir).unwrap();
         let key = "deadbeef";
-        cache
-            .set_error(key, &json!({"error": "timeout"}))
-            .unwrap();
+        cache.set_error(key, &json!({"error": "timeout"})).unwrap();
         let path = cache.errors_dir().join(format!("{key}.json"));
         assert!(path.is_file());
         // Errors never poison the regular cache lookup.

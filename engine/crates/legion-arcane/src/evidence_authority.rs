@@ -11,8 +11,7 @@ const AUTHORITY_REQUEST_FIELDS: [&str; 2] = ["id", "question"];
 fn exact(value: &Value, fields: &[&str]) -> bool {
     let object = value.as_object();
     object.is_some_and(|object| {
-        object.len() == fields.len()
-            && fields.iter().all(|field| object.contains_key(*field))
+        object.len() == fields.len() && fields.iter().all(|field| object.contains_key(*field))
     })
 }
 
@@ -62,7 +61,10 @@ pub struct EvidenceAuthorityRegistry {
 }
 
 impl EvidenceAuthorityRegistry {
-    pub fn new(latency_targets: Vec<Value>, technology_constraints: Vec<Value>) -> Result<Self, String> {
+    pub fn new(
+        latency_targets: Vec<Value>,
+        technology_constraints: Vec<Value>,
+    ) -> Result<Self, String> {
         if !latency_targets.iter().all(valid_latency_record)
             || !technology_constraints.iter().all(valid_technology_record)
         {

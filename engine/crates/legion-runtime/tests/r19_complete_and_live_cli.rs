@@ -8,7 +8,9 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use legion_runtime::wf_port::w2_017::complete::{completion_cli, HttpPoster};
-use legion_runtime::wf_port::w2_020::live_cli::{inject_check, inject_port, live_cli, ProcessRunner};
+use legion_runtime::wf_port::w2_020::live_cli::{
+    inject_check, inject_port, live_cli, ProcessRunner,
+};
 use serde_json::{json, Value};
 
 fn tmp_dir(name: &str) -> std::path::PathBuf {
@@ -75,14 +77,23 @@ fn completion_cli_falls_back_to_session_store_when_no_server() {
 #[test]
 fn completion_cli_discarded_and_error_statuses() {
     let cwd = tmp_dir("complete-discard");
-    let argv = vec!["--id".to_string(), "sess-2".to_string(), "--discarded".to_string()];
+    let argv = vec![
+        "--id".to_string(),
+        "sess-2".to_string(),
+        "--discarded".to_string(),
+    ];
     let (code, out) = completion_cli(&NoServer, &cwd, &argv);
     assert_eq!(code, 0);
     let v: Value = serde_json::from_str(&out).unwrap();
     assert_eq!(v["phase"], json!("discarded"));
 
     let cwd2 = tmp_dir("complete-error");
-    let argv2 = vec!["--id".to_string(), "sess-3".to_string(), "--error".to_string(), "boom".to_string()];
+    let argv2 = vec![
+        "--id".to_string(),
+        "sess-3".to_string(),
+        "--error".to_string(),
+        "boom".to_string(),
+    ];
     let (code2, out2) = completion_cli(&NoServer, &cwd2, &argv2);
     assert_eq!(code2, 0);
     let v2: Value = serde_json::from_str(&out2).unwrap();
@@ -209,7 +220,11 @@ fn inject_port_inserts_tag_into_resolved_file() {
         "commentSyntax": "html",
     });
     std::fs::write(cwd.join(".impeccable/live/config.json"), cfg.to_string()).unwrap();
-    std::fs::write(cwd.join("index.html"), "<html><head></head><body></body></html>").unwrap();
+    std::fs::write(
+        cwd.join("index.html"),
+        "<html><head></head><body></body></html>",
+    )
+    .unwrap();
 
     let result = inject_port(&cwd, 4321).expect("inject_port should succeed");
     assert_eq!(result["ok"], json!(true));

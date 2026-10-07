@@ -18,11 +18,41 @@ pub struct Adapter {
 macro_rules! surfaces {
     ($ii:expr, $im:expr, $si:expr, $sm:expr, $ai:expr, $am:expr, $mi:expr, $mm:expr, $hi:expr, $hm:expr) => {
         [
-            ("instructions", Surface { fidelity: $ii, mechanism_kind: $im }),
-            ("skills", Surface { fidelity: $si, mechanism_kind: $sm }),
-            ("agents", Surface { fidelity: $ai, mechanism_kind: $am }),
-            ("mcp", Surface { fidelity: $mi, mechanism_kind: $mm }),
-            ("hooks", Surface { fidelity: $hi, mechanism_kind: $hm }),
+            (
+                "instructions",
+                Surface {
+                    fidelity: $ii,
+                    mechanism_kind: $im,
+                },
+            ),
+            (
+                "skills",
+                Surface {
+                    fidelity: $si,
+                    mechanism_kind: $sm,
+                },
+            ),
+            (
+                "agents",
+                Surface {
+                    fidelity: $ai,
+                    mechanism_kind: $am,
+                },
+            ),
+            (
+                "mcp",
+                Surface {
+                    fidelity: $mi,
+                    mechanism_kind: $mm,
+                },
+            ),
+            (
+                "hooks",
+                Surface {
+                    fidelity: $hi,
+                    mechanism_kind: $hm,
+                },
+            ),
         ]
     };
 }
@@ -32,32 +62,98 @@ pub fn host_adapters() -> Vec<Adapter> {
         Adapter {
             id: "claude-code",
             install_owner: "plugin",
-            surfaces: surfaces!("strong", "plugin", "strong", "plugin", "strong", "plugin", "strong", "plugin", "strong", "blocking-hook"),
+            surfaces: surfaces!(
+                "strong",
+                "plugin",
+                "strong",
+                "plugin",
+                "strong",
+                "plugin",
+                "strong",
+                "plugin",
+                "strong",
+                "blocking-hook"
+            ),
         },
         Adapter {
             id: "codex",
             install_owner: "adapter",
-            surfaces: surfaces!("strong", "agents-md", "strong", "skills-dir", "strong", "agent-config", "strong", "toml", "unsupported", "none"),
+            surfaces: surfaces!(
+                "strong",
+                "agents-md",
+                "strong",
+                "skills-dir",
+                "strong",
+                "agent-config",
+                "strong",
+                "toml",
+                "unsupported",
+                "none"
+            ),
         },
         Adapter {
             id: "cline",
             install_owner: "adapter",
-            surfaces: surfaces!("strong", "native-file", "degraded", "skills-dir", "unsupported", "none", "unsupported", "none", "unsupported", "none"),
+            surfaces: surfaces!(
+                "strong",
+                "native-file",
+                "degraded",
+                "skills-dir",
+                "unsupported",
+                "none",
+                "unsupported",
+                "none",
+                "unsupported",
+                "none"
+            ),
         },
         Adapter {
             id: "command-code",
             install_owner: "adapter",
-            surfaces: surfaces!("strong", "agents-md", "degraded", "skills-dir", "unsupported", "none", "unsupported", "none", "unsupported", "none"),
+            surfaces: surfaces!(
+                "strong",
+                "agents-md",
+                "degraded",
+                "skills-dir",
+                "unsupported",
+                "none",
+                "unsupported",
+                "none",
+                "unsupported",
+                "none"
+            ),
         },
         Adapter {
             id: "pi",
             install_owner: "adapter",
-            surfaces: surfaces!("strong", "agents-md", "degraded", "skills-dir", "unsupported", "none", "unsupported", "none", "unsupported", "none"),
+            surfaces: surfaces!(
+                "strong",
+                "agents-md",
+                "degraded",
+                "skills-dir",
+                "unsupported",
+                "none",
+                "unsupported",
+                "none",
+                "unsupported",
+                "none"
+            ),
         },
         Adapter {
             id: "generic",
             install_owner: "adapter",
-            surfaces: surfaces!("strong", "agents-md", "degraded", "skills-dir", "unsupported", "none", "unsupported", "none", "unsupported", "none"),
+            surfaces: surfaces!(
+                "strong",
+                "agents-md",
+                "degraded",
+                "skills-dir",
+                "unsupported",
+                "none",
+                "unsupported",
+                "none",
+                "unsupported",
+                "none"
+            ),
         },
     ]
 }

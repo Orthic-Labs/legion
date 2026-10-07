@@ -175,10 +175,8 @@ pub fn compact_manual_apply_batch(batch: &Value, cwd: &Path) -> Value {
         .unwrap_or_default();
     let entries: Vec<Value> = raw_entries.iter().map(compact_manual_apply_entry).collect();
 
-    let candidates = compact_manual_apply_candidates(
-        batch.get("candidates").and_then(Value::as_array),
-        cwd,
-    );
+    let candidates =
+        compact_manual_apply_candidates(batch.get("candidates").and_then(Value::as_array), cwd);
 
     let ops: Vec<Value> = entries
         .iter()
@@ -227,10 +225,7 @@ pub fn compact_manual_apply_batch(batch: &Value, cwd: &Path) -> Value {
 }
 
 /// Port of `compactManualApplyCandidates(candidates, cwd)`.
-pub fn compact_manual_apply_candidates(
-    candidates: Option<&Vec<Value>>,
-    cwd: &Path,
-) -> Vec<Value> {
+pub fn compact_manual_apply_candidates(candidates: Option<&Vec<Value>>, cwd: &Path) -> Vec<Value> {
     candidates
         .map(|c| c.as_slice())
         .unwrap_or(&[])
@@ -393,10 +388,24 @@ fn pathdiff_relative(absolute: &Path, cwd: &Path) -> Option<PathBuf> {
 }
 
 /// Port of `collectManualApplyFiles(batch, extraFiles, cwd)`.
-pub fn collect_manual_apply_files(batch: &Value, extra_files: &[String], cwd: &Path) -> Vec<String> {
+pub fn collect_manual_apply_files(
+    batch: &Value,
+    extra_files: &[String],
+    cwd: &Path,
+) -> Vec<String> {
     let mut files: Vec<String> = Vec::new();
-    for entry in batch.get("entries").and_then(Value::as_array).into_iter().flatten() {
-        for op in entry.get("ops").and_then(Value::as_array).into_iter().flatten() {
+    for entry in batch
+        .get("entries")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        for op in entry
+            .get("ops")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
             if let Some(f) = op
                 .get("sourceHint")
                 .and_then(|sh| sh.get("file"))
@@ -406,7 +415,12 @@ pub fn collect_manual_apply_files(batch: &Value, extra_files: &[String], cwd: &P
             }
         }
     }
-    for candidate in batch.get("candidates").and_then(Value::as_array).into_iter().flatten() {
+    for candidate in batch
+        .get("candidates")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if let Some(sh) = candidate.get("sourceHint") {
             if let Some(f) = sh.get("relativeFile").and_then(Value::as_str) {
                 files.push(f.to_string());
@@ -415,8 +429,18 @@ pub fn collect_manual_apply_files(batch: &Value, extra_files: &[String], cwd: &P
                 files.push(f.to_string());
             }
         }
-        for key in ["textMatches", "objectKeyMatches", "locatorMatches", "contextTextMatches"] {
-            for item in candidate.get(key).and_then(Value::as_array).into_iter().flatten() {
+        for key in [
+            "textMatches",
+            "objectKeyMatches",
+            "locatorMatches",
+            "contextTextMatches",
+        ] {
+            for item in candidate
+                .get(key)
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 if let Some(f) = item.get("file").and_then(Value::as_str) {
                     files.push(f.to_string());
                 }
@@ -447,7 +471,11 @@ pub fn manual_apply_evidence_dir(cwd: &Path) -> PathBuf {
 }
 
 /// Port of `writeManualApplyEvidence(eventId, batch, cwd)`.
-pub fn write_manual_apply_evidence(event_id: &str, batch: &Value, cwd: &Path) -> std::io::Result<PathBuf> {
+pub fn write_manual_apply_evidence(
+    event_id: &str,
+    batch: &Value,
+    cwd: &Path,
+) -> std::io::Result<PathBuf> {
     let dir = manual_apply_evidence_dir(cwd);
     fs::create_dir_all(&dir)?;
     let evidence_path = dir.join(format!("{event_id}.json"));
@@ -458,7 +486,10 @@ pub fn write_manual_apply_evidence(event_id: &str, batch: &Value, cwd: &Path) ->
 }
 
 /// Port of `normalizeManualApplyEvidencePath(evidencePath, cwd)`.
-pub fn normalize_manual_apply_evidence_path(evidence_path: Option<&str>, cwd: &Path) -> Option<PathBuf> {
+pub fn normalize_manual_apply_evidence_path(
+    evidence_path: Option<&str>,
+    cwd: &Path,
+) -> Option<PathBuf> {
     let evidence_path = evidence_path?;
     if evidence_path.is_empty() {
         return None;
@@ -576,7 +607,11 @@ pub fn read_manual_apply_transaction(cwd: &Path) -> Option<Value> {
 }
 
 /// Port of `writeManualApplyTransaction({ cwd, pageUrl, batch })`.
-pub fn write_manual_apply_transaction(cwd: &Path, page_url: Option<&str>, batch: &Value) -> std::io::Result<Value> {
+pub fn write_manual_apply_transaction(
+    cwd: &Path,
+    page_url: Option<&str>,
+    batch: &Value,
+) -> std::io::Result<Value> {
     let file = manual_apply_transaction_path(cwd);
     let files = collect_manual_apply_files(batch, &[], cwd);
     let file_entries: Vec<Value> = files
@@ -666,7 +701,10 @@ pub fn rollback_manual_apply_transaction(
         let buffer = read_manual_edits_buffer(cwd);
         buffer.entries.into_iter().filter_map(|e| e.id).collect()
     };
-    let tx_id = transaction.get("id").and_then(Value::as_str).map(str::to_string);
+    let tx_id = transaction
+        .get("id")
+        .and_then(Value::as_str)
+        .map(str::to_string);
     let should_rollback = tx_entry_ids.iter().any(|id| pending_ids.contains(id));
     if !should_rollback {
         clear_manual_apply_transaction(cwd, tx_id.as_deref());
@@ -681,8 +719,17 @@ pub fn rollback_manual_apply_transaction(
 
     let mut rolled_back_files = Vec::new();
     let mut rollback_failures = Vec::new();
-    for item in transaction.get("files").and_then(Value::as_array).into_iter().flatten() {
-        let Some(relative_file) = item.get("file").and_then(Value::as_str).and_then(|f| normalize_project_file(Some(f), cwd)) else {
+    for item in transaction
+        .get("files")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let Some(relative_file) = item
+            .get("file")
+            .and_then(Value::as_str)
+            .and_then(|f| normalize_project_file(Some(f), cwd))
+        else {
             continue;
         };
         let absolute = cwd.join(&relative_file);
@@ -768,7 +815,11 @@ impl ChunkBuilder {
     }
 
     fn add(&mut self, entry: &Value, op: &Value) {
-        let entry_id = entry.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+        let entry_id = entry
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         let idx = if let Some(&idx) = self.entry_index_by_id.get(&entry_id) {
             idx
         } else {
@@ -780,7 +831,10 @@ impl ChunkBuilder {
             self.entry_ids.push(entry_id.clone());
             idx
         };
-        if let Some(arr) = self.entries[idx].get_mut("ops").and_then(Value::as_array_mut) {
+        if let Some(arr) = self.entries[idx]
+            .get_mut("ops")
+            .and_then(Value::as_array_mut)
+        {
             arr.push(op.clone());
         }
         let mut op_with_entry_id = op.clone();
@@ -810,7 +864,10 @@ fn filter_manual_apply_chunk_candidates(
         .into_iter()
         .flatten()
         .filter(|candidate| {
-            let entry_id = candidate.get("entryId").and_then(Value::as_str).unwrap_or("");
+            let entry_id = candidate
+                .get("entryId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             let Some(refs) = refs_by_entry.get(entry_id) else {
                 return false;
             };
@@ -840,8 +897,16 @@ pub fn split_manual_apply_batch(batch: &Value, max_ops: usize) -> Vec<ManualAppl
         let op_counts_by_entry: HashMap<String, usize> = entries
             .iter()
             .map(|e| {
-                let id = e.get("id").and_then(Value::as_str).unwrap_or("").to_string();
-                let n = e.get("ops").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0);
+                let id = e
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string();
+                let n = e
+                    .get("ops")
+                    .and_then(Value::as_array)
+                    .map(|a| a.len())
+                    .unwrap_or(0);
                 (id, n)
             })
             .collect();
@@ -856,7 +921,11 @@ pub fn split_manual_apply_batch(batch: &Value, max_ops: usize) -> Vec<ManualAppl
     let mut raw_chunks: Vec<ChunkBuilder> = Vec::new();
     let mut current = ChunkBuilder::new();
     for entry in &entries {
-        let ops: Vec<Value> = entry.get("ops").and_then(Value::as_array).cloned().unwrap_or_default();
+        let ops: Vec<Value> = entry
+            .get("ops")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         if ops.len() <= max_ops {
             if current.op_count > 0 && current.op_count + ops.len() > max_ops {
                 raw_chunks.push(current);
@@ -894,7 +963,10 @@ pub fn split_manual_apply_batch(batch: &Value, max_ops: usize) -> Vec<ManualAppl
             chunk_batch["entries"] = Value::Array(chunk.entries.clone());
             chunk_batch["ops"] = Value::Array(chunk.ops.clone());
             chunk_batch["candidates"] = Value::Array(candidates);
-            let base_context = batch.get("context").cloned().unwrap_or_else(|| serde_json::json!({}));
+            let base_context = batch
+                .get("context")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({}));
             let mut context = base_context;
             context["totalEntries"] = Value::from(chunk.entries.len());
             context["totalOps"] = Value::from(chunk.op_count);
@@ -959,10 +1031,20 @@ pub fn validate_manual_apply_result_message(
     let data = msg.get("data");
     let data = match data {
         Some(d) if d.is_object() => d,
-        _ => return Err(invalid_manual_apply_result("missing_result_data", event_id, Value::Null)),
+        _ => {
+            return Err(invalid_manual_apply_result(
+                "missing_result_data",
+                event_id,
+                Value::Null,
+            ))
+        }
     };
     if data.get("entries").is_some() || data.get("ops").is_some() {
-        return Err(invalid_manual_apply_result("summary_result_not_allowed", event_id, Value::Null));
+        return Err(invalid_manual_apply_result(
+            "summary_result_not_allowed",
+            event_id,
+            Value::Null,
+        ));
     }
     let status = data.get("status").and_then(Value::as_str);
     if !matches!(status, Some("done") | Some("partial") | Some("error")) {
@@ -976,11 +1058,18 @@ pub fn validate_manual_apply_result_message(
 
     for key in ["appliedEntryIds", "failed", "files", "notes"] {
         if !matches!(data.get(key), Some(Value::Array(_))) {
-            return Err(invalid_manual_apply_result(&format!("{key}_must_be_array"), event_id, Value::Null));
+            return Err(invalid_manual_apply_result(
+                &format!("{key}_must_be_array"),
+                event_id,
+                Value::Null,
+            ));
         }
     }
 
-    let applied_entry_ids = data.get("appliedEntryIds").and_then(Value::as_array).unwrap();
+    let applied_entry_ids = data
+        .get("appliedEntryIds")
+        .and_then(Value::as_array)
+        .unwrap();
     for (index, value) in applied_entry_ids.iter().enumerate() {
         if !matches!(value, Value::String(s) if !s.is_empty()) {
             return Err(invalid_manual_apply_result(
@@ -1064,7 +1153,11 @@ pub fn validate_manual_apply_result_message(
 
     if status == "done" {
         if !failed.is_empty() {
-            return Err(invalid_manual_apply_result("done_result_has_failed_entries", event_id, Value::Null));
+            return Err(invalid_manual_apply_result(
+                "done_result_has_failed_entries",
+                event_id,
+                Value::Null,
+            ));
         }
         let batch_op_count = deferred_batch.map(count_manual_apply_ops).unwrap_or(0);
         if batch_op_count > 0 && applied_entry_ids.is_empty() {
@@ -1076,10 +1169,18 @@ pub fn validate_manual_apply_result_message(
         }
     }
     if status == "partial" && applied_entry_ids.is_empty() && failed.is_empty() {
-        return Err(invalid_manual_apply_result("partial_result_has_no_entries", event_id, Value::Null));
+        return Err(invalid_manual_apply_result(
+            "partial_result_has_no_entries",
+            event_id,
+            Value::Null,
+        ));
     }
     if status == "error" && !applied_entry_ids.is_empty() {
-        return Err(invalid_manual_apply_result("error_result_has_applied_entries", event_id, Value::Null));
+        return Err(invalid_manual_apply_result(
+            "error_result_has_applied_entries",
+            event_id,
+            Value::Null,
+        ));
     }
 
     Ok(serde_json::json!({
@@ -1178,10 +1279,19 @@ pub fn build_manual_apply_agent_action(event_id: &str) -> Value {
 
 /// Port of `summarizeManualApplyEvent(event, batch, cwd)`.
 pub fn summarize_manual_apply_event(event: &Value, batch: &Value, cwd: &Path) -> Value {
-    let entries = batch.get("entries").and_then(Value::as_array).cloned().unwrap_or_default();
+    let entries = batch
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let op_count: usize = entries
         .iter()
-        .map(|e| e.get("ops").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0))
+        .map(|e| {
+            e.get("ops")
+                .and_then(Value::as_array)
+                .map(|a| a.len())
+                .unwrap_or(0)
+        })
         .sum();
     serde_json::json!({
         "pageUrl": event.get("pageUrl").cloned().unwrap_or(Value::Null),
@@ -1327,7 +1437,12 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         )
     }
 
-    pub fn with_timeouts(cwd: PathBuf, callbacks: C, hard_timeout: Duration, soft_deadline_ms: u64) -> Self {
+    pub fn with_timeouts(
+        cwd: PathBuf,
+        callbacks: C,
+        hard_timeout: Duration,
+        soft_deadline_ms: u64,
+    ) -> Self {
         Self {
             state: Mutex::new(ControllerState {
                 pending_events: Vec::new(),
@@ -1341,8 +1456,14 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         }
     }
 
-    fn tombstone_timed_out_apply_id(state: &mut ControllerState, event_id: &str, details: TimedOutDetails) {
-        state.timed_out_apply_ids.insert(event_id.to_string(), details);
+    fn tombstone_timed_out_apply_id(
+        state: &mut ControllerState,
+        event_id: &str,
+        details: TimedOutDetails,
+    ) {
+        state
+            .timed_out_apply_ids
+            .insert(event_id.to_string(), details);
         if state.timed_out_apply_ids.len() > 200 {
             if let Some(oldest) = state.timed_out_apply_ids.keys().next().cloned() {
                 state.timed_out_apply_ids.remove(&oldest);
@@ -1456,8 +1577,16 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
     }
 
     /// Port of `pushBatchInChunksAndWait(batch, pageUrl, context)`.
-    pub fn push_batch_in_chunks_and_wait(&self, batch: &Value, page_url: Option<&str>, repair: Option<&Value>) -> Value {
-        let repair = repair.cloned().or_else(|| batch.get("repair").cloned()).filter(|v| !v.is_null());
+    pub fn push_batch_in_chunks_and_wait(
+        &self,
+        batch: &Value,
+        page_url: Option<&str>,
+        repair: Option<&Value>,
+    ) -> Value {
+        let repair = repair
+            .cloned()
+            .or_else(|| batch.get("repair").cloned())
+            .filter(|v| !v.is_null());
         if let Some(repair) = &repair {
             return match self.push_apply_event_and_wait(batch, page_url, None, Some(repair)) {
                 Ok(body) => body,
@@ -1475,9 +1604,22 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         }
 
         let mut expected_ops_by_entry: HashMap<String, usize> = HashMap::new();
-        for entry in batch.get("entries").and_then(Value::as_array).into_iter().flatten() {
-            let id = entry.get("id").and_then(Value::as_str).unwrap_or("").to_string();
-            let n = entry.get("ops").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0);
+        for entry in batch
+            .get("entries")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let id = entry
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let n = entry
+                .get("ops")
+                .and_then(Value::as_array)
+                .map(|a| a.len())
+                .unwrap_or(0);
             expected_ops_by_entry.insert(id, n);
         }
 
@@ -1487,7 +1629,9 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         let mut notes: Vec<Value> = Vec::new();
         let mut aborted = false;
 
-        let mark_chunk_failed = |failed_by_entry: &mut HashMap<String, Value>, chunk: &ManualApplyChunk, reason: &str| {
+        let mark_chunk_failed = |failed_by_entry: &mut HashMap<String, Value>,
+                                 chunk: &ManualApplyChunk,
+                                 reason: &str| {
             for entry_id in &chunk.entry_ids {
                 failed_by_entry.entry(entry_id.clone()).or_insert_with(|| {
                     serde_json::json!({ "entryId": entry_id, "reason": reason, "candidates": [] })
@@ -1501,7 +1645,12 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
                 continue;
             }
 
-            let result = match self.push_apply_event_and_wait(&chunk.batch, page_url, chunk.meta.as_ref(), None) {
+            let result = match self.push_apply_event_and_wait(
+                &chunk.batch,
+                page_url,
+                chunk.meta.as_ref(),
+                None,
+            ) {
                 Ok(body) => normalize_apply_chunk_result(&body),
                 Err(err) => {
                     mark_chunk_failed(&mut failed_by_entry, chunk, &err);
@@ -1510,17 +1659,32 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
                 }
             };
 
-            for f in result.get("files").and_then(Value::as_array).into_iter().flatten() {
+            for f in result
+                .get("files")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 if let Some(s) = f.as_str() {
                     files.insert(s.to_string());
                 }
             }
-            for n in result.get("notes").and_then(Value::as_array).into_iter().flatten() {
+            for n in result
+                .get("notes")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 notes.push(n.clone());
             }
 
             let mut chunk_failed_ids = std::collections::HashSet::new();
-            for item in result.get("failed").and_then(Value::as_array).into_iter().flatten() {
+            for item in result
+                .get("failed")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 let entry_id = item
                     .get("entryId")
                     .and_then(Value::as_str)
@@ -1620,7 +1784,11 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
 
     /// Port of `hasTimedOutId(eventId)`.
     pub fn has_timed_out_id(&self, event_id: &str) -> bool {
-        self.state.lock().unwrap().timed_out_apply_ids.contains_key(event_id)
+        self.state
+            .lock()
+            .unwrap()
+            .timed_out_apply_ids
+            .contains_key(event_id)
     }
 
     /// Port of `resolveDeferred(eventId, body)`.
@@ -1632,7 +1800,10 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         let Some(deferred) = deferred else {
             return false;
         };
-        remove_manual_apply_evidence(deferred.event.get("evidencePath").and_then(Value::as_str), &deferred.cwd);
+        remove_manual_apply_evidence(
+            deferred.event.get("evidencePath").and_then(Value::as_str),
+            &deferred.cwd,
+        );
         let _ = deferred.sender.send(DeferredOutcome::Resolve(body));
         true
     }
@@ -1646,10 +1817,13 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         let Some(deferred) = deferred else {
             return false;
         };
-        remove_manual_apply_evidence(deferred.event.get("evidencePath").and_then(Value::as_str), &deferred.cwd);
-        let _ = deferred
-            .sender
-            .send(DeferredOutcome::Reject(reason.unwrap_or("chat_agent_error").to_string()));
+        remove_manual_apply_evidence(
+            deferred.event.get("evidencePath").and_then(Value::as_str),
+            &deferred.cwd,
+        );
+        let _ = deferred.sender.send(DeferredOutcome::Reject(
+            reason.unwrap_or("chat_agent_error").to_string(),
+        ));
         true
     }
 
@@ -1709,7 +1883,12 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         let Some(details) = details else {
             return RollbackResult::default();
         };
-        rollback_apply_snapshot(&details.batch, &details.rollback_snapshot, &[], &details.cwd)
+        rollback_apply_snapshot(
+            &details.batch,
+            &details.rollback_snapshot,
+            &[],
+            &details.cwd,
+        )
     }
 
     /// Port of `cancelPendingEvents(pageUrl, reason)`.
@@ -1734,8 +1913,15 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
             }
             let removed = state.pending_events.remove(i);
             let event = removed.event;
-            remove_manual_apply_evidence(event.get("evidencePath").and_then(Value::as_str), &self.cwd);
-            let event_id = event.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+            remove_manual_apply_evidence(
+                event.get("evidencePath").and_then(Value::as_str),
+                &self.cwd,
+            );
+            let event_id = event
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             canceled.insert(
                 event_id,
                 serde_json::json!({
@@ -1756,7 +1942,12 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
             let Some(deferred) = state.pending_apply_deferreds.remove(&event_id) else {
                 continue;
             };
-            let rollback = rollback_apply_snapshot(&deferred.batch, &deferred.rollback_snapshot, &[], &deferred.cwd);
+            let rollback = rollback_apply_snapshot(
+                &deferred.batch,
+                &deferred.rollback_snapshot,
+                &[],
+                &deferred.cwd,
+            );
             Self::tombstone_timed_out_apply_id(
                 &mut state,
                 &event_id,
@@ -1767,7 +1958,10 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
                     reason: Some(reason.to_string()),
                 },
             );
-            remove_manual_apply_evidence(deferred.event.get("evidencePath").and_then(Value::as_str), &deferred.cwd);
+            remove_manual_apply_evidence(
+                deferred.event.get("evidencePath").and_then(Value::as_str),
+                &deferred.cwd,
+            );
             canceled.insert(
                 event_id.clone(),
                 serde_json::json!({
@@ -1778,7 +1972,9 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
                     "rollbackFailures": rollback.rollback_failures,
                 }),
             );
-            let _ = deferred.sender.send(DeferredOutcome::Reject(reason.to_string()));
+            let _ = deferred
+                .sender
+                .send(DeferredOutcome::Reject(reason.to_string()));
         }
 
         drop(state);
@@ -1791,7 +1987,11 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
     /// Port of pushing a plain (non-apply-and-wait) event onto
     /// `pendingEvents`, the one queue this controller owns.
     pub fn push_pending_event(&self, event: Value) {
-        self.state.lock().unwrap().pending_events.push(PendingEventEntry { event });
+        self.state
+            .lock()
+            .unwrap()
+            .pending_events
+            .push(PendingEventEntry { event });
     }
 
     pub fn clear_transaction(&self, transaction_id: Option<&str>) -> bool {
@@ -1802,13 +2002,18 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         read_manual_apply_transaction(&self.cwd)
     }
 
-    pub fn write_transaction(&self, page_url: Option<&str>, batch: &Value) -> std::io::Result<Value> {
+    pub fn write_transaction(
+        &self,
+        page_url: Option<&str>,
+        batch: &Value,
+    ) -> std::io::Result<Value> {
         write_manual_apply_transaction(&self.cwd, page_url, batch)
     }
 
     pub fn rollback_transaction(&self, page_url: Option<&str>, reason: &str) -> Option<Value> {
         let callbacks = &self.callbacks;
-        let mut record = |kind: &str, data: Value| callbacks.record_manual_edit_activity(kind, data);
+        let mut record =
+            |kind: &str, data: Value| callbacks.record_manual_edit_activity(kind, data);
         rollback_manual_apply_transaction(&self.cwd, page_url, reason, Some(&mut record))
     }
 

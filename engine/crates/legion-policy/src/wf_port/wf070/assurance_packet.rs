@@ -45,11 +45,17 @@ pub struct AssurancePacketOutcome {
 fn artifact_to_canon(artifact: &AssuranceArtifact) -> CanonVal {
     let mut v = artifact.extra.clone();
     v = v
-        .set("acceptance_id", CanonVal::Str(artifact.acceptance_id.clone()))
+        .set(
+            "acceptance_id",
+            CanonVal::Str(artifact.acceptance_id.clone()),
+        )
         .set("authenticated", CanonVal::Bool(artifact.authenticated))
         .set("producer", CanonVal::Str(artifact.producer.clone()))
         .set("verifier", CanonVal::Str(artifact.verifier.clone()))
-        .set("completion_consumer", CanonVal::Str(artifact.completion_consumer.clone()))
+        .set(
+            "completion_consumer",
+            CanonVal::Str(artifact.completion_consumer.clone()),
+        )
         .set("integrated_state", artifact.integrated_state.clone());
     v
 }
@@ -73,18 +79,24 @@ pub fn build_assurance_packet(
     };
 
     let (frozen_contract, integrated_state, producer_authority, reviewer_authority) =
-        match (frozen_contract, integrated_state, producer_authority, reviewer_authority) {
+        match (
+            frozen_contract,
+            integrated_state,
+            producer_authority,
+            reviewer_authority,
+        ) {
             (Some(fc), Some(is), Some(pa), Some(ra)) => (fc, is, pa, ra),
-            _ => {
-                return deny(
-                    "ARC_SCHEMA_INVALID",
-                    "assurance packet requires frozen contract, exact state, producer, and reviewer",
-                )
-            }
+            _ => return deny(
+                "ARC_SCHEMA_INVALID",
+                "assurance packet requires frozen contract, exact state, producer, and reviewer",
+            ),
         };
 
     if producer_authority == reviewer_authority {
-        return deny("ARC_SELF_CERTIFICATION", "producer cannot independently certify its own outcome");
+        return deny(
+            "ARC_SELF_CERTIFICATION",
+            "producer cannot independently certify its own outcome",
+        );
     }
 
     if artifacts.is_empty()
@@ -92,21 +104,26 @@ pub fn build_assurance_packet(
             .iter()
             .any(|a| !a.authenticated || &a.integrated_state != integrated_state)
     {
-        return deny("ARC_EVIDENCE_INSUFFICIENT", "assurance packet lacks authenticated exact-state artifacts");
+        return deny(
+            "ARC_EVIDENCE_INSUFFICIENT",
+            "assurance packet lacks authenticated exact-state artifacts",
+        );
     }
 
     let unbound: Vec<&AssuranceArtifact> = artifacts
         .iter()
-        .filter(|artifact| match evidence_registry.get(&artifact.acceptance_id) {
-            None => true,
-            Some(binding) => {
-                artifact.producer == artifact.verifier
-                    || artifact.producer == artifact.completion_consumer
-                    || artifact.producer != binding.producer
-                    || artifact.verifier != binding.verifier
-                    || artifact.completion_consumer != binding.completion_consumer
-            }
-        })
+        .filter(
+            |artifact| match evidence_registry.get(&artifact.acceptance_id) {
+                None => true,
+                Some(binding) => {
+                    artifact.producer == artifact.verifier
+                        || artifact.producer == artifact.completion_consumer
+                        || artifact.producer != binding.producer
+                        || artifact.verifier != binding.verifier
+                        || artifact.completion_consumer != binding.completion_consumer
+                }
+            },
+        )
         .collect();
 
     if !unbound.is_empty() {
@@ -116,17 +133,32 @@ pub fn build_assurance_packet(
             message: "assurance artifact identities do not match registry bindings".to_string(),
             packet: None,
             packet_digest: None,
-            failing_acceptance_ids: unbound.iter().map(|a| Some(a.acceptance_id.clone())).collect(),
+            failing_acceptance_ids: unbound
+                .iter()
+                .map(|a| Some(a.acceptance_id.clone()))
+                .collect(),
         };
     }
 
     let packet = CanonVal::obj()
         .set("kind", CanonVal::Str("arcane-assurance-packet".to_string()))
-        .set("contract_digest", CanonVal::Str(digest_value(frozen_contract)))
+        .set(
+            "contract_digest",
+            CanonVal::Str(digest_value(frozen_contract)),
+        )
         .set("integrated_state", integrated_state.clone())
-        .set("producer_authority", CanonVal::Str(producer_authority.to_string()))
-        .set("reviewer_authority", CanonVal::Str(reviewer_authority.to_string()))
-        .set("artifacts", CanonVal::Arr(artifacts.iter().map(artifact_to_canon).collect()));
+        .set(
+            "producer_authority",
+            CanonVal::Str(producer_authority.to_string()),
+        )
+        .set(
+            "reviewer_authority",
+            CanonVal::Str(reviewer_authority.to_string()),
+        )
+        .set(
+            "artifacts",
+            CanonVal::Arr(artifacts.iter().map(artifact_to_canon).collect()),
+        );
     let packet_digest = digest_value(&packet);
 
     AssurancePacketOutcome {
@@ -151,7 +183,13 @@ mod tests {
         }
     }
 
-    fn artifact(acceptance_id: &str, producer: &str, verifier: &str, consumer: &str, state: &CanonVal) -> AssuranceArtifact {
+    fn artifact(
+        acceptance_id: &str,
+        producer: &str,
+        verifier: &str,
+        consumer: &str,
+        state: &CanonVal,
+    ) -> AssuranceArtifact {
         AssuranceArtifact {
             acceptance_id: acceptance_id.to_string(),
             authenticated: true,
@@ -177,7 +215,14 @@ mod tests {
         let registry = FakeRegistry(BTreeMap::new());
         let state = CanonVal::obj();
         let contract = CanonVal::obj();
-        let outcome = build_assurance_packet(Some(&contract), &[], &registry, Some("alchemist"), Some("alchemist"), Some(&state));
+        let outcome = build_assurance_packet(
+            Some(&contract),
+            &[],
+            &registry,
+            Some("alchemist"),
+            Some("alchemist"),
+            Some(&state),
+        );
         assert!(!outcome.allowed);
         assert_eq!(outcome.code, Some("ARC_SELF_CERTIFICATION"));
     }
@@ -189,7 +234,14 @@ mod tests {
         let contract = CanonVal::obj();
         let mut bad = artifact("acc-1", "worker", "oracle", "legion", &state);
         bad.authenticated = false;
-        let outcome = build_assurance_packet(Some(&contract), &[bad], &registry, Some("alchemist"), Some("oracle"), Some(&state));
+        let outcome = build_assurance_packet(
+            Some(&contract),
+            &[bad],
+            &registry,
+            Some("alchemist"),
+            Some("oracle"),
+            Some(&state),
+        );
         assert!(!outcome.allowed);
         assert_eq!(outcome.code, Some("ARC_EVIDENCE_INSUFFICIENT"));
     }
@@ -199,20 +251,41 @@ mod tests {
         let mut bindings = BTreeMap::new();
         bindings.insert(
             "acc-1".to_string(),
-            EvidenceBinding { producer: "worker".to_string(), verifier: "oracle".to_string(), completion_consumer: "legion".to_string() },
+            EvidenceBinding {
+                producer: "worker".to_string(),
+                verifier: "oracle".to_string(),
+                completion_consumer: "legion".to_string(),
+            },
         );
         let registry = FakeRegistry(bindings);
         let state = CanonVal::obj();
         let contract = CanonVal::obj();
 
         let self_producer = artifact("acc-1", "worker", "worker", "legion", &state);
-        let outcome = build_assurance_packet(Some(&contract), &[self_producer], &registry, Some("alchemist"), Some("oracle"), Some(&state));
+        let outcome = build_assurance_packet(
+            Some(&contract),
+            &[self_producer],
+            &registry,
+            Some("alchemist"),
+            Some("oracle"),
+            Some(&state),
+        );
         assert_eq!(outcome.code, Some("ARC_BINDING_MISMATCH"));
 
         let mismatched = artifact("acc-1", "worker", "someone_else", "legion", &state);
-        let outcome2 = build_assurance_packet(Some(&contract), &[mismatched], &registry, Some("alchemist"), Some("oracle"), Some(&state));
+        let outcome2 = build_assurance_packet(
+            Some(&contract),
+            &[mismatched],
+            &registry,
+            Some("alchemist"),
+            Some("oracle"),
+            Some(&state),
+        );
         assert_eq!(outcome2.code, Some("ARC_BINDING_MISMATCH"));
-        assert_eq!(outcome2.failing_acceptance_ids, vec![Some("acc-1".to_string())]);
+        assert_eq!(
+            outcome2.failing_acceptance_ids,
+            vec![Some("acc-1".to_string())]
+        );
     }
 
     #[test]
@@ -220,13 +293,24 @@ mod tests {
         let mut bindings = BTreeMap::new();
         bindings.insert(
             "acc-1".to_string(),
-            EvidenceBinding { producer: "worker".to_string(), verifier: "oracle".to_string(), completion_consumer: "legion".to_string() },
+            EvidenceBinding {
+                producer: "worker".to_string(),
+                verifier: "oracle".to_string(),
+                completion_consumer: "legion".to_string(),
+            },
         );
         let registry = FakeRegistry(bindings);
         let state = CanonVal::obj().set("status", CanonVal::Str("VERIFIED".into()));
         let contract = CanonVal::obj().set("id", CanonVal::Str("EC-1".into()));
         let good = artifact("acc-1", "worker", "oracle", "legion", &state);
-        let outcome = build_assurance_packet(Some(&contract), &[good], &registry, Some("alchemist"), Some("oracle"), Some(&state));
+        let outcome = build_assurance_packet(
+            Some(&contract),
+            &[good],
+            &registry,
+            Some("alchemist"),
+            Some("oracle"),
+            Some(&state),
+        );
         assert!(outcome.allowed, "{:?}", outcome.message);
         let packet = outcome.packet.unwrap();
         let artifacts = packet.get("artifacts").unwrap().as_arr().unwrap();

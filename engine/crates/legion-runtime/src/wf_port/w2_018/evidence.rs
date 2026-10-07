@@ -31,7 +31,16 @@ const TEXT_EXTENSIONS: &[&str] = &[
     "html", "jsx", "tsx", "vue", "svelte", "astro", "js", "mjs", "ts",
 ];
 const SEARCH_DIRS: &[&str] = &[
-    "src", "app", "pages", "components", "public", "views", "templates", "site", "lib", "data",
+    "src",
+    "app",
+    "pages",
+    "components",
+    "public",
+    "views",
+    "templates",
+    "site",
+    "lib",
+    "data",
 ];
 const SKIP_DIRS: &[&str] = &[
     "node_modules",
@@ -177,11 +186,20 @@ fn flatten_ops(entries: &[&Entry]) -> Vec<Op> {
                     .and_then(|r| hints_by_ref.get(r))
                     .cloned()
                     .unwrap_or_default(),
-                context_ref: obj.get("contextRef").and_then(Value::as_str).map(String::from),
+                context_ref: obj
+                    .get("contextRef")
+                    .and_then(Value::as_str)
+                    .map(String::from),
                 tag: obj.get("tag").and_then(Value::as_str).map(String::from),
-                element_id: obj.get("elementId").and_then(Value::as_str).map(String::from),
+                element_id: obj
+                    .get("elementId")
+                    .and_then(Value::as_str)
+                    .map(String::from),
                 classes,
-                original_text: obj.get("originalText").and_then(Value::as_str).map(String::from),
+                original_text: obj
+                    .get("originalText")
+                    .and_then(Value::as_str)
+                    .map(String::from),
                 new_text: obj.get("newText").and_then(Value::as_str).map(String::from),
                 deleted: obj.get("deleted").and_then(Value::as_bool).unwrap_or(false),
                 source_hint: obj.get("sourceHint").cloned(),
@@ -202,7 +220,10 @@ fn build_context_hints_by_ref(entry: &Entry) -> HashMap<String, Vec<String>> {
         let Some(r#ref) = obj.get("ref").and_then(Value::as_str) else {
             continue;
         };
-        let original_text = obj.get("originalText").and_then(Value::as_str).unwrap_or("");
+        let original_text = obj
+            .get("originalText")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let new_text = obj.get("newText").and_then(Value::as_str).unwrap_or("");
         let mut hints: Vec<String> = Vec::new();
         let mut seen = HashSet::new();
@@ -265,7 +286,11 @@ fn build_context_hints_by_ref(entry: &Entry) -> HashMap<String, Vec<String>> {
 fn build_candidates_for_op(op: &Op, cwd: &Path, search_files: &[SearchFile]) -> Value {
     let original_text = op.original_text.clone().unwrap_or_default();
     let text_matches = if !original_text.is_empty() {
-        find_literal_matches(search_files, &original_text, literal_match_limit(&original_text))
+        find_literal_matches(
+            search_files,
+            &original_text,
+            literal_match_limit(&original_text),
+        )
     } else {
         Vec::new()
     };
@@ -307,7 +332,9 @@ fn is_weak_source_needle(text: &str) -> bool {
     if normalized.len() < 4 {
         return true;
     }
-    Regex::new(r"^[\d.,+\-%\s]+$").unwrap().is_match(&normalized)
+    Regex::new(r"^[\d.,+\-%\s]+$")
+        .unwrap()
+        .is_match(&normalized)
 }
 
 fn analyze_source_hint(op: &Op, cwd: &Path) -> Value {
@@ -315,7 +342,11 @@ fn analyze_source_hint(op: &Op, cwd: &Path) -> Value {
         return Value::Null;
     };
     let hint = normalize_source_hint(hint_obj);
-    let Some(file_rel) = hint.get("file").and_then(Value::as_str).filter(|s| !s.is_empty()) else {
+    let Some(file_rel) = hint
+        .get("file")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+    else {
         return Value::Null;
     };
     let file = cwd.join(file_rel);
@@ -410,7 +441,14 @@ fn collect_search_files(cwd: &Path) -> Vec<SearchFile> {
     let mut seen_dirs = HashSet::new();
     let mut seen_files = HashSet::new();
     for dir in SEARCH_DIRS {
-        scan_dir(&cwd.join(dir), cwd, &mut seen_dirs, &mut seen_files, &mut out, 0);
+        scan_dir(
+            &cwd.join(dir),
+            cwd,
+            &mut seen_dirs,
+            &mut seen_files,
+            &mut out,
+            0,
+        );
     }
     scan_root_files(cwd, &mut seen_files, &mut out);
     out
@@ -709,7 +747,10 @@ mod tests {
 
     #[test]
     fn decode_basic_html_handles_common_entities() {
-        assert_eq!(decode_basic_html("Tom &amp; Jerry &quot;go&quot;"), "Tom & Jerry \"go\"");
+        assert_eq!(
+            decode_basic_html("Tom &amp; Jerry &quot;go&quot;"),
+            "Tom & Jerry \"go\""
+        );
     }
 
     #[test]

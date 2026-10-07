@@ -139,7 +139,10 @@ fn js_parse_int(s: &str) -> Option<i64> {
 /// Mirrors `path.basename(HTML_FILE, path.extname(HTML_FILE))`, `DIR`,
 /// `MP4_OUT`.
 pub fn derive_paths(html_abs: &Path) -> (String, PathBuf, PathBuf) {
-    let dir = html_abs.parent().unwrap_or_else(|| Path::new("")).to_path_buf();
+    let dir = html_abs
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .to_path_buf();
     let basename = html_abs
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
@@ -195,7 +198,12 @@ pub trait BrowserDriver {
     /// (`__recording`/`__seekRender`, and chrome-hiding CSS unless
     /// `keep_chrome`), and waits for `window.__ready === true &&
     /// typeof window.__seek === 'function'` up to `ready_timeout` seconds.
-    fn open_page(&self, url: &str, keep_chrome: bool, ready_timeout: f64) -> Result<PageHandle, DriverError>;
+    fn open_page(
+        &self,
+        url: &str,
+        keep_chrome: bool,
+        ready_timeout: f64,
+    ) -> Result<PageHandle, DriverError>;
 
     /// Seeks the page to time `t` seconds, waits `settle` rAFs, then
     /// screenshots the `width`x`height` viewport to `out_path` as PNG.
@@ -243,7 +251,12 @@ impl HeadlessChromeDriver {
 }
 
 impl BrowserDriver for HeadlessChromeDriver {
-    fn open_page(&self, url: &str, keep_chrome: bool, ready_timeout: f64) -> Result<PageHandle, DriverError> {
+    fn open_page(
+        &self,
+        url: &str,
+        keep_chrome: bool,
+        ready_timeout: f64,
+    ) -> Result<PageHandle, DriverError> {
         let tab = self
             .browser
             .new_tab()
@@ -253,28 +266,31 @@ impl BrowserDriver for HeadlessChromeDriver {
         // window.__seekRender = true; })`, plus the chrome-hiding init
         // script when `!KEEP_CHROME`, both applied before navigation via
         // `Page.addScriptToEvaluateOnNewDocument`.
-        let mut init_script = String::from(
-            "window.__recording = true; window.__seekRender = true;",
-        );
+        let mut init_script =
+            String::from("window.__recording = true; window.__seekRender = true;");
         if !keep_chrome {
             init_script.push_str(&format!(
                 "(function(css){{\n  const HIDE_MARK='data-video-hidden';\n  function injectStyle(){{ const style=document.createElement('style'); style.setAttribute('data-inject','render-video-chrome-hide'); style.textContent=css; (document.head||document.documentElement).appendChild(style); }}\n  function hideChromeBars(){{ const vh=window.innerHeight; document.querySelectorAll('div, nav, header, footer, section, aside').forEach(el => {{ if (el.hasAttribute(HIDE_MARK)) return; if (el.dataset.recordKeep === 'true') return; const s=getComputedStyle(el); if (s.position !== 'fixed' && s.position !== 'sticky') return; const r=el.getBoundingClientRect(); if (r.height > vh * 0.25) return; const atBottom = r.bottom >= vh - 30; const atTop = r.top <= 30 && r.height < 80; if (!atBottom && !atTop) return; const txt = el.textContent || ''; const hasBtn = !!el.querySelector('button, [role=\"button\"]'); const hasCtrls = /[\\u23f8\\u25b6\\u23ee\\u23ed\\u21bb\\u21ba\\u21a9\\u21aa]|\\d+\\.\\d+\\s*s/.test(txt); if (hasBtn || hasCtrls) {{ el.style.setProperty('display','none','important'); el.setAttribute(HIDE_MARK,'1'); }} }}); }}\n  const start=()=>{{ injectStyle(); hideChromeBars(); const obs=new MutationObserver(hideChromeBars); obs.observe(document.body, {{ childList: true, subtree: true }}); setTimeout(()=>obs.disconnect(), 6000); }};\n  if (document.readyState === 'loading') {{ document.addEventListener('DOMContentLoaded', start, {{ once: true }}); }} else {{ start(); }}\n}})({css:?});",
                 css = HIDE_CHROME_CSS
             ));
         }
-        tab.call_method(headless_chrome::protocol::cdp::Page::AddScriptToEvaluateOnNewDocument {
-            source: init_script,
-            world_name: None,
-            include_command_line_api: None,
-            run_immediately: None,
-        })
+        tab.call_method(
+            headless_chrome::protocol::cdp::Page::AddScriptToEvaluateOnNewDocument {
+                source: init_script,
+                world_name: None,
+                include_command_line_api: None,
+                run_immediately: None,
+            },
+        )
         .map_err(|e| DriverError::Other(e.to_string()))?;
 
-        tab.navigate_to(url).map_err(|e| DriverError::Other(e.to_string()))?;
+        tab.navigate_to(url)
+            .map_err(|e| DriverError::Other(e.to_string()))?;
         tab.wait_until_navigated()
             .map_err(|e| DriverError::Other(e.to_string()))?;
 
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs_f64(ready_timeout.max(0.0));
+        let deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs_f64(ready_timeout.max(0.0));
         loop {
             let ready = tab
                 .evaluate(
@@ -311,7 +327,9 @@ impl BrowserDriver for HeadlessChromeDriver {
         let tab = page
             .0
             .downcast_ref::<headless_chrome::Tab>()
-            .ok_or_else(|| DriverError::Other("PageHandle did not hold a headless_chrome Tab".to_string()))?;
+            .ok_or_else(|| {
+                DriverError::Other("PageHandle did not hold a headless_chrome Tab".to_string())
+            })?;
 
         // Mirrors `await page.evaluate((tt) => window.__seek(tt), t)`.
         tab.evaluate(&format!("window.__seek({t})"), false)
@@ -362,7 +380,9 @@ impl FfmpegEncoder for RealFfmpegEncoder {
         let output = Command::new("ffmpeg")
             .args(["-y", "-framerate", &fps.to_string(), "-i"])
             .arg(&pattern)
-            .args(["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "medium", "-r"])
+            .args([
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "medium", "-r",
+            ])
             .arg(fps.to_string())
             .arg("-movflags")
             .arg("+faststart")
@@ -371,7 +391,14 @@ impl FfmpegEncoder for RealFfmpegEncoder {
             .map_err(|e| e.to_string())?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            let tail: String = stderr.chars().rev().take(2000).collect::<Vec<_>>().into_iter().rev().collect();
+            let tail: String = stderr
+                .chars()
+                .rev()
+                .take(2000)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect();
             return Err(tail);
         }
         Ok(())
@@ -451,7 +478,9 @@ pub fn run(
         for &f in bucket {
             let t = f as f64 / args.fps;
             let out_path = tmp_dir.join(format!("frame-{f:06}.png"));
-            if let Err(e) = driver.capture_frame(&page, t, args.settle, args.width, args.height, &out_path) {
+            if let Err(e) =
+                driver.capture_frame(&page, t, args.settle, args.width, args.height, &out_path)
+            {
                 driver.close_page(page);
                 std::fs::remove_dir_all(tmp_dir).ok();
                 return match e {
@@ -472,7 +501,9 @@ pub fn run(
         std::fs::remove_dir_all(tmp_dir).ok();
         return Err(SeekError::NoFramesCaptured);
     }
-    log_lines.push(format!("▸ Captured {png_count}/{frames} frames. Encoding H.264…"));
+    log_lines.push(format!(
+        "▸ Captured {png_count}/{frames} frames. Encoding H.264…"
+    ));
 
     if let Err(e) = encoder.encode(tmp_dir, args.fps, &mp4_out) {
         std::fs::remove_dir_all(tmp_dir).ok();
@@ -520,7 +551,10 @@ mod tests {
     #[test]
     fn buckets_are_round_robin_and_cover_all_frames() {
         let buckets = round_robin_buckets(10, 3);
-        assert_eq!(buckets, vec![vec![0, 3, 6, 9], vec![1, 4, 7], vec![2, 5, 8]]);
+        assert_eq!(
+            buckets,
+            vec![vec![0, 3, 6, 9], vec![1, 4, 7], vec![2, 5, 8]]
+        );
         assert_eq!(buckets.iter().map(|b| b.len()).sum::<usize>(), 10);
     }
 
@@ -572,7 +606,12 @@ mod tests {
     }
 
     impl BrowserDriver for FakeDriver {
-        fn open_page(&self, _url: &str, _keep_chrome: bool, _ready_timeout: f64) -> Result<PageHandle, DriverError> {
+        fn open_page(
+            &self,
+            _url: &str,
+            _keep_chrome: bool,
+            _ready_timeout: f64,
+        ) -> Result<PageHandle, DriverError> {
             self.ready_result
                 .clone()
                 .map(|_| PageHandle(std::sync::Arc::new("fake".to_string())))
@@ -588,7 +627,10 @@ mod tests {
             out_path: &Path,
         ) -> Result<(), DriverError> {
             std::fs::write(out_path, b"fake-png").map_err(|e| DriverError::Other(e.to_string()))?;
-            self.frames_written.lock().unwrap().push(out_path.to_path_buf());
+            self.frames_written
+                .lock()
+                .unwrap()
+                .push(out_path.to_path_buf());
             Ok(())
         }
 

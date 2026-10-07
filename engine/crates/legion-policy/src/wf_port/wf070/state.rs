@@ -22,11 +22,31 @@ use super::canon::{digest_value, CanonVal};
 pub const ARCHITECTURE_STATE_SCHEMA_ID: &str = "architecture-state.v4";
 
 pub const ARCHITECTURE_STATUS: &[&str] = &[
-    "UNROUTED", "TAILORED", "FRAMED", "DRIVERS_READY", "CANDIDATES_READY", "EVALUATED", "MINIMIZED", "DECIDED",
-    "CHALLENGED", "FROZEN", "EVIDENCE_TASK", "EXECUTING", "VERIFIED", "FAILED", "BLOCKED",
+    "UNROUTED",
+    "TAILORED",
+    "FRAMED",
+    "DRIVERS_READY",
+    "CANDIDATES_READY",
+    "EVALUATED",
+    "MINIMIZED",
+    "DECIDED",
+    "CHALLENGED",
+    "FROZEN",
+    "EVIDENCE_TASK",
+    "EXECUTING",
+    "VERIFIED",
+    "FAILED",
+    "BLOCKED",
 ];
 pub const EXECUTION_EPISODE_STATE: &[&str] = &[
-    "PENDING", "QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "TIMEOUT", "BUDGET_STOP",
+    "PENDING",
+    "QUEUED",
+    "RUNNING",
+    "SUCCEEDED",
+    "FAILED",
+    "CANCELLED",
+    "TIMEOUT",
+    "BUDGET_STOP",
     "COMPLETE_WITH_DEBT",
 ];
 
@@ -62,34 +82,95 @@ fn execution_episode_transitions(from: &str) -> &'static [&'static str] {
     match from {
         "PENDING" => &["QUEUED"],
         "QUEUED" => &["RUNNING"],
-        "RUNNING" => &["SUCCEEDED", "FAILED", "CANCELLED", "TIMEOUT", "BUDGET_STOP", "COMPLETE_WITH_DEBT"],
+        "RUNNING" => &[
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELLED",
+            "TIMEOUT",
+            "BUDGET_STOP",
+            "COMPLETE_WITH_DEBT",
+        ],
         _ => &[],
     }
 }
 
 const TOP_FIELDS: &[&str] = &[
-    "schema", "task", "mandate", "intent", "acceptance_ledger", "context", "architecture", "uncertainty",
-    "decision", "evidence", "assurance", "description", "convergence", "execution", "integration",
-    "evidence_reachability", "gate_validity", "machinery_defects", "state_fingerprint",
+    "schema",
+    "task",
+    "mandate",
+    "intent",
+    "acceptance_ledger",
+    "context",
+    "architecture",
+    "uncertainty",
+    "decision",
+    "evidence",
+    "assurance",
+    "description",
+    "convergence",
+    "execution",
+    "integration",
+    "evidence_reachability",
+    "gate_validity",
+    "machinery_defects",
+    "state_fingerprint",
 ];
 const BUDGET_SNAPSHOT_FIELDS: &[&str] = &["id", "budget_ref", "budget_digest", "observed_counters"];
-const BUDGET_COUNTER_FIELDS: &[&str] = &["active_time_ms", "excluded_wait_ms", "retry_count", "event_count"];
-const AUTHORITY_FIELDS: &[&str] = &["authority", "capability", "capability_id", "grant", "grant_id", "token", "token_id"];
+const BUDGET_COUNTER_FIELDS: &[&str] = &[
+    "active_time_ms",
+    "excluded_wait_ms",
+    "retry_count",
+    "event_count",
+];
+const AUTHORITY_FIELDS: &[&str] = &[
+    "authority",
+    "capability",
+    "capability_id",
+    "grant",
+    "grant_id",
+    "token",
+    "token_id",
+];
 const TERMINAL_REVISION_DISPOSITIONS: &[&str] = &["DECIDE_WITH_DEBT", "SPIKE", "ESCALATE"];
 
 fn payload_schema(event_type: &str) -> Option<&'static [&'static str]> {
     match event_type {
         "EFFECT_RECORDED" => Some(&[
-            "id", "effect_id", "decision_id", "effect_class", "status", "realization_status", "correction_route",
-            "output_refs", "unverified_candidate_ids",
+            "id",
+            "effect_id",
+            "decision_id",
+            "effect_class",
+            "status",
+            "realization_status",
+            "correction_route",
+            "output_refs",
+            "unverified_candidate_ids",
         ]),
-        "EFFECT_DENIED" => Some(&["id", "effect_id", "decision_id", "effect_class", "code", "reason", "unverified_candidate_ids"]),
+        "EFFECT_DENIED" => Some(&[
+            "id",
+            "effect_id",
+            "decision_id",
+            "effect_class",
+            "code",
+            "reason",
+            "unverified_candidate_ids",
+        ]),
         "CANCEL_RECORDED" => Some(&["id", "intent_epoch", "reason", "unverified_candidate_ids"]),
-        "RECOVERY_RECORDED" => Some(&["id", "checkpoint_digest", "reason", "candidate_ids", "unverified_candidate_ids"]),
+        "RECOVERY_RECORDED" => Some(&[
+            "id",
+            "checkpoint_digest",
+            "reason",
+            "candidate_ids",
+            "unverified_candidate_ids",
+        ]),
         "SUPERSESSION_RECORDED" => Some(&["id", "supersedes_id", "replacement_id", "reason"]),
-        "ARCHITECTURE_REVISION_RECORDED" | "CONVERGENCE_REVISION_RECORDED" => {
-            Some(&["id", "decision_id", "revision", "live_candidate_ids", "terminal_disposition"])
-        }
+        "ARCHITECTURE_REVISION_RECORDED" | "CONVERGENCE_REVISION_RECORDED" => Some(&[
+            "id",
+            "decision_id",
+            "revision",
+            "live_candidate_ids",
+            "terminal_disposition",
+        ]),
         _ => None,
     }
 }
@@ -126,9 +207,14 @@ pub fn sort_stable(value: &CanonVal) -> CanonVal {
     match value {
         CanonVal::Arr(items) => {
             let mut sorted: Vec<CanonVal> = items.iter().map(sort_stable).collect();
-            sorted.sort_by(|a, b| match (a.get("id").and_then(CanonVal::as_str), b.get("id").and_then(CanonVal::as_str)) {
-                (Some(x), Some(y)) => x.cmp(y),
-                _ => std::cmp::Ordering::Equal,
+            sorted.sort_by(|a, b| {
+                match (
+                    a.get("id").and_then(CanonVal::as_str),
+                    b.get("id").and_then(CanonVal::as_str),
+                ) {
+                    (Some(x), Some(y)) => x.cmp(y),
+                    _ => std::cmp::Ordering::Equal,
+                }
             });
             CanonVal::Arr(sorted)
         }
@@ -175,7 +261,9 @@ fn payload_keys(payload: &CanonVal, fields: &[&str], label: &str) -> Result<(), 
 }
 
 fn checked_ids(value: &CanonVal, label: &str) -> Result<Vec<String>, StateError> {
-    let items = value.as_arr().ok_or_else(|| StateError(format!("{label} must be an array of stable ids")))?;
+    let items = value
+        .as_arr()
+        .ok_or_else(|| StateError(format!("{label} must be an array of stable ids")))?;
     let mut out = Vec::new();
     for item in items {
         match item.as_str() {
@@ -189,13 +277,19 @@ fn checked_ids(value: &CanonVal, label: &str) -> Result<Vec<String>, StateError>
 }
 
 fn upsert(target: &mut Vec<CanonVal>, item: CanonVal) -> Result<(), StateError> {
-    let id = item.get("id").and_then(CanonVal::as_str).map(str::to_string);
+    let id = item
+        .get("id")
+        .and_then(CanonVal::as_str)
+        .map(str::to_string);
     let id = match id {
         Some(id) if !id.is_empty() => id,
         _ => return fail("stable item id is required"),
     };
     let sorted_item = sort_stable(&item);
-    if let Some(index) = target.iter().position(|entry| entry.get("id").and_then(CanonVal::as_str) == Some(id.as_str())) {
+    if let Some(index) = target
+        .iter()
+        .position(|entry| entry.get("id").and_then(CanonVal::as_str) == Some(id.as_str()))
+    {
         target[index] = sorted_item;
     } else {
         target.push(sorted_item);
@@ -225,7 +319,11 @@ fn legal_payload(event_type: &str, payload: &CanonVal) -> Result<(), StateError>
             }
         }
     }
-    for field in ["unverified_candidate_ids", "candidate_ids", "live_candidate_ids"] {
+    for field in [
+        "unverified_candidate_ids",
+        "candidate_ids",
+        "live_candidate_ids",
+    ] {
         if let Some(v) = payload.get(field) {
             checked_ids(v, field)?;
         }
@@ -275,7 +373,10 @@ pub fn create_architecture_state(
         return fail("budget_ref is required");
     }
     let task = CanonVal::obj()
-        .set("objective_lineage_id", CanonVal::Str(objective_lineage_id.to_string()))
+        .set(
+            "objective_lineage_id",
+            CanonVal::Str(objective_lineage_id.to_string()),
+        )
         .set("architecture_status", CanonVal::Str("UNROUTED".to_string()))
         .set("budget_ref", CanonVal::Str(budget_ref.to_string()));
     let intent = CanonVal::obj()
@@ -332,7 +433,10 @@ pub fn create_architecture_state(
     let machinery_defects = CanonVal::obj().set("out_of_scope", CanonVal::Arr(vec![]));
 
     let state = CanonVal::obj()
-        .set("schema", CanonVal::Str(ARCHITECTURE_STATE_SCHEMA_ID.to_string()))
+        .set(
+            "schema",
+            CanonVal::Str(ARCHITECTURE_STATE_SCHEMA_ID.to_string()),
+        )
         .set("task", task)
         .set("mandate", CanonVal::obj())
         .set("intent", intent)
@@ -360,17 +464,36 @@ fn record_revision(next: &mut CanonVal, payload: &CanonVal) -> Result<(), StateE
         Some(r) if r >= 1 => r,
         _ => return fail("revision must be a positive integer"),
     };
-    let decision_id = payload.get("decision_id").and_then(CanonVal::as_str).unwrap_or("").to_string();
-    let terminal_disposition = payload.get("terminal_disposition").cloned().unwrap_or(CanonVal::Null);
+    let decision_id = payload
+        .get("decision_id")
+        .and_then(CanonVal::as_str)
+        .unwrap_or("")
+        .to_string();
+    let terminal_disposition = payload
+        .get("terminal_disposition")
+        .cloned()
+        .unwrap_or(CanonVal::Null);
 
-    let convergence = next.get("convergence").cloned().unwrap_or_else(CanonVal::obj);
-    let revisions = convergence.get("revisions").and_then(CanonVal::as_arr).cloned().unwrap_or_default();
+    let convergence = next
+        .get("convergence")
+        .cloned()
+        .unwrap_or_else(CanonVal::obj);
+    let revisions = convergence
+        .get("revisions")
+        .and_then(CanonVal::as_arr)
+        .cloned()
+        .unwrap_or_default();
     let prior = revisions
         .iter()
-        .filter(|item| item.get("decision_id").and_then(CanonVal::as_str) == Some(decision_id.as_str()))
+        .filter(|item| {
+            item.get("decision_id").and_then(CanonVal::as_str) == Some(decision_id.as_str())
+        })
         .max_by_key(|item| item.get("revision").and_then(CanonVal::as_int).unwrap_or(0));
     if let Some(prior) = prior {
-        let prior_rev = prior.get("revision").and_then(CanonVal::as_int).unwrap_or(0);
+        let prior_rev = prior
+            .get("revision")
+            .and_then(CanonVal::as_int)
+            .unwrap_or(0);
         if revision != prior_rev + 1 {
             return fail("revision must be contiguous per decision");
         }
@@ -422,7 +545,9 @@ fn simple_path(event_type: &str) -> Option<&'static [&'static str]> {
         "FINDING_UPSERTED" => Some(&["assurance", "findings"]),
         "RETRY_RECORDED" => Some(&["execution", "retry", "items"]),
         "DELIVERY_DEFICIT_UPSERTED" => Some(&["execution", "delivery_deficits"]),
-        "DOWNSTREAM_ACKNOWLEDGEMENT_RECORDED" => Some(&["execution", "downstream_acknowledgements"]),
+        "DOWNSTREAM_ACKNOWLEDGEMENT_RECORDED" => {
+            Some(&["execution", "downstream_acknowledgements"])
+        }
         "OWNERSHIP_DISPOSITION_RECORDED" => Some(&["integration", "ownership_dispositions"]),
         "ARTIFACT_ENVELOPE_RECORDED" => Some(&["evidence", "artifact_envelopes"]),
         "EVIDENCE_LIFECYCLE_RECORDED" => Some(&["evidence", "lifecycle"]),
@@ -436,7 +561,10 @@ fn simple_path(event_type: &str) -> Option<&'static [&'static str]> {
     }
 }
 
-fn get_list_mut<'a>(state: &'a mut CanonVal, path: &[&str]) -> Result<&'a mut Vec<CanonVal>, StateError> {
+fn get_list_mut<'a>(
+    state: &'a mut CanonVal,
+    path: &[&str],
+) -> Result<&'a mut Vec<CanonVal>, StateError> {
     let mut cursor = state;
     for (i, segment) in path.iter().enumerate() {
         let map = obj_mut(cursor)?;
@@ -452,7 +580,11 @@ fn get_list_mut<'a>(state: &'a mut CanonVal, path: &[&str]) -> Result<&'a mut Ve
 }
 
 /// Mirrors `applyArchitectureEvent`.
-pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &CanonVal) -> Result<CanonVal, StateError> {
+pub fn apply_architecture_event(
+    state: &CanonVal,
+    event_type: &str,
+    payload: &CanonVal,
+) -> Result<CanonVal, StateError> {
     if state.get("schema").and_then(CanonVal::as_str) != Some(ARCHITECTURE_STATE_SCHEMA_ID) {
         return fail("invalid architecture state");
     }
@@ -462,7 +594,10 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
     match event_type {
         "ROUTE_CLASSIFIED" => {
             let map = obj_mut(&mut next)?;
-            let context = obj_mut(map.get_mut("context").ok_or_else(|| StateError("missing context".into()))?)?;
+            let context = obj_mut(
+                map.get_mut("context")
+                    .ok_or_else(|| StateError("missing context".into()))?,
+            )?;
             context.insert("route".to_string(), sort_stable(payload));
         }
         "ARCHITECTURE_TRANSITIONED" => {
@@ -479,7 +614,10 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
             }
             let map = obj_mut(&mut next)?;
             let task = obj_mut(map.get_mut("task").unwrap())?;
-            task.insert("architecture_status".to_string(), CanonVal::Str(to.to_string()));
+            task.insert(
+                "architecture_status".to_string(),
+                CanonVal::Str(to.to_string()),
+            );
         }
         "EXECUTION_EPISODE_TRANSITIONED" => {
             payload_keys(payload, &["from", "to"], "EXECUTION_EPISODE_TRANSITIONED")?;
@@ -499,7 +637,10 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
         }
         "INTENT_EPOCH_ADVANCED" => {
             payload_keys(payload, &["intent_epoch"], "INTENT_EPOCH_ADVANCED")?;
-            let value = payload.get("intent_epoch").and_then(CanonVal::as_int).unwrap_or(-1);
+            let value = payload
+                .get("intent_epoch")
+                .and_then(CanonVal::as_int)
+                .unwrap_or(-1);
             let current = next
                 .get("intent")
                 .and_then(|i| i.get("intent_epoch"))
@@ -509,12 +650,21 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
                 return fail("intent epoch must be contiguous");
             }
             let map = obj_mut(&mut next)?;
-            obj_mut(map.get_mut("intent").unwrap())?.insert("intent_epoch".to_string(), CanonVal::Int(value));
-            obj_mut(map.get_mut("acceptance_ledger").unwrap())?.insert("intent_epoch".to_string(), CanonVal::Int(value));
+            obj_mut(map.get_mut("intent").unwrap())?
+                .insert("intent_epoch".to_string(), CanonVal::Int(value));
+            obj_mut(map.get_mut("acceptance_ledger").unwrap())?
+                .insert("intent_epoch".to_string(), CanonVal::Int(value));
         }
         "CONTINUATION_EPOCH_ADVANCED" => {
-            payload_keys(payload, &["continuation_epoch"], "CONTINUATION_EPOCH_ADVANCED")?;
-            let value = payload.get("continuation_epoch").and_then(CanonVal::as_int).unwrap_or(-1);
+            payload_keys(
+                payload,
+                &["continuation_epoch"],
+                "CONTINUATION_EPOCH_ADVANCED",
+            )?;
+            let value = payload
+                .get("continuation_epoch")
+                .and_then(CanonVal::as_int)
+                .unwrap_or(-1);
             let current = next
                 .get("intent")
                 .and_then(|i| i.get("continuation_epoch"))
@@ -524,15 +674,17 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
                 return fail("continuation epoch must be contiguous");
             }
             let map = obj_mut(&mut next)?;
-            obj_mut(map.get_mut("intent").unwrap())?.insert("continuation_epoch".to_string(), CanonVal::Int(value));
+            obj_mut(map.get_mut("intent").unwrap())?
+                .insert("continuation_epoch".to_string(), CanonVal::Int(value));
         }
         "BUDGET_SNAPSHOT_RECORDED" => {
             payload_keys(payload, BUDGET_SNAPSHOT_FIELDS, "BUDGET_SNAPSHOT_RECORDED")?;
-            let counters = payload
-                .get("observed_counters")
-                .ok_or_else(|| StateError("budget snapshot requires observed_counters".to_string()))?;
+            let counters = payload.get("observed_counters").ok_or_else(|| {
+                StateError("budget snapshot requires observed_counters".to_string())
+            })?;
             exact_keys(counters, BUDGET_COUNTER_FIELDS, "budget observed_counters")?;
-            let id_ok = matches!(payload.get("id").and_then(CanonVal::as_str), Some(s) if !s.is_empty());
+            let id_ok =
+                matches!(payload.get("id").and_then(CanonVal::as_str), Some(s) if !s.is_empty());
             let ref_ok = matches!(payload.get("budget_ref").and_then(CanonVal::as_str), Some(s) if !s.is_empty());
             let digest_ok = payload
                 .get("budget_digest")
@@ -550,16 +702,23 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
             upsert(list, payload.clone())?;
         }
         "FINGERPRINTS_RECORDED" => {
-            payload_keys(payload, &["decision", "evidence", "finding", "retry"], "FINGERPRINTS_RECORDED")?;
+            payload_keys(
+                payload,
+                &["decision", "evidence", "finding", "retry"],
+                "FINGERPRINTS_RECORDED",
+            )?;
             let map = obj_mut(&mut next)?;
             if let Some(v) = payload.get("decision") {
-                obj_mut(map.get_mut("decision").unwrap())?.insert("fingerprints".to_string(), sort_stable(v));
+                obj_mut(map.get_mut("decision").unwrap())?
+                    .insert("fingerprints".to_string(), sort_stable(v));
             }
             if let Some(v) = payload.get("evidence") {
-                obj_mut(map.get_mut("evidence").unwrap())?.insert("fingerprints".to_string(), sort_stable(v));
+                obj_mut(map.get_mut("evidence").unwrap())?
+                    .insert("fingerprints".to_string(), sort_stable(v));
             }
             if let Some(v) = payload.get("finding") {
-                obj_mut(map.get_mut("assurance").unwrap())?.insert("fingerprints".to_string(), sort_stable(v));
+                obj_mut(map.get_mut("assurance").unwrap())?
+                    .insert("fingerprints".to_string(), sort_stable(v));
             }
             if let Some(v) = payload.get("retry") {
                 let execution = obj_mut(map.get_mut("execution").unwrap())?;
@@ -569,26 +728,46 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
         }
         "MIGRATION_CUTOVER_RECORDED" => {
             let map = obj_mut(&mut next)?;
-            obj_mut(map.get_mut("integration").unwrap())?.insert("migration_cutover".to_string(), sort_stable(payload));
+            obj_mut(map.get_mut("integration").unwrap())?
+                .insert("migration_cutover".to_string(), sort_stable(payload));
         }
         "ACCEPTANCE_RESULT_RECORDED" => {
             let map = obj_mut(&mut next)?;
             let ledger = obj_mut(map.get_mut("acceptance_ledger").unwrap())?;
-            let items = ledger.entry("items".to_string()).or_insert_with(|| CanonVal::Arr(vec![]));
+            let items = ledger
+                .entry("items".to_string())
+                .or_insert_with(|| CanonVal::Arr(vec![]));
             upsert(arr_mut(items)?, payload.clone())?;
         }
         "ARCHITECTURE_REVISION_RECORDED" | "CONVERGENCE_REVISION_RECORDED" => {
             record_revision(&mut next, payload)?;
         }
         "INVALIDATION_RECORDED" => {
-            payload_keys(payload, &["scope", "cause", "root_evidence", "decision_ids", "terminal_disposition"], "INVALIDATION_RECORDED")?;
-            let scope = payload.get("scope").and_then(CanonVal::as_str).unwrap_or("");
+            payload_keys(
+                payload,
+                &[
+                    "scope",
+                    "cause",
+                    "root_evidence",
+                    "decision_ids",
+                    "terminal_disposition",
+                ],
+                "INVALIDATION_RECORDED",
+            )?;
+            let scope = payload
+                .get("scope")
+                .and_then(CanonVal::as_str)
+                .unwrap_or("");
             let target = invalidation_target(scope);
-            let cause_ok = matches!(payload.get("cause").and_then(CanonVal::as_str), Some(s) if !s.is_empty());
+            let cause_ok =
+                matches!(payload.get("cause").and_then(CanonVal::as_str), Some(s) if !s.is_empty());
             if target.is_none() || !cause_ok {
                 return fail("invalidation requires cause and scope");
             }
-            let root_evidence = payload.get("root_evidence").cloned().unwrap_or(CanonVal::Null);
+            let root_evidence = payload
+                .get("root_evidence")
+                .cloned()
+                .unwrap_or(CanonVal::Null);
             if scope == "ROOT" && matches!(root_evidence, CanonVal::Null) {
                 return fail("root invalidation requires root evidence");
             }
@@ -600,26 +779,49 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
                 .get("decision")
                 .and_then(|d| d.get("items"))
                 .and_then(CanonVal::as_arr)
-                .map(|items| items.iter().filter_map(|i| i.get("id").and_then(CanonVal::as_str)).map(str::to_string).collect())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|i| i.get("id").and_then(CanonVal::as_str))
+                        .map(str::to_string)
+                        .collect()
+                })
                 .unwrap_or_default();
             if decision_ids.iter().any(|id| !known_decisions.contains(id)) {
                 return fail("invalidation decision must exist");
             }
-            let terminal_disposition = payload.get("terminal_disposition").cloned().unwrap_or(CanonVal::Null);
+            let terminal_disposition = payload
+                .get("terminal_disposition")
+                .cloned()
+                .unwrap_or(CanonVal::Null);
             if scope != "PATCH" {
                 let target = target.unwrap();
                 let map = obj_mut(&mut next)?;
-                obj_mut(map.get_mut("task").unwrap())?.insert("architecture_status".to_string(), CanonVal::Str(target.to_string()));
+                obj_mut(map.get_mut("task").unwrap())?.insert(
+                    "architecture_status".to_string(),
+                    CanonVal::Str(target.to_string()),
+                );
                 for decision_id in &decision_ids {
                     let existing_count = next
                         .get("convergence")
                         .and_then(|c| c.get("revisions"))
                         .and_then(CanonVal::as_arr)
-                        .map(|items| items.iter().filter(|i| i.get("decision_id").and_then(CanonVal::as_str) == Some(decision_id.as_str())).count())
+                        .map(|items| {
+                            items
+                                .iter()
+                                .filter(|i| {
+                                    i.get("decision_id").and_then(CanonVal::as_str)
+                                        == Some(decision_id.as_str())
+                                })
+                                .count()
+                        })
                         .unwrap_or(0);
                     let revision = (existing_count + 1) as i64;
                     let revision_payload = CanonVal::obj()
-                        .set("id", CanonVal::Str(format!("invalidation:{decision_id}:{revision}")))
+                        .set(
+                            "id",
+                            CanonVal::Str(format!("invalidation:{decision_id}:{revision}")),
+                        )
                         .set("decision_id", CanonVal::Str(decision_id.clone()))
                         .set("revision", CanonVal::Int(revision))
                         .set("live_candidate_ids", CanonVal::Arr(vec![]))
@@ -631,7 +833,10 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
             let convergence = obj_mut(map.get_mut("convergence").unwrap())?;
             let invalidation = CanonVal::obj()
                 .set("scope", CanonVal::Str(scope.to_string()))
-                .set("cause", payload.get("cause").cloned().unwrap_or(CanonVal::Null))
+                .set(
+                    "cause",
+                    payload.get("cause").cloned().unwrap_or(CanonVal::Null),
+                )
                 .set("root_evidence", root_evidence)
                 .set(
                     "decision_ids",
@@ -640,11 +845,15 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
             convergence.insert("invalidation".to_string(), invalidation);
         }
         other => {
-            let path = simple_path(other).ok_or_else(|| StateError("unsupported architecture event".to_string()))?;
+            let path = simple_path(other)
+                .ok_or_else(|| StateError("unsupported architecture event".to_string()))?;
             let list = get_list_mut(&mut next, path)?;
             upsert(list, payload.clone())?;
             if other == "CANCEL_RECORDED" {
-                let value = payload.get("intent_epoch").and_then(CanonVal::as_int).unwrap_or(-1);
+                let value = payload
+                    .get("intent_epoch")
+                    .and_then(CanonVal::as_int)
+                    .unwrap_or(-1);
                 let current = next
                     .get("intent")
                     .and_then(|i| i.get("intent_epoch"))
@@ -654,8 +863,10 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
                     return fail("cancellation must advance intent epoch");
                 }
                 let map = obj_mut(&mut next)?;
-                obj_mut(map.get_mut("intent").unwrap())?.insert("intent_epoch".to_string(), CanonVal::Int(value));
-                obj_mut(map.get_mut("acceptance_ledger").unwrap())?.insert("intent_epoch".to_string(), CanonVal::Int(value));
+                obj_mut(map.get_mut("intent").unwrap())?
+                    .insert("intent_epoch".to_string(), CanonVal::Int(value));
+                obj_mut(map.get_mut("acceptance_ledger").unwrap())?
+                    .insert("intent_epoch".to_string(), CanonVal::Int(value));
                 let episode = map
                     .get("execution")
                     .and_then(|e| e.get("episode_state"))
@@ -663,7 +874,10 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
                     .unwrap_or("")
                     .to_string();
                 if episode == "RUNNING" {
-                    obj_mut(map.get_mut("execution").unwrap())?.insert("episode_state".to_string(), CanonVal::Str("CANCELLED".to_string()));
+                    obj_mut(map.get_mut("execution").unwrap())?.insert(
+                        "episode_state".to_string(),
+                        CanonVal::Str("CANCELLED".to_string()),
+                    );
                 }
             }
         }
@@ -672,7 +886,10 @@ pub fn apply_architecture_event(state: &CanonVal, event_type: &str, payload: &Ca
     Ok(with_state_fingerprint(&next))
 }
 
-pub fn project_architecture_events(events: &[(String, CanonVal)], initial_state: &CanonVal) -> Result<CanonVal, StateError> {
+pub fn project_architecture_events(
+    events: &[(String, CanonVal)],
+    initial_state: &CanonVal,
+) -> Result<CanonVal, StateError> {
     let mut state = initial_state.clone();
     for (event_type, payload) in events {
         state = apply_architecture_event(&state, event_type, payload)?;
@@ -690,22 +907,67 @@ pub fn validate_architecture_state(state: &CanonVal) -> (bool, Vec<String>) {
 
 fn validate_architecture_state_inner(state: &CanonVal) -> Result<(), StateError> {
     exact_keys(state, TOP_FIELDS, "architecture state")?;
-    exact_keys(state.get("task").unwrap(), &["objective_lineage_id", "architecture_status", "budget_ref"], "task")?;
+    exact_keys(
+        state.get("task").unwrap(),
+        &["objective_lineage_id", "architecture_status", "budget_ref"],
+        "task",
+    )?;
     exact_keys(
         state.get("intent").unwrap(),
-        &["intent_epoch", "continuation_epoch", "outcomes", "success_signals", "unacceptable_losses"],
+        &[
+            "intent_epoch",
+            "continuation_epoch",
+            "outcomes",
+            "success_signals",
+            "unacceptable_losses",
+        ],
         "intent",
     )?;
     let ledger = state.get("acceptance_ledger").unwrap();
-    let ledger_fields: &[&str] = if ledger.get("schema").and_then(CanonVal::as_str) == Some("acceptance-ledger.v2") {
-        &["schema", "ledger_version", "intent_epoch", "acceptance_manifest_fingerprint", "schedule_fingerprint", "schedule", "frozen_at", "items"]
-    } else {
-        &["schema", "ledger_version", "intent_epoch", "acceptance_fingerprint", "frozen_at", "items"]
-    };
+    let ledger_fields: &[&str] =
+        if ledger.get("schema").and_then(CanonVal::as_str) == Some("acceptance-ledger.v2") {
+            &[
+                "schema",
+                "ledger_version",
+                "intent_epoch",
+                "acceptance_manifest_fingerprint",
+                "schedule_fingerprint",
+                "schedule",
+                "frozen_at",
+                "items",
+            ]
+        } else {
+            &[
+                "schema",
+                "ledger_version",
+                "intent_epoch",
+                "acceptance_fingerprint",
+                "frozen_at",
+                "items",
+            ]
+        };
     exact_keys(ledger, ledger_fields, "acceptance_ledger")?;
-    exact_keys(state.get("decision").unwrap(), &["items", "fingerprints", "refs"], "decision")?;
-    exact_keys(state.get("evidence").unwrap(), &["items", "lifecycle", "artifact_envelopes", "fingerprints", "refs"], "evidence")?;
-    exact_keys(state.get("assurance").unwrap(), &["findings", "fingerprints", "refs"], "assurance")?;
+    exact_keys(
+        state.get("decision").unwrap(),
+        &["items", "fingerprints", "refs"],
+        "decision",
+    )?;
+    exact_keys(
+        state.get("evidence").unwrap(),
+        &[
+            "items",
+            "lifecycle",
+            "artifact_envelopes",
+            "fingerprints",
+            "refs",
+        ],
+        "evidence",
+    )?;
+    exact_keys(
+        state.get("assurance").unwrap(),
+        &["findings", "fingerprints", "refs"],
+        "assurance",
+    )?;
     let convergence = state.get("convergence").unwrap();
     let mut convergence_fields = vec!["revisions", "terminal_disposition"];
     if convergence.get("invalidation").is_some() {
@@ -716,52 +978,125 @@ fn validate_architecture_state_inner(state: &CanonVal) -> Result<(), StateError>
     exact_keys(
         execution,
         &[
-            "episode_state", "trajectory", "budget_snapshots", "retry", "diagnosis", "delivery_deficits",
-            "downstream_acknowledgements", "effects", "denials", "cancellations", "terminal_states",
-            "recovery_refs", "supersession_refs", "findings", "evidence",
+            "episode_state",
+            "trajectory",
+            "budget_snapshots",
+            "retry",
+            "diagnosis",
+            "delivery_deficits",
+            "downstream_acknowledgements",
+            "effects",
+            "denials",
+            "cancellations",
+            "terminal_states",
+            "recovery_refs",
+            "supersession_refs",
+            "findings",
+            "evidence",
         ],
         "execution",
     )?;
     exact_keys(
         execution.get("trajectory").unwrap(),
-        &["last_sequence", "last_event_digest", "replay_state_fingerprint"],
+        &[
+            "last_sequence",
+            "last_event_digest",
+            "replay_state_fingerprint",
+        ],
         "execution.trajectory",
     )?;
-    exact_keys(execution.get("retry").unwrap(), &["items", "fingerprints", "refs"], "execution.retry")?;
-    for snapshot in execution.get("budget_snapshots").and_then(CanonVal::as_arr).cloned().unwrap_or_default() {
+    exact_keys(
+        execution.get("retry").unwrap(),
+        &["items", "fingerprints", "refs"],
+        "execution.retry",
+    )?;
+    for snapshot in execution
+        .get("budget_snapshots")
+        .and_then(CanonVal::as_arr)
+        .cloned()
+        .unwrap_or_default()
+    {
         exact_keys(&snapshot, BUDGET_SNAPSHOT_FIELDS, "budget snapshot")?;
-        let counters = snapshot.get("observed_counters").ok_or_else(|| StateError("invalid budget snapshot".to_string()))?;
+        let counters = snapshot
+            .get("observed_counters")
+            .ok_or_else(|| StateError("invalid budget snapshot".to_string()))?;
         exact_keys(counters, BUDGET_COUNTER_FIELDS, "budget observed_counters")?;
-        let id_ok = matches!(snapshot.get("id").and_then(CanonVal::as_str), Some(s) if !s.is_empty());
+        let id_ok =
+            matches!(snapshot.get("id").and_then(CanonVal::as_str), Some(s) if !s.is_empty());
         let ref_ok = matches!(snapshot.get("budget_ref").and_then(CanonVal::as_str), Some(s) if !s.is_empty());
-        let digest_ok = snapshot.get("budget_digest").and_then(CanonVal::as_str).map(super::canon::is_digest).unwrap_or(false);
-        let counters_ok = counters.as_obj().map(|m| m.values().all(|v| matches!(v, CanonVal::Int(i) if *i >= 0))).unwrap_or(false);
+        let digest_ok = snapshot
+            .get("budget_digest")
+            .and_then(CanonVal::as_str)
+            .map(super::canon::is_digest)
+            .unwrap_or(false);
+        let counters_ok = counters
+            .as_obj()
+            .map(|m| m.values().all(|v| matches!(v, CanonVal::Int(i) if *i >= 0)))
+            .unwrap_or(false);
         if !id_ok || !ref_ok || !digest_ok || !counters_ok {
             return fail("invalid budget snapshot");
         }
     }
-    exact_keys(state.get("integration").unwrap(), &["ownership_dispositions", "migration_cutover"], "integration")?;
+    exact_keys(
+        state.get("integration").unwrap(),
+        &["ownership_dispositions", "migration_cutover"],
+        "integration",
+    )?;
     if state.get("schema").and_then(CanonVal::as_str) != Some(ARCHITECTURE_STATE_SCHEMA_ID)
-        || !["acceptance-ledger.v1", "acceptance-ledger.v2"].contains(&ledger.get("schema").and_then(CanonVal::as_str).unwrap_or(""))
+        || !["acceptance-ledger.v1", "acceptance-ledger.v2"].contains(
+            &ledger
+                .get("schema")
+                .and_then(CanonVal::as_str)
+                .unwrap_or(""),
+        )
     {
         return fail("invalid schema");
     }
-    let status = state.get("task").unwrap().get("architecture_status").and_then(CanonVal::as_str).unwrap_or("");
-    let episode = execution.get("episode_state").and_then(CanonVal::as_str).unwrap_or("");
+    let status = state
+        .get("task")
+        .unwrap()
+        .get("architecture_status")
+        .and_then(CanonVal::as_str)
+        .unwrap_or("");
+    let episode = execution
+        .get("episode_state")
+        .and_then(CanonVal::as_str)
+        .unwrap_or("");
     if !ARCHITECTURE_STATUS.contains(&status) || !EXECUTION_EPISODE_STATE.contains(&episode) {
         return fail("invalid state enum");
     }
-    let intent_epoch = state.get("intent").unwrap().get("intent_epoch").and_then(CanonVal::as_int).unwrap_or(0);
-    let continuation_epoch = state.get("intent").unwrap().get("continuation_epoch").and_then(CanonVal::as_int).unwrap_or(0);
-    let ledger_epoch = ledger.get("intent_epoch").and_then(CanonVal::as_int).unwrap_or(-1);
+    let intent_epoch = state
+        .get("intent")
+        .unwrap()
+        .get("intent_epoch")
+        .and_then(CanonVal::as_int)
+        .unwrap_or(0);
+    let continuation_epoch = state
+        .get("intent")
+        .unwrap()
+        .get("continuation_epoch")
+        .and_then(CanonVal::as_int)
+        .unwrap_or(0);
+    let ledger_epoch = ledger
+        .get("intent_epoch")
+        .and_then(CanonVal::as_int)
+        .unwrap_or(-1);
     if intent_epoch < 1 || continuation_epoch < 1 || ledger_epoch != intent_epoch {
         return fail("invalid intent epoch");
     }
-    let last_sequence = execution.get("trajectory").unwrap().get("last_sequence").and_then(CanonVal::as_int).unwrap_or(-1);
+    let last_sequence = execution
+        .get("trajectory")
+        .unwrap()
+        .get("last_sequence")
+        .and_then(CanonVal::as_int)
+        .unwrap_or(-1);
     if last_sequence < 0 {
         return fail("invalid trajectory sequence");
     }
-    let recorded_fp = state.get("state_fingerprint").and_then(CanonVal::as_str).unwrap_or("");
+    let recorded_fp = state
+        .get("state_fingerprint")
+        .and_then(CanonVal::as_str)
+        .unwrap_or("");
     if recorded_fp != fingerprint_architecture_state(state) {
         return fail("state fingerprint mismatch");
     }
@@ -785,7 +1120,10 @@ mod tests {
             .set("schema", CanonVal::Str("acceptance-ledger.v1".to_string()))
             .set("ledger_version", CanonVal::Int(1))
             .set("intent_epoch", CanonVal::Int(1))
-            .set("acceptance_fingerprint", CanonVal::Str(digest_value(&CanonVal::obj())))
+            .set(
+                "acceptance_fingerprint",
+                CanonVal::Str(digest_value(&CanonVal::obj())),
+            )
             .set("frozen_at", CanonVal::Null)
             .set("items", CanonVal::Arr(vec![]))
     }
@@ -799,7 +1137,15 @@ mod tests {
         let state = base_state();
         let (valid, issues) = validate_architecture_state(&state);
         assert!(valid, "{issues:?}");
-        assert_eq!(state.get("task").unwrap().get("architecture_status").unwrap().as_str(), Some("UNROUTED"));
+        assert_eq!(
+            state
+                .get("task")
+                .unwrap()
+                .get("architecture_status")
+                .unwrap()
+                .as_str(),
+            Some("UNROUTED")
+        );
     }
 
     #[test]
@@ -811,16 +1157,30 @@ mod tests {
     #[test]
     fn legal_architecture_transition_updates_status() {
         let state = base_state();
-        let payload = CanonVal::obj().set("from", CanonVal::Str("UNROUTED".into())).set("to", CanonVal::Str("TAILORED".into()));
+        let payload = CanonVal::obj()
+            .set("from", CanonVal::Str("UNROUTED".into()))
+            .set("to", CanonVal::Str("TAILORED".into()));
         let next = apply_architecture_event(&state, "ARCHITECTURE_TRANSITIONED", &payload).unwrap();
-        assert_eq!(next.get("task").unwrap().get("architecture_status").unwrap().as_str(), Some("TAILORED"));
-        assert_ne!(next.get("state_fingerprint"), state.get("state_fingerprint"));
+        assert_eq!(
+            next.get("task")
+                .unwrap()
+                .get("architecture_status")
+                .unwrap()
+                .as_str(),
+            Some("TAILORED")
+        );
+        assert_ne!(
+            next.get("state_fingerprint"),
+            state.get("state_fingerprint")
+        );
     }
 
     #[test]
     fn illegal_architecture_transition_is_rejected() {
         let state = base_state();
-        let payload = CanonVal::obj().set("from", CanonVal::Str("UNROUTED".into())).set("to", CanonVal::Str("FROZEN".into()));
+        let payload = CanonVal::obj()
+            .set("from", CanonVal::Str("UNROUTED".into()))
+            .set("to", CanonVal::Str("FROZEN".into()));
         assert!(apply_architecture_event(&state, "ARCHITECTURE_TRANSITIONED", &payload).is_err());
     }
 
@@ -831,19 +1191,52 @@ mod tests {
         assert!(apply_architecture_event(&state, "INTENT_EPOCH_ADVANCED", &payload).is_err());
         let payload_ok = CanonVal::obj().set("intent_epoch", CanonVal::Int(2));
         let next = apply_architecture_event(&state, "INTENT_EPOCH_ADVANCED", &payload_ok).unwrap();
-        assert_eq!(next.get("intent").unwrap().get("intent_epoch").unwrap().as_int(), Some(2));
-        assert_eq!(next.get("acceptance_ledger").unwrap().get("intent_epoch").unwrap().as_int(), Some(2));
+        assert_eq!(
+            next.get("intent")
+                .unwrap()
+                .get("intent_epoch")
+                .unwrap()
+                .as_int(),
+            Some(2)
+        );
+        assert_eq!(
+            next.get("acceptance_ledger")
+                .unwrap()
+                .get("intent_epoch")
+                .unwrap()
+                .as_int(),
+            Some(2)
+        );
     }
 
     #[test]
     fn decision_recorded_upserts_by_id() {
         let state = base_state();
-        let d1 = CanonVal::obj().set("id", CanonVal::Str("D-1".into())).set("note", CanonVal::Str("first".into()));
+        let d1 = CanonVal::obj()
+            .set("id", CanonVal::Str("D-1".into()))
+            .set("note", CanonVal::Str("first".into()));
         let next = apply_architecture_event(&state, "DECISION_RECORDED", &d1).unwrap();
-        assert_eq!(next.get("decision").unwrap().get("items").unwrap().as_arr().unwrap().len(), 1);
-        let d1b = CanonVal::obj().set("id", CanonVal::Str("D-1".into())).set("note", CanonVal::Str("updated".into()));
+        assert_eq!(
+            next.get("decision")
+                .unwrap()
+                .get("items")
+                .unwrap()
+                .as_arr()
+                .unwrap()
+                .len(),
+            1
+        );
+        let d1b = CanonVal::obj()
+            .set("id", CanonVal::Str("D-1".into()))
+            .set("note", CanonVal::Str("updated".into()));
         let next2 = apply_architecture_event(&next, "DECISION_RECORDED", &d1b).unwrap();
-        let items = next2.get("decision").unwrap().get("items").unwrap().as_arr().unwrap();
+        let items = next2
+            .get("decision")
+            .unwrap()
+            .get("items")
+            .unwrap()
+            .as_arr()
+            .unwrap();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].get("note").unwrap().as_str(), Some("updated"));
     }
@@ -868,10 +1261,16 @@ mod tests {
     #[test]
     fn cancel_recorded_advances_epoch_and_cancels_running_episode() {
         let mut state = base_state();
-        let transition = CanonVal::obj().set("from", CanonVal::Str("PENDING".into())).set("to", CanonVal::Str("QUEUED".into()));
-        state = apply_architecture_event(&state, "EXECUTION_EPISODE_TRANSITIONED", &transition).unwrap();
-        let transition2 = CanonVal::obj().set("from", CanonVal::Str("QUEUED".into())).set("to", CanonVal::Str("RUNNING".into()));
-        state = apply_architecture_event(&state, "EXECUTION_EPISODE_TRANSITIONED", &transition2).unwrap();
+        let transition = CanonVal::obj()
+            .set("from", CanonVal::Str("PENDING".into()))
+            .set("to", CanonVal::Str("QUEUED".into()));
+        state = apply_architecture_event(&state, "EXECUTION_EPISODE_TRANSITIONED", &transition)
+            .unwrap();
+        let transition2 = CanonVal::obj()
+            .set("from", CanonVal::Str("QUEUED".into()))
+            .set("to", CanonVal::Str("RUNNING".into()));
+        state = apply_architecture_event(&state, "EXECUTION_EPISODE_TRANSITIONED", &transition2)
+            .unwrap();
 
         let payload = CanonVal::obj()
             .set("id", CanonVal::Str("c1".into()))
@@ -879,26 +1278,63 @@ mod tests {
             .set("reason", CanonVal::Str("operator abort".into()))
             .set("unverified_candidate_ids", CanonVal::Arr(vec![]));
         let next = apply_architecture_event(&state, "CANCEL_RECORDED", &payload).unwrap();
-        assert_eq!(next.get("intent").unwrap().get("intent_epoch").unwrap().as_int(), Some(2));
-        assert_eq!(next.get("execution").unwrap().get("episode_state").unwrap().as_str(), Some("CANCELLED"));
+        assert_eq!(
+            next.get("intent")
+                .unwrap()
+                .get("intent_epoch")
+                .unwrap()
+                .as_int(),
+            Some(2)
+        );
+        assert_eq!(
+            next.get("execution")
+                .unwrap()
+                .get("episode_state")
+                .unwrap()
+                .as_str(),
+            Some("CANCELLED")
+        );
     }
 
     #[test]
     fn invalidation_bumps_revision_for_each_decision() {
         let state = base_state();
         let decision_payload = CanonVal::obj().set("id", CanonVal::Str("D-1".into()));
-        let state = apply_architecture_event(&state, "DECISION_RECORDED", &decision_payload).unwrap();
+        let state =
+            apply_architecture_event(&state, "DECISION_RECORDED", &decision_payload).unwrap();
         let payload = CanonVal::obj()
             .set("scope", CanonVal::Str("DESIGN".into()))
-            .set("cause", CanonVal::Str("evidence contradicted the plan".into()))
+            .set(
+                "cause",
+                CanonVal::Str("evidence contradicted the plan".into()),
+            )
             .set("root_evidence", CanonVal::Null)
-            .set("decision_ids", CanonVal::Arr(vec![CanonVal::Str("D-1".into())]))
+            .set(
+                "decision_ids",
+                CanonVal::Arr(vec![CanonVal::Str("D-1".into())]),
+            )
             .set("terminal_disposition", CanonVal::Null);
         let next = apply_architecture_event(&state, "INVALIDATION_RECORDED", &payload).unwrap();
-        assert_eq!(next.get("task").unwrap().get("architecture_status").unwrap().as_str(), Some("CANDIDATES_READY"));
-        let revisions = next.get("convergence").unwrap().get("revisions").unwrap().as_arr().unwrap();
+        assert_eq!(
+            next.get("task")
+                .unwrap()
+                .get("architecture_status")
+                .unwrap()
+                .as_str(),
+            Some("CANDIDATES_READY")
+        );
+        let revisions = next
+            .get("convergence")
+            .unwrap()
+            .get("revisions")
+            .unwrap()
+            .as_arr()
+            .unwrap();
         assert_eq!(revisions.len(), 1);
-        assert_eq!(revisions[0].get("id").unwrap().as_str(), Some("invalidation:D-1:1"));
+        assert_eq!(
+            revisions[0].get("id").unwrap().as_str(),
+            Some("invalidation:D-1:1")
+        );
     }
 
     #[test]
@@ -917,7 +1353,8 @@ mod tests {
     fn revision_tripwire_requires_terminal_disposition_at_three() {
         let state = base_state();
         let decision_payload = CanonVal::obj().set("id", CanonVal::Str("D-1".into()));
-        let state = apply_architecture_event(&state, "DECISION_RECORDED", &decision_payload).unwrap();
+        let state =
+            apply_architecture_event(&state, "DECISION_RECORDED", &decision_payload).unwrap();
         let mut s = state;
         for revision in 1..=2 {
             let payload = CanonVal::obj()
@@ -943,7 +1380,14 @@ mod tests {
             .set("live_candidate_ids", CanonVal::Arr(vec![]))
             .set("terminal_disposition", CanonVal::Str("SPIKE".into()));
         let next = apply_architecture_event(&s, "ARCHITECTURE_REVISION_RECORDED", &good).unwrap();
-        assert_eq!(next.get("convergence").unwrap().get("terminal_disposition").unwrap().as_str(), Some("SPIKE"));
+        assert_eq!(
+            next.get("convergence")
+                .unwrap()
+                .get("terminal_disposition")
+                .unwrap()
+                .as_str(),
+            Some("SPIKE")
+        );
     }
 
     #[test]
@@ -964,10 +1408,22 @@ mod tests {
         let good = CanonVal::obj()
             .set("id", CanonVal::Str("bs1".into()))
             .set("budget_ref", CanonVal::Str("b".into()))
-            .set("budget_digest", CanonVal::Str(digest_value(&CanonVal::obj())))
+            .set(
+                "budget_digest",
+                CanonVal::Str(digest_value(&CanonVal::obj())),
+            )
             .set("observed_counters", counters);
         let next = apply_architecture_event(&state, "BUDGET_SNAPSHOT_RECORDED", &good).unwrap();
-        assert_eq!(next.get("execution").unwrap().get("budget_snapshots").unwrap().as_arr().unwrap().len(), 1);
+        assert_eq!(
+            next.get("execution")
+                .unwrap()
+                .get("budget_snapshots")
+                .unwrap()
+                .as_arr()
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -978,12 +1434,18 @@ mod tests {
         if let CanonVal::Obj(map) = &mut mutated {
             if let Some(CanonVal::Obj(execution)) = map.get_mut("execution") {
                 if let Some(CanonVal::Obj(trajectory)) = execution.get_mut("trajectory") {
-                    trajectory.insert("last_event_digest".to_string(), CanonVal::Str("sha256:deadbeef".to_string()));
+                    trajectory.insert(
+                        "last_event_digest".to_string(),
+                        CanonVal::Str("sha256:deadbeef".to_string()),
+                    );
                 }
             }
         }
         let fp2 = fingerprint_architecture_state(&mutated);
-        assert_eq!(fp1, fp2, "trajectory replay fields must not affect the fingerprint");
+        assert_eq!(
+            fp1, fp2,
+            "trajectory replay fields must not affect the fingerprint"
+        );
     }
 
     #[test]
@@ -992,14 +1454,26 @@ mod tests {
         let events = vec![
             (
                 "ARCHITECTURE_TRANSITIONED".to_string(),
-                CanonVal::obj().set("from", CanonVal::Str("UNROUTED".into())).set("to", CanonVal::Str("TAILORED".into())),
+                CanonVal::obj()
+                    .set("from", CanonVal::Str("UNROUTED".into()))
+                    .set("to", CanonVal::Str("TAILORED".into())),
             ),
             (
                 "ARCHITECTURE_TRANSITIONED".to_string(),
-                CanonVal::obj().set("from", CanonVal::Str("TAILORED".into())).set("to", CanonVal::Str("FRAMED".into())),
+                CanonVal::obj()
+                    .set("from", CanonVal::Str("TAILORED".into()))
+                    .set("to", CanonVal::Str("FRAMED".into())),
             ),
         ];
         let result = project_architecture_events(&events, &state).unwrap();
-        assert_eq!(result.get("task").unwrap().get("architecture_status").unwrap().as_str(), Some("FRAMED"));
+        assert_eq!(
+            result
+                .get("task")
+                .unwrap()
+                .get("architecture_status")
+                .unwrap()
+                .as_str(),
+            Some("FRAMED")
+        );
     }
 }

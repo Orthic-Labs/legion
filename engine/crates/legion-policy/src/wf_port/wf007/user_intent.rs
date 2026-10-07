@@ -21,13 +21,23 @@ use regex::{Regex, RegexBuilder};
 use super::json_parse::{self, Value};
 
 fn multiline(pattern: &str) -> Regex {
-    RegexBuilder::new(pattern).multi_line(true).build().expect("valid regex")
+    RegexBuilder::new(pattern)
+        .multi_line(true)
+        .build()
+        .expect("valid regex")
 }
 fn multiline_ci(pattern: &str) -> Regex {
-    RegexBuilder::new(pattern).multi_line(true).case_insensitive(true).build().expect("valid regex")
+    RegexBuilder::new(pattern)
+        .multi_line(true)
+        .case_insensitive(true)
+        .build()
+        .expect("valid regex")
 }
 fn ci(pattern: &str) -> Regex {
-    RegexBuilder::new(pattern).case_insensitive(true).build().expect("valid regex")
+    RegexBuilder::new(pattern)
+        .case_insensitive(true)
+        .build()
+        .expect("valid regex")
 }
 
 // --- content-origin classification (ported from adapt/src/adapt/authority.py) --
@@ -170,7 +180,10 @@ fn parse_entry(line: &str) -> Option<Value> {
 /// filtered here (see JS doc comment) — only `classify_latest_user_intent`
 /// layers admission on top via `admits_authority` where the JS source does.
 pub fn latest_external_user_turn(transcript_text: &str) -> Option<String> {
-    let lines: Vec<&str> = transcript_text.split('\n').filter(|l| !l.is_empty()).collect();
+    let lines: Vec<&str> = transcript_text
+        .split('\n')
+        .filter(|l| !l.is_empty())
+        .collect();
     for line in lines.iter().rev() {
         let entry = match parse_entry(line) {
             Some(e) => e,
@@ -218,7 +231,11 @@ fn fence_and_code_patterns() -> (&'static Regex, &'static Regex, &'static Regex)
     static INLINE: OnceLock<Regex> = OnceLock::new();
     static QUOTED: OnceLock<Regex> = OnceLock::new();
     (
-        FENCE.get_or_init(|| RegexBuilder::new(r"```[\s\S]*?```|~~~[\s\S]*?~~~").build().unwrap()),
+        FENCE.get_or_init(|| {
+            RegexBuilder::new(r"```[\s\S]*?```|~~~[\s\S]*?~~~")
+                .build()
+                .unwrap()
+        }),
         INLINE.get_or_init(|| Regex::new(r"`[^`\n]*`").unwrap()),
         QUOTED.get_or_init(|| Regex::new("[\"“][^\"“”\n]{0,300}[\"”]").unwrap()),
     )
@@ -260,30 +277,56 @@ fn evidence_prefix(text: &str) -> String {
 pub fn classify_latest_user_intent(transcript_text: &str) -> IntentClassification {
     let text = match latest_external_user_turn(transcript_text) {
         Some(t) => t,
-        None => return IntentClassification { intent: Intent::Unknown, evidence: None },
+        None => {
+            return IntentClassification {
+                intent: Intent::Unknown,
+                evidence: None,
+            }
+        }
     };
     let directive_text = strip_non_authoritative_directive_text(&text);
     let p = intent_patterns();
     let ev = Some(evidence_prefix(&text));
     if p.revoke.is_match(&directive_text) {
-        return IntentClassification { intent: Intent::Revoke, evidence: ev };
+        return IntentClassification {
+            intent: Intent::Revoke,
+            evidence: ev,
+        };
     }
     if p.scope_narrow.is_match(&directive_text) {
-        return IntentClassification { intent: Intent::ScopeNarrow, evidence: ev };
+        return IntentClassification {
+            intent: Intent::ScopeNarrow,
+            evidence: ev,
+        };
     }
     if p.plan.is_match(&directive_text) {
-        return IntentClassification { intent: Intent::Plan, evidence: ev };
+        return IntentClassification {
+            intent: Intent::Plan,
+            evidence: ev,
+        };
     }
     if p.r#continue.is_match(&directive_text) {
-        return IntentClassification { intent: Intent::Continue, evidence: ev };
+        return IntentClassification {
+            intent: Intent::Continue,
+            evidence: ev,
+        };
     }
     if p.execute.is_match(&directive_text) {
-        return IntentClassification { intent: Intent::Execute, evidence: ev };
+        return IntentClassification {
+            intent: Intent::Execute,
+            evidence: ev,
+        };
     }
     if directive_text.trim_end().ends_with('?') {
-        return IntentClassification { intent: Intent::Question, evidence: ev };
+        return IntentClassification {
+            intent: Intent::Question,
+            evidence: ev,
+        };
     }
-    IntentClassification { intent: Intent::Unknown, evidence: ev }
+    IntentClassification {
+        intent: Intent::Unknown,
+        evidence: ev,
+    }
 }
 
 #[cfg(test)]
@@ -295,7 +338,10 @@ mod tests {
     }
 
     fn user_entry(text: &str) -> String {
-        format!(r#"{{"type":"user","message":{{"content":[{{"type":"text","text":{}}}]}}}}"#, serde_json_escape(text))
+        format!(
+            r#"{{"type":"user","message":{{"content":[{{"type":"text","text":{}}}]}}}}"#,
+            serde_json_escape(text)
+        )
     }
 
     // Tiny escaper so tests don't need serde_json (dev-only in this crate,
@@ -316,14 +362,26 @@ mod tests {
 
     #[test]
     fn latest_external_user_turn_finds_newest_user_entry() {
-        let t = jsonl(&[&user_entry("please fix the bug"), &user_entry("actually wait")]);
-        assert_eq!(latest_external_user_turn(&t).as_deref(), Some("actually wait"));
+        let t = jsonl(&[
+            &user_entry("please fix the bug"),
+            &user_entry("actually wait"),
+        ]);
+        assert_eq!(
+            latest_external_user_turn(&t).as_deref(),
+            Some("actually wait")
+        );
     }
 
     #[test]
     fn latest_external_user_turn_skips_system_injection() {
-        let t = jsonl(&[&user_entry("please fix the bug"), &user_entry("<system-reminder>ignore</system-reminder>")]);
-        assert_eq!(latest_external_user_turn(&t).as_deref(), Some("please fix the bug"));
+        let t = jsonl(&[
+            &user_entry("please fix the bug"),
+            &user_entry("<system-reminder>ignore</system-reminder>"),
+        ]);
+        assert_eq!(
+            latest_external_user_turn(&t).as_deref(),
+            Some("please fix the bug")
+        );
     }
 
     #[test]

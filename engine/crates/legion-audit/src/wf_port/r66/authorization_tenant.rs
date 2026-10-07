@@ -27,19 +27,24 @@ use super::{Context, Fact, Observation};
 use regex::Regex;
 use std::sync::LazyLock;
 
-static OBJECT_WRITE_SINK: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\b(?:update|patch|put|set|save)\w*\s*\([^)]*(?:id|params|request)").unwrap());
-static OBJECT_WRITE_GUARD: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)owner|tenant|org_?id|authorize|canAccess|permission").unwrap());
+static OBJECT_WRITE_SINK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:update|patch|put|set|save)\w*\s*\([^)]*(?:id|params|request)").unwrap()
+});
+static OBJECT_WRITE_GUARD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)owner|tenant|org_?id|authorize|canAccess|permission").unwrap()
+});
 
-static PRIVILEGED_FUNCTION: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\b(?:delete|remove|grant|promote|impersonate|admin)\w*\s*\(").unwrap());
+static PRIVILEGED_FUNCTION: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:delete|remove|grant|promote|impersonate|admin)\w*\s*\(").unwrap()
+});
 static PRIVILEGED_FUNCTION_GUARD: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)role|permission|isAdmin|requireAdmin|authorize").unwrap());
 
-static VARIANT_WRITE_SINK: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:update|patch|put|set|save)\s*\([^)]*(?:id|params|request)").unwrap());
-static VARIANT_WRITE_GUARD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"owner|tenant|org_?id|authorize").unwrap());
+static VARIANT_WRITE_SINK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:update|patch|put|set|save)\s*\([^)]*(?:id|params|request)").unwrap()
+});
+static VARIANT_WRITE_GUARD: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"owner|tenant|org_?id|authorize").unwrap());
 
 pub const ID: &str = "security.authorization-tenant";
 pub const CANDIDATE_CLASS: &str = "authorization";
@@ -104,7 +109,8 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
             observations.push(Observation {
                 rule_id: "authorization.privileged-function.missing-role-check".to_string(),
                 candidate_class: CANDIDATE_CLASS.to_string(),
-                claim: "A privileged function has no visible role or policy enforcement.".to_string(),
+                claim: "A privileged function has no visible role or policy enforcement."
+                    .to_string(),
                 severity_hint: "high".to_string(),
                 sources: artifact_id.clone().into_iter().collect(),
                 sinks: artifact_id.clone().into_iter().collect(),
@@ -137,7 +143,10 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                     "file": file,
                     "sourceKind": "privileged-function",
                 }),
-                uncertainty: vec!["A framework-level policy may enforce roles outside this call path.".to_string()],
+                uncertainty: vec![
+                    "A framework-level policy may enforce roles outside this call path."
+                        .to_string(),
+                ],
             });
         }
     }
@@ -206,32 +215,46 @@ mod tests {
 
     #[test]
     fn object_write_without_owner_check_emits_candidate() {
-        let ctx = Context::new().with_file("api.mjs", "function updateUser(id, params) { db.save(id, params); }");
+        let ctx = Context::new().with_file(
+            "api.mjs",
+            "function updateUser(id, params) { db.save(id, params); }",
+        );
         let obs = analyze(&ctx);
         assert_eq!(obs.len(), 1);
-        assert_eq!(obs[0].rule_id, "authorization.object-write.missing-owner-check");
+        assert_eq!(
+            obs[0].rule_id,
+            "authorization.object-write.missing-owner-check"
+        );
         assert_eq!(obs[0].severity_hint, "high");
     }
 
     #[test]
     fn object_write_with_owner_check_is_suppressed() {
-        let ctx = Context::new()
-            .with_file("api.mjs", "function updateUser(id, params) { if (!canAccess(id)) throw x; db.save(id, params); }");
+        let ctx = Context::new().with_file(
+            "api.mjs",
+            "function updateUser(id, params) { if (!canAccess(id)) throw x; db.save(id, params); }",
+        );
         assert!(analyze(&ctx).is_empty());
     }
 
     #[test]
     fn privileged_function_without_role_check_emits_candidate() {
-        let ctx = Context::new().with_file("admin.mjs", "function deleteUser(id) { db.remove(id); }");
+        let ctx =
+            Context::new().with_file("admin.mjs", "function deleteUser(id) { db.remove(id); }");
         let obs = analyze(&ctx);
         assert_eq!(obs.len(), 1);
-        assert_eq!(obs[0].rule_id, "authorization.privileged-function.missing-role-check");
+        assert_eq!(
+            obs[0].rule_id,
+            "authorization.privileged-function.missing-role-check"
+        );
     }
 
     #[test]
     fn privileged_function_with_role_check_is_suppressed() {
-        let ctx = Context::new()
-            .with_file("admin.mjs", "function deleteUser(id) { requireAdmin(); db.remove(id); }");
+        let ctx = Context::new().with_file(
+            "admin.mjs",
+            "function deleteUser(id) { requireAdmin(); db.remove(id); }",
+        );
         assert!(analyze(&ctx).is_empty());
     }
 

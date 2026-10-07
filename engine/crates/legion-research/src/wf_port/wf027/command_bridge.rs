@@ -4,7 +4,9 @@ use std::env;
 
 use serde_json::{json, Map};
 
-use super::support::{command_json, data_only_envelope, publisher_from_url, seed_id, stable_hit_id, today, WfError};
+use super::support::{
+    command_json, data_only_envelope, publisher_from_url, seed_id, stable_hit_id, today, WfError,
+};
 use super::types::{LocatedPassage, OpenedSource, Provider, SearchHit};
 
 /// Port of `CommandBridgeProvider`.
@@ -23,7 +25,9 @@ impl CommandBridgeProvider {
         let raw = env::var(env_var).unwrap_or_default();
         let raw = raw.trim();
         if raw.is_empty() {
-            return Err(WfError::NotConfigured(format!("{env_var} is not configured")));
+            return Err(WfError::NotConfigured(format!(
+                "{env_var} is not configured"
+            )));
         }
         let command = super::support::shell_split(raw);
         Ok(Self { name, command })
@@ -141,7 +145,11 @@ impl Provider for CommandBridgeProvider {
         })
     }
 
-    fn find(&self, opened: &OpenedSource, pattern: &str) -> Result<Option<LocatedPassage>, WfError> {
+    fn find(
+        &self,
+        opened: &OpenedSource,
+        pattern: &str,
+    ) -> Result<Option<LocatedPassage>, WfError> {
         let payload = json!({"op": "find", "url": opened.url, "pattern": pattern});
         let data = command_json(&self.command, &payload, 90)?;
         if data.get("found").and_then(|v| v.as_bool()) == Some(false) {
@@ -190,7 +198,10 @@ mod tests {
         let var = "WF027_COMMAND_BRIDGE_TEST_UNSET";
         env::remove_var(var);
         let err = CommandBridgeProvider::new("legal-authority", var).unwrap_err();
-        assert_eq!(err, WfError::NotConfigured(format!("{var} is not configured")));
+        assert_eq!(
+            err,
+            WfError::NotConfigured(format!("{var} is not configured"))
+        );
     }
 
     #[test]

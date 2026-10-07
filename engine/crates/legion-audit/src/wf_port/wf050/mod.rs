@@ -11,6 +11,8 @@ pub mod scenario;
 pub mod shared;
 
 pub use performance::{verify_web_performance, CaptureEvidence};
-pub use protocols::{execute_web_protocol, AdapterExecuteResult, ProtocolPlanRow, SanitizedArtifact};
+pub use protocols::{
+    execute_web_protocol, AdapterExecuteResult, ProtocolPlanRow, SanitizedArtifact,
+};
 pub use runner::run_web_control;
 pub use scenario::{run_web_scenario, AdapterCallResult};

@@ -27,7 +27,14 @@
 
 use legion_audit::wf_port::wf020::{build_family_summary, Denominator, FamilyResult};
 
-fn result(id: &str, family: &str, status: &str, complete: bool, expected: f64, examined: f64) -> FamilyResult {
+fn result(
+    id: &str,
+    family: &str,
+    status: &str,
+    complete: bool,
+    expected: f64,
+    examined: f64,
+) -> FamilyResult {
     FamilyResult {
         id: Some(id.to_string()),
         provider: None,
@@ -60,7 +67,10 @@ fn data_privacy_family_clean_when_all_providers_present_and_complete() {
     assert!(summary.clean);
     assert!(summary.gaps.is_empty());
     assert_eq!(summary.providers.len(), 2);
-    assert!(summary.providers.iter().all(|p| p.id.as_deref() != Some("p3")));
+    assert!(summary
+        .providers
+        .iter()
+        .all(|p| p.id.as_deref() != Some("p3")));
 }
 
 #[test]
@@ -69,14 +79,16 @@ fn docs_contract_family_empty_selection_reports_denominator_zero() {
     let summary = build_family_summary(&results, Some("docs-contract"), &["only".to_string()], &[]);
     assert!(!summary.clean);
     assert_eq!(summary.status, "incomplete");
-    assert!(summary
-        .gaps
-        .iter()
-        .any(|g| g.kind == "family-denominator-zero" && g.family.as_deref() == Some("docs-contract")));
-    assert!(summary
-        .gaps
-        .iter()
-        .any(|g| g.kind == "required-provider-missing" && g.provider_id.as_deref() == Some("only")));
+    assert!(summary.gaps.iter().any(
+        |g| g.kind == "family-denominator-zero" && g.family.as_deref() == Some("docs-contract")
+    ));
+    assert!(
+        summary
+            .gaps
+            .iter()
+            .any(|g| g.kind == "required-provider-missing"
+                && g.provider_id.as_deref() == Some("only"))
+    );
 }
 
 #[test]
@@ -87,10 +99,9 @@ fn governance_family_incomplete_denominator_is_flagged_incomplete() {
     let summary = build_family_summary(&results, Some("governance"), &["gov-a".to_string()], &[]);
     assert!(!summary.clean);
     assert_eq!(summary.status, "incomplete");
-    assert!(summary
-        .gaps
-        .iter()
-        .any(|g| g.kind == "provider-result-incomplete" && g.provider_id.as_deref() == Some("gov-a")));
+    assert!(summary.gaps.iter().any(
+        |g| g.kind == "provider-result-incomplete" && g.provider_id.as_deref() == Some("gov-a")
+    ));
     assert_eq!(summary.incomplete_providers, vec!["gov-a".to_string()]);
 }
 
@@ -101,10 +112,9 @@ fn requirements_family_non_pass_status_counts_as_incomplete() {
     let results = vec![result("req-a", "requirements", "fail", true, 1.0, 1.0)];
     let summary = build_family_summary(&results, Some("requirements"), &["req-a".to_string()], &[]);
     assert!(!summary.clean);
-    assert!(summary
-        .gaps
-        .iter()
-        .any(|g| g.kind == "provider-result-incomplete" && g.provider_id.as_deref() == Some("req-a")));
+    assert!(summary.gaps.iter().any(
+        |g| g.kind == "provider-result-incomplete" && g.provider_id.as_deref() == Some("req-a")
+    ));
 }
 
 #[test]
@@ -134,7 +144,12 @@ fn selected_provider_ids_narrow_the_denominator_over_required() {
 
 #[test]
 fn provider_id_falls_back_to_provider_field_for_all_four_owned_families() {
-    for family in ["data-privacy", "docs-contract", "governance", "requirements"] {
+    for family in [
+        "data-privacy",
+        "docs-contract",
+        "governance",
+        "requirements",
+    ] {
         let mut r = result("unused", family, "pass", true, 1.0, 1.0);
         r.id = None;
         r.provider = Some("prov-fallback".to_string());

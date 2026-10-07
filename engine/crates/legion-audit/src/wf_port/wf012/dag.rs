@@ -111,9 +111,7 @@ pub fn topological_providers(providers: &[DagProvider]) -> Result<Vec<DagProvide
 
         let payload: Vec<serde_json::Value> = cyclic
             .into_iter()
-            .map(|(id, deps_on)| {
-                serde_json::json!({ "id": id, "dependsOn": deps_on })
-            })
+            .map(|(id, deps_on)| serde_json::json!({ "id": id, "dependsOn": deps_on }))
             .collect();
         let rendered =
             serde_json::to_string(&serde_json::Value::Array(payload)).unwrap_or_default();

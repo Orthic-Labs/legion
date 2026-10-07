@@ -323,12 +323,8 @@ pub fn get_rules_for_category(category: Category) -> Vec<&'static Antipattern> {
 }
 
 /// Mirrors `GATED_PROVIDERS`.
-pub static GATED_PROVIDERS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
-    ANTIPATTERNS
-        .iter()
-        .filter_map(|rule| rule.gated)
-        .collect()
-});
+pub static GATED_PROVIDERS: LazyLock<HashSet<&'static str>> =
+    LazyLock::new(|| ANTIPATTERNS.iter().filter_map(|rule| rule.gated).collect());
 
 /// A finding as consumed by `filterByProviders`: only the rule id
 /// (`.antipattern` in the JS source) matters to the filter.
@@ -340,10 +336,7 @@ pub trait HasAntipatternId {
 ///
 /// Generic over any finding type implementing `HasAntipatternId` so callers
 /// can filter their own finding structs without an intermediate copy.
-pub fn filter_by_providers<T: HasAntipatternId>(
-    findings: Vec<T>,
-    providers: &[&str],
-) -> Vec<T> {
+pub fn filter_by_providers<T: HasAntipatternId>(findings: Vec<T>, providers: &[&str]) -> Vec<T> {
     if GATED_PROVIDERS.is_empty() {
         return findings;
     }
@@ -389,11 +382,15 @@ mod tests {
     fn rule_engine_support_sets_match_js() {
         assert_eq!(
             get_rule_engine_support("regex"),
-            ["source", "page-analyzer"].into_iter().collect::<HashSet<_>>()
+            ["source", "page-analyzer"]
+                .into_iter()
+                .collect::<HashSet<_>>()
         );
         assert_eq!(
             get_rule_engine_support("browser"),
-            ["element", "page", "layout"].into_iter().collect::<HashSet<_>>()
+            ["element", "page", "layout"]
+                .into_iter()
+                .collect::<HashSet<_>>()
         );
         assert!(get_rule_engine_support("unknown-engine").is_empty());
     }
@@ -418,9 +415,15 @@ mod tests {
     #[test]
     fn filter_by_providers_drops_ungated_provider() {
         let findings = vec![
-            FakeFinding { antipattern: "side-tab" }, // ungated -> always kept
-            FakeFinding { antipattern: "gpt-thin-border-wide-shadow" }, // gated gpt
-            FakeFinding { antipattern: "image-hover-transform" }, // gated gemini
+            FakeFinding {
+                antipattern: "side-tab",
+            }, // ungated -> always kept
+            FakeFinding {
+                antipattern: "gpt-thin-border-wide-shadow",
+            }, // gated gpt
+            FakeFinding {
+                antipattern: "image-hover-transform",
+            }, // gated gemini
         ];
         let kept = filter_by_providers(findings, &["gpt"]);
         let ids: Vec<&str> = kept.iter().map(|f| f.antipattern).collect();
@@ -430,8 +433,12 @@ mod tests {
     #[test]
     fn filter_by_providers_no_providers_drops_all_gated() {
         let findings = vec![
-            FakeFinding { antipattern: "side-tab" },
-            FakeFinding { antipattern: "gpt-thin-border-wide-shadow" },
+            FakeFinding {
+                antipattern: "side-tab",
+            },
+            FakeFinding {
+                antipattern: "gpt-thin-border-wide-shadow",
+            },
         ];
         let kept = filter_by_providers(findings, &[]);
         assert_eq!(kept.len(), 1);
@@ -440,7 +447,9 @@ mod tests {
 
     #[test]
     fn filter_by_providers_unknown_rule_id_passes_through() {
-        let findings = vec![FakeFinding { antipattern: "not-a-real-rule" }];
+        let findings = vec![FakeFinding {
+            antipattern: "not-a-real-rule",
+        }];
         let kept = filter_by_providers(findings, &[]);
         assert_eq!(kept.len(), 1);
     }

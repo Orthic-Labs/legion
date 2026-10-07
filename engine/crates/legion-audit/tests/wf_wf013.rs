@@ -23,7 +23,10 @@ fn sample_actions_file_is_well_formed_json_array() {
     let raw = fs::read_to_string(&path).expect("fixture should exist");
     let value: serde_json::Value =
         serde_json::from_str(&raw).expect("sample_actions.json must be valid JSON");
-    assert!(value.is_array(), "qa.mjs requires --actions file to be a JSON array");
+    assert!(
+        value.is_array(),
+        "qa.mjs requires --actions file to be a JSON array"
+    );
     let arr = value.as_array().unwrap();
     assert!(!arr.is_empty());
     for action in arr {

@@ -41,7 +41,10 @@ fn parse_cli_args_requires_positional() {
 fn viewport_and_path_helpers() {
     let vs = parse_viewports("1920x1080,375x667").unwrap();
     assert_eq!(vs.len(), 2);
-    assert_eq!(default_output_dir(Path::new("/a/b/x.html")), PathBuf::from("/a/b/screenshots"));
+    assert_eq!(
+        default_output_dir(Path::new("/a/b/x.html")),
+        PathBuf::from("/a/b/screenshots")
+    );
     assert_eq!(slide_filename("deck", 3), "deck-slide-03.png");
     let vp = Viewport {
         width: 1440,
@@ -65,7 +68,9 @@ impl FileSystem for FakeFs {
         Ok(())
     }
     fn write(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-        self.writes.borrow_mut().insert(path.to_path_buf(), bytes.to_vec());
+        self.writes
+            .borrow_mut()
+            .insert(path.to_path_buf(), bytes.to_vec());
         Ok(())
     }
 }
@@ -147,7 +152,10 @@ fn verify_html_success_exit_code_zero_and_screenshots_written() {
     )
     .unwrap();
     assert_eq!(report.exit_code, 0);
-    assert!(fs.writes.borrow().contains_key(&report.output_dir.join("design.png")));
+    assert!(fs
+        .writes
+        .borrow()
+        .contains_key(&report.output_dir.join("design.png")));
 }
 
 #[test]
@@ -163,6 +171,12 @@ fn run_wires_cli_parsing_through_to_verify_html() {
     };
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
-    let code = run(&args(&["ok.html"]), &fs, &mut driver, &mut stdout, &mut stderr);
+    let code = run(
+        &args(&["ok.html"]),
+        &fs,
+        &mut driver,
+        &mut stdout,
+        &mut stderr,
+    );
     assert_eq!(code, 1, "page errors should yield exit code 1");
 }

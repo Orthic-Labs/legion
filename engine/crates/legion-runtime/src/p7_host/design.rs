@@ -8,14 +8,28 @@ use std::sync::LazyLock;
 
 // ---- baselines.mjs ----
 
-const IDENTITY_KEYS: [&str; 6] = ["route", "state", "viewport", "platform", "browserPolicy", "baselineId"];
+const IDENTITY_KEYS: [&str; 6] = [
+    "route",
+    "state",
+    "viewport",
+    "platform",
+    "browserPolicy",
+    "baselineId",
+];
 
 pub fn baseline_identity(value: &Value) -> String {
     let mut identity = serde_json::Map::new();
     for key in IDENTITY_KEYS {
-        identity.insert(key.to_string(), value.get(key).cloned().unwrap_or(Value::Null));
+        identity.insert(
+            key.to_string(),
+            value.get(key).cloned().unwrap_or(Value::Null),
+        );
     }
-    sha256_hex(serde_json::to_string(&identity).unwrap_or_default().as_bytes())
+    sha256_hex(
+        serde_json::to_string(&identity)
+            .unwrap_or_default()
+            .as_bytes(),
+    )
 }
 
 pub fn baseline_compatibility(baseline: &Value, actual: &Value) -> Value {
@@ -46,7 +60,12 @@ pub fn brand_context(design_context: &Value) -> Value {
 
 // ---- context.mjs ----
 
-pub fn create_design_context(source: Option<&str>, declared: &Value, inferred: &Value, binding: &Value) -> Value {
+pub fn create_design_context(
+    source: Option<&str>,
+    declared: &Value,
+    inferred: &Value,
+    binding: &Value,
+) -> Value {
     let declared_len = declared.as_object().map(|o| o.len()).unwrap_or(0);
     let digest = sha256_prefixed("", &json!({"declared": declared, "binding": binding}));
     json!({
@@ -126,7 +145,10 @@ pub fn build_runtime_specs(inventory: &Value, options: &Value) -> Value {
         .and_then(Value::as_array)
         .map(|a| a.iter().filter_map(Value::as_str).collect())
         .unwrap_or_default();
-    let viewports = options.get("viewports").cloned().unwrap_or(json!(["desktop"]));
+    let viewports = options
+        .get("viewports")
+        .cloned()
+        .unwrap_or(json!(["desktop"]));
     let specs: Vec<Value> = surfaces
         .iter()
         .filter(|surface| surface.get("runtimeEligible").and_then(Value::as_bool).unwrap_or(false))
@@ -170,7 +192,12 @@ pub fn build_runtime_specs(inventory: &Value, options: &Value) -> Value {
     let coverage_gaps: Vec<Value> = specs
         .iter()
         .filter(|spec| spec["entryRoute"].is_null())
-        .map(|spec| json!(format!("route-missing:{}", spec["surfaceId"].as_str().unwrap_or(""))))
+        .map(|spec| {
+            json!(format!(
+                "route-missing:{}",
+                spec["surfaceId"].as_str().unwrap_or("")
+            ))
+        })
         .collect();
     json!({
         "schemaVersion": 1,
@@ -266,7 +293,11 @@ pub fn build_surface_inventory(artifacts: &[SurfaceArtifact], binding: &Value) -
             })
         })
         .collect();
-    let denominator_digest = sha256_hex(serde_json::to_string(&surfaces).unwrap_or_default().as_bytes());
+    let denominator_digest = sha256_hex(
+        serde_json::to_string(&surfaces)
+            .unwrap_or_default()
+            .as_bytes(),
+    );
     let complete = artifacts.iter().all(|a| a.file.is_some());
     let coverage_gaps: Vec<Value> = artifacts
         .iter()
@@ -310,7 +341,11 @@ pub fn build_ux_flow(input: &Value) -> Value {
             })
         })
         .collect();
-    let goal_source = input.get("goalSource").and_then(Value::as_str).unwrap_or("explicit").to_string();
+    let goal_source = input
+        .get("goalSource")
+        .and_then(Value::as_str)
+        .unwrap_or("explicit")
+        .to_string();
     let identity = json!({
         "goal": input.get("goal").cloned().unwrap_or(Value::Null),
         "cohort": input.get("cohort").cloned().unwrap_or(json!("unspecified")),
@@ -384,15 +419,35 @@ mod tests {
 
     #[test]
     fn intersect_bounds_returns_none_when_disjoint() {
-        let a = Bounds { x: 0.0, y: 0.0, width: 10.0, height: 10.0 };
-        let b = Bounds { x: 20.0, y: 20.0, width: 5.0, height: 5.0 };
+        let a = Bounds {
+            x: 0.0,
+            y: 0.0,
+            width: 10.0,
+            height: 10.0,
+        };
+        let b = Bounds {
+            x: 20.0,
+            y: 20.0,
+            width: 5.0,
+            height: 5.0,
+        };
         assert!(intersect_bounds(a, b).is_none());
     }
 
     #[test]
     fn intersect_bounds_computes_overlap_area() {
-        let a = Bounds { x: 0.0, y: 0.0, width: 10.0, height: 10.0 };
-        let b = Bounds { x: 5.0, y: 5.0, width: 10.0, height: 10.0 };
+        let a = Bounds {
+            x: 0.0,
+            y: 0.0,
+            width: 10.0,
+            height: 10.0,
+        };
+        let b = Bounds {
+            x: 5.0,
+            y: 5.0,
+            width: 10.0,
+            height: 10.0,
+        };
         let result = intersect_bounds(a, b).unwrap();
         assert_eq!(result["area"], 25.0);
     }
@@ -404,14 +459,25 @@ mod tests {
         ]});
         let specs = build_runtime_specs(&inventory, &json!({}));
         assert_eq!(specs["specs"][0]["actions"][0]["prohibited"], true);
-        assert!(specs["coverageGaps"][0].as_str().unwrap().starts_with("route-missing:"));
+        assert!(specs["coverageGaps"][0]
+            .as_str()
+            .unwrap()
+            .starts_with("route-missing:"));
     }
 
     #[test]
     fn designer_skill_compiler_excludes_directives() {
         let entries = vec![
-            SkillEntry { id: Some("d1".into()), text: Some("edit the hero image".into()), ..Default::default() },
-            SkillEntry { id: Some("d2".into()), text: Some("check contrast ratio".into()), ..Default::default() },
+            SkillEntry {
+                id: Some("d1".into()),
+                text: Some("edit the hero image".into()),
+                ..Default::default()
+            },
+            SkillEntry {
+                id: Some("d2".into()),
+                text: Some("check contrast ratio".into()),
+                ..Default::default()
+            },
         ];
         let profile = compile_designer_audit_profile(&entries, "legion-skill://designer/");
         assert_eq!(profile["rules"].as_array().unwrap().len(), 1);
@@ -419,7 +485,10 @@ mod tests {
 
     #[test]
     fn surface_inventory_flags_missing_file() {
-        let artifacts = vec![SurfaceArtifact { file: None, ..Default::default() }];
+        let artifacts = vec![SurfaceArtifact {
+            file: None,
+            ..Default::default()
+        }];
         let inv = build_surface_inventory(&artifacts, &json!({}));
         assert_eq!(inv["complete"], false);
         assert_eq!(inv["coverageGaps"][0], "surface-source-missing");

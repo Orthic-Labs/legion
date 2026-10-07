@@ -46,7 +46,12 @@ pub fn is_emoji_only_text(text: &str) -> bool {
 // ─── isCardLikeFromProps (checks.mjs ~160-163) ──────────────────────────────
 
 /// Port of `isCardLikeFromProps(hasShadow, hasBorder, hasRadius, hasBg)`.
-pub fn is_card_like_from_props(has_shadow: bool, has_border: bool, has_radius: bool, has_bg: bool) -> bool {
+pub fn is_card_like_from_props(
+    has_shadow: bool,
+    has_border: bool,
+    has_radius: bool,
+    has_bg: bool,
+) -> bool {
     if !has_shadow && !has_border {
         return false;
     }
@@ -64,23 +69,45 @@ pub struct ResolvedSerif {
 /// Port of `resolveSerif(fontFamily)`.
 pub fn resolve_serif(font_family: Option<&str>) -> ResolvedSerif {
     let Some(font_family) = font_family.filter(|s| !s.is_empty()) else {
-        return ResolvedSerif { primary: None, is_serif: false };
+        return ResolvedSerif {
+            primary: None,
+            is_serif: false,
+        };
     };
     let tokens: Vec<String> = font_family
         .split(',')
-        .map(|f| f.trim().trim_matches(|c| c == '\'' || c == '"').to_ascii_lowercase())
+        .map(|f| {
+            f.trim()
+                .trim_matches(|c| c == '\'' || c == '"')
+                .to_ascii_lowercase()
+        })
         .collect();
-    let primary = tokens.iter().find(|f| !f.is_empty() && !GENERIC_FONTS.contains(f.as_str())).cloned();
+    let primary = tokens
+        .iter()
+        .find(|f| !f.is_empty() && !GENERIC_FONTS.contains(f.as_str()))
+        .cloned();
     let Some(primary) = primary else {
-        return ResolvedSerif { primary: None, is_serif: false };
+        return ResolvedSerif {
+            primary: None,
+            is_serif: false,
+        };
     };
     if KNOWN_SERIF_FONTS.contains(primary.as_str()) {
-        return ResolvedSerif { primary: Some(primary), is_serif: true };
+        return ResolvedSerif {
+            primary: Some(primary),
+            is_serif: true,
+        };
     }
     if tokens.iter().any(|t| t == "serif") {
-        return ResolvedSerif { primary: Some(primary), is_serif: true };
+        return ResolvedSerif {
+            primary: Some(primary),
+            is_serif: true,
+        };
     }
-    ResolvedSerif { primary: Some(primary), is_serif: false }
+    ResolvedSerif {
+        primary: Some(primary),
+        is_serif: false,
+    }
 }
 
 // ─── checkItalicSerif (checks.mjs ~239-256) ─────────────────────────────────
@@ -277,8 +304,18 @@ pub fn check_oversized_h1(opts: OversizedH1Input) -> Vec<Finding> {
 /// pre-parsed border widths (top/right/bottom/left) in caller order — the
 /// caller does the `parseFloat(style.borderXWidth) || 0` equivalent, since a
 /// live computed-style object has no Rust representation here yet.
-pub fn border_widths_from_style(top: Option<f64>, right: Option<f64>, bottom: Option<f64>, left: Option<f64>) -> [f64; 4] {
-    [top.unwrap_or(0.0), right.unwrap_or(0.0), bottom.unwrap_or(0.0), left.unwrap_or(0.0)]
+pub fn border_widths_from_style(
+    top: Option<f64>,
+    right: Option<f64>,
+    bottom: Option<f64>,
+    left: Option<f64>,
+) -> [f64; 4] {
+    [
+        top.unwrap_or(0.0),
+        right.unwrap_or(0.0),
+        bottom.unwrap_or(0.0),
+        left.unwrap_or(0.0),
+    ]
 }
 
 /// Port of `borderColorsFromStyle(style)`.
@@ -288,11 +325,20 @@ pub fn border_colors_from_style<'a>(
     bottom: Option<&'a str>,
     left: Option<&'a str>,
 ) -> [&'a str; 4] {
-    [top.unwrap_or(""), right.unwrap_or(""), bottom.unwrap_or(""), left.unwrap_or("")]
+    [
+        top.unwrap_or(""),
+        right.unwrap_or(""),
+        bottom.unwrap_or(""),
+        left.unwrap_or(""),
+    ]
 }
 
 /// Port of `checkGptThinBorderWideShadow({ borderWidths, borderColors, boxShadow })`.
-pub fn check_gpt_thin_border_wide_shadow(border_widths: &[f64], border_colors: &[&str], box_shadow: &str) -> Vec<Finding> {
+pub fn check_gpt_thin_border_wide_shadow(
+    border_widths: &[f64],
+    border_colors: &[&str],
+    box_shadow: &str,
+) -> Vec<Finding> {
     let visible_thin_borders: Vec<f64> = border_widths
         .iter()
         .zip(border_colors.iter().chain(std::iter::repeat(&"")))
@@ -351,7 +397,13 @@ mod tests {
         assert!(!r.is_serif);
 
         let r = resolve_serif(None);
-        assert_eq!(r, ResolvedSerif { primary: None, is_serif: false });
+        assert_eq!(
+            r,
+            ResolvedSerif {
+                primary: None,
+                is_serif: false
+            }
+        );
     }
 
     #[test]
@@ -404,7 +456,10 @@ mod tests {
 
     #[test]
     fn cream_from_class_list_tailwind_token() {
-        assert_eq!(cream_from_class_list(Some("p-4 bg-amber-50 text-sm")), Some("bg-amber-50".to_string()));
+        assert_eq!(
+            cream_from_class_list(Some("p-4 bg-amber-50 text-sm")),
+            Some("bg-amber-50".to_string())
+        );
         assert_eq!(cream_from_class_list(Some("p-4")), None);
         assert_eq!(cream_from_class_list(None), None);
     }
@@ -459,12 +514,8 @@ mod tests {
     #[test]
     fn gpt_thin_border_wide_shadow_requires_two_borders_and_blur() {
         let widths = border_widths_from_style(Some(1.0), Some(1.0), Some(0.0), Some(0.0));
-        let colors = border_colors_from_style(
-            Some("rgba(0,0,0,0.5)"),
-            Some("rgba(0,0,0,0.5)"),
-            None,
-            None,
-        );
+        let colors =
+            border_colors_from_style(Some("rgba(0,0,0,0.5)"), Some("rgba(0,0,0,0.5)"), None, None);
         let f = check_gpt_thin_border_wide_shadow(&widths, &colors, "0 4px 24px rgba(0,0,0,0.2)");
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].id, "gpt-thin-border-wide-shadow");

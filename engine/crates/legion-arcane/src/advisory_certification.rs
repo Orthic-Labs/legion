@@ -47,25 +47,76 @@ use crate::receipt_auth::{sign_record, verify_record};
 use crate::receipt_store::ReceiptStore;
 
 pub const ADVISORY_ARTIFACT_BOUND_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "receiptId", "artifactDigest", "briefDigest", "bundleId", "bundleVersion",
-    "profileId", "manifestDigest", "profileDigest", "producerAgentIdDigest", "runId", "taskId",
-    "contractId", "contractVersion", "contractDigest", "sourceRevision", "binding", "issuedAt",
-    "expiresAt", "nonce",
+    "schemaVersion",
+    "kind",
+    "receiptId",
+    "artifactDigest",
+    "briefDigest",
+    "bundleId",
+    "bundleVersion",
+    "profileId",
+    "manifestDigest",
+    "profileDigest",
+    "producerAgentIdDigest",
+    "runId",
+    "taskId",
+    "contractId",
+    "contractVersion",
+    "contractDigest",
+    "sourceRevision",
+    "binding",
+    "issuedAt",
+    "expiresAt",
+    "nonce",
 ];
 
 pub const ADVISORY_CERTIFICATION_BOUND_FIELDS: &[&str] = &[
-    "schemaVersion", "kind", "receiptId", "artifactReceiptDigest", "artifactDigest", "briefDigest",
-    "bundleId", "bundleVersion", "profileId", "manifestDigest", "profileDigest", "producerAgentIdDigest",
-    "certifierAgentIdDigest", "runId", "taskId", "contractId", "contractVersion", "contractDigest",
-    "sourceRevision", "checklistEvidence", "verdict", "binding", "issuedAt", "expiresAt", "nonce",
+    "schemaVersion",
+    "kind",
+    "receiptId",
+    "artifactReceiptDigest",
+    "artifactDigest",
+    "briefDigest",
+    "bundleId",
+    "bundleVersion",
+    "profileId",
+    "manifestDigest",
+    "profileDigest",
+    "producerAgentIdDigest",
+    "certifierAgentIdDigest",
+    "runId",
+    "taskId",
+    "contractId",
+    "contractVersion",
+    "contractDigest",
+    "sourceRevision",
+    "checklistEvidence",
+    "verdict",
+    "binding",
+    "issuedAt",
+    "expiresAt",
+    "nonce",
 ];
 
 const ARTIFACT_DOMAIN: &str = "arcane.advisory-artifact-receipt.v1";
 const CERTIFICATION_DOMAIN: &str = "arcane.advisory-certification-receipt.v1";
-const EXECUTION_FIELDS: &[&str] =
-    &["runId", "taskId", "contractId", "contractVersion", "contractDigest", "sourceRevision"];
-const INPUT_FIELDS: &[&str] =
-    &["artifactDigest", "briefDigest", "bundleId", "bundleVersion", "profileId", "manifestDigest", "profileDigest"];
+const EXECUTION_FIELDS: &[&str] = &[
+    "runId",
+    "taskId",
+    "contractId",
+    "contractVersion",
+    "contractDigest",
+    "sourceRevision",
+];
+const INPUT_FIELDS: &[&str] = &[
+    "artifactDigest",
+    "briefDigest",
+    "bundleId",
+    "bundleVersion",
+    "profileId",
+    "manifestDigest",
+    "profileDigest",
+];
 
 const DEFAULT_FRESHNESS_MS: i64 = 86_400_000;
 
@@ -75,7 +126,9 @@ fn is_digest(value: Option<&Value>) -> bool {
         Some(s) => {
             s.len() == 71
                 && s.starts_with("sha256:")
-                && s[7..].bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                && s[7..]
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
         }
         None => false,
     }
@@ -123,7 +176,9 @@ fn valid_binding(value: &Value) -> bool {
 }
 
 fn valid_checklist(value: &Value) -> bool {
-    let Some(items) = value.as_array() else { return false };
+    let Some(items) = value.as_array() else {
+        return false;
+    };
     if items.is_empty() {
         return false;
     }
@@ -135,7 +190,10 @@ fn valid_checklist(value: &Value) -> bool {
         if !nonempty(item.get("criterionId")) || !is_digest(item.get("evidenceDigest")) {
             return false;
         }
-        let id = item.get("criterionId").and_then(Value::as_str).unwrap_or_default();
+        let id = item
+            .get("criterionId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if !seen.insert(id.to_string()) {
             return false;
         }
@@ -194,7 +252,13 @@ pub enum CertificationError {
 
 /// Port of `rejectCallerAuthority(input)`.
 fn reject_caller_authority(value: &Value) -> Result<(), CertificationError> {
-    for field in ["authentication", "receiptId", "producerAgentIdDigest", "certifierAgentIdDigest", "binding"] {
+    for field in [
+        "authentication",
+        "receiptId",
+        "producerAgentIdDigest",
+        "certifierAgentIdDigest",
+        "binding",
+    ] {
         if value.get(field).is_some() {
             return Err(CertificationError::AuthorityClaimed(field_static(field)));
         }
@@ -224,7 +288,9 @@ fn require_binding(
         .find_latest(adapter, session_id, authority)
         .ok_or_else(|| CertificationError::AuthorityNotAsserted(authority.to_string()))?;
     if !is_digest(binding.get("agentIdDigest")) {
-        return Err(CertificationError::AuthorityNotAsserted(authority.to_string()));
+        return Err(CertificationError::AuthorityNotAsserted(
+            authority.to_string(),
+        ));
     }
     Ok(binding)
 }
@@ -233,8 +299,14 @@ fn require_binding(
 /// time as Unix milliseconds (caller-supplied, mirrors JS `Date.now()`/a
 /// passed `Date`/number).
 fn freshness(receipt: &Value, now_ms: i64, freshness_ms: i64) -> bool {
-    let issued = receipt.get("issuedAt").and_then(Value::as_str).and_then(parse_rfc3339_ms);
-    let expires = receipt.get("expiresAt").and_then(Value::as_str).and_then(parse_rfc3339_ms);
+    let issued = receipt
+        .get("issuedAt")
+        .and_then(Value::as_str)
+        .and_then(parse_rfc3339_ms);
+    let expires = receipt
+        .get("expiresAt")
+        .and_then(Value::as_str)
+        .and_then(parse_rfc3339_ms);
     match (issued, expires) {
         (Some(issued), Some(expires)) => {
             issued <= now_ms && expires > now_ms && expires - issued <= freshness_ms
@@ -279,24 +351,52 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
 }
 
 /// Port of `verifyStoredBinding(receipt, authority, authorityBindingStore)`.
-fn verify_stored_binding(receipt: &Value, authority: &str, store: &dyn AuthorityBindingStore) -> bool {
-    let Some(binding) = receipt.get("binding") else { return false };
+fn verify_stored_binding(
+    receipt: &Value,
+    authority: &str,
+    store: &dyn AuthorityBindingStore,
+) -> bool {
+    let Some(binding) = receipt.get("binding") else {
+        return false;
+    };
     if !valid_binding(binding) {
         return false;
     }
-    let adapter = binding.get("adapter").and_then(Value::as_str).unwrap_or_default();
-    let session_id = binding.get("sessionId").and_then(Value::as_str).unwrap_or_default();
-    let Some(stored) = store.find_latest(adapter, session_id, authority) else { return false };
-    let Ok(stored_digest) = digest_value(&stored) else { return false };
-    let expected_digest = binding.get("bindingDigest").and_then(Value::as_str).unwrap_or_default();
-    let agent_field = if authority == "oracle" { "certifierAgentIdDigest" } else { "producerAgentIdDigest" };
+    let adapter = binding
+        .get("adapter")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let session_id = binding
+        .get("sessionId")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let Some(stored) = store.find_latest(adapter, session_id, authority) else {
+        return false;
+    };
+    let Ok(stored_digest) = digest_value(&stored) else {
+        return false;
+    };
+    let expected_digest = binding
+        .get("bindingDigest")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let agent_field = if authority == "oracle" {
+        "certifierAgentIdDigest"
+    } else {
+        "producerAgentIdDigest"
+    };
     stored_digest == expected_digest
         && stored.get("agentIdDigest").and_then(Value::as_str)
             == receipt.get(agent_field).and_then(Value::as_str)
 }
 
 /// Port of `commonReceipt(core, { binding, clock, freshnessMs })`.
-fn common_receipt(mut core: Map<String, Value>, binding: &Value, issued_at: String, freshness_ms: i64) -> Result<Value, ArcaneError> {
+fn common_receipt(
+    mut core: Map<String, Value>,
+    binding: &Value,
+    issued_at: String,
+    freshness_ms: i64,
+) -> Result<Value, ArcaneError> {
     let issued_ms = parse_rfc3339_ms(&issued_at).unwrap_or(0);
     let expires_at = format_rfc3339_ms(issued_ms + freshness_ms);
     let binding_digest = digest_value(binding)?;
@@ -352,7 +452,9 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 fn random_nonce_hex() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let mut hasher_input = Vec::with_capacity(32);
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     hasher_input.extend_from_slice(&now.as_nanos().to_le_bytes());
     hasher_input.extend_from_slice(&(std::process::id() as u64).to_le_bytes());
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -397,19 +499,34 @@ pub fn mint_advisory_artifact_receipt(
     {
         return Err(CertificationError::SchemaInvalid);
     }
-    let adapter = input.get("adapter").and_then(Value::as_str).unwrap_or_default();
-    let session_id = input.get("sessionId").and_then(Value::as_str).unwrap_or_default();
+    let adapter = input
+        .get("adapter")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let session_id = input
+        .get("sessionId")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let binding = require_binding(store, adapter, session_id, producer_authority)?;
 
     let mut core = input.as_object().cloned().unwrap_or_default();
-    core.insert("kind".into(), Value::String("arcane-advisory-artifact-receipt".into()));
+    core.insert(
+        "kind".into(),
+        Value::String("arcane-advisory-artifact-receipt".into()),
+    );
     core.insert(
         "producerAgentIdDigest".into(),
         binding.get("agentIdDigest").cloned().unwrap_or(Value::Null),
     );
     let receipt = common_receipt(core, &binding, issued_at, freshness_ms)?;
-    let auth = sign_record(&receipt, key_ring, key_id, ADVISORY_ARTIFACT_BOUND_FIELDS, Some(ARTIFACT_DOMAIN))
-        .map_err(CertificationError::Arcane)?;
+    let auth = sign_record(
+        &receipt,
+        key_ring,
+        key_id,
+        ADVISORY_ARTIFACT_BOUND_FIELDS,
+        Some(ARTIFACT_DOMAIN),
+    )
+    .map_err(CertificationError::Arcane)?;
     let mut object = receipt.as_object().cloned().unwrap_or_default();
     object.insert("authentication".into(), auth);
     Ok(Value::Object(object))
@@ -427,11 +544,20 @@ pub fn verify_advisory_artifact_receipt(
     now_ms: i64,
     freshness_ms: i64,
 ) -> Value {
-    let artifact_keys: Vec<&str> = ADVISORY_ARTIFACT_BOUND_FIELDS.iter().chain(["authentication"].iter()).copied().collect();
+    let artifact_keys: Vec<&str> = ADVISORY_ARTIFACT_BOUND_FIELDS
+        .iter()
+        .chain(["authentication"].iter())
+        .copied()
+        .collect();
     let nonce_ok = receipt
         .get("nonce")
         .and_then(Value::as_str)
-        .is_some_and(|n| n.len() == 32 && n.bytes().all(|b| b.is_ascii_hexdigit() && (b.is_ascii_digit() || b.is_ascii_lowercase())));
+        .is_some_and(|n| {
+            n.len() == 32
+                && n.bytes().all(|b| {
+                    b.is_ascii_hexdigit() && (b.is_ascii_digit() || b.is_ascii_lowercase())
+                })
+        });
     if !exact_keys(receipt, &artifact_keys)
         || receipt.get("schemaVersion") != Some(&json!(1))
         || receipt.get("kind").and_then(Value::as_str) != Some("arcane-advisory-artifact-receipt")
@@ -442,18 +568,37 @@ pub fn verify_advisory_artifact_receipt(
         || !is_digest(receipt.get("producerAgentIdDigest"))
         || !nonce_ok
     {
-        return deny("ARC_SCHEMA_INVALID", "advisory artifact receipt is invalid", json!({}));
+        return deny(
+            "ARC_SCHEMA_INVALID",
+            "advisory artifact receipt is invalid",
+            json!({}),
+        );
     }
     let projected = strip_receipt_id_and_auth(receipt);
     match digest_value(&projected) {
-        Ok(digest) if receipt.get("receiptId").and_then(Value::as_str) == Some(digest.as_str()) => {}
-        _ => return deny("ARC_AUTH_FORGED", "advisory artifact receipt identifier does not match content", json!({})),
+        Ok(digest) if receipt.get("receiptId").and_then(Value::as_str) == Some(digest.as_str()) => {
+        }
+        _ => {
+            return deny(
+                "ARC_AUTH_FORGED",
+                "advisory artifact receipt identifier does not match content",
+                json!({}),
+            )
+        }
     }
     if !freshness(receipt, now_ms, freshness_ms) {
-        return deny("ARC_REPLAY_STALE", "advisory artifact receipt is stale or from the future", json!({}));
+        return deny(
+            "ARC_REPLAY_STALE",
+            "advisory artifact receipt is stale or from the future",
+            json!({}),
+        );
     }
     if !verify_stored_binding(receipt, producer_authority, store) {
-        return deny("ARC_AUTHORITY_NOT_ASSERTED", "artifact producer binding is unavailable", json!({}));
+        return deny(
+            "ARC_AUTHORITY_NOT_ASSERTED",
+            "artifact producer binding is unavailable",
+            json!({}),
+        );
     }
     let expected_binding = expected.as_object().cloned().unwrap_or_default();
     let auth = match verify_record(
@@ -465,15 +610,29 @@ pub fn verify_advisory_artifact_receipt(
         Some(ARTIFACT_DOMAIN),
     ) {
         Ok(decision) => decision,
-        Err(_) => return deny("ARC_AUTH_FORGED", "advisory artifact receipt authentication is unverifiable", json!({})),
+        Err(_) => {
+            return deny(
+                "ARC_AUTH_FORGED",
+                "advisory artifact receipt authentication is unverifiable",
+                json!({}),
+            )
+        }
     };
     if !auth.allowed {
-        return deny(auth.code.unwrap_or("ARC_AUTH_FORGED"), auth.message.as_deref().unwrap_or(""), json!({}));
+        return deny(
+            auth.code.unwrap_or("ARC_AUTH_FORGED"),
+            auth.message.as_deref().unwrap_or(""),
+            json!({}),
+        );
     }
     for field in INPUT_FIELDS.iter().chain(EXECUTION_FIELDS.iter()) {
         if let Some(expected_value) = expected.get(*field) {
             if receipt.get(*field) != Some(expected_value) {
-                return deny("ARC_BINDING_MISMATCH", "artifact receipt differs from expected input", json!({"field": field}));
+                return deny(
+                    "ARC_BINDING_MISMATCH",
+                    "artifact receipt differs from expected input",
+                    json!({"field": field}),
+                );
             }
         }
     }
@@ -504,13 +663,28 @@ pub fn mint_advisory_certification_receipt(
     issued_at: String,
     freshness_ms: i64,
 ) -> Result<Value, CertificationError> {
-    let artifact = verify_advisory_artifact_receipt(artifact_receipt, &json!({}), key_ring, store, "alchemist", now_ms, freshness_ms);
+    let artifact = verify_advisory_artifact_receipt(
+        artifact_receipt,
+        &json!({}),
+        key_ring,
+        store,
+        "alchemist",
+        now_ms,
+        freshness_ms,
+    );
     if artifact.get("allowed") != Some(&Value::Bool(true)) {
         return Err(CertificationError::Verify(
-            artifact.get("message").and_then(Value::as_str).unwrap_or("artifact receipt invalid").to_string(),
+            artifact
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("artifact receipt invalid")
+                .to_string(),
         ));
     }
-    if !valid_checklist(checklist_evidence) || !nonempty(Some(&json!(adapter))) || !nonempty(Some(&json!(session_id))) {
+    if !valid_checklist(checklist_evidence)
+        || !nonempty(Some(&json!(adapter)))
+        || !nonempty(Some(&json!(session_id)))
+    {
         return Err(CertificationError::CertificationSchemaInvalid);
     }
     let binding = require_binding(store, adapter, session_id, "oracle")?;
@@ -519,12 +693,30 @@ pub fn mint_advisory_certification_receipt(
     }
     let mut copied = Map::new();
     for field in INPUT_FIELDS.iter().chain(EXECUTION_FIELDS.iter()) {
-        copied.insert((*field).to_string(), artifact_receipt.get(*field).cloned().unwrap_or(Value::Null));
+        copied.insert(
+            (*field).to_string(),
+            artifact_receipt.get(*field).cloned().unwrap_or(Value::Null),
+        );
     }
-    copied.insert("kind".into(), Value::String("arcane-advisory-certification-receipt".into()));
-    copied.insert("artifactReceiptDigest".into(), Value::String(digest_value(artifact_receipt)?));
-    copied.insert("producerAgentIdDigest".into(), artifact_receipt.get("producerAgentIdDigest").cloned().unwrap_or(Value::Null));
-    copied.insert("certifierAgentIdDigest".into(), binding.get("agentIdDigest").cloned().unwrap_or(Value::Null));
+    copied.insert(
+        "kind".into(),
+        Value::String("arcane-advisory-certification-receipt".into()),
+    );
+    copied.insert(
+        "artifactReceiptDigest".into(),
+        Value::String(digest_value(artifact_receipt)?),
+    );
+    copied.insert(
+        "producerAgentIdDigest".into(),
+        artifact_receipt
+            .get("producerAgentIdDigest")
+            .cloned()
+            .unwrap_or(Value::Null),
+    );
+    copied.insert(
+        "certifierAgentIdDigest".into(),
+        binding.get("agentIdDigest").cloned().unwrap_or(Value::Null),
+    );
     let checklist_items: Vec<Value> = checklist_evidence
         .as_array()
         .unwrap()
@@ -536,8 +728,14 @@ pub fn mint_advisory_certification_receipt(
     copied.insert("adapter".into(), Value::String(adapter.to_string()));
     copied.insert("sessionId".into(), Value::String(session_id.to_string()));
     let receipt = common_receipt(copied, &binding, issued_at, freshness_ms)?;
-    let auth = sign_record(&receipt, key_ring, key_id, ADVISORY_CERTIFICATION_BOUND_FIELDS, Some(CERTIFICATION_DOMAIN))
-        .map_err(CertificationError::Arcane)?;
+    let auth = sign_record(
+        &receipt,
+        key_ring,
+        key_id,
+        ADVISORY_CERTIFICATION_BOUND_FIELDS,
+        Some(CERTIFICATION_DOMAIN),
+    )
+    .map_err(CertificationError::Arcane)?;
     let mut object = receipt.as_object().cloned().unwrap_or_default();
     object.insert("authentication".into(), auth);
     Ok(Value::Object(object))
@@ -556,24 +754,43 @@ pub fn verify_advisory_certification(
     now_ms: i64,
     freshness_ms: i64,
 ) -> Value {
-    let artifact = verify_advisory_artifact_receipt(artifact_receipt, expected, key_ring, store, producer_authority, now_ms, freshness_ms);
+    let artifact = verify_advisory_artifact_receipt(
+        artifact_receipt,
+        expected,
+        key_ring,
+        store,
+        producer_authority,
+        now_ms,
+        freshness_ms,
+    );
     if artifact.get("allowed") != Some(&Value::Bool(true)) {
         return artifact;
     }
     let receipt = certification_receipt;
-    let certification_keys: Vec<&str> =
-        ADVISORY_CERTIFICATION_BOUND_FIELDS.iter().chain(["authentication"].iter()).copied().collect();
+    let certification_keys: Vec<&str> = ADVISORY_CERTIFICATION_BOUND_FIELDS
+        .iter()
+        .chain(["authentication"].iter())
+        .copied()
+        .collect();
     let nonce_ok = receipt
         .get("nonce")
         .and_then(Value::as_str)
-        .is_some_and(|n| n.len() == 32 && n.bytes().all(|b| b.is_ascii_hexdigit() && (b.is_ascii_digit() || b.is_ascii_lowercase())));
+        .is_some_and(|n| {
+            n.len() == 32
+                && n.bytes().all(|b| {
+                    b.is_ascii_hexdigit() && (b.is_ascii_digit() || b.is_ascii_lowercase())
+                })
+        });
     if !exact_keys(receipt, &certification_keys)
         || receipt.get("schemaVersion") != Some(&json!(1))
-        || receipt.get("kind").and_then(Value::as_str) != Some("arcane-advisory-certification-receipt")
+        || receipt.get("kind").and_then(Value::as_str)
+            != Some("arcane-advisory-certification-receipt")
         || !valid_inputs(receipt)
         || !valid_execution(receipt)
         || !receipt.get("binding").is_some_and(valid_binding)
-        || !receipt.get("checklistEvidence").is_some_and(valid_checklist)
+        || !receipt
+            .get("checklistEvidence")
+            .is_some_and(valid_checklist)
         || receipt.get("verdict").and_then(Value::as_str) != Some("PASS")
         || !is_digest(receipt.get("receiptId"))
         || !is_digest(receipt.get("certifierAgentIdDigest"))
@@ -581,18 +798,37 @@ pub fn verify_advisory_certification(
         || !is_digest(receipt.get("artifactReceiptDigest"))
         || !nonce_ok
     {
-        return deny("ARC_EVIDENCE_INSUFFICIENT", "independent advisory certification is missing or invalid", json!({}));
+        return deny(
+            "ARC_EVIDENCE_INSUFFICIENT",
+            "independent advisory certification is missing or invalid",
+            json!({}),
+        );
     }
     let projected = strip_receipt_id_and_auth(receipt);
     match digest_value(&projected) {
-        Ok(digest) if receipt.get("receiptId").and_then(Value::as_str) == Some(digest.as_str()) => {}
-        _ => return deny("ARC_AUTH_FORGED", "advisory certification identifier does not match content", json!({})),
+        Ok(digest) if receipt.get("receiptId").and_then(Value::as_str) == Some(digest.as_str()) => {
+        }
+        _ => {
+            return deny(
+                "ARC_AUTH_FORGED",
+                "advisory certification identifier does not match content",
+                json!({}),
+            )
+        }
     }
     if !freshness(receipt, now_ms, freshness_ms) {
-        return deny("ARC_REPLAY_STALE", "advisory certification is stale or from the future", json!({}));
+        return deny(
+            "ARC_REPLAY_STALE",
+            "advisory certification is stale or from the future",
+            json!({}),
+        );
     }
     if !verify_stored_binding(receipt, "oracle", store) {
-        return deny("ARC_AUTHORITY_NOT_ASSERTED", "Oracle certifier binding is unavailable", json!({}));
+        return deny(
+            "ARC_AUTHORITY_NOT_ASSERTED",
+            "Oracle certifier binding is unavailable",
+            json!({}),
+        );
     }
     let expected_binding = expected.as_object().cloned().unwrap_or_default();
     let auth = match verify_record(
@@ -604,16 +840,32 @@ pub fn verify_advisory_certification(
         Some(CERTIFICATION_DOMAIN),
     ) {
         Ok(decision) => decision,
-        Err(_) => return deny("ARC_AUTH_FORGED", "advisory certification authentication is unverifiable", json!({})),
+        Err(_) => {
+            return deny(
+                "ARC_AUTH_FORGED",
+                "advisory certification authentication is unverifiable",
+                json!({}),
+            )
+        }
     };
     if !auth.allowed {
-        return deny(auth.code.unwrap_or("ARC_AUTH_FORGED"), auth.message.as_deref().unwrap_or(""), json!({}));
+        return deny(
+            auth.code.unwrap_or("ARC_AUTH_FORGED"),
+            auth.message.as_deref().unwrap_or(""),
+            json!({}),
+        );
     }
     if receipt.get("producerAgentIdDigest") == receipt.get("certifierAgentIdDigest") {
-        return deny("ARC_CLAIM_PREREQUISITE_UNMET", "producer cannot certify its own artifact", json!({}));
+        return deny(
+            "ARC_CLAIM_PREREQUISITE_UNMET",
+            "producer cannot certify its own artifact",
+            json!({}),
+        );
     }
     match digest_value(artifact_receipt) {
-        Ok(digest) if receipt.get("artifactReceiptDigest").and_then(Value::as_str) == Some(digest.as_str()) => {}
+        Ok(digest)
+            if receipt.get("artifactReceiptDigest").and_then(Value::as_str)
+                == Some(digest.as_str()) => {}
         _ => {
             return deny(
                 "ARC_BINDING_MISMATCH",
@@ -622,9 +874,17 @@ pub fn verify_advisory_certification(
             )
         }
     }
-    for field in INPUT_FIELDS.iter().chain(EXECUTION_FIELDS.iter()).chain(["producerAgentIdDigest"].iter()) {
+    for field in INPUT_FIELDS
+        .iter()
+        .chain(EXECUTION_FIELDS.iter())
+        .chain(["producerAgentIdDigest"].iter())
+    {
         if receipt.get(*field) != artifact_receipt.get(*field) {
-            return deny("ARC_BINDING_MISMATCH", "certification differs from artifact receipt", json!({"field": field}));
+            return deny(
+                "ARC_BINDING_MISMATCH",
+                "certification differs from artifact receipt",
+                json!({"field": field}),
+            );
         }
     }
     decision(
@@ -651,10 +911,18 @@ pub fn find_current_advisory_certification(
     freshness_ms: i64,
 ) -> Value {
     if !is_digest(Some(&json!(artifact_digest))) {
-        return deny("ARC_EVIDENCE_INSUFFICIENT", "receipt store and artifact digest are required", json!({}));
+        return deny(
+            "ARC_EVIDENCE_INSUFFICIENT",
+            "receipt store and artifact digest are required",
+            json!({}),
+        );
     }
     if !receipt_store.verify_chain_ok() {
-        return deny("ARC_STORE_CORRUPT", "advisory receipt chain is unavailable or corrupt", json!({}));
+        return deny(
+            "ARC_STORE_CORRUPT",
+            "advisory receipt chain is unavailable or corrupt",
+            json!({}),
+        );
     }
     let run_id = expected.get("runId").and_then(Value::as_str);
     let records = receipt_store.list(run_id);
@@ -710,11 +978,17 @@ mod tests {
 
     impl FakeBindingStore {
         fn new() -> Self {
-            Self { bindings: RefCell::new(HashMap::new()) }
+            Self {
+                bindings: RefCell::new(HashMap::new()),
+            }
         }
         fn set(&self, adapter: &str, session_id: &str, authority: &str, agent_id_digest: &str) {
             self.bindings.borrow_mut().insert(
-                (adapter.to_string(), session_id.to_string(), authority.to_string()),
+                (
+                    adapter.to_string(),
+                    session_id.to_string(),
+                    authority.to_string(),
+                ),
                 json!({"agentIdDigest": agent_id_digest}),
             );
         }
@@ -724,7 +998,11 @@ mod tests {
         fn find_latest(&self, adapter: &str, session_id: &str, authority: &str) -> Option<Value> {
             self.bindings
                 .borrow()
-                .get(&(adapter.to_string(), session_id.to_string(), authority.to_string()))
+                .get(&(
+                    adapter.to_string(),
+                    session_id.to_string(),
+                    authority.to_string(),
+                ))
                 .cloned()
         }
     }
@@ -774,12 +1052,25 @@ mod tests {
         store.set("cli", "sess-1", "alchemist", &digest("producer"));
         let input = sample_input("cli", "sess-1");
         let receipt = mint_advisory_artifact_receipt(
-            &input, &ring, "k1", &store, "alchemist",
-            "2026-09-24T00:00:00.000Z".to_string(), DEFAULT_FRESHNESS_MS,
+            &input,
+            &ring,
+            "k1",
+            &store,
+            "alchemist",
+            "2026-09-24T00:00:00.000Z".to_string(),
+            DEFAULT_FRESHNESS_MS,
         )
         .unwrap();
         let now_ms = parse_rfc3339_ms("2026-09-24T00:00:01.000Z").unwrap();
-        let result = verify_advisory_artifact_receipt(&receipt, &json!({}), &ring, &store, "alchemist", now_ms, DEFAULT_FRESHNESS_MS);
+        let result = verify_advisory_artifact_receipt(
+            &receipt,
+            &json!({}),
+            &ring,
+            &store,
+            "alchemist",
+            now_ms,
+            DEFAULT_FRESHNESS_MS,
+        );
         assert_eq!(result["allowed"], true, "{result:?}");
     }
 
@@ -788,7 +1079,10 @@ mod tests {
         let mut input = sample_input("cli", "sess-1");
         input["receiptId"] = json!("forged");
         let err = reject_caller_authority(&input).unwrap_err();
-        assert!(matches!(err, CertificationError::AuthorityClaimed("receiptId")));
+        assert!(matches!(
+            err,
+            CertificationError::AuthorityClaimed("receiptId")
+        ));
     }
 
     #[test]
@@ -800,15 +1094,28 @@ mod tests {
         store.set("cli", "sess-1", "oracle", &same_agent);
         let input = sample_input("cli", "sess-1");
         let artifact_receipt = mint_advisory_artifact_receipt(
-            &input, &ring, "k1", &store, "alchemist",
-            "2026-09-24T00:00:00.000Z".to_string(), DEFAULT_FRESHNESS_MS,
+            &input,
+            &ring,
+            "k1",
+            &store,
+            "alchemist",
+            "2026-09-24T00:00:00.000Z".to_string(),
+            DEFAULT_FRESHNESS_MS,
         )
         .unwrap();
         let now_ms = parse_rfc3339_ms("2026-09-24T00:00:01.000Z").unwrap();
         let checklist = json!([{"criterionId": "c1", "evidenceDigest": digest("evidence")}]);
         let err = mint_advisory_certification_receipt(
-            &artifact_receipt, &checklist, "cli", "sess-1", &ring, "k1", &store,
-            now_ms, "2026-09-24T00:00:01.000Z".to_string(), DEFAULT_FRESHNESS_MS,
+            &artifact_receipt,
+            &checklist,
+            "cli",
+            "sess-1",
+            &ring,
+            "k1",
+            &store,
+            now_ms,
+            "2026-09-24T00:00:01.000Z".to_string(),
+            DEFAULT_FRESHNESS_MS,
         )
         .unwrap_err();
         assert!(matches!(err, CertificationError::ClaimPrerequisiteUnmet));
@@ -822,20 +1129,40 @@ mod tests {
         store.set("cli", "sess-1", "oracle", &digest("certifier"));
         let input = sample_input("cli", "sess-1");
         let artifact_receipt = mint_advisory_artifact_receipt(
-            &input, &ring, "k1", &store, "alchemist",
-            "2026-09-24T00:00:00.000Z".to_string(), DEFAULT_FRESHNESS_MS,
+            &input,
+            &ring,
+            "k1",
+            &store,
+            "alchemist",
+            "2026-09-24T00:00:00.000Z".to_string(),
+            DEFAULT_FRESHNESS_MS,
         )
         .unwrap();
         let now1 = parse_rfc3339_ms("2026-09-24T00:00:01.000Z").unwrap();
         let checklist = json!([{"criterionId": "c1", "evidenceDigest": digest("evidence")}]);
         let certification_receipt = mint_advisory_certification_receipt(
-            &artifact_receipt, &checklist, "cli", "sess-1", &ring, "k1", &store,
-            now1, "2026-09-24T00:00:01.000Z".to_string(), DEFAULT_FRESHNESS_MS,
+            &artifact_receipt,
+            &checklist,
+            "cli",
+            "sess-1",
+            &ring,
+            "k1",
+            &store,
+            now1,
+            "2026-09-24T00:00:01.000Z".to_string(),
+            DEFAULT_FRESHNESS_MS,
         )
         .unwrap();
         let now2 = parse_rfc3339_ms("2026-09-24T00:00:02.000Z").unwrap();
         let result = verify_advisory_certification(
-            &artifact_receipt, &certification_receipt, &json!({}), &ring, &store, "alchemist", now2, DEFAULT_FRESHNESS_MS,
+            &artifact_receipt,
+            &certification_receipt,
+            &json!({}),
+            &ring,
+            &store,
+            "alchemist",
+            now2,
+            DEFAULT_FRESHNESS_MS,
         );
         assert_eq!(result["allowed"], true, "{result:?}");
     }

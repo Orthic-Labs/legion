@@ -50,7 +50,10 @@ fn first_text_of_number_is_empty() {
 #[test]
 fn classify_reasoning_event() {
     let e = json!({"type": "reasoning_delta", "text": "thinking..."});
-    assert_eq!(classify(&e), ("reasoning".to_string(), "thinking...".to_string()));
+    assert_eq!(
+        classify(&e),
+        ("reasoning".to_string(), "thinking...".to_string())
+    );
 }
 
 #[test]
@@ -68,7 +71,10 @@ fn classify_command_falls_back_to_first_text_when_no_command_field() {
 #[test]
 fn classify_patch_event() {
     let e = json!({"type": "apply_patch", "text": "--- a\n+++ b"});
-    assert_eq!(classify(&e), ("patch".to_string(), "--- a\n+++ b".to_string()));
+    assert_eq!(
+        classify(&e),
+        ("patch".to_string(), "--- a\n+++ b".to_string())
+    );
 }
 
 #[test]
@@ -80,7 +86,10 @@ fn classify_error_from_top_level_error_field_even_without_error_in_type() {
 #[test]
 fn classify_assistant_message() {
     let e = json!({"msg": {"type": "agent_message", "text": "hello there"}});
-    assert_eq!(classify(&e), ("assistant".to_string(), "hello there".to_string()));
+    assert_eq!(
+        classify(&e),
+        ("assistant".to_string(), "hello there".to_string())
+    );
 }
 
 #[test]
@@ -106,7 +115,10 @@ fn classify_unknown_kind_passes_through_as_its_own_bucket() {
 #[test]
 fn classify_missing_type_is_unknown() {
     let e = json!({"text": "no type here"});
-    assert_eq!(classify(&e), ("unknown".to_string(), "no type here".to_string()));
+    assert_eq!(
+        classify(&e),
+        ("unknown".to_string(), "no type here".to_string())
+    );
 }
 
 #[test]
@@ -173,7 +185,11 @@ fn list_runs_counts_nonblank_lines_and_only_jsonl_files() {
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp).unwrap();
 
-    write_jsonl(&tmp, "run-a.jsonl", &["{\"type\":\"a\"}", "", "{\"type\":\"b\"}"]);
+    write_jsonl(
+        &tmp,
+        "run-a.jsonl",
+        &["{\"type\":\"a\"}", "", "{\"type\":\"b\"}"],
+    );
     write_jsonl(&tmp, "run-b.jsonl", &["{\"type\":\"a\"}"]);
     fs::write(tmp.join("not-a-run.txt"), "ignore me").unwrap();
 
@@ -210,7 +226,8 @@ fn resolve_target_accepts_file_inside_runs_dir() {
 
 #[test]
 fn resolve_target_rejects_path_traversal() {
-    let tmp = std::env::temp_dir().join(format!("wf_w2_002_resolve_traverse_{}", std::process::id()));
+    let tmp =
+        std::env::temp_dir().join(format!("wf_w2_002_resolve_traverse_{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
     let runs_dir = tmp.join("runs");
     fs::create_dir_all(&runs_dir).unwrap();
@@ -279,10 +296,19 @@ fn events_from_fixture_run_matches_expected_classification() {
     assert_eq!(
         events,
         vec![
-            ("reasoning".to_string(), "Looking at the failing test".to_string()),
+            (
+                "reasoning".to_string(),
+                "Looking at the failing test".to_string()
+            ),
             ("command".to_string(), "cargo test --lib".to_string()),
-            ("assistant".to_string(), "Fixed the off-by-one error.".to_string()),
-            ("usage".to_string(), "{\"type\":\"token_count\",\"total_tokens\":512}".to_string()),
+            (
+                "assistant".to_string(),
+                "Fixed the off-by-one error.".to_string()
+            ),
+            (
+                "usage".to_string(),
+                "{\"type\":\"token_count\",\"total_tokens\":512}".to_string()
+            ),
         ]
     );
 }

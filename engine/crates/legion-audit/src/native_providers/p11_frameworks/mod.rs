@@ -100,7 +100,11 @@ pub mod i18n {
                 }
             }
         }
-        let status = if missing.is_empty() { "pass" } else { "partial" };
+        let status = if missing.is_empty() {
+            "pass"
+        } else {
+            "partial"
+        };
         serde_json::json!({
             "schemaVersion": 1,
             "kind": "legion-locale-map",
@@ -132,9 +136,9 @@ pub mod narrative {
                 })
             })
             .collect();
-        let complete = units.iter().all(|unit| {
-            truthy(unit.get("id")) && truthy(unit.get("text"))
-        });
+        let complete = units
+            .iter()
+            .all(|unit| truthy(unit.get("id")) && truthy(unit.get("text")));
         let coverage_gaps: Vec<Value> = units
             .iter()
             .filter(|unit| !truthy(unit.get("purpose")))
@@ -240,7 +244,11 @@ pub mod copy {
             }
             facts.push(serde_json::json!({ "id": id, "chars": chars, "words": words }));
         }
-        let status = if findings.is_empty() { "pass" } else { "candidates" };
+        let status = if findings.is_empty() {
+            "pass"
+        } else {
+            "candidates"
+        };
         serde_json::json!({
             "schemaVersion": 1,
             "provider": "copy.core",
@@ -286,7 +294,11 @@ pub mod copy {
             }
         }
         let status = if authoritative {
-            if findings.is_empty() { "pass" } else { "candidates" }
+            if findings.is_empty() {
+                "pass"
+            } else {
+                "candidates"
+            }
         } else {
             "unproven"
         };
@@ -548,7 +560,10 @@ pub mod systems {
                 "custom grammar source must be host-config; got {source}"
             ));
         }
-        let abi = input.get("abi").and_then(Value::as_str).unwrap_or("tree-sitter");
+        let abi = input
+            .get("abi")
+            .and_then(Value::as_str)
+            .unwrap_or("tree-sitter");
         Ok(serde_json::json!({
             "schemaVersion": 1,
             "kind": "legion-custom-grammar",
@@ -575,9 +590,7 @@ pub mod systems {
         let has_path = truthy(repository_config.get("grammarPath"));
         let has_digest = truthy(repository_config.get("grammarDigest"));
         if has_path || has_digest {
-            return Err(
-                "repository config may not introduce custom grammar path or digest".into(),
-            );
+            return Err("repository config may not introduce custom grammar path or digest".into());
         }
         Ok(true)
     }
@@ -591,9 +604,15 @@ pub mod sbom {
 
     pub fn syft_command(input: &Value) -> Value {
         let resolved_syft = input.get("resolvedSyft").cloned().unwrap_or(Value::Null);
-        let cyclonedx_path = input.get("cycloneDxPath").and_then(Value::as_str).unwrap_or("");
+        let cyclonedx_path = input
+            .get("cycloneDxPath")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let spdx_path = input.get("spdxPath").and_then(Value::as_str).unwrap_or("");
-        let repository_root = input.get("repositoryRoot").and_then(Value::as_str).unwrap_or("");
+        let repository_root = input
+            .get("repositoryRoot")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let policy = input.get("policy").cloned().unwrap_or(Value::Null);
         let timeout_ms = policy
             .get("providerTimeoutMs")
@@ -655,15 +674,9 @@ pub mod trust_safety {
         };
         for choice in &choices {
             let id = choice.get("id").cloned().unwrap_or(Value::Null);
-            let action = choice
-                .get("action")
-                .cloned()
-                .unwrap_or_else(|| id.clone());
+            let action = choice.get("action").cloned().unwrap_or_else(|| id.clone());
             let evidence = choice.get("evidence").cloned().unwrap_or_else(|| {
-                Value::String(format!(
-                    "choice:{}",
-                    id.as_str().unwrap_or_default()
-                ))
+                Value::String(format!("choice:{}", id.as_str().unwrap_or_default()))
             });
             let base = serde_json::json!({
                 "choiceId": id,
@@ -673,13 +686,27 @@ pub mod trust_safety {
                 "consequence": choice.get("consequence").cloned().unwrap_or(Value::Null),
                 "evidence": evidence,
             });
-            let deterministic = ["preselected", "hiddenCost", "cancellationAsymmetry", "disguisedControl", "falselyLabeled", "ownerlessModeration", "policyInconsistent"]
-                .iter()
-                .any(|key| choice.get(*key) == Some(&Value::Bool(true)));
+            let deterministic = [
+                "preselected",
+                "hiddenCost",
+                "cancellationAsymmetry",
+                "disguisedControl",
+                "falselyLabeled",
+                "ownerlessModeration",
+                "policyInconsistent",
+            ]
+            .iter()
+            .any(|key| choice.get(*key) == Some(&Value::Bool(true)));
             if deterministic {
                 let mut finding = base.as_object().cloned().unwrap_or_default();
-                finding.insert("ruleId".into(), Value::String("trust-safety.deceptive-design-deterministic".into()));
-                finding.insert("judgmentClass".into(), Value::String("deterministic".into()));
+                finding.insert(
+                    "ruleId".into(),
+                    Value::String("trust-safety.deceptive-design-deterministic".into()),
+                );
+                finding.insert(
+                    "judgmentClass".into(),
+                    Value::String("deterministic".into()),
+                );
                 findings.push(Value::Object(finding));
             }
             let interpretive = ["confirmshaming", "unsupportedUrgency", "intentConcern"]
@@ -687,7 +714,10 @@ pub mod trust_safety {
                 .any(|key| choice.get(*key) == Some(&Value::Bool(true)));
             if interpretive {
                 let mut candidate = base.as_object().cloned().unwrap_or_default();
-                candidate.insert("ruleId".into(), Value::String("trust-safety.deceptive-design-interpretive".into()));
+                candidate.insert(
+                    "ruleId".into(),
+                    Value::String("trust-safety.deceptive-design-interpretive".into()),
+                );
                 candidate.insert("judgmentClass".into(), Value::String("interpretive".into()));
                 candidate.insert("reviewRequired".into(), Value::Bool(true));
                 candidates.push(Value::Object(candidate));
@@ -795,7 +825,10 @@ pub mod codeql {
         let Some(plan_revision) = plan_revision else {
             return Err("plan has no repository revision to bind against".into());
         };
-        let provider = receipt.get("provider").and_then(Value::as_str).unwrap_or("");
+        let provider = receipt
+            .get("provider")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let receipt_revision = receipt
             .get("repositoryBinding")
             .and_then(|binding| binding.get("repositoryRevision"))
@@ -831,14 +864,19 @@ pub mod discoverability {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let policy = input.get("policy").cloned().unwrap_or(Value::Object(Map::new()));
+        let policy = input
+            .get("policy")
+            .cloned()
+            .unwrap_or(Value::Object(Map::new()));
         let require_canonical = policy.get("requireCanonical") == Some(&Value::Bool(true));
         let mut findings = Vec::new();
         for page in &pages {
             let indexable = page.get("indexable") == Some(&Value::Bool(true));
             let id = page.get("id").cloned().unwrap_or(Value::Null);
             if indexable && !truthy(page.get("title")) {
-                findings.push(serde_json::json!({ "ruleId": "discoverability.title-missing", "page": id }));
+                findings.push(
+                    serde_json::json!({ "ruleId": "discoverability.title-missing", "page": id }),
+                );
             }
             if indexable && !truthy(page.get("description")) {
                 findings.push(serde_json::json!({ "ruleId": "discoverability.description-missing", "page": id }));
@@ -857,7 +895,11 @@ pub mod discoverability {
                 ))
             })
             .collect();
-        let status = if findings.is_empty() { "pass" } else { "candidates" };
+        let status = if findings.is_empty() {
+            "pass"
+        } else {
+            "candidates"
+        };
         serde_json::json!({
             "schemaVersion": 1,
             "provider": "discoverability.core",
@@ -892,15 +934,15 @@ pub mod reliability_runtime {
         let coverage_gaps: Vec<Value> = failed
             .iter()
             .map(|receipt| {
-                receipt
-                    .get("reason")
-                    .cloned()
-                    .unwrap_or_else(|| {
-                        Value::String(format!(
-                            "runtime-receipt:{}",
-                            receipt.get("id").and_then(Value::as_str).unwrap_or("unknown")
-                        ))
-                    })
+                receipt.get("reason").cloned().unwrap_or_else(|| {
+                    Value::String(format!(
+                        "runtime-receipt:{}",
+                        receipt
+                            .get("id")
+                            .and_then(Value::as_str)
+                            .unwrap_or("unknown")
+                    ))
+                })
             })
             .collect();
         serde_json::json!({
@@ -924,7 +966,14 @@ pub mod governance {
         let object = value
             .as_object()
             .ok_or_else(|| "provider input must be an object".to_owned())?;
-        for key in ["policy", "owner", "authority", "status", "disposition", "expiresAt"] {
+        for key in [
+            "policy",
+            "owner",
+            "authority",
+            "status",
+            "disposition",
+            "expiresAt",
+        ] {
             if !truthy(object.get(key)) {
                 return Err(format!("policy {key} required"));
             }
@@ -981,7 +1030,9 @@ pub mod governance {
                 Ok(row)
             }) {
                 Ok(row) => normalized.push(row),
-                Err(reason) => gaps.push(serde_json::json!({ "kind": "policy-evidence-invalid", "reason": reason })),
+                Err(reason) => gaps.push(
+                    serde_json::json!({ "kind": "policy-evidence-invalid", "reason": reason }),
+                ),
             }
         }
         if policies.is_empty() {
@@ -1010,25 +1061,45 @@ pub mod governance {
         let mut parts = normalized.splitn(2, 'T');
         let date_part = parts.next()?;
         let time_part = parts.next().unwrap_or("00:00:00");
-        let date_nums: Vec<i64> = date_part.split('-').filter_map(|p| p.parse().ok()).collect();
+        let date_nums: Vec<i64> = date_part
+            .split('-')
+            .filter_map(|p| p.parse().ok())
+            .collect();
         if date_nums.len() != 3 {
             return None;
         }
         let time_and_ms: Vec<&str> = time_part.splitn(2, '.').collect();
-        let time_nums: Vec<i64> = time_and_ms[0].split(':').filter_map(|p| p.parse().ok()).collect();
+        let time_nums: Vec<i64> = time_and_ms[0]
+            .split(':')
+            .filter_map(|p| p.parse().ok())
+            .collect();
         if time_nums.len() != 3 {
             return None;
         }
-        let ms: i64 = time_and_ms.get(1).and_then(|f| f.get(0..3.min(f.len()))).and_then(|f| f.parse().ok()).unwrap_or(0);
+        let ms: i64 = time_and_ms
+            .get(1)
+            .and_then(|f| f.get(0..3.min(f.len())))
+            .and_then(|f| f.parse().ok())
+            .unwrap_or(0);
         let (year, month, day) = (date_nums[0], date_nums[1], date_nums[2]);
         let adjusted = year - i64::from(month <= 2);
-        let era = (if adjusted >= 0 { adjusted } else { adjusted - 399 }) / 400;
+        let era = (if adjusted >= 0 {
+            adjusted
+        } else {
+            adjusted - 399
+        }) / 400;
         let year_of_era = adjusted - era * 400;
         let month_prime = month + if month > 2 { -3 } else { 9 };
         let day_of_year = (153 * month_prime + 2) / 5 + day - 1;
         let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
         let days = era * 146097 + day_of_era - 719468;
-        Some(days * 86_400_000 + time_nums[0] * 3_600_000 + time_nums[1] * 60_000 + time_nums[2] * 1000 + ms)
+        Some(
+            days * 86_400_000
+                + time_nums[0] * 3_600_000
+                + time_nums[1] * 60_000
+                + time_nums[2] * 1000
+                + ms,
+        )
     }
 }
 
@@ -1043,19 +1114,35 @@ pub mod provenance {
         let lock_packages: Vec<String> = input
             .get("lockPackages")
             .and_then(Value::as_array)
-            .map(|items| items.iter().filter_map(Value::as_str).map(String::from).collect())
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(String::from)
+                    .collect()
+            })
             .unwrap_or_default();
         let sbom_packages: BTreeSet<String> = input
             .get("sbomPackages")
             .and_then(Value::as_array)
-            .map(|items| items.iter().filter_map(Value::as_str).map(String::from).collect())
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(String::from)
+                    .collect()
+            })
             .unwrap_or_default();
         let missing: Vec<String> = lock_packages
             .iter()
             .filter(|item| !sbom_packages.contains(*item))
             .cloned()
             .collect();
-        let provenance = if truthy(input.get("provenance")) { "present" } else { "absent" };
+        let provenance = if truthy(input.get("provenance")) {
+            "present"
+        } else {
+            "absent"
+        };
         serde_json::json!({
             "complete": missing.is_empty(),
             "missing": missing,
@@ -1064,15 +1151,23 @@ pub mod provenance {
     }
 
     fn valid_digest(value: Option<&Value>) -> bool {
-        let Some(value) = value.and_then(Value::as_str) else { return false };
+        let Some(value) = value.and_then(Value::as_str) else {
+            return false;
+        };
         value.len() == 71
             && value.starts_with("sha256:")
-            && value[7..].bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+            && value[7..]
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
     }
 
     fn same_binding(actual: Option<&Value>, expected: Option<&Value>) -> bool {
-        let Some(actual) = actual.and_then(Value::as_object) else { return false };
-        let Some(expected) = expected.and_then(Value::as_object) else { return false };
+        let Some(actual) = actual.and_then(Value::as_object) else {
+            return false;
+        };
+        let Some(expected) = expected.and_then(Value::as_object) else {
+            return false;
+        };
         actual.get("repositoryRevision") == expected.get("repositoryRevision")
             && actual.get("digest") == expected.get("digest")
     }
@@ -1108,7 +1203,9 @@ pub mod provenance {
         if lock_packages.is_empty() {
             gaps.push(serde_json::json!({ "kind": "dependency-inventory-missing" }));
         }
-        if !valid_digest(supply_chain.get("cycloneDxDigest")) || !valid_digest(supply_chain.get("spdxDigest")) {
+        if !valid_digest(supply_chain.get("cycloneDxDigest"))
+            || !valid_digest(supply_chain.get("spdxDigest"))
+        {
             gaps.push(serde_json::json!({ "kind": "sbom-artifact-missing" }));
         }
         let provenance_field = supply_chain.get("provenance");
@@ -1185,9 +1282,8 @@ mod tests {
 
     #[test]
     fn narrative_model_flags_missing_purpose() {
-        let model = narrative::build_narrative_model(&[
-            serde_json::json!({"id": "u1", "text": "hello"}),
-        ]);
+        let model =
+            narrative::build_narrative_model(&[serde_json::json!({"id": "u1", "text": "hello"})]);
         assert_eq!(model["complete"], true);
         assert_eq!(model["coverageGaps"][0], "purpose-missing:u1");
     }
@@ -1255,9 +1351,13 @@ mod tests {
             "name": "left-pad", "version": "1.0.0", "detected": "MIT",
         }));
         assert_eq!(record["status"], "known");
-        let unknown_record = licenses::normalize_license(&serde_json::json!({"name": "x", "version": "1"}));
+        let unknown_record =
+            licenses::normalize_license(&serde_json::json!({"name": "x", "version": "1"}));
         assert_eq!(unknown_record["status"], "unknown");
-        let policy_out = licenses::policy_result(&[record, unknown_record], &serde_json::json!({"allow": ["MIT"]}));
+        let policy_out = licenses::policy_result(
+            &[record, unknown_record],
+            &serde_json::json!({"allow": ["MIT"]}),
+        );
         assert_eq!(policy_out["total"], 2);
         assert_eq!(policy_out["known"], 1);
         assert_eq!(policy_out["complete"], false);
@@ -1265,13 +1365,26 @@ mod tests {
 
     #[test]
     fn monorepo_infers_package_manager_and_denominator() {
-        assert_eq!(monorepo::infer_package_manager("services/api/package.json"), "npm");
-        assert_eq!(monorepo::infer_package_manager("engine/Cargo.toml"), "cargo");
-        assert_eq!(monorepo::infer_package_manager("weird/manifest.xyz"), "unknown");
+        assert_eq!(
+            monorepo::infer_package_manager("services/api/package.json"),
+            "npm"
+        );
+        assert_eq!(
+            monorepo::infer_package_manager("engine/Cargo.toml"),
+            "cargo"
+        );
+        assert_eq!(
+            monorepo::infer_package_manager("weird/manifest.xyz"),
+            "unknown"
+        );
 
         let components = vec![
-            monorepo::component_identity(&serde_json::json!({"repoId": "r", "manifestPath": "a/package.json", "packageName": "a"})),
-            monorepo::component_identity(&serde_json::json!({"repoId": "r", "manifestPath": "b/Cargo.toml", "packageName": "b"})),
+            monorepo::component_identity(
+                &serde_json::json!({"repoId": "r", "manifestPath": "a/package.json", "packageName": "a"}),
+            ),
+            monorepo::component_identity(
+                &serde_json::json!({"repoId": "r", "manifestPath": "b/Cargo.toml", "packageName": "b"}),
+            ),
         ];
         let denom = monorepo::component_denominator(&components, &[]);
         assert_eq!(denom["componentCount"], 2);
@@ -1279,7 +1392,10 @@ mod tests {
 
     #[test]
     fn systems_rejects_non_host_config_source() {
-        let err = systems::custom_grammar_record(&serde_json::json!({"languageId": "x", "source": "repo"})).unwrap_err();
+        let err = systems::custom_grammar_record(
+            &serde_json::json!({"languageId": "x", "source": "repo"}),
+        )
+        .unwrap_err();
         assert!(err.contains("host-config"));
         let ok = systems::custom_grammar_record(&serde_json::json!({"languageId": "x"})).unwrap();
         assert_eq!(ok["source"], "host-config");
@@ -1287,9 +1403,12 @@ mod tests {
 
     #[test]
     fn systems_rejects_repository_supplied_grammar_path() {
-        let err = systems::reject_repository_grammar(&serde_json::json!({"grammarPath": "x"})).unwrap_err();
+        let err = systems::reject_repository_grammar(&serde_json::json!({"grammarPath": "x"}))
+            .unwrap_err();
         assert!(err.contains("may not introduce"));
-        assert!(systems::reject_repository_grammar(&serde_json::json!({"grammarId": "x"})).unwrap());
+        assert!(
+            systems::reject_repository_grammar(&serde_json::json!({"grammarId": "x"})).unwrap()
+        );
     }
 
     #[test]
@@ -1392,7 +1511,8 @@ mod tests {
                 "policy": "p", "owner": "o", "authority": "a", "status": "draft",
                 "disposition": "d", "expiresAt": "2020-01-01T00:00:00Z",
             }]},
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(out["status"], "unproven");
         assert_eq!(out["coverageGaps"][0]["kind"], "policy-evidence-invalid");
     }
@@ -1405,7 +1525,8 @@ mod tests {
                 "policy": "p", "owner": "o", "authority": "a", "status": "draft",
                 "disposition": "d", "expiresAt": "2099-01-01T00:00:00Z",
             }]},
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(out["status"], "pass");
         assert_eq!(out["findings"].as_array().unwrap().len(), 1);
     }

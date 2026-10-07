@@ -50,7 +50,12 @@ pub trait PackByProvider {
 
 /// Faithful port of `summarize(matches)`.
 fn summarize(matches: &[Value]) -> Value {
-    let count = |value: &str| matches.iter().filter(|m| m.get("disposition").and_then(Value::as_str) == Some(value)).count();
+    let count = |value: &str| {
+        matches
+            .iter()
+            .filter(|m| m.get("disposition").and_then(Value::as_str) == Some(value))
+            .count()
+    };
     let examined = matches
         .iter()
         .filter(|m| m.get("disposition").and_then(Value::as_str) != Some("UNRESOLVED"))
@@ -98,7 +103,11 @@ pub fn analyze_variants(
     pack_by_provider: &dyn PackByProvider,
 ) -> Result<Value> {
     let binding = binding_from_plan(plan)?;
-    for (label, artifact) in [("model", model), ("candidates", candidates), ("adjudication", adjudication)] {
+    for (label, artifact) in [
+        ("model", model),
+        ("candidates", candidates),
+        ("adjudication", adjudication),
+    ] {
         assert_artifact_binding(artifact, &binding, label)?;
     }
 
@@ -112,19 +121,32 @@ pub fn analyze_variants(
 
     let mut receipts: Vec<Value> = Vec::new();
 
-    let verdicts = adjudication.get("verdicts").and_then(Value::as_array).cloned().unwrap_or_default();
+    let verdicts = adjudication
+        .get("verdicts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     for verdict in &verdicts {
         let verdict_kind = verdict.get("verdict").and_then(Value::as_str).unwrap_or("");
         if !matches!(verdict_kind, "TRUE_POSITIVE" | "LIKELY_TRUE_POSITIVE") {
             continue;
         }
-        let candidate_id = verdict.get("candidateId").and_then(Value::as_str).unwrap_or("");
-        let candidate = *candidate_by_id
-            .get(candidate_id)
-            .ok_or_else(|| SecurityContractError::new(format!("missing candidate {candidate_id}")))?;
+        let candidate_id = verdict
+            .get("candidateId")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let candidate = *candidate_by_id.get(candidate_id).ok_or_else(|| {
+            SecurityContractError::new(format!("missing candidate {candidate_id}"))
+        })?;
 
-        let provider = candidate.get("provider").and_then(Value::as_str).unwrap_or("");
-        let rule_id = candidate.get("ruleId").and_then(Value::as_str).unwrap_or("");
+        let provider = candidate
+            .get("provider")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let rule_id = candidate
+            .get("ruleId")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let strategy = pack_by_provider.strategy_for(provider, rule_id);
 
         let Some(strategy) = strategy else {
@@ -138,9 +160,20 @@ pub fn analyze_variants(
             .cloned()
             .unwrap_or_else(|| strategy.root_cause(candidate, verdict));
 
-        let result = strategy.enumerate(plan, model, candidate, verdict, &binding, &root_cause_signature);
+        let result = strategy.enumerate(
+            plan,
+            model,
+            candidate,
+            verdict,
+            &binding,
+            &root_cause_signature,
+        );
 
-        let raw_matches = result.get("matches").and_then(Value::as_array).cloned().unwrap_or_default();
+        let raw_matches = result
+            .get("matches")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         let matches: Vec<Value> = raw_matches
             .into_iter()
             .map(|mut m| {
@@ -165,8 +198,16 @@ pub fn analyze_variants(
 
         let summary = summarize(&matches);
         let denominator = result.get("denominator").cloned().unwrap_or(Value::Null);
-        let strategies = result.get("strategies").and_then(Value::as_array).cloned().unwrap_or_default();
-        let coverage_gaps = result.get("coverageGaps").and_then(Value::as_array).cloned().unwrap_or_default();
+        let strategies = result
+            .get("strategies")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let coverage_gaps = result
+            .get("coverageGaps")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
 
         let denominator_expected_eq_examined = denominator
             .get("expected")
@@ -177,8 +218,10 @@ pub fn analyze_variants(
             .and_then(Value::as_array)
             .map(|a| a.is_empty())
             .unwrap_or(false);
-        let summary_enumerated_eq_matches = summary.get("enumerated").and_then(Value::as_u64) == Some(matches.len() as u64);
-        let summary_examined_eq_matches = summary.get("examined").and_then(Value::as_u64) == Some(matches.len() as u64);
+        let summary_enumerated_eq_matches =
+            summary.get("enumerated").and_then(Value::as_u64) == Some(matches.len() as u64);
+        let summary_examined_eq_matches =
+            summary.get("examined").and_then(Value::as_u64) == Some(matches.len() as u64);
         let summary_unresolved_zero = summary.get("unresolved").and_then(Value::as_u64) == Some(0);
         let strategies_all_complete = strategies
             .iter()
@@ -220,7 +263,9 @@ pub fn analyze_variants(
         }));
     }
 
-    let complete = receipts.iter().all(|r| r.get("complete").and_then(Value::as_bool) == Some(true));
+    let complete = receipts
+        .iter()
+        .all(|r| r.get("complete").and_then(Value::as_bool) == Some(true));
     let coverage_gaps: Vec<Value> = receipts
         .iter()
         .filter(|r| r.get("complete").and_then(Value::as_bool) != Some(true))

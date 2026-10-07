@@ -114,7 +114,10 @@ pub fn render_host_runtime_output(
 pub fn serialize_host_runtime_output(output: Option<&Json>) -> String {
     match output {
         None => String::new(),
-        Some(v) => format!("{}\n", serde_json::to_string(v).expect("Json::to_string is infallible for valid Value")),
+        Some(v) => format!(
+            "{}\n",
+            serde_json::to_string(v).expect("Json::to_string is infallible for valid Value")
+        ),
     }
 }
 
@@ -127,11 +130,19 @@ fn envelope_to_json(envelope: &RealDecisionEnvelope) -> DecisionEnvelope {
         code: envelope.code.clone(),
         public_reason: envelope.public_reason.clone(),
         enforcement_health: envelope.enforcement_health.clone(),
-        retry_signature: envelope.retry_signature.clone().map(Json::from).unwrap_or(Json::Null),
+        retry_signature: envelope
+            .retry_signature
+            .clone()
+            .map(Json::from)
+            .unwrap_or(Json::Null),
         termination: Json::from(envelope.termination),
         certification: Json::from(envelope.certification.clone()),
         missing_classes: Json::from(envelope.missing_classes.clone()),
-        responsible_producer: envelope.responsible_producer.clone().map(Json::from).unwrap_or(Json::Null),
+        responsible_producer: envelope
+            .responsible_producer
+            .clone()
+            .map(Json::from)
+            .unwrap_or(Json::Null),
         remediation_routes: Json::from(envelope.remediation_routes.clone()),
         missing_evidence: Json::from(
             envelope
@@ -189,9 +200,14 @@ pub fn render_host_runtime_output_checked(
     }
     let real_envelope = create_decision_envelope(envelope_input)
         .map_err(|e| HostRuntimeOutputError::Envelope(e.0))?;
-    let output = render_host_runtime_output(event_type, false, escalate, || envelope_to_json(&real_envelope));
+    let output = render_host_runtime_output(event_type, false, escalate, || {
+        envelope_to_json(&real_envelope)
+    });
     schema
-        .assert(HOST_RUNTIME_OUTPUT_SCHEMA_ID, output.as_ref().unwrap_or(&Json::Null))
+        .assert(
+            HOST_RUNTIME_OUTPUT_SCHEMA_ID,
+            output.as_ref().unwrap_or(&Json::Null),
+        )
         .map_err(HostRuntimeOutputError::Schema)?;
     Ok(output)
 }
@@ -218,7 +234,8 @@ mod tests {
     fn envelope() -> DecisionEnvelope {
         DecisionEnvelope {
             code: Some("ARC_APPROVAL_REQUIRED".to_string()),
-            public_reason: "ARC_APPROVAL_REQUIRED: Required approval evidence is missing.".to_string(),
+            public_reason: "ARC_APPROVAL_REQUIRED: Required approval evidence is missing."
+                .to_string(),
             enforcement_health: "strong".to_string(),
             retry_signature: Json::Null,
             termination: Json::Null,
@@ -232,7 +249,10 @@ mod tests {
 
     #[test]
     fn allowed_returns_none() {
-        assert_eq!(render_host_runtime_output("PreToolUse", true, false, envelope), None);
+        assert_eq!(
+            render_host_runtime_output("PreToolUse", true, false, envelope),
+            None
+        );
     }
 
     #[test]
@@ -253,7 +273,10 @@ mod tests {
     fn stop_block_shape() {
         let out = render_host_runtime_output("Stop", false, false, envelope).unwrap();
         assert_eq!(out["decision"], "block");
-        assert_eq!(out["reason"], "ARC_APPROVAL_REQUIRED: Required approval evidence is missing.");
+        assert_eq!(
+            out["reason"],
+            "ARC_APPROVAL_REQUIRED: Required approval evidence is missing."
+        );
     }
 
     #[test]
@@ -282,13 +305,20 @@ mod tests {
     // --- fully-wired entry points (real decision envelope + real schema assertion) ---
 
     fn denied_input(code: &str) -> DecisionEnvelopeInput {
-        DecisionEnvelopeInput { allowed: false, code: Some(code.to_string()), ..Default::default() }
+        DecisionEnvelopeInput {
+            allowed: false,
+            code: Some(code.to_string()),
+            ..Default::default()
+        }
     }
 
     #[test]
     fn checked_allowed_returns_none_without_building_envelope() {
         let schema = RuntimeSchemaSet::new();
-        let input = DecisionEnvelopeInput { allowed: true, ..Default::default() };
+        let input = DecisionEnvelopeInput {
+            allowed: true,
+            ..Default::default()
+        };
         let out = render_host_runtime_output_checked("PreToolUse", input, false, &schema).unwrap();
         assert_eq!(out, None);
     }
@@ -296,9 +326,14 @@ mod tests {
     #[test]
     fn checked_pre_tool_use_deny_passes_schema() {
         let schema = RuntimeSchemaSet::new();
-        let out = render_host_runtime_output_checked("PreToolUse", denied_input("ARC_APPROVAL_REQUIRED"), false, &schema)
-            .unwrap()
-            .unwrap();
+        let out = render_host_runtime_output_checked(
+            "PreToolUse",
+            denied_input("ARC_APPROVAL_REQUIRED"),
+            false,
+            &schema,
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(out["hookSpecificOutput"]["permissionDecision"], "deny");
         assert_eq!(out["code"], "ARC_APPROVAL_REQUIRED");
         assert_eq!(out["missingClasses"], json!([]));
@@ -307,21 +342,37 @@ mod tests {
     #[test]
     fn checked_stop_block_passes_schema() {
         let schema = RuntimeSchemaSet::new();
-        let out = render_host_runtime_output_checked("Stop", denied_input("ARC_NO_CONTRACT"), false, &schema)
-            .unwrap()
-            .unwrap();
+        let out = render_host_runtime_output_checked(
+            "Stop",
+            denied_input("ARC_NO_CONTRACT"),
+            false,
+            &schema,
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(out["decision"], "block");
-        assert_eq!(out["reason"], "ARC_NO_CONTRACT: No sealed execution contract is bound.");
+        assert_eq!(
+            out["reason"],
+            "ARC_NO_CONTRACT: No sealed execution contract is bound."
+        );
     }
 
     #[test]
     fn checked_other_event_passes_schema() {
         let schema = RuntimeSchemaSet::new();
-        let out = render_host_runtime_output_checked("SessionStart", denied_input("ARC_HOST_EVENT_INVALID"), false, &schema)
-            .unwrap()
-            .unwrap();
+        let out = render_host_runtime_output_checked(
+            "SessionStart",
+            denied_input("ARC_HOST_EVENT_INVALID"),
+            false,
+            &schema,
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(out["hookSpecificOutput"]["hookEventName"], "SessionStart");
-        assert!(out["hookSpecificOutput"]["additionalContext"].as_str().unwrap().starts_with("Arcane: "));
+        assert!(out["hookSpecificOutput"]["additionalContext"]
+            .as_str()
+            .unwrap()
+            .starts_with("Arcane: "));
     }
 
     #[test]
@@ -336,23 +387,35 @@ mod tests {
             },
             ..Default::default()
         };
-        let err = render_host_runtime_output_checked("PreToolUse", input, false, &schema).unwrap_err();
+        let err =
+            render_host_runtime_output_checked("PreToolUse", input, false, &schema).unwrap_err();
         assert!(matches!(err, HostRuntimeOutputError::Envelope(c) if c == "not-a-real-class"));
     }
 
     #[test]
     fn serialize_checked_round_trips_through_schema() {
         let schema = RuntimeSchemaSet::new();
-        let out = render_host_runtime_output_checked("Stop", denied_input("ARC_NO_CONTRACT"), false, &schema)
-            .unwrap();
+        let out = render_host_runtime_output_checked(
+            "Stop",
+            denied_input("ARC_NO_CONTRACT"),
+            false,
+            &schema,
+        )
+        .unwrap();
         let text = serialize_host_runtime_output_checked(out.as_ref(), &schema).unwrap();
         assert!(text.ends_with('\n'));
-        assert_eq!(text.trim_end(), serde_json::to_string(out.as_ref().unwrap()).unwrap());
+        assert_eq!(
+            text.trim_end(),
+            serde_json::to_string(out.as_ref().unwrap()).unwrap()
+        );
     }
 
     #[test]
     fn serialize_checked_none_is_empty_and_schema_accepts_null() {
         let schema = RuntimeSchemaSet::new();
-        assert_eq!(serialize_host_runtime_output_checked(None, &schema).unwrap(), "");
+        assert_eq!(
+            serialize_host_runtime_output_checked(None, &schema).unwrap(),
+            ""
+        );
     }
 }

@@ -17,7 +17,14 @@ fn osv_command_builds_offline_scan_args() {
     assert_eq!(cmd["executable"], "/usr/local/bin/osv-scanner");
     assert_eq!(
         cmd["args"],
-        json!(["scan", "--format", "json", "--output", "/tmp/out.json", "/repo"])
+        json!([
+            "scan",
+            "--format",
+            "json",
+            "--output",
+            "/tmp/out.json",
+            "/repo"
+        ])
     );
     assert_eq!(cmd["cwd"], "/repo");
     assert_eq!(cmd["timeoutMs"], 120_000);

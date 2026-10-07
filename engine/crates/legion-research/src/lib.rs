@@ -5,10 +5,10 @@ pub mod error;
 pub mod evidence;
 pub mod receipt;
 pub mod report;
-pub mod source;
-pub mod workflow;
 pub mod research_port;
+pub mod source;
 pub mod wf_port;
+pub mod workflow;
 
 pub use budget::{BudgetAccount, BudgetLimits, BudgetSnapshot, BudgetUsage};
 pub use error::ResearchError;

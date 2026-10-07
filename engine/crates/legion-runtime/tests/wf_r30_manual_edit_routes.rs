@@ -54,7 +54,9 @@ impl ManualEditRoutesDeps for FakeDeps {
         self.chat_active
     }
     fn record_manual_edit_activity(&self, event: &str, payload: Value) {
-        self.activity.borrow_mut().push((event.to_string(), payload));
+        self.activity
+            .borrow_mut()
+            .push((event.to_string(), payload));
     }
     fn manual_edit_status(&self) -> PendingManualEditBatchSummaryTotals {
         let counts = count_by_page(&self.cwd);
@@ -163,7 +165,10 @@ fn stash_then_get_round_trips_and_records_activity() {
     assert_eq!(resp.status, 200);
     assert_eq!(resp.body["ok"], true);
     assert_eq!(resp.body["pendingCount"], 1);
-    assert_eq!(deps.activity.borrow().last().unwrap().0, "manual_edit_stashed");
+    assert_eq!(
+        deps.activity.borrow().last().unwrap().0,
+        "manual_edit_stashed"
+    );
 
     let get_req = ManualEditRequest {
         method: "GET".into(),
@@ -194,7 +199,12 @@ fn commit_with_no_pending_edits_runs_mock_provider_and_reports_done() {
     let resp = handle_manual_edit_route(&deps, &req).unwrap();
     assert_eq!(resp.status, 200);
     assert_eq!(resp.body["applied"], json!([]));
-    let events: Vec<String> = deps.activity.borrow().iter().map(|(e, _)| e.clone()).collect();
+    let events: Vec<String> = deps
+        .activity
+        .borrow()
+        .iter()
+        .map(|(e, _)| e.clone())
+        .collect();
     assert!(events.contains(&"manual_edit_commit_started".to_string()));
     assert!(events.contains(&"manual_edit_commit_done".to_string()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -210,11 +220,13 @@ fn commit_failure_rolls_back_transaction_and_returns_500() {
         "e1",
         "https://x/",
         None,
-        vec![legion_runtime::wf_port::w2_021::manual_edits_buffer::ManualEditOp {
-            ref_: Some("r1".into()),
-            new_text: Some("hi".into()),
-            ..Default::default()
-        }],
+        vec![
+            legion_runtime::wf_port::w2_021::manual_edits_buffer::ManualEditOp {
+                ref_: Some("r1".into()),
+                new_text: Some("hi".into()),
+                ..Default::default()
+            },
+        ],
     )
     .unwrap();
     *deps.commit_result.borrow_mut() = Some(Err("boom".into()));
@@ -228,7 +240,10 @@ fn commit_failure_rolls_back_transaction_and_returns_500() {
     let resp = handle_manual_edit_route(&deps, &req).unwrap();
     assert_eq!(resp.status, 500);
     assert_eq!(resp.body["error"], "manual_edit_commit_failed");
-    assert!(deps.transaction.borrow().is_none(), "transaction should be rolled back");
+    assert!(
+        deps.transaction.borrow().is_none(),
+        "transaction should be rolled back"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -239,14 +254,22 @@ fn commit_async_mode_returns_202_immediately() {
     let req = ManualEditRequest {
         method: "POST".into(),
         path: "/manual-edit-commit".into(),
-        query: vec![("token".into(), "secret".into()), ("async".into(), "1".into())],
+        query: vec![
+            ("token".into(), "secret".into()),
+            ("async".into(), "1".into()),
+        ],
         body: None,
     };
     let resp = handle_manual_edit_route(&deps, &req).unwrap();
     assert_eq!(resp.status, 202);
     assert_eq!(resp.body["status"], "started");
     // The background work still ran and recorded its activity.
-    let events: Vec<String> = deps.activity.borrow().iter().map(|(e, _)| e.clone()).collect();
+    let events: Vec<String> = deps
+        .activity
+        .borrow()
+        .iter()
+        .map(|(e, _)| e.clone())
+        .collect();
     assert!(events.contains(&"manual_edit_commit_done".to_string()));
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -258,7 +281,10 @@ fn commit_repair_only_without_transaction_returns_409() {
     let req = ManualEditRequest {
         method: "POST".into(),
         path: "/manual-edit-commit".into(),
-        query: vec![("token".into(), "secret".into()), ("repair".into(), "true".into())],
+        query: vec![
+            ("token".into(), "secret".into()),
+            ("repair".into(), "true".into()),
+        ],
         body: None,
     };
     let resp = handle_manual_edit_route(&deps, &req).unwrap();
@@ -304,11 +330,13 @@ fn discard_removes_page_entries_and_cancels_events() {
         "e1",
         "https://x/",
         None,
-        vec![legion_runtime::wf_port::w2_021::manual_edits_buffer::ManualEditOp {
-            ref_: Some("r1".into()),
-            new_text: Some("hi".into()),
-            ..Default::default()
-        }],
+        vec![
+            legion_runtime::wf_port::w2_021::manual_edits_buffer::ManualEditOp {
+                ref_: Some("r1".into()),
+                new_text: Some("hi".into()),
+                ..Default::default()
+            },
+        ],
     )
     .unwrap();
 
@@ -324,7 +352,10 @@ fn discard_removes_page_entries_and_cancels_events() {
     let resp = handle_manual_edit_route(&deps, &req).unwrap();
     assert_eq!(resp.status, 200);
     assert_eq!(resp.body["discarded"], 1);
-    assert_eq!(deps.canceled_calls.borrow().last().unwrap().as_deref(), Some("https://x/"));
+    assert_eq!(
+        deps.canceled_calls.borrow().last().unwrap().as_deref(),
+        Some("https://x/")
+    );
     let counts = count_by_page(&dir);
     assert_eq!(counts.total_count, 0);
     let _ = std::fs::remove_dir_all(&dir);

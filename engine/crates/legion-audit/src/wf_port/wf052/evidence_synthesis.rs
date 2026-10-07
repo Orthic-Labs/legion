@@ -64,7 +64,10 @@ fn finding_from(candidate: &Value, verdict: &Value, receipt: &Value, paths: &[Va
         .collect();
     related_attack_path_ids.sort();
 
-    let root_cause_signature = verdict.get("rootCauseSignature").cloned().unwrap_or(Value::Null);
+    let root_cause_signature = verdict
+        .get("rootCauseSignature")
+        .cloned()
+        .unwrap_or(Value::Null);
     let verdict_kind = verdict.get("verdict").cloned().unwrap_or(Value::Null);
     let content = json!({
         "candidateId": candidate_id,
@@ -164,7 +167,12 @@ fn classify_non_proven_paths(chain_adjudication: &Value) -> ClassifiedPaths {
         refuted: Vec::new(),
         unproven: Vec::new(),
     };
-    for verdict in chain_adjudication.get("verdicts").and_then(Value::as_array).into_iter().flatten() {
+    for verdict in chain_adjudication
+        .get("verdicts")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         let kind = verdict.get("verdict").and_then(Value::as_str).unwrap_or("");
         if kind == "PROVEN" {
             continue;
@@ -188,13 +196,24 @@ fn group_root_causes(findings: &[Value]) -> Vec<Value> {
     let mut by_signature: BTreeMap<String, Group> = BTreeMap::new();
     let mut order: Vec<String> = Vec::new();
     for finding in findings {
-        let signature = finding.get("rootCauseSignature").cloned().unwrap_or(Value::Null);
+        let signature = finding
+            .get("rootCauseSignature")
+            .cloned()
+            .unwrap_or(Value::Null);
         let key = digest(&signature.clone());
-        let key = if signature.is_null() { digest(&json!({})) } else { key };
+        let key = if signature.is_null() {
+            digest(&json!({}))
+        } else {
+            key
+        };
         let entry = by_signature.entry(key.clone()).or_insert_with(|| {
             order.push(key.clone());
             Group {
-                root_cause_signature: if signature.is_null() { json!({}) } else { signature.clone() },
+                root_cause_signature: if signature.is_null() {
+                    json!({})
+                } else {
+                    signature.clone()
+                },
                 finding_ids: Vec::new(),
             }
         });
@@ -220,10 +239,19 @@ fn group_root_causes(findings: &[Value]) -> Vec<Value> {
         .collect()
 }
 
-fn summarize_controls(model: &Value, chain_adjudication: &Value, _findings: &[Value]) -> Vec<Value> {
+fn summarize_controls(
+    model: &Value,
+    chain_adjudication: &Value,
+    _findings: &[Value],
+) -> Vec<Value> {
     let mut controls: BTreeMap<String, Value> = BTreeMap::new();
     let mut order: Vec<String> = Vec::new();
-    for entity in model.get("entities").and_then(Value::as_array).into_iter().flatten() {
+    for entity in model
+        .get("entities")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if entity.get("kind").and_then(Value::as_str) != Some("control") {
             continue;
         }
@@ -241,15 +269,31 @@ fn summarize_controls(model: &Value, chain_adjudication: &Value, _findings: &[Va
             );
         }
     }
-    for verdict in chain_adjudication.get("verdicts").and_then(Value::as_array).into_iter().flatten() {
+    for verdict in chain_adjudication
+        .get("verdicts")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if verdict.get("verdict").and_then(Value::as_str) != Some("BLOCKED") {
             continue;
         }
         let path_id = verdict.get("pathId").cloned().unwrap_or(Value::Null);
-        for assessment in verdict.get("controlAssessments").and_then(Value::as_array).into_iter().flatten() {
-            let control_id = assessment.get("controlId").and_then(Value::as_str).unwrap_or("");
+        for assessment in verdict
+            .get("controlAssessments")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let control_id = assessment
+                .get("controlId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             if let Some(control) = controls.get_mut(control_id) {
-                control["status"] = assessment.get("status").cloned().unwrap_or(json!("UNKNOWN"));
+                control["status"] = assessment
+                    .get("status")
+                    .cloned()
+                    .unwrap_or(json!("UNKNOWN"));
                 control["blocksAttackPathIds"]
                     .as_array_mut()
                     .unwrap()
@@ -293,7 +337,11 @@ pub fn synthesize_security_evidence(
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .filter_map(|item| item.get("id").and_then(Value::as_str).map(|id| (id.to_string(), item.clone())))
+        .filter_map(|item| {
+            item.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), item.clone()))
+        })
         .collect();
     let receipt_by_finding = complete_receipt_by_finding(variants);
     let proven_paths: Vec<Value> = chain_adjudication
@@ -308,12 +356,20 @@ pub fn synthesize_security_evidence(
     let mut findings: Vec<Value> = Vec::new();
     let mut coverage_gaps: Vec<Value> = Vec::new();
 
-    for verdict in adjudication.get("verdicts").and_then(Value::as_array).into_iter().flatten() {
+    for verdict in adjudication
+        .get("verdicts")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         let verdict_kind = verdict.get("verdict").and_then(Value::as_str).unwrap_or("");
         if !SURVIVING.contains(&verdict_kind) {
             continue;
         }
-        let candidate_id = verdict.get("candidateId").and_then(Value::as_str).unwrap_or("");
+        let candidate_id = verdict
+            .get("candidateId")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let candidate = candidate_by_id.get(candidate_id);
         let receipt = receipt_by_finding.get(candidate_id);
         match (candidate, receipt) {
@@ -334,10 +390,22 @@ pub fn synthesize_security_evidence(
     let systemic_root_causes = group_root_causes(&findings);
     let controls = summarize_controls(model, chain_adjudication, &findings);
 
-    let variants_complete = variants.get("complete").and_then(Value::as_bool).unwrap_or(false);
-    let adjudication_complete = adjudication.get("complete").and_then(Value::as_bool).unwrap_or(false);
-    let chain_adjudication_complete = chain_adjudication.get("complete").and_then(Value::as_bool).unwrap_or(false);
-    let complete = coverage_gaps.is_empty() && variants_complete && adjudication_complete && chain_adjudication_complete;
+    let variants_complete = variants
+        .get("complete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let adjudication_complete = adjudication
+        .get("complete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let chain_adjudication_complete = chain_adjudication
+        .get("complete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let complete = coverage_gaps.is_empty()
+        && variants_complete
+        && adjudication_complete
+        && chain_adjudication_complete;
 
     let complete_variant_receipts = variants
         .get("receipts")
@@ -421,12 +489,23 @@ mod tests {
     fn surviving_verdict_with_complete_receipt_becomes_a_finding() {
         let plan = plan_with();
         let model = artifact(json!({"entities": []}));
-        let candidates = artifact(json!({"candidates": [{"id": "c1", "ruleId": "r1", "claim": "claim"}]}));
-        let adjudication = artifact(json!({"verdicts": [{"candidateId": "c1", "verdict": "TRUE_POSITIVE"}]}));
+        let candidates =
+            artifact(json!({"candidates": [{"id": "c1", "ruleId": "r1", "claim": "claim"}]}));
+        let adjudication =
+            artifact(json!({"verdicts": [{"candidateId": "c1", "verdict": "TRUE_POSITIVE"}]}));
         let chain_adjudication = artifact(json!({"verdicts": []}));
-        let variants = artifact(json!({"receipts": [{"findingId": "c1", "complete": true, "matches": []}]}));
+        let variants =
+            artifact(json!({"receipts": [{"findingId": "c1", "complete": true, "matches": []}]}));
 
-        let out = synthesize_security_evidence(&plan, &model, &candidates, &adjudication, &chain_adjudication, &variants).unwrap();
+        let out = synthesize_security_evidence(
+            &plan,
+            &model,
+            &candidates,
+            &adjudication,
+            &chain_adjudication,
+            &variants,
+        )
+        .unwrap();
         assert_eq!(out["findings"].as_array().unwrap().len(), 1);
         assert_eq!(out["coverageGaps"].as_array().unwrap().len(), 0);
     }
@@ -435,12 +514,22 @@ mod tests {
     fn missing_receipt_produces_coverage_gap_not_a_finding() {
         let plan = plan_with();
         let model = artifact(json!({"entities": []}));
-        let candidates = artifact(json!({"candidates": [{"id": "c1", "ruleId": "r1", "claim": "claim"}]}));
-        let adjudication = artifact(json!({"verdicts": [{"candidateId": "c1", "verdict": "TRUE_POSITIVE"}]}));
+        let candidates =
+            artifact(json!({"candidates": [{"id": "c1", "ruleId": "r1", "claim": "claim"}]}));
+        let adjudication =
+            artifact(json!({"verdicts": [{"candidateId": "c1", "verdict": "TRUE_POSITIVE"}]}));
         let chain_adjudication = artifact(json!({"verdicts": []}));
         let variants = artifact(json!({"receipts": []}));
 
-        let out = synthesize_security_evidence(&plan, &model, &candidates, &adjudication, &chain_adjudication, &variants).unwrap();
+        let out = synthesize_security_evidence(
+            &plan,
+            &model,
+            &candidates,
+            &adjudication,
+            &chain_adjudication,
+            &variants,
+        )
+        .unwrap();
         assert_eq!(out["findings"].as_array().unwrap().len(), 0);
         assert_eq!(out["coverageGaps"].as_array().unwrap().len(), 1);
         assert_eq!(out["complete"], false);
@@ -450,12 +539,23 @@ mod tests {
     fn non_surviving_verdict_is_never_a_finding() {
         let plan = plan_with();
         let model = artifact(json!({"entities": []}));
-        let candidates = artifact(json!({"candidates": [{"id": "c1", "ruleId": "r1", "claim": "claim"}]}));
-        let adjudication = artifact(json!({"verdicts": [{"candidateId": "c1", "verdict": "FALSE_POSITIVE"}]}));
+        let candidates =
+            artifact(json!({"candidates": [{"id": "c1", "ruleId": "r1", "claim": "claim"}]}));
+        let adjudication =
+            artifact(json!({"verdicts": [{"candidateId": "c1", "verdict": "FALSE_POSITIVE"}]}));
         let chain_adjudication = artifact(json!({"verdicts": []}));
-        let variants = artifact(json!({"receipts": [{"findingId": "c1", "complete": true, "matches": []}]}));
+        let variants =
+            artifact(json!({"receipts": [{"findingId": "c1", "complete": true, "matches": []}]}));
 
-        let out = synthesize_security_evidence(&plan, &model, &candidates, &adjudication, &chain_adjudication, &variants).unwrap();
+        let out = synthesize_security_evidence(
+            &plan,
+            &model,
+            &candidates,
+            &adjudication,
+            &chain_adjudication,
+            &variants,
+        )
+        .unwrap();
         assert_eq!(out["findings"].as_array().unwrap().len(), 0);
     }
 
@@ -465,10 +565,20 @@ mod tests {
         let model = artifact(json!({"entities": []}));
         let candidates = artifact(json!({"candidates": []}));
         let adjudication = artifact(json!({"verdicts": []}));
-        let chain_adjudication = artifact(json!({"verdicts": [{"verdict": "PROVEN", "pathId": "p1", "start": {"factIds": []}, "objective": {"id": "o1"}}]}));
+        let chain_adjudication = artifact(
+            json!({"verdicts": [{"verdict": "PROVEN", "pathId": "p1", "start": {"factIds": []}, "objective": {"id": "o1"}}]}),
+        );
         let variants = artifact(json!({"receipts": []}));
 
-        let out = synthesize_security_evidence(&plan, &model, &candidates, &adjudication, &chain_adjudication, &variants).unwrap();
+        let out = synthesize_security_evidence(
+            &plan,
+            &model,
+            &candidates,
+            &adjudication,
+            &chain_adjudication,
+            &variants,
+        )
+        .unwrap();
         assert_eq!(out["attackPaths"].as_array().unwrap().len(), 1);
         assert_eq!(out["attackPaths"][0]["verdict"], "PROVEN");
     }
@@ -491,9 +601,23 @@ mod tests {
             {"findingId": "c2", "complete": true, "matches": []},
         ]}));
 
-        let out = synthesize_security_evidence(&plan, &model, &candidates, &adjudication, &chain_adjudication, &variants).unwrap();
+        let out = synthesize_security_evidence(
+            &plan,
+            &model,
+            &candidates,
+            &adjudication,
+            &chain_adjudication,
+            &variants,
+        )
+        .unwrap();
         assert_eq!(out["systemicRootCauses"].as_array().unwrap().len(), 1);
-        assert_eq!(out["systemicRootCauses"][0]["findingIds"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            out["systemicRootCauses"][0]["findingIds"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     #[test]
@@ -506,7 +630,15 @@ mod tests {
         let chain_adjudication = artifact(json!({"verdicts": []}));
         let variants = artifact(json!({"receipts": []}));
 
-        let err = synthesize_security_evidence(&plan, &model, &candidates, &adjudication, &chain_adjudication, &variants).unwrap_err();
+        let err = synthesize_security_evidence(
+            &plan,
+            &model,
+            &candidates,
+            &adjudication,
+            &chain_adjudication,
+            &variants,
+        )
+        .unwrap_err();
         assert!(err.0.contains("does not match"));
     }
 }

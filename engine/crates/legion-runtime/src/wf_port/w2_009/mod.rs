@@ -183,7 +183,10 @@ pub fn viewport_suffix(viewport: Viewport, viewport_count: usize) -> String {
 /// `f"{stem}{suffix}.png"` (viewport-clipped) and
 /// `f"{stem}{suffix}-full.png"` (full page).
 pub fn viewport_screenshot_filenames(stem: &str, suffix: &str) -> (String, String) {
-    (format!("{stem}{suffix}.png"), format!("{stem}{suffix}-full.png"))
+    (
+        format!("{stem}{suffix}.png"),
+        format!("{stem}{suffix}-full.png"),
+    )
 }
 
 /// Result of a `verify_html` run: the pieces of the printed report plus
@@ -239,10 +242,7 @@ impl VerifyReport {
                 out.push_str(&format!("  - {e}\n"));
             }
             if self.console_errors.len() > 20 {
-                out.push_str(&format!(
-                    "  ... 还有{}条\n",
-                    self.console_errors.len() - 20
-                ));
+                out.push_str(&format!("  ... 还有{}条\n", self.console_errors.len() - 20));
             }
         }
 

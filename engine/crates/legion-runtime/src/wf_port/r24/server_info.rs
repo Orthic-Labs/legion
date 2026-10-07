@@ -83,8 +83,8 @@ pub fn write_live_server_info(project_root: &Path, info: &ServerInfo) -> io::Res
     if let Some(parent) = file_path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let body = serde_json::to_string(info)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let body =
+        serde_json::to_string(info).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     fs::write(&file_path, body)?;
     Ok(file_path)
 }
@@ -151,14 +151,20 @@ mod tests {
         };
         // pid 1 (init/launchd) is always reachable on unix, so use an
         // out-of-range-ish pid instead to force ESRCH.
-        let dead = ServerInfo { pid: 999_999, ..info };
+        let dead = ServerInfo {
+            pid: 999_999,
+            ..info
+        };
         write_live_server_info(&root, &dead).unwrap();
         let file_path = get_live_server_path(&root);
         assert!(file_path.exists());
         let result = read_live_server_info(&root);
         #[cfg(unix)]
         {
-            assert!(result.is_none(), "unreachable pid should be treated as stale");
+            assert!(
+                result.is_none(),
+                "unreachable pid should be treated as stale"
+            );
             assert!(!file_path.exists(), "stale record should be deleted");
         }
         #[cfg(not(unix))]

@@ -96,6 +96,7 @@ pub fn matches_glob(pattern: &str, path: &str) -> bool {
     let escaped = escaped.replace("**", " ");
     let escaped = escaped.replace('*', "[^/]*");
     let escaped = escaped.replace(' ', ".*");
-    let re = regex::Regex::new(&format!("^{escaped}$")).unwrap_or_else(|_| regex::Regex::new("^$unmatchable^$").unwrap());
+    let re = regex::Regex::new(&format!("^{escaped}$"))
+        .unwrap_or_else(|_| regex::Regex::new("^$unmatchable^$").unwrap());
     re.is_match(path)
 }

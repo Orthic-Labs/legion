@@ -1,6 +1,6 @@
-use legion_audit::InventorySource as _;
 use super::{CommandError, CommandResult};
 use clap::Args;
+use legion_audit::InventorySource as _;
 use legion_audit::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
 use legion_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
@@ -268,7 +268,9 @@ pub fn run(args: RulesArgs) -> CommandResult {
         return Err(CommandError::usage("max-file-bytes must be positive"));
     }
     if args.command.iter().any(|argument| argument == "--help") {
-        return Ok(json!({"__raw":"Usage: legion rules [compile <source> --base <policy> [--out <output>]]\n"}));
+        return Ok(
+            json!({"__raw":"Usage: legion rules [compile <source> --base <policy> [--out <output>]]\n"}),
+        );
     }
     if args.command.first().map(String::as_str) == Some("compile") {
         return compile_policy(&args);
@@ -501,45 +503,139 @@ fn packaged_rules() -> Result<Vec<String>, CommandError> {
 
     let mut rules = BTreeSet::new();
     for source in EMBEDDED_RULE_FILES {
-        let value: Value = serde_json::from_str(source)
-            .map_err(|error| CommandError::internal(format!("embedded rule registry invalid: {error}")))?;
+        let value: Value = serde_json::from_str(source).map_err(|error| {
+            CommandError::internal(format!("embedded rule registry invalid: {error}"))
+        })?;
         collect_rule_ids(&value, &mut rules);
     }
     Ok(rules.into_iter().collect())
 }
 
 const EMBEDDED_RULE_FILES: &[&str] = &[
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/ast-grep/structural-core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/architecture/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/ast-grep/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/docs-contract/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/maintainability/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/test-quality/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/compatibility/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/copy/anti-slop.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/copy/clarity.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/copy/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/copy/documentation.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/data-integrity/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/discoverability/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/governance/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/narrative/chronology.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/privacy/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/requirements/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/safety/hazards.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/abuse-observability.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/ai.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/boundaries.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/browser-http.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/creator-derived.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/crypto-data-privacy.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/enums.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/injection-output.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/specialist.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/supply-developer-machine.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/opengrep/core.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/ux/designer-derived.json")),
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/visual/designer-derived.json")),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/ast-grep/structural-core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/code/architecture/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/code/ast-grep/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/code/docs-contract/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/code/maintainability/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/code/test-quality/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/compatibility/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/copy/anti-slop.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/copy/clarity.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/copy/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/copy/documentation.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/data-integrity/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/discoverability/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/governance/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/narrative/chronology.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/privacy/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/requirements/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/safety/hazards.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/abuse-observability.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/ai.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/boundaries.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/browser-http.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/creator-derived.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/crypto-data-privacy.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/enums.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/injection-output.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/specialist.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/supply-developer-machine.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/security/opengrep/core.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/ux/designer-derived.json"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/rules/visual/designer-derived.json"
+    )),
 ];
 
 fn compile_policy(args: &RulesArgs) -> CommandResult {

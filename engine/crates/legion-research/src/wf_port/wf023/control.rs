@@ -90,7 +90,11 @@ pub fn decide_stop(
     store.persist_stopping_decision(run_id, &decision_to_json(&decision));
     store.record_event(run_id, "stopping.decided", decision_to_json(&decision));
     if decision.action == "stop" {
-        let detail = if decision.complete { None } else { Some(decision.reason) };
+        let detail = if decision.complete {
+            None
+        } else {
+            Some(decision.reason)
+        };
         let status = if decision.complete { "done" } else { "blocked" };
         store.set_acquire_stage(run_id, status, detail);
     }
@@ -98,10 +102,18 @@ pub fn decide_stop(
 }
 
 /// `init_shards`.
-pub fn init_shards(store: &impl ControlManifest, run_id: &str, work_items: &[WorkItem]) -> Result<ShardPlan, String> {
+pub fn init_shards(
+    store: &impl ControlManifest,
+    run_id: &str,
+    work_items: &[WorkItem],
+) -> Result<ShardPlan, String> {
     let plan = shards::plan(run_id, work_items)?;
     store.save_shard_plan(run_id, &plan);
-    store.record_event(run_id, "shards.planned", json!({"count": plan.shards.len()}));
+    store.record_event(
+        run_id,
+        "shards.planned",
+        json!({"count": plan.shards.len()}),
+    );
     Ok(plan)
 }
 
@@ -164,7 +176,12 @@ fn str_list_field(payload: &Value, key: &str) -> Vec<String> {
     payload
         .get(key)
         .and_then(Value::as_array)
-        .map(|values| values.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -177,7 +194,10 @@ fn str_list_field(payload: &Value, key: &str) -> Vec<String> {
 /// argv parsing and JSON-file loading are new here.
 pub fn run_cli(store: &impl ControlManifest, args: &[String]) -> Result<Value, String> {
     let mut iter = args.iter();
-    let command = iter.next().ok_or("command is required (stop|shard-init|shard-checkpoint|shard-resume)")?.clone();
+    let command = iter
+        .next()
+        .ok_or("command is required (stop|shard-init|shard-checkpoint|shard-resume)")?
+        .clone();
 
     let mut run_id: Option<String> = None;
     let mut input: Option<String> = None;
@@ -204,7 +224,10 @@ pub fn run_cli(store: &impl ControlManifest, args: &[String]) -> Result<Value, S
             let request = DecideStopRequest {
                 required_questions: str_list_field(&payload, "required_questions"),
                 answered_questions: str_list_field(&payload, "answered_questions"),
-                consecutive_no_gain: payload.get("consecutive_no_gain").and_then(Value::as_i64).unwrap_or(0),
+                consecutive_no_gain: payload
+                    .get("consecutive_no_gain")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0),
                 blocking_gaps: str_list_field(&payload, "blocking_gaps"),
             };
             let decision = decide_stop(store, &run_id, request)?;
@@ -217,7 +240,11 @@ pub fn run_cli(store: &impl ControlManifest, args: &[String]) -> Result<Value, S
             let work_items: Vec<WorkItem> = items
                 .iter()
                 .map(|item| WorkItem {
-                    key: item.get("key").and_then(Value::as_str).unwrap_or_default().to_string(),
+                    key: item
+                        .get("key")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
                     payload: item.get("payload").cloned().unwrap_or(Value::Null),
                 })
                 .collect();
@@ -235,7 +262,8 @@ pub fn run_cli(store: &impl ControlManifest, args: &[String]) -> Result<Value, S
                 }
                 None => None,
             };
-            let plan = checkpoint_shard(store, &run_id, &shard_id_arg, &status, artifacts.as_ref())?;
+            let plan =
+                checkpoint_shard(store, &run_id, &shard_id_arg, &status, artifacts.as_ref())?;
             Ok(shard_plan_json(&plan))
         }
         "shard-resume" => {
@@ -249,9 +277,9 @@ pub fn run_cli(store: &impl ControlManifest, args: &[String]) -> Result<Value, S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use std::cell::RefCell;
     use std::collections::BTreeMap;
-    use serde_json::json;
 
     #[derive(Default)]
     struct MockStore {
@@ -271,16 +299,24 @@ mod tests {
         }
         fn persist_stopping_decision(&self, _run_id: &str, _decision: &Value) {}
         fn record_event(&self, run_id: &str, kind: &str, detail: Value) {
-            self.events.borrow_mut().push((run_id.to_string(), kind.to_string(), detail));
+            self.events
+                .borrow_mut()
+                .push((run_id.to_string(), kind.to_string(), detail));
         }
         fn set_acquire_stage(&self, _run_id: &str, status: &str, detail: Option<&str>) {
             *self.stage.borrow_mut() = Some((status.to_string(), detail.map(str::to_string)));
         }
         fn load_shard_plan(&self, run_id: &str) -> Result<ShardPlan, String> {
-            self.plans.borrow().get(run_id).cloned().ok_or_else(|| "no plan".to_string())
+            self.plans
+                .borrow()
+                .get(run_id)
+                .cloned()
+                .ok_or_else(|| "no plan".to_string())
         }
         fn save_shard_plan(&self, run_id: &str, plan: &ShardPlan) {
-            self.plans.borrow_mut().insert(run_id.to_string(), plan.clone());
+            self.plans
+                .borrow_mut()
+                .insert(run_id.to_string(), plan.clone());
         }
     }
 
@@ -288,7 +324,11 @@ mod tests {
     // the trait-injected store, since manifest.py is not yet a Rust port).
     #[test]
     fn stopping_and_shard_resume_state_persist_via_the_store() {
-        let store = MockStore { used: 2, budget: 12, ..Default::default() };
+        let store = MockStore {
+            used: 2,
+            budget: 12,
+            ..Default::default()
+        };
 
         let decision = decide_stop(
             &store,
@@ -307,8 +347,14 @@ mod tests {
             &store,
             "run-1",
             &[
-                WorkItem { key: "pricing".into(), payload: json!({"query": "price"}) },
-                WorkItem { key: "privacy".into(), payload: json!({"query": "privacy"}) },
+                WorkItem {
+                    key: "pricing".into(),
+                    payload: json!({"query": "price"}),
+                },
+                WorkItem {
+                    key: "privacy".into(),
+                    payload: json!({"query": "privacy"}),
+                },
             ],
         )
         .unwrap();
@@ -322,12 +368,19 @@ mod tests {
         checkpoint_shard(&store, "run-1", &second, "failed", None).unwrap();
 
         let resumed = resume_shards(&store, "run-1").unwrap();
-        assert_eq!(resumed.iter().map(|r| r.id.clone()).collect::<Vec<_>>(), vec![second]);
+        assert_eq!(
+            resumed.iter().map(|r| r.id.clone()).collect::<Vec<_>>(),
+            vec![second]
+        );
     }
 
     #[test]
     fn budget_exhausted_stop_sets_blocked_stage_with_reason_detail() {
-        let store = MockStore { used: 12, budget: 12, ..Default::default() };
+        let store = MockStore {
+            used: 12,
+            budget: 12,
+            ..Default::default()
+        };
         let decision = decide_stop(
             &store,
             "run-1",
@@ -341,12 +394,19 @@ mod tests {
         .unwrap();
         assert_eq!(decision.action, "stop");
         assert_eq!(store.stage.borrow().as_ref().unwrap().0, "blocked");
-        assert_eq!(store.stage.borrow().as_ref().unwrap().1.as_deref(), Some("budget-exhausted"));
+        assert_eq!(
+            store.stage.borrow().as_ref().unwrap().1.as_deref(),
+            Some("budget-exhausted")
+        );
     }
 
     #[test]
     fn coverage_complete_stop_sets_done_stage_with_no_detail() {
-        let store = MockStore { used: 1, budget: 12, ..Default::default() };
+        let store = MockStore {
+            used: 1,
+            budget: 12,
+            ..Default::default()
+        };
         decide_stop(
             &store,
             "run-1",
@@ -364,7 +424,11 @@ mod tests {
 
     #[test]
     fn continue_action_does_not_set_acquire_stage() {
-        let store = MockStore { used: 1, budget: 12, ..Default::default() };
+        let store = MockStore {
+            used: 1,
+            budget: 12,
+            ..Default::default()
+        };
         decide_stop(
             &store,
             "run-1",
@@ -396,7 +460,11 @@ mod tests {
 
     #[test]
     fn run_cli_stop_reads_input_file_and_decides() {
-        let store = MockStore { used: 2, budget: 12, ..Default::default() };
+        let store = MockStore {
+            used: 2,
+            budget: 12,
+            ..Default::default()
+        };
         let input = temp_json_file(&json!({
             "required_questions": ["price"],
             "answered_questions": ["price"],
@@ -405,7 +473,13 @@ mod tests {
         }));
         let result = run_cli(
             &store,
-            &["stop".to_string(), "--run-id".to_string(), "run-1".to_string(), "--input".to_string(), input.to_string_lossy().into_owned()],
+            &[
+                "stop".to_string(),
+                "--run-id".to_string(),
+                "run-1".to_string(),
+                "--input".to_string(),
+                input.to_string_lossy().into_owned(),
+            ],
         )
         .unwrap();
         assert_eq!(result["reason"], json!("coverage-complete"));
@@ -421,7 +495,13 @@ mod tests {
         ]));
         let plan = run_cli(
             &store,
-            &["shard-init".to_string(), "--run-id".to_string(), "run-1".to_string(), "--input".to_string(), input.to_string_lossy().into_owned()],
+            &[
+                "shard-init".to_string(),
+                "--run-id".to_string(),
+                "run-1".to_string(),
+                "--input".to_string(),
+                input.to_string_lossy().into_owned(),
+            ],
         )
         .unwrap();
         let first_id = plan["shards"][0]["id"].as_str().unwrap().to_string();
@@ -442,7 +522,15 @@ mod tests {
         .unwrap();
         assert_eq!(checkpointed["shards"][0]["status"], json!("done"));
 
-        let resumed = run_cli(&store, &["shard-resume".to_string(), "--run-id".to_string(), "run-1".to_string()]).unwrap();
+        let resumed = run_cli(
+            &store,
+            &[
+                "shard-resume".to_string(),
+                "--run-id".to_string(),
+                "run-1".to_string(),
+            ],
+        )
+        .unwrap();
         // The first shard is done; only the second (still pending) resumes.
         assert_eq!(resumed.as_array().unwrap().len(), 1);
         assert_ne!(resumed[0]["id"], json!(first_id));
@@ -458,7 +546,15 @@ mod tests {
     #[test]
     fn run_cli_stop_without_input_flag_is_an_error() {
         let store = MockStore::default();
-        let err = run_cli(&store, &["stop".to_string(), "--run-id".to_string(), "run-1".to_string()]).unwrap_err();
+        let err = run_cli(
+            &store,
+            &[
+                "stop".to_string(),
+                "--run-id".to_string(),
+                "run-1".to_string(),
+            ],
+        )
+        .unwrap_err();
         assert!(err.contains("--input is required"));
     }
 }

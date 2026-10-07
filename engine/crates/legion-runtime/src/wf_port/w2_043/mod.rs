@@ -321,7 +321,10 @@ fn motion_checks(surface: &Path) -> Vec<Check> {
     let gate_text = match fs::read_to_string(&gate) {
         Ok(t) => t,
         Err(_) => {
-            results.push(Check::fail("motion-gate-verdict", "motion-gate.json absent"));
+            results.push(Check::fail(
+                "motion-gate-verdict",
+                "motion-gate.json absent",
+            ));
             return results;
         }
     };
@@ -357,16 +360,34 @@ fn text_checks(root: &Path, surface: &Path) -> Vec<Check> {
         // No text to scan is not a pass: the gate would report green over
         // nothing.
         return vec![
-            Check::unavailable("banned-words", "no built HTML/markdown found under the surface"),
-            Check::unavailable("typography", "no built HTML/markdown found under the surface"),
-            Check::unavailable("anti-patterns", "no built HTML/markdown found under the surface"),
+            Check::unavailable(
+                "banned-words",
+                "no built HTML/markdown found under the surface",
+            ),
+            Check::unavailable(
+                "typography",
+                "no built HTML/markdown found under the surface",
+            ),
+            Check::unavailable(
+                "anti-patterns",
+                "no built HTML/markdown found under the surface",
+            ),
         ];
     }
     if !banned.available {
         return vec![
-            Check::unavailable("banned-words", "skills/designer/references/banned-words.md absent"),
-            Check::unavailable("typography", "skills/designer/references/banned-words.md absent"),
-            Check::unavailable("anti-patterns", "skills/designer/references/banned-words.md absent"),
+            Check::unavailable(
+                "banned-words",
+                "skills/designer/references/banned-words.md absent",
+            ),
+            Check::unavailable(
+                "typography",
+                "skills/designer/references/banned-words.md absent",
+            ),
+            Check::unavailable(
+                "anti-patterns",
+                "skills/designer/references/banned-words.md absent",
+            ),
         ];
     }
 
@@ -571,7 +592,11 @@ fn budget_checks(surface: &Path) -> Vec<Check> {
         c.breakpoints = BREAKPOINTS.to_vec();
         results.push(c);
     } else {
-        let list = missing.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(", ");
+        let list = missing
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
         results.push(Check::unavailable(
             "touch-targets",
             format!("screenshots missing for breakpoints: {list}"),
@@ -584,7 +609,10 @@ fn budget_checks(surface: &Path) -> Vec<Check> {
         c.source = Some("artifacts/qa/sibling-diff.json".to_string());
         results.push(c);
     } else {
-        results.push(Check::unavailable("sibling-diff", "artifacts/qa/sibling-diff.json absent"));
+        results.push(Check::unavailable(
+            "sibling-diff",
+            "artifacts/qa/sibling-diff.json absent",
+        ));
     }
 
     results
@@ -673,13 +701,20 @@ pub fn run_design_gate(opts: GateOptions<'_>) -> GateReport {
         .filter(|c| c.status != Status::Pass && c.status != Status::Warn && c.waived != Some(true))
         .map(|c| c.id.clone())
         .collect();
-    let verdict = if blocking.is_empty() { Status::Pass } else { Status::Fail };
+    let verdict = if blocking.is_empty() {
+        Status::Pass
+    } else {
+        Status::Fail
+    };
 
     let counts = Counts {
         total: checks.len(),
         pass: checks.iter().filter(|c| c.status == Status::Pass).count(),
         fail: checks.iter().filter(|c| c.status == Status::Fail).count(),
-        unavailable: checks.iter().filter(|c| c.status == Status::Unavailable).count(),
+        unavailable: checks
+            .iter()
+            .filter(|c| c.status == Status::Unavailable)
+            .count(),
         warn: checks.iter().filter(|c| c.status == Status::Warn).count(),
         waived: checks.iter().filter(|c| c.waived == Some(true)).count(),
     };
@@ -712,7 +747,10 @@ mod tests {
 
     #[test]
     fn bytes_to_pattern_decodes_em_dash() {
-        assert_eq!(bytes_to_pattern(r"\xE2\x80\x94"), Some("\u{2014}".to_string()));
+        assert_eq!(
+            bytes_to_pattern(r"\xE2\x80\x94"),
+            Some("\u{2014}".to_string())
+        );
     }
 
     #[test]

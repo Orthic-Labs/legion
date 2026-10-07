@@ -77,9 +77,7 @@ pub fn build_copy_edit_batch_prompt(batch: &Value, cwd: &Path) -> String {
     }
     lines.push(String::new());
     lines.push("Staged copy-edit batch:".to_string());
-    lines.push(
-        serde_json::to_string_pretty(&compact_batch_for_prompt(batch)).unwrap_or_default(),
-    );
+    lines.push(serde_json::to_string_pretty(&compact_batch_for_prompt(batch)).unwrap_or_default());
     lines.join("\n")
 }
 
@@ -427,7 +425,10 @@ pub fn describe_no_provider_error(
         lines.push("  • Claude CLI: not installed.".to_string());
     }
     if exists("codex") {
-        lines.push("  • Codex CLI: installed. If Apply still fails, run `codex login` to authenticate.".to_string());
+        lines.push(
+            "  • Codex CLI: installed. If Apply still fails, run `codex login` to authenticate."
+                .to_string(),
+        );
     } else {
         lines.push("  • Codex CLI: not installed.".to_string());
     }
@@ -436,7 +437,9 @@ pub fn describe_no_provider_error(
     } else {
         lines.push("  • Chat: no Impeccable live session is currently polling on this server. Start Impeccable live in your chat to route Apply through the chat agent.".to_string());
     }
-    lines.push("Fix one of the above, or set IMPECCABLE_LIVE_COPY_AGENT=mock for tests.".to_string());
+    lines.push(
+        "Fix one of the above, or set IMPECCABLE_LIVE_COPY_AGENT=mock for tests.".to_string(),
+    );
     lines.join("\n")
 }
 
@@ -642,7 +645,11 @@ fn kill_pid(pid: u32) {
 /// Mirrors `runCodex(prompt, { cwd, env, resultPath, logPath, timeoutMs })`'s
 /// argv construction (the `result_path` write and log streaming are the
 /// caller's concern in [`run_copy_edit_batch_agent`]).
-pub fn build_codex_args(env: &HashMap<String, String>, result_path: &Path, cwd: &Path) -> Vec<String> {
+pub fn build_codex_args(
+    env: &HashMap<String, String>,
+    result_path: &Path,
+    cwd: &Path,
+) -> Vec<String> {
     let effort = env
         .get("IMPECCABLE_LIVE_COPY_AGENT_EFFORT")
         .cloned()
@@ -755,7 +762,11 @@ pub fn apply_mock_writes(env: &HashMap<String, String>, cwd: &Path) -> Result<()
 }
 
 /// Mirrors `mockBatchResult(batch, env, cwd)`.
-pub fn mock_batch_result(batch: &Value, env: &HashMap<String, String>, cwd: &Path) -> Result<Value, String> {
+pub fn mock_batch_result(
+    batch: &Value,
+    env: &HashMap<String, String>,
+    cwd: &Path,
+) -> Result<Value, String> {
     apply_mock_writes(env, cwd)?;
     if let Some(raw) = env.get("IMPECCABLE_LIVE_COPY_AGENT_MOCK_RESULT") {
         return parse_copy_edit_batch_result(raw)
@@ -808,15 +819,7 @@ pub fn run_copy_edit_batch_agent(
     let output = match provider {
         Provider::Codex => {
             let args = build_codex_args(env, result_path, cwd);
-            run_agent_process(
-                runner,
-                "codex",
-                &args,
-                Some(prompt),
-                cwd,
-                env,
-                timeout_ms,
-            )?;
+            run_agent_process(runner, "codex", &args, Some(prompt), cwd, env, timeout_ms)?;
             std::fs::read_to_string(result_path).unwrap_or_default()
         }
         Provider::Claude => {
@@ -1023,7 +1026,8 @@ pub fn run_copy_edit_post_apply_checks(
     for relative_file in unique_files {
         let file = cwd.join(relative_file);
         if !is_path_inside_or_equal(cwd, &file) || !file.exists() {
-            warnings.push(json!({ "file": relative_file, "reason": "file_missing_or_outside_cwd" }));
+            warnings
+                .push(json!({ "file": relative_file, "reason": "file_missing_or_outside_cwd" }));
             continue;
         }
         let content = match std::fs::read_to_string(&file) {
@@ -1049,7 +1053,10 @@ pub fn run_copy_edit_post_apply_checks(
         if let Some(w) = syntax_warning {
             warnings.push(w);
         }
-        if relative_file.ends_with(".mjs") || relative_file.ends_with(".cjs") || relative_file.ends_with(".js") {
+        if relative_file.ends_with(".mjs")
+            || relative_file.ends_with(".cjs")
+            || relative_file.ends_with(".js")
+        {
             let spec = ProcessSpec {
                 program: "node".to_string(),
                 args: vec!["--check".to_string(), file.to_string_lossy().to_string()],
@@ -1066,7 +1073,9 @@ pub fn run_copy_edit_post_apply_checks(
                 } else {
                     result.stdout.trim().to_string()
                 };
-                failures.push(json!({ "file": relative_file, "reason": "invalid_js", "message": message }));
+                failures.push(
+                    json!({ "file": relative_file, "reason": "invalid_js", "message": message }),
+                );
             }
         }
     }
@@ -1216,7 +1225,10 @@ mod tests {
     #[test]
     fn choose_copy_edit_agent_respects_explicit_off_modes() {
         assert_eq!(choose_copy_edit_agent(Some("off"), |_| true, || true), None);
-        assert_eq!(choose_copy_edit_agent(Some("none"), |_| true, || true), None);
+        assert_eq!(
+            choose_copy_edit_agent(Some("none"), |_| true, || true),
+            None
+        );
         assert_eq!(choose_copy_edit_agent(Some("0"), |_| true, || true), None);
     }
 
@@ -1321,7 +1333,9 @@ mod tests {
             }],
         });
         let compact = compact_batch_for_prompt(&batch);
-        let ops = compact["entries"][0]["ops"][0]["nearbyEditableTexts"].as_array().unwrap();
+        let ops = compact["entries"][0]["ops"][0]["nearbyEditableTexts"]
+            .as_array()
+            .unwrap();
         assert_eq!(ops.len(), 8);
     }
 
@@ -1348,7 +1362,10 @@ mod tests {
         assert_eq!(result.failures.len(), 1);
         assert_eq!(result.failures[0]["reason"], json!("invalid_json"));
         assert_eq!(result.warnings.len(), 1);
-        assert_eq!(result.warnings[0]["reason"], json!("file_missing_or_outside_cwd"));
+        assert_eq!(
+            result.warnings[0]["reason"],
+            json!("file_missing_or_outside_cwd")
+        );
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -1397,18 +1414,26 @@ mod tests {
     #[test]
     fn build_codex_args_includes_effort_and_model() {
         let mut env = HashMap::new();
-        env.insert("IMPECCABLE_LIVE_COPY_AGENT_MODEL".to_string(), "gpt-x".to_string());
+        env.insert(
+            "IMPECCABLE_LIVE_COPY_AGENT_MODEL".to_string(),
+            "gpt-x".to_string(),
+        );
         let args = build_codex_args(&env, Path::new("/tmp/out/result.json"), Path::new("/repo"));
         assert!(args.contains(&"exec".to_string()));
         assert!(args.contains(&"--model".to_string()));
         assert!(args.contains(&"gpt-x".to_string()));
-        assert!(args.iter().any(|a| a.contains("model_reasoning_effort=\"low\"")));
+        assert!(args
+            .iter()
+            .any(|a| a.contains("model_reasoning_effort=\"low\"")));
     }
 
     #[test]
     fn build_claude_args_includes_model_when_set() {
         let mut env = HashMap::new();
-        env.insert("IMPECCABLE_LIVE_COPY_AGENT_MODEL".to_string(), "opus".to_string());
+        env.insert(
+            "IMPECCABLE_LIVE_COPY_AGENT_MODEL".to_string(),
+            "opus".to_string(),
+        );
         let args = build_claude_args(&env);
         assert!(args.contains(&"--print".to_string()));
         assert!(args.contains(&"opus".to_string()));
@@ -1436,7 +1461,10 @@ mod tests {
         .unwrap();
         assert_eq!(result["status"], json!("done"));
         assert_eq!(result["appliedEntryIds"], json!(["e1", "e2"]));
-        assert_eq!(std::fs::read_to_string(tmp.join("out.txt")).unwrap(), "hello");
+        assert_eq!(
+            std::fs::read_to_string(tmp.join("out.txt")).unwrap(),
+            "hello"
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -1490,7 +1518,8 @@ mod tests {
                 "claude".to_string(),
                 ProcessRunResult {
                     success: true,
-                    stdout: r#"{"status":"done","appliedEntryIds":["e1"],"files":["a.js"]}"#.to_string(),
+                    stdout: r#"{"status":"done","appliedEntryIds":["e1"],"files":["a.js"]}"#
+                        .to_string(),
                     ..Default::default()
                 },
             )],
@@ -1515,7 +1544,11 @@ mod tests {
     fn run_copy_edit_batch_agent_codex_reads_result_path_file() {
         let tmp = temp_dir("codex");
         let result_path = tmp.join("result.json");
-        std::fs::write(&result_path, r#"{"status":"partial","failed":[{"entryId":"e1","reason":"nope"}]}"#).unwrap();
+        std::fs::write(
+            &result_path,
+            r#"{"status":"partial","failed":[{"entryId":"e1","reason":"nope"}]}"#,
+        )
+        .unwrap();
         let runner = FakeProcessRunner {
             scripted: vec![(
                 "codex".to_string(),
@@ -1603,7 +1636,10 @@ mod tests {
         let (failure, warning) =
             check_framework_source_syntax(&runner, &tmp, "src/App.tsx", "const x = 1;");
         assert!(failure.is_none());
-        assert_eq!(warning.unwrap()["reason"], json!("syntax_parser_unavailable"));
+        assert_eq!(
+            warning.unwrap()["reason"],
+            json!("syntax_parser_unavailable")
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

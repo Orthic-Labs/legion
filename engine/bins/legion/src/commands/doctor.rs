@@ -267,7 +267,11 @@ fn naming_rule<'a>(rules: &'a [Value], path: &str, token: &str) -> Option<&'a Va
         let target = rule.get("path").and_then(Value::as_str);
         let prefix = rule.get("pathPrefix").and_then(Value::as_str);
         let applies = target == Some(path) || prefix.is_some_and(|value| path.starts_with(value));
-        applies && rule.get("tokens").and_then(Value::as_array).is_some_and(|tokens| tokens.iter().any(|value| value.as_str() == Some(token)))
+        applies
+            && rule
+                .get("tokens")
+                .and_then(Value::as_array)
+                .is_some_and(|tokens| tokens.iter().any(|value| value.as_str() == Some(token)))
     })
 }
 
@@ -279,7 +283,13 @@ fn naming_files(root: &Path) -> Vec<String> {
     output
         .ok()
         .filter(|value| value.status.success())
-        .map(|value| String::from_utf8_lossy(&value.stdout).split('\0').filter(|path| !path.is_empty()).map(str::to_owned).collect())
+        .map(|value| {
+            String::from_utf8_lossy(&value.stdout)
+                .split('\0')
+                .filter(|path| !path.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -291,32 +301,60 @@ fn naming_contract(_assets: Option<&Path>) -> Value {
         .unwrap_or_default();
     let mut issues = Vec::new();
     for path in naming_files(&root).into_iter().filter(|path| {
-        ![".git/", ".agent/", ".audit/", ".cache/", "docs/foundation/", "node_modules/"]
-            .iter()
-            .any(|prefix| format!("{path}/").starts_with(prefix))
+        ![
+            ".git/",
+            ".agent/",
+            ".audit/",
+            ".cache/",
+            "docs/foundation/",
+            "node_modules/",
+        ]
+        .iter()
+        .any(|prefix| format!("{path}/").starts_with(prefix))
     }) {
         for token in NAMING_TOKENS {
             let path_hits = naming_occurrences(&path, token);
             if !path_hits.is_empty() && naming_rule(&rules, &path, token).is_none() {
-                issues.push(json!({"path":path,"token":token,"reason":"unclassified legacy filename"}));
+                issues.push(
+                    json!({"path":path,"token":token,"reason":"unclassified legacy filename"}),
+                );
             }
         }
         let Some(text) = std::fs::read(&root.join(&path)).ok().and_then(|bytes| {
-            if bytes.contains(&0) { return None; }
+            if bytes.contains(&0) {
+                return None;
+            }
             String::from_utf8(bytes).ok()
-        }) else { continue };
+        }) else {
+            continue;
+        };
         for token in NAMING_TOKENS {
             let lines = naming_occurrences(&text, token);
-            if lines.is_empty() { continue; }
+            if lines.is_empty() {
+                continue;
+            }
             let Some(rule) = naming_rule(&rules, &path, token) else {
                 issues.push(json!({"path":path,"line":lines[0],"token":token,"reason":"unclassified legacy token"}));
                 continue;
             };
-            if rule.get("path").is_some() && rule.get("class").and_then(Value::as_str) != Some("R5") && rule.get("occurrences").and_then(|value| value.get(token)).and_then(Value::as_u64).is_none() {
+            if rule.get("path").is_some()
+                && rule.get("class").and_then(Value::as_str) != Some("R5")
+                && rule
+                    .get("occurrences")
+                    .and_then(|value| value.get(token))
+                    .and_then(Value::as_u64)
+                    .is_none()
+            {
                 issues.push(json!({"path":path,"line":lines[0],"token":token,"reason":"active exact-path allowlist lacks occurrence count"}));
             }
-            if let Some(expected) = rule.get("occurrences").and_then(|value| value.get(token)).and_then(Value::as_u64) {
-                if lines.len() as u64 != expected { issues.push(json!({"path":path,"line":lines[0],"token":token,"reason":format!("legacy token occurrence count differs: expected {expected}, found {}", lines.len())})); }
+            if let Some(expected) = rule
+                .get("occurrences")
+                .and_then(|value| value.get(token))
+                .and_then(Value::as_u64)
+            {
+                if lines.len() as u64 != expected {
+                    issues.push(json!({"path":path,"line":lines[0],"token":token,"reason":format!("legacy token occurrence count differs: expected {expected}, found {}", lines.len())}));
+                }
             }
         }
     }
@@ -529,10 +567,7 @@ fn host_requirements(index: &Path) -> Value {
             continue;
         }
         let requirement_row = |detail: &Value, scope: &str, scope_kind: &str| -> Value {
-            let id = detail
-                .get("id")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
+            let id = detail.get("id").and_then(Value::as_str).unwrap_or_default();
             let probe = detail.get("probe").cloned().unwrap_or(Value::Null);
             let availability = legion_application::probe_host_requirement(if probe.is_null() {
                 None
@@ -603,9 +638,15 @@ fn host_requirements(index: &Path) -> Value {
         };
         // Scoped probes bind one route or adapter: an unavailable adapter reports
         // that scope only and never downgrades the capability's global state.
-        let scoped_state = if scoped_requirements.iter().any(|item| item["available"] == false) {
+        let scoped_state = if scoped_requirements
+            .iter()
+            .any(|item| item["available"] == false)
+        {
             "unavailable"
-        } else if scoped_requirements.iter().any(|item| item["available"].is_null()) {
+        } else if scoped_requirements
+            .iter()
+            .any(|item| item["available"].is_null())
+        {
             "unknown"
         } else {
             "pass"
@@ -708,7 +749,10 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
         }
     }
     let source_version = if in_repository {
-        manifest.as_ref().and_then(|value| value.get("version")).cloned()
+        manifest
+            .as_ref()
+            .and_then(|value| value.get("version"))
+            .cloned()
     } else {
         None
     };
@@ -874,10 +918,17 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
             "Run legion doctor after repairing the failing Arcane semantic probe.".to_owned(),
         );
     }
-    if let Some(tools) = providers["missingTools"].as_array().filter(|tools| !tools.is_empty()) {
+    if let Some(tools) = providers["missingTools"]
+        .as_array()
+        .filter(|tools| !tools.is_empty())
+    {
         commands.push(format!(
             "Install the missing audit tools or accept the matching providers as unavailable: {}.",
-            tools.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", ")
+            tools
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", ")
         ));
     }
     if naming["status"] != "pass" {
@@ -908,7 +959,8 @@ mod tests {
     /// `absent_packet_is_typed_missing_projection`.
     #[tokio::test]
     async fn doctor_report_carries_no_blueprint_or_membrane_state() {
-        let root = std::env::temp_dir().join(format!("legion-doctor-report-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("legion-doctor-report-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
         let report = run(
@@ -944,15 +996,25 @@ mod tests {
     }
     #[test]
     fn skills_dir_projection_is_recognised_as_an_installation() {
-        let home = std::env::temp_dir().join(format!("legion-doctor-skills-dir-{}", std::process::id()));
+        let home =
+            std::env::temp_dir().join(format!("legion-doctor-skills-dir-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&home);
         let install = home.join(".claude/skills/legion");
         std::fs::create_dir_all(install.join("skills/audit")).unwrap();
         std::fs::create_dir_all(install.join("hooks")).unwrap();
-        std::fs::write(install.join("skills/audit/SKILL.md"), "---\nname: audit\n---\n").unwrap();
+        std::fs::write(
+            install.join("skills/audit/SKILL.md"),
+            "---\nname: audit\n---\n",
+        )
+        .unwrap();
         std::fs::write(install.join("hooks/hooks.json"), "{}").unwrap();
-        std::fs::write(install.join("plugin.json"), r#"{"name":"legion","version":"1.2.3"}"#).unwrap();
-        let installation = skills_dir_installation(&home, Some(&json!("1.2.3"))).expect("installation");
+        std::fs::write(
+            install.join("plugin.json"),
+            r#"{"name":"legion","version":"1.2.3"}"#,
+        )
+        .unwrap();
+        let installation =
+            skills_dir_installation(&home, Some(&json!("1.2.3"))).expect("installation");
         assert_eq!(installation["pluginId"], "legion@skills-dir");
         assert_eq!(installation["installedVersion"], "1.2.3");
         assert_eq!(installation["versionMatches"], true);

@@ -38,7 +38,9 @@ use std::sync::OnceLock;
 use regex::Regex;
 
 use crate::l6_designer_checks::pure_checks::Finding;
-use crate::p8_designer::constants::{BORDER_SAFE_TAGS, SAFE_TAGS, WCAG_LARGE_BOLD_TEXT_PX, WCAG_LARGE_TEXT_PX};
+use crate::p8_designer::constants::{
+    BORDER_SAFE_TAGS, SAFE_TAGS, WCAG_LARGE_BOLD_TEXT_PX, WCAG_LARGE_TEXT_PX,
+};
 use crate::wf_port::w2_014::color::{
     color_to_hex, contrast_ratio, get_hue, has_chroma, is_neutral_color, parse_rgb,
     relative_luminance, Rgba,
@@ -157,7 +159,9 @@ fn tw_from_purple_re() -> &'static Regex {
 }
 fn tw_to_purple_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"\bto-(?:purple|violet|indigo|blue|cyan|pink|fuchsia)-\d+\b").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"\bto-(?:purple|violet|indigo|blue|cyan|pink|fuchsia)-\d+\b").unwrap()
+    })
 }
 
 /// Port of `checkColors(opts)`.
@@ -184,19 +188,27 @@ pub fn check_colors(opts: &ColorsInput) -> Vec<Finding> {
 
             if let Some(bgs) = &bgs {
                 let text_lum = relative_luminance(text_color);
-                let is_gray = !has_chroma(Some(text_color), 20.0) && text_lum > 0.05 && text_lum < 0.85;
+                let is_gray =
+                    !has_chroma(Some(text_color), 20.0) && text_lum > 0.05 && text_lum < 0.85;
                 if is_gray && bgs.iter().all(|b| has_chroma(Some(*b), 40.0)) {
                     let bg_label = if opts.effective_bg.is_some() {
                         color_to_hex(Some(bgs[0]))
                     } else {
                         format!(
                             "gradient({})",
-                            bgs.iter().map(|b| color_to_hex(Some(*b))).collect::<Vec<_>>().join(", ")
+                            bgs.iter()
+                                .map(|b| color_to_hex(Some(*b)))
+                                .collect::<Vec<_>>()
+                                .join(", ")
                         )
                     };
                     findings.push(Finding {
                         id: "gray-on-color",
-                        snippet: format!("text {} on bg {}", color_to_hex(Some(text_color)), bg_label),
+                        snippet: format!(
+                            "text {} on bg {}",
+                            color_to_hex(Some(text_color)),
+                            bg_label
+                        ),
                     });
                 }
 
@@ -236,14 +248,22 @@ pub fn check_colors(opts: &ColorsInput) -> Vec<Finding> {
                 {
                     findings.push(Finding {
                         id: "ai-color-palette",
-                        snippet: format!("Purple/violet text ({}) on heading", color_to_hex(Some(text_color))),
+                        snippet: format!(
+                            "Purple/violet text ({}) on heading",
+                            color_to_hex(Some(text_color))
+                        ),
                     });
                 }
             }
         }
     }
 
-    if opts.bg_clip == Some("text") && opts.bg_image.map(|s| s.contains("gradient")).unwrap_or(false) {
+    if opts.bg_clip == Some("text")
+        && opts
+            .bg_image
+            .map(|s| s.contains("gradient"))
+            .unwrap_or(false)
+    {
         findings.push(Finding {
             id: "gradient-text",
             snippet: "background-clip: text + gradient".to_string(),
@@ -336,7 +356,10 @@ pub fn check_icon_tile(opts: &IconTileInput) -> Vec<Finding> {
     }
 
     let bg_visible = opts.sibling_bg_color.map(|c| c.a > 0.1).unwrap_or(false)
-        || opts.sibling_bg_image.map(|s| s != "none" && !s.is_empty()).unwrap_or(false);
+        || opts
+            .sibling_bg_image
+            .map(|s| s != "none" && !s.is_empty())
+            .unwrap_or(false);
     let border_visible = opts.sibling_border_width > 0.0;
     if !bg_visible && !border_visible {
         return vec![];
@@ -355,7 +378,10 @@ pub fn check_icon_tile(opts: &IconTileInput) -> Vec<Finding> {
         }
     }
 
-    if opts.heading_top != 0.0 && opts.sibling_bottom != 0.0 && opts.sibling_bottom > opts.heading_top + 4.0 {
+    if opts.heading_top != 0.0
+        && opts.sibling_bottom != 0.0
+        && opts.sibling_bottom > opts.heading_top + 4.0
+    {
         return vec![];
     }
 
@@ -422,9 +448,13 @@ pub fn check_hero_eyebrow(opts: &HeroEyebrowInput) -> Vec<Finding> {
         || (ascii_upper_no_lower_re().is_match(text) && !ascii_lower_re().is_match(text));
     let is_classic_tracked = is_uppercased && opts.sibling_letter_spacing >= 1.6;
 
-    let weight = if opts.sibling_font_weight > 0.0 { opts.sibling_font_weight } else { 400.0 };
-    let is_accent_bold =
-        weight >= 700.0 && crate::l6_designer_checks::pure_checks::is_accent_color(opts.sibling_color);
+    let weight = if opts.sibling_font_weight > 0.0 {
+        opts.sibling_font_weight
+    } else {
+        400.0
+    };
+    let is_accent_bold = weight >= 700.0
+        && crate::l6_designer_checks::pure_checks::is_accent_color(opts.sibling_color);
 
     if !is_classic_tracked && !is_accent_bold {
         return vec![];
@@ -432,7 +462,11 @@ pub fn check_hero_eyebrow(opts: &HeroEyebrowInput) -> Vec<Finding> {
 
     let heading_text_snippet: String = opts.heading_text.trim().chars().take(60).collect();
     let eyebrow_snippet: String = text.chars().take(40).collect();
-    let style = if is_classic_tracked { "tracked-caps" } else { "accent-bold" };
+    let style = if is_classic_tracked {
+        "tracked-caps"
+    } else {
+        "accent-bold"
+    };
     vec![Finding {
         id: "hero-eyebrow-chip",
         snippet: format!(
@@ -451,7 +485,10 @@ pub struct KickerCandidate {
 }
 
 /// Port of `checkRepeatedSectionKickers(opts)`.
-pub fn check_repeated_section_kickers(candidates: &[KickerCandidate], min_count: usize) -> Vec<Finding> {
+pub fn check_repeated_section_kickers(
+    candidates: &[KickerCandidate],
+    min_count: usize,
+) -> Vec<Finding> {
     let min_count = if min_count == 0 { 3 } else { min_count };
     if candidates.len() < min_count {
         return vec![];
@@ -475,9 +512,22 @@ pub fn check_repeated_section_kickers(candidates: &[KickerCandidate], min_count:
 
 fn layout_transition_props() -> &'static [&'static str] {
     &[
-        "width", "height", "padding", "margin", "max-height", "max-width", "min-height",
-        "min-width", "padding-top", "padding-right", "padding-bottom", "padding-left",
-        "margin-top", "margin-right", "margin-bottom", "margin-left",
+        "width",
+        "height",
+        "padding",
+        "margin",
+        "max-height",
+        "max-width",
+        "min-height",
+        "min-width",
+        "padding-top",
+        "padding-right",
+        "padding-bottom",
+        "padding-left",
+        "margin-top",
+        "margin-right",
+        "margin-bottom",
+        "margin-left",
     ]
 }
 
@@ -492,7 +542,10 @@ fn animate_bounce_re() -> &'static Regex {
 fn cubic_bezier_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)").unwrap()
+        Regex::new(
+            r"cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)",
+        )
+        .unwrap()
     })
 }
 
@@ -535,7 +588,10 @@ pub fn check_motion(opts: &MotionInput) -> Vec<Finding> {
             if y1 < -0.1 || y1 > 1.1 || y2 < -0.1 || y2 > 1.1 {
                 findings.push(Finding {
                     id: "bounce-easing",
-                    snippet: format!("cubic-bezier({}, {}, {}, {})", &caps[1], &caps[2], &caps[3], &caps[4]),
+                    snippet: format!(
+                        "cubic-bezier({}, {}, {}, {})",
+                        &caps[1], &caps[2], &caps[3], &caps[4]
+                    ),
                 });
                 break;
             }
@@ -544,7 +600,10 @@ pub fn check_motion(opts: &MotionInput) -> Vec<Finding> {
 
     if let Some(tp) = opts.transition_property {
         if tp != "all" && tp != "none" {
-            let props: Vec<String> = tp.split(',').map(|p| p.trim().to_ascii_lowercase()).collect();
+            let props: Vec<String> = tp
+                .split(',')
+                .map(|p| p.trim().to_ascii_lowercase())
+                .collect();
             let layout_found: Vec<&str> = props
                 .iter()
                 .filter(|p| layout_transition_props().contains(&p.as_str()))
@@ -604,11 +663,15 @@ fn split_shadow_layers(box_shadow: &str) -> Vec<String> {
 
 /// Port of `checkGlow(opts)`.
 pub fn check_glow(box_shadow: Option<&str>, effective_bg: Option<Rgba>) -> Vec<Finding> {
-    let Some(box_shadow) = box_shadow else { return vec![] };
+    let Some(box_shadow) = box_shadow else {
+        return vec![];
+    };
     if box_shadow == "none" {
         return vec![];
     }
-    let Some(effective_bg) = effective_bg else { return vec![] };
+    let Some(effective_bg) = effective_bg else {
+        return vec![];
+    };
 
     let bg_lum = relative_luminance(effective_bg);
     if bg_lum >= 0.1 {
@@ -616,9 +679,13 @@ pub fn check_glow(box_shadow: Option<&str>, effective_bg: Option<Rgba>) -> Vec<F
     }
 
     for shadow in split_shadow_layers(box_shadow) {
-        let Some(color_match) = comma_outside_parens_re().find(&shadow) else { continue };
+        let Some(color_match) = comma_outside_parens_re().find(&shadow) else {
+            continue;
+        };
         let color_str = color_match.as_str();
-        let Some(color) = parse_rgb(Some(color_str)) else { continue };
+        let Some(color) = parse_rgb(Some(color_str)) else {
+            continue;
+        };
         if !has_chroma(Some(color), 30.0) {
             continue;
         }
@@ -634,7 +701,10 @@ pub fn check_glow(box_shadow: Option<&str>, effective_bg: Option<Rgba>) -> Vec<F
         if px_vals.len() >= 3 && px_vals[2] > 4.0 {
             return vec![Finding {
                 id: "dark-glow",
-                snippet: format!("Colored glow ({}) on dark background", color_to_hex(Some(color))),
+                snippet: format!(
+                    "Colored glow ({}) on dark background",
+                    color_to_hex(Some(color))
+                ),
             }];
         }
     }
@@ -744,7 +814,10 @@ mod tests {
             ..opts
         };
         let f = check_colors(&opts2);
-        assert!(!f.is_empty(), "styled <a> with opaque bg should be evaluated");
+        assert!(
+            !f.is_empty(),
+            "styled <a> with opaque bg should be evaluated"
+        );
     }
 
     #[test]
@@ -768,7 +841,10 @@ mod tests {
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].id, "icon-tile-stack");
 
-        let none = check_icon_tile(&IconTileInput { has_icon_child: false, ..opts });
+        let none = check_icon_tile(&IconTileInput {
+            has_icon_child: false,
+            ..opts
+        });
         assert!(none.is_empty());
     }
 
@@ -860,12 +936,19 @@ mod tests {
 
     #[test]
     fn check_glow_dark_bg_colored_blur() {
-        let f = check_glow(Some("0px 0px 20px rgba(120, 0, 200, 0.6)"), Some(rgb(10.0, 10.0, 10.0)));
+        let f = check_glow(
+            Some("0px 0px 20px rgba(120, 0, 200, 0.6)"),
+            Some(rgb(10.0, 10.0, 10.0)),
+        );
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].id, "dark-glow");
 
         // Light background: never flags.
-        assert!(check_glow(Some("0px 0px 20px rgba(120, 0, 200, 0.6)"), Some(rgb(250.0, 250.0, 250.0))).is_empty());
+        assert!(check_glow(
+            Some("0px 0px 20px rgba(120, 0, 200, 0.6)"),
+            Some(rgb(250.0, 250.0, 250.0))
+        )
+        .is_empty());
 
         // No box-shadow: never flags.
         assert!(check_glow(None, Some(rgb(10.0, 10.0, 10.0))).is_empty());

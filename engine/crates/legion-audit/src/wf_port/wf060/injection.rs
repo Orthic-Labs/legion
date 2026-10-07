@@ -95,7 +95,10 @@ pub fn root_cause(rule_id: &str, candidate_sink_engine: Option<&str>) -> Option<
         class: format!("{}-unmitigated-sink", rule.sink_class),
         sink_class: rule.sink_class.to_string(),
         sink_kind: rule.sink_kind.to_string(),
-        missing_control: rule.downgrade.as_ref().map(|d| d.control_types[0].to_string()),
+        missing_control: rule
+            .downgrade
+            .as_ref()
+            .map(|d| d.control_types[0].to_string()),
         semantic_features: vec![
             "tainted-input-to-sink".to_string(),
             rule.sink_class.to_string(),
@@ -150,7 +153,10 @@ pub fn enumerate(context: &Context, rule_id: &str) -> Option<VariantStrategyResu
         strategies: vec![Strategy {
             id: format!("{}-search", rule.id),
             kind: "lexical-fallback",
-            description: format!("Enumerate every {} sink across the denominator.", rule.sink_class),
+            description: format!(
+                "Enumerate every {} sink across the denominator.",
+                rule.sink_class
+            ),
             query_digest: digest(rule.id),
             complete: true,
             coverage_gaps: Vec::new(),
@@ -164,7 +170,13 @@ pub fn enumerate(context: &Context, rule_id: &str) -> Option<VariantStrategyResu
 /// `scope: "match"` tests the exact match text, `scope: "forward"` (the
 /// default) tests a window starting at the match extending 300 chars past
 /// its end.
-fn test_around(pattern: Option<&Regex>, text: &str, index: usize, match_len: usize, scope: &str) -> bool {
+fn test_around(
+    pattern: Option<&Regex>,
+    text: &str,
+    index: usize,
+    match_len: usize,
+    scope: &str,
+) -> bool {
     let Some(pattern) = pattern else { return false };
     if scope == "match" {
         let end = (index + match_len).min(text.len());
@@ -195,7 +207,10 @@ fn find_related_control<'a>(
             }
             if let Some(control) = context.entity_by_id(&rel.from) {
                 if control.kind == "control"
-                    && control.attr_str("controlType").map(|t| control_types.contains(&t)).unwrap_or(false)
+                    && control
+                        .attr_str("controlType")
+                        .map(|t| control_types.contains(&t))
+                        .unwrap_or(false)
                 {
                     return Some(control);
                 }
@@ -204,7 +219,9 @@ fn find_related_control<'a>(
     }
     context.entities.iter().find(|e| {
         e.kind == "control"
-            && e.attr_str("controlType").map(|t| control_types.contains(&t)).unwrap_or(false)
+            && e.attr_str("controlType")
+                .map(|t| control_types.contains(&t))
+                .unwrap_or(false)
     })
 }
 
@@ -243,39 +260,90 @@ macro_rules! re_fn {
     };
 }
 
-re_fn!(sql_risky, r#"(?i)\b(?:query|execute|exec)\s*\(\s*(?:`[^`\n]*\$\{[^}]*(?:request|input|user|body|params|query)[^}]*\}[^`\n]*`|"[^"\n]*"\s*\+\s*(?:request|input|user|body|params|query)|'[^'\n]*'\s*\+\s*(?:request|input|user|body|params|query))"#);
-re_fn!(sql_suppress, r#"(?i)\b(?:query|execute)\s*\(\s*(?:`[^`\n]*\?[^`\n]*`|"[^"\n]*\?[^"\n]*"|'[^'\n]*\?[^'\n]*')\s*,\s*\["#);
-re_fn!(sql_lexical, r"(?i)\.escape\(|mysql\.escape|sqlstring\.escape|pg-escape");
+re_fn!(
+    sql_risky,
+    r#"(?i)\b(?:query|execute|exec)\s*\(\s*(?:`[^`\n]*\$\{[^}]*(?:request|input|user|body|params|query)[^}]*\}[^`\n]*`|"[^"\n]*"\s*\+\s*(?:request|input|user|body|params|query)|'[^'\n]*'\s*\+\s*(?:request|input|user|body|params|query))"#
+);
+re_fn!(
+    sql_suppress,
+    r#"(?i)\b(?:query|execute)\s*\(\s*(?:`[^`\n]*\?[^`\n]*`|"[^"\n]*\?[^"\n]*"|'[^'\n]*\?[^'\n]*')\s*,\s*\["#
+);
+re_fn!(
+    sql_lexical,
+    r"(?i)\.escape\(|mysql\.escape|sqlstring\.escape|pg-escape"
+);
 
-re_fn!(nosql_risky, r#"(?i)\.(?:find|findOne|updateOne|updateMany|deleteOne|deleteMany|aggregate)\s*\(\s*(?:request\.(?:body|query|params)\b|\{\s*\$where\b)"#);
+re_fn!(
+    nosql_risky,
+    r#"(?i)\.(?:find|findOne|updateOne|updateMany|deleteOne|deleteMany|aggregate)\s*\(\s*(?:request\.(?:body|query|params)\b|\{\s*\$where\b)"#
+);
 re_fn!(nosql_suppress, r"(?i)mongo-?sanitize|sanitizeFilter");
 re_fn!(nosql_lexical, r"(?i)\bpick\(|allowlist|whitelist");
 
-re_fn!(orm_risky, r#"(?i)\b(?:sequelize\.query|\$queryRaw|Model\.raw|FromSqlRaw)\s*\(\s*(?:`[^`\n]*\$\{[^}]*(?:request|input|user|body|params)[^}]*\}[^`\n]*`|"[^"\n]*"\s*\+\s*(?:request|input|user|body|params)|'[^'\n]*'\s*\+\s*(?:request|input|user|body|params))"#);
-re_fn!(orm_suppress, r#"(?i)\breplacements\s*:|\bbind\s*:|Prisma\.sql`"#);
+re_fn!(
+    orm_risky,
+    r#"(?i)\b(?:sequelize\.query|\$queryRaw|Model\.raw|FromSqlRaw)\s*\(\s*(?:`[^`\n]*\$\{[^}]*(?:request|input|user|body|params)[^}]*\}[^`\n]*`|"[^"\n]*"\s*\+\s*(?:request|input|user|body|params)|'[^'\n]*'\s*\+\s*(?:request|input|user|body|params))"#
+);
+re_fn!(
+    orm_suppress,
+    r#"(?i)\breplacements\s*:|\bbind\s*:|Prisma\.sql`"#
+);
 
-re_fn!(shell_risky, r"(?:exec|system|spawn|child_process\.exec|subprocess\.(?:call|run|Popen))\s*\([^\n]*(?:request|input|user|query|body|params)");
+re_fn!(
+    shell_risky,
+    r"(?:exec|system|spawn|child_process\.exec|subprocess\.(?:call|run|Popen))\s*\([^\n]*(?:request|input|user|query|body|params)"
+);
 re_fn!(shell_suppress, r"(?i)shell\s*:\s*false");
 re_fn!(shell_lexical, r"(?i)\bspawn\s*\([^)]*,\s*\[");
 
 re_fn!(ldap_file_guard, r"(?i)ldap");
-re_fn!(ldap_risky, r#"(?i)\bfilter\s*[:=]\s*(?:`[^`\n]*\$\{[^}]+\}[^`\n]*`|"[^"\n]*"\s*\+|'[^'\n]*'\s*\+)[^\n]*(?:request|input|user|body|params)"#);
+re_fn!(
+    ldap_risky,
+    r#"(?i)\bfilter\s*[:=]\s*(?:`[^`\n]*\$\{[^}]+\}[^`\n]*`|"[^"\n]*"\s*\+|'[^'\n]*'\s*\+)[^\n]*(?:request|input|user|body|params)"#
+);
 re_fn!(ldap_suppress, r"(?i)escapeFilter|ldapEscape|ldap-escape");
 
-re_fn!(ssti_risky, r"(?i)\b(?:ejs\.render|_\.template|Handlebars\.compile|nunjucks\.renderString|render_template_string)\s*\([^\n]*(?:request|input|user|body|params)");
-re_fn!(ssti_suppress, r"(?i)autoescape\s*:\s*true|sandbox\s*:\s*true");
+re_fn!(
+    ssti_risky,
+    r"(?i)\b(?:ejs\.render|_\.template|Handlebars\.compile|nunjucks\.renderString|render_template_string)\s*\([^\n]*(?:request|input|user|body|params)"
+);
+re_fn!(
+    ssti_suppress,
+    r"(?i)autoescape\s*:\s*true|sandbox\s*:\s*true"
+);
 
-re_fn!(redos_risky, r"/(?:[^/\n\\]|\\.)*\([^()]*[+*]\)[+*](?:[^/\n\\]|\\.)*/[a-z]*");
+re_fn!(
+    redos_risky,
+    r"/(?:[^/\n\\]|\\.)*\([^()]*[+*]\)[+*](?:[^/\n\\]|\\.)*/[a-z]*"
+);
 
-re_fn!(proto_risky, r#"(?i)(?:\[\s*request\.(?:body|query|params)(?:\.\w+)?\s*\]\s*=|(?:_\.merge|deepmerge|merge)\s*\(\s*\{\}\s*,\s*request\.(?:body|query|params))"#);
-re_fn!(proto_lexical, r"(?i)denylist|blocklist|isSafeKey|hasOwnProperty\.call");
+re_fn!(
+    proto_risky,
+    r#"(?i)(?:\[\s*request\.(?:body|query|params)(?:\.\w+)?\s*\]\s*=|(?:_\.merge|deepmerge|merge)\s*\(\s*\{\}\s*,\s*request\.(?:body|query|params))"#
+);
+re_fn!(
+    proto_lexical,
+    r"(?i)denylist|blocklist|isSafeKey|hasOwnProperty\.call"
+);
 
-re_fn!(xxe_file_guard, r"(?i)libxmljs|lxml|DocumentBuilderFactory|XMLParser|expat|xml2js");
-re_fn!(xxe_risky, r#"\b(?:noent\s*:\s*true|resolveEntities\s*:\s*true|resolve_entities\s*=\s*True|setFeature\(\s*["']http://apache\.org/xml/features/nonvalidating/load-external-dtd["']\s*,\s*true\s*\))"#);
+re_fn!(
+    xxe_file_guard,
+    r"(?i)libxmljs|lxml|DocumentBuilderFactory|XMLParser|expat|xml2js"
+);
+re_fn!(
+    xxe_risky,
+    r#"\b(?:noent\s*:\s*true|resolveEntities\s*:\s*true|resolve_entities\s*=\s*True|setFeature\(\s*["']http://apache\.org/xml/features/nonvalidating/load-external-dtd["']\s*,\s*true\s*\))"#
+);
 
 re_fn!(formula_file_guard, r"(?i)csv|xlsx|exceljs|csv-writer");
-re_fn!(formula_risky, r#"(?i)\b(?:addRow|writeRow|push)\s*\(\s*\[[^\]]*(?:request\.(?:body|query|params)|input)[^\]]*\]\s*\)"#);
-re_fn!(formula_suppress, r#"(?i)startsWith\(\s*['"][=+\-@]['"]\)|escapeFormula|sanitizeCsv"#);
+re_fn!(
+    formula_risky,
+    r#"(?i)\b(?:addRow|writeRow|push)\s*\(\s*\[[^\]]*(?:request\.(?:body|query|params)|input)[^\]]*\]\s*\)"#
+);
+re_fn!(
+    formula_suppress,
+    r#"(?i)startsWith\(\s*['"][=+\-@]['"]\)|escapeFormula|sanitizeCsv"#
+);
 
 fn sql_sink_engine(text: &str) -> &'static str {
     if Regex::new(r"(?i)\bpg\b|postgres").unwrap().is_match(text) {
@@ -608,18 +676,27 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 }
             }
             for m in (rule.risky_pattern)().find_iter(text) {
-                if test_around(rule.suppress_pattern.map(|f| f()), text, m.start(), m.len(), rule.suppress_scope) {
+                if test_around(
+                    rule.suppress_pattern.map(|f| f()),
+                    text,
+                    m.start(),
+                    m.len(),
+                    rule.suppress_scope,
+                ) {
                     continue;
                 }
 
                 let mut severity_hint = rule.severity_hint.to_string();
                 let mut observed_controls: Vec<String> = Vec::new();
-                let mut uncertainty: Vec<String> = rule.uncertainty.iter().map(|s| s.to_string()).collect();
+                let mut uncertainty: Vec<String> =
+                    rule.uncertainty.iter().map(|s| s.to_string()).collect();
 
                 if let Some(downgrade) = &rule.downgrade {
-                    if let Some(control) =
-                        find_related_control(context, artifact.map(|a| a.id.as_str()), downgrade.control_types)
-                    {
+                    if let Some(control) = find_related_control(
+                        context,
+                        artifact.map(|a| a.id.as_str()),
+                        downgrade.control_types,
+                    ) {
                         severity_hint = downgrade.severity_hint.to_string();
                         observed_controls = vec![control.id.clone()];
                         let control_type = control.attr_str("controlType").unwrap_or("mitigating");
@@ -641,7 +718,11 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 }
 
                 let trace = trace_for(context, file, rule.sink_class);
-                let detection_method = if trace.is_some() { "sast-trace" } else { "lexical-pattern" };
+                let detection_method = if trace.is_some() {
+                    "sast-trace"
+                } else {
+                    "lexical-pattern"
+                };
                 uncertainty.push(if trace.is_some() {
                     "Confirmed by a recorded taint trace; reachability is still subject to adjudication.".to_string()
                 } else {
@@ -696,7 +777,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                     required_controls: Vec::new(),
                     observed_controls,
                     chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                    evidence_refs: artifact.map(|a| a.evidence_refs.clone()).unwrap_or_default(),
+                    evidence_refs: artifact
+                        .map(|a| a.evidence_refs.clone())
+                        .unwrap_or_default(),
                     detector_metadata: json!({
                         "file": file,
                         "line": line_of(text, m.start()),

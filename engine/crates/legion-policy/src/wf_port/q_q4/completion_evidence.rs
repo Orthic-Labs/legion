@@ -138,7 +138,11 @@ pub fn load_completion_evidence(
     let mut proofs = Vec::new();
 
     let criteria = &execution.acceptance_criteria;
-    let issuer = match (criteria.is_empty(), key_ring_present, authority_proof_issuer) {
+    let issuer = match (
+        criteria.is_empty(),
+        key_ring_present,
+        authority_proof_issuer,
+    ) {
         (false, true, Some(issuer)) => issuer,
         _ => {
             return CompletionEvidence {
@@ -273,7 +277,9 @@ mod tests {
             contract_version: json!(1),
             contract_digest: json!("digest-c"),
             source_revision: json!("rev-1"),
-            acceptance_criteria: vec![AcceptanceCriterion { id: json!("crit-1") }],
+            acceptance_criteria: vec![AcceptanceCriterion {
+                id: json!("crit-1"),
+            }],
         }
     }
 

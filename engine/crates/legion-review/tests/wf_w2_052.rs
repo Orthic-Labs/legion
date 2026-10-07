@@ -242,7 +242,11 @@ OMISSIONS:
 #[test]
 fn good_packet_passes() {
     let v = packet::validate_packet(GOOD_PACKET);
-    assert!(v.ok, "expected ok=true, got errors={:?}, warnings={:?}", v.errors, v.warnings);
+    assert!(
+        v.ok,
+        "expected ok=true, got errors={:?}, warnings={:?}",
+        v.errors, v.warnings
+    );
     assert!(v.errors.is_empty());
     assert!(v.warnings.is_empty());
 }
@@ -294,7 +298,10 @@ fn known_weaknesses_too_few_errors() {
 fn alternatives_too_few_errors() {
     let v = packet::validate_packet(ALT_TOO_FEW);
     assert!(!v.ok);
-    assert!(v.errors.iter().any(|e| e.contains("ALTERNATIVES_CONSIDERED")));
+    assert!(v
+        .errors
+        .iter()
+        .any(|e| e.contains("ALTERNATIVES_CONSIDERED")));
 }
 
 #[test]
@@ -307,7 +314,10 @@ fn bad_constraint_warns_not_errors() {
 #[test]
 fn extract_packet_returns_map() {
     let sections = packet::extract_packet(GOOD_PACKET).expect("fence present");
-    assert_eq!(sections.get("ARTIFACT").map(String::as_str), Some("src/capture.rs"));
+    assert_eq!(
+        sections.get("ARTIFACT").map(String::as_str),
+        Some("src/capture.rs")
+    );
     assert!(!sections.contains_key("UNKNOWN"));
 }
 
@@ -332,7 +342,10 @@ fn packet_required_sections_match() {
 fn render_skeleton_includes_all_sections() {
     let text = packet::render_packet_skeleton(Some("plan"));
     for section in packet::PACKET_REQUIRED_SECTIONS {
-        assert!(text.contains(section), "section {section} missing from skeleton");
+        assert!(
+            text.contains(section),
+            "section {section} missing from skeleton"
+        );
     }
 }
 
@@ -390,7 +403,12 @@ fn provider_error_display_and_fields() {
 
 #[test]
 fn build_provider_dispatch_table() {
-    for t in ["openai_compat", "minimax_anthropic", "gemini_api", "subprocess"] {
+    for t in [
+        "openai_compat",
+        "minimax_anthropic",
+        "gemini_api",
+        "subprocess",
+    ] {
         assert!(registry::known_provider_type(t), "{t} should be known");
     }
     assert!(!registry::known_provider_type("bogus"));
@@ -403,7 +421,10 @@ fn build_provider_dispatch_table() {
 // ---------- providers/gemini.py ----------
 
 fn env_map(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
-    pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+    pairs
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
 }
 
 #[test]
@@ -414,7 +435,10 @@ fn gemini_resolve_key_returns_first_nonempty() {
         vec!["MISSING_KEY".into(), "GEMINI_API_KEY".into()],
         30,
     );
-    assert_eq!(config.base_url, "https://generativelanguage.googleapis.com/v1beta");
+    assert_eq!(
+        config.base_url,
+        "https://generativelanguage.googleapis.com/v1beta"
+    );
 
     let env = env_map(&[("GEMINI_API_KEY", "abc123")]);
     let key = gemini::resolve_key(&config, gemini::env_lookup_from_map(&env)).unwrap();
@@ -433,7 +457,10 @@ fn gemini_resolve_key_errors_when_no_key_set() {
 fn gemini_build_request_url_matches_python_fstring() {
     let config = gemini::GeminiConfig::new("gem", "https://x/", vec![], 30);
     let url = gemini::build_request_url(&config, "gemini-2.0-flash", "KEY");
-    assert_eq!(url, "https://x/models/gemini-2.0-flash:generateContent?key=KEY");
+    assert_eq!(
+        url,
+        "https://x/models/gemini-2.0-flash:generateContent?key=KEY"
+    );
 }
 
 #[test]
@@ -527,7 +554,9 @@ fn minimax_require_non_empty_content_rejects_blank() {
     let config = minimax::MiniMaxConfig::new("test");
     let data = json!({ "stop_reason": "max_tokens" });
     let err = minimax::require_non_empty_content(&config, "MiniMax-M3", "   ", &data).unwrap_err();
-    assert!(err.message.contains("empty content (stop_reason=max_tokens)"));
+    assert!(err
+        .message
+        .contains("empty content (stop_reason=max_tokens)"));
 
     assert!(minimax::require_non_empty_content(&config, "MiniMax-M3", "[]", &data).is_ok());
 }

@@ -28,7 +28,10 @@ use serde_json::Value;
 pub fn analyze_contrast(pairs: &[Value]) -> Value {
     let mut result = analyze_color_pairs(pairs);
     if let Value::Object(map) = &mut result {
-        map.insert("provider".to_string(), Value::String("accessibility.contrast".to_string()));
+        map.insert(
+            "provider".to_string(),
+            Value::String("accessibility.contrast".to_string()),
+        );
     }
     result
 }
@@ -107,7 +110,11 @@ mod tests {
 
     #[test]
     fn missing_foreground_or_background_is_unresolved() {
-        let pairs = [json!({ "background": "#ffffff" }), json!({ "foreground": "#000000" }), json!({})];
+        let pairs = [
+            json!({ "background": "#ffffff" }),
+            json!({ "foreground": "#000000" }),
+            json!({}),
+        ];
         let out = analyze_contrast(&pairs);
         assert_eq!(out["status"], json!("unproven"));
         assert_eq!(out["denominator"]["expected"], json!(3));

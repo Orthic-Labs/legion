@@ -32,10 +32,7 @@ pub fn get_design_sidecar_path(root: &Path) -> PathBuf {
 /// sidecar path, the legacy `DESIGN.json` at the project root, and the
 /// legacy `DESIGN.json` in `context_dir` (deduped).
 pub fn get_design_sidecar_candidates(root: &Path, context_dir: &Path) -> Vec<PathBuf> {
-    let mut candidates = vec![
-        get_design_sidecar_path(root),
-        root.join("DESIGN.json"),
-    ];
+    let mut candidates = vec![get_design_sidecar_path(root), root.join("DESIGN.json")];
     let context_legacy = context_dir.join("DESIGN.json");
     if !candidates.contains(&context_legacy) {
         candidates.push(context_legacy);
@@ -111,7 +108,10 @@ pub struct LiveServerInfo {
 /// treating a stale (unreachable) pid as absent and deleting that file, like
 /// the JS `fs.unlinkSync` best-effort cleanup.
 pub fn read_live_server_info(root: &Path) -> Option<LiveServerInfo> {
-    for file_path in [get_live_server_path(root), get_legacy_live_server_path(root)] {
+    for file_path in [
+        get_live_server_path(root),
+        get_legacy_live_server_path(root),
+    ] {
         let Ok(raw_str) = fs::read_to_string(&file_path) else {
             continue;
         };
@@ -194,7 +194,10 @@ pub fn write_live_server_info(root: &Path, info: &serde_json::Value) -> io::Resu
 }
 
 pub fn remove_live_server_info(root: &Path) {
-    for file_path in [get_live_server_path(root), get_legacy_live_server_path(root)] {
+    for file_path in [
+        get_live_server_path(root),
+        get_legacy_live_server_path(root),
+    ] {
         let _ = fs::remove_file(&file_path);
     }
 }

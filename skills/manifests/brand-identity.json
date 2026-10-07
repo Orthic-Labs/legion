@@ -59,7 +59,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://brand-identity/dependencies.json",
-      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+      "digest": "sha256:09a77eb08fca24af91f9dd37225bb8d75cc5441e3e116765a5b84adf1a5cc051"
     },
     {
       "path": "evals/evals.json",

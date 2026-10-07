@@ -174,7 +174,10 @@ mod tests {
 
     #[test]
     fn preset_filename_appends_json() {
-        assert_eq!(preset_filename("luxury-brand").unwrap(), "luxury-brand.json");
+        assert_eq!(
+            preset_filename("luxury-brand").unwrap(),
+            "luxury-brand.json"
+        );
     }
 
     #[test]
@@ -231,7 +234,10 @@ mod tests {
             default_ratio: "16:9".into(),
             default_resolution: "2K".into(),
         };
-        assert_eq!(format_list_row("x", Some(&p)), "  x                    - desc");
+        assert_eq!(
+            format_list_row("x", Some(&p)),
+            "  x                    - desc"
+        );
     }
 
     #[test]

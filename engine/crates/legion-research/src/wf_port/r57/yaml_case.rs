@@ -11,8 +11,7 @@ use serde_yaml::Value;
 
 /// Mirrors `case[key]`: panics (uncaught-exception equivalent) if absent.
 pub fn get<'a>(v: &'a Value, key: &str) -> &'a Value {
-    v.get(key)
-        .unwrap_or_else(|| panic!("KeyError: '{}'", key))
+    v.get(key).unwrap_or_else(|| panic!("KeyError: '{}'", key))
 }
 
 /// Mirrors `case[key]` where the value is a plain scalar rendered as text.

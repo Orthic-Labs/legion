@@ -61,18 +61,31 @@ pub struct CanonicalManifestArtifact {
 /// Port of `writeCanonicalManifest(store, binding)` minus the
 /// `store.writeJson` I/O call itself (see [`CanonicalManifestArtifact`]).
 /// `records` stands in for `store.records()`.
-pub fn build_canonical_manifest(records: Vec<ArtifactRecord>, binding: Value) -> CanonicalManifestArtifact {
+pub fn build_canonical_manifest(
+    records: Vec<ArtifactRecord>,
+    binding: Value,
+) -> CanonicalManifestArtifact {
     let source_revision = binding
         .get("sourceRevision")
         .filter(|value| !value.is_null())
         .cloned()
-        .or_else(|| binding.get("repositoryRevision").filter(|value| !value.is_null()).cloned())
+        .or_else(|| {
+            binding
+                .get("repositoryRevision")
+                .filter(|value| !value.is_null())
+                .cloned()
+        })
         .unwrap_or(Value::Null);
 
     let mut terminal_absences: Vec<String> = records
         .iter()
         .filter(|record| record.get("status").and_then(Value::as_str) == Some("missing"))
-        .filter_map(|record| record.get("path").and_then(Value::as_str).map(str::to_string))
+        .filter_map(|record| {
+            record
+                .get("path")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
         .collect();
     terminal_absences.sort();
 
@@ -113,9 +126,14 @@ pub fn build_canonical_manifest(records: Vec<ArtifactRecord>, binding: Value) ->
 /// ...driftedOrMissing].sort()`, which the final `.sort()` makes a plain
 /// lexicographic sort regardless of push order — replicated identically
 /// here).
-pub fn validate_run_manifest(manifest: &Value, files: &[ArtifactRecord], expected_binding: Option<&Value>) -> Vec<String> {
+pub fn validate_run_manifest(
+    manifest: &Value,
+    files: &[ArtifactRecord],
+    expected_binding: Option<&Value>,
+) -> Vec<String> {
     let binding = manifest.get("binding");
-    let expected = expected_binding.unwrap_or_else(|| manifest.get("binding").unwrap_or(&Value::Null));
+    let expected =
+        expected_binding.unwrap_or_else(|| manifest.get("binding").unwrap_or(&Value::Null));
 
     let mut issues: Vec<String> = Vec::new();
 
@@ -153,10 +171,14 @@ pub fn validate_run_manifest(manifest: &Value, files: &[ArtifactRecord], expecte
         })
         .collect();
 
-    let declared_paths: std::collections::BTreeMap<&str, &Value> =
-        declared.iter().map(|(path, digest)| (path.as_str(), digest)).collect();
-    let actual_paths: std::collections::BTreeMap<&str, &Value> =
-        actual.iter().map(|(path, digest)| (path.as_str(), digest)).collect();
+    let declared_paths: std::collections::BTreeMap<&str, &Value> = declared
+        .iter()
+        .map(|(path, digest)| (path.as_str(), digest))
+        .collect();
+    let actual_paths: std::collections::BTreeMap<&str, &Value> = actual
+        .iter()
+        .map(|(path, digest)| (path.as_str(), digest))
+        .collect();
 
     let mut absent: Vec<&str> = declared_paths
         .keys()
@@ -301,7 +323,10 @@ mod tests {
             "artifacts": [{"path": "gone.txt", "digest": "sha256:1"}],
         });
         let issues = validate_run_manifest(&manifest, &[], None);
-        assert!(!issues.contains(&"terminal-absences:mismatch".to_string()), "{issues:?}");
+        assert!(
+            !issues.contains(&"terminal-absences:mismatch".to_string()),
+            "{issues:?}"
+        );
         assert!(issues.contains(&"missing-or-drifted:gone.txt".to_string()));
     }
 }

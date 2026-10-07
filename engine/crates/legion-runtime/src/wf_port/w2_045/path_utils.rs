@@ -31,10 +31,7 @@ pub fn is_absolute_path(value: &str) -> bool {
 
 fn is_windows_drive_absolute(raw: &str) -> bool {
     let bytes = raw.as_bytes();
-    bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && bytes[2] == b'/'
+    bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
 }
 
 /// Expand a leading `~` or `~/...` to the user's home directory, mirroring
@@ -348,8 +345,7 @@ mod tests {
         assert_eq!(resolved, dir.join("engine/src/lib.rs"));
 
         let abs = dir.join("elsewhere/file.rs");
-        let resolved_abs =
-            resolve_declared_path(&abs.to_string_lossy(), &artifact);
+        let resolved_abs = resolve_declared_path(&abs.to_string_lossy(), &artifact);
         assert_eq!(resolved_abs, abs);
 
         std::fs::remove_dir_all(&dir).ok();
@@ -373,7 +369,9 @@ mod tests {
         let temp_root = env::temp_dir();
         assert!(in_platform_temp_dir(&temp_root));
         assert!(in_platform_temp_dir(&temp_root.join("nested/file.md")));
-        assert!(!in_platform_temp_dir(Path::new("/definitely/not/temp/file.md")));
+        assert!(!in_platform_temp_dir(Path::new(
+            "/definitely/not/temp/file.md"
+        )));
     }
 
     fn tempdir() -> PathBuf {

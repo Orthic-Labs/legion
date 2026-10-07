@@ -197,8 +197,7 @@ mod tests {
         let receipt = sample();
         receipt.validate().expect("sample receipt is valid");
         let json = serde_json::to_string(&receipt).expect("serialize");
-        let parsed: ExecutorBindingReceiptV1 =
-            serde_json::from_str(&json).expect("deserialize");
+        let parsed: ExecutorBindingReceiptV1 = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(receipt, parsed);
         parsed.validate().expect("round-tripped receipt is valid");
     }
@@ -211,8 +210,7 @@ mod tests {
         receipt.validate().expect("unsupported outcome is valid");
 
         let json = serde_json::to_string(&receipt).expect("serialize");
-        let parsed: ExecutorBindingReceiptV1 =
-            serde_json::from_str(&json).expect("deserialize");
+        let parsed: ExecutorBindingReceiptV1 = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(parsed, receipt);
         assert_eq!(parsed.outcome, Some(ExecutorBindingOutcome::Unsupported));
     }

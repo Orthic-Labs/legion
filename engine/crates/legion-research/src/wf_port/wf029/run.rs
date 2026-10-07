@@ -30,6 +30,7 @@ use std::path::Path;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 
+use crate::research_port::query as query_contract;
 use crate::wf_port::wf023::{citecheck, contradictions};
 use crate::wf_port::wf024::{domain_verify, draft_integrity, effect_audit};
 use crate::wf_port::wf025::{gap_critic, ledger, manifest};
@@ -38,7 +39,6 @@ use crate::wf_port::wf027::types::Provider;
 use crate::wf_port::wf028::retraction::{self, RetractionTransport, TransportError};
 use crate::wf_port::wf028::search_open_find;
 use crate::wf_port::wf029::route_resolve::{self, Context};
-use crate::research_port::query as query_contract;
 
 fn field_str<'a>(route: &'a Value, key: &str) -> &'a str {
     route.get(key).and_then(Value::as_str).unwrap_or("")
@@ -63,7 +63,9 @@ pub fn default_search_provider(route: &Value) -> String {
 /// `run._resolve_acquire_provider`. `requested` mirrors `str | None`.
 pub fn resolve_acquire_provider(route: &Value, requested: Option<&str>) -> Result<String, String> {
     let route_provider = field_str(route, "provider").to_string();
-    let mut selected = requested.map(str::to_string).unwrap_or_else(|| route_provider.clone());
+    let mut selected = requested
+        .map(str::to_string)
+        .unwrap_or_else(|| route_provider.clone());
     let default = default_search_provider(route);
     let mut allowed: Vec<String> = vec![route_provider.clone(), default.clone()];
     if route_provider == "domain-default" {
@@ -97,7 +99,11 @@ pub fn check_effects(route: &Value, effects: &[&str]) -> Result<(), String> {
         .and_then(Value::as_array)
         .map(|arr| arr.iter().filter_map(Value::as_str).collect())
         .unwrap_or_default();
-    let missing: Vec<&str> = effects.iter().copied().filter(|e| !allowed.contains(e)).collect();
+    let missing: Vec<&str> = effects
+        .iter()
+        .copied()
+        .filter(|e| !allowed.contains(e))
+        .collect();
     if !missing.is_empty() {
         return Err(format!("frozen route does not grant effects: {missing:?}"));
     }
@@ -129,7 +135,6 @@ pub fn scale_budget(scale: &str, context_budget: Option<&Value>) -> Result<Value
         other => Err(format!("unknown scale: {other}")),
     }
 }
-
 
 // ---------------------------------------------------------------------
 // Stateful orchestrator (packet r56): `run.py`'s `init_run` directory
@@ -373,12 +378,17 @@ impl Default for ReqwestRetractionTransport {
 
 impl ReqwestRetractionTransport {
     pub fn new() -> Self {
-        let contact = std::env::var("RESEARCH_CONTACT_EMAIL").ok().filter(|s| !s.is_empty());
+        let contact = std::env::var("RESEARCH_CONTACT_EMAIL")
+            .ok()
+            .filter(|s| !s.is_empty());
         let user_agent = match contact {
             Some(email) => format!("ResearchCore/2.0 (mailto:{email})"),
             None => "ResearchCore/2.0".to_string(),
         };
-        Self { client: reqwest::blocking::Client::new(), user_agent }
+        Self {
+            client: reqwest::blocking::Client::new(),
+            user_agent,
+        }
     }
 
     fn fetch_json(&self, url: &str) -> Result<Value, TransportError> {
@@ -413,7 +423,10 @@ impl RetractionTransport for ReqwestRetractionTransport {
 fn load_retraction_fixture() -> Option<Map<String, Value>> {
     let path = std::env::var("RESEARCH_RETRACTION_FIXTURE").ok()?;
     let text = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Value>(&text).ok()?.as_object().cloned()
+    serde_json::from_str::<Value>(&text)
+        .ok()?
+        .as_object()
+        .cloned()
 }
 
 // -- orchestrator functions ----------------------------------------------
@@ -440,7 +453,11 @@ pub fn init_run(intent: &str, context: &Context, root: Option<&Path>) -> Result<
     let scale = route.get("scale").and_then(Value::as_str).unwrap_or("");
     let budget = scale_budget(scale, context.get("budget"))?;
     let run = manifest::create_run(intent, &route, &budget, root).map_err(|e| e.to_string())?;
-    let run_id = run.get("run_id").and_then(Value::as_str).unwrap_or("").to_string();
+    let run_id = run
+        .get("run_id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let directory = manifest::run_dir(&run_id, root).map_err(|e| e.to_string())?;
     let wrapper_contract = context.get("wrapper_contract").and_then(Value::as_str);
     query_contract::persist(&directory, intent, wrapper_contract).map_err(|e| e.to_string())?;
@@ -466,11 +483,19 @@ pub fn grant(run_id: &str, root: Option<&Path>) -> Result<Value, String> {
             .filter(|v| v.get("verdict").and_then(Value::as_str) != Some("ok"))
             .filter_map(|v| v.get("gate").and_then(Value::as_str).map(String::from))
             .collect();
-        let detail = if pending.is_empty() { "route-gate".to_string() } else { pending.join(",") };
-        manifest::set_stage(run_id, "route", "blocked", Some(&detail), root).map_err(|e| e.to_string())?;
-        return Ok(json!({"ready": false, "route": granted, "gate_verdicts": verdicts, "pending": pending}));
+        let detail = if pending.is_empty() {
+            "route-gate".to_string()
+        } else {
+            pending.join(",")
+        };
+        manifest::set_stage(run_id, "route", "blocked", Some(&detail), root)
+            .map_err(|e| e.to_string())?;
+        return Ok(
+            json!({"ready": false, "route": granted, "gate_verdicts": verdicts, "pending": pending}),
+        );
     }
-    let route_sha = manifest::sha256_text(&serde_json::to_string(&granted).map_err(|e| e.to_string())?);
+    let route_sha =
+        manifest::sha256_text(&serde_json::to_string(&granted).map_err(|e| e.to_string())?);
     let granted_for_mutate = granted.clone();
     manifest::mutate_run(run_id, root, move |m| {
         m["route"] = granted_for_mutate;
@@ -493,7 +518,12 @@ pub fn grant(run_id: &str, root: Option<&Path>) -> Result<Value, String> {
 }
 
 /// `run.meter_worker`.
-pub fn meter_worker(run_id: &str, event: &str, units: i64, root: Option<&Path>) -> Result<Value, String> {
+pub fn meter_worker(
+    run_id: &str,
+    event: &str,
+    units: i64,
+    root: Option<&Path>,
+) -> Result<Value, String> {
     let directory = manifest::run_dir(run_id, root).map_err(|e| e.to_string())?;
     meter::consume(&directory, "worker", units, Some(event)).map_err(|e| e.to_string())
 }
@@ -516,44 +546,63 @@ pub fn acquire(
     if name == "local-corpus" {
         check_effects(&route, &["read-local"])?;
     }
-    let search_metered = parsed.map(|p| search_open_find::is_metered_op(p, "search")).unwrap_or(false);
-    let open_metered = parsed.map(|p| search_open_find::is_metered_op(p, "open")).unwrap_or(false);
-    let find_metered = parsed.map(|p| search_open_find::is_metered_op(p, "find")).unwrap_or(false);
+    let search_metered = parsed
+        .map(|p| search_open_find::is_metered_op(p, "search"))
+        .unwrap_or(false);
+    let open_metered = parsed
+        .map(|p| search_open_find::is_metered_op(p, "open"))
+        .unwrap_or(false);
+    let find_metered = parsed
+        .map(|p| search_open_find::is_metered_op(p, "find"))
+        .unwrap_or(false);
     if open_metered {
         check_effects(&route, &["fetch"])?;
     }
     manifest::set_stage(run_id, "acquire", "running", None, root).map_err(|e| e.to_string())?;
     let directory = manifest::run_dir(run_id, root).map_err(|e| e.to_string())?;
     if search_metered {
-        search_open_find::meter_effect(Some(&directory), "external_request").map_err(|e| e.to_string())?;
+        search_open_find::meter_effect(Some(&directory), "external_request")
+            .map_err(|e| e.to_string())?;
     }
     let seed_chain: Vec<String> = Vec::new();
-    let hits = provider_impl.search(query, limit, &seed_chain).map_err(|e| e.to_string())?;
+    let hits = provider_impl
+        .search(query, limit, &seed_chain)
+        .map_err(|e| e.to_string())?;
     let mut rows = Vec::new();
     for hit in &hits {
         if open_metered {
-            search_open_find::meter_effect(Some(&directory), "external_request").map_err(|e| e.to_string())?;
+            search_open_find::meter_effect(Some(&directory), "external_request")
+                .map_err(|e| e.to_string())?;
         }
         let opened = provider_impl.open(&hit.url).map_err(|e| e.to_string())?;
         if find_metered {
-            search_open_find::meter_effect(Some(&directory), "external_request").map_err(|e| e.to_string())?;
+            search_open_find::meter_effect(Some(&directory), "external_request")
+                .map_err(|e| e.to_string())?;
         }
         let find_pattern = match pattern {
             Some(p) if !p.is_empty() => p,
             _ => query,
         };
-        let located = provider_impl.find(&opened, find_pattern).map_err(|e| e.to_string())?;
+        let located = provider_impl
+            .find(&opened, find_pattern)
+            .map_err(|e| e.to_string())?;
         rows.push(json!({
             "hit": hit.to_dict(),
             "opened": opened.to_dict(),
             "located": located.map(|l| l.to_dict()),
         }));
     }
-    write_json(&directory.join("acquisition.json"), &Value::Array(rows.clone()))?;
+    write_json(
+        &directory.join("acquisition.json"),
+        &Value::Array(rows.clone()),
+    )?;
     manifest::attach_artifact(
         run_id,
         "acquisition",
-        directory.join("acquisition.json").to_string_lossy().as_ref(),
+        directory
+            .join("acquisition.json")
+            .to_string_lossy()
+            .as_ref(),
         None,
         root,
     )
@@ -567,9 +616,16 @@ pub fn record_evidence(run_id: &str, row: Value, root: Option<&Path>) -> Result<
     require_granted(run_id, &["extract"], root)?;
     let directory = manifest::run_dir(run_id, root).map_err(|e| e.to_string())?;
     let path = directory.join("evidence.jsonl");
-    let existing = if path.exists() { parse_jsonl(&path)? } else { Vec::new() };
+    let existing = if path.exists() {
+        parse_jsonl(&path)?
+    } else {
+        Vec::new()
+    };
     let row_id = row.get("id").map(value_to_string).unwrap_or_default();
-    if existing.iter().any(|item| item.get("id").map(value_to_string).unwrap_or_default() == row_id) {
+    if existing
+        .iter()
+        .any(|item| item.get("id").map(value_to_string).unwrap_or_default() == row_id)
+    {
         return Err(format!("duplicate evidence id: {row_id:?}"));
     }
     let verdict = &ledger::validate_evidence(std::slice::from_ref(&row))[0];
@@ -578,8 +634,14 @@ pub fn record_evidence(run_id: &str, row: Value, root: Option<&Path>) -> Result<
     }
     append_jsonl(&path, &row)?;
     let sha = sha256_file(&path)?;
-    manifest::attach_artifact(run_id, "evidence-ledger", path.to_string_lossy().as_ref(), Some(&sha), root)
-        .map_err(|e| e.to_string())?;
+    manifest::attach_artifact(
+        run_id,
+        "evidence-ledger",
+        path.to_string_lossy().as_ref(),
+        Some(&sha),
+        root,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(row)
 }
 
@@ -588,18 +650,32 @@ pub fn record_claim(run_id: &str, row: Value, root: Option<&Path>) -> Result<Val
     require_granted(run_id, &["synthesize"], root)?;
     let directory = manifest::run_dir(run_id, root).map_err(|e| e.to_string())?;
     let path = directory.join("claims.jsonl");
-    let existing = if path.exists() { parse_jsonl(&path)? } else { Vec::new() };
+    let existing = if path.exists() {
+        parse_jsonl(&path)?
+    } else {
+        Vec::new()
+    };
     let row_id = row.get("id").map(value_to_string).unwrap_or_default();
-    if existing.iter().any(|item| item.get("id").map(value_to_string).unwrap_or_default() == row_id) {
+    if existing
+        .iter()
+        .any(|item| item.get("id").map(value_to_string).unwrap_or_default() == row_id)
+    {
         return Err(format!("duplicate claim id: {row_id:?}"));
     }
     let evidence_path = directory.join("evidence.jsonl");
-    let evidence = if evidence_path.exists() { parse_jsonl(&evidence_path)? } else { Vec::new() };
+    let evidence = if evidence_path.exists() {
+        parse_jsonl(&evidence_path)?
+    } else {
+        Vec::new()
+    };
     let mut claims_input = existing;
     claims_input.push(row.clone());
     let result = ledger::check(&evidence, &claims_input);
-    let blocked: Vec<&ledger::ClaimVerdict> =
-        result.verdicts.iter().filter(|v| v.id == row_id && v.kind == "block").collect();
+    let blocked: Vec<&ledger::ClaimVerdict> = result
+        .verdicts
+        .iter()
+        .filter(|v| v.id == row_id && v.kind == "block")
+        .collect();
     if !blocked.is_empty() {
         let reasons: Vec<&Vec<String>> = blocked.iter().map(|v| &v.reasons).collect();
         return Err(format!("claim record blocked: {reasons:?}"));
@@ -612,8 +688,14 @@ pub fn record_claim(run_id: &str, row: Value, root: Option<&Path>) -> Result<Val
         .ok_or_else(|| "normalized claim missing from ledger.check output".to_string())?;
     append_jsonl(&path, &normalized)?;
     let sha = sha256_file(&path)?;
-    manifest::attach_artifact(run_id, "claim-ledger", path.to_string_lossy().as_ref(), Some(&sha), root)
-        .map_err(|e| e.to_string())?;
+    manifest::attach_artifact(
+        run_id,
+        "claim-ledger",
+        path.to_string_lossy().as_ref(),
+        Some(&sha),
+        root,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(normalized)
 }
 
@@ -623,20 +705,38 @@ pub fn render_draft(run_id: &str, title: &str, root: Option<&Path>) -> Result<Va
     let directory = manifest::run_dir(run_id, root).map_err(|e| e.to_string())?;
     let evidence_path = directory.join("evidence.jsonl");
     let claims_path = directory.join("claims.jsonl");
-    let evidence = if evidence_path.exists() { parse_jsonl(&evidence_path)? } else { Vec::new() };
-    let claims = if claims_path.exists() { parse_jsonl(&claims_path)? } else { Vec::new() };
+    let evidence = if evidence_path.exists() {
+        parse_jsonl(&evidence_path)?
+    } else {
+        Vec::new()
+    };
+    let claims = if claims_path.exists() {
+        parse_jsonl(&claims_path)?
+    } else {
+        Vec::new()
+    };
     let draft = ledger::render(&evidence, &claims, title)?;
     let path = directory.join("draft.md");
     fs::write(&path, draft.as_bytes()).map_err(|e| e.to_string())?;
     manifest::set_stage(run_id, "synthesize", "done", None, root).map_err(|e| e.to_string())?;
     let sha = sha256_file(&path)?;
-    manifest::attach_artifact(run_id, "sourced-draft", path.to_string_lossy().as_ref(), Some(&sha), root)
-        .map_err(|e| e.to_string())?;
+    manifest::attach_artifact(
+        run_id,
+        "sourced-draft",
+        path.to_string_lossy().as_ref(),
+        Some(&sha),
+        root,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(json!({"path": path.to_string_lossy(), "sha256": sha}))
 }
 
 /// `run.issue_patch_receipt`.
-pub fn issue_patch_receipt(run_id: &str, key_file: Option<&str>, root: Option<&Path>) -> Result<Value, String> {
+pub fn issue_patch_receipt(
+    run_id: &str,
+    key_file: Option<&str>,
+    root: Option<&Path>,
+) -> Result<Value, String> {
     require_granted(run_id, &["patch-sourced-draft"], root)?;
     let directory = manifest::run_dir(run_id, root).map_err(|e| e.to_string())?;
     let draft = directory.join("draft.md");
@@ -644,12 +744,19 @@ pub fn issue_patch_receipt(run_id: &str, key_file: Option<&str>, root: Option<&P
         return Err("draft.md does not exist".to_string());
     }
     let key_path = key_file.map(Path::new);
-    let receipt = patch_guard::issue_receipt(&draft, run_id, key_path).map_err(|e| e.to_string())?;
+    let receipt =
+        patch_guard::issue_receipt(&draft, run_id, key_path).map_err(|e| e.to_string())?;
     let path = directory.join("patch-receipt.json");
     write_json(&path, &receipt)?;
     let sha = sha256_file(&path)?;
-    manifest::attach_artifact(run_id, "patch-receipt", path.to_string_lossy().as_ref(), Some(&sha), root)
-        .map_err(|e| e.to_string())?;
+    manifest::attach_artifact(
+        run_id,
+        "patch-receipt",
+        path.to_string_lossy().as_ref(),
+        Some(&sha),
+        root,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(receipt)
 }
 
@@ -667,20 +774,25 @@ pub fn apply_draft_patch(
     let receipt = read_json(&receipt_path)?;
     let source_bytes = fs::read(&source_path).map_err(|e| e.to_string())?;
     let key_path = key_file.map(Path::new);
-    let (ok, reason) = patcher::validate_correction_receipt(&receipt, Some(&source_bytes), key_path);
+    let (ok, reason) =
+        patcher::validate_correction_receipt(&receipt, Some(&source_bytes), key_path);
     if !ok {
         return Err(reason);
     }
     let diff = fs::read_to_string(diff_path).map_err(|e| e.to_string())?;
     let source_text = String::from_utf8(source_bytes).map_err(|e| e.to_string())?;
-    let max_hunks = receipt.get("max_hunks").and_then(Value::as_u64).unwrap_or(patcher::DEFAULT_MAX_HUNKS as u64) as u32;
+    let max_hunks = receipt
+        .get("max_hunks")
+        .and_then(Value::as_u64)
+        .unwrap_or(patcher::DEFAULT_MAX_HUNKS as u64) as u32;
     let max_hunk_bytes = receipt
         .get("max_hunk_bytes")
         .and_then(Value::as_u64)
         .unwrap_or(patcher::DEFAULT_MAX_HUNK_BYTES as u64) as u32;
     let result = patcher::apply_patch(&source_text, &diff, max_hunks, max_hunk_bytes);
     if !result.ok {
-        manifest::set_stage(run_id, "patch", "failed", result.reason.as_deref(), root).map_err(|e| e.to_string())?;
+        manifest::set_stage(run_id, "patch", "failed", result.reason.as_deref(), root)
+            .map_err(|e| e.to_string())?;
         return Ok(result.to_json(true));
     }
     let output = result.output.clone().unwrap_or_default();
@@ -689,16 +801,32 @@ pub fn apply_draft_patch(
     fs::write(&saved_diff, diff.as_bytes()).map_err(|e| e.to_string())?;
     manifest::set_stage(run_id, "patch", "done", None, root).map_err(|e| e.to_string())?;
     let diff_sha = sha256_file(&saved_diff)?;
-    manifest::attach_artifact(run_id, "patch-diff", saved_diff.to_string_lossy().as_ref(), Some(&diff_sha), root)
-        .map_err(|e| e.to_string())?;
+    manifest::attach_artifact(
+        run_id,
+        "patch-diff",
+        saved_diff.to_string_lossy().as_ref(),
+        Some(&diff_sha),
+        root,
+    )
+    .map_err(|e| e.to_string())?;
     let src_sha = sha256_file(&source_path)?;
-    manifest::attach_artifact(run_id, "patched-draft", source_path.to_string_lossy().as_ref(), Some(&src_sha), root)
-        .map_err(|e| e.to_string())?;
+    manifest::attach_artifact(
+        run_id,
+        "patched-draft",
+        source_path.to_string_lossy().as_ref(),
+        Some(&src_sha),
+        root,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(result.to_json(false))
 }
 
 /// `run.verify`.
-pub fn verify(run_id: &str, allow_unknown_retractions: bool, root: Option<&Path>) -> Result<Value, String> {
+pub fn verify(
+    run_id: &str,
+    allow_unknown_retractions: bool,
+    root: Option<&Path>,
+) -> Result<Value, String> {
     let run = require_granted(run_id, &[], root)?;
     let directory = manifest::run_dir(run_id, root).map_err(|e| e.to_string())?;
     let route = run.get("route").cloned().unwrap_or_else(|| json!({}));
@@ -722,7 +850,8 @@ pub fn verify(run_id: &str, allow_unknown_retractions: bool, root: Option<&Path>
     let ledger_json = ledger_check_to_json(&ledger_result);
     write_json(&directory.join("ledger-check.json"), &ledger_json)?;
     if !ledger_result.overall_ok {
-        manifest::set_stage(run_id, "normalize", "failed", Some("ledger-block"), root).map_err(|e| e.to_string())?;
+        manifest::set_stage(run_id, "normalize", "failed", Some("ledger-block"), root)
+            .map_err(|e| e.to_string())?;
         return Ok(json!({"ok": false, "stage": "ledger", "ledger": ledger_json}));
     }
     evidence = ledger_result.evidence.clone();
@@ -742,12 +871,19 @@ pub fn verify(run_id: &str, allow_unknown_retractions: bool, root: Option<&Path>
         json!({"complete": true, "findings": [], "targeted_queries": []})
     };
     write_json(&directory.join("gap-review.json"), &gap)?;
-    let gap_complete = gap.get("complete").and_then(Value::as_bool).unwrap_or(false);
+    let gap_complete = gap
+        .get("complete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     manifest::set_stage(
         run_id,
         "challenge",
         if gap_complete { "done" } else { "blocked" },
-        if gap_complete { None } else { Some("gap-fetch-required") },
+        if gap_complete {
+            None
+        } else {
+            Some("gap-fetch-required")
+        },
         root,
     )
     .map_err(|e| e.to_string())?;
@@ -757,7 +893,8 @@ pub fn verify(run_id: &str, allow_unknown_retractions: bool, root: Option<&Path>
 
     let citations = if matches!(assurance, "standard" | "verified") {
         check_effects(&route, &["citecheck"])?;
-        manifest::set_stage(run_id, "citecheck", "running", None, root).map_err(|e| e.to_string())?;
+        manifest::set_stage(run_id, "citecheck", "running", None, root)
+            .map_err(|e| e.to_string())?;
         let draft_text = fs::read_to_string(&draft_path).map_err(|e| e.to_string())?;
         let cc = citecheck::check(&draft_text, &evidence);
         let cc_json = citecheck_to_json(&cc);
@@ -766,7 +903,11 @@ pub fn verify(run_id: &str, allow_unknown_retractions: bool, root: Option<&Path>
             run_id,
             "citecheck",
             if cc.ok { "done" } else { "failed" },
-            if cc.ok { None } else { Some("citation-binding") },
+            if cc.ok {
+                None
+            } else {
+                Some("citation-binding")
+            },
             root,
         )
         .map_err(|e| e.to_string())?;
@@ -780,39 +921,68 @@ pub fn verify(run_id: &str, allow_unknown_retractions: bool, root: Option<&Path>
             "pairs": [], "unbound": [], "dangling": [], "unsupported": [],
         });
         write_json(&directory.join("citation-binding.json"), &cc_json)?;
-        manifest::set_stage(run_id, "citecheck", "skipped", Some("quick-assurance"), root)
-            .map_err(|e| e.to_string())?;
+        manifest::set_stage(
+            run_id,
+            "citecheck",
+            "skipped",
+            Some("quick-assurance"),
+            root,
+        )
+        .map_err(|e| e.to_string())?;
         cc_json
     };
 
-    let mut retract = json!({"dois_checked": 0, "results": [], "block_brief": false, "unknown_count": 0});
+    let mut retract =
+        json!({"dois_checked": 0, "results": [], "block_brief": false, "unknown_count": 0});
     if assurance == "verified" {
         check_effects(&route, &["retraction-check", "patch-sourced-draft"])?;
-        manifest::set_stage(run_id, "retraction", "running", None, root).map_err(|e| e.to_string())?;
-        let dois: Vec<String> =
-            evidence.iter().filter_map(|e| e.get("doi").and_then(Value::as_str).map(String::from)).collect();
+        manifest::set_stage(run_id, "retraction", "running", None, root)
+            .map_err(|e| e.to_string())?;
+        let dois: Vec<String> = evidence
+            .iter()
+            .filter_map(|e| e.get("doi").and_then(Value::as_str).map(String::from))
+            .collect();
         if !dois.is_empty() {
             let disclosed: Vec<String> = evidence
                 .iter()
-                .filter(|e| e.get("doi").is_some() && e.get("retraction_disclosed").map(is_truthy).unwrap_or(false))
+                .filter(|e| {
+                    e.get("doi").is_some()
+                        && e.get("retraction_disclosed")
+                            .map(is_truthy)
+                            .unwrap_or(false)
+                })
                 .filter_map(|e| e.get("doi").and_then(Value::as_str).map(String::from))
                 .collect();
             let transport = ReqwestRetractionTransport::new();
             let fixture = load_retraction_fixture();
-            retract = retraction::sweep(&transport, &dois, &disclosed, !allow_unknown_retractions, fixture.as_ref());
+            retract = retraction::sweep(
+                &transport,
+                &dois,
+                &disclosed,
+                !allow_unknown_retractions,
+                fixture.as_ref(),
+            );
         }
         write_json(&directory.join("retraction.json"), &retract)?;
-        let block_brief = retract.get("block_brief").and_then(Value::as_bool).unwrap_or(false);
+        let block_brief = retract
+            .get("block_brief")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         manifest::set_stage(
             run_id,
             "retraction",
             if !block_brief { "done" } else { "failed" },
-            if !block_brief { None } else { Some("retraction") },
+            if !block_brief {
+                None
+            } else {
+                Some("retraction")
+            },
             root,
         )
         .map_err(|e| e.to_string())?;
     } else {
-        manifest::set_stage(run_id, "retraction", "skipped", None, root).map_err(|e| e.to_string())?;
+        manifest::set_stage(run_id, "retraction", "skipped", None, root)
+            .map_err(|e| e.to_string())?;
     }
 
     if assurance != "verified" {
@@ -820,13 +990,20 @@ pub fn verify(run_id: &str, allow_unknown_retractions: bool, root: Option<&Path>
     } else if directory.join("applied.patch").exists() {
         manifest::set_stage(run_id, "patch", "done", None, root).map_err(|e| e.to_string())?;
     } else {
-        manifest::set_stage(run_id, "patch", "skipped", Some("no correction requested"), root)
-            .map_err(|e| e.to_string())?;
+        manifest::set_stage(
+            run_id,
+            "patch",
+            "skipped",
+            Some("no correction requested"),
+            root,
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     let manifest_now = manifest::load_run(run_id, root).map_err(|e| e.to_string())?;
     let integrity = draft_integrity::check(&directory, &manifest_now);
-    let events = effect_audit::read_events(&directory.join("events.jsonl")).map_err(|e| e.to_string())?;
+    let events =
+        effect_audit::read_events(&directory.join("events.jsonl")).map_err(|e| e.to_string())?;
     let effects = effect_audit::audit(&manifest_now, &events);
     write_json(&directory.join("draft-integrity.json"), &integrity)?;
     write_json(&directory.join("effect-audit.json"), &effects)?;
@@ -840,11 +1017,22 @@ pub fn verify(run_id: &str, allow_unknown_retractions: bool, root: Option<&Path>
         "draft_integrity": integrity.get("ok").and_then(Value::as_bool).unwrap_or(false),
         "effect_accounting": effects.get("ok").and_then(Value::as_bool).unwrap_or(false),
     });
-    let ok = checks.as_object().unwrap().values().all(|v| v.as_bool().unwrap_or(false));
+    let ok = checks
+        .as_object()
+        .unwrap()
+        .values()
+        .all(|v| v.as_bool().unwrap_or(false));
     write_json(&directory.join("ship-checks.json"), &checks)?;
     for name in [
-        "ledger-check", "contradictions", "gap-review", "domain-verification", "citation-binding",
-        "retraction", "draft-integrity", "effect-audit", "ship-checks",
+        "ledger-check",
+        "contradictions",
+        "gap-review",
+        "domain-verification",
+        "citation-binding",
+        "retraction",
+        "draft-integrity",
+        "effect-audit",
+        "ship-checks",
     ] {
         let p = directory.join(format!("{name}.json"));
         if p.exists() {
@@ -873,20 +1061,34 @@ pub fn finalize(run_id: &str, root: Option<&Path>) -> Result<Value, String> {
     let mut checks = read_json(&directory.join("ship-checks.json"))?;
     let manifest_now = manifest::load_run(run_id, root).map_err(|e| e.to_string())?;
     let integrity = draft_integrity::check(&directory, &manifest_now);
-    let events = effect_audit::read_events(&directory.join("events.jsonl")).map_err(|e| e.to_string())?;
+    let events =
+        effect_audit::read_events(&directory.join("events.jsonl")).map_err(|e| e.to_string())?;
     let effects = effect_audit::audit(&manifest_now, &events);
     write_json(&directory.join("draft-integrity.json"), &integrity)?;
     write_json(&directory.join("effect-audit.json"), &effects)?;
-    checks["draft_integrity"] = json!(integrity.get("ok").and_then(Value::as_bool).unwrap_or(false));
-    checks["effect_accounting"] = json!(effects.get("ok").and_then(Value::as_bool).unwrap_or(false));
+    checks["draft_integrity"] = json!(integrity
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false));
+    checks["effect_accounting"] =
+        json!(effects.get("ok").and_then(Value::as_bool).unwrap_or(false));
     write_json(&directory.join("ship-checks.json"), &checks)?;
-    let ok = checks.as_object().unwrap().values().all(|v| v.as_bool().unwrap_or(false));
+    let ok = checks
+        .as_object()
+        .unwrap()
+        .values()
+        .all(|v| v.as_bool().unwrap_or(false));
     let verdict = if ok { "ship" } else { "block" };
-    manifest::set_stage(run_id, "ship", if ok { "done" } else { "blocked" }, if ok { None } else { Some("ship-gate") }, root)
-        .map_err(|e| e.to_string())?;
+    manifest::set_stage(
+        run_id,
+        "ship",
+        if ok { "done" } else { "blocked" },
+        if ok { None } else { Some("ship-gate") },
+        root,
+    )
+    .map_err(|e| e.to_string())?;
     manifest::finalize(run_id, verdict, &checks, root).map_err(|e| e.to_string())
 }
-
 
 // -- CLI entrypoint (`run.py`'s `argparse` `main`) ------------------------
 
@@ -895,7 +1097,10 @@ fn cli_err(msg: impl std::fmt::Display) -> String {
 }
 
 fn flag<'a>(args: &'a [String], name: &str) -> Option<&'a str> {
-    args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).map(String::as_str)
+    args.iter()
+        .position(|a| a == name)
+        .and_then(|i| args.get(i + 1))
+        .map(String::as_str)
 }
 
 fn has_flag(args: &[String], name: &str) -> bool {
@@ -923,7 +1128,10 @@ pub fn run(argv: &[String]) -> i32 {
         "init" => {
             let intent = flag(rest, "--intent").ok_or_else(|| cli_err("--intent is required"))?;
             let context: Context = match flag(rest, "--context") {
-                Some(path) => read_json(Path::new(path))?.as_object().cloned().unwrap_or_default(),
+                Some(path) => read_json(Path::new(path))?
+                    .as_object()
+                    .cloned()
+                    .unwrap_or_default(),
                 None => Context::new(),
             };
             init_run(intent, &context, root)
@@ -941,14 +1149,26 @@ pub fn run(argv: &[String]) -> i32 {
         "worker" => {
             let run_id = flag(rest, "--run-id").ok_or_else(|| cli_err("--run-id is required"))?;
             let event = flag(rest, "--event").ok_or_else(|| cli_err("--event is required"))?;
-            let units: i64 = flag(rest, "--units").and_then(|s| s.parse().ok()).unwrap_or(1);
+            let units: i64 = flag(rest, "--units")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(1);
             meter_worker(run_id, event, units, root)
         }
         "acquire" => {
             let run_id = flag(rest, "--run-id").ok_or_else(|| cli_err("--run-id is required"))?;
             let query = flag(rest, "--query").ok_or_else(|| cli_err("--query is required"))?;
-            let limit: usize = flag(rest, "--limit").and_then(|s| s.parse().ok()).unwrap_or(5);
-            acquire(run_id, query, flag(rest, "--provider"), flag(rest, "--corpus"), flag(rest, "--pattern"), limit, root)
+            let limit: usize = flag(rest, "--limit")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(5);
+            acquire(
+                run_id,
+                query,
+                flag(rest, "--provider"),
+                flag(rest, "--corpus"),
+                flag(rest, "--pattern"),
+                limit,
+                root,
+            )
         }
         "record-evidence" => {
             let run_id = flag(rest, "--run-id").ok_or_else(|| cli_err("--run-id is required"))?;
@@ -987,14 +1207,21 @@ pub fn run(argv: &[String]) -> i32 {
 
     match outcome {
         Ok(result) => {
-            println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_default()
+            );
             // Port of `return 0 if result.get('ok', True) or result.get('verdict')
             // == 'ship' else 2`: a missing `ok` key defaults truthy (matching the
             // Python `dict.get(..., True)` default), including for results like
             // `grant`'s `{'ready': False, ...}` that carry no `ok` key at all.
             let ok = result.get("ok").map(is_truthy).unwrap_or(true);
             let ship = result.get("verdict").and_then(Value::as_str) == Some("ship");
-            if ok || ship { 0 } else { 2 }
+            if ok || ship {
+                0
+            } else {
+                2
+            }
         }
         Err(e) => {
             eprintln!("error: {e}");
@@ -1013,11 +1240,26 @@ mod tests {
 
     #[test]
     fn default_search_provider_maps_domain_default_by_domain() {
-        assert_eq!(default_search_provider(&route("domain-default", "medical")), "scholarly");
-        assert_eq!(default_search_provider(&route("domain-default", "scientific")), "scholarly");
-        assert_eq!(default_search_provider(&route("domain-default", "legal")), "legal-authority");
-        assert_eq!(default_search_provider(&route("domain-default", "general")), "browser");
-        assert_eq!(default_search_provider(&route("browser", "general")), "browser");
+        assert_eq!(
+            default_search_provider(&route("domain-default", "medical")),
+            "scholarly"
+        );
+        assert_eq!(
+            default_search_provider(&route("domain-default", "scientific")),
+            "scholarly"
+        );
+        assert_eq!(
+            default_search_provider(&route("domain-default", "legal")),
+            "legal-authority"
+        );
+        assert_eq!(
+            default_search_provider(&route("domain-default", "general")),
+            "browser"
+        );
+        assert_eq!(
+            default_search_provider(&route("browser", "general")),
+            "browser"
+        );
     }
 
     #[test]
@@ -1034,8 +1276,14 @@ mod tests {
     #[test]
     fn resolve_acquire_provider_domain_default_resolves_to_concrete_provider() {
         let r = route("domain-default", "legal");
-        assert_eq!(resolve_acquire_provider(&r, None).unwrap(), "legal-authority");
-        assert_eq!(resolve_acquire_provider(&r, Some("domain-default")).unwrap(), "legal-authority");
+        assert_eq!(
+            resolve_acquire_provider(&r, None).unwrap(),
+            "legal-authority"
+        );
+        assert_eq!(
+            resolve_acquire_provider(&r, Some("domain-default")).unwrap(),
+            "legal-authority"
+        );
     }
 
     #[test]
@@ -1048,8 +1296,14 @@ mod tests {
 
     #[test]
     fn scale_budget_dossier_requires_explicit_budget() {
-        assert_eq!(scale_budget("focused", None).unwrap(), json!({"external_requests": 12, "workers": 1}));
-        assert_eq!(scale_budget("broad", None).unwrap(), json!({"external_requests": 30, "workers": 4}));
+        assert_eq!(
+            scale_budget("focused", None).unwrap(),
+            json!({"external_requests": 12, "workers": 1})
+        );
+        assert_eq!(
+            scale_budget("broad", None).unwrap(),
+            json!({"external_requests": 30, "workers": 4})
+        );
         assert!(scale_budget("dossier", None).is_err());
         let budget = json!({"external_requests": 50, "workers": 2});
         assert_eq!(scale_budget("dossier", Some(&budget)).unwrap(), budget);

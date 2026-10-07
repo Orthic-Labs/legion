@@ -15,8 +15,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use super::GauntletError;
 use super::diff::DiffFile;
+use super::GauntletError;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CoveredLine {
@@ -42,7 +42,11 @@ pub struct CoverageLayer {
 }
 
 /// Mirrors `runCoverage({ cwd, files, testCommand })`.
-pub fn run_coverage(cwd: Option<&Path>, files: &[DiffFile], test_command: &str) -> Result<CoverageLayer, GauntletError> {
+pub fn run_coverage(
+    cwd: Option<&Path>,
+    files: &[DiffFile],
+    test_command: &str,
+) -> Result<CoverageLayer, GauntletError> {
     let tmp = make_temp_dir("gauntlet-cov-")?;
     let result = (|| -> Result<CoverageLayer, GauntletError> {
         let mut cmd = Command::new("sh");
@@ -63,7 +67,11 @@ pub fn run_coverage(cwd: Option<&Path>, files: &[DiffFile], test_command: &str) 
                 percent: None,
                 error: Some(format!(
                     "test_command_failed:exit_{}",
-                    output.status.code().map(|c| c.to_string()).unwrap_or_else(|| "null".to_string())
+                    output
+                        .status
+                        .code()
+                        .map(|c| c.to_string())
+                        .unwrap_or_else(|| "null".to_string())
                 )),
                 stderr_tail: Some(tail(&String::from_utf8_lossy(&output.stderr), 200)),
                 results: Vec::new(),
@@ -123,7 +131,11 @@ struct V8Range {
     count: u64,
 }
 
-fn summarise_coverage(cwd: Option<&Path>, files: &[DiffFile], coverage_dir: &Path) -> Result<CoverageSummary, GauntletError> {
+fn summarise_coverage(
+    cwd: Option<&Path>,
+    files: &[DiffFile],
+    coverage_dir: &Path,
+) -> Result<CoverageSummary, GauntletError> {
     let mut per_line = Vec::new();
     let mut wanted: HashMap<PathBuf, std::collections::HashSet<u64>> = HashMap::new();
     for f in files {
@@ -134,20 +146,28 @@ fn summarise_coverage(cwd: Option<&Path>, files: &[DiffFile], coverage_dir: &Pat
         wanted.insert(normalize_path(&abs), f.lines.iter().copied().collect());
     }
     if !coverage_dir.exists() {
-        return Ok(CoverageSummary { covered: 0, total: 0, per_line });
+        return Ok(CoverageSummary {
+            covered: 0,
+            total: 0,
+            per_line,
+        });
     }
     let entries = read_coverage_entries(coverage_dir);
     let mut source_cache: HashMap<PathBuf, Option<String>> = HashMap::new();
     for entry in entries {
         let file_path = url_to_path(&entry.url);
         let file_path = normalize_path(&file_path);
-        let Some(wanted_lines) = wanted.get(&file_path) else { continue };
+        let Some(wanted_lines) = wanted.get(&file_path) else {
+            continue;
+        };
         for func in &entry.functions {
             for range in &func.ranges {
                 let source_text = source_cache
                     .entry(file_path.clone())
                     .or_insert_with(|| fs::read_to_string(&file_path).ok());
-                let Some(source_text) = source_text.as_ref() else { continue };
+                let Some(source_text) = source_text.as_ref() else {
+                    continue;
+                };
                 let start_line = offset_to_line(source_text, range.start_offset);
                 let end_line = offset_to_line(source_text, range.end_offset);
                 for line in start_line..=end_line {
@@ -165,19 +185,29 @@ fn summarise_coverage(cwd: Option<&Path>, files: &[DiffFile], coverage_dir: &Pat
     }
     let total = per_line.len();
     let covered = per_line.iter().filter(|r| r.count > 0).count();
-    Ok(CoverageSummary { covered, total, per_line })
+    Ok(CoverageSummary {
+        covered,
+        total,
+        per_line,
+    })
 }
 
 fn read_coverage_entries(dir: &Path) -> Vec<V8ScriptCoverage> {
     let mut out = Vec::new();
-    let Ok(entries) = fs::read_dir(dir) else { return out };
+    let Ok(entries) = fs::read_dir(dir) else {
+        return out;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().and_then(|e| e.to_str()) != Some("json") {
             continue;
         }
-        let Ok(raw) = fs::read_to_string(&path) else { continue };
-        let Ok(data) = serde_json::from_str::<V8CoverageFile>(&raw) else { continue };
+        let Ok(raw) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(data) = serde_json::from_str::<V8CoverageFile>(&raw) else {
+            continue;
+        };
         if let Some(mut results) = data.result {
             if !results.is_empty() {
                 out.push(results.remove(0));
@@ -196,7 +226,12 @@ fn url_to_path(url: &str) -> PathBuf {
     let rest = rest.replace("%20", " ");
     // `file:///C:/x` on Windows: drop the slash before the drive letter.
     let bytes = rest.as_bytes();
-    if cfg!(windows) && bytes.len() > 2 && bytes[0] == b'/' && bytes[1].is_ascii_alphabetic() && bytes[2] == b':' {
+    if cfg!(windows)
+        && bytes.len() > 2
+        && bytes[0] == b'/'
+        && bytes[1].is_ascii_alphabetic()
+        && bytes[2] == b':'
+    {
         return PathBuf::from(rest[1..].replace('/', "\\"));
     }
     PathBuf::from(rest)
@@ -205,7 +240,11 @@ fn url_to_path(url: &str) -> PathBuf {
 #[cfg(test)]
 fn path_to_file_url(path: &Path) -> String {
     let text = path.display().to_string().replace('\\', "/");
-    if text.starts_with('/') { format!("file://{text}") } else { format!("file:///{text}") }
+    if text.starts_with('/') {
+        format!("file://{text}")
+    } else {
+        format!("file:///{text}")
+    }
 }
 
 fn normalize_path(p: &Path) -> PathBuf {
@@ -247,7 +286,10 @@ mod tests {
 
     #[test]
     fn coverage_reports_zero_when_dir_missing() {
-        let files = vec![DiffFile { path: "x.js".to_string(), lines: vec![1] }];
+        let files = vec![DiffFile {
+            path: "x.js".to_string(),
+            lines: vec![1],
+        }];
         let missing = std::env::temp_dir().join("wf003-nonexistent-coverage-dir-xyz");
         let summary = summarise_coverage(None, &files, &missing).unwrap();
         assert_eq!(summary.covered, 0);
@@ -270,7 +312,10 @@ mod tests {
         );
         fs::write(dir.join("cov.json"), cov_json).unwrap();
 
-        let files = vec![DiffFile { path: "src.js".to_string(), lines: vec![1, 3] }];
+        let files = vec![DiffFile {
+            path: "src.js".to_string(),
+            lines: vec![1, 3],
+        }];
         let summary = summarise_coverage(Some(&dir), &files, &dir).unwrap();
         // line 1 covered (count 1), line 3 uncovered (count 0); line 2/4 not wanted.
         assert_eq!(summary.total, 2);
@@ -287,7 +332,11 @@ fn make_temp_dir(prefix: &str) -> Result<PathBuf, GauntletError> {
         .map(|d| d.as_nanos())
         .unwrap_or(0);
     for attempt in 0..64u32 {
-        let candidate = base.join(format!("{prefix}{nanos}-{}-{}", std::process::id(), attempt));
+        let candidate = base.join(format!(
+            "{prefix}{nanos}-{}-{}",
+            std::process::id(),
+            attempt
+        ));
         match fs::create_dir(&candidate) {
             Ok(()) => return Ok(candidate),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,

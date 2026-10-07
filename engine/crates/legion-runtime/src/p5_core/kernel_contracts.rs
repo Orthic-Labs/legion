@@ -18,8 +18,7 @@ use crate::p5_core::kernel_errors::{KernelError, KernelErrorOptions};
 fn schemas_dir() -> PathBuf {
     // CARGO_MANIFEST_DIR is engine/crates/legion-runtime; the repo root is
     // three levels up from there.
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../src/packages/contracts/schemas")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../src/packages/contracts/schemas")
 }
 
 fn schema_path(name: &str) -> Option<PathBuf> {
@@ -114,7 +113,11 @@ fn matches_type(value: &Value, type_name: &str) -> bool {
         "null" => value.is_null(),
         "array" => value.is_array(),
         "object" => value.is_object(),
-        "integer" => value.is_i64() || value.is_u64() || value.as_f64().map(|f| f.fract() == 0.0).unwrap_or(false),
+        "integer" => {
+            value.is_i64()
+                || value.is_u64()
+                || value.as_f64().map(|f| f.fract() == 0.0).unwrap_or(false)
+        }
         "string" => value.is_string(),
         "number" => value.is_number(),
         "boolean" => value.is_boolean(),
@@ -189,7 +192,9 @@ fn validate_node(schema: &Value, value: &Value, root: &Value, at: &str, errors: 
                 Err(_) => errors.push(format!("{at} has invalid format")),
             }
         }
-        if schema.get("format").and_then(Value::as_str) == Some("date-time") && !is_iso_date_time(text) {
+        if schema.get("format").and_then(Value::as_str) == Some("date-time")
+            && !is_iso_date_time(text)
+        {
             errors.push(format!("{at} must be an ISO date-time"));
         }
     }
@@ -232,7 +237,13 @@ fn validate_node(schema: &Value, value: &Value, root: &Value, at: &str, errors: 
         if let Some(properties) = properties {
             for (key, child_schema) in properties {
                 if let Some(child_value) = object.get(key) {
-                    validate_node(child_schema, child_value, root, &format!("{at}.{key}"), errors);
+                    validate_node(
+                        child_schema,
+                        child_value,
+                        root,
+                        &format!("{at}.{key}"),
+                        errors,
+                    );
                 }
             }
         }
@@ -264,26 +275,44 @@ mod chrono_lite {
             return None;
         }
         let digits = |s: &[u8]| s.iter().all(u8::is_ascii_digit);
-        if !digits(&bytes[0..4]) || bytes[4] != b'-' || !digits(&bytes[5..7]) || bytes[7] != b'-' || !digits(&bytes[8..10]) {
+        if !digits(&bytes[0..4])
+            || bytes[4] != b'-'
+            || !digits(&bytes[5..7])
+            || bytes[7] != b'-'
+            || !digits(&bytes[8..10])
+        {
             return None;
         }
         if bytes[10] != b'T' && bytes[10] != b't' {
             return None;
         }
-        if !digits(&bytes[11..13]) || bytes[13] != b':' || !digits(&bytes[14..16]) || bytes[16] != b':' || !digits(&bytes[17..19]) {
+        if !digits(&bytes[11..13])
+            || bytes[13] != b':'
+            || !digits(&bytes[14..16])
+            || bytes[16] != b':'
+            || !digits(&bytes[17..19])
+        {
             return None;
         }
         let rest = &text[19..];
-        let rest = rest.strip_prefix('.').map(|withfrac| {
-            let end = withfrac.find(|c: char| !c.is_ascii_digit()).unwrap_or(withfrac.len());
-            &withfrac[end..]
-        }).unwrap_or(rest);
+        let rest = rest
+            .strip_prefix('.')
+            .map(|withfrac| {
+                let end = withfrac
+                    .find(|c: char| !c.is_ascii_digit())
+                    .unwrap_or(withfrac.len());
+                &withfrac[end..]
+            })
+            .unwrap_or(rest);
         if rest == "Z" || rest == "z" {
             return Some(());
         }
         if rest.len() == 6 && (rest.starts_with('+') || rest.starts_with('-')) {
             let offset_digits = rest.as_bytes();
-            if digits(&offset_digits[1..3]) && offset_digits[3] == b':' && digits(&offset_digits[4..6]) {
+            if digits(&offset_digits[1..3])
+                && offset_digits[3] == b':'
+                && digits(&offset_digits[4..6])
+            {
                 return Some(());
             }
         }
@@ -292,7 +321,11 @@ mod chrono_lite {
 }
 
 /// Port of `assertContract(name, value, label = name)`.
-pub fn assert_contract(name: &str, value: &Value, label: Option<&str>) -> Result<Value, KernelError> {
+pub fn assert_contract(
+    name: &str,
+    value: &Value,
+    label: Option<&str>,
+) -> Result<Value, KernelError> {
     let schema = schema_for(name)?;
     let mut errors = Vec::new();
     validate_node(&schema, value, &schema, "$", &mut errors);
@@ -362,14 +395,19 @@ mod tests {
         // Any structurally-empty object should fail run-identity-v1's
         // required-field checks, proving the schema file loaded and its
         // `required` list is enforced end to end.
-        let error = assert_contract("run-identity-v1", &json::json!({}), Some("run identity")).unwrap_err();
+        let error =
+            assert_contract("run-identity-v1", &json::json!({}), Some("run identity")).unwrap_err();
         assert_eq!(error.code, "INVALID_ARGUMENT");
         assert!(error.details.is_some());
     }
 
     #[test]
     fn regex_lite_matches_ulid_pattern() {
-        assert!(regex_lite_is_match("^run_[0-9A-HJKMNP-TV-Z]{26}$", "run_01ARZ3NDEKTSV4RRFFQ69G5FAV").unwrap());
+        assert!(regex_lite_is_match(
+            "^run_[0-9A-HJKMNP-TV-Z]{26}$",
+            "run_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+        )
+        .unwrap());
         assert!(!regex_lite_is_match("^run_[0-9A-HJKMNP-TV-Z]{26}$", "run_tooshort").unwrap());
     }
 

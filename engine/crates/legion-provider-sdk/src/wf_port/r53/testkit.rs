@@ -77,24 +77,40 @@ pub struct ProviderResultValidationError {
 
 impl std::fmt::Display for ProviderResultValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "provider result validation: {}: {}", self.field, self.detail)
+        write!(
+            f,
+            "provider result validation: {}: {}",
+            self.field, self.detail
+        )
     }
 }
 impl std::error::Error for ProviderResultValidationError {}
 
 fn err(field: &str, detail: &str) -> ProviderResultValidationError {
-    ProviderResultValidationError { field: field.to_string(), detail: detail.to_string() }
+    ProviderResultValidationError {
+        field: field.to_string(),
+        detail: detail.to_string(),
+    }
 }
 
 const REQUIRED_FIELDS: &[&str] = &["schemaVersion", "provider", "status", "complete"];
 const ARRAY_FIELDS: &[&str] = &[
-    "commands", "receipts", "inventory", "candidates", "findings",
-    "coverageGaps", "artifacts", "degradation", "inputArtifacts",
+    "commands",
+    "receipts",
+    "inventory",
+    "candidates",
+    "findings",
+    "coverageGaps",
+    "artifacts",
+    "degradation",
+    "inputArtifacts",
 ];
 
 /// Port of `validateProviderResult(result)`.
 pub fn validate_provider_result(result: &Value) -> Result<bool, ProviderResultValidationError> {
-    let obj = result.as_object().ok_or_else(|| err("root", "result must be a non-null object"))?;
+    let obj = result
+        .as_object()
+        .ok_or_else(|| err("root", "result must be a non-null object"))?;
 
     for field in REQUIRED_FIELDS {
         match obj.get(*field) {
@@ -108,17 +124,22 @@ pub fn validate_provider_result(result: &Value) -> Result<bool, ProviderResultVa
     }
     let status = obj.get("status").and_then(Value::as_str).unwrap_or("");
     if !PROVIDER_STATUS.contains(&status) {
-        let status_json = serde_json::to_string(obj.get("status").unwrap_or(&Value::Null)).unwrap_or_default();
+        let status_json =
+            serde_json::to_string(obj.get("status").unwrap_or(&Value::Null)).unwrap_or_default();
         return Err(err(
             "status",
-            &format!("invalid status {status_json}; expected one of {}", PROVIDER_STATUS.join(", ")),
+            &format!(
+                "invalid status {status_json}; expected one of {}",
+                PROVIDER_STATUS.join(", ")
+            ),
         ));
     }
     match obj.get("complete") {
         Some(Value::Bool(_)) => {}
         _ => return Err(err("complete", "must be a boolean")),
     }
-    let schema_version_ok = matches!(obj.get("schemaVersion"), Some(Value::Number(n)) if n.as_i64() == Some(1));
+    let schema_version_ok =
+        matches!(obj.get("schemaVersion"), Some(Value::Number(n)) if n.as_i64() == Some(1));
     if !schema_version_ok {
         let got = obj
             .get("schemaVersion")
@@ -142,7 +163,10 @@ pub fn validate_provider_result(result: &Value) -> Result<bool, ProviderResultVa
                     && a.get("digest").is_some_and(|v| !v.is_null())
             });
             if !valid_shape {
-                return Err(err("artifacts", "each artifact requires kind, path, and digest"));
+                return Err(err(
+                    "artifacts",
+                    "each artifact requires kind, path, and digest",
+                ));
             }
             let digest_ok = a
                 .and_then(|a| a.get("digest"))
@@ -206,19 +230,37 @@ pub fn normalize_provider_result(
     );
     normalized.insert(
         "required".to_string(),
-        or_default(get_path(plan_contract, &["benchmark", "requiredForCleanClaim"]), Value::Bool(false)),
+        or_default(
+            get_path(plan_contract, &["benchmark", "requiredForCleanClaim"]),
+            Value::Bool(false),
+        ),
     );
     normalized.insert(
         "status".to_string(),
-        or_default(get(raw_output, "status"), Value::String("unproven".to_string())),
+        or_default(
+            get(raw_output, "status"),
+            Value::String("unproven".to_string()),
+        ),
     );
     normalized.insert(
         "complete".to_string(),
         or_default(get(raw_output, "complete"), Value::Bool(false)),
     );
     normalized.insert("coverage".to_string(), Value::Object(coverage));
-    for field in ["commands", "receipts", "inventory", "candidates", "findings", "coverageGaps", "artifacts", "degradation"] {
-        normalized.insert(field.to_string(), or_default(get(raw_output, field), Value::Array(vec![])));
+    for field in [
+        "commands",
+        "receipts",
+        "inventory",
+        "candidates",
+        "findings",
+        "coverageGaps",
+        "artifacts",
+        "degradation",
+    ] {
+        normalized.insert(
+            field.to_string(),
+            or_default(get(raw_output, field), Value::Array(vec![])),
+        );
     }
 
     let normalized = Value::Object(normalized);
@@ -244,7 +286,12 @@ mod tests {
 
     #[test]
     fn path_denominator_dedupes_sorts_and_excludes() {
-        let paths = vec!["b/x".to_string(), "a/x".to_string(), "b/x".to_string(), "node_modules/y".to_string()];
+        let paths = vec![
+            "b/x".to_string(),
+            "a/x".to_string(),
+            "b/x".to_string(),
+            "node_modules/y".to_string(),
+        ];
         let d = path_denominator(&paths, &["node_modules".to_string()]);
         assert_eq!(d.paths, vec!["a/x".to_string(), "b/x".to_string()]);
         assert_eq!(d.path_count, 2);
@@ -252,9 +299,15 @@ mod tests {
 
     #[test]
     fn validate_provider_record_requires_all_four_fields() {
-        assert!(validate_provider_record(&json!({"id": "x", "providerVersion": "1", "role": "r", "phase": "p"})));
-        assert!(!validate_provider_record(&json!({"id": "x", "providerVersion": "1", "role": "r"})));
-        assert!(!validate_provider_record(&json!({"id": "", "providerVersion": "1", "role": "r", "phase": "p"})));
+        assert!(validate_provider_record(
+            &json!({"id": "x", "providerVersion": "1", "role": "r", "phase": "p"})
+        ));
+        assert!(!validate_provider_record(
+            &json!({"id": "x", "providerVersion": "1", "role": "r"})
+        ));
+        assert!(!validate_provider_record(
+            &json!({"id": "", "providerVersion": "1", "role": "r", "phase": "p"})
+        ));
     }
 
     #[test]

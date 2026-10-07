@@ -31,7 +31,9 @@ pub fn encode_path_segment(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -49,7 +51,9 @@ fn oauth_client_path_from_config() -> Option<String> {
     let config_path = std::path::Path::new(&home).join(google_auth::CONFIG_PATH_SUFFIX);
     let text = std::fs::read_to_string(config_path).ok()?;
     let cfg: Value = serde_json::from_str(&text).ok()?;
-    cfg.get("oauth_client_path").and_then(Value::as_str).map(str::to_string)
+    cfg.get("oauth_client_path")
+        .and_then(Value::as_str)
+        .map(str::to_string)
 }
 
 /// Resolves a live bearer access token for the GSC API calls in this chunk, reusing
@@ -72,7 +76,10 @@ pub fn resolve_bearer_token() -> Result<String, String> {
         .filter(|s| !s.is_empty())
         .ok_or_else(|| "OAuth token file is missing access_token".to_string())?
         .to_string();
-    let expires_at = token.get("expires_at").and_then(Value::as_f64).unwrap_or(0.0);
+    let expires_at = token
+        .get("expires_at")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs_f64())
@@ -81,11 +88,14 @@ pub fn resolve_bearer_token() -> Result<String, String> {
         return Ok(access_token);
     }
 
-    let client_path = oauth_client_path_from_config()
-        .ok_or_else(|| "OAuth token expired and no oauth_client_path configured to refresh it. Re-run --auth.".to_string())?;
+    let client_path = oauth_client_path_from_config().ok_or_else(|| {
+        "OAuth token expired and no oauth_client_path configured to refresh it. Re-run --auth."
+            .to_string()
+    })?;
     let client = google_auth::load_oauth_client_file(std::path::Path::new(&client_path))?;
-    let refreshed = google_auth::refresh_oauth_token(&google_auth::ReqwestTokenClient, &client, token)?
-        .ok_or_else(|| "OAuth token refresh failed. Re-run --auth.".to_string())?;
+    let refreshed =
+        google_auth::refresh_oauth_token(&google_auth::ReqwestTokenClient, &client, token)?
+            .ok_or_else(|| "OAuth token refresh failed. Re-run --auth.".to_string())?;
     if let Some(p) = oauth_token_path() {
         let _ = google_auth::save_oauth_token_file(&p, &refreshed);
     }
@@ -155,14 +165,21 @@ pub fn normalize_result(p: &NormalizeParams) -> Value {
     let mut processed: Vec<Value> = Vec::with_capacity(p.rows.len());
     for row in p.rows {
         let mut item = serde_json::Map::new();
-        item.insert("clicks".to_string(), row.get("clicks").cloned().unwrap_or(json!(0)));
+        item.insert(
+            "clicks".to_string(),
+            row.get("clicks").cloned().unwrap_or(json!(0)),
+        );
         item.insert(
             "impressions".to_string(),
             row.get("impressions").cloned().unwrap_or(json!(0)),
         );
         item.insert("ctr".to_string(), json!(round4(num(row, "ctr") * 100.0)));
         item.insert("position".to_string(), json!(round3(num(row, "position"))));
-        let keys = row.get("keys").and_then(|k| k.as_array()).cloned().unwrap_or_default();
+        let keys = row
+            .get("keys")
+            .and_then(|k| k.as_array())
+            .cloned()
+            .unwrap_or_default();
         for (i, dim) in p.dimensions.iter().enumerate() {
             item.insert(dim.clone(), keys.get(i).cloned().unwrap_or(Value::Null));
         }
@@ -222,10 +239,14 @@ pub fn normalize_result(p: &NormalizeParams) -> Value {
 pub fn build_filters(device: Option<&str>, country: Option<&str>) -> Vec<Value> {
     let mut filters = Vec::new();
     if let Some(d) = device {
-        filters.push(json!({"dimension": "device", "operator": "equals", "expression": d.to_uppercase()}));
+        filters.push(
+            json!({"dimension": "device", "operator": "equals", "expression": d.to_uppercase()}),
+        );
     }
     if let Some(c) = country {
-        filters.push(json!({"dimension": "country", "operator": "equals", "expression": c.to_uppercase()}));
+        filters.push(
+            json!({"dimension": "country", "operator": "equals", "expression": c.to_uppercase()}),
+        );
     }
     filters
 }
@@ -285,7 +306,9 @@ pub fn query_with<T: SearchAnalyticsTransport>(
                 .cloned()
                 .unwrap_or(json!({}))
         }
-        Ok((status, body)) => return json!({"error": format!("{status} {body}"), "property": site_url}),
+        Ok((status, body)) => {
+            return json!({"error": format!("{status} {body}"), "property": site_url})
+        }
         Err(e) => return json!({"error": e, "property": site_url}),
     };
 
@@ -302,15 +325,23 @@ pub fn query_with<T: SearchAnalyticsTransport>(
         body.insert("startRow".to_string(), json!(start_row));
 
         let response = match transport.post_json(&url, bearer, &Value::Object(body)) {
-            Ok((status, body)) if (200..300).contains(&status) => match serde_json::from_str::<Value>(&body) {
-                Ok(v) => v,
-                Err(e) => return json!({"error": e.to_string(), "property": site_url}),
-            },
-            Ok((status, body)) => return json!({"error": format!("{status} {body}"), "property": site_url}),
+            Ok((status, body)) if (200..300).contains(&status) => {
+                match serde_json::from_str::<Value>(&body) {
+                    Ok(v) => v,
+                    Err(e) => return json!({"error": e.to_string(), "property": site_url}),
+                }
+            }
+            Ok((status, body)) => {
+                return json!({"error": format!("{status} {body}"), "property": site_url})
+            }
             Err(e) => return json!({"error": e, "property": site_url}),
         };
 
-        let batch = response.get("rows").and_then(Value::as_array).cloned().unwrap_or_default();
+        let batch = response
+            .get("rows")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         let batch_len = batch.len() as i64;
         rows.extend(batch);
         if batch_len < size {
@@ -404,9 +435,15 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
     };
 
     let now = super::date_util::civil_now();
-    let (start, end) = super::date_util::default_date_range(now, days, start_date.as_deref(), end_date.as_deref());
+    let (start, end) =
+        super::date_util::default_date_range(now, days, start_date.as_deref(), end_date.as_deref());
     let filters = build_filters(device.as_deref(), country.as_deref());
-    let dims: Vec<String> = dimensions.split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect();
+    let dims: Vec<String> = dimensions
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect();
 
     let bearer = match resolve_bearer_token() {
         Ok(b) => b,
@@ -428,7 +465,11 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
         &search_type,
         page_size,
         max_rows,
-        if filters.is_empty() { None } else { Some(filters.as_slice()) },
+        if filters.is_empty() {
+            None
+        } else {
+            Some(filters.as_slice())
+        },
         &data_state,
     );
 
@@ -437,7 +478,11 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
         let _ = std::fs::write(path, format!("{text}\n"));
     }
     let _ = writeln!(out, "{text}");
-    if result.get("error").map(|e| !e.is_null()).unwrap_or(false) { 1 } else { 0 }
+    if result.get("error").map(|e| !e.is_null()).unwrap_or(false) {
+        1
+    } else {
+        0
+    }
 }
 
 #[cfg(test)]
@@ -451,7 +496,12 @@ mod tests {
     }
 
     impl SearchAnalyticsTransport for FakeTransport {
-        fn post_json(&self, _url: &str, _bearer: &str, _body: &Value) -> Result<(u16, String), String> {
+        fn post_json(
+            &self,
+            _url: &str,
+            _bearer: &str,
+            _body: &Value,
+        ) -> Result<(u16, String), String> {
             self.responses
                 .borrow_mut()
                 .pop_front()
@@ -462,7 +512,10 @@ mod tests {
     fn fake(responses: Vec<Value>) -> FakeTransport {
         FakeTransport {
             responses: std::cell::RefCell::new(
-                responses.into_iter().map(|v| (200, v.to_string())).collect(),
+                responses
+                    .into_iter()
+                    .map(|v| (200, v.to_string()))
+                    .collect(),
             ),
         }
     }
@@ -475,8 +528,17 @@ mod tests {
         ]);
         let dims = vec!["query".to_string()];
         let result = query_with(
-            &transport, "tok", "sc-domain:example.com", "2026-08-01", "2026-08-28",
-            &dims, "web", 25_000, 100_000, None, "final",
+            &transport,
+            "tok",
+            "sc-domain:example.com",
+            "2026-08-01",
+            "2026-08-28",
+            &dims,
+            "web",
+            25_000,
+            100_000,
+            None,
+            "final",
         );
         assert_eq!(result["aggregate"]["clicks"], 20.0);
         assert_eq!(result["rows"][0]["query"], "seo");
@@ -487,14 +549,28 @@ mod tests {
     fn query_with_reports_transport_error() {
         struct ErrTransport;
         impl SearchAnalyticsTransport for ErrTransport {
-            fn post_json(&self, _u: &str, _b: &str, _body: &Value) -> Result<(u16, String), String> {
+            fn post_json(
+                &self,
+                _u: &str,
+                _b: &str,
+                _body: &Value,
+            ) -> Result<(u16, String), String> {
                 Err("connection refused".to_string())
             }
         }
         let dims = vec!["query".to_string()];
         let result = query_with(
-            &ErrTransport, "tok", "sc-domain:example.com", "2026-08-01", "2026-08-28",
-            &dims, "web", 25_000, 100_000, None, "final",
+            &ErrTransport,
+            "tok",
+            "sc-domain:example.com",
+            "2026-08-01",
+            "2026-08-28",
+            &dims,
+            "web",
+            25_000,
+            100_000,
+            None,
+            "final",
         );
         assert_eq!(result["error"], "connection refused");
         assert_eq!(result["property"], "sc-domain:example.com");
@@ -504,22 +580,42 @@ mod tests {
     fn query_with_reports_http_error_status() {
         struct StatusTransport;
         impl SearchAnalyticsTransport for StatusTransport {
-            fn post_json(&self, _u: &str, _b: &str, _body: &Value) -> Result<(u16, String), String> {
+            fn post_json(
+                &self,
+                _u: &str,
+                _b: &str,
+                _body: &Value,
+            ) -> Result<(u16, String), String> {
                 Ok((403, "Forbidden".to_string()))
             }
         }
         let dims = vec!["query".to_string()];
         let result = query_with(
-            &StatusTransport, "tok", "sc-domain:example.com", "2026-08-01", "2026-08-28",
-            &dims, "web", 25_000, 100_000, None, "final",
+            &StatusTransport,
+            "tok",
+            "sc-domain:example.com",
+            "2026-08-01",
+            "2026-08-28",
+            &dims,
+            "web",
+            25_000,
+            100_000,
+            None,
+            "final",
         );
         assert!(result["error"].as_str().unwrap().contains("403"));
     }
 
     #[test]
     fn encode_path_segment_escapes_colon_and_slash() {
-        assert_eq!(encode_path_segment("sc-domain:example.com"), "sc-domain%3Aexample.com");
-        assert_eq!(encode_path_segment("https://example.com/"), "https%3A%2F%2Fexample.com%2F");
+        assert_eq!(
+            encode_path_segment("sc-domain:example.com"),
+            "sc-domain%3Aexample.com"
+        );
+        assert_eq!(
+            encode_path_segment("https://example.com/"),
+            "https%3A%2F%2Fexample.com%2F"
+        );
     }
 
     #[test]

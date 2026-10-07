@@ -7,9 +7,15 @@ use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-static URI: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^legion-skill://([a-z0-9-]+)/(.*)$").unwrap());
+static URI: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^legion-skill://([a-z0-9-]+)/(.*)$").unwrap());
 static SHA: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^sha256:[a-f0-9]{64}$").unwrap());
-static LICENSES: &[&str] = &["unresolved", "user-owned-supplied", "licensed", "public-domain"];
+static LICENSES: &[&str] = &[
+    "unresolved",
+    "user-owned-supplied",
+    "licensed",
+    "public-domain",
+];
 
 /// Validate a packaged skill bundle manifest, returning the same value on success.
 ///
@@ -19,7 +25,9 @@ pub fn validate_skill_bundle(bundle: &Value) -> Result<&Value, String> {
     if schema_version != Some(&Value::from(1)) {
         return Err(format!(
             "skill bundle unsupported schema version: {}",
-            schema_version.map(|v| v.to_string()).unwrap_or_else(|| "undefined".into())
+            schema_version
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "undefined".into())
         ));
     }
     let id = bundle.get("id").and_then(Value::as_str);
@@ -40,7 +48,10 @@ pub fn validate_skill_bundle(bundle: &Value) -> Result<&Value, String> {
     let id = id.unwrap();
     let entry = entry.unwrap();
 
-    let license_state = bundle.get("licenseState").and_then(Value::as_str).unwrap_or("");
+    let license_state = bundle
+        .get("licenseState")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if !LICENSES.contains(&license_state) {
         return Err("skill bundle license state is invalid".to_string());
     }
@@ -72,13 +83,19 @@ pub fn validate_skill_bundle(bundle: &Value) -> Result<&Value, String> {
         return Err("skill bundle requires audit and authoring profiles".to_string());
     }
     let audit = audit.unwrap();
-    if audit.get("mutation") != Some(&Value::Bool(false)) || audit.get("publish") != Some(&Value::Bool(false)) {
+    if audit.get("mutation") != Some(&Value::Bool(false))
+        || audit.get("publish") != Some(&Value::Bool(false))
+    {
         return Err("audit profile cannot grant mutation or publish".to_string());
     }
 
     let mut paths: HashSet<String> = HashSet::new();
     let mut uris: HashSet<String> = HashSet::new();
-    let files = bundle.get("files").and_then(Value::as_array).cloned().unwrap_or_default();
+    let files = bundle
+        .get("files")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     for file in &files {
         let path = file.get("path").and_then(Value::as_str).unwrap_or("");
         if path.is_empty() || path.starts_with('/') || path.split('/').any(|s| s == "..") {

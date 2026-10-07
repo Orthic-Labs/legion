@@ -4,6 +4,7 @@
 
 use std::collections::BTreeMap;
 
+use legion_runtime::p5_core::core_scheduler::ScheduleMode;
 use legion_runtime::wf_port::w2_039::build_plan::{
     build_sealed_plan, PlanOptions, PlanStage, StageResult,
 };
@@ -17,7 +18,6 @@ use legion_runtime::wf_port::w2_039::judgment::{
     reviewer_policy, AdjudicationPolicy, JudgmentPacket, ReviewValue, Reviewer, ReviewerPolicy,
     Subject,
 };
-use legion_runtime::p5_core::core_scheduler::ScheduleMode;
 use legion_runtime::wf_port::w2_039::run_ledger::RunLimits;
 use serde_json::json;
 
@@ -34,7 +34,14 @@ fn reviewer_policy_end_to_end() {
 
 #[test]
 fn build_judgment_packet_end_to_end() {
-    let packet = build_judgment_packet(Some(&json!({"id": 7})), vec![json!("ev")], vec![], json!("sage"), json!(50), None);
+    let packet = build_judgment_packet(
+        Some(&json!({"id": 7})),
+        vec![json!("ev")],
+        vec![],
+        json!("sage"),
+        json!(50),
+        None,
+    );
     assert_eq!(packet.subject, json!({"id": 7}));
     assert_eq!(packet.budget, json!(50));
 }
@@ -53,7 +60,10 @@ impl Reviewer for FakeReviewer {
 
 #[test]
 fn adjudicate_subjects_with_reviewer_end_to_end() {
-    let subjects = vec![Subject { id: json!(1), evidence: vec![json!("e1")] }];
+    let subjects = vec![Subject {
+        id: json!(1),
+        evidence: vec![json!("e1")],
+    }];
     let policy = AdjudicationPolicy {
         mode: "auto".to_string(),
         producer: json!("legion"),
@@ -75,7 +85,11 @@ fn adjudicate_subjects_with_reviewer_end_to_end() {
 
 struct Pass;
 impl ProviderExecutor for Pass {
-    fn execute(&self, provider: &PlannedProvider, _plan: &ExecutionPlan) -> Result<ProviderOutcome, String> {
+    fn execute(
+        &self,
+        provider: &PlannedProvider,
+        _plan: &ExecutionPlan,
+    ) -> Result<ProviderOutcome, String> {
         Ok(ProviderOutcome::ProviderResult {
             family: provider.family.clone(),
             value: json!({"status": "pass", "complete": true}),
@@ -139,8 +153,17 @@ impl PlanStage for OkStage {
     fn required_for(&self) -> &str {
         self.1
     }
-    fn run(&self, _options: &PlanOptions, _artifacts: &BTreeMap<String, serde_json::Value>) -> StageResult {
-        StageResult { complete: true, status: "pass".to_string(), artifact: Some(json!({"ok": true})), detail: None }
+    fn run(
+        &self,
+        _options: &PlanOptions,
+        _artifacts: &BTreeMap<String, serde_json::Value>,
+    ) -> StageResult {
+        StageResult {
+            complete: true,
+            status: "pass".to_string(),
+            artifact: Some(json!({"ok": true})),
+            detail: None,
+        }
     }
 }
 
@@ -148,7 +171,10 @@ impl PlanStage for OkStage {
 fn build_sealed_plan_end_to_end() {
     let stage = OkStage("repository-binding", "inventory");
     let stages: Vec<&dyn PlanStage> = vec![&stage];
-    let options = PlanOptions { root: Some("/repo".to_string()), ..Default::default() };
+    let options = PlanOptions {
+        root: Some("/repo".to_string()),
+        ..Default::default()
+    };
     let plan = build_sealed_plan(&options, &stages, "2024-01-01T00:00:00.000Z").unwrap();
     assert_eq!(plan.kind, "legion-sealed-plan");
     assert!(plan.complete_for_requested_claim);

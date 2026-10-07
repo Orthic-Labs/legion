@@ -60,14 +60,24 @@ pub const PROVIDER_ROLE: &[&str] = &[
 ];
 
 /// `src/lib/contracts/enums.mjs` — `EVIDENCE_CLASS`.
-pub const EVIDENCE_CLASS: &[&str] = &["deterministic", "measured", "interpretive", "external", "human"];
+pub const EVIDENCE_CLASS: &[&str] = &[
+    "deterministic",
+    "measured",
+    "interpretive",
+    "external",
+    "human",
+];
 
 /// `src/lib/contracts/enums.mjs` — `JUDGMENT_VERDICT`.
 pub const JUDGMENT_VERDICT: &[&str] = &["confirmed", "rejected", "unproven", "needs-human"];
 
 /// `src/lib/contracts/enums.mjs` — `REASONING_REQUIREMENT`.
-pub const REASONING_REQUIREMENT: &[&str] =
-    &["none", "bounded-review", "independent-adjudication", "human-decision"];
+pub const REASONING_REQUIREMENT: &[&str] = &[
+    "none",
+    "bounded-review",
+    "independent-adjudication",
+    "human-decision",
+];
 
 /// `src/providers/security/contracts.mjs` — `EVIDENCE_STRENGTH`.
 pub const EVIDENCE_STRENGTH: &[&str] = &["possible", "strong-inference", "verified"];

@@ -44,9 +44,15 @@ fn build_components_sorts_edges_and_output() {
     assert!(out[0].id <= out[1].id);
 
     let svc_b = out.iter().find(|c| c.root == "packages/svc-b").unwrap();
-    assert_eq!(svc_b.dependencies, vec!["a-lib".to_string(), "z-lib".to_string()]);
+    assert_eq!(
+        svc_b.dependencies,
+        vec!["a-lib".to_string(), "z-lib".to_string()]
+    );
     let svc_a = out.iter().find(|c| c.root == "packages/svc-a").unwrap();
-    assert_eq!(svc_a.dependents, vec!["a-app".to_string(), "z-app".to_string()]);
+    assert_eq!(
+        svc_a.dependents,
+        vec!["a-app".to_string(), "z-app".to_string()]
+    );
 }
 
 #[test]
@@ -88,7 +94,10 @@ fn build_components_missing_manifest_errors_with_root_in_message() {
         dependents: vec![],
     }])
     .unwrap_err();
-    assert_eq!(err.to_string(), "component manifest required: packages/missing");
+    assert_eq!(
+        err.to_string(),
+        "component manifest required: packages/missing"
+    );
 }
 
 // --- reachability.mjs: tests/reachability.test.mjs ported 1:1 ---

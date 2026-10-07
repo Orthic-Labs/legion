@@ -229,7 +229,9 @@ pub fn parse_box_shadow(box_shadow: &str) -> Option<ShadowSpec> {
     Some(ShadowSpec {
         angle: angle.round() as i64,
         blur: blur * 0.75,
-        color: color_match.map(|c| rgb_to_hex(&c)).unwrap_or_else(|| "000000".to_string()),
+        color: color_match
+            .map(|c| rgb_to_hex(&c))
+            .unwrap_or_else(|| "000000".to_string()),
         offset,
         opacity,
     })
@@ -373,7 +375,8 @@ pub fn validate_dimensions(
     if let (Some(lw_emu), Some(lh_emu)) = (layout_width_emu, layout_height_emu) {
         let layout_width = lw_emu / EMU_PER_IN;
         let layout_height = lh_emu / EMU_PER_IN;
-        if (layout_width - width_inches).abs() > 0.1 || (layout_height - height_inches).abs() > 0.1 {
+        if (layout_width - width_inches).abs() > 0.1 || (layout_height - height_inches).abs() > 0.1
+        {
             errors.push(format!(
                 "HTML dimensions ({width_inches:.1}\" \u{d7} {height_inches:.1}\") don't match presentation layout ({layout_width:.1}\" \u{d7} {layout_height:.1}\")"
             ));
@@ -396,7 +399,17 @@ pub struct TextBoxCheck<'a> {
 /// JS constant.
 pub const MIN_BOTTOM_MARGIN_IN: f64 = 0.5;
 
-pub const TEXT_TYPE_TAGS: &[&str] = &["p", "h1", "h2", "h3", "h4", "h5", "h6", "list", "merged-text"];
+pub const TEXT_TYPE_TAGS: &[&str] = &[
+    "p",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "list",
+    "merged-text",
+];
 
 pub fn validate_text_box_position(slide_height_in: f64, elements: &[TextBoxCheck]) -> Vec<String> {
     let mut errors = Vec::new();
@@ -407,7 +420,11 @@ pub fn validate_text_box_position(slide_height_in: f64, elements: &[TextBoxCheck
         let distance_from_bottom = slide_height_in - el.bottom_edge_in;
         if el.font_size_pt > 12.0 && distance_from_bottom < MIN_BOTTOM_MARGIN_IN {
             let prefix: String = el.text_prefix.chars().take(50).collect();
-            let suffix = if el.text_prefix.chars().count() > 50 { "..." } else { "" };
+            let suffix = if el.text_prefix.chars().count() > 50 {
+                "..."
+            } else {
+                ""
+            };
             errors.push(format!(
                 "Text box \"{prefix}{suffix}\" ends too close to bottom edge ({distance_from_bottom:.2}\" from bottom, minimum {MIN_BOTTOM_MARGIN_IN}\" required)"
             ));
@@ -419,7 +436,10 @@ pub fn validate_text_box_position(slide_height_in: f64, elements: &[TextBoxCheck
 /// Port of the manual-bullet-symbol validation regex
 /// `/^[•\-\*▪▸○●◆◇■□]\s/` applied to `text.trimStart()`.
 pub fn starts_with_manual_bullet(text: &str) -> bool {
-    const BULLETS: &[char] = &['\u{2022}', '-', '*', '\u{25aa}', '\u{25b8}', '\u{25cb}', '\u{25cf}', '\u{25c6}', '\u{25c7}', '\u{25a0}', '\u{25a1}'];
+    const BULLETS: &[char] = &[
+        '\u{2022}', '-', '*', '\u{25aa}', '\u{25b8}', '\u{25cb}', '\u{25cf}', '\u{25c6}',
+        '\u{25c7}', '\u{25a0}', '\u{25a1}',
+    ];
     let trimmed = text.trim_start();
     let mut chars = trimmed.chars();
     match chars.next() {
@@ -618,7 +638,10 @@ pub fn run_html2pptx<D: PageDriver>(
         }
 
         let placeholders = slide_data.placeholders.clone();
-        Ok(Html2PptxOutcome { slide_data, placeholders })
+        Ok(Html2PptxOutcome {
+            slide_data,
+            placeholders,
+        })
     };
 
     run().map_err(|message| prefix_error_with_file(html_file, &message))
@@ -641,8 +664,14 @@ fn text_box_checks_from_elements(elements: &[serde_json::Value]) -> Vec<TextBoxC
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0);
         let position = el.get("position");
-        let y = position.and_then(|p| p.get("y")).and_then(|v| v.as_f64()).unwrap_or(0.0);
-        let h = position.and_then(|p| p.get("h")).and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let y = position
+            .and_then(|p| p.get("y"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let h = position
+            .and_then(|p| p.get("h"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
         out.push(OwnedTextBoxCheck {
             type_tag: type_tag.to_string(),
             font_size_pt,
@@ -657,7 +686,12 @@ fn text_box_checks_from_elements(elements: &[serde_json::Value]) -> Vec<TextBoxC
         .map(|o| {
             let type_tag: &'static str = Box::leak(o.type_tag.into_boxed_str());
             let text_prefix: &'static str = Box::leak(o.text_prefix.into_boxed_str());
-            TextBoxCheck { type_tag, font_size_pt: o.font_size_pt, bottom_edge_in: o.bottom_edge_in, text_prefix }
+            TextBoxCheck {
+                type_tag,
+                font_size_pt: o.font_size_pt,
+                bottom_edge_in: o.bottom_edge_in,
+                text_prefix,
+            }
         })
         .collect()
 }
@@ -677,12 +711,18 @@ fn extract_text_prefix(el: &serde_json::Value) -> String {
         return s.to_string();
     }
     if let Some(arr) = el.get("text").and_then(|v| v.as_array()) {
-        if let Some(found) = arr.iter().find_map(|r| r.get("text").and_then(|t| t.as_str())) {
+        if let Some(found) = arr
+            .iter()
+            .find_map(|r| r.get("text").and_then(|t| t.as_str()))
+        {
             return found.to_string();
         }
     }
     if let Some(arr) = el.get("items").and_then(|v| v.as_array()) {
-        if let Some(found) = arr.iter().find_map(|r| r.get("text").and_then(|t| t.as_str())) {
+        if let Some(found) = arr
+            .iter()
+            .find_map(|r| r.get("text").and_then(|t| t.as_str()))
+        {
             return found.to_string();
         }
     }
@@ -706,7 +746,10 @@ impl HeadlessChromeDriver {
     pub fn launch() -> Result<Self, String> {
         let browser = headless_chrome::Browser::default().map_err(|e| e.to_string())?;
         let tab = browser.new_tab().map_err(|e| e.to_string())?;
-        Ok(Self { _browser: browser, tab })
+        Ok(Self {
+            _browser: browser,
+            tab,
+        })
     }
 }
 
@@ -723,22 +766,24 @@ impl PageDriver for HeadlessChromeDriver {
         // override to the measured body size, exactly as Playwright's
         // viewport resize does before the DOM is walked.
         self.tab
-            .call_method(headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                width,
-                height,
-                device_scale_factor: 1.0,
-                mobile: false,
-                scale: None,
-                screen_width: None,
-                screen_height: None,
-                position_x: None,
-                position_y: None,
-                dont_set_visible_size: None,
-                screen_orientation: None,
-                viewport: None,
-                display_feature: None,
-                device_posture: None,
-            })
+            .call_method(
+                headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
+                    width,
+                    height,
+                    device_scale_factor: 1.0,
+                    mobile: false,
+                    scale: None,
+                    screen_width: None,
+                    screen_height: None,
+                    position_x: None,
+                    position_y: None,
+                    dont_set_visible_size: None,
+                    screen_orientation: None,
+                    viewport: None,
+                    display_feature: None,
+                    device_posture: None,
+                },
+            )
             .map_err(|e| e.to_string())?;
         Ok(())
     }
@@ -821,21 +866,56 @@ struct Run {
 
 fn runs_from_value(v: &serde_json::Value) -> Vec<Run> {
     if let Some(s) = v.as_str() {
-        return vec![Run { text: s.to_string(), ..Default::default() }];
+        return vec![Run {
+            text: s.to_string(),
+            ..Default::default()
+        }];
     }
     let mut out = Vec::new();
     if let Some(arr) = v.as_array() {
         for item in arr {
-            let text = item.get("text").and_then(|t| t.as_str()).unwrap_or("").to_string();
+            let text = item
+                .get("text")
+                .and_then(|t| t.as_str())
+                .unwrap_or("")
+                .to_string();
             let opts = item.get("options");
-            let bold = opts.and_then(|o| o.get("bold")).and_then(|b| b.as_bool()).unwrap_or(false);
-            let italic = opts.and_then(|o| o.get("italic")).and_then(|b| b.as_bool()).unwrap_or(false);
-            let underline = opts.and_then(|o| o.get("underline")).and_then(|b| b.as_bool()).unwrap_or(false);
-            let color = opts.and_then(|o| o.get("color")).and_then(|c| c.as_str()).map(String::from);
-            let font_size_pt = opts.and_then(|o| o.get("fontSize")).and_then(|f| f.as_f64());
-            let transparency = opts.and_then(|o| o.get("transparency")).and_then(|t| t.as_i64());
-            let break_line = opts.and_then(|o| o.get("breakLine")).and_then(|b| b.as_bool()).unwrap_or(false);
-            out.push(Run { text, bold, italic, underline, color, font_size_pt, transparency, break_line });
+            let bold = opts
+                .and_then(|o| o.get("bold"))
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false);
+            let italic = opts
+                .and_then(|o| o.get("italic"))
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false);
+            let underline = opts
+                .and_then(|o| o.get("underline"))
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false);
+            let color = opts
+                .and_then(|o| o.get("color"))
+                .and_then(|c| c.as_str())
+                .map(String::from);
+            let font_size_pt = opts
+                .and_then(|o| o.get("fontSize"))
+                .and_then(|f| f.as_f64());
+            let transparency = opts
+                .and_then(|o| o.get("transparency"))
+                .and_then(|t| t.as_i64());
+            let break_line = opts
+                .and_then(|o| o.get("breakLine"))
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false);
+            out.push(Run {
+                text,
+                bold,
+                italic,
+                underline,
+                color,
+                font_size_pt,
+                transparency,
+                break_line,
+            });
         }
     }
     out
@@ -897,7 +977,10 @@ fn run_to_xml(run: &Run, base_font_pt: Option<f64>, base_color: Option<&str>) ->
     });
 
     match fill {
-        Some(fill) => format!("<a:r>{r_pr}>{fill}</a:rPr><a:t>{}</a:t></a:r>", xml_escape(&run.text)),
+        Some(fill) => format!(
+            "<a:r>{r_pr}>{fill}</a:rPr><a:t>{}</a:t></a:r>",
+            xml_escape(&run.text)
+        ),
         None => format!("<a:r>{r_pr}/><a:t>{}</a:t></a:r>", xml_escape(&run.text)),
     }
 }
@@ -914,7 +997,13 @@ fn align_attr(align: Option<&str>) -> &'static str {
 /// Builds the `<p:txBody>` for a text/shape/list/merged-text element from
 /// its resolved paragraphs, port of the paragraph/run construction
 /// `pptxgenjs`'s `addText` performs internally.
-fn text_body_xml(paragraphs: &[Vec<Run>], align: Option<&str>, base_font_pt: Option<f64>, base_color: Option<&str>, inset0: bool) -> String {
+fn text_body_xml(
+    paragraphs: &[Vec<Run>],
+    align: Option<&str>,
+    base_font_pt: Option<f64>,
+    base_color: Option<&str>,
+    inset0: bool,
+) -> String {
     let body_pr = if inset0 {
         "<a:bodyPr wrap=\"square\" lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" anchor=\"t\"><a:noAutofit/></a:bodyPr>"
     } else {
@@ -922,7 +1011,10 @@ fn text_body_xml(paragraphs: &[Vec<Run>], align: Option<&str>, base_font_pt: Opt
     };
     let mut xml = format!("<p:txBody>{body_pr}<a:lstStyle/>");
     if paragraphs.is_empty() {
-        xml.push_str(&format!("<a:p><a:pPr algn=\"{}\"/></a:p>", align_attr(align)));
+        xml.push_str(&format!(
+            "<a:p><a:pPr algn=\"{}\"/></a:p>",
+            align_attr(align)
+        ));
     }
     for para in paragraphs {
         xml.push_str(&format!("<a:p><a:pPr algn=\"{}\"/>", align_attr(align)));
@@ -971,10 +1063,24 @@ impl<'a> SlideBuilder<'a> {
     /// Port of the `line` branch in `addElements`: a straight connector.
     fn add_line(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, color: Option<&str>, width_pt: f64) {
         let id = self.next_shape_id();
-        let (x, y, cx, cy) = (x1.min(x2), y1.min(y2), (x2 - x1).abs().max(0.0001), (y2 - y1).abs().max(0.0001));
-        let flip = if (x2 < x1) != (y2 < y1) { " flipV=\"1\"" } else { "" };
+        let (x, y, cx, cy) = (
+            x1.min(x2),
+            y1.min(y2),
+            (x2 - x1).abs().max(0.0001),
+            (y2 - y1).abs().max(0.0001),
+        );
+        let flip = if (x2 < x1) != (y2 < y1) {
+            " flipV=\"1\""
+        } else {
+            ""
+        };
         let line_fill = color
-            .map(|c| format!("<a:solidFill><a:srgbClr val=\"{}\"/></a:solidFill>", c.trim_start_matches('#')))
+            .map(|c| {
+                format!(
+                    "<a:solidFill><a:srgbClr val=\"{}\"/></a:solidFill>",
+                    c.trim_start_matches('#')
+                )
+            })
             .unwrap_or_default();
         self.shapes_xml.push_str(&format!(
             "<p:cxnSp><p:nvCxnSpPr><p:cNvPr id=\"{id}\" name=\"Line {id}\"/><p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr>\
@@ -1003,10 +1109,17 @@ impl<'a> SlideBuilder<'a> {
         text_paragraphs: &[Vec<Run>],
     ) {
         let id = self.next_shape_id();
-        let prst = if rect_radius_in > 0.0 { "roundRect" } else { "rect" };
+        let prst = if rect_radius_in > 0.0 {
+            "roundRect"
+        } else {
+            "rect"
+        };
         let av_lst = if rect_radius_in > 0.0 {
             let adj = ((rect_radius_in / w.min(h).max(0.0001)) * 100_000.0).round() as i64;
-            format!("<a:avLst><a:gd name=\"adj\" fmla=\"val {}\"/></a:avLst>", adj.clamp(0, 50_000))
+            format!(
+                "<a:avLst><a:gd name=\"adj\" fmla=\"val {}\"/></a:avLst>",
+                adj.clamp(0, 50_000)
+            )
         } else {
             "<a:avLst/>".to_string()
         };
@@ -1069,7 +1182,12 @@ impl<'a> SlideBuilder<'a> {
     ) {
         let id = self.next_shape_id();
         let rot = rotate_deg
-            .map(|d| format!(" rot=\"{}\"", ((d * 60_000.0).round() as i64).rem_euclid(21_600_000)))
+            .map(|d| {
+                format!(
+                    " rot=\"{}\"",
+                    ((d * 60_000.0).round() as i64).rem_euclid(21_600_000)
+                )
+            })
             .unwrap_or_default();
         let body = text_body_xml(paragraphs, align, base_font_pt, base_color, inset0);
         self.shapes_xml.push_str(&format!(
@@ -1140,15 +1258,31 @@ fn add_element(builder: &mut SlideBuilder<'_>, el: &serde_json::Value) -> Result
             let (x, y, w, h) = get_position(el);
             let shape = el.get("shape");
             let fill = shape.and_then(|s| get_str(s, "fill"));
-            let fill_transparency = shape.and_then(|s| s.get("transparency")).and_then(|t| t.as_i64());
+            let fill_transparency = shape
+                .and_then(|s| s.get("transparency"))
+                .and_then(|t| t.as_i64());
             let line = shape.and_then(|s| s.get("line"));
             let line_color = line.and_then(|l| get_str(l, "color"));
             let line_width = line.and_then(|l| get_f64(l, "width"));
             let rect_radius = shape.and_then(|s| get_f64(s, "rectRadius")).unwrap_or(0.0);
-            let shadow = shape.and_then(|s| s.get("shadow")).and_then(parse_shadow_from_json);
+            let shadow = shape
+                .and_then(|s| s.get("shadow"))
+                .and_then(parse_shadow_from_json);
             let text = el.get("text").map(runs_from_value).unwrap_or_default();
             let paragraphs = runs_to_paragraphs(&text);
-            builder.add_shape(x, y, w, h, fill, fill_transparency, line_color, line_width, rect_radius, shadow.as_ref(), &paragraphs);
+            builder.add_shape(
+                x,
+                y,
+                w,
+                h,
+                fill,
+                fill_transparency,
+                line_color,
+                line_width,
+                rect_radius,
+                shadow.as_ref(),
+                &paragraphs,
+            );
         }
         "list" | "merged-text" => {
             let (x, y, w, h) = get_position(el);
@@ -1158,7 +1292,18 @@ fn add_element(builder: &mut SlideBuilder<'_>, el: &serde_json::Value) -> Result
             let color = style.and_then(|s| get_str(s, "color"));
             let items = el.get("items").map(runs_from_value).unwrap_or_default();
             let paragraphs = runs_to_paragraphs(&items);
-            builder.add_text_box(x, y, w, h, &paragraphs, align, font_pt, color, None, kind == "merged-text");
+            builder.add_text_box(
+                x,
+                y,
+                w,
+                h,
+                &paragraphs,
+                align,
+                font_pt,
+                color,
+                None,
+                kind == "merged-text",
+            );
         }
         "" => {}
         _ => {
@@ -1179,7 +1324,11 @@ fn add_element(builder: &mut SlideBuilder<'_>, el: &serde_json::Value) -> Result
 }
 
 /// Port of `addBackground`: sets the slide's background fill or picture.
-fn background_xml(background: &serde_json::Value, image_source: &mut dyn ImageSource, media: &mut Vec<(String, Vec<u8>)>) -> Result<String, String> {
+fn background_xml(
+    background: &serde_json::Value,
+    image_source: &mut dyn ImageSource,
+    media: &mut Vec<(String, Vec<u8>)>,
+) -> Result<String, String> {
     let kind = get_str(background, "type").unwrap_or("color");
     if kind == "image" {
         if let Some(path) = get_str(background, "path") {
@@ -1272,7 +1421,10 @@ fn build_slide_parts(
     }
     slide_rels.push_str("</Relationships>");
 
-    let media: Vec<(String, Vec<u8>)> = bg_media.into_iter().chain(builder.media.into_iter()).collect();
+    let media: Vec<(String, Vec<u8>)> = bg_media
+        .into_iter()
+        .chain(builder.media.into_iter())
+        .collect();
     Ok((slide_xml, slide_rels, media))
 }
 
@@ -1328,17 +1480,29 @@ pub fn write_pptx_from_slides(
 
     let file = std::fs::File::create(out_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
 
-    let mut write_part = |zip: &mut zip::ZipWriter<std::fs::File>, name: &str, content: &[u8]| -> Result<(), String> {
+    let mut write_part = |zip: &mut zip::ZipWriter<std::fs::File>,
+                          name: &str,
+                          content: &[u8]|
+     -> Result<(), String> {
         zip.start_file(name, options).map_err(|e| e.to_string())?;
         std::io::Write::write_all(zip, content).map_err(|e| e.to_string())
     };
 
-    write_part(&mut zip, "[Content_Types].xml", multi_content_types_xml(&content_type_overrides).as_bytes())?;
+    write_part(
+        &mut zip,
+        "[Content_Types].xml",
+        multi_content_types_xml(&content_type_overrides).as_bytes(),
+    )?;
     write_part(&mut zip, "_rels/.rels", PACKAGE_RELS_XML.as_bytes())?;
     write_part(&mut zip, "docProps/core.xml", CORE_PROPS_XML.as_bytes())?;
-    write_part(&mut zip, "docProps/app.xml", multi_app_props_xml(slides.len()).as_bytes())?;
+    write_part(
+        &mut zip,
+        "docProps/app.xml",
+        multi_app_props_xml(slides.len()).as_bytes(),
+    )?;
     write_part(
         &mut zip,
         "ppt/presentation.xml",
@@ -1353,17 +1517,41 @@ pub fn write_pptx_from_slides(
         )
         .as_bytes(),
     )?;
-    write_part(&mut zip, "ppt/_rels/presentation.xml.rels", presentation_rels.as_bytes())?;
+    write_part(
+        &mut zip,
+        "ppt/_rels/presentation.xml.rels",
+        presentation_rels.as_bytes(),
+    )?;
     write_part(&mut zip, "ppt/theme/theme1.xml", THEME_XML.as_bytes())?;
-    write_part(&mut zip, "ppt/slideMasters/slideMaster1.xml", SLIDE_MASTER_XML.as_bytes())?;
-    write_part(&mut zip, "ppt/slideMasters/_rels/slideMaster1.xml.rels", SLIDE_MASTER_RELS_XML.as_bytes())?;
-    write_part(&mut zip, "ppt/slideLayouts/slideLayout1.xml", SLIDE_LAYOUT_XML.as_bytes())?;
-    write_part(&mut zip, "ppt/slideLayouts/_rels/slideLayout1.xml.rels", SLIDE_LAYOUT_RELS_XML.as_bytes())?;
+    write_part(
+        &mut zip,
+        "ppt/slideMasters/slideMaster1.xml",
+        SLIDE_MASTER_XML.as_bytes(),
+    )?;
+    write_part(
+        &mut zip,
+        "ppt/slideMasters/_rels/slideMaster1.xml.rels",
+        SLIDE_MASTER_RELS_XML.as_bytes(),
+    )?;
+    write_part(
+        &mut zip,
+        "ppt/slideLayouts/slideLayout1.xml",
+        SLIDE_LAYOUT_XML.as_bytes(),
+    )?;
+    write_part(
+        &mut zip,
+        "ppt/slideLayouts/_rels/slideLayout1.xml.rels",
+        SLIDE_LAYOUT_RELS_XML.as_bytes(),
+    )?;
 
     let slide_parts_len = slide_parts.len();
     for (i, (slide_xml, mut slide_rels, media)) in slide_parts.into_iter().enumerate() {
         let n = i + 1;
-        write_part(&mut zip, &format!("ppt/slides/slide{n}.xml"), slide_xml.as_bytes())?;
+        write_part(
+            &mut zip,
+            &format!("ppt/slides/slide{n}.xml"),
+            slide_xml.as_bytes(),
+        )?;
         for (filename, bytes) in media {
             // Prefix with the slide index to avoid cross-slide filename
             // collisions (each slide's `build_slide_parts` numbers its own
@@ -1383,7 +1571,11 @@ pub fn write_pptx_from_slides(
             );
             write_part(&mut zip, &format!("ppt/media/{prefixed}"), &bytes)?;
         }
-        write_part(&mut zip, &format!("ppt/slides/_rels/slide{n}.xml.rels"), slide_rels.as_bytes())?;
+        write_part(
+            &mut zip,
+            &format!("ppt/slides/_rels/slide{n}.xml.rels"),
+            slide_rels.as_bytes(),
+        )?;
     }
 
     zip.finish().map_err(|e| e.to_string())?;
@@ -1522,9 +1714,18 @@ mod tests {
 
     #[test]
     fn apply_text_transform_matches_css_keywords() {
-        assert_eq!(apply_text_transform("Hello World", "uppercase"), "HELLO WORLD");
-        assert_eq!(apply_text_transform("Hello World", "lowercase"), "hello world");
-        assert_eq!(apply_text_transform("hello world", "capitalize"), "Hello World");
+        assert_eq!(
+            apply_text_transform("Hello World", "uppercase"),
+            "HELLO WORLD"
+        );
+        assert_eq!(
+            apply_text_transform("Hello World", "lowercase"),
+            "hello world"
+        );
+        assert_eq!(
+            apply_text_transform("hello world", "capitalize"),
+            "Hello World"
+        );
         assert_eq!(apply_text_transform("Hello", "none"), "Hello");
     }
 
@@ -1580,7 +1781,10 @@ mod tests {
     fn border_radius_to_rect_radius_percent_and_units() {
         assert_eq!(border_radius_to_rect_radius("0px", 100.0, 100.0), 0.0);
         assert_eq!(border_radius_to_rect_radius("50%", 100.0, 100.0), 1.0);
-        assert!((border_radius_to_rect_radius("25%", 200.0, 100.0) - 0.25 * px_to_inch(100.0)).abs() < 1e-9);
+        assert!(
+            (border_radius_to_rect_radius("25%", 200.0, 100.0) - 0.25 * px_to_inch(100.0)).abs()
+                < 1e-9
+        );
         assert_eq!(border_radius_to_rect_radius("36pt", 100.0, 100.0), 0.5);
         assert_eq!(border_radius_to_rect_radius("48px", 100.0, 100.0), 0.5);
     }
@@ -1602,14 +1806,24 @@ mod tests {
     #[test]
     fn validate_dimensions_flags_mismatch_beyond_tolerance() {
         // 1920x1080 px @ 96dpi = 20in x 11.25in; layout EMU for 13.33x7.5in.
-        let errors = validate_dimensions(1920.0, 1080.0, Some(13.33 * EMU_PER_IN), Some(7.5 * EMU_PER_IN));
+        let errors = validate_dimensions(
+            1920.0,
+            1080.0,
+            Some(13.33 * EMU_PER_IN),
+            Some(7.5 * EMU_PER_IN),
+        );
         assert_eq!(errors.len(), 1);
         assert!(errors[0].contains("don't match presentation layout"));
     }
 
     #[test]
     fn validate_dimensions_ok_within_tolerance() {
-        let errors = validate_dimensions(1920.0, 1080.0, Some(20.0 * EMU_PER_IN), Some(11.25 * EMU_PER_IN));
+        let errors = validate_dimensions(
+            1920.0,
+            1080.0,
+            Some(20.0 * EMU_PER_IN),
+            Some(11.25 * EMU_PER_IN),
+        );
         assert!(errors.is_empty());
     }
 
@@ -1629,8 +1843,18 @@ mod tests {
     #[test]
     fn validate_text_box_position_ignores_small_font_or_non_text_type() {
         let elements = vec![
-            TextBoxCheck { type_tag: "p", font_size_pt: 10.0, bottom_edge_in: 10.9, text_prefix: "x" },
-            TextBoxCheck { type_tag: "image", font_size_pt: 18.0, bottom_edge_in: 10.9, text_prefix: "x" },
+            TextBoxCheck {
+                type_tag: "p",
+                font_size_pt: 10.0,
+                bottom_edge_in: 10.9,
+                text_prefix: "x",
+            },
+            TextBoxCheck {
+                type_tag: "image",
+                font_size_pt: 18.0,
+                bottom_edge_in: 10.9,
+                text_prefix: "x",
+            },
         ];
         assert!(validate_text_box_position(11.25, &elements).is_empty());
     }
@@ -1734,9 +1958,18 @@ mod tests {
             navigated: Vec::new(),
             viewport: None,
         };
-        let outcome = run_html2pptx(&mut driver, "slide.html", std::path::Path::new("/decks"), None, None)
-            .expect("no validation errors");
-        assert_eq!(driver.navigated, vec![std::path::PathBuf::from("/decks/slide.html")]);
+        let outcome = run_html2pptx(
+            &mut driver,
+            "slide.html",
+            std::path::Path::new("/decks"),
+            None,
+            None,
+        )
+        .expect("no validation errors");
+        assert_eq!(
+            driver.navigated,
+            vec![std::path::PathBuf::from("/decks/slide.html")]
+        );
         assert_eq!(driver.viewport, Some((1280, 720)));
         assert_eq!(outcome.placeholders.len(), 1);
         assert_eq!(outcome.placeholders[0].id, "chart-1");
@@ -1753,8 +1986,14 @@ mod tests {
             navigated: Vec::new(),
             viewport: None,
         };
-        let err = run_html2pptx(&mut driver, "slide.html", std::path::Path::new("/decks"), Some(20.0), Some(11.25))
-            .unwrap_err();
+        let err = run_html2pptx(
+            &mut driver,
+            "slide.html",
+            std::path::Path::new("/decks"),
+            Some(20.0),
+            Some(11.25),
+        )
+        .unwrap_err();
         assert!(err.starts_with("slide.html: "));
         assert!(err.contains("Multiple validation errors found") || err.contains("overflows body"));
     }
@@ -1777,7 +2016,14 @@ mod tests {
             navigated: Vec::new(),
             viewport: None,
         };
-        let err = run_html2pptx(&mut driver, "slide.html", std::path::Path::new("/decks"), None, None).unwrap_err();
+        let err = run_html2pptx(
+            &mut driver,
+            "slide.html",
+            std::path::Path::new("/decks"),
+            None,
+            None,
+        )
+        .unwrap_err();
         assert!(err.contains("too close to bottom edge"));
     }
 
@@ -1815,7 +2061,13 @@ mod tests {
                     "position": { "x": 4.0, "y": 1.0, "w": 1.0, "h": 1.0 }
                 }),
             ],
-            placeholders: vec![RawPlaceholder { id: "ph1".into(), x: 0.0, y: 0.0, w: 1.0, h: 1.0 }],
+            placeholders: vec![RawPlaceholder {
+                id: "ph1".into(),
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+            }],
             errors: vec![],
         };
 
@@ -1824,22 +2076,22 @@ mod tests {
             (vec![0x89u8, 0x50, 0x4e, 0x47], "png"),
         )]));
 
-        let dir = std::env::temp_dir().join(format!(
-            "legion-w2007-r01-{}-{}",
-            std::process::id(),
-            {
+        let dir =
+            std::env::temp_dir().join(format!("legion-w2007-r01-{}-{}", std::process::id(), {
                 static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
                 COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-            }
-        ));
+            }));
         std::fs::create_dir_all(&dir).unwrap();
         let out = dir.join("slide.pptx");
 
-        write_pptx_from_slide_data(&out, 13.333, 7.5, &slide_data, &mut images).expect("writes pptx");
+        write_pptx_from_slide_data(&out, 13.333, 7.5, &slide_data, &mut images)
+            .expect("writes pptx");
 
         let file = std::fs::File::open(&out).unwrap();
         let mut zip = zip::ZipArchive::new(file).unwrap();
-        let names: Vec<String> = (0..zip.len()).map(|i| zip.by_index(i).unwrap().name().to_string()).collect();
+        let names: Vec<String> = (0..zip.len())
+            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .collect();
 
         for expected in [
             "[Content_Types].xml",
@@ -1852,18 +2104,29 @@ mod tests {
             "ppt/theme/theme1.xml",
             "ppt/media/image1.png",
         ] {
-            assert!(names.contains(&expected.to_string()), "missing {expected}, got {names:?}");
+            assert!(
+                names.contains(&expected.to_string()),
+                "missing {expected}, got {names:?}"
+            );
         }
 
         let mut slide_xml = String::new();
-        std::io::Read::read_to_string(&mut zip.by_name("ppt/slides/slide1.xml").unwrap(), &mut slide_xml).unwrap();
+        std::io::Read::read_to_string(
+            &mut zip.by_name("ppt/slides/slide1.xml").unwrap(),
+            &mut slide_xml,
+        )
+        .unwrap();
         assert!(slide_xml.contains("Hello world"));
         assert!(slide_xml.contains("srgbClr val=\"FF0000\""));
         assert!(slide_xml.contains("p:pic"));
         assert!(slide_xml.contains("roundRect"));
 
         let mut presentation_xml = String::new();
-        std::io::Read::read_to_string(&mut zip.by_name("ppt/presentation.xml").unwrap(), &mut presentation_xml).unwrap();
+        std::io::Read::read_to_string(
+            &mut zip.by_name("ppt/presentation.xml").unwrap(),
+            &mut presentation_xml,
+        )
+        .unwrap();
         assert!(presentation_xml.contains(&format!("cx=\"{}\"", emu(13.333))));
 
         std::fs::remove_dir_all(&dir).ok();
@@ -1872,8 +2135,15 @@ mod tests {
     #[test]
     fn runs_to_paragraphs_splits_on_break_line_and_embedded_newline() {
         let runs = vec![
-            Run { text: "line one".into(), break_line: true, ..Default::default() },
-            Run { text: "line\ntwo".into(), ..Default::default() },
+            Run {
+                text: "line one".into(),
+                break_line: true,
+                ..Default::default()
+            },
+            Run {
+                text: "line\ntwo".into(),
+                ..Default::default()
+            },
         ];
         let paragraphs = runs_to_paragraphs(&runs);
         assert_eq!(paragraphs.len(), 3);

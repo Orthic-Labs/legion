@@ -7,10 +7,12 @@
 //! Requires the integrator to wire `pub mod wf_port;` (with `pub mod wf019;`
 //! inside it) into `legion_audit`'s crate root.
 
+use legion_audit::wf_port::wf019::editor_diagnostics::{
+    CoverageGapInput, FindingInput, ReportInput,
+};
 use legion_audit::wf_port::wf019::{
     build_family_summary, editor_diagnostics, Denominator, EditorInput, FamilyResult,
 };
-use legion_audit::wf_port::wf019::editor_diagnostics::{CoverageGapInput, FindingInput, ReportInput};
 
 #[test]
 fn editor_diagnostics_map_findings_to_stable_diagnostics() {
@@ -137,13 +139,21 @@ fn family_summary_clean_for_complete_results() {
         family: Some("architecture".to_string()),
         complete: Some(true),
         status: Some("pass".to_string()),
-        denominator: Some(Denominator { expected: 5.0, examined: 5.0 }),
+        denominator: Some(Denominator {
+            expected: 5.0,
+            examined: 5.0,
+        }),
         tool: None,
         raw_artifacts: vec![],
         component_ids: vec![],
         limitations: vec![],
     }];
-    let summary = build_family_summary(&results, Some("architecture"), &["providerA".to_string()], &[]);
+    let summary = build_family_summary(
+        &results,
+        Some("architecture"),
+        &["providerA".to_string()],
+        &[],
+    );
     assert!(summary.clean);
     assert_eq!(summary.status, "complete");
     assert!(summary.gaps.is_empty());
@@ -157,7 +167,10 @@ fn family_summary_reports_missing_and_incomplete_providers() {
         family: Some("code".to_string()),
         complete: Some(true),
         status: Some("pass".to_string()),
-        denominator: Some(Denominator { expected: 2.0, examined: 1.0 }),
+        denominator: Some(Denominator {
+            expected: 2.0,
+            examined: 1.0,
+        }),
         tool: None,
         raw_artifacts: vec![],
         component_ids: vec![],

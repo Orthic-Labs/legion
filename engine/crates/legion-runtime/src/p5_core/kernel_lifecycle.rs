@@ -30,7 +30,13 @@ fn is_terminal(state: &str) -> bool {
 fn allowed_targets(state: &str) -> &'static [&'static str] {
     match state {
         "ACCEPTED" => &["RUNNING", "CANCELLED", "EXPIRED", "FAILED_INVOCATION"],
-        "RUNNING" => &["INPUT_REQUIRED", "CANCELLED", "EXPIRED", "FAILED_INVOCATION", "COMPLETED"],
+        "RUNNING" => &[
+            "INPUT_REQUIRED",
+            "CANCELLED",
+            "EXPIRED",
+            "FAILED_INVOCATION",
+            "COMPLETED",
+        ],
         "INPUT_REQUIRED" => &["RUNNING", "CANCELLED", "EXPIRED", "FAILED_INVOCATION"],
         "CANCELLED" => &["RUNNING"],
         _ => &[],
@@ -102,18 +108,34 @@ impl TaskLifecycle {
     }
 
     fn apply(&mut self, event: &Value) -> Result<(), KernelError> {
-        let event_type = event.get("eventType").and_then(Value::as_str).unwrap_or_default();
+        let event_type = event
+            .get("eventType")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if event_type == "task.created" {
-            let task_id = event.get("taskId").and_then(Value::as_str).unwrap_or_default();
-            let run_id = event.get("runId").and_then(Value::as_str).unwrap_or_default();
+            let task_id = event
+                .get("taskId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let run_id = event
+                .get("runId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
             if validate_id("task", task_id).is_err() || validate_id("run", run_id).is_err() {
                 return Err(integrity_error("task creation contains invalid identity"));
             }
             if self.tasks.contains_key(task_id) {
                 return Err(integrity_error(format!("duplicate task: {task_id}")));
             }
-            let idempotency_key = event.get("idempotencyKey").and_then(Value::as_str).map(str::to_string);
-            let recorded_at = event.get("recordedAt").and_then(Value::as_str).unwrap_or_default().to_string();
+            let idempotency_key = event
+                .get("idempotencyKey")
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            let recorded_at = event
+                .get("recordedAt")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
             self.tasks.insert(
                 task_id.to_string(),
                 KernelTask {
@@ -140,10 +162,26 @@ impl TaskLifecycle {
             return Ok(());
         }
 
-        let task_id = event.get("taskId").and_then(Value::as_str).unwrap_or_default().to_string();
-        let from = event.get("from").and_then(Value::as_str).unwrap_or_default().to_string();
-        let to = event.get("to").and_then(Value::as_str).unwrap_or_default().to_string();
-        let recorded_at = event.get("recordedAt").and_then(Value::as_str).unwrap_or_default().to_string();
+        let task_id = event
+            .get("taskId")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let from = event
+            .get("from")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let to = event
+            .get("to")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let recorded_at = event
+            .get("recordedAt")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
 
         let current_state = self
             .tasks
@@ -173,7 +211,10 @@ impl TaskLifecycle {
         match event_type {
             "task.input-required" => task.pending_input = event.get("payload").cloned(),
             "task.input-provided" => {
-                if let (Some(base), Some(patch)) = (task.input.as_object_mut(), event.get("payload").and_then(Value::as_object)) {
+                if let (Some(base), Some(patch)) = (
+                    task.input.as_object_mut(),
+                    event.get("payload").and_then(Value::as_object),
+                ) {
                     for (k, v) in patch {
                         base.insert(k.clone(), v.clone());
                     }
@@ -183,7 +224,8 @@ impl TaskLifecycle {
             "task.completed" => task.result = event.get("payload").cloned(),
             "task.failed" => task.error = event.get("payload").cloned(),
             "task.cancelled" => {
-                task.cancellation_reason = event.get("payload").and_then(|p| p.get("reason")).cloned();
+                task.cancellation_reason =
+                    event.get("payload").and_then(|p| p.get("reason")).cloned();
             }
             _ => {}
         }
@@ -193,19 +235,16 @@ impl TaskLifecycle {
     /// Port of `get(taskId)`.
     pub fn get(&self, task_id: &str) -> Result<KernelTask, KernelError> {
         validate_id("task", task_id)?;
-        self.tasks
-            .get(task_id)
-            .cloned()
-            .ok_or_else(|| {
-                KernelError::new(
-                    "TASK_NOT_FOUND",
-                    format!("unknown task: {task_id}"),
-                    KernelErrorOptions {
-                        category: Some("precondition".to_string()),
-                        ..Default::default()
-                    },
-                )
-            })
+        self.tasks.get(task_id).cloned().ok_or_else(|| {
+            KernelError::new(
+                "TASK_NOT_FOUND",
+                format!("unknown task: {task_id}"),
+                KernelErrorOptions {
+                    category: Some("precondition".to_string()),
+                    ..Default::default()
+                },
+            )
+        })
     }
 
     /// Port of `create({ runId, input, taskId, idempotencyKey })`.
@@ -245,7 +284,13 @@ impl TaskLifecycle {
         self.get(&task_id)
     }
 
-    fn transition(&mut self, task_id: &str, to: &str, event_type: &str, payload: Value) -> Result<KernelTask, KernelError> {
+    fn transition(
+        &mut self,
+        task_id: &str,
+        to: &str,
+        event_type: &str,
+        payload: Value,
+    ) -> Result<KernelTask, KernelError> {
         let current = self.get(task_id)?;
         if !INVOCATION_STATES.contains(&to) {
             return Err(usage_error(format!("unknown invocation state: {to}")));
@@ -256,7 +301,9 @@ impl TaskLifecycle {
                 format!("task cannot transition {} -> {to}", current.state),
                 KernelErrorOptions {
                     category: Some("precondition".to_string()),
-                    details: Some(json::json!({"taskId": task_id, "from": current.state, "to": to})),
+                    details: Some(
+                        json::json!({"taskId": task_id, "from": current.state, "to": to}),
+                    ),
                     ..Default::default()
                 },
             ));
@@ -283,16 +330,29 @@ impl TaskLifecycle {
         self.transition(task_id, "RUNNING", "task.started", Value::Null)
     }
 
-    pub fn require_input(&mut self, task_id: &str, request: Value) -> Result<KernelTask, KernelError> {
+    pub fn require_input(
+        &mut self,
+        task_id: &str,
+        request: Value,
+    ) -> Result<KernelTask, KernelError> {
         self.transition(task_id, "INPUT_REQUIRED", "task.input-required", request)
     }
 
-    pub fn provide_input(&mut self, task_id: &str, input: Value) -> Result<KernelTask, KernelError> {
+    pub fn provide_input(
+        &mut self,
+        task_id: &str,
+        input: Value,
+    ) -> Result<KernelTask, KernelError> {
         self.transition(task_id, "RUNNING", "task.input-provided", input)
     }
 
     pub fn cancel(&mut self, task_id: &str, reason: Value) -> Result<KernelTask, KernelError> {
-        self.transition(task_id, "CANCELLED", "task.cancelled", json::json!({"reason": reason}))
+        self.transition(
+            task_id,
+            "CANCELLED",
+            "task.cancelled",
+            json::json!({"reason": reason}),
+        )
     }
 
     pub fn resume(&mut self, task_id: &str) -> Result<KernelTask, KernelError> {
@@ -324,12 +384,18 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         use std::time::{SystemTime, UNIX_EPOCH};
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
-        (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() ^ (std::process::id() as u128))
+        (SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            ^ (std::process::id() as u128))
             .wrapping_add(NEXT_ID.fetch_add(1, Ordering::Relaxed) as u128)
     }
 
     fn temp_journal_path(label: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("p5d-lifecycle-{label}-{}", nonce())).join("journal.jsonl")
+        std::env::temp_dir()
+            .join(format!("p5d-lifecycle-{label}-{}", nonce()))
+            .join("journal.jsonl")
     }
 
     fn valid_run_id() -> String {
@@ -345,7 +411,12 @@ mod tests {
         let path = temp_journal_path("create");
         let mut lifecycle = TaskLifecycle::open(&path).unwrap();
         let task = lifecycle
-            .create(&valid_run_id(), json::json!({"a": 1}), valid_task_id(), None)
+            .create(
+                &valid_run_id(),
+                json::json!({"a": 1}),
+                valid_task_id(),
+                None,
+            )
             .unwrap();
         assert_eq!(task.state, "ACCEPTED");
         let fetched = lifecycle.get(&task.task_id).unwrap();
@@ -359,10 +430,20 @@ mod tests {
         let mut lifecycle = TaskLifecycle::open(&path).unwrap();
         let run_id = valid_run_id();
         let first = lifecycle
-            .create(&run_id, Value::Null, valid_task_id(), Some("key-1".to_string()))
+            .create(
+                &run_id,
+                Value::Null,
+                valid_task_id(),
+                Some("key-1".to_string()),
+            )
             .unwrap();
         let second = lifecycle
-            .create(&run_id, Value::Null, "ktask_01ARZ3NDEKTSV4RRFFQ69G5FAW".to_string(), Some("key-1".to_string()))
+            .create(
+                &run_id,
+                Value::Null,
+                "ktask_01ARZ3NDEKTSV4RRFFQ69G5FAW".to_string(),
+                Some("key-1".to_string()),
+            )
             .unwrap();
         assert_eq!(first.task_id, second.task_id);
         std::fs::remove_dir_all(path.parent().unwrap()).ok();
@@ -376,9 +457,15 @@ mod tests {
             .create(&valid_run_id(), Value::Null, valid_task_id(), None)
             .unwrap();
         lifecycle.start(&task.task_id).unwrap();
-        lifecycle.require_input(&task.task_id, json::json!({"ask": "more"})).unwrap();
-        lifecycle.provide_input(&task.task_id, json::json!({"more": true})).unwrap();
-        let completed = lifecycle.complete(&task.task_id, json::json!({"ok": true})).unwrap();
+        lifecycle
+            .require_input(&task.task_id, json::json!({"ask": "more"}))
+            .unwrap();
+        lifecycle
+            .provide_input(&task.task_id, json::json!({"more": true}))
+            .unwrap();
+        let completed = lifecycle
+            .complete(&task.task_id, json::json!({"ok": true}))
+            .unwrap();
         assert_eq!(completed.state, "COMPLETED");
         assert_eq!(completed.result.unwrap()["ok"], true);
         std::fs::remove_dir_all(path.parent().unwrap()).ok();
@@ -404,7 +491,9 @@ mod tests {
         let task_id = valid_task_id();
         {
             let mut lifecycle = TaskLifecycle::open(&path).unwrap();
-            let task = lifecycle.create(&valid_run_id(), Value::Null, task_id.clone(), None).unwrap();
+            let task = lifecycle
+                .create(&valid_run_id(), Value::Null, task_id.clone(), None)
+                .unwrap();
             lifecycle.start(&task.task_id).unwrap();
         }
         let reopened = TaskLifecycle::open(&path).unwrap();

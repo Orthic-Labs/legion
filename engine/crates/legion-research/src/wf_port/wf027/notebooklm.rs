@@ -96,7 +96,10 @@ impl NotebookLmAdapter {
     }
 
     pub fn add_source(&self, notebook_id: &str, source: &str) -> Result<Value, WfError> {
-        self.run(&["source", "add", source, "--notebook", notebook_id, "--json"], 180)
+        self.run(
+            &["source", "add", source, "--notebook", notebook_id, "--json"],
+            180,
+        )
     }
 
     pub fn generate(
@@ -158,7 +161,10 @@ mod tests {
     #[test]
     fn new_errors_when_executable_missing() {
         let err = NotebookLmAdapter::new("legion_wf027_definitely_missing_cli_xyz").unwrap_err();
-        assert_eq!(err, WfError::NotConfigured("notebooklm CLI is not installed".into()));
+        assert_eq!(
+            err,
+            WfError::NotConfigured("notebooklm CLI is not installed".into())
+        );
     }
 
     #[cfg(unix)]

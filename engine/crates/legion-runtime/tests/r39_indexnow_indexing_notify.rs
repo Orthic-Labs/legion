@@ -31,17 +31,24 @@ struct FakeFiles {
 
 impl indexnow::UrlsFileReader for FakeFiles {
     fn read_to_string(&self, path: &str) -> Result<String, String> {
-        self.files.get(path).cloned().ok_or_else(|| format!("Error reading batch file: no such file: {path}"))
+        self.files
+            .get(path)
+            .cloned()
+            .ok_or_else(|| format!("Error reading batch file: no such file: {path}"))
     }
 }
 
 fn no_files() -> FakeFiles {
-    FakeFiles { files: Default::default() }
+    FakeFiles {
+        files: Default::default(),
+    }
 }
 
 #[test]
 fn indexnow_run_genkey_prints_32_char_key_and_exits_zero() {
-    let transport = FakeTransport { response: Ok((200, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((200, String::new())),
+    };
     let files = no_files();
     let outcome = indexnow::run(&["genkey".to_string()], &transport, &files, None);
     assert_eq!(outcome.exit_code, 0);
@@ -51,9 +58,17 @@ fn indexnow_run_genkey_prints_32_char_key_and_exits_zero() {
 
 #[test]
 fn indexnow_run_submit_without_key_env_exits_two() {
-    let transport = FakeTransport { response: Ok((200, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((200, String::new())),
+    };
     let files = no_files();
-    let args = vec!["submit".to_string(), "--host".to_string(), "example.com".to_string(), "--url".to_string(), "https://example.com/a".to_string()];
+    let args = vec![
+        "submit".to_string(),
+        "--host".to_string(),
+        "example.com".to_string(),
+        "--url".to_string(),
+        "https://example.com/a".to_string(),
+    ];
     let outcome = indexnow::run(&args, &transport, &files, None);
     assert_eq!(outcome.exit_code, 2);
     assert!(outcome.stderr.contains("INDEXNOW_KEY not set"));
@@ -61,9 +76,15 @@ fn indexnow_run_submit_without_key_env_exits_two() {
 
 #[test]
 fn indexnow_run_submit_without_host_is_usage_error() {
-    let transport = FakeTransport { response: Ok((200, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((200, String::new())),
+    };
     let files = no_files();
-    let args = vec!["submit".to_string(), "--url".to_string(), "https://example.com/a".to_string()];
+    let args = vec![
+        "submit".to_string(),
+        "--url".to_string(),
+        "https://example.com/a".to_string(),
+    ];
     let outcome = indexnow::run(&args, &transport, &files, Some("thekey"));
     assert_eq!(outcome.exit_code, 2);
     assert!(outcome.stderr.contains("submit needs --host"));
@@ -71,7 +92,9 @@ fn indexnow_run_submit_without_host_is_usage_error() {
 
 #[test]
 fn indexnow_run_submit_success_exits_zero_and_reports_json() {
-    let transport = FakeTransport { response: Ok((202, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((202, String::new())),
+    };
     let files = no_files();
     let args = vec![
         "submit".to_string(),
@@ -85,27 +108,48 @@ fn indexnow_run_submit_success_exits_zero_and_reports_json() {
     let outcome = indexnow::run(&args, &transport, &files, Some("thekey"));
     assert_eq!(outcome.exit_code, 0);
     assert!(outcome.stdout.contains("\"status\": 202"));
-    let (path, contents) = outcome.write_file.expect("write_file expected for --json OUT");
+    let (path, contents) = outcome
+        .write_file
+        .expect("write_file expected for --json OUT");
     assert_eq!(path, "/tmp/out.json");
     assert!(contents.contains("\"submitted\": 1"));
 }
 
 #[test]
 fn indexnow_run_submit_http_error_exits_one() {
-    let transport = FakeTransport { response: Ok((403, "forbidden".to_string())) };
+    let transport = FakeTransport {
+        response: Ok((403, "forbidden".to_string())),
+    };
     let files = no_files();
-    let args = vec!["submit".to_string(), "--host".to_string(), "example.com".to_string(), "--url".to_string(), "https://example.com/a".to_string()];
+    let args = vec![
+        "submit".to_string(),
+        "--host".to_string(),
+        "example.com".to_string(),
+        "--url".to_string(),
+        "https://example.com/a".to_string(),
+    ];
     let outcome = indexnow::run(&args, &transport, &files, Some("thekey"));
     assert_eq!(outcome.exit_code, 1);
 }
 
 #[test]
 fn indexnow_run_submit_reads_urls_file() {
-    let transport = FakeTransport { response: Ok((200, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((200, String::new())),
+    };
     let mut files_map = std::collections::HashMap::new();
-    files_map.insert("urls.txt".to_string(), "https://a\n\nhttps://b\n".to_string());
+    files_map.insert(
+        "urls.txt".to_string(),
+        "https://a\n\nhttps://b\n".to_string(),
+    );
     let files = FakeFiles { files: files_map };
-    let args = vec!["submit".to_string(), "--host".to_string(), "example.com".to_string(), "--urls".to_string(), "urls.txt".to_string()];
+    let args = vec![
+        "submit".to_string(),
+        "--host".to_string(),
+        "example.com".to_string(),
+        "--urls".to_string(),
+        "urls.txt".to_string(),
+    ];
     let outcome = indexnow::run(&args, &transport, &files, Some("thekey"));
     assert_eq!(outcome.exit_code, 0);
     assert!(outcome.stdout.contains("\"submitted\": 2"));
@@ -113,9 +157,17 @@ fn indexnow_run_submit_reads_urls_file() {
 
 #[test]
 fn indexnow_run_submit_missing_urls_file_reports_error() {
-    let transport = FakeTransport { response: Ok((200, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((200, String::new())),
+    };
     let files = no_files();
-    let args = vec!["submit".to_string(), "--host".to_string(), "example.com".to_string(), "--urls".to_string(), "missing.txt".to_string()];
+    let args = vec![
+        "submit".to_string(),
+        "--host".to_string(),
+        "example.com".to_string(),
+        "--urls".to_string(),
+        "missing.txt".to_string(),
+    ];
     let outcome = indexnow::run(&args, &transport, &files, Some("thekey"));
     assert_eq!(outcome.exit_code, 2);
     assert!(outcome.stderr.contains("Error reading batch file"));
@@ -123,7 +175,9 @@ fn indexnow_run_submit_missing_urls_file_reports_error() {
 
 #[test]
 fn indexnow_run_unknown_command_is_usage_error() {
-    let transport = FakeTransport { response: Ok((200, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((200, String::new())),
+    };
     let files = no_files();
     let outcome = indexnow::run(&["bogus".to_string()], &transport, &files, None);
     assert_eq!(outcome.exit_code, 2);
@@ -131,7 +185,9 @@ fn indexnow_run_unknown_command_is_usage_error() {
 
 #[test]
 fn indexnow_run_no_args_is_usage_error() {
-    let transport = FakeTransport { response: Ok((200, String::new())) };
+    let transport = FakeTransport {
+        response: Ok((200, String::new())),
+    };
     let files = no_files();
     let outcome = indexnow::run(&[], &transport, &files, None);
     assert_eq!(outcome.exit_code, 2);
@@ -168,12 +224,17 @@ struct FakeBatchFiles {
 
 impl indexing_notify::BatchFileReader for FakeBatchFiles {
     fn read_to_string(&self, path: &str) -> Result<String, String> {
-        self.files.get(path).cloned().ok_or_else(|| "no such file".to_string())
+        self.files
+            .get(path)
+            .cloned()
+            .ok_or_else(|| "no such file".to_string())
     }
 }
 
 fn no_batch_files() -> FakeBatchFiles {
-    FakeBatchFiles { files: Default::default() }
+    FakeBatchFiles {
+        files: Default::default(),
+    }
 }
 
 #[test]
@@ -188,7 +249,9 @@ fn indexing_notify_run_single_url_success() {
     let args = vec!["https://e/1".to_string()];
     let outcome = indexing_notify::run(&args, &client, &files);
     assert_eq!(outcome.exit_code, 0);
-    assert!(outcome.stdout.contains("Notified: https://e/1 (URL_UPDATED) at 2026-01-01T00:00:00Z"));
+    assert!(outcome
+        .stdout
+        .contains("Notified: https://e/1 (URL_UPDATED) at 2026-01-01T00:00:00Z"));
 }
 
 #[test]
@@ -203,7 +266,9 @@ fn indexing_notify_run_status_reports_metadata() {
     let args = vec!["--status".to_string(), "https://e/1".to_string()];
     let outcome = indexing_notify::run(&args, &client, &files);
     assert_eq!(outcome.exit_code, 0);
-    assert!(outcome.stdout.contains("=== Notification Status: https://e/1 ==="));
+    assert!(outcome
+        .stdout
+        .contains("=== Notification Status: https://e/1 ==="));
     assert!(outcome.stdout.contains("Latest Update: t1 (URL_UPDATED)"));
 }
 
@@ -230,7 +295,10 @@ fn indexing_notify_run_batch_reports_summary() {
         metadata_response: Err("unused".to_string()),
     };
     let mut files_map = std::collections::HashMap::new();
-    files_map.insert("batch.txt".to_string(), "https://e/1\nhttps://e/2\n".to_string());
+    files_map.insert(
+        "batch.txt".to_string(),
+        "https://e/1\nhttps://e/2\n".to_string(),
+    );
     let files = FakeBatchFiles { files: files_map };
     let args = vec!["--batch".to_string(), "batch.txt".to_string()];
     let outcome = indexing_notify::run(&args, &client, &files);
@@ -300,7 +368,10 @@ fn indexing_notify_get_notification_metadata_with_404_is_categorized() {
         metadata_response: Err("404 not found".to_string()),
     };
     let result = indexing_notify::get_notification_metadata_with(&client, "https://e/1");
-    assert_eq!(result.error.as_deref(), Some("No notification metadata found for this URL."));
+    assert_eq!(
+        result.error.as_deref(),
+        Some("No notification metadata found for this URL.")
+    );
 }
 
 #[test]

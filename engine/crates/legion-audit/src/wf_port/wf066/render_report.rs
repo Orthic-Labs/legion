@@ -45,9 +45,16 @@ const AGE_THRESHOLD_DAYS: f64 = 30.0;
 const DECISION_REF_ROOTS: [&str; 2] = [".audit/", "docs/plans/"];
 
 fn security_checks() -> HashSet<&'static str> {
-    ["secrets", "sast", "ci_lint", "docker", "deps_cve", "cargo_audit"]
-        .into_iter()
-        .collect()
+    [
+        "secrets",
+        "sast",
+        "ci_lint",
+        "docker",
+        "deps_cve",
+        "cargo_audit",
+    ]
+    .into_iter()
+    .collect()
 }
 
 fn remediation_label(category: &str) -> &'static str {
@@ -140,7 +147,12 @@ pub fn dedupe(findings: &[Value]) -> Vec<Value> {
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            for s in f.get("sources").and_then(Value::as_array).into_iter().flatten() {
+            for s in f
+                .get("sources")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 if !sources.contains(s) {
                     sources.push(s.clone());
                 }
@@ -152,7 +164,12 @@ pub fn dedupe(findings: &[Value]) -> Vec<Value> {
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            for c in f.get("caused_by").and_then(Value::as_array).into_iter().flatten() {
+            for c in f
+                .get("caused_by")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
                 if !caused_by.contains(c) {
                     caused_by.push(c.clone());
                 }
@@ -162,7 +179,8 @@ pub fn dedupe(findings: &[Value]) -> Vec<Value> {
             let f_strength = f.get("evidence_strength").and_then(Value::as_str);
             let prev_strength = prev.get("evidence_strength").and_then(Value::as_str);
             if evidence_rank(f_strength) < evidence_rank(prev_strength) {
-                prev["evidence_strength"] = f.get("evidence_strength").cloned().unwrap_or(Value::Null);
+                prev["evidence_strength"] =
+                    f.get("evidence_strength").cloned().unwrap_or(Value::Null);
             }
             if str_field(f, "status") == Some("disputed") {
                 prev["status"] = json!("disputed");
@@ -192,7 +210,11 @@ pub fn dedupe(findings: &[Value]) -> Vec<Value> {
 /// Mirrors JS `qualityGate(facts)`.
 pub fn quality_gate(facts: &Value) -> Value {
     let gate_checks: HashSet<&str> = ["lint", "types", "build"].into_iter().collect();
-    let checks = facts.get("checks").and_then(Value::as_array).cloned().unwrap_or_default();
+    let checks = facts
+        .get("checks")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let relevant: Vec<Value> = checks
         .into_iter()
         .filter(|c| gate_checks.contains(str_field(c, "check").unwrap_or("")))
@@ -214,7 +236,8 @@ pub fn quality_gate(facts: &Value) -> Value {
         .filter(|c| {
             let status = str_field(c, "status").unwrap_or("");
             let skip_reason = str_field(c, "skip_reason").unwrap_or("");
-            status == "error" || (status == "skipped" && !skip_reason.to_lowercase().starts_with("no "))
+            status == "error"
+                || (status == "skipped" && !skip_reason.to_lowercase().starts_with("no "))
         })
         .cloned()
         .collect();
@@ -244,22 +267,29 @@ pub fn coverage_gate(coverage: Option<&Value>) -> Option<Value> {
     }
     let total_touched: i64 = per_file
         .iter()
-        .map(|f| f.get("touched").and_then(Value::as_array).map(|a| a.len() as i64).unwrap_or(0))
+        .map(|f| {
+            f.get("touched")
+                .and_then(Value::as_array)
+                .map(|a| a.len() as i64)
+                .unwrap_or(0)
+        })
         .sum();
     let total_covered: i64 = per_file
         .iter()
-        .map(|f| f.get("covered").and_then(Value::as_array).map(|a| a.len() as i64).unwrap_or(0))
+        .map(|f| {
+            f.get("covered")
+                .and_then(Value::as_array)
+                .map(|a| a.len() as i64)
+                .unwrap_or(0)
+        })
         .sum();
-    let ratio = coverage
-        .get("ratio")
-        .and_then(Value::as_f64)
-        .or_else(|| {
-            if total_touched > 0 {
-                Some(total_covered as f64 / total_touched as f64)
-            } else {
-                None
-            }
-        });
+    let ratio = coverage.get("ratio").and_then(Value::as_f64).or_else(|| {
+        if total_touched > 0 {
+            Some(total_covered as f64 / total_touched as f64)
+        } else {
+            None
+        }
+    });
     let no_test_files: Vec<Value> = per_file
         .iter()
         .filter(|f| {
@@ -268,7 +298,11 @@ pub fn coverage_gate(coverage: Option<&Value>) -> Option<Value> {
                 .and_then(Value::as_array)
                 .map(|a| a.is_empty())
                 .unwrap_or(true);
-            let touched = f.get("touched").and_then(Value::as_array).map(|a| !a.is_empty()).unwrap_or(false);
+            let touched = f
+                .get("touched")
+                .and_then(Value::as_array)
+                .map(|a| !a.is_empty())
+                .unwrap_or(false);
             no_tests && touched
         })
         .cloned()
@@ -342,9 +376,19 @@ fn parse_span(value: &str) -> Option<Span> {
 }
 
 /// Mirrors JS `evidenceProblems(candidate, verdict, evidence, label)`.
-fn evidence_problems(candidate: &Value, kind: &str, verdict: &str, evidence: Option<&Value>, loc: Option<f64>, label: &str) -> Vec<String> {
+fn evidence_problems(
+    candidate: &Value,
+    kind: &str,
+    verdict: &str,
+    evidence: Option<&Value>,
+    loc: Option<f64>,
+    label: &str,
+) -> Vec<String> {
     let mut problems = Vec::new();
-    let entries: Vec<&Value> = evidence.and_then(Value::as_array).map(|a| a.iter().collect()).unwrap_or_default();
+    let entries: Vec<&Value> = evidence
+        .and_then(Value::as_array)
+        .map(|a| a.iter().collect())
+        .unwrap_or_default();
     if entries.is_empty() {
         problems.push(format!("{label}missing evidence"));
         return problems;
@@ -354,17 +398,26 @@ fn evidence_problems(candidate: &Value, kind: &str, verdict: &str, evidence: Opt
         .map(|e| e.as_str().and_then(parse_span))
         .collect();
     if spans.iter().any(|s| s.is_none()) {
-        problems.push(format!("{label}evidence entries must be `path:line` or `path:start-end` loci"));
+        problems.push(format!(
+            "{label}evidence entries must be `path:line` or `path:start-end` loci"
+        ));
         return problems;
     }
     if kind == "file-size" && (verdict == "not-needed" || verdict == "confirmed") {
         let candidate_path = str_field(candidate, "candidate").unwrap_or("");
         let candidate_path = clean_path(Some(candidate_path)).unwrap_or_default();
-        let own: Vec<&Span> = spans.iter().filter_map(|s| s.as_ref()).filter(|s| s.path == candidate_path).collect();
+        let own: Vec<&Span> = spans
+            .iter()
+            .filter_map(|s| s.as_ref())
+            .filter(|s| s.path == candidate_path)
+            .collect();
         if own.is_empty() {
             problems.push(format!("{label}no evidence anchored in the candidate file"));
         } else if let Some(loc) = loc {
-            if own.iter().all(|s| s.start <= 1 && s.end.unwrap_or(s.start) as f64 >= loc) {
+            if own
+                .iter()
+                .all(|s| s.start <= 1 && s.end.unwrap_or(s.start) as f64 >= loc)
+            {
                 problems.push(format!(
                     "{label}whole-file span is not symbol-level evidence — cite the specific responsibilities/symbols"
                 ));
@@ -375,19 +428,40 @@ fn evidence_problems(candidate: &Value, kind: &str, verdict: &str, evidence: Opt
 }
 
 /// Mirrors JS `assessmentProblemsFor(candidate, assessment)`.
-fn assessment_problems_for(candidate: &Value, assessment: &Value, review_trigger: Option<f64>, second_assessor_incoming: i64) -> Vec<String> {
+fn assessment_problems_for(
+    candidate: &Value,
+    assessment: &Value,
+    review_trigger: Option<f64>,
+    second_assessor_incoming: i64,
+) -> Vec<String> {
     let mut problems = Vec::new();
     let verdict = str_field(assessment, "verdict").unwrap_or("");
-    let valid_verdicts: HashSet<&str> = ["not-needed", "confirmed", "undetermined"].into_iter().collect();
+    let valid_verdicts: HashSet<&str> = ["not-needed", "confirmed", "undetermined"]
+        .into_iter()
+        .collect();
     if !valid_verdicts.contains(verdict) {
-        problems.push(format!("invalid verdict {:?}", assessment.get("verdict").cloned().unwrap_or(Value::Null)));
+        problems.push(format!(
+            "invalid verdict {:?}",
+            assessment.get("verdict").cloned().unwrap_or(Value::Null)
+        ));
     }
-    if str_field(assessment, "rationale").unwrap_or("").trim().is_empty() {
+    if str_field(assessment, "rationale")
+        .unwrap_or("")
+        .trim()
+        .is_empty()
+    {
         problems.push("missing rationale".to_string());
     }
     let kind = str_field(candidate, "kind").unwrap_or("");
     let loc = candidate.get("loc").and_then(Value::as_f64);
-    problems.extend(evidence_problems(candidate, kind, verdict, assessment.get("evidence"), loc, ""));
+    problems.extend(evidence_problems(
+        candidate,
+        kind,
+        verdict,
+        assessment.get("evidence"),
+        loc,
+        "",
+    ));
 
     if verdict == "not-needed" {
         let size = if kind == "mechanical-split" {
@@ -395,10 +469,16 @@ fn assessment_problems_for(candidate: &Value, assessment: &Value, review_trigger
         } else {
             candidate.get("loc").and_then(Value::as_f64)
         };
-        let by_size = matches!((review_trigger, size), (Some(t), Some(s)) if s >= t * HIGH_STAKES_MULTIPLIER);
+        let by_size =
+            matches!((review_trigger, size), (Some(t), Some(s)) if s >= t * HIGH_STAKES_MULTIPLIER);
         let graph_available = str_field(candidate, "graphMetrics") == Some("available");
-        let incoming = candidate.get("incomingRelationships").and_then(Value::as_i64);
-        let by_incoming = graph_available && incoming.map(|i| i >= second_assessor_incoming).unwrap_or(false);
+        let incoming = candidate
+            .get("incomingRelationships")
+            .and_then(Value::as_i64);
+        let by_incoming = graph_available
+            && incoming
+                .map(|i| i >= second_assessor_incoming)
+                .unwrap_or(false);
         if by_size || by_incoming {
             let trigger = if by_size {
                 format!(
@@ -408,7 +488,11 @@ fn assessment_problems_for(candidate: &Value, assessment: &Value, review_trigger
                     review_trigger.unwrap_or_default()
                 )
             } else {
-                format!("{} incoming relationships (>={})", incoming.unwrap_or_default(), second_assessor_incoming)
+                format!(
+                    "{} incoming relationships (>={})",
+                    incoming.unwrap_or_default(),
+                    second_assessor_incoming
+                )
             };
             match assessment.get("second_assessor").filter(|v| v.is_object()) {
                 None => problems.push(format!("not-needed at {trigger} requires second_assessor {{verdict,rationale,evidence}}")),
@@ -438,8 +522,13 @@ fn architect_decision_ref_exists(workspace: &Path, ref_path: &str) -> bool {
     if ref_path.trim().is_empty() || Path::new(ref_path).is_absolute() {
         return false;
     }
-    let Some(norm) = clean_path(Some(ref_path)) else { return false };
-    let Some(allowed) = DECISION_REF_ROOTS.iter().find(|root| norm.starts_with(**root)) else {
+    let Some(norm) = clean_path(Some(ref_path)) else {
+        return false;
+    };
+    let Some(allowed) = DECISION_REF_ROOTS
+        .iter()
+        .find(|root| norm.starts_with(**root))
+    else {
         return false;
     };
     let root = match fs::canonicalize(workspace) {
@@ -481,20 +570,36 @@ fn valid_decomposition_plan(plan: Option<&Value>, workspace: &Path) -> bool {
     if str_field(plan, "verdict") != Some("confirmed") {
         return false;
     }
-    let responsibilities = match plan.get("current_responsibilities").and_then(Value::as_array) {
+    let responsibilities = match plan
+        .get("current_responsibilities")
+        .and_then(Value::as_array)
+    {
         Some(a) if a.len() > 1 => a,
         _ => return false,
     };
     for item in responsibilities {
         let has_name = item.get("name").map(|v| !v.is_null()).unwrap_or(false);
-        let symbols_ok = item.get("symbols").and_then(Value::as_array).map(|a| !a.is_empty()).unwrap_or(false);
-        let evidence_ok = item.get("evidence").and_then(Value::as_array).map(|a| !a.is_empty()).unwrap_or(false);
+        let symbols_ok = item
+            .get("symbols")
+            .and_then(Value::as_array)
+            .map(|a| !a.is_empty())
+            .unwrap_or(false);
+        let evidence_ok = item
+            .get("evidence")
+            .and_then(Value::as_array)
+            .map(|a| !a.is_empty())
+            .unwrap_or(false);
         if !has_name || !symbols_ok || !evidence_ok {
             return false;
         }
     }
     let keep = plan.get("keep_in_place").cloned().unwrap_or(Value::Null);
-    if keep.get("component").map(|v| v.is_null()).unwrap_or(true) || keep.get("responsibility").map(|v| v.is_null()).unwrap_or(true) {
+    if keep.get("component").map(|v| v.is_null()).unwrap_or(true)
+        || keep
+            .get("responsibility")
+            .map(|v| v.is_null())
+            .unwrap_or(true)
+    {
         return false;
     }
     let targets = match plan.get("target_components").and_then(Value::as_array) {
@@ -503,10 +608,23 @@ fn valid_decomposition_plan(plan: Option<&Value>, workspace: &Path) -> bool {
     };
     for item in targets {
         let ok = item.get("component").map(|v| !v.is_null()).unwrap_or(false)
-            && item.get("destination").map(|v| !v.is_null()).unwrap_or(false)
-            && item.get("responsibility").map(|v| !v.is_null()).unwrap_or(false)
-            && item.get("moves").and_then(Value::as_array).map(|a| !a.is_empty()).unwrap_or(false)
-            && item.get("public_contract").map(|v| !v.is_null()).unwrap_or(false)
+            && item
+                .get("destination")
+                .map(|v| !v.is_null())
+                .unwrap_or(false)
+            && item
+                .get("responsibility")
+                .map(|v| !v.is_null())
+                .unwrap_or(false)
+            && item
+                .get("moves")
+                .and_then(Value::as_array)
+                .map(|a| !a.is_empty())
+                .unwrap_or(false)
+            && item
+                .get("public_contract")
+                .map(|v| !v.is_null())
+                .unwrap_or(false)
             && item.get("dependencies").and_then(Value::as_array).is_some();
         if !ok {
             return false;
@@ -517,14 +635,29 @@ fn valid_decomposition_plan(plan: Option<&Value>, workspace: &Path) -> bool {
         _ => return false,
     };
     for item in steps {
-        if item.get("change").map(|v| v.is_null()).unwrap_or(true) || item.get("verification").map(|v| v.is_null()).unwrap_or(true) {
+        if item.get("change").map(|v| v.is_null()).unwrap_or(true)
+            || item
+                .get("verification")
+                .map(|v| v.is_null())
+                .unwrap_or(true)
+        {
             return false;
         }
     }
-    if plan.get("behavior_contracts").and_then(Value::as_array).map(|a| a.is_empty()).unwrap_or(true) {
+    if plan
+        .get("behavior_contracts")
+        .and_then(Value::as_array)
+        .map(|a| a.is_empty())
+        .unwrap_or(true)
+    {
         return false;
     }
-    if plan.get("risks").and_then(Value::as_array).map(|a| a.is_empty()).unwrap_or(true) {
+    if plan
+        .get("risks")
+        .and_then(Value::as_array)
+        .map(|a| a.is_empty())
+        .unwrap_or(true)
+    {
         return false;
     }
     let decision_ref = str_field(plan, "architect_decision_ref").unwrap_or("");
@@ -550,7 +683,10 @@ fn loose_fingerprint(f: &Value) -> String {
     let category = str_field(f, "category").unwrap_or("unknown");
     let title = str_field(f, "title").unwrap_or("").trim().to_lowercase();
     let file = clean_path(str_field(f, "file")).unwrap_or_else(|| "unknown".into());
-    let base = Path::new(&file).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or(file);
+    let base = Path::new(&file)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or(file);
     format!("{category}::{title}::{base}")
 }
 
@@ -567,7 +703,10 @@ fn bucket_for(age_days: f64) -> &'static str {
 }
 
 fn now_unix_secs() -> f64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64()
 }
 
 /// Mirrors JS `computeTrajectory(report, facts)`. `history_path` mirrors
@@ -575,15 +714,26 @@ fn now_unix_secs() -> f64 {
 /// `prior_history` is the parsed contents of that file if the caller has
 /// already read it (avoids a second disk read when the caller manages I/O
 /// itself), else `None` to have this function read it.
-pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history: Option<Value>) -> Trajectory {
-    let history = prior_history.or_else(|| fs::read_to_string(history_path).ok().and_then(|s| serde_json::from_str(&s).ok()));
+pub fn compute_trajectory(
+    findings: &[Value],
+    history_path: &Path,
+    prior_history: Option<Value>,
+) -> Trajectory {
+    let history = prior_history.or_else(|| {
+        fs::read_to_string(history_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+    });
     let prior_entries: Map<String, Value> = history
         .as_ref()
         .and_then(|h| h.get("fingerprints"))
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    let prior_run_at = history.as_ref().and_then(|h| str_field(h, "run_at")).map(String::from);
+    let prior_run_at = history
+        .as_ref()
+        .and_then(|h| str_field(h, "run_at"))
+        .map(String::from);
     let had_prior_run = prior_run_at.is_some() || !prior_entries.is_empty();
 
     let now = now_unix_secs();
@@ -593,7 +743,10 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
         // (`1970-01-01T00:00:00Z+<secs>s`) or a plain numeric string; any
         // other format falls back to "now" exactly like JS `Date.parse`
         // returning `NaN` (`Date.parse(...) || now`).
-        if let Some(rest) = s.strip_prefix("1970-01-01T00:00:00Z+").and_then(|r| r.strip_suffix('s')) {
+        if let Some(rest) = s
+            .strip_prefix("1970-01-01T00:00:00Z+")
+            .and_then(|r| r.strip_suffix('s'))
+        {
             if let Ok(v) = rest.parse::<f64>() {
                 return v;
             }
@@ -608,7 +761,11 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
     }
     let current: Vec<Current> = findings
         .iter()
-        .map(|f| Current { f, fp: fingerprint(f), loose: loose_fingerprint(f) })
+        .map(|f| Current {
+            f,
+            fp: fingerprint(f),
+            loose: loose_fingerprint(f),
+        })
         .collect();
 
     let mut matched_prior: HashSet<String> = HashSet::new();
@@ -623,7 +780,11 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
     for item in &current {
         if let Some(prior) = prior_entries.get(&item.fp) {
             if !matched_prior.contains(&item.fp) {
-                matches.push(Match { fp: item.fp.clone(), prior: prior.clone(), current_severity: str_field(item.f, "severity") });
+                matches.push(Match {
+                    fp: item.fp.clone(),
+                    prior: prior.clone(),
+                    current_severity: str_field(item.f, "severity"),
+                });
                 matched_prior.insert(item.fp.clone());
                 matched_current.insert(item.fp.clone());
             }
@@ -635,7 +796,10 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
             continue;
         }
         if let Some(loose) = str_field(entry, "loose") {
-            prior_by_loose.entry(loose.to_string()).or_default().push(fp.clone());
+            prior_by_loose
+                .entry(loose.to_string())
+                .or_default()
+                .push(fp.clone());
         }
     }
     for item in &current {
@@ -646,7 +810,11 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
             if candidates.len() == 1 && !matched_prior.contains(&candidates[0]) {
                 let fp = candidates[0].clone();
                 let prior = prior_entries.get(&fp).cloned().unwrap_or(Value::Null);
-                matches.push(Match { fp: item.fp.clone(), prior, current_severity: str_field(item.f, "severity") });
+                matches.push(Match {
+                    fp: item.fp.clone(),
+                    prior,
+                    current_severity: str_field(item.f, "severity"),
+                });
                 matched_prior.insert(fp);
                 matched_current.insert(item.fp.clone());
             }
@@ -656,9 +824,12 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
     let mut aged = 0i64;
     let mut unchanged = 0i64;
     let mut newly_p0 = 0i64;
-    let match_by_current_fp: HashMap<String, &Match> = matches.iter().map(|m| (m.fp.clone(), m)).collect();
+    let match_by_current_fp: HashMap<String, &Match> =
+        matches.iter().map(|m| (m.fp.clone(), m)).collect();
     for m in &matches {
-        let first_seen = str_field(&m.prior, "first_seen").map(parse_epoch).unwrap_or(now);
+        let first_seen = str_field(&m.prior, "first_seen")
+            .map(parse_epoch)
+            .unwrap_or(now);
         let age_days = (now - first_seen) / 86400.0;
         if age_days > AGE_THRESHOLD_DAYS {
             aged += 1;
@@ -671,7 +842,10 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
             newly_p0 += 1;
         }
     }
-    let new_findings: Vec<&Current> = current.iter().filter(|item| !matched_current.contains(&item.fp)).collect();
+    let new_findings: Vec<&Current> = current
+        .iter()
+        .filter(|item| !matched_current.contains(&item.fp))
+        .collect();
     for item in &new_findings {
         if str_field(item.f, "severity") == Some("critical") {
             newly_p0 += 1;
@@ -679,10 +853,16 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
     }
     let resolved_count = (prior_entries.len() as i64) - (matched_prior.len() as i64);
 
-    let mut bucket_counts: HashMap<&str, i64> = ["0-7d", "8-30d", "31-90d", "90+d"].iter().map(|b| (*b, 0)).collect();
+    let mut bucket_counts: HashMap<&str, i64> = ["0-7d", "8-30d", "31-90d", "90+d"]
+        .iter()
+        .map(|b| (*b, 0))
+        .collect();
     for item in &current {
         let m = match_by_current_fp.get(&item.fp);
-        let first_seen = m.and_then(|m| str_field(&m.prior, "first_seen")).map(parse_epoch).unwrap_or(now);
+        let first_seen = m
+            .and_then(|m| str_field(&m.prior, "first_seen"))
+            .map(parse_epoch)
+            .unwrap_or(now);
         let age_days = (now - first_seen) / 86400.0;
         *bucket_counts.entry(bucket_for(age_days)).or_insert(0) += 1;
     }
@@ -707,7 +887,10 @@ pub fn compute_trajectory(findings: &[Value], history_path: &Path, prior_history
     let mut next_fingerprints = Map::new();
     for item in &current {
         let m = match_by_current_fp.get(&item.fp);
-        let first_seen = m.and_then(|m| str_field(&m.prior, "first_seen")).map(String::from).unwrap_or_else(|| now.to_string());
+        let first_seen = m
+            .and_then(|m| str_field(&m.prior, "first_seen"))
+            .map(String::from)
+            .unwrap_or_else(|| now.to_string());
         next_fingerprints.insert(
             item.fp.clone(),
             json!({
@@ -732,7 +915,10 @@ pub fn persist_trajectory(history_path: &Path, next_history: &Value) {
     if let Some(parent) = history_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    let _ = fs::write(history_path, serde_json::to_string_pretty(next_history).unwrap_or_default());
+    let _ = fs::write(
+        history_path,
+        serde_json::to_string_pretty(next_history).unwrap_or_default(),
+    );
 }
 
 /// Result of a full render: the Markdown report body and the JSON summary
@@ -746,12 +932,17 @@ pub struct RenderedReport {
 /// parsed `facts.json` / `report.json` contents (`report` defaults to the
 /// JS "scanner-only pass" shape when `None`, exactly like
 /// `flag('--report') ? JSON.parse(...) : { findings: [], ... }`).
-pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOptions) -> Result<RenderedReport, RenderReportError> {
+pub fn render_report(
+    facts: &Value,
+    report: Option<&Value>,
+    options: &RenderOptions,
+) -> Result<RenderedReport, RenderReportError> {
     let workspace = str_field(facts, "workspace").unwrap_or(".");
     let workspace_path = PathBuf::from(workspace);
     let filter_dir = options.filter_dir.as_deref();
 
-    let empty_report = json!({ "findings": [], "constraints_surface": [], "triage_top": [], "summary": {} });
+    let empty_report =
+        json!({ "findings": [], "constraints_surface": [], "triage_top": [], "summary": {} });
     let report = report.unwrap_or(&empty_report);
     let lenses_ran = report
         .get("lenses_ran")
@@ -759,7 +950,11 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
         .map(|a| !a.is_empty())
         .unwrap_or(false);
 
-    let checks = facts.get("checks").and_then(Value::as_array).cloned().ok_or(RenderReportError::MissingField("checks"))?;
+    let checks = facts
+        .get("checks")
+        .and_then(Value::as_array)
+        .cloned()
+        .ok_or(RenderReportError::MissingField("checks"))?;
 
     let constraints_surface: Vec<Value> = report
         .get("constraints_surface")
@@ -770,9 +965,21 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
         .map(|c| {
             let evidence = str_field(&c, "evidence").unwrap_or("").trim().to_string();
             let constraint_raw = str_field(&c, "constraint").unwrap_or("").trim().to_string();
-            let constraint = if constraint_raw.is_empty() { "unknown".to_string() } else { constraint_raw };
-            let status = if evidence.is_empty() { "unknown".to_string() } else { str_field(&c, "status").unwrap_or("unknown").to_string() };
-            let evidence = if evidence.is_empty() { "unknown".to_string() } else { evidence };
+            let constraint = if constraint_raw.is_empty() {
+                "unknown".to_string()
+            } else {
+                constraint_raw
+            };
+            let status = if evidence.is_empty() {
+                "unknown".to_string()
+            } else {
+                str_field(&c, "status").unwrap_or("unknown").to_string()
+            };
+            let evidence = if evidence.is_empty() {
+                "unknown".to_string()
+            } else {
+                evidence
+            };
             let mut c = c;
             c["constraint"] = json!(constraint);
             c["status"] = json!(status);
@@ -783,13 +990,23 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
 
     // Decomposition candidates.
     let mut decomposition_candidates: Vec<Value> = Vec::new();
-    for item in facts.pointer("/decomposition/oversized").and_then(Value::as_array).into_iter().flatten() {
+    for item in facts
+        .pointer("/decomposition/oversized")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         let mut item = item.clone();
         item["candidate"] = item.get("file").cloned().unwrap_or(Value::Null);
         item["kind"] = json!("file-size");
         decomposition_candidates.push(item);
     }
-    for item in facts.pointer("/decomposition/mechanical_splits").and_then(Value::as_array).into_iter().flatten() {
+    for item in facts
+        .pointer("/decomposition/mechanical_splits")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         let mut item = item.clone();
         item["candidate"] = item.get("dir").cloned().unwrap_or(Value::Null);
         item["kind"] = json!("mechanical-split");
@@ -819,17 +1036,25 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
         .collect();
     let missing_assessments: Vec<&Value> = runtime_candidates
         .iter()
-        .filter(|c| !assessment_by_file.contains_key(&clean_path(str_field(c, "candidate")).unwrap_or_default()))
+        .filter(|c| {
+            !assessment_by_file
+                .contains_key(&clean_path(str_field(c, "candidate")).unwrap_or_default())
+        })
         .copied()
         .collect();
 
-    let review_trigger = facts.pointer("/decomposition/threshold").and_then(Value::as_f64);
+    let review_trigger = facts
+        .pointer("/decomposition/threshold")
+        .and_then(Value::as_f64);
     let second_assessor_incoming = {
         let config_path = workspace_path.join(".agent").join("config.json");
         fs::read_to_string(&config_path)
             .ok()
             .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-            .and_then(|v| v.pointer("/hygiene/secondAssessorIncomingRelationships").and_then(Value::as_i64))
+            .and_then(|v| {
+                v.pointer("/hygiene/secondAssessorIncomingRelationships")
+                    .and_then(Value::as_i64)
+            })
             .filter(|v| *v >= 1)
             .unwrap_or(25)
     };
@@ -838,7 +1063,12 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     for candidate in &runtime_candidates {
         let path = clean_path(str_field(candidate, "candidate")).unwrap_or_default();
         if let Some(assessment) = assessment_by_file.get(&path) {
-            let problems = assessment_problems_for(candidate, assessment, review_trigger, second_assessor_incoming);
+            let problems = assessment_problems_for(
+                candidate,
+                assessment,
+                review_trigger,
+                second_assessor_incoming,
+            );
             if !problems.is_empty() {
                 invalid_assessments.push(json!({ "candidate": candidate.get("candidate").cloned().unwrap_or(Value::Null), "problems": problems }));
             }
@@ -847,21 +1077,40 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     let assessment_problems_by_file: HashMap<String, Vec<String>> = invalid_assessments
         .iter()
         .filter_map(|item| {
-            clean_path(item.get("candidate").and_then(Value::as_str))
-                .map(|p| (p, item.get("problems").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect()).unwrap_or_default()))
+            clean_path(item.get("candidate").and_then(Value::as_str)).map(|p| {
+                (
+                    p,
+                    item.get("problems")
+                        .and_then(Value::as_array)
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                )
+            })
         })
         .collect();
 
-    let findings_raw = report.get("findings").and_then(Value::as_array).cloned().unwrap_or_default();
+    let findings_raw = report
+        .get("findings")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let invalid_confirmed: Vec<String> = decomposition_assessments
         .iter()
         .filter(|a| str_field(a, "verdict") == Some("confirmed"))
         .filter(|a| {
             let finding_id = str_field(a, "findingId");
-            let finding = finding_id.and_then(|id| findings_raw.iter().find(|f| str_field(f, "id") == Some(id)));
+            let finding = finding_id
+                .and_then(|id| findings_raw.iter().find(|f| str_field(f, "id") == Some(id)));
             match finding {
                 None => true,
-                Some(f) => str_field(f, "subtype") != Some("decomposition") || !valid_decomposition_plan(f.get("decomposition_plan"), &workspace_path),
+                Some(f) => {
+                    str_field(f, "subtype") != Some("decomposition")
+                        || !valid_decomposition_plan(f.get("decomposition_plan"), &workspace_path)
+                }
             }
         })
         .filter_map(|a| str_field(a, "file").map(String::from))
@@ -870,16 +1119,25 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
         .iter()
         .filter(|c| {
             let path = clean_path(str_field(c, "candidate")).unwrap_or_default();
-            assessment_by_file.get(&path).map(|a| str_field(a, "verdict") == Some("undetermined")).unwrap_or(false)
+            assessment_by_file
+                .get(&path)
+                .map(|a| str_field(a, "verdict") == Some("undetermined"))
+                .unwrap_or(false)
         })
         .copied()
         .collect();
     let orphan_assessments: Vec<String> = decomposition_assessments
         .iter()
-        .filter(|a| !clean_path(str_field(a, "file")).map(|p| candidate_paths.contains(&p)).unwrap_or(false))
+        .filter(|a| {
+            !clean_path(str_field(a, "file"))
+                .map(|p| candidate_paths.contains(&p))
+                .unwrap_or(false)
+        })
         .filter_map(|a| str_field(a, "file").map(String::from))
         .collect();
-    let decomposition_complete = missing_assessments.is_empty() && invalid_assessments.is_empty() && invalid_confirmed.is_empty();
+    let decomposition_complete = missing_assessments.is_empty()
+        && invalid_assessments.is_empty()
+        && invalid_confirmed.is_empty();
 
     let decomposition_coverage = json!({
         "candidates": decomposition_candidates.len(),
@@ -899,10 +1157,18 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     let triage_top_ids: Vec<String> = report
         .get("triage_top")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(Value::as_str)
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
     let triage_top_ids: Vec<String> = if filter_dir.is_some() {
-        triage_top_ids.into_iter().filter(|id| findings.iter().any(|f| str_field(f, "id") == Some(id))).collect()
+        triage_top_ids
+            .into_iter()
+            .filter(|id| findings.iter().any(|f| str_field(f, "id") == Some(id)))
+            .collect()
     } else {
         triage_top_ids
     };
@@ -916,13 +1182,25 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     let trajectory = compute_trajectory(&findings, &history_path, None);
     persist_trajectory(&history_path, &trajectory.next_history);
 
-    let incomplete = facts.get("incomplete").and_then(Value::as_bool).unwrap_or(false);
+    let incomplete = facts
+        .get("incomplete")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let score = health_score(&findings, incomplete, lenses_ran && decomposition_complete);
 
     // ---- Markdown ----
     let mut l: Vec<String> = Vec::new();
-    let repo = Path::new(workspace).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "repo".into());
-    let date: String = facts.get("generated_at").and_then(Value::as_str).unwrap_or("").chars().take(10).collect();
+    let repo = Path::new(workspace)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "repo".into());
+    let date: String = facts
+        .get("generated_at")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .chars()
+        .take(10)
+        .collect();
     let commit: String = checks
         .iter()
         .find(|c| str_field(c, "check") == Some("repo"))
@@ -932,7 +1210,14 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
         .chars()
         .take(10)
         .collect();
-    l.push(format!("# Audit — {repo} · {date}{}", if commit.is_empty() { String::new() } else { format!(" · {commit}") }));
+    l.push(format!(
+        "# Audit — {repo} · {date}{}",
+        if commit.is_empty() {
+            String::new()
+        } else {
+            format!(" · {commit}")
+        }
+    ));
     if incomplete {
         l.push("\n> ⛔ **INCOMPLETE** — a required scanner did not run. Findings below are partial; see §1.".into());
     }
@@ -947,17 +1232,33 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
             invalid_confirmed.len()
         ));
     }
-    let ran_count = checks.iter().filter(|c| str_field(c, "status") == Some("ran")).count();
+    let ran_count = checks
+        .iter()
+        .filter(|c| str_field(c, "status") == Some("ran"))
+        .count();
     l.push(format!(
         "\n**Repo health: {}** · {} findings · {}/{} checks ran{}",
         match score {
             None => "_withheld — lenses not run_".to_string(),
-            Some(s) => format!("{s}/100 ({})", if s >= 85 { "good" } else if s >= 60 { "fair" } else { "poor" }),
+            Some(s) => format!(
+                "{s}/100 ({})",
+                if s >= 85 {
+                    "good"
+                } else if s >= 60 {
+                    "fair"
+                } else {
+                    "poor"
+                }
+            ),
         },
         findings.len(),
         ran_count,
         checks.len(),
-        if lenses_ran { "" } else { " · ⚠️ lenses not run" }
+        if lenses_ran {
+            ""
+        } else {
+            " · ⚠️ lenses not run"
+        }
     ));
     let gate_icon = match str_field(&gate, "state") {
         Some("CLEAN") => "✅",
@@ -974,13 +1275,30 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
             let parts: Vec<String> = failed
                 .iter()
                 .map(|c| {
-                    let tool = str_field(c, "tool").map(|t| format!(" ({t})")).unwrap_or_default();
+                    let tool = str_field(c, "tool")
+                        .map(|t| format!(" ({t})"))
+                        .unwrap_or_default();
                     let count = c.get("findings_count").and_then(Value::as_i64).unwrap_or(0);
-                    let val = if count > 0 { format!("{count} finding(s)") } else { format!("exit {}", c.get("exit_code").and_then(Value::as_i64).unwrap_or(0)) };
-                    format!("`{}`{} = {}", str_field(c, "check").unwrap_or(""), tool, val)
+                    let val = if count > 0 {
+                        format!("{count} finding(s)")
+                    } else {
+                        format!(
+                            "exit {}",
+                            c.get("exit_code").and_then(Value::as_i64).unwrap_or(0)
+                        )
+                    };
+                    format!(
+                        "`{}`{} = {}",
+                        str_field(c, "check").unwrap_or(""),
+                        tool,
+                        val
+                    )
                 })
                 .collect();
-            l.push(format!("> ⛔ {} — must reach **0** to be called clean.", parts.join(" · ")));
+            l.push(format!(
+                "> ⛔ {} — must reach **0** to be called clean.",
+                parts.join(" · ")
+            ));
         }
     }
     if str_field(&gate, "state") == Some("UNPROVEN") {
@@ -988,16 +1306,31 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
             let parts: Vec<String> = unproven
                 .iter()
                 .map(|c| {
-                    let tool = str_field(c, "tool").map(|t| format!(" ({t})")).unwrap_or_default();
-                    format!("`{}` {}{}", str_field(c, "check").unwrap_or(""), str_field(c, "status").unwrap_or(""), tool)
+                    let tool = str_field(c, "tool")
+                        .map(|t| format!(" ({t})"))
+                        .unwrap_or_default();
+                    format!(
+                        "`{}` {}{}",
+                        str_field(c, "check").unwrap_or(""),
+                        str_field(c, "status").unwrap_or(""),
+                        tool
+                    )
                 })
                 .collect();
             l.push(format!("> ⚠️ Cannot certify clean — {} did not run. Install the tool / wire the linter, then re-audit.", parts.join(", ")));
         }
     }
     l.push(String::new());
-    if let Some(v) = trajectory.summary.get("vs_prior_run").filter(|v| !v.is_null()) {
-        let prior_at: String = str_field(v, "prior_run_at").unwrap_or("unknown").chars().take(10).collect();
+    if let Some(v) = trajectory
+        .summary
+        .get("vs_prior_run")
+        .filter(|v| !v.is_null())
+    {
+        let prior_at: String = str_field(v, "prior_run_at")
+            .unwrap_or("unknown")
+            .chars()
+            .take(10)
+            .collect();
         l.push(format!(
             "**Trajectory vs prior run** ({prior_at}): resolved {} · new {} · aged {} · unchanged {} · newly-P0 {}",
             v.get("resolved").and_then(Value::as_i64).unwrap_or(0),
@@ -1009,10 +1342,20 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     } else {
         l.push("**Trajectory:** first recorded run at this history path — no prior snapshot to diff against yet. Re-run to see `audit_diff`.".into());
     }
-    if let Some(buckets) = trajectory.summary.get("aging_buckets").and_then(Value::as_array) {
+    if let Some(buckets) = trajectory
+        .summary
+        .get("aging_buckets")
+        .and_then(Value::as_array)
+    {
         let parts: Vec<String> = buckets
             .iter()
-            .map(|b| format!("{}={}", str_field(b, "bucket").unwrap_or(""), b.get("count").and_then(Value::as_i64).unwrap_or(0)))
+            .map(|b| {
+                format!(
+                    "{}={}",
+                    str_field(b, "bucket").unwrap_or(""),
+                    b.get("count").and_then(Value::as_i64).unwrap_or(0)
+                )
+            })
             .collect();
         l.push(format!("_Aging: {}_", parts.join(" · ")));
     }
@@ -1022,10 +1365,20 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
             "Scope: {} · type={}{}{}{} · changed_files={}",
             str_field(scope, "mode").unwrap_or("whole-repo"),
             str_field(scope, "type").unwrap_or("all"),
-            str_field(scope, "dir").map(|d| format!(" · dir={d}")).unwrap_or_default(),
-            str_field(scope, "base").map(|b| format!(" · base={b}")).unwrap_or_default(),
-            str_field(scope, "base_commit").map(|b| format!(" · base_commit={b}")).unwrap_or_default(),
-            scope.get("changed_files").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0),
+            str_field(scope, "dir")
+                .map(|d| format!(" · dir={d}"))
+                .unwrap_or_default(),
+            str_field(scope, "base")
+                .map(|b| format!(" · base={b}"))
+                .unwrap_or_default(),
+            str_field(scope, "base_commit")
+                .map(|b| format!(" · base_commit={b}"))
+                .unwrap_or_default(),
+            scope
+                .get("changed_files")
+                .and_then(Value::as_array)
+                .map(|a| a.len())
+                .unwrap_or(0),
         ));
         l.push(String::new());
     }
@@ -1056,10 +1409,14 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     l.push("| check | tool | command | status | exit | findings | candidates | log |".into());
     l.push("|---|---|---|---|---|---|---|---|".into());
     for c in &checks {
-        let cmd = str_field(c, "command").map(|s| format!("`{s}`")).unwrap_or_else(|| "—".into());
+        let cmd = str_field(c, "command")
+            .map(|s| format!("`{s}`"))
+            .unwrap_or_else(|| "—".into());
         let status = str_field(c, "status").unwrap_or("");
         let reason = if status != "ran" {
-            str_field(c, "skip_reason").map(|r| format!(" _({r})_")).unwrap_or_default()
+            str_field(c, "skip_reason")
+                .map(|r| format!(" _({r})_"))
+                .unwrap_or_default()
         } else {
             String::new()
         };
@@ -1071,9 +1428,15 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
             icon(status),
             status,
             reason,
-            c.get("exit_code").map(|v| v.to_string()).unwrap_or_else(|| "—".into()),
-            c.get("findings_count").map(|v| v.to_string()).unwrap_or_else(|| "—".into()),
-            c.get("candidate_count").map(|v| v.to_string()).unwrap_or_else(|| "—".into()),
+            c.get("exit_code")
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "—".into()),
+            c.get("findings_count")
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "—".into()),
+            c.get("candidate_count")
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "—".into()),
             str_field(c, "log").unwrap_or("—"),
         ));
     }
@@ -1082,7 +1445,10 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     for c in checks.iter().filter(|c| {
         checks_set.contains(str_field(c, "check").unwrap_or(""))
             && str_field(c, "status") != Some("ran")
-            && !str_field(c, "skip_reason").unwrap_or("").to_lowercase().starts_with("no ")
+            && !str_field(c, "skip_reason")
+                .unwrap_or("")
+                .to_lowercase()
+                .starts_with("no ")
     }) {
         l.push(format!(
             "> ⚠️ **NOT SCANNED: {} ({}).** {}. Any {} statement below is an unverified LLM hint, **not** a scan result — treat as untriaged.",
@@ -1105,32 +1471,60 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
         let size = if str_field(candidate, "kind") == Some("mechanical-split") {
             format!(
                 "{} reconstructed LOC across {} parts",
-                candidate.get("logical_loc").map(|v| v.to_string()).unwrap_or_default(),
-                candidate.get("parts").map(|v| v.to_string()).unwrap_or_default()
+                candidate
+                    .get("logical_loc")
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+                candidate
+                    .get("parts")
+                    .map(|v| v.to_string())
+                    .unwrap_or_default()
             )
         } else {
             format!(
                 "{} LOC{}",
-                candidate.get("loc").map(|v| v.to_string()).unwrap_or_default(),
-                candidate.get("bytes").map(|b| format!(" / {b} bytes")).unwrap_or_default()
+                candidate
+                    .get("loc")
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+                candidate
+                    .get("bytes")
+                    .map(|b| format!(" / {b} bytes"))
+                    .unwrap_or_default()
             )
         };
         match assessment {
-            None => l.push(format!("- `{}` — **unassessed** ({size}; review trigger only)", str_field(candidate, "candidate").unwrap_or(""))),
+            None => l.push(format!(
+                "- `{}` — **unassessed** ({size}; review trigger only)",
+                str_field(candidate, "candidate").unwrap_or("")
+            )),
             Some(assessment) => {
                 l.push(format!(
                     "- `{}` — **{}** ({size}) — {}{}",
                     str_field(candidate, "candidate").unwrap_or(""),
                     str_field(assessment, "verdict").unwrap_or(""),
                     str_field(assessment, "rationale").unwrap_or("no rationale supplied"),
-                    str_field(assessment, "findingId").map(|id| format!(" · finding `{id}`")).unwrap_or_default(),
+                    str_field(assessment, "findingId")
+                        .map(|id| format!(" · finding `{id}`"))
+                        .unwrap_or_default(),
                 ));
-                if let Some(ev) = assessment.get("evidence").and_then(Value::as_array).filter(|a| !a.is_empty()) {
-                    let items: Vec<String> = ev.iter().filter_map(|v| v.as_str()).map(|s| format!("`{s}`")).collect();
+                if let Some(ev) = assessment
+                    .get("evidence")
+                    .and_then(Value::as_array)
+                    .filter(|a| !a.is_empty())
+                {
+                    let items: Vec<String> = ev
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .map(|s| format!("`{s}`"))
+                        .collect();
                     l.push(format!("  - evidence: {}", items.join(", ")));
                 }
                 if let Some(problems) = assessment_problems_by_file.get(&path) {
-                    l.push(format!("  - ⛔ invalid assessment: {}", problems.join("; ")));
+                    l.push(format!(
+                        "  - ⛔ invalid assessment: {}",
+                        problems.join("; ")
+                    ));
                 }
             }
         }
@@ -1188,8 +1582,14 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     }
     l.push(String::new());
 
-    let by_id: HashMap<&str, &Value> = findings.iter().filter_map(|f| str_field(f, "id").map(|id| (id, f))).collect();
-    let mut top: Vec<&Value> = triage_top_ids.iter().filter_map(|id| by_id.get(id.as_str()).copied()).collect();
+    let by_id: HashMap<&str, &Value> = findings
+        .iter()
+        .filter_map(|f| str_field(f, "id").map(|id| (id, f)))
+        .collect();
+    let mut top: Vec<&Value> = triage_top_ids
+        .iter()
+        .filter_map(|id| by_id.get(id.as_str()).copied())
+        .collect();
     if top.is_empty() {
         let mut sorted: Vec<&Value> = findings.iter().collect();
         sorted.sort_by_key(|f| sev_rank(str_field(f, "severity").unwrap_or("")));
@@ -1207,7 +1607,10 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
             str_field(f, "tier").unwrap_or("MANUAL"),
             str_field(f, "title").unwrap_or(""),
             str_field(f, "file").unwrap_or(""),
-            f.get("line").filter(|v| !v.is_null()).map(|line| format!(":{line}")).unwrap_or_default(),
+            f.get("line")
+                .filter(|v| !v.is_null())
+                .map(|line| format!(":{line}"))
+                .unwrap_or_default(),
             str_field(f, "id").unwrap_or(""),
         ));
     }
@@ -1225,12 +1628,20 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     let mut overflow: Vec<&Value> = Vec::new();
     for (group, mut items) in groups {
         items.sort_by_key(|f| sev_rank(str_field(f, "severity").unwrap_or("")));
-        let (body, rest) = if items.len() > CAP { items.split_at(CAP) } else { (&items[..], &items[items.len()..]) };
+        let (body, rest) = if items.len() > CAP {
+            items.split_at(CAP)
+        } else {
+            (&items[..], &items[items.len()..])
+        };
         overflow.extend(rest.iter().copied());
         l.push(format!(
             "\n### {group} ({}{})",
             items.len(),
-            if rest.is_empty() { String::new() } else { format!(", {} shown", body.len()) }
+            if rest.is_empty() {
+                String::new()
+            } else {
+                format!(", {} shown", body.len())
+            }
         ));
         for f in body {
             render_finding(&mut l, f, &workspace_path);
@@ -1242,7 +1653,10 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
     l.push(String::new());
 
     l.push("## 5 · Skipped / not-scanned".into());
-    let skipped: Vec<&Value> = checks.iter().filter(|c| str_field(c, "status") != Some("ran")).collect();
+    let skipped: Vec<&Value> = checks
+        .iter()
+        .filter(|c| str_field(c, "status") != Some("ran"))
+        .collect();
     if skipped.is_empty() {
         l.push("_Every check ran._".into());
     }
@@ -1265,11 +1679,21 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
         }
     }
     l.push("\n### Re-run commands".into());
-    for c in checks.iter().filter(|c| c.get("command").map(|v| !v.is_null()).unwrap_or(false)) {
-        l.push(format!("- `{}`  → {}", str_field(c, "command").unwrap_or(""), str_field(c, "log").unwrap_or("(no log)")));
+    for c in checks
+        .iter()
+        .filter(|c| c.get("command").map(|v| !v.is_null()).unwrap_or(false))
+    {
+        l.push(format!(
+            "- `{}`  → {}",
+            str_field(c, "command").unwrap_or(""),
+            str_field(c, "log").unwrap_or("(no log)")
+        ));
     }
     l.push("\n### Raw logs".into());
-    l.push(format!("Evidence dir: `{}`", str_field(facts, "out_dir").unwrap_or("")));
+    l.push(format!(
+        "Evidence dir: `{}`",
+        str_field(facts, "out_dir").unwrap_or("")
+    ));
 
     let markdown = l.join("\n");
 
@@ -1319,7 +1743,10 @@ pub fn render_report(facts: &Value, report: Option<&Value>, options: &RenderOpti
         })).collect::<Vec<_>>(),
     });
 
-    Ok(RenderedReport { markdown, agent_summary })
+    Ok(RenderedReport {
+        markdown,
+        agent_summary,
+    })
 }
 
 fn icon(status: &str) -> &'static str {
@@ -1332,7 +1759,10 @@ fn icon(status: &str) -> &'static str {
 }
 
 fn cell(value: &str) -> String {
-    value.replace('|', "\\|").replace("\r\n", " ").replace('\n', " ")
+    value
+        .replace('|', "\\|")
+        .replace("\r\n", " ")
+        .replace('\n', " ")
 }
 
 fn render_finding(l: &mut Vec<String>, f: &Value, workspace: &Path) {
@@ -1353,12 +1783,29 @@ fn render_finding(l: &mut Vec<String>, f: &Value, workspace: &Path) {
         str_field(f, "severity").unwrap_or(""),
         str_field(f, "tier").unwrap_or("MANUAL"),
         str_field(f, "file").unwrap_or(""),
-        f.get("line").filter(|v| !v.is_null()).map(|line| format!(":{line}")).unwrap_or_default(),
-        str_field(f, "evidence").map(|e| format!(" · evidence: `{e}`")).unwrap_or_default(),
-        if meta.is_empty() { String::new() } else { format!(" · {}", meta.join(" · ")) },
+        f.get("line")
+            .filter(|v| !v.is_null())
+            .map(|line| format!(":{line}"))
+            .unwrap_or_default(),
+        str_field(f, "evidence")
+            .map(|e| format!(" · evidence: `{e}`"))
+            .unwrap_or_default(),
+        if meta.is_empty() {
+            String::new()
+        } else {
+            format!(" · {}", meta.join(" · "))
+        },
     ));
-    if let Some(caused_by) = f.get("caused_by").and_then(Value::as_array).filter(|a| !a.is_empty()) {
-        let ids: Vec<String> = caused_by.iter().filter_map(|v| v.as_str()).map(|s| format!("`{s}`")).collect();
+    if let Some(caused_by) = f
+        .get("caused_by")
+        .and_then(Value::as_array)
+        .filter(|a| !a.is_empty())
+    {
+        let ids: Vec<String> = caused_by
+            .iter()
+            .filter_map(|v| v.as_str())
+            .map(|s| format!("`{s}`"))
+            .collect();
         l.push(format!("caused by: {}", ids.join(", ")));
     }
     if let Some(detail) = str_field(f, "detail") {
@@ -1368,7 +1815,9 @@ fn render_finding(l: &mut Vec<String>, f: &Value, workspace: &Path) {
         l.push(format!("**Fix:** {action}"));
     }
     if let Some(fix) = str_field(f, "fix") {
-        let is_diff = fix.lines().any(|line| line.starts_with('+') || line.starts_with('-'));
+        let is_diff = fix
+            .lines()
+            .any(|line| line.starts_with('+') || line.starts_with('-'));
         l.push(format!("```{}", if is_diff { "diff" } else { "" }));
         l.push(fix.to_string());
         l.push("```".to_string());
@@ -1382,34 +1831,94 @@ fn render_finding(l: &mut Vec<String>, f: &Value, workspace: &Path) {
 
 fn render_decomposition_plan(l: &mut Vec<String>, plan: &Value, _workspace: &Path) {
     l.push("\n#### Decomposition design".into());
-    l.push(format!("**Verdict:** {}", str_field(plan, "verdict").unwrap_or("")));
+    l.push(format!(
+        "**Verdict:** {}",
+        str_field(plan, "verdict").unwrap_or("")
+    ));
     l.push("\n**Current responsibilities**".into());
-    for item in plan.get("current_responsibilities").and_then(Value::as_array).into_iter().flatten() {
-        let symbols: Vec<String> = item.get("symbols").and_then(Value::as_array).into_iter().flatten().filter_map(|v| v.as_str()).map(|s| format!("`{s}`")).collect();
-        let evidence: Vec<String> = item.get("evidence").and_then(Value::as_array).into_iter().flatten().filter_map(|v| v.as_str()).map(|s| format!("`{s}`")).collect();
+    for item in plan
+        .get("current_responsibilities")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let symbols: Vec<String> = item
+            .get("symbols")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|v| v.as_str())
+            .map(|s| format!("`{s}`"))
+            .collect();
+        let evidence: Vec<String> = item
+            .get("evidence")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|v| v.as_str())
+            .map(|s| format!("`{s}`"))
+            .collect();
         l.push(format!(
             "- **{}** — symbols: {}; evidence: {}",
             str_field(item, "name").unwrap_or(""),
-            if symbols.is_empty() { "unknown".into() } else { symbols.join(", ") },
-            if evidence.is_empty() { "unknown".into() } else { evidence.join(", ") },
+            if symbols.is_empty() {
+                "unknown".into()
+            } else {
+                symbols.join(", ")
+            },
+            if evidence.is_empty() {
+                "unknown".into()
+            } else {
+                evidence.join(", ")
+            },
         ));
     }
     let keep = plan.get("keep_in_place").cloned().unwrap_or(Value::Null);
-    let keep_symbols = keep.get("symbols").and_then(Value::as_array).filter(|a| !a.is_empty());
+    let keep_symbols = keep
+        .get("symbols")
+        .and_then(Value::as_array)
+        .filter(|a| !a.is_empty());
     l.push(format!(
         "\n**Keep in place:** **{}** — {}{}",
         str_field(&keep, "component").unwrap_or("unknown"),
         str_field(&keep, "responsibility").unwrap_or("unknown"),
         keep_symbols
-            .map(|a| format!("; symbols: {}", a.iter().filter_map(|v| v.as_str()).map(|s| format!("`{s}`")).collect::<Vec<_>>().join(", ")))
+            .map(|a| format!(
+                "; symbols: {}",
+                a.iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|s| format!("`{s}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ))
             .unwrap_or_default(),
     ));
     l.push("\n**Target components**".into());
-    l.push("| component | destination | responsibility | moves | public contract | dependencies |".into());
+    l.push(
+        "| component | destination | responsibility | moves | public contract | dependencies |"
+            .into(),
+    );
     l.push("|---|---|---|---|---|---|".into());
-    for item in plan.get("target_components").and_then(Value::as_array).into_iter().flatten() {
-        let moves: Vec<&str> = item.get("moves").and_then(Value::as_array).into_iter().flatten().filter_map(|v| v.as_str()).collect();
-        let deps: Vec<&str> = item.get("dependencies").and_then(Value::as_array).into_iter().flatten().filter_map(|v| v.as_str()).collect();
+    for item in plan
+        .get("target_components")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let moves: Vec<&str> = item
+            .get("moves")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|v| v.as_str())
+            .collect();
+        let deps: Vec<&str> = item
+            .get("dependencies")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|v| v.as_str())
+            .collect();
         l.push(format!(
             "| {} | `{}` | {} | {} | `{}` | {} |",
             cell(str_field(item, "component").unwrap_or("")),
@@ -1417,11 +1926,20 @@ fn render_decomposition_plan(l: &mut Vec<String>, plan: &Value, _workspace: &Pat
             cell(str_field(item, "responsibility").unwrap_or("")),
             cell(&moves.join(", ")),
             cell(str_field(item, "public_contract").unwrap_or("")),
-            if deps.is_empty() { "none".to_string() } else { cell(&deps.join(", ")) },
+            if deps.is_empty() {
+                "none".to_string()
+            } else {
+                cell(&deps.join(", "))
+            },
         ));
     }
     l.push("\n**Implementation sequence**".into());
-    for item in plan.get("steps").and_then(Value::as_array).into_iter().flatten() {
+    for item in plan
+        .get("steps")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         l.push(format!(
             "{}. {} — verify: {}",
             item.get("order").and_then(Value::as_i64).unwrap_or(1),
@@ -1430,12 +1948,21 @@ fn render_decomposition_plan(l: &mut Vec<String>, plan: &Value, _workspace: &Pat
         ));
     }
     l.push("\n**Behavior-preservation contracts**".into());
-    for item in plan.get("behavior_contracts").and_then(Value::as_array).into_iter().flatten() {
+    for item in plan
+        .get("behavior_contracts")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if let Some(s) = item.as_str() {
             l.push(format!("- {s}"));
         }
     }
-    if let Some(risks) = plan.get("risks").and_then(Value::as_array).filter(|a| !a.is_empty()) {
+    if let Some(risks) = plan
+        .get("risks")
+        .and_then(Value::as_array)
+        .filter(|a| !a.is_empty())
+    {
         l.push("\n**Risks**".into());
         for item in risks {
             if let Some(s) = item.as_str() {
@@ -1443,7 +1970,10 @@ fn render_decomposition_plan(l: &mut Vec<String>, plan: &Value, _workspace: &Pat
             }
         }
     }
-    l.push(format!("\n**Architect decision:** `{}`", str_field(plan, "architect_decision_ref").unwrap_or("missing")));
+    l.push(format!(
+        "\n**Architect decision:** `{}`",
+        str_field(plan, "architect_decision_ref").unwrap_or("missing")
+    ));
 }
 
 #[cfg(test)]
@@ -1545,7 +2075,10 @@ mod tests {
 
     #[test]
     fn health_score_deducts_by_severity_and_incompleteness() {
-        let findings = vec![json!({ "severity": "critical" }), json!({ "severity": "low" })];
+        let findings = vec![
+            json!({ "severity": "critical" }),
+            json!({ "severity": "low" }),
+        ];
         let score = health_score(&findings, true, true).unwrap();
         assert_eq!(score, 100 - 25 - 1 - 10);
     }
@@ -1560,8 +2093,16 @@ mod tests {
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0]["severity"], json!("critical"));
         assert_eq!(merged[0]["title"], json!("m2"));
-        let sources: HashSet<String> = merged[0]["sources"].as_array().unwrap().iter().filter_map(|v| v.as_str().map(String::from)).collect();
-        assert_eq!(sources, HashSet::from(["scanner-a".to_string(), "scanner-b".to_string()]));
+        let sources: HashSet<String> = merged[0]["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect();
+        assert_eq!(
+            sources,
+            HashSet::from(["scanner-a".to_string(), "scanner-b".to_string()])
+        );
     }
 
     #[test]
@@ -1576,15 +2117,30 @@ mod tests {
     #[test]
     fn evidence_problems_rejects_missing_and_whole_file_spans() {
         let candidate = json!({ "candidate": "src/big.rs", "loc": 500 });
-        let missing = evidence_problems(&candidate, "file-size", "confirmed", None, Some(500.0), "");
+        let missing =
+            evidence_problems(&candidate, "file-size", "confirmed", None, Some(500.0), "");
         assert!(missing.iter().any(|p| p.contains("missing evidence")));
 
         let whole_file = json!(["src/big.rs:1-500"]);
-        let problems = evidence_problems(&candidate, "file-size", "confirmed", Some(&whole_file), Some(500.0), "");
+        let problems = evidence_problems(
+            &candidate,
+            "file-size",
+            "confirmed",
+            Some(&whole_file),
+            Some(500.0),
+            "",
+        );
         assert!(problems.iter().any(|p| p.contains("whole-file span")));
 
         let sub_span = json!(["src/big.rs:10-20"]);
-        let problems = evidence_problems(&candidate, "file-size", "confirmed", Some(&sub_span), Some(500.0), "");
+        let problems = evidence_problems(
+            &candidate,
+            "file-size",
+            "confirmed",
+            Some(&sub_span),
+            Some(500.0),
+            "",
+        );
         assert!(problems.is_empty());
     }
 
@@ -1597,7 +2153,9 @@ mod tests {
             "evidence": ["src/huge.rs:5-10"],
         });
         let problems = assessment_problems_for(&candidate, &assessment, Some(100.0), 25);
-        assert!(problems.iter().any(|p| p.contains("requires second_assessor")));
+        assert!(problems
+            .iter()
+            .any(|p| p.contains("requires second_assessor")));
     }
 
     #[test]
@@ -1636,7 +2194,9 @@ mod tests {
 
     #[test]
     fn trajectory_first_run_has_no_prior_snapshot() {
-        let findings = vec![json!({ "file": "a.rs", "line": 1, "category": "security", "severity": "high", "title": "t" })];
+        let findings = vec![
+            json!({ "file": "a.rs", "line": 1, "category": "security", "severity": "high", "title": "t" }),
+        ];
         let history_path = unique_scratch_path("wf066-traj-first").with_extension("json");
         let _ = fs::remove_file(&history_path);
         let trajectory = compute_trajectory(&findings, &history_path, Some(json!({})));
@@ -1645,7 +2205,9 @@ mod tests {
 
     #[test]
     fn trajectory_matches_by_exact_fingerprint() {
-        let findings = vec![json!({ "file": "a.rs", "line": 1, "category": "security", "severity": "high", "title": "t" })];
+        let findings = vec![
+            json!({ "file": "a.rs", "line": 1, "category": "security", "severity": "high", "title": "t" }),
+        ];
         let fp = fingerprint(&findings[0]);
         let prior = json!({
             "run_at": "1000",

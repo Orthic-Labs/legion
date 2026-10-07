@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use legion_runtime::wf_port::wf018::{
-    assert_owner_authority, assert_producer_is_not_verifier, assert_path_allowed,
+    assert_owner_authority, assert_path_allowed, assert_producer_is_not_verifier,
     build_verification_schema, create_remediation_worktree, remove_remediation_worktree,
     verify_proposal, worktree_receipt, writing_proposal, ProcessOutcome, ProcessRunner,
     ProcessSpec,
@@ -147,8 +147,12 @@ fn a_writing_proposal_rejects_a_change_missing_its_content_item_id() {
 fn assert_path_allowed_matches_the_reasoning_packets_semantics() {
     let packet = writing_packet();
     assert!(assert_path_allowed(&packet, "content/home.md").is_ok());
-    assert!(assert_path_allowed(&packet, "src/app.mjs").unwrap_err().contains("protected surface"));
-    assert!(assert_path_allowed(&packet, "content/about.md").unwrap_err().contains("outside the packet scope"));
+    assert!(assert_path_allowed(&packet, "src/app.mjs")
+        .unwrap_err()
+        .contains("protected surface"));
+    assert!(assert_path_allowed(&packet, "content/about.md")
+        .unwrap_err()
+        .contains("outside the packet scope"));
 }
 
 // ---------------------------------------------------------------------------
@@ -218,7 +222,15 @@ fn producer_and_verifier_identities_must_be_distinct() {
     let providers = full_provider_results();
     let gates = full_gate_results();
 
-    let verdict = verify_proposal(&proposal, &effect, &verifier(), &providers, &gates, &binding()).unwrap();
+    let verdict = verify_proposal(
+        &proposal,
+        &effect,
+        &verifier(),
+        &providers,
+        &gates,
+        &binding(),
+    )
+    .unwrap();
     assert_eq!(verdict["valid"], true);
 
     // JS: same id as producer -> throws.
@@ -256,7 +268,15 @@ fn verification_never_trusts_producer_supplied_pass_booleans() {
     ];
     let gates = full_gate_results();
 
-    let verdict = verify_proposal(&proposal, &effect, &verifier(), &providers, &gates, &binding()).unwrap();
+    let verdict = verify_proposal(
+        &proposal,
+        &effect,
+        &verifier(),
+        &providers,
+        &gates,
+        &binding(),
+    )
+    .unwrap();
     assert_eq!(verdict["valid"], false);
     assert!(verdict["coverageGaps"]
         .as_array()
@@ -274,13 +294,34 @@ fn all_affected_mandatory_evidence_and_baseline_gates_must_be_present_and_pass()
     let full = full_provider_results();
     let gates = full_gate_results();
 
-    let missing_provider = verify_proposal(&proposal, &effect, &verifier(), &full[..1], &gates, &binding()).unwrap();
+    let missing_provider = verify_proposal(
+        &proposal,
+        &effect,
+        &verifier(),
+        &full[..1],
+        &gates,
+        &binding(),
+    )
+    .unwrap();
     assert_eq!(missing_provider["valid"], false);
-    assert!(missing_provider["coverageGaps"].as_array().unwrap().iter().any(|gap| {
-        gap["kind"] == "missing-affected-provider" && gap["provider"] == "security.evidence-synthesis"
-    }));
+    assert!(missing_provider["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| {
+            gap["kind"] == "missing-affected-provider"
+                && gap["provider"] == "security.evidence-synthesis"
+        }));
 
-    let missing_gate = verify_proposal(&proposal, &effect, &verifier(), &full, &gates[..1], &binding()).unwrap();
+    let missing_gate = verify_proposal(
+        &proposal,
+        &effect,
+        &verifier(),
+        &full,
+        &gates[..1],
+        &binding(),
+    )
+    .unwrap();
     assert_eq!(missing_gate["valid"], false);
     assert!(missing_gate["coverageGaps"]
         .as_array()
@@ -292,7 +333,15 @@ fn all_affected_mandatory_evidence_and_baseline_gates_must_be_present_and_pass()
         full[0].clone(),
         json!({ "provider": "security.evidence-synthesis", "complete": false, "status": "pass" }),
     ];
-    let incomplete = verify_proposal(&proposal, &effect, &verifier(), &incomplete_providers, &gates, &binding()).unwrap();
+    let incomplete = verify_proposal(
+        &proposal,
+        &effect,
+        &verifier(),
+        &incomplete_providers,
+        &gates,
+        &binding(),
+    )
+    .unwrap();
     assert_eq!(incomplete["valid"], false);
 }
 
@@ -313,7 +362,15 @@ fn vacuous_verification_is_rejected_when_effects_exist() {
     blocked_effect["unplannedPublicSurfaceChanges"] = json!(["public-api:renderBody"]);
     let providers = full_provider_results();
     let gates = full_gate_results();
-    let blocked = verify_proposal(&proposal, &blocked_effect, &verifier(), &providers, &gates, &binding()).unwrap();
+    let blocked = verify_proposal(
+        &proposal,
+        &blocked_effect,
+        &verifier(),
+        &providers,
+        &gates,
+        &binding(),
+    )
+    .unwrap();
     assert_eq!(blocked["valid"], false);
     assert!(blocked["coverageGaps"]
         .as_array()
@@ -330,7 +387,10 @@ fn the_committed_verification_schema_matches_its_generator() {
         .unwrap()
         .iter()
         .any(|v| v == "verifier"));
-    assert_eq!(schema["properties"]["trustedProducerAssertions"]["const"], false);
+    assert_eq!(
+        schema["properties"]["trustedProducerAssertions"]["const"],
+        false
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -342,13 +402,26 @@ struct FakeRunner {
 }
 
 impl ProcessRunner for FakeRunner {
-    fn run<'a>(&'a self, _spec: ProcessSpec) -> Pin<Box<dyn Future<Output = ProcessOutcome> + Send + 'a>> {
+    fn run<'a>(
+        &'a self,
+        _spec: ProcessSpec,
+    ) -> Pin<Box<dyn Future<Output = ProcessOutcome> + Send + 'a>> {
         let fail = self.fail;
         Box::pin(async move {
             if fail {
-                ProcessOutcome { exit_code: Some(1), stdout: None, stderr: Some("boom".to_string()), error: None }
+                ProcessOutcome {
+                    exit_code: Some(1),
+                    stdout: None,
+                    stderr: Some("boom".to_string()),
+                    error: None,
+                }
             } else {
-                ProcessOutcome { exit_code: Some(0), stdout: None, stderr: None, error: None }
+                ProcessOutcome {
+                    exit_code: Some(0),
+                    stdout: None,
+                    stderr: None,
+                    error: None,
+                }
             }
         })
     }
@@ -366,11 +439,22 @@ async fn create_remediation_worktree_uses_an_isolated_detached_path() {
     )
     .await
     .unwrap();
-    assert_eq!(result.path, PathBuf::from("/repo/.git").join("legion-worktrees").join("run-1"));
+    assert_eq!(
+        result.path,
+        PathBuf::from("/repo/.git")
+            .join("legion-worktrees")
+            .join("run-1")
+    );
     assert_eq!(result.base_commit, "abc123");
     assert_eq!(
         result.cleanup,
-        vec!["git", "worktree", "remove", "--force", result.path.to_str().unwrap()],
+        vec![
+            "git",
+            "worktree",
+            "remove",
+            "--force",
+            result.path.to_str().unwrap()
+        ],
     );
 }
 
@@ -393,7 +477,13 @@ async fn remove_remediation_worktree_reports_failure_with_recovery() {
 
 #[test]
 fn worktree_receipt_declares_primary_worktree_untouched() {
-    let cleanup = vec!["git".to_string(), "worktree".to_string(), "remove".to_string(), "--force".to_string(), "/w".to_string()];
+    let cleanup = vec![
+        "git".to_string(),
+        "worktree".to_string(),
+        "remove".to_string(),
+        "--force".to_string(),
+        "/w".to_string(),
+    ];
     let receipt = worktree_receipt(Path::new("/w"), "a", "r", &cleanup);
     assert_eq!(receipt["primaryWorktreeUntouched"], true);
     assert_eq!(receipt["kind"], "legion-remediation-worktree");
@@ -403,7 +493,10 @@ fn worktree_receipt_declares_primary_worktree_untouched() {
 async fn real_git_worktree_lifecycle_works_end_to_end() {
     struct RealRunner;
     impl ProcessRunner for RealRunner {
-        fn run<'a>(&'a self, spec: ProcessSpec) -> Pin<Box<dyn Future<Output = ProcessOutcome> + Send + 'a>> {
+        fn run<'a>(
+            &'a self,
+            spec: ProcessSpec,
+        ) -> Pin<Box<dyn Future<Output = ProcessOutcome> + Send + 'a>> {
             Box::pin(async move {
                 let output = std::process::Command::new(&spec.executable)
                     .args(&spec.args)
@@ -416,7 +509,12 @@ async fn real_git_worktree_lifecycle_works_end_to_end() {
                         stderr: Some(String::from_utf8_lossy(&output.stderr).into_owned()),
                         error: None,
                     },
-                    Err(e) => ProcessOutcome { exit_code: None, stdout: None, stderr: None, error: Some(e.to_string()) },
+                    Err(e) => ProcessOutcome {
+                        exit_code: None,
+                        stdout: None,
+                        stderr: None,
+                        error: Some(e.to_string()),
+                    },
                 }
             })
         }
@@ -428,17 +526,29 @@ async fn real_git_worktree_lifecycle_works_end_to_end() {
     let runner = RealRunner;
 
     let run = |args: &[&str]| {
-        std::process::Command::new("git").args(args).current_dir(&dir).output().unwrap()
+        std::process::Command::new("git")
+            .args(args)
+            .current_dir(&dir)
+            .output()
+            .unwrap()
     };
     run(&["init", "-q", "."]);
     run(&["config", "user.email", "t@t"]);
     run(&["config", "user.name", "t"]);
     run(&["commit", "-q", "--allow-empty", "-m", "base"]);
-    let base = String::from_utf8(run(&["rev-parse", "HEAD"]).stdout).unwrap().trim().to_string();
-    let git_dir = String::from_utf8(run(&["rev-parse", "--git-dir"]).stdout).unwrap().trim().to_string();
+    let base = String::from_utf8(run(&["rev-parse", "HEAD"]).stdout)
+        .unwrap()
+        .trim()
+        .to_string();
+    let git_dir = String::from_utf8(run(&["rev-parse", "--git-dir"]).stdout)
+        .unwrap()
+        .trim()
+        .to_string();
     let git_common_dir = dir.join(git_dir);
 
-    let wt = create_remediation_worktree(&dir, &git_common_dir, &base, "run-x", &runner).await.unwrap();
+    let wt = create_remediation_worktree(&dir, &git_common_dir, &base, "run-x", &runner)
+        .await
+        .unwrap();
     let removed = remove_remediation_worktree(&wt.path, &runner).await;
     assert_eq!(removed.removed, true);
 

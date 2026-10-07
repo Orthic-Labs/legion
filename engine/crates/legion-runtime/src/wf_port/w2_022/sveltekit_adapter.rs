@@ -43,7 +43,12 @@ pub fn patch_svelte_layout(content: &str) -> String {
             .unwrap();
         if let Some(m) = script_re.find(&out) {
             let insert_at = m.end();
-            out = format!("{}\n  {}{}", &out[..insert_at], SVELTE_ROOT_IMPORT, &out[insert_at..]);
+            out = format!(
+                "{}\n  {}{}",
+                &out[..insert_at],
+                SVELTE_ROOT_IMPORT,
+                &out[insert_at..]
+            );
         } else {
             out = format!("<script>\n  {}\n</script>\n\n{}", SVELTE_ROOT_IMPORT, out);
         }
@@ -63,7 +68,9 @@ pub fn patch_svelte_layout(content: &str) -> String {
             }
             None => {
                 let trailing_ws_re = regex::Regex::new(r"\s*$").unwrap();
-                out = trailing_ws_re.replace(&out, format!("\n\n{}", block).as_str()).into_owned();
+                out = trailing_ws_re
+                    .replace(&out, format!("\n\n{}", block).as_str())
+                    .into_owned();
             }
         }
     }
@@ -164,7 +171,9 @@ pub fn build_svelte_live_root_component(port: i64) -> String {
 /// matching the JS default).
 fn find_sveltekit_app_html(cwd: &Path, config_files: Option<&[String]>) -> Option<String> {
     let default_files = ["src/app.html".to_string()];
-    let files: &[String] = config_files.filter(|f| !f.is_empty()).unwrap_or(&default_files);
+    let files: &[String] = config_files
+        .filter(|f| !f.is_empty())
+        .unwrap_or(&default_files);
     for rel in files {
         if rel.contains('*') {
             continue;
@@ -187,7 +196,10 @@ fn find_sveltekit_app_html(cwd: &Path, config_files: Option<&[String]>) -> Optio
 
 /// Mirrors `findSvelteKitLayout(cwd)`.
 fn find_sveltekit_layout(cwd: &Path) -> String {
-    let candidates = ["src/routes/+layout.svelte", "src/routes/(app)/+layout.svelte"];
+    let candidates = [
+        "src/routes/+layout.svelte",
+        "src/routes/(app)/+layout.svelte",
+    ];
     for rel in candidates {
         if cwd.join(rel).exists() {
             return rel.to_string();
@@ -225,7 +237,9 @@ fn package_has_sveltekit(cwd: &Path) -> bool {
 
 /// Mirrors `fileIncludes(file, text)`.
 fn file_includes(file: &Path, text: &str) -> bool {
-    fs::read_to_string(file).map(|s| s.contains(text)).unwrap_or(false)
+    fs::read_to_string(file)
+        .map(|s| s.contains(text))
+        .unwrap_or(false)
 }
 
 /// Mirrors `pruneEmptyDir(dir, stopDir)`.
@@ -261,16 +275,24 @@ pub struct SvelteKitDetection {
 }
 
 /// Mirrors `detectSvelteKitProject(cwd, config)`.
-pub fn detect_sveltekit_project(cwd: &Path, config_files: Option<&[String]>) -> Option<SvelteKitDetection> {
+pub fn detect_sveltekit_project(
+    cwd: &Path,
+    config_files: Option<&[String]>,
+) -> Option<SvelteKitDetection> {
     let app_html = find_sveltekit_app_html(cwd, config_files)?;
     let has_template_markers = file_includes(&cwd.join(&app_html), "%sveltekit.body%")
         && file_includes(&cwd.join(&app_html), "%sveltekit.head%");
     if !has_template_markers {
         return None;
     }
-    let has_svelte_config = ["svelte.config.js", "svelte.config.mjs", "svelte.config.cjs", "svelte.config.ts"]
-        .iter()
-        .any(|f| cwd.join(f).exists());
+    let has_svelte_config = [
+        "svelte.config.js",
+        "svelte.config.mjs",
+        "svelte.config.cjs",
+        "svelte.config.ts",
+    ]
+    .iter()
+    .any(|f| cwd.join(f).exists());
     let has_kit_package = package_has_sveltekit(cwd);
     if !has_svelte_config && !has_kit_package {
         return None;
@@ -387,14 +409,24 @@ mod tests {
 
     #[test]
     fn constants_match_js_source() {
-        assert_eq!(SVELTE_LIVE_ROOT_COMPONENT, "src/lib/designer/ImpeccableLiveRoot.svelte");
-        assert_eq!(SVELTE_LAYOUT_MARKER_OPEN, "<!-- impeccable-live-svelte-start -->");
-        assert_eq!(SVELTE_LAYOUT_MARKER_CLOSE, "<!-- impeccable-live-svelte-end -->");
+        assert_eq!(
+            SVELTE_LIVE_ROOT_COMPONENT,
+            "src/lib/designer/ImpeccableLiveRoot.svelte"
+        );
+        assert_eq!(
+            SVELTE_LAYOUT_MARKER_OPEN,
+            "<!-- impeccable-live-svelte-start -->"
+        );
+        assert_eq!(
+            SVELTE_LAYOUT_MARKER_CLOSE,
+            "<!-- impeccable-live-svelte-end -->"
+        );
     }
 
     #[test]
     fn patches_layout_with_render_children() {
-        let before = "<script>\n  let { children } = $props();\n</script>\n\n{@render children?.()}\n";
+        let before =
+            "<script>\n  let { children } = $props();\n</script>\n\n{@render children?.()}\n";
         let after = patch_svelte_layout(before);
         assert!(after.contains(SVELTE_ROOT_IMPORT));
         assert!(after.contains(SVELTE_LAYOUT_MARKER_OPEN));
@@ -419,13 +451,19 @@ mod tests {
     fn patches_layout_with_no_slot_or_render_appends_at_end() {
         let before = "<div>static</div>\n";
         let after = patch_svelte_layout(before);
-        assert!(after.trim_end().ends_with(SVELTE_LAYOUT_MARKER_CLOSE.trim_start_matches("").trim()) || after.contains(SVELTE_LAYOUT_MARKER_CLOSE));
+        assert!(
+            after
+                .trim_end()
+                .ends_with(SVELTE_LAYOUT_MARKER_CLOSE.trim_start_matches("").trim())
+                || after.contains(SVELTE_LAYOUT_MARKER_CLOSE)
+        );
         assert!(after.contains("<ImpeccableLiveRoot />"));
     }
 
     #[test]
     fn patch_is_idempotent() {
-        let before = "<script>\n  let { children } = $props();\n</script>\n\n{@render children?.()}\n";
+        let before =
+            "<script>\n  let { children } = $props();\n</script>\n\n{@render children?.()}\n";
         let once = patch_svelte_layout(before);
         let twice = patch_svelte_layout(&once);
         assert_eq!(once, twice);
@@ -433,7 +471,8 @@ mod tests {
 
     #[test]
     fn unpatch_removes_block_and_import() {
-        let before = "<script>\n  let { children } = $props();\n</script>\n\n{@render children?.()}\n";
+        let before =
+            "<script>\n  let { children } = $props();\n</script>\n\n{@render children?.()}\n";
         let patched = patch_svelte_layout(before);
         let unpatched = unpatch_svelte_layout(&patched);
         assert!(!unpatched.contains(SVELTE_ROOT_IMPORT));
@@ -508,7 +547,11 @@ mod tests {
     #[test]
     fn detect_sveltekit_project_none_without_template_markers() {
         let dir = TmpDir::new();
-        write(&dir.0, "src/app.html", "<html><body>no markers</body></html>");
+        write(
+            &dir.0,
+            "src/app.html",
+            "<html><body>no markers</body></html>",
+        );
         write(&dir.0, "svelte.config.js", "export default {};\n");
         assert!(detect_sveltekit_project(&dir.0, None).is_none());
     }
@@ -519,7 +562,9 @@ mod tests {
         seed_sveltekit_project(&dir.0);
         write(&dir.0, "src/routes/+layout.svelte", default_svelte_layout());
 
-        let applied = apply_sveltekit_live_adapter(&dir.0, 4173, None).unwrap().unwrap();
+        let applied = apply_sveltekit_live_adapter(&dir.0, 4173, None)
+            .unwrap()
+            .unwrap();
         assert_eq!(applied.file, "src/routes/+layout.svelte");
         assert!(applied.inserted);
         assert!(applied.app_html_untouched);
@@ -533,7 +578,9 @@ mod tests {
         let layout = fs::read_to_string(dir.0.join("src/routes/+layout.svelte")).unwrap();
         assert!(layout.contains(SVELTE_LAYOUT_MARKER_OPEN));
 
-        let removed = remove_sveltekit_live_adapter(&dir.0, None).unwrap().unwrap();
+        let removed = remove_sveltekit_live_adapter(&dir.0, None)
+            .unwrap()
+            .unwrap();
         assert!(removed.removed);
         assert!(!dir.0.join(SVELTE_LIVE_ROOT_COMPONENT).exists());
         let layout_after = fs::read_to_string(dir.0.join("src/routes/+layout.svelte")).unwrap();
@@ -544,7 +591,11 @@ mod tests {
     #[test]
     fn apply_sveltekit_adapter_is_none_for_non_sveltekit_project() {
         let dir = TmpDir::new();
-        assert!(apply_sveltekit_live_adapter(&dir.0, 4173, None).unwrap().is_none());
-        assert!(remove_sveltekit_live_adapter(&dir.0, None).unwrap().is_none());
+        assert!(apply_sveltekit_live_adapter(&dir.0, 4173, None)
+            .unwrap()
+            .is_none());
+        assert!(remove_sveltekit_live_adapter(&dir.0, None)
+            .unwrap()
+            .is_none());
     }
 }

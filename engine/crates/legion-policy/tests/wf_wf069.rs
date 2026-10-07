@@ -11,18 +11,20 @@
 use legion_policy::wf_port::wf069::errors::ArcCode;
 use legion_policy::wf_port::wf069::ownership_economics::{
     admit_vendor_selection, adversarial_ownership_economics_binding_ids,
-    assess_source_of_truth_ownership_detailed, AdverseCaseEconomics, OwnershipSource, VendorCandidate,
+    assess_source_of_truth_ownership_detailed, AdverseCaseEconomics, OwnershipSource,
+    VendorCandidate,
 };
 use legion_policy::wf_port::wf069::proportionality::{
     adversarial_proportionality_binding_ids, assess_architecture_proportionality,
-    assess_mandatory_obligation_readiness, Drivers, Obligation, ObligationReadinessInput, ObligationStatus,
-    ProportionalityInput,
+    assess_mandatory_obligation_readiness, Drivers, Obligation, ObligationReadinessInput,
+    ObligationStatus, ProportionalityInput,
 };
 use legion_policy::wf_port::wf069::reconstruction::{
-    assess_ai_readiness, assess_architecture_reconstruction, execute_adversarial_ai_reconstruction_case,
-    validate_ai_readiness_observation, validate_architecture_reconstruction_observation, AiReadinessInput,
-    ArchitectureReconstructionInput, Evaluation, EvidenceEntry, Fallback, HumanAuthority, ProvenanceEntry,
-    ReconstructionCase, AI_RECONSTRUCTION_BINDING_IDS,
+    assess_ai_readiness, assess_architecture_reconstruction,
+    execute_adversarial_ai_reconstruction_case, validate_ai_readiness_observation,
+    validate_architecture_reconstruction_observation, AiReadinessInput,
+    ArchitectureReconstructionInput, Evaluation, EvidenceEntry, Fallback, HumanAuthority,
+    ProvenanceEntry, ReconstructionCase, AI_RECONSTRUCTION_BINDING_IDS,
 };
 
 // ---------------------------------------------------------------------
@@ -76,7 +78,10 @@ fn ae_adversarial_002_blocks_the_default_missing_obligations_fixture() {
 
 #[test]
 fn proportionality_binding_ids_are_stable() {
-    assert_eq!(adversarial_proportionality_binding_ids(), ["AE-ADVERSARIAL-001", "AE-ADVERSARIAL-002"]);
+    assert_eq!(
+        adversarial_proportionality_binding_ids(),
+        ["AE-ADVERSARIAL-001", "AE-ADVERSARIAL-002"]
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -101,7 +106,9 @@ fn ae_adversarial_006_conflicting_authority_blocks_selection() {
     let (decision, conflicts) = assess_source_of_truth_ownership_detailed(&sources).unwrap();
     assert!(!decision.allowed);
     assert_eq!(decision.code, Some(ArcCode::ArcClaimPrerequisiteUnmet));
-    assert!(conflicts.iter().any(|c| c.authority == "account-balance" && c.owners.len() == 2));
+    assert!(conflicts
+        .iter()
+        .any(|c| c.authority == "account-balance" && c.owners.len() == 2));
 }
 
 #[test]
@@ -119,14 +126,20 @@ fn ae_adversarial_007_incomplete_adverse_economics_blocks_selection() {
     }];
     let outcome = admit_vendor_selection(&candidates, "vendor-a").unwrap();
     assert!(!outcome.decision.allowed);
-    assert_eq!(outcome.decision.code, Some(ArcCode::ArcEvidenceInsufficient));
+    assert_eq!(
+        outcome.decision.code,
+        Some(ArcCode::ArcEvidenceInsufficient)
+    );
     assert!(outcome.missing_economic_metrics.contains(&"egressCost"));
     assert!(outcome.missing_economic_metrics.contains(&"exitCost"));
 }
 
 #[test]
 fn ownership_economics_binding_ids_are_stable() {
-    assert_eq!(adversarial_ownership_economics_binding_ids(), ["AE-ADVERSARIAL-006", "AE-ADVERSARIAL-007"]);
+    assert_eq!(
+        adversarial_ownership_economics_binding_ids(),
+        ["AE-ADVERSARIAL-006", "AE-ADVERSARIAL-007"]
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -137,7 +150,10 @@ fn ownership_economics_binding_ids_are_stable() {
 fn full_readiness_input() -> AiReadinessInput {
     AiReadinessInput {
         system_id: Some("sys-1".into()),
-        provenance: vec![ProvenanceEntry { source_ref: Some("repo@sha".into()), digest: Some("sha256:aa".into()) }],
+        provenance: vec![ProvenanceEntry {
+            source_ref: Some("repo@sha".into()),
+            digest: Some("sha256:aa".into()),
+        }],
         evaluation: Some(Evaluation {
             status: Some("PASS".into()),
             report_ref: Some("report-1".into()),
@@ -166,7 +182,10 @@ fn ae_adversarial_009_ready_requires_all_four_evidence_kinds() {
     let not_ready = assess_ai_readiness(&AiReadinessInput::default());
     assert!(!not_ready.readiness);
     assert_eq!(not_ready.disposition, "NOT_READY");
-    assert_eq!(not_ready.missing, vec!["provenance", "evaluation", "fallback", "humanAuthority"]);
+    assert_eq!(
+        not_ready.missing,
+        vec!["provenance", "evaluation", "fallback", "humanAuthority"]
+    );
 }
 
 #[test]
@@ -178,12 +197,19 @@ fn ae_adversarial_009_observation_validator_recomputes() {
     // A forged verdict that doesn't match a recomputation from input is rejected.
     let mut tampered_input = input.clone();
     tampered_input.provenance.clear();
-    assert!(!validate_ai_readiness_observation(&tampered_input, &observed));
+    assert!(!validate_ai_readiness_observation(
+        &tampered_input,
+        &observed
+    ));
 }
 
 #[test]
 fn ae_adversarial_010_uncertainty_reported_without_as_of() {
-    let input = ArchitectureReconstructionInput { as_of: None, required_scopes: vec![], evidence: vec![] };
+    let input = ArchitectureReconstructionInput {
+        as_of: None,
+        required_scopes: vec![],
+        evidence: vec![],
+    };
     let result = assess_architecture_reconstruction(&input);
     assert_eq!(result.disposition, "UNCERTAINTY_REPORTED");
     assert!(!result.conclusion_allowed);
@@ -202,7 +228,12 @@ fn ae_adversarial_010_ready_when_all_required_scopes_are_fresh() {
     let input = ArchitectureReconstructionInput {
         as_of: Some("2026-06-01T00:00:00Z".into()),
         required_scopes: vec![],
-        evidence: vec![fresh("topology"), fresh("runtime"), fresh("deployment"), fresh("ownership")],
+        evidence: vec![
+            fresh("topology"),
+            fresh("runtime"),
+            fresh("deployment"),
+            fresh("ownership"),
+        ],
     };
     let result = assess_architecture_reconstruction(&input);
     assert_eq!(result.disposition, "RECONSTRUCTION_READY");
@@ -219,12 +250,18 @@ fn ae_adversarial_010_observation_validator_recomputes() {
         evidence: vec![],
     };
     let observed = assess_architecture_reconstruction(&input);
-    assert!(validate_architecture_reconstruction_observation(&input, &observed));
+    assert!(validate_architecture_reconstruction_observation(
+        &input, &observed
+    ));
 }
 
 #[test]
 fn execute_case_dispatches_and_reports_unknown_ids() {
-    match execute_adversarial_ai_reconstruction_case("AE-ADVERSARIAL-009", Some(&full_readiness_input()), None) {
+    match execute_adversarial_ai_reconstruction_case(
+        "AE-ADVERSARIAL-009",
+        Some(&full_readiness_input()),
+        None,
+    ) {
         ReconstructionCase::AiReadiness(r) => assert!(r.readiness),
         _ => panic!("expected AiReadiness case"),
     }
@@ -236,5 +273,8 @@ fn execute_case_dispatches_and_reports_unknown_ids() {
 
 #[test]
 fn reconstruction_binding_ids_are_stable() {
-    assert_eq!(AI_RECONSTRUCTION_BINDING_IDS, ["AE-ADVERSARIAL-009", "AE-ADVERSARIAL-010"]);
+    assert_eq!(
+        AI_RECONSTRUCTION_BINDING_IDS,
+        ["AE-ADVERSARIAL-009", "AE-ADVERSARIAL-010"]
+    );
 }

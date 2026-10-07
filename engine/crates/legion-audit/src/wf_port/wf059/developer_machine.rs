@@ -13,21 +13,28 @@ use std::sync::LazyLock;
 static EDITOR_AGENT_CONFIG_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(^|/)(\.vscode|\.idea|\.cursor|\.claude|\.github/copilot|\.mcp\.json|mcp\.json|CLAUDE\.md|AGENTS\.md|\.husky|\.git/hooks)(/|$)").unwrap()
 });
-static SKILL_CONFIG_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(^|/)(SKILL\.md|\.claude/(agents|skills)/)").unwrap());
-static MCP_JSON_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.mcp\.json$|mcp\.json$").unwrap());
+static SKILL_CONFIG_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(^|/)(SKILL\.md|\.claude/(agents|skills)/)").unwrap());
+static MCP_JSON_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\.mcp\.json$|mcp\.json$").unwrap());
 static SANDBOX_BYPASS_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)dangerouslySkipPermissions|--no-sandbox|bypassPermissions|trust\s*[:=]\s*(?:false|"?off"?|disabled)"#).unwrap()
 });
 
-static COMMAND_INVOCATION_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\bexec\s*\(|\bspawn\s*\(|child_process|Bash\s*\(|shell\s*=\s*true").unwrap());
-static EDITOR_CONFIG_COMMAND_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)"command"\s*:\s*"[^"\n]+"|"runOptions"|postCreateCommand|"task"\s*:"#).unwrap());
+static COMMAND_INVOCATION_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\bexec\s*\(|\bspawn\s*\(|child_process|Bash\s*\(|shell\s*=\s*true").unwrap()
+});
+static EDITOR_CONFIG_COMMAND_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)"command"\s*:\s*"[^"\n]+"|"runOptions"|postCreateCommand|"task"\s*:"#)
+        .unwrap()
+});
 static CREDENTIAL_STORE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\bkeytar\b|security\s+find-generic-password|\.aws/credentials|\.ssh/id_(?:rsa|ed25519)|\.netrc\b|\bkeychain\b|credential-store").unwrap()
 });
-static AGENT_SKILL_TRIGGER_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)"command"\s*:\s*"[^"\n]+"|"args"\s*:\s*\[|\bIgnore prior instructions\b"#).unwrap());
+static AGENT_SKILL_TRIGGER_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)"command"\s*:\s*"[^"\n]+"|"args"\s*:\s*\[|\bIgnore prior instructions\b"#)
+        .unwrap()
+});
 
 struct Match {
     file: String,
@@ -137,7 +144,11 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                     continue;
                 }
                 if let Some(m) = COMMAND_INVOCATION_PATTERN.find(text) {
-                    out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
+                    out.push(Match {
+                        file: file.clone(),
+                        line: line_of(text, m.start()),
+                        snippet: m.as_str().to_string(),
+                    });
                 }
             }
         }
@@ -151,7 +162,11 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                     continue;
                 }
                 if let Some(m) = EDITOR_CONFIG_COMMAND_PATTERN.find(text) {
-                    out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
+                    out.push(Match {
+                        file: file.clone(),
+                        line: line_of(text, m.start()),
+                        snippet: m.as_str().to_string(),
+                    });
                 }
             }
         }
@@ -162,7 +177,11 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                     continue;
                 }
                 if let Some(m) = CREDENTIAL_STORE_PATTERN.find(text) {
-                    out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
+                    out.push(Match {
+                        file: file.clone(),
+                        line: line_of(text, m.start()),
+                        snippet: m.as_str().to_string(),
+                    });
                 }
             }
         }
@@ -178,7 +197,11 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                 if !AGENT_SKILL_TRIGGER_PATTERN.is_match(text) {
                     continue;
                 }
-                out.push(Match { file: file.clone(), line: 1, snippet: file.clone() });
+                out.push(Match {
+                    file: file.clone(),
+                    line: 1,
+                    snippet: file.clone(),
+                });
             }
         }
         "developer-machine.sandbox-bypass.permission-override" => {
@@ -191,7 +214,11 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                     continue;
                 }
                 if let Some(m) = SANDBOX_BYPASS_PATTERN.find(text) {
-                    out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
+                    out.push(Match {
+                        file: file.clone(),
+                        line: line_of(text, m.start()),
+                        snippet: m.as_str().to_string(),
+                    });
                 }
             }
         }
@@ -214,7 +241,8 @@ pub fn analyze(ctx: &Context) -> Vec<Observation> {
     for rule in RULES {
         for m in matches_for_rule(rule.id, ctx) {
             let artifact = ctx.find_artifact(&m.file);
-            let mut uncertainty: Vec<String> = rule.uncertainty.iter().map(|s| s.to_string()).collect();
+            let mut uncertainty: Vec<String> =
+                rule.uncertainty.iter().map(|s| s.to_string()).collect();
             let requires_sandbox_receipt = rule.execution_chain;
             if requires_sandbox_receipt {
                 uncertainty.push(sandbox_gate_note(ctx));
@@ -238,7 +266,10 @@ pub fn analyze(ctx: &Context) -> Vec<Observation> {
                 severity_hint: rule.severity_hint.to_string(),
                 sources: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
                 sinks: artifact.map(|a| vec![a.id.clone()]).unwrap_or_default(),
-                attacker_capabilities: vec!["read-repository".to_string(), "control-repository-content".to_string()],
+                attacker_capabilities: vec![
+                    "read-repository".to_string(),
+                    "control-repository-content".to_string(),
+                ],
                 preconditions: vec![Fact {
                     kind: "attacker-position".to_string(),
                     subject: "actor:repository-content".to_string(),

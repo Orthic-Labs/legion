@@ -82,7 +82,11 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
             let evidence: Vec<String> = grant
                 .get("requiredEvidence")
                 .and_then(|v| v.as_array())
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             let reason = grant
                 .get("reason")
@@ -96,13 +100,26 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
                     "publication blocked: channel {channel} is denied ({reason}); required evidence: {evidence_str}"
                 )
             };
-            return Outcome { status: "blocked", exit_code: 5, message };
+            return Outcome {
+                status: "blocked",
+                exit_code: 5,
+                message,
+            };
         }
     }
-    let allowed = grant.and_then(|g| g.get("allowed")).and_then(|v| v.as_bool()) == Some(true);
-    let approved_by = grant.and_then(|g| g.get("approvedBy")).and_then(|v| v.as_str());
-    let approved_at = grant.and_then(|g| g.get("approvedAt")).and_then(|v| v.as_str());
-    let policy_digest = grant.and_then(|g| g.get("policyDigest")).and_then(|v| v.as_str());
+    let allowed = grant
+        .and_then(|g| g.get("allowed"))
+        .and_then(|v| v.as_bool())
+        == Some(true);
+    let approved_by = grant
+        .and_then(|g| g.get("approvedBy"))
+        .and_then(|v| v.as_str());
+    let approved_at = grant
+        .and_then(|g| g.get("approvedAt"))
+        .and_then(|v| v.as_str());
+    let policy_digest = grant
+        .and_then(|g| g.get("policyDigest"))
+        .and_then(|v| v.as_str());
     if !allowed || approved_by.is_none() || approved_at.is_none() || policy_digest.is_none() {
         return Outcome {
             status: "blocked",

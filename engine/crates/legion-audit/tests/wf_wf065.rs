@@ -16,10 +16,10 @@ use legion_audit::wf_port::wf065::audit_verify::{
     normalize_checks, offline_env_overrides, project_execution_checks, result_digest, CheckResult,
 };
 use legion_audit::wf_port::wf065::collect_facts::{
-    classify_file, clean_path, decomposition_review_loc, detect, gitleaks_candidates,
-    in_git_worktree, is_generated_or_vendored_path, is_run_dir_name, git_ref, in_scope,
-    looks_missing, mechanical_splits, oversized_files, prune_old_runs, redact,
-    resolve_root_positional, FileClass, FileLoc,
+    classify_file, clean_path, decomposition_review_loc, detect, git_ref, gitleaks_candidates,
+    in_git_worktree, in_scope, is_generated_or_vendored_path, is_run_dir_name, looks_missing,
+    mechanical_splits, oversized_files, prune_old_runs, redact, resolve_root_positional, FileClass,
+    FileLoc,
 };
 use legion_audit::wf_port::wf065::provider_benchmarks::{
     benchmark_record_for, compute_fixtures_digest, digest_file, file_bindings, is_result_fresh,
@@ -52,14 +52,20 @@ fn git_ref_rejects_unsafe_refs_and_passes_safe_ones() {
         Some("release/1.2.3-rc1@x".to_string())
     );
     assert!(git_ref(Some("main; rm -rf /")).is_err());
-    assert!(git_ref(Some("-x")).is_err(), "must not start with a non-alnum");
+    assert!(
+        git_ref(Some("-x")).is_err(),
+        "must not start with a non-alnum"
+    );
 }
 
 #[test]
 fn in_scope_matches_dir_and_descendants_only() {
     assert!(in_scope("src/lib.rs", None));
     assert!(in_scope("tauri-app-next", Some("tauri-app-next")));
-    assert!(in_scope("tauri-app-next/src/main.rs", Some("tauri-app-next")));
+    assert!(in_scope(
+        "tauri-app-next/src/main.rs",
+        Some("tauri-app-next")
+    ));
     assert!(!in_scope("other/src/main.rs", Some("tauri-app-next")));
     assert!(!in_scope("tauri-app-nextbogus/x", Some("tauri-app-next")));
 }
@@ -85,15 +91,22 @@ fn redact_covers_every_secret_family() {
 #[test]
 fn looks_missing_detects_absent_tool_signals() {
     assert!(looks_missing("", "spawn eslint ENOENT"));
-    assert!(looks_missing("'tsc' is not recognized as an internal command", ""));
+    assert!(looks_missing(
+        "'tsc' is not recognized as an internal command",
+        ""
+    ));
     assert!(!looks_missing("2 problems (2 errors, 0 warnings)", ""));
 }
 
 #[test]
 fn is_generated_or_vendored_path_matches_known_prefixes() {
     assert!(is_generated_or_vendored_path("vendor/foo.rs"));
-    assert!(is_generated_or_vendored_path("src-tauri/gen/schemas/x.json"));
-    assert!(is_generated_or_vendored_path("apps/web/src/generated/api.ts"));
+    assert!(is_generated_or_vendored_path(
+        "src-tauri/gen/schemas/x.json"
+    ));
+    assert!(is_generated_or_vendored_path(
+        "apps/web/src/generated/api.ts"
+    ));
     assert!(!is_generated_or_vendored_path("src/lib.rs"));
 }
 
@@ -102,7 +115,10 @@ fn classify_file_prefers_test_then_tooling_then_runtime() {
     assert_eq!(classify_file("src/foo.test.ts"), FileClass::Test);
     assert_eq!(classify_file("tests/unit/bar.rs"), FileClass::Test);
     assert_eq!(classify_file("conftest.py"), FileClass::Test);
-    assert_eq!(classify_file(".github/workflows/ci.yml"), FileClass::Tooling);
+    assert_eq!(
+        classify_file(".github/workflows/ci.yml"),
+        FileClass::Tooling
+    );
     assert_eq!(classify_file("Dockerfile"), FileClass::Tooling);
     assert_eq!(classify_file("src/main.rs"), FileClass::Runtime);
 }
@@ -118,7 +134,10 @@ fn decomposition_review_loc_prefers_env_then_config_then_default() {
     assert_eq!(ignored_env.value, 400);
     assert_eq!(ignored_env.source, "workspace-default");
     assert_eq!(ignored_env.ignored.len(), 1);
-    assert_eq!(ignored_env.ignored[0].source, "CORTEX_DECOMPOSITION_REVIEW_LOC");
+    assert_eq!(
+        ignored_env.ignored[0].source,
+        "CORTEX_DECOMPOSITION_REVIEW_LOC"
+    );
 
     let config = decomposition_review_loc(None, Some(&serde_json::json!(600)));
     assert_eq!(config.value, 600);
@@ -137,7 +156,10 @@ fn resolve_root_positional_skips_value_flag_arguments() {
         .collect();
     assert_eq!(resolve_root_positional(&args), Some("/repo".to_string()));
 
-    let no_root: Vec<String> = ["--only", "apple_platform"].into_iter().map(String::from).collect();
+    let no_root: Vec<String> = ["--only", "apple_platform"]
+        .into_iter()
+        .map(String::from)
+        .collect();
     assert_eq!(resolve_root_positional(&no_root), None);
 
     let bare: Vec<String> = vec!["/repo".to_string()];
@@ -169,9 +191,21 @@ fn gitleaks_candidates_strip_secrets_and_use_fingerprint_or_digest() {
 #[test]
 fn oversized_files_filters_and_sorts_descending() {
     let files = vec![
-        FileLoc { path: "src/small.rs".into(), loc: 50, bytes: 500 },
-        FileLoc { path: "src/big.rs".into(), loc: 900, bytes: 9000 },
-        FileLoc { path: "src/bigger.rs".into(), loc: 1200, bytes: 12000 },
+        FileLoc {
+            path: "src/small.rs".into(),
+            loc: 50,
+            bytes: 500,
+        },
+        FileLoc {
+            path: "src/big.rs".into(),
+            loc: 900,
+            bytes: 9000,
+        },
+        FileLoc {
+            path: "src/bigger.rs".into(),
+            loc: 1200,
+            bytes: 12000,
+        },
     ];
     let out = oversized_files(&files, 400);
     assert_eq!(out.len(), 2);
@@ -183,10 +217,26 @@ fn oversized_files_filters_and_sorts_descending() {
 #[test]
 fn mechanical_splits_reconstructs_logical_units_above_threshold() {
     let files = vec![
-        FileLoc { path: "src/widget_parts/part1.rs".into(), loc: 300, bytes: 3000 },
-        FileLoc { path: "src/widget_parts/part2.rs".into(), loc: 300, bytes: 3000 },
-        FileLoc { path: "src/widget_parts/part3.rs".into(), loc: 300, bytes: 3000 },
-        FileLoc { path: "src/lonely_part.rs".into(), loc: 50, bytes: 500 },
+        FileLoc {
+            path: "src/widget_parts/part1.rs".into(),
+            loc: 300,
+            bytes: 3000,
+        },
+        FileLoc {
+            path: "src/widget_parts/part2.rs".into(),
+            loc: 300,
+            bytes: 3000,
+        },
+        FileLoc {
+            path: "src/widget_parts/part3.rs".into(),
+            loc: 300,
+            bytes: 3000,
+        },
+        FileLoc {
+            path: "src/lonely_part.rs".into(),
+            loc: 50,
+            bytes: 500,
+        },
     ];
     let splits = mechanical_splits(&files, 400);
     assert_eq!(splits.len(), 1);
@@ -197,8 +247,16 @@ fn mechanical_splits_reconstructs_logical_units_above_threshold() {
 
     // Below threshold: no split reported.
     let small = vec![
-        FileLoc { path: "src/tiny_parts/part1.rs".into(), loc: 10, bytes: 100 },
-        FileLoc { path: "src/tiny_parts/part2.rs".into(), loc: 10, bytes: 100 },
+        FileLoc {
+            path: "src/tiny_parts/part1.rs".into(),
+            loc: 10,
+            bytes: 100,
+        },
+        FileLoc {
+            path: "src/tiny_parts/part2.rs".into(),
+            loc: 10,
+            bytes: 100,
+        },
     ];
     assert!(mechanical_splits(&small, 400).is_empty());
 }
@@ -247,7 +305,10 @@ fn make_finding_populates_seen_timestamps_and_default_provenance() {
     assert_eq!(finding.last_seen_at, "2026-09-23T00:00:00Z");
     assert_eq!(finding.first_seen_generation, "gen-1");
     assert_eq!(finding.provenance.kind, "deterministic_scanner");
-    assert_eq!(finding.provenance.rule_id, "security.credentials.hardcoded-key");
+    assert_eq!(
+        finding.provenance.rule_id,
+        "security.credentials.hardcoded-key"
+    );
     assert!(finding.supersedes.is_empty());
     assert_eq!(finding.superseded_by, None);
 }
@@ -277,7 +338,10 @@ fn store_upsert_preserves_first_seen_and_refreshes_last_seen() {
     f2.audit_generation = "gen-2".to_string();
     f2.last_seen_at = String::new(); // caller did not stamp one; store fills it.
     let refreshed = store.upsert(f2, "2026-09-05T00:00:00Z").unwrap();
-    assert_eq!(refreshed.first_seen_at, "2026-09-01T00:00:00Z", "firstSeenAt is preserved");
+    assert_eq!(
+        refreshed.first_seen_at, "2026-09-01T00:00:00Z",
+        "firstSeenAt is preserved"
+    );
     assert_eq!(refreshed.last_seen_at, "2026-09-05T00:00:00Z");
     assert_eq!(refreshed.last_seen_generation, "gen-2");
     assert_eq!(refreshed.id, f1.id);
@@ -297,7 +361,10 @@ fn store_upsert_preserves_first_seen_and_refreshes_last_seen() {
 
 #[test]
 fn store_supersede_retires_old_and_links_successor() {
-    let tmp = std::env::temp_dir().join(format!("legion-wf065-store-supersede-{}", std::process::id()));
+    let tmp = std::env::temp_dir().join(format!(
+        "legion-wf065-store-supersede-{}",
+        std::process::id()
+    ));
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp).unwrap();
     let mut store = AuditStore::new(&tmp);
@@ -320,7 +387,9 @@ fn store_supersede_retires_old_and_links_successor() {
     new_draft.audit_generation = "gen-2".to_string();
     let new_finding = make_finding(&new_draft, None, None, "open", "2026-09-05T00:00:00Z").unwrap();
 
-    let successor = store.supersede(&old.id, new_finding, "2026-09-05T00:00:00Z").unwrap();
+    let successor = store
+        .supersede(&old.id, new_finding, "2026-09-05T00:00:00Z")
+        .unwrap();
     assert!(successor.supersedes.contains(&old.id));
 
     let retired = store.get(&old.id).unwrap().unwrap();
@@ -336,7 +405,8 @@ fn store_supersede_retires_old_and_links_successor() {
 
 #[test]
 fn store_set_status_resolved_and_back_to_open() {
-    let tmp = std::env::temp_dir().join(format!("legion-wf065-store-status-{}", std::process::id()));
+    let tmp =
+        std::env::temp_dir().join(format!("legion-wf065-store-status-{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp).unwrap();
     let mut store = AuditStore::new(&tmp);
@@ -354,19 +424,27 @@ fn store_set_status_resolved_and_back_to_open() {
     let f = make_finding(&draft, None, None, "open", "2026-09-01T00:00:00Z").unwrap();
     store.upsert(f.clone(), "2026-09-01T00:00:00Z").unwrap();
 
-    let resolved = store.set_status(&f.id, "resolved", None, "2026-09-02T00:00:00Z").unwrap();
+    let resolved = store
+        .set_status(&f.id, "resolved", None, "2026-09-02T00:00:00Z")
+        .unwrap();
     assert_eq!(resolved.status, "resolved");
     assert!(resolved.resolved_at.is_some());
     assert_eq!(store.active(None).unwrap().len(), 0);
 
-    let reopened = store.set_status(&f.id, "open", None, "2026-09-03T00:00:00Z").unwrap();
+    let reopened = store
+        .set_status(&f.id, "open", None, "2026-09-03T00:00:00Z")
+        .unwrap();
     assert_eq!(reopened.status, "open");
     assert_eq!(reopened.resolved_at, None);
     assert_eq!(store.active(None).unwrap().len(), 1);
 
     // superseded is not a valid set_status target.
-    assert!(store.set_status(&f.id, "superseded", None, "2026-09-04T00:00:00Z").is_err());
-    assert!(store.set_status("unknown-id", "resolved", None, "2026-09-04T00:00:00Z").is_err());
+    assert!(store
+        .set_status(&f.id, "superseded", None, "2026-09-04T00:00:00Z")
+        .is_err());
+    assert!(store
+        .set_status("unknown-id", "resolved", None, "2026-09-04T00:00:00Z")
+        .is_err());
 
     let _ = fs::remove_dir_all(&tmp);
 }
@@ -383,7 +461,10 @@ fn classify_replay_always_excludes_build_and_blocks_project_checks_without_sandb
         .collect();
 
     let inactive = classify_replay(&planned, false);
-    assert_eq!(inactive.replayable, vec!["repo".to_string(), "secrets".to_string()]);
+    assert_eq!(
+        inactive.replayable,
+        vec!["repo".to_string(), "secrets".to_string()]
+    );
     assert!(inactive.unproven.contains(&"build".to_string()));
     assert!(inactive.unproven.contains(&"types".to_string()));
     assert!(inactive.unproven.contains(&"lint".to_string()));
@@ -392,7 +473,12 @@ fn classify_replay_always_excludes_build_and_blocks_project_checks_without_sandb
     let active = classify_replay(&planned, true);
     assert_eq!(
         active.replayable,
-        vec!["repo".to_string(), "secrets".to_string(), "types".to_string(), "lint".to_string()]
+        vec![
+            "repo".to_string(),
+            "secrets".to_string(),
+            "types".to_string(),
+            "lint".to_string()
+        ]
     );
     assert_eq!(active.unproven, vec!["build".to_string()]);
     assert!(!active.sandbox_blocked_any);
@@ -419,7 +505,10 @@ fn child_env_filters_to_allowlist_then_applies_overrides() {
     let env = child_env(&parent, &overrides);
     assert_eq!(env.get("PATH"), Some(&"/usr/bin".to_string()));
     assert_eq!(env.get("HOME"), Some(&"/home/x".to_string()));
-    assert!(!env.contains_key("SECRET_TOKEN"), "non-allowlisted keys are dropped");
+    assert!(
+        !env.contains_key("SECRET_TOKEN"),
+        "non-allowlisted keys are dropped"
+    );
     assert_eq!(env.get("AUDIT_OFFLINE"), Some(&"1".to_string()));
 }
 
@@ -434,7 +523,10 @@ fn offline_env_overrides_appends_to_existing_maven_gradle_flags() {
 
     let empty_parent = BTreeMap::new();
     let overrides2 = offline_env_overrides(&empty_parent);
-    assert_eq!(overrides2.get("GRADLE_OPTS"), Some(&"-Dorg.gradle.offline=true".to_string()));
+    assert_eq!(
+        overrides2.get("GRADLE_OPTS"),
+        Some(&"-Dorg.gradle.offline=true".to_string())
+    );
 }
 
 #[test]
@@ -447,9 +539,21 @@ fn allowed_child_keys_does_not_include_arbitrary_secrets() {
 
 #[test]
 fn checks_match_compares_status_and_findings_count() {
-    let a = CheckResult { check: "secrets".into(), status: "ran".into(), findings_count: Some(0) };
-    let b = CheckResult { check: "secrets".into(), status: "ran".into(), findings_count: Some(0) };
-    let c = CheckResult { check: "secrets".into(), status: "ran".into(), findings_count: Some(1) };
+    let a = CheckResult {
+        check: "secrets".into(),
+        status: "ran".into(),
+        findings_count: Some(0),
+    };
+    let b = CheckResult {
+        check: "secrets".into(),
+        status: "ran".into(),
+        findings_count: Some(0),
+    };
+    let c = CheckResult {
+        check: "secrets".into(),
+        status: "ran".into(),
+        findings_count: Some(1),
+    };
     assert!(checks_match(Some(&a), Some(&b)));
     assert!(!checks_match(Some(&a), Some(&c)));
     assert!(!checks_match(Some(&a), None));
@@ -458,8 +562,16 @@ fn checks_match_compares_status_and_findings_count() {
 #[test]
 fn normalize_checks_sorts_and_projects_and_result_digest_is_stable() {
     let checks = vec![
-        CheckResult { check: "types".into(), status: "ran".into(), findings_count: Some(0) },
-        CheckResult { check: "repo".into(), status: "ran".into(), findings_count: None },
+        CheckResult {
+            check: "types".into(),
+            status: "ran".into(),
+            findings_count: Some(0),
+        },
+        CheckResult {
+            check: "repo".into(),
+            status: "ran".into(),
+            findings_count: None,
+        },
     ];
     let normalized = normalize_checks(&checks);
     assert_eq!(normalized[0].check, "repo");
@@ -469,7 +581,10 @@ fn normalize_checks_sorts_and_projects_and_result_digest_is_stable() {
     let mut reordered = checks.clone();
     reordered.reverse();
     let digest2 = result_digest(&reordered).unwrap();
-    assert_eq!(digest1, digest2, "digest is order-insensitive over the check list");
+    assert_eq!(
+        digest1, digest2,
+        "digest is order-insensitive over the check list"
+    );
 
     let mut mutated = checks.clone();
     mutated[0].findings_count = Some(5);
@@ -488,11 +603,17 @@ fn frozen_contracts_match_ignores_unrelated_fields_but_detects_provider_drift() 
     });
     let mut recomputed = prior.clone();
     recomputed["generatedAt"] = serde_json::json!("2026-02-02T00:00:00Z");
-    assert!(frozen_contracts_match(&prior, &recomputed), "unrelated field must not create drift");
+    assert!(
+        frozen_contracts_match(&prior, &recomputed),
+        "unrelated field must not create drift"
+    );
 
     let mut drifted = prior.clone();
     drifted["providers"][0]["denominator"] = serde_json::json!({ "expectedChecks": ["lint"] });
-    assert!(!frozen_contracts_match(&prior, &drifted), "provider contract drift must be detected");
+    assert!(
+        !frozen_contracts_match(&prior, &drifted),
+        "provider contract drift must be detected"
+    );
 }
 
 // =================================================================================================
@@ -508,13 +629,21 @@ fn fixtures_doc() -> FixturesDoc {
                 id: "case-hit".into(),
                 file: "src/db.ts".into(),
                 text: "const API_KEY = \"sk-1234\";\n".into(),
-                expected: vec![ExpectedFinding { rule_id: "security.credentials.hardcoded-key".into(), line: 1, file: None }],
+                expected: vec![ExpectedFinding {
+                    rule_id: "security.credentials.hardcoded-key".into(),
+                    line: 1,
+                    file: None,
+                }],
             },
             FixtureCase {
                 id: "case-miss".into(),
                 file: "src/auth.ts".into(),
                 text: "const PASSWORD = \"hunter2\";\n".into(),
-                expected: vec![ExpectedFinding { rule_id: "security.credentials.hardcoded-key".into(), line: 1, file: None }],
+                expected: vec![ExpectedFinding {
+                    rule_id: "security.credentials.hardcoded-key".into(),
+                    line: 1,
+                    file: None,
+                }],
             },
             FixtureCase {
                 id: "case-clean".into(),
@@ -539,7 +668,9 @@ fn binding_for() -> ProviderBinding {
     }
 }
 
-fn runner_detects_first_file_only(case: &FixtureCase) -> legion_audit::wf_port::wf065::provider_benchmarks::Result<Vec<RawCandidate>> {
+fn runner_detects_first_file_only(
+    case: &FixtureCase,
+) -> legion_audit::wf_port::wf065::provider_benchmarks::Result<Vec<RawCandidate>> {
     if !case.text.contains("API_KEY") {
         return Ok(vec![]);
     }
@@ -578,7 +709,11 @@ fn fixture_digest_is_order_insensitive_and_content_bound() {
 
 #[test]
 fn measure_fixture_set_reports_missed_recall_without_synthesizing() {
-    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
+    let provider = ProviderIdentity {
+        id: "security.credentials".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
     let result = measure_fixture_set(
         &provider,
         &binding_for(),
@@ -596,7 +731,11 @@ fn measure_fixture_set_reports_missed_recall_without_synthesizing() {
 
 #[test]
 fn measure_fixture_set_perfect_detection_yields_precision_and_recall_of_one() {
-    let provider = ProviderIdentity { id: "p.perfect".into(), version: "1".into(), rule_pack: None };
+    let provider = ProviderIdentity {
+        id: "p.perfect".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
     let result = measure_fixture_set(
         &provider,
         &binding_for(),
@@ -634,49 +773,109 @@ fn measure_fixture_set_zero_denominators_error_instead_of_synthesizing() {
             expected: vec![],
         }],
     };
-    let provider = ProviderIdentity { id: "p".into(), version: "1".into(), rule_pack: None };
-    let no_candidates = measure_fixture_set(&provider, &binding_for(), |_| Ok(vec![]), &empty_truth, "t");
-    assert!(no_candidates.unwrap_err().to_string().contains("precision is undefined"));
+    let provider = ProviderIdentity {
+        id: "p".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
+    let no_candidates =
+        measure_fixture_set(&provider, &binding_for(), |_| Ok(vec![]), &empty_truth, "t");
+    assert!(no_candidates
+        .unwrap_err()
+        .to_string()
+        .contains("precision is undefined"));
 
     let with_fp = measure_fixture_set(
         &provider,
         &binding_for(),
-        |c| Ok(vec![RawCandidate { rule_id: Some("r.x".into()), file: Some(c.file.clone()), line: Some(1) }]),
+        |c| {
+            Ok(vec![RawCandidate {
+                rule_id: Some("r.x".into()),
+                file: Some(c.file.clone()),
+                line: Some(1),
+            }])
+        },
         &empty_truth,
         "t",
     );
-    assert!(with_fp.unwrap_err().to_string().contains("recall is undefined"));
+    assert!(with_fp
+        .unwrap_err()
+        .to_string()
+        .contains("recall is undefined"));
 }
 
 #[test]
 fn measure_fixture_set_propagates_runner_failure_and_malformed_candidates() {
-    let provider = ProviderIdentity { id: "p".into(), version: "1".into(), rule_pack: None };
+    let provider = ProviderIdentity {
+        id: "p".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
     let failed = measure_fixture_set(
         &provider,
         &binding_for(),
-        |_| Err(legion_audit::wf_port::wf065::provider_benchmarks::BenchmarkError::Invalid("boom".into())),
+        |_| {
+            Err(
+                legion_audit::wf_port::wf065::provider_benchmarks::BenchmarkError::Invalid(
+                    "boom".into(),
+                ),
+            )
+        },
         &fixtures_doc(),
         "t",
     );
-    assert!(failed.unwrap_err().to_string().contains("failed on fixture case"));
+    assert!(failed
+        .unwrap_err()
+        .to_string()
+        .contains("failed on fixture case"));
 
     let malformed = measure_fixture_set(
         &provider,
         &binding_for(),
-        |_| Ok(vec![RawCandidate { rule_id: Some("r.x".into()), file: None, line: None }]),
+        |_| {
+            Ok(vec![RawCandidate {
+                rule_id: Some("r.x".into()),
+                file: None,
+                line: None,
+            }])
+        },
         &fixtures_doc(),
         "t",
     );
-    assert!(malformed.unwrap_err().to_string().contains("unlocatable candidate"));
+    assert!(malformed
+        .unwrap_err()
+        .to_string()
+        .contains("unlocatable candidate"));
 }
 
 #[test]
 fn qualification_digest_is_stable_and_changes_with_evidence() {
-    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
-    let first = measure_fixture_set(&provider, &binding_for(), runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
-    let again = measure_fixture_set(&provider, &binding_for(), runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
+    let provider = ProviderIdentity {
+        id: "security.credentials".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
+    let first = measure_fixture_set(
+        &provider,
+        &binding_for(),
+        runner_detects_first_file_only,
+        &fixtures_doc(),
+        "2026-07-21T00:00:00.000Z",
+    )
+    .unwrap();
+    let again = measure_fixture_set(
+        &provider,
+        &binding_for(),
+        runner_detects_first_file_only,
+        &fixtures_doc(),
+        "2026-07-21T00:00:00.000Z",
+    )
+    .unwrap();
     assert_eq!(first.qualification_digest, again.qualification_digest);
-    assert_eq!(first.qualification_digest, result_qualification_digest(&first).unwrap());
+    assert_eq!(
+        first.qualification_digest,
+        result_qualification_digest(&first).unwrap()
+    );
 
     let mut drifted = first.clone();
     drifted.metrics.recall = 0.75;
@@ -688,8 +887,19 @@ fn qualification_digest_is_stable_and_changes_with_evidence() {
 
 #[test]
 fn freshness_binds_results_to_implementation_and_rule_pack_digests() {
-    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
-    let result = measure_fixture_set(&provider, &binding_for(), runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
+    let provider = ProviderIdentity {
+        id: "security.credentials".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
+    let result = measure_fixture_set(
+        &provider,
+        &binding_for(),
+        runner_detects_first_file_only,
+        &fixtures_doc(),
+        "2026-07-21T00:00:00.000Z",
+    )
+    .unwrap();
     assert!(is_result_fresh(&result, &binding_for()));
 
     let mut other_pack = binding_for();
@@ -708,8 +918,19 @@ fn freshness_binds_results_to_implementation_and_rule_pack_digests() {
 
 #[test]
 fn measured_providers_are_distinguished_from_unmeasured_with_plan_shaped_gaps() {
-    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
-    let fresh = measure_fixture_set(&provider, &binding_for(), runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
+    let provider = ProviderIdentity {
+        id: "security.credentials".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
+    let fresh = measure_fixture_set(
+        &provider,
+        &binding_for(),
+        runner_detects_first_file_only,
+        &fixtures_doc(),
+        "2026-07-21T00:00:00.000Z",
+    )
+    .unwrap();
 
     let mut stale = fresh.clone();
     stale.provider.id = "security.injection".to_string();
@@ -725,7 +946,10 @@ fn measured_providers_are_distinguished_from_unmeasured_with_plan_shaped_gaps() 
         &current_by_provider,
         &["legacy.security.binary-pins".to_string()],
     );
-    assert_eq!(qualification.records["security.credentials"].status, "measured");
+    assert_eq!(
+        qualification.records["security.credentials"].status,
+        "measured"
+    );
     assert!(qualification.records["security.credentials"]
         .qualification_digest
         .as_deref()
@@ -739,7 +963,10 @@ fn measured_providers_are_distinguished_from_unmeasured_with_plan_shaped_gaps() 
     unmeasured.sort();
     assert_eq!(
         unmeasured,
-        vec!["legacy.security.binary-pins".to_string(), "security.injection".to_string()]
+        vec![
+            "legacy.security.binary-pins".to_string(),
+            "security.injection".to_string()
+        ]
     );
     for gap in &qualification.benchmark_gaps {
         assert_eq!(gap.kind, UNMEASURED_GAP_KIND);
@@ -762,19 +989,30 @@ fn compute_provider_binding_digests_real_files_and_fails_cleanly() {
             module: Some("pack.mjs".into()),
         },
     };
-    let binding = legion_audit::wf_port::wf065::provider_benchmarks::compute_provider_binding(&provider, &tmp).unwrap();
+    let binding = legion_audit::wf_port::wf065::provider_benchmarks::compute_provider_binding(
+        &provider, &tmp,
+    )
+    .unwrap();
     assert_eq!(binding.implementation_digests[0].path, "engine.mjs");
-    assert_eq!(binding.implementation_digests[0].digest, digest_file(&tmp.join("engine.mjs")).unwrap());
+    assert_eq!(
+        binding.implementation_digests[0].digest,
+        digest_file(&tmp.join("engine.mjs")).unwrap()
+    );
     assert_eq!(binding.rule_pack_digests[0].path, "pack.mjs");
 
     let no_impl = legion_audit::wf_port::wf065::provider_benchmarks::Provider {
         id: "x".into(),
-        runner: legion_audit::wf_port::wf065::provider_benchmarks::ProviderRunner { script: None, module: None },
+        runner: legion_audit::wf_port::wf065::provider_benchmarks::ProviderRunner {
+            script: None,
+            module: None,
+        },
     };
-    assert!(legion_audit::wf_port::wf065::provider_benchmarks::compute_provider_binding(&no_impl, &tmp)
-        .unwrap_err()
-        .to_string()
-        .contains("no measurable implementation"));
+    assert!(
+        legion_audit::wf_port::wf065::provider_benchmarks::compute_provider_binding(&no_impl, &tmp)
+            .unwrap_err()
+            .to_string()
+            .contains("no measurable implementation")
+    );
 
     assert!(file_bindings(&["missing.mjs".to_string()], &tmp)
         .unwrap_err()
@@ -786,8 +1024,19 @@ fn compute_provider_binding_digests_real_files_and_fails_cleanly() {
 
 #[test]
 fn benchmark_record_for_falls_back_to_unmeasured_when_stale() {
-    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
-    let result = measure_fixture_set(&provider, &binding_for(), runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
+    let provider = ProviderIdentity {
+        id: "security.credentials".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
+    let result = measure_fixture_set(
+        &provider,
+        &binding_for(),
+        runner_detects_first_file_only,
+        &fixtures_doc(),
+        "2026-07-21T00:00:00.000Z",
+    )
+    .unwrap();
     let record = benchmark_record_for(&result, &binding_for());
     assert_eq!(record.status, "measured");
     // `isResultFresh` (`tools/audit/provider-benchmarks.mjs`) only compares
@@ -832,12 +1081,23 @@ fn cmd_verify_counts_results_and_freshness_against_root() {
     fs::write(tmp.join("engine.mjs"), "export const engine = true;\n").unwrap();
     fs::write(tmp.join("pack.mjs"), "export const rules = [];\n").unwrap();
 
-    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
+    let provider = ProviderIdentity {
+        id: "security.credentials".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
     let binding = ProviderBinding {
         implementation_digests: file_bindings(&["engine.mjs".to_string()], &tmp).unwrap(),
         rule_pack_digests: file_bindings(&["pack.mjs".to_string()], &tmp).unwrap(),
     };
-    let result = measure_fixture_set(&provider, &binding, runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
+    let result = measure_fixture_set(
+        &provider,
+        &binding,
+        runner_detects_first_file_only,
+        &fixtures_doc(),
+        "2026-07-21T00:00:00.000Z",
+    )
+    .unwrap();
     let results_path = tmp.join("results.json");
     write_results_doc(&results_path, &result);
 
@@ -852,7 +1112,11 @@ fn cmd_verify_counts_results_and_freshness_against_root() {
     assert_eq!(report.fresh, Some(1));
 
     // Mutate a bound file so its digest no longer matches => not fresh.
-    fs::write(tmp.join("engine.mjs"), "export const engine = false; // changed\n").unwrap();
+    fs::write(
+        tmp.join("engine.mjs"),
+        "export const engine = false; // changed\n",
+    )
+    .unwrap();
     let report = cmd_verify(&results_path, Some(&tmp)).unwrap();
     assert_eq!(report.fresh, Some(0));
 
@@ -873,8 +1137,19 @@ fn cmd_status_reports_unmeasured_providers_and_matching_exit_code() {
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp).unwrap();
 
-    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
-    let result = measure_fixture_set(&provider, &binding_for(), runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
+    let provider = ProviderIdentity {
+        id: "security.credentials".into(),
+        version: "1".into(),
+        rule_pack: None,
+    };
+    let result = measure_fixture_set(
+        &provider,
+        &binding_for(),
+        runner_detects_first_file_only,
+        &fixtures_doc(),
+        "2026-07-21T00:00:00.000Z",
+    )
+    .unwrap();
     let doc = serde_json::json!({
         "schemaVersion": 1,
         "kind": "audit-provider-benchmark-results",
@@ -885,19 +1160,30 @@ fn cmd_status_reports_unmeasured_providers_and_matching_exit_code() {
     // Required id is measured and its current binding matches => exit 0.
     let mut current = BTreeMap::new();
     current.insert("security.credentials".to_string(), binding_for());
-    let report = cmd_status(&results_json, &["security.credentials".to_string()], &current).unwrap();
+    let report = cmd_status(
+        &results_json,
+        &["security.credentials".to_string()],
+        &current,
+    )
+    .unwrap();
     assert_eq!(report.exit_code, 0);
     assert!(report.qualification.unmeasured_providers.is_empty());
 
     // A required id with no result at all is unmeasured => exit 1.
     let report = cmd_status(
         &results_json,
-        &["security.credentials".to_string(), "security.injection".to_string()],
+        &[
+            "security.credentials".to_string(),
+            "security.injection".to_string(),
+        ],
         &current,
     )
     .unwrap();
     assert_eq!(report.exit_code, 1);
-    assert_eq!(report.qualification.unmeasured_providers, vec!["security.injection".to_string()]);
+    assert_eq!(
+        report.qualification.unmeasured_providers,
+        vec!["security.injection".to_string()]
+    );
 
     // run_cli end-to-end via files, including --current-binding parsing.
     let results_path = tmp.join("results.json");
@@ -905,7 +1191,10 @@ fn cmd_status_reports_unmeasured_providers_and_matching_exit_code() {
     let binding_path = tmp.join("bindings.json");
     fs::write(
         &binding_path,
-        serde_json::to_string(&serde_json::json!({ "byProvider": { "security.credentials": binding_for() } })).unwrap(),
+        serde_json::to_string(
+            &serde_json::json!({ "byProvider": { "security.credentials": binding_for() } }),
+        )
+        .unwrap(),
     )
     .unwrap();
     let argv = vec![
@@ -951,7 +1240,11 @@ fn detect_reads_stack_markers_from_a_real_temp_workspace() {
     let tmp = std::env::temp_dir().join(format!("legion-wf065-detect-{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(tmp.join("src-tauri")).unwrap();
-    fs::write(tmp.join("package.json"), r#"{"scripts":{"build":"tsc"},"dependencies":{"react":"18.0.0"}}"#).unwrap();
+    fs::write(
+        tmp.join("package.json"),
+        r#"{"scripts":{"build":"tsc"},"dependencies":{"react":"18.0.0"}}"#,
+    )
+    .unwrap();
     fs::write(tmp.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
     fs::write(tmp.join("tsconfig.json"), "{}").unwrap();
     fs::write(tmp.join("eslint.config.mjs"), "export default [];\n").unwrap();
@@ -972,7 +1265,11 @@ fn detect_reads_stack_markers_from_a_real_temp_workspace() {
     assert!(d.eslint);
     assert!(!d.biome);
     assert_eq!(
-        d.pkg.as_ref().and_then(|p| p.get("dependencies")).and_then(|d| d.get("react")).and_then(|v| v.as_str()),
+        d.pkg
+            .as_ref()
+            .and_then(|p| p.get("dependencies"))
+            .and_then(|d| d.get("react"))
+            .and_then(|v| v.as_str()),
         Some("18.0.0")
     );
 
@@ -1042,8 +1339,14 @@ fn prune_old_runs_keeps_newest_n_and_never_deletes_the_current_run() {
     prune_old_runs(&tmp, "2026-01-01T00-00-00-000Z", 1);
 
     assert!(tmp.join("2026-01-03T00-00-00-000Z").exists(), "newest kept");
-    assert!(tmp.join("2026-01-01T00-00-00-000Z").exists(), "current run never deleted");
-    assert!(!tmp.join("2026-01-02T00-00-00-000Z").exists(), "middle run pruned");
+    assert!(
+        tmp.join("2026-01-01T00-00-00-000Z").exists(),
+        "current run never deleted"
+    );
+    assert!(
+        !tmp.join("2026-01-02T00-00-00-000Z").exists(),
+        "middle run pruned"
+    );
     assert!(tmp.join("audit").exists(), "non-run-shaped dir untouched");
 
     let _ = fs::remove_dir_all(&tmp);

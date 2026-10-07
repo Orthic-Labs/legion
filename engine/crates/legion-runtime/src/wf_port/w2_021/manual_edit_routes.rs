@@ -220,7 +220,11 @@ pub fn handle_manual_edit_route(
     }
 }
 
-fn handle_stash(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: &Path) -> HttpResponse {
+fn handle_stash(
+    deps: &dyn ManualEditRoutesDeps,
+    req: &ManualEditRequest,
+    cwd: &Path,
+) -> HttpResponse {
     let msg = match &req.body {
         Some(Ok(v)) => v.clone(),
         _ => return HttpResponse::json(400, json!({ "error": "Invalid JSON" })),
@@ -237,7 +241,10 @@ fn handle_stash(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: &
     }
 
     let id = msg.get("id").and_then(Value::as_str).unwrap_or_default();
-    let page_url = msg.get("pageUrl").and_then(Value::as_str).unwrap_or_default();
+    let page_url = msg
+        .get("pageUrl")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let element = msg.get("element").cloned();
     let ops: Vec<super::manual_edits_buffer::ManualEditOp> = msg
         .get("ops")
@@ -341,7 +348,11 @@ fn handle_stash_get(
     )
 }
 
-fn handle_commit(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: &Path) -> HttpResponse {
+fn handle_commit(
+    deps: &dyn ManualEditRoutesDeps,
+    req: &ManualEditRequest,
+    cwd: &Path,
+) -> HttpResponse {
     if req.query("token") != Some(deps.token().as_str()) {
         return HttpResponse::json(401, json!({ "error": "Unauthorized" }));
     }
@@ -351,7 +362,10 @@ fn handle_commit(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: 
 
     let existing_transaction = deps.read_transaction();
     if repair_only && existing_transaction.is_none() {
-        return HttpResponse::json(409, json!({ "error": "manual_edit_repair_transaction_missing" }));
+        return HttpResponse::json(
+            409,
+            json!({ "error": "manual_edit_repair_transaction_missing" }),
+        );
     }
     let recovered_transaction = if repair_only {
         None
@@ -421,13 +435,17 @@ fn handle_commit(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: 
         }
 
         let requested_mode = deps.copy_agent_mode();
-        let use_chat_route =
-            requested_mode == "chat" || (requested_mode == "auto" && deps.chat_agent_likely_active());
+        let use_chat_route = requested_mode == "chat"
+            || (requested_mode == "auto" && deps.chat_agent_likely_active());
         let timeout_ms = deps.copy_agent_timeout_ms();
         let transaction_id = transaction
             .as_ref()
             .and_then(|t| t.get("id").and_then(Value::as_str))
-            .or_else(|| existing_transaction.as_ref().and_then(|t| t.get("id").and_then(Value::as_str)))
+            .or_else(|| {
+                existing_transaction
+                    .as_ref()
+                    .and_then(|t| t.get("id").and_then(Value::as_str))
+            })
             .map(|s| s.to_string());
 
         if use_chat_route {
@@ -599,7 +617,8 @@ fn handle_repair_decision(
             json!({ "error": "unsupported_manual_edit_repair_decision", "action": action }),
         );
     }
-    let rollback = deps.rollback_transaction(page_url.as_deref(), "manual_edit_user_requested_rollback");
+    let rollback =
+        deps.rollback_transaction(page_url.as_deref(), "manual_edit_user_requested_rollback");
     let counts = count_by_page(cwd);
     let remaining = if let Some(p) = &page_url {
         counts.per_page.get(p).copied().unwrap_or(0)
@@ -618,7 +637,11 @@ fn handle_repair_decision(
     HttpResponse::json(200, response)
 }
 
-fn handle_discard(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: &Path) -> HttpResponse {
+fn handle_discard(
+    deps: &dyn ManualEditRoutesDeps,
+    req: &ManualEditRequest,
+    cwd: &Path,
+) -> HttpResponse {
     if req.query("token") != Some(deps.token().as_str()) {
         return HttpResponse::json(401, json!({ "error": "Unauthorized" }));
     }

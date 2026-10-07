@@ -26,7 +26,8 @@ fn none_correction_re() -> &'static Regex {
 fn correction_audit_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?is)^INVENTORY_SOURCE:([^;]+);\s*SEMANTIC_DELTA:(YES|NO);\s*EVIDENCE:(.+)$").unwrap()
+        Regex::new(r"(?is)^INVENTORY_SOURCE:([^;]+);\s*SEMANTIC_DELTA:(YES|NO);\s*EVIDENCE:(.+)$")
+            .unwrap()
     })
 }
 
@@ -43,9 +44,7 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
 
     let authority_order = label_value(text, "**Authority order:**").unwrap_or_default();
     if authority_order.trim().to_uppercase() != REQUIRED_ORDER {
-        errors.push(format!(
-            "**Authority order:** must be {REQUIRED_ORDER}"
-        ));
+        errors.push(format!("**Authority order:** must be {REQUIRED_ORDER}"));
     }
 
     let correction = label_value(text, "**Correction state:**").unwrap_or_default();
@@ -92,8 +91,9 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
         }
     } else {
         static NOT_APPLICABLE_RE: OnceLock<Regex> = OnceLock::new();
-        let re = NOT_APPLICABLE_RE
-            .get_or_init(|| Regex::new(r"(?i)^NOT_APPLICABLE:\s*NO_SEMANTIC_CORRECTION\b").unwrap());
+        let re = NOT_APPLICABLE_RE.get_or_init(|| {
+            Regex::new(r"(?i)^NOT_APPLICABLE:\s*NO_SEMANTIC_CORRECTION\b").unwrap()
+        });
         if !re.is_match(&invalidation) {
             errors.push(
                 "uncorrected dispatch requires Plan invalidation NOT_APPLICABLE:NO_SEMANTIC_CORRECTION"
@@ -102,7 +102,9 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
         }
     }
 
-    let rederivation = label_value(text, "**Re-derivation status:**").unwrap_or_default().to_uppercase();
+    let rederivation = label_value(text, "**Re-derivation status:**")
+        .unwrap_or_default()
+        .to_uppercase();
     for token in [
         "FROM_ZERO:COMPLETE",
         "OBJECTIVE_RESTATED:COMPLETE",
@@ -115,8 +117,14 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
         }
     }
 
-    let progress = label_value(text, "**Progress disposition:**").unwrap_or_default().to_uppercase();
-    for token in ["PRESERVE_EVIDENCE_ONLY", "REUSE_ONLY_IF:", "STALE_PROGRESS:REJECT"] {
+    let progress = label_value(text, "**Progress disposition:**")
+        .unwrap_or_default()
+        .to_uppercase();
+    for token in [
+        "PRESERVE_EVIDENCE_ONLY",
+        "REUSE_ONLY_IF:",
+        "STALE_PROGRESS:REJECT",
+    ] {
         if !progress.contains(token) {
             errors.push(format!("Progress disposition missing {token}"));
         }
@@ -124,7 +132,9 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
 
     static SPLIT_RE: OnceLock<Regex> = OnceLock::new();
     let split_re = SPLIT_RE.get_or_init(|| Regex::new(r"[\s,|]+").unwrap());
-    let semantics_raw = label_value(text, "**Task semantics:**").unwrap_or_default().to_uppercase();
+    let semantics_raw = label_value(text, "**Task semantics:**")
+        .unwrap_or_default()
+        .to_uppercase();
     let semantics: BTreeSet<&str> = split_re
         .split(&semantics_raw)
         .filter(|s| !s.trim().is_empty())
@@ -154,9 +164,15 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
             .map(|(_, r)| r.trim())
             .unwrap_or("");
         match typed_re.captures(&typed_binding) {
-            Some(caps) if caps.get(1).unwrap().as_str().to_lowercase() == caps.get(2).unwrap().as_str().to_lowercase() => {
+            Some(caps)
+                if caps.get(1).unwrap().as_str().to_lowercase()
+                    == caps.get(2).unwrap().as_str().to_lowercase() =>
+            {
                 if caps.get(1).unwrap().as_str().to_lowercase() != gate_run.to_lowercase() {
-                    errors.push("Alchemist typed-stage binding run ID must match Alchemist gate".to_string());
+                    errors.push(
+                        "Alchemist typed-stage binding run ID must match Alchemist gate"
+                            .to_string(),
+                    );
                 }
             }
             _ => {
@@ -171,7 +187,8 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
         let re = NOT_REQUIRED_RE.get_or_init(|| Regex::new(r"(?i)^NOT_REQUIRED:\s*\S").unwrap());
         if !re.is_match(&typed_binding) {
             errors.push(
-                "routine work requires Alchemist typed-stage binding NOT_REQUIRED:<reason>".to_string(),
+                "routine work requires Alchemist typed-stage binding NOT_REQUIRED:<reason>"
+                    .to_string(),
             );
         }
     }
@@ -182,11 +199,16 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
         "## 1C. Goal Route & Critical Path",
     );
     let rows: Vec<&Vec<String>> = inherited.iter().skip(1).filter(|r| r.len() == 6).collect();
-    let clause_ids: Vec<String> = rows.iter().map(|r| r[0].trim_matches('`').to_string()).collect();
+    let clause_ids: Vec<String> = rows
+        .iter()
+        .map(|r| r[0].trim_matches('`').to_string())
+        .collect();
     {
         let unique: BTreeSet<&String> = clause_ids.iter().collect();
         if unique.len() != clause_ids.len() {
-            errors.push("inherited instruction disposition contains duplicate clause IDs".to_string());
+            errors.push(
+                "inherited instruction disposition contains duplicate clause IDs".to_string(),
+            );
         }
     }
 
@@ -199,7 +221,9 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
     ]
     .into_iter()
     .collect();
-    let allowed_compatibility: BTreeSet<&str> = ["ALIGNED", "CONFLICTS", "NO_DECISION_VALUE"].into_iter().collect();
+    let allowed_compatibility: BTreeSet<&str> = ["ALIGNED", "CONFLICTS", "NO_DECISION_VALUE"]
+        .into_iter()
+        .collect();
 
     static FENCE_RE: OnceLock<Regex> = OnceLock::new();
     let fence_re = FENCE_RE.get_or_init(|| Regex::new(r"(?s)```[^\n]*\n(.*?)\n```").unwrap());
@@ -217,11 +241,17 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
         label_value(text, "**Required inputs:**").unwrap_or_default(),
     ];
     for (start, end) in [
-        ("### Model, tool & dependency relevance", "## 1B. Authority, Correction & Global Re-Derivation"),
+        (
+            "### Model, tool & dependency relevance",
+            "## 1B. Authority, Correction & Global Re-Derivation",
+        ),
         ("### Stage decision funnel", "### Typed stage records"),
         ("### Typed stage records", "### Fixture-stage ownership"),
         ("### Fixture-stage ownership", "### Stage command bindings"),
-        ("## 7. Verification & Acceptance Map", "## 8. Evidence & Artifact Contract"),
+        (
+            "## 7. Verification & Acceptance Map",
+            "## 8. Evidence & Artifact Contract",
+        ),
     ] {
         let table = table_rows(text, start, end);
         for row in table.iter().skip(1) {
@@ -244,17 +274,20 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
     static REWRITE_RE: OnceLock<Regex> = OnceLock::new();
     let rewrite_re = REWRITE_RE.get_or_init(|| Regex::new(r"(?i)^REWRITE:").unwrap());
     static DECISION_EFFECT_RE: OnceLock<Regex> = OnceLock::new();
-    let decision_effect_re =
-        DECISION_EFFECT_RE.get_or_init(|| Regex::new(r"(?i)\bDECISION_EFFECT:QUESTION_\d+\b").unwrap());
+    let decision_effect_re = DECISION_EFFECT_RE
+        .get_or_init(|| Regex::new(r"(?i)\bDECISION_EFFECT:QUESTION_\d+\b").unwrap());
     static MATCH_TEXT_RE: OnceLock<Regex> = OnceLock::new();
-    let match_text_re = MATCH_TEXT_RE.get_or_init(|| Regex::new(r"(?i)\bMATCH_TEXT:([^;]+)").unwrap());
+    let match_text_re =
+        MATCH_TEXT_RE.get_or_init(|| Regex::new(r"(?i)\bMATCH_TEXT:([^;]+)").unwrap());
     static EXCLUDE_FROM_RE: OnceLock<Regex> = OnceLock::new();
-    let exclude_from_re = EXCLUDE_FROM_RE.get_or_init(|| Regex::new(r"(?i)\bEXCLUDE_FROM:[^;]+").unwrap());
+    let exclude_from_re =
+        EXCLUDE_FROM_RE.get_or_init(|| Regex::new(r"(?i)\bEXCLUDE_FROM:[^;]+").unwrap());
     static NO_DECISION_EFFECT_RE: OnceLock<Regex> = OnceLock::new();
     let no_decision_effect_re =
         NO_DECISION_EFFECT_RE.get_or_init(|| Regex::new(r"(?i)\bNO_DECISION_EFFECT:\S").unwrap());
     static REWRITE_TO_RE: OnceLock<Regex> = OnceLock::new();
-    let rewrite_to_re = REWRITE_TO_RE.get_or_init(|| Regex::new(r"(?i)\bREWRITE_TO:([^;]+)").unwrap());
+    let rewrite_to_re =
+        REWRITE_TO_RE.get_or_init(|| Regex::new(r"(?i)\bREWRITE_TO:([^;]+)").unwrap());
 
     let mut dispositions: Vec<String> = Vec::new();
     let mut latest_intent_rows = 0;
@@ -269,22 +302,32 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
             latest_intent_rows += 1;
         }
         if !allowed_ranks.contains(source_rank.as_str()) {
-            errors.push(format!("inherited clause {clause_id} has invalid source rank"));
+            errors.push(format!(
+                "inherited clause {clause_id} has invalid source rank"
+            ));
         }
         if !allowed_compatibility.contains(compatibility.as_str()) {
-            errors.push(format!("inherited clause {clause_id} has invalid objective compatibility"));
+            errors.push(format!(
+                "inherited clause {clause_id} has invalid objective compatibility"
+            ));
         }
 
         if keep_re.is_match(&disposition) {
             if compatibility != "ALIGNED" || owner == "NONE" {
-                errors.push(format!("inherited clause {clause_id} KEEP requires ALIGNED + stage owner"));
+                errors.push(format!(
+                    "inherited clause {clause_id} KEEP requires ALIGNED + stage owner"
+                ));
             }
             if !decision_effect_re.is_match(&disposition) {
-                errors.push(format!("inherited clause {clause_id} KEEP lacks numbered decision effect"));
+                errors.push(format!(
+                    "inherited clause {clause_id} KEEP lacks numbered decision effect"
+                ));
             }
         } else if delete_re.is_match(&disposition) {
             let token_match = match_text_re.captures(&disposition);
-            if owner != "NONE" || !matches!(compatibility.as_str(), "CONFLICTS" | "NO_DECISION_VALUE") {
+            if owner != "NONE"
+                || !matches!(compatibility.as_str(), "CONFLICTS" | "NO_DECISION_VALUE")
+            {
                 errors.push(format!(
                     "inherited clause {clause_id} DELETE requires NONE owner + conflict/no-decision-value"
                 ));
@@ -299,24 +342,45 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
             } else if let Some(m) = &token_match {
                 let matched = m.get(1).unwrap().as_str().trim().to_lowercase();
                 if active_contract.contains(&matched) {
-                    errors.push(format!("deleted inherited match text survives active contract: {clause_id}"));
+                    errors.push(format!(
+                        "deleted inherited match text survives active contract: {clause_id}"
+                    ));
                 }
             }
         } else if rewrite_re.is_match(&disposition) {
             if owner == "NONE" {
-                errors.push(format!("inherited clause {clause_id} REWRITE requires stage owner"));
+                errors.push(format!(
+                    "inherited clause {clause_id} REWRITE requires stage owner"
+                ));
             }
             let old_match = match_text_re.captures(&disposition);
             let new_match = rewrite_to_re.captures(&disposition);
-            if old_match.is_none() || new_match.is_none() || !decision_effect_re.is_match(&disposition) {
+            if old_match.is_none()
+                || new_match.is_none()
+                || !decision_effect_re.is_match(&disposition)
+            {
                 errors.push(format!(
                     "inherited clause {clause_id} REWRITE lacks MATCH_TEXT, REWRITE_TO, or numbered decision effect"
                 ));
             } else {
-                let old_text = old_match.unwrap().get(1).unwrap().as_str().trim().to_lowercase();
-                let new_text = new_match.unwrap().get(1).unwrap().as_str().trim().to_lowercase();
+                let old_text = old_match
+                    .unwrap()
+                    .get(1)
+                    .unwrap()
+                    .as_str()
+                    .trim()
+                    .to_lowercase();
+                let new_text = new_match
+                    .unwrap()
+                    .get(1)
+                    .unwrap()
+                    .as_str()
+                    .trim()
+                    .to_lowercase();
                 if active_contract.contains(&old_text) {
-                    errors.push(format!("rewritten inherited match text survives active contract: {clause_id}"));
+                    errors.push(format!(
+                        "rewritten inherited match text survives active contract: {clause_id}"
+                    ));
                 }
                 if !active_contract.contains(&new_text) {
                     errors.push(format!(
@@ -325,7 +389,9 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
                 }
             }
         } else {
-            errors.push(format!("inherited clause {clause_id} must be KEEP, DELETE, or REWRITE"));
+            errors.push(format!(
+                "inherited clause {clause_id} must be KEEP, DELETE, or REWRITE"
+            ));
         }
 
         if source_rank == "LATEST_USER_INTENT" && !keep_re.is_match(&disposition) {
@@ -334,17 +400,23 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
     }
 
     if latest_intent_rows < 1 {
-        errors.push("inherited instruction disposition requires at least one LATEST_USER_INTENT row".to_string());
+        errors.push(
+            "inherited instruction disposition requires at least one LATEST_USER_INTENT row"
+                .to_string(),
+        );
     }
     if semantic_correction
         && !dispositions
             .iter()
             .any(|d| delete_re.is_match(d) || rewrite_re.is_match(d))
     {
-        errors.push("semantic correction requires at least one DELETE or REWRITE disposition".to_string());
+        errors.push(
+            "semantic correction requires at least one DELETE or REWRITE disposition".to_string(),
+        );
     }
 
-    let reconciliation = label_value(text, "**Inherited inventory reconciliation:**").unwrap_or_default();
+    let reconciliation =
+        label_value(text, "**Inherited inventory reconciliation:**").unwrap_or_default();
     static RECON_RE: OnceLock<Regex> = OnceLock::new();
     let recon_re = RECON_RE.get_or_init(|| {
         Regex::new(r"(?is)^INVENTORY_TOTAL:(\d+);\s*CLASSIFIED_TOTAL:(\d+);\s*UNCLASSIFIED:(\d+);\s*EVIDENCE:(.+)$").unwrap()
@@ -354,8 +426,14 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
             let inventory_total: i64 = caps.get(1).unwrap().as_str().parse().unwrap_or(-1);
             let classified_total: i64 = caps.get(2).unwrap().as_str().parse().unwrap_or(-1);
             let unclassified: i64 = caps.get(3).unwrap().as_str().parse().unwrap_or(-1);
-            if inventory_total != rows.len() as i64 || classified_total != rows.len() as i64 || unclassified != 0 {
-                errors.push("inherited inventory totals must equal classified rows with UNCLASSIFIED:0".to_string());
+            if inventory_total != rows.len() as i64
+                || classified_total != rows.len() as i64
+                || unclassified != 0
+            {
+                errors.push(
+                    "inherited inventory totals must equal classified rows with UNCLASSIFIED:0"
+                        .to_string(),
+                );
             }
         }
         _ => {

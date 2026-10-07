@@ -36,8 +36,18 @@ fn vocabulary_has_twelve_commands_matching_js_order() {
     assert_eq!(
         values,
         vec![
-            "impeccable", "bolder", "quieter", "distill", "polish", "typeset", "colorize",
-            "layout", "morph", "animate", "delight", "overdrive",
+            "impeccable",
+            "bolder",
+            "quieter",
+            "distill",
+            "polish",
+            "typeset",
+            "colorize",
+            "layout",
+            "morph",
+            "animate",
+            "delight",
+            "overdrive",
         ]
     );
     assert_eq!(visual_actions(), values);
@@ -47,12 +57,20 @@ fn vocabulary_has_twelve_commands_matching_js_order() {
 
 #[test]
 fn ui_core_mount_contract_and_surfaces() {
-    assert_eq!(LIVE_CHROME_MOUNT_CONTRACT, ["root", "transport", "state", "actions"]);
+    assert_eq!(
+        LIVE_CHROME_MOUNT_CONTRACT,
+        ["root", "transport", "state", "actions"]
+    );
     assert_eq!(LIVE_UI_SURFACES.len(), 14);
     let ids = live_ui_component_ids();
     assert!(ids.contains(&"impeccable-live-picker"));
     // Deduped: "impeccable-live-bar" appears in 3 surfaces but once in ids.
-    assert_eq!(ids.iter().filter(|id| **id == "impeccable-live-bar").count(), 1);
+    assert_eq!(
+        ids.iter()
+            .filter(|id| **id == "impeccable-live-bar")
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -65,7 +83,10 @@ fn ui_core_escape_css_ident() {
 #[test]
 fn svelte_component_constants() {
     assert_eq!(SVELTE_COMPONENT_ROOT, "node_modules/.impeccable-live");
-    assert_eq!(DEFERRED_ACCEPTS_FILE, ".impeccable/live/deferred-svelte-component-accepts.json");
+    assert_eq!(
+        DEFERRED_ACCEPTS_FILE,
+        ".impeccable/live/deferred-svelte-component-accepts.json"
+    );
 }
 
 #[test]
@@ -94,7 +115,10 @@ fn svelte_component_parse_and_stub_pipeline() {
     let source = "<script>\n  let x = 1;\n</script>\n<div class=\"row\">{item.label}</div>\n<style>\n  .row { padding: 4px; }\n</style>\n";
     let parsed = parse_svelte_component_file(source);
     assert_eq!(parsed.markup, r#"<div class="row">{item.label}</div>"#);
-    assert_eq!(parsed.css_lines, vec!["  .row { padding: 4px; }".to_string()]);
+    assert_eq!(
+        parsed.css_lines,
+        vec!["  .row { padding: 4px; }".to_string()]
+    );
 
     let contract = build_prop_contract(&extract_mustache_expressions(&parsed.markup));
     let original_with_props = substitute_exprs_with_props(&parsed.markup, &contract);
@@ -154,7 +178,10 @@ fn svelte_component_bake_param_values() {
     let mut params: HashMap<String, ParamValue> = HashMap::new();
     params.insert("size".to_string(), ParamValue::Num(24.0));
     let css = vec!["  width: var(--p-size, 16px);".to_string()];
-    assert_eq!(bake_param_values_in_css(&css, Some(&params)), vec!["  width: 24;".to_string()]);
+    assert_eq!(
+        bake_param_values_in_css(&css, Some(&params)),
+        vec!["  width: 24;".to_string()]
+    );
 }
 
 #[test]
@@ -175,9 +202,18 @@ fn svelte_component_css_authoring_payload() {
 
 #[test]
 fn sveltekit_adapter_constants() {
-    assert_eq!(SVELTE_LIVE_ROOT_COMPONENT, "src/lib/designer/ImpeccableLiveRoot.svelte");
-    assert_eq!(SVELTE_LAYOUT_MARKER_OPEN, "<!-- impeccable-live-svelte-start -->");
-    assert_eq!(SVELTE_LAYOUT_MARKER_CLOSE, "<!-- impeccable-live-svelte-end -->");
+    assert_eq!(
+        SVELTE_LIVE_ROOT_COMPONENT,
+        "src/lib/designer/ImpeccableLiveRoot.svelte"
+    );
+    assert_eq!(
+        SVELTE_LAYOUT_MARKER_OPEN,
+        "<!-- impeccable-live-svelte-start -->"
+    );
+    assert_eq!(
+        SVELTE_LAYOUT_MARKER_CLOSE,
+        "<!-- impeccable-live-svelte-end -->"
+    );
     assert!(SVELTE_ROOT_IMPORT.contains("ImpeccableLiveRoot"));
 }
 

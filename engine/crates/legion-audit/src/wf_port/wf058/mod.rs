@@ -165,7 +165,11 @@ const DEFAULT_UNCERTAINTY: &str =
     "Reachability and compensating controls require independent adjudication.";
 
 /// Mirrors `createPatternPack({ ... }).analyze(context)`.
-fn pattern_pack_analyze(ctx: &PackContext, family: &str, rules: &[PatternRule]) -> Vec<Observation> {
+fn pattern_pack_analyze(
+    ctx: &PackContext,
+    family: &str,
+    rules: &[PatternRule],
+) -> Vec<Observation> {
     let mut observations = Vec::new();
     for file in &ctx.files {
         let text = match ctx.read_file(file) {
@@ -192,7 +196,9 @@ fn pattern_pack_analyze(ctx: &PackContext, family: &str, rules: &[PatternRule]) 
                 effect_scope: rule.effect_scope.unwrap_or(family).to_string(),
                 effect_environment: "application".to_string(),
                 chain_roles: rule.chain_roles.iter().map(|s| s.to_string()).collect(),
-                evidence_refs: artifact.map(|e| e.evidence_refs.clone()).unwrap_or_default(),
+                evidence_refs: artifact
+                    .map(|e| e.evidence_refs.clone())
+                    .unwrap_or_default(),
                 detector_metadata: json!({ "file": file, "patternFamily": family }),
                 uncertainty: vec![DEFAULT_UNCERTAINTY.to_string()],
             });
@@ -401,9 +407,11 @@ pub mod crypto_data_privacy {
             .is_match(t)
     }
     fn p_static_iv(t: &str) -> bool {
-        Regex::new(r#"(?i)(?:iv|nonce)\s*[:=]\s*(?:Buffer\.alloc\([^)]*,\s*0\)|['"][0-9a-f]{8,}['"])"#)
-            .unwrap()
-            .is_match(t)
+        Regex::new(
+            r#"(?i)(?:iv|nonce)\s*[:=]\s*(?:Buffer\.alloc\([^)]*,\s*0\)|['"][0-9a-f]{8,}['"])"#,
+        )
+        .unwrap()
+        .is_match(t)
     }
     fn p_pii_log(t: &str) -> bool {
         Regex::new(r"(?i)(?:console|logger)\.(?:log|info|debug)\([^\n]*(?:email|phone|address|token|password|ssn)")

@@ -145,12 +145,18 @@ pub const WORKER_PROFILE: &[&str] = &["strict", "standard", "advanced"];
 /// Effect/evidence authentication method. Imported historical records
 /// remain explicitly unauthenticated; connection trust never masquerades as
 /// per-message proof.
-pub const AUTHENTICATION_METHOD: &[&str] =
-    &["host-connection-trust", "capability-signature", "unauthenticated"];
+pub const AUTHENTICATION_METHOD: &[&str] = &[
+    "host-connection-trust",
+    "capability-signature",
+    "unauthenticated",
+];
 
 /// Advisory contract-safety outcome from Covenant blocker challenge.
-pub const BLOCKER_CONSULT_OUTCOME: &[&str] =
-    &["CONTRACT_SAFE", "AMENDMENT_REQUIRED", "INSUFFICIENT_EVIDENCE"];
+pub const BLOCKER_CONSULT_OUTCOME: &[&str] = &[
+    "CONTRACT_SAFE",
+    "AMENDMENT_REQUIRED",
+    "INSUFFICIENT_EVIDENCE",
+];
 
 /// Whether a blocker is clearly semantic or possibly contract-safe.
 pub const BLOCKER_CLASS: &[&str] = &["CLEARLY_SEMANTIC", "POSSIBLY_CONTRACT_SAFE"];
@@ -166,7 +172,13 @@ pub const CLAIM_STATUS: &[&str] = &["PENDING", "VALIDATED", "REJECTED"];
 /// (lib/contracts, providers/security/contracts.mjs) to avoid this package
 /// taking a runtime dependency on legion's internal provider pipeline.
 /// Judgment call J-5, see FREEZE.md.
-pub const EVIDENCE_CLASS: &[&str] = &["deterministic", "measured", "interpretive", "external", "human"];
+pub const EVIDENCE_CLASS: &[&str] = &[
+    "deterministic",
+    "measured",
+    "interpretive",
+    "external",
+    "human",
+];
 
 /// Every claim name across all authorities; Arcane validates but does not
 /// invent them. Built at call time (not const) because `&[&str]` concat
@@ -220,7 +232,10 @@ mod tests {
     #[test]
     fn claim_name_matches_union() {
         let all = claim_name();
-        assert_eq!(all.len(), SAGE_CLAIM.len() + ALCHEMIST_CLAIM.len() + ORACLE_CLAIM.len());
+        assert_eq!(
+            all.len(),
+            SAGE_CLAIM.len() + ALCHEMIST_CLAIM.len() + ORACLE_CLAIM.len()
+        );
         assert!(all.contains(&"ADJUDICATION_MADE"));
         assert!(all.contains(&"EFFECT_APPLIED"));
         assert!(all.contains(&"COMPLETION_VALIDATED"));

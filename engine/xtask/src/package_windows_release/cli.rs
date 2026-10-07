@@ -21,7 +21,13 @@ fn usage() {
 /// Mirrors `parseArguments`: boolean flags (`--force`, `--finalize`,
 /// `--publish-github`, `--dry-run`, `--json`) plus `--flag value`/`--flag=value`.
 fn parse_arguments(argv: &[String]) -> Result<HashMap<String, String>, String> {
-    const BOOLEAN_FLAGS: [&str; 5] = ["--force", "--finalize", "--publish-github", "--dry-run", "--json"];
+    const BOOLEAN_FLAGS: [&str; 5] = [
+        "--force",
+        "--finalize",
+        "--publish-github",
+        "--dry-run",
+        "--json",
+    ];
     let mut options = HashMap::new();
     let mut index = 0;
     while index < argv.len() {
@@ -46,7 +52,9 @@ fn parse_arguments(argv: &[String]) -> Result<HashMap<String, String>, String> {
             Some(v) => v,
             None => {
                 index += 1;
-                argv.get(index).cloned().ok_or_else(|| format!("--{key} requires a value"))?
+                argv.get(index)
+                    .cloned()
+                    .ok_or_else(|| format!("--{key} requires a value"))?
             }
         };
         if value.is_empty() || value.starts_with("--") {
@@ -86,18 +94,30 @@ pub fn run(argv: &[String]) -> ExitCode {
         .cloned()
         .or_else(|| std::env::var("LEGION_WINDOWS_ARCH").ok())
         .unwrap_or_else(|| "x86_64".to_string());
-    let normalized = match crate::windows_release_config::normalize_windows_architecture(&architecture) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("package-windows-release: {e}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let configured = windows_architecture(&normalized).expect("normalized architecture is always configured");
-    let default_input = repository_root.join("dist").join("native").join(format!("windows-{normalized}")).join(""); // assemblyRoot depends on version; caller should pass --input in practice
+    let normalized =
+        match crate::windows_release_config::normalize_windows_architecture(&architecture) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("package-windows-release: {e}");
+                return ExitCode::FAILURE;
+            }
+        };
+    let configured =
+        windows_architecture(&normalized).expect("normalized architecture is always configured");
+    let default_input = repository_root
+        .join("dist")
+        .join("native")
+        .join(format!("windows-{normalized}"))
+        .join(""); // assemblyRoot depends on version; caller should pass --input in practice
     let _ = configured;
-    let input = options.get("input").map(PathBuf::from).unwrap_or(default_input);
-    let output = options.get("output").or_else(|| options.get("out")).map(PathBuf::from);
+    let input = options
+        .get("input")
+        .map(PathBuf::from)
+        .unwrap_or(default_input);
+    let output = options
+        .get("output")
+        .or_else(|| options.get("out"))
+        .map(PathBuf::from);
     let force = options.get("force").is_some();
     let finalize = options.get("finalize").is_some();
     let publish_github = options.get("publishgithub").is_some();
@@ -111,8 +131,14 @@ pub fn run(argv: &[String]) -> ExitCode {
             output: output.as_deref(),
             architecture: &normalized,
             source_revision: source_revision.as_deref(),
-            signature_receipt: options.get("signaturereceipt").map(PathBuf::from).as_deref(),
-            candidate_receipt: options.get("candidatereceipt").map(PathBuf::from).as_deref(),
+            signature_receipt: options
+                .get("signaturereceipt")
+                .map(PathBuf::from)
+                .as_deref(),
+            candidate_receipt: options
+                .get("candidatereceipt")
+                .map(PathBuf::from)
+                .as_deref(),
             qualification: options.get("qualification").map(PathBuf::from).as_deref(),
             provenance: options.get("provenance").map(PathBuf::from).as_deref(),
             publish_github,
@@ -134,10 +160,22 @@ pub fn run(argv: &[String]) -> ExitCode {
     match result {
         Ok(value) => {
             if json_output {
-                println!("{}", serde_json::to_string_pretty(&value).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&value).unwrap_or_default()
+                );
             } else {
-                let status = value.get("status").and_then(|v| v.as_str()).unwrap_or("done");
-                let archive = value.get("archive").and_then(|v| v.as_str()).map(str::to_string).unwrap_or_else(|| format!("{:?}", value.get("archive").unwrap_or(&Value::Null)));
+                let status = value
+                    .get("status")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("done");
+                let archive = value
+                    .get("archive")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+                    .unwrap_or_else(|| {
+                        format!("{:?}", value.get("archive").unwrap_or(&Value::Null))
+                    });
                 println!("windows direct release {status}: {archive}");
             }
             ExitCode::SUCCESS

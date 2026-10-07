@@ -74,7 +74,9 @@ fn matching_authenticated_receipt_registers_and_proves() {
         contract_version: json!(1),
         contract_digest: json!("digest-c"),
         source_revision: json!("rev-1"),
-        acceptance_criteria: vec![AcceptanceCriterion { id: json!("crit-1") }],
+        acceptance_criteria: vec![AcceptanceCriterion {
+            id: json!("crit-1"),
+        }],
     };
     let result = load_completion_evidence(
         &FakeStore(vec![matching_receipt()]),

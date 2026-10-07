@@ -197,13 +197,26 @@ pub fn verification_projection(facts: &Value) -> Value {
         a.get("provider")
             .and_then(Value::as_str)
             .unwrap_or_default()
-            .cmp(b.get("provider").and_then(Value::as_str).unwrap_or_default())
+            .cmp(
+                b.get("provider")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+            )
     });
 
     let mut plan_provider_ids = as_array(&first(facts, &[&["plan", "denominator", "providerIds"]]));
-    plan_provider_ids.sort_by(|a, b| a.as_str().unwrap_or_default().cmp(b.as_str().unwrap_or_default()));
-    let mut plan_expected_checks = as_array(&first(facts, &[&["plan", "denominator", "expectedChecks"]]));
-    plan_expected_checks.sort_by(|a, b| a.as_str().unwrap_or_default().cmp(b.as_str().unwrap_or_default()));
+    plan_provider_ids.sort_by(|a, b| {
+        a.as_str()
+            .unwrap_or_default()
+            .cmp(b.as_str().unwrap_or_default())
+    });
+    let mut plan_expected_checks =
+        as_array(&first(facts, &[&["plan", "denominator", "expectedChecks"]]));
+    plan_expected_checks.sort_by(|a, b| {
+        a.as_str()
+            .unwrap_or_default()
+            .cmp(b.as_str().unwrap_or_default())
+    });
     json!({
         "schemaVersion": 1,
         "kind": "legion-verification-projection",
@@ -267,7 +280,10 @@ mod tests {
     fn digest_is_stable_across_key_order() {
         let a = json!({"commit": "abc", "checks": []});
         let b = json!({"checks": [], "commit": "abc"});
-        assert_eq!(verification_digest(&a).unwrap(), verification_digest(&b).unwrap());
+        assert_eq!(
+            verification_digest(&a).unwrap(),
+            verification_digest(&b).unwrap()
+        );
     }
 
     #[test]

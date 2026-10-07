@@ -21,8 +21,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 pub const API_URL: &str = "https://commons.wikimedia.org/w/api.php";
-pub const USER_AGENT: &str =
-    "huashu-design-image-fetcher/1.0 (https://huasheng.ai; skill contact)";
+pub const USER_AGENT: &str = "huashu-design-image-fetcher/1.0 (https://huasheng.ai; skill contact)";
 
 const PROXY_VARS: [&str; 6] = [
     "ALL_PROXY",
@@ -550,18 +549,13 @@ mod tests {
         };
         let written = Mutex::new(Vec::new());
         let write = |path: &Path, bytes: &[u8]| {
-            written.lock().unwrap().push((path.to_path_buf(), bytes.to_vec()));
+            written
+                .lock()
+                .unwrap()
+                .push((path.to_path_buf(), bytes.to_vec()));
             Ok(())
         };
-        let (got, log) = fetch(
-            &client,
-            &write,
-            "x",
-            Path::new("/out"),
-            2,
-            1600,
-        )
-        .await;
+        let (got, log) = fetch(&client, &write, "x", Path::new("/out"), 2, 1600).await;
         assert_eq!(got.len(), 1);
         assert!(matches!(log[0], FetchLogLine::Ok { .. }));
     }
@@ -584,18 +578,30 @@ mod tests {
         let argv: Vec<String> = ["--out", "dir"].iter().map(|s| s.to_string()).collect();
         assert_eq!(parse_args(&argv), Err(ParseArgsError::MissingQuery));
 
-        let argv: Vec<String> = ["--query", "a", "b"].iter().map(|s| s.to_string()).collect();
+        let argv: Vec<String> = ["--query", "a", "b"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         assert_eq!(parse_args(&argv), Err(ParseArgsError::MissingOut));
     }
 
     #[test]
     fn parse_args_collects_multi_value_query_and_defaults() {
-        let argv: Vec<String> = ["--query", "Petronas Towers", "Langkawi beach", "--out", "img"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let argv: Vec<String> = [
+            "--query",
+            "Petronas Towers",
+            "Langkawi beach",
+            "--out",
+            "img",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
         let args = parse_args(&argv).unwrap();
-        assert_eq!(args.query, vec!["Petronas Towers".to_string(), "Langkawi beach".to_string()]);
+        assert_eq!(
+            args.query,
+            vec!["Petronas Towers".to_string(), "Langkawi beach".to_string()]
+        );
         assert_eq!(args.out, PathBuf::from("img"));
         assert_eq!(args.count, 2);
         assert_eq!(args.width, 1600);
@@ -603,10 +609,12 @@ mod tests {
 
     #[test]
     fn parse_args_overrides_count_and_width() {
-        let argv: Vec<String> = ["--query", "x", "--out", "o", "--count", "3", "--width", "800"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let argv: Vec<String> = [
+            "--query", "x", "--out", "o", "--count", "3", "--width", "800",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
         let args = parse_args(&argv).unwrap();
         assert_eq!(args.count, 3);
         assert_eq!(args.width, 800);
@@ -658,6 +666,9 @@ mod tests {
         let (got, _log, summary, exit_code) = run(&client, &write, &ensure_dir, &args).await;
         assert_eq!(got.len(), 2);
         assert_eq!(exit_code, 0);
-        assert!(matches!(summary[0], SummaryLogLine::Downloaded { count: 2, .. }));
+        assert!(matches!(
+            summary[0],
+            SummaryLogLine::Downloaded { count: 2, .. }
+        ));
     }
 }

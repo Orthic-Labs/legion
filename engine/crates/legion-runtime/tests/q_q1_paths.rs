@@ -3,10 +3,10 @@
 //! the port through the crate's public `wf_port::q_q1` module.
 
 use legion_runtime::wf_port::q_q1::{
-    get_critique_dir, get_design_sidecar_candidates, get_design_sidecar_path,
-    get_impeccable_dir, get_legacy_live_annotations_dir, get_legacy_live_config_path,
-    get_legacy_live_server_path, get_legacy_live_sessions_dir, get_live_annotations_dir,
-    get_live_config_path, get_live_dir, get_live_server_path, get_live_sessions_dir,
+    get_critique_dir, get_design_sidecar_candidates, get_design_sidecar_path, get_impeccable_dir,
+    get_legacy_live_annotations_dir, get_legacy_live_config_path, get_legacy_live_server_path,
+    get_legacy_live_sessions_dir, get_live_annotations_dir, get_live_config_path, get_live_dir,
+    get_live_server_path, get_live_sessions_dir,
 };
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -51,7 +51,10 @@ fn live_tree_paths_nest_under_impeccable_live() {
     assert_eq!(get_live_server_path(&root), live.join("server.json"));
     assert_eq!(get_live_sessions_dir(&root), live.join("sessions"));
     assert_eq!(get_live_annotations_dir(&root), live.join("annotations"));
-    assert_eq!(get_critique_dir(&root), root.join(".impeccable").join("critique"));
+    assert_eq!(
+        get_critique_dir(&root),
+        root.join(".impeccable").join("critique")
+    );
 }
 
 #[test]

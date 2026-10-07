@@ -59,7 +59,9 @@ fn percent_decode(s: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(v) = u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16) {
+            if let Ok(v) =
+                u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+            {
                 out.push(v);
                 i += 3;
                 continue;
@@ -100,9 +102,9 @@ impl LocalCorpusProvider {
     /// `FileNotFoundError` when it is not a directory.
     pub fn new(root: impl AsRef<Path>) -> Result<Self, WfError> {
         let raw = root.as_ref();
-        let root = raw
-            .canonicalize()
-            .map_err(|_| WfError::Invalid(format!("local corpus does not exist: {}", raw.display())))?;
+        let root = raw.canonicalize().map_err(|_| {
+            WfError::Invalid(format!("local corpus does not exist: {}", raw.display()))
+        })?;
         if !root.is_dir() {
             return Err(WfError::Invalid(format!(
                 "local corpus does not exist: {}",
@@ -289,20 +291,28 @@ impl Provider for LocalCorpusProvider {
     /// text happens to be a JSON object with a `content` string field); it is
     /// ported here exactly as written, per the faithful-port instruction. See
     /// the wf027 report.
-    fn find(&self, opened: &OpenedSource, pattern: &str) -> Result<Option<LocatedPassage>, WfError> {
+    fn find(
+        &self,
+        opened: &OpenedSource,
+        pattern: &str,
+    ) -> Result<Option<LocatedPassage>, WfError> {
         let value: Value = serde_json::from_str(&opened.content)?;
         let body = value
             .get("content")
             .and_then(Value::as_str)
-            .ok_or_else(|| WfError::Invalid("opened source content has no 'content' field".into()))?;
-        Ok(locate_text(body, pattern, 300).map(|(locator, text)| LocatedPassage {
-            url: opened.url.clone(),
-            locator,
-            text,
-            is_paraphrase: false,
-            provider: Self::NAME.to_string(),
-            metadata: Map::new(),
-        }))
+            .ok_or_else(|| {
+                WfError::Invalid("opened source content has no 'content' field".into())
+            })?;
+        Ok(
+            locate_text(body, pattern, 300).map(|(locator, text)| LocatedPassage {
+                url: opened.url.clone(),
+                locator,
+                text,
+                is_paraphrase: false,
+                provider: Self::NAME.to_string(),
+                metadata: Map::new(),
+            }),
+        )
     }
 }
 

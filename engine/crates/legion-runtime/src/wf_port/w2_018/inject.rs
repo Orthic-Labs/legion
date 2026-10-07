@@ -520,10 +520,7 @@ pub fn revert_csp_meta(content: &str) -> String {
         let Some(original_value) = base64_decode(&orig_attr.value) else {
             continue;
         };
-        let new_content_attr = format!(
-            "content={q}{original_value}{q}",
-            q = content_attr.quote
-        );
+        let new_content_attr = format!("content={q}{original_value}{q}", q = content_attr.quote);
         let mut new_attrs = tag.attrs.replacen(&content_attr.full, &new_content_attr, 1);
         let marker_re = Regex::new(&format!(r"\s*{}", regex::escape(&orig_attr.full))).unwrap();
         new_attrs = marker_re.replace(&new_attrs, "").to_string();
@@ -573,7 +570,10 @@ fn base64_decode(input: &str) -> Option<String> {
             _ => None,
         }
     }
-    let bytes: Vec<u8> = input.bytes().filter(|b| *b != b'=' && !b.is_ascii_whitespace()).collect();
+    let bytes: Vec<u8> = input
+        .bytes()
+        .filter(|b| *b != b'=' && !b.is_ascii_whitespace())
+        .collect();
     let mut out = Vec::new();
     for chunk in bytes.chunks(4) {
         let mut n: u32 = 0;
@@ -722,8 +722,14 @@ fn parse_inject_config(v: &serde_json::Value) -> InjectConfig {
                 .collect()
         })
         .unwrap_or_default();
-    let insert_before = v.get("insertBefore").and_then(|f| f.as_str()).map(String::from);
-    let insert_after = v.get("insertAfter").and_then(|f| f.as_str()).map(String::from);
+    let insert_before = v
+        .get("insertBefore")
+        .and_then(|f| f.as_str())
+        .map(String::from);
+    let insert_after = v
+        .get("insertAfter")
+        .and_then(|f| f.as_str())
+        .map(String::from);
     let comment_syntax = v
         .get("commentSyntax")
         .and_then(|f| f.as_str())
@@ -767,7 +773,8 @@ pub fn run(
         return 0;
     }
 
-    let config_path = impeccable_paths::resolve_live_config_path(cwd, cwd, scripts_dir, env_live_config);
+    let config_path =
+        impeccable_paths::resolve_live_config_path(cwd, cwd, scripts_dir, env_live_config);
 
     if args.iter().any(|a| a == "--check") {
         if !config_path.exists() {
@@ -805,7 +812,10 @@ pub fn run(
             );
             return 0;
         }
-        println!("{}", json!({ "ok": true, "config": parsed, "path": config_path.to_string_lossy() }));
+        println!(
+            "{}",
+            json!({ "ok": true, "config": parsed, "path": config_path.to_string_lossy() })
+        );
         return 0;
     }
 
@@ -819,20 +829,29 @@ pub fn run(
     let raw = match fs::read_to_string(&config_path) {
         Ok(s) => s,
         Err(err) => {
-            eprintln!("{}", json!({ "ok": false, "error": "config_invalid", "message": err.to_string() }));
+            eprintln!(
+                "{}",
+                json!({ "ok": false, "error": "config_invalid", "message": err.to_string() })
+            );
             return 1;
         }
     };
     let parsed: serde_json::Value = match serde_json::from_str(&raw) {
         Ok(v) => v,
         Err(err) => {
-            eprintln!("{}", json!({ "ok": false, "error": "config_invalid", "message": err.to_string() }));
+            eprintln!(
+                "{}",
+                json!({ "ok": false, "error": "config_invalid", "message": err.to_string() })
+            );
             return 1;
         }
     };
     let config = parse_inject_config(&parsed);
     if let Err(e) = validate_config(&config) {
-        eprintln!("{}", json!({ "ok": false, "error": "config_invalid", "message": format!("{e:?}") }));
+        eprintln!(
+            "{}",
+            json!({ "ok": false, "error": "config_invalid", "message": format!("{e:?}") })
+        );
         return 1;
     }
 
@@ -841,13 +860,17 @@ pub fn run(
 
     if args.iter().any(|a| a == "--remove") {
         if svelte_kit.is_some() {
-            let adapter_result = match sveltekit_adapter::remove_sveltekit_live_adapter(cwd, Some(&config.files)) {
-                Ok(r) => r,
-                Err(err) => {
-                    eprintln!("{}", json!({ "ok": false, "error": "io_error", "message": err.to_string() }));
-                    return 1;
-                }
-            };
+            let adapter_result =
+                match sveltekit_adapter::remove_sveltekit_live_adapter(cwd, Some(&config.files)) {
+                    Ok(r) => r,
+                    Err(err) => {
+                        eprintln!(
+                            "{}",
+                            json!({ "ok": false, "error": "io_error", "message": err.to_string() })
+                        );
+                        return 1;
+                    }
+                };
             let result_json = adapter_result.map(|r| {
                 json!({
                     "file": r.file,
@@ -857,7 +880,10 @@ pub fn run(
                     "rootComponent": r.root_component,
                 })
             });
-            println!("{}", json!({ "ok": true, "adapter": "sveltekit", "results": [result_json] }));
+            println!(
+                "{}",
+                json!({ "ok": true, "adapter": "sveltekit", "results": [result_json] })
+            );
             return 0;
         }
         let mut results = Vec::new();
@@ -877,7 +903,8 @@ pub fn run(
             let detagged = remove_tag(&content);
             let updated = revert_csp_meta(&detagged);
             if updated == content {
-                results.push(json!({ "file": rel_file, "removed": false, "note": "no tag present" }));
+                results
+                    .push(json!({ "file": rel_file, "removed": false, "note": "no tag present" }));
                 continue;
             }
             if let Err(err) = fs::write(&abs_file, &updated) {
@@ -908,17 +935,27 @@ pub fn run(
     let git_ignore = match ensure_live_gitignores(cwd) {
         Ok(r) => r,
         Err(err) => {
-            eprintln!("{}", json!({ "ok": false, "error": "io_error", "message": err.to_string() }));
+            eprintln!(
+                "{}",
+                json!({ "ok": false, "error": "io_error", "message": err.to_string() })
+            );
             return 1;
         }
     };
     let git_ignore_json = gitignore_result_json(&git_ignore);
 
     if svelte_kit.is_some() {
-        let adapter_result = match sveltekit_adapter::apply_sveltekit_live_adapter(cwd, port as i64, Some(&config.files)) {
+        let adapter_result = match sveltekit_adapter::apply_sveltekit_live_adapter(
+            cwd,
+            port as i64,
+            Some(&config.files),
+        ) {
             Ok(r) => r,
             Err(err) => {
-                eprintln!("{}", json!({ "ok": false, "error": "io_error", "message": err.to_string() }));
+                eprintln!(
+                    "{}",
+                    json!({ "ok": false, "error": "io_error", "message": err.to_string() })
+                );
                 return 1;
             }
         };
@@ -956,8 +993,13 @@ pub fn run(
         let without_old = revert_csp_meta(&remove_tag(&content));
         let with_tag = insert_tag(&without_old, &config, port, rel_file);
         if with_tag == without_old {
-            let anchor = config.insert_before.as_deref().or(config.insert_after.as_deref());
-            results.push(json!({ "file": rel_file, "error": "insertion_point_not_found", "anchor": anchor }));
+            let anchor = config
+                .insert_before
+                .as_deref()
+                .or(config.insert_after.as_deref());
+            results.push(
+                json!({ "file": rel_file, "error": "insertion_point_not_found", "anchor": anchor }),
+            );
             continue;
         }
         let updated = patch_csp_meta(&with_tag, port);
@@ -1128,7 +1170,13 @@ mod tests {
 
     #[test]
     fn base64_round_trip() {
-        for s in ["", "a", "ab", "abc", "script-src 'self'; connect-src 'self' http://x"] {
+        for s in [
+            "",
+            "a",
+            "ab",
+            "abc",
+            "script-src 'self'; connect-src 'self' http://x",
+        ] {
             let enc = base64_encode(s.as_bytes());
             let dec = base64_decode(&enc).unwrap();
             assert_eq!(dec, s);
@@ -1274,8 +1322,7 @@ mod tests {
         // app.html must stay untouched; the layout gets patched instead.
         let app_html = fs::read_to_string(dir.0.join("src").join("app.html")).unwrap();
         assert!(!app_html.contains("live.js"));
-        let layout =
-            fs::read_to_string(dir.0.join("src/routes/+layout.svelte")).unwrap();
+        let layout = fs::read_to_string(dir.0.join("src/routes/+layout.svelte")).unwrap();
         assert!(layout.contains("ImpeccableLiveRoot"));
     }
 }

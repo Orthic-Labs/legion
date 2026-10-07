@@ -3,7 +3,10 @@ use serde_json::{json, Value};
 
 const SCHEMA: &str = "arcane.control-lifecycle-assessment.v1";
 
-fn object<'a>(value: &'a Value, name: &str) -> Result<&'a serde_json::Map<String, Value>, ArcaneError> {
+fn object<'a>(
+    value: &'a Value,
+    name: &str,
+) -> Result<&'a serde_json::Map<String, Value>, ArcaneError> {
     value.as_object().ok_or_else(|| {
         ArcaneError::typed("ARC_SCHEMA_INVALID", format!("{name} must be an object"))
     })
@@ -20,7 +23,10 @@ pub fn assess_control_retirement(input: &Value) -> Result<Value, ArcaneError> {
         .get("status")
         .and_then(Value::as_str)
         .ok_or_else(|| {
-            ArcaneError::typed("ARC_SCHEMA_INVALID", "record.status must be RETIRED or SUPERSEDED")
+            ArcaneError::typed(
+                "ARC_SCHEMA_INVALID",
+                "record.status must be RETIRED or SUPERSEDED",
+            )
         })?;
     if status != "RETIRED" && status != "SUPERSEDED" {
         return Err(ArcaneError::typed(
@@ -28,8 +34,10 @@ pub fn assess_control_retirement(input: &Value) -> Result<Value, ArcaneError> {
             "record.status must be RETIRED or SUPERSEDED",
         ));
     }
-    let consumer_scan =
-        object(input.get("consumerScan").unwrap_or(&Value::Null), "consumerScan")?;
+    let consumer_scan = object(
+        input.get("consumerScan").unwrap_or(&Value::Null),
+        "consumerScan",
+    )?;
     let obligation_disposition = object(
         input.get("obligationDisposition").unwrap_or(&Value::Null),
         "obligationDisposition",
@@ -46,7 +54,10 @@ pub fn assess_control_retirement(input: &Value) -> Result<Value, ArcaneError> {
         }));
     }
     let open = obligation_disposition.get("open").and_then(Value::as_array);
-    if obligation_disposition.get("complete").and_then(Value::as_bool) != Some(true)
+    if obligation_disposition
+        .get("complete")
+        .and_then(Value::as_bool)
+        != Some(true)
         || open.is_none()
         || !open.unwrap().is_empty()
     {

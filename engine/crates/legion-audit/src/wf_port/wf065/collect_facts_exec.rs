@@ -374,11 +374,7 @@ mod tests {
     fn real_runner_kills_a_command_past_its_timeout() {
         let runner = RealCommandRunner;
         let started = Instant::now();
-        let out = runner.run(
-            &["sleep".to_string(), "5".to_string()],
-            Path::new("."),
-            100,
-        );
+        let out = runner.run(&["sleep".to_string(), "5".to_string()], Path::new("."), 100);
         assert!(started.elapsed() < Duration::from_secs(4));
         assert_ne!(out.code, 0);
     }

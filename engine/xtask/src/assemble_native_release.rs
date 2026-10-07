@@ -20,7 +20,8 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::portable_core::{
-    assemble_portable_core, client_projection_kinds, validate_portable_core, AgentInput, AssembleParams, SkillInput,
+    assemble_portable_core, client_projection_kinds, validate_portable_core, AgentInput,
+    AssembleParams, SkillInput,
 };
 
 const CARGO_MANIFEST_REL: &str = "engine/Cargo.toml";
@@ -37,8 +38,20 @@ pub struct WindowsTarget {
 
 fn windows_targets() -> Vec<(&'static str, WindowsTarget)> {
     vec![
-        ("x86_64", WindowsTarget { installer_architecture: "x64", target_triple: "x86_64-pc-windows-msvc" }),
-        ("arm64", WindowsTarget { installer_architecture: "arm64", target_triple: "aarch64-pc-windows-msvc" }),
+        (
+            "x86_64",
+            WindowsTarget {
+                installer_architecture: "x64",
+                target_triple: "x86_64-pc-windows-msvc",
+            },
+        ),
+        (
+            "arm64",
+            WindowsTarget {
+                installer_architecture: "arm64",
+                target_triple: "aarch64-pc-windows-msvc",
+            },
+        ),
     ]
 }
 
@@ -69,11 +82,17 @@ pub fn normalize_architecture(value: &str, platform: &str) -> Result<String, Str
     if platform == "windows" {
         return match normalized {
             Some(n) if windows_targets().iter().any(|(k, _)| *k == n) => Ok(n.to_string()),
-            _ => Err(format!("unsupported Windows architecture: {value}; expected x86_64 or arm64")),
+            _ => Err(format!(
+                "unsupported Windows architecture: {value}; expected x86_64 or arm64"
+            )),
         };
     }
     if let Some(n) = normalized {
-        return Ok(if platform == "macos" && n == "arm64" { "aarch64".to_string() } else { n.to_string() });
+        return Ok(if platform == "macos" && n == "arm64" {
+            "aarch64".to_string()
+        } else {
+            n.to_string()
+        });
     }
     if value.trim().is_empty() {
         return Ok(match std::env::consts::ARCH {
@@ -100,7 +119,10 @@ fn file_sha256(path: &Path) -> Result<String, String> {
 }
 
 fn files_below(root: &Path, directory: &Path, output: &mut Vec<String>) -> Result<(), String> {
-    let mut entries: Vec<_> = fs::read_dir(directory).map_err(|e| e.to_string())?.filter_map(|e| e.ok()).collect();
+    let mut entries: Vec<_> = fs::read_dir(directory)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .collect();
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
         let path = entry.path();
@@ -114,7 +136,10 @@ fn files_below(root: &Path, directory: &Path, output: &mut Vec<String>) -> Resul
             let rel = path.strip_prefix(root).unwrap();
             output.push(rel.to_string_lossy().replace('\\', "/"));
         } else {
-            return Err(format!("release asset is not regular file: {}", path.display()));
+            return Err(format!(
+                "release asset is not regular file: {}",
+                path.display()
+            ));
         }
     }
     Ok(())
@@ -139,7 +164,11 @@ fn write_json(path: &Path, value: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(path, format!("{}\n", serde_json::to_string_pretty(value).unwrap())).map_err(|e| e.to_string())
+    fs::write(
+        path,
+        format!("{}\n", serde_json::to_string_pretty(value).unwrap()),
+    )
+    .map_err(|e| e.to_string())
 }
 
 /// Validate one canonical MCP schema before it is bound into a release.
@@ -157,7 +186,9 @@ fn validate_mcp_tool_schema(schema: &Value) -> Result<(), String> {
         .and_then(Value::as_array)
         .ok_or_else(|| format!("{MCP_TOOL_SCHEMA_REL} tools must be an array"))?;
     if tools.is_empty() {
-        return Err(format!("{MCP_TOOL_SCHEMA_REL} must declare at least one tool"));
+        return Err(format!(
+            "{MCP_TOOL_SCHEMA_REL} must declare at least one tool"
+        ));
     }
     let mut names = HashSet::new();
     for tool in tools {
@@ -170,7 +201,9 @@ fn validate_mcp_tool_schema(schema: &Value) -> Result<(), String> {
             return Err(format!("{MCP_TOOL_SCHEMA_REL} duplicates tool {name}"));
         }
         if !tool.get("inputSchema").is_some_and(Value::is_object) {
-            return Err(format!("{MCP_TOOL_SCHEMA_REL} tool {name} lacks inputSchema"));
+            return Err(format!(
+                "{MCP_TOOL_SCHEMA_REL} tool {name} lacks inputSchema"
+            ));
         }
     }
     Ok(())
@@ -194,7 +227,8 @@ fn copy_skill_tree(source: &Path, destination: &Path) -> Result<(), String> {
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
-        fs::copy(source.join(path.split('/').collect::<PathBuf>()), &target).map_err(|e| e.to_string())?;
+        fs::copy(source.join(path.split('/').collect::<PathBuf>()), &target)
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -202,7 +236,14 @@ fn copy_skill_tree(source: &Path, destination: &Path) -> Result<(), String> {
 fn resolve_target_root(manifest_path: &Path) -> Result<PathBuf, String> {
     let cwd = manifest_path.parent().unwrap_or(Path::new("."));
     let output = Command::new("cargo")
-        .args(["metadata", "--offline", "--format-version", "1", "--no-deps", "--manifest-path"])
+        .args([
+            "metadata",
+            "--offline",
+            "--format-version",
+            "1",
+            "--no-deps",
+            "--manifest-path",
+        ])
         .arg(manifest_path)
         .current_dir(cwd)
         .output()
@@ -219,7 +260,12 @@ fn resolve_target_root(manifest_path: &Path) -> Result<PathBuf, String> {
         .get("target_directory")
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty() && Path::new(s).is_absolute())
-        .ok_or_else(|| format!("metadata for {} did not report an absolute target_directory", manifest_path.display()))?;
+        .ok_or_else(|| {
+            format!(
+                "metadata for {} did not report an absolute target_directory",
+                manifest_path.display()
+            )
+        })?;
     Ok(PathBuf::from(directory))
 }
 
@@ -255,26 +301,35 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     });
     let architecture = normalize_architecture(&arch_input, &platform)?;
 
-    let explicit_windows_architecture =
-        platform == "windows" && (args.architecture.is_some() || std::env::var("LEGION_WINDOWS_ARCH").is_ok());
+    let explicit_windows_architecture = platform == "windows"
+        && (args.architecture.is_some() || std::env::var("LEGION_WINDOWS_ARCH").is_ok());
     if platform == "windows" && host_platform != "windows" && !explicit_windows_architecture {
-        return Err("cross-building Windows requires explicit --architecture x86_64 or arm64".to_string());
+        return Err(
+            "cross-building Windows requires explicit --architecture x86_64 or arm64".to_string(),
+        );
     }
 
     let windows_target = if platform == "windows" {
-        windows_targets().into_iter().find(|(k, _)| *k == architecture).map(|(_, v)| v)
+        windows_targets()
+            .into_iter()
+            .find(|(k, _)| *k == architecture)
+            .map(|(_, v)| v)
     } else {
         None
     };
     let executable_suffix = if windows_target.is_some() { ".exe" } else { "" };
 
     let version_record: Value = serde_json::from_str(
-        &fs::read_to_string(repository_root.join("release/version.json")).map_err(|e| e.to_string())?,
+        &fs::read_to_string(repository_root.join("release/version.json"))
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     if version_record.get("schemaVersion").and_then(|v| v.as_i64()) != Some(1)
         || version_record.get("kind").and_then(|v| v.as_str()) != Some("legion-release-version")
-        || version_record.get("version").and_then(|v| v.as_str()).is_none()
+        || version_record
+            .get("version")
+            .and_then(|v| v.as_str())
+            .is_none()
     {
         return Err(format!(
             "invalid release version record: {}",
@@ -284,12 +339,18 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     let release_version = version_record["version"].as_str().unwrap().to_string();
 
     let cargo_manifest = repository_root.join(CARGO_MANIFEST_REL);
-    let profile = args.profile.clone().unwrap_or_else(|| DEFAULT_PROFILE.to_string());
+    let profile = args
+        .profile
+        .clone()
+        .unwrap_or_else(|| DEFAULT_PROFILE.to_string());
     if !generic_profile_re().is_match(&profile) {
         return Err(format!("invalid Cargo profile: {profile}"));
     }
 
-    let requested_cargo_target = args.target.clone().or_else(|| std::env::var("CARGO_BUILD_TARGET").ok());
+    let requested_cargo_target = args
+        .target
+        .clone()
+        .or_else(|| std::env::var("CARGO_BUILD_TARGET").ok());
     let cargo_target = if let Some(wt) = &windows_target {
         if explicit_windows_architecture || requested_cargo_target.is_some() {
             Some(wt.target_triple.to_string())
@@ -299,7 +360,10 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     } else {
         requested_cargo_target.clone()
     };
-    let target_triple = windows_target.as_ref().map(|w| w.target_triple.to_string()).or_else(|| cargo_target.clone());
+    let target_triple = windows_target
+        .as_ref()
+        .map(|w| w.target_triple.to_string())
+        .or_else(|| cargo_target.clone());
     if let Some(ct) = &cargo_target {
         if !generic_token_re().is_match(ct) {
             return Err(format!("invalid Cargo target: {ct}"));
@@ -338,19 +402,31 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
 
     if output.exists() {
         if !force && !finalize_signed {
-            return Err(format!("release output exists: {}; pass --force to replace exact output", output.display()));
+            return Err(format!(
+                "release output exists: {}; pass --force to replace exact output",
+                output.display()
+            ));
         }
         if !finalize_signed {
             fs::remove_dir_all(&output).map_err(|e| e.to_string())?;
         }
     } else if finalize_signed {
-        return Err(format!("signed release output missing: {}", output.display()));
+        return Err(format!(
+            "signed release output missing: {}",
+            output.display()
+        ));
     }
 
-    let binary_names: Vec<String> =
-        ["legion", "legion-hook", "legion-mcp"].iter().map(|name| format!("{name}{executable_suffix}")).collect();
+    let binary_names: Vec<String> = ["legion", "legion-hook", "legion-mcp"]
+        .iter()
+        .map(|name| format!("{name}{executable_suffix}"))
+        .collect();
     for name in &binary_names {
-        let source = if finalize_signed { output.join("bin").join(name) } else { bin_directory.join(name) };
+        let source = if finalize_signed {
+            output.join("bin").join(name)
+        } else {
+            bin_directory.join(name)
+        };
         if !source.exists() {
             return Err(format!("release binary missing: {}", source.display()));
         }
@@ -368,24 +444,44 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     let policy_path = assets.join("policy").join("arcane-m1-policy.json");
     let native_rule_manifest_path = assets.join("packs").join("native").join("manifest.v1.json");
     fs::create_dir_all(catalog_path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::copy(repository_root.join("src/registry/skills/index.json"), &catalog_path).map_err(|e| e.to_string())?;
-    fs::copy(repository_root.join("src/registry/providers.json"), &provider_registry_path).map_err(|e| e.to_string())?;
+    fs::copy(
+        repository_root.join("src/registry/skills/index.json"),
+        &catalog_path,
+    )
+    .map_err(|e| e.to_string())?;
+    fs::copy(
+        repository_root.join("src/registry/providers.json"),
+        &provider_registry_path,
+    )
+    .map_err(|e| e.to_string())?;
     copy_skill_tree(&repository_root.join("skills"), &assets.join("skills"))?;
     let minimize_policy = assets.join("lib/minimize/POLICY.md");
     fs::create_dir_all(minimize_policy.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::copy(repository_root.join("src/lib/minimize/POLICY.md"), &minimize_policy).map_err(|e| e.to_string())?;
+    fs::copy(
+        repository_root.join("src/lib/minimize/POLICY.md"),
+        &minimize_policy,
+    )
+    .map_err(|e| e.to_string())?;
     fs::create_dir_all(native_rule_manifest_path.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::copy(repository_root.join("packs/native/manifest.v1.json"), &native_rule_manifest_path).map_err(|e| e.to_string())?;
+    fs::copy(
+        repository_root.join("packs/native/manifest.v1.json"),
+        &native_rule_manifest_path,
+    )
+    .map_err(|e| e.to_string())?;
 
     let mcp_tool_schema: Value = serde_json::from_str(
-        &fs::read_to_string(repository_root.join(MCP_TOOL_SCHEMA_REL)).map_err(|e| e.to_string())?,
+        &fs::read_to_string(repository_root.join(MCP_TOOL_SCHEMA_REL))
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| format!("invalid {MCP_TOOL_SCHEMA_REL}: {e}"))?;
     validate_mcp_tool_schema(&mcp_tool_schema)?;
     write_json(&schema_path, &mcp_tool_schema)?;
 
     let source_policy: Value = serde_json::from_str(
-        &fs::read_to_string(repository_root.join("src/lib/guard/compat/policy/arcane-policy-v1.json")).map_err(|e| e.to_string())?,
+        &fs::read_to_string(
+            repository_root.join("src/lib/guard/compat/policy/arcane-policy-v1.json"),
+        )
+        .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     let effect_rules: Vec<Value> = source_policy
@@ -441,7 +537,9 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     });
     write_json(&policy_path, &policy_pack)?;
 
-    let runtime_path = output.join("bin").join(format!("legion{executable_suffix}"));
+    let runtime_path = output
+        .join("bin")
+        .join(format!("legion{executable_suffix}"));
     let runtime_digest = file_sha256(&runtime_path)?;
 
     if finalize_signed && args.provenance.is_none() {
@@ -455,10 +553,9 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
             return Err("right-release provenance is reserved for signed finalization".to_string());
         }
     }
-    let provenance = args
-        .provenance
-        .clone()
-        .unwrap_or_else(|| format!("{LOCAL_PROVENANCE_SCHEME}://{platform}-{architecture}/{runtime_digest}"));
+    let provenance = args.provenance.clone().unwrap_or_else(|| {
+        format!("{LOCAL_PROVENANCE_SCHEME}://{platform}-{architecture}/{runtime_digest}")
+    });
 
     let target_identity = json!({
         "platform": platform,
@@ -500,7 +597,8 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
 
     let plugin_root = output.join("plugin");
     let plugin_surface: Value = serde_json::from_str(
-        &fs::read_to_string(repository_root.join("src/registry/plugin-surface.json")).map_err(|e| e.to_string())?,
+        &fs::read_to_string(repository_root.join("src/registry/plugin-surface.json"))
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     let portable_skill_source_root = output.join(".portable-skill-staging");
@@ -514,13 +612,20 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
         .unwrap_or_default();
     let mut public_agents = Vec::new();
     for agent in &declared_agents {
-        let file = agent.get("file").and_then(|v| v.as_str()).unwrap_or_default();
+        let file = agent
+            .get("file")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
         let source = repository_root.join(file);
         if !source.exists() {
             return Err(format!("declared agent is missing: {file}"));
         }
         public_agents.push(AgentInput {
-            name: agent.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+            name: agent
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
             source_root: repository_root.to_path_buf(),
             source_file: source,
         });
@@ -534,31 +639,63 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
         return Err("declared agent count does not match the plugin surface".to_string());
     }
 
-    let skill_catalog: Value = serde_json::from_str(&fs::read_to_string(&catalog_path).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
-    let bundles = skill_catalog.get("bundles").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let skill_catalog: Value =
+        serde_json::from_str(&fs::read_to_string(&catalog_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let bundles = skill_catalog
+        .get("bundles")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     let is_public = |b: &Value| {
-        matches!(b.get("discoverability").and_then(|v| v.as_str()), Some("public") | Some("explicit"))
+        matches!(
+            b.get("discoverability").and_then(|v| v.as_str()),
+            Some("public") | Some("explicit")
+        )
     };
     let mut public_skills = Vec::new();
     for bundle in bundles.iter().filter(|b| is_public(b)) {
-        let id = bundle.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-        let name = bundle.get("name").and_then(|v| v.as_str()).unwrap_or_default();
+        let id = bundle
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+        let name = bundle
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
         if !skill_id_re().is_match(&id) || name != id {
             return Err(format!("canonical skill must use its plain name: {id}"));
         }
         let expected_source = format!("skills/{id}/SKILL.md");
-        let source = bundle.get("source").and_then(|v| v.as_str()).unwrap_or_default();
+        let source = bundle
+            .get("source")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
         if source != expected_source {
-            return Err(format!("canonical skill source mismatch for {id}: {source}"));
+            return Err(format!(
+                "canonical skill source mismatch for {id}: {source}"
+            ));
         }
         let source_dir = repository_root.join("skills").join(&id);
         let staged_dir = portable_skill_source_root.join(&id);
         copy_skill_tree(&source_dir, &staged_dir)?;
-        public_skills.push(SkillInput { id, source_root: portable_skill_source_root.clone(), source_dir: staged_dir });
+        public_skills.push(SkillInput {
+            id,
+            source_root: portable_skill_source_root.clone(),
+            source_dir: staged_dir,
+        });
     }
-    let mut expected_skill_ids: Vec<String> =
-        bundles.iter().filter(|b| is_public(b)).map(|b| b.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string()).collect();
+    let mut expected_skill_ids: Vec<String> = bundles
+        .iter()
+        .filter(|b| is_public(b))
+        .map(|b| {
+            b.get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string()
+        })
+        .collect();
     expected_skill_ids.sort();
     let mut packaged_skill_ids: Vec<String> = public_skills.iter().map(|s| s.id.clone()).collect();
     packaged_skill_ids.sort();
@@ -575,8 +712,12 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
         ));
     }
 
-    let client_projections: Value =
-        Value::Object(client_projection_kinds().into_iter().map(|(k, v)| (k.to_string(), v)).collect());
+    let client_projections: Value = Value::Object(
+        client_projection_kinds()
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect(),
+    );
 
     let assemble_result = assemble_portable_core(AssembleParams {
         output_dir: &plugin_root,
@@ -593,10 +734,9 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     // Claude Code reads `.mcp.json` but does not expand the Agent Plugins
     // `${PLUGIN_ROOT}` placeholder. Its installed `legion` command already
     // resolves the stable release, so the native descriptor needs no root arg.
-    let mut claude_mcp: Value = serde_json::from_slice(
-        &fs::read(plugin_root.join("mcp.json")).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    let mut claude_mcp: Value =
+        serde_json::from_slice(&fs::read(plugin_root.join("mcp.json")).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
     let args = claude_mcp
         .pointer_mut("/mcpServers/legion/args")
         .and_then(Value::as_array_mut)
@@ -604,22 +744,33 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     *args = vec![json!("serve"), json!("--stdio")];
     write_json(&plugin_root.join(".mcp.json"), &claude_mcp)?;
 
-    let installed_host_projection = plugin_root.join("share/legion/src/registry/host-projection.json");
+    let installed_host_projection =
+        plugin_root.join("share/legion/src/registry/host-projection.json");
     fs::create_dir_all(installed_host_projection.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::copy(repository_root.join("src/registry/host-projection.json"), &installed_host_projection).map_err(|e| e.to_string())?;
+    fs::copy(
+        repository_root.join("src/registry/host-projection.json"),
+        &installed_host_projection,
+    )
+    .map_err(|e| e.to_string())?;
 
     let portable_core_path = plugin_root.join("rightax-portable-core.json");
-    let mut portable_core: Value = serde_json::from_str(&fs::read_to_string(&portable_core_path).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
+    let mut portable_core: Value =
+        serde_json::from_str(&fs::read_to_string(&portable_core_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
     portable_core["publicFiles"]
         .as_array_mut()
         .ok_or("portable core publicFiles must be an array")?
-        .push(Value::String("share/legion/src/registry/host-projection.json".to_string()));
+        .push(Value::String(
+            "share/legion/src/registry/host-projection.json".to_string(),
+        ));
     write_json(&portable_core_path, &portable_core)?;
 
     let validation = validate_portable_core(&plugin_root);
     if !validation.valid {
-        return Err(format!("RightAX portable core validation failed: {}", validation.errors.join("; ")));
+        return Err(format!(
+            "RightAX portable core validation failed: {}",
+            validation.errors.join("; ")
+        ));
     }
 
     manifest["portableCoreSha256"] = Value::String(file_sha256(&portable_core_path)?);
@@ -655,7 +806,8 @@ mod tests {
 
     #[test]
     fn canonical_mcp_schema_contains_m1_and_apple_surfaces() {
-        let schema: serde_json::Value = serde_json::from_str(include_str!("../../../src/registry/mcp-tools.json")).unwrap();
+        let schema: serde_json::Value =
+            serde_json::from_str(include_str!("../../../src/registry/mcp-tools.json")).unwrap();
         validate_mcp_tool_schema(&schema).unwrap();
         let names = schema["tools"]
             .as_array()

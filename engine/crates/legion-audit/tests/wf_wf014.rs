@@ -29,7 +29,12 @@ impl TempRepo {
             ((std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+                .as_nanos())
+            .wrapping_shl(20)
+                | ({
+                    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                    u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+                }))
         ));
         std::fs::create_dir_all(&path).expect("create temp repo dir");
         run(&path, &["init", "-q"]);
@@ -98,7 +103,10 @@ fn dirty_working_tree_changes_current_but_not_committed() {
 
     assert!(current_dirty.ends_with("+dirty"));
     assert_ne!(current_dirty, committed_before);
-    assert_eq!(committed_before, committed_after, "committed revision ignores dirty working tree");
+    assert_eq!(
+        committed_before, committed_after,
+        "committed revision ignores dirty working tree"
+    );
 }
 
 #[test]
@@ -113,7 +121,10 @@ fn qualification_directory_is_excluded_from_the_revision() {
     repo.commit_all("seal receipt");
     let after = committed_source_revision(&repo.path);
 
-    assert_eq!(before, after, "a commit touching only qualification/ must not move the revision");
+    assert_eq!(
+        before, after,
+        "a commit touching only qualification/ must not move the revision"
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -167,8 +178,12 @@ fn source_slice_blocks_on_stale_blob_and_missing_path() {
 
     assert_eq!(result["decision"], "BLOCKED");
     let blockers = result["sourceBlockers"].as_array().unwrap();
-    assert!(blockers.iter().any(|b| b["reason"] == "current-blob-oid-mismatch"));
-    assert!(blockers.iter().any(|b| b["reason"] == "source-path-not-found"));
+    assert!(blockers
+        .iter()
+        .any(|b| b["reason"] == "current-blob-oid-mismatch"));
+    assert!(blockers
+        .iter()
+        .any(|b| b["reason"] == "source-path-not-found"));
     assert_eq!(result["sourceCompletion"]["blocked"], 2);
 }
 
@@ -205,7 +220,10 @@ fn v1_receipt_with_evidence_files_present_is_valid() {
         "decision": "SOURCE_COMPLETE",
         "tasks": [{ "id": "B1-001", "evidence": ["proof/note.txt"] }],
     });
-    let options = BookReceiptOptions { root: repo.path.clone(), source_revision: None };
+    let options = BookReceiptOptions {
+        root: repo.path.clone(),
+        source_revision: None,
+    };
     let result = validate_book_receipt(&receipt, &options);
 
     assert_eq!(result["valid"], true, "{result:?}");
@@ -228,10 +246,18 @@ fn v1_receipt_flags_missing_evidence_and_absent_file() {
             { "id": "B1-002", "evidence": ["nope.txt"] },
         ],
     });
-    let options = BookReceiptOptions { root: repo.path.clone(), source_revision: None };
+    let options = BookReceiptOptions {
+        root: repo.path.clone(),
+        source_revision: None,
+    };
     let result = validate_book_receipt(&receipt, &options);
 
-    let issues: Vec<&str> = result["issues"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let issues: Vec<&str> = result["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(issues.contains(&"invalid-decision"));
     assert!(issues.contains(&"B1-001:missing-evidence"));
     assert!(issues.iter().any(|i| i.starts_with("B1-002:absent:")));
@@ -245,11 +271,19 @@ fn v2_receipt_missing_contract_fields_is_invalid() {
     repo.commit_all("initial");
 
     let receipt = json!({ "schemaVersion": 2, "kind": "legion-book-qualification", "book": 1 });
-    let options = BookReceiptOptions { root: repo.path.clone(), source_revision: None };
+    let options = BookReceiptOptions {
+        root: repo.path.clone(),
+        source_revision: None,
+    };
     let result = validate_book_receipt(&receipt, &options);
 
     assert_eq!(result["valid"], false);
-    let issues: Vec<&str> = result["issues"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let issues: Vec<&str> = result["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     // Missing required top-level fields must surface as schema `required` issues.
     assert!(issues.iter().any(|i| i.contains(":required")));
 }
@@ -261,10 +295,18 @@ fn invalid_book_number_and_contract_are_reported() {
     repo.commit_all("initial");
 
     let receipt = json!({ "schemaVersion": 3, "kind": "not-legion", "book": 99 });
-    let options = BookReceiptOptions { root: repo.path.clone(), source_revision: None };
+    let options = BookReceiptOptions {
+        root: repo.path.clone(),
+        source_revision: None,
+    };
     let result = validate_book_receipt(&receipt, &options);
 
-    let issues: Vec<&str> = result["issues"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let issues: Vec<&str> = result["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     assert!(issues.contains(&"invalid-contract"));
     assert!(issues.contains(&"invalid-book"));
 }

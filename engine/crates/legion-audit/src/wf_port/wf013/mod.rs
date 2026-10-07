@@ -739,10 +739,7 @@ mod tests {
     #[test]
     fn qa_functional_degrades_to_help_without_actions() {
         assert_eq!(qa_functional_final_args(&[]), s(&["--help"]));
-        assert_eq!(
-            qa_functional_final_args(&s(&["--shot"])),
-            s(&["--help"])
-        );
+        assert_eq!(qa_functional_final_args(&s(&["--shot"])), s(&["--help"]));
     }
 
     // --- stale profile sweep -----------------------------------------------------------------
@@ -818,10 +815,7 @@ mod tests {
             resolve_abs(root, "shots/app.png"),
             Path::new("/work/app/shots/app.png")
         );
-        assert_eq!(
-            resolve_abs(root, "/tmp/x.png"),
-            Path::new("/tmp/x.png")
-        );
+        assert_eq!(resolve_abs(root, "/tmp/x.png"), Path::new("/tmp/x.png"));
     }
 
     // --- usage --------------------------------------------------------------------------------

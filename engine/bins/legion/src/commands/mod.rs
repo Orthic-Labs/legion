@@ -1,30 +1,32 @@
 pub mod apple;
 pub mod audit;
-pub mod completion;
-pub mod contract;
-pub mod doctor;
-pub mod catalog;
-pub mod init;
-pub mod explain;
-pub mod hooks;
-pub mod minimize;
-pub mod mcp_config;
-pub mod fix;
-pub mod governance;
-pub mod harness;
 pub mod authority;
 pub mod bind;
 pub mod budget;
+pub mod catalog;
+pub mod completion;
+pub mod contract;
+pub mod coverage;
 pub mod decision;
+pub mod doctor;
+pub mod explain;
+pub mod fix;
+pub mod governance;
 pub mod handoff;
+pub mod harness;
+pub mod hooks;
 pub mod host;
 pub mod host_runtime;
-pub mod policy;
+pub mod init;
+pub mod languages;
+pub mod mcp_config;
+pub mod minimize;
 pub mod plan;
+pub mod policy;
 pub mod providers;
+pub mod report;
 pub mod research;
 pub mod review;
-pub mod report;
 pub mod rules;
 pub mod run;
 pub mod schedule;
@@ -33,12 +35,13 @@ pub mod setup;
 pub mod skills;
 pub mod state;
 pub mod topology;
-pub mod coverage;
-pub mod languages;
 pub mod verify;
 use legion_audit::InventorySource as _;
 use serde_json::Value;
-use std::{path::{Path, PathBuf}, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 pub type CommandResult = Result<Value, CommandError>;
 
 pub fn display_path(path: &Path) -> PathBuf {

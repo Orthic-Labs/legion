@@ -89,7 +89,8 @@ fn parse_iso8601_utc_millis(s: &str) -> Option<i64> {
         return None;
     }
     let days = days_from_civil(year, month, day)?;
-    let millis = days * 86_400_000 + hour * 3_600_000 + minute * 60_000 + second * 1_000 + frac_millis;
+    let millis =
+        days * 86_400_000 + hour * 3_600_000 + minute * 60_000 + second * 1_000 + frac_millis;
     Some(millis)
 }
 
@@ -141,7 +142,11 @@ fn artifact_valid(artifact: &Value, binding: &Value) -> bool {
         Some(obj) => obj,
         None => return false,
     };
-    let path_ok = obj.get("path").and_then(Value::as_str).map(safe_path).unwrap_or(false);
+    let path_ok = obj
+        .get("path")
+        .and_then(Value::as_str)
+        .map(safe_path)
+        .unwrap_or(false);
     if !path_ok {
         return false;
     }
@@ -197,8 +202,16 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
     let ev = evidence.unwrap_or(&null);
 
     for key in [
-        "producer", "scope", "targetId", "environment", "artifactDigest", "controlId", "binding",
-        "issuedAt", "checkedAt", "expiresAt",
+        "producer",
+        "scope",
+        "targetId",
+        "environment",
+        "artifactDigest",
+        "controlId",
+        "binding",
+        "issuedAt",
+        "checkedAt",
+        "expiresAt",
     ] {
         let present = ev.get(key).map(|v| !v.is_null()).unwrap_or(false)
             && ev.get(key) != Some(&Value::String(String::new()));
@@ -224,7 +237,10 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
     } else if !is_canonical_base64(signature.unwrap()) {
         gaps.push("signature-noncanonical".to_string());
     } else if let Some(trusted) = trusted {
-        let public_key = trusted.get("publicKey").and_then(Value::as_str).unwrap_or("");
+        let public_key = trusted
+            .get("publicKey")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let sig_bytes = base64util::decode(signature.unwrap()).unwrap_or_default();
         let verified = match expected.verifier {
             Some(verify) => verify(signed_content.unwrap().as_bytes(), public_key, &sig_bytes),
@@ -245,7 +261,8 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
         }
     }
 
-    let payload_get = |key: &str| -> Option<Value> { payload.as_ref().and_then(|p| p.get(key)).cloned() };
+    let payload_get =
+        |key: &str| -> Option<Value> { payload.as_ref().and_then(|p| p.get(key)).cloned() };
 
     for key in ["targetId", "environment", "artifactDigest", "controlId"] {
         let expected_value: Option<&str> = match key {
@@ -325,7 +342,10 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
         gaps.push("clock-invalid".to_string());
     }
     let max_age_ms = expected.max_age_ms;
-    if max_age_ms.map(|v| !v.is_finite() || v < 0.0).unwrap_or(true) {
+    if max_age_ms
+        .map(|v| !v.is_finite() || v < 0.0)
+        .unwrap_or(true)
+    {
         gaps.push("max-age-invalid".to_string());
     }
     if let (Some(issued_at), Some(checked_at), Some(expires_at), Some(now)) =
@@ -348,14 +368,20 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
     let artifacts_arr = artifacts.as_array().cloned().unwrap_or_default();
     let payload_binding = payload_get("binding").unwrap_or(Value::Null);
     let artifacts_valid = !artifacts_arr.is_empty()
-        && artifacts_arr.iter().all(|a| artifact_valid(a, &payload_binding));
+        && artifacts_arr
+            .iter()
+            .all(|a| artifact_valid(a, &payload_binding));
     if artifacts.as_array().is_none() || !artifacts_valid {
         gaps.push("produced-artifact-invalid".to_string());
     }
     let sensitized: Vec<_> = artifacts_arr
         .iter()
         .map(|artifact| {
-            let fields = artifact.get("sensitiveFields").and_then(Value::as_array).cloned().unwrap_or_else(|| expected.sensitive_fields.clone());
+            let fields = artifact
+                .get("sensitiveFields")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_else(|| expected.sensitive_fields.clone());
             sanitize_artifact_content(artifact, &fields)
         })
         .collect();
@@ -365,11 +391,26 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
 
     if expected.requires_exercise {
         let exercise = payload_get("exerciseReceipt");
-        let terminal_ok = exercise.as_ref().and_then(|e| e.get("terminal")).and_then(Value::as_bool) == Some(true);
-        let status_ok = exercise.as_ref().and_then(|e| e.get("status")).and_then(Value::as_str) == Some("pass");
-        let exercise_control_id = exercise.as_ref().and_then(|e| e.get("controlId")).and_then(Value::as_str);
+        let terminal_ok = exercise
+            .as_ref()
+            .and_then(|e| e.get("terminal"))
+            .and_then(Value::as_bool)
+            == Some(true);
+        let status_ok = exercise
+            .as_ref()
+            .and_then(|e| e.get("status"))
+            .and_then(Value::as_str)
+            == Some("pass");
+        let exercise_control_id = exercise
+            .as_ref()
+            .and_then(|e| e.get("controlId"))
+            .and_then(Value::as_str);
         let control_ok = exercise_control_id == expected.control_id;
-        let exercise_binding = exercise.as_ref().and_then(|e| e.get("binding")).cloned().unwrap_or(Value::Null);
+        let exercise_binding = exercise
+            .as_ref()
+            .and_then(|e| e.get("binding"))
+            .cloned()
+            .unwrap_or(Value::Null);
         let expected_binding = expected.binding.clone().unwrap_or(Value::Null);
         let binding_ok = equal(&exercise_binding, &expected_binding);
         if !terminal_ok || !status_ok || !control_ok || !binding_ok {
@@ -387,7 +428,12 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
             let mut obj = p.as_object().cloned().unwrap_or_default();
             obj.insert(
                 "artifacts".to_string(),
-                Value::Array(sensitized.iter().map(|item| item.artifact.clone().unwrap_or(Value::Null)).collect()),
+                Value::Array(
+                    sensitized
+                        .iter()
+                        .map(|item| item.artifact.clone().unwrap_or(Value::Null))
+                        .collect(),
+                ),
             );
             Some(Value::Object(obj))
         }

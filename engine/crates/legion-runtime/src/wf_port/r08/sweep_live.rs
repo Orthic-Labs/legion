@@ -36,7 +36,11 @@ pub struct SweepFinding {
 }
 
 fn f(antipattern: &'static str, file: &str, detail: String) -> SweepFinding {
-    SweepFinding { antipattern, file: file.to_string(), detail }
+    SweepFinding {
+        antipattern,
+        file: file.to_string(),
+        detail,
+    }
 }
 
 /// Port of `sweepSite(url, options)`. `site_type` mirrors
@@ -44,7 +48,11 @@ fn f(antipattern: &'static str, file: &str, detail: String) -> SweepFinding {
 /// `Promise.all`-concurrent (the trait boundary makes both equally
 /// deterministic to a fake — order matches the JS `results` array either
 /// way since `Promise.all` preserves input order).
-pub fn sweep_site(fetcher: &dyn PageFetcher, url: &str, site_type: Option<&str>) -> Vec<SweepFinding> {
+pub fn sweep_site(
+    fetcher: &dyn PageFetcher,
+    url: &str,
+    site_type: Option<&str>,
+) -> Vec<SweepFinding> {
     let mut findings = Vec::new();
 
     let html = match fetcher.fetch_text(url) {
@@ -92,7 +100,11 @@ pub fn sweep_site(fetcher: &dyn PageFetcher, url: &str, site_type: Option<&str>)
         // first occurrence but the value from the LAST occurrence.
         seen.insert(key, l.clone());
     }
-    let unique: Vec<_> = order.into_iter().take(80).map(|k| seen.remove(&k).unwrap()).collect();
+    let unique: Vec<_> = order
+        .into_iter()
+        .take(80)
+        .map(|k| seen.remove(&k).unwrap())
+        .collect();
 
     for l in &unique {
         // Fragments are never sent over the wire, so the status check
@@ -103,9 +115,15 @@ pub fn sweep_site(fetcher: &dyn PageFetcher, url: &str, site_type: Option<&str>)
             Some(s) => s >= 400,
         };
         if bad {
-            let label = if l.text.is_empty() { l.href.as_str() } else { l.text.as_str() };
+            let label = if l.text.is_empty() {
+                l.href.as_str()
+            } else {
+                l.text.as_str()
+            };
             let path = url_path(&l.resolved);
-            let status_str = status.map(|s| s.to_string()).unwrap_or_else(|| "network error".to_string());
+            let status_str = status
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "network error".to_string());
             findings.push(f(
                 "broken-internal-link",
                 url,
@@ -144,7 +162,9 @@ fn url_origin(u: &str) -> Option<String> {
 /// Minimal path extraction (`new URL(x).pathname`): everything after the
 /// origin, up to `?`/`#`, defaulting to `/`.
 fn url_path(u: &str) -> String {
-    let Some(idx) = u.find("://") else { return u.to_string() };
+    let Some(idx) = u.find("://") else {
+        return u.to_string();
+    };
     let after = &u[idx + 3..];
     let path_start = after.find('/');
     match path_start {
@@ -229,7 +249,10 @@ mod tests {
 
     impl PageFetcher for FakeFetcher {
         fn fetch_text(&self, url: &str) -> Result<String, String> {
-            self.pages.get(url).cloned().ok_or_else(|| "not found".to_string())
+            self.pages
+                .get(url)
+                .cloned()
+                .ok_or_else(|| "not found".to_string())
         }
         fn check_status(&self, url: &str) -> Option<u16> {
             *self.statuses.get(url).unwrap_or(&Some(200))
@@ -238,7 +261,10 @@ mod tests {
 
     #[test]
     fn fetch_failure_yields_single_broken_link_finding() {
-        let fetcher = FakeFetcher { pages: HashMap::new(), statuses: HashMap::new() };
+        let fetcher = FakeFetcher {
+            pages: HashMap::new(),
+            statuses: HashMap::new(),
+        };
         let findings = sweep_site(&fetcher, "https://example.com/", None);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].antipattern, "broken-internal-link");
@@ -248,8 +274,14 @@ mod tests {
     #[test]
     fn no_internal_links_yields_missing_required_page_finding() {
         let mut pages = HashMap::new();
-        pages.insert("https://example.com/".to_string(), "<html><a href=\"https://other.com/\">x</a></html>".to_string());
-        let fetcher = FakeFetcher { pages, statuses: HashMap::new() };
+        pages.insert(
+            "https://example.com/".to_string(),
+            "<html><a href=\"https://other.com/\">x</a></html>".to_string(),
+        );
+        let fetcher = FakeFetcher {
+            pages,
+            statuses: HashMap::new(),
+        };
         let findings = sweep_site(&fetcher, "https://example.com/", None);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].antipattern, "missing-required-page");
@@ -267,7 +299,10 @@ mod tests {
         statuses.insert("https://example.com/dead".to_string(), Some(404));
         let fetcher = FakeFetcher { pages, statuses };
         let findings = sweep_site(&fetcher, "https://example.com/", None);
-        let broken: Vec<_> = findings.iter().filter(|f| f.antipattern == "broken-internal-link").collect();
+        let broken: Vec<_> = findings
+            .iter()
+            .filter(|f| f.antipattern == "broken-internal-link")
+            .collect();
         assert_eq!(broken.len(), 1);
         assert!(broken[0].detail.contains("\"Dead link\""));
         assert!(broken[0].detail.contains("/dead"));
@@ -285,7 +320,10 @@ mod tests {
         statuses.insert("https://example.com/flaky".to_string(), None);
         let fetcher = FakeFetcher { pages, statuses };
         let findings = sweep_site(&fetcher, "https://example.com/", None);
-        let broken = findings.iter().find(|f| f.detail.contains("/flaky")).unwrap();
+        let broken = findings
+            .iter()
+            .find(|f| f.detail.contains("/flaky"))
+            .unwrap();
         assert!(broken.detail.contains("network error"));
     }
 
@@ -296,9 +334,15 @@ mod tests {
             "https://example.com/".to_string(),
             "<html><a href=\"/about\">About</a></html>".to_string(),
         );
-        let fetcher = FakeFetcher { pages, statuses: HashMap::new() };
+        let fetcher = FakeFetcher {
+            pages,
+            statuses: HashMap::new(),
+        };
         let findings = sweep_site(&fetcher, "https://example.com/", None);
-        let missing: Vec<_> = findings.iter().filter(|f| f.antipattern == "missing-required-page").collect();
+        let missing: Vec<_> = findings
+            .iter()
+            .filter(|f| f.antipattern == "missing-required-page")
+            .collect();
         assert_eq!(missing.len(), 2); // privacy + terms
     }
 
@@ -309,11 +353,16 @@ mod tests {
             "https://example.com/".to_string(),
             "<html><a href=\"/privacy\">Privacy</a><a href=\"/terms\">Terms</a></html>".to_string(),
         );
-        let fetcher = FakeFetcher { pages, statuses: HashMap::new() };
+        let fetcher = FakeFetcher {
+            pages,
+            statuses: HashMap::new(),
+        };
         let findings = sweep_site(&fetcher, "https://example.com/", Some("app"));
         let missing: Vec<_> = findings
             .iter()
-            .filter(|f| f.antipattern == "missing-required-page" && f.detail.contains("site-type \"app\""))
+            .filter(|f| {
+                f.antipattern == "missing-required-page" && f.detail.contains("site-type \"app\"")
+            })
             .collect();
         assert_eq!(missing.len(), 2); // pricing + download
     }
@@ -325,9 +374,14 @@ mod tests {
             "https://example.com/".to_string(),
             "<html><a href=\"/privacy-policy\">Legal</a><a href=\"/terms-of-service\">Legal2</a></html>".to_string(),
         );
-        let fetcher = FakeFetcher { pages, statuses: HashMap::new() };
+        let fetcher = FakeFetcher {
+            pages,
+            statuses: HashMap::new(),
+        };
         let findings = sweep_site(&fetcher, "https://example.com/", None);
-        assert!(findings.iter().all(|f| f.antipattern != "missing-required-page"));
+        assert!(findings
+            .iter()
+            .all(|f| f.antipattern != "missing-required-page"));
     }
 
     #[test]
@@ -346,7 +400,10 @@ mod tests {
         let fetcher = FakeFetcher { pages, statuses };
         let findings = sweep_site(&fetcher, "https://example.com/", None);
         // "/x" is deduped to one broken-link finding despite two anchors.
-        let x_findings: Vec<_> = findings.iter().filter(|f| f.detail.contains("/x")).collect();
+        let x_findings: Vec<_> = findings
+            .iter()
+            .filter(|f| f.detail.contains("/x"))
+            .collect();
         assert_eq!(x_findings.len(), 1);
     }
 }

@@ -3,8 +3,14 @@
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
-pub const DECISION_ENFORCEMENT_HEALTH: [&str; 6] =
-    ["strong", "observed", "read_only", "advisory", "unsupported", "degraded"];
+pub const DECISION_ENFORCEMENT_HEALTH: [&str; 6] = [
+    "strong",
+    "observed",
+    "read_only",
+    "advisory",
+    "unsupported",
+    "degraded",
+];
 pub const DECISION_TERMINATION: [&str; 2] = ["terminate", "continue"];
 pub const DECISION_CERTIFICATION: [&str; 4] = ["not_claimed", "genuine", "certified", "rejected"];
 
@@ -71,7 +77,10 @@ static REMEDIATION: LazyLock<BTreeMap<&'static str, Remediation>> = LazyLock::ne
     [
         (
             "deterministic",
-            Remediation { responsible_producer: "legion run close", remediation_routes: &["legion run close --help"] },
+            Remediation {
+                responsible_producer: "legion run close",
+                remediation_routes: &["legion run close --help"],
+            },
         ),
         (
             "terminal-operation-claim",
@@ -99,7 +108,11 @@ pub fn public_reason(code: Option<&str>) -> String {
     let Some(code) = code else {
         return "ARCANE_OK: No denial.".to_string();
     };
-    let resolved = if PUBLIC_REASONS.contains_key(code) { code } else { "ARC_SCHEMA_INVALID" };
+    let resolved = if PUBLIC_REASONS.contains_key(code) {
+        code
+    } else {
+        "ARC_SCHEMA_INVALID"
+    };
     format!("{resolved}: {}", PUBLIC_REASONS[resolved])
 }
 
@@ -136,7 +149,11 @@ pub fn actionable_missing_evidence(
             Ok(MissingEvidenceEntry {
                 missing_class,
                 responsible_producer: remediation.responsible_producer.to_string(),
-                remediation_routes: remediation.remediation_routes.iter().map(|s| s.to_string()).collect(),
+                remediation_routes: remediation
+                    .remediation_routes
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
             })
         })
         .collect()
@@ -197,14 +214,24 @@ pub fn create_decision_envelope(
 ) -> Result<DecisionEnvelope, UnknownMissingEvidenceClass> {
     let missing_evidence = actionable_missing_evidence(&input.detail.missing_classes)?;
     let first = missing_evidence.first();
-    let termination = if input.detail.termination_terminate { "terminate" } else { "continue" };
+    let termination = if input.detail.termination_terminate {
+        "terminate"
+    } else {
+        "continue"
+    };
     let certification = input
         .detail
         .certification
         .as_deref()
         .filter(|c| DECISION_CERTIFICATION.contains(c))
         .map(|c| c.to_string())
-        .unwrap_or_else(|| if input.allowed { "certified".to_string() } else { "rejected".to_string() });
+        .unwrap_or_else(|| {
+            if input.allowed {
+                "certified".to_string()
+            } else {
+                "rejected".to_string()
+            }
+        });
     let enforcement_health = input
         .enforcement_health
         .as_deref()
@@ -221,9 +248,14 @@ pub fn create_decision_envelope(
         retry_signature: input.detail.retry_signature.clone(),
         termination,
         certification,
-        missing_classes: missing_evidence.iter().map(|e| e.missing_class.clone()).collect(),
+        missing_classes: missing_evidence
+            .iter()
+            .map(|e| e.missing_class.clone())
+            .collect(),
         responsible_producer: first.map(|e| e.responsible_producer.clone()),
-        remediation_routes: first.map(|e| e.remediation_routes.clone()).unwrap_or_default(),
+        remediation_routes: first
+            .map(|e| e.remediation_routes.clone())
+            .unwrap_or_default(),
         missing_evidence,
     })
 }
@@ -253,7 +285,11 @@ mod tests {
 
     #[test]
     fn actionable_missing_evidence_dedupes_and_resolves() {
-        let classes = vec!["deterministic".to_string(), "deterministic".to_string(), "host-event-ledger".to_string()];
+        let classes = vec![
+            "deterministic".to_string(),
+            "deterministic".to_string(),
+            "host-event-ledger".to_string(),
+        ];
         let out = actionable_missing_evidence(&classes).unwrap();
         assert_eq!(out.len(), 2);
         assert_eq!(out[0].missing_class, "deterministic");
@@ -303,8 +339,14 @@ mod tests {
         assert_eq!(env.termination, "terminate");
         assert_eq!(env.enforcement_health, "degraded");
         assert_eq!(env.retry_signature, Some("sig-1".to_string()));
-        assert_eq!(env.responsible_producer, Some("authenticated host ingress".to_string()));
-        assert_eq!(env.missing_classes, vec!["host-event-ledger", "deterministic"]);
+        assert_eq!(
+            env.responsible_producer,
+            Some("authenticated host ingress".to_string())
+        );
+        assert_eq!(
+            env.missing_classes,
+            vec!["host-event-ledger", "deterministic"]
+        );
     }
 
     #[test]

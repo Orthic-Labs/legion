@@ -78,7 +78,9 @@ pub fn oklch_to_rgb(l: f64, c: f64, h: f64) -> Rgba {
 }
 
 fn hex_pair(s: &str, i: usize) -> Option<f64> {
-    i64::from_str_radix(s.get(i..i + 2)?, 16).ok().map(|v| v as f64)
+    i64::from_str_radix(s.get(i..i + 2)?, 16)
+        .ok()
+        .map(|v| v as f64)
 }
 
 fn hex_single(c: char) -> Option<f64> {
@@ -104,7 +106,10 @@ pub fn parse_any_color(s: &str) -> Option<Rgba> {
         let r = m[1].parse::<f64>().ok()?.round();
         let g = m[2].parse::<f64>().ok()?.round();
         let b = m[3].parse::<f64>().ok()?.round();
-        let a = m.get(4).and_then(|g| g.as_str().parse::<f64>().ok()).unwrap_or(1.0);
+        let a = m
+            .get(4)
+            .and_then(|g| g.as_str().parse::<f64>().ok())
+            .unwrap_or(1.0);
         return Some(Rgba { r, g, b, a });
     }
 
@@ -115,14 +120,22 @@ pub fn parse_any_color(s: &str) -> Option<Rgba> {
             let r = hex_single(chars[0])?;
             let g = hex_single(chars[1])?;
             let b = hex_single(chars[2])?;
-            let a = if chars.len() == 4 { hex_single(chars[3])? / 255.0 } else { 1.0 };
+            let a = if chars.len() == 4 {
+                hex_single(chars[3])? / 255.0
+            } else {
+                1.0
+            };
             return Some(Rgba { r, g, b, a });
         }
         if chars.len() == 6 || chars.len() == 8 {
             let r = hex_pair(h, 0)?;
             let g = hex_pair(h, 2)?;
             let b = hex_pair(h, 4)?;
-            let a = if chars.len() == 8 { hex_pair(h, 6)? / 255.0 } else { 1.0 };
+            let a = if chars.len() == 8 {
+                hex_pair(h, 6)? / 255.0
+            } else {
+                1.0
+            };
             return Some(Rgba { r, g, b, a });
         }
         return None;
@@ -130,13 +143,21 @@ pub fn parse_any_color(s: &str) -> Option<Rgba> {
 
     if let Some(m) = oklch_re().captures(str_) {
         let l_num: f64 = m[1].parse().ok()?;
-        let l = if m.get(2).map(|g| g.as_str()) == Some("%") { l_num / 100.0 } else { l_num };
+        let l = if m.get(2).map(|g| g.as_str()) == Some("%") {
+            l_num / 100.0
+        } else {
+            l_num
+        };
         let c: f64 = m[3].parse().ok()?;
         let h: f64 = m[4].parse().ok()?;
         let mut rgb = oklch_to_rgb(l, c, h);
         if let Some(alpha_m) = m.get(5) {
             let alpha: f64 = alpha_m.as_str().parse().ok()?;
-            rgb.a = if m.get(6).map(|g| g.as_str()) == Some("%") { alpha / 100.0 } else { alpha };
+            rgb.a = if m.get(6).map(|g| g.as_str()) == Some("%") {
+                alpha / 100.0
+            } else {
+                alpha
+            };
         }
         return Some(rgb);
     }
@@ -169,7 +190,10 @@ pub fn colors_nearly_match(a: &str, b: &str) -> bool {
         return false;
     };
     let alpha_delta = (ca.a - cb.a).abs();
-    let channel_delta = (ca.r - cb.r).abs().max((ca.g - cb.g).abs()).max((ca.b - cb.b).abs());
+    let channel_delta = (ca.r - cb.r)
+        .abs()
+        .max((ca.g - cb.g).abs())
+        .max((ca.b - cb.b).abs());
     alpha_delta <= 0.03 && channel_delta <= 3.0
 }
 
@@ -310,7 +334,10 @@ pub fn is_accent_color_impl(css_color: Option<&str>) -> bool {
     }
 
     if accent_oklch_re().is_match(s) {
-        let nums: Vec<f64> = accent_num_re().find_iter(s).filter_map(|m| m.as_str().parse().ok()).collect();
+        let nums: Vec<f64> = accent_num_re()
+            .find_iter(s)
+            .filter_map(|m| m.as_str().parse().ok())
+            .collect();
         if nums.len() >= 2 {
             return nums[1] >= 0.05;
         }
@@ -391,10 +418,7 @@ mod tests {
     #[test]
     fn shadow_max_blur_px_picks_third_number_across_layers() {
         // "0px 4px 24px rgba(0,0,0,0.2), inset 0 0 0 1px #fff"
-        let blur = shadow_max_blur_px(
-            "0px 4px 24px rgba(0,0,0,0.2), inset 0 0 0 1px #fff",
-            0.0,
-        );
+        let blur = shadow_max_blur_px("0px 4px 24px rgba(0,0,0,0.2), inset 0 0 0 1px #fff", 0.0);
         assert_eq!(blur, 24.0);
     }
 

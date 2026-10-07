@@ -1,6 +1,6 @@
 use crate::{
     error::{Result, RuleError},
-    schema::{StructuralMatch, StructuralQueryResult, StructuralSelector, EvidenceTier},
+    schema::{EvidenceTier, StructuralMatch, StructuralQueryResult, StructuralSelector},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -143,7 +143,7 @@ impl StructuralEvaluation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schema::{StructuralOperation, EvidenceTier};
+    use crate::schema::{EvidenceTier, StructuralOperation};
     use std::sync::Mutex;
 
     fn selector(id: &str) -> StructuralSelector {
@@ -208,7 +208,10 @@ mod tests {
     fn absent_structural_source_is_typed_degradation() {
         let result = evaluate_optional::<FixtureSource>(&[selector("a")], None);
         assert!(!result.complete);
-        assert_eq!(result.gaps, vec!["structural-source-unavailable".to_owned()]);
+        assert_eq!(
+            result.gaps,
+            vec!["structural-source-unavailable".to_owned()]
+        );
         assert_eq!(
             result.evidence[0].gaps,
             vec!["structural-source-unavailable".to_owned()]

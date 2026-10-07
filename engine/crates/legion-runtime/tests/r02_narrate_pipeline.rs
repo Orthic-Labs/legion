@@ -105,10 +105,17 @@ fn full_pipeline_runs_against_fixture_with_fake_process_runner() {
 
 #[test]
 fn parse_args_matches_narrate_pipeline_flags() {
-    let argv: Vec<String> = ["node", "narrate-pipeline.mjs", "--script", "demo.md", "--out-dir", "_out"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+    let argv: Vec<String> = [
+        "node",
+        "narrate-pipeline.mjs",
+        "--script",
+        "demo.md",
+        "--out-dir",
+        "_out",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
     let parsed = parse_args(&argv);
     assert_eq!(parsed.script.as_deref(), Some("demo.md"));
     assert_eq!(parsed.out_dir.as_deref(), Some("_out"));

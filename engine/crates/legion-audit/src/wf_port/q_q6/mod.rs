@@ -168,7 +168,8 @@ fn normalized_executable_href(href: &str, platform: &str) -> String {
 
 /// Faithful port of `sameExecutableHref`.
 pub fn same_executable_href(left_href: &str, right_href: &str, platform: &str) -> bool {
-    normalized_executable_href(left_href, platform) == normalized_executable_href(right_href, platform)
+    normalized_executable_href(left_href, platform)
+        == normalized_executable_href(right_href, platform)
 }
 
 /// Faithful port of `isMainEntrypoint`. `argv_path` is `None`/empty for
@@ -200,16 +201,16 @@ mod tests {
     fn canon(p: &Path) -> std::io::Result<PathBuf> {
         let real = std::fs::canonicalize(p)?;
         let text = real.to_string_lossy();
-        Ok(text.strip_prefix(r"\\?\").map(PathBuf::from).unwrap_or(real))
+        Ok(text
+            .strip_prefix(r"\\?\")
+            .map(PathBuf::from)
+            .unwrap_or(real))
     }
 
     fn temp_dir() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
-            "q_q6_entrypoint_{}_{}",
-            std::process::id(),
-            n
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("q_q6_entrypoint_{}_{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -224,7 +225,11 @@ mod tests {
     #[test]
     fn no_argv_path_is_false() {
         assert!(!is_main_entrypoint("file:///whatever.mjs", None, "darwin"));
-        assert!(!is_main_entrypoint("file:///whatever.mjs", Some(""), "darwin"));
+        assert!(!is_main_entrypoint(
+            "file:///whatever.mjs",
+            Some(""),
+            "darwin"
+        ));
     }
 
     #[test]
@@ -264,7 +269,11 @@ mod tests {
         let href_lower = path_to_file_url(&real).unwrap().to_lowercase();
         // Simulate a Windows-style argv path whose case differs only in
         // casing from the on-disk file; win32 folding makes them equal.
-        assert!(same_executable_href(&href_lower, &path_to_file_url(&real).unwrap(), "win32"));
+        assert!(same_executable_href(
+            &href_lower,
+            &path_to_file_url(&real).unwrap(),
+            "win32"
+        ));
     }
 
     #[test]
@@ -289,7 +298,10 @@ mod tests {
         // Compare component-wise, never as raw strings (Windows
         // canonicalize adds a `\\?\` prefix that a string compare would
         // wrongly reject).
-        assert_eq!(back.components().collect::<Vec<_>>(), real.components().collect::<Vec<_>>());
+        assert_eq!(
+            back.components().collect::<Vec<_>>(),
+            real.components().collect::<Vec<_>>()
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 }

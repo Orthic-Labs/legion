@@ -14,8 +14,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-pub const DEPENDENCY_CLASSES: [&str; 4] =
-    ["PACKAGE_INTERNAL", "HOST_CAPABILITY", "PROJECT_OVERLAY", "HISTORICAL_EVIDENCE"];
+pub const DEPENDENCY_CLASSES: [&str; 4] = [
+    "PACKAGE_INTERNAL",
+    "HOST_CAPABILITY",
+    "PROJECT_OVERLAY",
+    "HISTORICAL_EVIDENCE",
+];
 
 pub const DEPENDENCY_DECLARATION: &str = "dependencies.json";
 
@@ -43,15 +47,21 @@ static OVERLAY_PREFIX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)^(?:<project-overlay>|<workspace>|<studio-workspace-root>|<CURRENT_WORKSPACE>|<package-root>|<audit-skill-dir>|<[a-z][a-z0-9-]*>)").unwrap()
 });
 static UNRESOLVED_MARKER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\b(?:TODO|FIXME|XXX)\b\s*:?\s*(?:no in-package|not available|missing|unresolved)").unwrap()
+    Regex::new(
+        r"(?i)\b(?:TODO|FIXME|XXX)\b\s*:?\s*(?:no in-package|not available|missing|unresolved)",
+    )
+    .unwrap()
 });
-static SCRIPT_REFERENCE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"`(?:scripts/|\.{1,2}/)[A-Za-z0-9._\-/]+\.(?:mjs|js|py|sh|ps1|vbs)`").unwrap());
-static PLACEHOLDER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:^|/)(?:xxx|yyy|foo|bar|example|placeholder)\.[a-z0-9]+$").unwrap());
+static SCRIPT_REFERENCE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"`(?:scripts/|\.{1,2}/)[A-Za-z0-9._\-/]+\.(?:mjs|js|py|sh|ps1|vbs)`").unwrap()
+});
+static PLACEHOLDER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:^|/)(?:xxx|yyy|foo|bar|example|placeholder)\.[a-z0-9]+$").unwrap()
+});
 static DOCUMENT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.(?:md|mdx|txt)$").unwrap());
 static INLINE_CODE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"`([^`\r\n]+)`").unwrap());
-static FENCED_CODE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?s)```[^\r\n]*\r?\n(.*?)```").unwrap());
+static FENCED_CODE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)```[^\r\n]*\r?\n(.*?)```").unwrap());
 static COMMAND_START: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(?:[$>]\s*)?([A-Za-z0-9][A-Za-z0-9._-]*)\b").unwrap());
 static HOST_CAPABILITY_DIRECTIVE: LazyLock<Regex> =
@@ -65,8 +75,18 @@ pub struct ClosureFinding {
     pub detail: String,
 }
 
-fn f(bundle_id: Option<&str>, path: impl Into<String>, code: &'static str, detail: impl Into<String>) -> ClosureFinding {
-    ClosureFinding { bundle_id: bundle_id.map(String::from), path: path.into(), code, detail: detail.into() }
+fn f(
+    bundle_id: Option<&str>,
+    path: impl Into<String>,
+    code: &'static str,
+    detail: impl Into<String>,
+) -> ClosureFinding {
+    ClosureFinding {
+        bundle_id: bundle_id.map(String::from),
+        path: path.into(),
+        code,
+        detail: detail.into(),
+    }
 }
 
 /// Port of `parseDependencyDeclaration`.
@@ -79,16 +99,26 @@ pub fn parse_dependency_declaration(text: &str, path: &str) -> Result<Value, Str
     let allowed = ["schemaVersion", "kind", "resources"];
     for key in object.keys() {
         if !allowed.contains(&key.as_str()) {
-            return Err(format!("{path}: unknown dependency declaration field {key}"));
+            return Err(format!(
+                "{path}: unknown dependency declaration field {key}"
+            ));
         }
     }
     if object.get("schemaVersion") != Some(&Value::from(1))
         || object.get("kind").and_then(Value::as_str) != Some("legion-skill-dependencies")
     {
-        return Err(format!("{path}: dependency declaration has an unsupported schema"));
+        return Err(format!(
+            "{path}: dependency declaration has an unsupported schema"
+        ));
     }
-    if !object.get("resources").map(Value::is_array).unwrap_or(false) {
-        return Err(format!("{path}: dependency declaration resources must be an array"));
+    if !object
+        .get("resources")
+        .map(Value::is_array)
+        .unwrap_or(false)
+    {
+        return Err(format!(
+            "{path}: dependency declaration resources must be an array"
+        ));
     }
     Ok(document)
 }
@@ -103,14 +133,30 @@ fn load_dependency_declaration(skill_root: &Path) -> LoadedDeclaration {
     let path = skill_root.join(DEPENDENCY_DECLARATION);
     let path_display = path.to_string_lossy().into_owned();
     if !path.exists() {
-        return LoadedDeclaration { path: path_display, document: None, error: Some("missing dependency declaration".to_string()) };
+        return LoadedDeclaration {
+            path: path_display,
+            document: None,
+            error: Some("missing dependency declaration".to_string()),
+        };
     }
     match std::fs::read_to_string(&path) {
         Ok(text) => match parse_dependency_declaration(&text, &path_display) {
-            Ok(document) => LoadedDeclaration { path: path_display, document: Some(document), error: None },
-            Err(error) => LoadedDeclaration { path: path_display, document: None, error: Some(error) },
+            Ok(document) => LoadedDeclaration {
+                path: path_display,
+                document: Some(document),
+                error: None,
+            },
+            Err(error) => LoadedDeclaration {
+                path: path_display,
+                document: None,
+                error: Some(error),
+            },
         },
-        Err(error) => LoadedDeclaration { path: path_display, document: None, error: Some(error.to_string()) },
+        Err(error) => LoadedDeclaration {
+            path: path_display,
+            document: None,
+            error: Some(error.to_string()),
+        },
     }
 }
 
@@ -122,10 +168,18 @@ pub struct ResourceClassification {
 }
 
 fn ok() -> ResourceClassification {
-    ResourceClassification { ok: true, code: "", detail: String::new() }
+    ResourceClassification {
+        ok: true,
+        code: "",
+        detail: String::new(),
+    }
 }
 fn bad(code: &'static str, detail: impl Into<String>) -> ResourceClassification {
-    ResourceClassification { ok: false, code, detail: detail.into() }
+    ResourceClassification {
+        ok: false,
+        code,
+        detail: detail.into(),
+    }
 }
 
 /// Classify one typed resource entry from a canonical dependency
@@ -137,14 +191,26 @@ pub fn classify_resource(
     capabilities: &Value,
 ) -> ResourceClassification {
     if entry.is_string() {
-        return bad("untyped-resource", format!("resource is a bare string, not a typed entry: {}", entry.as_str().unwrap()));
+        return bad(
+            "untyped-resource",
+            format!(
+                "resource is a bare string, not a typed entry: {}",
+                entry.as_str().unwrap()
+            ),
+        );
     }
     let Some(object) = entry.as_object() else {
-        return bad("invalid-resource", format!("resource is not an object: {entry}"));
+        return bad(
+            "invalid-resource",
+            format!("resource is not an object: {entry}"),
+        );
     };
     let klass_str = object.get("class").and_then(Value::as_str).unwrap_or("");
     let Some(klass) = DependencyClass::parse(klass_str) else {
-        return bad("unknown-class", format!("resource declares no known dependency class: {entry}"));
+        return bad(
+            "unknown-class",
+            format!("resource declares no known dependency class: {entry}"),
+        );
     };
     match klass {
         DependencyClass::PackageInternal => {
@@ -159,10 +225,16 @@ pub fn classify_resource(
                 Err(_) => true,
             };
             if escapes {
-                return bad("escapes-package", format!("PACKAGE_INTERNAL escapes the package: {path}"));
+                return bad(
+                    "escapes-package",
+                    format!("PACKAGE_INTERNAL escapes the package: {path}"),
+                );
             }
             if !target.exists() {
-                return bad("missing-internal", format!("PACKAGE_INTERNAL does not exist: {path}"));
+                return bad(
+                    "missing-internal",
+                    format!("PACKAGE_INTERNAL does not exist: {path}"),
+                );
             }
             ok()
         }
@@ -170,24 +242,45 @@ pub fn classify_resource(
             let Some(capability) = object.get("capability").and_then(Value::as_str) else {
                 return bad("invalid-resource", "HOST_CAPABILITY names no capability");
             };
-            let declared = capabilities.get("capabilities").and_then(|c| c.get(capability)).is_some();
+            let declared = capabilities
+                .get("capabilities")
+                .and_then(|c| c.get(capability))
+                .is_some();
             if !declared {
-                return bad("undeclared-capability", format!("HOST_CAPABILITY is absent from the registry: {capability}"));
+                return bad(
+                    "undeclared-capability",
+                    format!("HOST_CAPABILITY is absent from the registry: {capability}"),
+                );
             }
             ok()
         }
         DependencyClass::ProjectOverlay => {
             if object.get("optional").and_then(Value::as_bool) != Some(true) {
-                let path = object.get("path").and_then(Value::as_str).unwrap_or("(no path)");
-                return bad("mandatory-overlay", format!("PROJECT_OVERLAY must be optional: {path}"));
+                let path = object
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .unwrap_or("(no path)");
+                return bad(
+                    "mandatory-overlay",
+                    format!("PROJECT_OVERLAY must be optional: {path}"),
+                );
             }
             if object.get("absent").is_none() || object.get("absent") == Some(&Value::Null) {
-                let path = object.get("path").and_then(Value::as_str).unwrap_or("(no path)");
-                return bad("undeclared-degradation", format!("PROJECT_OVERLAY states no behaviour when absent: {path}"));
+                let path = object
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .unwrap_or("(no path)");
+                return bad(
+                    "undeclared-degradation",
+                    format!("PROJECT_OVERLAY states no behaviour when absent: {path}"),
+                );
             }
             if let Some(path_value) = object.get("path") {
                 if !path_value.is_null() {
-                    let is_valid_string_prefix = path_value.as_str().map(|p| OVERLAY_PREFIX.is_match(p)).unwrap_or(false);
+                    let is_valid_string_prefix = path_value
+                        .as_str()
+                        .map(|p| OVERLAY_PREFIX.is_match(p))
+                        .unwrap_or(false);
                     if !is_valid_string_prefix {
                         return bad("concrete-overlay-path", format!("PROJECT_OVERLAY must use a placeholder root, not a concrete path: {path_value}"));
                     }
@@ -215,10 +308,20 @@ fn normalize(path: &Path) -> PathBuf {
 
 /// Scan a packaged text file for references that resolve into no class at
 /// all. Port of `scanPackagedText`.
-pub fn scan_packaged_text(text: &str, path: &str, skill_root: &Path, package_root: &Path) -> Vec<ClosureFinding> {
+pub fn scan_packaged_text(
+    text: &str,
+    path: &str,
+    skill_root: &Path,
+    package_root: &Path,
+) -> Vec<ClosureFinding> {
     let mut findings = Vec::new();
     if UNRESOLVED_MARKER.is_match(text) {
-        findings.push(f(None, path, "unresolved-marker", "packaged text ships an unresolved TODO in place of a real reference"));
+        findings.push(f(
+            None,
+            path,
+            "unresolved-marker",
+            "packaged text ships an unresolved TODO in place of a real reference",
+        ));
     }
     if DOCUMENT.is_match(path) {
         let skill_root = normalize(skill_root);
@@ -240,7 +343,12 @@ pub fn scan_packaged_text(text: &str, path: &str, skill_root: &Path, package_roo
                 dir = parent.to_path_buf();
             }
             if !candidates.iter().any(|candidate| candidate.exists()) {
-                findings.push(f(None, path, "dangling-script", format!("document promises a script that does not exist: {reference}")));
+                findings.push(f(
+                    None,
+                    path,
+                    "dangling-script",
+                    format!("document promises a script that does not exist: {reference}"),
+                ));
             }
         }
     }
@@ -272,13 +380,20 @@ pub fn scan_host_command_references(
     let declared: BTreeSet<&String> = if scoped_capabilities.is_empty() {
         host_requirements.iter().collect()
     } else {
-        host_requirements.iter().chain(scoped_capabilities.iter()).collect()
+        host_requirements
+            .iter()
+            .chain(scoped_capabilities.iter())
+            .collect()
     };
     for snippet in code_snippets(text) {
         for line in snippet.split(['\n', '\r']) {
-            let Some(captures) = COMMAND_START.captures(line.trim()) else { continue };
+            let Some(captures) = COMMAND_START.captures(line.trim()) else {
+                continue;
+            };
             let command = captures[1].to_ascii_lowercase();
-            let Some(capability) = command_capabilities.get(&command) else { continue };
+            let Some(capability) = command_capabilities.get(&command) else {
+                continue;
+            };
             if declared.contains(capability) {
                 continue;
             }
@@ -287,7 +402,12 @@ pub fn scan_host_command_references(
                 continue;
             }
             seen.insert(key);
-            findings.push(f(None, path, "undeclared-host-command", format!("command {command} requires declared host capability {capability}")));
+            findings.push(f(
+                None,
+                path,
+                "undeclared-host-command",
+                format!("command {command} requires declared host capability {capability}"),
+            ));
         }
     }
     for captures in HOST_CAPABILITY_DIRECTIVE.captures_iter(text) {
@@ -327,16 +447,34 @@ fn verify_bundle_dependencies(
         } else {
             "invalid-dependency-declaration"
         };
-        findings.push(f(Some(manifest_id), relative_path, code, declaration.error.unwrap_or_default()));
-        return BundleDependencyResult { findings, declaration_count: 0, typed_resource_count: 0 };
+        findings.push(f(
+            Some(manifest_id),
+            relative_path,
+            code,
+            declaration.error.unwrap_or_default(),
+        ));
+        return BundleDependencyResult {
+            findings,
+            declaration_count: 0,
+            typed_resource_count: 0,
+        };
     };
 
-    let resources = document.get("resources").and_then(Value::as_array).cloned().unwrap_or_default();
+    let resources = document
+        .get("resources")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut declared: BTreeSet<String> = BTreeSet::new();
     for (index, entry) in resources.iter().enumerate() {
         let result = classify_resource(entry, package_root, &skill_root, capabilities);
         if !result.ok {
-            findings.push(f(Some(manifest_id), format!("{DEPENDENCY_DECLARATION}#resources.{index}"), result.code, result.detail));
+            findings.push(f(
+                Some(manifest_id),
+                format!("{DEPENDENCY_DECLARATION}#resources.{index}"),
+                result.code,
+                result.detail,
+            ));
         }
         if entry.get("class").and_then(Value::as_str) == Some("HOST_CAPABILITY") {
             if let Some(capability) = entry.get("capability").and_then(Value::as_str) {
@@ -355,9 +493,14 @@ fn verify_bundle_dependencies(
 
     let skill_path = skill_root.join("SKILL.md");
     match std::fs::read_to_string(&skill_path) {
-        Ok(text) => match parse_skill_frontmatter(&text, &format!("skills/{manifest_id}/SKILL.md")) {
+        Ok(text) => match parse_skill_frontmatter(&text, &format!("skills/{manifest_id}/SKILL.md"))
+        {
             Ok(frontmatter) => {
-                let required: BTreeSet<String> = frontmatter.list("hostRequirements").into_iter().map(String::from).collect();
+                let required: BTreeSet<String> = frontmatter
+                    .list("hostRequirements")
+                    .into_iter()
+                    .map(String::from)
+                    .collect();
                 if !same_members(&declared, &required) {
                     let declared_sorted: Vec<&String> = declared.iter().collect();
                     let required_sorted: Vec<&String> = required.iter().collect();
@@ -373,17 +516,40 @@ fn verify_bundle_dependencies(
                     ));
                 }
                 let scoped = scoped_host_capabilities(&skill_root);
-                for finding in scan_host_command_references(&text, "SKILL.md", command_capabilities, &required, &scoped) {
-                    findings.push(ClosureFinding { bundle_id: Some(manifest_id.to_string()), ..finding });
+                for finding in scan_host_command_references(
+                    &text,
+                    "SKILL.md",
+                    command_capabilities,
+                    &required,
+                    &scoped,
+                ) {
+                    findings.push(ClosureFinding {
+                        bundle_id: Some(manifest_id.to_string()),
+                        ..finding
+                    });
                 }
             }
-            Err(error) => findings.push(f(Some(manifest_id), "SKILL.md", "invalid-skill-frontmatter", error)),
+            Err(error) => findings.push(f(
+                Some(manifest_id),
+                "SKILL.md",
+                "invalid-skill-frontmatter",
+                error,
+            )),
         },
-        Err(error) => findings.push(f(Some(manifest_id), "SKILL.md", "invalid-skill-frontmatter", error.to_string())),
+        Err(error) => findings.push(f(
+            Some(manifest_id),
+            "SKILL.md",
+            "invalid-skill-frontmatter",
+            error.to_string(),
+        )),
     }
 
     let typed_resource_count = resources.len();
-    BundleDependencyResult { findings, declaration_count: 1, typed_resource_count }
+    BundleDependencyResult {
+        findings,
+        declaration_count: 1,
+        typed_resource_count,
+    }
 }
 
 /// Validate that every capability alias points at a skill this package
@@ -391,16 +557,29 @@ fn verify_bundle_dependencies(
 pub fn verify_capability_aliases(package_root: &Path) -> Vec<ClosureFinding> {
     let mut findings = Vec::new();
     let path = package_root.join("src/config/capability-aliases.json");
-    let Ok(text) = std::fs::read_to_string(&path) else { return findings };
-    let Ok(document) = serde_json::from_str::<Value>(&text) else { return findings };
-    let Some(aliases) = document.get("aliases").and_then(Value::as_object) else { return findings };
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return findings;
+    };
+    let Ok(document) = serde_json::from_str::<Value>(&text) else {
+        return findings;
+    };
+    let Some(aliases) = document.get("aliases").and_then(Value::as_object) else {
+        return findings;
+    };
     for (alias, target) in aliases {
-        let Some(target_str) = target.as_str() else { continue };
+        let Some(target_str) = target.as_str() else {
+            continue;
+        };
         if !target_str.starts_with('/') {
             continue;
         }
         let skill = target_str[1..].split_whitespace().next().unwrap_or("");
-        if !package_root.join("skills").join(skill).join("SKILL.md").exists() {
+        if !package_root
+            .join("skills")
+            .join(skill)
+            .join("SKILL.md")
+            .exists()
+        {
             findings.push(f(
                 None,
                 "src/config/capability-aliases.json",
@@ -414,7 +593,10 @@ pub fn verify_capability_aliases(package_root: &Path) -> Vec<ClosureFinding> {
 
 /// Validate that every manifest's declared consumers actually exist. Port
 /// of `verifyManifestConsumers`.
-pub fn verify_manifest_consumers(package_root: &Path, manifests: &BTreeMap<String, Value>) -> Vec<ClosureFinding> {
+pub fn verify_manifest_consumers(
+    package_root: &Path,
+    manifests: &BTreeMap<String, Value>,
+) -> Vec<ClosureFinding> {
     let mut findings = Vec::new();
     for (id, manifest) in manifests {
         let consumers = manifest
@@ -424,9 +606,16 @@ pub fn verify_manifest_consumers(package_root: &Path, manifests: &BTreeMap<Strin
             .cloned()
             .unwrap_or_default();
         for consumer in consumers {
-            let Some(consumer) = consumer.as_str() else { continue };
+            let Some(consumer) = consumer.as_str() else {
+                continue;
+            };
             if !package_root.join(consumer).exists() {
-                findings.push(f(Some(id.as_str()), consumer, "stale-consumer", format!("manifest declares a consumer that no longer exists: {consumer}")));
+                findings.push(f(
+                    Some(id.as_str()),
+                    consumer,
+                    "stale-consumer",
+                    format!("manifest declares a consumer that no longer exists: {consumer}"),
+                ));
             }
         }
     }
@@ -437,7 +626,9 @@ pub fn verify_manifest_consumers(package_root: &Path, manifests: &BTreeMap<Strin
 /// bundle may bypass it.
 fn semantic_bundle_ids(package_root: &Path) -> Vec<String> {
     let skills_root = package_root.join("skills");
-    let Ok(entries) = std::fs::read_dir(&skills_root) else { return Vec::new() };
+    let Ok(entries) = std::fs::read_dir(&skills_root) else {
+        return Vec::new();
+    };
     let mut ids: Vec<String> = entries
         .flatten()
         .filter(|entry| entry.path().is_dir() && entry.path().join("SKILL.md").exists())
@@ -448,33 +639,63 @@ fn semantic_bundle_ids(package_root: &Path) -> Vec<String> {
 }
 
 /// Port of `verifyManifestCoverage`.
-pub fn verify_manifest_coverage(package_root: &Path, manifests: &BTreeMap<String, Value>) -> Vec<ClosureFinding> {
+pub fn verify_manifest_coverage(
+    package_root: &Path,
+    manifests: &BTreeMap<String, Value>,
+) -> Vec<ClosureFinding> {
     let mut findings = Vec::new();
     let skills_root = package_root.join("skills");
     let declared: BTreeSet<&String> = manifests.keys().collect();
     for id in semantic_bundle_ids(package_root) {
         if !declared.contains(&id) {
-            findings.push(f(Some(id.as_str()), format!("skills/{id}/SKILL.md"), "missing-skill-manifest", "semantic bundle has no manifest and cannot enter dependency closure"));
+            findings.push(f(
+                Some(id.as_str()),
+                format!("skills/{id}/SKILL.md"),
+                "missing-skill-manifest",
+                "semantic bundle has no manifest and cannot enter dependency closure",
+            ));
         }
     }
     for id in manifests.keys() {
         if !skills_root.join(id).join("SKILL.md").exists() {
-            findings.push(f(Some(id.as_str()), format!("skills/{id}/SKILL.md"), "missing-skill-entry", "manifest declares a semantic bundle whose SKILL.md is absent"));
+            findings.push(f(
+                Some(id.as_str()),
+                format!("skills/{id}/SKILL.md"),
+                "missing-skill-entry",
+                "manifest declares a semantic bundle whose SKILL.md is absent",
+            ));
         }
     }
     findings
 }
 
-fn verify_route_resources(text: &str, package_root: &Path, skill_root: &Path, capabilities: &Value, manifest_id: &str) -> Vec<ClosureFinding> {
+fn verify_route_resources(
+    text: &str,
+    package_root: &Path,
+    skill_root: &Path,
+    capabilities: &Value,
+    manifest_id: &str,
+) -> Vec<ClosureFinding> {
     let Ok(document) = serde_json::from_str::<Value>(text) else {
-        return vec![f(Some(manifest_id), "references/route-resources.json", "invalid-resource-document", "route resource table is not valid JSON")];
+        return vec![f(
+            Some(manifest_id),
+            "references/route-resources.json",
+            "invalid-resource-document",
+            "route resource table is not valid JSON",
+        )];
     };
     let mut findings = Vec::new();
-    let Some(sections) = document.as_object() else { return findings };
+    let Some(sections) = document.as_object() else {
+        return findings;
+    };
     for (section, table) in sections {
-        let Some(table) = table.as_object() else { continue };
+        let Some(table) = table.as_object() else {
+            continue;
+        };
         for (key, entries) in table {
-            let Some(entries) = entries.as_array() else { continue };
+            let Some(entries) = entries.as_array() else {
+                continue;
+            };
             for entry in entries {
                 let result = classify_resource(entry, package_root, skill_root, capabilities);
                 if !result.ok {
@@ -507,7 +728,9 @@ pub struct ClosureResult {
 
 fn all_files(directory: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    let Ok(entries) = std::fs::read_dir(directory) else { return out };
+    let Ok(entries) = std::fs::read_dir(directory) else {
+        return out;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -528,7 +751,8 @@ pub fn verify_dependency_closure(
     manifests: &BTreeMap<String, Value>,
     registry: &Value,
 ) -> Result<ClosureResult, String> {
-    let command_capabilities = command_capability_map(registry).map_err(|error| error.to_string())?;
+    let command_capabilities =
+        command_capability_map(registry).map_err(|error| error.to_string())?;
     let mut findings = Vec::new();
     findings.extend(verify_manifest_consumers(package_root, manifests));
     findings.extend(verify_manifest_coverage(package_root, manifests));
@@ -542,26 +766,44 @@ pub fn verify_dependency_closure(
         if !skill_root.exists() {
             continue;
         }
-        let declaration = verify_bundle_dependencies(package_root, id, registry, &command_capabilities);
+        let declaration =
+            verify_bundle_dependencies(package_root, id, registry, &command_capabilities);
         findings.extend(declaration.findings);
         declaration_count += declaration.declaration_count;
         typed_resource_count += declaration.typed_resource_count;
 
         for file in all_files(&skill_root) {
-            let relative_path = file.strip_prefix(&skill_root).unwrap_or(&file).to_string_lossy().replace('\\', "/");
+            let relative_path = file
+                .strip_prefix(&skill_root)
+                .unwrap_or(&file)
+                .to_string_lossy()
+                .replace('\\', "/");
             let lower = relative_path.to_ascii_lowercase();
-            let matches_ext = ["md", "mdx", "txt", "json", "yml", "yaml", "mjs", "js", "py", "sh", "ps1", "vbs"]
-                .iter()
-                .any(|ext| lower.ends_with(&format!(".{ext}")));
+            let matches_ext = [
+                "md", "mdx", "txt", "json", "yml", "yaml", "mjs", "js", "py", "sh", "ps1", "vbs",
+            ]
+            .iter()
+            .any(|ext| lower.ends_with(&format!(".{ext}")));
             if !matches_ext {
                 continue;
             }
-            let Ok(text) = std::fs::read_to_string(&file) else { continue };
+            let Ok(text) = std::fs::read_to_string(&file) else {
+                continue;
+            };
             for finding in scan_packaged_text(&text, &relative_path, &skill_root, package_root) {
-                findings.push(ClosureFinding { bundle_id: Some(id.clone()), ..finding });
+                findings.push(ClosureFinding {
+                    bundle_id: Some(id.clone()),
+                    ..finding
+                });
             }
             if relative_path.ends_with("route-resources.json") {
-                findings.extend(verify_route_resources(&text, package_root, &skill_root, registry, id));
+                findings.extend(verify_route_resources(
+                    &text,
+                    package_root,
+                    &skill_root,
+                    registry,
+                    id,
+                ));
             }
         }
     }
@@ -596,10 +838,22 @@ mod tests {
     fn parse_declaration_rejects_bad_schema() {
         assert!(parse_dependency_declaration("not json", "d.json").is_err());
         assert!(parse_dependency_declaration("[]", "d.json").is_err());
-        assert!(parse_dependency_declaration(r#"{"schemaVersion":1,"kind":"x","resources":[]}"#, "d.json").is_err());
-        assert!(parse_dependency_declaration(r#"{"schemaVersion":1,"kind":"legion-skill-dependencies","resources":{}}"#, "d.json").is_err());
+        assert!(parse_dependency_declaration(
+            r#"{"schemaVersion":1,"kind":"x","resources":[]}"#,
+            "d.json"
+        )
+        .is_err());
+        assert!(parse_dependency_declaration(
+            r#"{"schemaVersion":1,"kind":"legion-skill-dependencies","resources":{}}"#,
+            "d.json"
+        )
+        .is_err());
         assert!(parse_dependency_declaration(r#"{"schemaVersion":1,"kind":"legion-skill-dependencies","unknown":true,"resources":[]}"#, "d.json").is_err());
-        assert!(parse_dependency_declaration(r#"{"schemaVersion":1,"kind":"legion-skill-dependencies","resources":[]}"#, "d.json").is_ok());
+        assert!(parse_dependency_declaration(
+            r#"{"schemaVersion":1,"kind":"legion-skill-dependencies","resources":[]}"#,
+            "d.json"
+        )
+        .is_ok());
     }
 
     #[test]
@@ -646,13 +900,23 @@ mod tests {
         let skill_root = dir.path().join("skills/demo");
 
         let mandatory = json!({"class": "PROJECT_OVERLAY", "path": "<workspace>/x"});
-        assert_eq!(classify_resource(&mandatory, dir.path(), &skill_root, &registry()).code, "mandatory-overlay");
+        assert_eq!(
+            classify_resource(&mandatory, dir.path(), &skill_root, &registry()).code,
+            "mandatory-overlay"
+        );
 
-        let no_absent = json!({"class": "PROJECT_OVERLAY", "optional": true, "path": "<workspace>/x"});
-        assert_eq!(classify_resource(&no_absent, dir.path(), &skill_root, &registry()).code, "undeclared-degradation");
+        let no_absent =
+            json!({"class": "PROJECT_OVERLAY", "optional": true, "path": "<workspace>/x"});
+        assert_eq!(
+            classify_resource(&no_absent, dir.path(), &skill_root, &registry()).code,
+            "undeclared-degradation"
+        );
 
         let concrete_path = json!({"class": "PROJECT_OVERLAY", "optional": true, "absent": "skip", "path": "/etc/passwd"});
-        assert_eq!(classify_resource(&concrete_path, dir.path(), &skill_root, &registry()).code, "concrete-overlay-path");
+        assert_eq!(
+            classify_resource(&concrete_path, dir.path(), &skill_root, &registry()).code,
+            "concrete-overlay-path"
+        );
 
         let good = json!({"class": "PROJECT_OVERLAY", "optional": true, "absent": "skip", "path": "<workspace>/x"});
         assert!(classify_resource(&good, dir.path(), &skill_root, &registry()).ok);
@@ -670,9 +934,24 @@ mod tests {
     fn classify_resource_untyped_and_invalid() {
         let dir = TempDir::new();
         let skill_root = dir.path().join("skills/demo");
-        assert_eq!(classify_resource(&json!("bare"), dir.path(), &skill_root, &registry()).code, "untyped-resource");
-        assert_eq!(classify_resource(&json!([1, 2]), dir.path(), &skill_root, &registry()).code, "invalid-resource");
-        assert_eq!(classify_resource(&json!({"class": "NOPE"}), dir.path(), &skill_root, &registry()).code, "unknown-class");
+        assert_eq!(
+            classify_resource(&json!("bare"), dir.path(), &skill_root, &registry()).code,
+            "untyped-resource"
+        );
+        assert_eq!(
+            classify_resource(&json!([1, 2]), dir.path(), &skill_root, &registry()).code,
+            "invalid-resource"
+        );
+        assert_eq!(
+            classify_resource(
+                &json!({"class": "NOPE"}),
+                dir.path(),
+                &skill_root,
+                &registry()
+            )
+            .code,
+            "unknown-class"
+        );
     }
 
     #[test]
@@ -717,9 +996,12 @@ mod tests {
         let scoped: BTreeSet<String> = BTreeSet::new();
 
         let text = "```bash\nchrome --headless\n```\nREQUIRES_HOST_CAPABILITY: browser-automation";
-        let findings = scan_host_command_references(text, "SKILL.md", &commands, &host_requirements, &scoped);
+        let findings =
+            scan_host_command_references(text, "SKILL.md", &commands, &host_requirements, &scoped);
         assert!(findings.iter().any(|x| x.code == "undeclared-host-command"));
-        assert!(findings.iter().any(|x| x.code == "undeclared-host-capability"));
+        assert!(findings
+            .iter()
+            .any(|x| x.code == "undeclared-host-capability"));
     }
 
     #[test]
@@ -731,7 +1013,8 @@ mod tests {
         scoped.insert("browser-automation".to_string());
 
         let text = "`chrome --headless`";
-        let findings = scan_host_command_references(text, "SKILL.md", &commands, &host_requirements, &scoped);
+        let findings =
+            scan_host_command_references(text, "SKILL.md", &commands, &host_requirements, &scoped);
         assert!(findings.is_empty());
     }
 
@@ -754,7 +1037,11 @@ mod tests {
     #[test]
     fn verify_dependency_closure_clean_bundle_is_ok() {
         let dir = TempDir::new();
-        write(dir.path(), "skills/demo/SKILL.md", &skill_md("  - browser-automation\n"));
+        write(
+            dir.path(),
+            "skills/demo/SKILL.md",
+            &skill_md("  - browser-automation\n"),
+        );
         write(
             dir.path(),
             "skills/demo/dependencies.json",
@@ -782,7 +1069,10 @@ mod tests {
 
         let result = verify_dependency_closure(dir.path(), &manifests, &registry()).unwrap();
         assert!(!result.ok);
-        assert!(result.findings.iter().any(|x| x.code == "missing-skill-manifest"));
+        assert!(result
+            .findings
+            .iter()
+            .any(|x| x.code == "missing-skill-manifest"));
     }
 
     #[test]
@@ -802,7 +1092,10 @@ mod tests {
         manifests.insert("demo".to_string(), manifest("demo"));
 
         let result = verify_dependency_closure(dir.path(), &manifests, &registry()).unwrap();
-        assert!(result.findings.iter().any(|x| x.code == "host-requirement-mismatch"));
+        assert!(result
+            .findings
+            .iter()
+            .any(|x| x.code == "host-requirement-mismatch"));
     }
 
     #[test]

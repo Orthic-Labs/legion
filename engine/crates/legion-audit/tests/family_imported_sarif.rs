@@ -69,10 +69,7 @@ fn missing_raw_bytes_is_rejected_even_when_artifact_and_digest_of_empty_bytes_ma
     assert_eq!(result["denominator"]["examined"], json!(0));
     assert!(result["findings"].as_array().unwrap().is_empty());
     let gaps = result["coverageGaps"].as_array().unwrap();
-    let reasons: Vec<&str> = gaps
-        .iter()
-        .filter_map(|g| g["reason"].as_str())
-        .collect();
+    let reasons: Vec<&str> = gaps.iter().filter_map(|g| g["reason"].as_str()).collect();
     assert!(
         reasons.contains(&"immutable SARIF raw bytes required"),
         "expected the JS-parity 'immutable SARIF raw bytes required' reason, got {gaps:?}"

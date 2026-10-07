@@ -22,9 +22,20 @@ pub fn host_owned_keys() -> &'static [&'static str] {
 }
 
 const KNOWN_TOP_KEYS: &[&str] = &[
-    "schemaVersion", "profile", "providers", "limits", "policy", "outputs",
-    "require", "disable", "providerTimeoutMs", "maxOutputBytes", "maxConcurrency",
-    "failOn", "baseline", "acceptedRisk",
+    "schemaVersion",
+    "profile",
+    "providers",
+    "limits",
+    "policy",
+    "outputs",
+    "require",
+    "disable",
+    "providerTimeoutMs",
+    "maxOutputBytes",
+    "maxConcurrency",
+    "failOn",
+    "baseline",
+    "acceptedRisk",
 ];
 
 const PROFILE_NAMES: &[&str] = &["fast", "standard", "full", "release"];
@@ -69,7 +80,9 @@ pub fn validate_config(config: &Value, label: &str) -> Result<(), String> {
             .get("schemaVersion")
             .map(|v| v.to_canonical_string())
             .unwrap_or_else(|| "undefined".to_string());
-        return Err(format!("{label}.schemaVersion must be {CONFIG_SCHEMA_VERSION}; got {got}"));
+        return Err(format!(
+            "{label}.schemaVersion must be {CONFIG_SCHEMA_VERSION}; got {got}"
+        ));
     }
 
     if let Some(Value::String(profile)) = map.get("profile") {
@@ -89,7 +102,10 @@ pub fn validate_config(config: &Value, label: &str) -> Result<(), String> {
 
     let sections: &[(&str, &[&str])] = &[
         ("providers", &["require", "disable"]),
-        ("limits", &["providerTimeoutMs", "maxOutputBytes", "maxConcurrency"]),
+        (
+            "limits",
+            &["providerTimeoutMs", "maxOutputBytes", "maxConcurrency"],
+        ),
         ("policy", &["failOn", "baseline", "acceptedRisk"]),
     ];
     for (section, allowed_keys) in sections {
@@ -115,7 +131,9 @@ pub fn merge_config(
     if let Some(Value::Object(repo_map)) = repository {
         for key in host_owned_keys() {
             if repo_map.contains_key(*key) {
-                return Err(format!("repository config may not set host-owned key: {key}"));
+                return Err(format!(
+                    "repository config may not set host-owned key: {key}"
+                ));
             }
         }
     }
@@ -149,9 +167,20 @@ fn trusted_host_owned_keys() -> &'static [&'static str] {
 }
 
 const TRUSTED_ALLOWED: &[&str] = &[
-    "schemaVersion", "profile", "providers", "limits", "policy", "outputs",
-    "schedule", "resources", "cache", "cancellation", "reasoning", "claimLevels",
-    "releaseContract", "externalEvidence",
+    "schemaVersion",
+    "profile",
+    "providers",
+    "limits",
+    "policy",
+    "outputs",
+    "schedule",
+    "resources",
+    "cache",
+    "cancellation",
+    "reasoning",
+    "claimLevels",
+    "releaseContract",
+    "externalEvidence",
 ];
 
 fn trusted_nested_keys(key: &str) -> Option<&'static [&'static str]> {
@@ -163,8 +192,14 @@ fn trusted_nested_keys(key: &str) -> Option<&'static [&'static str]> {
     }
 }
 
-fn validate_trusted_layer(value: Option<&Value>, label: &str, repository: bool) -> Result<(), String> {
-    let Some(Value::Object(map)) = value else { return Ok(()) };
+fn validate_trusted_layer(
+    value: Option<&Value>,
+    label: &str,
+    repository: bool,
+) -> Result<(), String> {
+    let Some(Value::Object(map)) = value else {
+        return Ok(());
+    };
     for (key, nested) in map {
         if repository && trusted_host_owned_keys().contains(&key.as_str()) {
             return Err(format!("repository cannot set host-owned key: {key}"));
@@ -227,7 +262,10 @@ pub fn merge_trusted_config(input: &TrustedConfigInput) -> Result<TrustedConfig,
 
     let config = deep_merge(&sources);
     let d = digest(&config);
-    Ok(TrustedConfig { value: config, digest: d })
+    Ok(TrustedConfig {
+        value: config,
+        digest: d,
+    })
 }
 
 /// Port of `sealedProfile(name, overrides)` (profiles.mjs). `overrides` is
@@ -259,11 +297,23 @@ pub fn sealed_profile(profile_config: Value, overrides: Option<&Value>) -> Value
         _ => BTreeMap::new(),
     };
     out.insert("version".to_string(), Value::Number(1.0));
-    out.insert("schedule".to_string(), get("schedule").unwrap_or_else(|| Value::str("auto")));
+    out.insert(
+        "schedule".to_string(),
+        get("schedule").unwrap_or_else(|| Value::str("auto")),
+    );
     out.insert("resources".to_string(), Value::Object(resources));
-    out.insert("cache".to_string(), get("cache").unwrap_or_else(|| Value::str("content-addressed")));
-    out.insert("cancellation".to_string(), get("cancellation").unwrap_or_else(|| Value::str("checkpoint")));
-    out.insert("reasoning".to_string(), get("reasoning").unwrap_or_else(|| Value::str("auto")));
+    out.insert(
+        "cache".to_string(),
+        get("cache").unwrap_or_else(|| Value::str("content-addressed")),
+    );
+    out.insert(
+        "cancellation".to_string(),
+        get("cancellation").unwrap_or_else(|| Value::str("checkpoint")),
+    );
+    out.insert(
+        "reasoning".to_string(),
+        get("reasoning").unwrap_or_else(|| Value::str("auto")),
+    );
     out.insert(
         "claimLevels".to_string(),
         Value::array([
@@ -338,13 +388,21 @@ fn resolve_posix(cwd: &str, raw: &str) -> String {
 
 fn resolve_windows(cwd: &str, raw: &str) -> String {
     let is_abs = is_windows_root(raw) || raw.starts_with('\\') || raw.starts_with('/');
-    let base = if is_abs { raw.to_string() } else { format!("{cwd}\\{raw}") };
+    let base = if is_abs {
+        raw.to_string()
+    } else {
+        format!("{cwd}\\{raw}")
+    };
     normalize_segments(&base, '\\')
 }
 
 fn normalize_segments(path: &str, sep: char) -> String {
     let is_abs = path.starts_with('/') || path.starts_with('\\');
-    let drive: String = if is_windows_root(path) { path[0..2].to_string() } else { String::new() };
+    let drive: String = if is_windows_root(path) {
+        path[0..2].to_string()
+    } else {
+        String::new()
+    };
     let rest = if !drive.is_empty() { &path[2..] } else { path };
     let mut stack: Vec<&str> = Vec::new();
     for part in rest.split(['/', '\\']) {
@@ -374,7 +432,10 @@ mod tests {
         Value::object([
             ("schemaVersion", Value::Number(1.0)),
             ("profile", Value::str("standard")),
-            ("providers", Value::object([("require", Value::array([])), ("disable", Value::array([]))])),
+            (
+                "providers",
+                Value::object([("require", Value::array([])), ("disable", Value::array([]))]),
+            ),
             (
                 "limits",
                 Value::object([
@@ -385,7 +446,10 @@ mod tests {
             ),
             (
                 "policy",
-                Value::object([("failOn", Value::array([Value::str("critical"), Value::str("high")]))]),
+                Value::object([(
+                    "failOn",
+                    Value::array([Value::str("critical"), Value::str("high")]),
+                )]),
             ),
             ("outputs", Value::array([Value::str("json")])),
         ])
@@ -412,7 +476,10 @@ mod tests {
         if let Value::Object(map) = &mut c {
             map.insert("bogus".into(), Value::Bool(true));
         }
-        assert_eq!(validate_config(&c, "config").unwrap_err(), "config has unknown key: bogus");
+        assert_eq!(
+            validate_config(&c, "config").unwrap_err(),
+            "config has unknown key: bogus"
+        );
     }
 
     #[test]
@@ -434,7 +501,10 @@ mod tests {
         let defaults = default_config();
         let repo = Value::object([("networkGuard", Value::Bool(true))]);
         let err = merge_config(&defaults, None, Some(&repo), None).unwrap_err();
-        assert_eq!(err, "repository config may not set host-owned key: networkGuard");
+        assert_eq!(
+            err,
+            "repository config may not set host-owned key: networkGuard"
+        );
     }
 
     #[test]

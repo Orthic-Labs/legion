@@ -21,7 +21,11 @@ fn spec(repo: &str) -> CandidateSpec {
 
 #[test]
 fn admits_single_current_record_per_stable_id() {
-    let records = vec![record("architect:decision:abc123", "repo-a", DecisionStatus::Accepted)];
+    let records = vec![record(
+        "architect:decision:abc123",
+        "repo-a",
+        DecisionStatus::Accepted,
+    )];
     let set = produce_candidate_set(&spec("repo-a"), &records, "edit").expect("ok");
     assert_eq!(set.candidates.len(), 1);
     assert_eq!(set.candidates[0]["id"], "architect:decision:abc123");
@@ -29,9 +33,17 @@ fn admits_single_current_record_per_stable_id() {
 
 #[test]
 fn proposed_is_omitted_as_superseded_by_current_when_accepted_sibling_exists() {
-    let mut proposed = record("architect:decision:same", "repo-a", DecisionStatus::Proposed);
+    let mut proposed = record(
+        "architect:decision:same",
+        "repo-a",
+        DecisionStatus::Proposed,
+    );
     proposed.source_hash = "sha256:proposed".to_string();
-    let mut accepted = record("architect:decision:same", "repo-a", DecisionStatus::Accepted);
+    let mut accepted = record(
+        "architect:decision:same",
+        "repo-a",
+        DecisionStatus::Accepted,
+    );
     accepted.source_hash = "sha256:accepted".to_string();
     let records = vec![proposed, accepted];
     let set = produce_candidate_set(&spec("repo-a"), &records, "edit").expect("ok");
@@ -40,14 +52,23 @@ fn proposed_is_omitted_as_superseded_by_current_when_accepted_sibling_exists() {
     assert!(set
         .omissions
         .iter()
-        .any(|o| o["reason"] == "superseded_by_current" && o["id"] == "architect:decision:same:proposed"));
+        .any(|o| o["reason"] == "superseded_by_current"
+            && o["id"] == "architect:decision:same:proposed"));
 }
 
 #[test]
 fn stale_proposed_only_lineage_after_supersession_admits_nothing() {
-    let mut proposed = record("architect:decision:retired", "repo-a", DecisionStatus::Proposed);
+    let mut proposed = record(
+        "architect:decision:retired",
+        "repo-a",
+        DecisionStatus::Proposed,
+    );
     proposed.source_hash = "sha256:p".to_string();
-    let mut superseded = record("architect:decision:retired", "repo-a", DecisionStatus::Superseded);
+    let mut superseded = record(
+        "architect:decision:retired",
+        "repo-a",
+        DecisionStatus::Superseded,
+    );
     superseded.source_hash = "sha256:s".to_string();
     let records = vec![proposed, superseded];
     let set = produce_candidate_set(&spec("repo-a"), &records, "edit").expect("ok");
@@ -57,7 +78,11 @@ fn stale_proposed_only_lineage_after_supersession_admits_nothing() {
 
 #[test]
 fn implemented_without_refs_warns_but_still_admits() {
-    let record = record("architect:decision:impl1", "repo-a", DecisionStatus::Implemented);
+    let record = record(
+        "architect:decision:impl1",
+        "repo-a",
+        DecisionStatus::Implemented,
+    );
     let records = vec![record];
     let set = produce_candidate_set(&spec("repo-a"), &records, "edit").expect("ok");
     assert_eq!(set.candidates.len(), 1);
@@ -67,7 +92,11 @@ fn implemented_without_refs_warns_but_still_admits() {
 
 #[test]
 fn stale_graph_generation_is_downgraded_to_omission() {
-    let mut rec = record("architect:decision:gen1", "repo-a", DecisionStatus::Accepted);
+    let mut rec = record(
+        "architect:decision:gen1",
+        "repo-a",
+        DecisionStatus::Accepted,
+    );
     rec.linked_graph_generation = "gen-old".to_string();
     let records = vec![rec];
     let mut s = spec("repo-a");
@@ -94,7 +123,11 @@ fn token_ceiling_is_fail_closed() {
 fn candidates_are_sorted_by_score_desc_then_id() {
     let records = vec![
         record("architect:decision:b", "repo-a", DecisionStatus::Proposed),
-        record("architect:decision:a", "repo-a", DecisionStatus::Implemented),
+        record(
+            "architect:decision:a",
+            "repo-a",
+            DecisionStatus::Implemented,
+        ),
     ];
     let set = produce_candidate_set(&spec("repo-a"), &records, "edit").expect("ok");
     assert_eq!(set.candidates[0]["id"], "architect:decision:a");
@@ -103,7 +136,11 @@ fn candidates_are_sorted_by_score_desc_then_id() {
 
 #[test]
 fn different_repository_records_are_excluded() {
-    let records = vec![record("architect:decision:other", "repo-b", DecisionStatus::Accepted)];
+    let records = vec![record(
+        "architect:decision:other",
+        "repo-b",
+        DecisionStatus::Accepted,
+    )];
     let set = produce_candidate_set(&spec("repo-a"), &records, "edit").expect("ok");
     assert!(set.candidates.is_empty());
 }

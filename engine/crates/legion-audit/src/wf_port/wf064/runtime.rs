@@ -48,16 +48,12 @@ pub struct ParsedSurfaces {
 /// be a top-level array; non-object entries are dropped (JS
 /// `.filter(t => t && typeof t === 'object')`).
 pub fn parse_surfaces_input(text: &str) -> Result<ParsedSurfaces, String> {
-    let parsed: Value = serde_json::from_str(text)
-        .map_err(|e| format!("--surfaces parse failed: {e}"))?;
-    let array = parsed
-        .as_array()
-        .ok_or_else(|| "--surfaces must contain a JSON array of {label, text|selector} targets".to_string())?;
-    let targets = array
-        .iter()
-        .filter(|t| t.is_object())
-        .cloned()
-        .collect();
+    let parsed: Value =
+        serde_json::from_str(text).map_err(|e| format!("--surfaces parse failed: {e}"))?;
+    let array = parsed.as_array().ok_or_else(|| {
+        "--surfaces must contain a JSON array of {label, text|selector} targets".to_string()
+    })?;
+    let targets = array.iter().filter(|t| t.is_object()).cloned().collect();
     Ok(ParsedSurfaces { targets })
 }
 
@@ -81,12 +77,19 @@ pub fn classify_runtime_failure(message: &str) -> &'static str {
 }
 
 fn contains_ci(haystack: &str, needle: &str) -> bool {
-    haystack.to_ascii_lowercase().contains(&needle.to_ascii_lowercase())
+    haystack
+        .to_ascii_lowercase()
+        .contains(&needle.to_ascii_lowercase())
 }
 
 /// Faithful port of `buildDegradedReport`. `url` mirrors JS `URL_ ?? null`;
 /// `keys` mirrors the `KEYS` CLI flag folded into every report.
-pub fn build_degraded_report(gaps: &[Value], denominator: &Value, url: Option<&str>, keys: i64) -> Value {
+pub fn build_degraded_report(
+    gaps: &[Value],
+    denominator: &Value,
+    url: Option<&str>,
+    keys: i64,
+) -> Value {
     json!({
         "kind": "audit-runtime",
         "url": url,
@@ -179,7 +182,8 @@ pub const RUN_AXE_JS: &str = r##"(async()=>{ if(!window.axe) return null; try{
 /// Port of the `locate(spec)` template-literal builder.
 pub fn locate_js(selector: &str, text: &str) -> String {
     let sel_json = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_string());
-    let txt_json = serde_json::to_string(&text.to_lowercase()).unwrap_or_else(|_| "\"\"".to_string());
+    let txt_json =
+        serde_json::to_string(&text.to_lowercase()).unwrap_or_else(|_| "\"\"".to_string());
     format!(
         r##"(() => {{
   const sel = {sel_json}, txt = {txt_json};
@@ -208,7 +212,12 @@ pub struct Thresholds {
 
 impl Default for Thresholds {
     fn default() -> Self {
-        Thresholds { perkey_ms: 8.0, click_ms: 100.0, click_commit_burst: 8, longtask_ms: 50.0 }
+        Thresholds {
+            perkey_ms: 8.0,
+            click_ms: 100.0,
+            click_commit_burst: 8,
+            longtask_ms: 50.0,
+        }
     }
 }
 
@@ -339,9 +348,15 @@ pub fn a11y_flag(violations: &[AxeViolation]) -> Option<String> {
         .filter(|v| matches!(v.impact.as_deref(), Some("critical") | Some("serious")))
         .count();
     if serious > 0 {
-        Some(format!("a11y: {} axe violation(s), {serious} serious+ (wcag2a/aa)", violations.len()))
+        Some(format!(
+            "a11y: {} axe violation(s), {serious} serious+ (wcag2a/aa)",
+            violations.len()
+        ))
     } else {
-        Some(format!("a11y: {} axe violation(s) (wcag2a/aa)", violations.len()))
+        Some(format!(
+            "a11y: {} axe violation(s) (wcag2a/aa)",
+            violations.len()
+        ))
     }
 }
 
@@ -372,7 +387,11 @@ pub struct Finding {
 
 /// Port of the "Honesty #1"/"Honesty #2" checks: was anything actually
 /// tested?
-pub fn testing_honesty(tested_anything: bool, reachable: i64, entry_interactive: i64) -> (bool, bool) {
+pub fn testing_honesty(
+    tested_anything: bool,
+    reachable: i64,
+    entry_interactive: i64,
+) -> (bool, bool) {
     let incomplete = !tested_anything && reachable == 0 && entry_interactive < 3;
     let shallow = !tested_anything && !incomplete && reachable == 0;
     (incomplete, shallow)
@@ -396,9 +415,18 @@ pub fn assemble_report(
 ) -> Value {
     let flagged_count = findings
         .iter()
-        .filter(|f| f.get("flags").and_then(|v| v.as_array()).map(|a| !a.is_empty()).unwrap_or(false))
+        .filter(|f| {
+            f.get("flags")
+                .and_then(|v| v.as_array())
+                .map(|a| !a.is_empty())
+                .unwrap_or(false)
+        })
         .count();
-    let status = if flagged_count > 0 || console_total > 0 { "candidates" } else { "pass" };
+    let status = if flagged_count > 0 || console_total > 0 {
+        "candidates"
+    } else {
+        "pass"
+    };
     json!({
         "kind": "audit-runtime",
         "url": url,
@@ -449,7 +477,8 @@ pub struct SurfaceRaw {
 /// implementation.
 pub trait RuntimeDriver {
     fn launch(&mut self) -> Result<(), String>;
-    fn navigate_and_wait_ready(&mut self, url: &str, width: u32, height: u32) -> Result<(), String>;
+    fn navigate_and_wait_ready(&mut self, url: &str, width: u32, height: u32)
+        -> Result<(), String>;
     fn measure_surface(&mut self, name: &str, keys: i64, t: &Thresholds) -> SurfaceRaw;
     fn enumerate_surfaces(&mut self) -> Vec<ClickTarget>;
     fn click(&mut self, x: f64, y: f64) -> Result<(), String>;
@@ -504,7 +533,10 @@ pub fn run_with_driver(args: &RuntimeArgs, driver: &mut dyn RuntimeDriver) -> (i
             "detail": e.chars().take(200).collect::<String>(),
             "denominator": launch_bound,
         })];
-        return (3, build_degraded_report(&gap, &launch_bound, Some(url), args.keys));
+        return (
+            3,
+            build_degraded_report(&gap, &launch_bound, Some(url), args.keys),
+        );
     }
     if let Err(e) = driver.navigate_and_wait_ready(url, args.width, args.height) {
         driver.shutdown();
@@ -513,7 +545,10 @@ pub fn run_with_driver(args: &RuntimeArgs, driver: &mut dyn RuntimeDriver) -> (i
             "detail": e.chars().take(200).collect::<String>(),
             "denominator": launch_bound,
         })];
-        return (3, build_degraded_report(&gap, &launch_bound, Some(url), args.keys));
+        return (
+            3,
+            build_degraded_report(&gap, &launch_bound, Some(url), args.keys),
+        );
     }
 
     let mut findings: Vec<Value> = Vec::new();
@@ -525,24 +560,39 @@ pub fn run_with_driver(args: &RuntimeArgs, driver: &mut dyn RuntimeDriver) -> (i
     console_total += entry_raw.new_console_errors.len() as i64;
     a11y_total += entry_raw.axe.as_ref().map(|a| a.len() as i64).unwrap_or(0);
     let entry_interactive = entry_raw.interactive.unwrap_or(0);
-    let entry_tested_anything = entry_raw.typed.as_ref().map(|t| t.per_key_ms != 0.0 || true).is_some()
+    let entry_tested_anything = entry_raw
+        .typed
+        .as_ref()
+        .map(|t| t.per_key_ms != 0.0 || true)
+        .is_some()
         && entry_raw.typed.is_some();
     findings.push(entry_finding);
 
     let surfaces = driver.enumerate_surfaces();
     let mut tested = 1i64;
     let mut tested_anything = entry_tested_anything
-        || entry_raw.clicked.as_ref().map(|c| c.targets > 0).unwrap_or(false);
+        || entry_raw
+            .clicked
+            .as_ref()
+            .map(|c| c.targets > 0)
+            .unwrap_or(false);
     for s in &surfaces {
         match driver.click(s.x, s.y) {
             Ok(()) => {
                 let raw = driver.measure_surface(&s.label, args.keys, &args.thresholds);
                 console_total += raw.new_console_errors.len() as i64;
                 a11y_total += raw.axe.as_ref().map(|a| a.len() as i64).unwrap_or(0);
-                if raw.typed.is_some() || raw.clicked.as_ref().map(|c| c.targets > 0).unwrap_or(false) {
+                if raw.typed.is_some()
+                    || raw.clicked.as_ref().map(|c| c.targets > 0).unwrap_or(false)
+                {
                     tested_anything = true;
                 }
-                findings.push(finding_from_raw(&s.label, &raw, args.keys, &args.thresholds));
+                findings.push(finding_from_raw(
+                    &s.label,
+                    &raw,
+                    args.keys,
+                    &args.thresholds,
+                ));
                 tested += 1;
             }
             Err(e) => {
@@ -583,7 +633,9 @@ pub fn run_with_driver(args: &RuntimeArgs, driver: &mut dyn RuntimeDriver) -> (i
                     let raw = driver.measure_surface(&label, args.keys, &args.thresholds);
                     console_total += raw.new_console_errors.len() as i64;
                     a11y_total += raw.axe.as_ref().map(|a| a.len() as i64).unwrap_or(0);
-                    if raw.typed.is_some() || raw.clicked.as_ref().map(|c| c.targets > 0).unwrap_or(false) {
+                    if raw.typed.is_some()
+                        || raw.clicked.as_ref().map(|c| c.targets > 0).unwrap_or(false)
+                    {
                         tested_anything = true;
                     }
                     findings.push(finding_from_raw(&label, &raw, args.keys, &args.thresholds));
@@ -617,7 +669,8 @@ pub fn run_with_driver(args: &RuntimeArgs, driver: &mut dyn RuntimeDriver) -> (i
         }
     }
 
-    let surfaces_denominator = json!({"kind": "runtime-surfaces", "expected": reachable + 1, "examined": tested});
+    let surfaces_denominator =
+        json!({"kind": "runtime-surfaces", "expected": reachable + 1, "examined": tested});
     let manual_denominator = json!({"kind": "manual-surface-targets", "expected": manual.len() as i64, "examined": (manual.len() as i64 - unreachable_manual).max(0)});
     let mut degradation: Vec<Value> = Vec::new();
     if let Some(err) = &surfaces_file_error {
@@ -734,19 +787,27 @@ pub mod chrome_driver {
         }
 
         fn eval(&self, expr: &str) -> Result<Value, String> {
-            let remote = self.tab()?.evaluate(expr, true).map_err(|e| e.to_string())?;
+            let remote = self
+                .tab()?
+                .evaluate(expr, true)
+                .map_err(|e| e.to_string())?;
             Ok(remote.value.unwrap_or(Value::Null))
         }
     }
 
     impl RuntimeDriver for ChromeRuntimeDriver {
         fn launch(&mut self) -> Result<(), String> {
-            let browser = Browser::new(LaunchOptions::default_builder().headless(true).build().map_err(|e| e.to_string())?)
-                .map_err(|e| format!("No Chrome/Edge found for the runtime pass: {e}"))?;
+            let browser = Browser::new(
+                LaunchOptions::default_builder()
+                    .headless(true)
+                    .build()
+                    .map_err(|e| e.to_string())?,
+            )
+            .map_err(|e| format!("No Chrome/Edge found for the runtime pass: {e}"))?;
             let tab = browser.new_tab().map_err(|e| e.to_string())?;
             let sink = self.console_errors.clone();
-            let _ = tab.add_event_listener(Arc::new(move |event: &headless_chrome::protocol::cdp::types::Event| {
-                match event {
+            let _ = tab.add_event_listener(Arc::new(
+                move |event: &headless_chrome::protocol::cdp::types::Event| match event {
                     headless_chrome::protocol::cdp::types::Event::RuntimeConsoleAPICalled(ev) => {
                         let level = format!("{:?}", ev.params.Type).to_lowercase();
                         if level == "error" || level == "warning" {
@@ -757,7 +818,9 @@ pub mod chrome_driver {
                                 .filter_map(|a| a.value.as_ref().map(|v| v.to_string()))
                                 .collect::<Vec<_>>()
                                 .join(" ");
-                            sink.lock().unwrap().push(format!("console.{level}: {text}"));
+                            sink.lock()
+                                .unwrap()
+                                .push(format!("console.{level}: {text}"));
                         }
                     }
                     headless_chrome::protocol::cdp::types::Event::RuntimeExceptionThrown(ev) => {
@@ -765,31 +828,41 @@ pub mod chrome_driver {
                         sink.lock().unwrap().push(format!("exception: {text}"));
                     }
                     _ => {}
-                }
-            }));
+                },
+            ));
             self.tab = Some(tab);
             self.browser = Some(browser);
             Ok(())
         }
 
-        fn navigate_and_wait_ready(&mut self, url: &str, width: u32, height: u32) -> Result<(), String> {
-            let tab = self.tab.clone().ok_or_else(|| "no active tab".to_string())?;
-            tab.call_method(headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                width,
-                height,
-                device_scale_factor: 1.0,
-                mobile: false,
-                scale: None,
-                screen_width: None,
-                screen_height: None,
-                position_x: None,
-                position_y: None,
-                dont_set_visible_size: None,
-                screen_orientation: None,
-                viewport: None,
-                display_feature: None,
-                device_posture: None,
-            })
+        fn navigate_and_wait_ready(
+            &mut self,
+            url: &str,
+            width: u32,
+            height: u32,
+        ) -> Result<(), String> {
+            let tab = self
+                .tab
+                .clone()
+                .ok_or_else(|| "no active tab".to_string())?;
+            tab.call_method(
+                headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
+                    width,
+                    height,
+                    device_scale_factor: 1.0,
+                    mobile: false,
+                    scale: None,
+                    screen_width: None,
+                    screen_height: None,
+                    position_x: None,
+                    position_y: None,
+                    dont_set_visible_size: None,
+                    screen_orientation: None,
+                    viewport: None,
+                    display_feature: None,
+                    device_posture: None,
+                },
+            )
             .map_err(|e| e.to_string())?;
             let _ = self.eval(INSTRUMENT_JS);
             if let Some(axe) = &self.axe_source {
@@ -805,7 +878,11 @@ pub mod chrome_driver {
                 if start.elapsed() > std::time::Duration::from_secs(15) {
                     return Err("timed out waiting for app load".to_string());
                 }
-                let n = self.eval(INTERACTIVE_COUNT_JS).ok().and_then(|v| v.as_i64()).unwrap_or(0);
+                let n = self
+                    .eval(INTERACTIVE_COUNT_JS)
+                    .ok()
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
                 if n >= 1 && n == prev {
                     return Ok(());
                 }
@@ -820,7 +897,10 @@ pub mod chrome_driver {
             let before = self.console_errors.lock().unwrap().len();
             let file = self.out_dir.join(format!(
                 "shot-{}.png",
-                name.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).take(40).collect::<String>()
+                name.chars()
+                    .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+                    .take(40)
+                    .collect::<String>()
             ));
             if let Ok(tab) = self.tab() {
                 if let Ok(png) = tab.capture_screenshot(
@@ -838,13 +918,20 @@ pub mod chrome_driver {
                 .eval("(() => { const d = document.documentElement; return d.scrollWidth > d.clientWidth + 2; })()")
                 .ok()
                 .and_then(|v| v.as_bool());
-            raw.interactive = self.eval(INTERACTIVE_COUNT_JS).ok().and_then(|v| v.as_i64());
+            raw.interactive = self
+                .eval(INTERACTIVE_COUNT_JS)
+                .ok()
+                .and_then(|v| v.as_i64());
 
             let input = self.eval(FIND_INPUT_JS).unwrap_or(Value::Null);
             if input.get("ok").and_then(|v| v.as_bool()) == Some(true) {
                 let x = input.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let y = input.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                let tag = input.get("tag").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let tag = input
+                    .get("tag")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 let _ = self.click(x, y);
                 std::thread::sleep(std::time::Duration::from_millis(120));
                 let t0 = std::time::Instant::now();
@@ -868,7 +955,11 @@ pub mod chrome_driver {
                     .filter_map(|v| v.as_f64())
                     .filter(|d| *d >= t.longtask_ms)
                     .collect();
-                let commits = self.eval("window.__commits || 0").ok().and_then(|v| v.as_i64()).unwrap_or(0);
+                let commits = self
+                    .eval("window.__commits || 0")
+                    .ok()
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
                 let renders: Vec<(String, i64)> = self
                     .eval("(() => Object.entries(window.__renders||{}).sort((a,b)=>b[1]-a[1]).slice(0,8))()")
                     .ok()
@@ -903,13 +994,25 @@ pub mod chrome_driver {
                 let mut per_click = Vec::new();
                 let t0 = std::time::Instant::now();
                 for target in click_targets.iter().take(n) {
-                    let label = target.get("label").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let label = target
+                        .get("label")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
                     let x = target.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
                     let y = target.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    let before_commits = self.eval("window.__commits || 0").ok().and_then(|v| v.as_i64()).unwrap_or(0);
+                    let before_commits = self
+                        .eval("window.__commits || 0")
+                        .ok()
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0);
                     let _ = self.click(x, y);
                     std::thread::sleep(std::time::Duration::from_millis(300));
-                    let after_commits = self.eval("window.__commits || 0").ok().and_then(|v| v.as_i64()).unwrap_or(0);
+                    let after_commits = self
+                        .eval("window.__commits || 0")
+                        .ok()
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0);
                     per_click.push((label, after_commits - before_commits));
                 }
                 let avg_ms = (t0.elapsed().as_secs_f64() * 1000.0) / (n.max(1) as f64);
@@ -1028,16 +1131,29 @@ mod tests {
 
     #[test]
     fn parse_surfaces_drops_non_object_entries() {
-        let parsed = parse_surfaces_input(r#"[{"label":"a"}, "skip-me", 42, {"label":"b"}]"#).unwrap();
+        let parsed =
+            parse_surfaces_input(r#"[{"label":"a"}, "skip-me", 42, {"label":"b"}]"#).unwrap();
         assert_eq!(parsed.targets.len(), 2);
     }
 
     #[test]
     fn classify_runtime_failure_precedence() {
-        assert_eq!(classify_runtime_failure("No Chrome/Edge found for the runtime pass."), "browser-unavailable");
-        assert_eq!(classify_runtime_failure("timed out waiting for app load"), "app-load-timeout");
-        assert_eq!(classify_runtime_failure("CDP handshake failed"), "cdp-unavailable");
-        assert_eq!(classify_runtime_failure("something else entirely"), "runtime-execution");
+        assert_eq!(
+            classify_runtime_failure("No Chrome/Edge found for the runtime pass."),
+            "browser-unavailable"
+        );
+        assert_eq!(
+            classify_runtime_failure("timed out waiting for app load"),
+            "app-load-timeout"
+        );
+        assert_eq!(
+            classify_runtime_failure("CDP handshake failed"),
+            "cdp-unavailable"
+        );
+        assert_eq!(
+            classify_runtime_failure("something else entirely"),
+            "runtime-execution"
+        );
     }
 
     #[test]
@@ -1060,7 +1176,10 @@ mod pure_logic_tests {
     #[test]
     fn typed_flags_expensive_typing_threshold() {
         let t = Thresholds::default();
-        let typed = TypedMetrics { per_key_ms: 9.0, ..Default::default() };
+        let typed = TypedMetrics {
+            per_key_ms: 9.0,
+            ..Default::default()
+        };
         let flags = typed_flags(&typed, 12, &t);
         assert!(flags.iter().any(|f| f.starts_with("expensive-typing:")));
     }
@@ -1068,16 +1187,24 @@ mod pure_logic_tests {
     #[test]
     fn typed_flags_under_threshold_is_clean() {
         let t = Thresholds::default();
-        let typed = TypedMetrics { per_key_ms: 2.0, ..Default::default() };
+        let typed = TypedMetrics {
+            per_key_ms: 2.0,
+            ..Default::default()
+        };
         assert!(typed_flags(&typed, 12, &t).is_empty());
     }
 
     #[test]
     fn typed_flags_long_tasks() {
         let t = Thresholds::default();
-        let typed = TypedMetrics { long_tasks_ms: vec![60.0, 75.0], ..Default::default() };
+        let typed = TypedMetrics {
+            long_tasks_ms: vec![60.0, 75.0],
+            ..Default::default()
+        };
         let flags = typed_flags(&typed, 12, &t);
-        assert!(flags.iter().any(|f| f == "long-tasks-while-typing: 60,75ms"));
+        assert!(flags
+            .iter()
+            .any(|f| f == "long-tasks-while-typing: 60,75ms"));
     }
 
     #[test]
@@ -1087,12 +1214,18 @@ mod pure_logic_tests {
         // 4 components each re-rendering on >=80% of keystrokes trips it.
         let typed = TypedMetrics {
             top_renderers: vec![
-                ("A".into(), 9), ("B".into(), 9), ("C".into(), 8), ("D".into(), 8), ("E".into(), 1),
+                ("A".into(), 9),
+                ("B".into(), 9),
+                ("C".into(), 8),
+                ("D".into(), 8),
+                ("E".into(), 1),
             ],
             ..Default::default()
         };
         let flags = typed_flags(&typed, keys, &t);
-        assert!(flags.iter().any(|f| f.starts_with("wide-rerender: 4 components")));
+        assert!(flags
+            .iter()
+            .any(|f| f.starts_with("wide-rerender: 4 components")));
     }
 
     #[test]
@@ -1105,14 +1238,30 @@ mod pure_logic_tests {
         };
         let flags = clicked_flags(&clicked, &t);
         assert!(flags.iter().any(|f| f.starts_with("expensive-click:")));
-        assert!(flags.iter().any(|f| f.starts_with("heavy-click-rerender:") && f.contains("Tab A:12 commits")));
+        assert!(flags
+            .iter()
+            .any(|f| f.starts_with("heavy-click-rerender:") && f.contains("Tab A:12 commits")));
     }
 
     #[test]
     fn a11y_flag_counts_serious() {
         let violations = vec![
-            AxeViolation { id: "x".into(), impact: Some("serious".into()), help: "h".into(), count: 1, target: "t".into(), help_url: "u".into() },
-            AxeViolation { id: "y".into(), impact: Some("minor".into()), help: "h".into(), count: 1, target: "t".into(), help_url: "u".into() },
+            AxeViolation {
+                id: "x".into(),
+                impact: Some("serious".into()),
+                help: "h".into(),
+                count: 1,
+                target: "t".into(),
+                help_url: "u".into(),
+            },
+            AxeViolation {
+                id: "y".into(),
+                impact: Some("minor".into()),
+                help: "h".into(),
+                count: 1,
+                target: "t".into(),
+                help_url: "u".into(),
+            },
         ];
         let flag = a11y_flag(&violations).unwrap();
         assert_eq!(flag, "a11y: 2 axe violation(s), 1 serious+ (wcag2a/aa)");
@@ -1125,7 +1274,10 @@ mod pure_logic_tests {
 
     #[test]
     fn console_errors_flag_pluralizes_count() {
-        assert_eq!(console_errors_flag(&["e1".to_string(), "e2".to_string()]), Some("2 console error/exception(s)".to_string()));
+        assert_eq!(
+            console_errors_flag(&["e1".to_string(), "e2".to_string()]),
+            Some("2 console error/exception(s)".to_string())
+        );
         assert_eq!(console_errors_flag(&[]), None);
     }
 
@@ -1153,11 +1305,37 @@ mod pure_logic_tests {
     #[test]
     fn assemble_report_status_pass_vs_candidates() {
         let denom = json!({"kind": "runtime-surfaces", "expected": 1, "examined": 1});
-        let clean = assemble_report(Some("http://x"), &[json!({"surface": "default", "flags": []})], &[], &denom, 1, 1, 12, 0, false, false, true, 0);
+        let clean = assemble_report(
+            Some("http://x"),
+            &[json!({"surface": "default", "flags": []})],
+            &[],
+            &denom,
+            1,
+            1,
+            12,
+            0,
+            false,
+            false,
+            true,
+            0,
+        );
         assert_eq!(clean["status"], json!("pass"));
         assert_eq!(clean["complete"], json!(true));
 
-        let flagged = assemble_report(Some("http://x"), &[json!({"surface": "default", "flags": ["x"]})], &[], &denom, 1, 1, 12, 0, false, false, true, 0);
+        let flagged = assemble_report(
+            Some("http://x"),
+            &[json!({"surface": "default", "flags": ["x"]})],
+            &[],
+            &denom,
+            1,
+            1,
+            12,
+            0,
+            false,
+            false,
+            true,
+            0,
+        );
         assert_eq!(flagged["status"], json!("candidates"));
     }
 }
@@ -1181,7 +1359,11 @@ mod run_tests {
 
     impl RuntimeDriver for FakeDriver {
         fn launch(&mut self) -> Result<(), String> {
-            if self.launch_fails { Err("No Chrome/Edge found for the runtime pass.".to_string()) } else { Ok(()) }
+            if self.launch_fails {
+                Err("No Chrome/Edge found for the runtime pass.".to_string())
+            } else {
+                Ok(())
+            }
         }
         fn navigate_and_wait_ready(&mut self, _url: &str, _w: u32, _h: u32) -> Result<(), String> {
             Ok(())
@@ -1210,20 +1392,44 @@ mod run_tests {
 
     #[test]
     fn missing_url_is_usage_degradation() {
-        let mut driver = FakeDriver { launch_fails: false, surfaces: vec![], entry: SurfaceRaw::default(), per_surface: Mutex::new(vec![]), axe_on: false };
-        let args = RuntimeArgs { url: None, ..Default::default() };
+        let mut driver = FakeDriver {
+            launch_fails: false,
+            surfaces: vec![],
+            entry: SurfaceRaw::default(),
+            per_surface: Mutex::new(vec![]),
+            axe_on: false,
+        };
+        let args = RuntimeArgs {
+            url: None,
+            ..Default::default()
+        };
         let (code, report) = run_with_driver(&args, &mut driver);
         assert_eq!(code, 2);
-        assert_eq!(report["degradation"][0]["kind"], json!("runtime-url-missing"));
+        assert_eq!(
+            report["degradation"][0]["kind"],
+            json!("runtime-url-missing")
+        );
     }
 
     #[test]
     fn launch_failure_is_typed_degradation() {
-        let mut driver = FakeDriver { launch_fails: true, surfaces: vec![], entry: SurfaceRaw::default(), per_surface: Mutex::new(vec![]), axe_on: false };
-        let args = RuntimeArgs { url: Some("http://localhost:1422".to_string()), ..Default::default() };
+        let mut driver = FakeDriver {
+            launch_fails: true,
+            surfaces: vec![],
+            entry: SurfaceRaw::default(),
+            per_surface: Mutex::new(vec![]),
+            axe_on: false,
+        };
+        let args = RuntimeArgs {
+            url: Some("http://localhost:1422".to_string()),
+            ..Default::default()
+        };
         let (code, report) = run_with_driver(&args, &mut driver);
         assert_eq!(code, 3);
-        assert_eq!(report["degradation"][0]["kind"], json!("browser-unavailable"));
+        assert_eq!(
+            report["degradation"][0]["kind"],
+            json!("browser-unavailable")
+        );
         assert_eq!(report["status"], json!("unproven"));
     }
 
@@ -1232,48 +1438,92 @@ mod run_tests {
         let mut driver = FakeDriver {
             launch_fails: false,
             surfaces: vec![],
-            entry: SurfaceRaw { interactive: Some(0), ..Default::default() },
+            entry: SurfaceRaw {
+                interactive: Some(0),
+                ..Default::default()
+            },
             per_surface: Mutex::new(vec![]),
             axe_on: false,
         };
-        let args = RuntimeArgs { url: Some("http://localhost:1422".to_string()), ..Default::default() };
+        let args = RuntimeArgs {
+            url: Some("http://localhost:1422".to_string()),
+            ..Default::default()
+        };
         let (code, report) = run_with_driver(&args, &mut driver);
         assert_eq!(code, 0);
         assert_eq!(report["incomplete"], json!(true));
         assert_eq!(report["complete"], json!(false));
-        assert!(report["findings"][0]["flags"][0].as_str().unwrap().starts_with("app-not-ready"));
+        assert!(report["findings"][0]["flags"][0]
+            .as_str()
+            .unwrap()
+            .starts_with("app-not-ready"));
     }
 
     #[test]
     fn typed_surface_with_flag_reports_candidates() {
         let entry = SurfaceRaw {
             interactive: Some(5),
-            typed: Some(TypedMetrics { per_key_ms: 20.0, ..Default::default() }),
+            typed: Some(TypedMetrics {
+                per_key_ms: 20.0,
+                ..Default::default()
+            }),
             ..Default::default()
         };
-        let mut driver = FakeDriver { launch_fails: false, surfaces: vec![], entry, per_surface: Mutex::new(vec![]), axe_on: false };
-        let args = RuntimeArgs { url: Some("http://localhost:1422".to_string()), ..Default::default() };
+        let mut driver = FakeDriver {
+            launch_fails: false,
+            surfaces: vec![],
+            entry,
+            per_surface: Mutex::new(vec![]),
+            axe_on: false,
+        };
+        let args = RuntimeArgs {
+            url: Some("http://localhost:1422".to_string()),
+            ..Default::default()
+        };
         let (code, report) = run_with_driver(&args, &mut driver);
         assert_eq!(code, 0);
         assert_eq!(report["status"], json!("candidates"));
         assert_eq!(report["incomplete"], json!(false));
         assert_eq!(report["shallow"], json!(false));
         let flags = report["findings"][0]["flags"].as_array().unwrap();
-        assert!(flags.iter().any(|f| f.as_str().unwrap().starts_with("expensive-typing:")));
+        assert!(flags
+            .iter()
+            .any(|f| f.as_str().unwrap().starts_with("expensive-typing:")));
     }
 
     #[test]
     fn enumerated_surface_bumps_denominator_and_tested_count() {
-        let entry = SurfaceRaw { interactive: Some(5), typed: Some(TypedMetrics { per_key_ms: 1.0, ..Default::default() }), ..Default::default() };
-        let extra = SurfaceRaw { interactive: Some(5), typed: Some(TypedMetrics { per_key_ms: 1.0, ..Default::default() }), ..Default::default() };
+        let entry = SurfaceRaw {
+            interactive: Some(5),
+            typed: Some(TypedMetrics {
+                per_key_ms: 1.0,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let extra = SurfaceRaw {
+            interactive: Some(5),
+            typed: Some(TypedMetrics {
+                per_key_ms: 1.0,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
         let mut driver = FakeDriver {
             launch_fails: false,
-            surfaces: vec![ClickTarget { label: "settings".to_string(), x: 10.0, y: 10.0 }],
+            surfaces: vec![ClickTarget {
+                label: "settings".to_string(),
+                x: 10.0,
+                y: 10.0,
+            }],
             entry,
             per_surface: Mutex::new(vec![extra]),
             axe_on: false,
         };
-        let args = RuntimeArgs { url: Some("http://localhost:1422".to_string()), ..Default::default() };
+        let args = RuntimeArgs {
+            url: Some("http://localhost:1422".to_string()),
+            ..Default::default()
+        };
         let (code, report) = run_with_driver(&args, &mut driver);
         assert_eq!(code, 0);
         assert_eq!(report["surfaces_tested"], json!(2));

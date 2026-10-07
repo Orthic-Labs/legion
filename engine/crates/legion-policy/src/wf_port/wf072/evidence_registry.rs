@@ -150,24 +150,48 @@ pub fn compare_evidence_candidates<C: Clone>(
             let result = gate.evaluate.as_ref().and_then(|f| f(&candidate));
             match result {
                 Some(true) => {}
-                Some(false) => failures.push(GateFailure { gate_id: Some(gate.id.clone()), reason: "hard-gate-failed" }),
-                None => failures.push(GateFailure { gate_id: Some(gate.id.clone()), reason: "hard-gate-not-mechanically-evaluable" }),
+                Some(false) => failures.push(GateFailure {
+                    gate_id: Some(gate.id.clone()),
+                    reason: "hard-gate-failed",
+                }),
+                None => failures.push(GateFailure {
+                    gate_id: Some(gate.id.clone()),
+                    reason: "hard-gate-not-mechanically-evaluable",
+                }),
             }
         }
         if failures.is_empty() {
             eligible.push(candidate);
         } else {
-            eliminated.push(Eliminated { candidate, failures });
+            eliminated.push(Eliminated {
+                candidate,
+                failures,
+            });
         }
     }
 
-    let mut ranked: Vec<Ranked<C>> = eligible.iter().cloned().map(|c| {
-        let s = score(&c);
-        Ranked { candidate: c, score: s }
-    }).collect();
-    ranked.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    let mut ranked: Vec<Ranked<C>> = eligible
+        .iter()
+        .cloned()
+        .map(|c| {
+            let s = score(&c);
+            Ranked {
+                candidate: c,
+                score: s,
+            }
+        })
+        .collect();
+    ranked.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
-    ComparisonResult { eligible, eliminated, ranked }
+    ComparisonResult {
+        eligible,
+        eliminated,
+        ranked,
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -240,7 +264,10 @@ impl AcceptanceEvidenceRegistry {
         }
         let id = entry.acceptance_id.clone();
         self.entries.insert(id.clone(), entry);
-        allow_detail("acceptance evidence entry registered", detail_of(&[("acceptanceId", &id)]))
+        allow_detail(
+            "acceptance evidence entry registered",
+            detail_of(&[("acceptanceId", &id)]),
+        )
     }
 
     pub fn get(&self, acceptance_id: &str) -> Option<&AcceptanceEntry> {
@@ -268,7 +295,11 @@ impl AcceptanceEvidenceRegistry {
         self.waivers.insert(id.clone(), waiver);
         allow_detail(
             "evidence waiver registered",
-            detail_of(&[("waiverId", &id), ("lifecycle", "WAIVED"), ("visible", "true")]),
+            detail_of(&[
+                ("waiverId", &id),
+                ("lifecycle", "WAIVED"),
+                ("visible", "true"),
+            ]),
         )
     }
 
@@ -285,7 +316,11 @@ impl AcceptanceEvidenceRegistry {
         };
         let refresh = expired || state_mismatch;
         let mut out = waiver.clone();
-        out.lifecycle = if refresh { Lifecycle::RefreshRequired } else { Lifecycle::Waived };
+        out.lifecycle = if refresh {
+            Lifecycle::RefreshRequired
+        } else {
+            Lifecycle::Waived
+        };
         out.visible = true;
         Some(out)
     }
@@ -293,25 +328,46 @@ impl AcceptanceEvidenceRegistry {
     /// Mirrors JS `evaluateWaiver`.
     pub fn evaluate_waiver(&self, waiver_id: &str, ctx: &WaiverContext) -> Decision {
         let Some(waiver) = self.get_waiver(waiver_id, ctx) else {
-            return deny(ArcCode::ArcEvidenceInsufficient, "evidence waiver is missing", detail_of(&[("waiverId", waiver_id)]));
+            return deny(
+                ArcCode::ArcEvidenceInsufficient,
+                "evidence waiver is missing",
+                detail_of(&[("waiverId", waiver_id)]),
+            );
         };
         if waiver.lifecycle == Lifecycle::RefreshRequired {
             return deny(
                 ArcCode::ArcEvidenceStale,
                 "evidence waiver requires refresh",
-                detail_of(&[("waiverId", waiver_id), ("lifecycle", "REFRESH_REQUIRED"), ("visible", "true")]),
+                detail_of(&[
+                    ("waiverId", waiver_id),
+                    ("lifecycle", "REFRESH_REQUIRED"),
+                    ("visible", "true"),
+                ]),
             );
         }
         allow_detail(
             "current visible evidence waiver verified",
-            detail_of(&[("waiverId", waiver_id), ("lifecycle", "WAIVED"), ("visible", "true")]),
+            detail_of(&[
+                ("waiverId", waiver_id),
+                ("lifecycle", "WAIVED"),
+                ("visible", "true"),
+            ]),
         )
     }
 
     /// Mirrors JS `verify`.
-    pub fn verify(&self, acceptance_id: &str, artifact: &Artifact, ctx: &FreshnessContext) -> Decision {
+    pub fn verify(
+        &self,
+        acceptance_id: &str,
+        artifact: &Artifact,
+        ctx: &FreshnessContext,
+    ) -> Decision {
         let Some(entry) = self.entries.get(acceptance_id) else {
-            return deny(ArcCode::ArcUnsoundSeal, "acceptance evidence entry is missing", detail_of(&[("acceptanceId", acceptance_id)]));
+            return deny(
+                ArcCode::ArcUnsoundSeal,
+                "acceptance evidence entry is missing",
+                detail_of(&[("acceptanceId", acceptance_id)]),
+            );
         };
         if artifact.acceptance_id != acceptance_id
             || artifact.producer != entry.producer
@@ -326,11 +382,19 @@ impl AcceptanceEvidenceRegistry {
         }
         let freshness = evidence_freshness(artifact, ctx);
         if freshness != Freshness::Fresh {
-            let mut detail = detail_of(&[("acceptanceId", acceptance_id), ("completion", "CANDIDATE"), ("status", freshness_status(&freshness))]);
+            let mut detail = detail_of(&[
+                ("acceptanceId", acceptance_id),
+                ("completion", "CANDIDATE"),
+                ("status", freshness_status(&freshness)),
+            ]);
             if let Some(r) = freshness_reason(&freshness) {
                 detail.insert("reason".into(), r.into());
             }
-            return deny(ArcCode::ArcEvidenceStale, "acceptance evidence is not fresh for exact integrated state", detail);
+            return deny(
+                ArcCode::ArcEvidenceStale,
+                "acceptance evidence is not fresh for exact integrated state",
+                detail,
+            );
         }
         allow_detail(
             "fresh exact-state acceptance evidence verified",
@@ -397,7 +461,11 @@ mod tests {
             verifier: "v".into(),
             completion_consumer: "c".into(),
         };
-        let ctx = FreshnessContext { integrated_state: Some("s1".into()), latest_material_change_millis: Some(0), now_millis: 500 };
+        let ctx = FreshnessContext {
+            integrated_state: Some("s1".into()),
+            latest_material_change_millis: Some(0),
+            now_millis: 500,
+        };
         let d = reg.verify("a1", &artifact, &ctx);
         assert_eq!(d.code, Some(ArcCode::ArcBindingMismatch));
     }
@@ -416,7 +484,11 @@ mod tests {
             verifier: "v".into(),
             completion_consumer: "c".into(),
         };
-        let ctx = FreshnessContext { integrated_state: Some("s1".into()), latest_material_change_millis: Some(0), now_millis: 500 };
+        let ctx = FreshnessContext {
+            integrated_state: Some("s1".into()),
+            latest_material_change_millis: Some(0),
+            now_millis: 500,
+        };
         let d = reg.verify("a1", &artifact, &ctx);
         assert!(d.allowed);
     }
@@ -433,8 +505,15 @@ mod tests {
             verifier: "v".into(),
             completion_consumer: "c".into(),
         };
-        let ctx = FreshnessContext { integrated_state: None, latest_material_change_millis: None, now_millis: 0 };
-        assert_eq!(evidence_freshness(&artifact, &ctx), Freshness::Stale("unauthenticated-artifact"));
+        let ctx = FreshnessContext {
+            integrated_state: None,
+            latest_material_change_millis: None,
+            now_millis: 0,
+        };
+        assert_eq!(
+            evidence_freshness(&artifact, &ctx),
+            Freshness::Stale("unauthenticated-artifact")
+        );
     }
 
     #[test]
@@ -449,7 +528,11 @@ mod tests {
             verifier: "v".into(),
             completion_consumer: "c".into(),
         };
-        let ctx = FreshnessContext { integrated_state: Some("s".into()), latest_material_change_millis: Some(0), now_millis: 500 };
+        let ctx = FreshnessContext {
+            integrated_state: Some("s".into()),
+            latest_material_change_millis: Some(0),
+            now_millis: 500,
+        };
         assert_eq!(evidence_freshness(&artifact, &ctx), Freshness::Expired);
     }
 
@@ -462,9 +545,21 @@ mod tests {
             score: f64,
         }
         let candidates = vec![
-            C { id: "x", pass: true, score: 1.0 },
-            C { id: "y", pass: false, score: 5.0 },
-            C { id: "z", pass: true, score: 2.0 },
+            C {
+                id: "x",
+                pass: true,
+                score: 1.0,
+            },
+            C {
+                id: "y",
+                pass: false,
+                score: 5.0,
+            },
+            C {
+                id: "z",
+                pass: true,
+                score: 2.0,
+            },
         ];
         let gates = vec![HardGate {
             id: "g1".into(),

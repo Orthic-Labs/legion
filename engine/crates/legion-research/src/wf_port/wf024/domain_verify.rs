@@ -70,7 +70,11 @@ fn source_ids(claim: &Value) -> Vec<String> {
     claim
         .get("source_ids")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -240,7 +244,8 @@ pub fn run_paths(
 fn sorted_keys(value: &Value) -> Value {
     match value {
         Value::Object(map) => {
-            let mut sorted: std::collections::BTreeMap<String, Value> = std::collections::BTreeMap::new();
+            let mut sorted: std::collections::BTreeMap<String, Value> =
+                std::collections::BTreeMap::new();
             for (k, v) in map {
                 sorted.insert(k.clone(), sorted_keys(v));
             }

@@ -4,12 +4,17 @@
 use serde_json::Value;
 use std::collections::HashSet;
 
-use super::shared::{canonicalize, denominator, exact_binding, finalize, is_canonical_base64, safe_path, same_binding, sort_by_id};
+use super::shared::{
+    canonicalize, denominator, exact_binding, finalize, is_canonical_base64, safe_path,
+    same_binding, sort_by_id,
+};
 
 const ACCEPTED: &[&str] = &["pass", "fail", "partial", "unproven", "blocked", "error"];
 
 fn valid_artifact(artifact: &Value, binding: &Value, control_id: &str) -> bool {
-    let Some(_) = artifact.as_object() else { return false };
+    let Some(_) = artifact.as_object() else {
+        return false;
+    };
     if !safe_path(&artifact["path"]) {
         return false;
     }
@@ -31,18 +36,31 @@ fn valid_artifact(artifact: &Value, binding: &Value, control_id: &str) -> bool {
     if !same_binding(binding, artifact.get("binding").unwrap_or(&Value::Null)) {
         return false;
     }
-    let sensitive_fields = artifact.get("sensitiveFields").cloned().unwrap_or(Value::Array(Vec::new()));
+    let sensitive_fields = artifact
+        .get("sensitiveFields")
+        .cloned()
+        .unwrap_or(Value::Array(Vec::new()));
     let (_, sensitive, _) = super::shared::sanitize_artifact_content(artifact, &sensitive_fields);
     if sensitive {
         return false;
     }
     let has_content = artifact.get("content").and_then(Value::as_str).is_some();
-    let has_bytes = artifact.get("bytesBase64").and_then(Value::as_str).is_some();
+    let has_bytes = artifact
+        .get("bytesBase64")
+        .and_then(Value::as_str)
+        .is_some();
     if has_content == has_bytes {
         return false;
     }
     let bytes: Option<Vec<u8>> = if has_content {
-        Some(artifact.get("content").and_then(Value::as_str).unwrap().as_bytes().to_vec())
+        Some(
+            artifact
+                .get("content")
+                .and_then(Value::as_str)
+                .unwrap()
+                .as_bytes()
+                .to_vec(),
+        )
     } else {
         let b64 = artifact.get("bytesBase64").and_then(Value::as_str).unwrap();
         if is_canonical_base64(b64) {
@@ -86,7 +104,10 @@ struct NormalizedArtifacts {
 
 fn normalize_artifacts(values: Option<&[Value]>) -> NormalizedArtifacts {
     let Some(values) = values else {
-        return NormalizedArtifacts { artifacts: Vec::new(), duplicates: Vec::new() };
+        return NormalizedArtifacts {
+            artifacts: Vec::new(),
+            duplicates: Vec::new(),
+        };
     };
     let mut rows: Vec<(Value, String, String)> = values
         .iter()
@@ -111,7 +132,10 @@ fn normalize_artifacts(values: Option<&[Value]>) -> NormalizedArtifacts {
     let mut unique_duplicates: Vec<String> = duplicates;
     unique_duplicates.sort();
     unique_duplicates.dedup();
-    NormalizedArtifacts { artifacts, duplicates: unique_duplicates }
+    NormalizedArtifacts {
+        artifacts,
+        duplicates: unique_duplicates,
+    }
 }
 
 /// Port of `integrateWebEvidence` in `integration/index.mjs`.
@@ -123,7 +147,11 @@ fn normalize_artifacts(values: Option<&[Value]>) -> NormalizedArtifacts {
 /// terminal receipt on the same expected control. This port surfaces both
 /// as `Err(String)` with the identical message rather than panicking, since
 /// callers of the JS function are expected to catch these.
-pub fn integrate_web_evidence(binding: Value, applicable_controls: Vec<Value>, receipts: Vec<Value>) -> Result<Value, String> {
+pub fn integrate_web_evidence(
+    binding: Value,
+    applicable_controls: Vec<Value>,
+    receipts: Vec<Value>,
+) -> Result<Value, String> {
     if receipts.iter().any(|item| item.as_object().is_none()) {
         return Ok(finalize(
             "legion-web-integrated-evidence",
@@ -141,20 +169,30 @@ pub fn integrate_web_evidence(binding: Value, applicable_controls: Vec<Value>, r
         ));
     }
 
-    let mut expected: Vec<String> = applicable_controls.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+    let mut expected: Vec<String> = applicable_controls
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
     expected.sort();
     expected.dedup();
 
     for receipt in &receipts {
         if receipt.get("targetId") != binding.get("targetId") {
-            let control_id = receipt.get("controlId").and_then(Value::as_str).unwrap_or("");
+            let control_id = receipt
+                .get("controlId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             return Err(format!("cross-target evidence rejected: {control_id}"));
         }
     }
 
     let mut by_control: std::collections::HashMap<String, Value> = std::collections::HashMap::new();
     for receipt in sort_by_id(&receipts) {
-        let control_id = receipt.get("controlId").and_then(Value::as_str).unwrap_or("").to_string();
+        let control_id = receipt
+            .get("controlId")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         if !expected.contains(&control_id) {
             continue;
         }
@@ -180,7 +218,11 @@ pub fn integrate_web_evidence(binding: Value, applicable_controls: Vec<Value>, r
                 });
             };
             let terminal_ok = receipt.get("terminal") == Some(&Value::Bool(true))
-                && receipt.get("status").and_then(Value::as_str).map(|s| ACCEPTED.contains(&s)).unwrap_or(false);
+                && receipt
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .map(|s| ACCEPTED.contains(&s))
+                    .unwrap_or(false);
             if !terminal_ok {
                 let mut out = receipt.as_object().cloned().unwrap_or_default();
                 out.insert("status".to_string(), Value::String("unproven".to_string()));
@@ -188,7 +230,10 @@ pub fn integrate_web_evidence(binding: Value, applicable_controls: Vec<Value>, r
                 out.insert("invalidTerminal".to_string(), Value::Bool(true));
                 out.insert(
                     "bindingMismatch".to_string(),
-                    Value::Bool(!same_binding(&binding, receipt.get("binding").unwrap_or(&Value::Null))),
+                    Value::Bool(!same_binding(
+                        &binding,
+                        receipt.get("binding").unwrap_or(&Value::Null),
+                    )),
                 );
                 return Value::Object(out);
             }
@@ -204,11 +249,23 @@ pub fn integrate_web_evidence(binding: Value, applicable_controls: Vec<Value>, r
                 Some(Value::Array(items)) => items.clone(),
                 Some(other) => vec![other.clone()],
             };
-            let control_id_str = receipt.get("controlId").and_then(Value::as_str).unwrap_or("");
-            let admitted: Vec<Value> = candidates.iter().filter(|a| valid_artifact(a, &binding, control_id_str)).cloned().collect();
+            let control_id_str = receipt
+                .get("controlId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let admitted: Vec<Value> = candidates
+                .iter()
+                .filter(|a| valid_artifact(a, &binding, control_id_str))
+                .cloned()
+                .collect();
             let artifact_invalid = admitted.len() != candidates.len();
             let normalized = normalize_artifacts(Some(&admitted));
-            duplicate_artifact_keys.extend(normalized.duplicates.iter().map(|key| format!("{control_id_str}:{key}")));
+            duplicate_artifact_keys.extend(
+                normalized
+                    .duplicates
+                    .iter()
+                    .map(|key| format!("{control_id_str}:{key}")),
+            );
             let mut out = receipt.as_object().cloned().unwrap_or_default();
             out.insert("artifacts".to_string(), Value::Array(normalized.artifacts));
             if artifact_invalid {
@@ -219,15 +276,33 @@ pub fn integrate_web_evidence(binding: Value, applicable_controls: Vec<Value>, r
         .collect();
 
     let counts = denominator(&expected, &terminal, &[]);
-    let mut gaps: Vec<String> = exact_binding(&binding).gaps.iter().map(|g| format!("binding-missing:{g}")).collect();
+    let mut gaps: Vec<String> = exact_binding(&binding)
+        .gaps
+        .iter()
+        .map(|g| format!("binding-missing:{g}"))
+        .collect();
     if expected.is_empty() {
         gaps.push("integration-denominator-empty".to_string());
     }
-    for item in receipts.iter().filter(|item| !expected.contains(&item.get("controlId").and_then(Value::as_str).unwrap_or("").to_string())) {
-        gaps.push(format!("non-applicable-receipt:{}", item.get("controlId").and_then(Value::as_str).unwrap_or("")));
+    for item in receipts.iter().filter(|item| {
+        !expected.contains(
+            &item
+                .get("controlId")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
+        )
+    }) {
+        gaps.push(format!(
+            "non-applicable-receipt:{}",
+            item.get("controlId").and_then(Value::as_str).unwrap_or("")
+        ));
     }
     for receipt in &terminal {
-        let control_id = receipt.get("controlId").and_then(Value::as_str).unwrap_or("");
+        let control_id = receipt
+            .get("controlId")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if receipt.get("synthesized") == Some(&Value::Bool(true)) {
             gaps.push(format!("missing-terminal-receipt:{control_id}"));
         }
@@ -249,16 +324,28 @@ pub fn integrate_web_evidence(binding: Value, applicable_controls: Vec<Value>, r
                 && item.get("bindingMismatch") != Some(&Value::Bool(true))
                 && item.get("invalidTerminal") != Some(&Value::Bool(true))
         })
-        .flat_map(|item| item.get("artifacts").and_then(Value::as_array).cloned().unwrap_or_default())
+        .flat_map(|item| {
+            item.get("artifacts")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+        })
         .collect();
     let aggregate = normalize_artifacts(Some(&flattened));
     duplicate_artifact_keys.extend(aggregate.duplicates.clone());
     let mut unique_dup_keys: Vec<String> = duplicate_artifact_keys;
     unique_dup_keys.sort();
     unique_dup_keys.dedup();
-    gaps.extend(unique_dup_keys.into_iter().map(|key| format!("artifact-identity-duplicate:{key}")));
+    gaps.extend(
+        unique_dup_keys
+            .into_iter()
+            .map(|key| format!("artifact-identity-duplicate:{key}")),
+    );
 
-    let statuses: HashSet<&str> = terminal.iter().filter_map(|item| item.get("status").and_then(Value::as_str)).collect();
+    let statuses: HashSet<&str> = terminal
+        .iter()
+        .filter_map(|item| item.get("status").and_then(Value::as_str))
+        .collect();
     let status = if statuses.len() == 1 && statuses.contains("pass") && gaps.is_empty() {
         "pass"
     } else if statuses.contains("error") {
@@ -266,7 +353,11 @@ pub fn integrate_web_evidence(binding: Value, applicable_controls: Vec<Value>, r
     } else {
         "partial"
     };
-    let final_status = if !gaps.is_empty() && status == "pass" { "partial" } else { status };
+    let final_status = if !gaps.is_empty() && status == "pass" {
+        "partial"
+    } else {
+        status
+    };
 
     let mut gaps_sorted = gaps;
     gaps_sorted.sort();

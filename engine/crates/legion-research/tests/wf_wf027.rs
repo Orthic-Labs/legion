@@ -35,7 +35,10 @@ fn command_bridge_provider_requires_configured_env_var() {
     let var = "WF027_IT_COMMAND_BRIDGE_UNSET";
     std::env::remove_var(var);
     let err = CommandBridgeProvider::new("legal-authority", var).unwrap_err();
-    assert_eq!(err, WfError::NotConfigured(format!("{var} is not configured")));
+    assert_eq!(
+        err,
+        WfError::NotConfigured(format!("{var} is not configured"))
+    );
 }
 
 struct FakeTransport {
@@ -62,7 +65,9 @@ fn http_browser_provider_search_open_find_roundtrip() {
     });
 
     // Direct-URL search needs no transport call.
-    let hits = provider.search("https://example.test/page", 5, &[]).unwrap();
+    let hits = provider
+        .search("https://example.test/page", 5, &[])
+        .unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].provider, "browser");
 
@@ -82,7 +87,12 @@ fn local_corpus_provider_search_and_open() {
         ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+            .as_nanos())
+        .wrapping_shl(20)
+            | ({
+                static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+            }))
     ));
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("note.md"), "zephyr wake word governance").unwrap();
@@ -101,5 +111,8 @@ fn local_corpus_provider_search_and_open() {
 #[test]
 fn notebooklm_adapter_errors_cleanly_when_cli_absent() {
     let err = NotebookLmAdapter::new("legion_wf027_it_missing_notebooklm_cli").unwrap_err();
-    assert_eq!(err, WfError::NotConfigured("notebooklm CLI is not installed".into()));
+    assert_eq!(
+        err,
+        WfError::NotConfigured("notebooklm CLI is not installed".into())
+    );
 }

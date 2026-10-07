@@ -109,7 +109,11 @@ pub fn resolve_design_md_path(fs: &dyn DesignFs, cwd: &str) -> Option<ResolvedDe
 }
 
 /// Port of `resolveDesignSidecarPath(cwd, contextDir)`.
-pub fn resolve_design_sidecar_path(fs: &dyn DesignFs, cwd: &str, context_dir: &str) -> Option<String> {
+pub fn resolve_design_sidecar_path(
+    fs: &dyn DesignFs,
+    cwd: &str,
+    context_dir: &str,
+) -> Option<String> {
     // JS dedupes candidates by first occurrence
     // (`candidates.indexOf(candidate) === index`) before existence-checking;
     // an ordered dedupe mirrors that.
@@ -151,7 +155,12 @@ pub fn load_design_system_for_cwd(fs: &dyn DesignFs, cwd: &str) -> Option<Design
 
     let md_newer_than_json = matches!(sidecar_mtime, Some(s) if md_mtime > s + 1000.0);
 
-    let mut ds = normalize_design_system(&frontmatter, Some(md.path), sidecar_path, md_newer_than_json);
+    let mut ds = normalize_design_system(
+        &frontmatter,
+        Some(md.path),
+        sidecar_path,
+        md_newer_than_json,
+    );
     apply_sidecar_extensions(&mut ds, sidecar_json.as_ref());
     Some(ds)
 }
@@ -172,7 +181,9 @@ fn apply_sidecar_extensions(ds: &mut DesignSystem, sidecar: Option<&serde_json::
         .and_then(|v| v.as_object())
     {
         for (name, meta) in color_meta {
-            let Some(meta) = meta.as_object() else { continue };
+            let Some(meta) = meta.as_object() else {
+                continue;
+            };
             if let Some(canonical) = meta.get("canonical").and_then(|v| v.as_str()) {
                 add_sidecar_color(ds, canonical, &format!("sidecar.{name}"));
             }
@@ -190,12 +201,17 @@ fn apply_sidecar_extensions(ds: &mut DesignSystem, sidecar: Option<&serde_json::
 }
 
 fn add_sidecar_color(ds: &mut DesignSystem, value: &str, label: &str) {
-    let Some(parsed) = parse_design_color(value) else { return };
+    let Some(parsed) = parse_design_color(value) else {
+        return;
+    };
     let key = color_key(&parsed);
-    let entry = ds.allowed_color_keys.entry(key).or_insert_with(|| ColorEntry {
-        color: parsed,
-        labels: Vec::new(),
-    });
+    let entry = ds
+        .allowed_color_keys
+        .entry(key)
+        .or_insert_with(|| ColorEntry {
+            color: parsed,
+            labels: Vec::new(),
+        });
     entry.labels.push(label.to_string());
     ds.has_colors = true;
 }
@@ -209,7 +225,9 @@ fn add_sidecar_radii(ds: &mut DesignSystem, sidecar: &serde_json::Value) {
         return;
     };
     for (raw_name, meta) in rounded_meta {
-        let name = raw_name.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
+        let name = raw_name
+            .trim_matches(|c| c == '"' || c == '\'')
+            .to_lowercase();
         if let Some(s) = meta.as_str() {
             add_sidecar_radius_token(ds, &name, &format!("sidecar.{name}"), s);
             continue;
@@ -218,26 +236,47 @@ fn add_sidecar_radii(ds: &mut DesignSystem, sidecar: &serde_json::Value) {
             add_sidecar_radius_token(ds, &name, &format!("sidecar.{name}"), &format_num(n));
             continue;
         }
-        let Some(obj) = meta.as_object() else { continue };
+        let Some(obj) = meta.as_object() else {
+            continue;
+        };
         for key in ["canonical", "value"] {
             if let Some(s) = obj.get(key).and_then(|v| v.as_str()) {
                 add_sidecar_radius_token(ds, &name, &format!("sidecar.{name}.{key}"), s);
             } else if let Some(n) = obj.get(key).and_then(|v| v.as_f64()) {
-                add_sidecar_radius_token(ds, &name, &format!("sidecar.{name}.{key}"), &format_num(n));
+                add_sidecar_radius_token(
+                    ds,
+                    &name,
+                    &format!("sidecar.{name}.{key}"),
+                    &format_num(n),
+                );
             }
         }
         for key in ["values", "aliases"] {
             if let Some(arr) = obj.get(key).and_then(|v| v.as_array()) {
                 for (i, value) in arr.iter().enumerate() {
                     if let Some(s) = value.as_str() {
-                        add_sidecar_radius_token(ds, &name, &format!("sidecar.{name}.{key}[{i}]"), s);
+                        add_sidecar_radius_token(
+                            ds,
+                            &name,
+                            &format!("sidecar.{name}.{key}[{i}]"),
+                            s,
+                        );
                     } else if let Some(n) = value.as_f64() {
-                        add_sidecar_radius_token(ds, &name, &format!("sidecar.{name}.{key}[{i}]"), &format_num(n));
+                        add_sidecar_radius_token(
+                            ds,
+                            &name,
+                            &format!("sidecar.{name}.{key}[{i}]"),
+                            &format_num(n),
+                        );
                     }
                 }
             }
         }
-        let role = obj.get("role").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+        let role = obj
+            .get("role")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_lowercase();
         if matches!(name.as_str(), "full" | "pill" | "round" | "rounded-full")
             || matches!(role.as_str(), "full" | "pill" | "round")
         {
@@ -251,7 +290,9 @@ fn add_sidecar_radius_token(ds: &mut DesignSystem, name: &str, entry_name: &str,
     if raw.is_empty() || raw.to_lowercase().contains("var(") || raw.contains('%') {
         return;
     }
-    let Some(px) = resolve_length_px(raw, 16.0) else { return };
+    let Some(px) = resolve_length_px(raw, 16.0) else {
+        return;
+    };
     if !px.is_finite() {
         return;
     }
@@ -349,7 +390,11 @@ mod tests {
     #[test]
     fn load_design_system_for_cwd_parses_frontmatter_and_flags_stale_sidecar() {
         let fs = FakeFs::default();
-        fs.put("/repo/DESIGN.md", "---\ncolors:\n  brand: \"#336699\"\n---\n", 5000.0);
+        fs.put(
+            "/repo/DESIGN.md",
+            "---\ncolors:\n  brand: \"#336699\"\n---\n",
+            5000.0,
+        );
         fs.put("/repo/DESIGN.json", "{}", 1000.0);
         let ds = load_design_system_for_cwd(&fs, "/repo").unwrap();
         assert!(ds.present);

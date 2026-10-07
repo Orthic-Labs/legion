@@ -18,7 +18,9 @@ use crate::process_boundary::{command_diagnostic, CommandResult, INSTALLED_COMMA
 
 fn is_within(root: &Path, candidate: &Path) -> bool {
     let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    let candidate = candidate.canonicalize().unwrap_or_else(|_| candidate.to_path_buf());
+    let candidate = candidate
+        .canonicalize()
+        .unwrap_or_else(|_| candidate.to_path_buf());
     if root == candidate {
         return true;
     }
@@ -46,7 +48,11 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-fn run(binary: &Path, args: &[&str], env_vars: &[(String, String)]) -> Result<(Option<i32>, String, String), String> {
+fn run(
+    binary: &Path,
+    args: &[&str],
+    env_vars: &[(String, String)],
+) -> Result<(Option<i32>, String, String), String> {
     let mut cmd = Command::new(binary);
     cmd.args(args);
     cmd.env_clear();
@@ -57,9 +63,13 @@ fn run(binary: &Path, args: &[&str], env_vars: &[(String, String)]) -> Result<(O
     // we spawn and wait without enforcing it strictly (matches other xtask
     // ports' documented approximation of Node's spawnSync timeout).
     let _timeout = Duration::from_millis(INSTALLED_COMMAND_TIMEOUT_MS);
-    let output = cmd
-        .output()
-        .map_err(|e| format!("{} {} failed: spawn error: {e}", binary.display(), args.join(" ")))?;
+    let output = cmd.output().map_err(|e| {
+        format!(
+            "{} {} failed: spawn error: {e}",
+            binary.display(),
+            args.join(" ")
+        )
+    })?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     Ok((output.status.code(), stdout, stderr))
@@ -81,15 +91,25 @@ fn plain_path(path: PathBuf) -> PathBuf {
 
 /// Probe both client transports against actual assembled descriptors, without
 /// executing Apple tools or contacting account services.
-fn smoke_mcp_transport(binary: &Path, plugin_root: Option<&Path>, env_vars: &[(String, String)]) -> Result<(), String> {
+fn smoke_mcp_transport(
+    binary: &Path,
+    plugin_root: Option<&Path>,
+    env_vars: &[(String, String)],
+) -> Result<(), String> {
     let mut command = Command::new(binary);
     command.args(["serve", "--stdio"]);
     if let Some(root) = plugin_root {
         command.arg("--plugin-root").arg(root);
     }
-    command.env_clear().envs(env_vars.iter().cloned())
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
-    let mut child = command.spawn().map_err(|e| format!("MCP smoke spawn failed: {e}"))?;
+    command
+        .env_clear()
+        .envs(env_vars.iter().cloned())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = command
+        .spawn()
+        .map_err(|e| format!("MCP smoke spawn failed: {e}"))?;
     let mut stdin = child.stdin.take().ok_or("MCP smoke stdin missing")?;
     let stdout = child.stdout.take().ok_or("MCP smoke stdout missing")?;
     let stderr = child.stderr.take().ok_or("MCP smoke stderr missing")?;
@@ -97,7 +117,9 @@ fn smoke_mcp_transport(binary: &Path, plugin_root: Option<&Path>, env_vars: &[(S
     let read = |pipe: Box<dyn Read + Send>| {
         std::thread::spawn(move || {
             let mut bytes = Vec::new();
-            pipe.take(CAPTURE + 1).read_to_end(&mut bytes).map(|_| bytes)
+            pipe.take(CAPTURE + 1)
+                .read_to_end(&mut bytes)
+                .map(|_| bytes)
         })
     };
     let out_reader = read(Box::new(stdout));
@@ -109,17 +131,24 @@ fn smoke_mcp_transport(binary: &Path, plugin_root: Option<&Path>, env_vars: &[(S
         serde_json::json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"legion_apple","arguments":{"operation":"app-store","arguments":{"action":"apps","execute":false}}}}),
         serde_json::json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"legion_apple","arguments":{"operation":"simulator.list","arguments":{"execute":false}}}}),
     ];
-    let input = requests.iter().map(|request| format!("{request}\n")).collect::<String>();
+    let input = requests
+        .iter()
+        .map(|request| format!("{request}\n"))
+        .collect::<String>();
     let write_error = stdin.write_all(input.as_bytes()).err();
     drop(stdin);
     let started = Instant::now();
     let (status, timed_out) = loop {
         match child.try_wait() {
             Ok(Some(status)) => break (status, false),
-            Ok(None) if started.elapsed() < Duration::from_secs(30) => std::thread::sleep(Duration::from_millis(25)),
+            Ok(None) if started.elapsed() < Duration::from_secs(30) => {
+                std::thread::sleep(Duration::from_millis(25))
+            }
             result => {
                 let _ = child.kill();
-                let status = child.wait().map_err(|e| format!("MCP smoke wait failed: {e}"))?;
+                let status = child
+                    .wait()
+                    .map_err(|e| format!("MCP smoke wait failed: {e}"))?;
                 if let Err(error) = result {
                     return Err(format!("MCP smoke poll failed: {error}"));
                 }
@@ -127,32 +156,58 @@ fn smoke_mcp_transport(binary: &Path, plugin_root: Option<&Path>, env_vars: &[(S
             }
         }
     };
-    let stdout = out_reader.join().map_err(|_| "MCP smoke stdout reader failed")?
+    let stdout = out_reader
+        .join()
+        .map_err(|_| "MCP smoke stdout reader failed")?
         .map_err(|e| e.to_string())?;
-    let stderr = err_reader.join().map_err(|_| "MCP smoke stderr reader failed")?
+    let stderr = err_reader
+        .join()
+        .map_err(|_| "MCP smoke stderr reader failed")?
         .map_err(|e| e.to_string())?;
-    if timed_out || !status.success() || write_error.is_some() || stdout.len() as u64 > CAPTURE || stderr.len() as u64 > CAPTURE {
+    if timed_out
+        || !status.success()
+        || write_error.is_some()
+        || stdout.len() as u64 > CAPTURE
+        || stderr.len() as u64 > CAPTURE
+    {
         return Err(format!("MCP smoke failed (plugin-root={}, status={status}, timeout={timed_out}, write={write_error:?}): {}",
             plugin_root.is_some(), String::from_utf8_lossy(&stderr)));
     }
-    let responses: Vec<Value> = String::from_utf8_lossy(&stdout).lines()
-        .map(serde_json::from_str).collect::<Result<_, _>>().map_err(|e| format!("MCP smoke response JSON: {e}"))?;
-    if responses.len() != requests.len() || responses.iter().enumerate().any(|(index, response)| {
-        response.get("id").and_then(Value::as_u64) != Some(index as u64 + 1)
-            || response.get("error").is_some()
-            || response.get("result").is_none()
-            || response.pointer("/result/isError").and_then(Value::as_bool) == Some(true)
-    }) {
-        return Err(format!("MCP smoke returned incomplete/error responses: {responses:?}"));
+    let responses: Vec<Value> = String::from_utf8_lossy(&stdout)
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(|e| format!("MCP smoke response JSON: {e}"))?;
+    if responses.len() != requests.len()
+        || responses.iter().enumerate().any(|(index, response)| {
+            response.get("id").and_then(Value::as_u64) != Some(index as u64 + 1)
+                || response.get("error").is_some()
+                || response.get("result").is_none()
+                || response.pointer("/result/isError").and_then(Value::as_bool) == Some(true)
+        })
+    {
+        return Err(format!(
+            "MCP smoke returned incomplete/error responses: {responses:?}"
+        ));
     }
-    let names: std::collections::BTreeSet<_> = responses[1].pointer("/result/tools").and_then(Value::as_array)
-        .ok_or("MCP smoke tools/list missing tools")?.iter()
-        .filter_map(|tool| tool.get("name").and_then(Value::as_str)).collect();
-    let expected: std::collections::BTreeSet<_> = ["legion_m1_status", "legion_m1_invoke", "legion_apple"].into_iter().collect();
+    let names: std::collections::BTreeSet<_> = responses[1]
+        .pointer("/result/tools")
+        .and_then(Value::as_array)
+        .ok_or("MCP smoke tools/list missing tools")?
+        .iter()
+        .filter_map(|tool| tool.get("name").and_then(Value::as_str))
+        .collect();
+    let expected: std::collections::BTreeSet<_> =
+        ["legion_m1_status", "legion_m1_invoke", "legion_apple"]
+            .into_iter()
+            .collect();
     if names != expected {
         return Err(format!("MCP smoke canonical tool list mismatch: {names:?}"));
     }
-    println!("installed MCP smoke PASS: plugin-root={}, 3 canonical tools, catalog/apps/simulator plans", plugin_root.is_some());
+    println!(
+        "installed MCP smoke PASS: plugin-root={}, 3 canonical tools, catalog/apps/simulator plans",
+        plugin_root.is_some()
+    );
     Ok(())
 }
 
@@ -160,12 +215,17 @@ pub fn native_installed_smoke(
     candidate: &Path,
     isolated_root: Option<&Path>,
 ) -> Result<(), String> {
-    let candidate_root = candidate
-        .canonicalize()
-        .map(plain_path)
-        .map_err(|_| format!("assembled candidate root is missing: {}", candidate.display()))?;
+    let candidate_root = candidate.canonicalize().map(plain_path).map_err(|_| {
+        format!(
+            "assembled candidate root is missing: {}",
+            candidate.display()
+        )
+    })?;
     if !candidate_root.is_dir() {
-        return Err(format!("assembled candidate root is missing: {}", candidate_root.display()));
+        return Err(format!(
+            "assembled candidate root is missing: {}",
+            candidate_root.display()
+        ));
     }
 
     let default_isolated = candidate_root
@@ -189,14 +249,24 @@ pub fn native_installed_smoke(
     let roaming_data = isolated_root.join("roaming-data");
     let xdg_data = isolated_root.join("xdg-data");
     let state_root = home.join("state").join("Legion");
-    for dir in [&isolated_root, &home, &local_data, &roaming_data, &xdg_data, &state_root] {
+    for dir in [
+        &isolated_root,
+        &home,
+        &local_data,
+        &roaming_data,
+        &xdg_data,
+        &state_root,
+    ] {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
 
     let product_root = if cfg!(target_os = "windows") {
         local_data.join("Orthic Labs").join("Legion")
     } else if cfg!(target_os = "macos") {
-        home.join("Library").join("Application Support").join("Orthic Labs").join("Legion")
+        home.join("Library")
+            .join("Application Support")
+            .join("Orthic Labs")
+            .join("Legion")
     } else {
         xdg_data.join("Orthic Labs").join("Legion")
     };
@@ -237,10 +307,17 @@ pub fn native_installed_smoke(
     )
     .map_err(|e| e.to_string())?;
 
-    let binary_name = if cfg!(target_os = "windows") { "legion.exe" } else { "legion" };
+    let binary_name = if cfg!(target_os = "windows") {
+        "legion.exe"
+    } else {
+        "legion"
+    };
     let binary = current_root.join("bin").join(binary_name);
     if !binary.is_file() {
-        return Err(format!("assembled candidate has no native executable: {}", binary.display()));
+        return Err(format!(
+            "assembled candidate has no native executable: {}",
+            binary.display()
+        ));
     }
 
     let path_key = env::vars()
@@ -249,7 +326,11 @@ pub fn native_installed_smoke(
         .unwrap_or_else(|| "PATH".to_string());
     let existing_path = env::var(&path_key).unwrap_or_default();
     let bin_dir = current_root.join("bin");
-    let path_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+    let path_sep = if cfg!(target_os = "windows") {
+        ";"
+    } else {
+        ":"
+    };
     let new_path = if existing_path.is_empty() {
         bin_dir.display().to_string()
     } else {
@@ -263,7 +344,10 @@ pub fn native_installed_smoke(
     env_vars.push(("XDG_DATA_HOME".to_string(), xdg_data.display().to_string()));
     env_vars.push(("LOCALAPPDATA".to_string(), local_data.display().to_string()));
     env_vars.push(("APPDATA".to_string(), roaming_data.display().to_string()));
-    env_vars.push(("LEGION_STATE_ROOT".to_string(), state_root.display().to_string()));
+    env_vars.push((
+        "LEGION_STATE_ROOT".to_string(),
+        state_root.display().to_string(),
+    ));
     env_vars.push((path_key, new_path));
 
     let evidence_str = evidence_path.display().to_string();
@@ -275,9 +359,22 @@ pub fn native_installed_smoke(
     }
 
     let invocations: Vec<Invocation> = vec![
-        Invocation { args: vec!["--version"], allow_incomplete: false, require_structural_preview: false },
         Invocation {
-            args: vec!["--json", "setup", "preview", "--client-evidence", &evidence_str, "--client", "codex", "--dry-run"],
+            args: vec!["--version"],
+            allow_incomplete: false,
+            require_structural_preview: false,
+        },
+        Invocation {
+            args: vec![
+                "--json",
+                "setup",
+                "preview",
+                "--client-evidence",
+                &evidence_str,
+                "--client",
+                "codex",
+                "--dry-run",
+            ],
             allow_incomplete: true,
             require_structural_preview: false,
         },
@@ -287,7 +384,16 @@ pub fn native_installed_smoke(
             require_structural_preview: false,
         },
         Invocation {
-            args: vec!["--json", "setup", "repair", "--client-evidence", &evidence_str, "--client", "codex", "--dry-run"],
+            args: vec![
+                "--json",
+                "setup",
+                "repair",
+                "--client-evidence",
+                &evidence_str,
+                "--client",
+                "codex",
+                "--dry-run",
+            ],
             allow_incomplete: false,
             require_structural_preview: true,
         },
@@ -313,15 +419,24 @@ pub fn native_installed_smoke(
                 .get("preview")
                 .and_then(|p| p.get("clients"))
                 .and_then(|c| c.as_array())
-                .and_then(|arr| arr.iter().find(|item| item.get("client_id").and_then(|v| v.as_str()) == Some("codex")));
-            let fidelity_ok = client.and_then(|c| c.get("fidelity")).and_then(|v| v.as_str()) == Some("Full");
+                .and_then(|arr| {
+                    arr.iter().find(|item| {
+                        item.get("client_id").and_then(|v| v.as_str()) == Some("codex")
+                    })
+                });
+            let fidelity_ok = client
+                .and_then(|c| c.get("fidelity"))
+                .and_then(|v| v.as_str())
+                == Some("Full");
             let missing_zero = client
                 .and_then(|c| c.get("missing_surfaces"))
                 .and_then(|v| v.as_array())
                 .map(|a| a.is_empty())
                 .unwrap_or(false);
             if !fidelity_ok || !missing_zero {
-                return Err(format!("{label} did not prove proofless structural activation"));
+                return Err(format!(
+                    "{label} did not prove proofless structural activation"
+                ));
             }
             continue;
         }
@@ -347,38 +462,69 @@ pub fn native_installed_smoke(
     // Exercise the installed native Minimize path, including its shipped policy.
     // A source-checkout fallback must not hide an incomplete installer payload.
     let policy = current_root.join("share/legion/assets/lib/minimize/POLICY.md");
-    let policy_bytes = fs::read(&policy)
-        .map_err(|e| format!("installed Minimize policy is missing: {e}"))?;
+    let policy_bytes =
+        fs::read(&policy).map_err(|e| format!("installed Minimize policy is missing: {e}"))?;
     let decision = isolated_root.join("minimize-decision.json");
     let receipt = isolated_root.join("minimize-receipt.json");
-    fs::write(&decision, serde_json::json!({
-        "schema": "minimize-decision.v1",
-        "decision_id": "installed-native-smoke",
-        "state_a": "missing receipt", "state_b": "verified native receipt",
-        "selected_rung": "REUSE",
-        "prior_rungs": [{"rung": "NOT_BUILD", "verdict": "REJECTED",
-            "evidence": "installed native receipt validation is requested"}],
-        "allowed_new_files": [], "allowed_new_dependencies": []
-    }).to_string()).map_err(|e| e.to_string())?;
+    fs::write(
+        &decision,
+        serde_json::json!({
+            "schema": "minimize-decision.v1",
+            "decision_id": "installed-native-smoke",
+            "state_a": "missing receipt", "state_b": "verified native receipt",
+            "selected_rung": "REUSE",
+            "prior_rungs": [{"rung": "NOT_BUILD", "verdict": "REJECTED",
+                "evidence": "installed native receipt validation is requested"}],
+            "allowed_new_files": [], "allowed_new_dependencies": []
+        })
+        .to_string(),
+    )
+    .map_err(|e| e.to_string())?;
     let decision_str = decision.display().to_string();
     let receipt_str = receipt.display().to_string();
     for args in [
         vec!["minimize", "decision", "validate", &decision_str],
-        vec!["minimize", "decision", "receipt", &decision_str, &receipt_str],
-        vec!["minimize", "decision", "verify", &decision_str, &receipt_str],
+        vec![
+            "minimize",
+            "decision",
+            "receipt",
+            &decision_str,
+            &receipt_str,
+        ],
+        vec![
+            "minimize",
+            "decision",
+            "verify",
+            &decision_str,
+            &receipt_str,
+        ],
     ] {
         let (status, stdout, stderr) = run(&binary, &args, &env_vars)?;
         if status != Some(0) || stdout.trim() != "MINIMIZE PASS" {
-            return Err(format!("installed native Minimize {} failed: {stdout} {stderr}", args.join(" ")));
+            return Err(format!(
+                "installed native Minimize {} failed: {stdout} {stderr}",
+                args.join(" ")
+            ));
         }
     }
     fs::remove_file(&policy).map_err(|e| e.to_string())?;
-    let missing = run(&binary,
-        &["minimize", "decision", "verify", &decision_str, &receipt_str], &env_vars);
+    let missing = run(
+        &binary,
+        &[
+            "minimize",
+            "decision",
+            "verify",
+            &decision_str,
+            &receipt_str,
+        ],
+        &env_vars,
+    );
     fs::write(&policy, policy_bytes).map_err(|e| e.to_string())?;
     let (status, _, stderr) = missing?;
     if status == Some(0) || !stderr.contains("minimize policy asset") {
-        return Err(format!("installed Minimize accepted a missing policy: {stderr}"));
+        return Err(format!(
+            "installed Minimize accepted a missing policy: {stderr}"
+        ));
     }
 
     smoke_mcp_transport(&binary, None, &env_vars)?;

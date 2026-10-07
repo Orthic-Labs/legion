@@ -154,10 +154,7 @@ fn user_request_preserves_whitespace_while_redacting() {
         &[],
     );
     let context = normalize(&input(&path, Platform::Claude, cutoff, &digest)).unwrap();
-    assert_eq!(
-        context.user_requests[0].text,
-        "  keep\n  [REDACTED]  "
-    );
+    assert_eq!(context.user_requests[0].text, "  keep\n  [REDACTED]  ");
 }
 
 #[test]

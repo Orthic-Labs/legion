@@ -78,9 +78,17 @@ fn accept_and_discard_events_build_matching_cli_args() {
         param_values: Some(json!({"theme": "dark"})),
     };
     let args = build_accept_script_args(&accept);
-    assert_eq!(args[0..6], [
-        "--id", "ev1", "--variant", "v2", "--page-url", "https://app.local/"
-    ]);
+    assert_eq!(
+        args[0..6],
+        [
+            "--id",
+            "ev1",
+            "--variant",
+            "v2",
+            "--page-url",
+            "https://app.local/"
+        ]
+    );
     assert_eq!(args[6], "--param-values");
 
     let discard = AcceptEvent {
@@ -161,7 +169,10 @@ fn live_target_resolution_joins_relative_path_and_carries_project_root() {
         res.absolute_target_path.as_deref(),
         Some(Path::new("/work/app/packages/ui"))
     );
-    assert_eq!(res.target_options, json!({"targetPath": "/work/app/packages/ui"}));
+    assert_eq!(
+        res.target_options,
+        json!({"targetPath": "/work/app/packages/ui"})
+    );
     assert_eq!(res.project_root, Path::new("/work/app"));
 }
 
@@ -189,9 +200,7 @@ fn event_queue_lease_ack_and_replace_cycle() {
 
     // Leased, so no longer "available" until the lease elapses.
     assert!(queue.find_available_pending_event(now + 1_000).is_none());
-    assert!(queue
-        .find_available_pending_event(now + 5_000)
-        .is_some());
+    assert!(queue.find_available_pending_event(now + 5_000).is_some());
 
     assert!(queue.acknowledge_pending_event("gen-1"));
     assert!(queue.find_pending_event_by_id("gen-1").is_none());

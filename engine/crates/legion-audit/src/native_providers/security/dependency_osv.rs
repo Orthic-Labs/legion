@@ -123,7 +123,11 @@ pub fn osv_command(
     })
 }
 
-pub fn normalize_vulnerability(vuln: &Value, provider: Option<&str>, provider_version: Option<&str>) -> Value {
+pub fn normalize_vulnerability(
+    vuln: &Value,
+    provider: Option<&str>,
+    provider_version: Option<&str>,
+) -> Value {
     let source = vuln
         .get("related")
         .or_else(|| vuln.get("aliases"))
@@ -178,7 +182,11 @@ pub fn normalize_scan_result(
                 .unwrap_or(Value::Null);
             examined.push(package_id);
             for vuln in array(source.get("vulnerabilities")) {
-                vulnerabilities.push(normalize_vulnerability(&vuln, Some(provider), Some(provider_version)));
+                vulnerabilities.push(normalize_vulnerability(
+                    &vuln,
+                    Some(provider),
+                    Some(provider_version),
+                ));
             }
         }
     }

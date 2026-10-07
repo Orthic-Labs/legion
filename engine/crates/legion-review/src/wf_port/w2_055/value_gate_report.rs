@@ -32,7 +32,8 @@ use serde_json::Value;
 use crate::wf_port::w2_051::dual_review_logic::{finding_records, jurors_from_value};
 use crate::wf_port::w2_054::review_evidence::{
     self, branch_outcome as evidence_branch_outcome, inflation_ratio as evidence_inflation_ratio,
-    material_changes as evidence_material_changes, peer_round_accounting as evidence_peer_round_accounting,
+    material_changes as evidence_material_changes,
+    peer_round_accounting as evidence_peer_round_accounting,
 };
 
 /// Port of Python's `html.escape(s, quote=True)` (the default `html.escape`
@@ -143,7 +144,11 @@ pub struct Sample {
 
 fn finding_card(row: &FindingRow) -> String {
     let flip_class = if row.flipped { " flip" } else { "" };
-    let flip_label = if row.flipped { "ACTION FLIP" } else { "same action" };
+    let flip_label = if row.flipped {
+        "ACTION FLIP"
+    } else {
+        "same action"
+    };
     format!(
         "\n    <article class=\"finding{flip}\">\n      <header><code>{fid}</code><span>{flabel}</span></header>\n      <p class=\"claim\">{claim}</p>\n      <div class=\"branches\">\n        <section><h4>Blind · {ba}</h4><p>{br}</p></section>\n        <section><h4>PeerDebate · {pa}</h4><p>{pr}</p></section>\n      </div>\n    </article>",
         flip = flip_class,
@@ -194,7 +199,9 @@ fn read_json_file(path: &Path) -> std::result::Result<Value, String> {
 
 /// Port of `_dispositions(directory)`: reads `review.disposition.json` and
 /// indexes its `advisory_dispositions` by `finding_id`.
-pub fn read_dispositions(directory: &Path) -> std::result::Result<HashMap<String, Disposition>, String> {
+pub fn read_dispositions(
+    directory: &Path,
+) -> std::result::Result<HashMap<String, Disposition>, String> {
     let value = read_json_file(&directory.join("review.disposition.json"))?;
     let items = value
         .get("advisory_dispositions")
@@ -207,8 +214,16 @@ pub fn read_dispositions(directory: &Path) -> std::result::Result<HashMap<String
             .and_then(Value::as_str)
             .ok_or_else(|| "disposition lacks finding_id".to_string())?
             .to_string();
-        let action = item.get("action").and_then(Value::as_str).unwrap_or("").to_string();
-        let rationale = item.get("rationale").and_then(Value::as_str).unwrap_or("").to_string();
+        let action = item
+            .get("action")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let rationale = item
+            .get("rationale")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
         out.insert(finding_id, Disposition { action, rationale });
     }
     Ok(out)
@@ -224,7 +239,11 @@ fn value_branch_outcome(value: &Value) -> BranchOutcome {
         blockers: value
             .get("blockers")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default(),
     }
 }
@@ -263,11 +282,18 @@ pub fn build_sample(label: &str, blind: &Path, peer: &Path) -> std::result::Resu
 
     let room_v = evidence_peer_round_accounting(peer).map_err(|e| e.to_string())?;
     let comparison = serde_json::json!({"blind": blind_outcome_v, "peer_debate": peer_outcome_v});
-    let changes: Vec<String> = evidence_material_changes(&comparison).into_iter().map(str::to_string).collect();
+    let changes: Vec<String> = evidence_material_changes(&comparison)
+        .into_iter()
+        .map(str::to_string)
+        .collect();
     let blind_outcome = value_branch_outcome(&blind_outcome_v);
     let peer_outcome = value_branch_outcome(&peer_outcome_v);
-    let inflation = evidence_inflation_ratio(blind_outcome.blockers.len(), peer_outcome.blockers.len());
-    let escalation_rate = room_v.get("escalation_rate").and_then(Value::as_f64).unwrap_or(0.0);
+    let inflation =
+        evidence_inflation_ratio(blind_outcome.blockers.len(), peer_outcome.blockers.len());
+    let escalation_rate = room_v
+        .get("escalation_rate")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
 
     Ok(Sample {
         label: label.to_string(),
@@ -309,7 +335,11 @@ pub fn run(runs_root: &Path, out_override: Option<&Path>) -> std::result::Result
     ];
     let mut samples = Vec::with_capacity(3);
     for (label, blind_name, peer_name) in pairs {
-        samples.push(build_sample(label, &root.join(blind_name), &root.join(peer_name))?);
+        samples.push(build_sample(
+            label,
+            &root.join(blind_name),
+            &root.join(peer_name),
+        )?);
     }
     let out: PathBuf = out_override
         .map(Path::to_path_buf)
@@ -331,8 +361,11 @@ pub fn run(runs_root: &Path, out_override: Option<&Path>) -> std::result::Result
         "status": "complete",
         "decision_source": "explicit_user_delegation",
     });
-    std::fs::write(out.join("review.state.json"), serde_json::to_string_pretty(&state).unwrap())
-        .map_err(|e| e.to_string())?;
+    std::fs::write(
+        out.join("review.state.json"),
+        serde_json::to_string_pretty(&state).unwrap(),
+    )
+    .map_err(|e| e.to_string())?;
     std::fs::write(out.join("adjudication.html"), render(&samples)).map_err(|e| e.to_string())?;
     review_evidence::pin_run_evidence(&out, &root).map_err(|e| e.to_string())?;
     println!("{}", out.join("adjudication.html").display());
@@ -381,12 +414,18 @@ mod tests {
         let mut blind = HashMap::new();
         blind.insert(
             "f1".to_string(),
-            Disposition { action: "raised".into(), rationale: "why".into() },
+            Disposition {
+                action: "raised".into(),
+                rationale: "why".into(),
+            },
         );
         let mut peer = HashMap::new();
         peer.insert(
             "f1".to_string(),
-            Disposition { action: "dropped".into(), rationale: "why not".into() },
+            Disposition {
+                action: "dropped".into(),
+                rationale: "why not".into(),
+            },
         );
         let rows = compare_findings(&findings, &blind, &peer);
         assert_eq!(rows.len(), 1);
@@ -401,9 +440,21 @@ mod tests {
             author_seat: "ux".into(),
         }];
         let mut blind = HashMap::new();
-        blind.insert("f1".to_string(), Disposition { action: "raised".into(), rationale: "a".into() });
+        blind.insert(
+            "f1".to_string(),
+            Disposition {
+                action: "raised".into(),
+                rationale: "a".into(),
+            },
+        );
         let mut peer = HashMap::new();
-        peer.insert("f1".to_string(), Disposition { action: "raised".into(), rationale: "b".into() });
+        peer.insert(
+            "f1".to_string(),
+            Disposition {
+                action: "raised".into(),
+                rationale: "b".into(),
+            },
+        );
         let rows = compare_findings(&findings, &blind, &peer);
         assert!(!rows[0].flipped);
     }
@@ -411,17 +462,31 @@ mod tests {
     fn sample_fixture() -> Sample {
         Sample {
             label: "Skills as Membrane provider".into(),
-            blind: BranchOutcome { jury_verdict_tier: "block".into(), blockers: vec!["a".into()] },
-            peer: BranchOutcome { jury_verdict_tier: "pass".into(), blockers: vec![] },
+            blind: BranchOutcome {
+                jury_verdict_tier: "block".into(),
+                blockers: vec!["a".into()],
+            },
+            peer: BranchOutcome {
+                jury_verdict_tier: "pass".into(),
+                blockers: vec![],
+            },
             changes: vec!["material change".into()],
             inflation: 1.05,
-            room: RoomAccounting { escalation_rate: 0.25 },
+            room: RoomAccounting {
+                escalation_rate: 0.25,
+            },
             findings: vec![FindingRow {
                 finding_id: "f1".into(),
                 claim: "claim <b>text</b>".into(),
                 author_seat: "security".into(),
-                blind: Disposition { action: "raised".into(), rationale: "r1".into() },
-                peer: Disposition { action: "dropped".into(), rationale: "r2".into() },
+                blind: Disposition {
+                    action: "raised".into(),
+                    rationale: "r1".into(),
+                },
+                peer: Disposition {
+                    action: "dropped".into(),
+                    rationale: "r2".into(),
+                },
                 flipped: true,
             }],
         }

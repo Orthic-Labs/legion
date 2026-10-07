@@ -22,4 +22,6 @@
 
 pub mod store;
 
-pub use store::{ArtifactFs, ArtifactRecord, RunArtifactStore, StdFs, WriteBytesSpec, WriteJsonSpec};
+pub use store::{
+    ArtifactFs, ArtifactRecord, RunArtifactStore, StdFs, WriteBytesSpec, WriteJsonSpec,
+};

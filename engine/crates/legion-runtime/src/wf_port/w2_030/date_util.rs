@@ -67,8 +67,12 @@ pub fn default_date_range(
     start_date: Option<&str>,
     end_date: Option<&str>,
 ) -> (String, String) {
-    let end = end_date.map(str::to_string).unwrap_or_else(|| days_before(now, 3));
-    let start = start_date.map(str::to_string).unwrap_or_else(|| days_before(now, days));
+    let end = end_date
+        .map(str::to_string)
+        .unwrap_or_else(|| days_before(now, 3));
+    let start = start_date
+        .map(str::to_string)
+        .unwrap_or_else(|| days_before(now, days));
     (start, end)
 }
 
@@ -78,7 +82,13 @@ mod tests {
 
     #[test]
     fn round_trip_civil_days() {
-        for (y, m, d) in [(2026, 1, 1), (2026, 8, 28), (2000, 2, 29), (1970, 1, 1), (2026, 12, 31)] {
+        for (y, m, d) in [
+            (2026, 1, 1),
+            (2026, 8, 28),
+            (2000, 2, 29),
+            (1970, 1, 1),
+            (2026, 12, 31),
+        ] {
             let epoch = days_from_civil(y, m, d);
             assert_eq!(civil_from_days(epoch), (y, m, d));
         }
@@ -104,7 +114,8 @@ mod tests {
 
     #[test]
     fn default_date_range_honors_explicit_overrides() {
-        let (start, end) = default_date_range((2026, 8, 31), 28, Some("2026-01-01"), Some("2026-01-31"));
+        let (start, end) =
+            default_date_range((2026, 8, 31), 28, Some("2026-01-01"), Some("2026-01-31"));
         assert_eq!(start, "2026-01-01");
         assert_eq!(end, "2026-01-31");
     }

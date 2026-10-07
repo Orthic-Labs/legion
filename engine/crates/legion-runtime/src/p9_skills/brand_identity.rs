@@ -201,7 +201,11 @@ pub fn audit_pairs(pairs: &[AuditPair]) -> Result<AuditReport, ColorCheckError> 
 /// Returns the process exit code: 0 success, 1 `audit` with a failing pair, 2 usage/parse error.
 pub fn run(argv: &[String]) -> i32 {
     let cmd = argv.first().map(String::as_str).unwrap_or("");
-    let rest = if argv.is_empty() { &argv[..] } else { &argv[1..] };
+    let rest = if argv.is_empty() {
+        &argv[..]
+    } else {
+        &argv[1..]
+    };
     match cmd {
         "contrast" => {
             let (fg, bg) = match (rest.first(), rest.get(1)) {
@@ -363,8 +367,18 @@ mod tests {
     #[test]
     fn audit_reports_all_pass_and_failure() {
         let pairs = vec![
-            AuditPair { name: Some("body".into()), fg: "#000000".into(), bg: "#ffffff".into(), min: None },
-            AuditPair { name: Some("low-contrast".into()), fg: "#aaaaaa".into(), bg: "#ffffff".into(), min: None },
+            AuditPair {
+                name: Some("body".into()),
+                fg: "#000000".into(),
+                bg: "#ffffff".into(),
+                min: None,
+            },
+            AuditPair {
+                name: Some("low-contrast".into()),
+                fg: "#aaaaaa".into(),
+                bg: "#ffffff".into(),
+                min: None,
+            },
         ];
         let report = audit_pairs(&pairs).unwrap();
         assert!(!report.all_pass);

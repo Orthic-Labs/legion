@@ -13,9 +13,9 @@ use std::time::Instant;
 
 use serde_json::Value;
 
+use super::super::w2_054::synthesizer::render as render_result;
 use super::dual_review_run::run_result_to_value;
 use super::engine_run::{Engine, VisionPrep};
-use super::super::w2_054::synthesizer::render as render_result;
 
 /// Port of `parse_flag`: `"k=v"` -> `(k, v)` with `v` coerced to bool
 /// (`true`/`yes`/`1` / `false`/`no`/`0`, case-insensitive) then int, else
@@ -46,7 +46,12 @@ pub fn parse_flag(s: &str) -> (String, Value) {
 /// `ROOT / "shadow_log"` (this port has no `__file__`-relative `ROOT`;
 /// the caller owns where that directory lives, same treatment `RUNS_ROOT`
 /// gets in `dual_review_run.rs`).
-pub fn run(args: &[String], engine: &Engine, shadow_dir: Option<&Path>, vision_prep: &dyn VisionPrep) -> (String, i32) {
+pub fn run(
+    args: &[String],
+    engine: &Engine,
+    shadow_dir: Option<&Path>,
+    vision_prep: &dyn VisionPrep,
+) -> (String, i32) {
     let mut skill: Option<String> = None;
     let mut input: Option<String> = None;
     let mut flag_args: Vec<String> = Vec::new();
@@ -158,7 +163,10 @@ pub fn run(args: &[String], engine: &Engine, shadow_dir: Option<&Path>, vision_p
     let output = if json_out {
         serde_json::to_string_pretty(&result).unwrap_or_default()
     } else {
-        format!("{}\n\n_wall: {wall_seconds}s_", render_result(&result, &lens_questions))
+        format!(
+            "{}\n\n_wall: {wall_seconds}s_",
+            render_result(&result, &lens_questions)
+        )
     };
     (output, 0)
 }

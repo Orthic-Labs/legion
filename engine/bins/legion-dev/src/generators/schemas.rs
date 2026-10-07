@@ -97,8 +97,16 @@ pub fn build_security_verdict_schema() -> Value {
 pub fn build_web_actor_fixture_schema() -> Value {
     let nonempty = json!({ "type": "string", "minLength": 1 });
     let binding_keys = [
-        "targetId", "environment", "actorId", "tenantId", "browser", "browserVersion",
-        "viewport", "locale", "sourceRevision", "artifactDigest",
+        "targetId",
+        "environment",
+        "actorId",
+        "tenantId",
+        "browser",
+        "browserVersion",
+        "viewport",
+        "locale",
+        "sourceRevision",
+        "artifactDigest",
     ];
     let mut binding_properties = serde_json::Map::new();
     for key in binding_keys {
@@ -193,9 +201,18 @@ pub fn build_web_actor_fixture_schema() -> Value {
 /// (relative path, schema value) pairs, in `buildSchemas()`'s iteration order.
 pub fn build_schemas() -> Vec<(&'static str, Value)> {
     vec![
-        ("src/schemas/provider-result-v1.schema.json", build_provider_result_schema()),
-        ("src/schemas/security-verdict-v1.schema.json", build_security_verdict_schema()),
-        ("src/schemas/platform/web-actor-fixture-v1.schema.json", build_web_actor_fixture_schema()),
+        (
+            "src/schemas/provider-result-v1.schema.json",
+            build_provider_result_schema(),
+        ),
+        (
+            "src/schemas/security-verdict-v1.schema.json",
+            build_security_verdict_schema(),
+        ),
+        (
+            "src/schemas/platform/web-actor-fixture-v1.schema.json",
+            build_web_actor_fixture_schema(),
+        ),
     ]
 }
 
@@ -249,7 +266,10 @@ mod tests {
     fn provider_result_schema_has_expected_status_enum() {
         let schema = build_provider_result_schema();
         assert_eq!(
-            schema["properties"]["status"]["enum"].as_array().unwrap().len(),
+            schema["properties"]["status"]["enum"]
+                .as_array()
+                .unwrap()
+                .len(),
             PROVIDER_STATUS.len()
         );
     }

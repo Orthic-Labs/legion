@@ -4,9 +4,7 @@
 //! tests/controls/** and tests/config/** at the level this port reaches
 //! (see the packet report for exact per-file status).
 
-use legion_runtime::p5_core::config_core::{
-    merge_config, validate_config, CONFIG_SCHEMA_VERSION,
-};
+use legion_runtime::p5_core::config_core::{merge_config, validate_config, CONFIG_SCHEMA_VERSION};
 use legion_runtime::p5_core::controls_contracts::{control_digest, validate_pack};
 use legion_runtime::p5_core::controls_sources::{ingest_source, IngestItem, IngestSource};
 use legion_runtime::p5_core::controls_support::Value;
@@ -29,7 +27,10 @@ fn sample_control() -> Value {
         ("remediationOwner", Value::str("code")),
         ("sourceConcepts", Value::array([Value::str("sc1")])),
         ("stopShip", Value::Bool(false)),
-        ("benchmark", Value::object([("status", Value::str("unproven"))])),
+        (
+            "benchmark",
+            Value::object([("status", Value::str("unproven"))]),
+        ),
         (
             "provenance",
             Value::object([("source", Value::str("src")), ("lineage", Value::array([]))]),
@@ -46,7 +47,10 @@ fn a_valid_pack_of_one_control_validates_and_digests() {
         ("dependencies", Value::array([])),
         (
             "source",
-            Value::object([("kind", Value::str("internal")), ("rights", Value::str("cleared"))]),
+            Value::object([
+                ("kind", Value::str("internal")),
+                ("rights", Value::str("cleared")),
+            ]),
         ),
         ("qualification", Value::str("unproven")),
         ("controls", Value::array([sample_control()])),

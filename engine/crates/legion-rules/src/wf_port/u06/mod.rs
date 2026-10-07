@@ -89,14 +89,22 @@ fn finding(
     Value::Object(obj)
 }
 
-fn editorial_candidate(item: &Value, span: Value, denominator_digest: &str, binding: &Value) -> Value {
+fn editorial_candidate(
+    item: &Value,
+    span: Value,
+    denominator_digest: &str,
+    binding: &Value,
+) -> Value {
     let mut base = Map::new();
     base.insert("schemaVersion".into(), json!(1));
     base.insert("kind".into(), json!("legion-copy-candidate"));
     base.insert("producer".into(), json!(PROVIDER));
     base.insert("provider".into(), json!(PROVIDER));
     base.insert("providerVersion".into(), json!("1.0.0"));
-    base.insert("ruleId".into(), json!("copy.documentation.editorial-density"));
+    base.insert(
+        "ruleId".into(),
+        json!("copy.documentation.editorial-density"),
+    );
     base.insert("dimension".into(), json!("clarity"));
     base.insert("category".into(), json!("editorial-polish"));
     base.insert(
@@ -135,7 +143,9 @@ fn editorial_candidate(item: &Value, span: Value, denominator_digest: &str, bind
 
 fn flags(example: &str) -> Vec<String> {
     let re = Regex::new(r"--[\w-]+").expect("static regex");
-    re.find_iter(example).map(|m| m.as_str().to_string()).collect()
+    re.find_iter(example)
+        .map(|m| m.as_str().to_string())
+        .collect()
 }
 
 fn escape_regex(s: &str) -> String {
@@ -173,7 +183,10 @@ fn resolve_contract<'a>(
         .map(String::from);
     if let Some(explicit_id) = explicit_id {
         let contract = contracts_by_id.get(&explicit_id).copied();
-        return ResolvedContract { id: Some(explicit_id), contract };
+        return ResolvedContract {
+            id: Some(explicit_id),
+            contract,
+        };
     }
 
     let declared_command = str_field(item, "command").or_else(|| str_field(item, "commandName"));
@@ -193,7 +206,9 @@ fn resolve_contract<'a>(
         .iter()
         .filter(|c| {
             let command = str_field(c, "command").unwrap_or("");
-            examples.iter().any(|example| matches_command(example, command))
+            examples
+                .iter()
+                .any(|example| matches_command(example, command))
         })
         .collect();
 
@@ -204,7 +219,10 @@ fn resolve_contract<'a>(
             contract: Some(m),
         }
     } else {
-        ResolvedContract { id: None, contract: None }
+        ResolvedContract {
+            id: None,
+            contract: None,
+        }
     }
 }
 
@@ -250,7 +268,11 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
         .filter_map(|c| str_field(c, "id").map(|id| (id.to_string(), c)))
         .collect();
 
-    let terms: Vec<Value> = options.get("terms").and_then(Value::as_array).cloned().unwrap_or_default();
+    let terms: Vec<Value> = options
+        .get("terms")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
 
     let mut findings: Vec<Value> = Vec::new();
     let mut candidates: Vec<Value> = Vec::new();
@@ -272,7 +294,11 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
         let examples: Vec<String> = item
             .get("examples")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
         let has_command_id = item.get("commandId").is_some();
@@ -281,7 +307,11 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
         let has_command_name = item.get("commandName").is_some();
         let is_command_help = kind_field == "command-help";
 
-        if has_command_id || has_command_contract_id || has_command || has_command_name || is_command_help
+        if has_command_id
+            || has_command_contract_id
+            || has_command
+            || has_command_name
+            || is_command_help
             || !examples.is_empty()
         {
             let resolved = resolve_contract(item, &contracts_by_id, &contracts, &examples);
@@ -312,7 +342,11 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
                         .get("options")
                         .or_else(|| contract.get("flags"))
                         .and_then(Value::as_array)
-                        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
                         .unwrap_or_default();
                     let unknown_flags: Vec<String> = examples
                         .iter()
@@ -390,7 +424,9 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
         }
 
         if kind_field == "release-note" {
-            let release_state = str_field(item, "releaseState").unwrap_or("unproven").to_string();
+            let release_state = str_field(item, "releaseState")
+                .unwrap_or("unproven")
+                .to_string();
             let text = str_field(item, "text").unwrap_or("");
             let shipped_re =
                 Regex::new(r"(?i)\b(?:now|already|currently)\s+(?:ships?|available|supports?)\b|\bshipped\b|\breleased\b")
@@ -427,7 +463,10 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
             let stale = str_field(term, "stale").unwrap_or("");
             let text = str_field(item, "text").unwrap_or("");
             let pattern = format!(r"(?i)\b{}\b", escape_regex(stale));
-            if Regex::new(&pattern).map(|re| re.is_match(text)).unwrap_or(false) {
+            if Regex::new(&pattern)
+                .map(|re| re.is_match(text))
+                .unwrap_or(false)
+            {
                 let term_evidence = as_string_array(term.get("evidenceRefs"));
                 findings.push(finding(
                     item,
@@ -437,7 +476,10 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
                     &binding,
                     Map::from_iter([
                         ("stale".to_string(), json!(stale)),
-                        ("current".to_string(), term.get("current").cloned().unwrap_or(Value::Null)),
+                        (
+                            "current".to_string(),
+                            term.get("current").cloned().unwrap_or(Value::Null),
+                        ),
                     ]),
                 ));
             }
@@ -465,9 +507,10 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
         }
 
         let text = str_field(item, "text").unwrap_or("");
-        let preamble_re =
-            Regex::new(r"(?i)\b(?:it should be noted that|it is important to note that|in order to)\b")
-                .expect("static regex");
+        let preamble_re = Regex::new(
+            r"(?i)\b(?:it should be noted that|it is important to note that|in order to)\b",
+        )
+        .expect("static regex");
         if let Some(m) = preamble_re.find(text) {
             if !is_authority_text {
                 let start = text[..m.start()].chars().count();
@@ -477,7 +520,12 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
                     "start": start,
                     "end": start + matched_chars,
                 });
-                candidates.push(editorial_candidate(item, span, &denominator_digest, &binding));
+                candidates.push(editorial_candidate(
+                    item,
+                    span,
+                    &denominator_digest,
+                    &binding,
+                ));
             }
         }
     }
@@ -574,10 +622,13 @@ mod tests {
         );
 
         let findings = result["findings"].as_array().unwrap();
-        assert!(findings.iter().any(|f| f["ruleId"] == "copy.documentation.command-contract-drift"
+        assert!(findings.iter().any(|f| f["ruleId"]
+            == "copy.documentation.command-contract-drift"
             && f["contentItemIds"] == json!(["docs:command-stale"])));
-        assert!(findings.iter().any(|f| f["ruleId"] == "copy.documentation.planned-as-shipped"
-            && f["contentItemIds"] == json!(["docs:release-planned"])));
+        assert!(findings
+            .iter()
+            .any(|f| f["ruleId"] == "copy.documentation.planned-as-shipped"
+                && f["contentItemIds"] == json!(["docs:release-planned"])));
         assert_eq!(result["candidates"].as_array().unwrap().len(), 0);
     }
 

@@ -47,8 +47,14 @@ pub const DEPENDENCY_DIMENSION: &[&str] = &[
 
 /// Frozen receipt `dependsOn[].kind` enum (6 values), mirroring
 /// `evidence-capability-receipt-v1.schema.json`'s `dependsOn.items.kind.enum`.
-pub const FROZEN_KIND: &[&str] =
-    &["decision", "source-revision", "config-digest", "tool-digest", "policy-digest", "evidence"];
+pub const FROZEN_KIND: &[&str] = &[
+    "decision",
+    "source-revision",
+    "config-digest",
+    "tool-digest",
+    "policy-digest",
+    "evidence",
+];
 
 /// dimension -> (kind, faithful, note). Mirrors JS `DEPENDENCY_KIND_PROJECTION`.
 pub fn dependency_kind_projection(dimension: &str) -> Option<(&'static str, bool, &'static str)> {
@@ -117,7 +123,10 @@ fn project_dependency(dep: &Dependency) -> Result<ProjectedDependency, EnvelopeE
     }
     // Fold the original dimension into `ref` so the projection never
     // silently discards which dimension actually changed.
-    Ok(ProjectedDependency { kind, reference: format!("{}:{}", dep.dimension, dep.reference) })
+    Ok(ProjectedDependency {
+        kind,
+        reference: format!("{}:{}", dep.dimension, dep.reference),
+    })
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -159,24 +168,55 @@ pub fn seal_evidence(input: SealEvidenceInput) -> Result<SealedEvidence, Envelop
     let depends_on_json = Json::Arr(
         depends_on
             .iter()
-            .map(|d| Json::Obj(vec![("kind".into(), Json::str(d.kind)), ("ref".into(), Json::str(d.reference.clone()))]))
+            .map(|d| {
+                Json::Obj(vec![
+                    ("kind".into(), Json::str(d.kind)),
+                    ("ref".into(), Json::str(d.reference.clone())),
+                ])
+            })
             .collect(),
     );
 
     let receipt = Json::Obj(vec![
         ("schemaVersion".into(), Json::I64(1)),
-        ("kind".into(), Json::str("legion-evidence-capability-receipt")),
+        (
+            "kind".into(),
+            Json::str("legion-evidence-capability-receipt"),
+        ),
         ("evidenceId".into(), Json::str(input.evidence_id.clone())),
         ("runId".into(), Json::str(input.run_id.clone())),
-        ("taskId".into(), input.task_id.clone().map(Json::Str).unwrap_or(Json::Null)),
-        ("contractId".into(), input.contract_id.clone().map(Json::Str).unwrap_or(Json::Null)),
-        ("producerAuthority".into(), Json::str(input.producer_authority.clone())),
+        (
+            "taskId".into(),
+            input.task_id.clone().map(Json::Str).unwrap_or(Json::Null),
+        ),
+        (
+            "contractId".into(),
+            input
+                .contract_id
+                .clone()
+                .map(Json::Str)
+                .unwrap_or(Json::Null),
+        ),
+        (
+            "producerAuthority".into(),
+            Json::str(input.producer_authority.clone()),
+        ),
         ("capability".into(), Json::str(input.capability.clone())),
         ("observation".into(), input.observation.clone()),
-        ("evidenceClass".into(), Json::str(input.evidence_class.clone())),
+        (
+            "evidenceClass".into(),
+            Json::str(input.evidence_class.clone()),
+        ),
         ("authentication".into(), input.authentication.clone()),
         ("replayDefense".into(), input.replay_defense.clone()),
-        ("sourceRevision".into(), input.source_revision.clone().map(Json::Str).unwrap_or(Json::Null)),
+        (
+            "sourceRevision".into(),
+            input
+                .source_revision
+                .clone()
+                .map(Json::Str)
+                .unwrap_or(Json::Null),
+        ),
         ("dependsOn".into(), depends_on_json),
         ("stale".into(), Json::Bool(false)),
         ("observedAt".into(), Json::str(input.observed_at.clone())),
@@ -199,11 +239,12 @@ pub fn seal_evidence(input: SealEvidenceInput) -> Result<SealedEvidence, Envelop
 
     let receipt_digest = digest_value(&receipt);
 
-    let trust_class = if input.authentication_verification_method.as_deref() == Some("unauthenticated") {
-        "unauthenticated"
-    } else {
-        "authenticated"
-    };
+    let trust_class =
+        if input.authentication_verification_method.as_deref() == Some("unauthenticated") {
+            "unauthenticated"
+        } else {
+            "authenticated"
+        };
 
     let dependencies_json = Json::Arr(
         input
@@ -213,7 +254,10 @@ pub fn seal_evidence(input: SealEvidenceInput) -> Result<SealedEvidence, Envelop
                 Json::Obj(vec![
                     ("dimension".into(), Json::str(d.dimension.clone())),
                     ("ref".into(), Json::str(d.reference.clone())),
-                    ("digest".into(), d.digest.clone().map(Json::Str).unwrap_or(Json::Null)),
+                    (
+                        "digest".into(),
+                        d.digest.clone().map(Json::Str).unwrap_or(Json::Null),
+                    ),
                 ])
             })
             .collect(),
@@ -222,13 +266,36 @@ pub fn seal_evidence(input: SealEvidenceInput) -> Result<SealedEvidence, Envelop
     let envelope_core = Json::Obj(vec![
         ("evidenceId".into(), Json::str(input.evidence_id.clone())),
         ("runId".into(), Json::str(input.run_id.clone())),
-        ("taskId".into(), input.task_id.clone().map(Json::Str).unwrap_or(Json::Null)),
-        ("contractId".into(), input.contract_id.clone().map(Json::Str).unwrap_or(Json::Null)),
-        ("producerAuthority".into(), Json::str(input.producer_authority.clone())),
+        (
+            "taskId".into(),
+            input.task_id.clone().map(Json::Str).unwrap_or(Json::Null),
+        ),
+        (
+            "contractId".into(),
+            input
+                .contract_id
+                .clone()
+                .map(Json::Str)
+                .unwrap_or(Json::Null),
+        ),
+        (
+            "producerAuthority".into(),
+            Json::str(input.producer_authority.clone()),
+        ),
         ("capability".into(), Json::str(input.capability.clone())),
         ("observation".into(), input.observation.clone()),
-        ("evidenceClass".into(), Json::str(input.evidence_class.clone())),
-        ("sourceRevision".into(), input.source_revision.clone().map(Json::Str).unwrap_or(Json::Null)),
+        (
+            "evidenceClass".into(),
+            Json::str(input.evidence_class.clone()),
+        ),
+        (
+            "sourceRevision".into(),
+            input
+                .source_revision
+                .clone()
+                .map(Json::Str)
+                .unwrap_or(Json::Null),
+        ),
         ("dependencies".into(), dependencies_json),
         ("authentication".into(), input.authentication.clone()),
         ("replayDefense".into(), input.replay_defense.clone()),
@@ -242,7 +309,11 @@ pub fn seal_evidence(input: SealEvidenceInput) -> Result<SealedEvidence, Envelop
     let env_digest = envelope_digest(&envelope_core);
     let envelope = with_envelope_digest(&envelope_core, &env_digest);
 
-    Ok(SealedEvidence { receipt, envelope, envelope_digest: env_digest })
+    Ok(SealedEvidence {
+        receipt,
+        envelope,
+        envelope_digest: env_digest,
+    })
 }
 
 /// Digest of an envelope's content (excludes any pre-existing
@@ -252,12 +323,18 @@ pub fn envelope_digest(envelope: &Json) -> String {
     let Json::Obj(pairs) = envelope else {
         return digest_value(envelope);
     };
-    let rest: Vec<(String, Json)> = pairs.iter().filter(|(k, _)| k != "envelopeDigest").cloned().collect();
+    let rest: Vec<(String, Json)> = pairs
+        .iter()
+        .filter(|(k, _)| k != "envelopeDigest")
+        .cloned()
+        .collect();
     digest_value(&Json::Obj(rest))
 }
 
 fn with_envelope_digest(core: &Json, env_digest: &str) -> Json {
-    let Json::Obj(pairs) = core else { return core.clone() };
+    let Json::Obj(pairs) = core else {
+        return core.clone();
+    };
     let mut out = pairs.clone();
     out.push(("envelopeDigest".into(), Json::str(env_digest)));
     Json::Obj(out)
@@ -328,7 +405,10 @@ pub fn import_legacy_evidence(
         run_id,
         legacy_kind: legacy.legacy_kind.clone(),
         capability: capability.unwrap_or_else(|| "legacy-import".to_string()),
-        observation: Json::Obj(vec![("legacyPayloadDigest".into(), Json::str(payload_digest))]),
+        observation: Json::Obj(vec![(
+            "legacyPayloadDigest".into(),
+            Json::str(payload_digest),
+        )]),
         evidence_class: "external".to_string(),
         source_revision: legacy.source_revision.clone(),
         authentication_issuer_identity: legacy.source.clone(),
@@ -367,21 +447,39 @@ mod tests {
     #[test]
     fn seal_evidence_projects_dependencies_and_folds_dimension_into_ref() {
         let mut input = base_input();
-        input.dependencies = vec![Dependency { dimension: "source-digest".into(), reference: "sha256:aa".into(), digest: Some("sha256:aa".into()) }];
+        input.dependencies = vec![Dependency {
+            dimension: "source-digest".into(),
+            reference: "sha256:aa".into(),
+            digest: Some("sha256:aa".into()),
+        }];
         let sealed = seal_evidence(input).unwrap();
-        let Json::Obj(receipt) = &sealed.receipt else { panic!() };
+        let Json::Obj(receipt) = &sealed.receipt else {
+            panic!()
+        };
         let depends_on = receipt.iter().find(|(k, _)| k == "dependsOn").unwrap();
-        let Json::Arr(items) = &depends_on.1 else { panic!() };
+        let Json::Arr(items) = &depends_on.1 else {
+            panic!()
+        };
         assert_eq!(items.len(), 1);
         let Json::Obj(item) = &items[0] else { panic!() };
-        assert_eq!(item.iter().find(|(k, _)| k == "kind").unwrap().1, Json::str("source-revision"));
-        assert_eq!(item.iter().find(|(k, _)| k == "ref").unwrap().1, Json::str("source-digest:sha256:aa"));
+        assert_eq!(
+            item.iter().find(|(k, _)| k == "kind").unwrap().1,
+            Json::str("source-revision")
+        );
+        assert_eq!(
+            item.iter().find(|(k, _)| k == "ref").unwrap().1,
+            Json::str("source-digest:sha256:aa")
+        );
     }
 
     #[test]
     fn seal_evidence_rejects_unknown_dimension() {
         let mut input = base_input();
-        input.dependencies = vec![Dependency { dimension: "bogus".into(), reference: "x".into(), digest: None }];
+        input.dependencies = vec![Dependency {
+            dimension: "bogus".into(),
+            reference: "x".into(),
+            digest: None,
+        }];
         let err = seal_evidence(input).unwrap_err();
         assert_eq!(err.code, ArcCode::ArcDependencyUnknown);
     }
@@ -389,7 +487,11 @@ mod tests {
     #[test]
     fn seal_evidence_rejects_empty_dependency_ref() {
         let mut input = base_input();
-        input.dependencies = vec![Dependency { dimension: "source-digest".into(), reference: "".into(), digest: None }];
+        input.dependencies = vec![Dependency {
+            dimension: "source-digest".into(),
+            reference: "".into(),
+            digest: None,
+        }];
         let err = seal_evidence(input).unwrap_err();
         assert_eq!(err.code, ArcCode::ArcSchemaInvalid);
     }
@@ -399,8 +501,13 @@ mod tests {
         let mut input = base_input();
         input.authentication_verification_method = Some("unauthenticated".into());
         let sealed = seal_evidence(input).unwrap();
-        let Json::Obj(env) = &sealed.envelope else { panic!() };
-        assert_eq!(env.iter().find(|(k, _)| k == "trustClass").unwrap().1, Json::str("unauthenticated"));
+        let Json::Obj(env) = &sealed.envelope else {
+            panic!()
+        };
+        assert_eq!(
+            env.iter().find(|(k, _)| k == "trustClass").unwrap().1,
+            Json::str("unauthenticated")
+        );
     }
 
     #[test]

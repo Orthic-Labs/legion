@@ -151,7 +151,9 @@ impl SealedPlan {
 /// Mirrors `requiredForClaim(stage, requestedClaim)`.
 fn required_for_claim(required_for: &str, requested_claim: &str) -> Result<bool, BuildPlanError> {
     if !CLAIMS.contains(&required_for) {
-        return Err(BuildPlanError::UnknownRequiredClaim(required_for.to_string()));
+        return Err(BuildPlanError::UnknownRequiredClaim(
+            required_for.to_string(),
+        ));
     }
     let requested_rank = claim_rank(requested_claim).expect("requested_claim validated by caller");
     let stage_rank = claim_rank(required_for).expect("checked above");
@@ -167,7 +169,10 @@ pub fn build_sealed_plan(
     stages: &[&dyn PlanStage],
     now: &str,
 ) -> Result<SealedPlan, BuildPlanError> {
-    let profile = options.profile.clone().unwrap_or_else(|| "standard".to_string());
+    let profile = options
+        .profile
+        .clone()
+        .unwrap_or_else(|| "standard".to_string());
     let requested_claim = options.claim_level.clone().unwrap_or_else(|| {
         match profile.as_str() {
             "release" => "release",
@@ -198,7 +203,11 @@ pub fn build_sealed_plan(
         if !result.complete {
             gaps.push(PlanGap {
                 stage: stage.id().to_string(),
-                status: if result.status.is_empty() { "missing".to_string() } else { result.status.clone() },
+                status: if result.status.is_empty() {
+                    "missing".to_string()
+                } else {
+                    result.status.clone()
+                },
                 detail: result.detail.clone(),
             });
         }
@@ -225,7 +234,10 @@ pub fn build_sealed_plan(
         .collect();
 
     let config = options.config.clone().unwrap_or_else(|| json!({}));
-    let binding = options.binding.clone().or_else(|| options.repository_binding.clone());
+    let binding = options
+        .binding
+        .clone()
+        .or_else(|| options.repository_binding.clone());
 
     let mut plan = SealedPlan {
         schema_version: 1,
@@ -289,8 +301,26 @@ mod tests {
 
     #[test]
     fn duplicate_stage_ids_are_rejected() {
-        let a = FixedStage { id: "x", required_for: "inventory", result: StageResult { complete: true, status: "pass".into(), artifact: None, detail: None } };
-        let b = FixedStage { id: "x", required_for: "inventory", result: StageResult { complete: true, status: "pass".into(), artifact: None, detail: None } };
+        let a = FixedStage {
+            id: "x",
+            required_for: "inventory",
+            result: StageResult {
+                complete: true,
+                status: "pass".into(),
+                artifact: None,
+                detail: None,
+            },
+        };
+        let b = FixedStage {
+            id: "x",
+            required_for: "inventory",
+            result: StageResult {
+                complete: true,
+                status: "pass".into(),
+                artifact: None,
+                detail: None,
+            },
+        };
         let stages: Vec<&dyn PlanStage> = vec![&a, &b];
         let err = build_sealed_plan(&PlanOptions::default(), &stages, "now").unwrap_err();
         assert_eq!(err, BuildPlanError::DuplicateStage("x".to_string()));
@@ -301,12 +331,20 @@ mod tests {
         let stage = FixedStage {
             id: "repository-binding",
             required_for: "inventory",
-            result: StageResult { complete: true, status: "pass".into(), artifact: Some(json!({"rev": "abc"})), detail: None },
+            result: StageResult {
+                complete: true,
+                status: "pass".into(),
+                artifact: Some(json!({"rev": "abc"})),
+                detail: None,
+            },
         };
         let stages: Vec<&dyn PlanStage> = vec![&stage];
         let plan = build_sealed_plan(&PlanOptions::default(), &stages, "now").unwrap();
         assert!(plan.gaps.is_empty());
-        assert_eq!(plan.artifacts.get("repository-binding"), Some(&json!({"rev": "abc"})));
+        assert_eq!(
+            plan.artifacts.get("repository-binding"),
+            Some(&json!({"rev": "abc"}))
+        );
         assert!(plan.complete_for_requested_claim);
     }
 
@@ -315,10 +353,18 @@ mod tests {
         let stage = FixedStage {
             id: "component-graph",
             required_for: "source",
-            result: StageResult { complete: false, status: "missing".into(), artifact: None, detail: Some("x".into()) },
+            result: StageResult {
+                complete: false,
+                status: "missing".into(),
+                artifact: None,
+                detail: Some("x".into()),
+            },
         };
         let stages: Vec<&dyn PlanStage> = vec![&stage];
-        let options = PlanOptions { claim_level: Some("source".to_string()), ..Default::default() };
+        let options = PlanOptions {
+            claim_level: Some("source".to_string()),
+            ..Default::default()
+        };
         let plan = build_sealed_plan(&options, &stages, "now").unwrap();
         assert_eq!(plan.gaps.len(), 1);
         assert_eq!(plan.claim_gaps.len(), 1);
@@ -330,10 +376,18 @@ mod tests {
         let stage = FixedStage {
             id: "provider-dag",
             required_for: "runtime",
-            result: StageResult { complete: false, status: "missing".into(), artifact: None, detail: None },
+            result: StageResult {
+                complete: false,
+                status: "missing".into(),
+                artifact: None,
+                detail: None,
+            },
         };
         let stages: Vec<&dyn PlanStage> = vec![&stage];
-        let options = PlanOptions { claim_level: Some("inventory".to_string()), ..Default::default() };
+        let options = PlanOptions {
+            claim_level: Some("inventory".to_string()),
+            ..Default::default()
+        };
         let plan = build_sealed_plan(&options, &stages, "now").unwrap();
         assert_eq!(plan.gaps.len(), 1);
         assert!(plan.claim_gaps.is_empty());
@@ -342,7 +396,10 @@ mod tests {
 
     #[test]
     fn profile_release_defaults_claim_to_release() {
-        let options = PlanOptions { profile: Some("release".to_string()), ..Default::default() };
+        let options = PlanOptions {
+            profile: Some("release".to_string()),
+            ..Default::default()
+        };
         let plan = build_sealed_plan(&options, &[], "now").unwrap();
         assert_eq!(plan.requested_claim, "release");
     }

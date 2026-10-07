@@ -102,11 +102,7 @@ pub fn compile_text(text: &str, source_name: &str) -> CompileResult {
             None => continue,
         };
         let text_value = cm.get(1).unwrap().as_str().trim().to_string();
-        let base = format!(
-            "phase-{:02}.{}",
-            phase.unwrap_or(0),
-            slug(&text_value, 56)
-        );
+        let base = format!("phase-{:02}.{}", phase.unwrap_or(0), slug(&text_value, 56));
         let count = seen.entry(base.clone()).or_insert(0);
         *count += 1;
         let cid = if *count == 1 {
@@ -195,7 +191,11 @@ pub fn semantic_diff(old: &CompileResult, new: &CompileResult) -> SemanticDiff {
 
 /// Mirrors the `verify` subcommand's check: does `text` match the recorded
 /// `sha256` and `line_count`. Returns `(matches, got_sha256, got_line_count)`.
-pub fn verify(text: &str, expected_sha256: &str, expected_line_count: usize) -> (bool, String, usize) {
+pub fn verify(
+    text: &str,
+    expected_sha256: &str,
+    expected_line_count: usize,
+) -> (bool, String, usize) {
     let got_sha = digest(text);
     let got_lines = text.lines().count();
     let ok = got_sha == expected_sha256 && got_lines == expected_line_count;

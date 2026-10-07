@@ -37,8 +37,10 @@ fn only_tags_re() -> Regex {
 }
 
 fn factual_verb_re() -> Regex {
-    Regex::new(r"(?i)\b(is|are|was|were|has|have|causes?|reduces?|increases?|requires?|prohibits?)\b")
-        .expect("static regex")
+    Regex::new(
+        r"(?i)\b(is|are|was|were|has|have|causes?|reduces?|increases?|requires?|prohibits?)\b",
+    )
+    .expect("static regex")
 }
 
 const STOP_WORDS: &[&str] = &[
@@ -179,11 +181,22 @@ fn split_sentences(text: &str) -> Vec<String> {
 }
 
 fn support_blob(ev: &Value) -> String {
-    ["quote_or_paraphrase", "evidence_text", "body_plain", "title", "locator"]
-        .iter()
-        .map(|key| ev.get(*key).and_then(Value::as_str).unwrap_or("").to_string())
-        .collect::<Vec<_>>()
-        .join(" ")
+    [
+        "quote_or_paraphrase",
+        "evidence_text",
+        "body_plain",
+        "title",
+        "locator",
+    ]
+    .iter()
+    .map(|key| {
+        ev.get(*key)
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
+    })
+    .collect::<Vec<_>>()
+    .join(" ")
 }
 
 /// `_verdict`: returns (verdict, reason).
@@ -205,9 +218,13 @@ fn verdict(sentence: &str, ev: &Value) -> (String, String) {
         );
     }
     let words = norm_words(&clean);
-    let evidence_words: std::collections::BTreeSet<String> = norm_words(&blob).into_iter().collect();
+    let evidence_words: std::collections::BTreeSet<String> =
+        norm_words(&blob).into_iter().collect();
     if words.is_empty() {
-        return ("supported".to_string(), "citation-only or metadata sentence".to_string());
+        return (
+            "supported".to_string(),
+            "citation-only or metadata sentence".to_string(),
+        );
     }
     let content_words: std::collections::BTreeSet<String> = words
         .iter()
@@ -218,12 +235,21 @@ fn verdict(sentence: &str, ev: &Value) -> (String, String) {
     let overlap_count = content_words.intersection(&evidence_words).count() as f64;
     let overlap = overlap_count / denom;
     if overlap >= 0.55 || (!numbers.is_empty() && overlap >= 0.25) {
-        return ("supported".to_string(), format!("lexical overlap={overlap:.2}"));
+        return (
+            "supported".to_string(),
+            format!("lexical overlap={overlap:.2}"),
+        );
     }
     if overlap >= 0.30 {
-        return ("partially-supported".to_string(), format!("lexical overlap={overlap:.2}"));
+        return (
+            "partially-supported".to_string(),
+            format!("lexical overlap={overlap:.2}"),
+        );
     }
-    ("unsupported".to_string(), format!("lexical overlap={overlap:.2}"))
+    (
+        "unsupported".to_string(),
+        format!("lexical overlap={overlap:.2}"),
+    )
 }
 
 /// Production entry point: port of `check(markdown, evidence)`.
@@ -355,7 +381,10 @@ mod tests {
         let result = check(markdown, &evidence);
         assert!(!result.ok);
         assert_eq!(result.unbound_count, 1);
-        assert_eq!(result.unbound[0].text, "Vendor X requires an annual contract.");
+        assert_eq!(
+            result.unbound[0].text,
+            "Vendor X requires an annual contract."
+        );
     }
 
     #[test]

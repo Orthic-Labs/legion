@@ -26,7 +26,12 @@ fn tmp_dir(label: &str) -> PathBuf {
         ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
+            .as_nanos())
+        .wrapping_shl(20)
+            | ({
+                static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+            }))
     ));
     fs::create_dir_all(&p).unwrap();
     p
@@ -105,7 +110,11 @@ struct FixtureEvidence {
     verified: bool,
 }
 impl RunsEvidence for FixtureEvidence {
-    fn verify_run_evidence(&self, _run_dir: &Path, _runs_root: &Path) -> Result<bool, RoomDriverError> {
+    fn verify_run_evidence(
+        &self,
+        _run_dir: &Path,
+        _runs_root: &Path,
+    ) -> Result<bool, RoomDriverError> {
         Ok(self.verified)
     }
     fn persist_finding_ledger(

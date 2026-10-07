@@ -92,9 +92,7 @@ pub fn now_iso() -> String {
     let min = rem / 60;
     let sec = rem % 60;
     let (y, m, d) = civil_from_days(days as i64);
-    format!(
-        "{y:04}-{m:02}-{d:02}T{hour:02}:{min:02}:{sec:02}.{millis:03}Z"
-    )
+    format!("{y:04}-{m:02}-{d:02}T{hour:02}:{min:02}:{sec:02}.{millis:03}Z")
 }
 
 /// Howard Hinnant's civil_from_days algorithm (days since 1970-01-01 -> y/m/d).
@@ -213,10 +211,9 @@ pub fn stage_entry(
         }
         // No existing op for this (pageUrl, ref). Find or create an entry to
         // hold it.
-        let entry_idx = buf
-            .entries
-            .iter()
-            .position(|e| e.page_url.as_deref() == Some(page_url) && e.id.as_deref() == Some(new_id));
+        let entry_idx = buf.entries.iter().position(|e| {
+            e.page_url.as_deref() == Some(page_url) && e.id.as_deref() == Some(new_id)
+        });
         let idx = match entry_idx {
             Some(idx) => idx,
             None => {

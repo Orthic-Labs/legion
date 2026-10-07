@@ -250,7 +250,7 @@
     {
       "path": "references/architecture/docs-loading.md",
       "uri": "legion-skill://ios-development/references/architecture/docs-loading.md",
-      "digest": "sha256:b5235c46610bcc369d9706f88cb4fa18ba9e9ba6464a943513252ae001523e76"
+      "digest": "sha256:bd27b958f48e9c3398ccfe08161228adc0651fa182f71820bafcfcc0f4e6d236"
     },
     {
       "path": "references/architecture/errors.md",
@@ -340,7 +340,7 @@
     {
       "path": "references/concurrency/_index.md",
       "uri": "legion-skill://ios-development/references/concurrency/_index.md",
-      "digest": "sha256:db8cb57d0ff7c3de8243b6e8c5accc4f510fcc2cad00a7c0c2aafc91810643c7"
+      "digest": "sha256:4d46e2d6d499ad7ae8e146d02fc96d36b68e05ea1117a52c3663dd0b4e5ec119"
     },
     {
       "path": "references/concurrency/actors.md",
@@ -395,7 +395,7 @@
     {
       "path": "references/concurrency/observation.md",
       "uri": "legion-skill://ios-development/references/concurrency/observation.md",
-      "digest": "sha256:3d90479cb236c0cd5a2da7a0f4dd3cd79fcd082425a338e272150424a3ce4536"
+      "digest": "sha256:6da9347e68249db4efb60f659fbd6bb8fb176349c20609ee91e90828fac392d7"
     },
     {
       "path": "references/concurrency/performance.md",
@@ -765,7 +765,7 @@
     {
       "path": "references/swiftui/donor-lee-document-apps.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-document-apps.md",
-      "digest": "sha256:b899a54bb9140dc0c04c78fd12aa582e9eea07b11d81c4feef1465f559517dc0"
+      "digest": "sha256:9c41fbdf87dad35c52998ef537b6a7f013097558e91e70c3d2a37266dfa94cd2"
     },
     {
       "path": "references/swiftui/donor-lee-environment-patterns.md",
@@ -810,12 +810,12 @@
     {
       "path": "references/swiftui/donor-lee-localization.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-localization.md",
-      "digest": "sha256:c33062fb14629af72619196514ca09b3406100615136412ecc8a6fcf6f1e13e3"
+      "digest": "sha256:f013829278d160cd1454a18e50ec9a1edacde53b1a8be30f7f4a842eb3a9e960"
     },
     {
       "path": "references/swiftui/donor-lee-macos-scenes.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-macos-scenes.md",
-      "digest": "sha256:414ab2fe9729a9d910a0c207712466ab339b0b1867a86fcd2dfe0038b28a78ba"
+      "digest": "sha256:941ed9df4fe4acd8314cb47b39367e7a19e22ac0bb23b7b8252d1a940771bc5c"
     },
     {
       "path": "references/swiftui/donor-lee-macos-views.md",
@@ -835,7 +835,7 @@
     {
       "path": "references/swiftui/donor-lee-performance-patterns.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-performance-patterns.md",
-      "digest": "sha256:1f2990da24db609c0ec55a9f4d49b56703a981e2af9645ee71b46720ac2ba40d"
+      "digest": "sha256:5a2241188aa3ab5fde4609abeb8f38219d11cd419fa37e8712158f566d47ccf7"
     },
     {
       "path": "references/swiftui/donor-lee-previews.md",
@@ -860,17 +860,17 @@
     {
       "path": "references/swiftui/donor-lee-state-management.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-state-management.md",
-      "digest": "sha256:b9e604ad68c479f6ae6cf9903cbd7a7b3bcae3b420dd8d11e9cab5fd61ac1625"
+      "digest": "sha256:cfe4c21b7b9845ec6bdddf3d19aa9534a2fc2a8e62a8f2457d66a935f8ecc5d5"
     },
     {
       "path": "references/swiftui/donor-lee-styled-text-editing.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-styled-text-editing.md",
-      "digest": "sha256:4ae9b45bf7d78900c9813bd94574f25c208d1e9f145c933aec79766d6221dda9"
+      "digest": "sha256:64d09a449c59f2372829293cc95fa3c39a15ff4bd8acf2a510f4d688b4a0884b"
     },
     {
       "path": "references/swiftui/donor-lee-text-patterns.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-text-patterns.md",
-      "digest": "sha256:b7973bf8481cd50e6ce3e4ccda52c2ba37806f362e02a709a0c20df4c75aecc8"
+      "digest": "sha256:7a057956e9116898db4ee289a73be321ec5d702b6b0466694eafe5568edb1890"
     },
     {
       "path": "references/swiftui/donor-lee-toolbar-patterns.md",
@@ -890,7 +890,7 @@
     {
       "path": "references/swiftui/donor-lee-view-structure.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-view-structure.md",
-      "digest": "sha256:823ab00e7b566d794193d797e1127317ce215f01ca6d2394809aac1e84e2a1d7"
+      "digest": "sha256:4f869b823ede229abcee4d80afdbec58cc309cc8dfa27e2f85ca27c39c250a76"
     },
     {
       "path": "references/swiftui/donor-lee-webkit-integration.md",

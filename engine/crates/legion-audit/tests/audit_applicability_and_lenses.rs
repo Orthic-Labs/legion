@@ -60,7 +60,13 @@ fn spec(id: &str, selector: Value, runner: Value, role: &str, lenses: &[&str]) -
 }
 
 fn deterministic(id: &str, selector: Value, lenses: &[&str]) -> ProviderSpec {
-    spec(id, selector, json!({"kind":"built-in"}), "deterministic", lenses)
+    spec(
+        id,
+        selector,
+        json!({"kind":"built-in"}),
+        "deterministic",
+        lenses,
+    )
 }
 
 fn reasoning(id: &str, lens: &str) -> ProviderSpec {
@@ -234,7 +240,10 @@ fn deterministic_lens_tags_are_not_reasoning_lenses_and_pending_host_is_reported
     let rendered = canonical_report("fixture", &report).unwrap();
     assert_eq!(rendered.claims["lensesRan"], json!([]));
     assert_eq!(rendered.claims["reasoningLensesRan"], json!([]));
-    assert_eq!(rendered.claims["deterministicLensTagCounts"]["security"], json!(1));
+    assert_eq!(
+        rendered.claims["deterministicLensTagCounts"]["security"],
+        json!(1)
+    );
     assert_eq!(rendered.status, ReportStatus::Incomplete);
 }
 

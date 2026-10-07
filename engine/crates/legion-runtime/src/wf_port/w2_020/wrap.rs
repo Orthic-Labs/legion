@@ -53,7 +53,12 @@ pub fn arg_val<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
 /// Mirrors `replaceOnce(value, needle, replacement)`.
 pub fn replace_once(value: &str, needle: &str, replacement: &str) -> String {
     match value.find(needle) {
-        Some(idx) => format!("{}{}{}", &value[..idx], replacement, &value[idx + needle.len()..]),
+        Some(idx) => format!(
+            "{}{}{}",
+            &value[..idx],
+            replacement,
+            &value[idx + needle.len()..]
+        ),
         None => value.to_string(),
     }
 }
@@ -128,7 +133,10 @@ pub fn split_class_list(classes: &str) -> Vec<String> {
 
 /// Mirrors `attrEscapeDouble(str)`.
 pub fn attr_escape_double(s: &str) -> String {
-    s.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,9 +152,15 @@ pub fn detect_comment_syntax(file_path: &str) -> CommentSyntax {
         .map(|e| e.to_string_lossy().to_lowercase())
         .unwrap_or_default();
     if ext == "jsx" || ext == "tsx" {
-        CommentSyntax { open: "{/*", close: "*/}" }
+        CommentSyntax {
+            open: "{/*",
+            close: "*/}",
+        }
     } else {
-        CommentSyntax { open: "<!--", close: "-->" }
+        CommentSyntax {
+            open: "<!--",
+            close: "-->",
+        }
     }
 }
 
@@ -182,7 +196,9 @@ pub fn build_css_selector_prefix_examples(mode: &str, count: u32) -> Vec<String>
     if mode != "astro-global-prefixed" {
         return Vec::new();
     }
-    (1..=count).map(|i| format!("[data-impeccable-variant=\"{i}\"]")).collect()
+    (1..=count)
+        .map(|i| format!("[data-impeccable-variant=\"{i}\"]"))
+        .collect()
 }
 
 /// Mirrors `buildSearchQueries(elementId, classes, tag, query)`.
@@ -299,8 +315,10 @@ pub fn find_closing_line(lines: &[String], start: usize) -> usize {
         Some((_, t)) => t,
         None => return start,
     };
-    let open_re = regex::Regex::new(&format!(r"<{}(?:[\s/>]|$)", regex::escape(&tag_name))).unwrap();
-    let self_close_re = regex::Regex::new(&format!(r"<{}[^>]*/>", regex::escape(&tag_name))).unwrap();
+    let open_re =
+        regex::Regex::new(&format!(r"<{}(?:[\s/>]|$)", regex::escape(&tag_name))).unwrap();
+    let self_close_re =
+        regex::Regex::new(&format!(r"<{}[^>]*/>", regex::escape(&tag_name))).unwrap();
     let close_re = regex::Regex::new(&format!(r"</{}\s*>", regex::escape(&tag_name))).unwrap();
 
     let mut depth: i64 = 0;
@@ -323,7 +341,8 @@ pub fn find_element(lines: &[String], query: &str, tag: Option<&str>) -> Option<
             continue;
         }
         let stripped = lines[i].trim();
-        if stripped.starts_with("<!--") || stripped.starts_with("{/*") || stripped.starts_with("//") {
+        if stripped.starts_with("<!--") || stripped.starts_with("{/*") || stripped.starts_with("//")
+        {
             continue;
         }
         if lines[i].contains("data-impeccable-variant") {
@@ -334,7 +353,10 @@ pub fn find_element(lines: &[String], query: &str, tag: Option<&str>) -> Option<
             None => continue,
         };
         let end_line = find_closing_line(lines, opener_line);
-        return Some(LineRange { start_line: opener_line, end_line });
+        return Some(LineRange {
+            start_line: opener_line,
+            end_line,
+        });
     }
     None
 }
@@ -348,7 +370,8 @@ pub fn find_all_elements(lines: &[String], query: &str, tag: Option<&str>) -> Ve
             continue;
         }
         let stripped = lines[i].trim();
-        if stripped.starts_with("<!--") || stripped.starts_with("{/*") || stripped.starts_with("//") {
+        if stripped.starts_with("<!--") || stripped.starts_with("{/*") || stripped.starts_with("//")
+        {
             continue;
         }
         if lines[i].contains("data-impeccable-variant") {
@@ -362,7 +385,10 @@ pub fn find_all_elements(lines: &[String], query: &str, tag: Option<&str>) -> Ve
             continue;
         }
         let end_line = find_closing_line(lines, opener_line);
-        out.push(LineRange { start_line: opener_line, end_line });
+        out.push(LineRange {
+            start_line: opener_line,
+            end_line,
+        });
     }
     out
 }
@@ -387,7 +413,9 @@ pub fn filter_by_text(candidates: &[LineRange], lines: &[String], text: &str) ->
         .copied()
         .filter(|c| {
             let body = lines[c.start_line..=c.end_line].join(" ");
-            let inner = brace_re.replace_all(&tag_re.replace_all(&body, " "), " ").to_lowercase();
+            let inner = brace_re
+                .replace_all(&tag_re.replace_all(&body, " "), " ")
+                .to_lowercase();
             let source_spaced = inner.split_whitespace().collect::<Vec<_>>().join(" ");
             let source_compact: String = inner.chars().filter(|c| !c.is_whitespace()).collect();
             source_spaced.contains(&target_spaced) || source_compact.contains(&target_compact)
@@ -475,7 +503,16 @@ pub fn find_file_with_query(
     cwd: &Path,
     include_generated: bool,
 ) -> Option<std::path::PathBuf> {
-    const SEARCH_DIRS: &[&str] = &["src", "app", "pages", "components", "public", "views", "templates", "."];
+    const SEARCH_DIRS: &[&str] = &[
+        "src",
+        "app",
+        "pages",
+        "components",
+        "public",
+        "views",
+        "templates",
+        ".",
+    ];
     let mut seen = std::collections::HashSet::new();
     for dir in SEARCH_DIRS {
         let abs_dir = cwd.join(dir);
@@ -505,7 +542,10 @@ fn search_dir(
         return None;
     }
 
-    let entries: Vec<_> = std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).collect();
+    let entries: Vec<_> = std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(|e| e.ok())
+        .collect();
 
     // Check files first.
     for entry in &entries {
@@ -562,7 +602,9 @@ fn search_dir(
 /// `ManualEditOp`'s opaque `extra` map (these fields aren't named on the
 /// struct because `manual-edits-buffer.mjs` treats ops as pass-through
 /// blobs). Mirrors the ad-hoc property access the JS does on `op`.
-fn op_source_hint(op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp) -> Option<(String, f64)> {
+fn op_source_hint(
+    op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp,
+) -> Option<(String, f64)> {
     let hint = op.extra.get("sourceHint")?;
     let file = hint.get("file")?.as_str()?.to_string();
     let line_value = hint.get("line")?;
@@ -580,7 +622,11 @@ fn op_classes(op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp) ->
     op.extra
         .get("classes")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().filter_map(|c| c.as_str().map(|s| s.to_string())).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|c| c.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -622,8 +668,9 @@ pub fn manual_edit_hint_falls_inside_selection(
         cwd.join(hint_path)
     };
     let hint_abs = strip_verbatim_prefix(std::fs::canonicalize(&hint_abs).unwrap_or(hint_abs));
-    let target_abs_resolved =
-        strip_verbatim_prefix(std::fs::canonicalize(target_abs).unwrap_or_else(|_| target_abs.to_path_buf()));
+    let target_abs_resolved = strip_verbatim_prefix(
+        std::fs::canonicalize(target_abs).unwrap_or_else(|_| target_abs.to_path_buf()),
+    );
     if hint_abs != target_abs_resolved {
         return false;
     }
@@ -668,14 +715,22 @@ pub fn manual_edit_may_affect_wrap(
     } else {
         cwd.join(target_file)
     };
-    if manual_edit_hint_falls_inside_selection(op, &target_abs, original_lines, selection_start_line, cwd) {
+    if manual_edit_hint_falls_inside_selection(
+        op,
+        &target_abs,
+        original_lines,
+        selection_start_line,
+        cwd,
+    ) {
         return true;
     }
     if manual_edit_locator_matches_selection(op, original_lines) {
         return true;
     }
     match &op.original_text {
-        Some(original_text) if !original_text.is_empty() => original_lines.join("\n").contains(original_text.as_str()),
+        Some(original_text) if !original_text.is_empty() => {
+            original_lines.join("\n").contains(original_text.as_str())
+        }
         _ => false,
     }
 }
@@ -696,10 +751,15 @@ pub fn pending_entries_that_may_affect_wrap<'a>(
     entries
         .iter()
         .filter(|entry| {
-            entry
-                .ops
-                .iter()
-                .any(|op| manual_edit_may_affect_wrap(op, &target_abs, original_lines, selection_start_line, cwd))
+            entry.ops.iter().any(|op| {
+                manual_edit_may_affect_wrap(
+                    op,
+                    &target_abs,
+                    original_lines,
+                    selection_start_line,
+                    cwd,
+                )
+            })
         })
         .collect()
 }
@@ -719,7 +779,13 @@ pub fn apply_buffered_manual_edit_to_lines(
         let lines = original_lines
             .iter()
             .enumerate()
-            .map(|(i, l)| if i == line_index { replace_once(l, &original_text, &new_text) } else { l.clone() })
+            .map(|(i, l)| {
+                if i == line_index {
+                    replace_once(l, &original_text, &new_text)
+                } else {
+                    l.clone()
+                }
+            })
             .collect();
         (lines, true)
     };
@@ -797,11 +863,27 @@ mod tests {
     #[test]
     fn line_matches_manual_edit_locator_checks_tag_id_classes() {
         let classes = vec!["hero".to_string(), "card".to_string()];
-        let op = ManualEditLocator { tag: Some("div"), element_id: Some("x"), classes: &classes };
-        assert!(line_matches_manual_edit_locator(r#"<div id="x" class="hero card">"#, &op));
-        assert!(!line_matches_manual_edit_locator(r#"<span id="x" class="hero card">"#, &op));
-        assert!(!line_matches_manual_edit_locator(r#"<div id="y" class="hero card">"#, &op));
-        assert!(!line_matches_manual_edit_locator(r#"<div id="x" class="hero">"#, &op));
+        let op = ManualEditLocator {
+            tag: Some("div"),
+            element_id: Some("x"),
+            classes: &classes,
+        };
+        assert!(line_matches_manual_edit_locator(
+            r#"<div id="x" class="hero card">"#,
+            &op
+        ));
+        assert!(!line_matches_manual_edit_locator(
+            r#"<span id="x" class="hero card">"#,
+            &op
+        ));
+        assert!(!line_matches_manual_edit_locator(
+            r#"<div id="y" class="hero card">"#,
+            &op
+        ));
+        assert!(!line_matches_manual_edit_locator(
+            r#"<div id="x" class="hero">"#,
+            &op
+        ));
     }
 
     #[test]
@@ -812,15 +894,42 @@ mod tests {
 
     #[test]
     fn attr_escape_double_escapes_html_entities() {
-        assert_eq!(attr_escape_double(r#"<a href="x">&"#), "&lt;a href=&quot;x&quot;&gt;&amp;");
+        assert_eq!(
+            attr_escape_double(r#"<a href="x">&"#),
+            "&lt;a href=&quot;x&quot;&gt;&amp;"
+        );
     }
 
     #[test]
     fn detect_comment_syntax_jsx_vs_html() {
-        assert_eq!(detect_comment_syntax("x.tsx"), CommentSyntax { open: "{/*", close: "*/}" });
-        assert_eq!(detect_comment_syntax("x.jsx"), CommentSyntax { open: "{/*", close: "*/}" });
-        assert_eq!(detect_comment_syntax("x.html"), CommentSyntax { open: "<!--", close: "-->" });
-        assert_eq!(detect_comment_syntax("x.astro"), CommentSyntax { open: "<!--", close: "-->" });
+        assert_eq!(
+            detect_comment_syntax("x.tsx"),
+            CommentSyntax {
+                open: "{/*",
+                close: "*/}"
+            }
+        );
+        assert_eq!(
+            detect_comment_syntax("x.jsx"),
+            CommentSyntax {
+                open: "{/*",
+                close: "*/}"
+            }
+        );
+        assert_eq!(
+            detect_comment_syntax("x.html"),
+            CommentSyntax {
+                open: "<!--",
+                close: "-->"
+            }
+        );
+        assert_eq!(
+            detect_comment_syntax("x.astro"),
+            CommentSyntax {
+                open: "<!--",
+                close: "-->"
+            }
+        );
     }
 
     #[test]
@@ -902,7 +1011,10 @@ mod tests {
 
     #[test]
     fn filter_by_text_requires_min_length_and_matches_either_normalization() {
-        let candidates = vec![LineRange { start_line: 0, end_line: 0 }];
+        let candidates = vec![LineRange {
+            start_line: 0,
+            end_line: 0,
+        }];
         let l = lines("<h1>Hero Two</h1>");
         assert!(filter_by_text(&candidates, &l, "short").is_empty());
         let matches = filter_by_text(&candidates, &l, "Hero Two");

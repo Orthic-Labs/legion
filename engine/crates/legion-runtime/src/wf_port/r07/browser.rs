@@ -113,9 +113,10 @@ pub fn find_browser_executable(
 
     match candidates.into_iter().find(|p| fs.exists(p)) {
         Some(found) => Ok(PathBuf::from(found)),
-        None => {
-            Err("URL scanning needs puppeteer or an installed Chrome/Edge. Neither was found.".to_string())
-        }
+        None => Err(
+            "URL scanning needs puppeteer or an installed Chrome/Edge. Neither was found."
+                .to_string(),
+        ),
     }
 }
 

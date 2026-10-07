@@ -90,7 +90,10 @@ pub fn classify(event: &Value) -> (String, String) {
     let lowered = kind.to_lowercase();
 
     if lowered.contains("reason") {
-        return ("reasoning".to_string(), truncate_chars(&first_text(payload), 400));
+        return (
+            "reasoning".to_string(),
+            truncate_chars(&first_text(payload), 400),
+        );
     }
     if lowered.contains("command") || lowered.contains("exec") || lowered.contains("shell") {
         let cmd_value = payload.get("command").or_else(|| payload.get("cmd"));
@@ -110,12 +113,18 @@ pub fn classify(event: &Value) -> (String, String) {
         return ("command".to_string(), truncate_chars(&cmd, 400));
     }
     if lowered.contains("patch") || lowered.contains("diff") || lowered.contains("apply") {
-        return ("patch".to_string(), truncate_chars(&first_text(payload), 400));
+        return (
+            "patch".to_string(),
+            truncate_chars(&first_text(payload), 400),
+        );
     }
     let event_error = event.get("error").filter(|v| is_python_truthy(v));
     if lowered.contains("error") || event_error.is_some() {
         let source = event_error.unwrap_or(payload);
-        return ("error".to_string(), truncate_chars(&first_text(source), 400));
+        return (
+            "error".to_string(),
+            truncate_chars(&first_text(source), 400),
+        );
     }
     if lowered.contains("message") || lowered.contains("agent") || lowered.contains("assistant") {
         return ("assistant".to_string(), first_text(payload));
@@ -400,9 +409,8 @@ mod tests {
         assert!(report.contains("! boom"));
         assert!(report.contains("--- final worker message (tail) ---"));
         assert!(report.contains("done."));
-        assert!(report.contains(
-            "NOTE: this summarizes what the worker CLAIMS. The host must still read"
-        ));
+        assert!(report
+            .contains("NOTE: this summarizes what the worker CLAIMS. The host must still read"));
     }
 
     #[test]

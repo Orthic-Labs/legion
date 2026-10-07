@@ -444,9 +444,9 @@ fn close(a: &[String]) -> CommandResult {
             b["contractId"].as_str().unwrap_or_default(),
             b["contractVersion"].as_u64().unwrap_or_default(),
         )
-            .ok()
-            .and_then(|v| v["contract"]["acceptanceCriteria"].as_array().cloned())
-            .unwrap_or_default();
+        .ok()
+        .and_then(|v| v["contract"]["acceptanceCriteria"].as_array().cloned())
+        .unwrap_or_default();
         let receipts = rs.list();
         for criterion in criteria {
             let id = criterion["id"].as_str().unwrap_or_default();

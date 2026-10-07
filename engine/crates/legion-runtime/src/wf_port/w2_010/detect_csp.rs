@@ -88,10 +88,11 @@ pub fn detect_csp(cwd: &Path) -> CspDetection {
         .iter()
         .map(|p| Regex::new(p).unwrap())
         .collect();
-    let nuxt_security_signals: Vec<Regex> = [r#"['"]nuxt-security['"]"#, r"\bcontentSecurityPolicy\b"]
-        .iter()
-        .map(|p| Regex::new(p).unwrap())
-        .collect();
+    let nuxt_security_signals: Vec<Regex> =
+        [r#"['"]nuxt-security['"]"#, r"\bcontentSecurityPolicy\b"]
+            .iter()
+            .map(|p| Regex::new(p).unwrap())
+            .collect();
     let inline_header_signals: Vec<Regex> = [
         r#"(?i)["']Content-Security-Policy["']"#,
         r"\bscript-src\b",
@@ -100,10 +101,13 @@ pub fn detect_csp(cwd: &Path) -> CspDetection {
     .iter()
     .map(|p| Regex::new(p).unwrap())
     .collect();
-    let monorepo_path_re = Regex::new(r"packages/[^/]+/src/.*(config|next-config|security)").unwrap();
+    let monorepo_path_re =
+        Regex::new(r"packages/[^/]+/src/.*(config|next-config|security)").unwrap();
     let config_ext_re = Regex::new(r"(^|/)(next|nuxt|vite|astro|svelte)\.config\.").unwrap();
-    let middleware_hint = Regex::new(r#"(?i)headers\.set\(\s*["']Content-Security-Policy["']"#).unwrap();
-    let meta_tag_hint = Regex::new(r#"(?i)http-equiv\s*=\s*["']Content-Security-Policy["']"#).unwrap();
+    let middleware_hint =
+        Regex::new(r#"(?i)headers\.set\(\s*["']Content-Security-Policy["']"#).unwrap();
+    let meta_tag_hint =
+        Regex::new(r#"(?i)http-equiv\s*=\s*["']Content-Security-Policy["']"#).unwrap();
 
     let mut hits = Hits {
         append_arrays: vec![],
@@ -112,7 +116,9 @@ pub fn detect_csp(cwd: &Path) -> CspDetection {
         meta_tag: vec![],
     };
 
-    walk(cwd, cwd, 0, &mut |abs_path: &Path, rel_path: &str, body: &str| {
+    walk(cwd, cwd, 0, &mut |abs_path: &Path,
+                            rel_path: &str,
+                            body: &str| {
         let ext = abs_path
             .extension()
             .map(|e| e.to_string_lossy().to_lowercase())

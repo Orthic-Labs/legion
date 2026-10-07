@@ -67,10 +67,15 @@ pub enum SecurityPipelineError {
 fn normalize_candidate(
     raw: &Value,
     context_id: &str,
-) -> Result<crate::native_providers::reasoning::security_adjudication::SecurityCandidate, SecurityPipelineError>
-{
+) -> Result<
+    crate::native_providers::reasoning::security_adjudication::SecurityCandidate,
+    SecurityPipelineError,
+> {
     let id = raw.get("id").and_then(Value::as_str).unwrap_or_default();
-    let provider = raw.get("provider").and_then(Value::as_str).unwrap_or_default();
+    let provider = raw
+        .get("provider")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let claim = raw.get("claim").and_then(Value::as_str).unwrap_or_default();
     let alleged_root_cause = raw
         .get("allegedRootCause")
@@ -159,7 +164,8 @@ pub fn prepare_adjudication_bundle(
         if context_id == generator_context_id {
             return Err(SecurityPipelineError::SameContext(candidate.id.clone()));
         }
-        let packet = create_adjudication_packet(candidate, &adjudicator_provider, &context_id, None)?;
+        let packet =
+            create_adjudication_packet(candidate, &adjudicator_provider, &context_id, None)?;
         contexts.push(json!({
             "candidateId": packet.candidate.id,
             "provider": packet.adjudicator.provider,
@@ -176,8 +182,10 @@ pub fn prepare_adjudication_bundle(
         return Err(SecurityPipelineError::DuplicateContexts);
     }
 
-    let mut required_verdict_candidate_ids: Vec<String> =
-        packets.iter().map(|packet| packet.candidate.id.clone()).collect();
+    let mut required_verdict_candidate_ids: Vec<String> = packets
+        .iter()
+        .map(|packet| packet.candidate.id.clone())
+        .collect();
     required_verdict_candidate_ids.sort();
 
     let envelope = json!({
@@ -237,27 +245,56 @@ fn verdict_input_from_value(raw: &Value) -> SecurityVerdictInput {
             // non-surviving sentinel so an unrecognized string still round-trips as an
             // "unsupported verdict" error via the typed check below rather than panicking.
             .unwrap_or(SecurityVerdictKind::OutOfScope),
-        evidence_strength: raw.get("evidenceStrength").and_then(parse_evidence_strength),
-        severity: raw.get("severity").and_then(Value::as_str).map(String::from),
-        exploitability: raw.get("exploitability").and_then(Value::as_str).map(String::from),
-        threat_model: raw.get("threatModel").and_then(Value::as_str).map(String::from),
-        attacker_control: raw.get("attackerControl").and_then(Value::as_str).map(String::from),
-        reachability: raw.get("reachability").and_then(Value::as_str).map(String::from),
+        evidence_strength: raw
+            .get("evidenceStrength")
+            .and_then(parse_evidence_strength),
+        severity: raw
+            .get("severity")
+            .and_then(Value::as_str)
+            .map(String::from),
+        exploitability: raw
+            .get("exploitability")
+            .and_then(Value::as_str)
+            .map(String::from),
+        threat_model: raw
+            .get("threatModel")
+            .and_then(Value::as_str)
+            .map(String::from),
+        attacker_control: raw
+            .get("attackerControl")
+            .and_then(Value::as_str)
+            .map(String::from),
+        reachability: raw
+            .get("reachability")
+            .and_then(Value::as_str)
+            .map(String::from),
         trust_boundaries: raw
             .get("trustBoundaries")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default(),
         sink: raw.get("sink").and_then(Value::as_str).map(String::from),
         primary_controls: raw
             .get("primaryControls")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default(),
         mitigations: raw
             .get("mitigations")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default(),
         // JS `proof` (`src/adapters/security-adjudication.mjs`) is only
         // ever truthiness-checked (`if (!result.proof)`), and its own test
@@ -274,8 +311,14 @@ fn verdict_input_from_value(raw: &Value) -> SecurityVerdictInput {
             other => Some(other.to_string()),
         }),
         impact: raw.get("impact").and_then(Value::as_str).map(String::from),
-        rationale: raw.get("rationale").and_then(Value::as_str).map(String::from),
-        devils_advocate: raw.get("devilsAdvocate").and_then(Value::as_str).map(String::from),
+        rationale: raw
+            .get("rationale")
+            .and_then(Value::as_str)
+            .map(String::from),
+        devils_advocate: raw
+            .get("devilsAdvocate")
+            .and_then(Value::as_str)
+            .map(String::from),
     }
 }
 
@@ -357,7 +400,9 @@ pub fn finalize_adjudication_bundle(
                         .and_then(|r| r.get("complete"))
                         .and_then(Value::as_bool)
                         .unwrap_or(false);
-                    let receipt_rule_id = receipt.and_then(|r| r.get("ruleId")).and_then(Value::as_str);
+                    let receipt_rule_id = receipt
+                        .and_then(|r| r.get("ruleId"))
+                        .and_then(Value::as_str);
                     let candidate_root_cause = packet.candidate.alleged_root_cause.as_deref();
                     if !receipt_complete || receipt_rule_id != candidate_root_cause {
                         let finding_value = json!({
@@ -457,10 +502,16 @@ mod tests {
 
     #[test]
     fn prepares_one_fresh_context_per_candidate() {
-        let bundle = prepare_adjudication_bundle(&candidate_report(), &PrepareAdjudicationOptions::default())
-            .unwrap();
+        let bundle = prepare_adjudication_bundle(
+            &candidate_report(),
+            &PrepareAdjudicationOptions::default(),
+        )
+        .unwrap();
         assert_eq!(bundle.packets.len(), 2);
-        assert_eq!(bundle.required_verdict_candidate_ids, vec!["cand-1", "cand-2"]);
+        assert_eq!(
+            bundle.required_verdict_candidate_ids,
+            vec!["cand-1", "cand-2"]
+        );
         let contexts: HashSet<&str> = bundle
             .packets
             .iter()
@@ -499,13 +550,19 @@ mod tests {
 
     #[test]
     fn finalize_reports_missing_variant_analysis_for_surviving_verdict() {
-        let bundle = prepare_adjudication_bundle(&candidate_report(), &PrepareAdjudicationOptions::default())
-            .unwrap();
+        let bundle = prepare_adjudication_bundle(
+            &candidate_report(),
+            &PrepareAdjudicationOptions::default(),
+        )
+        .unwrap();
         let submitted = json!({ "verdicts": [surviving_verdict_json("cand-1")] });
         let result = finalize_adjudication_bundle(&bundle, &submitted, &[]);
         assert_eq!(result["complete"], json!(false));
         assert_eq!(result["missingVerdicts"], json!(["cand-2"]));
-        assert_eq!(result["missingVariantAnalysis"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            result["missingVariantAnalysis"].as_array().unwrap().len(),
+            1
+        );
         assert_eq!(
             result["missingVariantAnalysis"][0]["candidateId"],
             json!("cand-1")
@@ -514,8 +571,11 @@ mod tests {
 
     #[test]
     fn finalize_is_complete_when_variant_receipt_matches() {
-        let bundle = prepare_adjudication_bundle(&candidate_report(), &PrepareAdjudicationOptions::default())
-            .unwrap();
+        let bundle = prepare_adjudication_bundle(
+            &candidate_report(),
+            &PrepareAdjudicationOptions::default(),
+        )
+        .unwrap();
         let submitted = json!({
             "verdicts": [
                 surviving_verdict_json("cand-1"),
@@ -536,13 +596,19 @@ mod tests {
         let result = finalize_adjudication_bundle(&bundle, &submitted, &receipts);
         assert_eq!(result["complete"], json!(true));
         assert_eq!(result["status"], json!("findings"));
-        assert!(result["missingVariantAnalysis"].as_array().unwrap().is_empty());
+        assert!(result["missingVariantAnalysis"]
+            .as_array()
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
     fn finalize_rejects_reused_adjudicator_context() {
-        let bundle = prepare_adjudication_bundle(&candidate_report(), &PrepareAdjudicationOptions::default())
-            .unwrap();
+        let bundle = prepare_adjudication_bundle(
+            &candidate_report(),
+            &PrepareAdjudicationOptions::default(),
+        )
+        .unwrap();
         let mut bundle = bundle;
         // Force a reused context to exercise the duplicate-context branch,
         // mirroring the JS `contextIds.has(...)` guard.
@@ -554,15 +620,21 @@ mod tests {
         let result = finalize_adjudication_bundle(&bundle, &submitted, &[]);
         assert_eq!(result["complete"], json!(false));
         let invalid = result["invalidVerdicts"].as_array().unwrap();
-        assert!(invalid
-            .iter()
-            .any(|item| item["error"] == json!("adjudicator context was reused across candidates")));
+        assert!(
+            invalid
+                .iter()
+                .any(|item| item["error"]
+                    == json!("adjudicator context was reused across candidates"))
+        );
     }
 
     #[test]
     fn finalize_reports_unplanned_verdicts() {
-        let bundle = prepare_adjudication_bundle(&candidate_report(), &PrepareAdjudicationOptions::default())
-            .unwrap();
+        let bundle = prepare_adjudication_bundle(
+            &candidate_report(),
+            &PrepareAdjudicationOptions::default(),
+        )
+        .unwrap();
         let submitted = json!({
             "verdicts": [
                 surviving_verdict_json("cand-1"),

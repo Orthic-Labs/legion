@@ -31,7 +31,9 @@ use std::sync::OnceLock;
 
 pub const CANDIDATE_CLASS: &str = "request-boundaries";
 
-const NOT_KEYWORDS: &[&str] = &["if", "for", "while", "switch", "catch", "function", "return"];
+const NOT_KEYWORDS: &[&str] = &[
+    "if", "for", "while", "switch", "catch", "function", "return",
+];
 
 fn unvalidated_input_to_sink() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -75,7 +77,10 @@ fn header_injection() -> &'static Regex {
 
 fn schema_validation_lexical() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\b(?:joi|zod|yup|ajv|celebrate|schema\.(?:parse|validate)|validate\()").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)\b(?:joi|zod|yup|ajv|celebrate|schema\.(?:parse|validate)|validate\()")
+            .unwrap()
+    })
 }
 
 fn allowlist_lexical() -> &'static Regex {
@@ -158,7 +163,12 @@ fn find_mass_assignment_hits(text: &str) -> Vec<Hit> {
             .or_else(|| cap.name("srcSpread"))
             .map(|m| m.as_str().to_string())
             .unwrap_or_default();
-        out.push(Hit { index: whole.start(), len: whole.len(), source_expr, sink_api });
+        out.push(Hit {
+            index: whole.start(),
+            len: whole.len(),
+            source_expr,
+            sink_api,
+        });
     }
     out
 }
@@ -297,7 +307,10 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 let mut uncertainty = vec![rule.uncertainty.to_string()];
 
                 if let Some(downgrade) = &rule.downgrade {
-                    if let Some(control) = context.find_related_control(artifact.map(|a| a.id.as_str()), downgrade.control_types) {
+                    if let Some(control) = context.find_related_control(
+                        artifact.map(|a| a.id.as_str()),
+                        downgrade.control_types,
+                    ) {
                         severity_hint = downgrade.severity_hint.to_string();
                         observed_controls = vec![control.id.clone()];
                         control_observed = Some(control.name.clone());
@@ -306,9 +319,12 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                             "Observed {control_type} control ({}) on this path; downgraded pending adjudication of coverage completeness.",
                             control.name
                         ));
-                    } else if (downgrade.lexical_pattern)()
-                        .is_match(window_around(text, hit.index, hit.len, downgrade.radius))
-                    {
+                    } else if (downgrade.lexical_pattern)().is_match(window_around(
+                        text,
+                        hit.index,
+                        hit.len,
+                        downgrade.radius,
+                    )) {
                         severity_hint = downgrade.severity_hint.to_string();
                         control_observed = Some("lexical-signal".to_string());
                         uncertainty.push(downgrade.lexical_note.to_string());
@@ -365,8 +381,8 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::{Entity, Relation};
+    use super::*;
 
     fn find<'a>(obs: &'a [Observation], rule_id: &str) -> Option<&'a Observation> {
         obs.iter().find(|o| o.rule_id == rule_id)
@@ -384,7 +400,8 @@ mod tests {
 
     #[test]
     fn unvalidated_input_to_sink_does_not_misread_an_if_condition_as_a_sink_call() {
-        let context = Context::new().with_file("handler.mjs", "if(request.query.x) { doSomething(); }");
+        let context =
+            Context::new().with_file("handler.mjs", "if(request.query.x) { doSomething(); }");
         let obs = analyze(&context);
         assert!(find(&obs, "request.unvalidated-input-to-sink").is_none());
     }
@@ -393,18 +410,36 @@ mod tests {
     fn an_observed_schema_validation_control_downgrades_the_candidate_and_references_it() {
         let context = Context::new()
             .with_file("handler.mjs", "fetch(request.query.url)")
-            .with_entity(Entity::control("ctrl:1", "request-schema-validation", "joi request schema", vec!["ev:control".into()]))
-            .with_relation(Relation { kind: "protects".to_string(), from: "ctrl:1".to_string(), to: "artifact:handler.mjs".to_string() });
+            .with_entity(Entity::control(
+                "ctrl:1",
+                "request-schema-validation",
+                "joi request schema",
+                vec!["ev:control".into()],
+            ))
+            .with_relation(Relation {
+                kind: "protects".to_string(),
+                from: "ctrl:1".to_string(),
+                to: "artifact:handler.mjs".to_string(),
+            });
         let obs = analyze(&context);
         let candidate = find(&obs, "request.unvalidated-input-to-sink").unwrap();
         assert_ne!(candidate.severity_hint, "medium");
         assert_eq!(candidate.observed_controls, vec!["ctrl:1".to_string()]);
-        assert!(candidate.uncertainty.iter().any(|u| u.to_lowercase().contains("observed") && u.to_lowercase().contains("control")));
+        assert!(
+            candidate
+                .uncertainty
+                .iter()
+                .any(|u| u.to_lowercase().contains("observed")
+                    && u.to_lowercase().contains("control"))
+        );
     }
 
     #[test]
     fn a_nearby_lexical_schema_validation_call_downgrades_the_candidate_without_a_model_control() {
-        let context = Context::new().with_file("handler.mjs", "const body = zod.parse(x); fetch(request.query.url)");
+        let context = Context::new().with_file(
+            "handler.mjs",
+            "const body = zod.parse(x); fetch(request.query.url)",
+        );
         let obs = analyze(&context);
         let candidate = find(&obs, "request.unvalidated-input-to-sink").unwrap();
         assert_eq!(candidate.severity_hint, "low");
@@ -413,7 +448,8 @@ mod tests {
 
     #[test]
     fn a_size_capped_body_parser_produces_no_body_size_unbounded_candidate() {
-        let context = Context::new().with_file("app.mjs", "app.use(express.json({ limit: '100kb' }));");
+        let context =
+            Context::new().with_file("app.mjs", "app.use(express.json({ limit: '100kb' }));");
         let obs = analyze(&context);
         assert!(find(&obs, "request.body-size-unbounded").is_none());
     }
@@ -432,12 +468,18 @@ mod tests {
             .with_file("b.mjs", "model.update(request.body)")
             .with_file("c.mjs", "const patch = { ...request.body }");
         let obs = analyze(&context);
-        assert_eq!(obs.iter().filter(|o| o.rule_id == "request.mass-assignment-unfiltered").count(), 3);
+        assert_eq!(
+            obs.iter()
+                .filter(|o| o.rule_id == "request.mass-assignment-unfiltered")
+                .count(),
+            3
+        );
     }
 
     #[test]
     fn header_injection_fires_on_a_direct_response_header_set_from_request_data() {
-        let context = Context::new().with_file("h.mjs", "res.setHeader('X-Forward', request.query.dest)");
+        let context =
+            Context::new().with_file("h.mjs", "res.setHeader('X-Forward', request.query.dest)");
         let obs = analyze(&context);
         let candidate = find(&obs, "request.header-injection").unwrap();
         assert_eq!(candidate.severity_hint, "high");

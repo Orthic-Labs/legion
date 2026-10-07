@@ -166,20 +166,28 @@ mod tests {
     #[test]
     fn missing_labels_are_reported() {
         let errors = required_label_errors("", false);
-        assert!(errors.iter().any(|e| e == "missing label: **Dispatch ID:**"));
+        assert!(errors
+            .iter()
+            .any(|e| e == "missing label: **Dispatch ID:**"));
     }
 
     #[test]
     fn allowed_empty_label_does_not_error() {
         let text = "- **Preflight command:**\n";
         let errors = required_label_errors(text, false);
-        assert!(!errors.iter().any(|e| e.contains("empty value: **Preflight command:**")));
+        assert!(!errors
+            .iter()
+            .any(|e| e.contains("empty value: **Preflight command:**")));
     }
 
     #[test]
     fn generic_value_is_reported_unless_allow_template() {
         let text = "- **Dispatch ID:** tbd\n";
-        assert!(required_label_errors(text, false).iter().any(|e| e.contains("generic filler value")));
-        assert!(!required_label_errors(text, true).iter().any(|e| e.contains("generic filler value")));
+        assert!(required_label_errors(text, false)
+            .iter()
+            .any(|e| e.contains("generic filler value")));
+        assert!(!required_label_errors(text, true)
+            .iter()
+            .any(|e| e.contains("generic filler value")));
     }
 }

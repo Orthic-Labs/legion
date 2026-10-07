@@ -36,7 +36,11 @@ fn node_modules_root() -> PathBuf {
 /// `repository_root`) and parses stdout as JSON. `script` must
 /// `process.stdout.write(JSON.stringify(...))` on success and
 /// `process.exit(1)` after printing the error to stderr on failure.
-fn run_node_module_call(_repository_root: &Path, script: &str, args_json: &Value) -> Result<Value, String> {
+fn run_node_module_call(
+    _repository_root: &Path,
+    script: &str,
+    args_json: &Value,
+) -> Result<Value, String> {
     let args_str = serde_json::to_string(args_json).map_err(|e| e.to_string())?;
     let output = Command::new("node")
         .arg("--input-type=module")
@@ -55,12 +59,17 @@ fn run_node_module_call(_repository_root: &Path, script: &str, args_json: &Value
     if trimmed.is_empty() {
         return Ok(Value::Null);
     }
-    serde_json::from_str(trimmed).map_err(|e| format!("@rightkit/release call returned non-JSON stdout: {e}"))
+    serde_json::from_str(trimmed)
+        .map_err(|e| format!("@rightkit/release call returned non-JSON stdout: {e}"))
 }
 
 /// `createPortableArchive({ sourceDir, outputPath })` from
 /// `@rightkit/release/direct-bootstrap.mjs`. Returns `{ path, size, sha256 }`.
-pub fn create_portable_archive(repository_root: &Path, source_dir: &Path, output_path: &Path) -> Result<Value, String> {
+pub fn create_portable_archive(
+    repository_root: &Path,
+    source_dir: &Path,
+    output_path: &Path,
+) -> Result<Value, String> {
     let script = r#"
 import('@rightkit/release/direct-bootstrap.mjs').then((m) => {
   const args = JSON.parse(process.argv[1]);
@@ -90,7 +99,10 @@ import('@rightkit/release/supply-chain-evidence.mjs').then((m) => {
 
 /// `materializeInTotoSlsaProvenance({...})` from
 /// `@rightkit/release/supply-chain-evidence.mjs`.
-pub fn materialize_in_toto_slsa_provenance(repository_root: &Path, args: &Value) -> Result<Value, String> {
+pub fn materialize_in_toto_slsa_provenance(
+    repository_root: &Path,
+    args: &Value,
+) -> Result<Value, String> {
     let script = r#"
 import('@rightkit/release/supply-chain-evidence.mjs').then((m) => {
   const result = m.materializeInTotoSlsaProvenance(JSON.parse(process.argv[1]));
@@ -103,7 +115,11 @@ import('@rightkit/release/supply-chain-evidence.mjs').then((m) => {
 /// `validateCycloneDxSbom(path, { expectedFile })` from
 /// `@rightkit/release/supply-chain-evidence.mjs`. Returns the parsed/validated
 /// SBOM document.
-pub fn validate_cyclonedx_sbom(repository_root: &Path, path: &Path, expected_file: &Value) -> Result<Value, String> {
+pub fn validate_cyclonedx_sbom(
+    repository_root: &Path,
+    path: &Path,
+    expected_file: &Value,
+) -> Result<Value, String> {
     let script = r#"
 import('@rightkit/release/supply-chain-evidence.mjs').then((m) => {
   const args = JSON.parse(process.argv[1]);
@@ -121,7 +137,11 @@ import('@rightkit/release/supply-chain-evidence.mjs').then((m) => {
 /// `validateInTotoSlsaProvenance(path, { expectedSubject })` from
 /// `@rightkit/release/supply-chain-evidence.mjs`. Returns the parsed/validated
 /// provenance document.
-pub fn validate_in_toto_slsa_provenance(repository_root: &Path, path: &Path, expected_subject: &Value) -> Result<Value, String> {
+pub fn validate_in_toto_slsa_provenance(
+    repository_root: &Path,
+    path: &Path,
+    expected_subject: &Value,
+) -> Result<Value, String> {
     let script = r#"
 import('@rightkit/release/supply-chain-evidence.mjs').then((m) => {
   const args = JSON.parse(process.argv[1]);
@@ -141,7 +161,12 @@ import('@rightkit/release/supply-chain-evidence.mjs').then((m) => {
 /// Used by `package_windows_release::finalize` for the handful of
 /// `direct-bootstrap.mjs`/`github-release.mjs`/`native-release-finalization.mjs`
 /// calls that have no dedicated typed wrapper above.
-pub fn call_module_function(repository_root: &Path, module: &str, function: &str, args: &Value) -> Result<Value, String> {
+pub fn call_module_function(
+    repository_root: &Path,
+    module: &str,
+    function: &str,
+    args: &Value,
+) -> Result<Value, String> {
     let script = format!(
         r#"
 import('{module}').then(async (m) => {{
@@ -156,7 +181,11 @@ import('{module}').then(async (m) => {{
 /// `readNativeFinalizationOutput(path)` + `validateNativeFinalizationOutput(receipt, options)`
 /// from `@rightkit/release/native-release-finalization.mjs`, composed in one
 /// subprocess call since callers always need both.
-pub fn read_and_validate_native_finalization_output(repository_root: &Path, path: &Path, validate_options: &Value) -> Result<Value, String> {
+pub fn read_and_validate_native_finalization_output(
+    repository_root: &Path,
+    path: &Path,
+    validate_options: &Value,
+) -> Result<Value, String> {
     let script = r#"
 import('@rightkit/release/native-release-finalization.mjs').then((m) => {
   const args = JSON.parse(process.argv[1]);
@@ -165,6 +194,7 @@ import('@rightkit/release/native-release-finalization.mjs').then((m) => {
   process.stdout.write(JSON.stringify(receipt));
 }).catch((e) => { console.error(e.stack || e.message); process.exit(1); });
 "#;
-    let args = serde_json::json!({ "path": path.to_string_lossy(), "validateOptions": validate_options });
+    let args =
+        serde_json::json!({ "path": path.to_string_lossy(), "validateOptions": validate_options });
     run_node_module_call(repository_root, script, &args)
 }

@@ -32,7 +32,14 @@ pub fn authority_label_value(text: &str, label: &str) -> Option<String> {
 pub fn is_generic_value(normalized: &str) -> bool {
     matches!(
         normalized,
-        "" | "fixture-value" | "value" | "example" | "placeholder" | "tbd" | "todo" | "n/a" | "none"
+        "" | "fixture-value"
+            | "value"
+            | "example"
+            | "placeholder"
+            | "tbd"
+            | "todo"
+            | "n/a"
+            | "none"
     )
 }
 

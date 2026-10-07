@@ -74,7 +74,10 @@ impl LaneScheduler {
         for node in by_id.values() {
             for dependency in &node.dependencies {
                 if !by_id.contains_key(dependency) {
-                    return Err(usage_error(format!("unknown dependency {dependency} for {}", node.id)));
+                    return Err(usage_error(format!(
+                        "unknown dependency {dependency} for {}",
+                        node.id
+                    )));
                 }
             }
         }
@@ -85,7 +88,12 @@ impl LaneScheduler {
         while !pending.is_empty() {
             let mut ready: Vec<String> = pending
                 .iter()
-                .filter(|id| by_id[*id].dependencies.iter().all(|d| results.contains_key(d)))
+                .filter(|id| {
+                    by_id[*id]
+                        .dependencies
+                        .iter()
+                        .all(|d| results.contains_key(d))
+                })
                 .cloned()
                 .collect();
             ready.sort();
@@ -99,17 +107,27 @@ impl LaneScheduler {
                     },
                 ));
             }
-            let batch: Vec<String> = if self.serial { vec![ready[0].clone()] } else { ready };
+            let batch: Vec<String> = if self.serial {
+                vec![ready[0].clone()]
+            } else {
+                ready
+            };
             for id in batch {
                 let node = &by_id[&id];
-                let context = LaneContext { results: &results, node_id: &id };
+                let context = LaneContext {
+                    results: &results,
+                    node_id: &id,
+                };
                 let value = (node.run)(&context)?;
                 results.insert(id.clone(), value);
                 pending.remove(&id);
             }
         }
 
-        Ok(order.into_iter().map(|id| (id.clone(), results.remove(&id).unwrap_or(Value::Null))).collect())
+        Ok(order
+            .into_iter()
+            .map(|id| (id.clone(), results.remove(&id).unwrap_or(Value::Null)))
+            .collect())
     }
 }
 
@@ -164,7 +182,10 @@ mod tests {
     #[test]
     fn execute_rejects_duplicate_lane_ids() {
         let scheduler = LaneScheduler::new(false);
-        let nodes = vec![node("a", &[], Value::from(1)), node("a", &[], Value::from(2))];
+        let nodes = vec![
+            node("a", &[], Value::from(1)),
+            node("a", &[], Value::from(2)),
+        ];
         let error = scheduler.execute(nodes).unwrap_err();
         assert_eq!(error.code, "SCOPE_CONFLICT");
     }
@@ -180,7 +201,10 @@ mod tests {
     #[test]
     fn execute_rejects_dependency_cycle() {
         let scheduler = LaneScheduler::new(false);
-        let nodes = vec![node("a", &["b"], Value::from(1)), node("b", &["a"], Value::from(2))];
+        let nodes = vec![
+            node("a", &["b"], Value::from(1)),
+            node("b", &["a"], Value::from(2)),
+        ];
         let error = scheduler.execute(nodes).unwrap_err();
         assert_eq!(error.code, "PLAN_BINDING_DRIFT");
     }

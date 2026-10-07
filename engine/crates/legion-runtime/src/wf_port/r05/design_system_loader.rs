@@ -17,7 +17,9 @@
 
 use std::path::{Path, PathBuf};
 
-use super::super::w2_011::design_system::{normalize_design_system, parse_frontmatter, DesignSystem};
+use super::super::w2_011::design_system::{
+    normalize_design_system, parse_frontmatter, DesignSystem,
+};
 
 const DESIGN_NAMES: [&str; 3] = ["DESIGN.md", "Design.md", "design.md"];
 const FALLBACK_DIRS: [&str; 2] = [".agents/context", "docs"];

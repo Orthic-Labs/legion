@@ -152,16 +152,36 @@ pub fn render_sarif_report(report: &Value) -> Value {
         }
 
         let mut properties = Map::new();
-        properties.insert("severity".into(), finding.get("severity").cloned().unwrap_or(Value::Null));
+        properties.insert(
+            "severity".into(),
+            finding.get("severity").cloned().unwrap_or(Value::Null),
+        );
         properties.insert(
             "evidenceStrength".into(),
-            first_of(finding, &["evidence_strength", "evidenceStrength"]).cloned().unwrap_or(Value::Null),
+            first_of(finding, &["evidence_strength", "evidenceStrength"])
+                .cloned()
+                .unwrap_or(Value::Null),
         );
-        properties.insert("judgment".into(), finding.get("judgment").cloned().unwrap_or(Value::Null));
-        properties.insert("status".into(), finding.get("status").cloned().unwrap_or(Value::Null));
-        properties.insert("tier".into(), finding.get("tier").cloned().unwrap_or(Value::Null));
-        properties.insert("evidence".into(), finding.get("evidence").cloned().unwrap_or(Value::Null));
-        properties.insert("action".into(), finding.get("action").cloned().unwrap_or(Value::Null));
+        properties.insert(
+            "judgment".into(),
+            finding.get("judgment").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "status".into(),
+            finding.get("status").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "tier".into(),
+            finding.get("tier").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "evidence".into(),
+            finding.get("evidence").cloned().unwrap_or(Value::Null),
+        );
+        properties.insert(
+            "action".into(),
+            finding.get("action").cloned().unwrap_or(Value::Null),
+        );
         properties.insert(
             "sources".into(),
             finding.get("sources").cloned().unwrap_or_else(|| json!([])),
@@ -179,7 +199,10 @@ pub fn render_sarif_report(report: &Value) -> Value {
                 properties.insert("variantReceiptId".into(), vrid.clone());
             }
         }
-        if let Some(related) = finding.get("relatedAttackPathIds").and_then(Value::as_array) {
+        if let Some(related) = finding
+            .get("relatedAttackPathIds")
+            .and_then(Value::as_array)
+        {
             if !related.is_empty() {
                 properties.insert("relatedAttackPathIds".into(), Value::Array(related.clone()));
             }
@@ -326,9 +349,10 @@ pub fn render_sarif_report(report: &Value) -> Value {
         })
         .unwrap_or_else(|| "0.0.0-dev".to_string());
 
-    let automation_details = report.get("commit").and_then(Value::as_str).map(|c| {
-        json!({"id": c.to_string()})
-    });
+    let automation_details = report
+        .get("commit")
+        .and_then(Value::as_str)
+        .map(|c| json!({"id": c.to_string()}));
 
     let mut run = Map::new();
     run.insert(

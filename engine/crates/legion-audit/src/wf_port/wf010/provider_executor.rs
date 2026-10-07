@@ -31,7 +31,10 @@ use serde_json::Value;
 /// `/^[a-zA-Z]:[\\/]/`. `repository_root` stands in for the three
 /// `resolve(import.meta.dirname, '..', '..', '..', script)` hops in JS,
 /// i.e. the Legion package/repository root.
-pub fn resolve_repository_module(script: &str, repository_root: &Path) -> Result<PathBuf, RepositoryModuleError> {
+pub fn resolve_repository_module(
+    script: &str,
+    repository_root: &Path,
+) -> Result<PathBuf, RepositoryModuleError> {
     if script.is_empty() {
         return Err(RepositoryModuleError::MissingModule);
     }
@@ -40,7 +43,9 @@ pub fn resolve_repository_module(script: &str, repository_root: &Path) -> Result
         && script.as_bytes()[1] == b':'
         && matches!(script.as_bytes()[2], b'\\' | b'/');
     if script.starts_with('/') || is_windows_drive_absolute {
-        return Err(RepositoryModuleError::NotRepositoryRelative { script: script.to_string() });
+        return Err(RepositoryModuleError::NotRepositoryRelative {
+            script: script.to_string(),
+        });
     }
     Ok(repository_root.join(script))
 }
@@ -83,13 +88,21 @@ fn gap_with(kind: &str, key: &str, value: &str) -> Value {
 /// `artifacts` mirrors the JS `Map<string, unknown>` keyed by artifact name;
 /// only presence is inspected, matching JS (`artifacts?.get(...)` truthy
 /// check).
-pub fn run_imported_artifact(provider_id: &str, artifact_name: &str, artifacts: &std::collections::BTreeMap<String, Value>) -> ProviderOutcome {
+pub fn run_imported_artifact(
+    provider_id: &str,
+    artifact_name: &str,
+    artifacts: &std::collections::BTreeMap<String, Value>,
+) -> ProviderOutcome {
     if !artifacts.contains_key(artifact_name) {
         return ProviderOutcome {
             provider: provider_id.to_string(),
             status: "missing".to_string(),
             complete: false,
-            coverage_gaps: vec![gap_with("imported-artifact-missing", "artifact", artifact_name)],
+            coverage_gaps: vec![gap_with(
+                "imported-artifact-missing",
+                "artifact",
+                artifact_name,
+            )],
             findings: vec![],
             candidates: vec![],
             artifact: None,
@@ -143,8 +156,14 @@ pub fn host_hook_unavailable(provider_id: &str, gap_kind: &str) -> ProviderOutco
 /// short-circuit (`typeof result.complete !== 'boolean'`), and their
 /// success path otherwise, given the receipt already fetched by the caller
 /// from its host hook (`host.processRunner.run` / `host.reviewer.review`).
-pub fn from_host_receipt(provider_id: &str, receipt: Option<&Value>, invalid_gap_kind: &str) -> ProviderOutcome {
-    let complete = receipt.and_then(|r| r.get("complete")).and_then(Value::as_bool);
+pub fn from_host_receipt(
+    provider_id: &str,
+    receipt: Option<&Value>,
+    invalid_gap_kind: &str,
+) -> ProviderOutcome {
+    let complete = receipt
+        .and_then(|r| r.get("complete"))
+        .and_then(Value::as_bool);
     let Some(complete) = complete else {
         return ProviderOutcome {
             provider: provider_id.to_string(),
@@ -157,10 +176,26 @@ pub fn from_host_receipt(provider_id: &str, receipt: Option<&Value>, invalid_gap
         };
     };
     let receipt = receipt.unwrap();
-    let status = receipt.get("status").and_then(Value::as_str).unwrap_or("unproven").to_string();
-    let findings = receipt.get("findings").and_then(Value::as_array).cloned().unwrap_or_default();
-    let candidates = receipt.get("candidates").and_then(Value::as_array).cloned().unwrap_or_default();
-    let coverage_gaps = receipt.get("coverageGaps").and_then(Value::as_array).cloned().unwrap_or_default();
+    let status = receipt
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("unproven")
+        .to_string();
+    let findings = receipt
+        .get("findings")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let candidates = receipt
+        .get("candidates")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let coverage_gaps = receipt
+        .get("coverageGaps")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     ProviderOutcome {
         provider: provider_id.to_string(),
         status,

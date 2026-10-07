@@ -85,7 +85,8 @@ pub const FAIL_CLOSED_CODES: &[&str] = &[
 ];
 
 /// Enforcement levels Arcane may honestly report.
-pub const ENFORCEMENT_LEVEL: &[&str] = &["strong", "observed", "read_only", "advisory", "unsupported"];
+pub const ENFORCEMENT_LEVEL: &[&str] =
+    &["strong", "observed", "read_only", "advisory", "unsupported"];
 
 pub fn is_known_code(code: &str) -> bool {
     ARCANE_ERROR_CODE.contains(&code)
@@ -133,7 +134,11 @@ impl ArcaneError {
     /// enforced at the type level for callers within this crate; the runtime
     /// check below still guards values threaded through from elsewhere, e.g.
     /// deserialized JSON).
-    pub fn new(code: &'static str, message: impl Into<String>, detail: Detail) -> Result<Self, UnknownErrorCode> {
+    pub fn new(
+        code: &'static str,
+        message: impl Into<String>,
+        detail: Detail,
+    ) -> Result<Self, UnknownErrorCode> {
         if !is_known_code(code) {
             return Err(UnknownErrorCode(code.to_string()));
         }
@@ -163,7 +168,11 @@ impl fmt::Display for ArcaneError {
 impl std::error::Error for ArcaneError {}
 
 /// Convenience constructor. Mirrors JS `arcErr`.
-pub fn arc_err(code: &'static str, message: impl Into<String>, detail: Detail) -> Result<ArcaneError, UnknownErrorCode> {
+pub fn arc_err(
+    code: &'static str,
+    message: impl Into<String>,
+    detail: Detail,
+) -> Result<ArcaneError, UnknownErrorCode> {
     ArcaneError::new(code, message, detail)
 }
 
@@ -209,7 +218,9 @@ pub fn decision(args: DecisionArgs) -> Result<Decision, UnknownErrorCode> {
         message: args.message,
         detail: args.detail,
         fail_closed,
-        enforcement_health: args.enforcement_health.unwrap_or_else(|| "strong".to_string()),
+        enforcement_health: args
+            .enforcement_health
+            .unwrap_or_else(|| "strong".to_string()),
         escalate: args.escalate,
     })
 }
@@ -237,7 +248,10 @@ mod tests {
     #[test]
     fn new_rejects_unknown_code() {
         let err = ArcaneError::new("ARC_NOT_A_REAL_CODE", "nope", Detail::new());
-        assert_eq!(err, Err(UnknownErrorCode("ARC_NOT_A_REAL_CODE".to_string())));
+        assert_eq!(
+            err,
+            Err(UnknownErrorCode("ARC_NOT_A_REAL_CODE".to_string()))
+        );
     }
 
     #[test]
@@ -289,7 +303,8 @@ mod tests {
 
     #[test]
     fn to_json_round_trips_core_fields() {
-        let e = ArcaneError::new("ARC_STORE_CORRUPT", "digest chain broken", Detail::new()).unwrap();
+        let e =
+            ArcaneError::new("ARC_STORE_CORRUPT", "digest chain broken", Detail::new()).unwrap();
         let j = e.to_json();
         assert_eq!(j.get("code").map(String::as_str), Some("ARC_STORE_CORRUPT"));
         assert_eq!(j.get("failClosed").map(String::as_str), Some("true"));

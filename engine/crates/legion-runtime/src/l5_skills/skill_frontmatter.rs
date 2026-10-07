@@ -7,13 +7,35 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::LazyLock;
 
 static LIST_FIELDS: &[&str] = &["operations", "effects", "hostRequirements"];
-static SCALAR_FIELDS: &[&str] = &["name", "description", "kind", "capabilityClass", "discoverability", "domain"];
+static SCALAR_FIELDS: &[&str] = &[
+    "name",
+    "description",
+    "kind",
+    "capabilityClass",
+    "discoverability",
+    "domain",
+];
 static KINDS: &[&str] = &["capability", "entrypoint"];
 static CAPABILITY_CLASSES: &[&str] = &["domain", "workflow", "context"];
 static DISCOVERABILITY: &[&str] = &["public", "explicit", "internal"];
-static DOMAINS: &[&str] = &["engineering", "research", "commercial", "editorial", "design", "null"];
-static OPERATIONS: &[&str] = &["route", "analyze", "diagnose", "decide", "produce", "evaluate", "execute"];
-static EFFECTS: &[&str] = &["source-read", "artifact-write", "repository-write", "process-exec", "network-request"];
+static DOMAINS: &[&str] = &[
+    "engineering",
+    "research",
+    "commercial",
+    "editorial",
+    "design",
+    "null",
+];
+static OPERATIONS: &[&str] = &[
+    "route", "analyze", "diagnose", "decide", "produce", "evaluate", "execute",
+];
+static EFFECTS: &[&str] = &[
+    "source-read",
+    "artifact-write",
+    "repository-write",
+    "process-exec",
+    "network-request",
+];
 
 static TOP_LEVEL: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]*(.*))?$").unwrap());
@@ -69,7 +91,9 @@ fn scalar_value(path: &str, key: &str, raw: &str) -> Result<String, String> {
         return Ok(text[1..text.len() - 1].to_string());
     }
     if UNQUOTED_MAPPING.is_match(text) {
-        return Err(format!("{path}: {key} contains an unquoted YAML mapping delimiter"));
+        return Err(format!(
+            "{path}: {key} contains an unquoted YAML mapping delimiter"
+        ));
     }
     Ok(text.to_string())
 }
@@ -106,13 +130,20 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<SkillFrontmatte
             current_key = Some(key.clone());
             if LIST_FIELDS.contains(&key.as_str()) {
                 if !value.trim().is_empty() && value.trim() != "[]" {
-                    return Err(format!("{path}:{}: {key} must use a YAML block list or []", index + 2));
+                    return Err(format!(
+                        "{path}:{}: {key} must use a YAML block list or []",
+                        index + 2
+                    ));
                 }
                 out.insert(key, FrontmatterValue::List(vec![]));
             } else if SCALAR_FIELDS.contains(&key.as_str()) {
                 let trimmed = value.trim();
                 if trimmed == ">" || trimmed == "|" {
-                    block = Some(Block { key, folded: trimmed == ">", lines: vec![] });
+                    block = Some(Block {
+                        key,
+                        folded: trimmed == ">",
+                        lines: vec![],
+                    });
                 } else {
                     let scalar = scalar_value(path, &key, value)?;
                     out.insert(key, FrontmatterValue::Scalar(scalar));
@@ -141,11 +172,22 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<SkillFrontmatte
         if BLANK_OR_INDENT.is_match(line) {
             continue;
         }
-        return Err(format!("{path}:{}: unsupported YAML frontmatter syntax", index + 2));
+        return Err(format!(
+            "{path}:{}: unsupported YAML frontmatter syntax",
+            index + 2
+        ));
     }
     finish_block(&mut block, &mut out);
 
-    for field in ["name", "description", "kind", "discoverability", "operations", "effects", "hostRequirements"] {
+    for field in [
+        "name",
+        "description",
+        "kind",
+        "discoverability",
+        "operations",
+        "effects",
+        "hostRequirements",
+    ] {
         if !out.contains_key(field) {
             return Err(format!("{path}: missing canonical {field} metadata"));
         }

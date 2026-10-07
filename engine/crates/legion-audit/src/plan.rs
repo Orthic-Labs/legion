@@ -205,16 +205,28 @@ impl AuditPlan {
                         // an external process. In-process Rust checks must not
                         // fabricate process-start/cleanup receipts to pass the
                         // external-tool validator.
-                        let contract = crate::native_providers::legacy_checks::spec(spec.id.as_str())
-                            .ok_or_else(|| AuditError::Invalid(format!("unknown legacy provider {}", spec.id)))?;
-                        if spec.runner.get("check").and_then(Value::as_str) != Some(contract.check) {
-                            return Err(AuditError::Invalid(format!("legacy provider {} check does not match frozen contract", spec.id)));
+                        let contract =
+                            crate::native_providers::legacy_checks::spec(spec.id.as_str())
+                                .ok_or_else(|| {
+                                    AuditError::Invalid(format!(
+                                        "unknown legacy provider {}",
+                                        spec.id
+                                    ))
+                                })?;
+                        if spec.runner.get("check").and_then(Value::as_str) != Some(contract.check)
+                        {
+                            return Err(AuditError::Invalid(format!(
+                                "legacy provider {} check does not match frozen contract",
+                                spec.id
+                            )));
                         }
                         match contract.command {
-                            crate::native_providers::legacy_checks::CommandShape::Native { .. } => ProviderKind::RustAlgorithm,
+                            crate::native_providers::legacy_checks::CommandShape::Native {
+                                ..
+                            } => ProviderKind::RustAlgorithm,
                             _ => ProviderKind::TypedExternalProjectTool,
                         }
-                    },
+                    }
                     "reasoning-contract" => ProviderKind::HostService,
                     "external-process" => ProviderKind::TypedExternalProjectTool,
                     "built-in" | "declarative-rule" => ProviderKind::RustAlgorithm,
@@ -414,7 +426,11 @@ impl AuditPlan {
     pub fn freeze_source_diagnostic(self) -> Result<FrozenPlan, AuditError> {
         self.validate()?;
         let digest = plan_digest(&self)?;
-        Ok(FrozenPlan { plan: self, digest, signature: None })
+        Ok(FrozenPlan {
+            plan: self,
+            digest,
+            signature: None,
+        })
     }
 
     pub fn freeze(self, signing_key: Option<&[u8]>) -> Result<FrozenPlan, AuditError> {

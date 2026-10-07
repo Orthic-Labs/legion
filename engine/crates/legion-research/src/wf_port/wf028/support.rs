@@ -73,8 +73,10 @@ pub fn utc_now() -> String {
 }
 
 pub fn read_json(path: &Path) -> Result<Value, IoError> {
-    let text = fs::read_to_string(path).map_err(|e| IoError(format!("cannot read {}: {e}", path.display())))?;
-    serde_json::from_str(&text).map_err(|e| IoError(format!("invalid JSON in {}: {e}", path.display())))
+    let text = fs::read_to_string(path)
+        .map_err(|e| IoError(format!("cannot read {}: {e}", path.display())))?;
+    serde_json::from_str(&text)
+        .map_err(|e| IoError(format!("invalid JSON in {}: {e}", path.display())))
 }
 
 /// Port of `common.atomic_write_text`/`atomic_write_json`: write to a sibling
@@ -89,7 +91,8 @@ pub fn atomic_write_json(path: &Path, value: &Value) -> Result<(), IoError> {
         path.extension().and_then(|e| e.to_str()).unwrap_or("json")
     ));
     let mut file = fs::File::create(&tmp).map_err(|e| IoError(e.to_string()))?;
-    file.write_all(text.as_bytes()).map_err(|e| IoError(e.to_string()))?;
+    file.write_all(text.as_bytes())
+        .map_err(|e| IoError(e.to_string()))?;
     file.sync_all().map_err(|e| IoError(e.to_string()))?;
     fs::rename(&tmp, path).map_err(|e| IoError(e.to_string()))?;
     Ok(())
@@ -106,7 +109,8 @@ pub fn append_jsonl(path: &Path, value: &Value) -> Result<(), IoError> {
         .append(true)
         .open(path)
         .map_err(|e| IoError(e.to_string()))?;
-    file.write_all(line.as_bytes()).map_err(|e| IoError(e.to_string()))?;
+    file.write_all(line.as_bytes())
+        .map_err(|e| IoError(e.to_string()))?;
     file.sync_all().map_err(|e| IoError(e.to_string()))?;
     Ok(())
 }
@@ -147,7 +151,10 @@ impl FileLock {
                         }
                     }
                     if SystemTime::now() >= deadline {
-                        return Err(IoError(format!("timed out acquiring lock: {}", lock_path.display())));
+                        return Err(IoError(format!(
+                            "timed out acquiring lock: {}",
+                            lock_path.display()
+                        )));
                     }
                     std::thread::sleep(Duration::from_millis(50));
                 }

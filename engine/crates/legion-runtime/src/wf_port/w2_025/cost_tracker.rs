@@ -232,7 +232,12 @@ pub fn last_n_days(ledger: &CostLedger, n: usize) -> Vec<(String, DailyUsage)> {
     days.sort_by(|a, b| b.cmp(a));
     days.into_iter()
         .take(n)
-        .map(|day| (day.clone(), ledger.daily.get(day).cloned().unwrap_or_default()))
+        .map(|day| {
+            (
+                day.clone(),
+                ledger.daily.get(day).cloned().unwrap_or_default(),
+            )
+        })
         .collect()
 }
 
@@ -329,7 +334,8 @@ mod tests {
 
     #[test]
     fn estimate_reports_batch_discount_when_not_already_batch() {
-        let (lookup, total, batch_total) = estimate("gemini-3.1-flash-image-preview", "1K", 10, false);
+        let (lookup, total, batch_total) =
+            estimate("gemini-3.1-flash-image-preview", "1K", 10, false);
         assert_eq!(lookup.cost, 0.039);
         assert_eq!(total, round3(0.039 * 10.0));
         assert_eq!(batch_total, Some(round3(0.039 * 0.5 * 10.0)));
@@ -354,7 +360,13 @@ mod tests {
     fn last_n_days_sorted_descending_and_capped() {
         let mut ledger = CostLedger::default();
         for day in ["2026-09-01", "2026-09-05", "2026-09-03"] {
-            ledger.daily.insert(day.to_string(), DailyUsage { count: 1, cost: 0.01 });
+            ledger.daily.insert(
+                day.to_string(),
+                DailyUsage {
+                    count: 1,
+                    cost: 0.01,
+                },
+            );
         }
         let days = last_n_days(&ledger, 2);
         assert_eq!(

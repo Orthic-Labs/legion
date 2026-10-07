@@ -35,8 +35,12 @@ fn empty_document_reports_every_missing_goal_route_contract() {
     // Every one of the 12 `rules` label checks, plus the State A/B
     // concreteness, proof, constraints x5, bottleneck, route mode, and
     // artifact/receipt path requirements should all fire on an empty doc.
-    assert!(errors.iter().any(|e| e.contains("**State A:** lacks enforceable")));
-    assert!(errors.iter().any(|e| e.contains("**State B:** lacks enforceable")));
+    assert!(errors
+        .iter()
+        .any(|e| e.contains("**State A:** lacks enforceable")));
+    assert!(errors
+        .iter()
+        .any(|e| e.contains("**State B:** lacks enforceable")));
     assert!(errors
         .iter()
         .any(|e| e.contains("Goal success proof requires executable action + evidence path")));
@@ -66,7 +70,9 @@ fn state_a_label_present_but_not_concrete_is_flagged_separately() {
     // (any non-space char) but fails `is_concrete` (needs >= 8 chars).
     let text = "- **State A:** STATE_A:x\n";
     let errors = goal_route_errors(text, false, None);
-    assert!(!errors.iter().any(|e| e == "**State A:** lacks enforceable goal-route contract"));
+    assert!(!errors
+        .iter()
+        .any(|e| e == "**State A:** lacks enforceable goal-route contract"));
     assert!(errors
         .iter()
         .any(|e| e == "**State A:** requires concrete state, not label-only value"));
@@ -223,7 +229,9 @@ fn route_missing_schema_is_rejected() {
     let mut route = minimal_valid_route();
     route["schema"] = json!("wrong-schema");
     let errors = validate_route(&route);
-    assert!(errors.iter().any(|e| e == "schema must equal goal-route.v2"));
+    assert!(errors
+        .iter()
+        .any(|e| e == "schema must equal goal-route.v2"));
 }
 
 #[test]
@@ -268,7 +276,9 @@ fn non_routine_route_without_alchemist_required_is_rejected() {
     let mut route = minimal_valid_route();
     route["routine"] = json!(false);
     let errors = validate_route(&route);
-    assert!(errors.iter().any(|e| e == "non-routine route requires Alchemist"));
+    assert!(errors
+        .iter()
+        .any(|e| e == "non-routine route requires Alchemist"));
 }
 
 #[test]

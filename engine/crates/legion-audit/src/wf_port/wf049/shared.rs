@@ -145,7 +145,9 @@ fn normalized_key(key: &str) -> String {
 pub fn shared_sensitive_key(key: &str) -> bool {
     let normalized = normalized_key(key);
     SENSITIVE_KEYS.contains(&normalized.as_str())
-        || SENSITIVE_SUFFIXES.iter().any(|suffix| normalized.ends_with(suffix))
+        || SENSITIVE_SUFFIXES
+            .iter()
+            .any(|suffix| normalized.ends_with(suffix))
 }
 
 pub struct ExactBinding {
@@ -168,7 +170,10 @@ pub fn exact_binding(binding: &Value) -> ExactBinding {
             invalid.push(key.to_string());
         }
     }
-    let extras: Vec<&String> = source.keys().filter(|key| !BINDING_KEYS.contains(&key.as_str())).collect();
+    let extras: Vec<&String> = source
+        .keys()
+        .filter(|key| !BINDING_KEYS.contains(&key.as_str()))
+        .collect();
     let mut normalized = Map::new();
     for key in sorted_binding_keys() {
         let value = if invalid.iter().any(|k| k == key) {
@@ -197,7 +202,9 @@ pub fn exact_binding(binding: &Value) -> ExactBinding {
 
 /// Port of `sameBinding` in `shared.mjs`.
 pub fn same_binding(expected: &Value, actual: &Value) -> bool {
-    BINDING_KEYS.iter().all(|key| expected.get(key) == actual.get(key))
+    BINDING_KEYS
+        .iter()
+        .all(|key| expected.get(key) == actual.get(key))
 }
 
 pub struct Denominator {
@@ -235,7 +242,8 @@ pub fn denominator(expected: &[String], receipts: &[Value], omitted: &[Value]) -
     let mut expected_ids: Vec<String> = expected.to_vec();
     expected_ids.sort();
     expected_ids.dedup();
-    let receipt_ids: std::collections::HashSet<String> = receipts.iter().filter_map(receipt_id).collect();
+    let receipt_ids: std::collections::HashSet<String> =
+        receipts.iter().filter_map(receipt_id).collect();
     let omitted_ids: std::collections::HashSet<String> = omitted
         .iter()
         .filter_map(|item| item.get("id").and_then(Value::as_str).map(str::to_string))
@@ -274,7 +282,13 @@ pub fn finalize(kind: &str, value: Value) -> Value {
             let mut existing: Vec<String> = map
                 .get("coverageGaps")
                 .and_then(Value::as_array)
-                .map(|items| items.iter().filter_map(Value::as_str).map(str::to_string).collect())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect()
+                })
                 .unwrap_or_default();
             for gap in &binding_gaps {
                 let prefixed = if gap.starts_with("binding-extra-") {
@@ -314,7 +328,12 @@ fn normalize_bindings(value: &Value, key: &str, gaps: &mut Vec<String>) -> Value
         return result.binding;
     }
     match value {
-        Value::Array(items) => Value::Array(items.iter().map(|item| normalize_bindings(item, "", gaps)).collect()),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|item| normalize_bindings(item, "", gaps))
+                .collect(),
+        ),
         Value::Object(map) => {
             let mut keys: Vec<&String> = map.keys().collect();
             keys.sort();
@@ -334,7 +353,9 @@ fn normalize_bindings(value: &Value, key: &str, gaps: &mut Vec<String>) -> Value
 
 fn base64_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$").unwrap()
+    })
 }
 
 const B64_ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -350,8 +371,16 @@ pub fn base64_encode(bytes: &[u8]) -> String {
         let n = ((b0 as u32) << 16) | ((b1 as u32) << 8) | b2 as u32;
         out.push(B64_ALPHABET[(n >> 18 & 0x3f) as usize] as char);
         out.push(B64_ALPHABET[(n >> 12 & 0x3f) as usize] as char);
-        out.push(if chunk.len() > 1 { B64_ALPHABET[(n >> 6 & 0x3f) as usize] as char } else { '=' });
-        out.push(if chunk.len() > 2 { B64_ALPHABET[(n & 0x3f) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            B64_ALPHABET[(n >> 6 & 0x3f) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            B64_ALPHABET[(n & 0x3f) as usize] as char
+        } else {
+            '='
+        });
     }
     out
 }
@@ -436,16 +465,26 @@ fn sanitize_string(value: &str) -> String {
     value.into_owned()
 }
 
-const COMMON_SENSITIVE_LIST: &[&str] = &["email", "phone", "phonenumber", "ssn", "socialsecuritynumber", "taxid"];
+const COMMON_SENSITIVE_LIST: &[&str] = &[
+    "email",
+    "phone",
+    "phonenumber",
+    "ssn",
+    "socialsecuritynumber",
+    "taxid",
+];
 
 fn common_sensitive_key_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?:secret|password|token|privatekey|apikey|cookie|authorization)$").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?:secret|password|token|privatekey|apikey|cookie|authorization)$").unwrap()
+    })
 }
 
 /// Port of `commonSensitiveKey` in `artifact-sanitize.mjs`.
 pub fn artifact_common_sensitive_key(normalized_key: &str) -> bool {
-    common_sensitive_key_re().is_match(normalized_key) || COMMON_SENSITIVE_LIST.contains(&normalized_key)
+    common_sensitive_key_re().is_match(normalized_key)
+        || COMMON_SENSITIVE_LIST.contains(&normalized_key)
 }
 
 fn trailing_identifier_re() -> &'static Regex {
@@ -455,7 +494,9 @@ fn trailing_identifier_re() -> &'static Regex {
 
 /// Port of `configuredKeys` in `artifact-sanitize.mjs`.
 pub fn configured_keys(fields: &Value) -> Vec<String> {
-    let Some(array) = fields.as_array() else { return Vec::new() };
+    let Some(array) = fields.as_array() else {
+        return Vec::new();
+    };
     array
         .iter()
         .filter_map(|field| {
@@ -485,12 +526,19 @@ struct SanitizeState {
 
 fn sanitize_value(value: &Value, configured: &[String], state: &mut SanitizeState) -> Value {
     match value {
-        Value::Array(items) => Value::Array(items.iter().map(|item| sanitize_value(item, configured, state)).collect()),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|item| sanitize_value(item, configured, state))
+                .collect(),
+        ),
         Value::Object(map) => {
             let mut out = Map::new();
             for (key, child) in map {
                 let normalized = normalized_key(key);
-                if artifact_common_sensitive_key(&normalized) || configured.iter().any(|c| c == &normalized) {
+                if artifact_common_sensitive_key(&normalized)
+                    || configured.iter().any(|c| c == &normalized)
+                {
                     if child.as_str() != Some("[REDACTED]") {
                         state.changed = true;
                     }
@@ -522,12 +570,18 @@ pub fn sanitize_sensitive_value(value: &Value, sensitive_fields: &Value) -> (Val
 
 /// Port of `sanitizeArtifactContent` in `artifact-sanitize.mjs`.
 /// Returns `(artifact_or_null, sensitive, invalid)`.
-pub fn sanitize_artifact_content(artifact: &Value, sensitive_fields: &Value) -> (Option<Value>, bool, bool) {
+pub fn sanitize_artifact_content(
+    artifact: &Value,
+    sensitive_fields: &Value,
+) -> (Option<Value>, bool, bool) {
     let Some(_) = artifact.as_object() else {
         return (Some(artifact.clone()), false, false);
     };
     let has_content = artifact.get("content").and_then(Value::as_str).is_some();
-    let has_bytes = artifact.get("bytesBase64").and_then(Value::as_str).is_some();
+    let has_bytes = artifact
+        .get("bytesBase64")
+        .and_then(Value::as_str)
+        .is_some();
     if has_content == has_bytes {
         return (Some(artifact.clone()), false, false);
     }
@@ -538,9 +592,14 @@ pub fn sanitize_artifact_content(artifact: &Value, sensitive_fields: &Value) -> 
         }
     }
     let original = if has_content {
-        artifact.get("content").and_then(Value::as_str).unwrap().to_string()
+        artifact
+            .get("content")
+            .and_then(Value::as_str)
+            .unwrap()
+            .to_string()
     } else {
-        let bytes = base64_decode(artifact.get("bytesBase64").and_then(Value::as_str).unwrap()).unwrap_or_default();
+        let bytes = base64_decode(artifact.get("bytesBase64").and_then(Value::as_str).unwrap())
+            .unwrap_or_default();
         String::from_utf8_lossy(&bytes).into_owned()
     };
     let configured = configured_keys(sensitive_fields);
@@ -573,17 +632,30 @@ pub fn sanitize_artifact_content(artifact: &Value, sensitive_fields: &Value) -> 
 
 /// Port of `sanitizeProducedArtifact` in `artifact-sanitize.mjs`.
 /// Returns `(artifact_or_null, valid, sensitive)`.
-pub fn sanitize_produced_artifact(artifact: &Value, sensitive_fields: &Value) -> (Option<Value>, bool, bool) {
+pub fn sanitize_produced_artifact(
+    artifact: &Value,
+    sensitive_fields: &Value,
+) -> (Option<Value>, bool, bool) {
     if artifact.as_object().is_none() {
         return (None, false, false);
     }
     let has_content = artifact.get("content").and_then(Value::as_str).is_some();
-    let has_bytes = artifact.get("bytesBase64").and_then(Value::as_str).is_some();
+    let has_bytes = artifact
+        .get("bytesBase64")
+        .and_then(Value::as_str)
+        .is_some();
     if has_content == has_bytes {
         return (None, false, false);
     }
     let bytes: Option<Vec<u8>> = if has_content {
-        Some(artifact.get("content").and_then(Value::as_str).unwrap().as_bytes().to_vec())
+        Some(
+            artifact
+                .get("content")
+                .and_then(Value::as_str)
+                .unwrap()
+                .as_bytes()
+                .to_vec(),
+        )
     } else {
         let b64 = artifact.get("bytesBase64").and_then(Value::as_str).unwrap();
         if is_canonical_base64(b64) {
@@ -602,14 +674,17 @@ pub fn sanitize_produced_artifact(artifact: &Value, sensitive_fields: &Value) ->
     if artifact.get("digest").and_then(Value::as_str) != Some(expected_digest.as_str()) {
         return (None, false, false);
     }
-    let (sanitized_artifact, sensitive, _invalid) = sanitize_artifact_content(artifact, sensitive_fields);
+    let (sanitized_artifact, sensitive, _invalid) =
+        sanitize_artifact_content(artifact, sensitive_fields);
     (sanitized_artifact, true, sensitive)
 }
 
 /// Port of `safePath` shared by `infrastructure/index.mjs`,
 /// `integration/index.mjs`, and `operations/index.mjs`.
 pub fn safe_path(value: &Value) -> bool {
-    let Some(value) = value.as_str() else { return false };
+    let Some(value) = value.as_str() else {
+        return false;
+    };
     if value.is_empty() || value.contains('\\') || value.starts_with('/') {
         return false;
     }
@@ -621,7 +696,9 @@ pub fn safe_path(value: &Value) -> bool {
         return false;
     }
     let segment_re = segment_re();
-    segments.iter().all(|segment| segment_re.is_match(segment) && *segment != "." && *segment != "..")
+    segments
+        .iter()
+        .all(|segment| segment_re.is_match(segment) && *segment != "." && *segment != "..")
         && segments.join("/") == value
 }
 
@@ -661,7 +738,8 @@ pub fn utc_millis(value: Option<&str>) -> Option<i64> {
         return None;
     }
     let days_since_epoch = days_from_civil(year, month, day)?;
-    let millis_total = days_since_epoch * 86_400_000 + hour * 3_600_000 + minute * 60_000 + second * 1000 + millis;
+    let millis_total =
+        days_since_epoch * 86_400_000 + hour * 3_600_000 + minute * 60_000 + second * 1000 + millis;
     Some(millis_total)
 }
 

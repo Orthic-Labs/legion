@@ -41,7 +41,10 @@ impl ArcCode {
 
     /// Matches `FAIL_CLOSED_CODES` membership for the codes wf006 uses.
     pub fn is_fail_closed(&self) -> bool {
-        matches!(self, ArcCode::ArcAuthKeyUnavailable | ArcCode::ArcStoreCorrupt)
+        matches!(
+            self,
+            ArcCode::ArcAuthKeyUnavailable | ArcCode::ArcStoreCorrupt
+        )
     }
 }
 
@@ -61,7 +64,11 @@ pub struct ArcaneError {
 
 impl ArcaneError {
     pub fn new(code: ArcCode, message: impl Into<String>) -> Self {
-        Self { code, message: message.into(), detail: Vec::new() }
+        Self {
+            code,
+            message: message.into(),
+            detail: Vec::new(),
+        }
     }
     pub fn with_detail(mut self, key: &str, value: impl Into<String>) -> Self {
         self.detail.push((key.to_string(), value.into()));
@@ -91,10 +98,20 @@ pub struct Decision {
 
 impl Decision {
     pub fn allow(detail: Vec<(String, String)>) -> Self {
-        Self { allowed: true, code: None, message: String::new(), detail }
+        Self {
+            allowed: true,
+            code: None,
+            message: String::new(),
+            detail,
+        }
     }
     pub fn deny(code: ArcCode, message: impl Into<String>, detail: Vec<(String, String)>) -> Self {
-        Self { allowed: false, code: Some(code), message: message.into(), detail }
+        Self {
+            allowed: false,
+            code: Some(code),
+            message: message.into(),
+            detail,
+        }
     }
     pub fn fail_closed(&self) -> bool {
         self.code.map(|c| c.is_fail_closed()).unwrap_or(false)

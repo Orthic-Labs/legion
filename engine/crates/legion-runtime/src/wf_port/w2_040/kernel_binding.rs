@@ -164,7 +164,12 @@ pub trait KernelPrimitives: Send + Sync {
     fn read_object(&self, _namespace: &str, _key: &str) -> Result<Option<Detail>, ArcaneError> {
         Err(missing_primitive("readObject", None, "readObject"))
     }
-    fn put_object(&self, _namespace: &str, _key: &str, _record: &Detail) -> Result<(), ArcaneError> {
+    fn put_object(
+        &self,
+        _namespace: &str,
+        _key: &str,
+        _record: &Detail,
+    ) -> Result<(), ArcaneError> {
         Err(missing_primitive("putObject", None, "putObject"))
     }
     /// Whether this binding actually implements `mint_id` — needed because
@@ -185,7 +190,11 @@ pub trait KernelPrimitives: Send + Sync {
     }
 }
 
-fn missing_primitive(primitive: &'static str, namespace: Option<&str>, message: &str) -> ArcaneError {
+fn missing_primitive(
+    primitive: &'static str,
+    namespace: Option<&str>,
+    message: &str,
+) -> ArcaneError {
     let mut detail: Detail = BTreeMap::new();
     if let Some(namespace) = namespace {
         detail.insert("namespace".to_string(), namespace.to_string());
@@ -244,7 +253,10 @@ impl KernelBinding {
 
     /// Port of `kernelBound()`.
     pub fn kernel_bound(&self) -> bool {
-        self.bound.lock().expect("kernel binding mutex poisoned").is_some()
+        self.bound
+            .lock()
+            .expect("kernel binding mutex poisoned")
+            .is_some()
     }
 
     /// Port of `kernelStatus()`.
@@ -278,7 +290,10 @@ impl KernelBinding {
             if let Some(primitives) = guard.as_ref() {
                 if primitives.has_mint_id() {
                     if let Some(id) = primitives.mint_id(family) {
-                        return Ok(MintedId { id, provisional: false });
+                        return Ok(MintedId {
+                            id,
+                            provisional: false,
+                        });
                     }
                 }
             }
@@ -286,12 +301,19 @@ impl KernelBinding {
         let prefix = handle_prefix(family).ok_or_else(|| {
             let mut detail: Detail = BTreeMap::new();
             detail.insert("family".to_string(), family.to_string());
-            ArcaneError::new("ARC_ID_INVALID", format!("unknown handle family: {family}"), detail)
-                .expect("ARC_ID_INVALID is a known ArcaneError code")
+            ArcaneError::new(
+                "ARC_ID_INVALID",
+                format!("unknown handle family: {family}"),
+                detail,
+            )
+            .expect("ARC_ID_INVALID is a known ArcaneError code")
         })?;
         let mut ulid_state = self.ulid.lock().expect("kernel binding mutex poisoned");
         let id = format!("{prefix}{}", ulid_state.next(now_millis()));
-        Ok(MintedId { id, provisional: true })
+        Ok(MintedId {
+            id,
+            provisional: true,
+        })
     }
 
     /// Port of `appendEvent(namespace, record)`: fails closed unless bound.
@@ -312,16 +334,29 @@ impl KernelBinding {
         let guard = self.bound.lock().expect("kernel binding mutex poisoned");
         match guard.as_ref().filter(|p| p.has_read_object()) {
             Some(primitives) => primitives.read_object(namespace, key),
-            None => Err(missing_primitive("readObject", Some(namespace), "canonical object read")),
+            None => Err(missing_primitive(
+                "readObject",
+                Some(namespace),
+                "canonical object read",
+            )),
         }
     }
 
     /// Port of `putObject(namespace, key, record)`: fails closed unless bound.
-    pub fn put_object(&self, namespace: &str, key: &str, record: &Detail) -> Result<(), ArcaneError> {
+    pub fn put_object(
+        &self,
+        namespace: &str,
+        key: &str,
+        record: &Detail,
+    ) -> Result<(), ArcaneError> {
         let guard = self.bound.lock().expect("kernel binding mutex poisoned");
         match guard.as_ref().filter(|p| p.has_put_object()) {
             Some(primitives) => primitives.put_object(namespace, key, record),
-            None => Err(missing_primitive("putObject", Some(namespace), "canonical object write")),
+            None => Err(missing_primitive(
+                "putObject",
+                Some(namespace),
+                "canonical object write",
+            )),
         }
     }
 }
@@ -390,7 +425,10 @@ mod tests {
         let a = binding.mint_id("artifact").unwrap();
         let b = binding.mint_id("artifact").unwrap();
         assert_ne!(a.id, b.id);
-        assert!(a.id < b.id, "monotonic ULIDs must sort lexicographically: {a:?} vs {b:?}");
+        assert!(
+            a.id < b.id,
+            "monotonic ULIDs must sort lexicographically: {a:?} vs {b:?}"
+        );
     }
 
     struct FakeKernel {
@@ -421,7 +459,12 @@ mod tests {
         fn has_read_object(&self) -> bool {
             true
         }
-        fn put_object(&self, namespace: &str, key: &str, record: &Detail) -> Result<(), ArcaneError> {
+        fn put_object(
+            &self,
+            namespace: &str,
+            key: &str,
+            record: &Detail,
+        ) -> Result<(), ArcaneError> {
             self.objects
                 .lock()
                 .unwrap()

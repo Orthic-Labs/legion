@@ -18,11 +18,16 @@ struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     fn new(s: &'a str) -> Self {
-        Self { bytes: s.as_bytes(), pos: 0 }
+        Self {
+            bytes: s.as_bytes(),
+            pos: 0,
+        }
     }
 
     fn skip_ws(&mut self) {
-        while self.pos < self.bytes.len() && matches!(self.bytes[self.pos], b' ' | b'\t' | b'\n' | b'\r') {
+        while self.pos < self.bytes.len()
+            && matches!(self.bytes[self.pos], b' ' | b'\t' | b'\n' | b'\r')
+        {
             self.pos += 1;
         }
     }
@@ -36,7 +41,10 @@ impl<'a> Parser<'a> {
             self.pos += 1;
             Ok(())
         } else {
-            Err(ParseError(format!("expected '{}' at byte {}", b as char, self.pos)))
+            Err(ParseError(format!(
+                "expected '{}' at byte {}",
+                b as char, self.pos
+            )))
         }
     }
 
@@ -69,7 +77,10 @@ impl<'a> Parser<'a> {
             self.pos = end;
             Ok(())
         } else {
-            Err(ParseError(format!("expected literal '{lit}' at {}", self.pos)))
+            Err(ParseError(format!(
+                "expected literal '{lit}' at {}",
+                self.pos
+            )))
         }
     }
 
@@ -173,7 +184,8 @@ impl<'a> Parser<'a> {
                             }
                             let hex = std::str::from_utf8(&self.bytes[self.pos..self.pos + 4])
                                 .map_err(|_| ParseError("invalid unicode escape".into()))?;
-                            let cp = u32::from_str_radix(hex, 16).map_err(|_| ParseError("invalid unicode escape".into()))?;
+                            let cp = u32::from_str_radix(hex, 16)
+                                .map_err(|_| ParseError("invalid unicode escape".into()))?;
                             if let Some(c) = char::from_u32(cp) {
                                 out.push(c);
                             }
@@ -184,8 +196,12 @@ impl<'a> Parser<'a> {
                 }
                 Some(_) => {
                     // Fast path: consume one UTF-8 scalar.
-                    let rest = std::str::from_utf8(&self.bytes[self.pos..]).map_err(|_| ParseError("invalid utf8".into()))?;
-                    let c = rest.chars().next().ok_or_else(|| ParseError("invalid utf8".into()))?;
+                    let rest = std::str::from_utf8(&self.bytes[self.pos..])
+                        .map_err(|_| ParseError("invalid utf8".into()))?;
+                    let c = rest
+                        .chars()
+                        .next()
+                        .ok_or_else(|| ParseError("invalid utf8".into()))?;
                     out.push(c);
                     self.pos += c.len_utf8();
                 }
@@ -222,9 +238,13 @@ impl<'a> Parser<'a> {
         }
         let text = std::str::from_utf8(&self.bytes[start..self.pos]).unwrap();
         if is_float {
-            text.parse::<f64>().map(Json::F64).map_err(|e| ParseError(e.to_string()))
+            text.parse::<f64>()
+                .map(Json::F64)
+                .map_err(|e| ParseError(e.to_string()))
         } else {
-            text.parse::<i64>().map(Json::I64).map_err(|e| ParseError(e.to_string()))
+            text.parse::<i64>()
+                .map(Json::I64)
+                .map_err(|e| ParseError(e.to_string()))
         }
     }
 }
@@ -268,7 +288,10 @@ mod tests {
     fn parses_escaped_strings() {
         let text = r#"{"s":"line\nbreak \"quote\""}"#;
         let v = parse(text).unwrap();
-        assert_eq!(v.get("s").and_then(|j| j.as_str()), Some("line\nbreak \"quote\""));
+        assert_eq!(
+            v.get("s").and_then(|j| j.as_str()),
+            Some("line\nbreak \"quote\"")
+        );
     }
 
     #[test]

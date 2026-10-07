@@ -126,7 +126,13 @@ fn analyze_operation(object: &Map<String, Value>) -> Result<Value, String> {
     if filtered.is_empty() {
         return Err("requested trace window contains no evidence".to_string());
     }
-    let lanes = ["time-profiler", "hangs", "hitches", "swiftui", "swiftui-causes"];
+    let lanes = [
+        "time-profiler",
+        "hangs",
+        "hitches",
+        "swiftui",
+        "swiftui-causes",
+    ];
     let lane_values: Vec<Value> = lanes
         .iter()
         .map(|lane| lane_value(lane, &filtered, top))
@@ -175,8 +181,12 @@ fn discovery_operation(object: &Map<String, Value>, discovery: Discovery) -> Res
     let mut selected = Vec::new();
     for row in rows.iter().filter(|row| row_in_window(row, window)) {
         let matches = match discovery {
-            Discovery::Logs => row.lane == "logs" || contains_any(&row.event_type, &["log", "os_log"]),
-            Discovery::Signposts => row.lane == "signposts" || contains_any(&row.event_type, &["signpost"]),
+            Discovery::Logs => {
+                row.lane == "logs" || contains_any(&row.event_type, &["log", "os_log"])
+            }
+            Discovery::Signposts => {
+                row.lane == "signposts" || contains_any(&row.event_type, &["signpost"])
+            }
         };
         if matches && matches_filters(row, object) {
             selected.push(row_value(row));
@@ -189,7 +199,11 @@ fn discovery_operation(object: &Map<String, Value>, discovery: Discovery) -> Res
         Discovery::Logs => "list-logs",
         Discovery::Signposts => "list-signposts",
     };
-    let status = if selected.is_empty() { "no_evidence" } else { "ok" };
+    let status = if selected.is_empty() {
+        "no_evidence"
+    } else {
+        "ok"
+    };
     Ok(json!({"operation": name, "status": status, "count": selected.len(), "entries": selected}))
 }
 
@@ -236,8 +250,14 @@ fn fanin_operation(object: &Map<String, Value>) -> Result<Value, String> {
             .then_with(|| left["source"].as_str().cmp(&right["source"].as_str()))
     });
     sources.truncate(top);
-    let status = if sources.is_empty() { "no_evidence" } else { "ok" };
-    Ok(json!({"operation": "fanin-for", "status": status, "destination": destination, "sources": sources}))
+    let status = if sources.is_empty() {
+        "no_evidence"
+    } else {
+        "ok"
+    };
+    Ok(
+        json!({"operation": "fanin-for", "status": status, "destination": destination, "sources": sources}),
+    )
 }
 
 fn summary_operation(object: &Map<String, Value>) -> Result<Value, String> {
@@ -247,16 +267,24 @@ fn summary_operation(object: &Map<String, Value>) -> Result<Value, String> {
     let map = analysis
         .as_object()
         .ok_or_else(|| "analysis must be a JSON object".to_string())?;
-    let status = map.get("status").and_then(Value::as_str).unwrap_or("unknown");
+    let status = map
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
     let rows = map.get("rows").and_then(Value::as_u64).unwrap_or(0);
     let coverage = map
         .get("coveragePct")
         .and_then(Value::as_f64)
         .map(|value| format!("{value:.1}%"))
         .unwrap_or_else(|| "unavailable".to_string());
-    let lane_count = map.get("lanes").and_then(Value::as_array).map_or(0, Vec::len);
+    let lane_count = map
+        .get("lanes")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
     let text = format!("Trace status {status}; {rows} evidence rows; {lane_count} lanes; main-running coverage {coverage}.");
-    Ok(json!({"operation": "summary", "status": status, "text": text, "evidenceRows": rows, "lanes": lane_count, "coveragePct": map.get("coveragePct").cloned().unwrap_or(Value::Null)}))
+    Ok(
+        json!({"operation": "summary", "status": status, "text": text, "evidenceRows": rows, "lanes": lane_count, "coveragePct": map.get("coveragePct").cloned().unwrap_or(Value::Null)}),
+    )
 }
 
 fn load_rows(object: &Map<String, Value>) -> Result<Vec<TraceRow>, String> {
@@ -298,18 +326,33 @@ fn top_value(object: &Map<String, Value>) -> Result<usize, String> {
 
 fn parse_window(object: &Map<String, Value>) -> Result<Option<Window>, String> {
     let value = object.get("windowMs").or_else(|| object.get("window_ms"));
-    let Some(value) = value else { return Ok(None); };
-    let map = value.as_object().ok_or_else(|| "windowMs must be an object".to_string())?;
-    let start = map.get("start").and_then(Value::as_f64).ok_or_else(|| "windowMs.start must be a number".to_string())?;
-    let end = map.get("end").and_then(Value::as_f64).ok_or_else(|| "windowMs.end must be a number".to_string())?;
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let map = value
+        .as_object()
+        .ok_or_else(|| "windowMs must be an object".to_string())?;
+    let start = map
+        .get("start")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| "windowMs.start must be a number".to_string())?;
+    let end = map
+        .get("end")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| "windowMs.end must be a number".to_string())?;
     if !start.is_finite() || !end.is_finite() || start < 0.0 || end < start {
         return Err("windowMs must have finite non-negative start <= end".to_string());
     }
-    Ok(Some(Window { start_ns: (start * 1_000_000.0) as u64, end_ns: (end * 1_000_000.0) as u64 }))
+    Ok(Some(Window {
+        start_ns: (start * 1_000_000.0) as u64,
+        end_ns: (end * 1_000_000.0) as u64,
+    }))
 }
 
 fn row_in_window(row: &TraceRow, window: Option<Window>) -> bool {
-    let Some(window) = window else { return true; };
+    let Some(window) = window else {
+        return true;
+    };
     let start = row.start_ns.or(row.end_ns).unwrap_or(0);
     let end = row.end_ns.or(row.start_ns).unwrap_or(start);
     end >= window.start_ns && start <= window.end_ns
@@ -317,7 +360,14 @@ fn row_in_window(row: &TraceRow, window: Option<Window>) -> bool {
 
 fn matches_filters(row: &TraceRow, object: &Map<String, Value>) -> bool {
     let contains = |key: &str, haystack: &str| {
-        object.get(key).and_then(Value::as_str).map_or(true, |needle| haystack.to_ascii_lowercase().contains(&needle.to_ascii_lowercase()))
+        object
+            .get(key)
+            .and_then(Value::as_str)
+            .map_or(true, |needle| {
+                haystack
+                    .to_ascii_lowercase()
+                    .contains(&needle.to_ascii_lowercase())
+            })
     };
     contains("subsystem", &row.subsystem)
         && contains("category", &row.category)
@@ -337,9 +387,17 @@ fn lane_counts(rows: &[TraceRow]) -> Value {
 fn lane_value(lane: &str, rows: &[TraceRow], top: usize) -> Value {
     let mut selected: Vec<&TraceRow> = rows.iter().filter(|row| row.lane == lane).collect();
     selected.sort_by(|left, right| {
-        right.duration_ns.unwrap_or(0).cmp(&left.duration_ns.unwrap_or(0)).then_with(|| left.index.cmp(&right.index))
+        right
+            .duration_ns
+            .unwrap_or(0)
+            .cmp(&left.duration_ns.unwrap_or(0))
+            .then_with(|| left.index.cmp(&right.index))
     });
-    let evidence = selected.iter().take(top).map(|row| row_value(row)).collect::<Vec<_>>();
+    let evidence = selected
+        .iter()
+        .take(top)
+        .map(|row| row_value(row))
+        .collect::<Vec<_>>();
     if selected.is_empty() {
         json!({"lane": lane, "status": "no_evidence", "reason": "no matching lane rows", "count": 0, "evidence": []})
     } else {
@@ -349,7 +407,10 @@ fn lane_value(lane: &str, rows: &[TraceRow], top: usize) -> Value {
 
 fn correlate(rows: &[TraceRow], top: usize) -> Vec<Value> {
     let hitches: Vec<&TraceRow> = rows.iter().filter(|row| row.lane == "hitches").collect();
-    let symbols: Vec<&TraceRow> = rows.iter().filter(|row| row.lane == "time-profiler" && !row.symbol.is_empty()).collect();
+    let symbols: Vec<&TraceRow> = rows
+        .iter()
+        .filter(|row| row.lane == "time-profiler" && !row.symbol.is_empty())
+        .collect();
     let swiftui: Vec<&TraceRow> = rows.iter().filter(|row| row.lane == "swiftui").collect();
     let mut values = Vec::new();
     for hitch in hitches.iter().take(top) {
@@ -374,14 +435,30 @@ fn correlate(rows: &[TraceRow], top: usize) -> Vec<Value> {
 fn overlap_ns(left: &TraceRow, right: &TraceRow) -> u64 {
     let left_start = left.start_ns.unwrap_or(0);
     let right_start = right.start_ns.unwrap_or(0);
-    let left_end = left.end_ns.or(left.duration_ns.map(|duration| left_start.saturating_add(duration))).unwrap_or(left_start);
-    let right_end = right.end_ns.or(right.duration_ns.map(|duration| right_start.saturating_add(duration))).unwrap_or(right_start);
-    left_end.min(right_end).saturating_sub(left_start.max(right_start))
+    let left_end = left
+        .end_ns
+        .or(left
+            .duration_ns
+            .map(|duration| left_start.saturating_add(duration)))
+        .unwrap_or(left_start);
+    let right_end = right
+        .end_ns
+        .or(right
+            .duration_ns
+            .map(|duration| right_start.saturating_add(duration)))
+        .unwrap_or(right_start);
+    left_end
+        .min(right_end)
+        .saturating_sub(left_start.max(right_start))
 }
 
 fn coverage_value(rows: &[TraceRow]) -> Value {
     let values: Vec<f64> = rows.iter().filter_map(|row| row.coverage_pct).collect();
-    if values.is_empty() { Value::Null } else { Value::from(values.iter().sum::<f64>() / values.len() as f64) }
+    if values.is_empty() {
+        Value::Null
+    } else {
+        Value::from(values.iter().sum::<f64>() / values.len() as f64)
+    }
 }
 
 fn run_values(rows: &[TraceRow]) -> Vec<Value> {
@@ -417,14 +494,33 @@ fn row_value(row: &TraceRow) -> Value {
 
 fn row_from_node(index: usize, node: &XmlNode) -> TraceRow {
     let lane_hint = find_value(node, &["lane", "schema", "instrument", "kind", "type"]);
-    let event_type = find_value(node, &["event-type", "event_type", "type", "kind"]).unwrap_or_default();
+    let event_type =
+        find_value(node, &["event-type", "event_type", "type", "kind"]).unwrap_or_default();
     let name = find_value(node, &["name", "title", "label", "event-name"]).unwrap_or_default();
-    let symbol = find_value(node, &["symbol", "symbol-name", "function", "frame"]).unwrap_or_default();
-    let message = find_value(node, &["message", "format", "description"]).unwrap_or_else(|| node_text(node));
-    let start_ns = find_number(node, &["start-ns", "start_ns", "start", "timestamp", "time"]);
+    let symbol =
+        find_value(node, &["symbol", "symbol-name", "function", "frame"]).unwrap_or_default();
+    let message =
+        find_value(node, &["message", "format", "description"]).unwrap_or_else(|| node_text(node));
+    let start_ns = find_number(
+        node,
+        &["start-ns", "start_ns", "start", "timestamp", "time"],
+    );
     let end_ns = find_number(node, &["end-ns", "end_ns", "end"]);
-    let duration_ns = find_number(node, &["duration-ns", "duration_ns", "duration"]).or_else(|| match (start_ns, end_ns) { (Some(start), Some(end)) if end >= start => Some(end - start), _ => None });
-    let combined = format!("{} {} {} {}", lane_hint.as_deref().unwrap_or_default(), event_type, name, message).to_ascii_lowercase();
+    let duration_ns =
+        find_number(node, &["duration-ns", "duration_ns", "duration"]).or_else(|| {
+            match (start_ns, end_ns) {
+                (Some(start), Some(end)) if end >= start => Some(end - start),
+                _ => None,
+            }
+        });
+    let combined = format!(
+        "{} {} {} {}",
+        lane_hint.as_deref().unwrap_or_default(),
+        event_type,
+        name,
+        message
+    )
+    .to_ascii_lowercase();
     let lane = classify_lane(&combined, node.name.as_str());
     TraceRow {
         index,
@@ -448,30 +544,61 @@ fn row_from_node(index: usize, node: &XmlNode) -> TraceRow {
 
 fn classify_lane(combined: &str, tag: &str) -> String {
     let text = format!("{combined} {tag}").to_ascii_lowercase();
-    if contains_any(&text, &["cause", "invalidation", "fanin", "fan-in"]) { "swiftui-causes" }
-    else if contains_any(&text, &["signpost"]) { "signposts" }
-    else if contains_any(&text, &["log", "os_log"]) { "logs" }
-    else if contains_any(&text, &["hitch", "animation frame", "frame hitch"]) { "hitches" }
-    else if contains_any(&text, &["hang", "blocked", "main thread stall"]) { "hangs" }
-    else if contains_any(&text, &["swiftui", "view update", "body", "invalidation", "layout"]) { "swiftui" }
-    else if contains_any(&text, &["time profiler", "time-profile", "kperf", "sample", "cpu", "stack", "symbol"]) { "time-profiler" }
-    else { "other" }
-        .to_string()
+    if contains_any(&text, &["cause", "invalidation", "fanin", "fan-in"]) {
+        "swiftui-causes"
+    } else if contains_any(&text, &["signpost"]) {
+        "signposts"
+    } else if contains_any(&text, &["log", "os_log"]) {
+        "logs"
+    } else if contains_any(&text, &["hitch", "animation frame", "frame hitch"]) {
+        "hitches"
+    } else if contains_any(&text, &["hang", "blocked", "main thread stall"]) {
+        "hangs"
+    } else if contains_any(
+        &text,
+        &["swiftui", "view update", "body", "invalidation", "layout"],
+    ) {
+        "swiftui"
+    } else if contains_any(
+        &text,
+        &[
+            "time profiler",
+            "time-profile",
+            "kperf",
+            "sample",
+            "cpu",
+            "stack",
+            "symbol",
+        ],
+    ) {
+        "time-profiler"
+    } else {
+        "other"
+    }
+    .to_string()
 }
 
-fn contains_any(value: &str, needles: &[&str]) -> bool { needles.iter().any(|needle| value.contains(needle)) }
+fn contains_any(value: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| value.contains(needle))
+}
 
 fn find_value(node: &XmlNode, names: &[&str]) -> Option<String> {
     for name in names {
-        if let Some(value) = node.attrs.get(&normalize_name(name)) { return Some(value.clone()); }
+        if let Some(value) = node.attrs.get(&normalize_name(name)) {
+            return Some(value.clone());
+        }
     }
     let current = normalize_name(&node.name);
     if names.iter().any(|name| normalize_name(name) == current) {
         let value = node_text(node);
-        if !value.is_empty() { return Some(value); }
+        if !value.is_empty() {
+            return Some(value);
+        }
     }
     for child in &node.children {
-        if let Some(value) = find_value(child, names) { return Some(value); }
+        if let Some(value) = find_value(child, names) {
+            return Some(value);
+        }
     }
     None
 }
@@ -482,47 +609,78 @@ fn find_number(node: &XmlNode, names: &[&str]) -> Option<u64> {
 }
 
 fn find_number_f64(node: &XmlNode, names: &[&str]) -> Option<f64> {
-    let value: f64 = find_value(node, names)?.trim().trim_end_matches('%').parse().ok()?;
+    let value: f64 = find_value(node, names)?
+        .trim()
+        .trim_end_matches('%')
+        .parse()
+        .ok()?;
     value.is_finite().then_some(value)
 }
 
 fn parse_time_value(value: &str, field: &str) -> Result<u64, String> {
     let compact = value.trim().replace(',', "");
     let lower = compact.to_ascii_lowercase();
-    let (number, multiplier) = if let Some(value) = lower.strip_suffix("ns") { (value, 1.0) }
-    else if let Some(value) = lower.strip_suffix("us") { (value, 1_000.0) }
-    else if let Some(value) = lower.strip_suffix("ms") { (value, 1_000_000.0) }
-    else if let Some(value) = lower.strip_suffix('s') { (value, 1_000_000_000.0) }
-    else if field.contains("ms") { (lower.as_str(), 1_000_000.0) }
-    else { (lower.as_str(), 1.0) };
-    let parsed: f64 = number.trim().parse().map_err(|_| format!("invalid time value: {value}"))?;
-    if !parsed.is_finite() || parsed < 0.0 || parsed * multiplier > u64::MAX as f64 { return Err(format!("invalid time value: {value}")); }
+    let (number, multiplier) = if let Some(value) = lower.strip_suffix("ns") {
+        (value, 1.0)
+    } else if let Some(value) = lower.strip_suffix("us") {
+        (value, 1_000.0)
+    } else if let Some(value) = lower.strip_suffix("ms") {
+        (value, 1_000_000.0)
+    } else if let Some(value) = lower.strip_suffix('s') {
+        (value, 1_000_000_000.0)
+    } else if field.contains("ms") {
+        (lower.as_str(), 1_000_000.0)
+    } else {
+        (lower.as_str(), 1.0)
+    };
+    let parsed: f64 = number
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid time value: {value}"))?;
+    if !parsed.is_finite() || parsed < 0.0 || parsed * multiplier > u64::MAX as f64 {
+        return Err(format!("invalid time value: {value}"));
+    }
     Ok((parsed * multiplier) as u64)
 }
 
 fn node_text(node: &XmlNode) -> String {
     let mut output = node.text.clone();
     for child in &node.children {
-        if !output.is_empty() { output.push(' '); }
+        if !output.is_empty() {
+            output.push(' ');
+        }
         output.push_str(&node_text(child));
-        if output.len() >= MAX_TEXT_BYTES { break; }
+        if output.len() >= MAX_TEXT_BYTES {
+            break;
+        }
     }
     output.truncate(MAX_TEXT_BYTES);
     output.trim().to_string()
 }
 
 fn collect_rows<'a>(node: &'a XmlNode, rows: &mut Vec<&'a XmlNode>) {
-    if rows.len() >= MAX_ROWS { return; }
+    if rows.len() >= MAX_ROWS {
+        return;
+    }
     let name = normalize_name(&node.name);
-    if matches!(name.as_str(), "row" | "event" | "sample" | "interval" | "signpost" | "log" | "update" | "cause") {
+    if matches!(
+        name.as_str(),
+        "row" | "event" | "sample" | "interval" | "signpost" | "log" | "update" | "cause"
+    ) {
         rows.push(node);
     }
-    for child in &node.children { collect_rows(child, rows); }
+    for child in &node.children {
+        collect_rows(child, rows);
+    }
 }
 
 fn collect_runs(node: &XmlNode, runs: &mut Vec<Value>) {
     if normalize_name(&node.name) == "run" {
-        let number = node.attrs.get("number").cloned().or_else(|| find_value(node, &["number", "id"]));
+        let number = node
+            .attrs
+            .get("number")
+            .cloned()
+            .or_else(|| find_value(node, &["number", "id"]));
         if let Some(number) = number {
             runs.push(json!({
                 "number": number,
@@ -533,13 +691,23 @@ fn collect_runs(node: &XmlNode, runs: &mut Vec<Value>) {
             }));
         }
     }
-    for child in &node.children { collect_runs(child, runs); }
+    for child in &node.children {
+        collect_runs(child, runs);
+    }
 }
 
-fn normalize_name(name: &str) -> String { name.rsplit(':').next().unwrap_or(name).replace('-', "_").to_ascii_lowercase() }
+fn normalize_name(name: &str) -> String {
+    name.rsplit(':')
+        .next()
+        .unwrap_or(name)
+        .replace('-', "_")
+        .to_ascii_lowercase()
+}
 
 fn parse_xml(input: &str) -> Result<XmlNode, String> {
-    if input.len() > MAX_XML_BYTES { return Err(format!("xml exceeds {MAX_XML_BYTES} bytes")); }
+    if input.len() > MAX_XML_BYTES {
+        return Err(format!("xml exceeds {MAX_XML_BYTES} bytes"));
+    }
     let mut stack: Vec<XmlNode> = Vec::new();
     let mut roots = Vec::new();
     let mut cursor = 0;
@@ -547,19 +715,32 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
     let mut nodes = 0;
     while cursor < bytes.len() {
         if bytes[cursor] != b'<' {
-            let end = input[cursor..].find('<').map_or(bytes.len(), |offset| cursor + offset);
-            if let Some(node) = stack.last_mut() { append_text(&mut node.text, decode_entities(&input[cursor..end])); }
+            let end = input[cursor..]
+                .find('<')
+                .map_or(bytes.len(), |offset| cursor + offset);
+            if let Some(node) = stack.last_mut() {
+                append_text(&mut node.text, decode_entities(&input[cursor..end]));
+            }
             cursor = end;
             continue;
         }
         if input[cursor..].starts_with("<!--") {
-            cursor = cursor + input[cursor + 4..].find("-->").ok_or_else(|| "unterminated XML comment".to_string())? + 7;
+            cursor = cursor
+                + input[cursor + 4..]
+                    .find("-->")
+                    .ok_or_else(|| "unterminated XML comment".to_string())?
+                + 7;
             continue;
         }
         if input[cursor..].starts_with("<![CDATA[") {
             let start = cursor + 9;
-            let end = start + input[start..].find("]]>").ok_or_else(|| "unterminated CDATA".to_string())?;
-            if let Some(node) = stack.last_mut() { append_text(&mut node.text, input[start..end].to_string()); }
+            let end = start
+                + input[start..]
+                    .find("]]>")
+                    .ok_or_else(|| "unterminated CDATA".to_string())?;
+            if let Some(node) = stack.last_mut() {
+                append_text(&mut node.text, input[start..end].to_string());
+            }
             cursor = end + 3;
             continue;
         }
@@ -571,23 +752,44 @@ fn parse_xml(input: &str) -> Result<XmlNode, String> {
         let raw = input[cursor + 1..end].trim();
         if let Some(close) = raw.strip_prefix('/') {
             let name = close.trim();
-            let node = stack.pop().ok_or_else(|| "unexpected XML closing tag".to_string())?;
-            if normalize_name(&node.name) != normalize_name(name) { return Err(format!("mismatched XML closing tag: {name}")); }
+            let node = stack
+                .pop()
+                .ok_or_else(|| "unexpected XML closing tag".to_string())?;
+            if normalize_name(&node.name) != normalize_name(name) {
+                return Err(format!("mismatched XML closing tag: {name}"));
+            }
             attach_node(&mut stack, &mut roots, node);
         } else {
             let self_closing = raw.ends_with('/');
             let body = raw.trim_end_matches('/').trim();
             let (name, attrs) = parse_tag(body)?;
             nodes += 1;
-            if nodes > MAX_NODES { return Err(format!("XML node count exceeds {MAX_NODES}")); }
-            if stack.len() >= MAX_DEPTH { return Err(format!("XML nesting exceeds {MAX_DEPTH}")); }
-            let node = XmlNode { name, attrs, children: Vec::new(), text: String::new() };
-            if self_closing { attach_node(&mut stack, &mut roots, node); } else { stack.push(node); }
+            if nodes > MAX_NODES {
+                return Err(format!("XML node count exceeds {MAX_NODES}"));
+            }
+            if stack.len() >= MAX_DEPTH {
+                return Err(format!("XML nesting exceeds {MAX_DEPTH}"));
+            }
+            let node = XmlNode {
+                name,
+                attrs,
+                children: Vec::new(),
+                text: String::new(),
+            };
+            if self_closing {
+                attach_node(&mut stack, &mut roots, node);
+            } else {
+                stack.push(node);
+            }
         }
         cursor = end + 1;
     }
-    if !stack.is_empty() { return Err("unterminated XML element".to_string()); }
-    if roots.len() != 1 { return Err("XML must contain exactly one root element".to_string()); }
+    if !stack.is_empty() {
+        return Err("unterminated XML element".to_string());
+    }
+    if roots.len() != 1 {
+        return Err("XML must contain exactly one root element".to_string());
+    }
     Ok(roots.remove(0))
 }
 
@@ -606,48 +808,92 @@ fn find_tag_end(input: &str, start: usize) -> Result<usize, String> {
 
 fn parse_tag(body: &str) -> Result<(String, BTreeMap<String, String>), String> {
     let mut chars = body.char_indices().peekable();
-    while chars.peek().is_some_and(|(_, value)| value.is_whitespace()) { chars.next(); }
+    while chars.peek().is_some_and(|(_, value)| value.is_whitespace()) {
+        chars.next();
+    }
     let name_start = chars.peek().map(|(index, _)| *index).unwrap_or(0);
-    while chars.peek().is_some_and(|(_, value)| !value.is_whitespace()) { chars.next(); }
+    while chars
+        .peek()
+        .is_some_and(|(_, value)| !value.is_whitespace())
+    {
+        chars.next();
+    }
     let name_end = chars.peek().map(|(index, _)| *index).unwrap_or(body.len());
     let name = body[name_start..name_end].to_string();
-    if name.is_empty() { return Err("XML tag has no name".to_string()); }
+    if name.is_empty() {
+        return Err("XML tag has no name".to_string());
+    }
     let mut attrs = BTreeMap::new();
     let mut cursor = name_end;
     while cursor < body.len() {
-        while cursor < body.len() && body.as_bytes()[cursor].is_ascii_whitespace() { cursor += 1; }
-        if cursor >= body.len() { break; }
+        while cursor < body.len() && body.as_bytes()[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if cursor >= body.len() {
+            break;
+        }
         let key_start = cursor;
-        while cursor < body.len() && !body.as_bytes()[cursor].is_ascii_whitespace() && body.as_bytes()[cursor] != b'=' { cursor += 1; }
+        while cursor < body.len()
+            && !body.as_bytes()[cursor].is_ascii_whitespace()
+            && body.as_bytes()[cursor] != b'='
+        {
+            cursor += 1;
+        }
         let key = normalize_name(&body[key_start..cursor]);
-        while cursor < body.len() && body.as_bytes()[cursor].is_ascii_whitespace() { cursor += 1; }
-        if cursor >= body.len() || body.as_bytes()[cursor] != b'=' { return Err(format!("XML attribute {key} missing =")); }
+        while cursor < body.len() && body.as_bytes()[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if cursor >= body.len() || body.as_bytes()[cursor] != b'=' {
+            return Err(format!("XML attribute {key} missing ="));
+        }
         cursor += 1;
-        while cursor < body.len() && body.as_bytes()[cursor].is_ascii_whitespace() { cursor += 1; }
-        if cursor >= body.len() || !matches!(body.as_bytes()[cursor], b'"' | b'\'') { return Err(format!("XML attribute {key} is not quoted")); }
-        let quote = body.as_bytes()[cursor]; cursor += 1; let value_start = cursor;
-        while cursor < body.len() && body.as_bytes()[cursor] != quote { cursor += 1; }
-        if cursor >= body.len() { return Err(format!("XML attribute {key} is unterminated")); }
-        attrs.insert(key, decode_entities(&body[value_start..cursor])); cursor += 1;
+        while cursor < body.len() && body.as_bytes()[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if cursor >= body.len() || !matches!(body.as_bytes()[cursor], b'"' | b'\'') {
+            return Err(format!("XML attribute {key} is not quoted"));
+        }
+        let quote = body.as_bytes()[cursor];
+        cursor += 1;
+        let value_start = cursor;
+        while cursor < body.len() && body.as_bytes()[cursor] != quote {
+            cursor += 1;
+        }
+        if cursor >= body.len() {
+            return Err(format!("XML attribute {key} is unterminated"));
+        }
+        attrs.insert(key, decode_entities(&body[value_start..cursor]));
+        cursor += 1;
     }
     Ok((name, attrs))
 }
 
 fn attach_node(stack: &mut Vec<XmlNode>, roots: &mut Vec<XmlNode>, node: XmlNode) {
-    if let Some(parent) = stack.last_mut() { parent.children.push(node); } else { roots.push(node); }
+    if let Some(parent) = stack.last_mut() {
+        parent.children.push(node);
+    } else {
+        roots.push(node);
+    }
 }
 
 fn append_text(target: &mut String, value: String) {
     if target.len() < MAX_TEXT_BYTES {
         let remaining = MAX_TEXT_BYTES - target.len();
         let mut end = value.len().min(remaining);
-        while end > 0 && !value.is_char_boundary(end) { end -= 1; }
+        while end > 0 && !value.is_char_boundary(end) {
+            end -= 1;
+        }
         target.push_str(&value[..end]);
     }
 }
 
 fn decode_entities(value: &str) -> String {
-    value.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&amp;", "&")
+    value
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&amp;", "&")
 }
 
 #[cfg(test)]
@@ -665,8 +911,10 @@ mod tests {
 
     #[test]
     fn filters_discovery_and_reports_no_evidence() {
-        let xml = r#"<trace><row lane="logs" subsystem="ui"><message>Loaded</message></row></trace>"#;
-        let value = invoke(&json!({"operation":"list-logs","xml":xml,"subsystem":"network"})).unwrap();
+        let xml =
+            r#"<trace><row lane="logs" subsystem="ui"><message>Loaded</message></row></trace>"#;
+        let value =
+            invoke(&json!({"operation":"list-logs","xml":xml,"subsystem":"network"})).unwrap();
         assert_eq!(value["status"], "no_evidence");
     }
 
@@ -675,7 +923,9 @@ mod tests {
         let xml = r#"<trace><row lane="hitches" start="10ms" duration="10ms"/><row lane="time-profiler" start="12ms" duration="3ms"><symbol>draw()</symbol></row><row lane="swiftui-causes" destination="Editor" source="Settings"><time>1ms</time></row></trace>"#;
         let value = invoke(&json!({"operation":"analyze","xml":xml})).unwrap();
         assert_eq!(value["correlations"][0]["overlapNs"], 3_000_000);
-        let fanin = invoke(&json!({"operation":"fanin-for","xml":xml,"destinationContains":"edit"})).unwrap();
+        let fanin =
+            invoke(&json!({"operation":"fanin-for","xml":xml,"destinationContains":"edit"}))
+                .unwrap();
         assert_eq!(fanin["sources"][0]["source"], "Settings");
     }
 

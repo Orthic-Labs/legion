@@ -9,7 +9,8 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
-const CATALOG_JSON: &str = include_str!("../../../../skills/ios-development/config/tool-catalog.json");
+const CATALOG_JSON: &str =
+    include_str!("../../../../skills/ios-development/config/tool-catalog.json");
 
 /// Parse and return catalog metadata, including its tool setup records.
 pub fn catalog_metadata() -> Value {
@@ -184,7 +185,11 @@ fn inspect_tool(tool: &Value, system: &str, path: &str) -> Result<Value, String>
     } else if !tool
         .get("platforms")
         .and_then(Value::as_array)
-        .map(|platforms| platforms.iter().any(|platform| platform.as_str() == Some(system)))
+        .map(|platforms| {
+            platforms
+                .iter()
+                .any(|platform| platform.as_str() == Some(system))
+        })
         .unwrap_or(false)
     {
         (
@@ -234,7 +239,9 @@ fn locate(command: &str, path: &str, system: &str) -> Option<String> {
 }
 
 fn is_candidate(path: &Path, system: &str, _windows_extension: bool) -> bool {
-    let Ok(metadata) = fs::metadata(path) else { return false };
+    let Ok(metadata) = fs::metadata(path) else {
+        return false;
+    };
     if !metadata.is_file() {
         return false;
     }
@@ -267,7 +274,10 @@ mod tests {
 
     #[test]
     fn list_is_offline_and_catalog_preserves_order() {
-        assert_eq!(invoke(&json!({"list":true})).unwrap()["tools"][0], "legion-apple");
+        assert_eq!(
+            invoke(&json!({"list":true})).unwrap()["tools"][0],
+            "legion-apple"
+        );
     }
 
     #[test]
@@ -279,13 +289,20 @@ mod tests {
         #[cfg(not(windows))]
         let (system, file) = ("Darwin", root.join("asc"));
         fs::write(&file, b"this is not executable code").unwrap();
-        #[cfg(unix)] {
+        #[cfg(unix)]
+        {
             use std::os::unix::fs::PermissionsExt;
             let mut permissions = fs::metadata(&file).unwrap().permissions();
             permissions.set_mode(0o755);
             fs::set_permissions(&file, permissions).unwrap();
         }
-        let result = inspect_selected(&fixture_catalog(), &["asc".into(), "asc".into()], system, &root.to_string_lossy()).unwrap();
+        let result = inspect_selected(
+            &fixture_catalog(),
+            &["asc".into(), "asc".into()],
+            system,
+            &root.to_string_lossy(),
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0]["state"], "installed-candidate");
         let _ = fs::remove_file(file);
@@ -294,18 +311,28 @@ mod tests {
 
     #[test]
     fn unknown_ids_are_sorted_and_manual_or_unsupported_states_are_distinct() {
-        let error = inspect_selected(&fixture_catalog(), &["z".into(), "a".into()], "Darwin", "").unwrap_err();
+        let error = inspect_selected(&fixture_catalog(), &["z".into(), "a".into()], "Darwin", "")
+            .unwrap_err();
         assert_eq!(error, "Unknown tool ids: a, z");
-        let manual = inspect_selected(&fixture_catalog(), &["manual".into()], "Darwin", "").unwrap();
+        let manual =
+            inspect_selected(&fixture_catalog(), &["manual".into()], "Darwin", "").unwrap();
         assert_eq!(manual[0]["state"], "manual-check");
-        let root = std::env::temp_dir().join(format!("legion-preflight-windows-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("legion-preflight-windows-{}", std::process::id()));
         let _ = fs::create_dir_all(&root);
         fs::write(root.join("asc.EXE"), b"not executed").unwrap();
-        let installed = inspect_selected(&fixture_catalog(), &["asc".into()], "Windows", &root.to_string_lossy()).unwrap();
+        let installed = inspect_selected(
+            &fixture_catalog(),
+            &["asc".into()],
+            "Windows",
+            &root.to_string_lossy(),
+        )
+        .unwrap();
         assert_eq!(installed[0]["state"], "installed-candidate");
         let _ = fs::remove_file(root.join("asc.EXE"));
         let _ = fs::remove_dir(root);
-        let unsupported = inspect_selected(&fixture_catalog(), &["manual".into()], "Linux", "").unwrap();
+        let unsupported =
+            inspect_selected(&fixture_catalog(), &["manual".into()], "Linux", "").unwrap();
         assert_eq!(unsupported[0]["state"], "unsupported-environment");
     }
 

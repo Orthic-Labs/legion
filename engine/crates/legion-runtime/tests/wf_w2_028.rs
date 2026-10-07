@@ -25,7 +25,10 @@ use serde_json::json;
 
 #[test]
 fn value_is_case_insensitive_and_returns_first_match() {
-    let row = json!({"Date": "2026-01-01", "Page": "/x"}).as_object().unwrap().clone();
+    let row = json!({"Date": "2026-01-01", "Page": "/x"})
+        .as_object()
+        .unwrap()
+        .clone();
     assert_eq!(
         value(&row, &["date", "day"]).unwrap().as_str().unwrap(),
         "2026-01-01"
@@ -155,7 +158,10 @@ fn require_key_reports_missing_key_message() {
 
 #[test]
 fn url_encode_query_component_matches_urlencode_defaults() {
-    assert_eq!(url_encode_query_component("https://example.com/"), "https%3A%2F%2Fexample.com%2F");
+    assert_eq!(
+        url_encode_query_component("https://example.com/"),
+        "https%3A%2F%2Fexample.com%2F"
+    );
     assert_eq!(url_encode_query_component("a b"), "a+b");
     assert_eq!(url_encode_query_component("abc_-.~123"), "abc_-.~123");
 }
@@ -299,7 +305,11 @@ fn compile_text_assigns_phase_scoped_ids_and_heading_path() {
     assert_eq!(first.phase, Some(1));
     assert_eq!(
         first.heading_path,
-        vec!["Site".to_string(), "PHASE 1: Foundations".to_string(), "Crawlability".to_string()]
+        vec![
+            "Site".to_string(),
+            "PHASE 1: Foundations".to_string(),
+            "Crawlability".to_string()
+        ]
     );
     assert_eq!(first.promotion_state, "candidate");
 
@@ -415,7 +425,10 @@ fn is_blocked_ip_flags_private_loopback_and_reserved() {
 fn check_ssrf_blocks_localhost() {
     let result = check_ssrf("localhost");
     match result {
-        Ok(Some(ip)) => assert!(is_blocked_ip(ip), "localhost should resolve to a blocked ip"),
+        Ok(Some(ip)) => assert!(
+            is_blocked_ip(ip),
+            "localhost should resolve to a blocked ip"
+        ),
         Err(_) => {}
         Ok(None) => panic!("localhost should resolve in a normal test environment"),
     }
@@ -423,12 +436,27 @@ fn check_ssrf_blocks_localhost() {
 
 #[test]
 fn output_dir_allowed_matches_cwd_or_home_prefix() {
-    assert!(output_dir_allowed("/home/user/project/out", "/home/user/project", "/home/user"));
-    assert!(output_dir_allowed("/home/user/out", "/home/user/project", "/home/user"));
-    assert!(!output_dir_allowed("/etc/passwd", "/home/user/project", "/home/user"));
+    assert!(output_dir_allowed(
+        "/home/user/project/out",
+        "/home/user/project",
+        "/home/user"
+    ));
+    assert!(output_dir_allowed(
+        "/home/user/out",
+        "/home/user/project",
+        "/home/user"
+    ));
+    assert!(!output_dir_allowed(
+        "/etc/passwd",
+        "/home/user/project",
+        "/home/user"
+    ));
 }
 
 #[test]
 fn screenshot_filename_matches_python_netloc_replace() {
-    assert_eq!(screenshot_filename("example.com", "mobile"), "example_com_mobile.png");
+    assert_eq!(
+        screenshot_filename("example.com", "mobile"),
+        "example_com_mobile.png"
+    );
 }

@@ -97,7 +97,13 @@ pub fn verify_mobile_commerce_operations(input: &Value) -> Value {
     let entitlement_tested_states = get_str_vec(&entitlement, "testedStates");
     if !covers(
         &entitlement_tested_states,
-        &["purchase", "restore", "refund", "revocation", "account-switch"],
+        &[
+            "purchase",
+            "restore",
+            "refund",
+            "revocation",
+            "account-switch",
+        ],
     ) {
         gaps.push("entitlement-state-coverage-missing".to_string());
     }
@@ -295,7 +301,10 @@ pub fn compile_mobile_compatibility(input: &Value) -> Value {
     for item in &executed {
         let item_obj = item.as_object().cloned().unwrap_or_default();
         let explicit_platform = item_obj.get("platform").and_then(Value::as_str);
-        let dimension = item_obj.get("dimension").and_then(Value::as_str).unwrap_or("");
+        let dimension = item_obj
+            .get("dimension")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let value = item_obj.get("value").and_then(Value::as_str).unwrap_or("");
         let derived_platform: Option<&str> = if let Some(p) = explicit_platform {
             Some(p)
@@ -314,13 +323,17 @@ pub fn compile_mobile_compatibility(input: &Value) -> Value {
         }
     }
 
-    let all_expected: Vec<&ExpectedCell> = ios_expected.iter().chain(android_expected.iter()).collect();
+    let all_expected: Vec<&ExpectedCell> =
+        ios_expected.iter().chain(android_expected.iter()).collect();
     let omitted: Vec<Value> = all_expected
         .iter()
         .filter(|cell| !executed_keys.contains(&cell.key()))
         .map(|cell| {
             let mut m = cell.to_value().as_object().cloned().unwrap();
-            m.insert("reason".into(), Value::String("device-evidence-unavailable".into()));
+            m.insert(
+                "reason".into(),
+                Value::String("device-evidence-unavailable".into()),
+            );
             Value::Object(m)
         })
         .collect();
@@ -333,23 +346,37 @@ pub fn compile_mobile_compatibility(input: &Value) -> Value {
     };
     // JS: accounted = cells.length - omitted(count) + omitted(count) === cells.length always.
     let ios_accounted = ios_expected.len() - omitted_count_for("ios") + omitted_count_for("ios");
-    let android_accounted = android_expected.len() - omitted_count_for("android") + omitted_count_for("android");
+    let android_accounted =
+        android_expected.len() - omitted_count_for("android") + omitted_count_for("android");
 
     let gaps: Vec<String> = critical_journeys
         .iter()
         .filter(|journey_id| {
             !executed.iter().any(|item| {
                 let item_obj = item.as_object();
-                item_obj.and_then(|m| m.get("dimension")).and_then(Value::as_str) == Some("accessibility")
-                    && item_obj.and_then(|m| m.get("journeyId")).and_then(Value::as_str) == Some(journey_id.as_str())
-                    && item_obj.and_then(|m| m.get("status")).and_then(Value::as_str) == Some("pass")
+                item_obj
+                    .and_then(|m| m.get("dimension"))
+                    .and_then(Value::as_str)
+                    == Some("accessibility")
+                    && item_obj
+                        .and_then(|m| m.get("journeyId"))
+                        .and_then(Value::as_str)
+                        == Some(journey_id.as_str())
+                    && item_obj
+                        .and_then(|m| m.get("status"))
+                        .and_then(Value::as_str)
+                        == Some("pass")
             })
         })
         .map(|journey_id| format!("accessibility-journey-missing:{journey_id}"))
         .collect();
 
     let expected_total = ios_expected.len() + android_expected.len();
-    let status = if !omitted.is_empty() { "partial" } else { "pass" };
+    let status = if !omitted.is_empty() {
+        "partial"
+    } else {
+        "pass"
+    };
 
     json!({
         "schemaVersion": 1,
@@ -494,7 +521,11 @@ pub fn mobile_device_execute(
             "pass".to_string(),
             Value::Null,
             Value::Null,
-            (StepOutcome::Skipped, StepOutcome::Skipped, StepOutcome::Skipped),
+            (
+                StepOutcome::Skipped,
+                StepOutcome::Skipped,
+                StepOutcome::Skipped,
+            ),
         ),
         Some(o) => {
             let mut status = "pass".to_string();
@@ -505,7 +536,9 @@ pub fn mobile_device_execute(
             }
             let evidence = o.evidence.clone().unwrap_or(Value::Null);
             let cleanup = (o.reset, o.uninstall, o.release);
-            if (cleanup.0 == StepOutcome::Error || cleanup.1 == StepOutcome::Error || cleanup.2 == StepOutcome::Error)
+            if (cleanup.0 == StepOutcome::Error
+                || cleanup.1 == StepOutcome::Error
+                || cleanup.2 == StepOutcome::Error)
                 && status == "pass"
             {
                 status = "partial".to_string();
@@ -572,29 +605,76 @@ pub fn plan_mobile_hosts(input: &Value) -> Value {
             let mut out = Map::new();
             out.insert("id".into(), m.get("id").cloned().unwrap_or(Value::Null));
             out.insert("tier".into(), Value::String(tier.to_string()));
-            out.insert("platform".into(), m.get("platform").cloned().unwrap_or(Value::Null));
-            out.insert("osVersion".into(), m.get("osVersion").cloned().unwrap_or(Value::Null));
-            out.insert("model".into(), m.get("model").cloned().unwrap_or(Value::Null));
-            out.insert("architecture".into(), m.get("architecture").cloned().unwrap_or(Value::Null));
-            out.insert("formFactor".into(), m.get("formFactor").cloned().unwrap_or(Value::Null));
-            out.insert("display".into(), m.get("display").cloned().unwrap_or(Value::Null));
-            out.insert("cutout".into(), m.get("cutout").cloned().unwrap_or(Value::Null));
-            out.insert("foldState".into(), m.get("foldState").cloned().unwrap_or(Value::Null));
-            out.insert("locale".into(), m.get("locale").cloned().unwrap_or(Value::Null));
+            out.insert(
+                "platform".into(),
+                m.get("platform").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "osVersion".into(),
+                m.get("osVersion").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "model".into(),
+                m.get("model").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "architecture".into(),
+                m.get("architecture").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "formFactor".into(),
+                m.get("formFactor").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "display".into(),
+                m.get("display").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "cutout".into(),
+                m.get("cutout").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "foldState".into(),
+                m.get("foldState").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "locale".into(),
+                m.get("locale").cloned().unwrap_or(Value::Null),
+            );
             out.insert(
                 "accessibility".into(),
                 m.get("accessibility").cloned().unwrap_or(json!({})),
             );
-            out.insert("hardware".into(), m.get("hardware").cloned().unwrap_or(json!({})));
-            out.insert("power".into(), m.get("power").cloned().unwrap_or(Value::Null));
-            out.insert("thermal".into(), m.get("thermal").cloned().unwrap_or(Value::Null));
-            out.insert("buildTrack".into(), m.get("buildTrack").cloned().unwrap_or(Value::Null));
+            out.insert(
+                "hardware".into(),
+                m.get("hardware").cloned().unwrap_or(json!({})),
+            );
+            out.insert(
+                "power".into(),
+                m.get("power").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "thermal".into(),
+                m.get("thermal").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "buildTrack".into(),
+                m.get("buildTrack").cloned().unwrap_or(Value::Null),
+            );
             out.insert(
                 "status".into(),
-                m.get("status").cloned().unwrap_or(Value::String("unavailable".into())),
+                m.get("status")
+                    .cloned()
+                    .unwrap_or(Value::String("unavailable".into())),
             );
-            out.insert("exclusiveKey".into(), m.get("exclusiveKey").cloned().unwrap_or(Value::Null));
-            out.insert("receipt".into(), m.get("receipt").cloned().unwrap_or(Value::Null));
+            out.insert(
+                "exclusiveKey".into(),
+                m.get("exclusiveKey").cloned().unwrap_or(Value::Null),
+            );
+            out.insert(
+                "receipt".into(),
+                m.get("receipt").cloned().unwrap_or(Value::Null),
+            );
             Some(out)
         })
         .collect();
@@ -667,7 +747,11 @@ pub fn plan_mobile_hosts(input: &Value) -> Value {
     let mut exclusive_keys: Vec<String> = normalized_devices
         .iter()
         .filter(|d| d.get("status").and_then(Value::as_str) == Some("available"))
-        .filter_map(|d| d.get("exclusiveKey").and_then(Value::as_str).map(|s| s.to_string()))
+        .filter_map(|d| {
+            d.get("exclusiveKey")
+                .and_then(Value::as_str)
+                .map(|s| s.to_string())
+        })
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect();
@@ -899,12 +983,29 @@ pub fn plan_mobile_data_network(input: &Value) -> Value {
 // ---------------------------------------------------------------------
 
 const REQUIRED_METRICS: &[&str] = &[
-    "cold-start", "warm-start", "resumed-start", "interactive-time", "responsiveness",
-    "memory", "battery", "thermal", "network-per-session", "binary-size", "install-size",
+    "cold-start",
+    "warm-start",
+    "resumed-start",
+    "interactive-time",
+    "responsiveness",
+    "memory",
+    "battery",
+    "thermal",
+    "network-per-session",
+    "binary-size",
+    "install-size",
 ];
-const REQUIRED_PROFILES: &[&str] = &["main-thread", "idle-background", "long-session", "low-resource"];
+const REQUIRED_PROFILES: &[&str] = &[
+    "main-thread",
+    "idle-background",
+    "long-session",
+    "low-resource",
+];
 const REQUIRED_ARTIFACT_INSPECTIONS: &[&str] = &[
-    "architecture-slices", "resources-libraries", "symbols-media-locales", "delivery-update-size",
+    "architecture-slices",
+    "resources-libraries",
+    "symbols-media-locales",
+    "delivery-update-size",
 ];
 
 fn percentile(values: &[f64], rank: f64) -> Option<f64> {
@@ -948,13 +1049,22 @@ pub fn assess_mobile_performance(input: &Value) -> Value {
                 metric,
                 value,
                 tier: m.get("tier").and_then(Value::as_str).map(|s| s.to_string()),
-                build_type: m.get("buildType").and_then(Value::as_str).map(|s| s.to_string()),
+                build_type: m
+                    .get("buildType")
+                    .and_then(Value::as_str)
+                    .map(|s| s.to_string()),
             })
         })
         .collect();
 
-    let physical: Vec<&Measurement> = valid.iter().filter(|m| m.tier.as_deref() == Some("physical")).collect();
-    let release: Vec<&Measurement> = valid.iter().filter(|m| m.build_type.as_deref() == Some("release")).collect();
+    let physical: Vec<&Measurement> = valid
+        .iter()
+        .filter(|m| m.tier.as_deref() == Some("physical"))
+        .collect();
+    let release: Vec<&Measurement> = valid
+        .iter()
+        .filter(|m| m.build_type.as_deref() == Some("release"))
+        .collect();
 
     let mut gaps: Vec<String> = Vec::new();
     if physical.is_empty() {
@@ -988,12 +1098,21 @@ pub fn assess_mobile_performance(input: &Value) -> Value {
         }
     }
 
-    let mut metric_names: Vec<String> = valid.iter().map(|m| m.metric.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+    let mut metric_names: Vec<String> = valid
+        .iter()
+        .map(|m| m.metric.clone())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     metric_names.sort();
 
     let mut metrics_map = Map::new();
     for metric in &metric_names {
-        let values: Vec<f64> = valid.iter().filter(|m| &m.metric == metric).map(|m| m.value).collect();
+        let values: Vec<f64> = valid
+            .iter()
+            .filter(|m| &m.metric == metric)
+            .map(|m| m.value)
+            .collect();
         let budget = budgets.get(metric).cloned();
         let higher_is_better = budget
             .as_ref()
@@ -1042,18 +1161,49 @@ pub fn assess_mobile_performance(input: &Value) -> Value {
 // ---------------------------------------------------------------------
 
 const PERMISSION_STATES: &[&str] = &[
-    "not-requested", "granted", "denied", "permanently-denied", "later-granted",
-    "settings-revoked", "restricted", "limited", "approximate",
+    "not-requested",
+    "granted",
+    "denied",
+    "permanently-denied",
+    "later-granted",
+    "settings-revoked",
+    "restricted",
+    "limited",
+    "approximate",
 ];
 const LINK_STATES: &[&str] = &[
-    "logged-out", "expired", "background", "terminated", "duplicate", "malicious",
-    "wrong-account", "hijack-risk",
+    "logged-out",
+    "expired",
+    "background",
+    "terminated",
+    "duplicate",
+    "malicious",
+    "wrong-account",
+    "hijack-risk",
 ];
-const CHANNEL_STATES: &[&str] = &["foreground", "background", "terminated", "stale", "replayed"];
-const WEBVIEW_CASES: &[&str] = &["origin", "navigation", "javascript", "bridge", "file-access", "cookies", "logout"];
+const CHANNEL_STATES: &[&str] = &[
+    "foreground",
+    "background",
+    "terminated",
+    "stale",
+    "replayed",
+];
+const WEBVIEW_CASES: &[&str] = &[
+    "origin",
+    "navigation",
+    "javascript",
+    "bridge",
+    "file-access",
+    "cookies",
+    "logout",
+];
 const IPC_CASES: &[&str] = &[
-    "android-exported-component", "android-intent", "android-provider",
-    "ios-handler", "ios-shared-container", "cross-platform-channel",
+    "android-exported-component",
+    "android-intent",
+    "android-provider",
+    "ios-handler",
+    "ios-shared-container",
+    "cross-platform-channel",
 ];
 
 /// Port of `planMobilePlatformSurfaces`.
@@ -1219,7 +1369,9 @@ pub fn verify_mobile_release(input: &Value) -> Value {
     {
         gaps.push("store-metadata-unproven".to_string());
     }
-    if store.get("declarations").is_none_or_null() || store.get("regionalVariants").is_none_or_null() {
+    if store.get("declarations").is_none_or_null()
+        || store.get("regionalVariants").is_none_or_null()
+    {
         gaps.push("store-declarations-unproven".to_string());
     }
     if promotion.get("rolloutCriteria").is_none_or_null()
@@ -1236,9 +1388,9 @@ pub fn verify_mobile_release(input: &Value) -> Value {
         }
     }
 
-    let blocking = gaps
-        .iter()
-        .any(|gap| gap.starts_with("privacy-declaration-mismatch:") || gap == "promotion-artifact-mismatch");
+    let blocking = gaps.iter().any(|gap| {
+        gap.starts_with("privacy-declaration-mismatch:") || gap == "promotion-artifact-mismatch"
+    });
 
     let mut sorted_gaps = gaps.clone();
     sorted_gaps.sort();

@@ -248,10 +248,13 @@ pub fn load_ads_config() -> AdsConfig {
 /// `token_path`/`oauth_client_path` reads in `_build_ads_client()`.
 /// Returns `(token_json, oauth_client)`, ready for
 /// [`google_auth::refresh_oauth_token`].
-pub fn load_oauth_state(oauth_client_path: Option<&str>) -> Option<(Value, google_auth::OauthClient)> {
+pub fn load_oauth_state(
+    oauth_client_path: Option<&str>,
+) -> Option<(Value, google_auth::OauthClient)> {
     let home = std::env::var("HOME").ok()?;
     let token_path = std::path::Path::new(&home).join(google_auth::TOKEN_PATH_SUFFIX);
-    let token_json: Value = serde_json::from_str(&std::fs::read_to_string(token_path).ok()?).ok()?;
+    let token_json: Value =
+        serde_json::from_str(&std::fs::read_to_string(token_path).ok()?).ok()?;
     if !token_json
         .get("refresh_token")
         .and_then(Value::as_str)
@@ -283,8 +286,10 @@ pub fn refresh_access_token(
     token_json: Value,
     oauth_client: &google_auth::OauthClient,
 ) -> Result<String, String> {
-    let refreshed = google_auth::refresh_oauth_token(http, oauth_client, token_json)?
-        .ok_or_else(|| "OAuth token refresh failed: no refresh_token on stored token".to_string())?;
+    let refreshed =
+        google_auth::refresh_oauth_token(http, oauth_client, token_json)?.ok_or_else(|| {
+            "OAuth token refresh failed: no refresh_token on stored token".to_string()
+        })?;
     refreshed
         .get("access_token")
         .and_then(Value::as_str)
@@ -328,7 +333,11 @@ impl ReqwestAdsClient {
         let status = resp.status();
         let data: Value = resp.json().unwrap_or(json!({}));
         if !status.is_success() {
-            if let Some(errors) = data.get("error").and_then(|e| e.get("details")).and_then(Value::as_array) {
+            if let Some(errors) = data
+                .get("error")
+                .and_then(|e| e.get("details"))
+                .and_then(Value::as_array)
+            {
                 let messages: Vec<String> = errors
                     .iter()
                     .filter_map(|d| d.get("errors").and_then(Value::as_array))
@@ -368,7 +377,11 @@ impl AdsClient for ReqwestAdsClient {
             "keywordSeed": {"keywords": seed_keywords},
         });
         let data = self.post(&url, &body)?;
-        let results = data.get("results").and_then(Value::as_array).cloned().unwrap_or_default();
+        let results = data
+            .get("results")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         Ok(results.iter().map(parse_keyword_idea).collect())
     }
 
@@ -379,7 +392,8 @@ impl AdsClient for ReqwestAdsClient {
         language_id: &str,
         location_id: &str,
     ) -> Result<Vec<KeywordIdea>, AdsError> {
-        let url = format!("{ADS_API_BASE}/customers/{customer_id}:generateKeywordHistoricalMetrics");
+        let url =
+            format!("{ADS_API_BASE}/customers/{customer_id}:generateKeywordHistoricalMetrics");
         let body = json!({
             "keywords": keywords,
             "language": format!("languageConstants/{language_id}"),
@@ -387,14 +401,22 @@ impl AdsClient for ReqwestAdsClient {
             "keywordPlanNetwork": "GOOGLE_SEARCH",
         });
         let data = self.post(&url, &body)?;
-        let results = data.get("results").and_then(Value::as_array).cloned().unwrap_or_default();
+        let results = data
+            .get("results")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         Ok(results.iter().map(parse_keyword_volume).collect())
     }
 }
 
 fn parse_metrics(metrics: &Value) -> (Option<i64>, String, Option<i64>, Option<f64>, Option<f64>) {
     let avg = metrics.get("avgMonthlySearches").and_then(Value::as_i64);
-    let competition = metrics.get("competition").and_then(Value::as_str).unwrap_or("UNSPECIFIED").to_string();
+    let competition = metrics
+        .get("competition")
+        .and_then(Value::as_str)
+        .unwrap_or("UNSPECIFIED")
+        .to_string();
     let competition_index = metrics.get("competitionIndex").and_then(Value::as_i64);
     let low = metrics
         .get("lowTopOfPageBidMicros")
@@ -411,7 +433,11 @@ fn parse_metrics(metrics: &Value) -> (Option<i64>, String, Option<i64>, Option<f
 /// JSON, into a [`KeywordIdea`] — matching the `for idea in
 /// response.results` loop body in `generate_keyword_ideas`.
 fn parse_keyword_idea(idea: &Value) -> KeywordIdea {
-    let keyword = idea.get("text").and_then(Value::as_str).unwrap_or("").to_string();
+    let keyword = idea
+        .get("text")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let metrics = idea.get("keywordIdeaMetrics").cloned().unwrap_or(json!({}));
     let (avg, competition, competition_index, low, high) = parse_metrics(&metrics);
     let monthly_volumes: Vec<MonthlyVolume> = metrics
@@ -422,7 +448,10 @@ fn parse_keyword_idea(idea: &Value) -> KeywordIdea {
                 .map(|mv| MonthlyVolume {
                     year: mv.get("year").and_then(Value::as_i64).unwrap_or(0) as i32,
                     month: mv.get("month").and_then(Value::as_i64).unwrap_or(0) as i32,
-                    volume: mv.get("monthlySearches").and_then(Value::as_i64).unwrap_or(0),
+                    volume: mv
+                        .get("monthlySearches")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0),
                 })
                 .collect()
         })
@@ -444,7 +473,11 @@ fn parse_keyword_idea(idea: &Value) -> KeywordIdea {
 /// (no `monthly_volumes` field there, matching Python's `result["keywords"]`
 /// shape, which omits it).
 fn parse_keyword_volume(kw: &Value) -> KeywordIdea {
-    let keyword = kw.get("text").and_then(Value::as_str).unwrap_or("").to_string();
+    let keyword = kw
+        .get("text")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let metrics = kw.get("keywordMetrics").cloned().unwrap_or(json!({}));
     let (avg, competition, competition_index, low, high) = parse_metrics(&metrics);
     KeywordIdea {
@@ -463,7 +496,11 @@ fn parse_keyword_volume(kw: &Value) -> KeywordIdea {
 /// layer above hasn't already done so (used by callers building an
 /// [`AdsClient`] on top of a raw transport, e.g. tests).
 pub fn ads_error_from_status(status: u16, body: &Value) -> AdsError {
-    if let Some(errors) = body.get("error").and_then(|e| e.get("details")).and_then(Value::as_array) {
+    if let Some(errors) = body
+        .get("error")
+        .and_then(|e| e.get("details"))
+        .and_then(Value::as_array)
+    {
         let messages: Vec<String> = errors
             .iter()
             .filter_map(|d| d.get("errors").and_then(Value::as_array))
@@ -502,12 +539,21 @@ pub fn build_ads_client() -> Result<(ReqwestAdsClient, String), String> {
     let login_customer_id = ads_cfg.login_customer_id.map(|c| normalize_customer_id(&c));
 
     let (token_json, oauth_client) = load_oauth_state(ads_cfg.oauth_client_path.as_deref())
-        .ok_or_else(|| "Error building Google Ads client: no OAuth token configured.".to_string())?;
+        .ok_or_else(|| {
+            "Error building Google Ads client: no OAuth token configured.".to_string()
+        })?;
     let http = google_auth::ReqwestTokenClient;
     let access_token = refresh_access_token(&http, token_json, &oauth_client)
         .map_err(|e| format!("Error building Google Ads client: {e}"))?;
 
-    Ok((ReqwestAdsClient { access_token, developer_token: dev_token, login_customer_id }, customer_id))
+    Ok((
+        ReqwestAdsClient {
+            access_token,
+            developer_token: dev_token,
+            login_customer_id,
+        },
+        customer_id,
+    ))
 }
 
 /// CLI arg bundle mirroring `argparse` in `keyword_planner.py`'s `main()`.
@@ -534,7 +580,9 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
             "--limit" => {
                 i += 1;
                 let v = args.get(i).ok_or("--limit requires a value")?;
-                limit = v.parse().map_err(|_| format!("argument --limit: invalid int value: '{v}'"))?;
+                limit = v
+                    .parse()
+                    .map_err(|_| format!("argument --limit: invalid int value: '{v}'"))?;
             }
             "--language" => {
                 i += 1;
@@ -556,9 +604,18 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
     }
     let command = positionals[0].clone();
     if command != "ideas" && command != "volume" {
-        return Err(format!("argument command: invalid choice: '{command}' (choose from 'ideas', 'volume')"));
+        return Err(format!(
+            "argument command: invalid choice: '{command}' (choose from 'ideas', 'volume')"
+        ));
     }
-    Ok(Args { command, keywords: positionals[1].clone(), limit, language, location, json: json_out })
+    Ok(Args {
+        command,
+        keywords: positionals[1].clone(),
+        limit,
+        language,
+        location,
+        json: json_out,
+    })
 }
 
 /// Port of `keyword_planner.py`'s `main()`, parameterized over an
@@ -582,16 +639,29 @@ pub fn run<C: AdsClient>(
         }
     };
 
-    let (ideas, volumes, error): (Vec<KeywordIdea>, Vec<KeywordIdea>, Option<String>) = if parsed.command == "ideas" {
-        let seeds = split_keywords(&parsed.keywords);
-        let (ideas, error) =
-            generate_keyword_ideas_with(client, customer_id, &seeds, &parsed.language, &parsed.location, parsed.limit);
-        (ideas, Vec::new(), error)
-    } else {
-        let kws = split_keywords(&parsed.keywords);
-        let (volumes, error) = get_keyword_volumes_with(client, customer_id, &kws, &parsed.language, &parsed.location);
-        (Vec::new(), volumes, error)
-    };
+    let (ideas, volumes, error): (Vec<KeywordIdea>, Vec<KeywordIdea>, Option<String>) =
+        if parsed.command == "ideas" {
+            let seeds = split_keywords(&parsed.keywords);
+            let (ideas, error) = generate_keyword_ideas_with(
+                client,
+                customer_id,
+                &seeds,
+                &parsed.language,
+                &parsed.location,
+                parsed.limit,
+            );
+            (ideas, Vec::new(), error)
+        } else {
+            let kws = split_keywords(&parsed.keywords);
+            let (volumes, error) = get_keyword_volumes_with(
+                client,
+                customer_id,
+                &kws,
+                &parsed.language,
+                &parsed.location,
+            );
+            (Vec::new(), volumes, error)
+        };
 
     if let Some(err) = &error {
         let _ = writeln!(stderr, "Error: {err}");
@@ -606,14 +676,21 @@ pub fn run<C: AdsClient>(
         } else {
             json!({"keywords": volumes, "error": error})
         };
-        let _ = writeln!(stdout, "{}", serde_json::to_string_pretty(&value).unwrap_or_default());
+        let _ = writeln!(
+            stdout,
+            "{}",
+            serde_json::to_string_pretty(&value).unwrap_or_default()
+        );
         return 0;
     }
 
     if parsed.command == "ideas" {
         let _ = writeln!(stdout, "=== Keyword Ideas ===");
         for (i, idea) in ideas.iter().take(20).enumerate() {
-            let vol = idea.avg_monthly_searches.map(|v| v.to_string()).unwrap_or_else(|| "?".to_string());
+            let vol = idea
+                .avg_monthly_searches
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "?".to_string());
             let bid_str = format_bid_str(idea.low_top_of_page_bid, idea.high_top_of_page_bid);
             let _ = writeln!(
                 stdout,
@@ -628,8 +705,15 @@ pub fn run<C: AdsClient>(
     } else {
         let _ = writeln!(stdout, "=== Keyword Volumes ===");
         for kw in &volumes {
-            let vol = kw.avg_monthly_searches.map(|v| v.to_string()).unwrap_or_else(|| "?".to_string());
-            let _ = writeln!(stdout, "  {:40} | Vol: {:>8} | Comp: {}", kw.keyword, vol, kw.competition);
+            let vol = kw
+                .avg_monthly_searches
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "?".to_string());
+            let _ = writeln!(
+                stdout,
+                "  {:40} | Vol: {:>8} | Comp: {}",
+                kw.keyword, vol, kw.competition
+            );
         }
     }
 

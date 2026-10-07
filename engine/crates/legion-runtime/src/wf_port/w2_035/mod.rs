@@ -78,7 +78,10 @@ pub fn format_council_cli_error(
 
     let mut details: Vec<String> = Vec::new();
     if err.timed_out {
-        details.push(format!("timed out after {}s", (timeout_ms as f64 / 1000.0).round() as i64));
+        details.push(format!(
+            "timed out after {}s",
+            (timeout_ms as f64 / 1000.0).round() as i64
+        ));
     }
     if let Some(status) = err.status {
         details.push(format!("status={status}"));
@@ -129,8 +132,21 @@ pub fn kind_to_skill(kind: &str) -> Option<&'static str> {
 /// All keys `kind_to_skill` recognizes, in declaration order — mirrors
 /// `Object.keys(KIND_TO_SKILL)` as used in the "unknown kind" error message.
 pub const KIND_TO_SKILL_KEYS: &[&str] = &[
-    "video", "image", "copy", "blog", "brand", "ad", "design", "plan", "business", "idea",
-    "launch", "offer", "strategy", "compliance", "code",
+    "video",
+    "image",
+    "copy",
+    "blog",
+    "brand",
+    "ad",
+    "design",
+    "plan",
+    "business",
+    "idea",
+    "launch",
+    "offer",
+    "strategy",
+    "compliance",
+    "code",
 ];
 
 /// Mirrors `VISUAL_KINDS`.
@@ -263,8 +279,18 @@ pub fn final_decision_from_council_verdict(verdict: &Value) -> String {
         .get("final_verdict")
         .and_then(Value::as_str)
         .filter(|s| !s.is_empty())
-        .or_else(|| verdict.get("verdict").and_then(Value::as_str).filter(|s| !s.is_empty()))
-        .or_else(|| verdict.get("decision").and_then(Value::as_str).filter(|s| !s.is_empty()))
+        .or_else(|| {
+            verdict
+                .get("verdict")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+        })
+        .or_else(|| {
+            verdict
+                .get("decision")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+        })
         .or_else(|| {
             synthesis
                 .get("majority_verdict")
@@ -302,11 +328,17 @@ pub fn format_screen_composite(sc: &Value) -> Option<String> {
         return None;
     }
     let mut out: Vec<String> = Vec::new();
-    let shot_name = sc.get("shotName").and_then(Value::as_str).unwrap_or("(unnamed)");
+    let shot_name = sc
+        .get("shotName")
+        .and_then(Value::as_str)
+        .unwrap_or("(unnamed)");
     out.push(format!("### Shot `{shot_name}`"));
     if let Some(start) = sc.get("shotStartS") {
         if !start.is_null() {
-            out.push(format!("Shot start in final cut: {}s", value_to_display(start)));
+            out.push(format!(
+                "Shot start in final cut: {}s",
+                value_to_display(start)
+            ));
         }
     }
 
@@ -314,8 +346,12 @@ pub fn format_screen_composite(sc: &Value) -> Option<String> {
     let corner = |name: &str| -> (String, String) {
         let c = mask.and_then(|m| m.get(name));
         (
-            c.and_then(|c| c.get("x")).map(value_to_display).unwrap_or_default(),
-            c.and_then(|c| c.get("y")).map(value_to_display).unwrap_or_default(),
+            c.and_then(|c| c.get("x"))
+                .map(value_to_display)
+                .unwrap_or_default(),
+            c.and_then(|c| c.get("y"))
+                .map(value_to_display)
+                .unwrap_or_default(),
         )
     };
     let (tlx, tly) = corner("topLeft");
@@ -363,7 +399,10 @@ fn format_overlay(o: &Value) -> String {
             line
         }
         "window_switch_animation" => {
-            let from = o.get("fromWindow").map(value_to_display).unwrap_or_default();
+            let from = o
+                .get("fromWindow")
+                .map(value_to_display)
+                .unwrap_or_default();
             let to = o.get("toWindow").map(value_to_display).unwrap_or_default();
             let switch_at = o.get("switchAt").map(value_to_display).unwrap_or_default();
             let duration = match o.get("durationS") {
@@ -418,7 +457,12 @@ pub struct BuildCouncilInputArgs<'a> {
 
 /// Mirrors `buildCouncilInput({ kind, artifactPath, context })`.
 pub fn build_council_input(args: BuildCouncilInputArgs<'_>) -> String {
-    let BuildCouncilInputArgs { kind, artifact_path, context, qa_rubrics_lib } = args;
+    let BuildCouncilInputArgs {
+        kind,
+        artifact_path,
+        context,
+        qa_rubrics_lib,
+    } = args;
     let mut lines: Vec<String> = Vec::new();
     lines.push(format!("# Auto-jury input — {kind}"));
     lines.push(String::new());
@@ -559,7 +603,9 @@ pub fn build_council_input(args: BuildCouncilInputArgs<'_>) -> String {
                     }
                     _ => format!(
                         "{}:{}",
-                        ar.get("namespace").and_then(Value::as_str).unwrap_or_default(),
+                        ar.get("namespace")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default(),
                         audio_recipe
                     ),
                 };
@@ -567,7 +613,11 @@ pub fn build_council_input(args: BuildCouncilInputArgs<'_>) -> String {
                     .get("derivedSource")
                     .and_then(Value::as_str)
                     .filter(|s| !s.is_empty())
-                    .or_else(|| ar.get("derivedVoice").and_then(Value::as_str).filter(|s| !s.is_empty()))
+                    .or_else(|| {
+                        ar.get("derivedVoice")
+                            .and_then(Value::as_str)
+                            .filter(|s| !s.is_empty())
+                    })
                     .unwrap_or("");
                 let index = ar.get("index").map(value_to_display).unwrap_or_default();
                 let typ = ar.get("type").map(value_to_display).unwrap_or_default();
@@ -661,7 +711,11 @@ impl AutoJuryConfig {
             .map(PathBuf::from)
             .unwrap_or_else(|_| workspace_root.join("tools").join("review").join("jury.py"));
         let python_bin = std::env::var("PYTHON_BIN").unwrap_or_else(|_| {
-            if is_windows { "py".to_string() } else { "python3".to_string() }
+            if is_windows {
+                "py".to_string()
+            } else {
+                "python3".to_string()
+            }
         });
         let python_args = if std::env::var("PYTHON_BIN").is_ok() {
             vec![]
@@ -670,7 +724,12 @@ impl AutoJuryConfig {
         } else {
             vec![]
         };
-        Self { workspace_root, council_py, python_bin, python_args }
+        Self {
+            workspace_root,
+            council_py,
+            python_bin,
+            python_args,
+        }
     }
 }
 
@@ -685,16 +744,28 @@ pub struct RunAutoJuryArgs<'a> {
 
 /// Mirrors `runAutoJury({...})`. Spawns the council CLI, writes the input
 /// and verdict files, writes the ledger, and enforces ship/don't-ship.
-pub fn run_auto_jury(cfg: &AutoJuryConfig, args: RunAutoJuryArgs<'_>) -> Result<Value, AutoJuryError> {
-    let RunAutoJuryArgs { kind, artifact_path, context, fail_hard, out_dir } = args;
+pub fn run_auto_jury(
+    cfg: &AutoJuryConfig,
+    args: RunAutoJuryArgs<'_>,
+) -> Result<Value, AutoJuryError> {
+    let RunAutoJuryArgs {
+        kind,
+        artifact_path,
+        context,
+        fail_hard,
+        out_dir,
+    } = args;
 
-    let skill = kind_to_skill(kind)
-        .ok_or_else(|| AutoJuryError::UnknownKind(kind.to_string(), KIND_TO_SKILL_KEYS.join(", ")))?;
+    let skill = kind_to_skill(kind).ok_or_else(|| {
+        AutoJuryError::UnknownKind(kind.to_string(), KIND_TO_SKILL_KEYS.join(", "))
+    })?;
     if artifact_path.is_empty() {
         return Err(AutoJuryError::MissingArtifactPath);
     }
 
-    let artifact_dir = Path::new(artifact_path).parent().unwrap_or_else(|| Path::new("."));
+    let artifact_dir = Path::new(artifact_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
     let verdict_dir = out_dir.unwrap_or_else(|| artifact_dir.join("jury"));
     if !verdict_dir.exists() {
         fs::create_dir_all(&verdict_dir)?;
@@ -706,7 +777,12 @@ pub fn run_auto_jury(cfg: &AutoJuryConfig, args: RunAutoJuryArgs<'_>) -> Result<
     let verdict_path = verdict_dir.join(format!("{artifact_basename}.verdict.json"));
     let input_path = verdict_dir.join(format!("{artifact_basename}.input.md"));
 
-    let qa_rubrics_path = cfg.workspace_root.join("tools").join("recipes").join("video").join("qa-rubrics.json");
+    let qa_rubrics_path = cfg
+        .workspace_root
+        .join("tools")
+        .join("recipes")
+        .join("video")
+        .join("qa-rubrics.json");
     let qa_rubrics_lib = load_qa_rubrics_lib(&qa_rubrics_path);
     let input = build_council_input(BuildCouncilInputArgs {
         kind,
@@ -739,7 +815,11 @@ pub fn run_auto_jury(cfg: &AutoJuryConfig, args: RunAutoJuryArgs<'_>) -> Result<
     let timeout_env = std::env::var("AUTO_JURY_TIMEOUT_MS").ok();
     let timeout_ms = council_timeout_ms(timeout_env.as_deref());
 
-    let output = run_with_timeout(&cfg.python_bin, &cli_args, Duration::from_millis(timeout_ms));
+    let output = run_with_timeout(
+        &cfg.python_bin,
+        &cli_args,
+        Duration::from_millis(timeout_ms),
+    );
 
     let raw = match output {
         Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
@@ -793,9 +873,8 @@ pub fn run_auto_jury(cfg: &AutoJuryConfig, args: RunAutoJuryArgs<'_>) -> Result<
         }
     };
 
-    let mut verdict: Value = serde_json::from_str(&raw).unwrap_or_else(|_| {
-        json!({ "raw_output": raw, "parse_error": true })
-    });
+    let mut verdict: Value = serde_json::from_str(&raw)
+        .unwrap_or_else(|_| json!({ "raw_output": raw, "parse_error": true }));
 
     let now = std::time::SystemTime::now();
     let timestamp = httpdate_like_iso8601(now);
@@ -814,7 +893,10 @@ pub fn run_auto_jury(cfg: &AutoJuryConfig, args: RunAutoJuryArgs<'_>) -> Result<
         );
     }
 
-    fs::write(&verdict_path, serde_json::to_string_pretty(&verdict).unwrap_or_default())?;
+    fs::write(
+        &verdict_path,
+        serde_json::to_string_pretty(&verdict).unwrap_or_default(),
+    )?;
 
     write_ledger_from_verdict(cfg, &verdict, artifact_path, &verdict_path);
 
@@ -914,10 +996,19 @@ fn run_with_timeout(
 /// "warns") and returns without failing the caller on any error, exactly
 /// like the source ("Failure to write the ledger is logged but does NOT
 /// throw").
-fn write_ledger_from_verdict(cfg: &AutoJuryConfig, verdict: &Value, artifact_path: &str, verdict_path: &Path) {
+fn write_ledger_from_verdict(
+    cfg: &AutoJuryConfig,
+    verdict: &Value,
+    artifact_path: &str,
+    verdict_path: &Path,
+) {
     let ledger_path = {
         let s = verdict_path.to_string_lossy();
-        PathBuf::from(s.strip_suffix(".verdict.json").map(|p| format!("{p}.verdict.ledger.json")).unwrap_or_else(|| format!("{s}.verdict.ledger.json")))
+        PathBuf::from(
+            s.strip_suffix(".verdict.json")
+                .map(|p| format!("{p}.verdict.ledger.json"))
+                .unwrap_or_else(|| format!("{s}.verdict.ledger.json")),
+        )
     };
 
     let mut juror_blockers: Map<String, Value> = Map::new();
@@ -926,7 +1017,11 @@ fn write_ledger_from_verdict(cfg: &AutoJuryConfig, verdict: &Value, artifact_pat
             let Some(juror_id) = j.get("juror_id").and_then(Value::as_str) else {
                 continue;
             };
-            let blockers = j.get("blockers").and_then(Value::as_array).cloned().unwrap_or_default();
+            let blockers = j
+                .get("blockers")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             if blockers.is_empty() {
                 continue;
             }
@@ -939,7 +1034,10 @@ fn write_ledger_from_verdict(cfg: &AutoJuryConfig, verdict: &Value, artifact_pat
         "verdict_path": verdict_path.to_string_lossy(),
         "juror_blockers": Value::Object(juror_blockers),
     });
-    let payload_path = PathBuf::from(format!("{}.ledger-payload.json", verdict_path.to_string_lossy()));
+    let payload_path = PathBuf::from(format!(
+        "{}.ledger-payload.json",
+        verdict_path.to_string_lossy()
+    ));
     if fs::write(&payload_path, payload.to_string()).is_err() {
         return;
     }

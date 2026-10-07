@@ -10,7 +10,8 @@ use legion_runtime::wf_port::w2_003::{run, validate, CANONICAL_MODE};
 use std::path::{Path, PathBuf};
 
 fn fixture_template() -> String {
-    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/wf_w2_003/template.md");
+    let fixture =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/wf_w2_003/template.md");
     std::fs::read_to_string(fixture).expect("template fixture present")
 }
 

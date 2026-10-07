@@ -55,7 +55,11 @@ fn copy_dir_recursive(src: &Path, dst: &Path) {
 }
 
 fn git(dir: &Path, args: &[&str]) {
-    let out = Command::new("git").args(args).current_dir(dir).output().expect("spawn git");
+    let out = Command::new("git")
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .expect("spawn git");
     assert!(
         out.status.success(),
         "git {:?} failed in {}: {}",
@@ -110,7 +114,8 @@ fn emits_an_arcane_shaped_check_object_with_host_executor_and_receipt() {
     assert_eq!(out["status"], "failed");
     assert_eq!(out["exit_code"], 1);
     assert!(out["receipt"].is_string(), "receipt field required");
-    let receipt: serde_json::Value = serde_json::from_str(out["receipt"].as_str().unwrap()).unwrap();
+    let receipt: serde_json::Value =
+        serde_json::from_str(out["receipt"].as_str().unwrap()).unwrap();
     assert_eq!(receipt["schema"], "orthic.tool-receipt.v1");
     assert_eq!(receipt["exit_status"], 1);
     assert!(
@@ -131,9 +136,13 @@ fn catches_a_surviving_mutant_in_the_weak_fixture() {
         no_order: true,
         ..GauntletOptions::default()
     });
-    let output_str = run.check["output"].as_str().expect("output is a JSON string");
+    let output_str = run.check["output"]
+        .as_str()
+        .expect("output is a JSON string");
     let layers: serde_json::Value = serde_json::from_str(output_str).unwrap();
-    let results = layers["layers"]["mutation"]["results"].as_array().expect("results array");
+    let results = layers["layers"]["mutation"]["results"]
+        .as_array()
+        .expect("results array");
     let survived: Vec<&serde_json::Value> = results
         .iter()
         .filter(|r| r["status"].as_str() == Some("survived"))
@@ -178,9 +187,13 @@ console.log("strong-test-ok");
         no_order: true,
         ..GauntletOptions::default()
     });
-    let output_str = run.check["output"].as_str().expect("output is a JSON string");
+    let output_str = run.check["output"]
+        .as_str()
+        .expect("output is a JSON string");
     let layers: serde_json::Value = serde_json::from_str(output_str).unwrap();
-    let results = layers["layers"]["mutation"]["results"].as_array().expect("results array");
+    let results = layers["layers"]["mutation"]["results"]
+        .as_array()
+        .expect("results array");
     let survivors: Vec<&serde_json::Value> = results
         .iter()
         .filter(|r| r["status"].as_str() == Some("survived"))
@@ -208,7 +221,8 @@ fn returns_no_diff_failure_when_the_diff_is_empty() {
     assert_eq!(run.exit_code, 1, "gauntlet must exit 1 when diff is empty");
     assert_eq!(run.check["status"], "failed");
     assert!(run.check["receipt"].is_string(), "receipt always emitted");
-    let receipt: serde_json::Value = serde_json::from_str(run.check["receipt"].as_str().unwrap()).unwrap();
+    let receipt: serde_json::Value =
+        serde_json::from_str(run.check["receipt"].as_str().unwrap()).unwrap();
     assert_eq!(receipt["exit_status"], 1);
     cleanup(&empty_repo);
 }

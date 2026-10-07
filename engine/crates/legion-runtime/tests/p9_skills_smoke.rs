@@ -28,7 +28,10 @@ fn brand_identity_color_check_contrast_and_audit_entry_points() {
 
 #[test]
 fn seo_pre_commit_check_blocks_on_placeholder_text() {
-    let files = vec![("landing.html", "<title>Legion Brand Landing Page Example</title>[INSERT]")];
+    let files = vec![(
+        "landing.html",
+        "<title>Legion Brand Landing Page Example</title>[INSERT]",
+    )];
     let report = check_files(files);
     assert_eq!(report.exit_code, 2);
     assert!(report.errors >= 1);
@@ -50,14 +53,24 @@ fn covenant_contracts_digest_and_validate_entry_points() {
 #[test]
 fn alchemist_worker_profile_entry_point() {
     let profile = "  model = \"gpt-5.6\"\n";
-    assert_eq!(extract_model_from_profile(profile).as_deref(), Some("gpt-5.6"));
+    assert_eq!(
+        extract_model_from_profile(profile).as_deref(),
+        Some("gpt-5.6")
+    );
 }
 
 #[test]
 fn qa_dispatch_builds_node_invocation_for_each_verb() {
-    let dispatch = build_dispatch(QaVerb::QaFunctional, "/repo", &["--suite".into(), "smoke".into()]);
+    let dispatch = build_dispatch(
+        QaVerb::QaFunctional,
+        "/repo",
+        &["--suite".into(), "smoke".into()],
+    );
     assert_eq!(dispatch.program, "node");
-    assert_eq!(dispatch.args[0], "/repo/src/lib/qa-engine/qa-functional.mjs");
+    assert_eq!(
+        dispatch.args[0],
+        "/repo/src/lib/qa-engine/qa-functional.mjs"
+    );
     assert_eq!(dispatch.args[1], "--suite");
 }
 

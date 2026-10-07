@@ -186,7 +186,10 @@ pub struct Sibling<T: Clone> {
     pub rect: Rect,
 }
 
-fn group_sibling_rows<T: Clone>(siblings: &[Sibling<T>], row_threshold: f64) -> Vec<Vec<Sibling<T>>> {
+fn group_sibling_rows<T: Clone>(
+    siblings: &[Sibling<T>],
+    row_threshold: f64,
+) -> Vec<Vec<Sibling<T>>> {
     let mut sorted: Vec<Sibling<T>> = siblings.to_vec();
     sorted.sort_by(|a, b| {
         a.rect
@@ -439,9 +442,13 @@ pub fn clamp_placeholder_size(
 ) -> (f64, f64) {
     let min_w = opts.min_width.unwrap_or(PLACEHOLDER_MIN_WIDTH);
     let min_h = opts.min_height.unwrap_or(PLACEHOLDER_MIN_HEIGHT);
-    let max_w = opts
-        .max_width
-        .unwrap_or_else(|| min_w.max(if parent_width > 0.0 { parent_width } else { min_w }));
+    let max_w = opts.max_width.unwrap_or_else(|| {
+        min_w.max(if parent_width > 0.0 {
+            parent_width
+        } else {
+            min_w
+        })
+    });
     let w = max_w.min(min_w.max(width.round()));
     let h = min_h.max(height.round());
     (w, h)
@@ -489,7 +496,8 @@ pub fn resize_placeholder_from_edge(
         _ => {}
     }
 
-    let (clamped_w, clamped_h) = clamp_placeholder_size(base.width, base.height, parent_width, opts);
+    let (clamped_w, clamped_h) =
+        clamp_placeholder_size(base.width, base.height, parent_width, opts);
     if edge == 'w' {
         base.margin_left = start.margin_left + start.width - clamped_w;
     } else if edge == 'n' {

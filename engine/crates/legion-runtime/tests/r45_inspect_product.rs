@@ -5,7 +5,9 @@
 //! `w2_041::control_baseline::compile_baseline_and_impacts_json`, not just
 //! the pure-assembly unit tests inline in `inspect_product.rs`.
 
-use legion_runtime::wf_port::r45::inspect_product::{inspect_product_from_projection, InspectProductOptions};
+use legion_runtime::wf_port::r45::inspect_product::{
+    inspect_product_from_projection, InspectProductOptions,
+};
 use serde_json::json;
 use std::path::Path;
 
@@ -37,7 +39,10 @@ fn inspect_product_from_projection_assembles_a_full_inspection_with_zero_packs()
 
     assert_eq!(result["schemaVersion"], json!(1));
     assert_eq!(result["kind"], json!("legion-product-inspection"));
-    assert!(result["portfolio"]["digest"].as_str().unwrap().starts_with("sha256:"));
+    assert!(result["portfolio"]["digest"]
+        .as_str()
+        .unwrap()
+        .starts_with("sha256:"));
     // Zero packs -> compileBaseline sees an empty control set -> denominator
     // is empty, mirroring `control-baseline.mjs`'s own
     // `control-denominator-missing`/`control-denominator-zero` handling for
@@ -46,7 +51,13 @@ fn inspect_product_from_projection_assembles_a_full_inspection_with_zero_packs()
     // baseline, not an error.
     assert_eq!(result["baseline"]["controls"], json!([]));
     assert_eq!(result["reportSkeleton"]["controlIds"], json!([]));
-    assert!(result["reportSkeleton"]["targetIds"].as_array().unwrap().len() >= 1);
+    assert!(
+        result["reportSkeleton"]["targetIds"]
+            .as_array()
+            .unwrap()
+            .len()
+            >= 1
+    );
 }
 
 #[test]

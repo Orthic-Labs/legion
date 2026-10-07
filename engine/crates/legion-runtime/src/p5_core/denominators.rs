@@ -52,10 +52,7 @@ mod tests {
 
     #[test]
     fn dedupes_and_sorts_both_sides() {
-        let result = reconcile_denominator(
-            vec!["b", "a", "a", "c"],
-            vec!["c", "c", "a"],
-        );
+        let result = reconcile_denominator(vec!["b", "a", "a", "c"], vec!["c", "c", "a"]);
         assert_eq!(result.expected, vec!["a", "b", "c"]);
         assert_eq!(result.examined, vec!["a", "c"]);
         assert_eq!(result.missing, vec!["b"]);

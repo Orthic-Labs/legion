@@ -222,40 +222,77 @@ impl AuthorityInvocationProofIssuer {
         if proof.get("role").and_then(Value::as_str) != Some("oracle")
             || proof.get("purpose").and_then(Value::as_str) != Some("completion-claim")
         {
-            return deny("ARC_AUTH_FORGED", "Oracle completion authority proof is invalid");
+            return deny(
+                "ARC_AUTH_FORGED",
+                "Oracle completion authority proof is invalid",
+            );
         }
         let role = "oracle";
         let purpose = "completion-claim";
         let mac_domain = format!("arcane-authority-proof:v1:{role}:{purpose}");
         let suffix = format!(":authority-proof:{role}:{purpose}");
-        let key_id = match proof.get("authentication").and_then(|a| a.get("keyId")).and_then(Value::as_str) {
+        let key_id = match proof
+            .get("authentication")
+            .and_then(|a| a.get("keyId"))
+            .and_then(Value::as_str)
+        {
             Some(k) => k,
-            None => return deny("ARC_AUTH_FORGED", "authority proof key identifier is invalid"),
+            None => {
+                return deny(
+                    "ARC_AUTH_FORGED",
+                    "authority proof key identifier is invalid",
+                )
+            }
         };
         let Some(root_key_id) = key_id.strip_suffix(suffix.as_str()) else {
-            return deny("ARC_AUTH_FORGED", "authority proof key identifier is invalid");
+            return deny(
+                "ARC_AUTH_FORGED",
+                "authority proof key identifier is invalid",
+            );
         };
         if root_key_id.is_empty() {
-            return deny("ARC_AUTH_FORGED", "authority proof key identifier is invalid");
+            return deny(
+                "ARC_AUTH_FORGED",
+                "authority proof key identifier is invalid",
+            );
         }
 
         if !self.key_ring.has(key_id) {
             let root = match self.key_ring.get(root_key_id) {
                 Ok(k) => k,
-                Err(_) => return deny("ARC_AUTH_KEY_UNAVAILABLE", "authority proof root key is unavailable"),
+                Err(_) => {
+                    return deny(
+                        "ARC_AUTH_KEY_UNAVAILABLE",
+                        "authority proof root key is unavailable",
+                    )
+                }
             };
             let mac = Hmac::<Sha256>::new_from_slice(&root.key);
             let mut mac = match mac {
                 Ok(m) => m,
-                Err(_) => return deny("ARC_AUTH_KEY_UNAVAILABLE", "authority proof root key is unavailable"),
+                Err(_) => {
+                    return deny(
+                        "ARC_AUTH_KEY_UNAVAILABLE",
+                        "authority proof root key is unavailable",
+                    )
+                }
             };
             mac.update(format!("arcane-key-derivation:v1\0{mac_domain}").as_bytes());
             if self
                 .key_ring
-                .add(key_id.to_string(), mac.finalize().into_bytes().to_vec(), "", "derived", "active")
+                .add(
+                    key_id.to_string(),
+                    mac.finalize().into_bytes().to_vec(),
+                    "",
+                    "derived",
+                    "active",
+                )
                 .is_err()
             {
-                return deny("ARC_AUTH_KEY_UNAVAILABLE", "authority proof root key is unavailable");
+                return deny(
+                    "ARC_AUTH_KEY_UNAVAILABLE",
+                    "authority proof root key is unavailable",
+                );
             }
         }
 
@@ -268,21 +305,36 @@ impl AuthorityInvocationProofIssuer {
             Some(&mac_domain),
         ) {
             Ok(d) => d,
-            Err(_) => return deny("ARC_AUTH_FORGED", "authority proof authentication is invalid"),
+            Err(_) => {
+                return deny(
+                    "ARC_AUTH_FORGED",
+                    "authority proof authentication is invalid",
+                )
+            }
         };
         if !decision.allowed {
-            return deny("ARC_AUTH_FORGED", "authority proof authentication is invalid");
+            return deny(
+                "ARC_AUTH_FORGED",
+                "authority proof authentication is invalid",
+            );
         }
 
         let expected_key_id = format!("{root_key_id}:authority-proof:{role}:{purpose}");
-        let expires_at_ns: u128 = proof.get("expiresAt").and_then(Value::as_str).and_then(|s| s.parse().ok()).unwrap_or(0);
+        let expires_at_ns: u128 = proof
+            .get("expiresAt")
+            .and_then(Value::as_str)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
         if key_id != expected_key_id || expires_at_ns < timestamp() {
             return deny("ARC_AUTH_FORGED", "authority proof is expired or misbound");
         }
 
         for (key, value) in expected.iter() {
             if proof.get(key) != Some(value) {
-                return deny("ARC_BINDING_MISMATCH", "authority proof does not bind this completion execution");
+                return deny(
+                    "ARC_BINDING_MISMATCH",
+                    "authority proof does not bind this completion execution",
+                );
             }
         }
 
@@ -299,10 +351,16 @@ impl AuthorityInvocationProofIssuer {
         let issued_digest = canonical_digest(&issued).unwrap_or_default();
         let proof_digest = canonical_digest(proof).unwrap_or_default();
         if issued_digest != proof_digest || !ledger_store.verify() {
-            return deny("ARC_AUTH_FORGED", "authority proof persistence or host ledger is invalid");
+            return deny(
+                "ARC_AUTH_FORGED",
+                "authority proof persistence or host ledger is invalid",
+            );
         }
 
-        let event_digest = proof.get("eventDigest").and_then(Value::as_str).unwrap_or("");
+        let event_digest = proof
+            .get("eventDigest")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let event = ledger_store
             .records()
             .into_iter()
@@ -321,7 +379,10 @@ impl AuthorityInvocationProofIssuer {
             None => false,
         };
         if !bound {
-            return deny("ARC_BINDING_MISMATCH", "authority proof host binding is unavailable");
+            return deny(
+                "ARC_BINDING_MISMATCH",
+                "authority proof host binding is unavailable",
+            );
         }
 
         json!({"allowed": true, "detail": {"proof": proof}})
@@ -406,7 +467,9 @@ mod tests {
         let store_dir = temp_dir("store");
         let key_ring = key_ring_with_root(&key_dir, "root", b"root-secret-material");
         let issuer = AuthorityInvocationProofIssuer::new(store_dir, key_ring, "root".to_string());
-        let proof = issuer.issue(&base_event(), &base_binding(), "completion-claim", "oracle").unwrap();
+        let proof = issuer
+            .issue(&base_event(), &base_binding(), "completion-claim", "oracle")
+            .unwrap();
         let issued_at: u128 = proof["issuedAt"].as_str().unwrap().parse().unwrap();
         let expires_at: u128 = proof["expiresAt"].as_str().unwrap().parse().unwrap();
         assert_eq!(expires_at - issued_at, EXPIRY_WINDOW_NS);
@@ -418,7 +481,9 @@ mod tests {
         let store_dir = temp_dir("store");
         let key_ring = key_ring_with_root(&key_dir, "root", b"root-secret-material");
         let issuer = AuthorityInvocationProofIssuer::new(store_dir, key_ring, "root".to_string());
-        let proof = issuer.issue(&base_event(), &base_binding(), "completion-claim", "oracle").unwrap();
+        let proof = issuer
+            .issue(&base_event(), &base_binding(), "completion-claim", "oracle")
+            .unwrap();
         let proof_digest = canonical_digest(&proof).unwrap();
         let found = issuer.find_by_digest(&proof_digest);
         assert_eq!(found, Some(proof));
@@ -442,8 +507,13 @@ mod tests {
         let issuer = AuthorityInvocationProofIssuer::new(store_dir, key_ring, "root".to_string());
         let event = base_event();
         let binding = base_binding();
-        let proof = issuer.issue(&event, &binding, "completion-claim", "oracle").unwrap();
-        let ledger = FakeLedger { allowed: true, records: vec![event] };
+        let proof = issuer
+            .issue(&event, &binding, "completion-claim", "oracle")
+            .unwrap();
+        let ledger = FakeLedger {
+            allowed: true,
+            records: vec![event],
+        };
         let decision = issuer.verify(&proof, &Map::new(), &ledger);
         assert_eq!(decision["allowed"], json!(true));
     }
@@ -455,7 +525,10 @@ mod tests {
         let key_ring = key_ring_with_root(&key_dir, "root", b"root-secret-material");
         let issuer = AuthorityInvocationProofIssuer::new(store_dir, key_ring, "root".to_string());
         let bogus = json!({"role": "legion", "purpose": "completion-claim"});
-        let ledger = FakeLedger { allowed: true, records: vec![] };
+        let ledger = FakeLedger {
+            allowed: true,
+            records: vec![],
+        };
         let decision = issuer.verify(&bogus, &Map::new(), &ledger);
         assert_eq!(decision["allowed"], json!(false));
         assert_eq!(decision["code"], json!("ARC_AUTH_FORGED"));
@@ -469,8 +542,13 @@ mod tests {
         let issuer = AuthorityInvocationProofIssuer::new(store_dir, key_ring, "root".to_string());
         let event = base_event();
         let binding = base_binding();
-        let proof = issuer.issue(&event, &binding, "completion-claim", "oracle").unwrap();
-        let ledger = FakeLedger { allowed: false, records: vec![event] };
+        let proof = issuer
+            .issue(&event, &binding, "completion-claim", "oracle")
+            .unwrap();
+        let ledger = FakeLedger {
+            allowed: false,
+            records: vec![event],
+        };
         let decision = issuer.verify(&proof, &Map::new(), &ledger);
         assert_eq!(decision["allowed"], json!(false));
     }
@@ -483,8 +561,13 @@ mod tests {
         let issuer = AuthorityInvocationProofIssuer::new(store_dir, key_ring, "root".to_string());
         let event = base_event();
         let binding = base_binding();
-        let proof = issuer.issue(&event, &binding, "completion-claim", "oracle").unwrap();
-        let ledger = FakeLedger { allowed: true, records: vec![event] };
+        let proof = issuer
+            .issue(&event, &binding, "completion-claim", "oracle")
+            .unwrap();
+        let ledger = FakeLedger {
+            allowed: true,
+            records: vec![event],
+        };
         let mut expected = Map::new();
         expected.insert("taskId".to_string(), json!("some-other-task"));
         let decision = issuer.verify(&proof, &expected, &ledger);

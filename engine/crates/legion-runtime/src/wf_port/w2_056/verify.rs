@@ -116,7 +116,11 @@ pub fn verify_skill_catalog(
             ));
         }
 
-        let files = manifest.get("files").and_then(Value::as_array).cloned().unwrap_or_default();
+        let files = manifest
+            .get("files")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         for record in &files {
             let record_path = record.get("path").and_then(Value::as_str).unwrap_or("");
             let relative = Path::new("skills").join(bundle_id).join(record_path);
@@ -131,7 +135,14 @@ pub fn verify_skill_catalog(
                 continue;
             };
             declared.insert(output_path.clone());
-            verify_file(bundle_id, record, record_path, &output_path, &declared_uris, &mut findings);
+            verify_file(
+                bundle_id,
+                record,
+                record_path,
+                &output_path,
+                &declared_uris,
+                &mut findings,
+            );
         }
 
         find_unexpected(package_root, bundle_id, &declared, &mut findings);
@@ -169,7 +180,11 @@ fn verify_file(
         ));
         return;
     };
-    let expected_digest = record.get("digest").and_then(Value::as_str).unwrap_or("").to_string();
+    let expected_digest = record
+        .get("digest")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let (ok, digest) = verify_skill_bytes(&bytes, &expected_digest);
     if !ok {
         findings.push(finding(
@@ -232,7 +247,9 @@ fn find_unexpected(
 
 fn all_files(directory: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    let Ok(entries) = std::fs::read_dir(directory) else { return out };
+    let Ok(entries) = std::fs::read_dir(directory) else {
+        return out;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         let name = entry.file_name();
@@ -330,11 +347,12 @@ mod tests {
     #[test]
     fn broken_link_when_uri_not_declared() {
         let dir = TempDir::new();
-        write(dir.path(), "skills/demo/SKILL.md", "see legion-skill://demo/other.md for detail");
-        let (_, digest) = verify_skill_bytes(
-            b"see legion-skill://demo/other.md for detail",
-            "",
+        write(
+            dir.path(),
+            "skills/demo/SKILL.md",
+            "see legion-skill://demo/other.md for detail",
         );
+        let (_, digest) = verify_skill_bytes(b"see legion-skill://demo/other.md for detail", "");
         let manifest = json!({
             "id": "demo",
             "files": [
@@ -358,8 +376,14 @@ mod tests {
             ]
         });
         let result = verify_skill_catalog(dir.path(), &[manifest.clone()], true);
-        assert!(result.findings.iter().any(|f| f.code == "rights-unresolved"));
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.code == "rights-unresolved"));
         let result_no_pub = verify_skill_catalog(dir.path(), &[manifest], false);
-        assert!(!result_no_pub.findings.iter().any(|f| f.code == "rights-unresolved"));
+        assert!(!result_no_pub
+            .findings
+            .iter()
+            .any(|f| f.code == "rights-unresolved"));
     }
 }

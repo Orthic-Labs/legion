@@ -148,7 +148,11 @@ fn sheet_xml(sheet: &Sheet) -> String {
         let is_header = sheet.header_row == Some(r);
         for (c_i, cell) in row.iter().enumerate() {
             let cell_ref = format!("{}{r}", col_letter(c_i));
-            let fill = sheet.cell_fill.get(&(r, c_i)).copied().unwrap_or(Fill::None);
+            let fill = sheet
+                .cell_fill
+                .get(&(r, c_i))
+                .copied()
+                .unwrap_or(Fill::None);
             let style = fill_style_id(fill, is_header);
             match cell {
                 Cell::S(s) => {
@@ -158,7 +162,8 @@ fn sheet_xml(sheet: &Sheet) -> String {
                     ));
                 }
                 Cell::N(n) => {
-                    sheet_data.push_str(&format!("<c r=\"{cell_ref}\" s=\"{style}\"><v>{n}</v></c>"));
+                    sheet_data
+                        .push_str(&format!("<c r=\"{cell_ref}\" s=\"{style}\"><v>{n}</v></c>"));
                 }
             }
         }
@@ -280,15 +285,29 @@ pub fn generate_xlsx(
 
     // ── Summary sheet ──────────────────────────────────────────────────────
     let mut summary = Sheet::new("Summary");
-    summary.append(vec![Cell::S("Google SEO Report".into()), Cell::S(String::new()), Cell::S(String::new())]);
+    summary.append(vec![
+        Cell::S("Google SEO Report".into()),
+        Cell::S(String::new()),
+        Cell::S(String::new()),
+    ]);
     summary.append(vec![Cell::S("Domain".into()), Cell::S(domain.into())]);
-    summary.append(vec![Cell::S("Report Type".into()), Cell::S(_report_type.into())]);
+    summary.append(vec![
+        Cell::S("Report Type".into()),
+        Cell::S(_report_type.into()),
+    ]);
     summary.append(vec![Cell::S("Generated".into()), Cell::S(timestamp.into())]);
     summary.append(vec![]);
 
-    let wants_cwv = matches!(report_type, Some(ReportType::CwvAudit) | Some(ReportType::Full));
+    let wants_cwv = matches!(
+        report_type,
+        Some(ReportType::CwvAudit) | Some(ReportType::Full)
+    );
     if wants_cwv {
-        let psi = if data.get("psi").is_some() { obj(data, "psi") } else { data };
+        let psi = if data.get("psi").is_some() {
+            obj(data, "psi")
+        } else {
+            data
+        };
         let mobile = {
             let inner = obj(psi, "psi");
             inner.get("mobile").cloned().unwrap_or_else(|| psi.clone())
@@ -296,8 +315,12 @@ pub fn generate_xlsx(
         let scores = obj(&mobile, "lighthouse_scores");
         if let Some(scores_obj) = scores.as_object() {
             if !scores_obj.is_empty() {
-                summary.append(vec![Cell::S("Lighthouse Scores".into()), Cell::S(String::new())]);
-                let header_row = summary.append(vec![Cell::S("Category".into()), Cell::S("Score".into())]);
+                summary.append(vec![
+                    Cell::S("Lighthouse Scores".into()),
+                    Cell::S(String::new()),
+                ]);
+                let header_row =
+                    summary.append(vec![Cell::S("Category".into()), Cell::S("Score".into())]);
                 summary.header_row = Some(header_row);
                 for cat in ["performance", "accessibility", "best_practices", "seo"] {
                     // Python looks up `scores.get(cat)`, where cat uses
@@ -308,12 +331,28 @@ pub fn generate_xlsx(
                     // "best-practices" either, so this lookup returns None
                     // there too; kept identical rather than "fixed").
                     if let Some(val) = scores.get(cat).and_then(|v| v.as_f64()) {
-                        let display = if val <= 1.0 { (val * 100.0).round() } else { val };
+                        let display = if val <= 1.0 {
+                            (val * 100.0).round()
+                        } else {
+                            val
+                        };
                         let row = summary.append(vec![
-                            Cell::S(cat.replace('_', " ").split(' ').map(title_word).collect::<Vec<_>>().join(" ")),
+                            Cell::S(
+                                cat.replace('_', " ")
+                                    .split(' ')
+                                    .map(title_word)
+                                    .collect::<Vec<_>>()
+                                    .join(" "),
+                            ),
                             Cell::N(display),
                         ]);
-                        let sev = if display >= 90.0 { "pass" } else if display >= 50.0 { "warning" } else { "fail" };
+                        let sev = if display >= 90.0 {
+                            "pass"
+                        } else if display >= 50.0 {
+                            "warning"
+                        } else {
+                            "fail"
+                        };
                         summary.cell_fill.insert((row, 1), severity_fill(sev));
                     }
                 }
@@ -325,8 +364,15 @@ pub fn generate_xlsx(
         let metrics = obj(crux, "metrics");
         if let Some(m_obj) = metrics.as_object() {
             if !m_obj.is_empty() {
-                summary.append(vec![Cell::S("Core Web Vitals (Field Data)".into()), Cell::S(String::new())]);
-                summary.append(vec![Cell::S("Metric".into()), Cell::S("Value".into()), Cell::S("Rating".into())]);
+                summary.append(vec![
+                    Cell::S("Core Web Vitals (Field Data)".into()),
+                    Cell::S(String::new()),
+                ]);
+                summary.append(vec![
+                    Cell::S("Metric".into()),
+                    Cell::S("Value".into()),
+                    Cell::S("Rating".into()),
+                ]);
                 for (name, md) in m_obj {
                     if md.is_object() {
                         let p75 = md
@@ -348,7 +394,11 @@ pub fn generate_xlsx(
     let gsc = obj(data, "gsc");
     let queries = {
         let q = arr(gsc, "queries");
-        if !q.is_empty() { q } else { arr(gsc, "rows") }
+        if !q.is_empty() {
+            q
+        } else {
+            arr(gsc, "rows")
+        }
     };
     if !queries.is_empty() {
         let mut ws = Sheet::new("Queries");
@@ -485,7 +535,10 @@ pub fn generate_xlsx(
     // (`%Y%m%d-%H%M`), distinct from the report's `timestamp`/`timestamp_short`
     // -- ported by having the caller pass the same clock-derived string in
     // both places rather than reading the clock a second time here.
-    let filename = format!("Google-SEO-Report-{domain}-{}.xlsx", timestamp.replace([' ', ':'], "-"));
+    let filename = format!(
+        "Google-SEO-Report-{domain}-{}.xlsx",
+        timestamp.replace([' ', ':'], "-")
+    );
     let filepath = output_dir.join(filename);
     write_xlsx(&sheets, &filepath).ok()?;
     Some(filepath)
@@ -512,20 +565,36 @@ fn title_word(w: &str) -> String {
 fn write_xlsx(sheets: &[Sheet], out_path: &Path) -> Result<(), String> {
     let file = std::fs::File::create(out_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
 
-    let mut write_part = |zip: &mut zip::ZipWriter<std::fs::File>, name: &str, content: &[u8]| -> Result<(), String> {
+    let mut write_part = |zip: &mut zip::ZipWriter<std::fs::File>,
+                          name: &str,
+                          content: &[u8]|
+     -> Result<(), String> {
         zip.start_file(name, options).map_err(|e| e.to_string())?;
         zip.write_all(content).map_err(|e| e.to_string())
     };
 
-    write_part(&mut zip, "[Content_Types].xml", content_types_xml(sheets.len()).as_bytes())?;
+    write_part(
+        &mut zip,
+        "[Content_Types].xml",
+        content_types_xml(sheets.len()).as_bytes(),
+    )?;
     write_part(&mut zip, "_rels/.rels", PACKAGE_RELS_XML.as_bytes())?;
     write_part(&mut zip, "xl/workbook.xml", workbook_xml(sheets).as_bytes())?;
-    write_part(&mut zip, "xl/_rels/workbook.xml.rels", workbook_rels_xml(sheets.len()).as_bytes())?;
+    write_part(
+        &mut zip,
+        "xl/_rels/workbook.xml.rels",
+        workbook_rels_xml(sheets.len()).as_bytes(),
+    )?;
     write_part(&mut zip, "xl/styles.xml", STYLES_XML.as_bytes())?;
     for (i, s) in sheets.iter().enumerate() {
-        write_part(&mut zip, &format!("xl/worksheets/sheet{}.xml", i + 1), sheet_xml(s).as_bytes())?;
+        write_part(
+            &mut zip,
+            &format!("xl/worksheets/sheet{}.xml", i + 1),
+            sheet_xml(s).as_bytes(),
+        )?;
     }
     zip.finish().map_err(|e| e.to_string())?;
     Ok(())

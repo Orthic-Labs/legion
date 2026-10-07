@@ -75,14 +75,20 @@ fn normalize(path: &Path) -> PathBuf {
 fn entry_path(entry: &Value) -> Option<String> {
     match entry {
         Value::String(s) => Some(s.clone()),
-        Value::Object(map) => map.get("path").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        Value::Object(map) => map
+            .get("path")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         _ => None,
     }
 }
 
 fn entry_digest(entry: &Value) -> Option<String> {
     match entry {
-        Value::Object(map) => map.get("digest").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        Value::Object(map) => map
+            .get("digest")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         _ => None,
     }
 }
@@ -91,22 +97,29 @@ fn verify_referenced(root: &Path, entries: &[Value], issues: &mut Vec<Issue>) {
     for entry in entries {
         let path_str = entry_path(entry);
         let resolved = path_str.as_deref().and_then(|p| resolved_artifact(root, p));
-        let artifact_value = path_str
-            .clone()
-            .map(Value::String)
-            .unwrap_or(Value::Null);
+        let artifact_value = path_str.clone().map(Value::String).unwrap_or(Value::Null);
         match resolved {
-            None => issues.push(Issue { artifact: artifact_value, issue: "missing" }),
-            Some(path) if !path.exists() => {
-                issues.push(Issue { artifact: artifact_value, issue: "missing" })
-            }
+            None => issues.push(Issue {
+                artifact: artifact_value,
+                issue: "missing",
+            }),
+            Some(path) if !path.exists() => issues.push(Issue {
+                artifact: artifact_value,
+                issue: "missing",
+            }),
             Some(path) => {
                 let digest = entry_digest(entry);
                 match digest {
-                    None => issues.push(Issue { artifact: artifact_value, issue: "digest-missing" }),
+                    None => issues.push(Issue {
+                        artifact: artifact_value,
+                        issue: "digest-missing",
+                    }),
                     Some(expected) => {
                         if sha256_file(&path).as_deref() != Some(expected.as_str()) {
-                            issues.push(Issue { artifact: artifact_value, issue: "digest-mismatch" });
+                            issues.push(Issue {
+                                artifact: artifact_value,
+                                issue: "digest-mismatch",
+                            });
                         }
                     }
                 }
@@ -143,19 +156,29 @@ pub fn verify_release_manifest_object(
         let resolved = path_str.as_deref().and_then(|p| resolved_artifact(&dir, p));
         let resolved = match resolved {
             None => {
-                issues.push(Issue { artifact: artifact_value, issue: "path-escape" });
+                issues.push(Issue {
+                    artifact: artifact_value,
+                    issue: "path-escape",
+                });
                 continue;
             }
             Some(p) => p,
         };
         let observed = sha256_file(&resolved);
         match observed {
-            None => issues.push(Issue { artifact: artifact_value, issue: "missing" }),
+            None => issues.push(Issue {
+                artifact: artifact_value,
+                issue: "missing",
+            }),
             Some(observed) => match entry_digest(entry) {
-                None => issues.push(Issue { artifact: artifact_value, issue: "digest-missing" }),
-                Some(expected) if expected != observed => {
-                    issues.push(Issue { artifact: artifact_value, issue: "digest-mismatch" })
-                }
+                None => issues.push(Issue {
+                    artifact: artifact_value,
+                    issue: "digest-missing",
+                }),
+                Some(expected) if expected != observed => issues.push(Issue {
+                    artifact: artifact_value,
+                    issue: "digest-mismatch",
+                }),
                 _ => {}
             },
         }
@@ -171,7 +194,10 @@ pub fn verify_release_manifest_object(
     ] {
         let entries = array_field(manifest, field);
         if entries.is_empty() {
-            issues.push(Issue { artifact: Value::String(label.to_string()), issue: "missing" });
+            issues.push(Issue {
+                artifact: Value::String(label.to_string()),
+                issue: "missing",
+            });
         } else {
             verify_referenced(&dir, entries, &mut issues);
         }
@@ -182,7 +208,10 @@ pub fn verify_release_manifest_object(
         if let Some(resolved) = path_str.as_deref().and_then(|p| resolved_artifact(&dir, p)) {
             if resolved.exists() {
                 let artifact_value = path_str.clone().map(Value::String).unwrap_or(Value::Null);
-                match fs::read_to_string(&resolved).ok().and_then(|s| serde_json::from_str::<Value>(&s).ok()) {
+                match fs::read_to_string(&resolved)
+                    .ok()
+                    .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+                {
                     Some(value) => {
                         let components = value
                             .get("components")
@@ -191,10 +220,16 @@ pub fn verify_release_manifest_object(
                             .map(|v| v.is_empty())
                             .unwrap_or(true);
                         if components {
-                            issues.push(Issue { artifact: artifact_value, issue: "empty-sbom" });
+                            issues.push(Issue {
+                                artifact: artifact_value,
+                                issue: "empty-sbom",
+                            });
                         }
                     }
-                    None => issues.push(Issue { artifact: artifact_value, issue: "invalid-sbom" }),
+                    None => issues.push(Issue {
+                        artifact: artifact_value,
+                        issue: "invalid-sbom",
+                    }),
                 }
             }
         }
@@ -205,11 +240,17 @@ pub fn verify_release_manifest_object(
             .map(Value::String)
             .unwrap_or_else(|| Value::String("signature".to_string()));
         if entry_digest(signature).is_none() {
-            issues.push(Issue { artifact: artifact_value.clone(), issue: "signature-digest-missing" });
+            issues.push(Issue {
+                artifact: artifact_value.clone(),
+                issue: "signature-digest-missing",
+            });
         }
         let status = signature.get("status").and_then(|v| v.as_str());
         if status.is_none() || status == Some("placeholder") || status == Some("missing") {
-            issues.push(Issue { artifact: artifact_value, issue: "placeholder-signature" });
+            issues.push(Issue {
+                artifact: artifact_value,
+                issue: "placeholder-signature",
+            });
         }
     }
 
@@ -218,22 +259,36 @@ pub fn verify_release_manifest_object(
             .map(Value::String)
             .unwrap_or_else(|| Value::String("notarization".to_string()));
         if entry_digest(entry).is_none() {
-            issues.push(Issue { artifact: artifact_value.clone(), issue: "notarization-digest-missing" });
+            issues.push(Issue {
+                artifact: artifact_value.clone(),
+                issue: "notarization-digest-missing",
+            });
         }
         let status = entry.get("status").and_then(|v| v.as_str());
         if status.is_none() || status == Some("placeholder") || status == Some("missing") {
-            issues.push(Issue { artifact: artifact_value, issue: "notarization-status-unresolved" });
+            issues.push(Issue {
+                artifact: artifact_value,
+                issue: "notarization-status-unresolved",
+            });
         }
     }
 
     for artifact in array_field(manifest, "artifacts") {
-        let artifact_value = entry_path(artifact).map(Value::String).unwrap_or(Value::Null);
+        let artifact_value = entry_path(artifact)
+            .map(Value::String)
+            .unwrap_or(Value::Null);
         let is_native = artifact.get("type").and_then(|v| v.as_str()) == Some("native");
         if is_native && artifact.get("platform").is_none() {
-            issues.push(Issue { artifact: artifact_value.clone(), issue: "platform-missing" });
+            issues.push(Issue {
+                artifact: artifact_value.clone(),
+                issue: "platform-missing",
+            });
         }
         if artifact.get("semanticEquivalent").and_then(|v| v.as_bool()) == Some(false) {
-            issues.push(Issue { artifact: artifact_value, issue: "semantic-equivalence-failed" });
+            issues.push(Issue {
+                artifact: artifact_value,
+                issue: "semantic-equivalence-failed",
+            });
         }
     }
 
@@ -250,18 +305,28 @@ pub fn verify_release_manifest_object(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| "channel".to_string());
-            issues.push(Issue { artifact: Value::String(id), issue: "artifact-decision-missing" });
+            issues.push(Issue {
+                artifact: Value::String(id),
+                issue: "artifact-decision-missing",
+            });
         }
     }
 
-    let has_version = manifest.get("version").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false);
+    let has_version = manifest
+        .get("version")
+        .and_then(|v| v.as_str())
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
     let has_source_revision = manifest
         .get("sourceRevision")
         .and_then(|v| v.as_str())
         .map(|s| !s.is_empty())
         .unwrap_or(false);
     if !has_version || !has_source_revision {
-        issues.push(Issue { artifact: Value::String("manifest".to_string()), issue: "identity-missing" });
+        issues.push(Issue {
+            artifact: Value::String("manifest".to_string()),
+            issue: "identity-missing",
+        });
     }
 
     Ok(VerificationResult {
@@ -273,7 +338,10 @@ pub fn verify_release_manifest_object(
     })
 }
 
-pub fn verify_release_manifest(manifest_path: &Path, dist_dir: Option<&Path>) -> Result<VerificationResult, String> {
+pub fn verify_release_manifest(
+    manifest_path: &Path,
+    dist_dir: Option<&Path>,
+) -> Result<VerificationResult, String> {
     let raw = fs::read_to_string(manifest_path).map_err(|e| e.to_string())?;
     let manifest: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
     let root = match dist_dir {
@@ -309,7 +377,11 @@ mod tests {
         });
         let result = verify_release_manifest_object(&manifest, Path::new("/tmp"), None).unwrap();
         assert!(!result.valid);
-        let labels: Vec<_> = result.issues.iter().map(|i| i.artifact.as_str().unwrap_or_default().to_string()).collect();
+        let labels: Vec<_> = result
+            .issues
+            .iter()
+            .map(|i| i.artifact.as_str().unwrap_or_default().to_string())
+            .collect();
         assert!(labels.contains(&"SHA256SUMS".to_string()));
         assert!(labels.contains(&"SBOM".to_string()));
     }
@@ -323,7 +395,8 @@ mod tests {
             "sourceRevision": "abc123",
             "artifacts": [{ "path": "../escape.bin" }],
         });
-        let result = verify_release_manifest_object(&manifest, Path::new("/tmp/dist"), None).unwrap();
+        let result =
+            verify_release_manifest_object(&manifest, Path::new("/tmp/dist"), None).unwrap();
         assert!(result.issues.iter().any(|i| i.issue == "path-escape"));
     }
 }

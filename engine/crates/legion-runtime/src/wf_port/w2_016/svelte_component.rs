@@ -133,7 +133,9 @@ pub fn resolve_source_file(source_file: &str, cwd: &Path) -> Result<PathBuf, Str
         _ => return Err("Svelte-component source file escapes project root".to_string()),
     }
     if !full.exists() {
-        return Err(format!("Svelte-component source file not found: {source_file}"));
+        return Err(format!(
+            "Svelte-component source file not found: {source_file}"
+        ));
     }
     Ok(full)
 }
@@ -164,8 +166,10 @@ pub fn parse_svelte_component_file(content: &str) -> (String, Vec<String>) {
         LazyLock::new(|| Regex::new(r"(?is)^([\s\S]*?)<script\b[^>]*>[\s\S]*?</script>").unwrap());
     static STYLE_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"(?is)<style\b[^>]*>([\s\S]*?)</style\s*>").unwrap());
-    static STYLE_OPEN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^<style\b[^>]*>").unwrap());
-    static STYLE_CLOSE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)</style\s*>$").unwrap());
+    static STYLE_OPEN_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)^<style\b[^>]*>").unwrap());
+    static STYLE_CLOSE_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)</style\s*>$").unwrap());
 
     let without_script = if let Some(m) = SCRIPT_RE.find(content) {
         &content[m.end()..]
@@ -181,7 +185,10 @@ pub fn parse_svelte_component_file(content: &str) -> (String, Vec<String>) {
             let inner = STYLE_CLOSE_RE
                 .replace(&STYLE_OPEN_RE.replace(style_block, ""), "")
                 .to_string();
-            let mut lines: Vec<String> = inner.split('\n').map(|l| l.trim_end().to_string()).collect();
+            let mut lines: Vec<String> = inner
+                .split('\n')
+                .map(|l| l.trim_end().to_string())
+                .collect();
             while lines.first().map(|l| l.trim().is_empty()).unwrap_or(false) {
                 lines.remove(0);
             }
@@ -214,7 +221,10 @@ fn match_opening_tag(markup: &str) -> Option<OpeningTag> {
         raw: whole.as_str().to_string(),
         prefix: caps[1].to_string(),
         tag: caps[2].to_string(),
-        attrs: caps.get(3).map(|m| m.as_str().to_string()).unwrap_or_default(),
+        attrs: caps
+            .get(3)
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default(),
         close: caps[4].to_string(),
         index: whole.start(),
     })
@@ -229,7 +239,10 @@ struct AttrSegment {
 /// Mirrors `parseAttrSegments(attrs)`.
 fn parse_attr_segments(attrs: &str) -> Vec<(String, AttrSegment)> {
     static RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r#"(?x)([A-Za-z_:][\w:.-]*)(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}|[^\s"'>=]+))?"#).unwrap()
+        Regex::new(
+            r#"(?x)([A-Za-z_:][\w:.-]*)(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}|[^\s"'>=]+))?"#,
+        )
+        .unwrap()
     });
     let mut out = Vec::new();
     for m in RE.find_iter(attrs) {
@@ -266,7 +279,10 @@ fn merge_static_class_attr(original_raw: &str, variant_raw: &str) -> Option<Stri
 
     let mut seen = std::collections::HashSet::new();
     let mut classes = Vec::new();
-    for c in variant_value.split_whitespace().chain(original_value.split_whitespace()) {
+    for c in variant_value
+        .split_whitespace()
+        .chain(original_value.split_whitespace())
+    {
         if !c.is_empty() && seen.insert(c.to_string()) {
             classes.push(c.to_string());
         }
@@ -290,8 +306,10 @@ fn merge_original_top_level_attrs(markup: &str, original_markup: &str) -> String
     let original_attrs = parse_attr_segments(&original_open.attrs);
     let variant_map: std::collections::HashMap<&str, &AttrSegment> =
         variant_attrs.iter().map(|(n, a)| (n.as_str(), a)).collect();
-    let original_map: std::collections::HashMap<&str, &AttrSegment> =
-        original_attrs.iter().map(|(n, a)| (n.as_str(), a)).collect();
+    let original_map: std::collections::HashMap<&str, &AttrSegment> = original_attrs
+        .iter()
+        .map(|(n, a)| (n.as_str(), a))
+        .collect();
 
     let mut additions: Vec<String> = Vec::new();
     let mut attrs = variant_open.attrs.clone();
@@ -308,7 +326,9 @@ fn merge_original_top_level_attrs(markup: &str, original_markup: &str) -> String
             );
             changed = true;
         }
-    } else if let (Some(original_class), None) = (original_map.get("class"), variant_map.get("class")) {
+    } else if let (Some(original_class), None) =
+        (original_map.get("class"), variant_map.get("class"))
+    {
         additions.push(original_class.raw.clone());
     }
 
@@ -328,7 +348,10 @@ fn merge_original_top_level_attrs(markup: &str, original_markup: &str) -> String
         "{}{}{attrs}{}{}",
         variant_open.prefix,
         variant_open.tag,
-        additions.iter().map(|a| format!(" {}", a.trim())).collect::<String>(),
+        additions
+            .iter()
+            .map(|a| format!(" {}", a.trim()))
+            .collect::<String>(),
         variant_open.close
     );
     format!(
@@ -342,7 +365,10 @@ fn merge_original_top_level_attrs(markup: &str, original_markup: &str) -> String
 pub fn substitute_props_with_exprs(markup: &str, contract: &[PropContractEntry]) -> String {
     let mut out = markup.to_string();
     for entry in contract {
-        out = out.replace(&format!("{{{}}}", entry.prop), &format!("{{{}}}", entry.expr));
+        out = out.replace(
+            &format!("{{{}}}", entry.prop),
+            &format!("{{{}}}", entry.expr),
+        );
     }
     out
 }
@@ -378,7 +404,11 @@ fn parse_css_rules(css: &str) -> Vec<CssRule> {
         if i >= n {
             break;
         }
-        let prelude: String = chars[prelude_start..i].iter().collect::<String>().trim().to_string();
+        let prelude: String = chars[prelude_start..i]
+            .iter()
+            .collect::<String>()
+            .trim()
+            .to_string();
         i += 1;
         let body_start = i;
         let mut depth = 1i32;
@@ -493,13 +523,17 @@ fn strip_variant_selector(selector: &str, variant_num: &str) -> String {
     let exact_re = Regex::new(&format!("(?:{dq})|(?:{sq})")).unwrap();
     let out = exact_re.replace_all(selector, "").to_string();
     static ANY_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r#"\[data-impeccable-variant="[^"]*"\]|\[data-impeccable-variant='[^']*'\]"#).unwrap()
+        Regex::new(r#"\[data-impeccable-variant="[^"]*"\]|\[data-impeccable-variant='[^']*'\]"#)
+            .unwrap()
     });
     ANY_RE.replace_all(&out, "").to_string()
 }
 
 /// Mirrors `rewriteParamSelectors(selector, paramValues)`.
-fn rewrite_param_selectors(selector: &str, param_values: Option<&serde_json::Map<String, serde_json::Value>>) -> (bool, String) {
+fn rewrite_param_selectors(
+    selector: &str,
+    param_values: Option<&serde_json::Map<String, serde_json::Value>>,
+) -> (bool, String) {
     static RE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r#"\[data-p-([A-Za-z0-9_-]+)(?:="([^"]*)"|='([^']*)')?\]"#).unwrap()
     });
@@ -569,9 +603,11 @@ fn rewrite_selector_part(
 
     static SCOPE_CHILD_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"(?::scope(?:\[[^\]]+\])?\s*>\s*)").unwrap());
-    static SCOPE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r":scope(?:\[[^\]]+\])?").unwrap());
+    static SCOPE_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r":scope(?:\[[^\]]+\])?").unwrap());
     static WS_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").unwrap());
-    static LEADING_COMBINATOR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[>+~]\s*").unwrap());
+    static LEADING_COMBINATOR_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^[>+~]\s*").unwrap());
 
     out = SCOPE_CHILD_RE.replace_all(&out, "").to_string();
     out = SCOPE_RE.replace_all(&out, root_tag).to_string();
@@ -641,14 +677,22 @@ pub fn sanitize_accepted_svelte_css(
         }
 
         if SCOPE_AT_RE.is_match(prelude) {
-            if prelude.contains("data-impeccable-variant") && !selector_has_variant(prelude, variant_num) {
+            if prelude.contains("data-impeccable-variant")
+                && !selector_has_variant(prelude, variant_num)
+            {
                 continue;
             }
             for inner_rule in parse_css_rules(body) {
                 if READY_RE.is_match(inner_rule.body.trim()) {
                     continue;
                 }
-                let rewritten = rewrite_selector(&inner_rule.prelude, variant_num, param_values, root_tag, true);
+                let rewritten = rewrite_selector(
+                    &inner_rule.prelude,
+                    variant_num,
+                    param_values,
+                    root_tag,
+                    true,
+                );
                 if rewritten.is_empty() {
                     continue;
                 }
@@ -694,7 +738,9 @@ pub fn bake_param_values_in_css(
                     escape_regex(&var_name)
                 ))
                 .unwrap();
-                out = re.replace_all(&out, json_value_to_selector_string(value).as_str()).to_string();
+                out = re
+                    .replace_all(&out, json_value_to_selector_string(value).as_str())
+                    .to_string();
             }
             out
         })
@@ -738,13 +784,17 @@ pub fn append_css_to_svelte_style(lines: &[String], css_lines: &[String]) -> Vec
 
 /// Mirrors `svelteMarkupHasVisibleContent(markup)`.
 fn svelte_markup_has_visible_content(markup: &str) -> bool {
-    static SCRIPT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?is)<script[\s\S]*?</script>").unwrap());
-    static STYLE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?is)<style[\s\S]*?</style>").unwrap());
-    static COMMENT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?s)<!--[\s\S]*?-->").unwrap());
+    static SCRIPT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?is)<script[\s\S]*?</script>").unwrap());
+    static STYLE_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?is)<style[\s\S]*?</style>").unwrap());
+    static COMMENT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?s)<!--[\s\S]*?-->").unwrap());
     static TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^>]+>").unwrap());
     static WS_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").unwrap());
     static VISIBLE_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)<(img|svg|canvas|video|audio|picture|input|button|select|textarea)\b").unwrap()
+        Regex::new(r"(?i)<(img|svg|canvas|video|audio|picture|input|button|select|textarea)\b")
+            .unwrap()
     });
 
     let text = SCRIPT_RE.replace_all(markup, "");
@@ -803,7 +853,9 @@ pub fn inline_svelte_component_accept(
             return base;
         }
     };
-    let variant_path = cwd.join(&manifest.component_dir).join(format!("v{variant_num}.svelte"));
+    let variant_path = cwd
+        .join(&manifest.component_dir)
+        .join(format!("v{variant_num}.svelte"));
     if !variant_path.exists() {
         base.error = Some(format!("Variant {variant_num} not found"));
         return base;
@@ -830,12 +882,15 @@ pub fn inline_svelte_component_accept(
         );
     }
 
-    let root_tag = match_opening_tag(&markup).map(|t| t.tag).unwrap_or_else(|| "div".to_string());
+    let root_tag = match_opening_tag(&markup)
+        .map(|t| t.tag)
+        .unwrap_or_else(|| "div".to_string());
     let merged_markup = merge_original_top_level_attrs(&markup, &manifest.original_markup);
-    let restored_markup: Vec<String> = substitute_props_with_exprs(&merged_markup, &manifest.prop_contract)
-        .split('\n')
-        .map(|l| l.trim_end().to_string())
-        .collect();
+    let restored_markup: Vec<String> =
+        substitute_props_with_exprs(&merged_markup, &manifest.prop_contract)
+            .split('\n')
+            .map(|l| l.trim_end().to_string())
+            .collect();
 
     let source_content = match fs::read_to_string(&source_file) {
         Ok(c) => c,
@@ -848,7 +903,10 @@ pub fn inline_svelte_component_accept(
     let start = manifest.source_start_line.unwrap_or(0) - 1;
     let end = manifest.source_end_line.unwrap_or(-1) - 1;
     if start < 0 || end < start || (end as usize) >= source_lines.len() {
-        base.error = Some(format!("Invalid source line range for {}", manifest.source_file));
+        base.error = Some(format!(
+            "Invalid source line range for {}",
+            manifest.source_file
+        ));
         return base;
     }
     let (start, end) = (start as usize, end as usize);
@@ -909,13 +967,19 @@ fn inline_svelte_component_insert_accept(
         LazyLock::new(|| Regex::new(r"\bdata-impeccable-[\w-]*\s*=").unwrap());
     if DATA_IMPECCABLE_RE.is_match(markup) {
         base.error = Some(
-            "Accepted Svelte insert variant contains preview-only data-impeccable attributes".to_string(),
+            "Accepted Svelte insert variant contains preview-only data-impeccable attributes"
+                .to_string(),
         );
         return base;
     }
 
-    let root_tag = match_opening_tag(markup).map(|t| t.tag).unwrap_or_else(|| "div".to_string());
-    let restored_markup: Vec<String> = markup.split('\n').map(|l| l.trim_end().to_string()).collect();
+    let root_tag = match_opening_tag(markup)
+        .map(|t| t.tag)
+        .unwrap_or_else(|| "div".to_string());
+    let restored_markup: Vec<String> = markup
+        .split('\n')
+        .map(|l| l.trim_end().to_string())
+        .collect();
 
     let source_content = match fs::read_to_string(source_file) {
         Ok(c) => c,
@@ -934,7 +998,11 @@ fn inline_svelte_component_insert_accept(
 
     let nearby = source_lines
         .get(insert_index)
-        .or_else(|| insert_index.checked_sub(1).and_then(|i| source_lines.get(i)))
+        .or_else(|| {
+            insert_index
+                .checked_sub(1)
+                .and_then(|i| source_lines.get(i))
+        })
         .cloned()
         .unwrap_or_default();
     let indent = leading_ws(&nearby);
@@ -1114,7 +1182,11 @@ pub fn apply_deferred_svelte_component_accepts(cwd: &Path) -> DeferredApplySumma
 
     let applied = results.iter().filter(|r| r.ok).count();
     let failed = results.len() - applied;
-    DeferredApplySummary { applied, failed, results }
+    DeferredApplySummary {
+        applied,
+        failed,
+        results,
+    }
 }
 
 #[cfg(test)]
@@ -1126,7 +1198,11 @@ mod tests {
 
     fn tmp_dir(tag: &str) -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("r17-svelte-component-{tag}-{}-{}", std::process::id(), n));
+        let dir = std::env::temp_dir().join(format!(
+            "r17-svelte-component-{tag}-{}-{}",
+            std::process::id(),
+            n
+        ));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -1194,7 +1270,12 @@ mod tests {
 
     #[test]
     fn append_css_to_svelte_style_inserts_before_existing_close() {
-        let lines = vec!["<div></div>".to_string(), "<style>".to_string(), "  .a{}".to_string(), "</style>".to_string()];
+        let lines = vec![
+            "<div></div>".to_string(),
+            "<style>".to_string(),
+            "  .a{}".to_string(),
+            "</style>".to_string(),
+        ];
         let out = append_css_to_svelte_style(&lines, &[".b{}".to_string()]);
         let joined = out.join("\n");
         assert!(joined.contains(".a{}"));
@@ -1231,14 +1312,21 @@ mod tests {
         .unwrap();
         let src_dir = cwd.join("src");
         fs::create_dir_all(&src_dir).unwrap();
-        fs::write(src_dir.join("App.svelte"), "<div>before</div>\n<div>orig</div>\n<div>after</div>\n").unwrap();
+        fs::write(
+            src_dir.join("App.svelte"),
+            "<div>before</div>\n<div>orig</div>\n<div>after</div>\n",
+        )
+        .unwrap();
 
         let manifest = find_svelte_component_manifest("sess1", &cwd).expect("manifest found");
         let result = inline_svelte_component_accept(&manifest, "1", None, &cwd);
         assert!(result.handled, "{:?}", result.error);
         let written = fs::read_to_string(src_dir.join("App.svelte")).unwrap();
         assert!(written.contains("variant one"));
-        assert!(!comp_dir.exists(), "session dir should be removed after accept");
+        assert!(
+            !comp_dir.exists(),
+            "session dir should be removed after accept"
+        );
 
         let _ = fs::remove_dir_all(&cwd);
     }
@@ -1265,7 +1353,11 @@ mod tests {
             .to_string(),
         )
         .unwrap();
-        fs::write(comp_dir.join("v1.svelte"), "<script>\n  let {} = $props();\n</script>\n<div>deferred variant</div>\n").unwrap();
+        fs::write(
+            comp_dir.join("v1.svelte"),
+            "<script>\n  let {} = $props();\n</script>\n<div>deferred variant</div>\n",
+        )
+        .unwrap();
         let src_dir = cwd.join("src");
         fs::create_dir_all(&src_dir).unwrap();
         fs::write(src_dir.join("Row.svelte"), "<div>orig</div>\n").unwrap();

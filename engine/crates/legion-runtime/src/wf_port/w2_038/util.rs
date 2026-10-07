@@ -34,7 +34,11 @@ pub(super) fn as_str(value: &Value) -> Option<&str> {
 /// elements dropped; missing/non-array reads as empty.
 pub(super) fn str_list(value: Option<&Value>) -> Vec<String> {
     match value {
-        Some(Value::Array(items)) => items.iter().filter_map(as_str).map(str::to_string).collect(),
+        Some(Value::Array(items)) => items
+            .iter()
+            .filter_map(as_str)
+            .map(str::to_string)
+            .collect(),
         _ => Vec::new(),
     }
 }

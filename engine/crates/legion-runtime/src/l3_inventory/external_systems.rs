@@ -98,7 +98,11 @@ pub fn discover_external_systems(projection: &Value, components: &Value, binding
         .collect();
 
     let mut evidence: Vec<String> = files.clone();
-    evidence.extend(dependency_names.iter().map(|name| format!("dependency:{name}")));
+    evidence.extend(
+        dependency_names
+            .iter()
+            .map(|name| format!("dependency:{name}")),
+    );
     for d in &declared {
         for p in d
             .get("evidencePaths")
@@ -128,7 +132,11 @@ pub fn discover_external_systems(projection: &Value, components: &Value, binding
     let mut systems: Vec<Value> = Vec::new();
     for (kind, pattern) in KINDS {
         let re = Regex::new(pattern).expect("static regex");
-        let evidence_paths: Vec<String> = evidence.iter().filter(|p| re.is_match(p)).cloned().collect();
+        let evidence_paths: Vec<String> = evidence
+            .iter()
+            .filter(|p| re.is_match(p))
+            .cloned()
+            .collect();
         let declarations: Vec<&Value> = declared
             .iter()
             .filter(|d| {
@@ -238,7 +246,8 @@ mod tests {
     #[test]
     fn discover_external_systems_matches_known_dependency() {
         let projection = json!({"dependencies": {"stripe": "1.0.0"}});
-        let result = discover_external_systems(&projection, &json!({"components": []}), &Value::Null);
+        let result =
+            discover_external_systems(&projection, &json!({"components": []}), &Value::Null);
         let systems = result["systems"].as_array().unwrap();
         assert!(systems.iter().any(|s| s["kind"] == "payments"));
     }

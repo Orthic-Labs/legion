@@ -194,12 +194,8 @@ impl ChromeDeckStageBrowser {
 
 impl DeckStageBrowser for ChromeDeckStageBrowser {
     fn navigate(&mut self, file_url: &str, _width: u32, _height: u32) -> Result<(), String> {
-        self.tab
-            .navigate_to(file_url)
-            .map_err(|e| e.to_string())?;
-        self.tab
-            .wait_until_navigated()
-            .map_err(|e| e.to_string())?;
+        self.tab.navigate_to(file_url).map_err(|e| e.to_string())?;
+        self.tab.wait_until_navigated().map_err(|e| e.to_string())?;
         std::thread::sleep(std::time::Duration::from_millis(2500));
         Ok(())
     }
@@ -218,9 +214,7 @@ impl DeckStageBrowser for ChromeDeckStageBrowser {
     }
 
     fn print_to_pdf(&mut self, _out: &Path, _width: u32, _height: u32) -> Result<Vec<u8>, String> {
-        self.tab
-            .print_to_pdf(None)
-            .map_err(|e| e.to_string())
+        self.tab.print_to_pdf(None).map_err(|e| e.to_string())
     }
 }
 
@@ -243,7 +237,10 @@ mod tests {
 
     #[test]
     fn parse_args_requires_html_and_out() {
-        let argv: Vec<String> = ["--html", "deck.html"].iter().map(|s| s.to_string()).collect();
+        let argv: Vec<String> = ["--html", "deck.html"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         assert_eq!(parse_args(&argv), Err(ParseArgsError::MissingRequired));
     }
 
@@ -264,7 +261,9 @@ mod tests {
             self.existing.iter().any(|p| p == path)
         }
         fn write(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-            self.writes.borrow_mut().insert(path.to_path_buf(), bytes.to_vec());
+            self.writes
+                .borrow_mut()
+                .insert(path.to_path_buf(), bytes.to_vec());
             Ok(())
         }
     }
@@ -320,6 +319,13 @@ mod tests {
         let outcome = run(&fs, &mut browser, &args).unwrap();
         assert_eq!(outcome.section_count, 5);
         assert_eq!(outcome.bytes_written, 4);
-        assert_eq!(fs.writes.borrow().get(&PathBuf::from("/out.pdf")).unwrap().len(), 4);
+        assert_eq!(
+            fs.writes
+                .borrow()
+                .get(&PathBuf::from("/out.pdf"))
+                .unwrap()
+                .len(),
+            4
+        );
     }
 }

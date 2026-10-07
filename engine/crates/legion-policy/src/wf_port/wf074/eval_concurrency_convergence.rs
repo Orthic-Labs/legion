@@ -61,13 +61,20 @@ pub enum ConcurrencyConvergenceResult {
 /// scheduler barrier: disjoint tasks have no consumed artifacts, so a
 /// common stage label must not serialize them.
 fn reject_whole_stage_barrier() -> ConcurrencyConvergenceResult {
-    let providers = vec![
-        Provider::new("author-a"),
-        Provider::new("fixture-b"),
-    ];
-    let result = schedule_providers(&providers, &ScheduleOptions { concurrency: 2, ..Default::default() })
-        .expect("fixture providers have no unknown dependencies or cycles");
-    let outcome = if result.waves.len() == 1 && result.waves[0].len() == 2 { "PARALLEL_ADMITTED" } else { "BARRIER_REJECTED" };
+    let providers = vec![Provider::new("author-a"), Provider::new("fixture-b")];
+    let result = schedule_providers(
+        &providers,
+        &ScheduleOptions {
+            concurrency: 2,
+            ..Default::default()
+        },
+    )
+    .expect("fixture providers have no unknown dependencies or cycles");
+    let outcome = if result.waves.len() == 1 && result.waves[0].len() == 2 {
+        "PARALLEL_ADMITTED"
+    } else {
+        "BARRIER_REJECTED"
+    };
     ConcurrencyConvergenceResult::Observed {
         id: "AE-CONCURRENCY-ATTENTION-002",
         outcome,
@@ -90,10 +97,18 @@ fn admit_independent_ready_work() -> ConcurrencyConvergenceResult {
     resources.insert("cpu".to_string(), 2.0);
     let result = schedule_providers(
         &providers,
-        &ScheduleOptions { concurrency: 2, resources: Some(resources), ..Default::default() },
+        &ScheduleOptions {
+            concurrency: 2,
+            resources: Some(resources),
+            ..Default::default()
+        },
     )
     .expect("fixture providers have no unknown dependencies or cycles");
-    let outcome = if result.admitted.len() == 2 { "INDEPENDENT_READY_WORK_ADMITTED" } else { "CAPACITY_NOT_ADMITTED" };
+    let outcome = if result.admitted.len() == 2 {
+        "INDEPENDENT_READY_WORK_ADMITTED"
+    } else {
+        "CAPACITY_NOT_ADMITTED"
+    };
     ConcurrencyConvergenceResult::Observed {
         id: "AE-CONCURRENCY-ATTENTION-006",
         outcome,
@@ -145,11 +160,30 @@ pub fn execute_concurrency_convergence_case(id: &str) -> ConcurrencyConvergenceR
 /// validator for any non-matching `id`/shape.
 pub fn validate_concurrency_convergence_observation(result: &ConcurrencyConvergenceResult) -> bool {
     match result {
-        ConcurrencyConvergenceResult::Observed { id: "AE-CONCURRENCY-ATTENTION-002", outcome, waves, consumed_artifacts, .. } => {
-            *outcome == "PARALLEL_ADMITTED" && waves.len() == 1 && waves[0].len() == 2 && consumed_artifacts.is_empty()
+        ConcurrencyConvergenceResult::Observed {
+            id: "AE-CONCURRENCY-ATTENTION-002",
+            outcome,
+            waves,
+            consumed_artifacts,
+            ..
+        } => {
+            *outcome == "PARALLEL_ADMITTED"
+                && waves.len() == 1
+                && waves[0].len() == 2
+                && consumed_artifacts.is_empty()
         }
-        ConcurrencyConvergenceResult::Observed { id: "AE-CONCURRENCY-ATTENTION-006", outcome, admitted, ready, blocked, .. } => {
-            *outcome == "INDEPENDENT_READY_WORK_ADMITTED" && admitted.len() == 2 && ready.len() == 1 && blocked.is_empty()
+        ConcurrencyConvergenceResult::Observed {
+            id: "AE-CONCURRENCY-ATTENTION-006",
+            outcome,
+            admitted,
+            ready,
+            blocked,
+            ..
+        } => {
+            *outcome == "INDEPENDENT_READY_WORK_ADMITTED"
+                && admitted.len() == 2
+                && ready.len() == 1
+                && blocked.is_empty()
         }
         _ => false,
     }
@@ -183,7 +217,9 @@ mod tests {
     fn convergence_001_and_003_use_convergence_family() {
         for id in ["AE-CONVERGENCE-001", "AE-CONVERGENCE-003"] {
             match execute_concurrency_convergence_case(id) {
-                ConcurrencyConvergenceResult::Pending { family, .. } => assert_eq!(family, "convergence"),
+                ConcurrencyConvergenceResult::Pending { family, .. } => {
+                    assert_eq!(family, "convergence")
+                }
                 other => panic!("{id}: unexpected {other:?}"),
             }
         }
@@ -201,8 +237,15 @@ mod tests {
     fn validator_accepts_the_two_scheduler_backed_cases_and_rejects_pending() {
         for id in IDS {
             let r = execute_concurrency_convergence_case(id);
-            let expect_valid = matches!(id, &"AE-CONCURRENCY-ATTENTION-002" | &"AE-CONCURRENCY-ATTENTION-006");
-            assert_eq!(validate_concurrency_convergence_observation(&r), expect_valid, "{id}");
+            let expect_valid = matches!(
+                id,
+                &"AE-CONCURRENCY-ATTENTION-002" | &"AE-CONCURRENCY-ATTENTION-006"
+            );
+            assert_eq!(
+                validate_concurrency_convergence_observation(&r),
+                expect_valid,
+                "{id}"
+            );
         }
     }
 

@@ -43,7 +43,8 @@ fn content_type_options_marker() -> &'static Regex {
 fn content_type_missing_charset() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r#"(?i)Content-Type['"]?\s*[:,]\s*['"]text/(?:html|plain)(?:;[^'"]*)?['"]"#).unwrap()
+        Regex::new(r#"(?i)Content-Type['"]?\s*[:,]\s*['"]text/(?:html|plain)(?:;[^'"]*)?['"]"#)
+            .unwrap()
     })
 }
 fn sensitive_route_marker() -> &'static Regex {
@@ -111,8 +112,14 @@ proxy, CDN, load balancer, or platform default could add, strip, or override it 
     )
 }
 
-fn runtime_header_snapshot(context: &Context) -> Option<&std::collections::HashMap<String, String>> {
-    context.audit_facts.runtime_headers.as_ref().map(|h| &h.headers)
+fn runtime_header_snapshot(
+    context: &Context,
+) -> Option<&std::collections::HashMap<String, String>> {
+    context
+        .audit_facts
+        .runtime_headers
+        .as_ref()
+        .map(|h| &h.headers)
 }
 
 /// Mirrors `runtimeHeaderCompliance(context, headerKey, isCompliant)`.
@@ -195,7 +202,11 @@ fn deployment_gate(context: &Context, subject: &str) -> Gate {
     let has_evidence =
         runtime_header_snapshot(context).is_some() || context.audit_facts.deployment.is_some();
     if has_evidence {
-        Gate { severity_cap: None, uncertainty: Vec::new(), deployment_assumption: None }
+        Gate {
+            severity_cap: None,
+            uncertainty: Vec::new(),
+            deployment_assumption: None,
+        }
     } else {
         Gate {
             severity_cap: Some("medium"),
@@ -231,7 +242,10 @@ fn base_observation(
         severity_hint,
         sources,
         sinks,
-        attacker_capabilities: attacker_capabilities.into_iter().map(str::to_string).collect(),
+        attacker_capabilities: attacker_capabilities
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
         preconditions,
         effects,
         assets: Vec::new(),
@@ -282,7 +296,8 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
             }
             observations.push(base_observation(
                 "hsts.missing",
-                "No Strict-Transport-Security header was found across the scanned surface.".to_string(),
+                "No Strict-Transport-Security header was found across the scanned surface."
+                    .to_string(),
                 cap_severity("low", outcome.severity_cap),
                 "defense-in-depth",
                 Vec::new(),
@@ -316,9 +331,13 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
 
     // https.not-enforced
     {
-        let source_insecure =
-            http_create_server().is_match(&combined_text) && !https_enforcement_marker().is_match(&combined_text);
-        let runtime_compliant = context.audit_facts.deployment.as_ref().and_then(|d| d.https_enforced);
+        let source_insecure = http_create_server().is_match(&combined_text)
+            && !https_enforcement_marker().is_match(&combined_text);
+        let runtime_compliant = context
+            .audit_facts
+            .deployment
+            .as_ref()
+            .and_then(|d| d.https_enforced);
         let source_compliant = !source_insecure;
         if let Some(outcome) = evaluate_deployment_aware_claim(
             "HTTPS enforcement",
@@ -340,7 +359,8 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
             }
             observations.push(base_observation(
                 "https.not-enforced",
-                "A plain HTTP server is created with no visible HTTPS enforcement or redirect.".to_string(),
+                "A plain HTTP server is created with no visible HTTPS enforcement or redirect."
+                    .to_string(),
                 cap_severity("high", outcome.severity_cap),
                 "exploitable-primitive",
                 Vec::new(),
@@ -398,7 +418,8 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
             }
             observations.push(base_observation(
                 "headers.missing-content-type-options",
-                "No X-Content-Type-Options: nosniff header was found across the scanned surface.".to_string(),
+                "No X-Content-Type-Options: nosniff header was found across the scanned surface."
+                    .to_string(),
                 cap_severity("low", outcome.severity_cap),
                 "defense-in-depth",
                 Vec::new(),
@@ -436,7 +457,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
         if text.is_empty() {
             continue;
         }
-        let Some(artifact) = context.find_artifact(file) else { continue };
+        let Some(artifact) = context.find_artifact(file) else {
+            continue;
+        };
         let evidence_refs = artifact.evidence_refs.clone();
         if evidence_refs.is_empty() {
             continue;
@@ -497,7 +520,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
         // cache.sensitive-content-cacheable
         if sensitive_route_marker().is_match(text) && !cache_no_store().is_match(text) {
             let explicit_public_match = cache_public_or_maxage().find(text);
-            let line = explicit_public_match.map(|m| line_of(text, m.start())).unwrap_or(1);
+            let line = explicit_public_match
+                .map(|m| line_of(text, m.start()))
+                .unwrap_or(1);
             let gate = deployment_gate(context, "Cache-Control on a sensitive route");
             let mut metadata = json!({ "file": file, "line": line, "header": "Cache-Control" });
             if let Some(a) = &gate.deployment_assumption {
@@ -553,7 +578,9 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
         if blind_trust_match.is_some() || raw_forwarded_for_use {
             let deployment = context.audit_facts.deployment.as_ref();
             let gate = deployment_gate(context, "X-Forwarded-For trust / proxy topology");
-            let line = blind_trust_match.map(|m| line_of(text, m.start())).unwrap_or(1);
+            let line = blind_trust_match
+                .map(|m| line_of(text, m.start()))
+                .unwrap_or(1);
             let mut severity_hint = cap_severity("high", gate.severity_cap);
             if deployment.and_then(|d| d.reverse_proxy) == Some(false) {
                 severity_hint = "critical".to_string();
@@ -616,7 +643,10 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
 
         // smuggling.conflicting-content-length-transfer-encoding
         if content_length_marker().is_match(text) && transfer_encoding_chunked().is_match(text) {
-            let te_index = transfer_encoding_chunked().find(text).map(|m| m.start()).unwrap_or(0);
+            let te_index = transfer_encoding_chunked()
+                .find(text)
+                .map(|m| m.start())
+                .unwrap_or(0);
             let gate = deployment_gate(context, "Content-Length / Transfer-Encoding handling");
             let mut metadata = json!({
                 "file": file,
@@ -780,7 +810,10 @@ pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<Value> {
             let mut matches = Vec::new();
             for file in &context.files {
                 let text = context.read_file(file);
-                if !text.is_empty() && sensitive_route_marker().is_match(text) && !cache_no_store().is_match(text) {
+                if !text.is_empty()
+                    && sensitive_route_marker().is_match(text)
+                    && !cache_no_store().is_match(text)
+                {
                     matches.push(json!({
                         "file": file, "line": 1,
                         "semanticFingerprint": format!("sha256:{file}:sensitive-cacheable"),

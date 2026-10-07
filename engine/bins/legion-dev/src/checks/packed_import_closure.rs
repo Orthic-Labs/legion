@@ -22,7 +22,8 @@ fn dynamic_esm_re() -> Regex {
     // skipping lines that start with `//`, `/*`, or `*` after trimming,
     // matching the practical intent (skip comment lines) without changing
     // behaviour for real source files.
-    Regex::new(r#"(?m)^\s*[^\n]*?\bimport\s*\(\s*(?:"(\.{1,2}/[^"']+)"|'(\.{1,2}/[^"']+)')\s*\)"#).unwrap()
+    Regex::new(r#"(?m)^\s*[^\n]*?\bimport\s*\(\s*(?:"(\.{1,2}/[^"']+)"|'(\.{1,2}/[^"']+)')\s*\)"#)
+        .unwrap()
 }
 
 fn normalize_path(path: &str) -> String {
@@ -33,7 +34,12 @@ fn normalize_path(path: &str) -> String {
 pub fn relative_esm_specifiers(source: &str) -> Vec<String> {
     let mut out = Vec::new();
     for cap in static_esm_re().captures_iter(source) {
-        out.push(cap.get(1).or_else(|| cap.get(2)).map_or("", |m| m.as_str()).to_string());
+        out.push(
+            cap.get(1)
+                .or_else(|| cap.get(2))
+                .map_or("", |m| m.as_str())
+                .to_string(),
+        );
     }
     let dyn_re = dynamic_esm_re();
     for line in source.lines() {
@@ -42,7 +48,12 @@ pub fn relative_esm_specifiers(source: &str) -> Vec<String> {
             continue;
         }
         for cap in dyn_re.captures_iter(line) {
-            out.push(cap.get(1).or_else(|| cap.get(2)).map_or("", |m| m.as_str()).to_string());
+            out.push(
+                cap.get(1)
+                    .or_else(|| cap.get(2))
+                    .map_or("", |m| m.as_str())
+                    .to_string(),
+            );
         }
     }
     out
@@ -173,8 +184,15 @@ fn read_tarball(tgz_path: &Path) -> Result<(Vec<String>, HashMap<String, String>
         if !entry.header().entry_type().is_file() {
             continue;
         }
-        let raw_path = entry.path().map_err(|e| e.to_string())?.to_string_lossy().to_string();
-        let path = raw_path.strip_prefix("package/").unwrap_or(&raw_path).to_string();
+        let raw_path = entry
+            .path()
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .to_string();
+        let path = raw_path
+            .strip_prefix("package/")
+            .unwrap_or(&raw_path)
+            .to_string();
         let path = normalize_path(&path);
         files.push(path.clone());
         if js_re.is_match(&path) {
@@ -229,7 +247,10 @@ pub fn check(root: &Path) -> Outcome {
     if missing.is_empty() {
         Outcome {
             status: "pass",
-            message: format!("packed import closure passes ({} JavaScript files)", sources.len()),
+            message: format!(
+                "packed import closure passes ({} JavaScript files)",
+                sources.len()
+            ),
         }
     } else {
         let detail = missing

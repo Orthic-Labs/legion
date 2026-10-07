@@ -67,5 +67,8 @@ fn provider_selection_benchmark_meets_precision_recall_thresholds() {
         false_negative, 0,
         "provider selection benchmark: unexpected false negatives (tp={true_positive} tn={true_negative} fp={false_positive})"
     );
-    assert!(true_positive + true_negative > 0, "benchmark corpus must not be empty");
+    assert!(
+        true_positive + true_negative > 0,
+        "benchmark corpus must not be empty"
+    );
 }

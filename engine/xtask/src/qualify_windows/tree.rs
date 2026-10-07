@@ -81,7 +81,8 @@ pub fn safe_archive_entry(name: &str) -> bool {
         }
     }
     let parts: Vec<&str> = normalized.split('/').filter(|p| !p.is_empty()).collect();
-    parts.is_empty() || (!parts.contains(&"..") && parts.iter().all(|p| !p.is_empty() && *p != ".."))
+    parts.is_empty()
+        || (!parts.contains(&"..") && parts.iter().all(|p| !p.is_empty() && *p != ".."))
 }
 
 /// Mirrors `extractWithNativeWindowsTar`: lists the archive with `tar.exe`,
@@ -90,12 +91,21 @@ pub fn safe_archive_entry(name: &str) -> bool {
 /// spawn, which is the same failure mode the original script has outside a
 /// Windows qualification run (tests always inject `archive_extractor`
 /// instead of calling this).
-pub fn extract_with_native_windows_tar(archive_path: &Path, destination: &Path) -> Result<(), String> {
-    let cwd = archive_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+pub fn extract_with_native_windows_tar(
+    archive_path: &Path,
+    destination: &Path,
+) -> Result<(), String> {
+    let cwd = archive_path
+        .parent()
+        .unwrap_or(Path::new("."))
+        .to_path_buf();
     let listing = native_tool(
         "tar.exe",
         &["-tf".to_string(), archive_path.display().to_string()],
-        &CommandOptions { cwd, env: std::env::vars().collect() },
+        &CommandOptions {
+            cwd,
+            env: std::env::vars().collect(),
+        },
     );
     if listing.exit_code != Some(0) {
         return Err(format!(
@@ -104,15 +114,28 @@ pub fn extract_with_native_windows_tar(archive_path: &Path, destination: &Path) 
             listing.error.unwrap_or(listing.stderr)
         ));
     }
-    for entry in listing.stdout.split(['\n', '\r']).map(str::trim).filter(|l| !l.is_empty()) {
+    for entry in listing
+        .stdout
+        .split(['\n', '\r'])
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+    {
         if !safe_archive_entry(entry) {
             return Err(format!("portable archive contains unsafe entry: {entry}"));
         }
     }
     let extraction = native_tool(
         "tar.exe",
-        &["-xf".to_string(), archive_path.display().to_string(), "-C".to_string(), destination.display().to_string()],
-        &CommandOptions { cwd: destination.to_path_buf(), env: std::env::vars().collect() },
+        &[
+            "-xf".to_string(),
+            archive_path.display().to_string(),
+            "-C".to_string(),
+            destination.display().to_string(),
+        ],
+        &CommandOptions {
+            cwd: destination.to_path_buf(),
+            env: std::env::vars().collect(),
+        },
     );
     if extraction.exit_code != Some(0) {
         return Err(format!(
@@ -135,7 +158,10 @@ pub fn is_same_or_inside(root: &Path, candidate: &Path, allow_equal: bool, platf
         let mut existing = candidate.to_path_buf();
         let mut tail: Vec<std::ffi::OsString> = Vec::new();
         while !existing.exists() {
-            match (existing.file_name().map(|n| n.to_os_string()), existing.parent()) {
+            match (
+                existing.file_name().map(|n| n.to_os_string()),
+                existing.parent(),
+            ) {
                 (Some(name), Some(parent)) => {
                     tail.push(name);
                     existing = parent.to_path_buf();
@@ -171,9 +197,17 @@ pub fn is_same_or_inside(root: &Path, candidate: &Path, allow_equal: bool, platf
     }
 }
 
-pub fn assert_inside(root: &Path, candidate: &Path, label: &str, platform: &str) -> Result<PathBuf, String> {
+pub fn assert_inside(
+    root: &Path,
+    candidate: &Path,
+    label: &str,
+    platform: &str,
+) -> Result<PathBuf, String> {
     if !is_same_or_inside(root, candidate, true, platform) {
-        return Err(format!("{label} escapes isolated root: {}", candidate.display()));
+        return Err(format!(
+            "{label} escapes isolated root: {}",
+            candidate.display()
+        ));
     }
     Ok(candidate.to_path_buf())
 }
@@ -187,7 +221,10 @@ pub fn assert_directory(path: &Path, label: &str, create: bool) -> Result<(), St
     }
     let metadata = fs::symlink_metadata(path).map_err(|e| format!("cannot stat {label}: {e}"))?;
     if !metadata.is_dir() || metadata.file_type().is_symlink() {
-        return Err(format!("{label} is not a regular directory: {}", path.display()));
+        return Err(format!(
+            "{label} is not a regular directory: {}",
+            path.display()
+        ));
     }
     Ok(())
 }
@@ -202,14 +239,31 @@ pub fn walk_files(root: &Path) -> Result<Vec<String>, String> {
 }
 
 fn walk_files_inner(root: &Path, current: &Path, output: &mut Vec<String>) -> Result<(), String> {
-    let metadata = fs::symlink_metadata(current).map_err(|e| format!("cannot stat {}: {e}", current.display()))?;
+    let metadata = fs::symlink_metadata(current)
+        .map_err(|e| format!("cannot stat {}: {e}", current.display()))?;
     if metadata.file_type().is_symlink() {
-        return Err(format!("symlink/reparse escape in extracted archive: {}", current.display()));
+        return Err(format!(
+            "symlink/reparse escape in extracted archive: {}",
+            current.display()
+        ));
     }
-    let canonical_root = fs::canonicalize(root).map_err(|e| format!("cannot resolve extracted archive path {}: {e}", current.display()))?;
-    let canonical = fs::canonicalize(current).map_err(|e| format!("cannot resolve extracted archive path {}: {e}", current.display()))?;
+    let canonical_root = fs::canonicalize(root).map_err(|e| {
+        format!(
+            "cannot resolve extracted archive path {}: {e}",
+            current.display()
+        )
+    })?;
+    let canonical = fs::canonicalize(current).map_err(|e| {
+        format!(
+            "cannot resolve extracted archive path {}: {e}",
+            current.display()
+        )
+    })?;
     if !is_same_or_inside(&canonical_root, &canonical, true, "posix") {
-        return Err(format!("extracted archive path escapes isolated root: {}", current.display()));
+        return Err(format!(
+            "extracted archive path escapes isolated root: {}",
+            current.display()
+        ));
     }
     if metadata.is_dir() {
         let mut entries: Vec<_> = fs::read_dir(current)
@@ -223,7 +277,10 @@ fn walk_files_inner(root: &Path, current: &Path, output: &mut Vec<String>) -> Re
         return Ok(());
     }
     if !metadata.is_file() {
-        return Err(format!("extracted archive path is not a regular file: {}", current.display()));
+        return Err(format!(
+            "extracted archive path is not a regular file: {}",
+            current.display()
+        ));
     }
     let relative = current.strip_prefix(root).unwrap_or(current);
     output.push(relative.to_string_lossy().replace('\\', "/"));
@@ -242,9 +299,13 @@ pub fn copy_tree(source: &Path, destination: &Path, work_root: &Path) -> Result<
     assert_inside(work_root, destination, "copy destination", "posix")?;
     assert_extracted_tree(source, "copy source")?;
     if destination.exists() {
-        return Err(format!("copy destination already exists: {}", destination.display()));
+        return Err(format!(
+            "copy destination already exists: {}",
+            destination.display()
+        ));
     }
-    fs::create_dir_all(destination).map_err(|e| format!("cannot create {}: {e}", destination.display()))?;
+    fs::create_dir_all(destination)
+        .map_err(|e| format!("cannot create {}: {e}", destination.display()))?;
     let mut entries: Vec<_> = fs::read_dir(source)
         .map_err(|e| format!("cannot list {}: {e}", source.display()))?
         .filter_map(|e| e.ok())
@@ -253,14 +314,19 @@ pub fn copy_tree(source: &Path, destination: &Path, work_root: &Path) -> Result<
     for entry in entries {
         let source_path = entry.path();
         let destination_path = destination.join(entry.file_name());
-        let metadata = fs::symlink_metadata(&source_path).map_err(|e| format!("cannot stat {}: {e}", source_path.display()))?;
+        let metadata = fs::symlink_metadata(&source_path)
+            .map_err(|e| format!("cannot stat {}: {e}", source_path.display()))?;
         if metadata.file_type().is_symlink() || !(metadata.is_file() || metadata.is_dir()) {
-            return Err(format!("cannot copy unsafe extracted path: {}", source_path.display()));
+            return Err(format!(
+                "cannot copy unsafe extracted path: {}",
+                source_path.display()
+            ));
         }
         if metadata.is_dir() {
             copy_tree(&source_path, &destination_path, work_root)?;
         } else {
-            fs::copy(&source_path, &destination_path).map_err(|e| format!("cannot copy {}: {e}", source_path.display()))?;
+            fs::copy(&source_path, &destination_path)
+                .map_err(|e| format!("cannot copy {}: {e}", source_path.display()))?;
         }
     }
     Ok(())
@@ -290,7 +356,8 @@ pub fn remove_exact(path: &Path, work_root: &Path, label: &str) -> Result<(), St
     assert_inside(work_root, path, label, "posix")?;
     if path.exists() {
         if path.is_dir() {
-            fs::remove_dir_all(path).map_err(|e| format!("cannot remove {}: {e}", path.display()))?;
+            fs::remove_dir_all(path)
+                .map_err(|e| format!("cannot remove {}: {e}", path.display()))?;
         } else {
             fs::remove_file(path).map_err(|e| format!("cannot remove {}: {e}", path.display()))?;
         }
@@ -406,7 +473,9 @@ pub fn atomic_replace_product(
                 // a hard error, not a gate failure, so it propagates as `Err`
                 // and aborts qualification (see `qualify_windows_release`,
                 // which uses `?` on every `atomic_replace_product` call).
-                return Err(format!("product replacement failed and rollback failed: {error}; {restore_error}"));
+                return Err(format!(
+                    "product replacement failed and rollback failed: {error}; {restore_error}"
+                ));
             }
             Ok(AtomicReplaceResult {
                 success: false,

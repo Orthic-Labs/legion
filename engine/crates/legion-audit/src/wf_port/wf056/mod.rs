@@ -219,8 +219,17 @@ pub mod ai_excessive_agency {
     use super::*;
 
     pub const DESTRUCTIVE: &[&str] = &[
-        "delete", "publish", "deploy", "send", "transfer", "approve", "merge", "release",
-        "sign", "execute", "write-secret",
+        "delete",
+        "publish",
+        "deploy",
+        "send",
+        "transfer",
+        "approve",
+        "merge",
+        "release",
+        "sign",
+        "execute",
+        "write-secret",
     ];
 
     struct Rule {
@@ -314,14 +323,24 @@ pub mod ai_excessive_agency {
     }
 
     fn detect_shared_high_scope_identity(text: &str) -> bool {
-        Regex::new(r"(?i)\b(?:token|credential|secret|api_key)\b").unwrap().is_match(text)
-            && Regex::new(r"(?i)\b(?:tool|agent|assistant)\b").unwrap().is_match(text)
-            && !Regex::new(r"scope|least|rotate|readonly").unwrap().is_match(text)
+        Regex::new(r"(?i)\b(?:token|credential|secret|api_key)\b")
+            .unwrap()
+            .is_match(text)
+            && Regex::new(r"(?i)\b(?:tool|agent|assistant)\b")
+                .unwrap()
+                .is_match(text)
+            && !Regex::new(r"scope|least|rotate|readonly")
+                .unwrap()
+                .is_match(text)
     }
 
     fn detect_cross_tenant_tool_boundary(text: &str) -> bool {
-        Regex::new(r"(?i)\btool\b[\s\S]{0,120}\b(?:run|execute|invoke)\s*\(").unwrap().is_match(text)
-            && Regex::new(r"(?i)\b(?:delete|write|update|transfer|deploy)\w*\s*\(").unwrap().is_match(text)
+        Regex::new(r"(?i)\btool\b[\s\S]{0,120}\b(?:run|execute|invoke)\s*\(")
+            .unwrap()
+            .is_match(text)
+            && Regex::new(r"(?i)\b(?:delete|write|update|transfer|deploy)\w*\s*\(")
+                .unwrap()
+                .is_match(text)
             && !Regex::new(r"(?i)\btenant(?:Id)?\b").unwrap().is_match(text)
     }
 
@@ -356,28 +375,47 @@ pub mod ai_excessive_agency {
                         detect_destructive_tool_without_approval(text).map(Some)
                     }
                     "ai.agency.shared-high-scope-identity" => {
-                        if detect_shared_high_scope_identity(text) { Some(None) } else { None }
+                        if detect_shared_high_scope_identity(text) {
+                            Some(None)
+                        } else {
+                            None
+                        }
                     }
                     "ai.agency.cross-tenant-tool-boundary" => {
-                        if detect_cross_tenant_tool_boundary(text) { Some(None) } else { None }
+                        if detect_cross_tenant_tool_boundary(text) {
+                            Some(None)
+                        } else {
+                            None
+                        }
                     }
                     "ai.agency.missing-side-effect-budget" => {
-                        if detect_missing_side_effect_budget(text) { Some(None) } else { None }
+                        if detect_missing_side_effect_budget(text) {
+                            Some(None)
+                        } else {
+                            None
+                        }
                     }
                     _ => None,
                 };
-                let Some(action) = matched_action else { continue };
+                let Some(action) = matched_action else {
+                    continue;
+                };
 
                 let sink_entity = tool.or(artifact);
-                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types).is_some() {
+                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types)
+                    .is_some()
+                {
                     continue;
                 }
 
                 let sources: Vec<String> = artifact.map(|e| vec![e.id.clone()]).unwrap_or_default();
-                let sinks: Vec<String> = sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
+                let sinks: Vec<String> =
+                    sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
                 let evidence_refs = union_refs(
                     artifact.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
-                    sink_entity.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
+                    sink_entity
+                        .map(|e| e.evidence_refs.as_slice())
+                        .unwrap_or(&[]),
                 );
 
                 let claim = match rule.id {
@@ -513,9 +551,15 @@ pub mod ai_model_abuse {
     fn find_invocation_process<'a>(ctx: &'a PackContext<'a>, file: &str) -> Option<&'a Entity> {
         let name = format!("model invocation {file}");
         ctx.find_entity(|e| {
-            e.kind == "process" && e.attr_str("processKind") == Some("model-invocation") && e.name == name
+            e.kind == "process"
+                && e.attr_str("processKind") == Some("model-invocation")
+                && e.name == name
         })
-        .or_else(|| ctx.find_entity(|e| e.kind == "process" && e.attr_str("processKind") == Some("model-invocation")))
+        .or_else(|| {
+            ctx.find_entity(|e| {
+                e.kind == "process" && e.attr_str("processKind") == Some("model-invocation")
+            })
+        })
     }
 
     pub fn analyze(ctx: &PackContext) -> Vec<Observation> {
@@ -533,15 +577,20 @@ pub mod ai_model_abuse {
                     continue;
                 }
                 let sink_entity = invocation.or(artifact);
-                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types).is_some() {
+                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types)
+                    .is_some()
+                {
                     continue;
                 }
 
                 let sources: Vec<String> = artifact.map(|e| vec![e.id.clone()]).unwrap_or_default();
-                let sinks: Vec<String> = sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
+                let sinks: Vec<String> =
+                    sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
                 let evidence_refs = union_refs(
                     artifact.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
-                    sink_entity.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
+                    sink_entity
+                        .map(|e| e.evidence_refs.as_slice())
+                        .unwrap_or(&[]),
                 );
 
                 observations.push(Observation {
@@ -551,7 +600,9 @@ pub mod ai_model_abuse {
                     severity_hint: rule.severity_hint.to_string(),
                     sources,
                     sinks,
-                    attacker_capabilities: vec!["influence-model-invocation-volume-or-payload".to_string()],
+                    attacker_capabilities: vec![
+                        "influence-model-invocation-volume-or-payload".to_string()
+                    ],
                     effect_kind: rule.effect_kind.to_string(),
                     effect_action: rule.effect_action.to_string(),
                     effect_object: sink_entity.map(|e| e.id.clone()),
@@ -698,9 +749,15 @@ pub mod ai_output_handling {
 
     fn find_model_output_source<'a>(ctx: &'a PackContext<'a>, file: &str) -> Option<&'a Entity> {
         ctx.find_entity(|e| {
-            e.kind == "source" && e.attr_str("sourceKind") == Some("model-output") && e.attr_str("file") == Some(file)
+            e.kind == "source"
+                && e.attr_str("sourceKind") == Some("model-output")
+                && e.attr_str("file") == Some(file)
         })
-        .or_else(|| ctx.find_entity(|e| e.kind == "source" && e.attr_str("sourceKind") == Some("model-output")))
+        .or_else(|| {
+            ctx.find_entity(|e| {
+                e.kind == "source" && e.attr_str("sourceKind") == Some("model-output")
+            })
+        })
     }
 
     pub fn analyze(ctx: &PackContext) -> Vec<Observation> {
@@ -718,16 +775,25 @@ pub mod ai_output_handling {
                     continue;
                 }
                 let sink_entity = artifact;
-                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types).is_some() {
+                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types)
+                    .is_some()
+                {
                     continue; // validated at the sink: no candidate, not "clean".
                 }
 
                 let source_entity = model_output.or(artifact);
-                let sources: Vec<String> = source_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
-                let sinks: Vec<String> = sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
+                let sources: Vec<String> = source_entity
+                    .map(|e| vec![e.id.clone()])
+                    .unwrap_or_default();
+                let sinks: Vec<String> =
+                    sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
                 let evidence_refs = union_refs(
-                    source_entity.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
-                    sink_entity.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
+                    source_entity
+                        .map(|e| e.evidence_refs.as_slice())
+                        .unwrap_or(&[]),
+                    sink_entity
+                        .map(|e| e.evidence_refs.as_slice())
+                        .unwrap_or(&[]),
                 );
 
                 observations.push(Observation {
@@ -790,8 +856,12 @@ pub mod ai_poisoning_rag {
             .is_match(t)
     }
     fn m_cross_tenant(t: &str) -> bool {
-        Regex::new(r"(?i)\b(?:retriever|vectorStore|index)\.(?:query|search|similaritySearch)\s*\(").unwrap().is_match(t)
-            && !Regex::new(r"(?i)\btenant(?:Id)?\b|\bnamespace\b").unwrap().is_match(t)
+        Regex::new(r"(?i)\b(?:retriever|vectorStore|index)\.(?:query|search|similaritySearch)\s*\(")
+            .unwrap()
+            .is_match(t)
+            && !Regex::new(r"(?i)\btenant(?:Id)?\b|\bnamespace\b")
+                .unwrap()
+                .is_match(t)
     }
     fn m_memory(t: &str) -> bool {
         Regex::new(r"(?i)(?:memory_store|session_memory|agent_memory|conversation_history)\s*\.(?:push|save|append|set)\s*\([^\n]*(?:request|input|user|external|retrieved|document)")
@@ -868,8 +938,14 @@ pub mod ai_poisoning_rag {
     }
 
     fn find_untrusted_source<'a>(ctx: &'a PackContext<'a>, file: &str) -> Option<&'a Entity> {
-        ctx.find_entity(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted") && e.attr_str("file") == Some(file))
-            .or_else(|| ctx.find_entity(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted")))
+        ctx.find_entity(|e| {
+            e.kind == "source"
+                && e.attr_str("trust") == Some("untrusted")
+                && e.attr_str("file") == Some(file)
+        })
+        .or_else(|| {
+            ctx.find_entity(|e| e.kind == "source" && e.attr_str("trust") == Some("untrusted"))
+        })
     }
 
     pub fn analyze(ctx: &PackContext) -> Vec<Observation> {
@@ -888,16 +964,25 @@ pub mod ai_poisoning_rag {
                 }
                 let store = find_data_store(ctx, rule.store_kind);
                 let sink_entity = store.or(artifact);
-                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types).is_some() {
+                if find_control(ctx, sink_entity.map(|e| e.id.as_str()), rule.control_types)
+                    .is_some()
+                {
                     continue;
                 }
 
                 let source_entity = untrusted_source.or(artifact);
-                let sources: Vec<String> = source_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
-                let sinks: Vec<String> = sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
+                let sources: Vec<String> = source_entity
+                    .map(|e| vec![e.id.clone()])
+                    .unwrap_or_default();
+                let sinks: Vec<String> =
+                    sink_entity.map(|e| vec![e.id.clone()]).unwrap_or_default();
                 let evidence_refs = union_refs(
-                    source_entity.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
-                    sink_entity.map(|e| e.evidence_refs.as_slice()).unwrap_or(&[]),
+                    source_entity
+                        .map(|e| e.evidence_refs.as_slice())
+                        .unwrap_or(&[]),
+                    sink_entity
+                        .map(|e| e.evidence_refs.as_slice())
+                        .unwrap_or(&[]),
                 );
 
                 observations.push(Observation {
@@ -1008,9 +1093,14 @@ pub mod ai_integrity {
                     effect_scope: CANDIDATE_CLASS.to_string(),
                     effect_environment: "application".to_string(),
                     chain_roles: vec!["starter".to_string(), "impact".to_string()],
-                    evidence_refs: artifact.map(|e| e.evidence_refs.clone()).unwrap_or_default(),
+                    evidence_refs: artifact
+                        .map(|e| e.evidence_refs.clone())
+                        .unwrap_or_default(),
                     detector_metadata: json!({ "file": file, "patternFamily": CANDIDATE_CLASS }),
-                    uncertainty: vec!["Reachability and compensating controls require independent adjudication.".to_string()],
+                    uncertainty: vec![
+                        "Reachability and compensating controls require independent adjudication."
+                            .to_string(),
+                    ],
                 });
             }
         }
@@ -1025,7 +1115,9 @@ mod digest_self_check {
     #[test]
     fn digest_matches_known_js_shape() {
         // Sanity check only: the JS `digest` is `sha256:` + 64 hex chars.
-        let d = digest(&json!({ "ruleId": "ai.agency.destructive-tool-without-approval", "file": "app.mjs" }));
+        let d = digest(
+            &json!({ "ruleId": "ai.agency.destructive-tool-without-approval", "file": "app.mjs" }),
+        );
         assert!(d.starts_with("sha256:"));
         assert_eq!(d.len(), "sha256:".len() + 64);
     }

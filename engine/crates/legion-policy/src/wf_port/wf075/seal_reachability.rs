@@ -22,11 +22,19 @@ pub struct Decision {
 }
 
 fn allow(message: impl Into<String>) -> Decision {
-    Decision { allowed: true, code: None, message: message.into() }
+    Decision {
+        allowed: true,
+        code: None,
+        message: message.into(),
+    }
 }
 
 fn deny(code: &'static str, message: impl Into<String>) -> Decision {
-    Decision { allowed: false, code: Some(code), message: message.into() }
+    Decision {
+        allowed: false,
+        code: Some(code),
+        message: message.into(),
+    }
 }
 
 /// A required evidence lifecycle step. `producer`, `verifier`, and
@@ -50,8 +58,14 @@ pub struct SealRequirement {
     pub generic_receipt: bool,
 }
 
-const REQUIRED_STEPS: &[&str] =
-    &["producer", "durableStore", "authenticatedPersistence", "verifier", "completionConsumer", "closePath"];
+const REQUIRED_STEPS: &[&str] = &[
+    "producer",
+    "durableStore",
+    "authenticatedPersistence",
+    "verifier",
+    "completionConsumer",
+    "closePath",
+];
 
 impl SealRequirement {
     fn step_present(&self, step: &str) -> bool {
@@ -60,14 +74,21 @@ impl SealRequirement {
             "durableStore" => self.durable_store,
             "authenticatedPersistence" => self.authenticated_persistence,
             "verifier" => self.verifier.as_deref().is_some_and(|s| !s.is_empty()),
-            "completionConsumer" => self.completion_consumer.as_deref().is_some_and(|s| !s.is_empty()),
+            "completionConsumer" => self
+                .completion_consumer
+                .as_deref()
+                .is_some_and(|s| !s.is_empty()),
             "closePath" => self.close_path,
             _ => false,
         }
     }
 
     fn missing_steps(&self) -> Vec<&'static str> {
-        REQUIRED_STEPS.iter().copied().filter(|step| !self.step_present(step)).collect()
+        REQUIRED_STEPS
+            .iter()
+            .copied()
+            .filter(|step| !self.step_present(step))
+            .collect()
     }
 }
 
@@ -98,7 +119,10 @@ pub struct ProviderCapability {
 /// entry in the caller's `providerCapabilities` map) — `missingFields`
 /// against `undefined` reports every required field missing, which this
 /// mirrors by returning the full "incomplete or substituted" denial.
-pub fn verify_external_provider_capability(capability: Option<&ProviderCapability>, provider_id: &str) -> Decision {
+pub fn verify_external_provider_capability(
+    capability: Option<&ProviderCapability>,
+    provider_id: &str,
+) -> Decision {
     let missing_all = || {
         deny(
             "ARC_UNSOUND_SEAL",
@@ -117,7 +141,10 @@ pub fn verify_external_provider_capability(capability: Option<&ProviderCapabilit
     // missing any required field, not only the five booleans checked below,
     // fails here first.
     let non_empty = |s: &Option<String>| s.as_deref().is_some_and(|v| !v.is_empty());
-    if !non_empty(&capability.sensitivity) || !non_empty(&capability.retention) || !non_empty(&capability.deletion_owner) {
+    if !non_empty(&capability.sensitivity)
+        || !non_empty(&capability.retention)
+        || !non_empty(&capability.deletion_owner)
+    {
         return missing_all();
     }
     // Fields [1..6) of REQUIRED (machineReadable..trajectoryBindable) must
@@ -141,7 +168,9 @@ pub fn verify_external_provider_capability(capability: Option<&ProviderCapabilit
             format!("sensitive provider evidence lacks retention or deletion ownership for {provider_id}"),
         );
     }
-    allow(format!("external provider capability supports closure-grade evidence for {provider_id}"))
+    allow(format!(
+        "external provider capability supports closure-grade evidence for {provider_id}"
+    ))
 }
 
 #[derive(Debug, Clone)]
@@ -160,35 +189,58 @@ pub fn compile_seal_reachability(
     for requirement in requirements {
         let missing = requirement.missing_steps();
         if !missing.is_empty() {
-            failures.push(SealFailure { requirement_id: requirement.id.clone(), reason: "missing-lifecycle-step" });
+            failures.push(SealFailure {
+                requirement_id: requirement.id.clone(),
+                reason: "missing-lifecycle-step",
+            });
             continue;
         }
         if requirement.producer.is_some() && requirement.producer == requirement.verifier
-            || requirement.producer.is_some() && requirement.producer == requirement.completion_consumer
+            || requirement.producer.is_some()
+                && requirement.producer == requirement.completion_consumer
             || requirement.self_attested
             || requirement.fixture_only
             || requirement.generic_receipt
         {
-            failures.push(SealFailure { requirement_id: requirement.id.clone(), reason: "self-attested-or-nonproduction-path" });
+            failures.push(SealFailure {
+                requirement_id: requirement.id.clone(),
+                reason: "self-attested-or-nonproduction-path",
+            });
             continue;
         }
         if let Some(external_provider) = &requirement.external_provider {
-            let cap = provider_capabilities.iter().find(|c| c.provider_id.as_deref() == Some(external_provider.as_str()));
+            let cap = provider_capabilities
+                .iter()
+                .find(|c| c.provider_id.as_deref() == Some(external_provider.as_str()));
             let capability = verify_external_provider_capability(cap, external_provider);
             if !capability.allowed {
-                failures.push(SealFailure { requirement_id: requirement.id.clone(), reason: "external-provider-capability-unreachable" });
+                failures.push(SealFailure {
+                    requirement_id: requirement.id.clone(),
+                    reason: "external-provider-capability-unreachable",
+                });
                 continue;
             }
         }
         let reachable = recovery_paths.iter().any(|path| {
-            requirement.id.as_deref().is_some_and(|id| path.requirement_id == id) && path.authenticated && path.close_path
+            requirement
+                .id
+                .as_deref()
+                .is_some_and(|id| path.requirement_id == id)
+                && path.authenticated
+                && path.close_path
         });
         if !reachable {
-            failures.push(SealFailure { requirement_id: requirement.id.clone(), reason: "recovery-close-unreachable" });
+            failures.push(SealFailure {
+                requirement_id: requirement.id.clone(),
+                reason: "recovery-close-unreachable",
+            });
         }
     }
     if !failures.is_empty() {
-        return deny("ARC_UNSOUND_SEAL", "required evidence lifecycle is not reachable");
+        return deny(
+            "ARC_UNSOUND_SEAL",
+            "required evidence lifecycle is not reachable",
+        );
     }
     allow("every required evidence lifecycle is reachable")
 }
@@ -223,7 +275,11 @@ mod tests {
     fn self_attested_producer_equals_verifier_fails() {
         let mut req = sound_requirement("r1");
         req.verifier = req.producer.clone();
-        let path = RecoveryPath { requirement_id: "r1".to_string(), authenticated: true, close_path: true };
+        let path = RecoveryPath {
+            requirement_id: "r1".to_string(),
+            authenticated: true,
+            close_path: true,
+        };
         let d = compile_seal_reachability(&[req], &[], &[path]);
         assert!(!d.allowed);
     }
@@ -231,7 +287,11 @@ mod tests {
     #[test]
     fn sound_seal_with_recovery_path_passes() {
         let req = sound_requirement("r1");
-        let path = RecoveryPath { requirement_id: "r1".to_string(), authenticated: true, close_path: true };
+        let path = RecoveryPath {
+            requirement_id: "r1".to_string(),
+            authenticated: true,
+            close_path: true,
+        };
         let d = compile_seal_reachability(&[req], &[], &[path]);
         assert!(d.allowed);
         assert_eq!(d.code, None);
@@ -240,7 +300,11 @@ mod tests {
     #[test]
     fn missing_recovery_close_path_fails() {
         let req = sound_requirement("r1");
-        let path = RecoveryPath { requirement_id: "r1".to_string(), authenticated: true, close_path: false };
+        let path = RecoveryPath {
+            requirement_id: "r1".to_string(),
+            authenticated: true,
+            close_path: false,
+        };
         let d = compile_seal_reachability(&[req], &[], &[path]);
         assert!(!d.allowed);
     }
@@ -249,7 +313,11 @@ mod tests {
     fn external_provider_unreachable_fails() {
         let mut req = sound_requirement("r1");
         req.external_provider = Some("prov-x".to_string());
-        let path = RecoveryPath { requirement_id: "r1".to_string(), authenticated: true, close_path: true };
+        let path = RecoveryPath {
+            requirement_id: "r1".to_string(),
+            authenticated: true,
+            close_path: true,
+        };
         let d = compile_seal_reachability(&[req], &[], &[path]);
         assert!(!d.allowed);
     }
@@ -269,7 +337,11 @@ mod tests {
             retention: Some("30d".to_string()),
             deletion_owner: Some("host".to_string()),
         };
-        let path = RecoveryPath { requirement_id: "r1".to_string(), authenticated: true, close_path: true };
+        let path = RecoveryPath {
+            requirement_id: "r1".to_string(),
+            authenticated: true,
+            close_path: true,
+        };
         let d = compile_seal_reachability(&[req], &[cap], &[path]);
         assert!(d.allowed);
     }
@@ -289,7 +361,11 @@ mod tests {
             retention: None,
             deletion_owner: None,
         };
-        let path = RecoveryPath { requirement_id: "r1".to_string(), authenticated: true, close_path: true };
+        let path = RecoveryPath {
+            requirement_id: "r1".to_string(),
+            authenticated: true,
+            close_path: true,
+        };
         let d = compile_seal_reachability(&[req], &[cap], &[path]);
         assert!(!d.allowed);
     }

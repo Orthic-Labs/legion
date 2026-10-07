@@ -26,7 +26,13 @@ fn bind_explicit_claude_code_is_retired() {
         .nth(3)
         .expect("repository root")
         .join("tests/fixtures/minimal-repo");
-    let output = legion(&["bind", "--harness", "claude-code", root.to_str().unwrap(), "--json"]);
+    let output = legion(&[
+        "bind",
+        "--harness",
+        "claude-code",
+        root.to_str().unwrap(),
+        "--json",
+    ]);
     assert_eq!(output.status.code(), Some(0));
     let value = output_json(&output);
     assert_eq!(value["kind"], "legion-bind-preview");
@@ -188,7 +194,9 @@ fn topology_inspect_reports_unproven_on_empty_repository() {
     assert_eq!(value["status"], "unproven");
     assert_eq!(value["detail"], "target-denominator-zero");
     assert_eq!(
-        value.pointer("/artifact/kind").and_then(|kind| kind.as_str()),
+        value
+            .pointer("/artifact/kind")
+            .and_then(|kind| kind.as_str()),
         Some("legion-product-inspection")
     );
 }
@@ -223,7 +231,10 @@ fn doctor_json_output_carries_no_human_rendering_keys() {
     // added when `--json` is absent, never to the machine payload.
     let output = legion(&["doctor", ".", "--json"]);
     let value = output_json(&output);
-    assert!(value.get("text").is_none(), "doctor --json must not embed text");
+    assert!(
+        value.get("text").is_none(),
+        "doctor --json must not embed text"
+    );
     assert!(
         value.get("json").is_none(),
         "doctor --json must not embed a json flag"
@@ -237,7 +248,10 @@ fn skills_json_output_carries_no_human_rendering_keys() {
     // does emit a JSON payload it must be the machine shape only.
     let output = legion(&["skills", "--json"]);
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-        assert!(value.get("text").is_none(), "skills --json must not embed text");
+        assert!(
+            value.get("text").is_none(),
+            "skills --json must not embed text"
+        );
         assert!(
             value.get("json").is_none(),
             "skills --json must not embed a json flag"

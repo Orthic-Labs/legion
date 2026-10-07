@@ -33,7 +33,9 @@ pub struct NativeBuildInput<'a> {
 /// `nativeBuildManifest(input)`.
 pub fn native_build_manifest(input: NativeBuildInput) -> Value {
     let executable_path = input.executable.filter(|p| !p.is_empty());
-    let executable_present = executable_path.map(|p| Path::new(p).exists()).unwrap_or(false);
+    let executable_present = executable_path
+        .map(|p| Path::new(p).exists())
+        .unwrap_or(false);
     let mode = executable_present
         .then(|| executable_path.and_then(|p| std::fs::metadata(p).ok()))
         .flatten()
@@ -100,7 +102,10 @@ mod tests {
             source_revision: Value::Null,
         });
         assert_eq!(manifest["decision"], "QUALIFIED");
-        assert!(manifest["executableDigest"].as_str().unwrap().starts_with("sha256:"));
+        assert!(manifest["executableDigest"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:"));
         let _ = std::fs::remove_file(&path);
     }
 }

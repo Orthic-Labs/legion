@@ -7,8 +7,8 @@
 
 use legion_runtime::wf_port::w2_021::insert_ui::{
     build_insert_generate_payload, build_insert_placeholder_snapshot, find_insert_anchor_in_dom,
-    resolve_insert_session_anchor, set_variant_shown, AnchorInfo, DomQuery,
-    InsertGeneratePayloadInput, InsertAxis, InsertPosition, PlaceholderGeometry, VariantElement,
+    resolve_insert_session_anchor, set_variant_shown, AnchorInfo, DomQuery, InsertAxis,
+    InsertGeneratePayloadInput, InsertPosition, PlaceholderGeometry, VariantElement,
 };
 use serde_json::json;
 

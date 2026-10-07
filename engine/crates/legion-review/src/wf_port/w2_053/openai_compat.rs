@@ -82,7 +82,11 @@ pub fn order_keys<T: Clone>(keys: &[T], rotation: &str, rr_index: &mut u64) -> V
 
 /// Port of `_stream_for`: per-model override falling back to the provider
 /// default.
-pub fn stream_for(model_stream: &BTreeMap<String, bool>, default_stream: bool, model: &str) -> bool {
+pub fn stream_for(
+    model_stream: &BTreeMap<String, bool>,
+    default_stream: bool,
+    model: &str,
+) -> bool {
     *model_stream.get(model).unwrap_or(&default_stream)
 }
 
@@ -178,7 +182,10 @@ pub fn read_sse_stream<'a, I: IntoIterator<Item = &'a str>>(lines: I) -> StreamM
 pub fn parse_nonstream_response(body: &Value, fallback_model: &str) -> Option<StreamMetadata> {
     let choice = body.get("choices")?.get(0)?;
     let message = choice.get("message").cloned().unwrap_or(Value::Null);
-    let content = message.get("content").and_then(Value::as_str).map(str::to_string);
+    let content = message
+        .get("content")
+        .and_then(Value::as_str)
+        .map(str::to_string);
     let finish_reason = choice
         .get("finish_reason")
         .and_then(Value::as_str)
@@ -190,7 +197,10 @@ pub fn parse_nonstream_response(body: &Value, fallback_model: &str) -> Option<St
         .filter(|m| !m.is_empty())
         .unwrap_or(fallback_model)
         .to_string();
-    let usage = body.get("usage").cloned().unwrap_or(Value::Object(Default::default()));
+    let usage = body
+        .get("usage")
+        .cloned()
+        .unwrap_or(Value::Object(Default::default()));
     Some(StreamMetadata {
         text: content.unwrap_or_default(),
         model: Some(model),
@@ -309,21 +319,40 @@ pub fn call_with_key(
     if stream {
         payload.insert("stream".into(), Value::Bool(true));
     }
-    let body = serde_json::to_string(&Value::Object(payload))
-        .map_err(|e| ProviderError { message: format!("{}/{model}: payload encode error: {e}", config.name), status: None, is_quota: false })?;
+    let body = serde_json::to_string(&Value::Object(payload)).map_err(|e| ProviderError {
+        message: format!("{}/{model}: payload encode error: {e}", config.name),
+        status: None,
+        is_quota: false,
+    })?;
 
     let timeout_s = if !images.is_empty() {
         config.timeout_s
     } else {
-        *config.model_timeout_s.get(model).unwrap_or(&config.timeout_s)
+        *config
+            .model_timeout_s
+            .get(model)
+            .unwrap_or(&config.timeout_s)
     };
 
     let url = format!("{}/chat/completions", config.base_url);
-    let accept = if stream { "text/event-stream" } else { "application/json" };
+    let accept = if stream {
+        "text/event-stream"
+    } else {
+        "application/json"
+    };
     let auth = format!("Bearer {key}");
     let resp = transport
-        .post_json_with_headers(&url, &body, timeout_s, &[("Authorization", auth.as_str()), ("Accept", accept)])
-        .map_err(|e| ProviderError { message: format!("{}/{model} URL error: {e}", config.name), status: None, is_quota: true })?;
+        .post_json_with_headers(
+            &url,
+            &body,
+            timeout_s,
+            &[("Authorization", auth.as_str()), ("Accept", accept)],
+        )
+        .map_err(|e| ProviderError {
+            message: format!("{}/{model} URL error: {e}", config.name),
+            status: None,
+            is_quota: true,
+        })?;
 
     if !(200..300).contains(&resp.status) {
         let truncated: String = resp.body.chars().take(200).collect();
@@ -345,15 +374,25 @@ pub fn call_with_key(
             is_quota: false,
         })?;
         parse_nonstream_response(&data, model).ok_or_else(|| ProviderError {
-            message: format!("{}/{model}: malformed response (missing choices)", config.name),
+            message: format!(
+                "{}/{model}: malformed response (missing choices)",
+                config.name
+            ),
             status: None,
             is_quota: false,
         })?
     };
 
-    if is_empty_content(if metadata.text.is_empty() { None } else { Some(metadata.text.as_str()) }) {
+    if is_empty_content(if metadata.text.is_empty() {
+        None
+    } else {
+        Some(metadata.text.as_str())
+    }) {
         return Err(ProviderError {
-            message: format!("{}/{model} empty content (finish_reason={})", config.name, metadata.finish_reason),
+            message: format!(
+                "{}/{model} empty content (finish_reason={})",
+                config.name, metadata.finish_reason
+            ),
             status: None,
             is_quota: false,
         });
@@ -390,7 +429,9 @@ pub fn call_with_metadata(
     }
     let mut last_err: Option<ProviderError> = None;
     for (_env_name, key) in keys {
-        match call_with_key(config, transport, key, model, system, user, max_tokens, images) {
+        match call_with_key(
+            config, transport, key, model, system, user, max_tokens, images,
+        ) {
             Ok(meta) => return Ok(meta),
             Err(e) => {
                 let is_quota = e.is_quota;
@@ -419,7 +460,10 @@ mod tests {
     fn failover_always_key1_first() {
         let keys = vec!["k1", "k2", "k3"];
         let mut rr = 0u64;
-        assert_eq!(order_keys(&keys, ROTATION_FAILOVER, &mut rr), vec!["k1", "k2", "k3"]);
+        assert_eq!(
+            order_keys(&keys, ROTATION_FAILOVER, &mut rr),
+            vec!["k1", "k2", "k3"]
+        );
         // failover never advances the cursor.
         assert_eq!(rr, 0);
     }
@@ -428,17 +472,32 @@ mod tests {
     fn round_robin_rotates_and_advances_cursor() {
         let keys = vec!["k1", "k2", "k3"];
         let mut rr = 0u64;
-        assert_eq!(order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr), vec!["k1", "k2", "k3"]);
-        assert_eq!(order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr), vec!["k2", "k3", "k1"]);
-        assert_eq!(order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr), vec!["k3", "k1", "k2"]);
-        assert_eq!(order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr), vec!["k1", "k2", "k3"]);
+        assert_eq!(
+            order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr),
+            vec!["k1", "k2", "k3"]
+        );
+        assert_eq!(
+            order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr),
+            vec!["k2", "k3", "k1"]
+        );
+        assert_eq!(
+            order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr),
+            vec!["k3", "k1", "k2"]
+        );
+        assert_eq!(
+            order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr),
+            vec!["k1", "k2", "k3"]
+        );
     }
 
     #[test]
     fn round_robin_single_key_is_a_no_op() {
         let keys = vec!["only"];
         let mut rr = 0u64;
-        assert_eq!(order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr), vec!["only"]);
+        assert_eq!(
+            order_keys(&keys, ROTATION_ROUND_ROBIN, &mut rr),
+            vec!["only"]
+        );
         assert_eq!(rr, 0);
     }
 
@@ -458,7 +517,11 @@ mod tests {
         model_stream.insert("deepseek-ai/deepseek-v4-flash".to_string(), false);
         model_stream.insert("z-ai/glm-5.2".to_string(), true);
 
-        assert!(!stream_for(&model_stream, true, "deepseek-ai/deepseek-v4-flash"));
+        assert!(!stream_for(
+            &model_stream,
+            true,
+            "deepseek-ai/deepseek-v4-flash"
+        ));
         assert!(stream_for(&model_stream, true, "z-ai/glm-5.2"));
         assert!(stream_for(&model_stream, true, "other"));
     }
@@ -580,7 +643,10 @@ mod tests {
 
     #[test]
     fn user_content_without_images_is_plain_string() {
-        assert_eq!(build_user_content("hello", &[]), Value::String("hello".into()));
+        assert_eq!(
+            build_user_content("hello", &[]),
+            Value::String("hello".into())
+        );
     }
 
     #[test]
@@ -594,7 +660,10 @@ mod tests {
         assert_eq!(arr.len(), 2);
         assert_eq!(arr[0]["type"], "image_url");
         assert_eq!(arr[0]["image_url"]["url"], "data:image/png;base64,AAAA");
-        assert_eq!(arr[1], serde_json::json!({"type": "text", "text": "describe this"}));
+        assert_eq!(
+            arr[1],
+            serde_json::json!({"type": "text", "text": "describe this"})
+        );
     }
 }
 
@@ -610,13 +679,17 @@ mod call_tests {
 
     impl FakeTransport {
         fn once(resp: Result<HttpResponse, String>) -> Self {
-            Self { responses: RefCell::new(vec![resp]) }
+            Self {
+                responses: RefCell::new(vec![resp]),
+            }
         }
         fn sequence(resps: Vec<Result<HttpResponse, String>>) -> Self {
             // reverse so `.pop()` yields them in call order
             let mut r = resps;
             r.reverse();
-            Self { responses: RefCell::new(r) }
+            Self {
+                responses: RefCell::new(r),
+            }
         }
     }
 
@@ -631,7 +704,10 @@ mod call_tests {
             _timeout_s: i64,
             _headers: &[(&str, &str)],
         ) -> Result<HttpResponse, String> {
-            self.responses.borrow_mut().pop().expect("fake transport exhausted")
+            self.responses
+                .borrow_mut()
+                .pop()
+                .expect("fake transport exhausted")
         }
     }
 
@@ -667,7 +743,10 @@ mod call_tests {
             "data: [DONE]",
         ]
         .join("\n");
-        let transport = FakeTransport::once(Ok(HttpResponse { status: 200, body: sse_body }));
+        let transport = FakeTransport::once(Ok(HttpResponse {
+            status: 200,
+            body: sse_body,
+        }));
         let out = call_with_key(&cfg, &transport, "k1", "m1", "sys", "user", 512, &[]).unwrap();
         assert_eq!(out.text, "hello");
         assert_eq!(out.finish_reason, "stop");
@@ -676,7 +755,10 @@ mod call_tests {
     #[test]
     fn call_with_key_http_error_is_quota_when_configured() {
         let cfg = config();
-        let transport = FakeTransport::once(Ok(HttpResponse { status: 429, body: "slow down".to_string() }));
+        let transport = FakeTransport::once(Ok(HttpResponse {
+            status: 429,
+            body: "slow down".to_string(),
+        }));
         let err = call_with_key(&cfg, &transport, "k1", "m1", "sys", "user", 512, &[]).unwrap_err();
         assert!(err.is_quota);
         assert_eq!(err.status, Some(429));
@@ -700,7 +782,8 @@ mod call_tests {
     #[test]
     fn call_with_metadata_fails_over_to_second_key_on_quota() {
         let cfg = config();
-        let transport = FakeTransport::sequence(vec![
+        let transport =
+            FakeTransport::sequence(vec![
             Ok(HttpResponse { status: 429, body: "rate limited".to_string() }),
             Ok(HttpResponse {
                 status: 200,
@@ -710,25 +793,40 @@ mod call_tests {
                 .to_string(),
             }),
         ]);
-        let keys = vec![("KEY1".to_string(), "k1".to_string()), ("KEY2".to_string(), "k2".to_string())];
-        let out = call_with_metadata(&cfg, &transport, &keys, "m1", "sys", "user", 512, &[]).unwrap();
+        let keys = vec![
+            ("KEY1".to_string(), "k1".to_string()),
+            ("KEY2".to_string(), "k2".to_string()),
+        ];
+        let out =
+            call_with_metadata(&cfg, &transport, &keys, "m1", "sys", "user", 512, &[]).unwrap();
         assert_eq!(out.text, "second key ok");
     }
 
     #[test]
     fn call_with_metadata_fails_fast_on_non_quota_error() {
         let cfg = config();
-        let transport = FakeTransport::once(Ok(HttpResponse { status: 401, body: "bad auth".to_string() }));
-        let keys = vec![("KEY1".to_string(), "k1".to_string()), ("KEY2".to_string(), "k2".to_string())];
-        let err = call_with_metadata(&cfg, &transport, &keys, "m1", "sys", "user", 512, &[]).unwrap_err();
+        let transport = FakeTransport::once(Ok(HttpResponse {
+            status: 401,
+            body: "bad auth".to_string(),
+        }));
+        let keys = vec![
+            ("KEY1".to_string(), "k1".to_string()),
+            ("KEY2".to_string(), "k2".to_string()),
+        ];
+        let err =
+            call_with_metadata(&cfg, &transport, &keys, "m1", "sys", "user", 512, &[]).unwrap_err();
         assert_eq!(err.status, Some(401));
     }
 
     #[test]
     fn call_with_metadata_no_keys_errors() {
         let cfg = config();
-        let transport = FakeTransport::once(Ok(HttpResponse { status: 200, body: "{}".to_string() }));
-        let err = call_with_metadata(&cfg, &transport, &[], "m1", "sys", "user", 512, &[]).unwrap_err();
+        let transport = FakeTransport::once(Ok(HttpResponse {
+            status: 200,
+            body: "{}".to_string(),
+        }));
+        let err =
+            call_with_metadata(&cfg, &transport, &[], "m1", "sys", "user", 512, &[]).unwrap_err();
         assert!(err.message.contains("no API keys set"));
     }
 }

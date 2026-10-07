@@ -381,13 +381,27 @@ pub fn fact(kind: &str, fields: FactFields<'_>, evidence_refs: &[String]) -> Val
 
 /// Mirrors `controlEntity(controlType, name, evidenceRefs, attributes = {})`: an `entity`
 /// of kind `control` with `controlType` merged into `attributes`.
-pub fn control_entity(control_type: &str, name: &str, evidence_refs: &[String], attributes: Value) -> Value {
+pub fn control_entity(
+    control_type: &str,
+    name: &str,
+    evidence_refs: &[String],
+    attributes: Value,
+) -> Value {
     let mut attrs = match attributes {
         Value::Object(m) => m,
         _ => Map::new(),
     };
-    attrs.insert("controlType".to_string(), Value::String(control_type.to_string()));
-    entity("control", name, Value::Object(attrs), evidence_refs, EntityOptions::default())
+    attrs.insert(
+        "controlType".to_string(),
+        Value::String(control_type.to_string()),
+    );
+    entity(
+        "control",
+        name,
+        Value::Object(attrs),
+        evidence_refs,
+        EntityOptions::default(),
+    )
 }
 
 /// The five arrays every extractor returns, ported as one struct.
@@ -409,7 +423,9 @@ pub mod ai_agent {
 
     fn model_invocation_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)llm|model|openai|anthropic|claude|gpt|prompt|completion").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)llm|model|openai|anthropic|claude|gpt|prompt|completion").unwrap()
+        })
     }
     fn tool_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -417,11 +433,15 @@ pub mod ai_agent {
     }
     fn mcp_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)\bmcp\b|@modelcontextprotocol|inputSchema|tool_use").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)\bmcp\b|@modelcontextprotocol|inputSchema|tool_use").unwrap()
+        })
     }
     fn approval_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)approval|human_in_the_loop|requireApproval|confirm").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)approval|human_in_the_loop|requireApproval|confirm").unwrap()
+        })
     }
     fn rag_store_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -447,7 +467,8 @@ pub mod ai_agent {
     fn untrusted_path_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
         RE.get_or_init(|| {
-            Regex::new(r"(?i)(^|/)(SKILL\.md|AGENTS\.md|\.claude/skills/|/skills/|/prompts/)").unwrap()
+            Regex::new(r"(?i)(^|/)(SKILL\.md|AGENTS\.md|\.claude/skills/|/skills/|/prompts/)")
+                .unwrap()
         })
     }
     fn untrusted_text_re() -> &'static Regex {
@@ -464,7 +485,10 @@ pub mod ai_agent {
 
     /// Mirrors `extractAiAgent({ root, plan, projection, files, lensRegistry })`. `source_text`
     /// stands in for `projection.sourceText`.
-    pub fn extract(files: &[String], source_text: &std::collections::HashMap<String, String>) -> ExtractorOutput {
+    pub fn extract(
+        files: &[String],
+        source_text: &std::collections::HashMap<String, String>,
+    ) -> ExtractorOutput {
         let mut out = ExtractorOutput::default();
         let mut saw_agent_signal = false;
 
@@ -545,7 +569,9 @@ pub mod ai_agent {
                 out.evidence.push(json!({
                     "id": evidence_ref, "kind": "source-location", "file": file, "description": "Tool capability",
                 }));
-                let subject = invocation_process_id.clone().unwrap_or_else(|| "actor:agent".to_string());
+                let subject = invocation_process_id
+                    .clone()
+                    .unwrap_or_else(|| "actor:agent".to_string());
                 out.initial_facts.push(fact(
                     "capability",
                     FactFields {
@@ -642,7 +668,8 @@ pub mod ai_agent {
 
             if side_effect_budget_re().is_match(text) {
                 saw_agent_signal = true;
-                let evidence_ref = stable_id("side-effect-budget-evidence", &json!({ "file": file }));
+                let evidence_ref =
+                    stable_id("side-effect-budget-evidence", &json!({ "file": file }));
                 let control = control_entity(
                     "side-effect-budget",
                     &format!("side-effect budget {file}"),
@@ -657,7 +684,8 @@ pub mod ai_agent {
             }
 
             if untrusted_path_re().is_match(file) || untrusted_text_re().is_match(text) {
-                let evidence_ref = stable_id("untrusted-content-evidence", &json!({ "file": file }));
+                let evidence_ref =
+                    stable_id("untrusted-content-evidence", &json!({ "file": file }));
                 let untrusted = entity(
                     "source",
                     &format!("untrusted agent-context content {file}"),
@@ -717,7 +745,9 @@ pub mod cicd {
 
     fn workflow_file_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"\.github/workflows/|\.gitlab-ci|azure-pipelines|Jenkinsfile").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"\.github/workflows/|\.gitlab-ci|azure-pipelines|Jenkinsfile").unwrap()
+        })
     }
     fn write_all_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -733,7 +763,10 @@ pub mod cicd {
     }
 
     /// Mirrors `extractCicd({ root, plan, projection, files, lensRegistry })`.
-    pub fn extract(files: &[String], source_text: &std::collections::HashMap<String, String>) -> ExtractorOutput {
+    pub fn extract(
+        files: &[String],
+        source_text: &std::collections::HashMap<String, String>,
+    ) -> ExtractorOutput {
         let mut out = ExtractorOutput::default();
 
         for file in files {
@@ -874,7 +907,10 @@ pub mod automation {
     }
     fn updater_config_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(?i)electron-builder\.(ya?ml|json5?|toml)$|(^|/)app-update\.ya?ml$").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(?i)electron-builder\.(ya?ml|json5?|toml)$|(^|/)app-update\.ya?ml$")
+                .unwrap()
+        })
     }
     fn npm_config_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -882,7 +918,9 @@ pub mod automation {
     }
     fn lockfile_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$").unwrap()
+        })
     }
     fn dockerfile_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
@@ -893,7 +931,9 @@ pub mod automation {
 
     fn hostile_trigger_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
-        RE.get_or_init(|| Regex::new(r"\bpull_request_target\b|\bworkflow_run\b|\bissue_comment\b").unwrap())
+        RE.get_or_init(|| {
+            Regex::new(r"\bpull_request_target\b|\bworkflow_run\b|\bissue_comment\b").unwrap()
+        })
     }
 
     fn looks_like_hostile_trigger(text: &str) -> bool {
@@ -914,7 +954,9 @@ pub mod automation {
     }
 
     fn looks_like_release_trigger(text: &str) -> bool {
-        release_push_tags_re().is_match(text) || release_types_re().is_match(text) || workflow_dispatch_re().is_match(text)
+        release_push_tags_re().is_match(text)
+            || release_types_re().is_match(text)
+            || workflow_dispatch_re().is_match(text)
     }
 
     fn release_step_re() -> &'static Regex {
@@ -1004,7 +1046,10 @@ pub mod automation {
             None => "unknown".to_string(),
             Some(s) if s.is_empty() => "none".to_string(),
             Some(s) => {
-                let set: BTreeSet<String> = s.iter().map(|(scope, level)| format!("{scope}:{level}")).collect();
+                let set: BTreeSet<String> = s
+                    .iter()
+                    .map(|(scope, level)| format!("{scope}:{level}"))
+                    .collect();
                 set.into_iter().collect::<Vec<_>>().join(",")
             }
         }
@@ -1017,7 +1062,8 @@ pub mod automation {
     fn env_secret_re() -> &'static Regex {
         static RE: OnceLock<Regex> = OnceLock::new();
         RE.get_or_init(|| {
-            Regex::new(r"\$\{?([A-Z][A-Z0-9_]*(?:TOKEN|SECRET|KEY|PASSWORD|CREDENTIALS))\}?").unwrap()
+            Regex::new(r"\$\{?([A-Z][A-Z0-9_]*(?:TOKEN|SECRET|KEY|PASSWORD|CREDENTIALS))\}?")
+                .unwrap()
         })
     }
     fn credentials_call_re() -> &'static Regex {
@@ -1180,7 +1226,10 @@ pub mod automation {
             item
         }
         fn add_evidence(&mut self, file: &str, description: &str) -> String {
-            let id = stable_id("automation-evidence", &json!({ "file": file, "description": description }));
+            let id = stable_id(
+                "automation-evidence",
+                &json!({ "file": file, "description": description }),
+            );
             self.evidence.entry(id.clone()).or_insert_with(|| {
                 json!({ "id": id, "kind": "source-location", "file": file, "description": description })
             });
@@ -1280,7 +1329,14 @@ pub mod automation {
         let capability_id = capability["id"].as_str().unwrap().to_string();
         let artifact_id = artifact["id"].as_str().unwrap().to_string();
 
-        ctx.add_relation(relation("executes", &trigger_id, input.sink_id, &ev, json!({}), EntityOptions::default()));
+        ctx.add_relation(relation(
+            "executes",
+            &trigger_id,
+            input.sink_id,
+            &ev,
+            json!({}),
+            EntityOptions::default(),
+        ));
         ctx.add_relation(relation(
             "assumes-role",
             &principal_id,
@@ -1289,8 +1345,22 @@ pub mod automation {
             json!({}),
             EntityOptions::default(),
         ));
-        ctx.add_relation(relation("runs-as", input.sink_id, &identity_id, &ev, json!({}), EntityOptions::default()));
-        ctx.add_relation(relation("grants", &identity_id, &capability_id, &ev, json!({}), EntityOptions::default()));
+        ctx.add_relation(relation(
+            "runs-as",
+            input.sink_id,
+            &identity_id,
+            &ev,
+            json!({}),
+            EntityOptions::default(),
+        ));
+        ctx.add_relation(relation(
+            "grants",
+            &identity_id,
+            &capability_id,
+            &ev,
+            json!({}),
+            EntityOptions::default(),
+        ));
         ctx.add_relation(relation(
             "publishes-to",
             &identity_id,
@@ -1391,7 +1461,10 @@ pub mod automation {
             );
         }
 
-        if cache_action_re().is_match(text) || cache_dep_path_re().is_match(text) || cache_key_line_re().is_match(text) {
+        if cache_action_re().is_match(text)
+            || cache_dep_path_re().is_match(text)
+            || cache_key_line_re().is_match(text)
+        {
             let cache = ctx.add_entity(entity(
                 "data-store",
                 &format!("build cache {file}"),
@@ -1400,7 +1473,14 @@ pub mod automation {
                 EntityOptions::default(),
             ));
             let cache_id = cache["id"].as_str().unwrap().to_string();
-            ctx.add_relation(relation("stores", &step_id, &cache_id, &refs(&ev), json!({}), EntityOptions::default()));
+            ctx.add_relation(relation(
+                "stores",
+                &step_id,
+                &cache_id,
+                &refs(&ev),
+                json!({}),
+                EntityOptions::default(),
+            ));
         }
 
         for name in detect_secret_refs(text) {
@@ -1420,7 +1500,11 @@ pub mod automation {
         }
 
         if looks_like_signing(text) {
-            let control_state = if explicitly_disabled_signing(text) { "absent" } else { "present-unenforced" };
+            let control_state = if explicitly_disabled_signing(text) {
+                "absent"
+            } else {
+                "present-unenforced"
+            };
             let signing = ctx.add_entity(entity(
                 "control",
                 &format!("release signing {file}"),
@@ -1429,7 +1513,14 @@ pub mod automation {
                 EntityOptions::default(),
             ));
             let signing_id = signing["id"].as_str().unwrap().to_string();
-            ctx.add_relation(relation("protects", &signing_id, &step_id, &refs(&ev), json!({}), EntityOptions::default()));
+            ctx.add_relation(relation(
+                "protects",
+                &signing_id,
+                &step_id,
+                &refs(&ev),
+                json!({}),
+                EntityOptions::default(),
+            ));
         }
 
         if upload_download_artifact_re().is_match(text) {
@@ -1476,7 +1567,9 @@ pub mod automation {
                 &refs(&ev),
             ));
         }
-        ctx.add_gap(json!({ "kind": "unparsed-automation-format", "file": file, "format": "jenkinsfile" }));
+        ctx.add_gap(
+            json!({ "kind": "unparsed-automation-format", "file": file, "format": "jenkinsfile" }),
+        );
     }
 
     fn scan_package_manifest(ctx: &mut Ctx, file: &str, text: &str, files: &[String]) {
@@ -1489,7 +1582,10 @@ pub mod automation {
             }
         };
 
-        let name = pkg.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let name = pkg
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
         let is_private = pkg.get("private") == Some(&Value::Bool(true));
         let manifest_entity = ctx.add_entity(entity(
             "repository-artifact",
@@ -1501,7 +1597,10 @@ pub mod automation {
         let manifest_id = manifest_entity["id"].as_str().unwrap().to_string();
 
         let empty_scripts = Map::new();
-        let scripts = pkg.get("scripts").and_then(|v| v.as_object()).unwrap_or(&empty_scripts);
+        let scripts = pkg
+            .get("scripts")
+            .and_then(|v| v.as_object())
+            .unwrap_or(&empty_scripts);
         for key in ["preinstall", "install", "postinstall"] {
             if let Some(script) = scripts.get(key).and_then(|v| v.as_str()) {
                 if install_script_re().is_match(script) {
@@ -1677,7 +1776,14 @@ pub mod automation {
         let sink_id = sink["id"].as_str().unwrap().to_string();
         let principal_id = principal["id"].as_str().unwrap().to_string();
         let identity_id = identity["id"].as_str().unwrap().to_string();
-        ctx.add_relation(relation("executes", &trigger_id, &sink_id, &refs(&ev), json!({}), EntityOptions::default()));
+        ctx.add_relation(relation(
+            "executes",
+            &trigger_id,
+            &sink_id,
+            &refs(&ev),
+            json!({}),
+            EntityOptions::default(),
+        ));
         ctx.add_relation(relation(
             "assumes-role",
             &principal_id,
@@ -1686,7 +1792,14 @@ pub mod automation {
             json!({}),
             EntityOptions::default(),
         ));
-        ctx.add_relation(relation("runs-as", &sink_id, &identity_id, &refs(&ev), json!({}), EntityOptions::default()));
+        ctx.add_relation(relation(
+            "runs-as",
+            &sink_id,
+            &identity_id,
+            &refs(&ev),
+            json!({}),
+            EntityOptions::default(),
+        ));
         ctx.add_gap(json!({ "kind": "unresolved-permission-scope", "file": file }));
 
         if automerge_re().is_match(text) {
@@ -2043,7 +2156,9 @@ fn from_wf055_identity(o: crate::wf_port::wf055::identity::IdentityExtraction) -
     }
 }
 
-fn from_wf055_native_workspace(o: crate::wf_port::wf055::native_workspace::NativeWorkspaceExtraction) -> ExtractorOutput {
+fn from_wf055_native_workspace(
+    o: crate::wf_port::wf055::native_workspace::NativeWorkspaceExtraction,
+) -> ExtractorOutput {
     ExtractorOutput {
         entities: o.entities,
         relations: o.relations,
@@ -2062,14 +2177,30 @@ pub fn build_security_model_full(input: FullPipelineInput<'_>) -> Result<Value, 
     let identity_files: Vec<(String, String)> = input
         .files
         .iter()
-        .map(|f| (f.clone(), input.source_text.get(f).cloned().unwrap_or_default()))
+        .map(|f| {
+            (
+                f.clone(),
+                input.source_text.get(f).cloned().unwrap_or_default(),
+            )
+        })
         .collect();
 
     let parts = vec![
-        from_wf054(crate::wf_port::wf054::extract_common(input.files, input.manifests)),
-        from_wf054(crate::wf_port::wf054::http::extract(input.files, input.source_text)),
-        from_wf055_identity(crate::wf_port::wf055::identity::extract_identity(&identity_files)),
-        from_wf054(crate::wf_port::wf054::data::extract(input.files, input.source_text)),
+        from_wf054(crate::wf_port::wf054::extract_common(
+            input.files,
+            input.manifests,
+        )),
+        from_wf054(crate::wf_port::wf054::http::extract(
+            input.files,
+            input.source_text,
+        )),
+        from_wf055_identity(crate::wf_port::wf055::identity::extract_identity(
+            &identity_files,
+        )),
+        from_wf054(crate::wf_port::wf054::data::extract(
+            input.files,
+            input.source_text,
+        )),
         cicd::extract(input.files, input.source_text),
         from_wf054(crate::wf_port::wf054::cloud::extract(
             input.files,
@@ -2077,7 +2208,9 @@ pub fn build_security_model_full(input: FullPipelineInput<'_>) -> Result<Value, 
             input.package_manifests,
             input.release_files,
         )),
-        from_wf055_native_workspace(crate::wf_port::wf055::native_workspace::extract_native_workspace(&identity_files)),
+        from_wf055_native_workspace(
+            crate::wf_port::wf055::native_workspace::extract_native_workspace(&identity_files),
+        ),
         ai_agent::extract(input.files, input.source_text),
     ];
 
@@ -2095,11 +2228,39 @@ pub fn build_security_model_full(input: FullPipelineInput<'_>) -> Result<Value, 
 /// final model), generically over the extractor outputs supplied by the caller rather than
 /// a fixed `EXTRACTORS` list — see the module doc comment for why.
 pub fn build_security_model(input: BuildSecurityModelInput) -> Result<Value, String> {
-    let entities = dedupe(input.parts.iter().flat_map(|p| p.entities.clone()).collect());
-    let relations = dedupe(input.parts.iter().flat_map(|p| p.relations.clone()).collect());
-    let evidence = dedupe(input.parts.iter().flat_map(|p| p.evidence.clone()).collect());
-    let initial_facts = dedupe(input.parts.iter().flat_map(|p| p.initial_facts.clone()).collect());
-    let coverage_gaps: Vec<Value> = input.parts.iter().flat_map(|p| p.coverage_gaps.clone()).collect();
+    let entities = dedupe(
+        input
+            .parts
+            .iter()
+            .flat_map(|p| p.entities.clone())
+            .collect(),
+    );
+    let relations = dedupe(
+        input
+            .parts
+            .iter()
+            .flat_map(|p| p.relations.clone())
+            .collect(),
+    );
+    let evidence = dedupe(
+        input
+            .parts
+            .iter()
+            .flat_map(|p| p.evidence.clone())
+            .collect(),
+    );
+    let initial_facts = dedupe(
+        input
+            .parts
+            .iter()
+            .flat_map(|p| p.initial_facts.clone())
+            .collect(),
+    );
+    let coverage_gaps: Vec<Value> = input
+        .parts
+        .iter()
+        .flat_map(|p| p.coverage_gaps.clone())
+        .collect();
 
     assert_references(&entities, &relations)?;
 

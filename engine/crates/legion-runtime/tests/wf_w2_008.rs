@@ -132,12 +132,14 @@ fn render_narration_rejects_unknown_flag() {
 
 #[test]
 fn render_narration_derives_default_output_paths() {
-    let derived =
-        legion_runtime::wf_port::w2_008::render_narration::derive_paths(&PathBuf::from(
-            "/proj/demo.html",
-        ));
+    let derived = legion_runtime::wf_port::w2_008::render_narration::derive_paths(&PathBuf::from(
+        "/proj/demo.html",
+    ));
     assert_eq!(derived.silent_mp4, PathBuf::from("/proj/demo.mp4"));
-    assert_eq!(derived.default_out, PathBuf::from("/proj/demo-narrated.mp4"));
+    assert_eq!(
+        derived.default_out,
+        PathBuf::from("/proj/demo-narrated.mp4")
+    );
 }
 
 #[test]

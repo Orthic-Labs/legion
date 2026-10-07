@@ -86,10 +86,7 @@ fn container_iac_analyze_wraps_denominator_gaps_as_kind_objects() {
             "every coverageGaps entry must be a {{kind: ...}} object, got {gap:?}"
         );
     }
-    let kinds: Vec<&str> = gaps
-        .iter()
-        .map(|g| g["kind"].as_str().unwrap())
-        .collect();
+    let kinds: Vec<&str> = gaps.iter().map(|g| g["kind"].as_str().unwrap()).collect();
     assert!(kinds.contains(&"rendered-resources-absent"));
     assert!(kinds.contains(&"iac-evidence-invalid"));
 }

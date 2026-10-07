@@ -132,7 +132,10 @@ pub fn report(root: &Path) -> Report {
     };
 
     let schema_ok = allowlist.get("schemaVersion").and_then(|v| v.as_i64()) == Some(1)
-        && allowlist.get("rules").map(|v| v.is_array()).unwrap_or(false);
+        && allowlist
+            .get("rules")
+            .map(|v| v.is_array())
+            .unwrap_or(false);
     if !schema_ok {
         issues.push(Issue {
             path: allowlist_path.to_string(),
@@ -189,10 +192,7 @@ pub fn report(root: &Path) -> Report {
                 .get("occurrences")
                 .and_then(|o| o.get(id))
                 .and_then(|v| v.as_i64());
-            let observed = content
-                .as_deref()
-                .map(pattern.count)
-                .unwrap_or(0) as i64;
+            let observed = content.as_deref().map(pattern.count).unwrap_or(0) as i64;
             let valid_expected = expected.map(|e| e >= 1).unwrap_or(false);
             if !valid_expected || observed != expected.unwrap_or(-1) {
                 issues.push(Issue {
@@ -266,10 +266,7 @@ pub fn run(root: &Path, json: bool) -> bool {
                 "{}: {}{}",
                 issue.path,
                 issue.reason,
-                issue
-                    .pattern
-                    .map(|p| format!(" [{p}]"))
-                    .unwrap_or_default()
+                issue.pattern.map(|p| format!(" [{p}]")).unwrap_or_default()
             );
         }
     }

@@ -13,13 +13,16 @@
 use std::collections::BTreeMap;
 
 use legion_audit::wf_port::wf057::{
-    ai_prompt_injection, authentication_session, authorization_tenant, automation, browser_client, Entity,
-    PackContext, SecurityModel,
+    ai_prompt_injection, authentication_session, authorization_tenant, automation, browser_client,
+    Entity, PackContext, SecurityModel,
 };
 
 fn artifact_entity(file: &str) -> Entity {
     let mut attributes = BTreeMap::new();
-    attributes.insert("path".to_string(), serde_json::Value::String(file.to_string()));
+    attributes.insert(
+        "path".to_string(),
+        serde_json::Value::String(file.to_string()),
+    );
     Entity {
         id: format!("artifact:{file}"),
         kind: "repository-artifact".to_string(),
@@ -50,7 +53,9 @@ fn ctx<'a>(model: &'a SecurityModel, files: &[(&str, &str)]) -> PackContext<'a> 
 }
 
 fn model_for(files: &[&str]) -> SecurityModel {
-    SecurityModel { entities: files.iter().map(|f| artifact_entity(f)).collect() }
+    SecurityModel {
+        entities: files.iter().map(|f| artifact_entity(f)).collect(),
+    }
 }
 
 // =================================================================================================
@@ -72,7 +77,13 @@ fn authentication_session_flags_jwt_decode_without_verification() {
 #[test]
 fn authentication_session_flags_weak_session_cookie() {
     let model = model_for(&["s.mjs"]);
-    let c = ctx(&model, &[("s.mjs", "session.cookie({ secure: false, httpOnly: true });")]);
+    let c = ctx(
+        &model,
+        &[(
+            "s.mjs",
+            "session.cookie({ secure: false, httpOnly: true });",
+        )],
+    );
     let out = authentication_session::analyze(&c);
     assert!(out.iter().any(|o| o.rule_id == "auth.session-cookie-weak"));
 }
@@ -96,7 +107,11 @@ fn authentication_session_clean_on_unrelated_text() {
 fn authentication_session_rule_ids_are_the_three_declared() {
     assert_eq!(
         authentication_session::rule_ids(),
-        vec!["auth.jwt-without-verification", "auth.session-cookie-weak", "auth.reset-token-log"]
+        vec![
+            "auth.jwt-without-verification",
+            "auth.session-cookie-weak",
+            "auth.reset-token-log"
+        ]
     );
 }
 
@@ -107,25 +122,47 @@ fn authentication_session_rule_ids_are_the_three_declared() {
 #[test]
 fn authorization_flags_object_write_missing_owner_check() {
     let model = model_for(&["h.mjs"]);
-    let c = ctx(&model, &[("h.mjs", "function update(id, params) { db.save(id, params); }")]);
+    let c = ctx(
+        &model,
+        &[(
+            "h.mjs",
+            "function update(id, params) { db.save(id, params); }",
+        )],
+    );
     let out = authorization_tenant::analyze(&c);
-    assert!(out.iter().any(|o| o.rule_id == "authorization.object-write.missing-owner-check"));
+    assert!(out
+        .iter()
+        .any(|o| o.rule_id == "authorization.object-write.missing-owner-check"));
 }
 
 #[test]
 fn authorization_clean_when_owner_check_present() {
     let model = model_for(&["h.mjs"]);
-    let c = ctx(&model, &[("h.mjs", "function update(id, params) { if (!authorize(owner)) return; db.save(id, params); }")]);
+    let c = ctx(
+        &model,
+        &[(
+            "h.mjs",
+            "function update(id, params) { if (!authorize(owner)) return; db.save(id, params); }",
+        )],
+    );
     let out = authorization_tenant::analyze(&c);
-    assert!(!out.iter().any(|o| o.rule_id == "authorization.object-write.missing-owner-check"));
+    assert!(!out
+        .iter()
+        .any(|o| o.rule_id == "authorization.object-write.missing-owner-check"));
 }
 
 #[test]
 fn authorization_flags_privileged_function_without_role_check() {
     let model = model_for(&["h.mjs"]);
-    let c = ctx(&model, &[("h.mjs", "function deleteUser(id) { db.remove(id); }")]);
+    let c = ctx(
+        &model,
+        &[("h.mjs", "function deleteUser(id) { db.remove(id); }")],
+    );
     let out = authorization_tenant::analyze(&c);
-    let hits: Vec<_> = out.iter().filter(|o| o.rule_id == "authorization.privileged-function.missing-role-check").collect();
+    let hits: Vec<_> = out
+        .iter()
+        .filter(|o| o.rule_id == "authorization.privileged-function.missing-role-check")
+        .collect();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].severity_hint, "high");
 }
@@ -133,9 +170,17 @@ fn authorization_flags_privileged_function_without_role_check() {
 #[test]
 fn authorization_clean_when_role_check_present() {
     let model = model_for(&["h.mjs"]);
-    let c = ctx(&model, &[("h.mjs", "function deleteUser(id) { requireAdmin(); db.remove(id); }")]);
+    let c = ctx(
+        &model,
+        &[(
+            "h.mjs",
+            "function deleteUser(id) { requireAdmin(); db.remove(id); }",
+        )],
+    );
     let out = authorization_tenant::analyze(&c);
-    assert!(!out.iter().any(|o| o.rule_id == "authorization.privileged-function.missing-role-check"));
+    assert!(!out
+        .iter()
+        .any(|o| o.rule_id == "authorization.privileged-function.missing-role-check"));
 }
 
 #[test]
@@ -156,7 +201,13 @@ fn authorization_declared_rule_ids_include_unimplemented_pair() {
 #[test]
 fn authorization_enumerate_matches_object_write_finding() {
     let model = model_for(&["h.mjs"]);
-    let c = ctx(&model, &[("h.mjs", "function update(id, params) { db.save(id, params); }")]);
+    let c = ctx(
+        &model,
+        &[(
+            "h.mjs",
+            "function update(id, params) { db.save(id, params); }",
+        )],
+    );
     let result = authorization_tenant::enumerate_object_write_missing_owner_check(&c);
     let matches = result["matches"].as_array().unwrap();
     assert_eq!(matches.len(), 1);
@@ -173,10 +224,15 @@ fn automation_flags_publish_workflow_without_permissions() {
     let model = model_for(&[".github/workflows/release.yml"]);
     let c = ctx(
         &model,
-        &[(".github/workflows/release.yml", "jobs:\n  release:\n    steps:\n      - run: npm publish\n")],
+        &[(
+            ".github/workflows/release.yml",
+            "jobs:\n  release:\n    steps:\n      - run: npm publish\n",
+        )],
     );
     let out = automation::analyze(&c);
-    assert!(out.iter().any(|o| o.rule_id == "automation.release.unresolved-identity-scope"));
+    assert!(out
+        .iter()
+        .any(|o| o.rule_id == "automation.release.unresolved-identity-scope"));
 }
 
 #[test]
@@ -187,7 +243,9 @@ fn automation_clean_when_permissions_block_present() {
         &[(".github/workflows/release.yml", "permissions:\n  contents: read\njobs:\n  release:\n    steps:\n      - run: npm publish\n")],
     );
     let out = automation::analyze(&c);
-    assert!(!out.iter().any(|o| o.rule_id == "automation.release.unresolved-identity-scope"));
+    assert!(!out
+        .iter()
+        .any(|o| o.rule_id == "automation.release.unresolved-identity-scope"));
 }
 
 #[test]
@@ -199,7 +257,13 @@ fn automation_flags_updater_insecure_transport() {
     // the text (the original fixture had "update" only in the URL path,
     // after "http://", so it did not match in JS either).
     let model = model_for(&["app-update.yml"]);
-    let c = ctx(&model, &[("app-update.yml", "updateUrl: http://cdn.example.com/latest.yml\n")]);
+    let c = ctx(
+        &model,
+        &[(
+            "app-update.yml",
+            "updateUrl: http://cdn.example.com/latest.yml\n",
+        )],
+    );
     let out = automation::analyze(&c);
     let hits: Vec<_> = out
         .iter()
@@ -212,12 +276,17 @@ fn automation_flags_updater_insecure_transport() {
 #[test]
 fn automation_flags_disabled_signature_verification() {
     let model = model_for(&["app-update.yml"]);
-    let c = ctx(&model, &[("app-update.yml", "verifyUpdateCodeSignature: false\n")]);
+    let c = ctx(
+        &model,
+        &[("app-update.yml", "verifyUpdateCodeSignature: false\n")],
+    );
     let out = automation::analyze(&c);
     assert!(out
         .iter()
         .any(|o| o.rule_id == "automation.updater.insecure-transport-or-unverified-signature"));
-    assert!(out.iter().any(|o| o.rule_id == "automation.release.signing-disabled-or-unenforced"));
+    assert!(out
+        .iter()
+        .any(|o| o.rule_id == "automation.release.signing-disabled-or-unenforced"));
 }
 
 #[test]
@@ -254,15 +323,25 @@ fn automation_flags_automerge_without_review_gate() {
     let model = model_for(&[".github/dependabot.yml"]);
     let c = ctx(&model, &[(".github/dependabot.yml", "automerge: true\n")]);
     let out = automation::analyze(&c);
-    assert!(out.iter().any(|o| o.rule_id == "automation.dependency-update.automerge-without-review"));
+    assert!(out
+        .iter()
+        .any(|o| o.rule_id == "automation.dependency-update.automerge-without-review"));
 }
 
 #[test]
 fn automation_clean_automerge_with_review_gate() {
     let model = model_for(&[".github/dependabot.yml"]);
-    let c = ctx(&model, &[(".github/dependabot.yml", "automerge: true\nrequiredReviews: 1\n")]);
+    let c = ctx(
+        &model,
+        &[(
+            ".github/dependabot.yml",
+            "automerge: true\nrequiredReviews: 1\n",
+        )],
+    );
     let out = automation::analyze(&c);
-    assert!(!out.iter().any(|o| o.rule_id == "automation.dependency-update.automerge-without-review"));
+    assert!(!out
+        .iter()
+        .any(|o| o.rule_id == "automation.dependency-update.automerge-without-review"));
 }
 
 #[test]
@@ -289,8 +368,12 @@ fn automation_rule_ids_match_the_five_declared() {
 #[test]
 fn automation_enumerate_returns_matches_for_signing_disabled() {
     let model = model_for(&["release.config.js"]);
-    let c = ctx(&model, &[("release.config.js", "module.exports = { sign: false };\n")]);
-    let result = automation::enumerate(&c, "automation.release.signing-disabled-or-unenforced").unwrap();
+    let c = ctx(
+        &model,
+        &[("release.config.js", "module.exports = { sign: false };\n")],
+    );
+    let result =
+        automation::enumerate(&c, "automation.release.signing-disabled-or-unenforced").unwrap();
     let matches = result["matches"].as_array().unwrap();
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0]["file"], "release.config.js");
@@ -308,9 +391,15 @@ fn browser_client_flags_state_changing_route_missing_csrf_token() {
         &[("routes.mjs", "app.post('/transfer', (req, res) => { res.cookie('session', token); doTransfer(req.body); });")],
     );
     let out = browser_client::analyze(&c);
-    let hits: Vec<_> = out.iter().filter(|o| o.rule_id == "csrf.state-changing-route.missing-token").collect();
+    let hits: Vec<_> = out
+        .iter()
+        .filter(|o| o.rule_id == "csrf.state-changing-route.missing-token")
+        .collect();
     assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].detector_metadata["primitiveClass"], "exploitable-primitive");
+    assert_eq!(
+        hits[0].detector_metadata["primitiveClass"],
+        "exploitable-primitive"
+    );
     assert_eq!(hits[0].detector_metadata["method"], "POST");
     assert_eq!(hits[0].detector_metadata["path"], "/transfer");
     assert_eq!(hits[0].detector_metadata["file"], "routes.mjs");
@@ -325,7 +414,11 @@ fn browser_client_clean_when_csrf_token_check_present() {
         &[("routes.mjs", "app.post('/transfer', (req, res) => { res.cookie('session', token); csrfProtection(req); doTransfer(req.body); });")],
     );
     let out = browser_client::analyze(&c);
-    assert!(out.iter().filter(|o| o.rule_id == "csrf.state-changing-route.missing-token").next().is_none());
+    assert!(out
+        .iter()
+        .filter(|o| o.rule_id == "csrf.state-changing-route.missing-token")
+        .next()
+        .is_none());
 }
 
 #[test]
@@ -336,8 +429,18 @@ fn browser_client_flags_samesite_none_without_secure_and_missing_samesite() {
         &[("cookies.mjs", "res.cookie('sessionToken', v, { SameSite=None });\nres.cookie('authToken', v, { httpOnly: true });")],
     );
     let out = browser_client::analyze(&c);
-    assert!(out.iter().filter(|o| o.rule_id == "csrf.samesite-none-without-secure").count() >= 1);
-    assert!(out.iter().filter(|o| o.rule_id == "csrf.samesite-missing").count() >= 1);
+    assert!(
+        out.iter()
+            .filter(|o| o.rule_id == "csrf.samesite-none-without-secure")
+            .count()
+            >= 1
+    );
+    assert!(
+        out.iter()
+            .filter(|o| o.rule_id == "csrf.samesite-missing")
+            .count()
+            >= 1
+    );
 }
 
 #[test]
@@ -348,10 +451,16 @@ fn browser_client_flags_cors_wildcard_origin_with_credentials() {
         &[("cors.mjs", "res.setHeader('Access-Control-Allow-Origin', '*');\nres.setHeader('Access-Control-Allow-Credentials', 'true');")],
     );
     let out = browser_client::analyze(&c);
-    let hits: Vec<_> = out.iter().filter(|o| o.rule_id == "cors.wildcard-origin-with-credentials").collect();
+    let hits: Vec<_> = out
+        .iter()
+        .filter(|o| o.rule_id == "cors.wildcard-origin-with-credentials")
+        .collect();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].severity_hint, "critical");
-    assert_eq!(hits[0].detector_metadata["primitiveClass"], "exploitable-primitive");
+    assert_eq!(
+        hits[0].detector_metadata["primitiveClass"],
+        "exploitable-primitive"
+    );
     assert_eq!(
         hits[0].detector_metadata["header"],
         "Access-Control-Allow-Origin + Access-Control-Allow-Credentials"
@@ -363,17 +472,37 @@ fn browser_client_flags_cors_wildcard_origin_with_credentials() {
 #[test]
 fn browser_client_flags_reflected_origin_without_allowlist() {
     let model = model_for(&["cors.mjs"]);
-    let c = ctx(&model, &[("cors.mjs", "res.setHeader('Access-Control-Allow-Origin', req.headers.origin);")]);
+    let c = ctx(
+        &model,
+        &[(
+            "cors.mjs",
+            "res.setHeader('Access-Control-Allow-Origin', req.headers.origin);",
+        )],
+    );
     let out = browser_client::analyze(&c);
-    assert_eq!(out.iter().filter(|o| o.rule_id == "cors.reflected-origin-without-allowlist").count(), 1);
+    assert_eq!(
+        out.iter()
+            .filter(|o| o.rule_id == "cors.reflected-origin-without-allowlist")
+            .count(),
+        1
+    );
 }
 
 #[test]
 fn browser_client_flags_missing_frame_protection_and_csp_as_capped_defense_in_depth() {
     let model = model_for(&["page.mjs"]);
-    let c = ctx(&model, &[("page.mjs", "app.get('/', (req, res) => { res.render('index'); });")]);
+    let c = ctx(
+        &model,
+        &[(
+            "page.mjs",
+            "app.get('/', (req, res) => { res.render('index'); });",
+        )],
+    );
     let out = browser_client::analyze(&c);
-    let clickjack: Vec<_> = out.iter().filter(|o| o.rule_id == "clickjacking.missing-frame-protection").collect();
+    let clickjack: Vec<_> = out
+        .iter()
+        .filter(|o| o.rule_id == "clickjacking.missing-frame-protection")
+        .collect();
     let csp: Vec<_> = out.iter().filter(|o| o.rule_id == "csp.missing").collect();
     assert_eq!(clickjack.len(), 1);
     assert_eq!(csp.len(), 1);
@@ -381,7 +510,10 @@ fn browser_client_flags_missing_frame_protection_and_csp_as_capped_defense_in_de
         assert_eq!(hit.detector_metadata["primitiveClass"], "defense-in-depth");
         assert!(["info", "low"].contains(&hit.severity_hint.as_str()));
         assert!(hit.detector_metadata.get("deploymentAssumption").is_some());
-        assert!(hit.uncertainty.iter().any(|u| u.contains("Deployment assumption")));
+        assert!(hit
+            .uncertainty
+            .iter()
+            .any(|u| u.contains("Deployment assumption")));
     }
 }
 
@@ -396,7 +528,12 @@ fn browser_client_clean_when_frame_options_and_csp_both_present() {
         )],
     );
     let out = browser_client::analyze(&c);
-    assert_eq!(out.iter().filter(|o| o.rule_id == "clickjacking.missing-frame-protection").count(), 0);
+    assert_eq!(
+        out.iter()
+            .filter(|o| o.rule_id == "clickjacking.missing-frame-protection")
+            .count(),
+        0
+    );
     assert_eq!(out.iter().filter(|o| o.rule_id == "csp.missing").count(), 0);
 }
 
@@ -406,17 +543,36 @@ fn browser_client_flags_csp_unsafe_inline_unsafe_eval_and_wildcard_source() {
     let c = ctx(
         &model,
         &[
-            ("inline.mjs", "res.setHeader('Content-Security-Policy', \"script-src 'self' 'unsafe-inline'\");"),
-            ("eval.mjs", "res.setHeader('Content-Security-Policy', \"script-src 'self' 'unsafe-eval'\");"),
-            ("wildcard.mjs", "res.setHeader('Content-Security-Policy', \"script-src *\");"),
+            (
+                "inline.mjs",
+                "res.setHeader('Content-Security-Policy', \"script-src 'self' 'unsafe-inline'\");",
+            ),
+            (
+                "eval.mjs",
+                "res.setHeader('Content-Security-Policy', \"script-src 'self' 'unsafe-eval'\");",
+            ),
+            (
+                "wildcard.mjs",
+                "res.setHeader('Content-Security-Policy', \"script-src *\");",
+            ),
         ],
     );
     let out = browser_client::analyze(&c);
-    for rule_id in ["csp.unsafe-inline", "csp.unsafe-eval", "csp.wildcard-source"] {
+    for rule_id in [
+        "csp.unsafe-inline",
+        "csp.unsafe-eval",
+        "csp.wildcard-source",
+    ] {
         let hits: Vec<_> = out.iter().filter(|o| o.rule_id == rule_id).collect();
         assert_eq!(hits.len(), 1, "{rule_id}");
-        assert_eq!(hits[0].detector_metadata["primitiveClass"], "defense-in-depth");
-        assert!(["info", "low"].contains(&hits[0].severity_hint.as_str()), "{rule_id}");
+        assert_eq!(
+            hits[0].detector_metadata["primitiveClass"],
+            "defense-in-depth"
+        );
+        assert!(
+            ["info", "low"].contains(&hits[0].severity_hint.as_str()),
+            "{rule_id}"
+        );
     }
 }
 
@@ -431,8 +587,18 @@ fn browser_client_flags_open_redirect_and_oauth_redirect_uri() {
         ],
     );
     let out = browser_client::analyze(&c);
-    assert_eq!(out.iter().filter(|o| o.rule_id == "open-redirect.unvalidated-target").count(), 1);
-    assert_eq!(out.iter().filter(|o| o.rule_id == "oauth.redirect-uri.unvalidated").count(), 1);
+    assert_eq!(
+        out.iter()
+            .filter(|o| o.rule_id == "open-redirect.unvalidated-target")
+            .count(),
+        1
+    );
+    assert_eq!(
+        out.iter()
+            .filter(|o| o.rule_id == "oauth.redirect-uri.unvalidated")
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -446,14 +612,30 @@ fn browser_client_clean_when_redirect_and_oauth_targets_allowlisted() {
         ],
     );
     let out = browser_client::analyze(&c);
-    assert_eq!(out.iter().filter(|o| o.rule_id == "open-redirect.unvalidated-target").count(), 0);
-    assert_eq!(out.iter().filter(|o| o.rule_id == "oauth.redirect-uri.unvalidated").count(), 0);
+    assert_eq!(
+        out.iter()
+            .filter(|o| o.rule_id == "open-redirect.unvalidated-target")
+            .count(),
+        0
+    );
+    assert_eq!(
+        out.iter()
+            .filter(|o| o.rule_id == "oauth.redirect-uri.unvalidated")
+            .count(),
+        0
+    );
 }
 
 #[test]
 fn browser_client_missing_deployment_evidence_never_exceeds_medium() {
     let model = model_for(&["page.mjs"]);
-    let c = ctx(&model, &[("page.mjs", "app.get('/', (req, res) => { res.render('index'); });")]);
+    let c = ctx(
+        &model,
+        &[(
+            "page.mjs",
+            "app.get('/', (req, res) => { res.render('index'); });",
+        )],
+    );
     let out = browser_client::analyze(&c);
     let rank = |s: &str| match s {
         "info" => 0,
@@ -497,9 +679,18 @@ fn browser_client_rule_ids_match_the_twelve_declared() {
 #[test]
 fn ai_prompt_injection_flags_indirect_untrusted_content() {
     let model = model_for(&["agent.mjs"]);
-    let c = ctx(&model, &[("agent.mjs", "const prompt = `Answer this: ${request.body}`;")]);
+    let c = ctx(
+        &model,
+        &[(
+            "agent.mjs",
+            "const prompt = `Answer this: ${request.body}`;",
+        )],
+    );
     let out = ai_prompt_injection::analyze(&c);
-    let hits: Vec<_> = out.iter().filter(|o| o.rule_id == "ai.prompt-injection.indirect-untrusted-content").collect();
+    let hits: Vec<_> = out
+        .iter()
+        .filter(|o| o.rule_id == "ai.prompt-injection.indirect-untrusted-content")
+        .collect();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].severity_hint, "high");
     assert!(hits[0].uncertainty[0].contains("not tool compromise"));
@@ -508,33 +699,62 @@ fn ai_prompt_injection_flags_indirect_untrusted_content() {
 #[test]
 fn ai_prompt_injection_suppressed_when_trust_label_hint_present() {
     let model = model_for(&["agent.mjs"]);
-    let c = ctx(&model, &[("agent.mjs", "const prompt = sanitize(`Answer this: ${request.body}`);")]);
+    let c = ctx(
+        &model,
+        &[(
+            "agent.mjs",
+            "const prompt = sanitize(`Answer this: ${request.body}`);",
+        )],
+    );
     let out = ai_prompt_injection::analyze(&c);
-    assert!(!out.iter().any(|o| o.rule_id == "ai.prompt-injection.indirect-untrusted-content"));
+    assert!(!out
+        .iter()
+        .any(|o| o.rule_id == "ai.prompt-injection.indirect-untrusted-content"));
 }
 
 #[test]
 fn ai_prompt_injection_flags_retrieved_content_untrusted() {
     let model = model_for(&["rag.mjs"]);
-    let c = ctx(&model, &[("rag.mjs", "const context = vectorStore.query(q);\nprompt: context;")]);
+    let c = ctx(
+        &model,
+        &[(
+            "rag.mjs",
+            "const context = vectorStore.query(q);\nprompt: context;",
+        )],
+    );
     let out = ai_prompt_injection::analyze(&c);
-    assert!(out.iter().any(|o| o.rule_id == "ai.prompt-injection.retrieved-content-untrusted"));
+    assert!(out
+        .iter()
+        .any(|o| o.rule_id == "ai.prompt-injection.retrieved-content-untrusted"));
 }
 
 #[test]
 fn ai_prompt_injection_flags_memory_context_untrusted() {
     let model = model_for(&["mem.mjs"]);
-    let c = ctx(&model, &[("mem.mjs", "const data = agent_memory.recall();\nmessages: data;")]);
+    let c = ctx(
+        &model,
+        &[(
+            "mem.mjs",
+            "const data = agent_memory.recall();\nmessages: data;",
+        )],
+    );
     let out = ai_prompt_injection::analyze(&c);
-    assert!(out.iter().any(|o| o.rule_id == "ai.prompt-injection.memory-context-untrusted"));
+    assert!(out
+        .iter()
+        .any(|o| o.rule_id == "ai.prompt-injection.memory-context-untrusted"));
 }
 
 #[test]
 fn ai_prompt_injection_flags_dynamic_tool_schema_untrusted() {
     let model = model_for(&["tools.mjs"]);
-    let c = ctx(&model, &[("tools.mjs", "tools.push(JSON.parse(response.body));")]);
+    let c = ctx(
+        &model,
+        &[("tools.mjs", "tools.push(JSON.parse(response.body));")],
+    );
     let out = ai_prompt_injection::analyze(&c);
-    assert!(out.iter().any(|o| o.rule_id == "ai.prompt-injection.dynamic-tool-schema-untrusted"));
+    assert!(out
+        .iter()
+        .any(|o| o.rule_id == "ai.prompt-injection.dynamic-tool-schema-untrusted"));
 }
 
 #[test]
@@ -543,7 +763,10 @@ fn ai_prompt_injection_suppressed_when_control_entity_grounds_the_sink() {
 
     let artifact = artifact_entity("agent.mjs");
     let mut control_attrs = BTreeMap::new();
-    control_attrs.insert("controlType".to_string(), serde_json::Value::String("prompt-trust-boundary".to_string()));
+    control_attrs.insert(
+        "controlType".to_string(),
+        serde_json::Value::String("prompt-trust-boundary".to_string()),
+    );
     let control = Entity {
         id: "control:trust-boundary".to_string(),
         kind: "control".to_string(),
@@ -551,16 +774,26 @@ fn ai_prompt_injection_suppressed_when_control_entity_grounds_the_sink() {
         attributes: control_attrs,
         evidence_refs: vec![],
     };
-    let model = SecurityModel { entities: vec![artifact.clone(), control] };
+    let model = SecurityModel {
+        entities: vec![artifact.clone(), control],
+    };
     let relations = vec![Relation {
         kind: "protects".to_string(),
         from: "control:trust-boundary".to_string(),
         to: artifact.id.clone(),
     }];
-    let mut c = ctx(&model, &[("agent.mjs", "const prompt = `Answer this: ${request.body}`;")]);
+    let mut c = ctx(
+        &model,
+        &[(
+            "agent.mjs",
+            "const prompt = `Answer this: ${request.body}`;",
+        )],
+    );
     c.relations = &relations;
     let out = ai_prompt_injection::analyze(&c);
-    assert!(!out.iter().any(|o| o.rule_id == "ai.prompt-injection.indirect-untrusted-content"));
+    assert!(!out
+        .iter()
+        .any(|o| o.rule_id == "ai.prompt-injection.indirect-untrusted-content"));
 }
 
 #[test]

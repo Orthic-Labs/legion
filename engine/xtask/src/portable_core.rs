@@ -76,7 +76,10 @@ fn private_extension_re() -> Regex {
     Regex::new(r"(?i)\.(?:pem|p12|pfx|key|kdbx|sqlite3?)$").unwrap()
 }
 fn personal_marker_re() -> Regex {
-    Regex::new(r"(?i)(?:C:\\Users\\adrds|D:\\Claude|/Users/adrds|<private-overlay>|workspace-private)").unwrap()
+    Regex::new(
+        r"(?i)(?:C:\\Users\\adrds|D:\\Claude|/Users/adrds|<private-overlay>|workspace-private)",
+    )
+    .unwrap()
 }
 fn sensitive_key_re() -> Regex {
     Regex::new(r"(?i)^(?:password|passwd|secret|secrets|token|api[_-]?key|access[_-]?key|private[_-]?key|credential|credentials)$").unwrap()
@@ -92,7 +95,11 @@ pub struct Finding {
     pub message: String,
 }
 fn finding(message: impl Into<String>) -> Finding {
-    Finding { rule_id: "portable-core", severity: "error", message: message.into() }
+    Finding {
+        rule_id: "portable-core",
+        severity: "error",
+        message: message.into(),
+    }
 }
 
 fn read_json(path: &Path) -> Result<Value, String> {
@@ -119,16 +126,22 @@ fn assert_skill_id(id: &str) -> Result<(), String> {
 fn assert_regular_public_file(path: &Path, label: &str) -> Result<(), String> {
     let path_str = path.to_string_lossy();
     if private_path_re().is_match(&path_str) {
-        return Err(format!("portable core rejects private/personal path: {path_str}"));
+        return Err(format!(
+            "portable core rejects private/personal path: {path_str}"
+        ));
     }
     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
         if private_extension_re().is_match(name) {
-            return Err(format!("portable core rejects private/personal path: {path_str}"));
+            return Err(format!(
+                "portable core rejects private/personal path: {path_str}"
+            ));
         }
     }
     let meta = fs::symlink_metadata(path).map_err(|e| e.to_string())?;
     if !meta.is_file() || meta.file_type().is_symlink() {
-        return Err(format!("portable core requires regular non-symlink {label}: {path_str}"));
+        return Err(format!(
+            "portable core requires regular non-symlink {label}: {path_str}"
+        ));
     }
     Ok(())
 }
@@ -137,7 +150,9 @@ fn scan_public_value(value: &Value, location: &str, findings: &mut Vec<Finding>)
     match value {
         Value::String(s) => {
             if personal_marker_re().is_match(s) {
-                findings.push(finding(format!("{location} contains private/personal workspace content")));
+                findings.push(finding(format!(
+                    "{location} contains private/personal workspace content"
+                )));
             }
         }
         Value::Array(items) => {
@@ -148,7 +163,9 @@ fn scan_public_value(value: &Value, location: &str, findings: &mut Vec<Finding>)
         Value::Object(map) => {
             for (key, item) in map {
                 if sensitive_key_re().is_match(key) {
-                    findings.push(finding(format!("{location}.{key} is a secret-bearing manifest field")));
+                    findings.push(finding(format!(
+                        "{location}.{key} is a secret-bearing manifest field"
+                    )));
                 }
                 if (key.eq_ignore_ascii_case("private") || key.eq_ignore_ascii_case("personal"))
                     && item.as_bool() != Some(false)
@@ -164,7 +181,12 @@ fn scan_public_value(value: &Value, location: &str, findings: &mut Vec<Finding>)
 
 /// Copies a tree, rejecting symlinks/private paths, returning forward-slash
 /// relative output paths. Mirrors `copyTreeNoLinks`.
-fn copy_tree_no_links(source: &Path, destination: &Path, prefix: &str, files: &mut Vec<String>) -> Result<(), String> {
+fn copy_tree_no_links(
+    source: &Path,
+    destination: &Path,
+    prefix: &str,
+    files: &mut Vec<String>,
+) -> Result<(), String> {
     let entries = fs::read_dir(source).map_err(|e| format!("{}: {e}", source.display()))?;
     let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
     entries.sort_by_key(|e| e.file_name());
@@ -173,10 +195,16 @@ fn copy_tree_no_links(source: &Path, destination: &Path, prefix: &str, files: &m
         let name_str = name.to_string_lossy().to_string();
         let from = source.join(&name);
         let to = destination.join(&name);
-        let output_path = if prefix.is_empty() { name_str.clone() } else { format!("{prefix}/{name_str}") };
+        let output_path = if prefix.is_empty() {
+            name_str.clone()
+        } else {
+            format!("{prefix}/{name_str}")
+        };
         let from_str = from.to_string_lossy();
         if private_path_re().is_match(&from_str) || private_extension_re().is_match(&name_str) {
-            return Err(format!("portable core rejects private/personal path: {from_str}"));
+            return Err(format!(
+                "portable core rejects private/personal path: {from_str}"
+            ));
         }
         let meta = fs::symlink_metadata(&from).map_err(|e| e.to_string())?;
         if meta.file_type().is_symlink() {
@@ -190,35 +218,54 @@ fn copy_tree_no_links(source: &Path, destination: &Path, prefix: &str, files: &m
             if !bytes.contains(&0u8) {
                 if let Ok(text) = std::str::from_utf8(&bytes) {
                     if personal_marker_re().is_match(text) {
-                        return Err(format!("portable core rejects personal workspace marker: {from_str}"));
+                        return Err(format!(
+                            "portable core rejects personal workspace marker: {from_str}"
+                        ));
                     }
                 }
             }
             fs::copy(&from, &to).map_err(|e| e.to_string())?;
             files.push(output_path.replace('\\', "/"));
         } else {
-            return Err(format!("portable core cannot contain special file: {from_str}"));
+            return Err(format!(
+                "portable core cannot contain special file: {from_str}"
+            ));
         }
     }
     Ok(())
 }
 
-fn enumerate_files(root: &Path, prefix: &str, files: &mut Vec<String>, findings: &mut Vec<Finding>) {
+fn enumerate_files(
+    root: &Path,
+    prefix: &str,
+    files: &mut Vec<String>,
+    findings: &mut Vec<Finding>,
+) {
     if !root.exists() {
         return;
     }
-    let Ok(entries) = fs::read_dir(root) else { return };
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
     let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
         let name = entry.file_name();
         let name_str = name.to_string_lossy().to_string();
         let absolute = root.join(&name);
-        let output_path = if prefix.is_empty() { name_str.clone() } else { format!("{prefix}/{name_str}") };
+        let output_path = if prefix.is_empty() {
+            name_str.clone()
+        } else {
+            format!("{prefix}/{name_str}")
+        };
         if private_path_re().is_match(&output_path) || private_extension_re().is_match(&name_str) {
-            findings.push(finding(format!("private/personal output file: {output_path}")));
+            findings.push(finding(format!(
+                "private/personal output file: {output_path}"
+            )));
         }
-        let Ok(meta) = fs::symlink_metadata(&absolute) else { continue };
+        let Ok(meta) = fs::symlink_metadata(&absolute) else {
+            continue;
+        };
         if meta.file_type().is_symlink() {
             findings.push(finding(format!("output contains symlink: {output_path}")));
         } else if meta.is_dir() {
@@ -229,13 +276,17 @@ fn enumerate_files(root: &Path, prefix: &str, files: &mut Vec<String>, findings:
                 if !bytes.contains(&0u8) {
                     if let Ok(text) = std::str::from_utf8(&bytes) {
                         if personal_marker_re().is_match(text) {
-                            findings.push(finding(format!("personal workspace marker in output file: {output_path}")));
+                            findings.push(finding(format!(
+                                "personal workspace marker in output file: {output_path}"
+                            )));
                         }
                     }
                 }
             }
         } else {
-            findings.push(finding(format!("output contains special file: {output_path}")));
+            findings.push(finding(format!(
+                "output contains special file: {output_path}"
+            )));
         }
     }
 }
@@ -278,7 +329,8 @@ fn percent_decode(s: &str) -> String {
 
 fn markdown_targets(text: &str) -> Vec<String> {
     // Mirrors: /!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+['"][^'"]*['"])?\s*\)/g
-    let re = Regex::new(r#"!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+['"][^'"]*['"])?\s*\)"#).unwrap();
+    let re =
+        Regex::new(r#"!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+['"][^'"]*['"])?\s*\)"#).unwrap();
     let mut targets = Vec::new();
     for cap in re.captures_iter(text) {
         if let Some(m) = cap.get(1) {
@@ -290,11 +342,19 @@ fn markdown_targets(text: &str) -> Vec<String> {
     targets
 }
 
-pub fn validate_resource_closure(output_dir: &Path, public_files: Option<&HashSet<String>>) -> Vec<Finding> {
+pub fn validate_resource_closure(
+    output_dir: &Path,
+    public_files: Option<&HashSet<String>>,
+) -> Vec<Finding> {
     let mut findings = Vec::new();
     let mut enumerated_files = Vec::new();
     let mut enumerate_findings = Vec::new();
-    enumerate_files(output_dir, "", &mut enumerated_files, &mut enumerate_findings);
+    enumerate_files(
+        output_dir,
+        "",
+        &mut enumerated_files,
+        &mut enumerate_findings,
+    );
     let allowed: HashSet<String> = match public_files {
         Some(pf) => pf.clone(),
         None => enumerated_files.iter().cloned().collect(),
@@ -302,23 +362,34 @@ pub fn validate_resource_closure(output_dir: &Path, public_files: Option<&HashSe
     // Lexical on both sides: canonicalize() adds a \\?\ prefix on Windows
     // that the lexically joined targets never carry.
     let root = normalize_path(output_dir);
-    for file in enumerated_files.iter().filter(|name| name.to_lowercase().ends_with(".md")) {
+    for file in enumerated_files
+        .iter()
+        .filter(|name| name.to_lowercase().ends_with(".md"))
+    {
         let file_path: PathBuf = output_dir.join(file.split('/').collect::<PathBuf>());
-        let Ok(text) = fs::read_to_string(&file_path) else { continue };
+        let Ok(text) = fs::read_to_string(&file_path) else {
+            continue;
+        };
         for target in markdown_targets(&text) {
             let base_dir = file_path.parent().unwrap_or(output_dir);
             let absolute = normalize_path(&base_dir.join(&target));
             let rel = pathdiff(&root, &absolute);
             match rel {
-                None => findings.push(finding(format!("{file} references resource outside portable core: {target}"))),
-                Some(rel) if rel == ".." || rel.starts_with("../") => {
-                    findings.push(finding(format!("{file} references resource outside portable core: {target}")))
-                }
+                None => findings.push(finding(format!(
+                    "{file} references resource outside portable core: {target}"
+                ))),
+                Some(rel) if rel == ".." || rel.starts_with("../") => findings.push(finding(
+                    format!("{file} references resource outside portable core: {target}"),
+                )),
                 Some(rel) => {
                     if !absolute.exists() {
-                        findings.push(finding(format!("{file} references missing resource: {target}")));
+                        findings.push(finding(format!(
+                            "{file} references missing resource: {target}"
+                        )));
                     } else if !allowed.contains(&rel) {
-                        findings.push(finding(format!("{file} references undeclared resource: {rel}")));
+                        findings.push(finding(format!(
+                            "{file} references undeclared resource: {rel}"
+                        )));
                     }
                 }
             }
@@ -353,9 +424,18 @@ fn pathdiff(root: &Path, target: &Path) -> Option<String> {
     Some(rel.to_string_lossy().replace('\\', "/"))
 }
 
-fn validate_mcp_closure(mcp: &Value, output_dir: &Path, public_files: &HashSet<String>, findings: &mut Vec<Finding>) {
-    let Some(servers) = mcp.get("mcpServers").and_then(|v| v.as_object()) else { return };
-    let root = output_dir.canonicalize().unwrap_or_else(|_| output_dir.to_path_buf());
+fn validate_mcp_closure(
+    mcp: &Value,
+    output_dir: &Path,
+    public_files: &HashSet<String>,
+    findings: &mut Vec<Finding>,
+) {
+    let Some(servers) = mcp.get("mcpServers").and_then(|v| v.as_object()) else {
+        return;
+    };
+    let root = output_dir
+        .canonicalize()
+        .unwrap_or_else(|_| output_dir.to_path_buf());
     for (name, server) in servers {
         let mut values: Vec<(String, String)> = Vec::new();
         if let Some(s) = server.get("command").and_then(|v| v.as_str()) {
@@ -380,17 +460,23 @@ fn validate_mcp_closure(mcp: &Value, output_dir: &Path, public_files: &HashSet<S
         }
         let re = Regex::new(r"^(?:\./|\$\{PLUGIN_ROOT\}/)(.+)$").unwrap();
         for (field, value) in values {
-            let Some(caps) = re.captures(&value) else { continue };
+            let Some(caps) = re.captures(&value) else {
+                continue;
+            };
             let rel = caps[1].replace('\\', "/");
             let candidate = normalize_path(&root.join(&rel));
             match pathdiff(&root, &candidate) {
-                None => findings.push(finding(format!("mcpServers.{name}.{field} escapes portable core"))),
-                Some(root_rel) if root_rel == ".." || root_rel.starts_with("../") => {
-                    findings.push(finding(format!("mcpServers.{name}.{field} escapes portable core")))
-                }
+                None => findings.push(finding(format!(
+                    "mcpServers.{name}.{field} escapes portable core"
+                ))),
+                Some(root_rel) if root_rel == ".." || root_rel.starts_with("../") => findings.push(
+                    finding(format!("mcpServers.{name}.{field} escapes portable core")),
+                ),
                 Some(root_rel) => {
                     if !candidate.exists() {
-                        findings.push(finding(format!("mcpServers.{name}.{field} references missing resource: {rel}")));
+                        findings.push(finding(format!(
+                            "mcpServers.{name}.{field} references missing resource: {rel}"
+                        )));
                     } else if !public_files.contains(&root_rel) {
                         findings.push(finding(format!(
                             "mcpServers.{name}.{field} references undeclared resource: {root_rel}"
@@ -418,16 +504,27 @@ pub fn normalize_client_projections(supplied: &Value) -> Result<Value, String> {
         let expected_map = expected_decl.as_object().unwrap();
         let decl_map = declaration.as_object();
         let invalid = decl_map.is_none()
-            || decl_map.unwrap().keys().any(|k| !expected_map.contains_key(k))
-            || expected_map.iter().any(|(k, v)| decl_map.unwrap().get(k) != Some(v));
+            || decl_map
+                .unwrap()
+                .keys()
+                .any(|k| !expected_map.contains_key(k))
+            || expected_map
+                .iter()
+                .any(|(k, v)| decl_map.unwrap().get(k) != Some(v));
         if invalid {
             return Err(format!("invalid {client} client projection declaration"));
         }
         if client == "pi" {
-            let exec_reg = declaration.get("executableRegistration").and_then(|v| v.as_bool()).unwrap_or(false);
+            let exec_reg = declaration
+                .get("executableRegistration")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let fidelity = declaration.get("fidelity").and_then(|v| v.as_str());
             if exec_reg || fidelity != Some("skills-only") {
-                return Err("Pi projection cannot register executables or expose non-skill content".to_string());
+                return Err(
+                    "Pi projection cannot register executables or expose non-skill content"
+                        .to_string(),
+                );
             }
         }
         result.insert(client.clone(), expected_decl.clone());
@@ -458,7 +555,11 @@ fn normalize_agents(agents: &[AgentInput]) -> Result<Vec<(String, PathBuf)>, Str
         if !seen.insert(agent.name.clone()) {
             return Err(format!("duplicate public agent: {}", agent.name));
         }
-        let source = assert_contained(&agent.source_root, &agent.source_file, &format!("agent {}", agent.name))?;
+        let source = assert_contained(
+            &agent.source_root,
+            &agent.source_file,
+            &format!("agent {}", agent.name),
+        )?;
         assert_regular_public_file(&source, &format!("agent {}", agent.name))?;
         out.push((agent.name.clone(), source));
     }
@@ -498,7 +599,10 @@ pub fn assemble_portable_core(params: AssembleParams) -> Result<Value, String> {
         mcp = Some(value);
     }
 
-    let plugin_name = plugin.get("name").and_then(|v| v.as_str()).filter(|s| !s.trim().is_empty());
+    let plugin_name = plugin
+        .get("name")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty());
     let Some(plugin_name) = plugin_name else {
         return Err("plugin.json requires name".to_string());
     };
@@ -513,7 +617,11 @@ pub fn assemble_portable_core(params: AssembleParams) -> Result<Value, String> {
         if !seen.insert(skill.id.clone()) {
             return Err(format!("duplicate public skill ID: {}", skill.id));
         }
-        let source = assert_contained(&skill.source_root, &skill.source_dir, &format!("skill {}", skill.id))?;
+        let source = assert_contained(
+            &skill.source_root,
+            &skill.source_dir,
+            &format!("skill {}", skill.id),
+        )?;
         if !source.join("SKILL.md").exists() {
             return Err(format!("skill {} lacks SKILL.md", skill.id));
         }
@@ -525,7 +633,11 @@ pub fn assemble_portable_core(params: AssembleParams) -> Result<Value, String> {
 
     let _ = fs::remove_dir_all(params.output_dir);
     fs::create_dir_all(params.output_dir.join("skills")).map_err(|e| e.to_string())?;
-    fs::copy(params.plugin_manifest_path, params.output_dir.join("plugin.json")).map_err(|e| e.to_string())?;
+    fs::copy(
+        params.plugin_manifest_path,
+        params.output_dir.join("plugin.json"),
+    )
+    .map_err(|e| e.to_string())?;
     let mut public_files: Vec<String> = vec!["plugin.json".to_string()];
 
     if let Some(mcp_path) = params.mcp_manifest_path {
@@ -533,7 +645,11 @@ pub fn assemble_portable_core(params: AssembleParams) -> Result<Value, String> {
         public_files.push("mcp.json".to_string());
         let claude_plugin_dir = params.output_dir.join(".claude-plugin");
         fs::create_dir_all(&claude_plugin_dir).map_err(|e| e.to_string())?;
-        fs::copy(params.plugin_manifest_path, claude_plugin_dir.join("plugin.json")).map_err(|e| e.to_string())?;
+        fs::copy(
+            params.plugin_manifest_path,
+            claude_plugin_dir.join("plugin.json"),
+        )
+        .map_err(|e| e.to_string())?;
         fs::copy(mcp_path, params.output_dir.join(".mcp.json")).map_err(|e| e.to_string())?;
         fs::copy(mcp_path, params.output_dir.join("mcp_config.json")).map_err(|e| e.to_string())?;
         public_files.push(".claude-plugin/plugin.json".to_string());
@@ -597,7 +713,12 @@ pub fn assemble_portable_core(params: AssembleParams) -> Result<Value, String> {
     }
     let mut output_files = Vec::new();
     let mut output_findings = Vec::new();
-    enumerate_files(params.output_dir, "", &mut output_files, &mut output_findings);
+    enumerate_files(
+        params.output_dir,
+        "",
+        &mut output_files,
+        &mut output_findings,
+    );
     let unexpected: Vec<String> = output_files
         .into_iter()
         .filter(|path| path != "rightax-portable-core.json" && !public_file_set.contains(path))
@@ -605,7 +726,11 @@ pub fn assemble_portable_core(params: AssembleParams) -> Result<Value, String> {
 
     if !closure.is_empty() || !output_findings.is_empty() || !unexpected.is_empty() {
         if !closure.is_empty() {
-            return Err(closure.iter().map(|f| f.message.as_str()).collect::<Vec<_>>().join("\n"));
+            return Err(closure
+                .iter()
+                .map(|f| f.message.as_str())
+                .collect::<Vec<_>>()
+                .join("\n"));
         }
         if let Some(f) = output_findings.first() {
             return Err(f.message.clone());
@@ -628,12 +753,18 @@ pub fn validate_portable_core_contract(contract: &Value) -> ValidationResult {
     if !contract.is_object() {
         findings.push(finding("portable core contract must be an object"));
     } else {
-        let sv_ok = contract.get("schemaVersion").and_then(|v| v.as_i64()) == Some(PORTABLE_CORE_SCHEMA_VERSION);
+        let sv_ok = contract.get("schemaVersion").and_then(|v| v.as_i64())
+            == Some(PORTABLE_CORE_SCHEMA_VERSION);
         let kind_ok = contract.get("kind").and_then(|v| v.as_str()) == Some(PORTABLE_CORE_KIND);
         if !sv_ok || !kind_ok {
             findings.push(finding("invalid portable core contract identity"));
         }
-        if contract.get("plugin").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).is_none() {
+        if contract
+            .get("plugin")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .is_none()
+        {
             findings.push(finding("portable core contract requires plugin name"));
         }
         let public_skills_ok = contract
@@ -652,10 +783,18 @@ pub fn validate_portable_core_contract(contract: &Value) -> ValidationResult {
         if !public_files_ok {
             findings.push(finding("portable core contract requires publicFiles"));
         }
-        if contract.get("privateWorkspaceContent").and_then(|v| v.as_bool()) != Some(false) {
-            findings.push(finding("portable core must exclude private workspace content"));
+        if contract
+            .get("privateWorkspaceContent")
+            .and_then(|v| v.as_bool())
+            != Some(false)
+        {
+            findings.push(finding(
+                "portable core must exclude private workspace content",
+            ));
         }
-        if let Err(msg) = normalize_client_projections(contract.get("clientProjections").unwrap_or(&Value::Null)) {
+        if let Err(msg) =
+            normalize_client_projections(contract.get("clientProjections").unwrap_or(&Value::Null))
+        {
             findings.push(finding(msg));
         }
     }
@@ -670,7 +809,10 @@ pub fn validate_portable_core(output_dir: &Path) -> ValidationResult {
     let mut findings = Vec::new();
     if !output_dir.join("plugin.json").exists() || !contract_path.exists() {
         findings.push(finding("portable core metadata or plugin.json missing"));
-        return ValidationResult { valid: false, errors: findings.into_iter().map(|f| f.message).collect() };
+        return ValidationResult {
+            valid: false,
+            errors: findings.into_iter().map(|f| f.message).collect(),
+        };
     }
 
     let contract = read_json(&contract_path);
@@ -678,7 +820,9 @@ pub fn validate_portable_core(output_dir: &Path) -> ValidationResult {
     let mut contract_value = Value::Null;
     match &contract {
         Ok(v) => contract_value = v.clone(),
-        Err(e) => findings.push(finding(format!("portable core metadata parse failure: {e}"))),
+        Err(e) => findings.push(finding(format!(
+            "portable core metadata parse failure: {e}"
+        ))),
     }
     let mut plugin_value = Value::Null;
     match &plugin {
@@ -697,7 +841,11 @@ pub fn validate_portable_core(output_dir: &Path) -> ValidationResult {
                 let public_files: HashSet<String> = contract_value
                     .get("publicFiles")
                     .and_then(|v| v.as_array())
-                    .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
                     .unwrap_or_default();
                 validate_mcp_closure(&mcp_value, output_dir, &public_files, &mut findings);
             }
@@ -712,7 +860,11 @@ pub fn validate_portable_core(output_dir: &Path) -> ValidationResult {
     let public_files: HashSet<String> = contract_value
         .get("publicFiles")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
     for path in &disk_files {
         if path != "rightax-portable-core.json" && !public_files.contains(path) {
@@ -727,10 +879,16 @@ pub fn validate_portable_core(output_dir: &Path) -> ValidationResult {
     let contract_skills: BTreeSet<String> = contract_value
         .get("publicSkills")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
     if disk_skills != contract_skills {
-        findings.push(finding("public skill set differs from portable core contract"));
+        findings.push(finding(
+            "public skill set differs from portable core contract",
+        ));
     }
     findings.extend(validate_resource_closure(output_dir, Some(&public_files)));
 

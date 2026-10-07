@@ -9,13 +9,15 @@
 //! files, so their JS test assertions are not ported here.
 
 use async_trait::async_trait;
-use legion_runtime::wf_port::wf017::envelope::{EvidenceKind, UntrustedEvidenceInput, ArtifactRef};
+use legion_runtime::wf_port::wf017::envelope::{ArtifactRef, EvidenceKind, UntrustedEvidenceInput};
 use legion_runtime::wf_port::wf017::reasoning_packets::{
     assert_owner_authority, assert_producer_is_not_verifier, build_proposal_packet,
-    split_cross_owner_changes, BuildProposalPacketInput, Change, FindingRef, PROPOSAL_OWNERS,
-    ProducerIdentity, ProposalOwner,
+    split_cross_owner_changes, BuildProposalPacketInput, Change, FindingRef, ProducerIdentity,
+    ProposalOwner, PROPOSAL_OWNERS,
 };
-use legion_runtime::wf_port::wf017::rollback::{rollback_apply, ApplyReceipt, Mutator, RestoreRequest, RestoreResult};
+use legion_runtime::wf_port::wf017::rollback::{
+    rollback_apply, ApplyReceipt, Mutator, RestoreRequest, RestoreResult,
+};
 use legion_runtime::wf_port::wf017::sandbox::{
     assert_primary_repository_untouched, build_sandbox_receipt_schema, create_remediation_sandbox,
     require_mutation_capability, sandbox_network_policy, sandbox_process_policy,
@@ -47,7 +49,8 @@ fn binding_map() -> serde_json::Map<String, serde_json::Value> {
 
 #[test]
 fn structural_tls_producer_flips_reject_unauthorized_and_preview_is_idempotent() {
-    let producer = find_producer("structural.tls-reject-unauthorized").expect("producer registered");
+    let producer =
+        find_producer("structural.tls-reject-unauthorized").expect("producer registered");
     let text = "const agent = new https.Agent({ rejectUnauthorized: false });\nconst other = 1;";
     let preview = producer.preview("src/agent.mjs", text);
     assert_eq!(preview.edits.len(), 1);
@@ -67,7 +70,8 @@ fn structural_tls_producer_flips_reject_unauthorized_and_preview_is_idempotent()
 
 #[test]
 fn structural_innerhtml_producer_targets_dom_sinks_only() {
-    let producer = find_producer("structural.dom-innerhtml-to-textcontent").expect("producer registered");
+    let producer =
+        find_producer("structural.dom-innerhtml-to-textcontent").expect("producer registered");
     let text = "el.innerHTML = value;\nel.innerText = 'safe';";
     let preview = producer.preview("src/render.mjs", text);
     assert_eq!(preview.edits.len(), 1);
@@ -89,7 +93,11 @@ fn structural_producers_are_registered_with_stable_ids_and_bound_rule_ids() {
         ]
     );
     for producer in STRUCTURAL_PRODUCERS {
-        assert!(!producer.rule_ids.is_empty(), "{} must name the rule it fixes", producer.id);
+        assert!(
+            !producer.rule_ids.is_empty(),
+            "{} must name the rule it fixes",
+            producer.id
+        );
     }
 }
 
@@ -103,7 +111,11 @@ fn finding() -> FindingRef {
     }
 }
 
-fn build_packet(owner: &str, scope: Vec<&str>, protected: Vec<&str>) -> legion_runtime::wf_port::wf017::reasoning_packets::ProposalPacket {
+fn build_packet(
+    owner: &str,
+    scope: Vec<&str>,
+    protected: Vec<&str>,
+) -> legion_runtime::wf_port::wf017::reasoning_packets::ProposalPacket {
     let mut producer = serde_json::Map::new();
     producer.insert("kind".into(), json!("reasoning"));
     producer.insert("version".into(), json!("1.0.0"));
@@ -149,19 +161,30 @@ fn proposal_owners_are_a_closed_single_authority_vocabulary() {
     names.sort_unstable();
     assert_eq!(names, vec!["code", "designer", "manual", "writing"]);
 
-    let err = legion_runtime::wf_port::wf017::reasoning_packets::assert_owner("marketing").unwrap_err();
+    let err =
+        legion_runtime::wf_port::wf017::reasoning_packets::assert_owner("marketing").unwrap_err();
     assert!(err.0.contains("unknown proposal owner"));
 }
 
 #[test]
 fn a_packet_carries_only_relevant_findings_scope_and_stop_conditions() {
-    let built = build_packet("writing", vec!["content/home.md"], vec!["src/**", "schemas/**"]);
+    let built = build_packet(
+        "writing",
+        vec!["content/home.md"],
+        vec!["src/**", "schemas/**"],
+    );
     assert_eq!(built.kind, "legion-remediation-packet");
     assert_eq!(built.owner, "writing");
     assert_eq!(built.finding_ids, vec!["sha256:finding".to_string()]);
     assert_eq!(built.scope, vec!["content/home.md".to_string()]);
-    assert_eq!(built.protected_surfaces, vec!["schemas/**".to_string(), "src/**".to_string()]);
-    assert_eq!(built.stop_conditions, vec!["no-progress".to_string(), "scope-expansion".to_string()]);
+    assert_eq!(
+        built.protected_surfaces,
+        vec!["schemas/**".to_string(), "src/**".to_string()]
+    );
+    assert_eq!(
+        built.stop_conditions,
+        vec!["no-progress".to_string(), "scope-expansion".to_string()]
+    );
     assert!(built.digest.is_some());
 }
 
@@ -173,7 +196,10 @@ fn packet_build_requires_a_producer_identity_and_nonempty_scope() {
         owner: "writing".to_string(),
         findings: vec![finding()],
         scope: vec!["content/home.md".to_string()],
-        producer: ProducerIdentity { id: None, context_id: None },
+        producer: ProducerIdentity {
+            id: None,
+            context_id: None,
+        },
         producer_extra: producer_map.clone(),
         binding: binding_map(),
         ..Default::default()
@@ -205,7 +231,10 @@ fn packets_are_hostile_input_safe() {
     assert!(!evidence.trusted);
     assert_eq!(evidence.source_digest, "sha256:home");
     assert!(!built.injection_attempts.is_empty());
-    assert!(built.injection_attempts.iter().all(|attempt| !attempt.applied));
+    assert!(built
+        .injection_attempts
+        .iter()
+        .all(|attempt| !attempt.applied));
     let instructions_json = serde_json::to_string(&built.instructions).unwrap();
     assert!(!instructions_json.contains("IGNORE PREVIOUS INSTRUCTIONS"));
 }
@@ -255,7 +284,8 @@ fn each_owner_has_exactly_its_own_authority_and_nothing_more() {
     };
 
     assert!(assert_owner_authority(ProposalOwner::Writing, &text_change("text")).is_ok());
-    let err = assert_owner_authority(ProposalOwner::Writing, &text_change("source-patch")).unwrap_err();
+    let err =
+        assert_owner_authority(ProposalOwner::Writing, &text_change("source-patch")).unwrap_err();
     assert!(err.0.contains("writing proposals may change words only"));
     let err = assert_owner_authority(ProposalOwner::Writing, &text_change("style")).unwrap_err();
     assert!(err.0.contains("writing proposals may change words only"));
@@ -263,19 +293,35 @@ fn each_owner_has_exactly_its_own_authority_and_nothing_more() {
     assert!(assert_owner_authority(ProposalOwner::Designer, &text_change("style")).is_ok());
     assert!(assert_owner_authority(ProposalOwner::Designer, &text_change("layout")).is_ok());
     let err = assert_owner_authority(ProposalOwner::Designer, &text_change("text")).unwrap_err();
-    assert!(err.0.contains("designer proposals may not change approved text"));
+    assert!(err
+        .0
+        .contains("designer proposals may not change approved text"));
 
     assert!(assert_owner_authority(ProposalOwner::Code, &text_change("source-patch")).is_ok());
     let err = assert_owner_authority(ProposalOwner::Code, &text_change("text")).unwrap_err();
-    assert!(err.0.contains("code proposals may change bounded source only"));
+    assert!(err
+        .0
+        .contains("code proposals may change bounded source only"));
 }
 
 #[test]
 fn cross_owner_changes_split_into_dependent_proposals_never_merged() {
     let changes = vec![
-        Change { kind: "text".to_string(), path: "content/home.md".to_string(), extra: serde_json::Map::new() },
-        Change { kind: "style".to_string(), path: "src/components/Hero.tsx".to_string(), extra: serde_json::Map::new() },
-        Change { kind: "source-patch".to_string(), path: "src/app.mjs".to_string(), extra: serde_json::Map::new() },
+        Change {
+            kind: "text".to_string(),
+            path: "content/home.md".to_string(),
+            extra: serde_json::Map::new(),
+        },
+        Change {
+            kind: "style".to_string(),
+            path: "src/components/Hero.tsx".to_string(),
+            extra: serde_json::Map::new(),
+        },
+        Change {
+            kind: "source-patch".to_string(),
+            path: "src/app.mjs".to_string(),
+            extra: serde_json::Map::new(),
+        },
     ];
     assert!(assert_owner_authority(ProposalOwner::Writing, &changes[1]).is_err());
 
@@ -284,11 +330,19 @@ fn cross_owner_changes_split_into_dependent_proposals_never_merged() {
     assert_eq!(owners, vec!["writing", "designer", "code"]);
     assert!(split[0].depends_on.is_empty());
     assert_eq!(
-        split[1].depends_on.iter().map(|o| o.as_str()).collect::<Vec<_>>(),
+        split[1]
+            .depends_on
+            .iter()
+            .map(|o| o.as_str())
+            .collect::<Vec<_>>(),
         vec!["writing"]
     );
     assert_eq!(
-        split[2].depends_on.iter().map(|o| o.as_str()).collect::<Vec<_>>(),
+        split[2]
+            .depends_on
+            .iter()
+            .map(|o| o.as_str())
+            .collect::<Vec<_>>(),
         vec!["writing", "designer"]
     );
 
@@ -386,14 +440,22 @@ async fn remediation_sandbox_rejects_missing_mutation_capability() {
     let mut input = sandbox_input("bound-base-revision-only");
     input.repo = repo;
     input.host_mutation_capability = false;
-    let runner = FakeRunner { fail: false, stderr: String::new() };
-    let err = create_remediation_sandbox(input, &runner).await.unwrap_err();
+    let runner = FakeRunner {
+        fail: false,
+        stderr: String::new(),
+    };
+    let err = create_remediation_sandbox(input, &runner)
+        .await
+        .unwrap_err();
     assert!(err.0.contains("explicit host mutation capability"));
 }
 
 #[tokio::test]
 async fn a_sandbox_is_isolated_outside_the_primary_worktree() {
-    let runner = FakeRunner { fail: false, stderr: String::new() };
+    let runner = FakeRunner {
+        fail: false,
+        stderr: String::new(),
+    };
     let result = create_remediation_sandbox(sandbox_input("bound-base-revision-only"), &runner)
         .await
         .expect("sandbox creates");
@@ -407,7 +469,10 @@ async fn a_sandbox_is_isolated_outside_the_primary_worktree() {
         std::path::Path::new(&result.path),
         std::path::Path::new("/repo/.git/legion-sandboxes/run-1")
     );
-    assert_ne!(std::path::Path::new(&result.path), std::path::Path::new("/repo"));
+    assert_ne!(
+        std::path::Path::new(&result.path),
+        std::path::Path::new("/repo")
+    );
     assert!(assert_primary_repository_untouched(&result.receipt, &repo_ref()).is_ok());
 
     let mut bad_receipt = result.receipt.clone();
@@ -417,13 +482,18 @@ async fn a_sandbox_is_isolated_outside_the_primary_worktree() {
 
     let mut mismatched = sandbox_input("bound-base-revision-only");
     mismatched.base_revision = "deadbeef".to_string();
-    let err = create_remediation_sandbox(mismatched, &runner).await.unwrap_err();
+    let err = create_remediation_sandbox(mismatched, &runner)
+        .await
+        .unwrap_err();
     assert!(err.0.contains("base revision does not match the bound run"));
 }
 
 #[tokio::test]
 async fn sandbox_receipt_records_identity_policy_files_cleanup_and_finding_run() {
-    let runner = FakeRunner { fail: false, stderr: String::new() };
+    let runner = FakeRunner {
+        fail: false,
+        stderr: String::new(),
+    };
     let result = create_remediation_sandbox(sandbox_input("bound-base-revision-only"), &runner)
         .await
         .expect("sandbox creates");
@@ -449,7 +519,10 @@ async fn sandbox_receipt_records_identity_policy_files_cleanup_and_finding_run()
 
 #[tokio::test]
 async fn an_unbounded_input_overlay_policy_is_rejected() {
-    let runner = FakeRunner { fail: false, stderr: String::new() };
+    let runner = FakeRunner {
+        fail: false,
+        stderr: String::new(),
+    };
     let err = create_remediation_sandbox(sandbox_input("whatever-the-producer-wants"), &runner)
         .await
         .unwrap_err();
@@ -458,7 +531,10 @@ async fn an_unbounded_input_overlay_policy_is_rejected() {
 
 #[tokio::test]
 async fn sandbox_creation_failure_surfaces_the_process_stderr() {
-    let runner = FakeRunner { fail: true, stderr: "boom".to_string() };
+    let runner = FakeRunner {
+        fail: true,
+        stderr: "boom".to_string(),
+    };
     let err = create_remediation_sandbox(sandbox_input("bound-base-revision-only"), &runner)
         .await
         .unwrap_err();
@@ -484,7 +560,10 @@ fn sandbox_receipt_schema_requires_binding_and_finding_run_digest() {
     let required: Vec<&str> = required.iter().map(|v| v.as_str().unwrap()).collect();
     assert!(required.contains(&"binding"));
     assert!(required.contains(&"findingRunDigest"));
-    assert_eq!(schema["properties"]["primaryRepositoryMutated"]["const"], json!(false));
+    assert_eq!(
+        schema["properties"]["primaryRepositoryMutated"]["const"],
+        json!(false)
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -536,9 +615,14 @@ async fn rollback_apply_reports_success_when_the_fingerprint_matches() {
         digest: Some("sha256:apply".to_string()),
     };
     let mutator = OkMutator;
-    let result = rollback_apply(&receipt, Some(&mutator), None).await.unwrap();
+    let result = rollback_apply(&receipt, Some(&mutator), None)
+        .await
+        .unwrap();
     assert!(result.restored);
-    assert_eq!(result.restored_fingerprint, Some("sha256:before".to_string()));
+    assert_eq!(
+        result.restored_fingerprint,
+        Some("sha256:before".to_string())
+    );
     assert!(result.error.is_none());
     assert_eq!(result.recovery.command, None);
 }
@@ -552,7 +636,9 @@ async fn rollback_apply_reports_a_mismatch_with_exact_recovery_data_never_suppre
         digest: Some("sha256:apply".to_string()),
     };
     let mutator = MismatchedMutator;
-    let result = rollback_apply(&receipt, Some(&mutator), None).await.unwrap();
+    let result = rollback_apply(&receipt, Some(&mutator), None)
+        .await
+        .unwrap();
     assert!(!result.restored);
     assert_eq!(
         result.error.as_deref(),
@@ -607,7 +693,10 @@ fn verify_patch_reports_coverage_gaps_for_each_failure_independently() {
     assert!(!result.providers_pass);
     assert!(!result.gates_pass);
     let kinds: Vec<&str> = result.coverage_gaps.iter().map(|g| g.kind).collect();
-    assert_eq!(kinds, vec!["affected-provider-failed", "baseline-gate-failed"]);
+    assert_eq!(
+        kinds,
+        vec!["affected-provider-failed", "baseline-gate-failed"]
+    );
 }
 
 #[test]

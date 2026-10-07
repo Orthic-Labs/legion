@@ -109,9 +109,12 @@ pub fn resolve_bgm_path(script_dir: &Path, opts: &Options) -> Option<PathBuf> {
     if let Some(bgm) = &opts.bgm {
         return Some(PathBuf::from(bgm));
     }
-    opts.bgm_mood
-        .as_ref()
-        .map(|mood| script_dir.join("..").join("assets").join(format!("bgm-{mood}.mp3")))
+    opts.bgm_mood.as_ref().map(|mood| {
+        script_dir
+            .join("..")
+            .join("assets")
+            .join(format!("bgm-{mood}.mp3"))
+    })
 }
 
 /// Port of the default-output-path fallback: `base="${INPUT%.*}"`,
@@ -198,7 +201,13 @@ pub fn build_ffmpeg_args(
     output: &str,
 ) -> Vec<String> {
     let mode = mix_mode(bgm.is_some(), ducking);
-    let mut args: Vec<String> = vec!["-y".into(), "-i".into(), input.into(), "-i".into(), voiceover.into()];
+    let mut args: Vec<String> = vec![
+        "-y".into(),
+        "-i".into(),
+        input.into(),
+        "-i".into(),
+        voiceover.into(),
+    ];
 
     let filter_complex = match mode {
         MixMode::VoiceOnly => format!("[1:a]volume={voice_volume}[a]"),
@@ -369,7 +378,10 @@ mod tests {
         opts.voiceover = Some("vo.mp3".into());
         opts.bgm_mood = Some("tech".into());
         let result = validate(&opts, |_| true, |_| true, |_| false, Path::new("/s"));
-        assert!(matches!(result, Err(ValidationError::MissingBgmFile { .. })));
+        assert!(matches!(
+            result,
+            Err(ValidationError::MissingBgmFile { .. })
+        ));
     }
 
     #[test]
@@ -405,25 +417,61 @@ mod tests {
         assert_eq!(
             args,
             vec![
-                "-y", "-i", "in.mp4", "-i", "v.mp3",
-                "-filter_complex", "[1:a]volume=1.0[a]",
-                "-map", "0:v", "-map", "[a]",
-                "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "out.mp4",
+                "-y",
+                "-i",
+                "in.mp4",
+                "-i",
+                "v.mp3",
+                "-filter_complex",
+                "[1:a]volume=1.0[a]",
+                "-map",
+                "0:v",
+                "-map",
+                "[a]",
+                "-c:v",
+                "copy",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-shortest",
+                "out.mp4",
             ]
         );
     }
 
     #[test]
     fn build_ffmpeg_args_voice_bgm_ducked_includes_third_input_and_sidechain() {
-        let args = build_ffmpeg_args("in.mp4", "v.mp3", Some("b.mp3"), "1.0", "0.18", true, "out.mp4");
+        let args = build_ffmpeg_args(
+            "in.mp4",
+            "v.mp3",
+            Some("b.mp3"),
+            "1.0",
+            "0.18",
+            true,
+            "out.mp4",
+        );
         assert!(args.contains(&"b.mp3".to_string()));
-        let fc = args.iter().find(|a| a.contains("sidechaincompress")).unwrap();
-        assert!(fc.contains("sidechaincompress=threshold=0.04:ratio=8:attack=5:release=300:makeup=1"));
+        let fc = args
+            .iter()
+            .find(|a| a.contains("sidechaincompress"))
+            .unwrap();
+        assert!(
+            fc.contains("sidechaincompress=threshold=0.04:ratio=8:attack=5:release=300:makeup=1")
+        );
     }
 
     #[test]
     fn build_ffmpeg_args_voice_bgm_static_has_no_sidechain() {
-        let args = build_ffmpeg_args("in.mp4", "v.mp3", Some("b.mp3"), "1.0", "0.18", false, "out.mp4");
+        let args = build_ffmpeg_args(
+            "in.mp4",
+            "v.mp3",
+            Some("b.mp3"),
+            "1.0",
+            "0.18",
+            false,
+            "out.mp4",
+        );
         assert!(!args.iter().any(|a| a.contains("sidechaincompress")));
         assert!(args.iter().any(|a| a.contains("amix=inputs=2")));
     }

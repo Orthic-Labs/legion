@@ -6,7 +6,9 @@
 //! equivalent native Rust behaviour/artifacts instead.
 
 use legion_audit::wf_port::wf010::provider_registry::validate_provider_registry;
-use legion_audit::wf_port::wf012::testkit::{validate_provider_result, ProviderResultValidationError};
+use legion_audit::wf_port::wf012::testkit::{
+    validate_provider_result, ProviderResultValidationError,
+};
 use legion_audit::wf_port::wf064::finalize::finalize_audit;
 use serde_json::{json, Value};
 
@@ -39,7 +41,11 @@ fn case_1_security_routing_candidates_only() {
     ]);
     facts["plan"] = json!({ "coverageGaps": [], "providers": [{ "id": "security.credentials", "producesSecurityCandidates": true }] });
 
-    let report = finalize_audit(&facts, &json!({ "candidates": [] }), &json!({ "complete": true, "verdicts": [] }));
+    let report = finalize_audit(
+        &facts,
+        &json!({ "candidates": [] }),
+        &json!({ "complete": true, "verdicts": [] }),
+    );
 
     let candidate_findings: Vec<&Value> = report["findings"]
         .as_array()
@@ -47,14 +53,20 @@ fn case_1_security_routing_candidates_only() {
         .iter()
         .filter(|f| f["provider"] == "security.credentials")
         .collect();
-    assert!(candidate_findings.is_empty(), "candidate-provider findings must be excluded from the report");
+    assert!(
+        candidate_findings.is_empty(),
+        "candidate-provider findings must be excluded from the report"
+    );
 
     let violation = report["coverage_gaps"]
         .as_array()
         .expect("coverage_gaps array")
         .iter()
         .find(|g| g["kind"] == "candidate-provider-contract-violation");
-    assert!(violation.is_some(), "contract violation must be recorded for a candidate provider with findings");
+    assert!(
+        violation.is_some(),
+        "contract violation must be recorded for a candidate provider with findings"
+    );
 }
 
 // --- Case 2: Execution status — failing command produces fail verdict ---
@@ -65,13 +77,20 @@ fn case_2_execution_status_failing_command_fails_gate() {
         { "check": "lint", "status": "ran", "execution_status": "ran", "verdict": "fail", "exit_code": 1 },
     ]));
 
-    let report = finalize_audit(&facts, &json!({ "candidates": [] }), &json!({ "complete": true, "verdicts": [] }));
+    let report = finalize_audit(
+        &facts,
+        &json!({ "candidates": [] }),
+        &json!({ "complete": true, "verdicts": [] }),
+    );
 
     assert_eq!(
         report["gates"]["deterministic_checks"], "unproven",
         "deterministic_checks gate must fail on a failing verdict"
     );
-    assert_eq!(report["audit_status"], "fail", "audit_status must be fail when a command fails");
+    assert_eq!(
+        report["audit_status"], "fail",
+        "audit_status must be fail when a command fails"
+    );
 }
 
 // --- Case 3: Trust boundary — sealing key never reaches a child process env ---
@@ -105,14 +124,20 @@ fn case_4_result_contract_rejects_invalid_results() {
         "schemaVersion": 1, "provider": "test", "complete": true
     }))
     .expect_err("missing status must be rejected");
-    assert_eq!(err.field, "status", "missing status must be rejected as the status field");
+    assert_eq!(
+        err.field, "status",
+        "missing status must be rejected as the status field"
+    );
 }
 
 // --- Case 5: Coverage binding — path digests compared, not counts ---
 #[test]
 fn case_5_coverage_binding_uses_path_digests() {
     let source = include_str!("../src/wf_port/wf010/provider_registry.rs");
-    assert!(source.contains("denominator"), "provider registry must emit a denominator for coverage binding");
+    assert!(
+        source.contains("denominator"),
+        "provider registry must emit a denominator for coverage binding"
+    );
     let finalize_source = include_str!("../src/wf_port/wf064/finalize.rs");
     assert!(
         finalize_source.contains("coverage") || finalize_source.contains("denominator"),
@@ -123,9 +148,13 @@ fn case_5_coverage_binding_uses_path_digests() {
 // --- Case 6: Discovery authority — Blueprint owns classification ---
 #[test]
 fn case_6_discovery_authority_blueprint_owns_classification() {
-    let empty_registry = json!({ "discoveryOwner": "reasoning", "providers": [], "coverageFamilies": [] });
+    let empty_registry =
+        json!({ "discoveryOwner": "reasoning", "providers": [], "coverageFamilies": [] });
     let result = validate_provider_registry(&empty_registry);
-    assert!(result.is_err(), "registry validation must reject a discoveryOwner other than blueprint");
+    assert!(
+        result.is_err(),
+        "registry validation must reject a discoveryOwner other than blueprint"
+    );
 }
 
 // --- Case 7: Verification exactness — replay compares digests ---
@@ -145,15 +174,25 @@ fn case_8_adjudication_rigor_incomplete_blocks_audit() {
         { "check": "test", "status": "ran", "execution_status": "ran", "verdict": "pass" }
     ]));
 
-    let report = finalize_audit(&facts, &json!({ "candidates": [] }), &json!({ "complete": false, "verdicts": [] }));
+    let report = finalize_audit(
+        &facts,
+        &json!({ "candidates": [] }),
+        &json!({ "complete": false, "verdicts": [] }),
+    );
 
     let gap = report["coverage_gaps"]
         .as_array()
         .expect("coverage_gaps array")
         .iter()
         .find(|g| g["kind"] == "security-adjudication");
-    assert!(gap.is_some(), "incomplete adjudication must be recorded as a coverage gap");
-    assert_eq!(report["audit_status"], "incomplete", "incomplete adjudication must block the audit");
+    assert!(
+        gap.is_some(),
+        "incomplete adjudication must be recorded as a coverage gap"
+    );
+    assert_eq!(
+        report["audit_status"], "incomplete",
+        "incomplete adjudication must block the audit"
+    );
 }
 
 // --- Case 9: Qualification receipts — registry status is generated, not hand-edited ---
@@ -167,20 +206,32 @@ fn case_9_qualification_receipts_generated_status() {
     let registry: Value = serde_json::from_str(&raw).expect("runtime registry JSON");
     let providers = registry["providers"].as_array().expect("providers array");
 
-    let missing_benchmark = providers.iter().filter(|p| p.get("benchmark").is_none()).count();
-    assert_eq!(missing_benchmark, 0, "all providers must have a benchmark status");
+    let missing_benchmark = providers
+        .iter()
+        .filter(|p| p.get("benchmark").is_none())
+        .count();
+    assert_eq!(
+        missing_benchmark, 0,
+        "all providers must have a benchmark status"
+    );
 
     let unproven: Vec<&Value> = providers
         .iter()
         .filter(|p| p["benchmark"]["status"] == "unproven")
         .collect();
-    assert!(!unproven.is_empty(), "unproven providers are expected to exist");
+    assert!(
+        !unproven.is_empty(),
+        "unproven providers are expected to exist"
+    );
 
     let unproven_without_claim = unproven
         .iter()
         .filter(|p| p["benchmark"]["requiredForCleanClaim"] != json!(true))
         .count();
-    assert_eq!(unproven_without_claim, 0, "unproven providers must require the clean claim flag");
+    assert_eq!(
+        unproven_without_claim, 0,
+        "unproven providers must require the clean claim flag"
+    );
 }
 
 // --- Case 10: Supplemental tier — missing scanners don't block ---
@@ -229,16 +280,25 @@ fn case_10_supplemental_tier_flags_absent_scanners() {
 // --- Case 11: CI gates — standalone workflow runs on main ---
 #[test]
 fn case_11_ci_gates_workflow_runs_on_main_with_rust_tests() {
-    let workflow = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../.github/workflows/ci.yml"))
-        .expect("ci workflow");
+    let workflow = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../.github/workflows/ci.yml"
+    ))
+    .expect("ci workflow");
     assert!(
         workflow.contains("[main]") || workflow.contains("- main"),
         "workflow must trigger on pushes to main"
     );
-    assert!(workflow.contains("windows-2025"), "workflow must include a windows runner");
+    assert!(
+        workflow.contains("windows-2025"),
+        "workflow must include a windows runner"
+    );
 
-    let ci_script = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../scripts/ci/right-git-ci.sh"))
-        .expect("ci script");
+    let ci_script = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../scripts/ci/right-git-ci.sh"
+    ))
+    .expect("ci script");
     assert!(
         ci_script.contains("cargo test"),
         "the Rust conformance and bench suites must run in CI in place of the deleted node scripts"

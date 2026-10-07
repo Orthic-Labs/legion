@@ -4,8 +4,8 @@ use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
 use legion_arcane::{
     sign_record, state_paths::state_file, state_root, BudgetGovernanceStore, KeyRing,
-    TaskBudgetSealStore,
-    AMENDED_BUDGET_BOUND_FIELDS, BUDGET_AMENDMENT_BOUND_FIELDS, BUDGET_BOUND_FIELDS,
+    TaskBudgetSealStore, AMENDED_BUDGET_BOUND_FIELDS, BUDGET_AMENDMENT_BOUND_FIELDS,
+    BUDGET_BOUND_FIELDS,
 };
 use legion_contracts::canonical_digest;
 use serde_json::{json, Map, Value};
@@ -198,7 +198,11 @@ fn typ(v: &Value) -> &'static str {
 }
 fn digest_shape(v: Option<&Value>) -> bool {
     v.and_then(Value::as_str).map_or(false, |s| {
-        s.len() == 71 && s.starts_with("sha256:") && s[7..].chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        s.len() == 71
+            && s.starts_with("sha256:")
+            && s[7..]
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
     })
 }
 
@@ -362,13 +366,30 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
             ));
         }
     }
-    for (key, id_prefix) in [("requirements", "R-"), ("decisions", "D-"), ("invariants", "I-"), ("nonGoals", "NG-"), ("acceptanceCriteria", "AC-")] {
+    for (key, id_prefix) in [
+        ("requirements", "R-"),
+        ("decisions", "D-"),
+        ("invariants", "I-"),
+        ("nonGoals", "NG-"),
+        ("acceptanceCriteria", "AC-"),
+    ] {
         if let Some(items) = o.get(key).and_then(Value::as_array) {
             for (i, item) in items.iter().enumerate() {
-                if item.as_object().is_none() || !is_string(item.get("id"), 1) || !is_string(item.get("statement"), 1) {
-                    e.push(("SCHEMA".into(), format!("$.{key}[{i}]"), format!("$.{key}[{i}]: invalid {key} entry")));
+                if item.as_object().is_none()
+                    || !is_string(item.get("id"), 1)
+                    || !is_string(item.get("statement"), 1)
+                {
+                    e.push((
+                        "SCHEMA".into(),
+                        format!("$.{key}[{i}]"),
+                        format!("$.{key}[{i}]: invalid {key} entry"),
+                    ));
                 } else if !item["id"].as_str().map_or(false, |s| id(s, id_prefix)) {
-                    e.push(("SCHEMA".into(), format!("$.{key}[{i}].id"), format!("$.{key}[{i}].id: invalid identifier")));
+                    e.push((
+                        "SCHEMA".into(),
+                        format!("$.{key}[{i}].id"),
+                        format!("$.{key}[{i}].id: invalid identifier"),
+                    ));
                 }
             }
         }
@@ -1038,15 +1059,30 @@ pub fn run(args: CommonArgs) -> CommandResult {
                 "contract budget is required when task budgets are sealed",
             )
         })?;
-        for key in ["objectiveLineageId", "objectiveDigest", "legionBlastMapCapMs", "sagePlanningCapMs", "maxContractVersions"] {
+        for key in [
+            "objectiveLineageId",
+            "objectiveDigest",
+            "legionBlastMapCapMs",
+            "sagePlanningCapMs",
+            "maxContractVersions",
+        ] {
             if !bo.contains_key(key) {
-                return Err(issue("ARC_SCHEMA_INVALID", format!("invalid budget binding: missing {key}")));
+                return Err(issue(
+                    "ARC_SCHEMA_INVALID",
+                    format!("invalid budget binding: missing {key}"),
+                ));
             }
         }
         if !is_string(bo.get("objectiveLineageId"), 1)
             || !digest_shape(bo.get("objectiveDigest"))
-            || bo.get("legionBlastMapCapMs").and_then(Value::as_u64).map_or(true, |v| v < 1)
-            || bo.get("sagePlanningCapMs").and_then(Value::as_u64).map_or(true, |v| v < 1)
+            || bo
+                .get("legionBlastMapCapMs")
+                .and_then(Value::as_u64)
+                .map_or(true, |v| v < 1)
+            || bo
+                .get("sagePlanningCapMs")
+                .and_then(Value::as_u64)
+                .map_or(true, |v| v < 1)
             || bo.get("maxContractVersions") != Some(&json!(2))
         {
             return Err(issue("ARC_SCHEMA_INVALID", "invalid budget binding"));
@@ -1106,10 +1142,12 @@ pub fn run(args: CommonArgs) -> CommandResult {
             if s["ownScope"].as_array().map_or(true, |a| a.is_empty())
                 || s["activeTimeCapMs"].as_u64().map_or(true, |v| v < 1)
                 || s["progressDeadlineMs"].as_u64().map_or(true, |v| v < 1)
-                || s["evidenceReferences"]
+                || s["evidenceReferences"].as_array().map_or(true, |a| {
+                    a.is_empty() || a.iter().any(|v| !is_string(Some(v), 1))
+                })
+                || s["ownScope"]
                     .as_array()
-                    .map_or(true, |a| a.is_empty() || a.iter().any(|v| !is_string(Some(v), 1)))
-                || s["ownScope"].as_array().map_or(true, |a| a.iter().any(|v| !v.is_string()))
+                    .map_or(true, |a| a.iter().any(|v| !v.is_string()))
             {
                 return Err(issue(
                     "ARC_SCHEMA_INVALID",

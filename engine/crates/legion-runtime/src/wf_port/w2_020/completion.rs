@@ -10,11 +10,15 @@ use serde_json::Value;
 /// already have a `serde_json::Value` (as most of this codebase's live-mode
 /// wiring will) can pass it straight through; field lookups use the same
 /// `?.` (missing-is-undefined) semantics as the JS.
-pub fn completion_type_for_accept_result(event_type: &str, accept_result: Option<&Value>) -> &'static str {
+pub fn completion_type_for_accept_result(
+    event_type: &str,
+    accept_result: Option<&Value>,
+) -> &'static str {
     let handled = field_is_true(accept_result, "handled");
     let carbonize = field_is_true(accept_result, "carbonize");
     let mode_is_error = field_str(accept_result, "mode") == Some("error");
-    let preview_mode_is_svelte = field_str(accept_result, "previewMode") == Some("svelte-component");
+    let preview_mode_is_svelte =
+        field_str(accept_result, "previewMode") == Some("svelte-component");
 
     if event_type == "discard" {
         return if handled { "discarded" } else { "error" };
@@ -35,7 +39,11 @@ pub fn completion_type_for_accept_result(event_type: &str, accept_result: Option
 }
 
 /// Mirrors `completionAckForAcceptResult(eventId, completionType, acceptResult)`.
-pub fn completion_ack_for_accept_result(event_id: &str, completion_type: &str, accept_result: Option<&Value>) -> Value {
+pub fn completion_ack_for_accept_result(
+    event_id: &str,
+    completion_type: &str,
+    accept_result: Option<&Value>,
+) -> Value {
     let mut ack = serde_json::json!({
         "ok": true,
         "type": completion_type,
@@ -80,53 +88,87 @@ mod tests {
     #[test]
     fn discard_handled_is_discarded() {
         let r = json!({"handled": true});
-        assert_eq!(completion_type_for_accept_result("discard", Some(&r)), "discarded");
+        assert_eq!(
+            completion_type_for_accept_result("discard", Some(&r)),
+            "discarded"
+        );
     }
 
     #[test]
     fn discard_unhandled_is_error() {
         assert_eq!(completion_type_for_accept_result("discard", None), "error");
         let r = json!({"handled": false});
-        assert_eq!(completion_type_for_accept_result("discard", Some(&r)), "error");
+        assert_eq!(
+            completion_type_for_accept_result("discard", Some(&r)),
+            "error"
+        );
     }
 
     #[test]
     fn handled_carbonize_is_agent_done() {
         let r = json!({"handled": true, "carbonize": true});
-        assert_eq!(completion_type_for_accept_result("accept", Some(&r)), "agent_done");
+        assert_eq!(
+            completion_type_for_accept_result("accept", Some(&r)),
+            "agent_done"
+        );
     }
 
     #[test]
     fn handled_without_carbonize_is_complete() {
         let r = json!({"handled": true, "carbonize": false});
-        assert_eq!(completion_type_for_accept_result("accept", Some(&r)), "complete");
+        assert_eq!(
+            completion_type_for_accept_result("accept", Some(&r)),
+            "complete"
+        );
         let r2 = json!({"handled": true});
-        assert_eq!(completion_type_for_accept_result("accept", Some(&r2)), "complete");
+        assert_eq!(
+            completion_type_for_accept_result("accept", Some(&r2)),
+            "complete"
+        );
     }
 
     #[test]
     fn mode_error_is_error() {
         let r = json!({"mode": "error"});
-        assert_eq!(completion_type_for_accept_result("accept", Some(&r)), "error");
+        assert_eq!(
+            completion_type_for_accept_result("accept", Some(&r)),
+            "error"
+        );
     }
 
     #[test]
     fn accept_svelte_component_preview_is_error() {
         let r = json!({"previewMode": "svelte-component"});
-        assert_eq!(completion_type_for_accept_result("accept", Some(&r)), "error");
+        assert_eq!(
+            completion_type_for_accept_result("accept", Some(&r)),
+            "error"
+        );
         // Same previewMode under a non-"accept" eventType does NOT hit that branch.
-        assert_eq!(completion_type_for_accept_result("checkpoint", Some(&r)), "agent_done");
+        assert_eq!(
+            completion_type_for_accept_result("checkpoint", Some(&r)),
+            "agent_done"
+        );
     }
 
     #[test]
     fn fallback_is_agent_done() {
-        assert_eq!(completion_type_for_accept_result("checkpoint", None), "agent_done");
-        assert_eq!(completion_type_for_accept_result("checkpoint", Some(&json!({}))), "agent_done");
+        assert_eq!(
+            completion_type_for_accept_result("checkpoint", None),
+            "agent_done"
+        );
+        assert_eq!(
+            completion_type_for_accept_result("checkpoint", Some(&json!({}))),
+            "agent_done"
+        );
     }
 
     #[test]
     fn ack_basic_has_no_extra_fields() {
-        let ack = completion_ack_for_accept_result("abc12345", "complete", Some(&json!({"handled": true})));
+        let ack = completion_ack_for_accept_result(
+            "abc12345",
+            "complete",
+            Some(&json!({"handled": true})),
+        );
         assert_eq!(ack, json!({"ok": true, "type": "complete"}));
     }
 

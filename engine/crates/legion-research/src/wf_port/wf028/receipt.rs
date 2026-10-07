@@ -23,7 +23,9 @@ pub enum FinalizeError {
 impl fmt::Display for FinalizeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FinalizeError::InvalidVerdict(v) => write!(f, "verdict must be ship, block, or degraded: {v:?}"),
+            FinalizeError::InvalidVerdict(v) => {
+                write!(f, "verdict must be ship, block, or degraded: {v:?}")
+            }
             FinalizeError::Io(e) => write!(f, "{e}"),
         }
     }
@@ -38,7 +40,12 @@ impl From<IoError> for FinalizeError {
 /// Port of `manifest.finalize()`. `run_dir` is the already-resolved run
 /// directory (`<root>/<run_id>` in the Python original); see the module
 /// doc for why this port takes it directly rather than re-deriving it.
-pub fn finalize(run_dir: &Path, run_id: &str, verdict: &str, checks: &Value) -> Result<Value, FinalizeError> {
+pub fn finalize(
+    run_dir: &Path,
+    run_id: &str,
+    verdict: &str,
+    checks: &Value,
+) -> Result<Value, FinalizeError> {
     if !matches!(verdict, "ship" | "block" | "degraded") {
         return Err(FinalizeError::InvalidVerdict(verdict.to_string()));
     }
@@ -50,7 +57,11 @@ pub fn finalize(run_dir: &Path, run_id: &str, verdict: &str, checks: &Value) -> 
         let _lock = support::FileLock::acquire(&manifest_path, Duration::from_secs(10))?;
         let mut manifest = support::read_json(&manifest_path)?;
 
-        let status = if matches!(verdict, "ship" | "degraded") { "done" } else { "blocked" };
+        let status = if matches!(verdict, "ship" | "degraded") {
+            "done"
+        } else {
+            "blocked"
+        };
         manifest["status"] = json!(status);
         manifest["updated_at"] = json!(support::utc_now());
         if verdict == "block" {
@@ -84,13 +95,23 @@ pub fn finalize(run_dir: &Path, run_id: &str, verdict: &str, checks: &Value) -> 
         receipt
     };
 
-    record_event(run_dir, run_id, "run.finalized", &json!({"verdict": verdict}))?;
+    record_event(
+        run_dir,
+        run_id,
+        "run.finalized",
+        &json!({"verdict": verdict}),
+    )?;
     Ok(receipt)
 }
 
 /// Port of `manifest.record_event()`, self-contained the same way
 /// `super::resource_guard::record_event` is.
-fn record_event(run_dir: &Path, run_id: &str, event_type: &str, payload: &Value) -> Result<(), IoError> {
+fn record_event(
+    run_dir: &Path,
+    run_id: &str,
+    event_type: &str,
+    payload: &Value,
+) -> Result<(), IoError> {
     let events_path = run_dir.join("events.jsonl");
     let _lock = support::FileLock::acquire(&events_path, Duration::from_secs(10))?;
     let mut event = json!({"at": support::utc_now(), "type": event_type, "run_id": run_id});
@@ -109,7 +130,10 @@ mod tests {
     use std::path::PathBuf;
 
     fn tmp_run_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("legion-wf028-receipt-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "legion-wf028-receipt-{name}-{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir

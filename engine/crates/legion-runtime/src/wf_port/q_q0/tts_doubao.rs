@@ -209,7 +209,9 @@ pub fn parse_tts_response(body: &str) -> Result<String, TtsResponseError> {
 
     match json.get("data").and_then(|d| d.as_str()) {
         Some(data) if !data.is_empty() => Ok(data.to_string()),
-        _ => Err(TtsResponseError::MissingData(truncate_500(&json.to_string()))),
+        _ => Err(TtsResponseError::MissingData(truncate_500(
+            &json.to_string(),
+        ))),
     }
 }
 
@@ -233,8 +235,16 @@ mod tests {
     #[test]
     fn parse_args_full() {
         let args = parse_args([
-            "--text", "hello", "--out", "out.mp3", "--speed", "1.5", "--voice", "v1",
-            "--encoding", "wav",
+            "--text",
+            "hello",
+            "--out",
+            "out.mp3",
+            "--speed",
+            "1.5",
+            "--voice",
+            "v1",
+            "--encoding",
+            "wav",
         ]);
         assert_eq!(args.text.as_deref(), Some("hello"));
         assert_eq!(args.out.as_deref(), Some("out.mp3"));

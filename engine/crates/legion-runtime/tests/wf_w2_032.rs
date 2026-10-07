@@ -15,9 +15,15 @@ use legion_runtime::wf_port::w2_032::parse_html::{
     classify_link, extract_open_graph, extract_twitter_card, parse_json_ld, resolve_href,
     word_count, LinkClass,
 };
-use legion_runtime::wf_port::w2_032::provider_registry::{choose, discover, load_registry, ChooseResult};
-use legion_runtime::wf_port::w2_032::query_ownership::{build_report as ownership_report, rows_from_payload as ownership_rows};
-use legion_runtime::wf_port::w2_032::question_inventory::{build_report as inventory_report, rows_from_payload as inventory_rows};
+use legion_runtime::wf_port::w2_032::provider_registry::{
+    choose, discover, load_registry, ChooseResult,
+};
+use legion_runtime::wf_port::w2_032::query_ownership::{
+    build_report as ownership_report, rows_from_payload as ownership_rows,
+};
+use legion_runtime::wf_port::w2_032::question_inventory::{
+    build_report as inventory_report, rows_from_payload as inventory_rows,
+};
 
 fn fixture(name: &str) -> serde_json::Value {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -63,11 +69,20 @@ fn pagespeed_parses_fixture_psi_response() {
     assert!(result.seo_audits.iter().all(|a| a.pass));
 
     // color-contrast (score 0.5, not an opportunity) lands in failed_audits.
-    assert!(result.failed_audits.iter().any(|a| a.id == "color-contrast"));
+    assert!(result
+        .failed_audits
+        .iter()
+        .any(|a| a.id == "color-contrast"));
     // unused-javascript is an opportunity, so it must NOT also appear in failed_audits.
-    assert!(!result.failed_audits.iter().any(|a| a.id == "unused-javascript"));
+    assert!(!result
+        .failed_audits
+        .iter()
+        .any(|a| a.id == "unused-javascript"));
 
-    let (cls_val, cls_rating, _) = result.field_metrics.get("url_cumulative_layout_shift").unwrap();
+    let (cls_val, cls_rating, _) = result
+        .field_metrics
+        .get("url_cumulative_layout_shift")
+        .unwrap();
     assert_eq!(*cls_val, 0.09);
     assert_eq!(cls_rating, "fast");
 }
@@ -100,7 +115,10 @@ fn pagespeed_parses_crux_record_with_string_cls() {
 #[test]
 fn parse_html_word_count_and_link_resolution() {
     assert_eq!(word_count("The quick brown fox jumps."), 5);
-    assert_eq!(resolve_href("https://example.com/blog/post", "../about"), "https://example.com/blog/../about");
+    assert_eq!(
+        resolve_href("https://example.com/blog/post", "../about"),
+        "https://example.com/blog/../about"
+    );
     let (url, class) = classify_link("https://example.com/blog/", "/pricing").unwrap();
     assert_eq!(url, "https://example.com/pricing");
     assert_eq!(class, LinkClass::Internal);
@@ -126,7 +144,8 @@ fn parse_html_json_ld_and_meta_extraction() {
 #[test]
 fn provider_registry_discover_and_choose_from_fixture() {
     let text = fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/wf_w2_032/provider_registry.json"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/wf_w2_032/provider_registry.json"),
     )
     .unwrap();
     let registry = load_registry(&text).unwrap();
@@ -136,7 +155,10 @@ fn provider_registry_discover_and_choose_from_fixture() {
 
     let discovery = discover(&registry, &HashSet::new());
     assert_eq!(discovery.providers.len(), 4);
-    assert_eq!(discovery.providers["local_parser"].availability, "available");
+    assert_eq!(
+        discovery.providers["local_parser"].availability,
+        "available"
+    );
     assert_eq!(discovery.providers["gsc_api"].availability, "unavailable");
 
     // No first-party evidence available, paid disallowed, manual allowed -> manual export.

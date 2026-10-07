@@ -52,11 +52,10 @@ pub use receipt::{ExecutorBindingOutcome, InvocationReceipt, InvocationStatus};
 pub use report::{Finding, Report, ReportStatus};
 pub use task::{Latitude, TaskSpec, TaskStatus};
 pub use trace::{
-    AuthorityKind, CapabilityUsage, ChallengeLevel, ChallengeOutcome, ChallengePass,
-    ChallengeTrigger, ComputePosture, ContextUsage, CostUsage, OutcomeResult, Route,
-    RoleAdoptionMetrics, RoleDecision, RoleDecisionState, RouteOutcomeTrace,
-    RouteOutcomeTraceV2, fold_role_adoption,
-    SemanticRequirement,
+    fold_role_adoption, AuthorityKind, CapabilityUsage, ChallengeLevel, ChallengeOutcome,
+    ChallengePass, ChallengeTrigger, ComputePosture, ContextUsage, CostUsage, OutcomeResult,
+    RoleAdoptionMetrics, RoleDecision, RoleDecisionState, Route, RouteOutcomeTrace,
+    RouteOutcomeTraceV2, SemanticRequirement,
 };
 
 pub type AgentProfile = AgentDefinition;

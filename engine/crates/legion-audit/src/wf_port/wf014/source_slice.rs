@@ -120,10 +120,17 @@ fn source_record_blockers(record: &Value, index: usize, repository_root: &Path) 
         .map(str::trim)
         .unwrap_or("");
     let mut blockers = Vec::new();
-    let push = |blockers: &mut Vec<Blocker>, reason, status: Option<Value>, actual_blob: Option<String>| {
+    let push = |blockers: &mut Vec<Blocker>,
+                reason,
+                status: Option<Value>,
+                actual_blob: Option<String>| {
         blockers.push(Blocker {
             index,
-            path: if path.is_empty() { None } else { Some(path.to_string()) },
+            path: if path.is_empty() {
+                None
+            } else {
+                Some(path.to_string())
+            },
             reason,
             status,
             actual_blob,
@@ -135,7 +142,12 @@ fn source_record_blockers(record: &Value, index: usize, repository_root: &Path) 
     }
     let status = record.get("status").cloned();
     if status.as_ref().and_then(Value::as_str) != Some("mapped") {
-        push(&mut blockers, "source-status-not-mapped", Some(status.unwrap_or(Value::Null)), None);
+        push(
+            &mut blockers,
+            "source-status-not-mapped",
+            Some(status.unwrap_or(Value::Null)),
+            None,
+        );
     }
     if path.is_empty() {
         push(&mut blockers, "source-path-missing", None, None);
@@ -164,13 +176,21 @@ fn source_record_blockers(record: &Value, index: usize, repository_root: &Path) 
         }
     }
 
-    let current_blob = record.get("currentBlob").and_then(Value::as_str).unwrap_or("");
+    let current_blob = record
+        .get("currentBlob")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if !blob_oid_re().is_match(current_blob) {
         push(&mut blockers, "current-blob-oid-invalid", None, None);
     } else if let Some(file) = &file {
         let actual_blob = git_blob_oid(file, repository_root);
         if current_blob != actual_blob {
-            push(&mut blockers, "current-blob-oid-mismatch", None, Some(actual_blob));
+            push(
+                &mut blockers,
+                "current-blob-oid-mismatch",
+                None,
+                Some(actual_blob),
+            );
         }
     }
 
@@ -203,7 +223,9 @@ pub fn source_slice_qualification(input: &Value) -> Value {
     if tasks.len() as i64 != expected_task_count {
         panic!(
             "book {} task accounting mismatch: expected {}, received {}",
-            book, expected_task_count, tasks.len()
+            book,
+            expected_task_count,
+            tasks.len()
         );
     }
 
@@ -227,13 +249,14 @@ pub fn source_slice_qualification(input: &Value) -> Value {
         Some(other) => vec![other.clone()],
         None => Vec::new(),
     };
-    let repository_root = if records.is_empty() {
-        None
-    } else {
-        Some(std::fs::canonicalize(&root).unwrap_or_else(|error| {
-            panic!("failed to resolve root {}: {error}", root.display())
-        }))
-    };
+    let repository_root =
+        if records.is_empty() {
+            None
+        } else {
+            Some(std::fs::canonicalize(&root).unwrap_or_else(|error| {
+                panic!("failed to resolve root {}: {error}", root.display())
+            }))
+        };
 
     let source_blockers: Vec<Blocker> = records
         .iter()
@@ -242,7 +265,10 @@ pub fn source_slice_qualification(input: &Value) -> Value {
             source_record_blockers(record, index, repository_root.as_deref().unwrap())
         })
         .collect();
-    let blocked_indexes: HashSet<usize> = source_blockers.iter().map(|blocker| blocker.index).collect();
+    let blocked_indexes: HashSet<usize> = source_blockers
+        .iter()
+        .map(|blocker| blocker.index)
+        .collect();
     let missing_indexes: HashSet<usize> = source_blockers
         .iter()
         .filter(|blocker| MISSING_REASONS.contains(&blocker.reason))
@@ -296,7 +322,10 @@ pub fn source_slice_qualification(input: &Value) -> Value {
     if !source_blockers.is_empty() {
         result.insert(
             "sourceBlockers".into(),
-            json!(source_blockers.iter().map(Blocker::to_json).collect::<Vec<_>>()),
+            json!(source_blockers
+                .iter()
+                .map(Blocker::to_json)
+                .collect::<Vec<_>>()),
         );
     }
     Value::Object(result)

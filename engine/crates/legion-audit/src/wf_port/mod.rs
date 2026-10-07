@@ -1,3 +1,5 @@
+pub mod q_q6;
+pub mod r66;
 pub mod w2_058;
 pub mod w2_059;
 pub mod wf001;
@@ -37,5 +39,3 @@ pub mod wf063;
 pub mod wf064;
 pub mod wf065;
 pub mod wf066;
-pub mod q_q6;
-pub mod r66;

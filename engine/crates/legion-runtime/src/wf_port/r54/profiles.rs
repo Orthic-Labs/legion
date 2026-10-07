@@ -23,7 +23,12 @@ pub trait ProfileDir {
 /// the in-process `_profiles` set: entries the current run still owns are never swept, matching
 /// `if (_profiles.has(target)) continue;`. Returns the count removed (0 on a missing `.cache`,
 /// matching the JS `catch { return 0; }`).
-pub fn sweep_stale_profiles(dir: &mut dyn ProfileDir, older_than_ms: f64, now: f64, active: &[String]) -> u32 {
+pub fn sweep_stale_profiles(
+    dir: &mut dyn ProfileDir,
+    older_than_ms: f64,
+    now: f64,
+    active: &[String],
+) -> u32 {
     let entries = match dir.list() {
         Ok(e) => e,
         Err(()) => return 0,
@@ -66,7 +71,11 @@ mod tests {
     }
     impl ProfileDir for FakeDir {
         fn list(&self) -> Result<Vec<DirEntry>, ()> {
-            if self.fail_list { Err(()) } else { Ok(self.entries.clone()) }
+            if self.fail_list {
+                Err(())
+            } else {
+                Ok(self.entries.clone())
+            }
         }
         fn remove(&mut self, name: &str) {
             self.removed.push(name.to_string());
@@ -74,18 +83,34 @@ mod tests {
     }
 
     fn entry(name: &str, mtime_ms: f64) -> DirEntry {
-        DirEntry { name: name.to_string(), is_dir: true, is_symlink: false, mtime_ms }
+        DirEntry {
+            name: name.to_string(),
+            is_dir: true,
+            is_symlink: false,
+            mtime_ms,
+        }
     }
 
     #[test]
     fn missing_cache_dir_returns_zero() {
-        let mut dir = FakeDir { entries: vec![], removed: vec![], fail_list: true };
-        assert_eq!(sweep_stale_profiles(&mut dir, 60_000.0, 1_000_000.0, &[]), 0);
+        let mut dir = FakeDir {
+            entries: vec![],
+            removed: vec![],
+            fail_list: true,
+        };
+        assert_eq!(
+            sweep_stale_profiles(&mut dir, 60_000.0, 1_000_000.0, &[]),
+            0
+        );
     }
 
     #[test]
     fn sweeps_old_profile_directories() {
-        let mut dir = FakeDir { entries: vec![entry("qa-browser-profile-1", 0.0)], removed: vec![], fail_list: false };
+        let mut dir = FakeDir {
+            entries: vec![entry("qa-browser-profile-1", 0.0)],
+            removed: vec![],
+            fail_list: false,
+        };
         let removed = sweep_stale_profiles(&mut dir, 60_000.0, 1_000_000.0, &[]);
         assert_eq!(removed, 1);
         assert_eq!(dir.removed, vec!["qa-browser-profile-1".to_string()]);
@@ -93,7 +118,11 @@ mod tests {
 
     #[test]
     fn leaves_fresh_profiles_alone() {
-        let mut dir = FakeDir { entries: vec![entry("qa-cdp-profile-2", 999_000.0)], removed: vec![], fail_list: false };
+        let mut dir = FakeDir {
+            entries: vec![entry("qa-cdp-profile-2", 999_000.0)],
+            removed: vec![],
+            fail_list: false,
+        };
         let removed = sweep_stale_profiles(&mut dir, 60_000.0, 1_000_000.0, &[]);
         assert_eq!(removed, 0);
         assert!(dir.removed.is_empty());
@@ -101,8 +130,17 @@ mod tests {
 
     #[test]
     fn skips_active_profiles_even_if_old() {
-        let mut dir = FakeDir { entries: vec![entry("qa-cdp-profile-3", 0.0)], removed: vec![], fail_list: false };
-        let removed = sweep_stale_profiles(&mut dir, 60_000.0, 1_000_000.0, &["qa-cdp-profile-3".to_string()]);
+        let mut dir = FakeDir {
+            entries: vec![entry("qa-cdp-profile-3", 0.0)],
+            removed: vec![],
+            fail_list: false,
+        };
+        let removed = sweep_stale_profiles(
+            &mut dir,
+            60_000.0,
+            1_000_000.0,
+            &["qa-cdp-profile-3".to_string()],
+        );
         assert_eq!(removed, 0);
     }
 
@@ -111,8 +149,18 @@ mod tests {
         let mut dir = FakeDir {
             entries: vec![
                 entry("unrelated-dir", 0.0),
-                DirEntry { name: "qa-browser-profile-file".into(), is_dir: false, is_symlink: false, mtime_ms: 0.0 },
-                DirEntry { name: "qa-browser-profile-link".into(), is_dir: true, is_symlink: true, mtime_ms: 0.0 },
+                DirEntry {
+                    name: "qa-browser-profile-file".into(),
+                    is_dir: false,
+                    is_symlink: false,
+                    mtime_ms: 0.0,
+                },
+                DirEntry {
+                    name: "qa-browser-profile-link".into(),
+                    is_dir: true,
+                    is_symlink: true,
+                    mtime_ms: 0.0,
+                },
             ],
             removed: vec![],
             fail_list: false,

@@ -37,7 +37,10 @@ pub fn capability_catalog_block(projection: &Value) -> String {
     let mut lines = vec!["## Legion capabilities".to_string(), String::new()];
     for c in &capabilities {
         let name = c.get("name").and_then(Value::as_str).unwrap_or_default();
-        let description = c.get("description").and_then(Value::as_str).unwrap_or_default();
+        let description = c
+            .get("description")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         lines.push(format!("- **{name}** — {description}"));
     }
     lines.join("\n")
@@ -48,7 +51,10 @@ pub fn harness_fidelity<'a>(projection: &'a Value, id: &str) -> Option<&'a Value
     projection
         .get("harnesses")
         .and_then(Value::as_array)
-        .and_then(|hs| hs.iter().find(|h| h.get("id").and_then(Value::as_str) == Some(id)))
+        .and_then(|hs| {
+            hs.iter()
+                .find(|h| h.get("id").and_then(Value::as_str) == Some(id))
+        })
 }
 
 #[cfg(test)]

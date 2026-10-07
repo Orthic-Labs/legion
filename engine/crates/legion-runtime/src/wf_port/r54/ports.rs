@@ -13,7 +13,10 @@ pub fn free_port(probe: &mut dyn PortProbe, start_at: u32) -> Result<u32, String
     let mut candidate = start_at;
     loop {
         if candidate > start_at + 200 {
-            return Err(format!("No free loopback port found from {start_at} to {}.", start_at + 200));
+            return Err(format!(
+                "No free loopback port found from {start_at} to {}.",
+                start_at + 200
+            ));
         }
         if !probe.is_taken(candidate) {
             return Ok(candidate);
@@ -46,7 +49,10 @@ pub fn wait_for_http(probe: &mut dyn HttpProbe, url: &str, timeout_ms: u64) -> R
     loop {
         match probe.attempt(url) {
             HttpAttempt::Ok => return Ok(()),
-            HttpAttempt::NotOk { status, status_text } => last = format!("{status} {status_text}"),
+            HttpAttempt::NotOk {
+                status,
+                status_text,
+            } => last = format!("{status} {status_text}"),
             HttpAttempt::Error(msg) => last = msg,
         }
         if probe.elapsed_ms() >= timeout_ms {
@@ -108,14 +114,25 @@ mod tests {
 
     #[test]
     fn wait_for_http_succeeds_on_first_ok() {
-        let mut p = ScriptedHttp { attempts: vec![HttpAttempt::Ok], idx: 0, elapsed: 0 };
+        let mut p = ScriptedHttp {
+            attempts: vec![HttpAttempt::Ok],
+            idx: 0,
+            elapsed: 0,
+        };
         assert!(wait_for_http(&mut p, "http://x", 30000).is_ok());
     }
 
     #[test]
     fn wait_for_http_retries_then_succeeds() {
         let mut p = ScriptedHttp {
-            attempts: vec![HttpAttempt::Error("ECONNREFUSED".into()), HttpAttempt::NotOk { status: 503, status_text: "Busy".into() }, HttpAttempt::Ok],
+            attempts: vec![
+                HttpAttempt::Error("ECONNREFUSED".into()),
+                HttpAttempt::NotOk {
+                    status: 503,
+                    status_text: "Busy".into(),
+                },
+                HttpAttempt::Ok,
+            ],
             idx: 0,
             elapsed: 0,
         };
@@ -124,7 +141,11 @@ mod tests {
 
     #[test]
     fn wait_for_http_times_out_with_last_error() {
-        let mut p = ScriptedHttp { attempts: vec![HttpAttempt::Error("boom".into())], idx: 0, elapsed: 30000 };
+        let mut p = ScriptedHttp {
+            attempts: vec![HttpAttempt::Error("boom".into())],
+            idx: 0,
+            elapsed: 30000,
+        };
         let e = wait_for_http(&mut p, "http://x", 30000).unwrap_err();
         assert_eq!(e, "Timed out waiting for http://x: boom");
     }

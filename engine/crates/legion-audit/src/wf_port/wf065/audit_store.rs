@@ -297,7 +297,11 @@ pub fn make_finding(
         .unwrap_or_default();
     let provenance = match &draft.provenance {
         Some(p) => p.clone(),
-        None => default_provenance(&draft.rule_id, &draft.provenance_kind, &draft.provenance_version)?,
+        None => default_provenance(
+            &draft.rule_id,
+            &draft.provenance_kind,
+            &draft.provenance_version,
+        )?,
     };
     Ok(Finding {
         schema_version: SCHEMA_VERSION,
@@ -499,14 +503,19 @@ impl AuditStore {
                 } else {
                     incoming.last_seen_at.clone()
                 };
-                merged.superseded_by = incoming.superseded_by.or_else(|| prior.superseded_by.clone());
+                merged.superseded_by = incoming
+                    .superseded_by
+                    .or_else(|| prior.superseded_by.clone());
                 merged.supersedes = if incoming.supersedes.is_empty() {
                     prior.supersedes.clone()
                 } else {
                     incoming.supersedes.clone()
                 };
                 if incoming.resolved_generation.is_none() {
-                    merged.resolved_generation = prior.resolved_generation.clone().or(merged.resolved_generation);
+                    merged.resolved_generation = prior
+                        .resolved_generation
+                        .clone()
+                        .or(merged.resolved_generation);
                 } else {
                     merged.resolved_generation = incoming.resolved_generation;
                 }
@@ -524,7 +533,12 @@ impl AuditStore {
 
     /// Mark `old_id` as `superseded`, linked to `new_record`'s id, then
     /// upsert the successor with an appended `supersedes` chain.
-    pub fn supersede(&mut self, old_id: &str, mut new_record: Finding, now: &str) -> Result<Finding> {
+    pub fn supersede(
+        &mut self,
+        old_id: &str,
+        mut new_record: Finding,
+        now: &str,
+    ) -> Result<Finding> {
         validate(&new_record)?;
         self.ensure_loaded()?;
         let mut old = self

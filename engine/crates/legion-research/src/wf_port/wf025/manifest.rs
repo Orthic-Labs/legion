@@ -37,7 +37,9 @@ pub enum ManifestError {
 impl std::fmt::Display for ManifestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ManifestError::Io(m) | ManifestError::Json(m) | ManifestError::Invalid(m) => write!(f, "{m}"),
+            ManifestError::Io(m) | ManifestError::Json(m) | ManifestError::Invalid(m) => {
+                write!(f, "{m}")
+            }
         }
     }
 }
@@ -61,11 +63,17 @@ type Result<T> = std::result::Result<T, ManifestError>;
 /// `utc_now()`: an RFC3339-ish UTC timestamp with second precision and a
 /// trailing `Z`, matching `common.py`'s `utc_now()`.
 pub fn utc_now() -> String {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = now.as_secs() as i64;
     let (y, m, d) = super::iso_date::civil_from_epoch_secs(secs);
     let time_of_day = secs.rem_euclid(86_400);
-    let (h, mi, s) = (time_of_day / 3600, (time_of_day / 60) % 60, time_of_day % 60);
+    let (h, mi, s) = (
+        time_of_day / 3600,
+        (time_of_day / 60) % 60,
+        time_of_day % 60,
+    );
     format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z")
 }
 
@@ -107,7 +115,10 @@ fn append_jsonl(path: &Path, value: &Value) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let mut f = fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut f = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     let line = serde_json::to_string(value)? + "\n";
     f.write_all(line.as_bytes())?;
     f.sync_all()?;
@@ -130,7 +141,11 @@ impl FileLock {
         };
         let deadline = std::time::Instant::now() + timeout;
         loop {
-            match fs::OpenOptions::new().create_new(true).write(true).open(&lock_path) {
+            match fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&lock_path)
+            {
                 Ok(mut f) => {
                     let _ = write!(f, "{} {}\n", std::process::id(), utc_now());
                     return Ok(FileLock { lock_path });
@@ -138,7 +153,9 @@ impl FileLock {
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                     if let Ok(meta) = fs::metadata(&lock_path) {
                         if let Ok(modified) = meta.modified() {
-                            if modified.elapsed().unwrap_or_default() > std::time::Duration::from_secs(300) {
+                            if modified.elapsed().unwrap_or_default()
+                                > std::time::Duration::from_secs(300)
+                            {
                                 let _ = fs::remove_file(&lock_path);
                                 continue;
                             }
@@ -195,13 +212,20 @@ fn pseudo_random_hex(len_bytes: usize) -> String {
 /// Ports `new_run_id()`.
 pub fn new_run_id(query: &str) -> String {
     let today = &utc_now()[..10];
-    format!("run-{today}-{}-{}", &sha256_text(query)[..8], pseudo_random_hex(3))
+    format!(
+        "run-{today}-{}-{}",
+        &sha256_text(query)[..8],
+        pseudo_random_hex(3)
+    )
 }
 
 /// Ports `run_dir()`, including its path-traversal guard.
 pub fn run_dir(run_id: &str, root: Option<&Path>) -> Result<PathBuf> {
-    if run_id.is_empty() || run_id.contains('/') || run_id.contains('\\') || run_id.starts_with('.') {
-        return Err(ManifestError::Invalid(format!("invalid run id: {run_id:?}")));
+    if run_id.is_empty() || run_id.contains('/') || run_id.contains('\\') || run_id.starts_with('.')
+    {
+        return Err(ManifestError::Invalid(format!(
+            "invalid run id: {run_id:?}"
+        )));
     }
     let base = root.map(Path::to_path_buf).unwrap_or_else(default_run_root);
     Ok(base.join(run_id))
@@ -209,7 +233,11 @@ pub fn run_dir(run_id: &str, root: Option<&Path>) -> Result<PathBuf> {
 
 fn paths(run_id: &str, root: Option<&Path>) -> Result<(PathBuf, PathBuf, PathBuf)> {
     let dir = run_dir(run_id, root)?;
-    Ok((dir.join("manifest.json"), dir.join("events.jsonl"), dir.join("receipt.json")))
+    Ok((
+        dir.join("manifest.json"),
+        dir.join("events.jsonl"),
+        dir.join("receipt.json"),
+    ))
 }
 
 fn obj_mut(v: &mut Value) -> &mut Map<String, Value> {
@@ -217,10 +245,18 @@ fn obj_mut(v: &mut Value) -> &mut Map<String, Value> {
 }
 
 /// Ports `create_run()`.
-pub fn create_run(query: &str, route: &Value, budget: &Value, root: Option<&Path>) -> Result<Value> {
+pub fn create_run(
+    query: &str,
+    route: &Value,
+    budget: &Value,
+    root: Option<&Path>,
+) -> Result<Value> {
     let rid = new_run_id(query);
     let (mpath, epath, _) = paths(&rid, root)?;
-    let dir = mpath.parent().expect("manifest path has a parent").to_path_buf();
+    let dir = mpath
+        .parent()
+        .expect("manifest path has a parent")
+        .to_path_buf();
     fs::create_dir_all(&dir)?;
     let query_text = format!("{}\n", query.trim_end());
     fs::write(dir.join("query.md"), query_text.as_bytes())?;
@@ -308,7 +344,12 @@ pub fn mutate_run(run_id: &str, root: Option<&Path>, f: impl FnOnce(&mut Value))
 }
 
 /// Ports `record_event()` (and is `events.py`'s sole re-export).
-pub fn record_event(run_id: &str, event_type: &str, payload: Option<&Value>, root: Option<&Path>) -> Result<()> {
+pub fn record_event(
+    run_id: &str,
+    event_type: &str,
+    payload: Option<&Value>,
+    root: Option<&Path>,
+) -> Result<()> {
     let (_, epath, _) = paths(run_id, root)?;
     let _lock = FileLock::acquire(&epath, std::time::Duration::from_secs(10))?;
     let mut event = Map::new();
@@ -324,7 +365,13 @@ pub fn record_event(run_id: &str, event_type: &str, payload: Option<&Value>, roo
 }
 
 /// Ports `approve()`.
-pub fn approve(run_id: &str, gate: &str, approval_text: &str, actor: &str, root: Option<&Path>) -> Result<Value> {
+pub fn approve(
+    run_id: &str,
+    gate: &str,
+    approval_text: &str,
+    actor: &str,
+    root: Option<&Path>,
+) -> Result<Value> {
     if gate.is_empty() || approval_text.trim().is_empty() {
         return Err(ManifestError::Invalid(
             "gate and non-empty approval text are required".to_string(),
@@ -355,14 +402,27 @@ pub fn approve(run_id: &str, gate: &str, approval_text: &str, actor: &str, root:
             obj.insert("status".to_string(), Value::String("running".to_string()));
         }
     })?;
-    record_event(run_id, "gate.approved", Some(&serde_json::json!({"gate": gate, "actor": actor})), root)?;
+    record_event(
+        run_id,
+        "gate.approved",
+        Some(&serde_json::json!({"gate": gate, "actor": actor})),
+        root,
+    )?;
     Ok(out)
 }
 
 /// Ports `set_stage()`.
-pub fn set_stage(run_id: &str, stage: &str, status: &str, detail: Option<&str>, root: Option<&Path>) -> Result<Value> {
+pub fn set_stage(
+    run_id: &str,
+    stage: &str,
+    status: &str,
+    detail: Option<&str>,
+    root: Option<&Path>,
+) -> Result<Value> {
     if !STAGE_STATUSES.contains(&status) {
-        return Err(ManifestError::Invalid(format!("invalid stage status: {status}")));
+        return Err(ManifestError::Invalid(format!(
+            "invalid stage status: {status}"
+        )));
     }
     let out = mutate_run(run_id, root, |m| {
         let now = utc_now();
@@ -450,7 +510,11 @@ pub fn attach_artifact(
 
 /// Ports `resume_position()`.
 pub fn resume_position(manifest: &Value) -> Value {
-    let stages = manifest.get("stages").and_then(Value::as_object).cloned().unwrap_or_default();
+    let stages = manifest
+        .get("stages")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let mut ordered: Vec<String> = DEFAULT_STAGES.iter().map(|s| s.to_string()).collect();
     let known: HashSet<&str> = DEFAULT_STAGES.iter().copied().collect();
     for key in stages.keys() {
@@ -485,7 +549,9 @@ pub fn resume_position(manifest: &Value) -> Value {
 /// Ports `finalize()`.
 pub fn finalize(run_id: &str, verdict: &str, checks: &Value, root: Option<&Path>) -> Result<Value> {
     if !matches!(verdict, "ship" | "block" | "degraded") {
-        return Err(ManifestError::Invalid("verdict must be ship, block, or degraded".to_string()));
+        return Err(ManifestError::Invalid(
+            "verdict must be ship, block, or degraded".to_string(),
+        ));
     }
     let (mpath, epath, rpath) = paths(run_id, root)?;
     let receipt = {
@@ -495,7 +561,14 @@ pub fn finalize(run_id: &str, verdict: &str, checks: &Value, root: Option<&Path>
             let obj = obj_mut(&mut manifest);
             obj.insert(
                 "status".to_string(),
-                Value::String(if matches!(verdict, "ship" | "degraded") { "done" } else { "blocked" }.to_string()),
+                Value::String(
+                    if matches!(verdict, "ship" | "degraded") {
+                        "done"
+                    } else {
+                        "blocked"
+                    }
+                    .to_string(),
+                ),
             );
             obj.insert("updated_at".to_string(), Value::String(utc_now()));
             if verdict == "block" {
@@ -527,7 +600,12 @@ pub fn finalize(run_id: &str, verdict: &str, checks: &Value, root: Option<&Path>
         atomic_write_json(&rpath, &receipt)?;
         receipt
     };
-    record_event(run_id, "run.finalized", Some(&serde_json::json!({"verdict": verdict})), root)?;
+    record_event(
+        run_id,
+        "run.finalized",
+        Some(&serde_json::json!({"verdict": verdict})),
+        root,
+    )?;
     Ok(receipt)
 }
 
@@ -579,12 +657,20 @@ mod tests {
         let manifest = create_run("q", &route, &budget, Some(&root)).unwrap();
         let run_id = manifest["run_id"].as_str().unwrap().to_string();
 
-        set_stage(&run_id, "acquire", "blocked", Some("needs-approval"), Some(&root)).unwrap();
+        set_stage(
+            &run_id,
+            "acquire",
+            "blocked",
+            Some("needs-approval"),
+            Some(&root),
+        )
+        .unwrap();
         let blocked = load_run(&run_id, Some(&root)).unwrap();
         assert_eq!(blocked["status"], "blocked");
         assert_eq!(blocked["blocked_on"][0], "needs-approval");
 
-        let approved = approve(&run_id, "needs-approval", "looks good", "user", Some(&root)).unwrap();
+        let approved =
+            approve(&run_id, "needs-approval", "looks good", "user", Some(&root)).unwrap();
         assert_eq!(approved["status"], "running");
         assert!(approved["blocked_on"].as_array().unwrap().is_empty());
 
@@ -599,7 +685,13 @@ mod tests {
         let manifest = create_run("q", &route, &budget, Some(&root)).unwrap();
         let run_id = manifest["run_id"].as_str().unwrap().to_string();
 
-        let receipt = finalize(&run_id, "block", &serde_json::json!({"ok": false}), Some(&root)).unwrap();
+        let receipt = finalize(
+            &run_id,
+            "block",
+            &serde_json::json!({"ok": false}),
+            Some(&root),
+        )
+        .unwrap();
         assert_eq!(receipt["verdict"], "block");
         let final_manifest = load_run(&run_id, Some(&root)).unwrap();
         assert_eq!(final_manifest["status"], "blocked");
@@ -616,7 +708,13 @@ mod tests {
         let manifest = create_run("q", &route, &budget, Some(&root)).unwrap();
         let run_id = manifest["run_id"].as_str().unwrap().to_string();
 
-        record_event(&run_id, "custom.event", Some(&serde_json::json!({"x": 1})), Some(&root)).unwrap();
+        record_event(
+            &run_id,
+            "custom.event",
+            Some(&serde_json::json!({"x": 1})),
+            Some(&root),
+        )
+        .unwrap();
         let (_, epath, _) = paths(&run_id, Some(&root)).unwrap();
         let contents = fs::read_to_string(&epath).unwrap();
         assert!(contents.lines().count() >= 2);

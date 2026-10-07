@@ -158,7 +158,12 @@ pub fn strip_html_tags(s: &str) -> String {
 /// loop, up to (not including) the actual download — filename derivation,
 /// license/artist extraction, `[FAIL search]`/skip-if-no-thumb behavior.
 /// `out_dir` mirrors the `--out` directory.
-pub fn build_candidates(query: &str, out_dir: &Path, pages: &[CommonsPage], count: usize) -> Vec<ImageCandidate> {
+pub fn build_candidates(
+    query: &str,
+    out_dir: &Path,
+    pages: &[CommonsPage],
+    count: usize,
+) -> Vec<ImageCandidate> {
     let mut candidates = Vec::new();
     for p in pages.iter().take(count) {
         let ii = p.imageinfo.first().cloned().unwrap_or_default();
@@ -247,7 +252,10 @@ pub fn empty_log_line(query: &str) -> String {
 /// Port of the final summary + honesty-check reminder lines `main()` prints.
 pub fn summary_lines(out_dir: &Path, downloaded_count: usize) -> Vec<String> {
     vec![
-        format!("\n=== 共下载 {downloaded_count} 张到 {} ===", out_dir.display()),
+        format!(
+            "\n=== 共下载 {downloaded_count} 张到 {} ===",
+            out_dir.display()
+        ),
         "⚠️ 诚实性核对：去掉每张图信息是否有损？许可是否允许用途？不合适的删掉。".to_string(),
     ]
 }
@@ -338,10 +346,7 @@ mod tests {
         assert_eq!(c.license, "CC BY-SA 4.0");
         assert_eq!(c.artist, "Jane");
         assert!(c.dest_path.starts_with(out_dir));
-        assert_eq!(
-            c.dest_path.extension().unwrap().to_str().unwrap(),
-            "jpg"
-        );
+        assert_eq!(c.dest_path.extension().unwrap().to_str().unwrap(), "jpg");
         assert_eq!(
             c.dest_path.file_name().unwrap().to_str().unwrap(),
             "Petronas_Towers_Petronas_Towers.jpg"

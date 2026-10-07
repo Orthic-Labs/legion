@@ -20,7 +20,9 @@ use std::path::{Path, PathBuf};
 use legion_runtime::wf_port::w2_010::context::{
     extract_register, load_context, resolve_target_selection, TargetOptions,
 };
-use legion_runtime::wf_port::w2_010::context_signals::{gather_signals, git_signals, scan_targets, GitSignals};
+use legion_runtime::wf_port::w2_010::context_signals::{
+    gather_signals, git_signals, scan_targets, GitSignals,
+};
 use legion_runtime::wf_port::w2_010::critique_storage::{
     read_latest_snapshot, read_trend, slug_from_target, write_snapshot,
 };
@@ -31,7 +33,8 @@ fn fixture_root() -> PathBuf {
 }
 
 fn tmp_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("legion_wf_w2_010_it_{name}_{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("legion_wf_w2_010_it_{name}_{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     dir
@@ -65,7 +68,10 @@ fn monorepo_target_selection_then_child_context_resolution() {
         .find(|c| c.name == "marketing-site")
         .unwrap();
     assert_eq!(marketing.product_status, "child");
-    assert_eq!(marketing.product_path.as_deref(), Some("apps/marketing-site/PRODUCT.md"));
+    assert_eq!(
+        marketing.product_path.as_deref(),
+        Some("apps/marketing-site/PRODUCT.md")
+    );
 
     // Once cwd is inside the chosen app, context resolves directly and the
     // register drives the downstream reference file choice.
@@ -73,7 +79,10 @@ fn monorepo_target_selection_then_child_context_resolution() {
     let ctx = load_context(&child, &TargetOptions::none());
     assert!(ctx.is_monorepo);
     assert!(ctx.has_product);
-    assert_eq!(extract_register(ctx.product.as_deref()), Some("brand".to_string()));
+    assert_eq!(
+        extract_register(ctx.product.as_deref()),
+        Some("brand".to_string())
+    );
 
     // The sibling app with no PRODUCT.md has none, and is not a monorepo
     // root candidate list dead-end itself.
@@ -88,7 +97,11 @@ fn critique_snapshot_lifecycle_matches_slug_derived_from_target() {
     let root = tmp_dir("critique_lifecycle");
     fs::write(root.join("package.json"), "{}").unwrap();
     fs::create_dir_all(root.join("src")).unwrap();
-    fs::write(root.join("src/App.tsx"), "export default function App() {}\n").unwrap();
+    fs::write(
+        root.join("src/App.tsx"),
+        "export default function App() {}\n",
+    )
+    .unwrap();
 
     let slug = slug_from_target("src/App.tsx", &root).expect("slug");
     assert_eq!(slug, "src-app-tsx");

@@ -13,7 +13,8 @@ use legion_audit::wf_port::wf064::plan::{
     stable_plan_digest, verify_plan_seal, verify_plan_signature, SchemaError,
 };
 use legion_audit::wf_port::wf064::run::{
-    aggregate_security_candidates, assert_run_owned_out_scope, candidate_provider_ids, severity_hint,
+    aggregate_security_candidates, assert_run_owned_out_scope, candidate_provider_ids,
+    severity_hint,
 };
 use legion_audit::wf_port::wf064::runtime::{
     build_degraded_report, classify_runtime_failure, parse_surfaces_input,
@@ -26,7 +27,11 @@ fn plan_schema_version_gate_refuses_future_versions() {
     assert_eq!(assert_supported_schema_version(1, "plan").unwrap(), 1);
     assert_eq!(
         assert_supported_schema_version(2, "plan").unwrap_err(),
-        SchemaError::TooNew { label: "plan".to_string(), version: 2, supported: 1 }
+        SchemaError::TooNew {
+            label: "plan".to_string(),
+            version: 2,
+            supported: 1
+        }
     );
 }
 
@@ -39,7 +44,10 @@ fn plan_scope_defaults_to_whole_repo() {
 
 #[test]
 fn plan_seal_round_trips_and_detects_tampering() {
-    let plan = json!({"kind": "audit-provider-plan"}).as_object().unwrap().clone();
+    let plan = json!({"kind": "audit-provider-plan"})
+        .as_object()
+        .unwrap()
+        .clone();
     let sealed = seal_plan(&plan, Some("key-a"));
     assert!(verify_plan_seal(&sealed));
     assert!(verify_plan_signature(&sealed, Some("key-a")));
@@ -110,7 +118,8 @@ fn run_severity_hint_matches_js() {
 
 #[test]
 fn run_candidate_provider_ids_and_aggregation() {
-    let plan = json!({"providers": [{"id": "security.secrets", "producesSecurityCandidates": true}]});
+    let plan =
+        json!({"providers": [{"id": "security.secrets", "producesSecurityCandidates": true}]});
     let ids = candidate_provider_ids(&plan);
     assert!(ids.contains("security.secrets"));
 

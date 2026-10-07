@@ -61,8 +61,8 @@ fn schema_map() -> &'static HashMap<&'static str, Value> {
         EMBEDDED
             .iter()
             .map(|(name, text)| {
-                let value: Value =
-                    serde_json::from_str(text).unwrap_or_else(|e| panic!("embedded schema {name} is valid JSON: {e}"));
+                let value: Value = serde_json::from_str(text)
+                    .unwrap_or_else(|e| panic!("embedded schema {name} is valid JSON: {e}"));
                 (*name, value)
             })
             .collect()
@@ -93,7 +93,13 @@ pub fn load_schema(name: &str) -> Result<&'static Value, ArcaneError> {
 }
 
 /// Recursive `format: date-time` collector, port of JS `checkDateTimes`.
-fn check_date_times(schema: &Value, value: &Value, path: &str, root: &Value, issues: &mut Vec<String>) {
+fn check_date_times(
+    schema: &Value,
+    value: &Value,
+    path: &str,
+    root: &Value,
+    issues: &mut Vec<String>,
+) {
     if !schema.is_object() {
         return;
     }
@@ -115,7 +121,10 @@ fn check_date_times(schema: &Value, value: &Value, path: &str, root: &Value, iss
             check_date_times(items_schema, v, &format!("{path}[{i}]"), root, issues);
         }
     }
-    if let (Some(props), Some(obj)) = (schema.get("properties").and_then(Value::as_object), value.as_object()) {
+    if let (Some(props), Some(obj)) = (
+        schema.get("properties").and_then(Value::as_object),
+        value.as_object(),
+    ) {
         for (k, child) in props {
             if let Some(v) = obj.get(k) {
                 check_date_times(child, v, &format!("{path}.{k}"), root, issues);
@@ -136,7 +145,8 @@ fn resolve_ref<'a>(root: &'a Value, reference: &str) -> Option<&'a Value> {
 fn is_date_time(value: &str) -> bool {
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     let re = RE.get_or_init(|| {
-        regex::Regex::new(r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$").unwrap()
+        regex::Regex::new(r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$")
+            .unwrap()
     });
     re.is_match(value)
 }
@@ -146,11 +156,18 @@ pub fn validate_against(name: &str, value: &Value) -> Result<ValidationOutcome, 
     let schema = load_schema(name)?;
     let mut issues = validate_schema(schema, value);
     check_date_times(schema, value, "$", schema, &mut issues);
-    Ok(ValidationOutcome { valid: issues.is_empty(), issues })
+    Ok(ValidationOutcome {
+        valid: issues.is_empty(),
+        issues,
+    })
 }
 
 /// Port of `validateAgainstDef(name, defName, value)`.
-pub fn validate_against_def(name: &str, def_name: &str, value: &Value) -> Result<ValidationOutcome, ArcaneError> {
+pub fn validate_against_def(
+    name: &str,
+    def_name: &str,
+    value: &Value,
+) -> Result<ValidationOutcome, ArcaneError> {
     let root = load_schema(name)?;
     let def = root
         .get("$defs")
@@ -169,7 +186,10 @@ pub fn validate_against_def(name: &str, def_name: &str, value: &Value) -> Result
         })?;
     let mut issues = validate_schema(def, value);
     check_date_times(def, value, "$", root, &mut issues);
-    Ok(ValidationOutcome { valid: issues.is_empty(), issues })
+    Ok(ValidationOutcome {
+        valid: issues.is_empty(),
+        issues,
+    })
 }
 
 /// Port of `assertValid(name, value, label = name)`.
@@ -213,13 +233,16 @@ mod tests {
 
     #[test]
     fn validate_against_def_unknown_def_is_arc_schema_invalid() {
-        let err = validate_against_def("operation-envelope-v1", "NoSuchDef", &json!({})).unwrap_err();
+        let err =
+            validate_against_def("operation-envelope-v1", "NoSuchDef", &json!({})).unwrap_err();
         assert_eq!(err.code, "ARC_SCHEMA_INVALID");
     }
 
     #[test]
     fn assert_valid_uses_custom_label_in_message() {
         let err = assert_valid("blocker-v1", &json!({}), Some("my-thing")).unwrap_err();
-        assert!(err.message.starts_with("my-thing does not satisfy blocker-v1"));
+        assert!(err
+            .message
+            .starts_with("my-thing does not satisfy blocker-v1"));
     }
 }

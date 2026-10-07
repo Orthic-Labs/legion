@@ -121,7 +121,11 @@ fn round1(v: f64) -> f64 {
 /// `avg_daily_sessions = round(total_sessions / len(daily_data), 1)`.
 /// Returns `None` when `daily_data` is empty, matching Python's
 /// `if result["daily_data"]:` guard (an empty `{}` totals object).
-pub fn compute_totals(daily_sessions: &[i64], daily_users: &[i64], daily_pageviews: &[i64]) -> Option<Totals> {
+pub fn compute_totals(
+    daily_sessions: &[i64],
+    daily_users: &[i64],
+    daily_pageviews: &[i64],
+) -> Option<Totals> {
     if daily_sessions.is_empty() {
         return None;
     }
@@ -377,7 +381,11 @@ pub fn organic_traffic_report(
         }
     };
 
-    let rows = daily_resp.get("rows").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let rows = daily_resp
+        .get("rows")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     let mut daily_data = Vec::new();
     let mut sessions_col = Vec::new();
     let mut users_col = Vec::new();
@@ -406,7 +414,11 @@ pub fn organic_traffic_report(
     let mut top_pages = Vec::new();
     match client.run_report(&prop, &pages_body) {
         Ok(pages_resp) => {
-            for row in pages_resp.get("rows").and_then(|v| v.as_array()).unwrap_or(&vec![]) {
+            for row in pages_resp
+                .get("rows")
+                .and_then(|v| v.as_array())
+                .unwrap_or(&vec![])
+            {
                 top_pages.push(serde_json::json!({
                     "landing_page": row_dim(row, 0),
                     "sessions": row_metric_i64(row, 0),
@@ -441,20 +453,35 @@ pub fn organic_traffic_report(
 }
 
 /// Mirrors `top_pages_report(property_id, days, limit)`.
-pub fn top_pages_report(client: &dyn Ga4Http, property_id: &str, days: i64, limit: i64, today: CivilDate) -> Value {
+pub fn top_pages_report(
+    client: &dyn Ga4Http,
+    property_id: &str,
+    days: i64,
+    limit: i64,
+    today: CivilDate,
+) -> Value {
     let report = organic_traffic_report(client, property_id, days, limit, today);
     slim_to_top_pages(property_id, &report)
 }
 
 /// Mirrors `device_breakdown(property_id, days)`.
-pub fn device_breakdown(client: &dyn Ga4Http, property_id: &str, days: i64, today: CivilDate) -> Value {
+pub fn device_breakdown(
+    client: &dyn Ga4Http,
+    property_id: &str,
+    days: i64,
+    today: CivilDate,
+) -> Value {
     let range = date_range(today, days);
     let prop = resolve_property(property_id);
     let body = device_request_body(&range.start, &range.end);
     match client.run_report(&prop, &body) {
         Ok(resp) => {
             let mut devices = Vec::new();
-            for row in resp.get("rows").and_then(|v| v.as_array()).unwrap_or(&vec![]) {
+            for row in resp
+                .get("rows")
+                .and_then(|v| v.as_array())
+                .unwrap_or(&vec![])
+            {
                 devices.push(serde_json::json!({
                     "category": row_dim(row, 0),
                     "sessions": row_metric_i64(row, 0),
@@ -477,14 +504,24 @@ pub fn device_breakdown(client: &dyn Ga4Http, property_id: &str, days: i64, toda
 }
 
 /// Mirrors `country_breakdown(property_id, days, limit)`.
-pub fn country_breakdown(client: &dyn Ga4Http, property_id: &str, days: i64, limit: i64, today: CivilDate) -> Value {
+pub fn country_breakdown(
+    client: &dyn Ga4Http,
+    property_id: &str,
+    days: i64,
+    limit: i64,
+    today: CivilDate,
+) -> Value {
     let range = date_range(today, days);
     let prop = resolve_property(property_id);
     let body = country_request_body(&range.start, &range.end, limit);
     match client.run_report(&prop, &body) {
         Ok(resp) => {
             let mut countries = Vec::new();
-            for row in resp.get("rows").and_then(|v| v.as_array()).unwrap_or(&vec![]) {
+            for row in resp
+                .get("rows")
+                .and_then(|v| v.as_array())
+                .unwrap_or(&vec![])
+            {
                 countries.push(serde_json::json!({
                     "country": row_dim(row, 0),
                     "sessions": row_metric_i64(row, 0),
@@ -554,16 +591,27 @@ pub fn parse_args(args: &[String]) -> Result<CliArgs, String> {
         match a {
             "--property" | "-p" => {
                 i += 1;
-                out.property = Some(args.get(i).ok_or("argument --property/-p: expected one argument")?.clone());
+                out.property = Some(
+                    args.get(i)
+                        .ok_or("argument --property/-p: expected one argument")?
+                        .clone(),
+                );
             }
             "--days" | "-d" => {
                 i += 1;
-                let v = args.get(i).ok_or("argument --days/-d: expected one argument")?;
-                out.days = v.parse::<i64>().map_err(|_| format!("argument --days/-d: invalid int value: '{v}'"))?;
+                let v = args
+                    .get(i)
+                    .ok_or("argument --days/-d: expected one argument")?;
+                out.days = v
+                    .parse::<i64>()
+                    .map_err(|_| format!("argument --days/-d: invalid int value: '{v}'"))?;
             }
             "--report" | "-r" => {
                 i += 1;
-                let v = args.get(i).ok_or("argument --report/-r: expected one argument")?.clone();
+                let v = args
+                    .get(i)
+                    .ok_or("argument --report/-r: expected one argument")?
+                    .clone();
                 if !["organic", "top-pages", "device", "country"].contains(&v.as_str()) {
                     return Err(format!(
                         "argument --report/-r: invalid choice: '{v}' (choose from 'organic', 'top-pages', 'device', 'country')"
@@ -573,8 +621,12 @@ pub fn parse_args(args: &[String]) -> Result<CliArgs, String> {
             }
             "--limit" => {
                 i += 1;
-                let v = args.get(i).ok_or("argument --limit: expected one argument")?;
-                out.limit = v.parse::<i64>().map_err(|_| format!("argument --limit: invalid int value: '{v}'"))?;
+                let v = args
+                    .get(i)
+                    .ok_or("argument --limit: expected one argument")?;
+                out.limit = v
+                    .parse::<i64>()
+                    .map_err(|_| format!("argument --limit: invalid int value: '{v}'"))?;
             }
             "--json" | "-j" => {
                 out.json = true;
@@ -627,13 +679,13 @@ pub fn run(
     }
     let prop = match prop {
         Some(p) if !p.is_empty() => p,
-        _ => {
-            return CliOutcome {
-                exit_code: 1,
-                stdout: String::new(),
-                stderr: "Error: No GA4 property specified. Use --property or set ga4_property_id in config.".to_string(),
-            }
-        }
+        _ => return CliOutcome {
+            exit_code: 1,
+            stdout: String::new(),
+            stderr:
+                "Error: No GA4 property specified. Use --property or set ga4_property_id in config."
+                    .to_string(),
+        },
     };
 
     let result = match parsed.report.as_str() {
@@ -671,38 +723,62 @@ pub fn run(
 fn format_text(parsed: &CliArgs, prop: &str, result: &Value) -> String {
     let mut out = String::new();
     let dr = result.get("date_range");
-    let start = dr.and_then(|d| d.get("start")).and_then(|v| v.as_str()).unwrap_or("None");
-    let end = dr.and_then(|d| d.get("end")).and_then(|v| v.as_str()).unwrap_or("None");
+    let start = dr
+        .and_then(|d| d.get("start"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("None");
+    let end = dr
+        .and_then(|d| d.get("end"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("None");
 
     if parsed.report == "top-pages" {
         out.push_str("=== Top Organic Landing Pages ===\n");
         out.push_str(&format!("Property: {prop} | Period: {start} to {end}\n"));
-        let total = result.get("total_organic_sessions").and_then(|v| v.as_i64()).unwrap_or(0);
+        let total = result
+            .get("total_organic_sessions")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
         out.push_str(&format!("Total organic sessions: {total}\n\n"));
         if let Some(pages) = result.get("pages").and_then(|v| v.as_array()) {
             for (i, page) in pages.iter().take(20).enumerate() {
-                let landing = page.get("landing_page").and_then(|v| v.as_str()).unwrap_or("");
+                let landing = page
+                    .get("landing_page")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 out.push_str(&format!("  {:2}. {}\n", i + 1, landing));
                 let sessions = page.get("sessions").and_then(|v| v.as_i64()).unwrap_or(0);
                 let users = page.get("users").and_then(|v| v.as_i64()).unwrap_or(0);
-                let bounce = page.get("bounce_rate").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let bounce = page
+                    .get("bounce_rate")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
                 out.push_str(&format!(
                     "      Sessions: {sessions} | Users: {users} | Bounce: {bounce}%\n"
                 ));
             }
         }
     } else {
-        let totals = result.get("totals").cloned().unwrap_or(serde_json::json!({}));
+        let totals = result
+            .get("totals")
+            .cloned()
+            .unwrap_or(serde_json::json!({}));
         out.push_str("=== GA4 Organic Traffic Report ===\n");
         out.push_str(&format!("Property: {prop}\n"));
         out.push_str(&format!("Period: {start} to {end}\n"));
         let sessions = totals.get("sessions").and_then(|v| v.as_i64()).unwrap_or(0);
         let users = totals.get("users").and_then(|v| v.as_i64()).unwrap_or(0);
-        let pageviews = totals.get("pageviews").and_then(|v| v.as_i64()).unwrap_or(0);
+        let pageviews = totals
+            .get("pageviews")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
         out.push_str(&format!(
             "\nSessions: {sessions} | Users: {users} | Pageviews: {pageviews}\n"
         ));
-        let avg = totals.get("avg_daily_sessions").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let avg = totals
+            .get("avg_daily_sessions")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
         out.push_str(&format!("Avg Daily Sessions: {avg:.0}\n"));
 
         if let Some(quota) = result.get("quota_tokens_used") {
@@ -719,11 +795,22 @@ fn format_text(parsed: &CliArgs, prop: &str, result: &Value) -> String {
 
         if let Some(pages) = result.get("top_pages").and_then(|v| v.as_array()) {
             if !pages.is_empty() {
-                out.push_str(&format!("\nTop {} Organic Landing Pages:\n", pages.len().min(10)));
+                out.push_str(&format!(
+                    "\nTop {} Organic Landing Pages:\n",
+                    pages.len().min(10)
+                ));
                 for (i, page) in pages.iter().take(10).enumerate() {
-                    let landing = page.get("landing_page").and_then(|v| v.as_str()).unwrap_or("");
+                    let landing = page
+                        .get("landing_page")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
                     let sessions = page.get("sessions").and_then(|v| v.as_i64()).unwrap_or(0);
-                    out.push_str(&format!("  {:2}. {} ({} sessions)\n", i + 1, landing, sessions));
+                    out.push_str(&format!(
+                        "  {:2}. {} ({} sessions)\n",
+                        i + 1,
+                        landing,
+                        sessions
+                    ));
                 }
             }
         }

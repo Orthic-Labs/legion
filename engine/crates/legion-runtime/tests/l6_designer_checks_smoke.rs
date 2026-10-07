@@ -64,7 +64,8 @@ fn check_oversized_h1_public_api() {
 fn check_gpt_thin_border_wide_shadow_public_api() {
     let widths = [1.0, 1.0, 0.0, 0.0];
     let colors = ["rgba(0,0,0,0.5)", "rgba(0,0,0,0.5)", "", ""];
-    let findings = check_gpt_thin_border_wide_shadow(&widths, &colors, "0 4px 20px rgba(0,0,0,0.3)");
+    let findings =
+        check_gpt_thin_border_wide_shadow(&widths, &colors, "0 4px 20px rgba(0,0,0,0.3)");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].id, "gpt-thin-border-wide-shadow");
 }

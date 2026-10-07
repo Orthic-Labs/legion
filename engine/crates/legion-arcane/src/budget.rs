@@ -265,11 +265,7 @@ impl TaskBudgetSealStore {
 }
 
 fn write_immutable(path: &Path, value: &Value) -> Result<Value, ArcaneError> {
-    let bytes = [
-        legion_contracts::canonical_json_bytes(value)?,
-        vec![b'\n'],
-    ]
-    .concat();
+    let bytes = [legion_contracts::canonical_json_bytes(value)?, vec![b'\n']].concat();
     match std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)

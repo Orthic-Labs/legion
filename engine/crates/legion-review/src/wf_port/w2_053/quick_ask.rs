@@ -57,7 +57,12 @@ pub fn codex_command_template() -> Vec<String> {
 
 /// Port of `GEMINI_CONFIG["command_template"]`.
 pub fn gemini_command_template() -> Vec<String> {
-    vec!["gemini".to_string(), "-m".to_string(), "{model}".to_string(), "-y".to_string()]
+    vec![
+        "gemini".to_string(),
+        "-m".to_string(),
+        "{model}".to_string(),
+        "-y".to_string(),
+    ]
 }
 
 /// Port of `CODEX_CONFIG["timeout_s"]` and `GEMINI_CONFIG["timeout_s"]`
@@ -172,7 +177,7 @@ use std::fs;
 use std::io::{self, Read};
 use std::time::Instant;
 
-use super::subprocess_cli::{CommandRunner, SubprocessProvider, StdCommandRunner};
+use super::subprocess_cli::{CommandRunner, StdCommandRunner, SubprocessProvider};
 
 /// Directive to use when `policy.toml` (this repo has none) is not
 /// available to a caller; documented as a last resort, not a silent
@@ -212,7 +217,9 @@ pub fn parse_args(args: &[String]) -> Result<QuickAskArgs, String> {
         let arg = &args[i];
         let mut take_value = |flag: &str| -> Result<String, String> {
             i += 1;
-            args.get(i).cloned().ok_or_else(|| format!("argument {flag}: expected one argument"))
+            args.get(i)
+                .cloned()
+                .ok_or_else(|| format!("argument {flag}: expected one argument"))
         };
         match arg.as_str() {
             "-i" | "--input" => parsed.input = Some(take_value("-i/--input")?),
@@ -243,7 +250,12 @@ fn call_juror(
 ) -> JurorOutcome {
     let t0 = Instant::now();
     match provider.call(runner, model, directive, question, None) {
-        Ok(out) => JurorOutcome { name: name.to_string(), output: out, elapsed_s: t0.elapsed().as_secs_f64(), error: None },
+        Ok(out) => JurorOutcome {
+            name: name.to_string(),
+            output: out,
+            elapsed_s: t0.elapsed().as_secs_f64(),
+            error: None,
+        },
         Err(e) => JurorOutcome {
             name: name.to_string(),
             output: String::new(),
@@ -300,7 +312,9 @@ pub fn run_with(
             ),
             _ => unreachable!("selected_jurors only returns \"codex\"/\"gemini\""),
         };
-        results.push(call_juror(runner, name, &provider, model, directive, question));
+        results.push(call_juror(
+            runner, name, &provider, model, directive, question,
+        ));
     }
 
     for outcome in sort_results(results) {
@@ -331,7 +345,13 @@ pub fn run(args: &[String]) -> i32 {
         }
     };
     let mut buf = String::new();
-    let code = run_with(&StdCommandRunner, &parsed, FALLBACK_DIRECTIVE, &question, &mut buf);
+    let code = run_with(
+        &StdCommandRunner,
+        &parsed,
+        FALLBACK_DIRECTIVE,
+        &question,
+        &mut buf,
+    );
     print!("{buf}");
     code
 }
@@ -344,9 +364,19 @@ mod tests {
     fn codex_and_gemini_templates_match_python_config() {
         assert_eq!(
             codex_command_template(),
-            vec!["codex", "exec", "--skip-git-repo-check", "-m", "{model}", "-"],
+            vec![
+                "codex",
+                "exec",
+                "--skip-git-repo-check",
+                "-m",
+                "{model}",
+                "-"
+            ],
         );
-        assert_eq!(gemini_command_template(), vec!["gemini", "-m", "{model}", "-y"]);
+        assert_eq!(
+            gemini_command_template(),
+            vec!["gemini", "-m", "{model}", "-y"]
+        );
     }
 
     #[test]
@@ -359,7 +389,10 @@ mod tests {
     #[test]
     fn juror_selection_parses_valid_choices_only() {
         assert_eq!(JurorSelection::parse("codex"), Some(JurorSelection::Codex));
-        assert_eq!(JurorSelection::parse("gemini"), Some(JurorSelection::Gemini));
+        assert_eq!(
+            JurorSelection::parse("gemini"),
+            Some(JurorSelection::Gemini)
+        );
         assert_eq!(JurorSelection::parse("both"), Some(JurorSelection::Both));
         assert_eq!(JurorSelection::parse("Codex"), None);
         assert_eq!(JurorSelection::parse("bogus"), None);
@@ -369,7 +402,10 @@ mod tests {
     fn selected_jurors_matches_only_flag() {
         assert_eq!(selected_jurors(JurorSelection::Codex), vec!["codex"]);
         assert_eq!(selected_jurors(JurorSelection::Gemini), vec!["gemini"]);
-        assert_eq!(selected_jurors(JurorSelection::Both), vec!["codex", "gemini"]);
+        assert_eq!(
+            selected_jurors(JurorSelection::Both),
+            vec!["codex", "gemini"]
+        );
     }
 
     #[test]
@@ -381,14 +417,27 @@ mod tests {
 
     #[test]
     fn with_directive_join_format() {
-        assert_eq!(with_directive("DIRECTIVE", "prompt"), "DIRECTIVE\n\n---\n\nprompt");
+        assert_eq!(
+            with_directive("DIRECTIVE", "prompt"),
+            "DIRECTIVE\n\n---\n\nprompt"
+        );
     }
 
     #[test]
     fn sort_results_orders_by_name() {
         let results = vec![
-            JurorOutcome { name: "gemini".into(), output: "g".into(), elapsed_s: 1.0, error: None },
-            JurorOutcome { name: "codex".into(), output: "c".into(), elapsed_s: 2.0, error: None },
+            JurorOutcome {
+                name: "gemini".into(),
+                output: "g".into(),
+                elapsed_s: 1.0,
+                error: None,
+            },
+            JurorOutcome {
+                name: "codex".into(),
+                output: "c".into(),
+                elapsed_s: 2.0,
+                error: None,
+            },
         ];
         let sorted = sort_results(results);
         assert_eq!(sorted[0].name, "codex");
@@ -404,10 +453,7 @@ mod tests {
             error: None,
         };
         let block = format_result_block(&outcome);
-        assert_eq!(
-            block,
-            "\n========== CODEX (12.3s) ==========\nthe answer",
-        );
+        assert_eq!(block, "\n========== CODEX (12.3s) ==========\nthe answer",);
     }
 
     #[test]
@@ -419,10 +465,7 @@ mod tests {
             error: Some("boom".into()),
         };
         let block = format_result_block(&outcome);
-        assert_eq!(
-            block,
-            "\n========== GEMINI (0.5s) ==========\nERROR: boom",
-        );
+        assert_eq!(block, "\n========== GEMINI (0.5s) ==========\nERROR: boom",);
     }
 
     #[test]
@@ -434,7 +477,14 @@ mod tests {
     #[test]
     fn parse_args_reads_all_flags() {
         let args: Vec<String> = [
-            "-i", "q.txt", "--only", "gemini", "--codex-model", "gpt-x", "--gemini-model", "gem-y",
+            "-i",
+            "q.txt",
+            "--only",
+            "gemini",
+            "--codex-model",
+            "gpt-x",
+            "--gemini-model",
+            "gem-y",
         ]
         .into_iter()
         .map(String::from)
@@ -459,7 +509,10 @@ mod tests {
     }
 
     struct FakeRunner {
-        by_argv0: std::collections::HashMap<String, Result<super::super::subprocess_cli::RunOutput, super::super::subprocess_cli::RunError>>,
+        by_argv0: std::collections::HashMap<
+            String,
+            Result<super::super::subprocess_cli::RunOutput, super::super::subprocess_cli::RunError>,
+        >,
     }
 
     impl CommandRunner for FakeRunner {
@@ -468,7 +521,8 @@ mod tests {
             cmd: &[String],
             _stdin: Option<&str>,
             _timeout_s: u64,
-        ) -> Result<super::super::subprocess_cli::RunOutput, super::super::subprocess_cli::RunError> {
+        ) -> Result<super::super::subprocess_cli::RunOutput, super::super::subprocess_cli::RunError>
+        {
             let key = cmd.first().cloned().unwrap_or_default();
             self.by_argv0
                 .get(&key)
@@ -479,9 +533,17 @@ mod tests {
 
     #[test]
     fn run_with_empty_question_returns_exit_1() {
-        let runner = FakeRunner { by_argv0: Default::default() };
+        let runner = FakeRunner {
+            by_argv0: Default::default(),
+        };
         let mut out = String::new();
-        let code = run_with(&runner, &QuickAskArgs::default(), FALLBACK_DIRECTIVE, "   ", &mut out);
+        let code = run_with(
+            &runner,
+            &QuickAskArgs::default(),
+            FALLBACK_DIRECTIVE,
+            "   ",
+            &mut out,
+        );
         assert_eq!(code, 1);
         assert!(out.is_empty());
     }
@@ -492,19 +554,36 @@ mod tests {
         let mut by_argv0 = std::collections::HashMap::new();
         by_argv0.insert(
             "codex".to_string(),
-            Ok(RunOutput { stdout: "codex says hi".to_string(), stderr: String::new(), returncode: 0 }),
+            Ok(RunOutput {
+                stdout: "codex says hi".to_string(),
+                stderr: String::new(),
+                returncode: 0,
+            }),
         );
         by_argv0.insert(
             "gemini".to_string(),
-            Ok(RunOutput { stdout: "gemini says hi".to_string(), stderr: String::new(), returncode: 0 }),
+            Ok(RunOutput {
+                stdout: "gemini says hi".to_string(),
+                stderr: String::new(),
+                returncode: 0,
+            }),
         );
         let runner = FakeRunner { by_argv0 };
         let mut out = String::new();
-        let code = run_with(&runner, &QuickAskArgs::default(), "DIRECTIVE", "what is up", &mut out);
+        let code = run_with(
+            &runner,
+            &QuickAskArgs::default(),
+            "DIRECTIVE",
+            "what is up",
+            &mut out,
+        );
         assert_eq!(code, 0);
         let codex_pos = out.find("CODEX").unwrap();
         let gemini_pos = out.find("GEMINI").unwrap();
-        assert!(codex_pos < gemini_pos, "codex block should print before gemini (sorted by name)");
+        assert!(
+            codex_pos < gemini_pos,
+            "codex block should print before gemini (sorted by name)"
+        );
         assert!(out.contains("codex says hi"));
         assert!(out.contains("gemini says hi"));
     }
@@ -515,7 +594,10 @@ mod tests {
         let mut by_argv0 = std::collections::HashMap::new();
         by_argv0.insert("codex".to_string(), Err(RunError::Timeout));
         let runner = FakeRunner { by_argv0 };
-        let args = QuickAskArgs { only: JurorSelection::Codex, ..QuickAskArgs::default() };
+        let args = QuickAskArgs {
+            only: JurorSelection::Codex,
+            ..QuickAskArgs::default()
+        };
         let mut out = String::new();
         let code = run_with(&runner, &args, "DIRECTIVE", "q", &mut out);
         assert_eq!(code, 0);

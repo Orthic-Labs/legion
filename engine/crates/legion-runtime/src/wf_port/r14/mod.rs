@@ -32,8 +32,7 @@ use serde_json::Value;
 use crate::wf_port::w2_015::{
     dedupe_against_cache, filter_findings, finding_cache_key, format_finding_line,
     matches_any_glob, normalize_ignore_value, payload as w2_015_payload, should_emit_ack_for_file,
-    suppression_notice, Finding, Harness, IgnoreValueEntry, ENVELOPE_PREFIX,
-    EDIT_COUNT_THRESHOLD,
+    suppression_notice, Finding, Harness, IgnoreValueEntry, EDIT_COUNT_THRESHOLD, ENVELOPE_PREFIX,
 };
 
 // ---------------------------------------------------------------------
@@ -260,7 +259,11 @@ fn json_str_vec(value: &Value, key: &str) -> Vec<String> {
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
-                .map(|v| v.as_str().map(String::from).unwrap_or_else(|| v.to_string()))
+                .map(|v| {
+                    v.as_str()
+                        .map(String::from)
+                        .unwrap_or_else(|| v.to_string())
+                })
                 .collect()
         })
         .unwrap_or_default()
@@ -272,7 +275,9 @@ fn json_ignore_value_entries(value: &Value, key: &str) -> Vec<IgnoreValueEntry> 
     };
     let mut out = Vec::new();
     for entry in arr {
-        let Some(obj) = entry.as_object() else { continue };
+        let Some(obj) = entry.as_object() else {
+            continue;
+        };
         let rule = obj
             .get("rule")
             .and_then(|v| v.as_str())
@@ -405,7 +410,11 @@ pub struct FileEntry {
     /// Mirrors `fileEntry.cursorDenials`: a map from finding-signature key
     /// (`bumpCursorDenial`'s `findingSignature`) to repeat-denial count,
     /// used only by `hook-before-edit.mjs`'s Cursor preToolUse gate.
-    #[serde(rename = "cursorDenials", default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        rename = "cursorDenials",
+        default,
+        skip_serializing_if = "HashMap::is_empty"
+    )]
     pub cursor_denials: HashMap<String, u32>,
 }
 
@@ -534,7 +543,11 @@ fn resolve_hook_git_exclude_target(cwd: &Path) -> Option<HookGitExcludeTarget> {
                 .ok()
                 .map(|p| p.to_string_lossy().replace('\\', "/"))
                 .unwrap_or_default();
-            let rel_prefix = if rel_prefix == "." { String::new() } else { rel_prefix };
+            let rel_prefix = if rel_prefix == "." {
+                String::new()
+            } else {
+                rel_prefix
+            };
             return Some(HookGitExcludeTarget {
                 path: git_dir.join("info").join("exclude"),
                 pattern_prefix: rel_prefix,
@@ -555,12 +568,18 @@ pub fn ensure_hook_git_excludes(cwd: &Path) -> ExcludeResult {
             mode: "none",
             file: None,
             changed: false,
-            patterns: HOOK_LOCAL_IGNORE_PATTERNS.iter().map(|s| s.to_string()).collect(),
+            patterns: HOOK_LOCAL_IGNORE_PATTERNS
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
         };
     };
 
     let patterns: Vec<String> = if target.pattern_prefix.is_empty() {
-        HOOK_LOCAL_IGNORE_PATTERNS.iter().map(|s| s.to_string()).collect()
+        HOOK_LOCAL_IGNORE_PATTERNS
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
     } else {
         HOOK_LOCAL_IGNORE_PATTERNS
             .iter()
@@ -595,7 +614,11 @@ pub fn ensure_hook_git_excludes(cwd: &Path) -> ExcludeResult {
             } else {
                 format!("{existing}\n")
             };
-            let sep = if prefix.ends_with("\n\n") || prefix.is_empty() { "" } else { "\n" };
+            let sep = if prefix.ends_with("\n\n") || prefix.is_empty() {
+                ""
+            } else {
+                "\n"
+            };
             format!("{prefix}{sep}{block}\n")
         }
     };
@@ -642,7 +665,12 @@ pub fn bump_edit_count(cache: &mut Cache, session_id: &str, file_path: &str) -> 
 }
 
 /// Mirrors `rememberFindings(cache, sessionId, filePath, findings)`.
-pub fn remember_findings(cache: &mut Cache, session_id: &str, file_path: &str, findings: &[Finding]) {
+pub fn remember_findings(
+    cache: &mut Cache,
+    session_id: &str,
+    file_path: &str,
+    findings: &[Finding],
+) {
     let known_keys: Vec<String> = {
         let entry = ensure_file(cache, session_id, file_path);
         let mut known: Vec<String> = entry.findings.clone();
@@ -703,7 +731,12 @@ fn quote_command_arg(value: &str) -> String {
 }
 
 /// Mirrors `renderTemplate(findings, filePath, config, opts)`.
-pub fn render_template(findings: &[Finding], file_path: &str, config: &Config, cwd: &Path) -> String {
+pub fn render_template(
+    findings: &[Finding],
+    file_path: &str,
+    config: &Config,
+    cwd: &Path,
+) -> String {
     if findings.is_empty() {
         return String::new();
     }
@@ -741,7 +774,13 @@ pub fn render_template(findings: &[Finding], file_path: &str, config: &Config, c
     }
 }
 
-fn clamp_to_budget(header: &str, lines: &[String], mut more: Option<String>, footer: &str, max_chars: usize) -> String {
+fn clamp_to_budget(
+    header: &str,
+    lines: &[String],
+    mut more: Option<String>,
+    footer: &str,
+    max_chars: usize,
+) -> String {
     let assemble = |working: &[String], more: &Option<String>| {
         let mut blocks = vec![header.to_string()];
         blocks.extend(working.iter().cloned());
@@ -760,7 +799,10 @@ fn clamp_to_budget(header: &str, lines: &[String], mut more: Option<String>, foo
         assembled = assemble(&working, &more);
     }
     if assembled.chars().count() > max_chars {
-        let truncated: String = assembled.chars().take(max_chars.saturating_sub(1)).collect();
+        let truncated: String = assembled
+            .chars()
+            .take(max_chars.saturating_sub(1))
+            .collect();
         assembled = format!("{truncated}\u{2026}");
     }
     assembled
@@ -774,7 +816,8 @@ pub struct FindingGroup {
 
 /// Mirrors `renderGroupedTemplate(groups, config, opts)`.
 pub fn render_grouped_template(groups: &[FindingGroup], config: &Config, cwd: &Path) -> String {
-    let real_groups: Vec<&FindingGroup> = groups.iter().filter(|g| !g.findings.is_empty()).collect();
+    let real_groups: Vec<&FindingGroup> =
+        groups.iter().filter(|g| !g.findings.is_empty()).collect();
     if real_groups.is_empty() {
         return String::new();
     }
@@ -803,7 +846,9 @@ pub fn render_grouped_template(groups: &[FindingGroup], config: &Config, cwd: &P
         shown_count += shown.len();
         let hidden = group.findings.len() - shown.len();
         if hidden > 0 {
-            lines.push(format!("- ... {hidden} more in {display} (see /designer audit)."));
+            lines.push(format!(
+                "- ... {hidden} more in {display} (see /designer audit)."
+            ));
         }
     }
 
@@ -822,7 +867,12 @@ pub fn render_grouped_template(groups: &[FindingGroup], config: &Config, cwd: &P
     }
 }
 
-fn clamp_grouped_to_budget(header: &str, lines: &[String], footer: &str, max_chars: usize) -> String {
+fn clamp_grouped_to_budget(
+    header: &str,
+    lines: &[String],
+    footer: &str,
+    max_chars: usize,
+) -> String {
     let assemble = |working: &[String], omitted: bool| {
         let mut blocks = vec![header.to_string()];
         blocks.extend(working.iter().cloned());
@@ -842,7 +892,10 @@ fn clamp_grouped_to_budget(header: &str, lines: &[String], footer: &str, max_cha
         assembled = assemble(&working, omitted);
     }
     if assembled.chars().count() > max_chars {
-        let truncated: String = assembled.chars().take(max_chars.saturating_sub(1)).collect();
+        let truncated: String = assembled
+            .chars()
+            .take(max_chars.saturating_sub(1))
+            .collect();
         assembled = format!("{truncated}\u{2026}");
     }
     assembled
@@ -861,7 +914,12 @@ pub fn render_clean_ack(file_path: &str, cwd: &Path) -> String {
 pub fn render_pending_ack(file_path: &str, known_findings: &[String], cwd: &Path) -> String {
     let display = relativize(file_path, cwd);
     let count = known_findings.len();
-    let sample = known_findings.iter().take(3).cloned().collect::<Vec<_>>().join(", ");
+    let sample = known_findings
+        .iter()
+        .take(3)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
     let more = if count > 3 {
         format!(", +{} more", count - 3)
     } else {
@@ -990,7 +1048,9 @@ pub fn parse_github_tool_args(tool_args: &Value) -> Value {
 }
 
 fn looks_like_apply_patch(raw_args: &Value) -> bool {
-    let Some(s) = raw_args.as_str() else { return false };
+    let Some(s) = raw_args.as_str() else {
+        return false;
+    };
     if !apply_patch_marker_re().is_match(s) {
         return false;
     }
@@ -1028,7 +1088,11 @@ fn apply_patch_text(raw_args: &Value) -> String {
     String::new()
 }
 
-fn normalize_github_event(mut event: Value, project_cwd: &str, env: &HashMap<String, String>) -> Value {
+fn normalize_github_event(
+    mut event: Value,
+    project_cwd: &str,
+    env: &HashMap<String, String>,
+) -> Value {
     let cwd = event
         .get("cwd")
         .and_then(|v| v.as_str())
@@ -1078,7 +1142,9 @@ fn normalize_github_event(mut event: Value, project_cwd: &str, env: &HashMap<Str
         obj.insert("session_id".to_string(), Value::String(session_id));
         obj.insert(
             "tool_name".to_string(),
-            normalized_tool_name.map(Value::String).unwrap_or(Value::Null),
+            normalized_tool_name
+                .map(Value::String)
+                .unwrap_or(Value::Null),
         );
         obj.insert("tool_input".to_string(), tool_input);
     }
@@ -1154,10 +1220,22 @@ const MAX_SCAN_TARGETS: usize = 6;
 const STYLE_EXTS: &[&str] = &[".css", ".scss", ".sass", ".less"];
 const UI_CODE_EXTS: &[&str] = &[".jsx", ".tsx", ".vue", ".svelte", ".astro"];
 const CO_SCAN_STYLE_NAMES: &[&str] = &[
-    "styles.css", "styles.scss", "styles.sass", "styles.less",
-    "index.css", "index.scss", "index.sass", "index.less",
-    "global.css", "global.scss", "global.sass", "global.less",
-    "globals.css", "globals.scss", "globals.sass", "globals.less",
+    "styles.css",
+    "styles.scss",
+    "styles.sass",
+    "styles.less",
+    "index.css",
+    "index.scss",
+    "index.sass",
+    "index.less",
+    "global.css",
+    "global.scss",
+    "global.sass",
+    "global.less",
+    "globals.css",
+    "globals.scss",
+    "globals.sass",
+    "globals.less",
 ];
 
 fn has_path_traversal(file_path: &str) -> bool {
@@ -1204,12 +1282,18 @@ pub fn normalize_scan_targets(primary_targets: &[String], project_cwd: &Path) ->
 }
 
 fn static_style_import_re() -> Regex {
-    Regex::new(r#"(?i)import\s+(?:[\w*{}\s,$]+\s+from\s+)?['"]([^'"]+\.(?:css|scss|sass|less))['"]"#)
-        .expect("STATIC_STYLE_IMPORT_RE must compile")
+    Regex::new(
+        r#"(?i)import\s+(?:[\w*{}\s,$]+\s+from\s+)?['"]([^'"]+\.(?:css|scss|sass|less))['"]"#,
+    )
+    .expect("STATIC_STYLE_IMPORT_RE must compile")
 }
 
 /// Mirrors `parseStaticStyleImports(content, fromFile, projectCwd)`.
-pub fn parse_static_style_imports(content: &str, from_file: &str, project_cwd: &Path) -> Vec<String> {
+pub fn parse_static_style_imports(
+    content: &str,
+    from_file: &str,
+    project_cwd: &Path,
+) -> Vec<String> {
     let dir = Path::new(from_file).parent().unwrap_or(Path::new(""));
     let mut out = Vec::new();
     for cap in static_style_import_re().captures_iter(content) {
@@ -1237,7 +1321,10 @@ pub fn parse_static_style_imports(content: &str, from_file: &str, project_cwd: &
 pub fn co_located_stylesheets(file_path: &str) -> Vec<String> {
     let path = Path::new(file_path);
     let dir = path.parent().unwrap_or(Path::new(""));
-    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
 
     let mut candidates: Vec<String> = Vec::new();
     let mut push_unique = |p: PathBuf, out: &mut Vec<String>| {
@@ -1246,13 +1333,25 @@ pub fn co_located_stylesheets(file_path: &str) -> Vec<String> {
             out.push(s);
         }
     };
-    for ext in ["css", "module.css", "scss", "module.scss", "sass", "module.sass", "less", "module.less"] {
+    for ext in [
+        "css",
+        "module.css",
+        "scss",
+        "module.scss",
+        "sass",
+        "module.sass",
+        "less",
+        "module.less",
+    ] {
         push_unique(dir.join(format!("{stem}.{ext}")), &mut candidates);
     }
     for name in CO_SCAN_STYLE_NAMES {
         push_unique(dir.join(name), &mut candidates);
     }
-    candidates.into_iter().filter(|p| Path::new(p).exists()).collect()
+    candidates
+        .into_iter()
+        .filter(|p| Path::new(p).exists())
+        .collect()
 }
 
 /// Mirrors `expandScanTargets(primaryTargets, projectCwd)`.
@@ -1339,7 +1438,9 @@ pub fn write_audit_log(
         base_cwd.join(&target)
     };
 
-    let Some(parent) = expanded.parent() else { return false };
+    let Some(parent) = expanded.parent() else {
+        return false;
+    };
     if fs::create_dir_all(parent).is_err() {
         return false;
     }
@@ -1352,11 +1453,17 @@ pub fn write_audit_log(
         merged.extend(obj.clone());
         *obj = merged;
     }
-    let Ok(line) = serde_json::to_string(&record) else { return false };
+    let Ok(line) = serde_json::to_string(&record) else {
+        return false;
+    };
     let line = format!("{line}\n");
 
     use std::io::Write;
-    let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&expanded) else {
+    let Ok(mut file) = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&expanded)
+    else {
         return false;
     };
     file.write_all(line.as_bytes()).is_ok()
@@ -1365,7 +1472,9 @@ pub fn write_audit_log(
 /// Minimal ISO-8601 UTC timestamp without pulling in a chrono dependency
 /// (not in this crate's allowed-crates list for this packet).
 fn chrono_ish_now_iso8601() -> String {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = now.as_secs();
     let millis = now.subsec_millis();
     // Days since epoch -> proleptic Gregorian civil date (Howard Hinnant's algorithm).
@@ -1393,7 +1502,12 @@ fn chrono_ish_now_iso8601() -> String {
 /// `heardright`-style detector logic; tests supply a fake, per the packet
 /// brief's "I/O behind a trait, tested with fakes" rule.
 pub trait Detector {
-    fn detect_text(&self, content: &str, file_path: &str, scan_options: &ScanOptions) -> Vec<Finding>;
+    fn detect_text(
+        &self,
+        content: &str,
+        file_path: &str,
+        scan_options: &ScanOptions,
+    ) -> Vec<Finding>;
     fn detect_html(&self, file_path: &str, scan_options: &ScanOptions) -> Vec<Finding>;
     /// `None` means "no design-system sidecar" (mirrors a `null` return).
     fn load_design_system_for_cwd(&self, _project_cwd: &Path) -> Option<DesignSystemInfo> {
@@ -1469,20 +1583,32 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
     if depth_is_set(deps.env.get("IMPECCABLE_HOOK_DEPTH").map(|s| s.as_str()))
         || depth_is_set(deps.env.get("CLAUDE_HOOK_DEPTH").map(|s| s.as_str()))
     {
-        return audit_result(audit, serde_json::json!({ "reentrant": true, "durationMs": 0 }));
+        return audit_result(
+            audit,
+            serde_json::json!({ "reentrant": true, "durationMs": 0 }),
+        );
     }
     if truthy(deps.env.get("IMPECCABLE_HOOK_DISABLED").map(|s| s.as_str())) {
-        return audit_result(audit, serde_json::json!({ "skipped": "env-disabled", "durationMs": 0 }));
+        return audit_result(
+            audit,
+            serde_json::json!({ "skipped": "env-disabled", "durationMs": 0 }),
+        );
     }
 
     let event: Value = match serde_json::from_str(deps.stdin_json) {
         Ok(v) => v,
         Err(_) => {
-            return audit_result(audit, serde_json::json!({ "skipped": "stdin-malformed", "durationMs": 0 }));
+            return audit_result(
+                audit,
+                serde_json::json!({ "skipped": "stdin-malformed", "durationMs": 0 }),
+            );
         }
     };
     if !event.is_object() {
-        return audit_result(audit, serde_json::json!({ "skipped": "stdin-empty", "durationMs": 0 }));
+        return audit_result(
+            audit,
+            serde_json::json!({ "skipped": "stdin-empty", "durationMs": 0 }),
+        );
     }
 
     let harness = resolve_harness(&deps.env, Some(&event));
@@ -1499,10 +1625,16 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
     let project_cwd = PathBuf::from(&project_cwd_str);
     audit["cwd"] = Value::String(project_cwd_str.clone());
 
-    let primary_files = normalize_scan_targets(&resolve_target_files(&event, &project_cwd), &project_cwd);
-    let primary_file_set: std::collections::HashSet<String> = primary_files.iter().cloned().collect();
+    let primary_files =
+        normalize_scan_targets(&resolve_target_files(&event, &project_cwd), &project_cwd);
+    let primary_file_set: std::collections::HashSet<String> =
+        primary_files.iter().cloned().collect();
     let target_files = expand_scan_targets(&primary_files, &project_cwd);
-    let session_id = event.get("session_id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+    let session_id = event
+        .get("session_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
     audit["session"] = Value::String(session_id.clone());
     if let Some(t) = event.get("tool_name").and_then(|v| v.as_str()) {
         audit["tool"] = Value::String(t.to_string());
@@ -1556,7 +1688,9 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
         }
 
         let rel_for_match = relativize(file_path, &project_cwd);
-        if matches_any_glob(&rel_for_match, &config.ignore_files) || matches_any_glob(file_path, &config.ignore_files) {
+        if matches_any_glob(&rel_for_match, &config.ignore_files)
+            || matches_any_glob(file_path, &config.ignore_files)
+        {
             last_skip = "config-ignore-file".to_string();
             continue;
         }
@@ -1586,7 +1720,8 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
         let findings = if ext == ".html" || ext == ".htm" {
             deps.detector.detect_html(file_path, &scan_options)
         } else {
-            deps.detector.detect_text(&content, file_path, &scan_options)
+            deps.detector
+                .detect_text(&content, file_path, &scan_options)
         };
 
         let ignore_rules_set: HashSet<String> = config.ignore_rules.iter().cloned().collect();
@@ -1610,7 +1745,9 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
         }
 
         if !filtered.is_empty() && pending_winner.is_none() {
-            let known = ensure_file(&mut cache, &session_id, file_path).findings.clone();
+            let known = ensure_file(&mut cache, &session_id, file_path)
+                .findings
+                .clone();
             pending_winner = Some((file_path.clone(), known));
         } else if filtered.is_empty() && clean_winner.is_none() {
             clean_winner = Some(file_path.clone());
@@ -1639,12 +1776,18 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
     }
 
     if truthy(deps.env.get("IMPECCABLE_HOOK_QUIET").map(|s| s.as_str())) || config.quiet {
-        return audit_result(audit, serde_json::json!({ "emitted": false, "quiet": true }));
+        return audit_result(
+            audit,
+            serde_json::json!({ "emitted": false, "quiet": true }),
+        );
     }
 
     if let Some((file_path, known)) = &pending_winner {
         if should_emit_ack_for_file(file_path) {
-            let text = append_design_system_note(render_pending_ack(file_path, known, &project_cwd), md_newer_than_json);
+            let text = append_design_system_note(
+                render_pending_ack(file_path, known, &project_cwd),
+                md_newer_than_json,
+            );
             audit["file"] = Value::String(file_path.clone());
             audit["emitted"] = Value::Bool(true);
             audit["kind"] = Value::String("pending".to_string());
@@ -1672,7 +1815,10 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
 
     if let Some(file_path) = &clean_winner {
         if should_emit_ack_for_file(file_path) {
-            let text = append_design_system_note(render_clean_ack(file_path, &project_cwd), md_newer_than_json);
+            let text = append_design_system_note(
+                render_clean_ack(file_path, &project_cwd),
+                md_newer_than_json,
+            );
             audit["file"] = Value::String(file_path.clone());
             audit["emitted"] = Value::Bool(true);
             audit["kind"] = Value::String("clean".to_string());
@@ -1686,10 +1832,16 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
     }
 
     if pending_winner.is_some() || clean_winner.is_some() {
-        return audit_result(audit, serde_json::json!({ "emitted": false, "skipped": "non-ui-ack" }));
+        return audit_result(
+            audit,
+            serde_json::json!({ "emitted": false, "skipped": "non-ui-ack" }),
+        );
     }
     if suppressed_hit {
-        return audit_result(audit, serde_json::json!({ "suppressed": true, "emitted": false }));
+        return audit_result(
+            audit,
+            serde_json::json!({ "suppressed": true, "emitted": false }),
+        );
     }
     audit_result(audit, serde_json::json!({ "skipped": last_skip }))
 }
@@ -1704,7 +1856,12 @@ mod tests {
     }
 
     impl Detector for FakeDetector {
-        fn detect_text(&self, _content: &str, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
+        fn detect_text(
+            &self,
+            _content: &str,
+            _file_path: &str,
+            _scan_options: &ScanOptions,
+        ) -> Vec<Finding> {
             self.text_findings.clone()
         }
         fn detect_html(&self, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
@@ -1719,7 +1876,12 @@ mod tests {
     }
 
     impl Detector for DesignSystemFakeDetector {
-        fn detect_text(&self, _content: &str, _file_path: &str, scan_options: &ScanOptions) -> Vec<Finding> {
+        fn detect_text(
+            &self,
+            _content: &str,
+            _file_path: &str,
+            scan_options: &ScanOptions,
+        ) -> Vec<Finding> {
             self.seen_design_system
                 .borrow_mut()
                 .push(scan_options.design_system.is_some());
@@ -1782,13 +1944,20 @@ mod tests {
     fn render_clean_ack_matches_js_wording() {
         let cwd = Path::new("/proj");
         let text = render_clean_ack("/proj/src/App.tsx", cwd);
-        assert!(text.starts_with("[impeccable@1] Design hook scanned src/App.tsx. No anti-patterns."));
+        assert!(
+            text.starts_with("[impeccable@1] Design hook scanned src/App.tsx. No anti-patterns.")
+        );
     }
 
     #[test]
     fn render_pending_ack_lists_sample_and_overflow() {
         let cwd = Path::new("/proj");
-        let known = vec!["side-tab:3".to_string(), "overused-font:5".to_string(), "x:1".to_string(), "y:2".to_string()];
+        let known = vec![
+            "side-tab:3".to_string(),
+            "overused-font:5".to_string(),
+            "x:1".to_string(),
+            "y:2".to_string(),
+        ];
         let text = render_pending_ack("/proj/App.tsx", &known, cwd);
         assert!(text.contains("Still has 4 finding(s)"));
         assert!(text.contains("+1 more"));
@@ -1797,27 +1966,38 @@ mod tests {
     #[test]
     fn resolve_harness_detects_github_camelcase_shape() {
         let event: Value = serde_json::from_str(r#"{"toolName":"edit","toolArgs":"{}"}"#).unwrap();
-        assert_eq!(resolve_harness(&HashMap::new(), Some(&event)), Harness::Github);
+        assert_eq!(
+            resolve_harness(&HashMap::new(), Some(&event)),
+            Harness::Github
+        );
     }
 
     #[test]
     fn resolve_harness_detects_cursor_conversation_id() {
         let event: Value = serde_json::from_str(r#"{"conversation_id":"abc"}"#).unwrap();
-        assert_eq!(resolve_harness(&HashMap::new(), Some(&event)), Harness::Cursor);
+        assert_eq!(
+            resolve_harness(&HashMap::new(), Some(&event)),
+            Harness::Cursor
+        );
     }
 
     #[test]
     fn resolve_target_files_reads_tool_input_file_path() {
-        let event: Value = serde_json::from_str(r#"{"tool_input":{"file_path":"/a/b.tsx"}}"#).unwrap();
+        let event: Value =
+            serde_json::from_str(r#"{"tool_input":{"file_path":"/a/b.tsx"}}"#).unwrap();
         let out = resolve_target_files(&event, Path::new("/proj"));
         assert_eq!(out, vec!["/a/b.tsx".to_string()]);
     }
 
     #[test]
     fn parse_apply_patch_paths_extracts_update_and_add() {
-        let cmd = "*** Begin Patch\n*** Update File: src/a.tsx\n*** Add File: src/b.css\n*** End Patch";
+        let cmd =
+            "*** Begin Patch\n*** Update File: src/a.tsx\n*** Add File: src/b.css\n*** End Patch";
         let out = parse_apply_patch_paths(cmd, Path::new("/proj"));
-        assert_eq!(out, vec!["/proj/src/a.tsx".to_string(), "/proj/src/b.css".to_string()]);
+        assert_eq!(
+            out,
+            vec!["/proj/src/a.tsx".to_string(), "/proj/src/b.css".to_string()]
+        );
     }
 
     #[test]
@@ -1856,7 +2036,11 @@ mod tests {
         });
         assert_eq!(result.exit_code, 0);
         assert!(result.stdout.contains("side-tab"));
-        assert!(result.audit.get("emitted").and_then(|v| v.as_bool()).unwrap_or(false));
+        assert!(result
+            .audit
+            .get("emitted")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false));
         assert!(get_cache_path(&dir).exists());
         cleanup(&dir);
     }
@@ -1874,7 +2058,9 @@ mod tests {
                 description: Some("Uses a side tab pattern.".to_string()),
                 ..Default::default()
             }],
-            design_system: Some(DesignSystemInfo { md_newer_than_json: true }),
+            design_system: Some(DesignSystemInfo {
+                md_newer_than_json: true,
+            }),
             seen_design_system: std::cell::RefCell::new(Vec::new()),
         };
         let stdin = serde_json::json!({
@@ -1891,7 +2077,9 @@ mod tests {
             detector: &detector,
         });
         assert_eq!(result.exit_code, 0);
-        assert!(result.stdout.contains("DESIGN.md is newer than .impeccable/design.json"));
+        assert!(result
+            .stdout
+            .contains("DESIGN.md is newer than .impeccable/design.json"));
         assert_eq!(*detector.seen_design_system.borrow(), vec![true]);
         cleanup(&dir);
     }
@@ -1902,7 +2090,9 @@ mod tests {
         config.design_system.enabled = false;
         let detector = DesignSystemFakeDetector {
             text_findings: vec![],
-            design_system: Some(DesignSystemInfo { md_newer_than_json: true }),
+            design_system: Some(DesignSystemInfo {
+                md_newer_than_json: true,
+            }),
             seen_design_system: std::cell::RefCell::new(Vec::new()),
         };
         let opts = design_system_options(&config, &detector, Path::new("/proj"));
@@ -1914,14 +2104,20 @@ mod tests {
         let dir = tempdir();
         let mut env = HashMap::new();
         env.insert("IMPECCABLE_HOOK_DEPTH".to_string(), "1".to_string());
-        let detector = FakeDetector { text_findings: vec![], html_findings: vec![] };
+        let detector = FakeDetector {
+            text_findings: vec![],
+            html_findings: vec![],
+        };
         let result = run_hook(RunHookDeps {
             stdin_json: "{}",
             env,
             cwd: dir.clone(),
             detector: &detector,
         });
-        assert_eq!(result.audit.get("reentrant").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            result.audit.get("reentrant").and_then(|v| v.as_bool()),
+            Some(true)
+        );
         cleanup(&dir);
     }
 
