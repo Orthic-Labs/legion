@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: legion-regenerate
   cancel-in-progress: false
@@ -74,3 +75,7 @@ jobs:
           git add -A
           git commit -m "Regenerate derived artifacts" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
           git push origin HEAD:main
+          # Pushes made with GITHUB_TOKEN do not trigger workflows; start CI explicitly.
+          gh workflow run ci.yml --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
