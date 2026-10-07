@@ -43,7 +43,7 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Clippy
         working-directory: engine
-        run: cargo clippy --workspace --all-targets --locked -- -A warnings -D clippy::correctness
+        run: cargo clippy --workspace --all-targets --locked --keep-going -- -A warnings -D clippy::correctness
   bench:
     # Planted-defect recall gate. Runs on macOS because dead-code, duplication
     # and type checks must run inside sandbox-exec; provisions the scanners so

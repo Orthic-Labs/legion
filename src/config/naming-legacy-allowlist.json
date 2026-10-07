@@ -32,9 +32,9 @@
       "occurrences": {
         "nemesis": 13,
         "forge": 112,
-        "seer": 41,
+        "seer": 40,
         "sentinel": 43,
-        "sorcerer": 15
+        "sorcerer": 14
       },
       "class": "R2",
       "reason": "legacy-token classification source"
@@ -787,9 +787,7 @@
       "tokens": [
         "nemesis",
         "forge",
-        "seer",
-        "sentinel",
-        "sorcerer"
+        "sentinel"
       ],
       "class": "R5",
       "reason": "audit records quote retired names as lineage evidence"
