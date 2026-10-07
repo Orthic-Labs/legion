@@ -577,23 +577,9 @@
         "process-exec"
       ],
       "hostRequirements": [
-        "python-runtime",
         "legion"
       ],
       "hostRequirementDetails": [
-        {
-          "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
-          "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
-          }
-        },
         {
           "id": "legion",
           "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",

@@ -532,25 +532,9 @@
       },
       "domain": null,
       "hostRequirements": [
-        "python-runtime",
         "legion"
       ],
       "hostRequirementDetails": [
-        {
-          "id": "python-runtime",
-          "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators.",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
-          "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
-          }
-        },
         {
           "id": "legion",
           "kind": "command-line-tool",

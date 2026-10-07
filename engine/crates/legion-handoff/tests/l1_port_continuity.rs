@@ -159,3 +159,21 @@ fn user_request_preserves_whitespace_while_redacting() {
         "  keep\n  [REDACTED]  "
     );
 }
+
+#[test]
+fn codex_string_user_request_preserves_whitespace_and_omits_notifications() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("session-1.jsonl");
+    let (cutoff, digest) = write_rows(
+        &path,
+        &[
+            r#"{"type":"session_meta","payload":{"id":"session-1","cwd":"/repo"}}"#,
+            r#"{"type":"response_item","payload":{"type":"message","role":"user","content":"  Keep exact whitespace.  "}}"#,
+            r#"{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<subagent_notification>synthetic completion</subagent_notification>"}]}}"#,
+        ],
+        &[],
+    );
+    let context = normalize(&input(&path, Platform::Codex, cutoff, &digest)).unwrap();
+    assert_eq!(context.user_requests.len(), 1);
+    assert_eq!(context.user_requests[0].text, "  Keep exact whitespace.  ");
+}

@@ -21,7 +21,7 @@ use super::pointer::Platform;
 
 pub const CONTINUITY_SCHEMA: &str = "legion.handoff.continuity.v1";
 pub const RECEIPT_SCHEMA: &str = "legion.handoff.continuity-receipt.v1";
-pub const PARSER_VERSION: &str = "membrane.transcript-event.v1";
+pub const PARSER_VERSION: &str = "legion.transcript-event.v1";
 const MAX_TEXT_CHARS: usize = 6_000;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -887,7 +887,7 @@ fn codex_text(value: &Value) -> String {
                     Some("input_text") | Some("output_text") | Some("text") => object
                         .get("text")
                         .and_then(Value::as_str)
-                        .map(str::to_string),
+                        .map(strip_codex_control),
                     _ => None,
                 }
             })
@@ -906,8 +906,7 @@ fn strip_codex_control(text: &str) -> String {
     let image = IMAGE.get_or_init(|| Regex::new(r"</?image\b[^>]*>?").unwrap());
     image
         .replace_all(&control.replace_all(text, ""), "")
-        .trim()
-        .to_owned()
+        .into_owned()
 }
 
 fn injected_context(text: &str) -> bool {
