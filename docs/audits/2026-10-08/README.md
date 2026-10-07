@@ -2,19 +2,22 @@
 
 **Scope.** Everything that is or was Legion: the workspace lineage since 2026-06-10, the Legion repository since 2026-08-05, the 29 packaged skills, the governance documents, the Arcane/Guard runtime, the Rust engine and CLI, the host projections on this Mac, and the workspace rules that wrap it all.
 
-**Method.** Read-only. Seven Sonnet subagents each owned one layer and wrote a report into `evidence/`; the lead verified the consequential claims directly (hook firing, duplicate MCP, stale goal hook, the Aug 3 rule cut, doctor output, skills diff). No repository, config, or installed file was changed. Nothing was built or tested locally (RightKit gates local Cargo); CI numbers come from `legion-ci` run 37684060947.
+**Method.** Read-only. Seven Sonnet subagents each owned one layer and wrote a report into `reports/`; the lead verified the consequential claims directly (hook firing, duplicate MCP, stale goal hook, the Aug 3 rule cut, doctor output, skills diff). No repository, config, or installed file was changed. Nothing was built or tested locally (RightKit gates local Cargo); CI numbers come from `legion-ci` run 37684060947.
 
 **Evidence.**
 
+> The ten subagent reports cited below as `reports/NN-*.md` describe the private workspace and are kept in the private workspace repository (`docs/audits/legion-2026-10-08/`), not in this public repository.
+
+
 | File | Layer |
 |---|---|
-| `evidence/01-history-parent.md` | Workspace lineage 2026-06-10 → 08-10, original rules, 50-rule loss table |
-| `evidence/02-history-legion.md` | Legion repo epochs, deletions vs replacements, drift symptoms |
-| `evidence/03-skills-audit.md` | 29 skills: 4,474 references checked, per-skill table, ranked breakages |
-| `evidence/04-doctrine-consistency.md` | 45 governance docs: ownership map, 20 contradictions, 19 dead references |
-| `evidence/05-runtime.md` | Installed binaries, hooks, receipts, MCP, doctor, RightKit interference |
-| `evidence/06-workspace-reality.md` | Workspace rules vs reality, Membrane/Cortex/rhook/Luna, skills fork, tools/ orphans |
-| `evidence/07-engine.md` | Crates, LOC, tests, CLI surface, src residue, CI |
+| `reports/01-history-parent.md` | Workspace lineage 2026-06-10 → 08-10, original rules, 50-rule loss table |
+| `reports/02-history-legion.md` | Legion repo epochs, deletions vs replacements, drift symptoms |
+| `reports/03-skills-audit.md` | 29 skills: 4,474 references checked, per-skill table, ranked breakages |
+| `reports/04-doctrine-consistency.md` | 45 governance docs: ownership map, 20 contradictions, 19 dead references |
+| `reports/05-runtime.md` | Installed binaries, hooks, receipts, MCP, doctor, RightKit interference |
+| `reports/06-workspace-reality.md` | Workspace rules vs reality, Membrane/Cortex/rhook/Luna, skills fork, tools/ orphans |
+| `reports/07-engine.md` | Crates, LOC, tests, CLI surface, src residue, CI |
 
 ---
 
@@ -157,7 +160,7 @@ Ordered by leverage. Each phase is independently valuable; none requires the nex
 ### Phase 1 — One owner per thing (docs, one sitting)
 
 5. Pick one source for the Legion identity text and generate the rest from it: `AGENTS.md`, `docs/agent-rules.md`, the parent `docs/agent-rules/legion.md`, and `SESSION_START_CONTEXT` in `engine/bins/legion-hook/src/main.rs`. Make Claude and Codex load the same words in the same directory.
-6. Rewrite the SSOT precedence ladder so `docs/canon/*` is below the roster or absent. Sweep the 20 contradictions listed in `evidence/04` §3 to the decided side.
+6. Rewrite the SSOT precedence ladder so `docs/canon/*` is below the roster or absent. Sweep the 20 contradictions listed in `reports/04` §3 to the decided side.
 7. `workspace.md`: delete the Membrane, Cortex-shim, rhook, and `status.py` bullets; fix Node/pnpm/Luna numbers; move the Windows-only Package Rules commands out of the always-loaded file. Run `manage.py sync` and `check`, then resync the 10 stale nested `AGENTS.md`.
 8. Delete `tools/skills` (keep `content` if wanted, as its own thing). Fix `.claude/skills/README.md`. Give `/brand` an explicit pointer to `tools/legion-overlay/brand`. Remove the 4 dead `.claude/commands`.
 9. Move `docs/canon/*` and `docs/pending/` to `docs/provenance/` or regenerate them from Rust; today they cannot be regenerated.
@@ -171,7 +174,7 @@ Ordered by leverage. Each phase is independently valuable; none requires the nex
 
 ### Phase 3 — Skills repair (mechanical, parallelizable)
 
-14. Rewrite the 70 relocated links (`evidence/03` Appendix C has every one).
+14. Rewrite the 70 relocated links (`reports/03` Appendix C has every one).
 15. Replace or remove the 78 dead script names: `legion script` where a port exists, delete the instruction where it does not. Priority: `audit/references/execution-contract.md`, the 18 `auto-jury` blocks, the 5 `qa-shot.mjs` citations.
 16. Wire the ~12 ported-but-unwired tools into `legion script` (`coverage`, `ai_visibility_import`, `checklist_compiler`, SEO `validate-schema`, designer `add-music`/`convert-formats`, coder cheap-review routing, goal-route validator).
 17. Fix `seo_closure` to check the Rust entries, not deleted `.py` files. Drop `python-runtime` from the five skills and the registry. Declare `_shared/` and the MCP host capabilities. Register or remove the 10 `ads` agents. Collapse ios/macos shared files into one bundle.
@@ -215,7 +218,7 @@ This is the part that answers "bring it back to good shape". Each item restores 
 
 ## Addendum (same day): SEO, the audit skill, and two external sources
 
-Three further questions were asked after the main audit. Evidence: `evidence/08-seo-lineage.md`, `evidence/09-audit-depth.md`, `evidence/10-external-review-sources.md`.
+Three further questions were asked after the main audit. Evidence: `reports/08-seo-lineage.md`, `reports/09-audit-depth.md`, `reports/10-external-review-sources.md`.
 
 ### A. SEO: nothing is lost everywhere, but Legion holds a lagging copy
 

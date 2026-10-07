@@ -30,33 +30,45 @@
         "sorcerer"
       ],
       "occurrences": {
-        "nemesis": 12,
-        "forge": 109,
-        "seer": 40,
-        "sentinel": 41,
-        "sorcerer": 14
+        "nemesis": 13,
+        "forge": 112,
+        "seer": 41,
+        "sentinel": 43,
+        "sorcerer": 15
       },
       "class": "R2",
       "reason": "legacy-token classification source"
     },
     {
       "path": "docs/apple-absorption/swiftui.json",
-      "tokens": ["sentinel"],
-      "occurrences": { "sentinel": 2 },
+      "tokens": [
+        "sentinel"
+      ],
+      "occurrences": {
+        "sentinel": 2
+      },
       "class": "R2",
       "reason": "Upstream trace-helper terminology for an unterminated-duration marker, not an authority alias"
     },
     {
       "path": "skills/ios-development/references/swiftui/donor-lee-environment-patterns.md",
-      "tokens": ["sentinel"],
-      "occurrences": { "sentinel": 2 },
+      "tokens": [
+        "sentinel"
+      ],
+      "occurrences": {
+        "sentinel": 2
+      },
       "class": "R2",
       "reason": "Swift data-model terminology for placeholder values, not an authority alias"
     },
     {
       "path": "skills/macos-development/references/swiftui/donor-lee-environment-patterns.md",
-      "tokens": ["sentinel"],
-      "occurrences": { "sentinel": 2 },
+      "tokens": [
+        "sentinel"
+      ],
+      "occurrences": {
+        "sentinel": 2
+      },
       "class": "R2",
       "reason": "Swift data-model terminology for placeholder values, not an authority alias"
     },
@@ -769,6 +781,37 @@
       },
       "class": "R2",
       "reason": "legacy-token detector and exact prohibited path checks"
+    },
+    {
+      "pathPrefix": "docs/audits/2026-10-08/",
+      "tokens": [
+        "nemesis",
+        "forge",
+        "seer",
+        "sentinel",
+        "sorcerer"
+      ],
+      "class": "R5",
+      "reason": "audit records quote retired names as lineage evidence"
+    },
+    {
+      "path": "docs/provenance/retirements.md",
+      "tokens": [
+        "sentinel"
+      ],
+      "class": "R5",
+      "reason": "retirement ledger names retired systems"
+    },
+    {
+      "path": "skills/audit/references/security-checklist.md",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 4
+      },
+      "class": "R0",
+      "reason": "ordinary security verb"
     }
   ]
 }

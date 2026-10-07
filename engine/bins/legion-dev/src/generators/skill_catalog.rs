@@ -54,13 +54,14 @@ fn canonical_record(
     let mut host_requirement_details = Vec::new();
     for rid in &host_requirements {
         let requirement = registry.get("capabilities").and_then(|c| c.get(rid));
-        let requirement =
-            match requirement {
-                Some(r) if !r.is_null() => r,
-                _ => return Err(format!(
+        let requirement = match requirement {
+            Some(r) if !r.is_null() => r,
+            _ => {
+                return Err(format!(
                     "skills/{id}/SKILL.md declares host requirement absent from registry: {rid}"
-                )),
-            };
+                ))
+            }
+        };
         let mut o = Map::new();
         o.insert("id".into(), Value::from(rid.clone()));
         o.insert(

@@ -18,10 +18,11 @@ use std::{
 };
 
 use legion_audit::{
-    native_providers::legacy_checks::spec, AuditProvider, InventoryEntry, InventoryEnvelope,
-    NativeProviderRegistry, ProviderExecutor, ProviderKind,
+    native_providers::legacy_checks::spec, AuditPlan, AuditProvider, FrozenPlan, InventoryEntry,
+    InventoryEnvelope, NativeProviderRegistry, ProviderExecutor, ProviderKind,
 };
 use serde_json::{json, Value};
+use tokio_util::sync::CancellationToken;
 
 const MANIFEST: &str = include_str!("fixtures/bench/manifest.json");
 
@@ -85,6 +86,41 @@ fn registry_lens_ids(id: &str) -> Vec<String> {
                 })
         })
         .unwrap_or_default()
+}
+
+/// A frozen plan for one legacy-check provider. The external-tool route is
+/// only taken by the plan-bound async executor (`execute_async`); the plain
+/// synchronous `execute` path never launches a process, so a bench built on
+/// it can only ever report tool-missing.
+fn bench_plan(inventory: &InventoryEnvelope, provider_id: &str) -> FrozenPlan {
+    let contract = spec(provider_id).unwrap_or_else(|| panic!("legacy provider {provider_id} must be frozen"));
+    let definition = json!({
+        "schemaVersion": 2,
+        "id": provider_id,
+        "providerVersion": "2.0.0",
+        "family": "legacy",
+        "role": contract.role,
+        "phase": contract.phase,
+        "lensIds": ["security"],
+        "dependsOn": [],
+        "consumes": ["repository-inventory"],
+        "produces": ["provider-result"],
+        "selector": {"op": "always"},
+        "denominatorKind": "repository-inventory",
+        "runner": {"kind": "legacy-check", "check": contract.check},
+        "hostCapabilities": [],
+        "execution": {},
+        "reasoning": {},
+        "benchmark": {"status": "unproven", "requiredForCleanClaim": false},
+        "cleanClaim": "evidence-only",
+        "controlIds": [],
+        "scopes": [],
+        "selectable": true
+    });
+    AuditPlan::compile(inventory, &[serde_json::from_value(definition).expect("bench provider definition")])
+        .expect("bench plan compiles")
+        .freeze(Some(b"bench-recall-key"))
+        .expect("bench plan freezes")
 }
 
 fn provider(id: &str, selector: Value) -> AuditProvider {
@@ -280,8 +316,15 @@ fn run_class(class: &str) -> ClassOutcome {
         let inv = inventory(&paths);
         let registry = NativeProviderRegistry::new(&root)
             .with_external_project_tool(real_external_tool(&root));
-        let result = registry
-            .execute(&provider(provider_id, selector.clone()), &inv)
+        let plan = bench_plan(&inv, provider_id);
+        let result = tokio::runtime::Runtime::new()
+            .expect("tokio runtime")
+            .block_on(registry.execute_async(
+                &plan,
+                &provider(provider_id, selector.clone()),
+                &inv,
+                CancellationToken::new(),
+            ))
             .expect("typed provider result (never a raw panic)");
 
         let missing = result
@@ -327,7 +370,7 @@ fn run_class(class: &str) -> ClassOutcome {
 macro_rules! bench_class_test {
     ($name:ident, $class:literal) => {
         #[test]
-        #[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the CI bench job with --ignored"]
+        #[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the macOS CI bench job with --ignored"]
         fn $name() {
             match run_class($class) {
                 ClassOutcome::Uncovered => match allowed_skip_reason($class) {
@@ -380,7 +423,7 @@ bench_class_test!(bench_recall_drift, "drift");
 /// `references/audit-provider-benchmarks.schema.json` so the recall gate's
 /// result is machine-readable evidence, not just terminal text.
 #[test]
-#[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the CI bench job with --ignored"]
+#[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the macOS CI bench job with --ignored"]
 fn bench_recall_qualification_receipt() {
     let classes = [
         "secret",

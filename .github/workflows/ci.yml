@@ -45,10 +45,11 @@ jobs:
         working-directory: engine
         run: cargo clippy --workspace --all-targets --locked -- -A warnings -D clippy::correctness
   bench:
-    # Planted-defect recall gate. Provisions the external scanners so a
-    # tool-missing class fails instead of skipping green.
+    # Planted-defect recall gate. Runs on macOS because dead-code, duplication
+    # and type checks must run inside sandbox-exec; provisions the scanners so
+    # a tool-missing class fails instead of skipping green.
     needs: [private-repo-guard]
-    runs-on: ubuntu-24.04
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
@@ -64,8 +65,7 @@ jobs:
       - name: Install scanners
         run: |
           set -euo pipefail
-          GL=8.28.0
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GL}/gitleaks_${GL}_linux_x64.tar.gz" | sudo tar -xz -C /usr/local/bin gitleaks
+          brew install gitleaks
           npm install -g knip jscpd typescript
           gitleaks version; knip --version; jscpd --version; tsc --version
       - name: Bench recall
