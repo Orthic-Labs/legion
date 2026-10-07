@@ -774,7 +774,8 @@ fn rewrite_accepted_svelte_selector_part(
         out = variant_selector_regex(variant_num)
             .replace_all(&out, "")
             .into_owned();
-        let attr_re = regex::Regex::new(r#"\[data-impeccable-variant=(["']).*?\1\]"#).unwrap();
+        let attr_re =
+            regex::Regex::new(r#"\[data-impeccable-variant=(?:"[^"]*"|'[^']*')\]"#).unwrap();
         out = attr_re.replace_all(&out, "").into_owned();
     }
 

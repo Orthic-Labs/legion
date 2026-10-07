@@ -143,7 +143,7 @@ fn strip_live_runtime_html(html: &str) -> String {
     let re2 =
         regex::Regex::new(r#"(?i)\scontenteditable(?:=(?:"[^"]*"|'[^']*'|[^\s>]+))?"#).unwrap();
     let re3 = regex::Regex::new(
-        r#"(?i)\sstyle=(["'])(?:(?:-webkit-user-modify|user-select:\s*text|cursor:\s*text)|[\s\S])*?\1"#,
+        r#"(?i)\sstyle=(?:"[^"]*"|'[^']*')"#,
     )
     .unwrap();
     let s = re1.replace_all(html, "");

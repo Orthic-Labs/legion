@@ -202,7 +202,7 @@ pub fn resolve_background<'a>(el: ElementRef<'a>, doc: &StaticDocument) -> Optio
 
         let bg = read_own_background_color(cur, &bg_color_str);
         if let Some(b) = bg {
-            if b.a > 0.1 && b.a >= 0.5 {
+            if b.a >= 0.5 {
                 return Some(b);
             }
         }
@@ -1375,7 +1375,7 @@ fn is_card_like(el: ElementRef, doc: &StaticDocument) -> bool {
     let has_radius = resolve_border_radius_px(&style, width_px) > 0.0
         || rounded_class_re().is_match(cls)
         || raw_style.to_ascii_lowercase().contains("border-radius");
-    let has_bg = bg_class_re().is_match(cls) || bg_decl_re().is_match(raw_style);
+    let has_bg = bg_class_re().is_match(cls) || has_opaque_bg_decl(raw_style);
 
     is_card_like_from_props(has_shadow, has_border, has_radius, has_bg)
 }
@@ -1398,8 +1398,15 @@ fn bg_class_re() -> &'static regex::Regex {
 }
 fn bg_decl_re() -> &'static regex::Regex {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    RE.get_or_init(|| {
-        regex::Regex::new(r"(?i)background(?:-color)?\s*:\s*(?!transparent)").unwrap()
+    RE.get_or_init(|| regex::Regex::new(r"(?i)background(?:-color)?\s*:\s*").unwrap())
+}
+/// A `background`/`background-color` declaration whose value is not
+/// `transparent` (the regex crate has no negative look-ahead).
+fn has_opaque_bg_decl(style: &str) -> bool {
+    bg_decl_re().find_iter(style).any(|m| {
+        !style[m.end()..]
+            .get(..11)
+            .is_some_and(|value| value.eq_ignore_ascii_case("transparent"))
     })
 }
 fn absolute_fixed_class_re() -> &'static regex::Regex {

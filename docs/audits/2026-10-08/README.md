@@ -232,7 +232,7 @@ The standalone repository is **github.com/bogusyogi/SEO** (public, branch `maste
 
 Lost from Legion but alive in the SEO repo: the six test suites (governance, kernel, replay, assurance), 8 fixtures, the `seo_closure` gate (61+ errors as ported), `validate-schema.py` (still named by `skills/seo/hooks/hooks.json`), `pre-commit-seo-check.sh`, and the ported-but-unreachable libraries `coverage`, `contracts`, `ai_visibility_import`, `checklist_compiler`, `page_engine`, `source_freshness`, `analyze_visual`, `capture_screenshot`, and the banana `batch`/`setup_mcp`/`validate_setup` tools.
 
-The workspace ops folder `/Volumes/D/claude/SEO` is a per-site deployment layer for the SEO repo, not a Legion route: its PowerShell runners call `D:\Claude\standalone-seo`, `agent-routes.json` cites three report files that do not exist, and its recorded rightsites head is 286 commits behind. `tools/skills/seo` is an older subset and should be deleted.
+The workspace ops folder `SEO/` in the private workspace is a per-site deployment layer for the SEO repo, not a Legion route: its PowerShell runners call a Windows-local standalone SEO checkout, `agent-routes.json` cites three report files that do not exist, and its recorded rightsites head is 286 commits behind. `tools/skills/seo` is an older subset and should be deleted.
 
 **Decision for Adrian.** Make `bogusyogi/SEO` canonical and reduce Legion's `seo` skill to a thin router that declares the external repo as a `HOST_CAPABILITY`, or keep Legion canonical and re-import the 96 new files plus the tests. The first option is recommended; it conflicts with the Package Rule "Legion is the canonical source for every skill it ships", so that rule needs one amendment allowing a declared external canonical repository.
 

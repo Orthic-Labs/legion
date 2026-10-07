@@ -668,13 +668,29 @@ fn setting_check(config: &str, key: &str, expected: &str, actual: Option<&String
 }
 
 fn parse_script_phases(text: &str) -> Vec<Value> {
-    let phase_re = Regex::new(r"(?s)(?:[0-9A-F]{24}\s*/\*\s*(?P<name>[^*]+?)\s*\*/\s*=\s*\{.*?isa\s*=\s*PBXShellScriptBuildPhase;(?P<body>.*?))(?=\n\s*[0-9A-F]{24}\s*/\*|\z)").expect("valid shell phase regex");
+    // The regex crate has no look-ahead, so split the project text at each
+    // object-entry start and match one entry per chunk; the body then runs to
+    // the end of its own entry instead of to a look-ahead boundary.
+    let entry_start_re =
+        Regex::new(r"\n\s*[0-9A-F]{24}\s*/\*").expect("valid object entry start regex");
+    let phase_re = Regex::new(
+        r"(?s)[0-9A-F]{24}\s*/\*\s*(?P<name>[^*]+?)\s*\*/\s*=\s*\{.*?isa\s*=\s*PBXShellScriptBuildPhase;(?P<body>.*)\z",
+    )
+    .expect("valid shell phase regex");
+    let mut bounds: Vec<usize> = entry_start_re.find_iter(text).map(|m| m.start()).collect();
+    bounds.insert(0, 0);
+    bounds.push(text.len());
+    let chunks: Vec<&str> = bounds
+        .windows(2)
+        .map(|w| &text[w[0]..w[1]])
+        .filter(|chunk| !chunk.is_empty())
+        .collect();
     let value_re = |key: &str| {
         Regex::new(&format!(r"(?s){}\s*=\s*\((?P<body>.*?)\);", key))
             .expect("valid script list regex")
     };
     let mut phases = Vec::new();
-    for caps in phase_re.captures_iter(text) {
+    for caps in chunks.iter().filter_map(|chunk| phase_re.captures(chunk)) {
         let name = caps
             .name("name")
             .map(|m| m.as_str().trim())
