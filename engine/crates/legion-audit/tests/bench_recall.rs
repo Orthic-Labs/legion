@@ -93,7 +93,8 @@ fn registry_lens_ids(id: &str) -> Vec<String> {
 /// synchronous `execute` path never launches a process, so a bench built on
 /// it can only ever report tool-missing.
 fn bench_plan(inventory: &InventoryEnvelope, provider_id: &str) -> FrozenPlan {
-    let contract = spec(provider_id).unwrap_or_else(|| panic!("legacy provider {provider_id} must be frozen"));
+    let contract =
+        spec(provider_id).unwrap_or_else(|| panic!("legacy provider {provider_id} must be frozen"));
     let definition = json!({
         "schemaVersion": 2,
         "id": provider_id,
@@ -117,10 +118,13 @@ fn bench_plan(inventory: &InventoryEnvelope, provider_id: &str) -> FrozenPlan {
         "scopes": [],
         "selectable": true
     });
-    AuditPlan::compile(inventory, &[serde_json::from_value(definition).expect("bench provider definition")])
-        .expect("bench plan compiles")
-        .freeze(Some(b"bench-recall-key"))
-        .expect("bench plan freezes")
+    AuditPlan::compile(
+        inventory,
+        &[serde_json::from_value(definition).expect("bench provider definition")],
+    )
+    .expect("bench plan compiles")
+    .freeze(Some(b"bench-recall-key"))
+    .expect("bench plan freezes")
 }
 
 fn provider(id: &str, selector: Value) -> AuditProvider {
