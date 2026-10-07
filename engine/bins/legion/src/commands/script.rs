@@ -758,9 +758,7 @@ fn handoff_validate_handoff(args: &[String]) -> i32 {
     print_cli_outcome(code, &String::from_utf8_lossy(&stdout), &String::from_utf8_lossy(&stderr))
 }
 
-/// Port of `skills/handoff/scripts/transcript-handoff.py`'s `main()`
-/// (`bootstrap` subcommand only — `continuity` shelled out to `membrane`,
-/// which is gone from Legion; see `l1_port::cli`'s module doc comment).
+/// Native hash-bound transcript bootstrap, continuity & receipt verification.
 fn handoff_transcript_handoff(args: &[String]) -> i32 {
     let today = today_ymd();
     let home = std::env::var("HOME")

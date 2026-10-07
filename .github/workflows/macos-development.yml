@@ -44,6 +44,24 @@ jobs:
         with:
           version: v0.16.0
       - run: pnpm install --frozen-lockfile
+      - name: Generate canonical skill projections
+        run: |
+          cargo build --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-dev
+          dev="$PWD/engine/target/aarch64-apple-darwin/release/legion-dev"
+          "$dev" generate-codex-skill-sidecars
+          "$dev" generate-skill-catalog
+          "$dev" generate-host-projection
+          "$dev" refresh-local-skill-manifests handoff
+          "$dev" generate-catalogs
+          "$dev" generate-skill-catalog --check
+          "$dev" generate-host-projection --check
+          git diff --binary > "$RUNNER_TEMP/legion-generated.patch"
+      - name: Upload generated source projections
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: legion-generated-${{ github.sha }}
+          path: ${{ runner.temp }}/legion-generated.patch
+          retention-days: 7
       - name: Check whole native workspace & native behavior
         run: |
           cargo check --manifest-path engine/Cargo.toml --workspace --all-targets --locked --release --target aarch64-apple-darwin
@@ -52,10 +70,12 @@ jobs:
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --test m2_plugin_root
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --bin legion commands::setup::tests
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-apple
+          cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-handoff
+          cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --test script_cli
       - name: Assemble & qualify exact unsigned native candidate
         run: |
           cargo build --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin --bins
-          engine/target/aarch64-apple-darwin/release/legion-dev refresh-local-skill-manifests --check ios-development macos-development
+          engine/target/aarch64-apple-darwin/release/legion-dev refresh-local-skill-manifests --check ios-development macos-development handoff
           xtask="$PWD/engine/target/aarch64-apple-darwin/release/xtask"
           "$xtask" assemble-native-release --profile release --platform macos --architecture arm64 --target aarch64-apple-darwin --out "$RUNNER_TEMP/legion-install"
           "$xtask" native-installed-smoke "$RUNNER_TEMP/legion-install"

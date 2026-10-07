@@ -107,6 +107,7 @@ Primary rules:
 | Rendered-state visual evaluation | `skills/audit-visual/**` | Oracle may consume evidence |
 | Functional/browser/runtime QA | `skills/qa/**` | Oracle may consume evidence |
 | Qualitative design craft | `skills/designer/**` | Audit Visual may provide evidence |
+| Hash-bound handoff transcript normalization, continuity & receipts | `engine/crates/legion-handoff` + `skills/handoff/**` | installed native CLI; no external Membrane runtime |
 | Capability/entrypoint semantics | `skills/<id>/SKILL.md` | catalogs/manifests/projections |
 | Host capability availability | `src/registry/capabilities.json` | SKILL `hostRequirements` |
 | Public distribution and client integration | `docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md` | release policy, bootstrap, host adapters |

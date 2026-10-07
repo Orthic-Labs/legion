@@ -763,3 +763,57 @@ fn native_script_designer_hook_before_edit_malformed_stdin_allows() {
     let value: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
     assert_eq!(value["permission"], "allow");
 }
+
+/// Exercise native incoming continuity through installed-style script routing.
+#[test]
+fn native_script_continuity_roundtrip_and_tamper_rejection() {
+    let dir = std::env::temp_dir().join(format!("legion-continuity-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let home = dir.as_path();
+    let sessions = home.join(".codex/sessions/2026/10/08");
+    std::fs::create_dir_all(&sessions).unwrap();
+    let source = sessions.join("session-1.jsonl");
+    let workspace = home.to_str().unwrap();
+    let rows = [
+        serde_json::json!({"type":"session_meta","payload":{"id":"session-1","cwd":workspace}}),
+        serde_json::json!({"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Continue continuity repair & preserve source binding."}]}}),
+        serde_json::json!({"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Native implementation is in progress."}]}}),
+    ];
+    let transcript = rows.iter().map(|row| format!("{row}\n")).collect::<String>();
+    std::fs::write(&source, &transcript).unwrap();
+    let bootstrap = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "handoff/transcript-handoff", "bootstrap", "--platform", "codex", "--session-id", "session-1", "--workspace", workspace, "--home", workspace, "--json"])
+        .output().unwrap();
+    assert!(bootstrap.status.success(), "{bootstrap:?}");
+    let pointer = home.join("pointer.json");
+    std::fs::write(&pointer, &bootstrap.stdout).unwrap();
+    // Source may continue writing after bootstrap; target must ignore that tail.
+    std::fs::write(&source, format!("{transcript}{{\"type\":\"untrusted_tail\"}}\n")).unwrap();
+    let context_path = home.join("session.context.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "handoff/transcript-handoff", "continuity", "--pointer", pointer.to_str().unwrap(), "--output", context_path.to_str().unwrap()])
+        .output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let bytes = std::fs::read(&context_path).unwrap();
+    let context: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(context["source"]["prefixVerified"], true);
+    assert_eq!(context["userRequests"][0]["text"], "Continue continuity repair & preserve source binding.");
+    assert!(!String::from_utf8_lossy(&bytes).contains("untrusted_tail"));
+    let receipt = home.join("session.context.receipt.json");
+    let verify = || Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "handoff/transcript-handoff", "continuity", "--output", context_path.to_str().unwrap(), "--verify-receipt", receipt.to_str().unwrap()])
+        .output().unwrap();
+    assert!(verify().status.success());
+    let mut tampered = bytes.clone();
+    tampered.push(b' ');
+    std::fs::write(&context_path, &tampered).unwrap();
+    assert!(!verify().status.success());
+    assert_eq!(std::fs::read(&context_path).unwrap(), tampered);
+    let original_source = std::fs::read(&source).unwrap();
+    let overwrite = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "handoff/transcript-handoff", "continuity", "--pointer", pointer.to_str().unwrap(), "--output", source.to_str().unwrap()])
+        .output().unwrap();
+    assert!(!overwrite.status.success());
+    assert_eq!(std::fs::read(&source).unwrap(), original_source);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

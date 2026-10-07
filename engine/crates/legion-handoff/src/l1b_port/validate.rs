@@ -489,7 +489,7 @@ pub fn validate(text: &str, template: bool) -> Vec<String> {
         }
         if source_mode == "TRANSCRIPT_INGEST" {
             if !path_re().is_match(&evidence_path) {
-                errors.push("TRANSCRIPT_INGEST requires absolute Membrane context path".to_string());
+                errors.push("TRANSCRIPT_INGEST requires absolute Legion context path".to_string());
             }
             let upper = source_receipt.to_uppercase();
             for token in ["PLATFORM:", "SESSION_ID:", "CUTOFF_BYTES:", "SHA256:", "PARSER_VERSION:"] {

@@ -210,8 +210,10 @@ fn paste_prompt_renders_posix_layout() {
     let prompt = paste_prompt(&pointer, home.path(), "2026-09-23");
     assert!(prompt.contains("session_id: sess-1"));
     assert!(prompt.contains("sha256: abc123"));
-    assert!(prompt.contains("python3 \"/work/repo/tools/skills/legion/skills/handoff/scripts/transcript-handoff.py\""));
-    assert!(prompt.contains("continuity --pointer \"/home/u/.claude/projects/p1/sess-1.jsonl\""));
+    assert!(prompt.contains("legion script handoff/transcript-handoff continuity"));
+    assert!(prompt.contains("continuity --pointer '/home/u/.claude/projects/p1/sess-1.jsonl'"));
+    assert!(prompt.contains("--cutoff-bytes 42 --sha256 'abc123'"));
+    assert!(prompt.contains("```bash"));
     assert!(prompt.contains("READBACK"));
 }
 
@@ -234,6 +236,7 @@ fn paste_prompt_renders_windows_drive_layout() {
         created_at: "2026-09-23T00:00:00.000000+00:00".into(),
     };
     let prompt = paste_prompt(&pointer, home.path(), "2026-09-23");
-    assert!(prompt.contains("py -3.11"));
-    assert!(prompt.contains("D:\\work\\repo\\tools\\skills\\legion\\skills\\handoff\\scripts\\transcript-handoff.py"));
+    assert!(prompt.contains("legion script handoff/transcript-handoff continuity"));
+    assert!(prompt.contains("--workspace 'D:\\work\\repo'"));
+    assert!(prompt.contains("```powershell"));
 }
