@@ -31,7 +31,7 @@
       "line": 6,
       "detector": "deps_cve",
       "signal": "lodash@4.17.15 and minimist@1.2.0 are known-vulnerable pinned versions.",
-      "note": "Curated offline CVE table, not a live npm audit call."
+      "note": "Detected by a live npm audit against the committed lockfile (needs registry network access); a lockfile is required because npm audit refuses to run without one."
     },
     {
       "id": "AU20-004",
@@ -40,7 +40,7 @@
       "file": "fixtures/004-negative-dep-latest/package.json",
       "line": 6,
       "detector": "deps_cve",
-      "signal": "lodash@4.17.21 and minimist@1.2.8 are patched versions.",
+      "signal": "minimist@1.2.8 is a patched version with no advisories (lodash was dropped from this control: newer lodash advisories postdate 4.17.21).",
       "note": "Negative control — must not be flagged."
     },
     {
@@ -50,7 +50,7 @@
       "file": "fixtures/005-dead-code/app.js",
       "line": 6,
       "detector": "dead_code",
-      "signal": "Statements after an unconditional return in computeTotal are unreachable.",
+      "signal": "Statements after an unconditional return in computeTotal are unreachable, and legacy-discount.js is imported by nothing (the unused file is what knip reports).",
       "note": "console.log + applyLegacyDiscount(total) can never execute."
     },
     {
@@ -91,7 +91,7 @@
       "line": 4,
       "detector": "types",
       "signal": "const finalPrice: number = \"not-a-number\" assigns a string to a number binding.",
-      "note": "Heuristic regex-based type check (no tsc available offline in this environment)."
+      "note": "Detected by tsc --noEmit; the fixture carries a tsconfig.json because the type-check resolver requires one."
     },
     {
       "id": "AU20-013",

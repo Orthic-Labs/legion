@@ -136,7 +136,7 @@ fn knip(value: &Value) -> ParseOutcome {
     let issues_len = object.and_then(|o| o.get("issues")).and_then(|issues| {
         issues
             .as_array()
-            .map(|a| a.len() as u64)
+            .map(|rows| rows.iter().filter(|row| knip_row_has_findings(row)).count() as u64)
             .or_else(|| issues.as_object().map(|o| o.len() as u64))
     });
     let count = match (files_len, issues_len) {
@@ -144,6 +144,26 @@ fn knip(value: &Value) -> ParseOutcome {
         (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
     };
     ParseOutcome::ok("legacy.dead_code.knip", "low", count)
+}
+
+/// Array-form `issues` rows are per-file objects whose category fields
+/// (`exports`, `dependencies`, ...) are arrays. A row whose categories are all
+/// empty is a file knip looked at, not a finding. A row with no array fields
+/// at all is an unknown shape and still counts, as the legacy collector did.
+fn knip_row_has_findings(row: &Value) -> bool {
+    let Some(object) = row.as_object() else {
+        return true;
+    };
+    let mut saw_array = false;
+    for value in object.values() {
+        if let Some(items) = value.as_array() {
+            saw_array = true;
+            if !items.is_empty() {
+                return true;
+            }
+        }
+    }
+    !saw_array
 }
 
 // ---------- duplication (jscpd --reporters json) ----------
@@ -604,6 +624,16 @@ mod tests {
         // 2 files + 3 per-file issue entries (object form of `issues`).
         assert_eq!(outcome.findings_count, Some(5));
         assert!(!outcome.malformed);
+    }
+
+    #[test]
+    fn knip_array_rows_with_only_empty_categories_are_not_findings() {
+        let outcome = knip(&json(
+            r#"{"files":[],"issues":[{"file":"app.js","dependencies":[],"exports":[],"types":[]},{"file":"b.js","dependencies":[],"exports":[{"name":"unused"}]}]}"#,
+        ));
+        assert_eq!(outcome.findings_count, Some(1));
+        let clean = knip(&json(r#"{"files":[],"issues":[]}"#));
+        assert_eq!(clean.findings_count, Some(0));
     }
 
     #[test]

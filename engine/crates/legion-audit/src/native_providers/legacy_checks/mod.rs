@@ -101,27 +101,37 @@ where
 
 /// Where a legacy check's machine-readable output actually lands. Most tools
 /// print JSON (or JSON-ish text) on stdout, but a minority disagree: `cargo
-/// deny --format json check` streams its JSONL diagnostics on **stderr**, and
+/// deny --format json check` streams its JSONL diagnostics on **stderr**,
 /// `jscpd` writes its JSON report to a file under its `--output` directory
 /// rather than printing anything parseable at all. `execution_from_receipt`
 /// reads whichever stream/file this says to, instead of always assuming
-/// stdout.
+/// stdout. (`gitleaks` also needs an explicit report destination, but it takes
+/// `--report-path -` and prints to stdout, so it stays `Stdout`.)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ReportSource {
     Stdout,
     Stderr,
-    /// Path (relative to the per-run report temp dir) of the report file.
-    File(&'static str),
+    /// Candidate report paths (relative to the per-run report temp dir), tried
+    /// in order; the first one that exists is the report.
+    File(&'static [&'static str]),
 }
 
 fn report_source_for(check: &str) -> ReportSource {
     match check {
         "cargo_deny" => ReportSource::Stderr,
-        // Matches the JS-side jscpd invocation this check ports: the json
-        // reporter writes `<outDir>/_jscpd/jscpd-report.json`.
-        "duplication" => ReportSource::File("_jscpd/jscpd-report.json"),
+        // jscpd's json reporter writes `<--output>/jscpd-report.json`. The
+        // historical JS collector passed `--output <outDir>/_jscpd` and read
+        // `<outDir>/_jscpd/jscpd-report.json`; the nested spelling is kept as
+        // a fallback so either layout is read, but the Rust launch passes the
+        // temp dir itself, so the flat name is the one that is produced.
+        "duplication" => ReportSource::File(&["jscpd-report.json", "_jscpd/jscpd-report.json"]),
         _ => ReportSource::Stdout,
     }
+}
+
+/// Tool arguments that point a file-backed report at the per-run temp dir.
+fn report_args(dir: &Path) -> Vec<String> {
+    vec!["--output".into(), dir.to_string_lossy().into_owned()]
 }
 
 /// A per-run directory the executor owns exclusively, outside the project
@@ -169,10 +179,12 @@ struct ReportArtifact {
 const REPORT_ARTIFACT_LIMIT: usize = 8 * 1024 * 1024;
 
 fn read_report_artifact(dir: &Path, source: ReportSource) -> Option<ReportArtifact> {
-    let ReportSource::File(name) = source else {
+    let ReportSource::File(names) = source else {
         return None;
     };
-    let bytes = std::fs::read(dir.join(name)).ok()?;
+    let (name, bytes) = names
+        .iter()
+        .find_map(|name| std::fs::read(dir.join(name)).ok().map(|bytes| (*name, bytes)))?;
     if bytes.len() > REPORT_ARTIFACT_LIMIT {
         return None;
     }
@@ -500,6 +512,16 @@ impl NativeLegacyCheckExecutor {
                 .map_err(|error| AuditError::Provider(error.to_string()));
         };
         let (executable, mut args) = command_parts(contract.command);
+        // `gitleaks git` scans commit history and needs a repository. A tree
+        // without `.git` (an exported archive, a fixture) is scanned as a
+        // plain directory instead of failing with no report.
+        if contract.check == "secrets" && !self.root.join(".git").exists() {
+            if let Some(first) = args.first_mut() {
+                if first.as_str() == "git" {
+                    *first = "dir".into();
+                }
+            }
+        }
         let report_source = report_source_for(contract.check);
         // A file-backed report is never written into the project tree: the
         // executor owns a scratch dir for the run's lifetime and the tool is
@@ -516,8 +538,7 @@ impl NativeLegacyCheckExecutor {
             ReportSource::Stdout | ReportSource::Stderr => None,
         };
         if let Some(dir) = &report_temp_dir {
-            args.push("--output".into());
-            args.push(dir.path.to_string_lossy().into_owned());
+            args.extend(report_args(&dir.path));
         }
         let request_id = format!(
             "audit:{}:{}:{}",
@@ -539,30 +560,36 @@ impl NativeLegacyCheckExecutor {
             // resolve later, and wrap *that* path so both the sandboxed run
             // and its `--version` probe target a real, fixed executable.
             // Only macOS wraps in sandbox-exec, which scrubs PATH, so resolve
-            // the tool to its sealed absolute path there. If resolution fails,
-            // keep the bare name so the normal missing-tool path reports a
-            // typed gap instead of a hard provider error.
-            let (resolved_executable, resolved_args): (String, Vec<String>) = match (
-                cfg!(target_os = "macos"),
-                resolve_request(&self.root, executable, &args),
-            ) {
-                (true, Ok(resolved)) => (
-                    resolved.executable.to_string_lossy().into_owned(),
-                    resolved.args.clone(),
-                ),
-                _ => (
-                    executable.to_string(),
-                    args.iter().map(|a| a.to_string()).collect(),
-                ),
+            // the tool to its sealed absolute path there.
+            // If the tool cannot be resolved (for example `project-types` in a
+            // tree with no tsconfig.json), do not wrap the bare symbolic name:
+            // `sandbox-exec -- project-types` would fail its version probe and
+            // be misreported as an unqualified executable. Leaving the request
+            // unwrapped lets `AuditExternalProjectTool` report the real
+            // resolution failure as a typed gap.
+            let wrap_target: Option<(String, Vec<String>)> = if cfg!(target_os = "macos") {
+                resolve_request(&self.root, executable, &args)
+                    .ok()
+                    .map(|resolved| {
+                        (
+                            resolved.executable.to_string_lossy().into_owned(),
+                            resolved.args,
+                        )
+                    })
+            } else {
+                Some((executable.to_string(), args.clone()))
             };
-            match legion_effects::authenticate_sandbox(
-                &resolved_executable,
-                &resolved_args,
-                &self.root.to_string_lossy(),
-                mode,
-                &profile_dir,
-            ) {
-                Ok(auth) => {
+            let authenticated = wrap_target.map(|(resolved_executable, resolved_args)| {
+                legion_effects::authenticate_sandbox(
+                    &resolved_executable,
+                    &resolved_args,
+                    &self.root.to_string_lossy(),
+                    mode,
+                    &profile_dir,
+                )
+            });
+            match authenticated {
+                Some(Ok(auth)) => {
                     // The executor's identity check re-invokes the resolved
                     // `executable` with `--version` to confirm it is the
                     // real tool (executor.rs's version-probe qualification).
@@ -594,7 +621,7 @@ impl NativeLegacyCheckExecutor {
                         Some(probe_args),
                     )
                 }
-                Err(_gap) => {
+                Some(Err(_)) | None => {
                     // Typed degradation: no authenticator is available on
                     // this host/platform. Leave sandbox unset so the
                     // effects executor keeps refusing rather than run the
@@ -1858,8 +1885,10 @@ fn parse_external_value(
     if let Some(outcome) = parsers::dispatch_json(input.check.as_str(), value) {
         return apply_parse_outcome(input, outcome, output);
     }
-    if input.check == "secrets" && value.is_array() {
-        let items = value.as_array().expect("checked above");
+    // gitleaks writes `[]` for a clean scan; some versions write `null`. Both
+    // are a complete, empty report rather than an unparseable one.
+    if input.check == "secrets" && (value.is_array() || value.is_null()) {
+        let items = value.as_array().map(Vec::as_slice).unwrap_or(&[]);
         let mut redacted = Vec::with_capacity(items.len());
         for item in items {
             let rule = item.get("RuleID").and_then(Value::as_str);
@@ -2361,6 +2390,60 @@ mod tests {
             .and_then(Value::as_str)
             .is_some());
         assert!(result.coverage.as_ref().unwrap().expected > 0);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn file_backed_report_points_the_tool_at_the_temp_dir() {
+        assert_eq!(
+            report_args(Path::new("report-dir")),
+            vec!["--output".to_string(), "report-dir".to_string()]
+        );
+        assert!(matches!(
+            report_source_for("duplication"),
+            ReportSource::File(_)
+        ));
+        assert_eq!(report_source_for("secrets"), ReportSource::Stdout);
+    }
+
+    #[test]
+    fn jscpd_report_is_read_from_flat_or_nested_layout() {
+        for relative in ["jscpd-report.json", "_jscpd/jscpd-report.json"] {
+            let root = temp_root();
+            let path = root.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, b"{}").unwrap();
+            let artifact = read_report_artifact(&root, report_source_for("duplication"))
+                .expect("report found");
+            assert_eq!(artifact.name, relative);
+            let _ = fs::remove_dir_all(root);
+        }
+    }
+
+    #[test]
+    fn gitleaks_null_report_is_a_complete_empty_scan() {
+        let root = temp_root();
+        let inventory = InventoryEnvelope::new(
+            "fixture",
+            "generation",
+            vec![InventoryEntry {
+                path: "app.js".into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: true,
+                digest: None,
+            }],
+        )
+        .unwrap();
+        let provider = provider("legacy.security.secrets", json!({"op":"always"}));
+        let input = LegacyCheckDispatcher::new()
+            .input(&provider, &inventory, root.clone(), None, None, &Value::Null)
+            .unwrap();
+        let mut output = empty_output(Vec::new());
+        assert!(parse_external_value(&input, &Value::Null, &mut output));
+        assert!(output.complete);
+        assert!(output.candidates.is_empty());
         let _ = fs::remove_dir_all(root);
     }
 

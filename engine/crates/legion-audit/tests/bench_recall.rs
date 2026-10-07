@@ -353,7 +353,15 @@ fn run_class(class: &str) -> ClassOutcome {
             continue;
         }
 
-        let hit = !result.findings.is_empty();
+        // Candidate-generator providers (e.g. secrets) report detections as
+        // `candidates` pending adjudication, not as findings. A detection is
+        // either; a negative control must produce neither.
+        let candidates_hit = result
+            .details
+            .get("candidates")
+            .and_then(Value::as_array)
+            .is_some_and(|candidates| !candidates.is_empty());
+        let hit = !result.findings.is_empty() || candidates_hit;
         if want_hit {
             positive_hit = hit;
         } else {

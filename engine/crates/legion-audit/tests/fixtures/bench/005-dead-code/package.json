@@ -1,0 +1,6 @@
+{
+  "name": "au20-fixture-dead-code",
+  "private": true,
+  "version": "0.0.0",
+  "main": "app.js"
+}

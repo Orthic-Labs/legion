@@ -333,7 +333,21 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         selector: ALWAYS,
         command: CommandShape::Named {
             tool: "gitleaks",
-            args: &["git", ".", "--report-format", "json", "--no-banner"],
+            // `git` (history) is swapped for `dir` by the executor when the root
+            // is not a repository. gitleaks only writes a report when given a
+            // destination; `-` is stdout, so the JSON is captured as the
+            // receipt's stdout artifact. `--redact` keeps secret material out
+            // of that artifact.
+            args: &[
+                "git",
+                ".",
+                "--report-format",
+                "json",
+                "--report-path",
+                "-",
+                "--redact",
+                "--no-banner",
+            ],
         },
     },
     LegacyCheckSpec {
