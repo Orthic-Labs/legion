@@ -776,7 +776,7 @@ fn native_script_continuity_roundtrip_and_tamper_rejection() {
     let workspace = home.to_str().unwrap();
     let rows = [
         serde_json::json!({"type":"session_meta","payload":{"id":"session-1","cwd":workspace}}),
-        serde_json::json!({"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Continue continuity repair & preserve source binding."}]}}),
+        serde_json::json!({"type":"response_item","payload":{"type":"message","id":"message-1","role":"user","content":[{"type":"input_text","text":"Continue continuity repair & preserve source binding."}]}}),
         serde_json::json!({"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Native implementation is in progress."}]}}),
     ];
     let transcript = rows.iter().map(|row| format!("{row}\n")).collect::<String>();

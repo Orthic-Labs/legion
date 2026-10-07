@@ -85,6 +85,23 @@ fn read_header_reads_codex_nested_payload() {
 }
 
 #[test]
+fn read_header_keeps_codex_session_identity_when_file_stem_matches() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("session-1.jsonl");
+    write_jsonl(
+        &path,
+        &[
+            r#"{"type":"session_meta","payload":{"id":"session-1","cwd":"/work"}}"#,
+            r#"{"type":"response_item","payload":{"type":"message","id":"message-1","role":"user"}}"#,
+            r#"{"type":"event_msg","payload":{"id":"event-1"}}"#,
+        ],
+    );
+    let (id, workspace) = read_header(&path, Platform::Codex).unwrap();
+    assert_eq!(id, "session-1");
+    assert_eq!(workspace, "/work");
+}
+
+#[test]
 fn read_header_defaults_id_to_file_stem_when_absent() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("stem-name.jsonl");

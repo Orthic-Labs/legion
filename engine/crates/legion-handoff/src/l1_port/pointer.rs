@@ -164,9 +164,18 @@ pub fn read_header(path: &Path, platform: Platform) -> std::io::Result<(String, 
         };
 
         let id = payload
-            .get("id")
-            .or_else(|| payload.get("sessionId"))
+            .get("sessionId")
             .or_else(|| payload.get("session_id"))
+            .or_else(|| {
+                // Codex response IDs identify messages/events, never sessions.
+                if platform == Platform::Claude
+                    || obj.get("type").and_then(serde_json::Value::as_str) == Some("session_meta")
+                {
+                    payload.get("id")
+                } else {
+                    None
+                }
+            })
             .and_then(json_as_display_string);
         if let Some(id) = id {
             session_id = id;
