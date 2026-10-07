@@ -66,7 +66,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://handoff/dependencies.json",
-      "digest": "sha256:0110177bc5373ffb799e2c9695e30fbf3a6dfa520e466477cea20832eb2621f1"
+      "digest": "sha256:8a34d459970a98a73a95601f078181a474bd698c07290b1d1ca2b8c506230384"
     },
     {
       "path": "evals/evals.json",
