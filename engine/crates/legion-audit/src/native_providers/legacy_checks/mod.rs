@@ -182,9 +182,11 @@ fn read_report_artifact(dir: &Path, source: ReportSource) -> Option<ReportArtifa
     let ReportSource::File(names) = source else {
         return None;
     };
-    let (name, bytes) = names
-        .iter()
-        .find_map(|name| std::fs::read(dir.join(name)).ok().map(|bytes| (*name, bytes)))?;
+    let (name, bytes) = names.iter().find_map(|name| {
+        std::fs::read(dir.join(name))
+            .ok()
+            .map(|bytes| (*name, bytes))
+    })?;
     if bytes.len() > REPORT_ARTIFACT_LIMIT {
         return None;
     }
@@ -2438,7 +2440,14 @@ mod tests {
         .unwrap();
         let provider = provider("legacy.security.secrets", json!({"op":"always"}));
         let input = LegacyCheckDispatcher::new()
-            .input(&provider, &inventory, root.clone(), None, None, &Value::Null)
+            .input(
+                &provider,
+                &inventory,
+                root.clone(),
+                None,
+                None,
+                &Value::Null,
+            )
             .unwrap();
         let mut output = empty_output(Vec::new());
         assert!(parse_external_value(&input, &Value::Null, &mut output));
