@@ -466,7 +466,12 @@ mod tests {
     fn test_and_fixture_trees_do_not_report_languages() {
         let root = temp_repo("fixtures");
         std::fs::write(root.join("go.mod"), "module x\n").unwrap();
-        for dir in ["tests/app", "src/fixtures", "examples/demo", "engine/crates/a/tests"] {
+        for dir in [
+            "tests/app",
+            "src/fixtures",
+            "examples/demo",
+            "engine/crates/a/tests",
+        ] {
             std::fs::create_dir_all(root.join(dir)).unwrap();
             std::fs::write(root.join(dir).join("pyproject.toml"), "").unwrap();
             std::fs::write(root.join(dir).join("Package.swift"), "").unwrap();
