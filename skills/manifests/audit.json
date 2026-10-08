@@ -73,7 +73,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:92de7b13844bd7987864da5230616faf14f4fe27d0b52006d813c9c539d9f497"
+      "digest": "sha256:3329b6cc6700589e7fbfb0bc4b838dc917fc4d5fa2f36c3ca00b9b8578e794ae"
     },
     {
       "path": "agents/openai.yaml",
@@ -118,7 +118,7 @@
     {
       "path": "references/execution-contract.md",
       "uri": "legion-skill://audit/references/execution-contract.md",
-      "digest": "sha256:5f4c33920afdfca82a4dd8b7681311abed83404277b79ed19d1b6778b1ee06d5"
+      "digest": "sha256:5387f3ff271cae4b1c96c67c0bf8629467ae5037e13c607387a4e85fc4d76a57"
     },
     {
       "path": "references/lens-cues.md",

@@ -152,7 +152,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://ads/evals/evals.json",
-      "digest": "sha256:c29e5fc87812f1538bc0fb7d4eb13f7e397e634dc4659d3876c4328dc40ee864"
+      "digest": "sha256:43b53a994ba15b6dd373284f22a6be840a13654e0aad1f921e8c701e64ef549f"
     },
     {
       "path": "references/ad-copy-templates.md",

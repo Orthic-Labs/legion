@@ -239,7 +239,10 @@ mod tests {
     fn deleted_paths_drop_restored_files_and_other_surfaces() {
         let log = "skills/a/x.md\n\nskills/a/x.md\nscripts/b.sh\nREADME.md\nskills/back.md\n";
         let got = deleted_paths(log, |p| p == "skills/back.md");
-        assert_eq!(got, vec!["scripts/b.sh".to_string(), "skills/a/x.md".to_string()]);
+        assert_eq!(
+            got,
+            vec!["scripts/b.sh".to_string(), "skills/a/x.md".to_string()]
+        );
     }
 
     #[test]
@@ -264,8 +267,14 @@ mod tests {
         assert!(is_covered("scripts/run.mjs", &entries));
         assert!(is_covered("docs/canon/a/b.md", &entries));
         assert!(is_covered("hooks/arcane-hook.mjs", &entries));
-        assert!(!is_covered("skills/contents/x.md", &entries), "prefix must end at a segment");
-        assert!(!is_covered("scripts/sub/run.mjs", &entries), "single * stays in a segment");
+        assert!(
+            !is_covered("skills/contents/x.md", &entries),
+            "prefix must end at a segment"
+        );
+        assert!(
+            !is_covered("scripts/sub/run.mjs", &entries),
+            "single * stays in a segment"
+        );
         assert!(!is_covered("scripts/run.sh", &entries));
         assert!(!is_covered("doctrine/new.md", &entries));
     }
@@ -280,7 +289,10 @@ mod tests {
         ];
         assert_eq!(
             missing_rows(&deleted, &entries),
-            vec!["skills/qa/scripts/shot.mjs".to_string(), "hooks/new.py".to_string()]
+            vec![
+                "skills/qa/scripts/shot.mjs".to_string(),
+                "hooks/new.py".to_string()
+            ]
         );
     }
 

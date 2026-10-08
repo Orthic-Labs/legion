@@ -60,7 +60,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://oracle/evals/evals.json",
-      "digest": "sha256:45d4cafa2019958c1fb8c03ac9966a475fe8c0d8b8d8563ba7d26a6ab94194b8"
+      "digest": "sha256:1fbc803cc7493681931b64fc992815e15ea8aa01a7b2583af2df1e8cdb236dde"
     }
   ]
 }

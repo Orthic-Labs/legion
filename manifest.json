@@ -71,7 +71,7 @@
         "dead-file",
         "ai-slop"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.debt-markers",
@@ -97,7 +97,7 @@
         "ai-slop",
         "minimize"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.lint",
@@ -178,7 +178,7 @@
         "schema",
         "architecture"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "react.hooks-config",
@@ -281,7 +281,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.python-dependencies",
@@ -354,7 +354,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.vendored-dependencies",
@@ -819,7 +819,7 @@
         "kind": "legacy-check",
         "check": "dead_code"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -849,7 +849,7 @@
         "kind": "legacy-check",
         "check": "duplication"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -939,7 +939,7 @@
         "kind": "legacy-check",
         "check": "types"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1299,7 +1299,7 @@
         "kind": "legacy-check",
         "check": "deps_cve"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1389,7 +1389,7 @@
         "kind": "legacy-check",
         "check": "secrets"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,

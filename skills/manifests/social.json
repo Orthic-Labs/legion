@@ -72,7 +72,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://social/evals/evals.json",
-      "digest": "sha256:36bda05b75182bf0092d3745c9e6aa4dcc2a70f865adf1d3aad0bff636deec6f"
+      "digest": "sha256:0df338f8898658c462ae8cfa30ed7f54b8abced350d316e10ecb6639108cbee5"
     },
     {
       "path": "references/content/evals/evals.json",

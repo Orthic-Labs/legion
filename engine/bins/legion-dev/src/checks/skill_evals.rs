@@ -135,7 +135,9 @@ impl Ctx<'_> {
                 "retired skill `{name}` is allowed only in forbidden_skills or as a should_not_trigger expected_skill"
             ))
         } else {
-            Some(format!("unknown skill `{name}` (no packaged skill or specialist has that name)"))
+            Some(format!(
+                "unknown skill `{name}` (no packaged skill or specialist has that name)"
+            ))
         }
     }
 
@@ -191,8 +193,14 @@ fn check_routing(routing: &Value, loc: &str, ctx: &Ctx, issues: &mut Vec<String>
         }
     }
     if let Some(v) = obj.get("routeMode") {
-        if !v.as_str().map(|s| ROUTE_MODES.contains(&s)).unwrap_or(false) {
-            issues.push(format!("{loc}: routing.routeMode must be DIRECT or MACHINERY"));
+        if !v
+            .as_str()
+            .map(|s| ROUTE_MODES.contains(&s))
+            .unwrap_or(false)
+        {
+            issues.push(format!(
+                "{loc}: routing.routeMode must be DIRECT or MACHINERY"
+            ));
         }
     }
     if let Some(v) = obj.get("semanticRequirement") {
@@ -205,9 +213,11 @@ fn check_routing(routing: &Value, loc: &str, ctx: &Ctx, issues: &mut Vec<String>
     if let Some(ctxsel) = obj.get("contextSelection") {
         let ok = match ctxsel {
             Value::Array(_) => string_array(ctxsel).is_some(),
-            Value::Object(map) => ["required", "forbidden", "selected"]
-                .iter()
-                .all(|k| map.get(*k).map(|v| string_array(v).is_some()).unwrap_or(true)),
+            Value::Object(map) => ["required", "forbidden", "selected"].iter().all(|k| {
+                map.get(*k)
+                    .map(|v| string_array(v).is_some())
+                    .unwrap_or(true)
+            }),
             _ => false,
         };
         if !ok {
@@ -242,7 +252,9 @@ fn check_case(category: &str, loc: &str, entry: &Value, ctx: &Ctx, issues: &mut 
     }
     if let Some(forbidden) = obj.get("forbidden_skills") {
         match string_array(forbidden) {
-            None => issues.push(format!("{loc}: forbidden_skills must be an array of strings")),
+            None => issues.push(format!(
+                "{loc}: forbidden_skills must be an array of strings"
+            )),
             Some(names) => {
                 for name in &names {
                     if let Some(issue) = ctx.skill_issue(name, true) {
@@ -261,7 +273,10 @@ fn check_case(category: &str, loc: &str, entry: &Value, ctx: &Ctx, issues: &mut 
     }
     if let Some(v) = obj.get("severity") {
         if !v.as_str().map(|s| SEVERITIES.contains(&s)).unwrap_or(false) {
-            issues.push(format!("{loc}: severity {v} is outside {}", SEVERITIES.join("|")));
+            issues.push(format!(
+                "{loc}: severity {v} is outside {}",
+                SEVERITIES.join("|")
+            ));
         }
     }
     if let Some(v) = obj.get("mode") {
@@ -322,12 +337,16 @@ fn check_case(category: &str, loc: &str, entry: &Value, ctx: &Ctx, issues: &mut 
             Value::Array(_) => match string_array(v) {
                 Some(p) => p,
                 None => {
-                    issues.push(format!("{loc}: {key} must be a string or an array of strings"));
+                    issues.push(format!(
+                        "{loc}: {key} must be a string or an array of strings"
+                    ));
                     continue;
                 }
             },
             _ => {
-                issues.push(format!("{loc}: {key} must be a string or an array of strings"));
+                issues.push(format!(
+                    "{loc}: {key} must be a string or an array of strings"
+                ));
                 continue;
             }
         };
@@ -405,7 +424,9 @@ fn is_trigger_fixture(doc: &Value) -> bool {
 }
 
 fn check_route_field(rel: &str, doc: &Value, ctx: &Ctx, issues: &mut Vec<String>) {
-    let Some(route) = doc.get("route") else { return };
+    let Some(route) = doc.get("route") else {
+        return;
+    };
     let Some(route) = route.as_str() else {
         issues.push(format!("{rel}: route must be a string"));
         return;
@@ -431,7 +452,9 @@ fn check_document(rel: &str, doc: &Value, ctx: &Ctx, report: &mut Report) {
             for (i, entry) in entries.iter().enumerate() {
                 let loc = format!("{rel}#model_free.{i}");
                 if !nonempty(entry.get("id")) || !nonempty(entry.get("expected")) {
-                    report.issues.push(format!("{loc}: needs non-empty id and expected"));
+                    report
+                        .issues
+                        .push(format!("{loc}: needs non-empty id and expected"));
                 }
                 match entry.get("proof").and_then(Value::as_str) {
                     Some("unwired") => report.unwired += 1,
@@ -445,7 +468,11 @@ fn check_document(rel: &str, doc: &Value, ctx: &Ctx, report: &mut Report) {
     report.trigger_files += 1;
     let stem = basename(rel).trim_end_matches(".json");
     let issues = &mut report.issues;
-    if !doc.get("schema_version").map(Value::is_number).unwrap_or(false) {
+    if !doc
+        .get("schema_version")
+        .map(Value::is_number)
+        .unwrap_or(false)
+    {
         issues.push(format!("{rel}: missing numeric schema_version"));
     }
     let label = doc.get("skill").and_then(Value::as_str).unwrap_or("");
@@ -463,7 +490,9 @@ fn check_document(rel: &str, doc: &Value, ctx: &Ctx, report: &mut Report) {
         let required = CATEGORIES.contains(category);
         let Some(value) = doc.get(*category) else {
             if required {
-                issues.push(format!("{rel}#{category}: must be an array (present, possibly empty)"));
+                issues.push(format!(
+                    "{rel}#{category}: must be an array (present, possibly empty)"
+                ));
             }
             continue;
         };
@@ -496,10 +525,14 @@ fn check_document(rel: &str, doc: &Value, ctx: &Ctx, report: &mut Report) {
     }
     if triggers > 0 {
         let keywords = keyword_set(&skill_text(ctx.root, &ctx.owner, label, stem));
-        let hit = doc["should_trigger"].as_array().into_iter().flatten().any(|e| {
-            let prompt = e.get("prompt").and_then(Value::as_str).unwrap_or("");
-            keyword_set(prompt).intersection(&keywords).next().is_some()
-        });
+        let hit = doc["should_trigger"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .any(|e| {
+                let prompt = e.get("prompt").and_then(Value::as_str).unwrap_or("");
+                keyword_set(prompt).intersection(&keywords).next().is_some()
+            });
         if !hit {
             issues.push(format!(
                 "{rel}: no should_trigger prompt shares a keyword with the skill name or SKILL.md"
@@ -531,7 +564,9 @@ pub fn check_files(root: &Path, files: &[String]) -> Report {
             }
         };
         if !doc.is_object() {
-            report.issues.push(format!("{rel}: fixture must be a JSON object"));
+            report
+                .issues
+                .push(format!("{rel}: fixture must be a JSON object"));
             continue;
         }
         let ctx = Ctx {
@@ -642,8 +677,14 @@ mod tests {
     }
 
     fn base(fx: &Fixture) {
-        fx.write("skills/alpha/SKILL.md", "---\nname: alpha\n---\nReview database migrations.\n");
-        fx.write("skills/beta/SKILL.md", "---\nname: beta\n---\nBeta things.\n");
+        fx.write(
+            "skills/alpha/SKILL.md",
+            "---\nname: alpha\n---\nReview database migrations.\n",
+        );
+        fx.write(
+            "skills/beta/SKILL.md",
+            "---\nname: beta\n---\nBeta things.\n",
+        );
     }
 
     #[test]
@@ -652,7 +693,14 @@ mod tests {
         base(&fx);
         fx.write(
             "skills/alpha/evals/evals.json",
-            &doc("alpha", &case("a-1", r#","expected_skill":"alpha""#), &case("a-2", r#","expected_skill":"beta","severity":"error","mode":"human""#)),
+            &doc(
+                "alpha",
+                &case("a-1", r#","expected_skill":"alpha""#),
+                &case(
+                    "a-2",
+                    r#","expected_skill":"beta","severity":"error","mode":"human""#,
+                ),
+            ),
         );
         let report = fx.run();
         assert!(report.issues.is_empty(), "{:?}", report.issues);
@@ -671,9 +719,15 @@ mod tests {
         );
         fx.write("skills/beta/evals/evals.json", "{not json");
         let report = fx.run();
-        assert!(report.issues.iter().any(|i| i.contains("alpha/evals/evals.json#safety")));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.contains("alpha/evals/evals.json#safety")));
         assert!(report.issues.iter().any(|i| i.contains("invalid JSON")));
-        assert!(report.issues.iter().any(|i| i.contains("no trigger coverage")));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.contains("no trigger coverage")));
     }
 
     #[test]
@@ -684,7 +738,10 @@ mod tests {
             "skills/alpha/evals/evals.json",
             &doc(
                 "alpha",
-                &case("a-1", r#","expected_skill":"ghost","forbidden_skills":["jury"]"#),
+                &case(
+                    "a-1",
+                    r#","expected_skill":"ghost","forbidden_skills":["jury"]"#,
+                ),
                 &case("a-2", r#","expected_skill":"plan""#),
             ),
         );
@@ -698,9 +755,17 @@ mod tests {
         base(&fx);
         fx.write(
             "skills/alpha/evals/evals.json",
-            &doc("alpha", &case("a-1", r#","expected_skill":"plan""#), &case("a-2", "")),
+            &doc(
+                "alpha",
+                &case("a-1", r#","expected_skill":"plan""#),
+                &case("a-2", ""),
+            ),
         );
-        assert!(fx.run().issues.iter().any(|i| i.contains("retired skill `plan`")));
+        assert!(fx
+            .run()
+            .issues
+            .iter()
+            .any(|i| i.contains("retired skill `plan`")));
     }
 
     #[test]
@@ -711,7 +776,10 @@ mod tests {
             "skills/alpha/evals/evals.json",
             &doc(
                 "alpha",
-                &case("same", r#","expected_skill":"alpha","forbidden_skills":["alpha"]"#),
+                &case(
+                    "same",
+                    r#","expected_skill":"alpha","forbidden_skills":["alpha"]"#,
+                ),
                 &case("same", ""),
             ),
         );
@@ -728,13 +796,25 @@ mod tests {
             "a-1",
             r#","expected_skill":"alpha","assertions":[{"type":"expected_skill","value":"beta"},{"type":"x"}],"routing":{"routeMode":"SIDEWAYS","authority":["king"],"shouldRoute":"yes"}"#,
         );
-        fx.write("skills/alpha/evals/evals.json", &doc("alpha", &bad, &case("a-2", "")));
+        fx.write(
+            "skills/alpha/evals/evals.json",
+            &doc("alpha", &bad, &case("a-2", "")),
+        );
         let text = fx.run().issues.join("\n");
-        assert!(text.contains("disagrees with case expected_skill"), "{text}");
-        assert!(text.contains("needs a non-empty type and a value"), "{text}");
+        assert!(
+            text.contains("disagrees with case expected_skill"),
+            "{text}"
+        );
+        assert!(
+            text.contains("needs a non-empty type and a value"),
+            "{text}"
+        );
         assert!(text.contains("routing.routeMode"), "{text}");
         assert!(text.contains("routing.authority"), "{text}");
-        assert!(text.contains("routing.shouldRoute must be boolean"), "{text}");
+        assert!(
+            text.contains("routing.shouldRoute must be boolean"),
+            "{text}"
+        );
     }
 
     #[test]
@@ -746,7 +826,10 @@ mod tests {
             "skills/alpha/evals/evals.json",
             &doc(
                 "alpha",
-                &case("a-1", r#","fixtures":["data/input.txt","data/missing.txt"]"#),
+                &case(
+                    "a-1",
+                    r#","fixtures":["data/input.txt","data/missing.txt"]"#,
+                ),
                 &case("a-2", ""),
             ),
         );
@@ -759,15 +842,26 @@ mod tests {
     fn deleted_proof_references_fail_but_notes_and_prose_do_not() {
         let fx = Fixture::new("proofs");
         base(&fx);
-        let with_proof = case("a-1", r#","assertions":["runs covenant.test.mjs and scripts/gone.sh"]"#);
+        let with_proof = case(
+            "a-1",
+            r#","assertions":["runs covenant.test.mjs and scripts/gone.sh"]"#,
+        );
         let prose = r#"{"id":"a-2","prompt":"discover current tools/version/schema","expected_behavior":"ok"}"#;
         let mut document = doc("alpha", &with_proof, prose);
-        document = document.replacen("{\"schema_version\":1,", "{\"schema_version\":1,\"proof_note\":\"was covenant.test.mjs\",", 1);
+        document = document.replacen(
+            "{\"schema_version\":1,",
+            "{\"schema_version\":1,\"proof_note\":\"was covenant.test.mjs\",",
+            1,
+        );
         fx.write("skills/alpha/evals/evals.json", &document);
         let text = fx.run().issues.join("\n");
         assert!(text.contains("covenant.test.mjs"), "{text}");
         assert!(text.contains("scripts/gone.sh"), "{text}");
-        assert_eq!(text.matches("covenant.test.mjs").count(), 1, "note key must be skipped: {text}");
+        assert_eq!(
+            text.matches("covenant.test.mjs").count(),
+            1,
+            "note key must be skipped: {text}"
+        );
         assert!(!text.contains("tools/version"), "{text}");
     }
 
@@ -776,8 +870,15 @@ mod tests {
         let fx = Fixture::new("keywords");
         base(&fx);
         let unrelated = r#"{"id":"a-1","prompt":"bake sourdough bread","expected_behavior":"x"}"#;
-        fx.write("skills/alpha/evals/evals.json", &doc("alpha", unrelated, &case("a-2", "")));
-        assert!(fx.run().issues.iter().any(|i| i.contains("shares a keyword")));
+        fx.write(
+            "skills/alpha/evals/evals.json",
+            &doc("alpha", unrelated, &case("a-2", "")),
+        );
+        assert!(fx
+            .run()
+            .issues
+            .iter()
+            .any(|i| i.contains("shares a keyword")));
     }
 
     #[test]
@@ -800,7 +901,11 @@ mod tests {
         let fx = Fixture::new("route");
         base(&fx);
         let mut document = doc("nobody", &case("a-1", ""), &case("a-2", ""));
-        document = document.replacen("{\"schema_version\":1,", "{\"schema_version\":1,\"route\":\"capability:ghost\",", 1);
+        document = document.replacen(
+            "{\"schema_version\":1,",
+            "{\"schema_version\":1,\"route\":\"capability:ghost\",",
+            1,
+        );
         fx.write("skills/alpha/evals/evals.json", &document);
         let text = fx.run().issues.join("\n");
         assert!(text.contains("skill: unknown skill `nobody`"), "{text}");

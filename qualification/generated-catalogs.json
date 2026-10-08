@@ -250,7 +250,7 @@
       "family": "architecture",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -262,7 +262,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -274,7 +274,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -286,7 +286,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -298,7 +298,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -310,7 +310,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -322,7 +322,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -334,7 +334,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -346,7 +346,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -358,7 +358,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -370,7 +370,7 @@
       "family": "code",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -382,7 +382,7 @@
       "family": "compatibility",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -394,7 +394,7 @@
       "family": "container",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -406,7 +406,7 @@
       "family": "dependency",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -418,7 +418,7 @@
       "family": "docs",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -430,7 +430,7 @@
       "family": "framework",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -442,7 +442,7 @@
       "family": "framework",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -454,7 +454,7 @@
       "family": "framework",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -466,7 +466,7 @@
       "family": "governance",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -478,7 +478,7 @@
       "family": "imported",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -490,7 +490,7 @@
       "family": "accessibility",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -502,7 +502,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -514,7 +514,7 @@
       "family": "architecture",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -526,7 +526,7 @@
       "family": "prioritization",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -538,7 +538,7 @@
       "family": "framework",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -550,7 +550,7 @@
       "family": "installer-hygiene",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -561,9 +561,19 @@
       "role": "deterministic",
       "family": "dead-file",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:29d6116efddebd62f5bc04a661d221fa511eba5a576aaba7c330a7f2ac87162a",
+        "qualification": {
+          "basis": "bench-class",
+          "benchClass": "dead_code",
+          "test": "engine/crates/legion-audit/tests/bench_recall.rs",
+          "fixtures": "engine/crates/legion-audit/tests/fixtures/bench/manifest.json",
+          "ciWorkflow": ".github/workflows/ci.yml",
+          "ciJob": "bench",
+          "ciRunner": "macos-15",
+          "claim": "known-answer recall: planted positive detected and negative control clean"
+        }
       },
       "selectable": true
     },
@@ -574,7 +584,7 @@
       "family": "ai-slop",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -585,9 +595,19 @@
       "role": "deterministic",
       "family": "ai-slop",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:ee4bd2c631a7b3be43f631cbfea76310aaa64f4d9433f89f2abb772500d52921",
+        "qualification": {
+          "basis": "bench-class",
+          "benchClass": "duplication",
+          "test": "engine/crates/legion-audit/tests/bench_recall.rs",
+          "fixtures": "engine/crates/legion-audit/tests/fixtures/bench/manifest.json",
+          "ciWorkflow": ".github/workflows/ci.yml",
+          "ciJob": "bench",
+          "ciRunner": "macos-15",
+          "claim": "known-answer recall: planted positive detected and negative control clean"
+        }
       },
       "selectable": true
     },
@@ -598,7 +618,7 @@
       "family": "ai-slop",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -610,7 +630,7 @@
       "family": "architecture",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -622,7 +642,7 @@
       "family": "dead-file",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -634,7 +654,7 @@
       "family": "ai-slop",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -646,7 +666,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -657,9 +677,19 @@
       "role": "deterministic",
       "family": "schema",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:1589cd7441e65347d4f45d90f59eec9cead40e4fbd7c64c56d07321ebcdaacc5",
+        "qualification": {
+          "basis": "bench-class",
+          "benchClass": "type_error",
+          "test": "engine/crates/legion-audit/tests/bench_recall.rs",
+          "fixtures": "engine/crates/legion-audit/tests/fixtures/bench/manifest.json",
+          "ciWorkflow": ".github/workflows/ci.yml",
+          "ciJob": "bench",
+          "ciRunner": "macos-15",
+          "claim": "known-answer recall: planted positive detected and negative control clean"
+        }
       },
       "selectable": true
     },
@@ -670,7 +700,7 @@
       "family": "correctness",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -682,7 +712,7 @@
       "family": "performance",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -694,7 +724,7 @@
       "family": "docs",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -706,7 +736,7 @@
       "family": "architecture",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -718,7 +748,7 @@
       "family": "correctness",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -730,7 +760,7 @@
       "family": "ai-slop",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -742,7 +772,7 @@
       "family": "quality",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -754,7 +784,7 @@
       "family": "quality",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -766,7 +796,7 @@
       "family": "contracts",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -778,7 +808,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -790,7 +820,7 @@
       "family": "architecture",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -802,7 +832,7 @@
       "family": "performance",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -814,7 +844,7 @@
       "family": "accessibility",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -826,7 +856,7 @@
       "family": "data",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -838,7 +868,7 @@
       "family": "reliability",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -850,7 +880,7 @@
       "family": "platform",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -862,7 +892,7 @@
       "family": "release",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -874,7 +904,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -886,7 +916,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -898,7 +928,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -910,7 +940,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -922,7 +952,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -934,7 +964,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -945,9 +975,19 @@
       "role": "candidate-generator",
       "family": "security",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:d5af0ca5552dc4e3a6ab222e3cb130481607d3c4f970fd9dce42f686b7a66e0d",
+        "qualification": {
+          "basis": "bench-class",
+          "benchClass": "dependency_cve",
+          "test": "engine/crates/legion-audit/tests/bench_recall.rs",
+          "fixtures": "engine/crates/legion-audit/tests/fixtures/bench/manifest.json",
+          "ciWorkflow": ".github/workflows/ci.yml",
+          "ciJob": "bench",
+          "ciRunner": "macos-15",
+          "claim": "known-answer recall: planted positive detected and negative control clean"
+        }
       },
       "selectable": true
     },
@@ -958,7 +998,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -970,7 +1010,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -982,7 +1022,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -994,7 +1034,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1006,7 +1046,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1017,9 +1057,19 @@
       "role": "candidate-generator",
       "family": "security",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:75ee9f4721cb37b7a2e437b18db4bdfd354dafbff658433b6013b0686face51e",
+        "qualification": {
+          "basis": "bench-class",
+          "benchClass": "secret",
+          "test": "engine/crates/legion-audit/tests/bench_recall.rs",
+          "fixtures": "engine/crates/legion-audit/tests/fixtures/bench/manifest.json",
+          "ciWorkflow": ".github/workflows/ci.yml",
+          "ciJob": "bench",
+          "ciRunner": "macos-15",
+          "claim": "known-answer recall: planted positive detected and negative control clean"
+        }
       },
       "selectable": true
     },
@@ -1030,7 +1080,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1042,7 +1092,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1054,7 +1104,7 @@
       "family": "stack",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1066,7 +1116,7 @@
       "family": "stack",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1078,7 +1128,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1090,7 +1140,7 @@
       "family": "schema",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1102,7 +1152,7 @@
       "family": "visual",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1114,7 +1164,7 @@
       "family": "requirements",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1126,7 +1176,7 @@
       "family": "secrets",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1138,7 +1188,7 @@
       "family": "security",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1150,7 +1200,7 @@
       "family": "structural",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1162,7 +1212,7 @@
       "family": "supply-chain",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true
@@ -1174,7 +1224,7 @@
       "family": "test-quality",
       "benchmark": {
         "status": "unproven",
-        "requiredForCleanClaim": true,
+        "requiredForCleanClaim": false,
         "qualificationDigest": null
       },
       "selectable": true

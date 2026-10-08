@@ -72,7 +72,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://writing/evals/evals.json",
-      "digest": "sha256:6d0c782b60710d1d169913d9af12d3d2c497747c1cf50f60971ff11b8ffeded8"
+      "digest": "sha256:40d589995d9009011cc2c186084633d59b05df1c02b8331084e6b72092e3d0e4"
     },
     {
       "path": "references/content-repurposer/reference.md",
@@ -107,7 +107,7 @@
     {
       "path": "specialists/blogs/evals/evals.json",
       "uri": "legion-skill://writing/specialists/blogs/evals/evals.json",
-      "digest": "sha256:dfccfbbb32be35ccab1f2277ce11668757bd15e51113663f4a3316b4ee0b2f48"
+      "digest": "sha256:7141c934cca5fae3ab2e1b5d957e5af175c6a752fdc8799f663bc2fa637bba7a"
     },
     {
       "path": "specialists/blogs/references/writing-research.md",
@@ -122,7 +122,7 @@
     {
       "path": "specialists/changelog/evals/evals.json",
       "uri": "legion-skill://writing/specialists/changelog/evals/evals.json",
-      "digest": "sha256:1b990fbc4302f7d4e597ae00f885a544515ad083c3d3fe89eaf638512673d2b4"
+      "digest": "sha256:fd9b4df924d4b2c737ec94410c08ed13a3278e6e31b6eb9c8077933f927a4b4d"
     },
     {
       "path": "specialists/copywriting/GUIDE.md",
@@ -132,7 +132,7 @@
     {
       "path": "specialists/copywriting/evals/evals.json",
       "uri": "legion-skill://writing/specialists/copywriting/evals/evals.json",
-      "digest": "sha256:ff6059393bf059b8c857b8e1390089975b036384ec23039fbf619df5fab9687a"
+      "digest": "sha256:e00fae2304d9d36b2dfca9605b2bb0a7d4850c54448621b826a8ac9c76d81005"
     },
     {
       "path": "specialists/copywriting/references/ad-assets/generative-tools.md",
@@ -172,7 +172,7 @@
     {
       "path": "specialists/email/evals/evals.json",
       "uri": "legion-skill://writing/specialists/email/evals/evals.json",
-      "digest": "sha256:b0592af50a53a4795583e2bd24d70b78ea3a03c5a1e3eeb211b2ff351ec8c864"
+      "digest": "sha256:ff45f409a9a1e9f6a4f54808d9edc78a36dbef84a5951c89049d46d4593f3107"
     },
     {
       "path": "specialists/email/references/cold-outbound/benchmarks.md",
@@ -232,7 +232,7 @@
     {
       "path": "specialists/profile-copy/evals/evals.json",
       "uri": "legion-skill://writing/specialists/profile-copy/evals/evals.json",
-      "digest": "sha256:07e90ed2762e16d34e7f0a1629659905fe8a642e475cb93e6ea8f5cc2b18081c"
+      "digest": "sha256:0e1fa8d039aacc185d1106932649bb8381114b3feb480d2138a04f489dd722a4"
     }
   ]
 }
