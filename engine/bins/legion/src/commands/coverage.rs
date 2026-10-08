@@ -220,7 +220,10 @@ pub fn scan(root: &Path) -> Scan {
                 .replace('\\', "/");
             if file_type.is_dir() {
                 let slashed = format!("/{relative}/");
+                // Hidden directories (.cache, .agent, .venv, ...) hold tool
+                // state and local scratch, not the project's own sources.
                 if SKIP_DIRS.contains(&name.as_str())
+                    || name.starts_with('.')
                     || slashed.contains("/tests/")
                     || slashed.contains("/fixtures/")
                 {
