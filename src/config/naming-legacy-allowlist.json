@@ -30,11 +30,11 @@
         "sorcerer"
       ],
       "occurrences": {
-        "nemesis": 13,
-        "forge": 111,
-        "seer": 37,
-        "sentinel": 43,
-        "sorcerer": 14
+        "nemesis": 11,
+        "forge": 72,
+        "seer": 33,
+        "sentinel": 31,
+        "sorcerer": 12
       },
       "class": "R2",
       "reason": "legacy-token classification source"
@@ -354,17 +354,6 @@
       "reason": "generic source-code-hosting term (Rust port of forges.mjs)"
     },
     {
-      "path": "engine/crates/legion-policy/src/wf_port/wf068/schemas_contracts/legacy-envelope-v1.schema.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 7
-      },
-      "class": "R0",
-      "reason": "legacy envelope schema copied from arcane contracts"
-    },
-    {
       "path": "engine/crates/legion-runtime/tests/p6_inventory_artifacts_naming.rs",
       "tokens": [
         "nemesis",
@@ -382,28 +371,6 @@
       },
       "class": "R5",
       "reason": "naming-migration compatibility fixtures (Rust port of naming contract tests)"
-    },
-    {
-      "path": "engine/crates/legion-review/src/wf_port/w2_052/packet.rs",
-      "tokens": [
-        "sentinel"
-      ],
-      "occurrences": {
-        "sentinel": 1
-      },
-      "class": "R2",
-      "reason": "sentinel used as plain English (error-string sentinel value), not the legacy authority alias"
-    },
-    {
-      "path": "engine/crates/legion-review/src/wf_port/w2_053/openai_compat.rs",
-      "tokens": [
-        "sentinel"
-      ],
-      "occurrences": {
-        "sentinel": 1
-      },
-      "class": "R2",
-      "reason": "sentinel used as plain English (SSE [DONE] sentinel), not the legacy authority alias"
     },
     {
       "path": "engine/crates/legion-runtime/src/wf_port/w2_023/seeds.rs",
@@ -426,51 +393,6 @@
       },
       "class": "R2",
       "reason": "seer cited in module docs as the legacy oracle packet-type alias name being documented, not renamed"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/w2_047/mod.rs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 3
-      },
-      "class": "R2",
-      "reason": "Forge cited in module docs identifying the un-ported legacy-bridge compatibility module by name"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/w2_049/mod.rs",
-      "tokens": [
-        "seer",
-        "nemesis",
-        "forge",
-        "sentinel",
-        "sorcerer"
-      ],
-      "occurrences": {
-        "seer": 5,
-        "nemesis": 3,
-        "forge": 1,
-        "sentinel": 1,
-        "sorcerer": 1
-      },
-      "class": "R2",
-      "reason": "literal port of the JS naming-check TOKENS/authority constants it audits, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/tests/wf_w2_049.rs",
-      "tokens": [
-        "seer",
-        "forge",
-        "sentinel"
-      ],
-      "occurrences": {
-        "seer": 7,
-        "forge": 6,
-        "sentinel": 1
-      },
-      "class": "R2",
-      "reason": "test fixtures exercising the naming-check port with sample legacy tokens, ported from the JS test suite"
     },
     {
       "path": "engine/crates/legion-runtime/src/wf_port/r08/sweep_live.rs",
@@ -550,171 +472,6 @@
       "reason": "forge is the ported legacy Alchemist->Forge label-migration table's own literal replacement text, not renamed"
     },
     {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/01-assess-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/02-checkpoint-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/03-checkpoint-failure-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/04-checkpoint-host-check-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/05-verify-signoff-blocked-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/06-verify-high-risk-blocked-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/07-close-blocked-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/08-store-snapshot-scoped.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/10-verify-signoff-passing-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/11-close-success-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/fixtures/12-close-idempotent-response.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "legacy fixture data recorded verbatim from the legacy-bridge envelope, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/legacy-envelope-v1.schema.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 7
-      },
-      "class": "R2",
-      "reason": "legacy envelope schema ported verbatim from the JS legacy-bridge's own schema, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/operation-map.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 11
-      },
-      "class": "R2",
-      "reason": "legacy operation map ported verbatim from the JS legacy-bridge's own data, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/assets/schema-map.json",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 29
-      },
-      "class": "R2",
-      "reason": "legacy schema map ported verbatim from the JS legacy-bridge's own data, not new legacy usage"
-    },
-    {
-      "path": "engine/crates/legion-runtime/src/wf_port/r53/legacy_bridge.rs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 12
-      },
-      "class": "R2",
-      "reason": "faithful port of src/lib/host/arcane/legacy-bridge.mjs, the Forge compatibility adapter it is named for"
-    },
-    {
       "path": "engine/crates/legion-runtime/src/wf_port/w2_044/authority_packet.rs",
       "tokens": [
         "seer"
@@ -768,7 +525,8 @@
     {
       "path": "docs/provenance/retirements.md",
       "tokens": [
-        "sentinel"
+        "sentinel",
+        "forge"
       ],
       "class": "R5",
       "reason": "retirement ledger names retired systems"
