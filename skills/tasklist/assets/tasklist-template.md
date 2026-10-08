@@ -21,6 +21,19 @@
 - **Non-goals:** {{EXPLICIT_NON_GOALS}}
 - **Hard constraints:** AUTHORITY={{RULE}}; SAFETY={{RULE}}; SCOPE={{RULE}}; QUALITY={{RULE}}; COST={{RULE}}
 
+## 1A. RightKit Capabilities
+
+- **Source command:** `rightkit owns --compact` (run at plan time; paste the full output below, never a summary)
+- **Capability output:**
+
+```text
+{{PASTE_OUTPUT_OF_RIGHTKIT_OWNS_COMPACT}}
+```
+
+- **Owned capabilities this plan touches:** CAPABILITY_OWNERS:{{CAPABILITY=OWNER_PACKAGE_PAIRS_OR_NONE}}
+- **Owner dependency rule:** every touched capability consumes its listed owner package; no app-local copy of an owned capability.
+- **New capability or uncovered need:** {{NONE_OR_ESCALATION_TO_ADRIAN_OR_SAGE}}
+
 ## 2. GoalRoute Binding
 
 - **Goal route artifact:** {{ABSOLUTE_GOAL_ROUTE_JSON}}

@@ -39,7 +39,7 @@ agents with host-supported model tiers. This entrypoint needs no external model 
 provider profiles, or package-local worker launcher. See `references/manual.md` for assignment
 & return requirements.
 
-1. Require settled scope, ownership boundaries, acceptance criteria, and focused checks.
+1. Require settled scope, ownership boundaries, acceptance criteria, and focused checks; a plan that touches a RightKit capability also carries its `RightKit Capabilities` block from `rightkit owns --compact`.
    EXECUTOR:
      semantic: required
      capabilities:
