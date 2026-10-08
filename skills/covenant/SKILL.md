@@ -10,7 +10,8 @@ operations:
   - produce
 effects:
   - source-read
-hostRequirements: []
+hostRequirements:
+  - legion
 ---
 
 # Covenant
