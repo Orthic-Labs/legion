@@ -193,7 +193,10 @@ fn rust_nested_routes(
         }
         let values: BTreeSet<String> = route_res
             .iter()
-            .flat_map(|re| re.captures_iter(module_source).map(|cap| cap[1].to_string()))
+            .flat_map(|re| {
+                re.captures_iter(module_source)
+                    .map(|cap| cap[1].to_string())
+            })
             .collect();
         for value in &values {
             let value = value.as_str();
