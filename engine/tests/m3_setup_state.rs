@@ -490,7 +490,7 @@ fn host_mcp_registration_applies_repairs_idempotently_and_removes_cleanly() {
     write_claude_plugin_source(&source_root);
     let _registry = registry(&state_root);
     let state_root = fs::canonicalize(&state_root).expect("canonical state root");
-    let host_home = root.path().join("host-home");
+    let host_home = state_root.join("host-home");
     fs::create_dir_all(&host_home).expect("host home");
 
     // Pre-apply host config carries unrelated user content plus an already
@@ -564,7 +564,7 @@ fn host_mcp_registration_mid_apply_failure_leaves_host_config_untouched() {
     write_claude_plugin_source(&source_root);
     let _registry = registry(&state_root);
     let state_root = fs::canonicalize(&state_root).expect("canonical state root");
-    let host_home = root.path().join("host-home");
+    let host_home = state_root.join("host-home");
     fs::create_dir_all(&host_home).expect("host home");
     let host_config_path = host_home.join(".claude.json");
     let before_bytes = br#"{"other":"keep"}"#.to_vec();
