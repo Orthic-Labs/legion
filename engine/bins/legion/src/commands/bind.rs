@@ -367,8 +367,7 @@ mod role_binding_tests {
         let root = f.0.join("project/deep");
         let home = f.0.join("home");
         let content = |id: &str| {
-            let report =
-                role_configuration_bounded(&home, &root, &home.join(".codex"), Some(&f.0));
+            let report = role_configuration_bounded(&home, &root, &home.join(".codex"), Some(&f.0));
             codex_role_target_content_from(&root, id, &report)
         };
         for id in ["sage", "oracle"] {
