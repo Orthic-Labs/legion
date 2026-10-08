@@ -7,7 +7,14 @@ use serde_json::json;
 /// pyproject.toml / requirements.txt, go.mod), each with the registry providers
 /// that cover it. An empty list means no recognised manifest was found.
 pub fn run(args: CommonArgs) -> CommandResult {
-    let root = std::env::current_dir().map_err(super::io_error)?;
+    // The first non-flag argument is the repository root; default to cwd.
+    let cwd = std::env::current_dir().map_err(super::io_error)?;
+    let root = args
+        .args
+        .iter()
+        .find(|arg| !arg.to_string_lossy().starts_with('-'))
+        .map(|arg| cwd.join(arg))
+        .unwrap_or(cwd);
     let scan = coverage::scan(&root);
     let languages = coverage::rows(&scan)?;
     let output = json!({
