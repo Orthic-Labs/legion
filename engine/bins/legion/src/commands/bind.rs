@@ -14,7 +14,22 @@ fn role_configuration(home: &Path, root: &Path) -> Value {
 }
 
 fn role_configuration_in(home: &Path, root: &Path, codex_home: &Path) -> Value {
-    let mut scopes = root.ancestors().map(Path::to_path_buf).collect::<Vec<_>>();
+    role_configuration_bounded(home, root, codex_home, None)
+}
+
+/// `boundary` limits the project scopes to `root`'s ancestors inside it, so a
+/// caller (tests) can exclude unrelated configuration above an isolated tree.
+fn role_configuration_bounded(
+    home: &Path,
+    root: &Path,
+    codex_home: &Path,
+    boundary: Option<&Path>,
+) -> Value {
+    let mut scopes = root
+        .ancestors()
+        .take_while(|scope| boundary.is_none_or(|limit| scope.starts_with(limit)))
+        .map(Path::to_path_buf)
+        .collect::<Vec<_>>();
     scopes.retain(|scope| scope != home);
     scopes.push(home.to_path_buf());
     let layers = scopes
@@ -147,7 +162,10 @@ fn codex_agent_content(id: &str) -> String {
 }
 
 fn codex_role_target_content(root: &Path, id: &str) -> String {
-    let report = role_configuration(&home_dir(), root);
+    codex_role_target_content_from(root, id, &role_configuration(&home_dir(), root))
+}
+
+fn codex_role_target_content_from(root: &Path, id: &str, report: &Value) -> String {
     let defaults = &report["hostModelDefaults"];
     let mut profile: toml::Value =
         std::fs::read_to_string(root.join(format!(".codex/agents/{id}.toml")))
@@ -347,21 +365,24 @@ mod role_binding_tests {
         let f = Fixture::new();
         f.write("project/deep/.codex/config.toml", "model = 'host-frontier'\nmodel_reasoning_effort = 'high'\n[agents]\ndefault_subagent_model = 'host-executor'\n");
         let root = f.0.join("project/deep");
+        let home = f.0.join("home");
+        let content = |id: &str| {
+            let report =
+                role_configuration_bounded(&home, &root, &home.join(".codex"), Some(&f.0));
+            codex_role_target_content_from(&root, id, &report)
+        };
         for id in ["sage", "oracle"] {
-            let profile: toml::Value =
-                toml::from_str(&codex_role_target_content(&root, id)).unwrap();
+            let profile: toml::Value = toml::from_str(&content(id)).unwrap();
             assert_eq!(profile["model"].as_str(), Some("host-frontier"));
             assert_eq!(profile["model_reasoning_effort"].as_str(), Some("high"));
         }
-        let profile: toml::Value =
-            toml::from_str(&codex_role_target_content(&root, "alchemist")).unwrap();
+        let profile: toml::Value = toml::from_str(&content("alchemist")).unwrap();
         assert_eq!(profile["model"].as_str(), Some("host-executor"));
         f.write(
             "project/deep/.codex/agents/alchemist.toml",
             "model = 'operator-model'\nsandbox_mode = 'read-only'\n",
         );
-        let profile: toml::Value =
-            toml::from_str(&codex_role_target_content(&root, "alchemist")).unwrap();
+        let profile: toml::Value = toml::from_str(&content("alchemist")).unwrap();
         assert_eq!(profile["model"].as_str(), Some("operator-model"));
         assert_eq!(profile["sandbox_mode"].as_str(), Some("read-only"));
     }
