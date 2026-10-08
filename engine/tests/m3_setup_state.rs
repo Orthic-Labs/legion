@@ -456,6 +456,16 @@ fn native_client_projection_profiles_reconcile_without_claiming_pi_execution() {
         skill_ids: vec!["example".into()],
         host_config_root: None,
     };
+    // Pi is explicit-only: repair maintains an opt-in projection and never
+    // creates one (setup_registry.rs repair gate; unit test
+    // explicit_projection_still_requires_existing_target).
+    let not_opted_in = repair_client_projection(&pi).expect("repair un-opted-in Pi skills");
+    assert_ne!(not_opted_in.inspection.state, "current");
+    assert!(!pi.target_root.join("example").exists());
+    // Opt in by placing the skill under the shared root yourself; repair then
+    // adopts the byte-identical entry into its ledger.
+    fs::create_dir_all(pi.target_root.join("example")).expect("opt-in Pi skill dir");
+    fs::write(pi.target_root.join("example/SKILL.md"), b"# Example").expect("opt-in Pi skill");
     let pi_repair = repair_client_projection(&pi).expect("repair Pi skills");
     assert_eq!(pi_repair.inspection.state, "current");
     assert!(!pi_repair.inspection.executable_registration);
@@ -627,6 +637,9 @@ fn host_mcp_registration_round_trips_codex_toml_without_duplicating_blocks() {
         host_config_root: Some(host_home.clone()),
     };
 
+    // Codex is explicit-only: repair maintains an opt-in projection and never
+    // creates one, so the operator opts in by creating the target root.
+    fs::create_dir_all(&input.target_root).expect("codex opt-in target root");
     repair_client_projection(&input).expect("apply codex projection");
     let config_path = codex_dir.join("config.toml");
     let after_apply = fs::read_to_string(&config_path).expect("read applied codex config");

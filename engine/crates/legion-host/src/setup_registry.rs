@@ -520,7 +520,7 @@ pub fn repair_client_projection(
                     .map(|metadata| metadata.file_type().is_symlink())
                     .unwrap_or(false);
                 if link {
-                    fs::remove_file(&target).map_err(io)?;
+                    remove_projection_link(&target).map_err(io)?;
                 } else {
                     fs::remove_dir_all(&target).map_err(io)?;
                 }
@@ -747,7 +747,7 @@ pub fn remove_client_projection(
     // link would delete the installed product itself, so remove the link and
     // stop.
     if projection_root_links_to(&input.target_root, &input.source_root)? {
-        fs::remove_file(&input.target_root).map_err(io)?;
+        remove_projection_link(&input.target_root).map_err(io)?;
         return Ok(ClientProjectionRepair {
             inspection: inspect_client_projection(input)?,
             repaired: Vec::new(),
@@ -781,7 +781,7 @@ pub fn remove_client_projection(
     let linked_targets = projection_link_targets(input)?;
     for (target, source) in &linked_targets {
         if projection_root_links_to(target, source)? {
-            fs::remove_file(target).map_err(io)?;
+            remove_projection_link(target).map_err(io)?;
             removed.push(target.clone());
         }
     }
@@ -3642,6 +3642,21 @@ fn windows_mklink_path(path: &Path) -> String {
     text.strip_prefix(r"\\?\")
         .map(str::to_owned)
         .unwrap_or(text)
+}
+
+/// Remove a link created by `link_projection_root`. A Windows junction is a
+/// directory reparse point, and `remove_file` on it fails with "Access is
+/// denied" (os error 5); `remove_dir` unlinks the junction without touching
+/// its target. Elsewhere the link is a symlink and `remove_file` is correct.
+fn remove_projection_link(path: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        fs::remove_dir(path).or_else(|_| fs::remove_file(path))
+    }
+    #[cfg(not(windows))]
+    {
+        fs::remove_file(path)
+    }
 }
 
 fn link_projection_root(source: &Path, target: &Path) -> Result<bool, SetupError> {
