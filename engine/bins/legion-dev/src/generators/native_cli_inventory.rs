@@ -167,10 +167,36 @@ fn rust_nested_routes(
         );
     }
 
-    let some_re = Regex::new(r#"Some\("([a-z][a-z-]*)"\)"#).unwrap();
+    // String-routed modules match subcommands as `Some("x")`, as match arms
+    // (`"x" =>`, `"a" | "b" =>`), or inside `matches!(sub, "a" | "b")`.
+    let route_res = [
+        Regex::new(r#"Some\("([a-z][a-z-]*)"\)"#).unwrap(),
+        Regex::new(r#""([a-z][a-z-]*)"\s*(?:=>|\|)"#).unwrap(),
+        Regex::new(r#"\|\s*"([a-z][a-z-]*)""#).unwrap(),
+    ];
     for (command, module_source) in module_sources {
-        for cap in some_re.captures_iter(module_source) {
-            let value = &cap[1];
+        // `host-runtime.rs` serves the `host` command's runtime subcommands.
+        if command == "host-runtime"
+            && expected.contains("host.events.inspect")
+            && module_source.contains(r#"Some("events")"#)
+            && module_source.contains(r#"Some("inspect")"#)
+        {
+            by_route.insert(
+                "host.events.inspect".to_string(),
+                RouteRow {
+                    route: "host.events.inspect".to_string(),
+                    command: "host".to_string(),
+                    subcommand: "events.inspect".to_string(),
+                    source: "commands/host_runtime.rs".to_string(),
+                },
+            );
+        }
+        let values: BTreeSet<String> = route_res
+            .iter()
+            .flat_map(|re| re.captures_iter(module_source).map(|cap| cap[1].to_string()))
+            .collect();
+        for value in &values {
+            let value = value.as_str();
             let route = format!("{command}.{value}");
             if value != "help" && (expected.is_empty() || expected.contains(route.as_str())) {
                 by_route.insert(
