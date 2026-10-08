@@ -15,7 +15,7 @@
       "id": "social-youtube-channel-strategy",
       "prompt": "We want to grow our YouTube channel for Harbor & Thread. What should we post?",
       "expected_skill": "social",
-      "forbidden_skills": ["growth", "writing-pro"],
+      "forbidden_skills": ["growth", "writing"],
       "expected_behavior": "Route to social/youtube reference for channel strategy; do not delegate to growth or writing-pro.",
       "severity": "error",
       "mode": "discovery"
@@ -34,13 +34,13 @@
     {
       "id": "social-not-reel-script-asset",
       "prompt": "Write a Reel script for this product launch — I need the voiceover, scene breakdown, and captions as a production-ready content asset.",
-      "expected_skill": "writing-pro",
+      "expected_skill": "writing",
       "forbidden_skills": ["social"],
       "expected_behavior": "A video/Reel/Short script requested as a standalone production content asset routes to /writing-pro, not /social.",
       "assertions": [
         {
           "type": "expected_skill",
-          "value": "writing-pro"
+          "value": "writing"
         }
       ],
       "severity": "error",

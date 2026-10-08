@@ -40,7 +40,7 @@
     {
       "id": "blogs-not-long-form-essay",
       "prompt": "Write a 3,000-word personal essay about my journey building a startup — no SEO needed, just compelling storytelling.",
-      "expected_skill": "writing-pro",
+      "expected_skill": "writing",
       "forbidden_skills": ["blogs"],
       "expected_behavior": "Long-form essays, newsletters, and narrative-first writing without SEO/blog-gate intent route to /writing. /writing blog owns keyword-mapped, internally-linked, schema-ready SEO posts — not pure narrative essays.",
       "assertions": [

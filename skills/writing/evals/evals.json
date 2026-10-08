@@ -33,7 +33,7 @@
       "id": "writing-email",
       "prompt": "Create a welcome and abandoned-cart email sequence.",
       "expected_skill": "writing",
-      "forbidden_skills": ["email-pro"],
+      "forbidden_skills": ["email"],
       "expected_behavior": "Routes to email specialist.",
       "severity": "error",
       "mode": "discovery"
@@ -42,7 +42,7 @@
       "id": "writing-bio",
       "prompt": "Rewrite my Instagram bio, link-in-bio copy, and first DM.",
       "expected_skill": "writing",
-      "forbidden_skills": ["offer-and-bio-writer"],
+      "forbidden_skills": ["profile-copy"],
       "expected_behavior": "Routes to copywriting then profile-copy specialist.",
       "severity": "error",
       "mode": "discovery"
@@ -51,7 +51,7 @@
       "id": "writing-changelog",
       "prompt": "Turn the commits since v1.4 into customer-facing release notes.",
       "expected_skill": "writing",
-      "forbidden_skills": ["changelog-generator"],
+      "forbidden_skills": ["changelog"],
       "expected_behavior": "Routes to changelog specialist and verifies the git range.",
       "severity": "error",
       "mode": "discovery"

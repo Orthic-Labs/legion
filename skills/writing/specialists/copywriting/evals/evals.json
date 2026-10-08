@@ -34,7 +34,7 @@
     {
       "id": "copywriting-not-general-essay",
       "prompt": "Write a reflective essay about creativity.",
-      "expected_skill": "writing-pro",
+      "expected_skill": "writing",
       "forbidden_skills": ["copywriting"],
       "expected_behavior": "Non-conversion prose should route to writing-pro, not copywriting.",
       "severity": "error",
@@ -52,7 +52,7 @@
     {
       "id": "copywriting-not-cold-email",
       "prompt": "Write a cold outreach email to a potential wholesale buyer.",
-      "expected_skill": "email-pro",
+      "expected_skill": "email",
       "forbidden_skills": ["copywriting"],
       "expected_behavior": "Cold outbound email routes to /writing email cold-outbound section, not /writing copy.",
       "severity": "warning",

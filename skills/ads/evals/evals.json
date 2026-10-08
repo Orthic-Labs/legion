@@ -79,7 +79,7 @@
     {
       "id": "ads-not-landing-page-cro",
       "prompt": "My landing page has a 2% conversion rate. Help me improve the form, headline hierarchy, and trust signals — nothing to do with ads.",
-      "expected_skill": "optimize",
+      "expected_skill": "cro",
       "forbidden_skills": ["ads"],
       "expected_behavior": "CRO for a landing page that is explicitly not ad-specific routes to /optimize. The ads skill's landing-page gate points to /optimize or /audit-visual when the page itself is the problem, not the ads.",
       "severity": "error",

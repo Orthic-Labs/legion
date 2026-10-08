@@ -19,6 +19,8 @@ checks=(
   "check-dependency-closure"
   "check-publication-surface"
   "check-skill-references"
+  "check-skill-evals"
+  "check-retirements"
   "check-packed-import-closure"
   "check-distribution-contract"
   "check-release-obligations"

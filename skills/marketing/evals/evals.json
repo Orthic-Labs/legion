@@ -6,7 +6,7 @@
       "id": "marketing-context",
       "prompt": "Set up the product, ICP, positioning, proof, and marketing context for Northwind Tools.",
       "expected_skill": "marketing",
-      "forbidden_skills": ["product-marketing-context"],
+      "forbidden_skills": ["product-context"],
       "expected_behavior": "Routes to product-context specialist.",
       "severity": "error",
       "mode": "discovery"
@@ -33,7 +33,7 @@
       "id": "marketing-cro",
       "prompt": "Improve signup conversion and reduce onboarding drop-off.",
       "expected_skill": "marketing",
-      "forbidden_skills": ["optimize"],
+      "forbidden_skills": ["cro"],
       "expected_behavior": "Routes to CRO specialist with live-page QA when applicable.",
       "severity": "error",
       "mode": "discovery"

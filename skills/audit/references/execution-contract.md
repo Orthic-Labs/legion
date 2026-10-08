@@ -25,15 +25,52 @@ Companions: `legion verify <run-dir>` re-checks the persisted facts against the 
 
 ## Reasoning lens packets (step 7 detail)
 
-The engine has no production reasoning host. For each selected reasoning lens `legion audit --out
-<run-dir>` writes a `pending-host` work packet to `<run-dir>/lens-packets/<provider>.json` and lists it
-under `lensWork` and `reasoningLensesPending`; `reasoningLensesRan` is reported separately. The
-session reads each packet, dispatches one fresh-context subagent per packet (up to `CHILD_AGENTS_MAX`)
-at the tier `lens-routing.md` assigns, and requires findings with verbatim code anchors. The main
-session applies the refutation rule, re-checks every anchor against source, and merges survivors into
-the final report as skill-adjudicated lens findings, separated from engine findings. Results are not
-written back to the engine (no ingest path), so lens output is unauthenticated: the engine verdict
-and `fullAudit` stay non-clean until the engine itself runs or ingests those lenses.
+The engine has no in-process reasoning host; the CLI process is the trusted host for ingest. For each
+selected reasoning lens `legion audit --out <run-dir>` writes a `pending-host` work packet to
+`<run-dir>/lens-packets/<provider>.json`, lists it under `lensWork` and `reasoningLensesPending`, and
+generates a random per-run epoch key at `<run-dir>/epoch.key` (mode 0600; only its digest appears in
+`plan.json` `epoch.digest` and the report claim `reasoningEpochDigest`). Never read, copy, or print the
+key. The session dispatches one fresh-context subagent per packet (up to `CHILD_AGENTS_MAX`) at the
+tier `lens-routing.md` assigns. Each subagent writes a result file:
+
+```json
+{"schemaVersion": 1, "kind": "legion-lens-result", "provider": "reasoning.security",
+ "packetDigest": "<canonical sha256 of packet.request.packet>", "planDigest": "<packet.request.planDigest>",
+ "complete": true,
+ "findings": [{"id": "...", "lens": "...", "severity": "...", "confidence": "...",
+               "evidence": ["src/a.rs:12-18"], "failureScenario": "...", "action": "...", "verifyStatus": "...",
+               "anchor": {"path": "src/a.rs", "line": 14, "text": "<verbatim source text starting on that line>"}}],
+ "withdrawn": [{"id": "...", "reason": "...", "disproof": {"path": "...", "line": 1, "text": "<verbatim>"}}],
+ "details": {"semanticReview": {}, "changeRisk": {}}}
+```
+
+`packetDigest` and `planDigest` are listed on each `lensWork` entry of the audit output (and are
+`request.packet`'s canonical digest and `request.planDigest` in the packet file); `details` carries only the lens-specific `semanticReview` /
+`changeRisk` objects when the lens schema requires them. Then, for each lens, sequentially:
+
+```bash
+legion audit ingest --run <run-dir> --provider <reasoning-provider-id> --result <result.json>
+legion verify <run-dir>
+```
+
+`ingest` validates the result against the packet (provider id, packet digest, plan digest), requires
+every finding to carry an anchor whose text appears verbatim at `path:line` in the file at the frozen
+revision (and an `evidence` entry covering that line), requires every withdrawn finding to cite a
+disproving anchor, rejects a working tree that drifted from the frozen revision, runs the lens report
+schema, mints a receipt MACed with the epoch key, writes `<run-dir>/lens-receipts/<provider>.json`, and
+rewrites `report.json` / `report.sarif` with the recomputed verdict. `legion verify` recomputes the
+verdict from the execution plus the verified receipts and fails if `report.json` disagrees. A lens
+counts in `reasoningLensesRan` only through an ingested receipt; unsigned plans cannot be ingested
+(set `AUDIT_PLAN_SIGNING_KEY`). A rerun of `legion audit --out` replaces the epoch key and discards
+older receipts.
+
+Qualification: a provider is qualified when its registry entry carries `benchmark.status: qualified`
+with a `qualificationDigest` (the five bench-recall classes `secret`, `dependency_cve`, `dead_code`,
+`duplication`, `type_error` carry a `benchmark.qualification` record citing the `bench` CI job). An
+unqualified provider that completed is a non-blocking `unqualified:<provider>` entry in
+`coverageNotes`; it blocks clean (`provider-unqualified:<provider>` gap) only when its registry entry
+sets `benchmark.requiredForCleanClaim: true`. Clean requires every applicable required provider
+complete and every required lens ingested.
 
 ## Network sandbox and runtime capture (step 4 detail)
 

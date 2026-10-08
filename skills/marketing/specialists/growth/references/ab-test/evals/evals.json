@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "skill": "growth-ab-test",
+  "skill": "ab-test",
   "should_trigger": [
     {
       "id": "ab-test-trigger-basic",

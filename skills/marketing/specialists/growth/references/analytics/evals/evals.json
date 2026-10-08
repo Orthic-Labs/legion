@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "skill": "growth-analytics",
+  "skill": "analytics",
   "should_trigger": [
     {
       "id": "analytics-trigger-saas-setup",

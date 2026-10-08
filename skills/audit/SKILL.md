@@ -65,15 +65,19 @@ overrides it.
    native subagent in one parallel wave, tiered by lens kind (strongest for `security`, `architecture`,
    `correctness`; mid for other judgment lenses; lowest for mechanical lenses). Inline execution is
    fallback only when no native seat is available. Reason only inside frozen-plan providers.
-   The engine has no lens host: it emits each reasoning lens as a `pending-host` packet at
-   `<run-dir>/lens-packets/<provider>.json`, listed under `lensWork` / `reasoningLensesPending` in the
-   output; `reasoningLensesRan` is reported separately and counts only lenses the engine itself ran.
-   Read every packet, fan out one subagent per packet (at most `CHILD_AGENTS_MAX`) at the tier
-   `lens-routing.md` assigns, and have each return findings with verbatim code anchors
-   (`file:line` + quoted source). Apply the refutation rule (a finding is withdrawn only by citing the
-   line that disproves it), then merge the survivors into the final report as skill-adjudicated lens
-   findings, in a section clearly separate from engine findings. There is no ingest path back into
-   the engine, so the engine verdict stays non-clean while lens results are unauthenticated.
+   The engine has no in-process lens host: `legion audit --out <run-dir>` freezes a per-run epoch key
+   and emits each reasoning lens as a `pending-host` packet at `<run-dir>/lens-packets/<provider>.json`,
+   listed under `lensWork` / `reasoningLensesPending`; `reasoningLensesRan` counts a lens only after
+   the CLI ingests its result. Read every packet, fan out one subagent per packet (at most
+   `CHILD_AGENTS_MAX`) at the tier `lens-routing.md` assigns, and have each write a
+   `legion-lens-result` JSON file whose every finding carries a verbatim code anchor
+   (`anchor: {path, line, text}`; see the execution contract). Apply the refutation rule (a finding is
+   withdrawn only by citing, as a `disproof` anchor, the line that disproves it). Then run
+   `legion audit ingest --run <run-dir> --provider <id> --result <file>` once per lens, sequentially:
+   the CLI is the trusted host, rejects any anchor that does not match the file bytes at the frozen
+   revision, MACs the receipt, and rewrites `report.json` with the recomputed verdict. Finish with
+   `legion verify <run-dir>`; it recomputes the verdict from the ingested receipts. A lens that is not
+   ingested stays `pending-host` and keeps the audit non-clean.
 8. Apply [semantic review](references/semantic-review.md) when a repository supplies explicit
    specifications or standards. Reuse `correctness` for SPEC fidelity & `ai-slop` for STANDARDS,
    with independent inputs, reports, & verdicts; missing inputs are typed `unproven` or
@@ -81,7 +85,9 @@ overrides it.
 9. Adjudicate each security candidate independently; no generator closes its own finding.
 10. Deduplicate, then finalize through [execution contract](references/execution-contract.md) so
    `report.json`, `report.sarif`, & receipts reconcile against exact plan. Missing provider/lens
-   coverage stays typed `incomplete`.
+   coverage stays typed `incomplete`. Providers without a passing bench class or qualification record
+   appear as non-blocking `unqualified:<provider>` coverage notes (`coverageNotes`) unless the registry
+   marks them `requiredForCleanClaim`; report them, they do not block a clean verdict.
 11. Reconcile every provider & denominator; incomplete coverage is never clean.
 
 Return gate vector, coverage, findings with evidence loci, rerun commands, & receipts, artifacts, &

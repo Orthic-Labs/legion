@@ -90,9 +90,10 @@ Legion provides shared routing, execution, and independent semantic validation a
   fallback the package does not contain.
 - Keep Legion the canonical source for every skill it ships. There is no upstream to import from,
   so a packaged file carries one digest and no transform record.
-- Every deleted skill file, script, hook, or rule gets a row in `docs/provenance/retirements.md` naming its successor or why it was dropped.
+- Every skill file, script, hook, doctrine file, agent-rule file, or native CLI command module deleted after `c1d80c9d` gets a row in `docs/provenance/retirements.md` naming the path (or a parent or glob) and its successor or why it was dropped; `legion-dev check-retirements` enforces it.
 
 ## Verification
+- `legion-dev check-skill-evals` validates eval structure only; model-graded cases report `requires-model` and are not proof.
 - Run focused doctrine and routing tests after role changes.
 - Refresh `skills/manifests/*.json` with `cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests <bundle>...`
   after editing any packaged skill file, so digests and consumers stay truthful.

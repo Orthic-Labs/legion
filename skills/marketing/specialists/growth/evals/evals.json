@@ -43,7 +43,7 @@
     {
       "id": "growth-not-trigger-cro",
       "prompt": "Our pricing page conversion rate is 1.2%. Review the page layout and button placement to increase conversions.",
-      "expected_skill": "optimize",
+      "expected_skill": "cro",
       "forbidden_skills": ["growth"],
       "expected_behavior": "In-product CRO and pricing page layout optimization routes to /marketing cro, not /marketing growth. Growth handles strategy and experiment design; optimize handles measurable conversion improvements on specific pages.",
       "severity": "error",

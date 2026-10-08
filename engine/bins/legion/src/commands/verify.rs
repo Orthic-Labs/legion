@@ -137,6 +137,10 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
         .or_else(|| plan.get("repository").and_then(Value::as_str))
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| root.to_string_lossy().into_owned());
+    // Reasoning lenses count as ran only through ingested, MAC-verified receipts:
+    // rebuild the verdict from the execution and the lens receipts and require
+    // the stored report to agree with it.
+    let verdict = lens_verdict(&root, &mut errors);
     if errors.is_empty() {
         let application = super::native_application_for(&repository_id)?;
         let verification = application
@@ -157,6 +161,51 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
         }
     }
     Ok(
-        json!({"schemaVersion":1,"kind":"legion-verify","status":if errors.is_empty(){"complete"}else{"failed"},"repository":repository_id,"factsDigest":facts_digest,"planContentDigest":plan_digest,"valid":errors.is_empty(),"contentErrors":errors}),
+        json!({"schemaVersion":1,"kind":"legion-verify","status":if errors.is_empty(){"complete"}else{"failed"},"repository":repository_id,"factsDigest":facts_digest,"planContentDigest":plan_digest,"valid":errors.is_empty(),"contentErrors":errors,"verdict":verdict}),
     )
+}
+
+/// Recomputes the run verdict from `execution.json` plus the ingested lens
+/// receipts. Returns `Null` when the directory holds no Audit run.
+fn lens_verdict(run: &std::path::Path, errors: &mut Vec<String>) -> Value {
+    if !run.join("execution.json").is_file() || !run.join("report.json").is_file() {
+        return Value::Null;
+    }
+    let recomputed = match legion_audit::native_providers::reasoning::ingest::recompute_run(run) {
+        Ok(recomputed) => recomputed,
+        Err(error) => {
+            errors.push(format!("lens verdict could not be recomputed: {error}"));
+            return Value::Null;
+        }
+    };
+    let stored: Value = std::fs::read(run.join("report.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or(Value::Null);
+    let status = serde_json::to_value(recomputed.report.status).unwrap_or(Value::Null);
+    let lenses_ran = recomputed
+        .report
+        .claims
+        .get("lensesRan")
+        .cloned()
+        .unwrap_or(Value::Null);
+    if stored.get("status") != Some(&status)
+        || stored.get("gaps") != Some(&json!(recomputed.report.gaps))
+        || stored.pointer("/claims/lensesRan") != Some(&lenses_ran)
+    {
+        errors.push(
+            "report.json does not match the verdict recomputed from the ingested lens receipts; rerun `legion audit ingest` (reasoning lenses count as ran only via ingested receipts)"
+                .into(),
+        );
+    }
+    json!({
+        "status": status,
+        "gaps": recomputed.report.gaps,
+        "findingCount": recomputed.report.findings.len(),
+        "lensesRan": lenses_ran,
+        "ingestedLenses": recomputed.ingested,
+        "pendingLenses": recomputed.pending,
+        "coverageNotes": recomputed.execution.coverage_notes,
+        "clean": recomputed.report.status == legion_contracts::ReportStatus::Clean,
+    })
 }

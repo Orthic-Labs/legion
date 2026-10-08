@@ -191,6 +191,7 @@ pub fn canonical_report(
                 "deterministicLensTagCounts".into(),
                 json!(execution.deterministic_lens_tags),
             ),
+            ("coverageNotes".into(), json!(execution.coverage_notes)),
         ]),
         targets: vec![repository_id.to_owned()],
         extensions: BTreeMap::from([
@@ -260,6 +261,7 @@ mod tests {
             selected_reasoning_lenses: Vec::new(),
             pending_host: Vec::new(),
             deterministic_lens_tags: BTreeMap::new(),
+            coverage_notes: Vec::new(),
             gaps: Vec::new(),
         }
     }

@@ -39,6 +39,14 @@ enum Command {
     /// Dead-reference gate: skill markdown links, `legion script` names,
     /// deleted-script mentions, and `hostRequirements` ids.
     CheckSkillReferences,
+    /// Structural gate for `skills/**/evals/*.json`; model-graded cases are
+    /// reported as `requires-model`, never as passed. Deterministic half of
+    /// the deleted `scripts/run-skill-evals.mjs`.
+    CheckSkillEvals,
+    /// Every path deleted under skills/, scripts/, hooks/, doctrine/,
+    /// docs/agent-rules*, or engine/bins/*/src/commands/ since the baseline
+    /// commit needs a row in `docs/provenance/retirements.md`.
+    CheckRetirements,
     /// Port of `scripts/check-authority-parity.mjs`.
     CheckAuthorityParity,
     /// Grade recorded role decisions against independently labelled replay cases.
@@ -183,6 +191,8 @@ fn main() -> ExitCode {
         }
         Command::CheckPublicationSurface => checks::publication_surface::run(&root),
         Command::CheckSkillReferences => checks::skill_references::run(&root),
+        Command::CheckSkillEvals => checks::skill_evals::run(&root),
+        Command::CheckRetirements => checks::retirements::run(&root),
         Command::CheckAuthorityParity => checks::authority_parity::run(&root),
         Command::EvaluateAuthorityReplay {
             cases,

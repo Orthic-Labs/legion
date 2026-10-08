@@ -73,6 +73,8 @@
       ]
     }
   ],
+  "safety": [],
+  "pressure": [],
   "compatibility": [
     {
       "id": "oracle-slash-alias",

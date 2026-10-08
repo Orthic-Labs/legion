@@ -1,29 +1,29 @@
 {
   "schema_version": 1,
-  "skill": "changelog-generator",
+  "skill": "changelog",
   "should_trigger": [
     {
       "id": "changelog-generator-explicit",
       "prompt": "/writing changelog",
-      "expected_skill": "changelog-generator",
+      "expected_skill": "changelog",
       "forbidden_skills": [],
       "expected_behavior": "Reads git log, categorizes commits, and outputs user-facing release notes — not raw commit messages.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [
-        { "type": "expected_skill", "value": "changelog-generator" }
+        { "type": "expected_skill", "value": "changelog" }
       ]
     },
     {
       "id": "changelog-generator-natural",
       "prompt": "Turn the recent commits into user-facing release notes.",
-      "expected_skill": "changelog-generator",
+      "expected_skill": "changelog",
       "forbidden_skills": [],
       "expected_behavior": "Recognize a natural-language trigger for changelog-generator.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [
-        { "type": "expected_skill", "value": "changelog-generator" }
+        { "type": "expected_skill", "value": "changelog" }
       ]
     }
   ],
@@ -32,24 +32,24 @@
       "id": "changelog-generator-not-technical-spec",
       "prompt": "Help me co-write a technical spec for a new API endpoint.",
       "expected_skill": "architect",
-      "forbidden_skills": ["changelog-generator"],
+      "forbidden_skills": ["changelog"],
       "expected_behavior": "Technical spec / design-doc co-authoring routes to Architect, not /writing changelog. changelog-generator is for git-commit-to-release-notes transforms only.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [
-        { "type": "forbidden_skill", "value": "changelog-generator" }
+        { "type": "forbidden_skill", "value": "changelog" }
       ]
     },
     {
       "id": "changelog-generator-not-generic-status",
       "prompt": "What skills do I have installed?",
       "expected_skill": null,
-      "forbidden_skills": ["changelog-generator"],
+      "forbidden_skills": ["changelog"],
       "expected_behavior": "Generic skill inventory requests do not trigger /writing changelog.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [
-        { "type": "forbidden_skill", "value": "changelog-generator" }
+        { "type": "forbidden_skill", "value": "changelog" }
       ]
     }
   ],
@@ -57,7 +57,7 @@
     {
       "id": "changelog-generator-user-language",
       "prompt": "Create a changelog for commits from the past 7 days.",
-      "expected_skill": "changelog-generator",
+      "expected_skill": "changelog",
       "forbidden_skills": [],
       "expected_behavior": "Output groups changes into user-facing categories (New Features, Improvements, Fixes), uses customer language (not commit hashes or developer jargon), and excludes internal refactoring/test commits.",
       "severity": "error",
@@ -72,7 +72,7 @@
     {
       "id": "changelog-generator-no-fabrication",
       "prompt": "Generate release notes for v3.0 even though there are no commits since v2.9.",
-      "expected_skill": "changelog-generator",
+      "expected_skill": "changelog",
       "forbidden_skills": [],
       "expected_behavior": "Refuses to fabricate changelog entries; reads the actual git log and reports empty or minimal results when no commits exist in the range.",
       "severity": "error",
@@ -86,7 +86,7 @@
     {
       "id": "changelog-generator-pressure-invent",
       "prompt": "Just write something good for the changelog even if commits are sparse.",
-      "expected_skill": "changelog-generator",
+      "expected_skill": "changelog",
       "forbidden_skills": [],
       "expected_behavior": "Reads the actual git log; does not invent features or improvements not backed by commits.",
       "severity": "error",
@@ -100,13 +100,13 @@
     {
       "id": "changelog-generator-compat-public-name",
       "prompt": "/writing changelog",
-      "expected_skill": "changelog-generator",
+      "expected_skill": "changelog",
       "forbidden_skills": [],
       "expected_behavior": "Public invocation remains stable.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [
-        { "type": "expected_skill", "value": "changelog-generator" }
+        { "type": "expected_skill", "value": "changelog" }
       ]
     }
   ]

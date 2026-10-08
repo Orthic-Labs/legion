@@ -1,0 +1,901 @@
+{
+ "live": {
+  "policy:wf067": {
+   "loc": 3607,
+   "roots": [
+    "bins/legion-dev/src/checks/canonical_names.rs"
+   ],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf067.rs"
+   ]
+  },
+  "runtime:q_q1": {
+   "loc": 240,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/q_q1_paths.rs"
+   ]
+  },
+  "runtime:r00": {
+   "loc": 1807,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r00_huashu_deck_export_scripts.rs"
+   ]
+  },
+  "runtime:r02": {
+   "loc": 1735,
+   "roots": [
+    "bins/legion/src/commands/script.rs",
+    "tests/native_no_interpreter.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r02_narrate_pipeline.rs",
+    "crates/legion-runtime/tests/r02_render_video_seek.rs"
+   ]
+  },
+  "runtime:r03": {
+   "loc": 2697,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r03_render_video.rs",
+    "crates/legion-runtime/tests/r03_tts_doubao.rs",
+    "crates/legion-runtime/tests/r03_verify.rs"
+   ]
+  },
+  "runtime:r04": {
+   "loc": 998,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_r04.rs"
+   ]
+  },
+  "runtime:r05": {
+   "loc": 1695,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/ap_registry_wiring.rs"
+   ]
+  },
+  "runtime:r07": {
+   "loc": 1060,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/ap_registry_wiring.rs",
+    "crates/legion-runtime/tests/r07_detect_url.rs"
+   ]
+  },
+  "runtime:r08": {
+   "loc": 1273,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/ap_registry_wiring.rs"
+   ]
+  },
+  "runtime:r09": {
+   "loc": 1528,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/r09_css_cascade.rs"
+   ]
+  },
+  "runtime:r11": {
+   "loc": 3049,
+   "roots": [],
+   "tests": []
+  },
+  "runtime:r12": {
+   "loc": 2209,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": []
+  },
+  "runtime:r13": {
+   "loc": 1702,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": []
+  },
+  "runtime:r14": {
+   "loc": 2236,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": []
+  },
+  "runtime:r18": {
+   "loc": 2608,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r18_manual_edits_verify.rs",
+    "crates/legion-runtime/tests/r18r26_gap_closure.rs"
+   ]
+  },
+  "runtime:r22": {
+   "loc": 1478,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r22_live_insert_poll.rs"
+   ]
+  },
+  "runtime:r24": {
+   "loc": 2111,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r24_live_server.rs"
+   ]
+  },
+  "runtime:r32": {
+   "loc": 770,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r32_edit.rs"
+   ]
+  },
+  "runtime:r37": {
+   "loc": 4729,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_r37.rs"
+   ]
+  },
+  "runtime:r46": {
+   "loc": 6665,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r46_route_scan.rs",
+    "crates/legion-runtime/tests/r46b_dispatch_document.rs",
+    "crates/legion-runtime/tests/r46c1_goal_route.rs"
+   ]
+  },
+  "runtime:r54": {
+   "loc": 2512,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r54_qa_engine.rs"
+   ]
+  },
+  "runtime:u03": {
+   "loc": 978,
+   "roots": [
+    "bins/legion-dev/src/checks/version_parity.rs"
+   ],
+   "tests": []
+  },
+  "runtime:w2_005": {
+   "loc": 1236,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_005.rs"
+   ]
+  },
+  "runtime:w2_006": {
+   "loc": 1759,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_006.rs"
+   ]
+  },
+  "runtime:w2_007": {
+   "loc": 4715,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r01_html2pptx.rs",
+    "crates/legion-runtime/tests/wf_w2_007.rs"
+   ]
+  },
+  "runtime:w2_008": {
+   "loc": 1094,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_008.rs"
+   ]
+  },
+  "runtime:w2_010": {
+   "loc": 2636,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_010.rs"
+   ]
+  },
+  "runtime:w2_011": {
+   "loc": 2606,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_r06.rs",
+    "crates/legion-runtime/tests/wf_w2_011.rs"
+   ]
+  },
+  "runtime:w2_012": {
+   "loc": 2618,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_012.rs"
+   ]
+  },
+  "runtime:w2_013": {
+   "loc": 2598,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_013.rs"
+   ]
+  },
+  "runtime:w2_014": {
+   "loc": 1124,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_014.rs"
+   ]
+  },
+  "runtime:w2_015": {
+   "loc": 1069,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_015.rs"
+   ]
+  },
+  "runtime:w2_016": {
+   "loc": 4615,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": []
+  },
+  "runtime:w2_017": {
+   "loc": 1953,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r19_complete_and_live_cli.rs",
+    "crates/legion-runtime/tests/wf_w2_017.rs"
+   ]
+  },
+  "runtime:w2_018": {
+   "loc": 4478,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r18r26_gap_closure.rs",
+    "crates/legion-runtime/tests/wf_w2_018.rs"
+   ]
+  },
+  "runtime:w2_019": {
+   "loc": 1933,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_019.rs"
+   ]
+  },
+  "runtime:w2_020": {
+   "loc": 3402,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r18r26_gap_closure.rs",
+    "crates/legion-runtime/tests/r19_complete_and_live_cli.rs",
+    "crates/legion-runtime/tests/r26_live_wrap.rs",
+    "crates/legion-runtime/tests/wf_w2_020.rs"
+   ]
+  },
+  "runtime:w2_021": {
+   "loc": 4418,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/r24_live_server.rs",
+    "crates/legion-runtime/tests/r26_live_wrap.rs",
+    "crates/legion-runtime/tests/r28_insert_ui_extra.rs",
+    "crates/legion-runtime/tests/r29_manual_apply_controller.rs",
+    "crates/legion-runtime/tests/wf_r30_manual_edit_routes.rs",
+    "crates/legion-runtime/tests/wf_w2_021.rs"
+   ]
+  },
+  "runtime:w2_022": {
+   "loc": 3150,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_r31_svelte_component_fs.rs",
+    "crates/legion-runtime/tests/wf_w2_022.rs"
+   ]
+  },
+  "runtime:w2_023": {
+   "loc": 467,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_023.rs"
+   ]
+  },
+  "runtime:w2_025": {
+   "loc": 2167,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_025.rs"
+   ]
+  },
+  "runtime:w2_027": {
+   "loc": 437,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_027.rs"
+   ]
+  },
+  "runtime:w2_028": {
+   "loc": 1865,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_028.rs"
+   ]
+  },
+  "runtime:w2_029": {
+   "loc": 2373,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r34_seo_scripts.rs",
+    "crates/legion-runtime/tests/w2_029_r35_ga4_report.rs",
+    "crates/legion-runtime/tests/wf_w2_029.rs"
+   ]
+  },
+  "runtime:w2_030": {
+   "loc": 3314,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r38_gsc_http.rs",
+    "crates/legion-runtime/tests/wf_w2_030.rs"
+   ]
+  },
+  "runtime:w2_031": {
+   "loc": 2941,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/r39_indexnow_indexing_notify.rs",
+    "crates/legion-runtime/tests/wf_w2_031.rs"
+   ]
+  },
+  "runtime:w2_032": {
+   "loc": 3392,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_032.rs"
+   ]
+  },
+  "runtime:w2_033": {
+   "loc": 3524,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "bins/legion/tests/script_cli.rs",
+    "crates/legion-runtime/tests/wf_w2_033.rs"
+   ]
+  },
+  "runtime:w2_034": {
+   "loc": 3235,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_034.rs"
+   ]
+  },
+  "runtime:w2_044": {
+   "loc": 2275,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_044.rs"
+   ]
+  },
+  "runtime:w2_045": {
+   "loc": 441,
+   "roots": [
+    "bins/legion/src/commands/script.rs"
+   ],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_045.rs"
+   ]
+  }
+ },
+ "dead": {
+  "policy:q_q4": {
+   "loc": 405,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/q_q4_completion_evidence.rs"
+   ]
+  },
+  "policy:r64": {
+   "loc": 3172,
+   "roots": [],
+   "tests": []
+  },
+  "policy:w2_036": {
+   "loc": 1809,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_w2_036.rs"
+   ]
+  },
+  "policy:wf002": {
+   "loc": 2913,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf002.rs"
+   ]
+  },
+  "policy:wf006": {
+   "loc": 3952,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf006.rs"
+   ]
+  },
+  "policy:wf007": {
+   "loc": 3629,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_r49_policy_gaps.rs",
+    "crates/legion-policy/tests/wf_w2_036.rs",
+    "crates/legion-policy/tests/wf_wf007.rs"
+   ]
+  },
+  "policy:wf008": {
+   "loc": 372,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf008.rs"
+   ]
+  },
+  "policy:wf068": {
+   "loc": 2532,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf068.rs"
+   ]
+  },
+  "policy:wf069": {
+   "loc": 1478,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf069.rs"
+   ]
+  },
+  "policy:wf070": {
+   "loc": 3977,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf070.rs",
+    "crates/legion-policy/tests/wf_wf075.rs"
+   ]
+  },
+  "policy:wf071": {
+   "loc": 1107,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf071.rs"
+   ]
+  },
+  "policy:wf072": {
+   "loc": 3285,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf072.rs"
+   ]
+  },
+  "policy:wf073": {
+   "loc": 1960,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf073.rs"
+   ]
+  },
+  "policy:wf074": {
+   "loc": 2177,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf074.rs"
+   ]
+  },
+  "policy:wf075": {
+   "loc": 1441,
+   "roots": [],
+   "tests": [
+    "crates/legion-policy/tests/wf_wf075.rs"
+   ]
+  },
+  "research:r57": {
+   "loc": 1320,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/r57_generate_pack.rs"
+   ]
+  },
+  "research:wf023": {
+   "loc": 2173,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf023.rs",
+    "crates/legion-research/tests/wf_wf030.rs"
+   ]
+  },
+  "research:wf024": {
+   "loc": 979,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf024.rs",
+    "crates/legion-research/tests/wf_wf030.rs"
+   ]
+  },
+  "research:wf025": {
+   "loc": 2570,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf025.rs",
+    "crates/legion-research/tests/wf_wf031.rs"
+   ]
+  },
+  "research:wf026": {
+   "loc": 1284,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf026.rs",
+    "crates/legion-research/tests/wf_wf030.rs"
+   ]
+  },
+  "research:wf027": {
+   "loc": 2099,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf027.rs",
+    "crates/legion-research/tests/wf_wf028.rs"
+   ]
+  },
+  "research:wf028": {
+   "loc": 2237,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf028.rs",
+    "crates/legion-research/tests/wf_wf030.rs"
+   ]
+  },
+  "research:wf029": {
+   "loc": 2673,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf029.rs",
+    "crates/legion-research/tests/wf_wf031.rs"
+   ]
+  },
+  "research:wf030": {
+   "loc": 52,
+   "roots": [],
+   "tests": []
+  },
+  "research:wf031": {
+   "loc": 575,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf031.rs"
+   ]
+  },
+  "research:wf032": {
+   "loc": 105,
+   "roots": [],
+   "tests": []
+  },
+  "research:wf033": {
+   "loc": 1054,
+   "roots": [],
+   "tests": [
+    "crates/legion-research/tests/wf_wf033.rs"
+   ]
+  },
+  "review:w2_050": {
+   "loc": 1756,
+   "roots": [],
+   "tests": [
+    "crates/legion-review/tests/r59_engine_run.rs",
+    "crates/legion-review/tests/wf_w2_050.rs"
+   ]
+  },
+  "review:w2_051": {
+   "loc": 4247,
+   "roots": [],
+   "tests": [
+    "crates/legion-review/tests/r59_engine_run.rs",
+    "crates/legion-review/tests/wf_w2_051.rs"
+   ]
+  },
+  "review:w2_052": {
+   "loc": 1863,
+   "roots": [],
+   "tests": [
+    "crates/legion-review/tests/r59_engine_run.rs",
+    "crates/legion-review/tests/wf_w2_052.rs"
+   ]
+  },
+  "review:w2_053": {
+   "loc": 2140,
+   "roots": [],
+   "tests": [
+    "crates/legion-review/tests/wf_w2_053.rs"
+   ]
+  },
+  "review:w2_054": {
+   "loc": 4868,
+   "roots": [],
+   "tests": [
+    "crates/legion-review/tests/wf_w2_054.rs"
+   ]
+  },
+  "review:w2_055": {
+   "loc": 2328,
+   "roots": [],
+   "tests": [
+    "crates/legion-review/tests/wf_w2_055.rs"
+   ]
+  },
+  "runtime:q_q0": {
+   "loc": 652,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/q_q0_huashu_scripts.rs"
+   ]
+  },
+  "runtime:r15": {
+   "loc": 2133,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/r15_design_parser.rs"
+   ]
+  },
+  "runtime:r45": {
+   "loc": 614,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/r45_inspect_product.rs"
+   ]
+  },
+  "runtime:r51": {
+   "loc": 1924,
+   "roots": [],
+   "tests": []
+  },
+  "runtime:r53": {
+   "loc": 2167,
+   "roots": [],
+   "tests": []
+  },
+  "runtime:u02": {
+   "loc": 446,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/u02_run_store.rs"
+   ]
+  },
+  "runtime:w2_001": {
+   "loc": 652,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_001.rs"
+   ]
+  },
+  "runtime:w2_002": {
+   "loc": 552,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_002.rs"
+   ]
+  },
+  "runtime:w2_003": {
+   "loc": 557,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_003.rs"
+   ]
+  },
+  "runtime:w2_004": {
+   "loc": 46,
+   "roots": [],
+   "tests": []
+  },
+  "runtime:w2_009": {
+   "loc": 435,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_009.rs"
+   ]
+  },
+  "runtime:w2_026": {
+   "loc": 412,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_026.rs"
+   ]
+  },
+  "runtime:w2_035": {
+   "loc": 1122,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_035.rs"
+   ]
+  },
+  "runtime:w2_038": {
+   "loc": 1296,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_038.rs"
+   ]
+  },
+  "runtime:w2_039": {
+   "loc": 3573,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/r44_core.rs",
+    "crates/legion-runtime/tests/wf_w2_039.rs"
+   ]
+  },
+  "runtime:w2_040": {
+   "loc": 1055,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_040.rs"
+   ]
+  },
+  "runtime:w2_041": {
+   "loc": 1625,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_041.rs"
+   ]
+  },
+  "runtime:w2_042": {
+   "loc": 1297,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_042.rs"
+   ]
+  },
+  "runtime:w2_043": {
+   "loc": 787,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_043.rs"
+   ]
+  },
+  "runtime:w2_046": {
+   "loc": 4763,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_045.rs",
+    "crates/legion-runtime/tests/wf_w2_046.rs"
+   ]
+  },
+  "runtime:w2_047": {
+   "loc": 1910,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_047.rs"
+   ]
+  },
+  "runtime:w2_048": {
+   "loc": 215,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_048.rs"
+   ]
+  },
+  "runtime:w2_049": {
+   "loc": 728,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_049.rs"
+   ]
+  },
+  "runtime:w2_056": {
+   "loc": 2637,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_056.rs"
+   ]
+  },
+  "runtime:w2_057": {
+   "loc": 1063,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_w2_057.rs"
+   ]
+  },
+  "runtime:wf015": {
+   "loc": 858,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_wf015.rs"
+   ]
+  },
+  "runtime:wf016": {
+   "loc": 2286,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_wf016.rs"
+   ]
+  },
+  "runtime:wf017": {
+   "loc": 1641,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_wf017.rs"
+   ]
+  },
+  "runtime:wf018": {
+   "loc": 748,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_wf018.rs"
+   ]
+  },
+  "runtime:wf034": {
+   "loc": 291,
+   "roots": [],
+   "tests": [
+    "crates/legion-runtime/tests/wf_wf034.rs"
+   ]
+  }
+ }
+}

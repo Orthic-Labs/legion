@@ -50,8 +50,23 @@ pub struct AuditArgs {
     /// source diagnostic. This is never a fallback for a missing full registry.
     #[arg(long = "native-rule-manifest", conflicts_with_all = ["provider_plan", "provider_results"])]
     pub native_rule_manifest: Option<PathBuf>,
+    /// `legion audit ingest --run <dir> --provider <id> --result <file>`: ingest a
+    /// reasoning-lens result into a frozen run (see `ingest_command`).
+    #[arg(long = "run", hide = true)]
+    pub ingest_run: Option<PathBuf>,
+    #[arg(long = "provider", hide = true)]
+    pub ingest_provider: Option<String>,
+    #[arg(long = "result", hide = true)]
+    pub ingest_result: Option<PathBuf>,
 }
 pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
+    if args.root.as_os_str() == "ingest"
+        && (args.ingest_run.is_some()
+            || args.ingest_provider.is_some()
+            || args.ingest_result.is_some())
+    {
+        return ingest_command(&args);
+    }
     if args.root.to_string_lossy().starts_with('-') {
         return Err(CommandError::usage(format!(
             "Unknown option '{}'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"{}\"",
@@ -74,6 +89,13 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         std::env::var_os("AUDIT_PLAN_SIGNING_KEY")
             .filter(|value| !value.is_empty())
             .map(|value| value.to_string_lossy().as_bytes().to_vec())
+            // A run written to `--out` is signed with a key minted for that
+            // run, so its lens packets can be ingested and verified later.
+            .or_else(|| {
+                args.out
+                    .as_ref()
+                    .map(|_| legion_audit::native_providers::reasoning::ingest::ephemeral_key())
+            })
     };
     let (application, context_notices) = if direct {
         let (application, notices) = direct_application(&args, &root)?;
@@ -214,6 +236,25 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             };
             report.gaps.extend(lens_work_gaps);
             report.claims.insert("lensWork".into(), json!(lens_work));
+            // The CLI process is the trusted reasoning host for ingest: generate this
+            // run's epoch key (0600, never in a report) and record only its digest.
+            let epoch_digest = match (&args.out, execution.pending_host.is_empty()) {
+                (Some(out), false) => {
+                    match legion_audit::native_providers::reasoning::ingest::create_epoch(out) {
+                        Ok(digest) => Some(digest),
+                        Err(error) => {
+                            report.gaps.push(format!("lens-epoch-unavailable:{error}"));
+                            None
+                        }
+                    }
+                }
+                _ => None,
+            };
+            if let Some(digest) = &epoch_digest {
+                report
+                    .claims
+                    .insert("reasoningEpochDigest".into(), json!(digest));
+            }
             if scope.facts_unavailable {
                 // Node: collect-facts crashes on a gitRef-rejected ref, facts are
                 // written without scope, and the run is incomplete (exit 2).
@@ -285,6 +326,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                         "signature": execution.plan_signature,
                     },
                     "providers": execution.planned_providers,
+                    "epoch": epoch_digest.as_ref().map(|digest| json!({"digest": digest, "keyFile": "epoch.key"})),
                 });
                 let facts = native_facts_document(&root, &plan, &execution, &report, &scope);
                 write_artifact(
@@ -329,6 +371,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "lensesRan": execution.lenses_ran,
                 "reasoningLensesRan": execution.lenses_ran,
                 "reasoningLensesPending": execution.pending_host,
+                "coverageNotes": execution.coverage_notes,
+                "reasoningEpochDigest": epoch_digest,
                 "deterministicLensTagCounts": execution.deterministic_lens_tags,
                 "lensWork": lens_work,
                 "contextNotices": context_notices,
@@ -351,6 +395,67 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "native audit application returned an incompatible result",
         )),
     }
+}
+
+/// `legion audit ingest --run <dir> --provider <id> --result <file>`.
+///
+/// The CLI process is the trusted reasoning host: it validates the subagent's
+/// lens result against the frozen run (packet, plan, verbatim code anchors),
+/// mints a MAC'd receipt under the run's epoch key, and rewrites the run's
+/// report with the recomputed verdict.
+fn ingest_command(args: &AuditArgs) -> CommandResult {
+    let run = args
+        .ingest_run
+        .clone()
+        .ok_or_else(|| CommandError::usage("legion audit ingest requires --run <dir>"))?;
+    let provider = args
+        .ingest_provider
+        .clone()
+        .ok_or_else(|| CommandError::usage("legion audit ingest requires --provider <id>"))?;
+    let result = args
+        .ingest_result
+        .clone()
+        .ok_or_else(|| CommandError::usage("legion audit ingest requires --result <file>"))?;
+    let absolute = |path: PathBuf| -> Result<PathBuf, CommandError> {
+        if path.is_absolute() {
+            Ok(path)
+        } else {
+            Ok(std::env::current_dir().map_err(super::io_error)?.join(path))
+        }
+    };
+    let run = absolute(run)?;
+    let result = absolute(result)?;
+    let ingested = legion_audit::native_providers::reasoning::ingest::ingest_lens_result_file(
+        &run, &provider, &result,
+    )
+    .map_err(|error| CommandError::usage(error.to_string()))?;
+    let recomputed = legion_audit::native_providers::reasoning::ingest::recompute_run(&run)
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let report_json = legion_report::render_json(&recomputed.report).map_err(super::io_error)?;
+    let report_sarif = legion_report::render_sarif(&recomputed.report).map_err(super::io_error)?;
+    write_artifact(&run, "report.json", report_json.as_bytes())?;
+    write_artifact(&run, "report.sarif", report_sarif.as_bytes())?;
+    let status = match recomputed.report.status {
+        legion_contracts::ReportStatus::Clean => "pass",
+        legion_contracts::ReportStatus::Findings => "findings",
+        legion_contracts::ReportStatus::Incomplete => "incomplete",
+        legion_contracts::ReportStatus::Failed => "failed",
+        legion_contracts::ReportStatus::Blocked => "blocked",
+    };
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "audit-lens-ingest",
+        "run": run,
+        "ingested": ingested,
+        "ingestedLenses": recomputed.ingested,
+        "reasoningLensesPending": recomputed.pending,
+        "findingCount": recomputed.report.findings.len(),
+        "gaps": recomputed.report.gaps,
+        "coverageNotes": recomputed.execution.coverage_notes,
+        "auditStatus": status,
+        "qualityGate": if status == "pass" { "proven" } else { "unproven" },
+        "report": run.join("report.json"),
+    }))
 }
 
 /// `pending-host` reasoning-lens work items for the selected plan, with the full
@@ -384,6 +489,8 @@ fn lens_work_items(
         let mut items = Vec::new();
         for item in work {
             let file = format!("{}.json", item.provider_id);
+            let packet_digest = legion_contracts::canonical_digest(&item.request.packet)
+                .map_err(|error| error.to_string())?;
             let packet = out.map(|out| out.join("lens-packets").join(&file));
             if let Some(out) = out {
                 let bytes = serde_json::to_vec_pretty(&item).map_err(|error| error.to_string())?;
@@ -395,6 +502,8 @@ fn lens_work_items(
                 "lensIds": item.lens_ids,
                 "status": "pending-host",
                 "packet": packet,
+                "packetDigest": packet_digest,
+                "planDigest": item.request.plan_digest,
             }));
         }
         Ok(items)
@@ -1119,6 +1228,9 @@ mod closure_tests {
             provider_plan: None,
             provider_results: Vec::new(),
             native_rule_manifest: None,
+            ingest_run: None,
+            ingest_provider: None,
+            ingest_result: None,
         };
         let scope = audit_scope(std::path::Path::new("."), &args);
         assert_eq!(scope.mode, "whole-repo");
@@ -1262,6 +1374,9 @@ mod closure_tests {
             provider_plan: None,
             provider_results: Vec::new(),
             native_rule_manifest: None,
+            ingest_run: None,
+            ingest_provider: None,
+            ingest_result: None,
         }
     }
 }

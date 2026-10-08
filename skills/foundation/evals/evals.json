@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
-  "skill": "canon",
+  "skill": "foundation",
   "should_trigger": [
     {
       "id": "canon-audit",
       "prompt": "Audit these three master canon atom lists and tell me whether their closure counts are comparable.",
-      "expected_behavior": "Select canon, classify hierarchy and proof rows, and recompute only defensible capability counts.",
-      "assertions": [{"type": "expected_skill", "value": "canon"}]
+      "expected_behavior": "Select foundation, classify hierarchy and proof rows, and recompute only defensible capability counts.",
+      "assertions": [{"type": "expected_skill", "value": "foundation"}]
     },
     {
       "id": "canon-normalize",
       "prompt": "Standardize this feature ledger; it mixes parent features, implementation children, donor actions, and installed acceptance rows.",
-      "expected_behavior": "Select canon and preserve IDs while separating countable capabilities from groups, implementations, qualifications, and evidence.",
-      "assertions": [{"type": "expected_skill", "value": "canon"}]
+      "expected_behavior": "Select foundation and preserve IDs while separating countable capabilities from groups, implementations, qualifications, and evidence.",
+      "assertions": [{"type": "expected_skill", "value": "foundation"}]
     }
   ],
   "should_not_trigger": [

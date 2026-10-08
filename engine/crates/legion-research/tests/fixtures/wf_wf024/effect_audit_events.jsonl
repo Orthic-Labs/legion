@@ -1,4 +1,0 @@
-{"type": "budget.consumed", "effect": "external_request", "units": 2}
-{"type": "budget.consumed", "effect": "worker", "worker_event": "start", "units": 1}
-{"type": "budget.consumed", "effect": "worker", "worker_event": "finish", "units": 1}
-{"type": "budget.refused"}

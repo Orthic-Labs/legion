@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "skill": "growth-referral",
+  "skill": "referral",
   "should_trigger": [
     {
       "id": "referral-trigger-saas-program",
@@ -42,7 +42,7 @@
     {
       "id": "referral-not-trigger-email-writing",
       "prompt": "Can you write the referral invitation emails? I need the email that goes out when someone shares their referral link.",
-      "expected_skill": "email-pro",
+      "expected_skill": "email",
       "forbidden_skills": [],
       "expected_behavior": "The referral email sequence applies referral context from the skill for referral-specific email guidance, but detailed multi-email nurture sequences for referred users should cross-reference the email-pro skill. Should provide referral email guidance and note the email-pro boundary.",
       "severity": "warning",

@@ -89,7 +89,46 @@ pub struct ExecutionReport {
     /// Coverage tags only; these are not reasoning lenses.
     #[serde(default)]
     pub deterministic_lens_tags: BTreeMap<String, usize>,
+    /// Non-blocking coverage notes. `unqualified:<provider>` records a provider
+    /// that completed but has no passing benchmark class or qualification
+    /// record and is not marked `benchmark.requiredForCleanClaim`. A note never
+    /// blocks a clean verdict; a required provider that is unqualified is a
+    /// `provider-unqualified:<provider>` gap instead.
+    #[serde(default)]
+    pub coverage_notes: Vec<String>,
     pub gaps: Vec<String>,
+}
+
+fn sorted_unique(mut values: Vec<String>) -> Vec<String> {
+    values.sort();
+    values.dedup();
+    values
+}
+
+/// A provider is qualified when its registry entry carries a qualified
+/// benchmark status and a qualification digest (a passing bench class or an
+/// explicit qualification record).
+fn provider_qualified(provider: &AuditProvider) -> bool {
+    provider.benchmark_status == "qualified" && provider.qualification_digest.is_some()
+}
+
+/// Unqualified providers block a clean verdict only when the registry marks
+/// them `requiredForCleanClaim`. Otherwise a completed unqualified provider is
+/// reported as a non-blocking `unqualified:<id>` coverage note.
+fn record_qualification(
+    provider: &AuditProvider,
+    completed: &BTreeSet<String>,
+    gaps: &mut Vec<String>,
+    notes: &mut Vec<String>,
+) {
+    if provider.not_applicable() || provider_qualified(provider) {
+        return;
+    }
+    if provider.benchmark_required_for_clean_claim {
+        gaps.push(format!("provider-unqualified:{}", provider.id));
+    } else if completed.contains(&provider.id) {
+        notes.push(format!("unqualified:{}", provider.id));
+    }
 }
 
 fn provider_id(value: &str) -> Result<ProviderId, AuditError> {
@@ -192,6 +231,7 @@ pub fn execute(
     let selected_reasoning = selected_reasoning_lenses(plan);
     let mut lenses_ran = Vec::new();
     let mut pending_host = Vec::new();
+    let mut coverage_notes = Vec::new();
     let mut deterministic_lens_tags = BTreeMap::new();
     let planned_providers = plan
         .providers()
@@ -292,12 +332,7 @@ pub fn execute(
             }
         };
         results.push(execution);
-        if !provider.not_applicable()
-            && provider.benchmark_required_for_clean_claim
-            && (provider.benchmark_status != "qualified" || provider.qualification_digest.is_none())
-        {
-            gaps.push(format!("provider-unqualified:{}", provider.id));
-        }
+        record_qualification(provider, &completed, &mut gaps, &mut coverage_notes);
     }
     gaps.sort();
     gaps.dedup();
@@ -320,6 +355,7 @@ pub fn execute(
         selected_reasoning_lenses: selected_reasoning,
         pending_host,
         deterministic_lens_tags,
+        coverage_notes: sorted_unique(coverage_notes),
         gaps,
     })
 }
@@ -358,6 +394,7 @@ pub async fn execute_with_cancellation(
     let selected_reasoning = selected_reasoning_lenses(plan);
     let mut lenses_ran = Vec::new();
     let mut pending_host = Vec::new();
+    let mut coverage_notes = Vec::new();
     let mut deterministic_lens_tags = BTreeMap::new();
     let planned_providers = plan
         .providers()
@@ -456,12 +493,7 @@ pub async fn execute_with_cancellation(
             }
         };
         results.push(execution);
-        if !provider.not_applicable()
-            && provider.benchmark_required_for_clean_claim
-            && (provider.benchmark_status != "qualified" || provider.qualification_digest.is_none())
-        {
-            gaps.push(format!("provider-unqualified:{}", provider.id));
-        }
+        record_qualification(provider, &completed, &mut gaps, &mut coverage_notes);
     }
     gaps.sort();
     gaps.dedup();
@@ -484,6 +516,7 @@ pub async fn execute_with_cancellation(
         selected_reasoning_lenses: selected_reasoning,
         pending_host,
         deterministic_lens_tags,
+        coverage_notes: sorted_unique(coverage_notes),
         gaps,
     })
 }

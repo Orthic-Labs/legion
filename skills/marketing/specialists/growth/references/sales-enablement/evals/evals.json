@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "skill": "growth-sales-enablement",
+  "skill": "sales-enablement",
   "should_trigger": [
     {
       "id": "sales-enablement-trigger-deck",

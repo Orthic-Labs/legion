@@ -31,6 +31,7 @@ use crate::{
 };
 
 pub mod excerpts;
+pub mod ingest;
 pub mod lens_plan;
 pub mod lens_schemas;
 pub mod security_adjudication;
@@ -554,7 +555,7 @@ fn build_invocation(
     })
 }
 
-fn verify_response(
+pub(crate) fn verify_response(
     request: &ReasoningInvocation,
     denominator: &InventoryDenominator,
     response: &ReasoningHostResponse,
@@ -689,6 +690,60 @@ impl ReasoningHostResponse {
     }
 }
 
+/// The exact message the receipt MAC covers: the bound fields of the receipt
+/// under the protocol domain. Shared by signing and verification.
+fn receipt_mac_message(receipt: &ReasoningReceipt) -> Result<Value, String> {
+    let subject = serde_json::to_value(receipt).map_err(|error| error.to_string())?;
+    let subject = subject
+        .as_object()
+        .ok_or_else(|| "reasoning receipt is not an object".to_owned())?;
+    let mut bound = serde_json::Map::new();
+    for field in REASONING_RECEIPT_BOUND_FIELDS {
+        bound.insert(
+            field.into(),
+            subject
+                .get(field)
+                .cloned()
+                .ok_or_else(|| format!("reasoning receipt missing {field}"))?,
+        );
+    }
+    Ok(json!({
+        "alg": "HMAC-SHA256",
+        "boundFields": REASONING_RECEIPT_BOUND_FIELDS,
+        "macDomain": REASONING_MAC_DOMAIN,
+        "subject": bound,
+    }))
+}
+
+/// Produces the `authentication` object for a receipt, MACed under `key`.
+/// Used by the trusted CLI ingest path, where the CLI process is the host and
+/// `key` is the per-run epoch key. `epoch_digest` is recorded for audit; it is
+/// not part of the MAC message (the key itself binds the receipt to the epoch).
+pub(crate) fn authenticate_receipt(
+    receipt: &ReasoningReceipt,
+    key: &[u8],
+    host: &str,
+    epoch_digest: &str,
+) -> Result<Value, String> {
+    if key.is_empty() {
+        return Err("reasoning receipt signing key is empty".into());
+    }
+    let message = receipt_mac_message(receipt)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(key)
+        .map_err(|_| "reasoning receipt key is invalid".to_owned())?;
+    mac.update(&canonical_json_bytes(&message).map_err(|error| error.to_string())?);
+    let bound_digest = canonical_digest(&REASONING_RECEIPT_BOUND_FIELDS.to_vec())
+        .map_err(|error| error.to_string())?;
+    Ok(json!({
+        "alg": "HMAC-SHA256",
+        "macDomain": REASONING_MAC_DOMAIN,
+        "boundFieldsDigest": bound_digest,
+        "mac": hex::encode(mac.finalize().into_bytes()),
+        "host": host,
+        "epochDigest": epoch_digest,
+    }))
+}
+
 pub fn verify_authenticated_receipt(receipt: &ReasoningReceipt, key: &[u8]) -> Result<(), String> {
     if key.is_empty() {
         return Err("reasoning receipt verification key is empty".into());
@@ -711,26 +766,7 @@ pub fn verify_authenticated_receipt(receipt: &ReasoningReceipt, key: &[u8]) -> R
     if auth.get("boundFieldsDigest").and_then(Value::as_str) != Some(bound_digest.as_str()) {
         return Err("reasoning receipt bound-field list does not match".into());
     }
-    let subject = serde_json::to_value(receipt).map_err(|error| error.to_string())?;
-    let subject = subject
-        .as_object()
-        .ok_or_else(|| "reasoning receipt is not an object".to_owned())?;
-    let mut bound = serde_json::Map::new();
-    for field in REASONING_RECEIPT_BOUND_FIELDS {
-        bound.insert(
-            field.into(),
-            subject
-                .get(field)
-                .cloned()
-                .ok_or_else(|| format!("reasoning receipt missing {field}"))?,
-        );
-    }
-    let message = json!({
-        "alg": "HMAC-SHA256",
-        "boundFields": REASONING_RECEIPT_BOUND_FIELDS,
-        "macDomain": REASONING_MAC_DOMAIN,
-        "subject": bound,
-    });
+    let message = receipt_mac_message(receipt)?;
     let mut mac = Hmac::<Sha256>::new_from_slice(key)
         .map_err(|_| "reasoning receipt key is invalid".to_owned())?;
     mac.update(&canonical_json_bytes(&message).map_err(|error| error.to_string())?);
@@ -772,7 +808,7 @@ fn pending_host_result(
 }
 
 /// One lens packet awaiting execution by the host session.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingLensWork {
     pub provider_id: String,

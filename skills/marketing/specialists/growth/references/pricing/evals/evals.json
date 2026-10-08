@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "skill": "growth-pricing",
+  "skill": "pricing",
   "should_trigger": [
     {
       "id": "pricing-trigger-new-saas",
@@ -43,7 +43,7 @@
     {
       "id": "pricing-not-trigger-cro",
       "prompt": "Our pricing page conversion rate is only 1.5%. Can you review the page and suggest improvements?",
-      "expected_skill": "optimize",
+      "expected_skill": "cro",
       "forbidden_skills": ["growth"],
       "expected_behavior": "Pricing page layout and conversion optimization routes to /marketing cro, not /marketing growth pricing reference. Pricing reference covers pricing decisions (what to charge, how to package), not page design or CRO.",
       "severity": "error",
