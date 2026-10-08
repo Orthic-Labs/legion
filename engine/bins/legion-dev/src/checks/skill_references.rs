@@ -234,6 +234,12 @@ fn check_host_requirements(root: &Path, rel: &str, text: &str) -> Vec<Failure> {
 pub fn check_files(root: &Path, files: &[String], script_table: &BTreeSet<String>) -> Vec<Failure> {
     let mut failures = Vec::new();
     for rel in files.iter().filter(|f| is_skill_markdown(f)) {
+        // A markdown file sealed by a sibling `<stem>.receipt.json` is
+        // HISTORICAL_EVIDENCE: its bytes are digest-bound, so it records what
+        // ran then and cannot be rewritten to current commands.
+        if root.join(rel).with_extension("receipt.json").is_file() {
+            continue;
+        }
         if let Some(text) = read_text(&root.join(rel)) {
             failures.extend(scan_file(root, rel, &text, script_table));
         }

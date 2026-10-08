@@ -15,7 +15,7 @@ Example guard for an existing project-owned Xcode Run Script phase:
 
 ```bash
 [[ "$CONFIGURATION" != "Release" ]] && exit 0
-./scripts/upload-dsyms.sh
+"${SRCROOT}/ci/upload-dsyms"
 ```
 
 Declare script inputs such as `$(SRCROOT)/Config/constants.json` and outputs such as `$(DERIVED_FILE_DIR)/GeneratedConstants.swift`; use `.xcfilelist` for long lists.

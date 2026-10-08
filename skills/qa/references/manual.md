@@ -17,10 +17,10 @@ There are two layers. Keep them separate.
 This is the safer SampleApp-style foundation. Each app should own scripts like:
 
 ```text
-scripts/qa-browser.ps1       # Windows: start hidden QA app, write URL + PID
-scripts/qa-browser-stop.ps1  # Windows: stop only that recorded process tree
-scripts/qa-browser.sh        # Mac/Linux equivalent
-scripts/qa-browser-stop.sh   # Mac/Linux equivalent
+qa/browser.ps1       # Windows: start hidden QA app, write URL + PID
+qa/browser-stop.ps1  # Windows: stop only that recorded process tree
+qa/browser.sh        # Mac/Linux equivalent
+qa/browser-stop.sh   # Mac/Linux equivalent
 ```
 
 The app contract should:
@@ -45,7 +45,7 @@ This shared skill provides two native runners, listed by `legion script --list`:
 They use installed Chrome/Edge directly through headless flags and raw CDP, and do not use Playwright
 or Puppeteer. They are the Rust port `legion-runtime::wf_port::r54`; the former `qa.mjs`,
 `qa-functional.mjs`, and `qa-shot.mjs` wrappers no longer exist, so a consuming app that shells out
-must call `legion script ...` instead. `qa-browser.sh`, `qa-browser-stop.sh`, and their `.ps1`
+must call `legion script ...` instead. `qa/browser.sh`, `qa/browser-stop.sh`, and their `.ps1`
 equivalents are not package files — they are project scripts a consuming app authors itself.
 
 ## Best Implementation For A New App
@@ -53,10 +53,10 @@ equivalents are not package files — they are project scripts a consuming app a
 Add four project scripts:
 
 ```text
-scripts/qa-browser.ps1
-scripts/qa-browser-stop.ps1
-scripts/qa-browser.sh
-scripts/qa-browser-stop.sh
+qa/browser.ps1
+qa/browser-stop.ps1
+qa/browser.sh
+qa/browser-stop.sh
 ```
 
 Use `legion script qa/qa-functional` and `legion script qa/qa-shot` for the runners themselves (no equivalent project script needed).
@@ -68,8 +68,8 @@ Windows:
 ```json
 {
   "scripts": {
-    "qa:browser": "powershell -ExecutionPolicy Bypass -File scripts/qa-browser.ps1",
-    "qa:browser:stop": "powershell -ExecutionPolicy Bypass -File scripts/qa-browser-stop.ps1",
+    "qa:browser": "powershell -ExecutionPolicy Bypass -File qa/browser.ps1",
+    "qa:browser:stop": "powershell -ExecutionPolicy Bypass -File qa/browser-stop.ps1",
   }
 }
 ```
@@ -79,8 +79,8 @@ Mac/Linux:
 ```json
 {
   "scripts": {
-    "qa:browser": "bash scripts/qa-browser.sh",
-    "qa:browser:stop": "bash scripts/qa-browser-stop.sh",
+    "qa:browser": "bash qa/browser.sh",
+    "qa:browser:stop": "bash qa/browser-stop.sh",
   }
 }
 ```
