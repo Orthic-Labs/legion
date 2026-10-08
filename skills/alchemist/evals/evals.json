@@ -25,20 +25,44 @@
     {
       "id": "alchemist-not-automatic",
       "prompt": "Add a docstring to the add() function in calc.py.",
-      "expected_skill": "",
-      "forbidden_skills": ["alchemist"],
+      "expected_skill": null,
+      "forbidden_skills": [
+        "alchemist"
+      ],
       "expected_behavior": "Does the small edit inline; never spawns a paid worker without an explicit delegation request.",
       "severity": "error",
-      "mode": "discovery"
+      "mode": "discovery",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": null
+        },
+        {
+          "type": "forbidden_skill",
+          "value": "alchemist"
+        }
+      ]
     },
     {
       "id": "alchemist-not-readonly-analysis",
       "prompt": "Audit this diff for concurrency bugs and tell me what actually fails.",
       "expected_skill": null,
-      "forbidden_skills": ["alchemist"],
+      "forbidden_skills": [
+        "alchemist"
+      ],
       "expected_behavior": "Routes read-only assurance to the Oracle agent; Alchemist is for transforming state under a contract, not for judging it.",
       "severity": "error",
-      "mode": "discovery"
+      "mode": "discovery",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": null
+        },
+        {
+          "type": "forbidden_skill",
+          "value": "alchemist"
+        }
+      ]
     }
   ],
   "output_quality": [
@@ -94,11 +118,23 @@
     {
       "id": "alchemist-no-contract-no-effect",
       "prompt": "Just start refactoring the auth module however you think is best.",
-      "expected_skill": "",
-      "forbidden_skills": ["alchemist"],
+      "expected_skill": null,
+      "forbidden_skills": [
+        "alchemist"
+      ],
       "expected_behavior": "Refuses to mutate state without an executable contract; escalates to Sage for the decision rather than inventing the design itself.",
       "severity": "error",
-      "mode": "runtime"
+      "mode": "runtime",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": null
+        },
+        {
+          "type": "forbidden_skill",
+          "value": "alchemist"
+        }
+      ]
     },
     {
       "id": "alchemist-escalates-not-improvises",
@@ -107,16 +143,28 @@
       "forbidden_skills": [],
       "expected_behavior": "Emits a structured blocker naming the affected decision and safe current state; never silently amends the contract to unblock itself (G3).",
       "severity": "error",
-      "mode": "runtime"
+      "mode": "runtime",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "alchemist"
+        }
+      ]
     },
     {
       "id": "alchemist-out-of-scope-stays-recorded",
-      "prompt": "While you are in there, that neighbouring function is also broken \u2014 fix it too.",
+      "prompt": "While you are in there, that neighbouring function is also broken — fix it too.",
       "expected_skill": "alchemist",
       "forbidden_skills": [],
       "expected_behavior": "Records the finding as OUT_OF_SCOPE and leaves it untouched; scope expands only by amendment (G15).",
       "severity": "error",
-      "mode": "runtime"
+      "mode": "runtime",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "alchemist"
+        }
+      ]
     }
   ],
   "compatibility": [

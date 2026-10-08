@@ -55,13 +55,23 @@
     {
       "id": "qa-not-desktop-screenshot",
       "prompt": "Take a desktop screenshot with another window.",
-      "expected_skill": "",
+      "expected_skill": null,
       "forbidden_skills": [
         "qa"
       ],
       "severity": "error",
       "mode": "discovery",
-      "expected_behavior": "Does not route request to qa."
+      "expected_behavior": "Does not route request to qa.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": null
+        },
+        {
+          "type": "forbidden_skill",
+          "value": "qa"
+        }
+      ]
     },
     {
       "id": "qa-not-debug-failure",
@@ -72,7 +82,17 @@
       ],
       "severity": "error",
       "mode": "discovery",
-      "expected_behavior": "Does not route request to qa."
+      "expected_behavior": "Does not route request to qa.",
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "debugger"
+        },
+        {
+          "type": "forbidden_skill",
+          "value": "qa"
+        }
+      ]
     }
   ],
   "output_quality": [

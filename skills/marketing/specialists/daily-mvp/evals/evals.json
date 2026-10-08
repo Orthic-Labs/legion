@@ -38,7 +38,9 @@
       "id": "daily-mvp-not-full-website",
       "prompt": "Build out our full e-commerce site with product pages, checkout, and member accounts.",
       "expected_skill": "website",
-      "forbidden_skills": ["daily-mvp"],
+      "forbidden_skills": [
+        "daily-mvp"
+      ],
       "expected_behavior": "Full production web builds route to /website. /marketing mvp is for single-page, email-capture MVPs with no auth, no database, no custom backend — not production sites.",
       "assertions": [
         {
@@ -53,7 +55,9 @@
       "id": "daily-mvp-not-ideation-only",
       "prompt": "Give me 20 startup ideas in the health-tech space.",
       "expected_skill": "ideas",
-      "forbidden_skills": ["daily-mvp"],
+      "forbidden_skills": [
+        "daily-mvp"
+      ],
       "expected_behavior": "Pure ideation (no build intent) routes to /marketing ideas. /marketing mvp is an execution loop that starts with a single idea the user already wants to validate and ship.",
       "assertions": [
         {
@@ -68,7 +72,9 @@
       "id": "daily-mvp-not-ss-commercial",
       "prompt": "Use this for Harbor Coffee (a non-commercial passion-project venture) growth, SEO, ads, or monetization.",
       "expected_skill": null,
-      "forbidden_skills": ["daily-mvp"],
+      "forbidden_skills": [
+        "daily-mvp"
+      ],
       "expected_behavior": "Do not apply commercial/growth tooling to Harbor Coffee.",
       "assertions": [
         {
@@ -129,7 +135,12 @@
       "expected_skill": "daily-mvp",
       "forbidden_skills": [],
       "expected_behavior": "Skill must enforce scope discipline: ONE primary action, no auth, no database, no custom backend. Rejects the scope additions and redirects to the minimal MVP structure.",
-      "assertions": [],
+      "assertions": [
+        {
+          "type": "expected_skill",
+          "value": "daily-mvp"
+        }
+      ],
       "severity": "error",
       "mode": "static"
     }
