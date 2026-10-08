@@ -421,7 +421,10 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
     assert_eq!(summary["processExecution"], "complete");
     assert!(out.join("report.json").is_file());
     assert!(out.join("execution.json").is_file());
-    assert!(summary["gaps"]
+    // An `--out` run without host signing material is signed with a key
+    // minted for that run, so lens packets can later be ingested; the plan is
+    // therefore not reported as unsigned.
+    assert!(!summary["gaps"]
         .as_array()
         .unwrap()
         .iter()
