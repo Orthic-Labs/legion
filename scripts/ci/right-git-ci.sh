@@ -41,7 +41,7 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   (
     cd engine
     cargo check --workspace --all-targets --locked
-    cargo test --locked
+    cargo test --locked --no-fail-fast
   )
 fi
 
