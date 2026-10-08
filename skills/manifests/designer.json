@@ -91,7 +91,7 @@
     {
       "path": "engine/GUIDE.md",
       "uri": "legion-skill://designer/engine/GUIDE.md",
-      "digest": "sha256:af1bacaeee573eeb96b3097eeaee50754e4abf261a9e6e551ca03ae51512d2c6"
+      "digest": "sha256:4cbee2be7b26d9df6f52452fd4bf13f2ef6d85ac849a640b7c4c222556f5e0ac"
     },
     {
       "path": "engine/agents/impeccable-asset-producer.md",
@@ -106,7 +106,7 @@
     {
       "path": "engine/huashu/GUIDE.md",
       "uri": "legion-skill://designer/engine/huashu/GUIDE.md",
-      "digest": "sha256:491c3d7c45ab845082612876f08090666884ab9f64e59bdcb8eb2349189b5edb"
+      "digest": "sha256:17f0669f07323ec5d100475e7431e7df2788b861c939523e94e982a35b16b455"
     },
     {
       "path": "engine/huashu/assets/android_frame.jsx",
