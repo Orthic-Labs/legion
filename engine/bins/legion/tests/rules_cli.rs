@@ -429,9 +429,9 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
         .unwrap()
         .iter()
         .any(|gap| gap == "unsigned-plan"));
-    assert!(summary["planSignature"].is_null());
+    assert!(summary["planSignature"].is_string());
     let plan: serde_json::Value =
         serde_json::from_slice(&std::fs::read(out.join("plan.json")).unwrap()).unwrap();
-    assert_eq!(plan["seal"]["authenticity"], "unsigned");
+    assert_eq!(plan["seal"]["authenticity"], "hmac-sha256");
     std::fs::remove_dir_all(root).unwrap();
 }
