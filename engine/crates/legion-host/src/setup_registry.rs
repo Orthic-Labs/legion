@@ -316,7 +316,13 @@ pub fn inspect_client_projection(
             let owned_digest = ledger.as_ref().and_then(|value| value.files.get(relative));
             if destination_digest != *expected_digest {
                 current = false;
-                if owned_digest.is_some() {
+                // A file the release ships, inside a projection root Legion
+                // owns (valid ledger), is a stale copy of ours even when an
+                // older ledger never recorded it. Shared skills-only roots
+                // hold other products' files and are never adopted this way.
+                if owned_digest.is_some()
+                    || (ownership == "legion" && input.projection != "skills-only")
+                {
                     stale = true;
                 } else {
                     conflicts.push(destination);
@@ -605,7 +611,7 @@ pub fn repair_client_projection(
                 .as_ref()
                 .and_then(|value| value.files.get(relative));
             if actual != *source_digest {
-                if owned.is_some() {
+                if owned.is_some() || (root_owned && !skills_only) {
                     write_projection_file(
                         &input.target_root,
                         &destination,
@@ -2705,6 +2711,14 @@ fn register_host_mcp(input: &ClientProjectionInput) -> Result<(), SetupError> {
     let Some(home) = host_config_home(input) else {
         return Ok(());
     };
+    // One owner per MCP server. The Claude native-plugin projection ships its
+    // own `.mcp.json`, so Claude Code already starts `legion serve` from the
+    // plugin. A second user-scope entry would start a duplicate server and
+    // list every tool twice. Drop a stale Legion-owned entry (the removal
+    // refuses entries without Legion's ownership mark) and write nothing.
+    if input.client_id == CLIENT_CLAUDE && input.projection == "native-plugin" {
+        return remove_claude_mcp_registration(&home);
+    }
     let Some(executable) = &input.executable else {
         return Ok(());
     };
@@ -5122,6 +5136,80 @@ mod tests {
             .iter()
             .any(|path| path.ends_with("hooks.json")));
         assert_eq!(fs::read(&hooks_dest).unwrap(), hooks_v2);
+    }
+
+    #[test]
+    fn claude_native_plugin_repair_removes_owned_user_scope_entry_only() {
+        let root = TestRoot::new("claude-owned-user-scope-entry");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let home = input.host_config_root.clone().expect("host home");
+        let args = vec!["serve".to_string(), "--stdio".to_string()];
+
+        // Foreign (user-authored, unmarked) entry survives repair untouched.
+        let foreign = fs::read(home.join(".claude.json")).unwrap();
+        repair_client_projection(&input).unwrap();
+        assert_eq!(fs::read(home.join(".claude.json")).unwrap(), foreign);
+
+        // A Legion-owned stale entry is removed; nothing new is written.
+        fs::write(home.join(".claude.json"), b"{\"other\":\"keep\"}").unwrap();
+        write_claude_mcp_registration(&home, "legion", &args, "old-generation").unwrap();
+        let written: serde_json::Value =
+            serde_json::from_slice(&fs::read(home.join(".claude.json")).unwrap()).unwrap();
+        assert!(written["mcpServers"]["legion"]["_legionOwnership"].is_object());
+        repair_client_projection(&input).unwrap();
+        let after: serde_json::Value =
+            serde_json::from_slice(&fs::read(home.join(".claude.json")).unwrap()).unwrap();
+        assert!(after["mcpServers"].get("legion").is_none());
+        assert_eq!(after["other"], "keep");
+    }
+
+    #[test]
+    fn claude_native_plugin_projection_writes_no_user_scope_entry() {
+        let root = TestRoot::new("claude-no-user-scope-entry");
+        let mut input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let home = input.host_config_root.clone().expect("host home");
+        fs::write(home.join(".claude.json"), b"{}").unwrap();
+        input.target_root = home.join(".claude/skills/legion");
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.state, "current");
+        assert!(!result
+            .inspection
+            .missing_surfaces
+            .iter()
+            .any(|surface| surface == "host-registration"));
+        assert_eq!(fs::read(home.join(".claude.json")).unwrap(), b"{}");
+    }
+
+    #[test]
+    fn unledgered_release_file_in_owned_root_is_adopted_as_stale() {
+        let root = TestRoot::new("projection-adopt-unledgered");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        repair_client_projection(&input).unwrap();
+
+        // An older ledger never recorded plugin.json, and the release changed it.
+        let mut ledger = read_projection_ledger(&input).unwrap().unwrap();
+        ledger.files.remove("plugin.json");
+        write_projection_ledger(&input, &ledger).unwrap();
+        let updated = br#"{"name":"legion","version":"2"}"#;
+        fs::write(input.source_root.join("plugin.json"), updated).unwrap();
+        fs::write(input.target_root.join("private.txt"), b"mine").unwrap();
+
+        let before = inspect_client_projection(&input).unwrap();
+        assert_eq!(before.state, "stale");
+        assert!(before.conflicts.is_empty());
+
+        let result = repair_client_projection(&input).unwrap();
+        assert_eq!(result.inspection.state, "current");
+        assert_eq!(
+            fs::read(input.target_root.join("plugin.json")).unwrap(),
+            updated
+        );
+        assert_eq!(
+            fs::read(input.target_root.join("private.txt")).unwrap(),
+            b"mine"
+        );
     }
 
     #[test]

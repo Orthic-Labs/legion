@@ -35,6 +35,17 @@ const SKIP_DIRS: &[&str] = &[
     "target",
     "vendor",
     "venv",
+    // Test and sample trees declare languages the repository does not ship.
+    "tests",
+    "test",
+    "fixtures",
+    "__fixtures__",
+    "examples",
+    "bench",
+    "migration",
+    "testdata",
+    "third_party",
+    ".github",
 ];
 
 /// id, kind, provider ids (registry ids without the `legacy.` prefix).
@@ -208,11 +219,15 @@ pub fn scan(root: &Path) -> Scan {
                 .to_string_lossy()
                 .replace('\\', "/");
             if file_type.is_dir() {
-                if name.ends_with(".xcodeproj") || name.ends_with(".xcworkspace") {
-                    scan.note("language.swift", &relative);
+                let slashed = format!("/{relative}/");
+                if SKIP_DIRS.contains(&name.as_str())
+                    || slashed.contains("/tests/")
+                    || slashed.contains("/fixtures/")
+                {
                     continue;
                 }
-                if SKIP_DIRS.contains(&name.as_str()) {
+                if name.ends_with(".xcodeproj") || name.ends_with(".xcworkspace") {
+                    scan.note("language.swift", &relative);
                     continue;
                 }
                 if depth + 1 > MAX_DEPTH {
@@ -442,6 +457,22 @@ mod tests {
         ] {
             assert!(scan.found.contains_key(id), "{id} not detected");
         }
+        assert!(!scan.found.contains_key("language.python"));
+        assert!(!scan.found.contains_key("language.swift"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn test_and_fixture_trees_do_not_report_languages() {
+        let root = temp_repo("fixtures");
+        std::fs::write(root.join("go.mod"), "module x\n").unwrap();
+        for dir in ["tests/app", "src/fixtures", "examples/demo", "engine/crates/a/tests"] {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            std::fs::write(root.join(dir).join("pyproject.toml"), "").unwrap();
+            std::fs::write(root.join(dir).join("Package.swift"), "").unwrap();
+        }
+        let scan = scan(&root);
+        assert!(scan.found.contains_key("language.go"));
         assert!(!scan.found.contains_key("language.python"));
         assert!(!scan.found.contains_key("language.swift"));
         let _ = std::fs::remove_dir_all(root);

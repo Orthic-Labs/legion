@@ -506,7 +506,7 @@ fn host_mcp_registration_applies_repairs_idempotently_and_removes_cleanly() {
         client_id: CLIENT_CLAUDE.into(),
         projection: "native-plugin".into(),
         source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
-        target_root: state_root.join("clients/.claude/skills/legion"),
+        target_root: host_home.join(".claude/skills/legion"),
         state_root: state_root.clone(),
         origin: "development".into(),
         executable: Some(executable),
@@ -531,7 +531,9 @@ fn host_mcp_registration_applies_repairs_idempotently_and_removes_cleanly() {
     let after_apply: serde_json::Value =
         serde_json::from_slice(&fs::read(&host_config_path).expect("read applied host config"))
             .expect("applied host config parses");
-    assert!(after_apply["mcpServers"]["legion"]["_legionOwnership"].is_object());
+    // The native plugin projection owns the MCP server (its `.mcp.json`), so
+    // setup must not add a second, user-scope entry.
+    assert!(after_apply["mcpServers"].get("legion").is_none());
     assert_eq!(after_apply["other"], "keep");
     let after_apply_bytes = fs::read(&host_config_path).expect("read applied bytes");
 
@@ -578,7 +580,7 @@ fn host_mcp_registration_mid_apply_failure_leaves_host_config_untouched() {
         client_id: CLIENT_CLAUDE.into(),
         projection: "native-plugin".into(),
         source_root: fs::canonicalize(&source_root).expect("canonical plugin source"),
-        target_root: state_root.join("clients/.claude/skills/legion"),
+        target_root: host_home.join(".claude/skills/legion"),
         state_root,
         origin: "development".into(),
         executable: Some(executable),
@@ -590,10 +592,12 @@ fn host_mcp_registration_mid_apply_failure_leaves_host_config_untouched() {
         host_config_root: Some(host_home.clone()),
     };
 
+    // The native plugin owns MCP registration, so the read-only host config is
+    // never written and repair succeeds without touching it.
     let result = repair_client_projection(&input);
     assert!(
-        result.is_err(),
-        "read-only host config must fail registration, not silently skip it"
+        result.is_ok(),
+        "native plugin projection must not write the user-scope host config"
     );
 
     let mut permissions = fs::metadata(&host_config_path)
