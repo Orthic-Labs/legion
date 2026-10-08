@@ -236,7 +236,7 @@
     {
       "path": "specialists/daily-mvp/evals/evals.json",
       "uri": "legion-skill://marketing/specialists/daily-mvp/evals/evals.json",
-      "digest": "sha256:7b8dc673149f5b4b12eda4bc8789ea142de9651625e9d586fed0145aa8af16d1"
+      "digest": "sha256:7041c122e521bb3cc72ef9dd4347fdc813ff57a8789a01f7a7ac3fbfd1932433"
     },
     {
       "path": "specialists/growth/GUIDE.md",
@@ -476,7 +476,7 @@
     {
       "path": "specialists/product-context/evals/evals.json",
       "uri": "legion-skill://marketing/specialists/product-context/evals/evals.json",
-      "digest": "sha256:f502b6051825cc22efbc23cf300448d2943f1c109d8b21ed34e459b2c232ab31"
+      "digest": "sha256:99d033a1898b756b2dfd2397002b2d25f9f2bede8ed873f8cd368a7920499146"
     },
     {
       "path": "specialists/strategy/GUIDE.md",

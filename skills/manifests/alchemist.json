@@ -63,7 +63,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://alchemist/evals/evals.json",
-      "digest": "sha256:77ca637288887720a6ca261514d8b7fd1968e760b3a5ada364c3d4a646f0b7b6"
+      "digest": "sha256:17629ac4f7bb94a07fd32bac5b4a9977d2e5cb7764383dd713f8bf0045f13787"
     },
     {
       "path": "evals/legacy-jfdi.json",

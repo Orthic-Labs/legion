@@ -63,7 +63,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://qa/evals/evals.json",
-      "digest": "sha256:08d939c52069e309079ccd306dd2d3f20c65b5b38549168fe405a92f5951a2dc"
+      "digest": "sha256:8ab31e24f926bc147a602a5d785115ca6defdbea4a59b287a6d78a90e4e870d0"
     },
     {
       "path": "references/browser-automation.md",
