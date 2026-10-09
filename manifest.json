@@ -707,6 +707,21 @@
       "may_close_own_candidates": true
     },
     {
+      "id": "governance.capability-ownership",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "governance.capability-ownership"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
       "id": "imported.sarif",
       "role": "deterministic",
       "phase": "facts",

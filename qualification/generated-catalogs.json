@@ -472,6 +472,18 @@
       "selectable": true
     },
     {
+      "id": "governance.capability-ownership",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "governance",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
       "id": "imported.sarif",
       "providerVersion": "1.0.0",
       "role": "deterministic",

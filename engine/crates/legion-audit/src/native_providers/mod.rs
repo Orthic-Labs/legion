@@ -98,7 +98,8 @@ impl ProviderExecutor for NativeProviderRegistry {
         if legacy_checks::spec(&provider.id).is_some() {
             return self.legacy_checks.execute(provider, inventory);
         }
-        if provider.id.starts_with("legacy.") || provider.id == "governance.policy" {
+        if provider.id.starts_with("legacy.") || provider.id == "governance.policy"
+            || provider.id == "governance.capability-ownership" {
             return self.legacy.execute(provider, inventory);
         }
         Err(AuditError::Provider(format!(

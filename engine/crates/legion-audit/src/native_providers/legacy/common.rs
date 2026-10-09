@@ -270,6 +270,7 @@ impl ProviderExecutor for ProviderExecutorAdapter {
         let input = self.input(provider, inventory);
         match provider.id.as_str() {
             "governance.policy" => super::governance::execute(&input),
+            "governance.capability-ownership" => super::governance_ownership::execute(&input),
             "legacy.accessibility.internal-suite" => super::accessibility::execute(&input),
             "legacy.framework.major-suite" => super::framework::execute(&input),
             "legacy.visual.core" => super::visual::execute(&input),

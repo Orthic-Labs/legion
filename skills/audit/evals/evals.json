@@ -165,7 +165,8 @@
         { "type": "required_text", "value": "audit_diff" },
         { "type": "required_text", "value": "Coverage-on-the-change" }
       ]
-    }
+    },
+    {"id": "audit-ownership-undeclared-not-applicable", "prompt": "Run /audit on a repository whose trusted host declares no capability-ownership scan command.", "expected_skill": "audit", "forbidden_skills": [], "expected_behavior": "Reports governance.capability-ownership as not-applicable (host-declaration-absent); never presents its absence as a clean ownership result and never invents an ownership ruleset.", "severity": "error", "mode": "static"}
   ],
   "safety": [
     {

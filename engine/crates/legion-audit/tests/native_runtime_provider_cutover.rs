@@ -15,7 +15,7 @@ use std::{
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
-const TESTED_RUNTIME_IDS: [&str; 29] = [
+const TESTED_RUNTIME_IDS: [&str; 30] = [
     "architecture.core",
     "code.c-family",
     "code.dotnet",
@@ -34,6 +34,7 @@ const TESTED_RUNTIME_IDS: [&str; 29] = [
     "framework.backend",
     "framework.data",
     "framework.frontend",
+    "governance.capability-ownership",
     "governance.policy",
     "imported.sarif",
     "legacy.accessibility.internal-suite",
@@ -176,7 +177,7 @@ fn assert_authority(result: &legion_contracts::ProviderResult) {
 fn every_frozen_runtime_script_id_dispatches_with_bound_denominator() {
     let specs = frozen_specs();
     let ids: Vec<_> = specs.iter().map(|spec| spec.id.to_string()).collect();
-    assert_eq!(ids.len(), 29);
+    assert_eq!(ids.len(), 30);
     assert_eq!(
         ids.iter().map(String::as_str).collect::<BTreeSet<_>>(),
         TESTED_RUNTIME_IDS.into_iter().collect::<BTreeSet<_>>(),

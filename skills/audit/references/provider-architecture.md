@@ -82,6 +82,22 @@ only when the trusted host has already established an external network sandbox a
 the frozen denominator. The receipt and skipped checks are recorded in `facts.network_policy`.
 Audit never silently enables network to improve coverage.
 
+## Host-declared capability ownership
+
+`governance.capability-ownership` is conditional on a trusted-host declaration, not on repository
+content. The registry marks it with `runner.hostDeclaration`; at planning time the plan freezes
+whether the host declared it and the command digest (`hostDeclaration` in provider configuration).
+
+- `AUDIT_OWNERSHIP_SCAN_CMD`: JSON argv array (no shell). Run with the frozen root as working
+  directory and a minimal environment. The command must be read-only and print
+  `{"schemaVersion":1,"findings":[{"rule","path","line","message","capability"?,"owner"?}]}`.
+  Legion ships no ownership ruleset; the host owns it.
+- Not declared: provider is `not-applicable` (`host-declaration-absent`), never clean-by-absence.
+- `AUDIT_OWNERSHIP_SCAN_REQUIRED=1`: host marks the provider required for a clean claim. Otherwise
+  findings are `warning` and non-blocking.
+- Declaration drift since planning, spawn failure, timeout, non-zero exit, invalid output, or a
+  finding outside the frozen denominator: typed gap, provider `UNPROVEN`.
+
 ## Security separation
 
 Security detection is split into independently selected provider contracts:
