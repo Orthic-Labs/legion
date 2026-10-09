@@ -20,7 +20,9 @@ impl Fixture {
                 .as_nanos()
         ));
         fs::create_dir_all(&root).unwrap();
-        Self(root)
+        // Canonical (macOS temp is behind a /var symlink) so git and the CLI
+        // agree on the fixture's path.
+        Self(fs::canonicalize(&root).unwrap())
     }
 
     fn run(&self, args: &[&str]) -> Output {
@@ -31,6 +33,7 @@ impl Fixture {
         let home = PathBuf::from(format!("{}-home", self.0.display()));
         Command::new(env!("CARGO_BIN_EXE_legion"))
             .current_dir(&self.0)
+            .env("GIT_CEILING_DIRECTORIES", self.0.parent().unwrap())
             .env("HOME", &home)
             .env("USERPROFILE", &home)
             .env("LOCALAPPDATA", home.join("AppData/Local"))
@@ -44,6 +47,7 @@ impl Fixture {
     fn git(&self, args: &[&str]) -> Output {
         Command::new("git")
             .current_dir(&self.0)
+            .env("GIT_CEILING_DIRECTORIES", self.0.parent().unwrap())
             .args(args)
             .output()
             .unwrap()
