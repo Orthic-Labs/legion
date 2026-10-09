@@ -11,9 +11,13 @@ struct Fixture(PathBuf);
 
 impl Fixture {
     fn new() -> Self {
+        // macOS clocks resolve to microseconds, so parallel tests can read the
+        // same timestamp; a per-process counter keeps every fixture distinct.
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(
-            "legion-minimize-cli-{}-{}",
+            "legion-minimize-cli-{}-{}-{}",
             std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
