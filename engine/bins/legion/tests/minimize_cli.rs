@@ -24,8 +24,17 @@ impl Fixture {
     }
 
     fn run(&self, args: &[&str]) -> Output {
+        // Isolate from any installed Legion on the host: minimize resolves its
+        // policy asset from an installed release when one exists under the
+        // user's home, which differs from this checkout's copy.
+        // Outside the fixture repository so it never shows up as untracked.
+        let home = PathBuf::from(format!("{}-home", self.0.display()));
         Command::new(env!("CARGO_BIN_EXE_legion"))
             .current_dir(&self.0)
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .env("LOCALAPPDATA", home.join("AppData/Local"))
+            .env("XDG_DATA_HOME", home.join(".local/share"))
             .env_remove("MINIMIZE_BASE_REF")
             .args(args)
             .output()
@@ -67,6 +76,7 @@ impl Fixture {
 impl Drop for Fixture {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
+        let _ = fs::remove_dir_all(format!("{}-home", self.0.display()));
     }
 }
 
