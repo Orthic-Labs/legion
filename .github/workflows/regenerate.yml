@@ -60,6 +60,7 @@ jobs:
           dev refresh-local-skill-manifests "${bundles[@]}"
           dev generate-manifest
           dev generate-catalogs
+          dev native-cli-inventory
       - name: Format Rust workspace
         working-directory: engine
         run: cargo fmt --all
