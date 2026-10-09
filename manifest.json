@@ -712,7 +712,11 @@
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
-        "module": "governance.capability-ownership"
+        "module": "governance.capability-ownership",
+        "hostDeclaration": {
+          "env": "AUDIT_OWNERSHIP_SCAN_CMD",
+          "requiredEnv": "AUDIT_OWNERSHIP_SCAN_REQUIRED"
+        }
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,
