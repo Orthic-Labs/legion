@@ -193,7 +193,14 @@ fn not_applicable_execution(provider: &AuditProvider) -> Result<ProviderExecutio
                 ("notApplicable".to_owned(), Value::Bool(true)),
                 (
                     "notApplicableReason".to_owned(),
-                    Value::String("selector-denominator-empty".into()),
+                    Value::String(
+                        if provider.host_declaration_absent() {
+                            "host-declaration-absent"
+                        } else {
+                            "selector-denominator-empty"
+                        }
+                        .into(),
+                    ),
                 ),
             ]),
         },

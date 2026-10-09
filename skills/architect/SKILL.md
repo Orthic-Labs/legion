@@ -46,6 +46,14 @@ Method lives in `doctrine/architecture/**` (workflow, controls, methods, reviews
 schemas) and `references/manual.md`. Progressive loading: load the current workflow phase plus
 the triggered method only. Reopen only on a material delta with cause, scope, and affected IDs.
 
+## Shared platform first
+
+Before proposing new components or dependencies, read the host-declared shared-capability index
+(session-injected ownership index or host-declared lookup command) and the workspace/repository
+agent rules, then decide reuse owner → extend owner → build new. Building new, or adding a
+third-party dependency for a capability the index declares, needs a recorded reason. If the host
+declares no index, say so and proceed. Detail: `doctrine/architecture/workflow/01-frame.md`.
+
 ## Current-state entrypoint
 
 Blueprint is public current-reality owner, not Audit-only plumbing. For existing-repository

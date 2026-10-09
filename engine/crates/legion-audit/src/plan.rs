@@ -66,6 +66,9 @@ impl AuditProvider {
     /// does not apply to this repository: it is excluded from the required
     /// set and never executed, instead of failing on an empty denominator.
     pub fn not_applicable(&self) -> bool {
+        if self.host_declaration_absent() {
+            return true;
+        }
         self.configuration
             .get("denominatorCount")
             .and_then(Value::as_u64)
@@ -75,6 +78,44 @@ impl AuditProvider {
                 .get("selector")
                 .is_some_and(selector_is_always)
     }
+}
+
+impl AuditProvider {
+    /// True when the registry makes this provider conditional on a trusted-host
+    /// declaration (`runner.hostDeclaration`) and the host declared nothing.
+    /// Absence is never clean: the provider is reported not-applicable.
+    pub fn host_declaration_absent(&self) -> bool {
+        self.configuration
+            .get("hostDeclaration")
+            .and_then(|value| value.get("declared"))
+            .and_then(Value::as_bool)
+            == Some(false)
+    }
+}
+
+/// Resolve a provider's `runner.hostDeclaration` against the trusted-host
+/// environment at planning time. The result is frozen into the plan so a
+/// later change of declaration is detected as drift.
+fn resolve_host_declaration(runner: &Value) -> Option<Value> {
+    let declaration = runner.get("hostDeclaration")?;
+    let env_name = declaration.get("env").and_then(Value::as_str)?;
+    let raw = std::env::var(env_name).unwrap_or_default();
+    let declared = !raw.trim().is_empty();
+    let required = declaration
+        .get("requiredEnv")
+        .and_then(Value::as_str)
+        .and_then(|name| std::env::var(name).ok())
+        .is_some_and(|value| matches!(value.trim(), "1" | "true"));
+    Some(serde_json::json!({
+        "env": env_name,
+        "declared": declared,
+        "required": declared && required,
+        "commandDigest": if declared {
+            Value::String(crate::native_providers::legacy::common::digest_text(&raw))
+        } else {
+            Value::Null
+        },
+    }))
 }
 
 fn selector_is_always(selector: &Value) -> bool {
@@ -241,7 +282,8 @@ impl AuditPlan {
                     .denominator_entries_with_candidates(&spec.selector, &candidate_denominators)?;
                 let denominator_count = denominator.entries.len();
                 let denominator_digest = denominator.digest;
-                let configuration = BTreeMap::from([
+                let host_declaration = resolve_host_declaration(&spec.runner);
+                let mut configuration = BTreeMap::from([
                     (
                         "schemaVersion".into(),
                         serde_json::json!(spec.schema_version),
@@ -284,15 +326,30 @@ impl AuditPlan {
                         serde_json::json!(denominator_count),
                     ),
                 ]);
+                let host_declared = host_declaration
+                    .as_ref()
+                    .and_then(|value| value.get("declared"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(true);
+                let host_required = host_declaration
+                    .as_ref()
+                    .and_then(|value| value.get("required"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                if let Some(value) = host_declaration {
+                    configuration.insert("hostDeclaration".into(), value);
+                }
                 // A provider whose selector matches nothing does not apply to
                 // this repository, so it is never `required`.
-                let applicable = denominator_count > 0 || selector_is_always(&spec.selector);
+                let applicable =
+                    host_declared && (denominator_count > 0 || selector_is_always(&spec.selector));
                 let required = applicable
-                    && spec
-                        .execution
-                        .get("required")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(true);
+                    && (host_required
+                        || spec
+                            .execution
+                            .get("required")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(true));
                 let bounds = BTreeMap::from([
                     ("required".into(), serde_json::json!(required)),
                     ("cleanClaim".into(), serde_json::json!(spec.clean_claim)),
@@ -314,11 +371,12 @@ impl AuditPlan {
                         .and_then(Value::as_str)
                         .unwrap_or("unproven")
                         .to_owned(),
-                    benchmark_required_for_clean_claim: spec
-                        .benchmark
-                        .get("requiredForCleanClaim")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(true),
+                    benchmark_required_for_clean_claim: host_required
+                        || spec
+                            .benchmark
+                            .get("requiredForCleanClaim")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(true),
                     qualification_digest: spec
                         .benchmark
                         .get("qualificationDigest")

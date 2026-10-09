@@ -4,6 +4,7 @@ pub mod common;
 pub mod framework;
 pub mod framework_major_suite;
 pub mod governance;
+pub mod governance_ownership;
 pub mod governance_policy;
 pub mod visual;
 pub mod visual_core;

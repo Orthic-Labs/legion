@@ -81,6 +81,12 @@ file-only providers still run. Supply `--url <running-app-url>` for selected run
 `--surfaces <targets.json>` for button/card-driven views, `--visual-spec <spec.json>` for explicit
 rendered evidence, or `--visual-baselines <map.json>` for baseline comparison.
 
+## Capability ownership (host-declared)
+
+If the trusted host sets `AUDIT_OWNERSHIP_SCAN_CMD`, `governance.capability-ownership` runs that
+read-only command and maps its `path:line` findings into the report; otherwise it is
+`not-applicable`, never clean. See `provider-architecture.md`.
+
 ## `UNPROVEN` conditions (step 5 detail)
 
 Read `plan.json` before `facts.json`. A stale/missing Blueprint generation, plan-seal or signature
