@@ -69,7 +69,9 @@ fn run_scan(argv: &[String], root: &std::path::Path) -> Result<String, String> {
         .ok_or_else(|| "ownership-scan-spawn-failed:no stdout".to_owned())?;
     let reader = std::thread::spawn(move || {
         let mut buffer = Vec::new();
-        let _ = (&mut stdout).take(MAX_OUTPUT_BYTES).read_to_end(&mut buffer);
+        let _ = (&mut stdout)
+            .take(MAX_OUTPUT_BYTES)
+            .read_to_end(&mut buffer);
         buffer
     });
     let started = Instant::now();
@@ -91,7 +93,9 @@ fn run_scan(argv: &[String], root: &std::path::Path) -> Result<String, String> {
     if !status.success() {
         return Err(format!(
             "ownership-scan-exit-nonzero:{}",
-            status.code().map_or_else(|| "signal".to_owned(), |c| c.to_string())
+            status
+                .code()
+                .map_or_else(|| "signal".to_owned(), |c| c.to_string())
         ));
     }
     String::from_utf8(bytes).map_err(|_| "ownership-scan-output-not-utf8".to_owned())
@@ -192,7 +196,11 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
         },
         complete,
         &denominator,
-        if complete { denominator.entries.len() } else { 0 },
+        if complete {
+            denominator.entries.len()
+        } else {
+            0
+        },
         findings,
         gaps.clone(),
         gaps,

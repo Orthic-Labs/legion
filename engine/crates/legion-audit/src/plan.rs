@@ -341,8 +341,8 @@ impl AuditPlan {
                 }
                 // A provider whose selector matches nothing does not apply to
                 // this repository, so it is never `required`.
-                let applicable = host_declared
-                    && (denominator_count > 0 || selector_is_always(&spec.selector));
+                let applicable =
+                    host_declared && (denominator_count > 0 || selector_is_always(&spec.selector));
                 let required = applicable
                     && (host_required
                         || spec
