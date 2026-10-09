@@ -174,3 +174,34 @@ fn codex_string_user_request_preserves_whitespace_and_omits_notifications() {
     assert_eq!(context.user_requests.len(), 1);
     assert_eq!(context.user_requests[0].text, "  Keep exact whitespace.  ");
 }
+
+#[test]
+fn rows_from_subfolders_of_the_workspace_are_accepted() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("session-1.jsonl");
+    let (cutoff, digest) = write_rows(
+        &path,
+        &[
+            r#"{"type":"user","sessionId":"session-1","cwd":"/repo","message":{"content":"start at root"}}"#,
+            r#"{"type":"user","sessionId":"session-1","cwd":"/repo/probes/sr0-d/render-composition","message":{"content":"in a subfolder"}}"#,
+            r#"{"type":"user","sessionId":"session-1","cwd":"/repo/","message":{"content":"back at root"}}"#,
+        ],
+        &[],
+    );
+    let context = normalize(&input(&path, Platform::Claude, cutoff, &digest)).unwrap();
+    assert_eq!(context.user_requests.len(), 3);
+}
+
+#[test]
+fn rows_outside_the_workspace_are_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    for outside in ["/repo-other", "/elsewhere", "/"] {
+        let path = dir.path().join("session-1.jsonl");
+        let row = format!(
+            r#"{{"type":"user","sessionId":"session-1","cwd":"{outside}","message":{{"content":"x"}}}}"#
+        );
+        let (cutoff, digest) = write_rows(&path, &[row.as_str()], &[]);
+        let error = normalize(&input(&path, Platform::Claude, cutoff, &digest)).unwrap_err();
+        assert!(error.contains("workspace mismatch"), "{outside}: {error}");
+    }
+}

@@ -585,7 +585,10 @@ fn verify_identity(
         }
         if let Some(value) = workspace {
             seen_workspace = true;
-            if normalized_path(&value) != normalized_path(&input.workspace) {
+            // Agents `cd` into subfolders during a run, so a row may come from
+            // the workspace or any folder inside it, compared by whole path
+            // components (`/repo-other` is not inside `/repo`).
+            if !path_within(&value, &input.workspace) {
                 return Err(format!(
                     "workspace mismatch: pointer {}, transcript {}",
                     input.workspace, value
@@ -1126,6 +1129,18 @@ fn normalize_hash(value: &str) -> Result<String, String> {
         return Err("sha256 must be 64 hexadecimal characters".into());
     }
     Ok(value.to_ascii_lowercase())
+}
+
+fn path_within(candidate: &str, root: &str) -> bool {
+    let candidate = normalized_path(candidate);
+    let root = normalized_path(root);
+    if root.is_empty() {
+        return false;
+    }
+    candidate == root
+        || candidate
+            .strip_prefix(&root)
+            .is_some_and(|rest| rest.starts_with('/'))
 }
 
 fn normalized_path(value: &str) -> String {
