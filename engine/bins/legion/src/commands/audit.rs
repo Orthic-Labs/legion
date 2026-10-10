@@ -1250,9 +1250,16 @@ fn native_registry_application(
         .collect::<Result<Vec<legion_contracts::ProviderSpec>, _>>()
         .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))?;
     let source = super::audit_inventory_source(root)?;
-    let external_tool = native_audit_external_tool(root);
+    // All audit scratch lives outside the audited tree and is removed when the
+    // registry (the last holder) is dropped.
+    let scratch = std::sync::Arc::new(
+        legion_audit::native_providers::legacy_checks::AuditScratch::create(root)
+            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+    );
+    let external_tool = native_audit_external_tool(&scratch);
     let executor = std::sync::Arc::new(
         legion_audit::NativeProviderRegistry::new(root.to_path_buf())
+            .with_scratch(scratch)
             .with_external_project_tool(external_tool),
     );
     let application = legion_application::NativeApplicationConfig::for_audit_executor(
@@ -1267,7 +1274,7 @@ fn native_registry_application(
 }
 
 fn native_audit_external_tool(
-    root: &std::path::Path,
+    scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
 ) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
     let policy = legion_effects::StaticPolicy {
         decision: legion_effects::PolicyDecision {
@@ -1284,7 +1291,7 @@ fn native_audit_external_tool(
     let process = legion_effects::platform::unix::UnixProcess::new();
     let effects = legion_effects::EffectExecutor::new(
         process,
-        legion_effects::ArtifactWriter::new(root),
+        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         policy,
     );
     std::sync::Arc::new(

@@ -287,6 +287,6 @@ fn production_adapter_resolves_and_seals_symbolic_request() {
         .expected_digest
         .as_deref()
         .is_some_and(|digest| digest.starts_with("sha256:")));
-    assert!(request.request_id.starts_with(".cache/legion-audit/"));
+    assert!(request.request_id.starts_with("legion-audit/"));
     fs::remove_dir_all(root).unwrap();
 }

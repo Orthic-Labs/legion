@@ -55,6 +55,15 @@ impl NativeProviderRegistry {
         self
     }
 
+    /// Route legacy-check scratch (sandbox profiles, artifacts, reports, temp
+    /// and cache files) into a directory outside the audited root. The
+    /// external tool's artifact sink must be rooted at the same
+    /// `scratch.artifacts_dir()`.
+    pub fn with_scratch(mut self, scratch: Arc<legacy_checks::AuditScratch>) -> Self {
+        self.legacy_checks = self.legacy_checks.clone().with_scratch(scratch);
+        self
+    }
+
     pub fn with_external_project_tool(mut self, tool: Arc<dyn ExternalProjectTool>) -> Self {
         self.legacy_checks = self
             .legacy_checks

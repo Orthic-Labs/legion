@@ -24,6 +24,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     io::Read,
     path::{Path, PathBuf},
+    sync::Mutex,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -46,8 +47,10 @@ use crate::{
     plan::AuditProvider,
 };
 
-/// Production Audit adapter that keeps effect artifacts under repository
-/// cache. Registry request ids contain punctuation (including `:`), which is
+/// Production Audit adapter that rewrites registry request ids into a
+/// scratch-relative artifact location. The artifact sink the adapter wraps must
+/// be rooted at an [`AuditScratch`] artifacts directory, never at the audited
+/// tree. Registry request ids contain punctuation (including `:`), which is
 /// not a valid Windows path component; receipts retain provider/plan ids.
 pub struct AuditExternalProjectTool<T> {
     inner: T,
@@ -134,26 +137,18 @@ fn report_args(dir: &Path) -> Vec<String> {
     vec!["--output".into(), dir.to_string_lossy().into_owned()]
 }
 
-/// A per-run directory the executor owns exclusively, outside the project
-/// tree, for checks whose tool writes its report to disk (`ReportSource::
-/// File`). Removed unconditionally on drop so a run never leaks scratch
-/// files into the host temp directory, whether or not the report was read
-/// successfully.
+/// A per-check directory under the audit scratch root for checks whose tool
+/// writes its report to disk (`ReportSource::File`). Removed unconditionally
+/// on drop so a check never leaves report files behind, whether or not the
+/// report was read successfully.
 struct ReportTempDir {
     path: PathBuf,
 }
 
 impl ReportTempDir {
-    fn create(check: &str) -> std::io::Result<Self> {
+    fn create(base: &Path, check: &str) -> std::io::Result<Self> {
         let sequence = AUDIT_ARTIFACT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "legion-audit-report-{check}-{now}-{sequence}-{}",
-            std::process::id()
-        ));
+        let path = base.join(format!("report-{check}-{sequence}"));
         std::fs::create_dir_all(&path)?;
         Ok(Self { path })
     }
@@ -207,10 +202,171 @@ fn audit_artifact_request_id(request_id: &str) -> String {
         .unwrap_or_default()
         .as_nanos();
     let material = format!("{request_id}:{now}:{sequence}");
+    // Relative to the artifact sink root, which is an `AuditScratch`
+    // artifacts directory outside the audited tree.
     format!(
-        ".cache/legion-audit/{}",
+        "legion-audit/{}",
         hex::encode(Sha256::digest(material.as_bytes()))
     )
+}
+
+static AUDIT_SCRATCH_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+/// Per-run scratch space for everything an audit writes while executing
+/// checks: sandbox profiles, effect artifacts (stdout/stderr), file-backed tool
+/// reports, temp files and tool caches. It always lives outside the audited
+/// tree and is removed on drop (best effort) when the executor created it.
+#[derive(Debug)]
+pub struct AuditScratch {
+    root: PathBuf,
+    remove_on_drop: bool,
+}
+
+impl AuditScratch {
+    /// Create a unique owner-only scratch directory under the system temp dir.
+    /// Fails when no candidate location lies outside `audited_root`.
+    pub fn create(audited_root: &Path) -> Result<Self, AuditError> {
+        let mut candidates = vec![std::env::temp_dir()];
+        if cfg!(unix) {
+            candidates.push(PathBuf::from("/var/tmp"));
+        }
+        let mut last = "no scratch location candidates".to_owned();
+        for base in candidates {
+            if path_inside(&base, audited_root) {
+                last = format!(
+                    "scratch base {} lies inside the audited root {}",
+                    base.display(),
+                    audited_root.display()
+                );
+                continue;
+            }
+            let sequence = AUDIT_SCRATCH_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos();
+            let root = base.join(format!(
+                "legion-audit-{}-{sequence}-{nanos}",
+                std::process::id()
+            ));
+            match Self::prepare(&root) {
+                Ok(()) => {
+                    return Ok(Self {
+                        root,
+                        remove_on_drop: true,
+                    })
+                }
+                Err(error) => last = format!("cannot create {}: {error}", root.display()),
+            }
+        }
+        Err(AuditError::Provider(format!(
+            "audit-scratch-unavailable: {last}"
+        )))
+    }
+
+    /// Use a caller-chosen directory (for example the run's `--out`
+    /// directory). It is created if absent, must lie outside `audited_root`,
+    /// and is never removed by this value.
+    pub fn with_scratch_dir(audited_root: &Path, dir: impl Into<PathBuf>) -> Result<Self, AuditError> {
+        let root = dir.into();
+        if path_inside(&root, audited_root) {
+            return Err(AuditError::Provider(format!(
+                "audit-scratch-unavailable: scratch dir {} lies inside the audited root {}",
+                root.display(),
+                audited_root.display()
+            )));
+        }
+        Self::prepare(&root).map_err(|error| {
+            AuditError::Provider(format!(
+                "audit-scratch-unavailable: cannot create {}: {error}",
+                root.display()
+            ))
+        })?;
+        Ok(Self {
+            root,
+            remove_on_drop: false,
+        })
+    }
+
+    fn prepare(root: &Path) -> std::io::Result<()> {
+        make_private_dir(root)?;
+        for child in ["sandbox", "artifacts", "reports", "tmp", "cache"] {
+            make_private_dir(&root.join(child))?;
+        }
+        Ok(())
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    /// Sandbox profiles.
+    pub fn sandbox_dir(&self) -> PathBuf {
+        self.root.join("sandbox")
+    }
+
+    /// Root of the effect artifact sink; request ids are relative to it.
+    pub fn artifacts_dir(&self) -> PathBuf {
+        self.root.join("artifacts")
+    }
+
+    fn reports_dir(&self) -> PathBuf {
+        self.root.join("reports")
+    }
+
+    fn tmp_dir(&self) -> PathBuf {
+        self.root.join("tmp")
+    }
+
+    fn cache_dir(&self) -> PathBuf {
+        self.root.join("cache")
+    }
+}
+
+impl Drop for AuditScratch {
+    fn drop(&mut self) {
+        if self.remove_on_drop {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+}
+
+fn make_private_dir(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(path)
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::create_dir_all(path)
+    }
+}
+
+/// True when `path` is `root` or lies beneath it, comparing canonical forms
+/// of the deepest existing ancestors so symlinked temp dirs (`/tmp` ->
+/// `/private/tmp`) are seen through.
+fn path_inside(path: &Path, root: &Path) -> bool {
+    fn canonical(path: &Path) -> PathBuf {
+        let mut missing = Vec::new();
+        let mut current = path.to_path_buf();
+        loop {
+            if let Ok(real) = std::fs::canonicalize(&current) {
+                return missing.iter().rev().fold(real, |acc, part| acc.join(part));
+            }
+            match (current.file_name().map(|n| n.to_owned()), current.parent()) {
+                (Some(name), Some(parent)) => {
+                    missing.push(name);
+                    current = parent.to_path_buf();
+                }
+                _ => return path.to_path_buf(),
+            }
+        }
+    }
+    canonical(path).starts_with(canonical(root))
 }
 
 /// Immutable request builder for the legacy provider boundary.
@@ -465,6 +621,9 @@ impl LegacyCheckDispatcher {
 pub struct NativeLegacyCheckExecutor {
     root: PathBuf,
     external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
+    /// Shared across clones; created lazily under the system temp dir unless
+    /// the host supplied one with `with_scratch`.
+    scratch: Arc<Mutex<Option<Arc<AuditScratch>>>>,
 }
 
 impl std::fmt::Debug for NativeLegacyCheckExecutor {
@@ -484,7 +643,25 @@ impl NativeLegacyCheckExecutor {
         Self {
             root: root.into(),
             external_project_tool: None,
+            scratch: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Route all audit scratch (sandbox profiles, artifacts, reports, temp and
+    /// cache files) into a host-provided directory outside the audited root.
+    pub fn with_scratch(self, scratch: Arc<AuditScratch>) -> Self {
+        *self.scratch.lock().expect("scratch lock") = Some(scratch);
+        self
+    }
+
+    fn scratch(&self) -> Result<Arc<AuditScratch>, AuditError> {
+        let mut slot = self.scratch.lock().expect("scratch lock");
+        if let Some(existing) = slot.as_ref() {
+            return Ok(existing.clone());
+        }
+        let created = Arc::new(AuditScratch::create(&self.root)?);
+        *slot = Some(created.clone());
+        Ok(created)
     }
 
     pub fn root(&self) -> &Path {
@@ -538,13 +715,14 @@ impl NativeLegacyCheckExecutor {
                 }
             }
         }
+        let scratch = self.scratch()?;
         let report_source = report_source_for(contract.check);
         // A file-backed report is never written into the project tree: the
         // executor owns a scratch dir for the run's lifetime and the tool is
         // pointed at it explicitly.
         let report_temp_dir = match report_source {
             ReportSource::File(_) => {
-                Some(ReportTempDir::create(contract.check).map_err(|error| {
+                Some(ReportTempDir::create(&scratch.reports_dir(), contract.check).map_err(|error| {
                     AuditError::Provider(format!(
                         "failed to create report temp dir for {}: {error}",
                         contract.check
@@ -562,11 +740,11 @@ impl NativeLegacyCheckExecutor {
             plan.digest(),
             inventory.digest
         );
-        let (environment, environment_allowlist) = audit_environment();
+        let (environment, environment_allowlist) = audit_environment(&scratch);
         let needs_sandbox = sandbox_required_check(contract.check);
         let (executable, args, sandbox_receipt, version_args) = if needs_sandbox {
             let mode = sandbox_mode_for_check(contract.check);
-            let profile_dir = self.root.join(".legion-cache").join("audit-sandbox");
+            let profile_dir = scratch.sandbox_dir();
             // `executable` here is still the bare tool name (e.g. "jscpd").
             // sandbox-exec runs the wrapped command with a scrubbed
             // environment, so a bare name relying on PATH lookup inside the
@@ -705,7 +883,7 @@ impl NativeLegacyCheckExecutor {
         let execution = execution_from_receipt(
             &input,
             contract.command,
-            &self.root,
+            &[scratch.artifacts_dir().as_path(), self.root.as_path()],
             receipt,
             report_source,
             report_artifact,
@@ -787,7 +965,7 @@ fn accepted_exit_codes(check: &str) -> BTreeSet<i32> {
     }
 }
 
-fn audit_environment() -> (BTreeMap<String, String>, BTreeSet<String>) {
+fn audit_environment(scratch: &AuditScratch) -> (BTreeMap<String, String>, BTreeSet<String>) {
     let names = [
         "PATH",
         "PATHEXT",
@@ -795,10 +973,8 @@ fn audit_environment() -> (BTreeMap<String, String>, BTreeSet<String>) {
         "COMSPEC",
         "HOME",
         "USERPROFILE",
-        "TEMP",
-        "TMP",
     ];
-    let environment = names
+    let mut environment: BTreeMap<String, String> = names
         .iter()
         .filter_map(|name| {
             std::env::var(name)
@@ -806,7 +982,30 @@ fn audit_environment() -> (BTreeMap<String, String>, BTreeSet<String>) {
                 .map(|value| ((*name).to_owned(), value))
         })
         .collect();
-    let allowlist = names.into_iter().map(str::to_owned).collect();
+    // Temp files and tool caches belong to the run, never to the audited
+    // tree or the operator's home: point every conventional location into
+    // scratch.
+    let tmp = scratch.tmp_dir().to_string_lossy().into_owned();
+    let cache = scratch.cache_dir();
+    let cache_path = |name: &str| cache.join(name).to_string_lossy().into_owned();
+    let overrides: [(&str, String); 11] = [
+        ("TMPDIR", tmp.clone()),
+        ("TEMP", tmp.clone()),
+        ("TMP", tmp),
+        ("XDG_CACHE_HOME", cache_path("xdg")),
+        ("CARGO_TARGET_DIR", cache_path("cargo-target")),
+        ("npm_config_cache", cache_path("npm")),
+        ("RUFF_CACHE_DIR", cache_path("ruff")),
+        ("MYPY_CACHE_DIR", cache_path("mypy")),
+        ("PYTHONPYCACHEPREFIX", cache_path("pycache")),
+        ("PYTHONDONTWRITEBYTECODE", "1".into()),
+        ("GOCACHE", cache_path("go-build")),
+    ];
+    let mut allowlist: BTreeSet<String> = names.into_iter().map(str::to_owned).collect();
+    for (name, value) in overrides {
+        allowlist.insert(name.to_owned());
+        environment.insert(name.to_owned(), value);
+    }
     (environment, allowlist)
 }
 
@@ -835,7 +1034,7 @@ impl ProviderExecutor for NativeLegacyCheckExecutor {
 fn execution_from_receipt(
     input: &LegacyCheckInput,
     command: CommandShape,
-    root: &Path,
+    roots: &[&Path],
     receipt: legion_provider_sdk::ExecutionReceipt,
     report_source: ReportSource,
     report_artifact: Option<ReportArtifact>,
@@ -866,11 +1065,11 @@ fn execution_from_receipt(
     let stdout = receipt
         .stdout
         .as_ref()
-        .and_then(|a| readable_artifact(root, a));
+        .and_then(|a| readable_artifact(roots, a));
     let stderr = receipt
         .stderr
         .as_ref()
-        .and_then(|a| readable_artifact(root, a));
+        .and_then(|a| readable_artifact(roots, a));
     let mut parsed = false;
     let parse_bytes: Option<&[u8]> = match report_source {
         ReportSource::Stdout => stdout.as_deref(),
@@ -941,19 +1140,21 @@ fn execution_from_receipt(
 }
 
 fn readable_artifact(
-    root: &Path,
+    roots: &[&Path],
     artifact: &legion_effects::artifact::ArtifactRecord,
 ) -> Option<Vec<u8>> {
     if !artifact.immutable {
         return None;
     }
+    // Relative artifact paths are relative to the artifact sink root: the
+    // scratch artifacts dir in production; hosts that wire their own sink
+    // (tests) may root it at the project instead.
     let path = Path::new(&artifact.path);
-    let path = if path.is_absolute() {
-        path.to_path_buf()
+    let bytes = if path.is_absolute() {
+        std::fs::read(path).ok()?
     } else {
-        root.join(path)
+        roots.iter().find_map(|root| std::fs::read(root.join(path)).ok())?
     };
-    let bytes = std::fs::read(path).ok()?;
     let digest = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
     (bytes.len() == artifact.bytes && digest == artifact.digest).then_some(bytes)
 }
@@ -2467,6 +2668,84 @@ mod tests {
         assert!(parse_external_value(&input, &Value::Null, &mut output));
         assert!(output.complete);
         assert!(output.candidates.is_empty());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_fixture() -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "legion-scratch-fixture-{}-{}",
+            std::process::id(),
+            TEST_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn listing(root: &Path) -> Vec<String> {
+        fn walk(dir: &Path, root: &Path, out: &mut Vec<String>) {
+            for entry in fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                out.push(path.strip_prefix(root).unwrap().to_string_lossy().into_owned());
+                if path.is_dir() {
+                    walk(&path, root, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(root, root, &mut out);
+        out.sort();
+        out
+    }
+
+    #[test]
+    fn legacy_check_execution_leaves_the_audited_tree_unchanged() {
+        let root = unique_fixture();
+        fs::write(root.join("package.json"), "{}").unwrap();
+        let inventory = InventoryEnvelope::new(
+            "fixture",
+            "generation",
+            vec![InventoryEntry {
+                path: "package.json".into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: false,
+                digest: None,
+            }],
+        )
+        .unwrap();
+        let provider = provider(
+            "legacy.quality.build",
+            json!({"op":"anyPath","patterns":["**/package.json"]}),
+        );
+        let before = listing(&root);
+        let _ = NativeLegacyCheckExecutor::new(&root)
+            .execute(&provider, &inventory)
+            .unwrap();
+        assert_eq!(listing(&root), before);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn scratch_lives_outside_the_audited_root_and_is_removed_on_drop() {
+        let root = unique_fixture();
+        let scratch = AuditScratch::create(&root).unwrap();
+        let scratch_root = scratch.root().to_path_buf();
+        assert!(!path_inside(&scratch_root, &root));
+        for dir in [scratch.sandbox_dir(), scratch.artifacts_dir()] {
+            assert!(dir.is_dir());
+        }
+        let (environment, allowlist) = audit_environment(&scratch);
+        for name in ["TMPDIR", "TEMP", "TMP", "XDG_CACHE_HOME", "CARGO_TARGET_DIR"] {
+            assert!(allowlist.contains(name));
+            assert!(Path::new(&environment[name]).starts_with(&scratch_root));
+        }
+        assert!(audit_artifact_request_id("audit:x").starts_with("legion-audit/"));
+        drop(scratch);
+        assert!(!scratch_root.exists());
+        assert!(AuditScratch::with_scratch_dir(&root, root.join("inner")).is_err());
         let _ = fs::remove_dir_all(root);
     }
 

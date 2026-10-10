@@ -18,6 +18,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use legion_audit::native_providers::legacy_checks::AuditScratch;
 use legion_audit::{
     AuditPlan, InventoryEntry, InventoryEnvelope, NativeProviderRegistry, ProviderExecutor,
 };
@@ -55,6 +56,24 @@ fn write_fake_tool(root: &PathBuf, name: &str, script: &str) {
     fs::set_permissions(&path, permissions).unwrap();
 }
 
+/// Sorted relative listing of every entry under `root`, for before/after
+/// comparison proving an audit left the tree untouched.
+fn tree_listing(root: &PathBuf) -> Vec<String> {
+    fn walk(dir: &std::path::Path, root: &std::path::Path, out: &mut Vec<String>) {
+        for entry in fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            out.push(path.strip_prefix(root).unwrap().to_string_lossy().into_owned());
+            if path.is_dir() {
+                walk(&path, root, out);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(root, root, &mut out);
+    out.sort();
+    out
+}
+
 fn inventory() -> InventoryEnvelope {
     InventoryEnvelope::new(
         "repo",
@@ -84,7 +103,7 @@ fn plan_for(
 
 /// The real production external-tool route: `EffectExecutor` over the real
 /// unix subprocess backend, wired exactly as `legion` bin does for `/audit`.
-fn real_external_tool(root: &PathBuf) -> Arc<dyn legion_provider_sdk::ExternalProjectTool> {
+fn real_external_tool(scratch: &AuditScratch) -> Arc<dyn legion_provider_sdk::ExternalProjectTool> {
     let policy = legion_effects::StaticPolicy {
         decision: legion_effects::PolicyDecision {
             allowed: true,
@@ -97,7 +116,7 @@ fn real_external_tool(root: &PathBuf) -> Arc<dyn legion_provider_sdk::ExternalPr
     let process = legion_effects::platform::unix::UnixProcess::new();
     let effects = legion_effects::EffectExecutor::new(
         process,
-        legion_effects::ArtifactWriter::new(root),
+        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         policy,
     );
     Arc::new(legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects))
@@ -155,12 +174,20 @@ fn cargo_deny_diagnostics_are_read_from_stderr() {
         "legacy.security.rust-policy",
         "cargo_deny",
     );
-    let registry =
-        NativeProviderRegistry::new(&root).with_external_project_tool(real_external_tool(&root));
+    let scratch = Arc::new(AuditScratch::create(&root).expect("scratch outside the audited root"));
+    let registry = NativeProviderRegistry::new(&root)
+        .with_scratch(scratch.clone())
+        .with_external_project_tool(real_external_tool(&scratch));
+    let before = tree_listing(&root);
     let result = tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(registry.execute_async(&plan, &provider, &inventory, CancellationToken::new()))
         .expect("legacy-check result");
+    assert_eq!(
+        tree_listing(&root),
+        before,
+        "an audit must not create or modify files in the audited tree"
+    );
     let receipt = &result.details["executionReceipt"];
     if receipt["state"] == "sandbox_missing" {
         // `cargo_deny` is in `sandbox_required_check`, and
@@ -232,12 +259,20 @@ fn jscpd_report_is_read_from_its_output_file() {
         "legacy.quality.duplication",
         "duplication",
     );
-    let registry =
-        NativeProviderRegistry::new(&root).with_external_project_tool(real_external_tool(&root));
+    let scratch = Arc::new(AuditScratch::create(&root).expect("scratch outside the audited root"));
+    let registry = NativeProviderRegistry::new(&root)
+        .with_scratch(scratch.clone())
+        .with_external_project_tool(real_external_tool(&scratch));
+    let before = tree_listing(&root);
     let result = tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(registry.execute_async(&plan, &provider, &inventory, CancellationToken::new()))
         .expect("legacy-check result");
+    assert_eq!(
+        tree_listing(&root),
+        before,
+        "an audit must not create or modify files in the audited tree"
+    );
     let receipt = &result.details["executionReceipt"];
     if receipt["state"] == "sandbox_missing" {
         // Same macOS-only sandbox-authenticator gap as
