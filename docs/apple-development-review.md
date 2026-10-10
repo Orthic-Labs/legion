@@ -55,7 +55,7 @@ Catalogs & ledgers distinguish implemented operations, equivalent compositions &
 
 ## Verification
 
-Local build admission was refused because managed RightKit inventory contained recent work. Verification runs through [Windows Apple CI](../.github/workflows/apple-skills.yml): native Rust tests, CLI tests, source-ledger/link closure, generated bundle manifests, host projection, dependency closure & native surface checks. Generated changes come from canonical Rust generators.
+Local build admission was refused because managed RightKit inventory contained recent work. Verification runs through the managed CI gate ([scripts/ci/right-git-ci.sh](../scripts/ci/right-git-ci.sh); the former `apple-skills.yml` was folded into it on 2026-10-10): native Rust tests, CLI tests, source-ledger/link closure, generated bundle manifests, host projection, dependency closure & native surface checks. Generated changes come from canonical Rust generators.
 
 Source review separately examines concrete rule retention, code examples & native operation correctness. Neither static bundle checks nor Windows unit tests prove macOS runtime behavior, simulator/device results, signing, authenticated App Store access or publication. No live account mutation or App Store release upload belongs to this absorption request. Later explicit user requests authorized Legion installer deployment on Mac & Windows.
 

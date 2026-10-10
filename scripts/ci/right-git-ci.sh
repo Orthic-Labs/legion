@@ -32,7 +32,7 @@ checks=(
   "generate-catalogs --check"
   "verify-plugin-parity --check --structural-only"
   "native-cli-inventory"
-  "check-native-cli-surface"
+  "check-native-cli-surface --phase enforce"
 )
 for check in "${checks[@]}"; do
   read -r -a check_args <<< "$check"
@@ -46,6 +46,11 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
     cargo test --locked --no-fail-fast
   )
 fi
+
+# Apple bundle integrity (formerly apple-skills.yml): the workspace test run
+# above already covers legion-apple, apple_skill_integrity, apple_cli,
+# role_host_binding and canonical_mcp_schema; the enforce-phase native CLI
+# surface check in the list above was the only step not already in this gate.
 
 # Assemble the exact CI candidate and smoke the installed native CLI.
 (cd engine && cargo build --locked --bins)

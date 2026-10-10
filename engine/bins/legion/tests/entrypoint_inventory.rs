@@ -1,7 +1,10 @@
 //! Diagnostic inventory for every native Legion entry point.
 //!
-//! This test is intentionally ignored.  The dedicated CI workflow builds the
-//! three binaries first, then runs this probe and uploads its JSON receipt.
+//! This test is intentionally ignored.  It is a Linux-only diagnostic (it
+//! runs under `unshare --net`): build the three binaries, set `LEGION_BIN`,
+//! `LEGION_DEV_BIN`, `XTASK_BIN` and `LEGION_ENTRYPOINT_REPORT`, then run it
+//! with `--ignored`.  Its former dedicated workflow was retired on 2026-10-10
+//! because the public repo may carry only the right-git managed workflows.
 //! Probe outcomes are observations, never functional PASS claims.
 
 use serde_json::{json, Value};
