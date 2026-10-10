@@ -363,6 +363,8 @@ export default {
 			notarize: {
 				file: macNotarizationArchive,
 				receipt: macNotarizationReceipt,
+				// Bare command-line binaries cannot carry a stapled ticket.
+				staple: false,
 			},
 			package: {
 				cmd: "cargo",
