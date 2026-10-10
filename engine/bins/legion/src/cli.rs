@@ -791,7 +791,10 @@ fn is_allowed_portable_public_file(
     let Some(skill) = components.next() else {
         return false;
     };
-    if !expected_skills.contains(skill) || components.next().is_none() {
+    // `skills/_shared/<file>` carries the shared craft guides that Writing,
+    // Designer, Marketing & Social require beside the catalog skills.
+    let shared = skill == "_shared";
+    if (!shared && !expected_skills.contains(skill)) || components.next().is_none() {
         return false;
     }
     let lower = relative.to_ascii_lowercase();

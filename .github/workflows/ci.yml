@@ -23,9 +23,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Full validation stays on one declared runner; prefer configured
-        # Windows when available, otherwise preserve first configured OS.
-        os: ["windows-2025"]
+        # ciAllOs: the gate runs on every matrix.os runner, in declared order.
+        os: ["windows-2025", "macos-15"]
         node: ["22.23.2"]
     runs-on: ${{ matrix.os }}
     steps:
