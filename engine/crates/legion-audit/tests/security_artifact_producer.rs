@@ -12,8 +12,7 @@ use legion_audit::{
         adapter::SecurityProviderExecutor,
         producer::{lockfile_inventory, ArtifactProducer, SandboxPolicy},
     },
-    AuditProvider, FilesystemInventorySource, InventoryEnvelope, InventorySource,
-    ProviderExecutor,
+    AuditProvider, FilesystemInventorySource, InventoryEnvelope, InventorySource, ProviderExecutor,
 };
 use legion_contracts::ProviderResult;
 use serde_json::{json, Value};
@@ -92,9 +91,16 @@ fn native_secret_fallback_reports_path_and_line_and_ignores_clean_files() {
     write(
         &root,
         "src/leak.rs",
-        &format!("fn main() {{\n    // config\n    let t = \"{}\";\n}}\n", fake_token()),
+        &format!(
+            "fn main() {{\n    // config\n    let t = \"{}\";\n}}\n",
+            fake_token()
+        ),
     );
-    write(&root, "src/clean.rs", "fn main() {\n    println!(\"hello\");\n}\n");
+    write(
+        &root,
+        "src/clean.rs",
+        "fn main() {\n    println!(\"hello\");\n}\n",
+    );
 
     let result = run(&root, bare(&root), "secrets.current-history");
 
@@ -104,10 +110,18 @@ fn native_secret_fallback_reports_path_and_line_and_ignores_clean_files() {
     assert_eq!(findings[0]["line"], json!(3));
     assert_eq!(findings[0]["ruleId"], json!("github.token"));
     // The secret value never reaches the result.
-    assert!(!serde_json::to_string(&result.details).unwrap().contains(&fake_token()));
+    assert!(!serde_json::to_string(&result.details)
+        .unwrap()
+        .contains(&fake_token()));
     assert_eq!(result.details["producer"]["mode"], json!("native-fallback"));
-    assert_eq!(result.details["producer"]["evidence"], json!("native-fallback"));
-    assert!(analysis(&result)["coverageGaps"].as_array().unwrap().is_empty());
+    assert_eq!(
+        result.details["producer"]["evidence"],
+        json!("native-fallback")
+    );
+    assert!(analysis(&result)["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .is_empty());
     assert_eq!(analysis(&result)["denominator"]["expected"], json!(2));
     assert_eq!(analysis(&result)["denominator"]["examined"], json!(2));
 }
@@ -115,7 +129,11 @@ fn native_secret_fallback_reports_path_and_line_and_ignores_clean_files() {
 #[test]
 fn native_secret_fallback_is_quiet_on_a_clean_tree() {
     let root = fixture("secrets-clean");
-    write(&root, "src/clean.rs", "const NAME: &str = \"your_token_here\";\n");
+    write(
+        &root,
+        "src/clean.rs",
+        "const NAME: &str = \"your_token_here\";\n",
+    );
     let result = run(&root, bare(&root), "secrets.current-history");
     assert!(analysis(&result)["findings"].as_array().unwrap().is_empty());
     assert_eq!(analysis(&result)["status"], json!("pass"));
@@ -134,8 +152,16 @@ fn lockfile_inventory_lists_planted_dependencies() {
         "web/package-lock.json",
         r#"{"lockfileVersion":3,"packages":{"":{"name":"web"},"node_modules/left-pad":{"version":"1.3.0"},"node_modules/@scope/pkg":{"version":"2.0.1"}}}"#,
     );
-    write(&root, "py/requirements.txt", "Requests==2.31.0  # http\nflask[async]==3.0.0\n");
-    write(&root, "go.sum", "github.com/pkg/errors v0.9.1 h1:abc\ngithub.com/pkg/errors v0.9.1/go.mod h1:def\n");
+    write(
+        &root,
+        "py/requirements.txt",
+        "Requests==2.31.0  # http\nflask[async]==3.0.0\n",
+    );
+    write(
+        &root,
+        "go.sum",
+        "github.com/pkg/errors v0.9.1 h1:abc\ngithub.com/pkg/errors v0.9.1/go.mod h1:def\n",
+    );
     write(
         &root,
         "yarn.lock",
@@ -146,7 +172,11 @@ fn lockfile_inventory_lists_planted_dependencies() {
         "pnpm-lock.yaml",
         "lockfileVersion: '9.0'\n\npackages:\n\n  '@types/node@20.1.0':\n    resolution: {integrity: x}\n\n  chalk@5.3.0:\n    resolution: {integrity: y}\n\nsnapshots:\n\n  chalk@5.3.0: {}\n",
     );
-    let paths = inventory(&root).entries.iter().map(|e| e.path.clone()).collect::<Vec<_>>();
+    let paths = inventory(&root)
+        .entries
+        .iter()
+        .map(|e| e.path.clone())
+        .collect::<Vec<_>>();
     let packages = lockfile_inventory(&root, &paths);
     for expected in [
         "pkg:cargo/serde@1.0.200",
@@ -160,13 +190,19 @@ fn lockfile_inventory_lists_planted_dependencies() {
         "pkg:npm/%40types/node@20.1.0",
         "pkg:npm/chalk@5.3.0",
     ] {
-        assert!(packages.contains(&expected.to_owned()), "missing {expected} in {packages:?}");
+        assert!(
+            packages.contains(&expected.to_owned()),
+            "missing {expected} in {packages:?}"
+        );
     }
 
     // The provider path labels the evidence and keeps the unproven gaps.
     let result = run(&root, bare(&root), "supply-chain.license-sbom-provenance");
     assert_eq!(result.details["producer"]["mode"], json!("native-fallback"));
-    assert_eq!(analysis(&result)["denominator"]["expected"], json!(packages.len()));
+    assert_eq!(
+        analysis(&result)["denominator"]["expected"],
+        json!(packages.len())
+    );
     assert_eq!(analysis(&result)["complete"], json!(false));
     let gaps = serde_json::to_string(&analysis(&result)["coverageGaps"]).unwrap();
     assert!(gaps.contains("supply-chain-provenance-invalid"), "{gaps}");
@@ -210,16 +246,31 @@ fn stub_scanner_on_path_is_run_and_its_receipt_recorded() {
         .with_sandbox(SandboxPolicy::Disabled);
     let result = run(&root, producer, "security.opengrep");
 
-    assert_eq!(analysis(&result)["status"], json!("candidates"), "{:?}", analysis(&result));
+    assert_eq!(
+        analysis(&result)["status"],
+        json!("candidates"),
+        "{:?}",
+        analysis(&result)
+    );
     assert_eq!(analysis(&result)["candidates"].as_array().unwrap().len(), 1);
     let producer = &result.details["producer"];
     assert_eq!(producer["mode"], json!("tool"));
     assert_eq!(producer["tool"], json!("opengrep"));
     assert!(producer["version"].as_str().unwrap().contains("1.2.3"));
     assert_eq!(producer["offline"], json!(true));
-    assert!(producer["argv"].as_array().unwrap().iter().any(|a| a == "off"));
-    assert!(producer["executableDigest"].as_str().unwrap().starts_with("sha256:"));
-    assert!(producer["stdoutDigest"].as_str().unwrap().starts_with("sha256:"));
+    assert!(producer["argv"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|a| a == "off"));
+    assert!(producer["executableDigest"]
+        .as_str()
+        .unwrap()
+        .starts_with("sha256:"));
+    assert!(producer["stdoutDigest"]
+        .as_str()
+        .unwrap()
+        .starts_with("sha256:"));
     assert_eq!(producer["exitCode"], json!(0));
     assert!(result.details.contains_key("executionReceipt"));
     // Scratch lives outside the audited tree.
@@ -241,7 +292,11 @@ fn missing_tools_yield_typed_gaps_per_provider() {
     ] {
         let result = run(&root, bare(&root), id);
         let gap = format!("unavailable:{reason}");
-        assert!(result.coverage_gaps.contains(&gap), "{id}: {:?}", result.coverage_gaps);
+        assert!(
+            result.coverage_gaps.contains(&gap),
+            "{id}: {:?}",
+            result.coverage_gaps
+        );
         assert!(!result.complete, "{id}");
     }
     assert_eq!(fs::read_dir(&root).unwrap().count(), before);
@@ -257,9 +312,17 @@ fn repository_sarif_file_is_ingested() {
         r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"demo","version":"1.0"}},"results":[{"ruleId":"demo.rule","message":{"text":"x"}}]}]}"#,
     );
     let result = run(&root, bare(&root), "imported.sarif");
-    assert_eq!(analysis(&result)["complete"], json!(true), "{:?}", analysis(&result));
+    assert_eq!(
+        analysis(&result)["complete"],
+        json!(true),
+        "{:?}",
+        analysis(&result)
+    );
     assert_eq!(analysis(&result)["findings"].as_array().unwrap().len(), 1);
-    assert_eq!(result.details["producer"]["sarifFiles"], json!(["results.sarif"]));
+    assert_eq!(
+        result.details["producer"]["sarifFiles"],
+        json!(["results.sarif"])
+    );
 }
 
 #[test]

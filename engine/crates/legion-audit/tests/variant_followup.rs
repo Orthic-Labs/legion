@@ -213,11 +213,12 @@ fn setup(name: &str) -> Run {
             evidence_excerpt: None,
         },
     ];
-    let adjudication = pending_lens_work_with_candidates(&root, &plan, &inventory, Some(&candidates))
-        .unwrap()
-        .into_iter()
-        .find(|work| work.provider_id == ADJUDICATOR_PROVIDER_ID)
-        .unwrap();
+    let adjudication =
+        pending_lens_work_with_candidates(&root, &plan, &inventory, Some(&candidates))
+            .unwrap()
+            .into_iter()
+            .find(|work| work.provider_id == ADJUDICATOR_PROVIDER_ID)
+            .unwrap();
 
     let run = root.join(".audit").join("run");
     fs::create_dir_all(run.join("lens-packets")).unwrap();
@@ -237,7 +238,10 @@ fn setup(name: &str) -> Run {
             "epoch": {"digest": epoch, "keyFile": EPOCH_KEY_FILE},
         }),
     );
-    write_json(&run.join("report.json"), &serde_json::to_value(&report).unwrap());
+    write_json(
+        &run.join("report.json"),
+        &serde_json::to_value(&report).unwrap(),
+    );
     write_json(
         &run.join("execution.json"),
         &serde_json::to_value(&execution).unwrap(),
@@ -359,7 +363,11 @@ fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
     let run = confirmed_run("scope");
     let before = recompute_run(&run.run).unwrap();
     assert_eq!(before.confirmed_security.len(), 1);
-    assert!(has_pending_gap(&before.report.gaps), "{:?}", before.report.gaps);
+    assert!(
+        has_pending_gap(&before.report.gaps),
+        "{:?}",
+        before.report.gaps
+    );
 
     let planned = compile_followup(&run.run, &variant_spec())
         .unwrap()
@@ -377,7 +385,10 @@ fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
     assert_eq!(frozen.providers[0].id, VARIANT_PROVIDER_ID);
     assert_eq!(frozen.providers[0].configuration["denominatorCount"], 1);
     let parent_digest = read_json(&run.run.join("plan.json"))["seal"]["digest"].clone();
-    assert_eq!(frozen.followup_binding().unwrap()["parentPlanDigest"], parent_digest);
+    assert_eq!(
+        frozen.followup_binding().unwrap()["parentPlanDigest"],
+        parent_digest
+    );
     assert_eq!(planned.parent_plan_digest, parent_digest.as_str().unwrap());
     assert_ne!(
         read_json(&dir.join("plan.json"))["seal"]["digest"],
@@ -401,7 +412,9 @@ fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
     assert_eq!(seeds[0]["parentFindingId"], "adjudicated:cand-sql");
 
     // Compiling again is idempotent and keeps the same plan.
-    let again = compile_followup(&run.run, &variant_spec()).unwrap().unwrap();
+    let again = compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
     assert!(again.reused);
     assert_eq!(again.plan_digest, planned.plan_digest);
 
@@ -417,7 +430,9 @@ fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
 #[test]
 fn ingesting_the_variant_result_clears_the_parent_gap() {
     let run = confirmed_run("clears");
-    compile_followup(&run.run, &variant_spec()).unwrap().unwrap();
+    compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
     let ingested = ingest_lens_result(
         &run.run.join(FOLLOWUP_DIR),
         VARIANT_PROVIDER_ID,
@@ -428,7 +443,11 @@ fn ingesting_the_variant_result_clears_the_parent_gap() {
     assert_eq!((ingested.examined, ingested.expected), (1, 1));
 
     let after = recompute_run(&run.run).unwrap();
-    assert!(!has_pending_gap(&after.report.gaps), "{:?}", after.report.gaps);
+    assert!(
+        !has_pending_gap(&after.report.gaps),
+        "{:?}",
+        after.report.gaps
+    );
     assert_eq!(
         after.report.claims["securityVariantFollowup"]["status"],
         "complete"
@@ -447,7 +466,9 @@ fn ingesting_the_variant_result_clears_the_parent_gap() {
 #[test]
 fn a_variant_result_with_no_variants_also_clears_the_gap() {
     let run = confirmed_run("none-found");
-    compile_followup(&run.run, &variant_spec()).unwrap().unwrap();
+    compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
     ingest_lens_result(
         &run.run.join(FOLLOWUP_DIR),
         VARIANT_PROVIDER_ID,
@@ -455,13 +476,19 @@ fn a_variant_result_with_no_variants_also_clears_the_gap() {
     )
     .unwrap();
     let after = recompute_run(&run.run).unwrap();
-    assert!(!has_pending_gap(&after.report.gaps), "{:?}", after.report.gaps);
+    assert!(
+        !has_pending_gap(&after.report.gaps),
+        "{:?}",
+        after.report.gaps
+    );
 }
 
 #[test]
 fn omitting_the_variant_result_keeps_the_gap() {
     let run = confirmed_run("omitted");
-    compile_followup(&run.run, &variant_spec()).unwrap().unwrap();
+    compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
     // A follow-up that was planned but never ingested is not completion.
     let recomputed = recompute_run(&run.run).unwrap();
     assert!(has_pending_gap(&recomputed.report.gaps));
@@ -473,23 +500,31 @@ fn omitting_the_variant_result_keeps_the_gap() {
         &variant_result(&run, json!([])),
     )
     .unwrap();
-    assert!(!has_pending_gap(&recompute_run(&run.run).unwrap().report.gaps));
+    assert!(!has_pending_gap(
+        &recompute_run(&run.run).unwrap().report.gaps
+    ));
     fs::remove_dir_all(run.run.join(FOLLOWUP_DIR).join("lens-receipts")).unwrap();
-    assert!(has_pending_gap(&recompute_run(&run.run).unwrap().report.gaps));
+    assert!(has_pending_gap(
+        &recompute_run(&run.run).unwrap().report.gaps
+    ));
 }
 
 #[test]
 fn tampering_with_the_parent_digest_keeps_the_gap() {
     // (1) The parent plan.json seal no longer matches the executed parent plan.
     let run = confirmed_run("tamper-parent");
-    compile_followup(&run.run, &variant_spec()).unwrap().unwrap();
+    compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
     ingest_lens_result(
         &run.run.join(FOLLOWUP_DIR),
         VARIANT_PROVIDER_ID,
         &variant_result(&run, json!([])),
     )
     .unwrap();
-    assert!(!has_pending_gap(&recompute_run(&run.run).unwrap().report.gaps));
+    assert!(!has_pending_gap(
+        &recompute_run(&run.run).unwrap().report.gaps
+    ));
     let mut plan = read_json(&run.run.join("plan.json"));
     plan["seal"]["digest"] = json!(format!("sha256:{}", "0".repeat(64)));
     write_json(&run.run.join("plan.json"), &plan);
@@ -502,7 +537,9 @@ fn tampering_with_the_parent_digest_keeps_the_gap() {
 
     // (2) The follow-up plan is rebound to a different parent digest.
     let run = confirmed_run("tamper-binding");
-    compile_followup(&run.run, &variant_spec()).unwrap().unwrap();
+    compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
     ingest_lens_result(
         &run.run.join(FOLLOWUP_DIR),
         VARIANT_PROVIDER_ID,
@@ -511,8 +548,7 @@ fn tampering_with_the_parent_digest_keeps_the_gap() {
     .unwrap();
     let frozen_path = run.run.join(FOLLOWUP_DIR).join(FROZEN_PLAN_FILE);
     let mut frozen = read_json(&frozen_path);
-    frozen["bounds"]["followup"]["parentPlanDigest"] =
-        json!(format!("sha256:{}", "1".repeat(64)));
+    frozen["bounds"]["followup"]["parentPlanDigest"] = json!(format!("sha256:{}", "1".repeat(64)));
     write_json(&frozen_path, &frozen);
     let tampered = recompute_run(&run.run).unwrap();
     assert!(has_pending_gap(&tampered.report.gaps));
@@ -525,7 +561,9 @@ fn tampering_with_the_parent_digest_keeps_the_gap() {
 #[test]
 fn a_follow_up_scoped_to_other_paths_does_not_clear_the_gap() {
     let run = confirmed_run("rescoped");
-    compile_followup(&run.run, &variant_spec()).unwrap().unwrap();
+    compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
     ingest_lens_result(
         &run.run.join(FOLLOWUP_DIR),
         VARIANT_PROVIDER_ID,
@@ -536,7 +574,9 @@ fn a_follow_up_scoped_to_other_paths_does_not_clear_the_gap() {
     let mut frozen = read_json(&frozen_path);
     frozen["bounds"]["followup"]["confirmedPaths"] = json!(["src/other.rs"]);
     write_json(&frozen_path, &frozen);
-    assert!(has_pending_gap(&recompute_run(&run.run).unwrap().report.gaps));
+    assert!(has_pending_gap(
+        &recompute_run(&run.run).unwrap().report.gaps
+    ));
 }
 
 #[test]

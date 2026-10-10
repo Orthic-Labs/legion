@@ -90,9 +90,7 @@ impl ProviderExecutor for SecurityProviderExecutor {
             }
         }
         let input = self.artifacts.get(&provider.id).or(produced.as_ref());
-        let Some(analysis) =
-            Self::analyze_input(provider, input.unwrap_or(&json!({})))
-        else {
+        let Some(analysis) = Self::analyze_input(provider, input.unwrap_or(&json!({}))) else {
             return Err(AuditError::Provider(format!(
                 "unsupported security provider {}",
                 provider.id

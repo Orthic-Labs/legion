@@ -494,8 +494,8 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
         .map_err(|error| CommandError::usage(error.to_string()))?;
     // Confirmed findings from this ingest get their follow-up compiled now.
     let follow = plan_followup(&run);
-    let recomputed = ingest::recompute_run(&run)
-        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let recomputed =
+        ingest::recompute_run(&run).map_err(|error| CommandError::integrity(error.to_string()))?;
     write_run_reports(&run, &recomputed.report)?;
     Ok(ingest_output(&run, Some(ingested), &recomputed, follow))
 }
@@ -525,9 +525,7 @@ fn plan_followup(run: &std::path::Path) -> Value {
     }
     let planned = registry_provider_spec(followup::VARIANT_PROVIDER_ID)
         .map_err(|error| error.message)
-        .and_then(|spec| {
-            followup::compile_followup(run, &spec).map_err(|error| error.to_string())
-        });
+        .and_then(|spec| followup::compile_followup(run, &spec).map_err(|error| error.to_string()));
     match planned {
         Ok(Some(planned)) => json!({
             "status": if planned.reused { "reused" } else { "planned" },
@@ -583,12 +581,10 @@ fn ingest_output(
 
 /// A provider spec from the native registry by id (no application is built).
 fn registry_provider_spec(id: &str) -> Result<legion_contracts::ProviderSpec, CommandError> {
-    let registry = native_provider_registry_path().ok_or_else(|| {
-        CommandError::incomplete("native Audit provider registry is unavailable")
-    })?;
-    let value: Value =
-        serde_json::from_slice(&std::fs::read(&registry).map_err(super::io_error)?)
-            .map_err(|error| CommandError::usage(format!("invalid provider registry: {error}")))?;
+    let registry = native_provider_registry_path()
+        .ok_or_else(|| CommandError::incomplete("native Audit provider registry is unavailable"))?;
+    let value: Value = serde_json::from_slice(&std::fs::read(&registry).map_err(super::io_error)?)
+        .map_err(|error| CommandError::usage(format!("invalid provider registry: {error}")))?;
     let spec = value
         .get("providers")
         .and_then(Value::as_array)

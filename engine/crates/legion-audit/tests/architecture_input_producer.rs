@@ -67,7 +67,11 @@ fn run(root: &Path, id: &str) -> ProviderResult {
 
 /// (finding id, first located path) for every finding.
 fn located(result: &ProviderResult) -> Vec<(String, String)> {
-    let locations = result.details.get("findingLocations").cloned().unwrap_or(Value::Null);
+    let locations = result
+        .details
+        .get("findingLocations")
+        .cloned()
+        .unwrap_or(Value::Null);
     result
         .findings
         .iter()
@@ -110,7 +114,11 @@ fn dirty_fixture() -> PathBuf {
     write(
         &root,
         "src/alpha.rs",
-        &module("use crate::beta::value as other;", "// REQ-1 implemented here", true),
+        &module(
+            "use crate::beta::value as other;",
+            "// REQ-1 implemented here",
+            true,
+        ),
     );
     write(
         &root,
@@ -118,7 +126,11 @@ fn dirty_fixture() -> PathBuf {
         &module("use crate::alpha::value as other;", "", true),
     );
     write(&root, "src/untested.rs", &module("", "", false));
-    write(&root, "web/package.json", "{\"name\":\"web\",\"dependencies\":{}}\n");
+    write(
+        &root,
+        "web/package.json",
+        "{\"name\":\"web\",\"dependencies\":{}}\n",
+    );
     write(
         &root,
         "web/src/a.ts",
@@ -156,7 +168,11 @@ fn clean_fixture() -> PathBuf {
     );
     write(&root, "src/lib.rs", "pub mod good;\n");
     write(&root, "src/good.rs", &module("", "", true));
-    write(&root, "README.md", "# Clean\n\nSee `src/good.rs` for the code.\n");
+    write(
+        &root,
+        "README.md",
+        "# Clean\n\nSee `src/good.rs` for the code.\n",
+    );
     root
 }
 
@@ -214,7 +230,10 @@ fn undelivered_requirement_is_reported() {
 fn providers_without_derivable_input_stay_unavailable_with_a_specific_reason() {
     let root = dirty_fixture();
     for (id, prefix) in [
-        ("compatibility.core", "compatibility-observations-not-derivable"),
+        (
+            "compatibility.core",
+            "compatibility-observations-not-derivable",
+        ),
         ("framework.backend", "no-backend-framework-detected"),
         ("framework.frontend", "no-frontend-framework-detected"),
         ("framework.data", "no-data-model-files-detected"),
@@ -271,9 +290,7 @@ fn host_injected_input_keeps_precedence() {
     let root = dirty_fixture();
     let mut injected = provider("architecture.core");
     let input = json!({"projection":{"auditFacts":{"dependencyEdges":[{"from":"x","to":"y"}]}}});
-    injected
-        .configuration
-        .insert("input".into(), input.clone());
+    injected.configuration.insert("input".into(), input.clone());
     let result = NativeProviderRegistry::new(&root)
         .execute(&injected, &inventory(&root))
         .unwrap();

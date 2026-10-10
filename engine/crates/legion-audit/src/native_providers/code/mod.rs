@@ -76,7 +76,10 @@ fn analyze(provider_id: &str, input: &Value) -> Result<Value, AuditError> {
     })
 }
 
-fn finding_ref(provider: &str, finding: &evidence::NativeFinding) -> Result<FindingRef, AuditError> {
+fn finding_ref(
+    provider: &str,
+    finding: &evidence::NativeFinding,
+) -> Result<FindingRef, AuditError> {
     let id = format!(
         "sha256:{}",
         hex::encode(Sha256::digest(
@@ -100,10 +103,7 @@ impl ProviderExecutor for ProviderExecutorAdapter {
         inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError> {
         let config = evidence::config_for(&provider.id).ok_or_else(|| {
-            AuditError::Provider(format!(
-                "unsupported native code provider: {}",
-                provider.id
-            ))
+            AuditError::Provider(format!("unsupported native code provider: {}", provider.id))
         })?;
         let injected = provider
             .configuration
@@ -142,10 +142,7 @@ impl ProviderExecutor for ProviderExecutorAdapter {
                     .cloned()
                     .unwrap_or_else(|| json!({"op": "always"}));
                 let denominator = inventory.denominator_entries(&selector)?;
-                let root = self
-                    .root
-                    .clone()
-                    .or_else(|| std::env::current_dir().ok());
+                let root = self.root.clone().or_else(|| std::env::current_dir().ok());
                 let made = evidence::produce(
                     &provider.id,
                     config,
