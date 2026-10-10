@@ -16,7 +16,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-const SCRIPT_COUNT: usize = 90;
+const SCRIPT_COUNT: usize = 92;
 const ROOT_COUNT: usize = 42;
 const DEV_COUNT: usize = 27;
 const XTASK_COUNT: usize = 16;
@@ -80,9 +80,21 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
         reason: None,
     },
     ScriptProbe {
+        key: "covenant/digest",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
         key: "covenant/validate-external-review-packet",
-        mode: ProbeMode::Precondition,
-        args: EMPTY,
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "covenant/validate-record",
+        mode: ProbeMode::Help,
+        args: HELP,
         reason: None,
     },
     ScriptProbe {

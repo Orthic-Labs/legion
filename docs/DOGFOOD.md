@@ -65,7 +65,7 @@ Agents (4)  alchemist, covenant-seat, oracle, sage
 | **Sage** | "Does a material unresolved decision require authoritative closure beyond the selected capability's routine mandate?" | `doctrine/sage.md` |
 | **Alchemist** | "How do I make the already-decided meaning exist?" | `doctrine/alchemist.md` |
 | **Oracle** | "What actually exists, what applies, what is proven, what fails, what remains unknown?" | `doctrine/oracle.md` |
-| **covenant-seat** | one isolated deliberation seat, dispatched only by `/covenant` | roster |
+| **covenant-seat** | one isolated deliberation seat, dispatched only by `/covenant` | not a roster role |
 
 ### 1.3 The 27 shipped skills
 `legion skills` and `claude plugin details legion@skills-dir` agree: **27 skills, 4 agents**, exactly:

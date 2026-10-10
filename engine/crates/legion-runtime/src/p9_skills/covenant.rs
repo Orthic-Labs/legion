@@ -189,6 +189,106 @@ pub fn validate_record_fields(record: &Value, request: Option<&Value>) -> Vec<St
     errors
 }
 
+/// Minimal structural JSON-Schema check (subset used by the covenant schemas: `type`, `const`,
+/// `enum`, `required`, `properties`, `additionalProperties: false`, `items`, `pattern`,
+/// `minLength`, `minimum`, `maximum`). Returns one defect string per violation.
+pub fn validate_against_schema(value: &Value, schema: &Value) -> Vec<String> {
+    let mut errors = Vec::new();
+    schema_walk(value, schema, "$", &mut errors);
+    errors
+}
+
+fn type_matches(value: &Value, name: &str) -> bool {
+    match name {
+        "object" => value.is_object(),
+        "array" => value.is_array(),
+        "string" => value.is_string(),
+        "boolean" => value.is_boolean(),
+        "number" => value.is_number(),
+        "integer" => value.is_i64() || value.is_u64(),
+        "null" => value.is_null(),
+        _ => true,
+    }
+}
+
+fn schema_walk(value: &Value, schema: &Value, path: &str, errors: &mut Vec<String>) {
+    if let Some(t) = schema.get("type") {
+        let ok = match t {
+            Value::String(n) => type_matches(value, n),
+            Value::Array(ns) => ns
+                .iter()
+                .filter_map(Value::as_str)
+                .any(|n| type_matches(value, n)),
+            _ => true,
+        };
+        if !ok {
+            errors.push(format!("{path} has the wrong type"));
+            return;
+        }
+    }
+    if let Some(c) = schema.get("const") {
+        if c != value {
+            errors.push(format!("{path} must equal {c}"));
+        }
+    }
+    if let Some(Value::Array(options)) = schema.get("enum") {
+        if !options.contains(value) {
+            errors.push(format!("{path} is not an allowed value"));
+        }
+    }
+    if let Some(s) = value.as_str() {
+        if let Some(n) = schema.get("minLength").and_then(Value::as_u64) {
+            if (s.chars().count() as u64) < n {
+                errors.push(format!("{path} is shorter than {n}"));
+            }
+        }
+        if let Some(p) = schema.get("pattern").and_then(Value::as_str) {
+            if let Ok(re) = regex::Regex::new(p) {
+                if !re.is_match(s) {
+                    errors.push(format!("{path} does not match {p}"));
+                }
+            }
+        }
+    }
+    if let Some(n) = value.as_f64() {
+        if let Some(min) = schema.get("minimum").and_then(Value::as_f64) {
+            if n < min {
+                errors.push(format!("{path} is below {min}"));
+            }
+        }
+        if let Some(max) = schema.get("maximum").and_then(Value::as_f64) {
+            if n > max {
+                errors.push(format!("{path} is above {max}"));
+            }
+        }
+    }
+    if let Some(obj) = value.as_object() {
+        if let Some(Value::Array(req)) = schema.get("required") {
+            for k in req.iter().filter_map(Value::as_str) {
+                if !obj.contains_key(k) {
+                    errors.push(format!("{path}.{k} is required"));
+                }
+            }
+        }
+        let props = schema.get("properties").and_then(Value::as_object);
+        for (k, v) in obj {
+            match props.and_then(|p| p.get(k)) {
+                Some(sub) => schema_walk(v, sub, &format!("{path}.{k}"), errors),
+                None => {
+                    if schema.get("additionalProperties") == Some(&Value::Bool(false)) {
+                        errors.push(format!("{path}.{k} is not an allowed property"));
+                    }
+                }
+            }
+        }
+    }
+    if let (Some(items), Some(sub)) = (value.as_array(), schema.get("items")) {
+        for (i, v) in items.iter().enumerate() {
+            schema_walk(v, sub, &format!("{path}[{i}]"), errors);
+        }
+    }
+}
+
 fn validate_dispositions(record: &Value, errors: &mut Vec<String>) {
     let empty = Vec::new();
     let dispositions = record

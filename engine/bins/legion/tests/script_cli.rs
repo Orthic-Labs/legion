@@ -492,7 +492,9 @@ fn native_script_list_includes_sc4d_ports() {
         "alchemist/parse_events",
         "alchemist/viewer",
         "brand-identity/color-check",
+        "covenant/digest",
         "covenant/validate-external-review-packet",
+        "covenant/validate-record",
         "seo/provider_registry",
         "seo/question_inventory",
         "seo/query_ownership",
@@ -514,6 +516,42 @@ fn native_script_covenant_validate_external_review_packet_missing_file_exits_2()
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+#[test]
+fn native_script_covenant_routes_help_exits_0() {
+    for key in [
+        "covenant/digest",
+        "covenant/validate-record",
+        "covenant/validate-external-review-packet",
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+            .args(["script", key, "--help"])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(0), "{key}: {output:?}");
+    }
+}
+
+#[test]
+fn native_script_covenant_validate_record_rejects_unverified_digest() {
+    let dir = std::env::temp_dir().join(format!("legion-covenant-record-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("record.json");
+    std::fs::write(
+        &path,
+        r#"{"mode":"BLOCKER_CONSULT","outcome":"CONTRACT_SAFE","integrity":{"digestVerified":false},"seatRecords":[{"isolated":true}]}"#,
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "covenant/validate-record"])
+        .arg(&path)
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("digestVerified"), "{stdout}");
 }
 
 #[test]

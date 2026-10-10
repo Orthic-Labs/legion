@@ -432,6 +432,10 @@ pub fn run(argv: &[String]) -> i32 {
     let mut packet: Option<&str> = None;
     let mut inline = false;
     let mut template = false;
+    if argv.iter().any(|a| a == "--help" || a == "-h") {
+        println!("usage: legion script covenant/validate-external-review-packet [--inline] [--template-self-check] <packet.md>\nValidate a PACKET_ONLY Covenant external review packet (exit 0 valid, 1 defects, 2 usage/IO).");
+        return 0;
+    }
     for arg in argv {
         match arg.as_str() {
             "--inline" => inline = true,

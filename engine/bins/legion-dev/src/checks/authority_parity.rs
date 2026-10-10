@@ -163,7 +163,76 @@ pub fn check(root: &Path) -> Vec<String> {
         }
     }
 
+    check_covenant_seat(root, &model_tier_map, &mut problems);
+
     problems
+}
+
+fn body_after_frontmatter(path: &Path) -> Result<String, String> {
+    let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let re = Regex::new(r"(?s)^---\r?\n.*?\r?\n---\r?\n").unwrap();
+    let body = re.replace(&text, "").to_string();
+    Ok(body.replace("\r\n", "\n").trim().to_string())
+}
+
+/// Covenant seat is not a roster role: its doctrine keeps a frontmatter description (the Codex and
+/// Gemini projections read it) and the Claude card must carry the same description, the same body,
+/// and the `deliberation` tier model, which no roster role may share.
+fn check_covenant_seat(root: &Path, model_tier_map: &serde_json::Value, problems: &mut Vec<String>) {
+    let doctrine = root.join("doctrine/covenant-seat.md");
+    let card = root.join("agents/covenant-seat.md");
+    let doctrine_desc = description(&doctrine, "doctrine/covenant-seat.md");
+    let card_desc = description(&card, "agents/covenant-seat.md");
+    for d in [&doctrine_desc, &card_desc] {
+        if let Some(err) = &d.error {
+            problems.push(format!("{}: {err}", d.path));
+        }
+    }
+    if let (Some(a), Some(b)) = (&doctrine_desc.value, &card_desc.value) {
+        if a != b {
+            problems.push(format!(
+                "covenant-seat: description drift between doctrine/covenant-seat.md and agents/covenant-seat.md\n  doctrine: {a}\n  card: {b}"
+            ));
+        }
+    }
+    match (body_after_frontmatter(&doctrine), body_after_frontmatter(&card)) {
+        (Ok(a), Ok(b)) => {
+            if a != b {
+                problems.push(
+                    "covenant-seat: agents/covenant-seat.md body differs from doctrine/covenant-seat.md body; the card must carry the doctrine body verbatim".to_string(),
+                );
+            }
+        }
+        (Err(e), _) | (_, Err(e)) => problems.push(e),
+    }
+    let deliberation = model_tier_map
+        .get("tiers")
+        .and_then(|v| v.get("deliberation"))
+        .and_then(|v| v.get("hosts"))
+        .and_then(|v| v.get(MODEL_HOST))
+        .and_then(|v| v.as_str());
+    let actual = frontmatter_field(&card, "model");
+    match deliberation {
+        None => problems.push(format!(
+            "covenant-seat: no {MODEL_HOST} model for tier 'deliberation' in src/config/model-tiers.json"
+        )),
+        Some(expected) => {
+            if actual.as_deref() != Some(expected) {
+                problems.push(format!(
+                    "covenant-seat: agents/covenant-seat.md model '{}' does not match tiers.deliberation.hosts.{MODEL_HOST} ('{expected}')",
+                    actual.as_deref().unwrap_or("<missing>")
+                ));
+            }
+            for role in ROLES {
+                let role_model = frontmatter_field(&root.join(format!("agents/{role}.md")), "model");
+                if role_model.as_deref() == Some(expected) {
+                    problems.push(format!(
+                        "{role}: agents/{role}.md uses the deliberation model '{expected}', which is reserved for Covenant seats"
+                    ));
+                }
+            }
+        }
+    }
 }
 
 pub fn run(root: &Path) -> bool {

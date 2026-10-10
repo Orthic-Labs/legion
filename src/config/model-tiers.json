@@ -17,6 +17,11 @@
       "hosts": {
         "claude-code": "haiku"
       }
+    },
+    "deliberation": {
+      "hosts": {
+        "claude-code": "fable"
+      }
     }
   }
 }

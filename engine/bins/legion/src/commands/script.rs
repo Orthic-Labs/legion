@@ -62,10 +62,12 @@ pub const TABLE: &[(&str, Entry)] = &[
         "coder/enforce_cheap_review_routing",
         coder_enforce_cheap_review_routing,
     ),
+    ("covenant/digest", covenant_digest),
     (
         "covenant/validate-external-review-packet",
         covenant_validate_external_review_packet,
     ),
+    ("covenant/validate-record", covenant_validate_record),
     ("designer/add-music", designer_add_music),
     ("designer/context", designer_context),
     ("designer/context-signals", designer_context_signals),
@@ -274,6 +276,112 @@ fn brand_identity_color_check(args: &[String]) -> i32 {
 
 fn covenant_validate_external_review_packet(args: &[String]) -> i32 {
     w2_005::run(args)
+}
+
+const COVENANT_DIGEST_HELP: &str = "usage: legion script covenant/digest <file|->\nPrint the canonical sha256 digest of a Covenant request JSON document.";
+const COVENANT_VALIDATE_RECORD_HELP: &str = "usage: legion script covenant/validate-record <record.json> [--request <req.json>]\nValidate a Covenant record against its schema and field rules (exit 0 valid, 1 defects, 2 usage/IO).";
+
+fn covenant_read_json(path: &str) -> Result<serde_json::Value, String> {
+    let text = if path == "-" {
+        let mut buf = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)
+            .map_err(|e| format!("cannot read stdin: {e}"))?;
+        buf
+    } else {
+        std::fs::read_to_string(path).map_err(|e| format!("cannot read {path}: {e}"))?
+    };
+    serde_json::from_str(&text).map_err(|e| format!("invalid JSON in {path}: {e}"))
+}
+
+fn covenant_digest(args: &[String]) -> i32 {
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        println!("{COVENANT_DIGEST_HELP}");
+        return 0;
+    }
+    let [path] = args else {
+        eprintln!("error: expected one argument <file|->\n{COVENANT_DIGEST_HELP}");
+        return 2;
+    };
+    match covenant_read_json(path) {
+        Ok(value) => {
+            println!("{}", p9_skills::covenant::digest_value(&value));
+            0
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            2
+        }
+    }
+}
+
+fn covenant_validate_record(args: &[String]) -> i32 {
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        println!("{COVENANT_VALIDATE_RECORD_HELP}");
+        return 0;
+    }
+    let mut record_path: Option<&String> = None;
+    let mut request_path: Option<&String> = None;
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        if arg == "--request" {
+            match iter.next() {
+                Some(v) => request_path = Some(v),
+                None => {
+                    eprintln!("error: --request needs a path\n{COVENANT_VALIDATE_RECORD_HELP}");
+                    return 2;
+                }
+            }
+        } else if record_path.is_none() {
+            record_path = Some(arg);
+        } else {
+            eprintln!("error: unexpected argument {arg}\n{COVENANT_VALIDATE_RECORD_HELP}");
+            return 2;
+        }
+    }
+    let Some(record_path) = record_path else {
+        eprintln!("error: record path is required\n{COVENANT_VALIDATE_RECORD_HELP}");
+        return 2;
+    };
+    let record = match covenant_read_json(record_path) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let request = match request_path {
+        Some(p) => match covenant_read_json(p) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                eprintln!("error: {e}");
+                return 2;
+            }
+        },
+        None => None,
+    };
+    let schema_path = find_skills_root().join("skills/covenant/lib/schemas/covenant-record-v1.schema.json");
+    let schema = match covenant_read_json(&schema_path.to_string_lossy()) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let mut errors = p9_skills::covenant::validate_against_schema(&record, &schema);
+    errors.extend(p9_skills::covenant::validate_record_fields(
+        &record,
+        request.as_ref(),
+    ));
+    if errors.is_empty() {
+        println!("PASS: Covenant record is valid");
+        0
+    } else {
+        println!("FAIL: {} record defect(s)", errors.len());
+        for e in &errors {
+            println!("- {e}");
+        }
+        1
+    }
 }
 
 // ---- seo -------------------------------------------------------------

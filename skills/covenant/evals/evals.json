@@ -3,20 +3,64 @@
   "skill": "covenant",
   "proof_note": "Each model_free case previously named covenant.test.mjs, which was deleted with the packet engine (ebb349ae) and has no runner. The expected behaviours are kept as specification data; proof is unwired until a native test covers them.",
   "model_free": [
-    {"id":"COV-SAGE-01","proof":"unwired","expected":"routine architecture does not auto-trigger Covenant"},
-    {"id":"COV-SAGE-02","proof":"unwired","expected":"challenge, disposition, revision, unprimed fresh verdict"},
-    {"id":"COV-SAGE-03","proof":"unwired","expected":"Covenant cannot seal"},
-    {"id":"COV-SAGE-04","proof":"unwired","expected":"changed digest makes verdict stale"},
-    {"id":"COV-ALCH-01","proof":"unwired","expected":"mechanically contract-safe path"},
-    {"id":"COV-ALCH-02","proof":"unwired","expected":"semantic change requires amendment"},
-    {"id":"COV-ALCH-03","proof":"unwired","expected":"out-of-scope cleanup rejected"},
-    {"id":"COV-ALCH-04","proof":"unwired","expected":"review agreement grants no authority"},
-    {"id":"COV-SEER-01","proof":"unwired","expected":"routine Seer flow stays independent"},
-    {"id":"COV-SEER-02","proof":"unwired","expected":"explicit dispute stays advisory"}
+    {
+      "id": "COV-SAGE-01",
+      "proof": "unwired",
+      "expected": "routine architecture does not auto-trigger Covenant"
+    },
+    {
+      "id": "COV-SAGE-02",
+      "proof": "unwired",
+      "expected": "challenge, disposition, revision, unprimed fresh verdict"
+    },
+    {
+      "id": "COV-SAGE-03",
+      "proof": "unwired",
+      "expected": "Covenant cannot seal"
+    },
+    {
+      "id": "COV-SAGE-04",
+      "proof": "unwired",
+      "expected": "changed digest makes verdict stale"
+    },
+    {
+      "id": "COV-ALCH-01",
+      "proof": "unwired",
+      "expected": "mechanically contract-safe path"
+    },
+    {
+      "id": "COV-ALCH-02",
+      "proof": "unwired",
+      "expected": "semantic change requires amendment"
+    },
+    {
+      "id": "COV-ALCH-03",
+      "proof": "unwired",
+      "expected": "out-of-scope cleanup rejected"
+    },
+    {
+      "id": "COV-ALCH-04",
+      "proof": "unwired",
+      "expected": "review agreement grants no authority"
+    },
+    {
+      "id": "COV-SEER-01",
+      "proof": "unwired",
+      "expected": "routine Seer flow stays independent"
+    },
+    {
+      "id": "COV-SEER-02",
+      "proof": "unwired",
+      "expected": "explicit dispute stays advisory"
+    }
   ],
   "packet_contracts": [
-    "packet-only-no-review", "ordinary-review-no-trigger", "fresh-verdict-isolation",
-    "fallback-degradation-explicit", "read-only-review", "mutation-invalidates-review"
+    "packet-only-no-review",
+    "ordinary-review-no-trigger",
+    "fresh-verdict-isolation",
+    "fallback-degradation-explicit",
+    "read-only-review",
+    "mutation-invalidates-review"
   ],
   "run_deferred": [],
   "should_trigger": [
@@ -31,12 +75,42 @@
     },
     {
       "id": "covenant-blocker-consult",
-      "prompt": "Alchemist hit a blocker and thinks there may be a contract-safe way through. Get a second opinion.",
+      "prompt": "Alchemist hit a blocker and thinks there may be a contract-safe way through. /covenant consult on that blocker.",
       "expected_skill": "covenant",
       "forbidden_skills": [],
       "expected_behavior": "Convenes BLOCKER_CONSULT and returns CONTRACT_SAFE, AMENDMENT_REQUIRED, or INSUFFICIENT_EVIDENCE; disposition returns to the caller.",
       "severity": "error",
       "mode": "discovery"
+    },
+    {
+      "id": "covenant-packet-md-only",
+      "prompt": "/covenant packet: explain this dispatch failure for MiniMax and Qwen. Save it as markdown.",
+      "expected_skill": "covenant",
+      "forbidden_skills": [],
+      "expected_behavior": "Creates a durable zero-context external-review packet without running deliberation or seats.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        {
+          "type": "required_text",
+          "value": "PACKET_ONLY — DO_NOT_RUN_COVENANT"
+        }
+      ]
+    },
+    {
+      "id": "covenant-packet-inline-only",
+      "prompt": "/covenant packet inline for an outside agent. I only want a copy-paste problem brief, not a review.",
+      "expected_skill": "covenant",
+      "forbidden_skills": [],
+      "expected_behavior": "Returns an external-review packet inline and performs no panel or seat execution.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        {
+          "type": "required_text",
+          "value": "PACKET_ONLY — DO_NOT_RUN_COVENANT"
+        }
+      ]
     }
   ],
   "should_not_trigger": [
@@ -44,7 +118,9 @@
       "id": "covenant-not-routine-architecture",
       "prompt": "Design the retry policy for this queue consumer.",
       "expected_skill": null,
-      "forbidden_skills": ["covenant"],
+      "forbidden_skills": [
+        "covenant"
+      ],
       "expected_behavior": "Routine architecture is decided by the Architect capability, not a skill; Covenant is not convened as ceremony.",
       "severity": "error",
       "mode": "discovery"
@@ -53,8 +129,21 @@
       "id": "covenant-not-behind-oracle",
       "prompt": "Oracle found three failing controls — review its findings before I act.",
       "expected_skill": null,
-      "forbidden_skills": ["covenant"],
+      "forbidden_skills": [
+        "covenant"
+      ],
       "expected_behavior": "The Oracle agent already IS independent assurance; no panel is stacked behind it by default (G14, COV-SEER-01).",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "covenant-not-generic-second-opinion",
+      "prompt": "Get a second opinion on this diff before we merge.",
+      "expected_skill": null,
+      "forbidden_skills": [
+        "covenant"
+      ],
+      "expected_behavior": "Covenant stays explicit opt-in; a generic second-opinion request does not convene it.",
       "severity": "error",
       "mode": "discovery"
     }

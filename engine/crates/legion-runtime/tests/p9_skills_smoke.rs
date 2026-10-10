@@ -84,3 +84,17 @@ fn render_gap_diff_flags_client_only_signal() {
     let diff = diff_signals("https://example.com", raw, rendered);
     assert!(diff.client_only_signals.contains(&"title"));
 }
+
+#[test]
+fn covenant_schema_copies_are_byte_equal() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    for name in [
+        "covenant-record-v1.schema.json",
+        "covenant-request-v1.schema.json",
+    ] {
+        let skill = std::fs::read(root.join("skills/covenant/lib/schemas").join(name)).unwrap();
+        let contracts =
+            std::fs::read(root.join("src/packages/contracts/schemas").join(name)).unwrap();
+        assert_eq!(skill, contracts, "{name} copies diverged");
+    }
+}

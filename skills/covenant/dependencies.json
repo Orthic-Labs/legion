@@ -3,6 +3,86 @@
   "kind": "legion-skill-dependencies",
   "resources": [
     {
+      "class": "PACKAGE_INTERNAL",
+      "path": "assets/external-review-packet-template.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "lib/schemas/covenant-request-v1.schema.json"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "lib/schemas/covenant-record-v1.schema.json"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/README.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/ad.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/blogs.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/brand-voice.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/business-plan.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/code.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/compliance-risk.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/content-strategy.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/design.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/idea.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/image.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/launch.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/offer.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/plan.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/priority.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/seo.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/video.md"
+    },
+    {
       "class": "HOST_CAPABILITY",
       "capability": "legion"
     }

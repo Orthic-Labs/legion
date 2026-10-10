@@ -22,7 +22,7 @@
     "convenedBy": {
       "type": ["string", "null"],
       "const": "legion",
-      "description": "Present only when the Legion orchestrator convened this request on user/policy request (COVENANT §11). Never equals callerAuthority; the orchestrator never becomes the caller of record."
+      "description": "Present only when the Legion orchestrator convened this request on user/policy request. Never equals callerAuthority; the orchestrator never becomes the caller of record."
     },
     "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY", "DISPUTE_REVIEW"] },
 
@@ -38,7 +38,7 @@
       "additionalProperties": false,
       "required": ["verbatim", "interpretedSuccessCriteria"],
       "properties": {
-        "verbatim": { "type": "string", "minLength": 1, "description": "COVENANT §2.2/C13: the user's exact request, never replaced by the author's interpretation." },
+        "verbatim": { "type": "string", "minLength": 1, "description": "The user's exact request, never replaced by the author's interpretation." },
         "interpretedSuccessCriteria": { "type": "string", "minLength": 1 }
       }
     },
@@ -52,7 +52,7 @@
     "embeddedEvidence": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "COVENANT §2.5/C12: real diff/file content or real screenshots, not only prose summary — 'no evidence, no verdict'."
+      "description": "Real diff/file content or real screenshots, not only prose summary — 'no evidence, no verdict'."
     },
 
     "knownUnknowns": { "type": "array", "items": { "type": "string" } },

@@ -38,8 +38,8 @@ note rather than silently rewritten:
 
 - Every lens: a note explaining that "Veto power" phrasing is retained as the original craft's
   severity framing, but under Covenant doctrine (C-invariants) a seat is advisory only — never
-  decides or disposes. What reads as "blocks" here is a maximum-severity finding for the caller
-  (Sage or Alchemist) to weigh.
+  decides or disposes. What reads as "blocks" here is a maximum-severity finding for
+  the decision owner to weigh.
 - `seo.md`: a note explaining the retired Council SEO command and retired
   `src/lib/review/dual_review.py` CLI do not exist in Covenant; the rubric content is preserved, the
   delivery mechanism is not.
