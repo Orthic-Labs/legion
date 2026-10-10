@@ -268,12 +268,14 @@ pub fn analyze(input: &Value) -> Value {
         .iter()
         .flat_map(|r| {
             let manifest = r.get("manifest").cloned().unwrap_or(Value::Null);
-            array(r.get("findings")).into_iter().map(move |mut finding| {
-                if let Some(object) = finding.as_object_mut() {
-                    object.entry("manifest").or_insert_with(|| manifest.clone());
-                }
-                finding
-            })
+            array(r.get("findings"))
+                .into_iter()
+                .map(move |mut finding| {
+                    if let Some(object) = finding.as_object_mut() {
+                        object.entry("manifest").or_insert_with(|| manifest.clone());
+                    }
+                    finding
+                })
         })
         .collect::<Vec<_>>();
     json!({"status":if gaps.is_empty(){"pass"}else{"unproven"},"complete":gaps.is_empty(),"denominator":{"kind":"dependency-manifests","expected":manifests.len(),"examined":receipts.len()},"findings":findings,"coverageGaps":gaps})

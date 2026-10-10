@@ -44,7 +44,9 @@ use crate::{
         security::producer::SandboxPolicy,
     },
 };
-use legion_provider_sdk::{ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest};
+use legion_provider_sdk::{
+    ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
+};
 use regex::Regex;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -242,11 +244,7 @@ fn read_small(path: &Path) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
-fn cap_roots(
-    mut dirs: Vec<String>,
-    tool: &str,
-    notes: &mut Vec<String>,
-) -> Vec<String> {
+fn cap_roots(mut dirs: Vec<String>, tool: &str, notes: &mut Vec<String>) -> Vec<String> {
     if dirs.len() > MAX_ROOTS {
         notes.push(format!(
             "tool-roots-truncated:{tool}:{}",
@@ -288,8 +286,8 @@ fn plan_rust(root: &Path, entries: &[InventoryEntry], plan: &mut Plan) {
         .collect();
     let run_roots = cap_roots(run_roots, "cargo", &mut plan.notes);
     for dir in run_roots {
-        let command = |tool: &'static str, args: &[&str], parser: Parser, accepted: &'static [i32]| {
-            Planned {
+        let command =
+            |tool: &'static str, args: &[&str], parser: Parser, accepted: &'static [i32]| Planned {
                 tool,
                 programs: &["cargo"],
                 local_bin: false,
@@ -301,8 +299,7 @@ fn plan_rust(root: &Path, entries: &[InventoryEntry], plan: &mut Plan) {
                 accepted,
                 env: Vec::new(),
                 diagnostics_on_stderr: false,
-            }
-        };
+            };
         plan.commands.push(command(
             "metadata",
             &["metadata", "--locked", "--offline", "--format-version", "1"],
@@ -348,7 +345,9 @@ fn plan_javascript(
     plan: &mut Plan,
 ) {
     let tsconfigs = cap_roots(
-        dirs_named(entries, &["tsconfig.json"]).into_iter().collect(),
+        dirs_named(entries, &["tsconfig.json"])
+            .into_iter()
+            .collect(),
         "tsc",
         &mut plan.notes,
     );
@@ -390,7 +389,9 @@ fn plan_javascript(
         });
     }
     let eslint_dirs = cap_roots(
-        dirs_named(entries, CONFIG_FILES_ESLINT).into_iter().collect(),
+        dirs_named(entries, CONFIG_FILES_ESLINT)
+            .into_iter()
+            .collect(),
         "eslint",
         &mut plan.notes,
     );
@@ -690,9 +691,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn on_path(&self, name: &str) -> Option<PathBuf> {
-        self.search_dirs()
-            .iter()
-            .find_map(|dir| in_dir(dir, name))
+        self.search_dirs().iter().find_map(|dir| in_dir(dir, name))
     }
 
     fn local_bin(&self, cwd: &Path, name: &str) -> Option<PathBuf> {
@@ -727,7 +726,8 @@ impl<'a> Resolver<'a> {
             if command.local_bin {
                 self.local_bin(cwd, name)
             } else {
-                self.on_path(name).or_else(|| self.beside(command.sibling_of, name))
+                self.on_path(name)
+                    .or_else(|| self.beside(command.sibling_of, name))
             }
         });
         self.cache.insert(key, found.clone());
@@ -810,7 +810,10 @@ struct Diag {
     message: String,
 }
 
-fn read_artifact(scratch: &AuditScratch, record: &legion_effects::ArtifactRecord) -> Option<Vec<u8>> {
+fn read_artifact(
+    scratch: &AuditScratch,
+    record: &legion_effects::ArtifactRecord,
+) -> Option<Vec<u8>> {
     if !record.immutable {
         return None;
     }
@@ -826,7 +829,9 @@ fn read_artifact(scratch: &AuditScratch, record: &legion_effects::ArtifactRecord
 fn classify(tool: &str, receipt: &ExecutionReceipt) -> Option<Outcome> {
     match receipt.state {
         ExecutionState::Completed if receipt.complete => None,
-        ExecutionState::Completed => Some(Outcome::Failed(format!("tool-failed:{tool}:incomplete"))),
+        ExecutionState::Completed => {
+            Some(Outcome::Failed(format!("tool-failed:{tool}:incomplete")))
+        }
         ExecutionState::MissingExecutable => Some(Outcome::Missing),
         ExecutionState::Timeout => Some(Outcome::Timeout),
         ExecutionState::SandboxMissing => Some(Outcome::SandboxMissing),
@@ -889,7 +894,13 @@ async fn run_one(
             environment.insert("PATH".into(), joined.to_string_lossy().into_owned());
         }
     }
-    for name in ["CARGO_HOME", "RUSTUP_HOME", "GOPATH", "GOROOT", "GOMODCACHE"] {
+    for name in [
+        "CARGO_HOME",
+        "RUSTUP_HOME",
+        "GOPATH",
+        "GOROOT",
+        "GOMODCACHE",
+    ] {
         if let Ok(value) = std::env::var(name) {
             environment.insert(name.into(), value);
             allowlist.insert(name.into());
@@ -1066,7 +1077,8 @@ async fn run_one(
         }
     }
     if output.outcome == Outcome::Ran && output.version.is_empty() {
-        output.outcome = Outcome::Failed(format!("tool-failed:{}:version-unreadable", command.tool));
+        output.outcome =
+            Outcome::Failed(format!("tool-failed:{}:version-unreadable", command.tool));
     }
     output
 }
@@ -1128,9 +1140,7 @@ fn parse_cargo(bytes: &[u8], clippy: bool) -> Result<Vec<Diag>, String> {
                 let primary = spans.and_then(|spans| {
                     spans
                         .iter()
-                        .find(|span| {
-                            span.get("is_primary").and_then(Value::as_bool) == Some(true)
-                        })
+                        .find(|span| span.get("is_primary").and_then(Value::as_bool) == Some(true))
                         .or_else(|| spans.first())
                 });
                 let Some(span) = primary else {
@@ -1190,7 +1200,11 @@ fn parse_tsc(bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, String> {
         if let Some(captures) = located.captures(line) {
             out.push(Diag {
                 rule: format!("tsc:{}", &captures[4]),
-                severity: if &captures[3] == "error" { "error" } else { "warning" },
+                severity: if &captures[3] == "error" {
+                    "error"
+                } else {
+                    "warning"
+                },
                 path: captures[1].to_owned(),
                 line: captures[2].parse::<usize>().unwrap_or(1).max(1),
                 message: shorten(&captures[5]),
@@ -1206,8 +1220,11 @@ fn parse_tsc(bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, String> {
 }
 
 fn parse_eslint(bytes: &[u8]) -> Result<Vec<Diag>, String> {
-    let value: Value = serde_json::from_slice(bytes).map_err(|_| "unparseable-output".to_owned())?;
-    let results = value.as_array().ok_or_else(|| "unparseable-output".to_owned())?;
+    let value: Value =
+        serde_json::from_slice(bytes).map_err(|_| "unparseable-output".to_owned())?;
+    let results = value
+        .as_array()
+        .ok_or_else(|| "unparseable-output".to_owned())?;
     let mut out = Vec::new();
     for result in results {
         let Some(file) = result.get("filePath").and_then(Value::as_str) else {
@@ -1237,8 +1254,11 @@ fn parse_eslint(bytes: &[u8]) -> Result<Vec<Diag>, String> {
 }
 
 fn parse_ruff(bytes: &[u8]) -> Result<Vec<Diag>, String> {
-    let value: Value = serde_json::from_slice(bytes).map_err(|_| "unparseable-output".to_owned())?;
-    let results = value.as_array().ok_or_else(|| "unparseable-output".to_owned())?;
+    let value: Value =
+        serde_json::from_slice(bytes).map_err(|_| "unparseable-output".to_owned())?;
+    let results = value
+        .as_array()
+        .ok_or_else(|| "unparseable-output".to_owned())?;
     let mut out = Vec::new();
     for result in results {
         let Some(file) = result.get("filename").and_then(Value::as_str) else {
@@ -1461,7 +1481,9 @@ pub async fn run(
             })
         };
         let artifact_digest = if ran && !accumulator.stdout_digests.is_empty() {
-            json!(sha256_text(accumulator.stdout_digests.join("\n").as_bytes()))
+            json!(sha256_text(
+                accumulator.stdout_digests.join("\n").as_bytes()
+            ))
         } else {
             Value::Null
         };

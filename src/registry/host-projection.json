@@ -342,50 +342,6 @@
       "source": "skills/brand-identity/SKILL.md"
     },
     {
-      "id": "coder",
-      "name": "coder",
-      "description": "Explicit opt-in router for scoped read-only code analysis through a declared external model-provider CLI. Use only for `/coder`, explicit outsourced analysis, or a named provider model/tier.",
-      "kind": "entrypoint",
-      "discoverability": "explicit",
-      "invocation": {
-        "user": true,
-        "model": false
-      },
-      "domain": null,
-      "hostRequirements": [
-        "pi-cli",
-        "legion"
-      ],
-      "hostRequirementDetails": [
-        {
-          "id": "pi-cli",
-          "kind": "command-line-provider",
-          "summary": "Pi command-line model provider used only by Coder's explicit, bounded read-only analysis route.",
-          "degradation": "Coder returns a typed unavailable-provider result and performs no outsourced analysis.",
-          "remedy": "Install the Pi CLI and expose its `pi` command on PATH, then invoke Coder again.",
-          "probe": {
-            "kind": "command-any",
-            "commands": [
-              "pi"
-            ]
-          }
-        },
-        {
-          "id": "legion",
-          "kind": "command-line-tool",
-          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
-          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
-          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
-          "probe": {
-            "kind": "command",
-            "command": "legion"
-          }
-        }
-      ],
-      "scopedRequirements": [],
-      "source": "skills/coder/SKILL.md"
-    },
-    {
       "id": "commit",
       "name": "commit",
       "description": "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push.",
@@ -1277,10 +1233,6 @@
     {
       "id": "okf",
       "degradation": "Emit the uncompressed human deliverable only and state that no OKF bundle was produced."
-    },
-    {
-      "id": "pi-cli",
-      "degradation": "Coder returns a typed unavailable-provider result and performs no outsourced analysis."
     },
     {
       "id": "rightkit-owns",

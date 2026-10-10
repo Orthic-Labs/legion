@@ -326,7 +326,9 @@ impl ProviderExecutor for SecurityProviderExecutor {
             details,
         };
         if out_of_scope_count > 0 {
-            let gap = format!("{{\"count\":{out_of_scope_count},\"kind\":\"finding-outside-denominator\"}}");
+            let gap = format!(
+                "{{\"count\":{out_of_scope_count},\"kind\":\"finding-outside-denominator\"}}"
+            );
             result.complete = false;
             if matches!(result.status, ProviderStatus::Complete | ProviderStatus::Ok) {
                 result.status = ProviderStatus::Partial;
@@ -378,7 +380,10 @@ fn finding_path(finding: &Value, paths: Option<&BTreeSet<&str>>) -> Option<Strin
         .get("location")
         .and_then(|location| text_field(location, &["path", "file"]));
     let candidates = [
-        text_field(finding, &["file", "File", "path", "evidencePath", "manifest"]),
+        text_field(
+            finding,
+            &["file", "File", "path", "evidencePath", "manifest"],
+        ),
         nested,
         sarif_uri,
         text_field(finding, &["target", "Target"]),
@@ -421,7 +426,11 @@ fn finding_line(finding: &Value) -> u64 {
     .unwrap_or(1)
 }
 
-fn locate_findings(provider: &str, findings: &[Value], paths: Option<&[String]>) -> LocatedFindings {
+fn locate_findings(
+    provider: &str,
+    findings: &[Value],
+    paths: Option<&[String]>,
+) -> LocatedFindings {
     let set: Option<BTreeSet<&str>> = paths.map(|paths| paths.iter().map(String::as_str).collect());
     let mut located = LocatedFindings {
         refs: Vec::new(),
@@ -454,7 +463,9 @@ fn locate_findings(provider: &str, findings: &[Value], paths: Option<&[String]>)
                 format!(
                     "sha256:{}",
                     hex::encode(Sha256::digest(
-                        serde_json::to_string(finding).unwrap_or_default().as_bytes()
+                        serde_json::to_string(finding)
+                            .unwrap_or_default()
+                            .as_bytes()
                     ))
                 )
             });
