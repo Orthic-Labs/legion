@@ -131,6 +131,28 @@ fn record_qualification(
     }
 }
 
+/// `governance.capability-ownership` is advisory unless the host marks it
+/// required (`AUDIT_OWNERSHIP_SCAN_REQUIRED`, frozen as `provider.required`).
+/// An advisory provider that cannot complete degrades to non-blocking
+/// coverage notes instead of blocking gaps.
+pub(crate) fn is_advisory_ownership(provider: &AuditProvider) -> bool {
+    provider.id == OWNERSHIP_PROVIDER_ID && !provider.required
+}
+
+pub(crate) const OWNERSHIP_PROVIDER_ID: &str = "governance.capability-ownership";
+
+fn advisory_ownership_notes(result: &ProviderResult) -> Vec<String> {
+    let mut notes: Vec<String> = result
+        .coverage_gaps
+        .iter()
+        .map(|gap| format!("ownership-scan-degraded:{gap}"))
+        .collect();
+    if notes.is_empty() {
+        notes.push("ownership-scan-degraded:incomplete".into());
+    }
+    notes
+}
+
 fn provider_id(value: &str) -> Result<ProviderId, AuditError> {
     ProviderId::new(value).map_err(AuditError::from)
 }
@@ -317,8 +339,12 @@ pub fn execute(
                         record_lenses(provider, &mut lenses_ran, &mut deterministic_lens_tags);
                     } else {
                         failed.insert(provider.id.clone());
-                        gaps.push(format!("provider-incomplete:{}", provider.id));
-                        gaps.extend(result.coverage_gaps.iter().cloned());
+                        if is_advisory_ownership(provider) {
+                            coverage_notes.extend(advisory_ownership_notes(&result));
+                        } else {
+                            gaps.push(format!("provider-incomplete:{}", provider.id));
+                            gaps.extend(result.coverage_gaps.iter().cloned());
+                        }
                         if is_pending_host(provider, &result) {
                             gaps.push(format!("reasoning-lens-pending-host:{}", provider.id));
                             pending_host.push(provider.id.clone());
@@ -477,8 +503,12 @@ pub async fn execute_with_cancellation(
                             record_lenses(provider, &mut lenses_ran, &mut deterministic_lens_tags);
                         } else {
                             failed.insert(provider.id.clone());
-                            gaps.push(format!("provider-incomplete:{}", provider.id));
-                            gaps.extend(result.coverage_gaps.iter().cloned());
+                            if is_advisory_ownership(provider) {
+                                coverage_notes.extend(advisory_ownership_notes(&result));
+                            } else {
+                                gaps.push(format!("provider-incomplete:{}", provider.id));
+                                gaps.extend(result.coverage_gaps.iter().cloned());
+                            }
                             if is_pending_host(provider, &result) {
                                 gaps.push(format!("reasoning-lens-pending-host:{}", provider.id));
                                 pending_host.push(provider.id.clone());

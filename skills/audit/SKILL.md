@@ -59,8 +59,9 @@ overrides it.
 4. Project-executing checks need trusted host network-sandbox receipt; without it they are
    `UNPROVEN`; file-only providers still run.
    If the trusted host declares `AUDIT_OWNERSHIP_SCAN_CMD`, provider `governance.capability-ownership`
-   runs it read-only (findings non-blocking unless the host sets `AUDIT_OWNERSHIP_SCAN_REQUIRED=1`);
-   undeclared means not-applicable, never clean.
+   runs it read-only; findings are advisory "duplicates RightKit owner" notes (listed under
+   `advisoryFindings`, never blocking unless the host sets `AUDIT_OWNERSHIP_SCAN_REQUIRED=1`);
+   an unset command is reported as the degradation note `ownership-scan-unavailable`, never clean.
 5. Read `plan.json` before `facts.json`; every contract-enumerated failure is `UNPROVEN` & keeps
    audit incomplete.
 6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.

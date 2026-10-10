@@ -90,11 +90,14 @@ whether the host declared it and the command digest (`hostDeclaration` in provid
 
 - `AUDIT_OWNERSHIP_SCAN_CMD`: JSON argv array (no shell). Run with the frozen root as working
   directory and a minimal environment. The command must be read-only and print
-  `{"schemaVersion":1,"findings":[{"rule","path","line","message","capability"?,"owner"?}]}`.
+  `{"schemaVersion":1,"findings":[{"rule","path","line"?,"message","capability"?,"owner"?}]}`.
   Legion ships no ownership ruleset; the host owns it.
-- Not declared: provider is `not-applicable` (`host-declaration-absent`), never clean-by-absence.
+- `line` is optional; absent means a file-level finding (reported at line 1, `lineKnown: false`).
+- Not declared: provider is skipped (`host-declaration-absent`) and the report carries the coverage
+  note `ownership-scan-unavailable:AUDIT_OWNERSHIP_SCAN_CMD unset`; it never blocks a clean verdict.
 - `AUDIT_OWNERSHIP_SCAN_REQUIRED=1`: host marks the provider required for a clean claim. Otherwise
-  findings are `warning` and non-blocking.
+  findings are advisory `warning`s listed under `advisoryFindings`, and its gaps become
+  non-blocking `ownership-scan-degraded:*` coverage notes.
 - Declaration drift since planning, spawn failure, timeout, non-zero exit, invalid output, or a
   finding outside the frozen denominator: typed gap, provider `UNPROVEN`.
 

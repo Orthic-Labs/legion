@@ -3,7 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use legion_contracts::{Finding, FindingId, ReportId, ReportStatus, ReportV1};
 use serde_json::{json, Value};
 
-use crate::{error::AuditError, execution::ExecutionReport};
+use crate::{
+    error::AuditError,
+    execution::{ExecutionReport, OWNERSHIP_PROVIDER_ID},
+};
 
 pub fn canonical_report(
     repository_id: &str,
@@ -14,6 +17,8 @@ pub fn canonical_report(
     let mut gaps = execution.gaps.clone();
     let mut semantic_review = serde_json::Map::new();
     let mut change_risk = Value::Null;
+    let mut advisory_ids: BTreeSet<String> = BTreeSet::new();
+    let mut coverage_notes = execution.coverage_notes.clone();
     if execution.plan_signature.is_none() {
         gaps.push("unsigned-plan".into());
     }
@@ -58,13 +63,40 @@ pub fn canonical_report(
                     })
                 });
         }
-        gaps.extend(
-            provider
+        if !provider.result.applicable
+            && provider
                 .result
-                .degradation
-                .iter()
-                .map(|gap| format!("provider-degradation:{}:{gap}", provider.provider)),
-        );
+                .details
+                .get("notApplicableReason")
+                .and_then(Value::as_str)
+                == Some("host-declaration-absent")
+        {
+            // Absence of a host declaration is a typed degradation note, never
+            // a silent not-applicable and never a blocking gap.
+            coverage_notes.push(if provider.provider == OWNERSHIP_PROVIDER_ID {
+                "ownership-scan-unavailable:AUDIT_OWNERSHIP_SCAN_CMD unset".to_owned()
+            } else {
+                format!("host-declaration-absent:{}", provider.provider)
+            });
+        }
+        if provider.provider == OWNERSHIP_PROVIDER_ID && !provider.result.required {
+            // Advisory provider: degradation is a coverage note, not a gap.
+            coverage_notes.extend(
+                provider
+                    .result
+                    .degradation
+                    .iter()
+                    .map(|gap| format!("ownership-scan-degraded:{gap}")),
+            );
+        } else {
+            gaps.extend(
+                provider
+                    .result
+                    .degradation
+                    .iter()
+                    .map(|gap| format!("provider-degradation:{}:{gap}", provider.provider)),
+            );
+        }
         for finding in &provider.result.findings {
             if !finding_ids.insert(finding.id.clone()) {
                 gaps.push(format!("duplicate-finding-id:{}", finding.id));
@@ -122,6 +154,9 @@ pub fn canonical_report(
                 &finding.id,
                 "Provider reported a finding",
             );
+            if provider.provider == OWNERSHIP_PROVIDER_ID && !provider.result.required {
+                advisory_ids.insert(finding.id.to_string());
+            }
             findings.push(Finding {
                 id: FindingId::new(finding.id.as_str())?,
                 severity: finding.severity.clone(),
@@ -136,9 +171,29 @@ pub fn canonical_report(
     gaps.sort();
     gaps.dedup();
     findings.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+    coverage_notes.sort();
+    coverage_notes.dedup();
+    let advisory_findings: Vec<Value> = findings
+        .iter()
+        .filter(|finding| advisory_ids.contains(finding.id.as_str()))
+        .map(|finding| {
+            json!({
+                "id": finding.id.as_str(),
+                "provider": finding.provider,
+                "severity": finding.severity,
+                "message": finding.message,
+                "locations": finding.locations,
+                "evidence": finding.evidence,
+            })
+        })
+        .collect();
+    let blocking_findings = findings
+        .iter()
+        .filter(|finding| !advisory_ids.contains(finding.id.as_str()))
+        .count();
     let status = if !gaps.is_empty() {
         ReportStatus::Incomplete
-    } else if findings.is_empty() {
+    } else if blocking_findings == 0 {
         ReportStatus::Clean
     } else {
         ReportStatus::Findings
@@ -191,7 +246,7 @@ pub fn canonical_report(
                 "deterministicLensTagCounts".into(),
                 json!(execution.deterministic_lens_tags),
             ),
-            ("coverageNotes".into(), json!(execution.coverage_notes)),
+            ("coverageNotes".into(), json!(coverage_notes)),
         ]),
         targets: vec![repository_id.to_owned()],
         extensions: BTreeMap::from([
@@ -202,6 +257,7 @@ pub fn canonical_report(
             ),
             ("semanticReview".into(), Value::Object(semantic_review)),
             ("changeRisk".into(), change_risk),
+            ("advisoryFindings".into(), Value::Array(advisory_findings)),
         ]),
     };
     report.validate()?;
@@ -342,5 +398,64 @@ mod tests {
         assert!(report
             .gaps
             .contains(&"semantic-review-unproven:spec".into()));
+    }
+
+    fn ownership_with_finding(required: bool) -> ProviderExecution {
+        let mut row = provider(
+            "governance.capability-ownership",
+            json!({
+                "findingMessages": {"governance.capability-ownership:audio.cargo.hound": "audio duplicates RightKit owner rightkit-audio"}
+            }),
+        );
+        row.result.required = required;
+        row.result.findings.push(FindingRef {
+            id: FindingId::new("governance.capability-ownership:audio.cargo.hound").unwrap(),
+            severity: "warning".into(),
+        });
+        row
+    }
+
+    #[test]
+    fn ownership_findings_are_advisory_and_listed() {
+        let report = canonical_report("fixture", &execution(vec![ownership_with_finding(false)]))
+            .unwrap();
+        assert_eq!(report.status, ReportStatus::Clean);
+        assert_eq!(report.findings.len(), 1);
+        let advisory = report.extensions["advisoryFindings"].as_array().unwrap();
+        assert_eq!(advisory.len(), 1);
+        assert_eq!(
+            advisory[0]["id"],
+            "governance.capability-ownership:audio.cargo.hound"
+        );
+    }
+
+    #[test]
+    fn required_ownership_findings_block_clean() {
+        let report =
+            canonical_report("fixture", &execution(vec![ownership_with_finding(true)])).unwrap();
+        assert_eq!(report.status, ReportStatus::Findings);
+        assert!(report.extensions["advisoryFindings"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn unset_ownership_command_is_a_non_blocking_degradation_note() {
+        let mut row = provider(
+            "governance.capability-ownership",
+            json!({"notApplicable": true, "notApplicableReason": "host-declaration-absent"}),
+        );
+        row.result.applicable = false;
+        row.result.required = false;
+        let report = canonical_report("fixture", &execution(vec![row])).unwrap();
+        assert_eq!(report.status, ReportStatus::Clean);
+        assert!(report.gaps.is_empty());
+        assert!(report.claims["coverageNotes"]
+            .as_array()
+            .unwrap()
+            .contains(&json!(
+                "ownership-scan-unavailable:AUDIT_OWNERSHIP_SCAN_CMD unset"
+            )));
     }
 }

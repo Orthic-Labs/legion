@@ -84,8 +84,10 @@ rendered evidence, or `--visual-baselines <map.json>` for baseline comparison.
 ## Capability ownership (host-declared)
 
 If the trusted host sets `AUDIT_OWNERSHIP_SCAN_CMD`, `governance.capability-ownership` runs that
-read-only command and maps its `path:line` findings into the report; otherwise it is
-`not-applicable`, never clean. See `provider-architecture.md`.
+read-only command and maps its findings (`line` optional; file-level when absent) into the report
+as advisory "duplicates RightKit owner" notes under `advisoryFindings`. When unset it reports the
+non-blocking coverage note `ownership-scan-unavailable:AUDIT_OWNERSHIP_SCAN_CMD unset`, never a
+silent not-applicable. See `provider-architecture.md`.
 
 ## `UNPROVEN` conditions (step 5 detail)
 

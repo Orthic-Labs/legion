@@ -10,7 +10,10 @@
 //! working directory, must be read-only, and must print one JSON document on
 //! stdout: `{"schemaVersion":1,"findings":[{"rule","path","line","message",
 //! "capability"?,"owner"?}]}`. Every finding needs a repository-relative
-//! `path` inside the frozen denominator and a 1-based `line`.
+//! `path` inside the frozen denominator. `line` is optional (1-based); a
+//! finding without one is file-level: it is reported at line 1 with
+//! `"lineKnown": false` in its evidence. Findings are advisory "duplicates
+//! RightKit owner" notes unless the host sets `AUDIT_OWNERSHIP_SCAN_REQUIRED`.
 
 use std::{
     collections::BTreeMap,
@@ -109,6 +112,28 @@ fn safe_relative(path: &str) -> bool {
         && !normalized.split('/').any(|part| part == "..")
 }
 
+/// Message reported for a finding: the host message, always phrased as a
+/// "duplicates RightKit owner" note (capability/owner appended when present).
+fn finding_message(message: Option<&str>, capability: Option<&str>, owner: Option<&str>) -> String {
+    const PHRASE: &str = "duplicates RightKit owner";
+    let base = match message.map(str::trim).filter(|text| !text.is_empty()) {
+        Some(text) => text.to_owned(),
+        None => match (capability, owner) {
+            (Some(capability), Some(owner)) => format!("{capability} {PHRASE} {owner}"),
+            (_, Some(owner)) => format!("{PHRASE} {owner}"),
+            _ => PHRASE.to_owned(),
+        },
+    };
+    if base.contains(PHRASE) {
+        base
+    } else {
+        match owner {
+            Some(owner) => format!("{base} ({PHRASE} {owner})"),
+            None => format!("{base} ({PHRASE})"),
+        }
+    }
+}
+
 /// ProviderExecutor-facing entrypoint.
 pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderResult, AuditError> {
     let denominator = denominator(input)?;
@@ -116,6 +141,7 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
     let mut findings: Vec<FindingRef> = Vec::new();
     let mut evidence = serde_json::Map::new();
     let mut locations = serde_json::Map::new();
+    let mut messages = serde_json::Map::new();
     let mut details: BTreeMap<String, Value> = BTreeMap::new();
 
     let frozen_digest = input
@@ -149,7 +175,14 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
                 for (index, row) in rows.into_iter().flatten().enumerate() {
                     let rule = row.get("rule").and_then(Value::as_str).unwrap_or("");
                     let path = row.get("path").and_then(Value::as_str).unwrap_or("");
-                    let line = row.get("line").and_then(Value::as_u64).unwrap_or(0);
+                    // `line` is optional: absent means a file-level finding.
+                    let (line, line_known) = match row.get("line") {
+                        None | Some(Value::Null) => (1, false),
+                        Some(value) => match value.as_u64() {
+                            Some(line) if line > 0 => (line, true),
+                            _ => (0, false),
+                        },
+                    };
                     if rule.is_empty() || line == 0 || !safe_relative(path) {
                         gaps.push(format!("ownership-scan-finding-invalid:{index}"));
                         continue;
@@ -165,13 +198,20 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
                         &path,
                         line as usize,
                     );
+                    let message = finding_message(
+                        row.get("message").and_then(Value::as_str),
+                        row.get("capability").and_then(Value::as_str),
+                        row.get("owner").and_then(Value::as_str),
+                    );
+                    messages.insert(item.id.to_string(), Value::String(message.clone()));
                     evidence.insert(
                         item.id.to_string(),
                         json!({
                             "path": path,
                             "line": line,
+                            "lineKnown": line_known,
                             "rule": rule,
-                            "message": row.get("message").cloned().unwrap_or(Value::Null),
+                            "message": message,
                             "capability": row.get("capability").cloned().unwrap_or(Value::Null),
                             "owner": row.get("owner").cloned().unwrap_or(Value::Null),
                         }),
@@ -185,6 +225,7 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
 
     details.insert("findingEvidence".into(), Value::Object(evidence));
     details.insert("findingLocations".into(), Value::Object(locations));
+    details.insert("findingMessages".into(), Value::Object(messages));
     details.insert("hostDeclared".into(), Value::Bool(true));
     let complete = gaps.is_empty();
     result(
@@ -220,6 +261,26 @@ mod tests {
         assert_eq!(
             parse_argv("[\"scan\",\"--json\"]"),
             Some(vec!["scan".to_owned(), "--json".to_owned()])
+        );
+    }
+
+    #[test]
+    fn finding_message_is_a_duplicates_owner_note() {
+        assert_eq!(
+            finding_message(
+                Some("audio duplicates RightKit owner rightkit-audio"),
+                None,
+                None
+            ),
+            "audio duplicates RightKit owner rightkit-audio"
+        );
+        assert_eq!(
+            finding_message(None, Some("audio"), Some("rightkit-audio")),
+            "audio duplicates RightKit owner rightkit-audio"
+        );
+        assert_eq!(
+            finding_message(Some("hound dependency"), None, Some("rightkit-audio")),
+            "hound dependency (duplicates RightKit owner rightkit-audio)"
         );
     }
 
