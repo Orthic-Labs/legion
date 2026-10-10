@@ -19,8 +19,8 @@ importers:
         specifier: 0.2.33
         version: 0.2.33
       '@rightkit/release':
-        specifier: 0.2.145
-        version: 0.2.145
+        specifier: 0.2.147
+        version: 0.2.147
 
 packages:
 
@@ -36,8 +36,8 @@ packages:
     resolution: {integrity: sha512-0Fl5URRectgZEoJ6XYKme1x+rb/+LmW96rN4M7vT+E3mdNfWhfNt3MZsxbDC/A2g7Toz28nJakYteogVo+GuYg==}
     hasBin: true
 
-  '@rightkit/release@0.2.145':
-    resolution: {integrity: sha512-NG5zR2ZBihRcVyF2j4AoOv4h0cp+OWDU6lEdvg7ueWoV9lFWnsarzPvptFVGOoRVr/SlCjWskxBbxdVG/yu0VQ==}
+  '@rightkit/release@0.2.147':
+    resolution: {integrity: sha512-6eeY7nQ3pOR9FuWjQYdUUl0HhJS3c10eiE26ABbxr/fN2C8tgYB9ySyvlALxyzKtF5f+Ox2uvfX8nFr43kfrRg==}
     hasBin: true
 
   smol-toml@1.7.0:
@@ -52,7 +52,7 @@ snapshots:
 
   '@rightkit/hooks@0.1.2': {}
 
-  '@rightkit/release@0.2.145':
+  '@rightkit/release@0.2.147':
     dependencies:
       smol-toml: 1.7.0
 

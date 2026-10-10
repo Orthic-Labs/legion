@@ -107,6 +107,6 @@
   "devDependencies": {
     "@rightkit/ax": "0.2.4",
     "@rightkit/git": "0.2.33",
-    "@rightkit/release": "0.2.145"
+    "@rightkit/release": "0.2.147"
   }
 }
