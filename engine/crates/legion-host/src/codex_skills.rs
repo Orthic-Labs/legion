@@ -802,10 +802,7 @@ fn normalized_input(input: &CodexSkillsInput) -> Result<NormalizedInput, HostErr
         });
     }
     let mut current = normalize_ids(&input.current_skill_ids, "currentSkillIds")?;
-    if input
-        .assets_skills_root
-        .join(SHARED_COMPANION_ID)
-        .is_dir()
+    if input.assets_skills_root.join(SHARED_COMPANION_ID).is_dir()
         && !current.iter().any(|id| id == SHARED_COMPANION_ID)
     {
         current.push(SHARED_COMPANION_ID.into());
@@ -843,12 +840,12 @@ fn normalize_ids(ids: &[String], field: &str) -> Result<Vec<String>, HostError> 
 fn safe_plain_id(id: &str) -> bool {
     id == SHARED_COMPANION_ID
         || !id.is_empty()
-        && id.as_bytes().iter().enumerate().all(|(index, byte)| {
-            byte.is_ascii_lowercase()
-                || byte.is_ascii_digit()
-                || (*byte == b'-' && index > 0 && index + 1 < id.len())
-        })
-        && !id.contains("--")
+            && id.as_bytes().iter().enumerate().all(|(index, byte)| {
+                byte.is_ascii_lowercase()
+                    || byte.is_ascii_digit()
+                    || (*byte == b'-' && index > 0 && index + 1 < id.len())
+            })
+            && !id.contains("--")
 }
 
 /// Is any of this release's skills already projected under the Codex root?

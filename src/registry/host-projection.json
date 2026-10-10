@@ -1166,7 +1166,7 @@
   "modelTiers": {
     "frontier-judgment": {
       "hosts": {
-        "claude-code": "opus"
+        "claude-code": "sonnet"
       }
     },
     "balanced-executor": {
