@@ -3,7 +3,8 @@
   "compile": "github-actions-only",
   "lanes": [
     "ci",
-    "release-candidate"
+    "release-candidate",
+    "regenerate"
   ],
   "matrix": {
     "os": [
@@ -64,5 +65,8 @@
     "retentionDays": 7,
     "dispatch": true
   },
-  "ciAllOs": true
+  "ciAllOs": true,
+  "regenerate": {
+    "script": "ci:regenerate"
+  }
 }

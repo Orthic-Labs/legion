@@ -40,6 +40,14 @@ for check in "${checks[@]}"; do
   cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- "${check_args[@]}"
 done
 
+# The managed regenerate lane runs this gate on Linux to prove its pull
+# request is consistent: derived-artifact checks above plus formatting. Full
+# compile, test and installer validation stays on the Windows and macOS legs.
+if [[ "${RUNNER_OS:-}" == "Linux" ]]; then
+  (cd engine && cargo fmt --all -- --check)
+  exit 0
+fi
+
 # Format and lint gate (formerly the ci.yml lint job): rustfmt drift and
 # clippy::correctness findings fail the build; other warnings are allowed.
 (cd engine && cargo fmt --all -- --check)

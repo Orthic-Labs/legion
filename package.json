@@ -63,6 +63,7 @@
     "package.json"
   ],
   "scripts": {
+    "ci:regenerate": "bash scripts/ci/regenerate.sh",
     "ci:unsigned-candidate": "bash scripts/cargo.sh run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- prepare-unsigned-candidate",
     "ci:unsigned-candidate-check": "bash scripts/cargo.sh run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- prepare-unsigned-candidate --check",
     "closure:check": "bash scripts/cargo.sh run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-dependency-closure",

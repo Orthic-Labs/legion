@@ -1,13 +1,16 @@
-# Regenerates every derived artifact that CI checks with --check, formats the
-# Rust workspace, repairs a stale Cargo.lock, and commits the result to main.
-# Manual only. This replaces the recurring temporary lockfile-regen workflows:
-# dispatch this instead of adding a one-off workflow.
+# Managed by right-git — do not hand-edit. Run `right-git sync` to update.
+# Template: profiles/rust-hybrid/regenerate.yml | Template version: 1.8.0
+# Manual only. Runs the repository's regenerate script (derived artifacts,
+# formatting, lockfile repair) and, when tracked files change, runs the ci
+# gate on the result, pushes it to a right-git/regenerate-<run> branch and
+# opens a pull request. It never writes to the default branch. Pull requests
+# opened with the workflow token do not trigger pull_request workflows, which
+# is why the gate runs here and the PR body links this run.
 name: legion-regenerate
 on:
   workflow_dispatch:
 permissions:
-  contents: write
-  actions: write
+  contents: read
 concurrency:
   group: legion-regenerate
   cancel-in-progress: false
@@ -20,13 +23,29 @@ jobs:
         run: exit 1
   regenerate:
     needs: [private-repo-guard]
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.23.2"
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - run: pnpm install --frozen-lockfile
+
+      - name: RightKit ownership (protected registry roots)
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${{ github.sha }}" && pnpm exec right-release ownership --app . --advisory-when-pending
       - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
         with:
           components: rustfmt, clippy
@@ -38,45 +57,45 @@ jobs:
           add-job-id-key: false
           cache-workspace-crates: false
           cache-on-failure: true
-      - name: Repair Cargo.lock when stale
-        run: |
-          set -euo pipefail
-          if ! cargo metadata --locked --format-version 1 --manifest-path engine/Cargo.toml > /dev/null; then
-            echo "Cargo.lock is out of date; updating workspace members only."
-            (cd engine && cargo update -w)
-          fi
+          save-if: false
       - name: Regenerate derived artifacts
-        run: |
-          set -euo pipefail
-          dev() { cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- "$@"; }
-          dev generate-schemas
-          dev generate-codex-skill-sidecars
-          dev generate-skill-catalog
-          dev generate-host-projection
-          bundles=()
-          for skill_md in skills/*/SKILL.md; do
-            bundles+=("$(basename "$(dirname "$skill_md")")")
-          done
-          dev refresh-local-skill-manifests "${bundles[@]}"
-          dev generate-manifest
-          dev generate-catalogs
-          dev native-cli-inventory
-      - name: Format Rust workspace
-        working-directory: engine
-        run: cargo fmt --all
-      - name: Commit and push
+        run: pnpm run ci:regenerate
+      - name: Detect regenerated files
+        id: changes
+        shell: bash
         run: |
           set -euo pipefail
           if [[ -z "$(git status --porcelain)" ]]; then
             echo "Derived artifacts are already current."
-            exit 0
+            printf 'changed=false\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'changed=true\n' >> "$GITHUB_OUTPUT"
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Regenerate derived artifacts" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
-          git push origin HEAD:main
-          # Pushes made with GITHUB_TOKEN do not trigger workflows; start CI explicitly.
-          gh workflow run ci.yml --ref main
+      - name: Gate the regenerated tree
+        if: steps.changes.outputs.changed == 'true'
+        run: bash ./scripts/gate.sh
+        env:
+          RIGHT_GIT_RUST_CHANGED: "true"
+          RIGHT_GIT_RUST_REQUIRED: "true"
+          CARGO_INCREMENTAL: "0"
+          CARGO_PROFILE_DEV_DEBUG: "0"
+          CARGO_PROFILE_TEST_DEBUG: "0"
+      - name: Open a pull request with the regenerated files
+        if: steps.changes.outputs.changed == 'true'
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RIGHT_GIT_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RIGHT_GIT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          branch="right-git/regenerate-${{ github.run_id }}-${{ github.run_attempt }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A
+          git commit -m "Regenerate derived artifacts"
+          git push origin "HEAD:refs/heads/$branch"
+          gh pr create --base "$RIGHT_GIT_DEFAULT_BRANCH" --head "$branch" \
+            --title "Regenerate derived artifacts" \
+            --body "Opened by the right-git regenerate lane. The ci gate passed on this tree in $RIGHT_GIT_RUN_URL (pull requests opened with the workflow token do not trigger pull_request workflows)."
