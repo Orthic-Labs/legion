@@ -28,5 +28,7 @@ dev refresh-local-skill-manifests "${bundles[@]}"
 dev generate-manifest
 dev generate-catalogs
 dev native-cli-inventory
+# Records the plugin surface digest at the current version; the gate only checks it.
+dev verify-plugin-parity --structural-only
 
 (cd engine && cargo fmt --all)
