@@ -142,7 +142,7 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     // the stored report to agree with it.
     let verdict = lens_verdict(&root, &mut errors);
     if errors.is_empty() {
-        let application = super::native_application_for(&repository_id)?;
+        let application = super::audit::audit_application_for(&repository_id)?;
         let verification = application
             .invoke_with_cancellation(
                 legion_application::NativeOperation::VerifyRequest {

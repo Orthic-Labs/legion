@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "kind": "legion-model-tier-map",
-  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources.",
+  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources. Workspace policy never delegates to Opus or Fable, so frontier-judgment resolves to the strongest delegable Claude Code model.",
   "tiers": {
     "frontier-judgment": {
       "hosts": {
-        "claude-code": "opus"
+        "claude-code": "sonnet"
       }
     },
     "balanced-executor": {

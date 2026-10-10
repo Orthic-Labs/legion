@@ -573,6 +573,9 @@ pub struct AssembleParams<'a> {
     pub mcp_manifest_path: Option<&'a Path>,
     pub hooks_manifest_path: Option<&'a Path>,
     pub skills: Vec<SkillInput>,
+    /// Companion tree projected as `skills/_shared`, so `../_shared/<file>`
+    /// references from inside a skill directory resolve in the plugin root.
+    pub shared_skills: Option<SkillInput>,
     pub agents: Vec<AgentInput>,
     pub client_projections: Value,
 }
@@ -676,6 +679,15 @@ pub fn assemble_portable_core(params: AssembleParams) -> Result<Value, String> {
         fs::create_dir_all(&destination).map_err(|e| e.to_string())?;
         let mut files = Vec::new();
         copy_tree_no_links(source, &destination, &format!("skills/{id}"), &mut files)?;
+        public_files.extend(files);
+    }
+
+    if let Some(shared) = &params.shared_skills {
+        let source = assert_contained(&shared.source_root, &shared.source_dir, "shared skills")?;
+        let destination = params.output_dir.join("skills").join("_shared");
+        fs::create_dir_all(&destination).map_err(|e| e.to_string())?;
+        let mut files = Vec::new();
+        copy_tree_no_links(&source, &destination, "skills/_shared", &mut files)?;
         public_files.extend(files);
     }
 

@@ -686,6 +686,18 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
             source_dir: staged_dir,
         });
     }
+    let shared_source = repository_root.join("skills").join("_shared");
+    let shared_skills = if shared_source.is_dir() {
+        let staged = portable_skill_source_root.join("_shared");
+        copy_skill_tree(&shared_source, &staged)?;
+        Some(SkillInput {
+            id: "_shared".to_string(),
+            source_root: portable_skill_source_root.clone(),
+            source_dir: staged,
+        })
+    } else {
+        None
+    };
     let mut expected_skill_ids: Vec<String> = bundles
         .iter()
         .filter(|b| is_public(b))
@@ -725,6 +737,7 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
         mcp_manifest_path: Some(&repository_root.join("engine/assets/legion-plugin/mcp.json")),
         hooks_manifest_path: Some(&repository_root.join("hooks/hooks.json")),
         skills: public_skills,
+        shared_skills,
         agents: public_agents,
         client_projections,
     });

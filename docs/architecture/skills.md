@@ -192,7 +192,7 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 
 Both bundles ship their own on-demand references, source manifests, license notices, and
 evaluation cases. They use the existing catalog, native manifest, and host-projection
-generators. Native `legion-apple` operations share CLI/MCP semantics & canonical MCP schemas. Neither bundle depends on a sibling `_shared` directory.
+generators. Native `legion-apple` operations share CLI/MCP semantics & canonical MCP schemas. Neither bundle depends on the sibling `skills/_shared` guides (which Writing, Designer, Marketing & Social do require, and which every host projection now carries).
 Read-only work remains useful without Apple tooling; unavailable native checks stay unrun.
 Optional tools, accounts, signing, uploads, and publishing retain existing authorization
 boundaries. Architect, Debugger, QA, Designer, and the authority roles retain ownership of

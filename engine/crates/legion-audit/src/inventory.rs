@@ -403,7 +403,7 @@ fn included_entry(entry: &DirEntry) -> bool {
     }
     !matches!(
         entry.file_name().to_str(),
-        Some(".git" | ".audit" | "node_modules" | "target")
+        Some(".git" | ".audit" | ".legion-cache" | "node_modules" | "target")
     )
 }
 
@@ -923,8 +923,10 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("src")).unwrap();
         std::fs::create_dir_all(root.join(".audit")).unwrap();
+        std::fs::create_dir_all(root.join(".legion-cache/audit-sandbox")).unwrap();
         std::fs::write(root.join("src/lib.rs"), "fn one() {}\n").unwrap();
         std::fs::write(root.join(".audit/report.json"), "ignored").unwrap();
+        std::fs::write(root.join(".legion-cache/audit-sandbox/profile.sb"), "ignored").unwrap();
         let source = FilesystemInventorySource::new(&root).unwrap();
         let first = source.inventory("repo").unwrap();
         let repeated = source.inventory("repo").unwrap();

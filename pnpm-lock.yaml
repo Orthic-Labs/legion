@@ -16,11 +16,11 @@ importers:
         specifier: 0.2.4
         version: 0.2.4
       '@rightkit/git':
-        specifier: 0.2.33
-        version: 0.2.33
+        specifier: 0.2.34
+        version: 0.2.34
       '@rightkit/release':
-        specifier: 0.2.147
-        version: 0.2.147
+        specifier: 0.2.148
+        version: 0.2.148
 
 packages:
 
@@ -28,16 +28,16 @@ packages:
     resolution: {integrity: sha512-bI1eU4+lYKl7q+RCHWyYXi3QOSFX32t3pArnoOnQDNBtYuU3VV/HS/3wDQEHi8QzIgxrhql+eggfDmWzVbAbCQ==}
     hasBin: true
 
-  '@rightkit/git@0.2.33':
-    resolution: {integrity: sha512-7UWspd9nw8VUI+L3VH9UjMRt+9svhozFMZwtmCSeXSs5ye60rJph0f2kJAxjllO9l73DoyIod9LC0WNVCYr+xg==}
+  '@rightkit/git@0.2.34':
+    resolution: {integrity: sha512-qgtOcHilPh2x1mac9H/7QTv3DZbxXypXLS2ZRzJY+7sDK2VwOyRY+yaWXiT+WIyyl/yg1MBWs8YJStNsuquK8A==}
     hasBin: true
 
   '@rightkit/hooks@0.1.2':
     resolution: {integrity: sha512-0Fl5URRectgZEoJ6XYKme1x+rb/+LmW96rN4M7vT+E3mdNfWhfNt3MZsxbDC/A2g7Toz28nJakYteogVo+GuYg==}
     hasBin: true
 
-  '@rightkit/release@0.2.147':
-    resolution: {integrity: sha512-6eeY7nQ3pOR9FuWjQYdUUl0HhJS3c10eiE26ABbxr/fN2C8tgYB9ySyvlALxyzKtF5f+Ox2uvfX8nFr43kfrRg==}
+  '@rightkit/release@0.2.148':
+    resolution: {integrity: sha512-wXRafSbC5RqC5INN7lAs+0YBPv2TCNXltVpp6uVguDqDit1cDoZLRnLhwDMmlZ+dOL7i8sP8XHIYtjeHYW8p9Q==}
     hasBin: true
 
   smol-toml@1.7.0:
@@ -48,11 +48,11 @@ snapshots:
 
   '@rightkit/ax@0.2.4': {}
 
-  '@rightkit/git@0.2.33': {}
+  '@rightkit/git@0.2.34': {}
 
   '@rightkit/hooks@0.1.2': {}
 
-  '@rightkit/release@0.2.147':
+  '@rightkit/release@0.2.148':
     dependencies:
       smol-toml: 1.7.0
 

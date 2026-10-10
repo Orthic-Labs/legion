@@ -1,7 +1,7 @@
 ---
 name: oracle
 description: Optional independent read-only assurance. Dispatch only for explicit review requests or a concrete outcome/safety risk that benefits from independent examination. Routine replies, read-only answers, and small reversible changes do not need Oracle. Never implements or certifies its own fix.
-model: opus
+model: sonnet
 tools: Read, Grep, Glob
 ---
 

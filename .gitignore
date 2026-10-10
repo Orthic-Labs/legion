@@ -55,3 +55,4 @@ evidence/
 # and now this.
 !bench/corpora/**/evidence/
 !bench/corpora/**/evidence/**
+.legion-cache/

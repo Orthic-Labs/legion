@@ -7,7 +7,6 @@
   ],
   "matrix": {
     "os": [
-      "ubuntu-24.04",
       "windows-2025",
       "macos-15"
     ],
@@ -58,5 +57,12 @@
       "publishScript": "release:publish-qualified",
       "qualificationRunnerVariable": "LEGION_QUALIFICATION_RUNNER"
     }
-  }
+  },
+  "devArtifact": {
+    "windows": "unsigned",
+    "windowsGlob": "dist/local-windows/installer/*",
+    "retentionDays": 7,
+    "dispatch": true
+  },
+  "ciAllOs": true
 }

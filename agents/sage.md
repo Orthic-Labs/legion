@@ -1,7 +1,7 @@
 ---
 name: sage
 description: Optional cross-cutting design and adjudication authority. Dispatch for material unresolved choices, disputed ownership or boundaries, bounded reassessment before expensive commitment, repeated local repairs that fail to advance the outcome, or explicit adjudication. Do not dispatch for routine local work.
-model: opus
+model: sonnet
 tools: Read, Grep, Glob
 ---
 

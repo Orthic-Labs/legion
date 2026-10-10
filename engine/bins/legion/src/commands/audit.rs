@@ -109,7 +109,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             Vec::new(),
         )
     } else {
-        let (application, notices) = native_registry_application(&args, &root)?;
+        let (application, notices) = native_registry_application(&root)?;
         (Arc::new(application), notices)
     };
     let mut selected_specs = application.provider_specs();
@@ -158,6 +158,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             signing_key: signing_key.clone(),
         }
     };
+    // Freeze the lens basis (plan + inventory) before any scanner runs, so lens
+    // packets are built from the exact inventory the executed plan was frozen over
+    // rather than a re-walk that scanner scratch output could perturb.
+    let lens_basis = freeze_lens_basis(&root, &selected_specs, signing_key.as_deref());
     let result = application
         .invoke_with_cancellation(operation, cancellation)
         .await
@@ -172,9 +176,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             let binding = native_inventory_binding(&root, &args)?;
             let (lens_work, lens_work_gaps) = lens_work_items(
                 &root,
-                &selected_specs,
-                signing_key.as_deref(),
-                Some(plan_digest.as_str()),
+                &lens_basis,
+                plan_digest.as_str(),
                 args.out.as_deref(),
             );
             let mut input_gaps = native_audit_input_gaps(&args);
@@ -228,9 +231,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             } else {
                 lens_work_items(
                     &root,
-                    &selected_specs,
-                    signing_key.as_deref(),
-                    Some(execution.plan_digest.as_str()),
+                    &lens_basis,
+                    execution.plan_digest.as_str(),
                     args.out.as_deref(),
                 )
             };
@@ -458,33 +460,44 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
     }))
 }
 
-/// `pending-host` reasoning-lens work items for the selected plan, with the full
+/// Frozen plan and the inventory it was compiled over, captured before execution.
+type LensBasis = Result<(legion_audit::FrozenPlan, legion_audit::InventoryEnvelope), String>;
+
+fn freeze_lens_basis(
+    root: &std::path::Path,
+    specs: &[legion_contracts::ProviderSpec],
+    signing_key: Option<&[u8]>,
+) -> LensBasis {
+    let source = super::audit_inventory_source(root).map_err(|error| error.message)?;
+    let inventory = source
+        .inventory(&root.to_string_lossy())
+        .map_err(|error| error.to_string())?;
+    let pending = legion_audit::AuditPlan::compile_with_root(Some(root), &inventory, specs)
+        .map_err(|error| error.to_string())?;
+    let plan = match signing_key {
+        Some(key) => pending.freeze(Some(key)),
+        None => pending.freeze_source_diagnostic(),
+    }
+    .map_err(|error| error.to_string())?;
+    Ok((plan, inventory))
+}
+
+/// `pending-host` reasoning-lens work items for the frozen plan, with the full
 /// lens packet written to `<out>/lens-packets/<provider>.json` when `--out` is
 /// given. A packet failure is returned as a gap, never as a command error.
 fn lens_work_items(
     root: &std::path::Path,
-    specs: &[legion_contracts::ProviderSpec],
-    signing_key: Option<&[u8]>,
-    expected_plan_digest: Option<&str>,
+    basis: &LensBasis,
+    executed_plan_digest: &str,
     out: Option<&std::path::Path>,
 ) -> (Vec<Value>, Vec<String>) {
     let built = (|| -> Result<Vec<Value>, String> {
-        let source = super::audit_inventory_source(root).map_err(|error| error.message)?;
-        let inventory = source
-            .inventory(&root.to_string_lossy())
-            .map_err(|error| error.to_string())?;
-        let pending = legion_audit::AuditPlan::compile_with_root(Some(root), &inventory, specs)
-            .map_err(|error| error.to_string())?;
-        let plan = match signing_key {
-            Some(key) => pending.freeze(Some(key)),
-            None => pending.freeze_source_diagnostic(),
-        }
-        .map_err(|error| error.to_string())?;
-        if expected_plan_digest.is_some_and(|digest| digest != plan.digest()) {
+        let (plan, inventory) = basis.as_ref().map_err(Clone::clone)?;
+        if executed_plan_digest != plan.digest() {
             return Err("plan digest differs from the executed plan".into());
         }
         let work =
-            legion_audit::native_providers::reasoning::pending_lens_work(root, &plan, &inventory)
+            legion_audit::native_providers::reasoning::pending_lens_work(root, plan, inventory)
                 .map_err(|error| error.to_string())?;
         let mut items = Vec::new();
         for item in work {
@@ -1029,8 +1042,20 @@ fn native_rule_diagnostic_application(
     Ok((application, Vec::new()))
 }
 
+/// Application for operating on an existing audit run (e.g. `verify`): honours
+/// `LEGION_NATIVE_APPLICATION_CONFIG`, otherwise builds the same canonical
+/// provider registry `legion audit` builds for `repository_id` (its root).
+pub(super) fn audit_application_for(
+    repository_id: &str,
+) -> Result<Arc<legion_application::NativeApplication>, CommandError> {
+    let root = std::path::Path::new(repository_id);
+    if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() || !root.is_dir() {
+        return super::native_application_for(repository_id);
+    }
+    native_registry_application(root).map(|(application, _)| Arc::new(application))
+}
+
 fn native_registry_application(
-    args: &AuditArgs,
     root: &std::path::Path,
 ) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
     // The command must execute the frozen native provider composition. Do not

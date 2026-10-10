@@ -39,12 +39,28 @@ for check in "${checks[@]}"; do
   cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- "${check_args[@]}"
 done
 
+# Format and lint gate (formerly the ci.yml lint job): rustfmt drift and
+# clippy::correctness findings fail the build; other warnings are allowed.
+(cd engine && cargo fmt --all -- --check)
+
 if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   (
     cd engine
+    cargo clippy --workspace --all-targets --locked --keep-going -- -A warnings -D clippy::correctness
     cargo check --workspace --all-targets --locked
     cargo test --locked --no-fail-fast
   )
+fi
+
+# Planted-defect recall gate (formerly the ci.yml bench job). Runs on the
+# macOS leg because dead-code, duplication and type checks must run inside
+# sandbox-exec; provisions the scanners so a tool-missing class fails
+# instead of skipping green.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  brew install gitleaks
+  npm install -g knip jscpd typescript
+  gitleaks version; knip --version; jscpd --version; tsc --version
+  (cd engine && cargo test --locked -p legion-audit --test bench_recall -- --ignored --nocapture)
 fi
 
 # Apple bundle integrity (formerly apple-skills.yml): the workspace test run
@@ -56,6 +72,12 @@ fi
 (cd engine && cargo build --locked --bins)
 cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- assemble-native-release --profile debug --out "${RUNNER_TEMP}/legion-install" --force
 cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- native-installed-smoke "${RUNNER_TEMP}/legion-install"
+
+# Unsigned Windows development installer (formerly windows-development.yml);
+# the managed ci.yml uploads dist/local-windows/installer/* as dev-windows-<sha>.
+if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
+  pwsh -NoProfile -NonInteractive -File scripts/release/local-windows-development.ps1 -BuildOnly
+fi
 
 # Known-answer recall gate. The bench scores planted defects against
 # negative controls and fails on any false positive, so a detector that

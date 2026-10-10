@@ -23,6 +23,10 @@ pub const CODEX_SKILLS_OWNER: &str = "legion-host-codex-skills-v1";
 pub const CODEX_SKILLS_LEDGER_RELATIVE_PATH: &str = "integrations/codex-skills.json";
 const CODEX_SKILLS_LEDGER_SCHEMA_VERSION: u32 = 1;
 const STAGE_ATTEMPTS: usize = 16;
+/// Companion tree shared by several skills (`../_shared/anti-slop.md`).  It is
+/// not a catalog id, so it is projected, ledgered, repaired, and removed
+/// alongside the catalog skills whenever the release ships it.
+pub const SHARED_COMPANION_ID: &str = "_shared";
 static NEXT_NONCE: AtomicUsize = AtomicUsize::new(0);
 
 /// Inputs come from an installed release plus host setup.  `assets_skills_root`
@@ -797,7 +801,16 @@ fn normalized_input(input: &CodexSkillsInput) -> Result<NormalizedInput, HostErr
             reason: "generation must be non-empty".into(),
         });
     }
-    let current = normalize_ids(&input.current_skill_ids, "currentSkillIds")?;
+    let mut current = normalize_ids(&input.current_skill_ids, "currentSkillIds")?;
+    if input
+        .assets_skills_root
+        .join(SHARED_COMPANION_ID)
+        .is_dir()
+        && !current.iter().any(|id| id == SHARED_COMPANION_ID)
+    {
+        current.push(SHARED_COMPANION_ID.into());
+        current.sort();
+    }
     let retired = normalize_ids(&input.retired_skill_ids, "retiredSkillIds")?;
     if current.iter().any(|id| retired.binary_search(id).is_ok()) {
         return Err(HostError::InvalidDescriptor {
@@ -828,7 +841,8 @@ fn normalize_ids(ids: &[String], field: &str) -> Result<Vec<String>, HostError> 
 }
 
 fn safe_plain_id(id: &str) -> bool {
-    !id.is_empty()
+    id == SHARED_COMPANION_ID
+        || !id.is_empty()
         && id.as_bytes().iter().enumerate().all(|(index, byte)| {
             byte.is_ascii_lowercase()
                 || byte.is_ascii_digit()
@@ -877,6 +891,9 @@ fn source_tree(path: &Path) -> Result<PackageTree, HostError> {
         path: path.display().to_string(),
         reason,
     })?;
+    if path.file_name().and_then(|name| name.to_str()) == Some(SHARED_COMPANION_ID) {
+        return Ok(tree);
+    }
     if !tree.files.iter().any(|file| file.path == "SKILL.md")
         || !tree
             .files
@@ -1491,6 +1508,33 @@ mod tests {
             inspect_codex_skills(&input).unwrap().statuses[0].state,
             CodexSkillState::Healthy
         );
+    }
+
+    #[test]
+    fn apply_projects_shared_companion_tree_beside_skills() {
+        let temp = TempRoot::new("shared-companion");
+        let input = input(&temp, &["audit"], &[], "dev.1");
+        write_skill(&input.assets_skills_root, "audit", "audit v1");
+        let shared = input.assets_skills_root.join(SHARED_COMPANION_ID);
+        fs::create_dir_all(&shared).unwrap();
+        fs::write(shared.join("anti-slop.md"), "anti-slop").unwrap();
+
+        apply_codex_skills(&input).unwrap();
+        let root = input.home.join(".agents").join("skills");
+        assert_eq!(
+            fs::read(root.join("_shared").join("anti-slop.md")).unwrap(),
+            b"anti-slop"
+        );
+        assert!(root.join("audit").join("SKILL.md").exists());
+        assert!(inspect_codex_skills(&input)
+            .unwrap()
+            .statuses
+            .iter()
+            .all(|status| status.state == CodexSkillState::Healthy));
+
+        remove_codex_skills(&input).unwrap();
+        assert!(!root.join("_shared").exists());
+        assert!(!root.join("audit").exists());
     }
 
     #[test]
