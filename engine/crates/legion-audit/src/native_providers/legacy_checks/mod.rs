@@ -563,9 +563,7 @@ impl LegacyCheckDispatcher {
                     None => format!("tool-missing:{}", contract.tool),
                 }
             })
-            .or_else(|| {
-                sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool))
-            });
+            .or_else(|| sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool)));
         if let Some(reason) = &unavailable_reason {
             gaps.push(super::availability::unavailable_gap(reason));
             output.details.insert(

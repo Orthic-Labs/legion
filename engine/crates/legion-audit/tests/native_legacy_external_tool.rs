@@ -212,8 +212,8 @@ fn sandbox_refusal_is_typed_unavailable_not_a_failed_provider() {
     fs::write(root.join("package.json"), "{}").unwrap();
     let inventory = inventory();
     let plan = plan(&inventory);
-    let registry = NativeProviderRegistry::new(&root)
-        .with_external_project_tool(Arc::new(SandboxRefusedTool));
+    let registry =
+        NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(SandboxRefusedTool));
     let report = tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(legion_audit::execute_with_cancellation(
