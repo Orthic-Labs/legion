@@ -176,8 +176,8 @@ fn planted_defects_are_found_with_exact_locations_and_counts() {
         let coverage = result.coverage.as_ref().unwrap();
         assert_eq!(
             (coverage.expected, coverage.examined),
-            (*files, *files),
-            "{id}"
+            (DEFECT_PATHS.len() as u64, *files),
+            "{id}: expected is the frozen denominator count"
         );
         assert_eq!(
             coverage.denominator_digest,
@@ -326,7 +326,7 @@ fn long_tail_reads_unclaimed_source_files() {
         BTreeSet::from(["debt-marker@lib/tool.lua:2".to_string()])
     );
     let coverage = result.coverage.as_ref().unwrap();
-    assert_eq!((coverage.expected, coverage.examined), (1, 1));
+    assert_eq!((coverage.expected, coverage.examined), (2, 1));
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -335,8 +335,35 @@ fn language_with_no_files_is_a_denominator_gap_not_a_pass() {
     let root = fixture(&[("README.md", "# readme\n")]);
     let result = run(&root, &["README.md"], "code.python");
     let coverage = result.coverage.as_ref().unwrap();
-    assert_eq!((coverage.expected, coverage.examined), (0, 0));
+    assert_eq!((coverage.expected, coverage.examined), (1, 0));
     assert!(!result.complete);
     assert!(result.findings.is_empty());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn frozen_count_differing_from_language_count_is_valid_and_not_complete() {
+    let root = fixture(DEFECT_FILES);
+    let inv = inventory(&root, DEFECT_PATHS);
+    // The plan recorded a denominator count and digest at freeze time.
+    let mut planned = provider("code.rust");
+    planned
+        .configuration
+        .insert("denominatorCount".into(), json!(DEFECT_PATHS.len()));
+    planned
+        .configuration
+        .insert("denominatorDigest".into(), json!(inv.digest.clone()));
+    let result = adapter_for(&root).execute(&planned, &inv).unwrap();
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!(coverage.expected, DEFECT_PATHS.len() as u64);
+    assert_eq!(coverage.examined, 1, "only the one Rust file was read");
+    assert_eq!(coverage.denominator_digest, inv.digest);
+    assert!(!result.complete);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("code.rust:selection-narrower-than-denominator:1of7")));
+    assert_eq!(result.findings.len(), 3, "findings are preserved");
+    result.validate().unwrap();
     fs::remove_dir_all(root).unwrap();
 }

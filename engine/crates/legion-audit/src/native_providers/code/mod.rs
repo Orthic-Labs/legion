@@ -115,6 +115,7 @@ impl ProviderExecutor for ProviderExecutorAdapter {
         // analyzer sees exactly what the host gave it (files default to the
         // whole inventory) and no native evidence is claimed.
         let mut produced = None;
+        let mut selection_gap: Option<String> = None;
         let mut denominator_digest = inventory.digest.clone();
         let mut expected = inventory.entries.len() as u64;
         let mut examined = expected;
@@ -150,9 +151,27 @@ impl ProviderExecutor for ProviderExecutorAdapter {
                     &denominator.entries,
                     &self.limits,
                 )?;
-                denominator_digest = denominator.digest;
-                expected = made.expected;
-                examined = made.examined;
+                // Coverage is bound to the frozen selector denominator (the
+                // plan's recorded values when present), never to the
+                // producer's own language selection.
+                let frozen_count = provider
+                    .configuration
+                    .get("denominatorCount")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(denominator.entries.len() as u64);
+                denominator_digest = provider
+                    .configuration
+                    .get("denominatorDigest")
+                    .and_then(Value::as_str)
+                    .map_or(denominator.digest, str::to_owned);
+                expected = frozen_count;
+                examined = made.examined.min(frozen_count);
+                selection_gap = (made.expected != frozen_count).then(|| {
+                    format!(
+                        "{}:selection-narrower-than-denominator:{}of{}",
+                        provider.id, made.expected, frozen_count
+                    )
+                });
                 let input = made.input.clone();
                 produced = Some(made);
                 input
@@ -219,6 +238,10 @@ impl ProviderExecutor for ProviderExecutorAdapter {
             }
             if made.duplicate_detection_truncated {
                 gaps.push(format!("{}:duplicate-detection-truncated", provider.id));
+            }
+            if let Some(gap) = &selection_gap {
+                gaps.push(gap.clone());
+                complete = false;
             }
             if made.examined != made.expected {
                 complete = false;

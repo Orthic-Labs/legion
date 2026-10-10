@@ -38,6 +38,20 @@ const MAX_EDGES: usize = 50_000;
 const MAX_CLAIMS: usize = 5_000;
 const MAX_ITEMS: usize = 2_000;
 const MAX_LISTED_GAPS: usize = 50;
+/// Findings emitted per noisy provider; the remainder becomes a named gap.
+const MAX_FINDINGS: usize = 200;
+/// Source files with fewer non-blank lines are re-export shells, not code.
+const MIN_SOURCE_LINES: usize = 15;
+/// Frozen-history or generated trees: documents under them are never audited
+/// for stale citations.
+const DOC_SKIP_SEGMENTS: &[&str] = &[
+    "provenance",
+    "audits",
+    "archive",
+    "node_modules",
+    "dist",
+    "target",
+];
 
 macro_rules! lazy_re {
     ($name:ident, $pattern:expr) => {
@@ -145,6 +159,7 @@ const NON_SOURCE_DIRS: &[&str] = &[
     "scripts",
     "docs",
     "benches",
+    "tests",
     "migrations",
     "vendor",
     "third_party",
@@ -1063,6 +1078,12 @@ fn build_docs(ctx: &Ctx, facts: &mut Facts) {
         if extension(doc) != "md" {
             continue;
         }
+        if doc
+            .split('/')
+            .any(|segment| DOC_SKIP_SEGMENTS.contains(&segment))
+        {
+            continue;
+        }
         let lower = file_name(doc).to_ascii_lowercase();
         if lower.starts_with("changelog")
             || lower.starts_with("changes")
@@ -1122,9 +1143,6 @@ fn build_docs(ctx: &Ctx, facts: &mut Facts) {
                 }
             }
             for (cited, exact_only) in found {
-                if facts.claims.len() >= MAX_CLAIMS {
-                    break;
-                }
                 let claim = format!("{doc} cites {cited}");
                 if !seen_claims.insert(claim.clone()) {
                     continue;
@@ -1136,6 +1154,11 @@ fn build_docs(ctx: &Ctx, facts: &mut Facts) {
                         || exists_exact(&join(parent(doc), &cited))
                         || known.contains(&cited)
                 };
+                // Existing-path claims are detail only and bounded; a missing
+                // path is always kept so the overflow count stays honest.
+                if present && facts.claims.len() >= MAX_CLAIMS {
+                    continue;
+                }
                 cites.insert(cited.clone());
                 facts.claims.push(json!({
                     "claim": claim,
@@ -1236,9 +1259,12 @@ fn is_source_candidate(path: &str, text: &str) -> bool {
         return false;
     }
     let name = file_name(path);
+    if is_generated_name(name) {
+        return false;
+    }
     if matches!(
         name,
-        "build.rs" | "mod.rs" | "lib.rs" | "main.rs" | "__init__.py" | "conftest.py" | "setup.py"
+        "build.rs" | "__init__.py" | "conftest.py" | "setup.py"
     ) || name.contains(".config.")
         || name.starts_with("index.")
     {
@@ -1247,7 +1273,21 @@ fn is_source_candidate(path: &str, text: &str) -> bool {
     if path.split('/').any(|part| NON_SOURCE_DIRS.contains(&part)) {
         return false;
     }
-    text.lines().filter(|line| !line.trim().is_empty()).count() >= 5
+    let code_lines = text.lines().filter(|line| !line.trim().is_empty()).count();
+    // mod.rs/lib.rs/main.rs are usually re-export shells: only real code counts.
+    let shell = matches!(name, "mod.rs" | "lib.rs" | "main.rs");
+    code_lines >= if shell { MIN_SOURCE_LINES } else { 5 }
+}
+
+fn is_generated_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.contains(".generated.")
+        || lower.contains("_generated.")
+        || lower.contains(".gen.")
+        || lower.contains(".min.")
+        || lower.ends_with(".pb.go")
+        || lower.ends_with("_pb2.py")
+        || lower.ends_with("_pb2_grpc.py")
 }
 
 fn build_tests(ctx: &Ctx, facts: &mut Facts) {
@@ -1719,6 +1759,19 @@ pub fn reconcile(facts: &Facts, provider: &str, analysis: &mut Analysis) {
             }
         }
         _ => {}
+    }
+    if matches!(provider, "docs.contract" | "test-quality.core")
+        && analysis.findings.len() > MAX_FINDINGS
+    {
+        let remainder = analysis.findings.len() - MAX_FINDINGS;
+        analysis.findings.truncate(MAX_FINDINGS);
+        analysis
+            .coverage_gaps
+            .push(gap(&format!("{provider}:findings-overflow:{remainder}")));
+        analysis.complete = false;
+        if analysis.status == "pass" || analysis.status == "measured" {
+            analysis.status = "unproven".into();
+        }
     }
     for kind in &facts.gaps {
         analysis.coverage_gaps.push(gap(kind));

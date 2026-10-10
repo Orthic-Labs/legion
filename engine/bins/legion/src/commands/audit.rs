@@ -90,19 +90,32 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // mirroring Node's crashed facts collection without a CLI-level error.
     let scope = audit_scope(&root, &args);
     let direct = args.provider_plan.is_some() || !args.provider_results.is_empty();
+    // Digest of the run's epoch key when that key (not a host-injected one)
+    // also signs the plan; `legion verify` reloads it from `<out>/epoch.key`.
+    let mut run_epoch_digest: Option<String> = None;
     let signing_key = if args.plan_only {
         Some(super::audit_signing_key()?)
     } else {
-        std::env::var_os("AUDIT_PLAN_SIGNING_KEY")
-            .filter(|value| !value.is_empty())
-            .map(|value| value.to_string_lossy().as_bytes().to_vec())
-            // A run written to `--out` is signed with a key minted for that
-            // run, so its lens packets can be ingested and verified later.
-            .or_else(|| {
-                args.out
-                    .as_ref()
-                    .map(|_| legion_audit::native_providers::reasoning::ingest::ephemeral_key())
-            })
+        match std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|value| !value.is_empty()) {
+            Some(value) => Some(value.to_string_lossy().as_bytes().to_vec()),
+            // A run written to `--out` is signed with the run's epoch key
+            // (persisted 0600 as `epoch.key`), so lens packets can be ingested
+            // and the run verified later without any extra environment.
+            None => match args.out.as_ref() {
+                Some(out) => {
+                    let ingest = legion_audit::native_providers::reasoning::ingest::create_epoch(out)
+                        .and_then(|_| legion_audit::native_providers::reasoning::ingest::load_epoch(out))
+                        .map_err(|error| {
+                            CommandError::incomplete(format!(
+                                "could not create the run epoch key: {error}"
+                            ))
+                        })?;
+                    run_epoch_digest = Some(ingest.1);
+                    Some(ingest.0)
+                }
+                None => None,
+            },
+        }
     };
     let (application, context_notices) = if direct {
         let (application, notices) = direct_application(&args, &root)?;
@@ -250,6 +263,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             // The CLI process is the trusted reasoning host for ingest: generate this
             // run's epoch key (0600, never in a report) and record only its digest.
             let epoch_digest = match (&args.out, execution.pending_host.is_empty()) {
+                // The epoch key already signs this run's plan; regenerating it
+                // would orphan the plan signature.
+                (Some(_), false) if run_epoch_digest.is_some() => run_epoch_digest.clone(),
                 (Some(out), false) => {
                     match legion_audit::native_providers::reasoning::ingest::create_epoch(out) {
                         Ok(digest) => Some(digest),

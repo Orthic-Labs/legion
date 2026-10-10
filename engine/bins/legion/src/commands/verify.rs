@@ -7,6 +7,34 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug, Args)]
 pub struct VerifyArgs {
     pub run: PathBuf,
+    /// Accepted for CLI consistency; verify output is always JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// Plan signing key for a run: an explicit `AUDIT_PLAN_SIGNING_KEY` wins, else
+/// the run's `epoch.key`. The key only verifies the plan binding (the plan is
+/// re-frozen under it and must bind to the same inventory); it never re-signs
+/// the stored plan.
+fn verification_key(root: &std::path::Path) -> Result<Vec<u8>, CommandError> {
+    if let Some(value) = std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|v| !v.is_empty()) {
+        return Ok(value.to_string_lossy().as_bytes().to_vec());
+    }
+    let key_file = root.join(legion_audit::native_providers::reasoning::ingest::EPOCH_KEY_FILE);
+    if !key_file.is_file() {
+        return Err(CommandError::usage(format!(
+            "verify needs the run's plan signing key: {} is missing and AUDIT_PLAN_SIGNING_KEY is not set",
+            key_file.display()
+        )));
+    }
+    legion_audit::native_providers::reasoning::ingest::load_epoch(root)
+        .map(|(key, _)| key)
+        .map_err(|error| {
+            CommandError::usage(format!(
+                "cannot load plan signing key {}: {error}",
+                key_file.display()
+            ))
+        })
 }
 
 /// Verify persisted Audit artifacts and reconcile facts against its frozen plan.
@@ -142,13 +170,14 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     // the stored report to agree with it.
     let verdict = lens_verdict(&root, &mut errors);
     if errors.is_empty() {
+        let signing_key = verification_key(&root)?;
         let application = super::audit::audit_application_for(&repository_id)?;
         let verification = application
             .invoke_with_cancellation(
                 legion_application::NativeOperation::VerifyRequest {
                     repository_id: repository_id.clone(),
                     providers: application.provider_specs(),
-                    signing_key: None,
+                    signing_key: Some(signing_key),
                     facts: facts.clone(),
                     plan: plan.clone(),
                 },

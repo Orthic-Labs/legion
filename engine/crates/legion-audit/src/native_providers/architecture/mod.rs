@@ -142,11 +142,23 @@ impl ProviderExecutorAdapter {
             .iter()
             .map(|entry| entry.path.clone())
             .collect::<Vec<_>>();
+        // Coverage is bound to the frozen plan: its recorded digest/count win
+        // over the recomputed ones.
+        let frozen_digest = provider
+            .configuration
+            .get("denominatorDigest")
+            .and_then(Value::as_str)
+            .map_or(denominator.digest.clone(), str::to_owned);
+        let frozen_count = provider
+            .configuration
+            .get("denominatorCount")
+            .and_then(Value::as_u64)
+            .map_or(denominator.entries.len(), |count| count as usize);
         let mut result = common::provider_result(
             &provider.id,
             provider.required,
-            denominator.digest,
-            denominator.entries.len(),
+            frozen_digest,
+            frozen_count,
             &analysis,
             original_input,
             Vec::new(),

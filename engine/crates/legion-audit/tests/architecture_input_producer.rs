@@ -298,3 +298,97 @@ fn host_injected_input_keeps_precedence() {
     assert!(result.findings.is_empty());
     assert_eq!(result.details.get("nativeInput"), Some(&input));
 }
+
+#[test]
+fn coverage_is_bound_to_the_plans_frozen_denominator() {
+    let root = dirty_fixture();
+    let inv = inventory(&root);
+    for id in [
+        "architecture.core",
+        "docs.contract",
+        "test-quality.core",
+        "requirements.traceability",
+    ] {
+        let mut planned = provider(id);
+        planned
+            .configuration
+            .insert("denominatorCount".into(), json!(inv.entries.len()));
+        planned
+            .configuration
+            .insert("denominatorDigest".into(), json!(inv.digest.clone()));
+        let result = NativeProviderRegistry::new(&root)
+            .execute(&planned, &inv)
+            .unwrap();
+        let coverage = result.coverage.as_ref().unwrap();
+        assert_eq!(coverage.expected, inv.entries.len() as u64, "{id}");
+        assert_eq!(coverage.denominator_digest, inv.digest, "{id}");
+        assert!(coverage.examined <= coverage.expected, "{id}");
+    }
+}
+
+#[test]
+fn docs_under_frozen_history_trees_are_ignored() {
+    let root = clean_fixture();
+    for dir in ["docs/provenance", "docs/audits", "archive", "node_modules/x"] {
+        write(
+            &root,
+            &format!("{dir}/old.md"),
+            "See `src/ghost/gone.rs` and [x](src/ghost/also_gone.rs).\n",
+        );
+    }
+    write(&root, "CHANGELOG.md", "Removed `src/ghost/changelog.rs`.\n");
+    let result = run(&root, "docs.contract");
+    assert!(result.findings.is_empty(), "{:?}", located(&result));
+}
+
+#[test]
+fn existing_cited_paths_are_not_findings_and_missing_ones_dedupe() {
+    let root = clean_fixture();
+    write(
+        &root,
+        "docs/guide.md",
+        "`src/good.rs` `src/ghost/gone.rs` `src/ghost/gone.rs`\n",
+    );
+    let result = run(&root, "docs.contract");
+    let findings = located(&result);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].1, "docs/guide.md");
+}
+
+#[test]
+fn noisy_providers_cap_findings_with_an_overflow_gap() {
+    let root = clean_fixture();
+    let spans: String = (0..250)
+        .map(|i| format!("`src/ghost/m{i}.rs`\n"))
+        .collect();
+    write(&root, "docs/many.md", &spans);
+    let result = run(&root, "docs.contract");
+    assert_eq!(result.findings.len(), 200);
+    assert!(!result.complete);
+    assert!(
+        result
+            .coverage_gaps
+            .contains(&"docs.contract:findings-overflow:50".to_owned()),
+        "{:?}",
+        result.coverage_gaps
+    );
+    result.validate().unwrap();
+}
+
+#[test]
+fn small_reexport_shells_and_test_trees_are_not_missing_tests() {
+    let root = clean_fixture();
+    write(&root, "src/shell/mod.rs", "pub mod a;\npub mod b;\npub mod c;\n");
+    write(
+        &root,
+        "benches/bench_it.rs",
+        &module("", "", false),
+    );
+    write(
+        &root,
+        "src/api.generated.ts",
+        "export const a = 1;\nexport const b = 2;\nexport const c = 3;\nexport const d = 4;\nexport const e = 5;\nexport const f = 6;\n",
+    );
+    let result = run(&root, "test-quality.core");
+    assert!(result.findings.is_empty(), "{:?}", located(&result));
+}
