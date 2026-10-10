@@ -1,6 +1,6 @@
 ---
 name: alchemist
-description: Bounded implementation authority. Dispatch when settled implementation benefits from a distinct executor or a declared controlled execution boundary. Ordinary inline implementation remains ambient; contracts apply only to locked or explicitly contracted work. Escalate changed requirements, public boundaries, or material tradeoffs. Never dispatch for undecided meaning or independent assurance.
+description: Bounded implementation authority. Dispatch for any assignment that writes files, runs commands with effects, or produces an artifact. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.
 model: sonnet
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Optional independent read-only assurance. Dispatch only for explicit review requests or a concrete outcome/safety risk that benefits from independent examination. Routine replies, read-only answers, and small reversible changes do not need Oracle. Never implements or certifies its own fix.
+description: Independent read-only assurance. Dispatch for review of any work Legion did not do itself, and for independent verification of someone else's work. Never implements or certifies its own fix.
 model: opus
 tools: Read, Grep, Glob
 ---

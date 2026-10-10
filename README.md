@@ -24,7 +24,7 @@ Work splits into independent units where safe, then reunites at delivery. Capabi
 | Component | Job | Cannot do |
 |---|---|---|
 | **Legion** | Interpret live intent, route work, coordinate lanes, report delivery state | Manufacture authority from assistant prose or hooks |
-| **Sage** | Optional cross-cutting design, reassessment, & adjudication of material unresolved meaning, ownership, or acceptance | Own architecture, diagnosis, routine decisions, or implementation |
+| **Sage** | Cross-cutting design, reassessment, & adjudication of material meaning, ownership, or acceptance | Own architecture, diagnosis, routine decisions, or implementation |
 | **Alchemist** | Apply bounded implementation, repair mechanical failures, verify its work | Settle new engineering decisions |
 | **Oracle** | Independently perform Completion Validation over requested outcome & evidence | Own Audit/QA/Audit Visual methods or certify its own fix |
 | **Arcane** | Shape bounded cognitive processing & response policy | Select capabilities, attach authority, or authorize effects |

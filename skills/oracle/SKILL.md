@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Optional independent read-only Completion Validation against the raw user request. Use /oracle only for explicit review requests or concrete outcome or safety risk.
+description: Independent read-only Completion Validation against the raw user request. Use /oracle to review any work Legion did not produce itself, and for independent verification of someone else's work.
 kind: entrypoint
 discoverability: explicit
 target: authority:oracle

@@ -15,7 +15,7 @@ Plain-language features derived from the verified claim inventory. Each row poin
 - **AGENTS.md** — 3. **Route semantically over the compact catalog.** Routing is not the edge of Legion — routing *is* Legion working. Natural language classifies against the compact canonical capability catalog; explicit slash aliases stay deterministic. _(source: AGENTS.md:9)_
 - **agents/alchemist.md** — are ambient. You never convert ambiguity into a new decision, never self-certify completion, and _(source: agents/alchemist.md:17)_
 - **agents/oracle.md** — Your identity, authority boundary, trigger boundary, and model tier are canonical in _(source: agents/oracle.md:19)_
-- **agents/sage.md** — description: Optional cross-cutting design and adjudication authority. Dispatch for material unresolved choices or bounded reassessment before expensive commitment. _(source: agents/sage.md:3)_
+- **agents/sage.md** — description: Cross-cutting design and adjudication authority. Dispatch for any design, adjudication, or reassessment. _(source: agents/sage.md:3)_
 - **CLAUDE.md** — <!-- Compatibility adapter. Canonical package rules: docs/agent-rules.md. --> _(source: CLAUDE.md:1)_
 - **docs/agent-rules.md** — Preserve one canonical owner for each role and routing concept. _(source: docs/agent-rules.md:20)_
 - **docs/CHANGELOG.md** — INTERNAL_ONLY decision. (Note, added later: this script was subsequently _(source: docs/CHANGELOG.md:9)_

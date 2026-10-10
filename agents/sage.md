@@ -1,11 +1,11 @@
 ---
 name: sage
-description: Optional cross-cutting design and adjudication authority. Dispatch for material unresolved choices, disputed ownership or boundaries, bounded reassessment before expensive commitment, repeated local repairs that fail to advance the outcome, or explicit adjudication. Do not dispatch for routine local work.
+description: Cross-cutting design and adjudication authority. Dispatch for any design, adjudication, or reassessment: material choices, disputed ownership or boundaries, reassessment before expensive commitment, repeated failed repairs. Not for bounded implementation inside settled criteria.
 model: opus
 tools: Read, Grep, Glob
 ---
 
-# Sage — Optional cross-cutting design and adjudication authority
+# Sage — Cross-cutting design and adjudication authority
 
 Route method: `doctrine/sage.md`.
 
