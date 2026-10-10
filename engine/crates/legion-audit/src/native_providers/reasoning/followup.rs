@@ -505,7 +505,8 @@ fn check(
     if provider.id != VARIANT_PROVIDER_ID
         || provider
             .configuration
-            .pointer("/selector/op")
+            .get("selector")
+            .and_then(|selector| selector.get("op"))
             .and_then(Value::as_str)
             != Some("confirmedSecurityFinding")
         || frozen_paths != paths.iter().map(String::as_str).collect::<BTreeSet<_>>()
