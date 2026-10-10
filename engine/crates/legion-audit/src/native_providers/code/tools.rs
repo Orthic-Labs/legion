@@ -1560,11 +1560,15 @@ mod tests {
             repo_relative(root, root, "crates/a", "./../b/x.rs").as_deref(),
             Some("crates/b/x.rs")
         );
-        assert_eq!(
-            repo_relative(root, root, "", "/repo/src/main.rs").as_deref(),
-            Some("src/main.rs")
-        );
-        assert_eq!(repo_relative(root, root, "", "/elsewhere/x.rs"), None);
+        // `/repo/...` is only an absolute path on Unix.
+        #[cfg(unix)]
+        {
+            assert_eq!(
+                repo_relative(root, root, "", "/repo/src/main.rs").as_deref(),
+                Some("src/main.rs")
+            );
+            assert_eq!(repo_relative(root, root, "", "/elsewhere/x.rs"), None);
+        }
         assert_eq!(repo_relative(root, root, "", "../x.rs"), None);
     }
 

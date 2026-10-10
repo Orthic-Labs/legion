@@ -83,7 +83,9 @@ impl Fixture {
     }
 
     fn write(&self, relative: &str, text: &str) {
-        fs::write(self.repo.join(relative), text).unwrap();
+        let path = self.repo.join(relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, text).unwrap();
     }
 
     fn base(&self) -> PathBuf {
