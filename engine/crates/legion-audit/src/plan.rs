@@ -13,6 +13,9 @@ use crate::{
     native_providers::reasoning::{lens_plan, triggers},
 };
 
+/// `AuditPlan::bounds` key carrying the parent-run binding of a follow-up plan.
+pub const FOLLOWUP_BOUND: &str = "followup";
+
 /// A conditional-lens provider excluded from a frozen plan because its
 /// deterministic trigger was checked over the frozen inventory and did not
 /// fire. Recorded so the exclusion is provably-checked, not silently
@@ -404,6 +407,71 @@ impl AuditPlan {
             bounds: BTreeMap::new(),
             excluded_conditional_providers,
         })
+    }
+
+    /// Compiles the follow-up plan for security variant analysis: a plan of
+    /// exactly one provider (the `variant-analysis` spec) whose denominator is
+    /// the repository files of the independently confirmed findings
+    /// (`denominator_entries_with_security_context`). The confirmed paths are
+    /// frozen into the provider selector, and the parent run is bound through
+    /// `bounds.followup` (parent plan digest and the digest of the confirmed
+    /// findings), so the plan digest and signature cover both.
+    pub fn compile_followup(
+        inventory: &InventoryEnvelope,
+        variant_spec: &ProviderSpec,
+        confirmed_paths: &[String],
+        parent_plan_digest: &str,
+        confirmed_digest: &str,
+    ) -> Result<Self, AuditError> {
+        if variant_spec.role != "variant-analysis" {
+            return Err(AuditError::Invalid(format!(
+                "{} is not a variant-analysis provider",
+                variant_spec.id
+            )));
+        }
+        let paths = confirmed_paths
+            .iter()
+            .map(|path| path.replace('\\', "/"))
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        if paths.is_empty() {
+            return Err(AuditError::Invalid(
+                "a security follow-up plan needs at least one confirmed path".into(),
+            ));
+        }
+        let expected = inventory.denominator_entries_with_security_context(
+            &variant_spec.selector,
+            &[],
+            &paths,
+        )?;
+        if expected.entries.len() != paths.len() {
+            return Err(AuditError::SourceDrift(
+                "a confirmed finding path is not part of the frozen inventory".into(),
+            ));
+        }
+        let mut spec = variant_spec.clone();
+        spec.selector = serde_json::json!({
+            "op": "confirmedSecurityFinding",
+            "paths": paths,
+        });
+        let mut plan = Self::compile_with_root(None, inventory, std::slice::from_ref(&spec))?;
+        plan.bounds.insert(
+            FOLLOWUP_BOUND.into(),
+            serde_json::json!({
+                "kind": "security-variant-analysis",
+                "trigger": "confirmedSecurityFinding",
+                "parentPlanDigest": parent_plan_digest,
+                "confirmedDigest": confirmed_digest,
+                "confirmedPaths": paths,
+            }),
+        );
+        Ok(plan)
+    }
+
+    /// The follow-up binding frozen by `compile_followup`, if this is one.
+    pub fn followup_binding(&self) -> Option<&Value> {
+        self.bounds.get(FOLLOWUP_BOUND)
     }
 
     pub fn validate(&self) -> Result<(), AuditError> {

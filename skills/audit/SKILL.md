@@ -81,12 +81,18 @@ overrides it.
    the CLI is the trusted host, rejects any anchor that does not match the file bytes at the frozen
    revision, MACs the receipt, and rewrites `report.json` with the recomputed verdict. Finish with
    `legion verify <run-dir>`; it recomputes the verdict from the ingested receipts. A lens that is not
-   ingested stays `pending-host` and keeps the audit non-clean.
+   ingested stays `pending-host` and keeps the audit non-clean. The adjudication packet carries
+   `scannerCandidates` and its result a `verdicts` array (one per candidate); every packet carries
+   `excerptCoverage`, and omitted/truncated excerpts leave a `reasoning-excerpt-coverage` gap (partial
+   receipt). Confirmed security verdicts additionally require the variant-analysis follow-up
+   (`legion audit ingest --run <run-dir> --followup`, see the execution contract); until that
+   follow-up is ingested and verifies, `security-variant-analysis-pending` keeps the audit incomplete.
 8. Apply [semantic review](references/semantic-review.md) when a repository supplies explicit
    specifications or standards. Reuse `correctness` for SPEC fidelity & `ai-slop` for STANDARDS,
    with independent inputs, reports, & verdicts; missing inputs are typed `unproven` or
    `not-applicable` with a reason, never filled from invented standards.
-9. Adjudicate each security candidate independently; no generator closes its own finding.
+9. Adjudicate each security candidate independently; no generator closes its own finding. Run variant
+   analysis (follow-up plan) for every confirmed finding.
 10. Deduplicate, then finalize through [execution contract](references/execution-contract.md) so
    `report.json`, `report.sarif`, & receipts reconcile against exact plan. Missing provider/lens
    coverage stays typed `incomplete`. Providers without a passing bench class or qualification record

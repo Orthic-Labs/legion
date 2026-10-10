@@ -31,6 +31,7 @@ use crate::{
 };
 
 pub mod excerpts;
+pub mod followup;
 pub mod ingest;
 pub mod lens_plan;
 pub mod lens_schemas;

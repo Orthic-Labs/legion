@@ -61,7 +61,7 @@ Report requested states actually reached. Independent nested repositories are de
 - Legion executes ambient-tier work directly under the operator's authorization. Inside the contract chain, settled meaning remains owned by the producing capability; Legion selects capabilities, attaches authority, materializes work, & routes it; Sage adjudicates only genuinely unresolved material meaning; Alchemist owns controlled bounded transformation where required; Oracle owns independent completion assurance; Covenant dispositions are never Legion's; Arcane shapes cognitive processing & response policy; Guard gates declared typed effects.
 - No false clean. No unbounded execution. No silent scope expansion. Independent work is parallel unless a named reason forbids it.
 
-> `docs/agent-rules.md` is the same Package Rules text below; Claude Code loads it through `CLAUDE.md`, Codex loads this file. Edit both together.
+> Claude Code loads this file through `CLAUDE.md`; `docs/agent-rules.md` mirrors the Package Rules section below. Edit both together.
 
 # Legion Package Rules
 

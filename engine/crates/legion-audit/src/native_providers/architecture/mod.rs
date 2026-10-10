@@ -11,6 +11,7 @@ pub mod docs_contract;
 pub mod evidence;
 pub mod framework;
 pub mod frontend;
+pub mod producer;
 pub mod requirements;
 pub mod test_quality;
 
@@ -29,6 +30,7 @@ pub struct ProviderExecutorAdapter {
     root: Option<PathBuf>,
     inputs: BTreeMap<String, Value>,
     now: Option<String>,
+    producer: producer::ProducerCache,
 }
 
 pub type NativeAuditProviderExecutor = ProviderExecutorAdapter;
@@ -67,11 +69,38 @@ impl ProviderExecutorAdapter {
         provider: &AuditProvider,
         inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError> {
-        // No producer feeds these analyzers: absent configuration or an
-        // injected input, the analysis runs over `{}` and can only report gaps.
+        // Host-injected input (provider configuration or `with_input`) keeps
+        // precedence. Absent that, the producer derives input from the frozen
+        // denominator; an input it cannot derive stays unavailable.
         let input_supplied =
             provider.configuration.contains_key("input") || self.inputs.contains_key(&provider.id);
-        let input = self.input_for(provider);
+        let selector = provider
+            .configuration
+            .get("selector")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({"op":"always"}));
+        let denominator = inventory.denominator_entries(&selector)?;
+        let mut facts = None;
+        let mut unavailable = None;
+        let input = if input_supplied {
+            self.input_for(provider)
+        } else if let Some(root) = &self.root {
+            let scanned = self
+                .producer
+                .facts(root, &denominator.digest, &denominator.entries);
+            let produced = producer::produce(&scanned, &provider.id);
+            facts = Some(scanned);
+            match produced {
+                producer::Production::Input(value) => value,
+                producer::Production::Unavailable(reason) => {
+                    unavailable = Some(reason);
+                    serde_json::json!({})
+                }
+            }
+        } else {
+            unavailable = Some(format!("input-not-produced:{}", provider.id));
+            serde_json::json!({})
+        };
         let original_input = input.clone();
         let mut input_object = input.clone();
         if let Value::Object(object) = &mut input_object {
@@ -102,12 +131,12 @@ impl ProviderExecutorAdapter {
             }
         }
         .map_err(AuditError::Provider)?;
-        let selector = provider
-            .configuration
-            .get("selector")
-            .cloned()
-            .unwrap_or_else(|| serde_json::json!({"op":"always"}));
-        let denominator = inventory.denominator_entries(&selector)?;
+        let mut analysis = analysis;
+        if unavailable.is_none() {
+            if let Some(facts) = &facts {
+                producer::reconcile(facts, &provider.id, &mut analysis);
+            }
+        }
         let paths = denominator
             .entries
             .iter()
@@ -124,11 +153,8 @@ impl ProviderExecutorAdapter {
             &paths,
         )
         .map_err(AuditError::Provider)?;
-        if !input_supplied {
-            super::availability::mark_unavailable(
-                &mut result,
-                &format!("input-not-produced:{}", provider.id),
-            );
+        if let Some(reason) = unavailable {
+            super::availability::mark_unavailable(&mut result, &reason);
         }
         Ok(result)
     }

@@ -2592,12 +2592,23 @@ fn transcript_shows_edits(object: &Map<String, Value>) -> bool {
 }
 
 /// Does the final message point at something a reader can check: a fenced
-/// command output, a test result line, `file:line`, a URL, or an explicit
-/// statement that nothing was verified?
+/// command output, a test result line, `file:line`, a URL, a linked file, a
+/// commit hash, or an explicit statement that nothing was verified?
 fn message_cites_evidence(message: &str) -> bool {
     let lowered = message.to_lowercase();
+    // A backticked commit hash (`4eb3a3bd`) names an exact, checkable state.
+    let cites_commit = message.split('`').skip(1).step_by(2).any(|span| {
+        (7..=40).contains(&span.len())
+            && span.chars().all(|character| character.is_ascii_hexdigit())
+            && span.chars().any(|character| character.is_ascii_digit())
+    });
+    if cites_commit {
+        return true;
+    }
     if [
         "```",
+        // Markdown link to a file or page the reader can open.
+        "](",
         "not verified",
         "http://",
         "https://",
@@ -3991,6 +4002,8 @@ mod tests {
             "Fixed in (engine/lib.rs:7).",
             "Merged: https://github.com/a/b/pull/1",
             "Nothing was run; not verified.",
+            "Report: [wiring](docs/audits/wiring.md).",
+            "Pushed as `4eb3a3bd`.",
         ] {
             assert!(message_cites_evidence(message), "missed: {message}");
         }
@@ -3998,6 +4011,7 @@ mod tests {
             "Done.",
             "I updated the file and it works.",
             "Meet at 10:30 today.",
+            "Renamed `feedface` to `decade`.",
         ] {
             assert!(
                 !message_cites_evidence(message),

@@ -772,9 +772,22 @@ impl InventoryEnvelope {
                 dedup_entries(selected)
             }
             "confirmedSecurityFinding" => {
+                // A follow-up plan freezes its confirmed paths into the
+                // selector itself (`paths`), so every re-derivation of the
+                // denominator (execution, reasoning host, ingest) reproduces
+                // it from the plan alone. The parent plan's selector carries
+                // none and stays empty without an explicit context.
+                let frozen = selector
+                    .get("paths")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str);
                 let confirmed = confirmed_paths
                     .iter()
-                    .map(|path| normalize_path(path))
+                    .map(String::as_str)
+                    .chain(frozen)
+                    .map(normalize_path)
                     .collect::<BTreeSet<_>>();
                 self.entries
                     .iter()

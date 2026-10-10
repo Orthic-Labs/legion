@@ -64,6 +64,53 @@ counts in `reasoningLensesRan` only through an ingested receipt; unsigned plans 
 (set `AUDIT_PLAN_SIGNING_KEY`). A rerun of `legion audit --out` replaces the epoch key and discards
 older receipts.
 
+### Packet fields that drive the result
+
+- `excerptCoverage` (in `request.packet`): what the packet proves was examined. `basis:
+  "bounded-excerpts"` lists `examinedPaths` (excerpt present and untruncated), `truncatedPaths` (cut at
+  the per-file cap), and `omittedPaths` (no excerpt). Examined coverage is derived from this, never from
+  `complete: true`, which only attests the subagent finished. A denominator path that is truncated or
+  omitted yields the gap `reasoning-excerpt-coverage:<provider>:<examined>/<expected> paths examined (...)`;
+  the receipt is then `partial`, the lens does not count in `reasoningLensesRan`, and the report stays
+  incomplete. Review truncated/omitted paths by reading the files, then rerun the audit; a packet with
+  no recorded basis yields `excerpt-coverage-unrecorded:<provider>`.
+- `scannerCandidates` (only `legacy.security.adjudication`): the scanner candidates to close, each
+  `{findingId, provider, rule, severity, path, line, message, evidenceExcerpt}`. `null` means scanner
+  results were unavailable (gap `scanner-candidates-unavailable:<provider>`; the lens stays uncovered).
+- `verdicts` (result array, adjudication only): exactly one entry per `scannerCandidates` item,
+  `{candidateId, verdict, ...}`. `verdict` is `TRUE_POSITIVE`, `LIKELY_TRUE_POSITIVE`,
+  `LIKELY_FALSE_POSITIVE`, `FALSE_POSITIVE`, `OUT_OF_SCOPE`, `HARDENING_GAP`, or `MISUSE_HAZARD`; every
+  verdict needs `threatModel`, `reachability`, `impact`. A surviving verdict (`TRUE_POSITIVE` /
+  `LIKELY_TRUE_POSITIVE`) also needs `severity`, `attackerControl` above `unproven`, `proof`,
+  `evidenceStrength` above `possible`, and `devilsAdvocate`, plus an anchored finding with id
+  `adjudicated:<candidateId>`. Missing, duplicate, or unknown candidate ids reject the ingest.
+
+### Variant-analysis follow-up
+
+`legacy.security.variant-analysis` is selected by `confirmedSecurityFinding`, which is empty when the
+parent plan freezes, so it cannot run inside the parent run. Each surviving verdict therefore leaves the
+parent gap `security-variant-analysis-pending:<n> confirmed finding(s)` (also report claim
+`securityVariantTrigger`) until a follow-up plan runs. No confirmed finding means no follow-up and no gap.
+
+```bash
+# After ingesting the adjudication result, the CLI plans the follow-up automatically
+# (output key `followup`); to (re)plan explicitly:
+legion audit ingest --run <run-dir> --followup
+# Run the packet at <run-dir>/followup/lens-packets/legacy.security.variant-analysis.json, then:
+legion audit ingest --run <run-dir> --followup --provider legacy.security.variant-analysis --result <variant.json>
+legion verify <run-dir>
+```
+
+The follow-up is a second signed plan under `<run-dir>/followup/` (own `plan.json`, `frozen-plan.json`,
+`epoch.key`, `lens-packets/`, `lens-receipts/`). Its only provider is the variant analysis over exactly
+the confirmed files, and the plan binds the parent plan digest and the confirmed verdict digests. The
+packet carries `variantSeeds`, one per confirmed finding (`rule`, `path`, `line`, `verdict`, `rationale`,
+`threatModel`, `reachability`, `impact`, `parentFindingId`). Each variant finding is a normal lens
+finding with a verbatim anchor plus `parentFindingId` (the seed's `adjudicated:<candidateId>`); zero
+variants is a valid complete result (`findings: []`). The parent gap clears, and variant findings join
+the parent report, only when the follow-up is complete and its chain verifies; a follow-up that does not
+chain to the parent (`securityVariantFollowup.status: invalid`) keeps the gap and fails `legion verify`.
+
 Qualification: a provider is qualified when its registry entry carries `benchmark.status: qualified`
 with a `qualificationDigest` (the five bench-recall classes `secret`, `dependency_cve`, `dead_code`,
 `duplication`, `type_error` carry a `benchmark.qualification` record citing the `bench` CI job). An
@@ -99,9 +146,9 @@ unadjudicated security candidate is `UNPROVEN` and keeps the audit incomplete.
 ## Finalize and verify (steps 9 and 10 detail)
 
 `legion audit` writes `report.json` and `report.sarif` itself; there is no separate finalize binary and
-no `--candidates` / `--adjudication` flag. Security adjudication verdicts are recorded by the main
-session in its reconciliation notes and the final report; the native runner does not ingest them.
-After the run:
+no `--candidates` / `--adjudication` flag. Security adjudication verdicts enter the run only through
+`legion audit ingest` of the `legacy.security.adjudication` result (`verdicts`), and variant analysis
+through the follow-up above. After the run:
 
 ```bash
 legion verify <run-dir>

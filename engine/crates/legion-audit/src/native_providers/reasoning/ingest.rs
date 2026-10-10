@@ -30,7 +30,7 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 
 use super::{
-    authenticate_receipt, lens_plan, lens_schemas,
+    authenticate_receipt, followup, lens_plan, lens_schemas,
     security_adjudication::{
         adjudicate_scanner_candidates, confirmed_findings, confirmed_paths,
         ConfirmedSecurityFinding, ScannerCandidate, ADJUDICATOR_PROVIDER_ID,
@@ -54,22 +54,22 @@ pub const LENS_RESULT_KIND: &str = "legion-lens-result";
 const EPOCH_DOMAIN: &[u8] = b"legion-audit-epoch:v1";
 const NOT_COMPLETE_GAP: &str = "selected reasoning lenses did not complete";
 
-fn invalid(message: impl Into<String>) -> AuditError {
+pub(super) fn invalid(message: impl Into<String>) -> AuditError {
     AuditError::Invalid(message.into())
 }
 
-fn io(error: std::io::Error, what: &str) -> AuditError {
+pub(super) fn io(error: std::io::Error, what: &str) -> AuditError {
     AuditError::Invalid(format!("{what}: {error}"))
 }
 
-fn read_json(path: &Path) -> Result<Value, AuditError> {
+pub(super) fn read_json(path: &Path) -> Result<Value, AuditError> {
     let bytes =
         fs::read(path).map_err(|error| io(error, &format!("could not read {}", path.display())))?;
     serde_json::from_slice(&bytes)
         .map_err(|error| invalid(format!("{} is not valid JSON: {error}", path.display())))
 }
 
-fn write_atomic(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, AuditError> {
+pub(super) fn write_atomic(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, AuditError> {
     fs::create_dir_all(dir).map_err(|error| io(error, "could not create run directory"))?;
     let destination = dir.join(name);
     let temporary = dir.join(format!(".{name}.tmp-{}", std::process::id()));
@@ -399,7 +399,7 @@ fn packet_coverage(
     }
 }
 
-fn expected_request_id(work: &PendingLensWork) -> Result<String, AuditError> {
+pub(super) fn expected_request_id(work: &PendingLensWork) -> Result<String, AuditError> {
     let request = &work.request;
     let packet_digest =
         canonical_digest(&request.packet).map_err(|error| invalid(error.to_string()))?;
@@ -1092,19 +1092,43 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         .collect();
     gaps.extend(rebuilt.gaps.iter().cloned());
     let variant_paths = confirmed_paths(&confirmed_security);
+    let mut findings = rebuilt.findings.clone();
+    let mut followup_claim: Option<Value> = None;
     if !confirmed_security.is_empty() {
         // Variant analysis is required for every surviving finding, and the
         // frozen plan's `confirmedSecurityFinding` denominator was empty, so
-        // the lens cannot run inside this run: say so instead of reporting
-        // the finding as fully handled.
-        gaps.insert(format!(
-            "security-variant-analysis-pending:{} confirmed finding(s)",
-            confirmed_security.len()
-        ));
+        // the lens cannot run inside this run: it runs in the follow-up plan
+        // under `<run>/followup/`. The gap clears only when that follow-up is
+        // complete and its digest chain (parent plan, confirmed verdicts,
+        // signed follow-up plan, MAC'd variant receipt) verifies.
+        let state = followup::evaluate(run_dir, &plan, &execution, &confirmed_security);
+        followup_claim = Some(state.claim());
+        match state {
+            followup::FollowupState::Complete(done) => {
+                let known: BTreeSet<String> = findings
+                    .iter()
+                    .map(|finding| finding.id.as_str().to_owned())
+                    .collect();
+                for finding in done.findings {
+                    if known.contains(finding.id.as_str()) {
+                        gaps.insert(format!("duplicate-finding-id:{}", finding.id));
+                    } else {
+                        findings.push(finding);
+                    }
+                }
+                findings.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+            }
+            _ => {
+                gaps.insert(format!(
+                    "security-variant-analysis-pending:{} confirmed finding(s)",
+                    confirmed_security.len()
+                ));
+            }
+        }
     }
     let status = if !gaps.is_empty() {
         ReportStatus::Incomplete
-    } else if rebuilt.findings.is_empty() {
+    } else if findings.is_empty() {
         ReportStatus::Clean
     } else {
         ReportStatus::Findings
@@ -1112,7 +1136,7 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
 
     let mut report = stored;
     report.status = status;
-    report.findings = rebuilt.findings.clone();
+    report.findings = findings;
     report.gaps = gaps.into_iter().collect();
     for (name, value) in rebuilt.claims.iter() {
         report.claims.insert(name.clone(), value.clone());
@@ -1144,6 +1168,11 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
                 "paths": variant_paths,
             }),
         );
+    }
+    if let Some(claim) = followup_claim {
+        report
+            .claims
+            .insert("securityVariantFollowup".into(), claim);
     }
     report.claims.insert(
         "ingestedLenses".into(),

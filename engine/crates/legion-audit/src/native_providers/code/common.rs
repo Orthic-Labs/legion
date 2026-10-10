@@ -45,14 +45,19 @@ pub fn analyze_language(config: &LanguageConfig, input: &Value) -> Value {
         .unwrap_or_default();
     let selected = files
         .iter()
-        .filter(|file| config.extensions.contains(&extension(file).as_str()))
+        .filter(|file| {
+            config.extensions.contains(&"*")
+                || config.extensions.contains(&extension(file).as_str())
+        })
         .collect::<Vec<_>>();
 
     let mut variants = Map::new();
     for (variant, extensions) in config.variants {
         let count = selected
             .iter()
-            .filter(|file| extensions.contains(&extension(file).as_str()))
+            .filter(|file| {
+                extensions.contains(&"*") || extensions.contains(&extension(file).as_str())
+            })
             .count();
         variants.insert((*variant).into(), Value::Number(Number::from(count)));
     }

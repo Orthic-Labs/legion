@@ -1,7 +1,9 @@
 //! Rust-owned adapters for security-family provider records.
 //!
-//! This adapter consumes host-published artifacts only. It intentionally does
-//! not spawn tools, invoke a runtime, or turn a missing receipt into success.
+//! The adapter analyses artifacts; it never spawns a tool itself. Artifacts come
+//! from the host (`new`) or, when none were injected and a root was supplied
+//! (`with_root`), from the self-sourcing [`ArtifactProducer`]. A missing
+//! artifact or receipt is never turned into success.
 
 use std::collections::BTreeMap;
 
@@ -16,18 +18,35 @@ use crate::{
 };
 
 use super::{
-    ast_grep, container_iac, dependency_osv, imported_sarif, opengrep, secrets, supply_chain,
+    ast_grep, container_iac, dependency_osv, imported_sarif, opengrep,
+    producer::{ArtifactProducer, Production},
+    secrets, supply_chain,
 };
 
 #[derive(Clone, Debug, Default)]
 pub struct SecurityProviderExecutor {
     /// Keyed by provider id; values are immutable host-produced projections.
     pub artifacts: BTreeMap<String, Value>,
+    /// Used only for providers with no injected artifact.
+    pub producer: Option<ArtifactProducer>,
 }
 
 impl SecurityProviderExecutor {
     pub fn new(artifacts: BTreeMap<String, Value>) -> Self {
-        Self { artifacts }
+        Self {
+            artifacts,
+            producer: None,
+        }
+    }
+
+    /// Source artifacts for the audited `root` when the host injected none.
+    pub fn with_root(self, root: impl Into<std::path::PathBuf>) -> Self {
+        self.with_producer(ArtifactProducer::new(root))
+    }
+
+    pub fn with_producer(mut self, producer: ArtifactProducer) -> Self {
+        self.producer = Some(producer);
+        self
     }
 
     pub fn analyze(&self, provider: &AuditProvider) -> Option<Value> {
@@ -36,6 +55,11 @@ impl SecurityProviderExecutor {
             .get(&provider.id)
             .cloned()
             .unwrap_or_else(|| json!({}));
+        Self::analyze_input(provider, &input)
+    }
+
+    fn analyze_input(provider: &AuditProvider, input: &Value) -> Option<Value> {
+        let input = input.clone();
         Some(match provider.id.as_str() {
             "container.iac" => container_iac::analyze(&input),
             "dependency.osv" => dependency_osv::analyze(&input),
@@ -53,15 +77,27 @@ impl ProviderExecutor for SecurityProviderExecutor {
     fn execute(
         &self,
         provider: &AuditProvider,
-        _inventory: &InventoryEnvelope,
+        inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError> {
-        let Some(analysis) = self.analyze(provider) else {
+        let mut unavailable_reason = None;
+        let mut produced = None;
+        if !self.artifacts.contains_key(&provider.id) {
+            if let Some(producer) = &self.producer {
+                match producer.produce(provider, inventory) {
+                    Production::Artifact(value) => produced = Some(value),
+                    Production::Unavailable(reason) => unavailable_reason = Some(reason),
+                }
+            }
+        }
+        let input = self.artifacts.get(&provider.id).or(produced.as_ref());
+        let Some(analysis) =
+            Self::analyze_input(provider, input.unwrap_or(&json!({})))
+        else {
             return Err(AuditError::Provider(format!(
                 "unsupported security provider {}",
                 provider.id
             )));
         };
-        let input = self.artifacts.get(&provider.id);
         let provider_id = ProviderId::new(provider.id.clone())?;
         let expected = analysis
             .get("denominator")
@@ -148,6 +184,11 @@ impl ProviderExecutor for SecurityProviderExecutor {
         {
             details.insert("executionReceipt".into(), receipt.clone());
         }
+        // How the artifact was sourced: `tool` (receipt-bound scanner run),
+        // `native-fallback`, or `file` (repository SARIF).
+        if let Some(producer) = input.and_then(|value| value.get("producer")) {
+            details.insert("producer".into(), producer.clone());
+        }
         // With no host-supplied artifact there is nothing to analyze: the
         // plan selected this provider, so it is applicable but unavailable.
         let artifact_supplied = input.is_some();
@@ -170,7 +211,8 @@ impl ProviderExecutor for SecurityProviderExecutor {
         if !artifact_supplied {
             crate::native_providers::availability::mark_unavailable(
                 &mut result,
-                &format!("artifact-not-produced:{}", provider.id),
+                &unavailable_reason
+                    .unwrap_or_else(|| format!("artifact-not-produced:{}", provider.id)),
             );
         }
         Ok(result)

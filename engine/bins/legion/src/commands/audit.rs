@@ -58,12 +58,19 @@ pub struct AuditArgs {
     pub ingest_provider: Option<String>,
     #[arg(long = "result", hide = true)]
     pub ingest_result: Option<PathBuf>,
+    /// `legion audit ingest --run <dir> --followup`: (re)compile the security
+    /// variant-analysis follow-up plan under `<dir>/followup/` for the run's
+    /// confirmed findings. With `--provider`/`--result` the result is ingested
+    /// into that follow-up instead (see `ingest_command`).
+    #[arg(long = "followup", hide = true)]
+    pub followup: bool,
 }
 pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
     if args.root.as_os_str() == "ingest"
         && (args.ingest_run.is_some()
             || args.ingest_provider.is_some()
-            || args.ingest_result.is_some())
+            || args.ingest_result.is_some()
+            || args.followup)
     {
         return ingest_command(&args);
     }
@@ -407,19 +414,25 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
 /// lens result against the frozen run (packet, plan, verbatim code anchors),
 /// mints a MAC'd receipt under the run's epoch key, and rewrites the run's
 /// report with the recomputed verdict.
+///
+/// Security variant analysis cannot run inside the parent plan (its
+/// denominator is frozen empty), so when the ingest leaves confirmed security
+/// findings the CLI also compiles the follow-up plan under `<run>/followup/`
+/// and emits the variant lens packet (`followup` in the output). Then:
+///
+/// * `legion audit ingest --run <dir> --followup` (re)compiles that follow-up
+///   explicitly and ingests nothing;
+/// * `legion audit ingest --run <dir> --followup --provider
+///   legacy.security.variant-analysis --result <file>` ingests the variant
+///   result into the follow-up and recomputes the parent report, whose
+///   `security-variant-analysis-pending` gap clears only when the follow-up is
+///   complete and its digest chain verifies.
 fn ingest_command(args: &AuditArgs) -> CommandResult {
+    use legion_audit::native_providers::reasoning::{followup, ingest};
     let run = args
         .ingest_run
         .clone()
         .ok_or_else(|| CommandError::usage("legion audit ingest requires --run <dir>"))?;
-    let provider = args
-        .ingest_provider
-        .clone()
-        .ok_or_else(|| CommandError::usage("legion audit ingest requires --provider <id>"))?;
-    let result = args
-        .ingest_result
-        .clone()
-        .ok_or_else(|| CommandError::usage("legion audit ingest requires --result <file>"))?;
     let absolute = |path: PathBuf| -> Result<PathBuf, CommandError> {
         if path.is_absolute() {
             Ok(path)
@@ -428,17 +441,121 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
         }
     };
     let run = absolute(run)?;
+    let into_followup = args.followup && args.ingest_provider.is_some();
+    if args.followup && args.ingest_provider.is_none() && args.ingest_result.is_none() {
+        // Explicit follow-up (re)compilation.
+        let follow = plan_followup(&run);
+        let recomputed = ingest::recompute_run(&run)
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
+        write_run_reports(&run, &recomputed.report)?;
+        return Ok(ingest_output(&run, None, &recomputed, follow));
+    }
+    let provider = args
+        .ingest_provider
+        .clone()
+        .ok_or_else(|| CommandError::usage("legion audit ingest requires --provider <id>"))?;
+    let result = args
+        .ingest_result
+        .clone()
+        .ok_or_else(|| CommandError::usage("legion audit ingest requires --result <file>"))?;
     let result = absolute(result)?;
-    let ingested = legion_audit::native_providers::reasoning::ingest::ingest_lens_result_file(
-        &run, &provider, &result,
-    )
-    .map_err(|error| CommandError::usage(error.to_string()))?;
-    let recomputed = legion_audit::native_providers::reasoning::ingest::recompute_run(&run)
+    if into_followup {
+        if provider != followup::VARIANT_PROVIDER_ID {
+            return Err(CommandError::usage(format!(
+                "--followup ingests {} results only",
+                followup::VARIANT_PROVIDER_ID
+            )));
+        }
+        let dir = run.join(followup::FOLLOWUP_DIR);
+        if !followup::exists(&run) {
+            return Err(CommandError::usage(
+                "this run has no follow-up plan; run `legion audit ingest --run <dir> --followup` first",
+            ));
+        }
+        let ingested = ingest::ingest_lens_result_file(&dir, &provider, &result)
+            .map_err(|error| CommandError::usage(error.to_string()))?;
+        let inner = ingest::recompute_run(&dir)
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
+        write_run_reports(&dir, &inner.report)?;
+        let recomputed = ingest::recompute_run(&run)
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
+        write_run_reports(&run, &recomputed.report)?;
+        let follow = json!({
+            "status": recomputed.report.claims.get("securityVariantFollowup")
+                .and_then(|claim| claim.get("status")).cloned().unwrap_or(Value::Null),
+            "claim": recomputed.report.claims.get("securityVariantFollowup"),
+            "run": dir,
+            "ingested": ingested,
+            "gaps": inner.report.gaps,
+        });
+        return Ok(ingest_output(&run, None, &recomputed, follow));
+    }
+    let ingested = ingest::ingest_lens_result_file(&run, &provider, &result)
+        .map_err(|error| CommandError::usage(error.to_string()))?;
+    // Confirmed findings from this ingest get their follow-up compiled now.
+    let follow = plan_followup(&run);
+    let recomputed = ingest::recompute_run(&run)
         .map_err(|error| CommandError::integrity(error.to_string()))?;
-    let report_json = legion_report::render_json(&recomputed.report).map_err(super::io_error)?;
-    let report_sarif = legion_report::render_sarif(&recomputed.report).map_err(super::io_error)?;
-    write_artifact(&run, "report.json", report_json.as_bytes())?;
-    write_artifact(&run, "report.sarif", report_sarif.as_bytes())?;
+    write_run_reports(&run, &recomputed.report)?;
+    Ok(ingest_output(&run, Some(ingested), &recomputed, follow))
+}
+
+fn write_run_reports(
+    dir: &std::path::Path,
+    report: &legion_contracts::ReportV1,
+) -> Result<(), CommandError> {
+    let report_json = legion_report::render_json(report).map_err(super::io_error)?;
+    let report_sarif = legion_report::render_sarif(report).map_err(super::io_error)?;
+    write_artifact(dir, "report.json", report_json.as_bytes())?;
+    write_artifact(dir, "report.sarif", report_sarif.as_bytes())
+}
+
+/// Compiles the variant-analysis follow-up when the run has confirmed security
+/// findings. Never fails the caller: the parent report keeps its
+/// `security-variant-analysis-pending` gap and `status: error` says why.
+fn plan_followup(run: &std::path::Path) -> Value {
+    use legion_audit::native_providers::reasoning::followup;
+    // No confirmed finding, no follow-up (and no registry lookup).
+    match legion_audit::native_providers::reasoning::ingest::recompute_run(run) {
+        Ok(recomputed) if recomputed.confirmed_security.is_empty() => {
+            return json!({"status": "none", "reason": "no confirmed security finding"});
+        }
+        Ok(_) => {}
+        Err(error) => return json!({"status": "error", "reason": error.to_string()}),
+    }
+    let planned = registry_provider_spec(followup::VARIANT_PROVIDER_ID)
+        .map_err(|error| error.message)
+        .and_then(|spec| {
+            followup::compile_followup(run, &spec).map_err(|error| error.to_string())
+        });
+    match planned {
+        Ok(Some(planned)) => json!({
+            "status": if planned.reused { "reused" } else { "planned" },
+            "plan": planned.plan_path,
+            "planDigest": planned.plan_digest,
+            "parentPlanDigest": planned.parent_plan_digest,
+            "confirmedPaths": planned.confirmed_paths,
+            "seeds": planned.seeds,
+            "provider": planned.provider,
+            "packet": planned.packet,
+            "packetDigest": planned.packet_digest,
+            "next": format!(
+                "run the variant-analysis lens packet, then: legion audit ingest --run {} --followup --provider {} --result <file>",
+                run.display(),
+                planned.provider
+            ),
+        }),
+        Ok(None) => json!({"status": "none", "reason": "no confirmed security finding"}),
+        Err(reason) => json!({"status": "error", "reason": reason}),
+    }
+}
+
+fn ingest_output(
+    run: &std::path::Path,
+    ingested: Option<legion_audit::native_providers::reasoning::ingest::IngestedLens>,
+    recomputed: &legion_audit::native_providers::reasoning::ingest::Recomputed,
+    followup: Value,
+) -> Value {
     let status = match recomputed.report.status {
         legion_contracts::ReportStatus::Clean => "pass",
         legion_contracts::ReportStatus::Findings => "findings",
@@ -446,7 +563,7 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
         legion_contracts::ReportStatus::Failed => "failed",
         legion_contracts::ReportStatus::Blocked => "blocked",
     };
-    Ok(json!({
+    json!({
         "schemaVersion": 1,
         "kind": "audit-lens-ingest",
         "run": run,
@@ -454,13 +571,36 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
         "ingestedLenses": recomputed.ingested,
         "reasoningLensesPending": recomputed.pending,
         "confirmedSecurity": recomputed.confirmed_security,
+        "followup": followup,
         "findingCount": recomputed.report.findings.len(),
         "gaps": recomputed.report.gaps,
         "coverageNotes": recomputed.execution.coverage_notes,
         "auditStatus": status,
         "qualityGate": if status == "pass" { "proven" } else { "unproven" },
         "report": run.join("report.json"),
-    }))
+    })
+}
+
+/// A provider spec from the native registry by id (no application is built).
+fn registry_provider_spec(id: &str) -> Result<legion_contracts::ProviderSpec, CommandError> {
+    let registry = native_provider_registry_path().ok_or_else(|| {
+        CommandError::incomplete("native Audit provider registry is unavailable")
+    })?;
+    let value: Value =
+        serde_json::from_slice(&std::fs::read(&registry).map_err(super::io_error)?)
+            .map_err(|error| CommandError::usage(format!("invalid provider registry: {error}")))?;
+    let spec = value
+        .get("providers")
+        .and_then(Value::as_array)
+        .and_then(|providers| {
+            providers
+                .iter()
+                .find(|provider| provider.get("id").and_then(Value::as_str) == Some(id))
+        })
+        .cloned()
+        .ok_or_else(|| CommandError::usage(format!("provider {id} is not in the registry")))?;
+    serde_json::from_value(spec)
+        .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))
 }
 
 /// Frozen plan and the inventory it was compiled over, captured before execution.
@@ -1271,6 +1411,7 @@ mod closure_tests {
             ingest_run: None,
             ingest_provider: None,
             ingest_result: None,
+            followup: false,
         };
         let scope = audit_scope(std::path::Path::new("."), &args);
         assert_eq!(scope.mode, "whole-repo");
@@ -1417,6 +1558,7 @@ mod closure_tests {
             ingest_run: None,
             ingest_provider: None,
             ingest_result: None,
+            followup: false,
         }
     }
 }

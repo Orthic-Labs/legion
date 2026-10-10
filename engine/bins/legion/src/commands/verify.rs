@@ -198,8 +198,28 @@ fn lens_verdict(run: &std::path::Path, errors: &mut Vec<String>) -> Value {
                 .into(),
         );
     }
+    // A follow-up (security variant analysis) is verified by the recomputation
+    // above: a signed plan bound to this run's plan digest and confirmed
+    // verdicts, and a MAC'd variant receipt. One that does not chain to this
+    // run is a verification failure, not a silently pending gap.
+    let followup = recomputed
+        .report
+        .claims
+        .get("securityVariantFollowup")
+        .cloned()
+        .unwrap_or(Value::Null);
+    if followup.get("status").and_then(Value::as_str) == Some("invalid") {
+        errors.push(format!(
+            "security variant follow-up does not verify against this run: {}",
+            followup
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown reason")
+        ));
+    }
     json!({
         "status": status,
+        "securityVariantFollowup": followup,
         "gaps": recomputed.report.gaps,
         "findingCount": recomputed.report.findings.len(),
         "lensesRan": lenses_ran,

@@ -7,6 +7,7 @@ pub mod container_iac;
 pub mod dependency_osv;
 pub mod imported_sarif;
 pub mod opengrep;
+pub mod producer;
 pub mod secrets;
 pub mod supply_chain;
 

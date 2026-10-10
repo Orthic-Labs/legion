@@ -38,8 +38,8 @@ impl NativeProviderRegistry {
         let root = root.into();
         Self {
             architecture: architecture::ProviderExecutorAdapter::new().with_root(root.clone()),
-            code: Default::default(),
-            security: Default::default(),
+            code: code::ProviderExecutorAdapter::new().with_root(root.clone()),
+            security: security::SecurityProviderExecutor::default().with_root(root.clone()),
             legacy: legacy::ProviderExecutorAdapter::new(root.clone()),
             legacy_checks: legacy_checks::NativeLegacyCheckExecutor::new(root.clone()),
             reasoning: reasoning::ReasoningProviderExecutor::unavailable(root.clone()),

@@ -512,7 +512,57 @@ pub fn scanner_candidates(
             }
         })
         .collect::<Vec<_>>();
+    // Candidate generators may not emit findings (`validate_result`); the
+    // native scanners carry theirs in `details.candidates` instead.
+    let raised = result
+        .details
+        .get("candidates")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|candidate| {
+            let id = candidate.get("id").and_then(Value::as_str)?;
+            let evidence = candidate
+                .get("evidence")
+                .and_then(Value::as_array)
+                .and_then(|items| items.first());
+            let path = evidence
+                .and_then(|item| item.get("file"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+            let line = evidence
+                .and_then(|item| item.get("line"))
+                .and_then(Value::as_u64);
+            let evidence_excerpt = path
+                .as_deref()
+                .zip(line)
+                .and_then(|(path, line)| excerpt_line(root, path, line));
+            Some(ScannerCandidate {
+                finding_id: id.to_owned(),
+                provider: provider.to_owned(),
+                rule: candidate
+                    .get("ruleId")
+                    .and_then(Value::as_str)
+                    .unwrap_or(provider)
+                    .to_owned(),
+                severity: candidate
+                    .get("severityHint")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown")
+                    .to_owned(),
+                path,
+                line,
+                message: candidate
+                    .get("claim")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+                evidence_excerpt,
+            })
+        });
+    candidates.extend(raised);
     candidates.sort_by(|left, right| left.finding_id.cmp(&right.finding_id));
+    candidates.dedup_by(|left, right| left.finding_id == right.finding_id);
     candidates
 }
 
