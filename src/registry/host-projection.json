@@ -116,8 +116,24 @@
         "model": true
       },
       "domain": "engineering",
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "rightkit-owns"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "rightkit-owns",
+          "kind": "command-line-provider",
+          "summary": "RightKit shared-capability ownership index (`rightkit owns --compact`) that Architect starts designs from and Tasklist pastes into its RightKit Capabilities block.",
+          "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
+          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "rightkit"
+            ]
+          }
+        }
+      ],
       "scopedRequirements": [],
       "source": "skills/architect/SKILL.md"
     },
@@ -1226,6 +1242,10 @@
     {
       "id": "pi-cli",
       "degradation": "Coder returns a typed unavailable-provider result and performs no outsourced analysis."
+    },
+    {
+      "id": "rightkit-owns",
+      "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners."
     },
     {
       "id": "scholarly-search",

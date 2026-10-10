@@ -417,8 +417,8 @@ mod tests {
 
     #[test]
     fn ownership_findings_are_advisory_and_listed() {
-        let report = canonical_report("fixture", &execution(vec![ownership_with_finding(false)]))
-            .unwrap();
+        let report =
+            canonical_report("fixture", &execution(vec![ownership_with_finding(false)])).unwrap();
         assert_eq!(report.status, ReportStatus::Clean);
         assert_eq!(report.findings.len(), 1);
         let advisory = report.extensions["advisoryFindings"].as_array().unwrap();

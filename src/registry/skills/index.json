@@ -77,8 +77,22 @@
         "source-read",
         "artifact-write"
       ],
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "rightkit-owns"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "rightkit-owns",
+          "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
+          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "rightkit"
+            ]
+          }
+        }
+      ],
       "scopedRequirementDetails": [],
       "source": "skills/architect/SKILL.md",
       "manifest": "skills/manifests/architect.json"
