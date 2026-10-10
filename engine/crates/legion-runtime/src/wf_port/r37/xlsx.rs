@@ -623,12 +623,13 @@ mod tests {
     #[test]
     fn generate_xlsx_writes_a_readable_zip() {
         let dir = std::env::temp_dir().join(format!(
-            "r37_xlsx_test_{}_{}",
+            "r37_xlsx_test_{}_{}_{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let data = json!({

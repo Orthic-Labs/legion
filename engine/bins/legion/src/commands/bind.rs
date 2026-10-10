@@ -244,12 +244,13 @@ mod role_binding_tests {
     impl Fixture {
         fn new() -> Self {
             let path = std::env::temp_dir().join(format!(
-                "legion-role-binding-{}-{}",
+                "legion-role-binding-{}-{}-{}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_nanos()
+                    .as_nanos(),
+            { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
             ));
             std::fs::create_dir_all(path.join("home")).unwrap();
             std::fs::create_dir_all(path.join("project/deep")).unwrap();

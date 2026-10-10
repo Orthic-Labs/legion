@@ -216,12 +216,13 @@ mod tests {
             pub fn new() -> Self {
                 let mut dir = std::env::temp_dir();
                 let unique = format!(
-                    "legion-w2_018-buffer-{}-{}",
+                    "legion-w2_018-buffer-{}-{}-{}",
                     std::process::id(),
                     std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
-                        .as_nanos()
+                        .as_nanos(),
+                { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
                 );
                 dir.push(unique);
                 std::fs::create_dir_all(&dir).unwrap();

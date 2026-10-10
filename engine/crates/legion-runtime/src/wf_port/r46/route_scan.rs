@@ -261,12 +261,13 @@ Use `cargo build` here.
     #[test]
     fn resolves_goal_route_artifact_label_from_disk() {
         let dir = std::env::temp_dir().join(format!(
-            "legion-r46-route-{}-{}",
+            "legion-r46-route-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::create_dir_all(dir.join(".git")).unwrap();

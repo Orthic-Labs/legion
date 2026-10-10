@@ -2660,8 +2660,9 @@ mod tests {
             .expect("clock after epoch")
             .as_nanos();
         let root = std::env::temp_dir().join(format!(
-            "legion-hook-source-revision-{}-{nonce}",
-            std::process::id()
+            "legion-hook-source-revision-{}-{nonce}-{}",
+            std::process::id(),
+            { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         fs::create_dir_all(root.join(".git/refs/heads")).expect("create test git directory");
         root
@@ -2969,12 +2970,13 @@ mod tests {
     #[test]
     fn source_revision_identifies_a_scratch_workspace_without_borrowing_hook_cwd() {
         let scratch = std::env::temp_dir().join(format!(
-            "legion-hook-scratch-{}-{}",
+            "legion-hook-scratch-{}-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("clock after epoch")
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         fs::create_dir_all(&scratch).expect("create scratch workspace");
         let payload = json!({"cwd": scratch.to_string_lossy()});

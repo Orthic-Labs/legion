@@ -79,12 +79,13 @@ fn splits_cues_from_fixture_scene() {
 #[test]
 fn full_pipeline_runs_against_fixture_with_fake_process_runner() {
     let tmp = std::env::temp_dir().join(format!(
-        "r02-narrate-it-{}-{}",
+        "r02-narrate-it-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos(),
+    { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     let script_path = tmp.join("demo.md");

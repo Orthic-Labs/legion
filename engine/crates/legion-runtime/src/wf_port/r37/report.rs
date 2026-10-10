@@ -781,12 +781,13 @@ mod tests {
     #[test]
     fn generate_report_writes_html_and_pdf_via_fake_renderer() {
         let dir = std::env::temp_dir().join(format!(
-            "r37_report_test_{}_{}",
+            "r37_report_test_{}_{}_{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let data = json!({"psi": {"lighthouse_scores": {"performance": 50}}});

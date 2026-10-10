@@ -360,12 +360,13 @@ mod tests {
     #[test]
     fn run_writes_result_for_valid_input() {
         let dir = std::env::temp_dir().join(format!(
-            "legion-w2034-tm-{}-{}",
+            "legion-w2034-tm-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("in.json");

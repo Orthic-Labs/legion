@@ -86,12 +86,13 @@ fn parse_args_from_process_argv_shape() {
 #[test]
 fn full_orchestration_runs_against_fakes() {
     let tmp = std::env::temp_dir().join(format!(
-        "r02-seek-it-{}-{}",
+        "r02-seek-it-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos(),
+    { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     let html = tmp.join("anim.html");

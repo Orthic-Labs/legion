@@ -811,12 +811,13 @@ mod tests {
         };
         let mut out = Vec::new();
         let dir = std::env::temp_dir().join(format!(
-            "legion-r24-live-js-test-{}-{}",
+            "legion-r24-live-js-test-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         let session_dir = std::env::temp_dir();
         handle_request(
@@ -841,12 +842,13 @@ mod tests {
             QueueCallbacks { queue: &queue },
         );
         let session_dir = std::env::temp_dir().join(format!(
-            "legion-r24-annotation-test-{}-{}",
+            "legion-r24-annotation-test-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&session_dir).unwrap();
         let req = Request {

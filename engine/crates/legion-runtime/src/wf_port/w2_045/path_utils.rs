@@ -376,12 +376,13 @@ mod tests {
 
     fn tempdir() -> PathBuf {
         let dir = env::temp_dir().join(format!(
-            "legion-w2_045-{}-{}",
+            "legion-w2_045-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir

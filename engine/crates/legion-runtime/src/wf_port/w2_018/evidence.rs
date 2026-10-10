@@ -723,12 +723,13 @@ mod tests {
         fn new() -> Self {
             let mut dir = std::env::temp_dir();
             dir.push(format!(
-                "legion-w2_018-evidence-{}-{}",
+                "legion-w2_018-evidence-{}-{}-{}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_nanos()
+                    .as_nanos(),
+            { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
             ));
             fs::create_dir_all(&dir).unwrap();
             TempDir(dir)

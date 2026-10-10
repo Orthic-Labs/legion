@@ -128,12 +128,13 @@ pub fn find_missing_packed_relative_imports(
 /// path.
 fn pnpm_pack(root: &Path) -> Result<std::path::PathBuf, String> {
     let out_dir = std::env::temp_dir().join(format!(
-        "legion-pack-{}-{}",
+        "legion-pack-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
-            .unwrap_or(0)
+            .unwrap_or(0),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
     ));
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
     // Run the package manager that launched this check (as the JS did via

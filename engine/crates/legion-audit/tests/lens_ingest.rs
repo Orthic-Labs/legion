@@ -33,8 +33,9 @@ fn temp_dir(name: &str) -> PathBuf {
         .unwrap()
         .as_nanos();
     let dir = std::env::temp_dir().join(format!(
-        "legion-ingest-{name}-{}-{nanos}",
-        std::process::id()
+        "legion-ingest-{name}-{}-{nanos}-{}",
+        std::process::id(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
     ));
     fs::create_dir_all(&dir).unwrap();
     fs::canonicalize(dir).unwrap()

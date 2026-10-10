@@ -316,12 +316,13 @@ mod tests {
     #[test]
     fn run_with_data_reports_generated_files_in_plain_mode() {
         let dir = std::env::temp_dir().join(format!(
-            "r37_cli_test_{}_{}",
+            "r37_cli_test_{}_{}_{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let mut args = parse_args(&a(&[
@@ -338,12 +339,13 @@ mod tests {
     #[test]
     fn run_with_data_json_mode_emits_one_json_blob() {
         let dir = std::env::temp_dir().join(format!(
-            "r37_cli_test2_{}_{}",
+            "r37_cli_test2_{}_{}_{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let mut args = parse_args(&a(&[

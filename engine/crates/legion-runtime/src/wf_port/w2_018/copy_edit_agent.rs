@@ -1339,12 +1339,13 @@ mod tests {
     #[test]
     fn run_post_apply_checks_flags_invalid_json_and_missing_file() {
         let tmp = std::env::temp_dir().join(format!(
-            "legion-w2_018-copyedit-{}-{}",
+            "legion-w2_018-copyedit-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&tmp).unwrap();
         std::fs::write(tmp.join("bad.json"), "{not json}").unwrap();
@@ -1397,12 +1398,13 @@ mod tests {
 
     fn temp_dir(label: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "legion-w2_018-r20-{label}-{}-{}",
+            "legion-w2_018-r20-{label}-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir

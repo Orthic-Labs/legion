@@ -784,12 +784,13 @@ mod tests {
     #[test]
     fn run_requires_receipt_mode_unless_template_self_check() {
         let dir = std::env::temp_dir().join(format!(
-            "r46d-test-{}-{}",
+            "r46d-test-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let dispatch = dir.join("dispatch.md");

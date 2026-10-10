@@ -4587,7 +4587,7 @@ mod tests {
             let temp_dir = std::env::temp_dir();
             #[cfg(unix)]
             let temp_dir = fs::canonicalize(temp_dir).unwrap();
-            Self(temp_dir.join(format!("legion-host-{label}-{}", nonce())))
+            Self(temp_dir.join(format!("legion-host-{label}-{}-{}", nonce(), { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) })))
         }
     }
     impl Drop for TestRoot {

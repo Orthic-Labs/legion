@@ -941,12 +941,13 @@ mod tests {
     #[test]
     fn git_work_tree_inventory_excludes_ignored_build_output() {
         let root = std::env::temp_dir().join(format!(
-            "legion-git-inventory-{}-{}",
+            "legion-git-inventory-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
         ));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("src")).unwrap();
