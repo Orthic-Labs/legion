@@ -267,7 +267,10 @@ impl AuditScratch {
     /// Use a caller-chosen directory (for example the run's `--out`
     /// directory). It is created if absent, must lie outside `audited_root`,
     /// and is never removed by this value.
-    pub fn with_scratch_dir(audited_root: &Path, dir: impl Into<PathBuf>) -> Result<Self, AuditError> {
+    pub fn with_scratch_dir(
+        audited_root: &Path,
+        dir: impl Into<PathBuf>,
+    ) -> Result<Self, AuditError> {
         let root = dir.into();
         if path_inside(&root, audited_root) {
             return Err(AuditError::Provider(format!(
@@ -721,14 +724,14 @@ impl NativeLegacyCheckExecutor {
         // executor owns a scratch dir for the run's lifetime and the tool is
         // pointed at it explicitly.
         let report_temp_dir = match report_source {
-            ReportSource::File(_) => {
-                Some(ReportTempDir::create(&scratch.reports_dir(), contract.check).map_err(|error| {
+            ReportSource::File(_) => Some(
+                ReportTempDir::create(&scratch.reports_dir(), contract.check).map_err(|error| {
                     AuditError::Provider(format!(
                         "failed to create report temp dir for {}: {error}",
                         contract.check
                     ))
-                })?)
-            }
+                })?,
+            ),
             ReportSource::Stdout | ReportSource::Stderr => None,
         };
         if let Some(dir) = &report_temp_dir {
@@ -1153,7 +1156,9 @@ fn readable_artifact(
     let bytes = if path.is_absolute() {
         std::fs::read(path).ok()?
     } else {
-        roots.iter().find_map(|root| std::fs::read(root.join(path)).ok())?
+        roots
+            .iter()
+            .find_map(|root| std::fs::read(root.join(path)).ok())?
     };
     let digest = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
     (bytes.len() == artifact.bytes && digest == artifact.digest).then_some(bytes)
@@ -2687,7 +2692,12 @@ mod tests {
         fn walk(dir: &Path, root: &Path, out: &mut Vec<String>) {
             for entry in fs::read_dir(dir).unwrap() {
                 let path = entry.unwrap().path();
-                out.push(path.strip_prefix(root).unwrap().to_string_lossy().into_owned());
+                out.push(
+                    path.strip_prefix(root)
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned(),
+                );
                 if path.is_dir() {
                     walk(&path, root, out);
                 }
@@ -2738,7 +2748,13 @@ mod tests {
             assert!(dir.is_dir());
         }
         let (environment, allowlist) = audit_environment(&scratch);
-        for name in ["TMPDIR", "TEMP", "TMP", "XDG_CACHE_HOME", "CARGO_TARGET_DIR"] {
+        for name in [
+            "TMPDIR",
+            "TEMP",
+            "TMP",
+            "XDG_CACHE_HOME",
+            "CARGO_TARGET_DIR",
+        ] {
             assert!(allowlist.contains(name));
             assert!(Path::new(&environment[name]).starts_with(&scratch_root));
         }

@@ -62,7 +62,12 @@ fn tree_listing(root: &PathBuf) -> Vec<String> {
     fn walk(dir: &std::path::Path, root: &std::path::Path, out: &mut Vec<String>) {
         for entry in fs::read_dir(dir).unwrap() {
             let path = entry.unwrap().path();
-            out.push(path.strip_prefix(root).unwrap().to_string_lossy().into_owned());
+            out.push(
+                path.strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+            );
             if path.is_dir() {
                 walk(&path, root, out);
             }
