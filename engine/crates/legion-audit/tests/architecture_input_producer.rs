@@ -329,7 +329,12 @@ fn coverage_is_bound_to_the_plans_frozen_denominator() {
 #[test]
 fn docs_under_frozen_history_trees_are_ignored() {
     let root = clean_fixture();
-    for dir in ["docs/provenance", "docs/audits", "archive", "node_modules/x"] {
+    for dir in [
+        "docs/provenance",
+        "docs/audits",
+        "archive",
+        "node_modules/x",
+    ] {
         write(
             &root,
             &format!("{dir}/old.md"),
@@ -358,9 +363,7 @@ fn existing_cited_paths_are_not_findings_and_missing_ones_dedupe() {
 #[test]
 fn noisy_providers_cap_findings_with_an_overflow_gap() {
     let root = clean_fixture();
-    let spans: String = (0..250)
-        .map(|i| format!("`src/ghost/m{i}.rs`\n"))
-        .collect();
+    let spans: String = (0..250).map(|i| format!("`src/ghost/m{i}.rs`\n")).collect();
     write(&root, "docs/many.md", &spans);
     let result = run(&root, "docs.contract");
     assert_eq!(result.findings.len(), 200);
@@ -378,12 +381,12 @@ fn noisy_providers_cap_findings_with_an_overflow_gap() {
 #[test]
 fn small_reexport_shells_and_test_trees_are_not_missing_tests() {
     let root = clean_fixture();
-    write(&root, "src/shell/mod.rs", "pub mod a;\npub mod b;\npub mod c;\n");
     write(
         &root,
-        "benches/bench_it.rs",
-        &module("", "", false),
+        "src/shell/mod.rs",
+        "pub mod a;\npub mod b;\npub mod c;\n",
     );
+    write(&root, "benches/bench_it.rs", &module("", "", false));
     write(
         &root,
         "src/api.generated.ts",

@@ -103,13 +103,16 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             // and the run verified later without any extra environment.
             None => match args.out.as_ref() {
                 Some(out) => {
-                    let ingest = legion_audit::native_providers::reasoning::ingest::create_epoch(out)
-                        .and_then(|_| legion_audit::native_providers::reasoning::ingest::load_epoch(out))
-                        .map_err(|error| {
-                            CommandError::incomplete(format!(
-                                "could not create the run epoch key: {error}"
-                            ))
-                        })?;
+                    let ingest =
+                        legion_audit::native_providers::reasoning::ingest::create_epoch(out)
+                            .and_then(|_| {
+                                legion_audit::native_providers::reasoning::ingest::load_epoch(out)
+                            })
+                            .map_err(|error| {
+                                CommandError::incomplete(format!(
+                                    "could not create the run epoch key: {error}"
+                                ))
+                            })?;
                     run_epoch_digest = Some(ingest.1);
                     Some(ingest.0)
                 }

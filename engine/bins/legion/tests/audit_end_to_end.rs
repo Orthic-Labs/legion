@@ -18,11 +18,13 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(0);
-        let base = fs::canonicalize(std::env::temp_dir()).unwrap().join(format!(
-            "legion-audit-e2e-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
+        let base = fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!(
+                "legion-audit-e2e-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ));
         let _ = fs::remove_dir_all(&base);
         // Run output and home live beside the repository, never inside it, so
         // the audited tree can be asserted unchanged.
@@ -37,12 +39,18 @@ impl Fixture {
             "Cargo.toml",
             "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
         );
-        fixture.write("src/lib.rs", "pub mod db;\n\npub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n");
+        fixture.write(
+            "src/lib.rs",
+            "pub mod db;\n\npub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n",
+        );
         fixture.write(
             "src/db.rs",
             "// TODO: replace this stub with a real connection pool\npub fn save(path: &str, data: &str) {\n    let _ = std::fs::write(path, data);\n}\n",
         );
-        fixture.write("web.ts", "export function greet(name: string): string {\n  return `hello ${name}`;\n}\n");
+        fixture.write(
+            "web.ts",
+            "export function greet(name: string): string {\n  return `hello ${name}`;\n}\n",
+        );
         fixture.write(
             "README.md",
             "# Fixture\n\nSee `docs/missing-guide.md` for details.\n",
@@ -67,7 +75,8 @@ impl Fixture {
     fn legion(&self, args: &[&str]) -> Output {
         // The provider registry is a repository asset; an isolated home has no
         // installed release to supply it.
-        let registry = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../src/registry/providers.json");
+        let registry =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../src/registry/providers.json");
         Command::new(env!("CARGO_BIN_EXE_legion"))
             .current_dir(&self.repo)
             .env("GIT_CEILING_DIRECTORIES", self.base())
@@ -145,21 +154,33 @@ fn audit_then_verify_an_ordinary_run() {
         serde_json::from_slice(&fs::read(fixture.out.join("execution.json")).unwrap()).unwrap();
     let gaps: Vec<String> = execution["gaps"]
         .as_array()
-        .map(|gaps| gaps.iter().filter_map(|g| g.as_str().map(str::to_owned)).collect())
+        .map(|gaps| {
+            gaps.iter()
+                .filter_map(|g| g.as_str().map(str::to_owned))
+                .collect()
+        })
         .unwrap_or_default();
     let offending: Vec<&String> = gaps
         .iter()
         .filter(|gap| {
-            gap.starts_with("invalid-provider-result:") || gap.starts_with("lens-packets-unavailable:")
+            gap.starts_with("invalid-provider-result:")
+                || gap.starts_with("lens-packets-unavailable:")
         })
         .collect();
-    assert!(offending.is_empty(), "offending gaps: {offending:#?} (all gaps: {gaps:#?})");
+    assert!(
+        offending.is_empty(),
+        "offending gaps: {offending:#?} (all gaps: {gaps:#?})"
+    );
 
     // d) at least one code.* provider produced a non-failed result with coverage
     let results = execution["results"].as_array().expect("execution results");
     let usable = results.iter().any(|entry| {
-        entry["provider"].as_str().is_some_and(|id| id.starts_with("code."))
-            && entry["result"]["status"].as_str().is_some_and(|status| status != "failed")
+        entry["provider"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("code."))
+            && entry["result"]["status"]
+                .as_str()
+                .is_some_and(|status| status != "failed")
             && !entry["result"]["coverage"].is_null()
     });
     let summary: Vec<String> = results
@@ -167,7 +188,9 @@ fn audit_then_verify_an_ordinary_run() {
         .map(|entry| {
             format!(
                 "{} status={} coverage={}",
-                entry["provider"], entry["result"]["status"], !entry["result"]["coverage"].is_null()
+                entry["provider"],
+                entry["result"]["status"],
+                !entry["result"]["coverage"].is_null()
             )
         })
         .collect();
