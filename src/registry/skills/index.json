@@ -54,8 +54,22 @@
         "repository-write",
         "process-exec"
       ],
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "rightkit-owns"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "rightkit-owns",
+          "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
+          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "rightkit"
+            ]
+          }
+        }
+      ],
       "scopedRequirementDetails": [],
       "source": "skills/alchemist/SKILL.md",
       "manifest": "skills/manifests/alchemist.json"
@@ -1162,7 +1176,8 @@
         "process-exec"
       ],
       "hostRequirements": [
-        "legion"
+        "legion",
+        "rightkit-owns"
       ],
       "hostRequirementDetails": [
         {
@@ -1172,6 +1187,17 @@
           "probe": {
             "kind": "command",
             "command": "legion"
+          }
+        },
+        {
+          "id": "rightkit-owns",
+          "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
+          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "rightkit"
+            ]
           }
         }
       ],

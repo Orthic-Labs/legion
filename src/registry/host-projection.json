@@ -100,8 +100,24 @@
         "model": false
       },
       "domain": null,
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "rightkit-owns"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "rightkit-owns",
+          "kind": "command-line-provider",
+          "summary": "RightKit shared-capability ownership index (`rightkit owns --compact`) that Architect starts designs from and Tasklist pastes into its RightKit Capabilities block.",
+          "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
+          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "rightkit"
+            ]
+          }
+        }
+      ],
       "scopedRequirements": [],
       "source": "skills/alchemist/SKILL.md"
     },
@@ -1062,7 +1078,8 @@
       },
       "domain": null,
       "hostRequirements": [
-        "legion"
+        "legion",
+        "rightkit-owns"
       ],
       "hostRequirementDetails": [
         {
@@ -1074,6 +1091,19 @@
           "probe": {
             "kind": "command",
             "command": "legion"
+          }
+        },
+        {
+          "id": "rightkit-owns",
+          "kind": "command-line-provider",
+          "summary": "RightKit shared-capability ownership index (`rightkit owns --compact`) that Architect starts designs from and Tasklist pastes into its RightKit Capabilities block.",
+          "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
+          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "rightkit"
+            ]
           }
         }
       ],
