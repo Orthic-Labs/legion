@@ -22,8 +22,7 @@ It may describe:
 ## Handoff reference
 
 Legion routes work by capability descriptions and explicit authority invocation. A frozen Sage
-handoff goes to Alchemist. Oracle review is used when explicitly requested or justified by concrete
-outcome/safety risk; Covenant is only a one-shot advisory escalation. Execution derives a
+handoff goes to Alchemist. Oracle reviews any work Legion did not produce itself; Covenant is only a one-shot advisory escalation. Execution derives a
 file/artifact task DAG from actual consumption only for genuinely parallel or governed work,
 launches maximal ready antichains where useful, and never copies a stage DAG into execution.
 Routine work may remain inline. Only shared contract writes, integration, commits, pins, and
@@ -32,11 +31,22 @@ owned by the canonical sources above.
 
 ## Role selection reference
 
+Every delegated assignment names its role as the host subagent type (`legion:alchemist`,
+`legion:oracle`, `legion:sage`), never in prose: Alchemist for any assignment that writes files,
+runs commands with effects, or produces an artifact; Oracle for independent review or verification
+of someone else's work; Sage for design, adjudication, or reassessment. Generic agents
+(`general-purpose`, `Explore`) are permitted only for read-only lookup that produces no artifact.
+
+Capability selection is positive: when the requested result is prose for a reader, a visual/UI, a
+repository-quality verdict, or a research synthesis, select `writing`, `designer`, `audit`, or
+`research` and load its REQUIRED_READS before producing. Inline production without the capability is
+the exception & must be named.
+
 Legion decides whether authority is needed before selecting Dispatch or another capability.
 Use each canonical roster's Triggers table; explicit role requests take precedence over routine-work
-exclusions. Sage closes material unresolved meaning, Alchemist executes settled bounded work when
-a distinct executor or declared controlled boundary is useful, & Oracle examines explicit review
-requests or concrete outcome/safety risks. Ordinary inline implementation remains ambient.
+exclusions. Sage closes material unresolved meaning, Alchemist executes any assignment that writes files, runs commands with effects, or produces an
+artifact, & Oracle examines any independent review or verification of others' work. Contracts stay
+limited to locked or explicit work; attaching a role never opens one.
 Dispatch transports assignments; it neither selects authority nor grants it.
 
 Resolve role registration & model compatibility against effective host configuration before launch.
@@ -90,7 +100,7 @@ the Guard gates declared effects
     ↓
 execution / integration
     ↓
-conditional independent review when explicitly requested or justified by concrete risk
+independent review of work Legion did not produce itself
     ↓
 delivery
 ```

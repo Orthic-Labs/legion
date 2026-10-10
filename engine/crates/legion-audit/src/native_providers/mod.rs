@@ -1,5 +1,6 @@
 //! Unified dispatch for Rust-ported Audit providers.
 pub mod architecture;
+pub mod availability;
 pub mod code;
 pub mod legacy;
 pub mod legacy_checks;

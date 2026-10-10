@@ -25,7 +25,7 @@ use sha2::Sha256;
 
 use crate::{
     error::AuditError,
-    execution::ProviderExecutor,
+    execution::{ExecutionReport, ProviderExecutor},
     inventory::{InventoryDenominator, InventoryEnvelope},
     plan::{AuditProvider, FrozenPlan, ProviderKind},
 };
@@ -36,6 +36,8 @@ pub mod lens_plan;
 pub mod lens_schemas;
 pub mod security_adjudication;
 pub mod triggers;
+
+pub use security_adjudication::{ScannerCandidate, ADJUDICATOR_PROVIDER_ID};
 
 pub const REASONING_RECEIPT_SCHEMA_VERSION: u32 = 1;
 pub const REASONING_RECEIPT_KIND: &str = "legion-reasoning-receipt";
@@ -300,6 +302,7 @@ impl ReasoningProviderExecutor {
             &denominator,
             &self.invocation_epoch,
             &self.root,
+            None,
         )?;
         request
             .validate()
@@ -434,6 +437,7 @@ fn build_invocation(
     denominator: &InventoryDenominator,
     invocation_epoch: &str,
     root: &Path,
+    scanner_candidates: Option<&[ScannerCandidate]>,
 ) -> Result<ReasoningInvocation, AuditError> {
     let contract = provider
         .configuration
@@ -466,9 +470,24 @@ fn build_invocation(
     // naming/dead-file, per lens-routing.md's
     // "Excerpt compression" section. `None` only for
     // `legacy.security.adjudication`, which is not lens-routed here.
-    let excerpts = lens_plan::lens_plan_excerpt_mode(&provider.id)
-        .map(|mode| excerpts::build_excerpts(root, &paths, mode))
-        .map(|excerpts| serde_json::to_value(excerpts).unwrap_or(Value::Null));
+    let excerpt_set = lens_plan::lens_plan_excerpt_mode(&provider.id)
+        .map(|mode| excerpts::build_excerpt_set(root, &paths, mode));
+    // What this packet actually carries, reconciled against the denominator.
+    // Ingest derives examined coverage from this, never from an attestation.
+    let excerpt_coverage = excerpt_coverage_value(
+        &provider.id,
+        excerpt_set.as_ref(),
+        scanner_candidates,
+        paths.len(),
+    );
+    let excerpts = excerpt_set
+        .map(|set| serde_json::to_value(set.excerpts).unwrap_or(Value::Null));
+    // Scanner candidates for the adjudicator: one verdict per candidate.
+    // `null` means the caller did not supply scanner results (unknown, not
+    // "none"); ingest then refuses to treat the lens as covered.
+    let candidates_value = (provider.id == ADJUDICATOR_PROVIDER_ID)
+        .then(|| scanner_candidates.map(|candidates| json!(candidates)))
+        .flatten();
     // Conditional-lens trigger evidence: the actual local check over this
     // provider's denominator, not just the trigger description carried in
     // `lensPlan`. `None` for always-applicable and unowned lenses.
@@ -513,6 +532,8 @@ fn build_invocation(
         },
         "lensPlan": lens_plan,
         "excerpts": excerpts,
+        "excerptCoverage": excerpt_coverage,
+        "scannerCandidates": candidates_value,
         "triggerEvidence": trigger_evidence,
         "reportSchemaBody": report_schema_body,
         "semanticReviewContract": semantic_contract,
@@ -553,6 +574,41 @@ fn build_invocation(
         denominator_paths: paths,
         packet,
     })
+}
+
+/// Coverage the packet itself can prove. `examinedPaths` lists denominator
+/// paths whose excerpt is present and complete; `truncatedPaths` were cut at
+/// the per-file cap; `omittedPaths` have no excerpt at all.
+fn excerpt_coverage_value(
+    provider_id: &str,
+    set: Option<&excerpts::ExcerptSet>,
+    scanner_candidates: Option<&[ScannerCandidate]>,
+    denominator_count: usize,
+) -> Value {
+    if let Some(set) = set {
+        let path_list = |truncated: bool| {
+            set.excerpts
+                .iter()
+                .filter(|excerpt| excerpt.truncated == truncated)
+                .map(|excerpt| excerpt.path.as_str())
+                .collect::<Vec<_>>()
+        };
+        return json!({
+            "basis": "bounded-excerpts",
+            "denominatorCount": denominator_count,
+            "examinedPaths": path_list(false),
+            "truncatedPaths": path_list(true),
+            "omittedPaths": set.omitted,
+        });
+    }
+    if provider_id == ADJUDICATOR_PROVIDER_ID {
+        return json!({
+            "basis": "candidate-verdicts",
+            "denominatorCount": denominator_count,
+            "candidateCount": scanner_candidates.map(<[ScannerCandidate]>::len),
+        });
+    }
+    Value::Null
 }
 
 pub(crate) fn verify_response(
@@ -827,6 +883,43 @@ pub fn pending_lens_work(
     plan: &FrozenPlan,
     inventory: &InventoryEnvelope,
 ) -> Result<Vec<PendingLensWork>, AuditError> {
+    pending_lens_work_with_candidates(root, plan, inventory, None)
+}
+
+/// Scanner candidates raised by the plan's candidate-generator providers in
+/// `execution`, for the security adjudicator's packet.
+pub fn scanner_candidates_from_execution(
+    root: &Path,
+    plan: &FrozenPlan,
+    execution: &ExecutionReport,
+) -> Vec<ScannerCandidate> {
+    let generators = plan
+        .providers()
+        .iter()
+        .filter(|provider| provider.role == "candidate-generator")
+        .map(|provider| provider.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut candidates = execution
+        .results
+        .iter()
+        .filter(|entry| generators.contains(entry.provider.as_str()))
+        .flat_map(|entry| {
+            security_adjudication::scanner_candidates(root, &entry.provider, &entry.result)
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| left.finding_id.cmp(&right.finding_id));
+    candidates.dedup_by(|left, right| left.finding_id == right.finding_id);
+    candidates
+}
+
+/// `pending_lens_work` plus the scanner candidates the security adjudicator
+/// must close (`None` when scanner results are unavailable to the caller).
+pub fn pending_lens_work_with_candidates(
+    root: &Path,
+    plan: &FrozenPlan,
+    inventory: &InventoryEnvelope,
+    scanner_candidates: Option<&[ScannerCandidate]>,
+) -> Result<Vec<PendingLensWork>, AuditError> {
     let mut work = Vec::new();
     for provider in plan.providers() {
         if provider.kind != ProviderKind::HostService
@@ -843,6 +936,7 @@ pub fn pending_lens_work(
             &denominator,
             "pending-host",
             root,
+            scanner_candidates,
         )?;
         work.push(PendingLensWork {
             provider_id: provider.id.clone(),

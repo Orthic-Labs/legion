@@ -13,6 +13,50 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "../_shared/parametric-design.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/surface-design/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/static-creative/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/motion/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/glass/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/illustration/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "engine/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "engine/huashu/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/website.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/app.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/native-app.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/manual.md"
     }
   ]
 }

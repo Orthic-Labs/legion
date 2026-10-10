@@ -148,10 +148,13 @@ impl ProviderExecutor for SecurityProviderExecutor {
         {
             details.insert("executionReceipt".into(), receipt.clone());
         }
-        Ok(ProviderResult {
+        // With no host-supplied artifact there is nothing to analyze: the
+        // plan selected this provider, so it is applicable but unavailable.
+        let artifact_supplied = input.is_some();
+        let mut result = ProviderResult {
             schema_version: 1,
             provider: provider_id,
-            applicable,
+            applicable: applicable || !artifact_supplied,
             required: provider.required,
             status,
             complete,
@@ -163,6 +166,13 @@ impl ProviderExecutor for SecurityProviderExecutor {
                 .collect(),
             degradation: Vec::new(),
             details,
-        })
+        };
+        if !artifact_supplied {
+            crate::native_providers::availability::mark_unavailable(
+                &mut result,
+                &format!("artifact-not-produced:{}", provider.id),
+            );
+        }
+        Ok(result)
     }
 }

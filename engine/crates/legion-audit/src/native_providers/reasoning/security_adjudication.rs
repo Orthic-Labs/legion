@@ -11,9 +11,18 @@
 //! protocol computes them: canonical JSON over the object with the digest
 //! field itself excluded.
 
-use legion_contracts::canonical_digest;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::{Component, Path},
+};
+
+use legion_contracts::{canonical_digest, ProviderResult};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+
+/// The provider that adjudicates scanner candidates. It is never a candidate
+/// generator, so adjudication is independent of generation by construction.
+pub const ADJUDICATOR_PROVIDER_ID: &str = "legacy.security.adjudication";
 
 /// Verdicts a security adjudication may reach. Mirrors the JS `VERDICTS` set.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -402,6 +411,241 @@ pub fn finalize_security_verdict(
     })
 }
 
+/// One scanner (candidate-generator) result carried into the adjudication
+/// packet so a lens can reach a verdict per candidate instead of re-deriving
+/// scanner output.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScannerCandidate {
+    pub finding_id: String,
+    pub provider: String,
+    pub rule: String,
+    pub severity: String,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub line: Option<u64>,
+    pub message: String,
+    /// The anchored source line, bounded and redacted.
+    #[serde(default)]
+    pub evidence_excerpt: Option<String>,
+}
+
+/// Splits a `path:line` / `path:start-end` location.
+fn parse_location(location: &str) -> (String, Option<u64>) {
+    if let Some((path, range)) = location.rsplit_once(':') {
+        let start = range.split_once('-').map_or(range, |(start, _)| start);
+        if let Ok(line) = start.parse::<u64>() {
+            return (path.to_owned(), Some(line));
+        }
+    }
+    (location.to_owned(), None)
+}
+
+fn excerpt_line(root: &Path, path: &str, line: u64) -> Option<String> {
+    let relative = Path::new(path);
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_)))
+    {
+        return None;
+    }
+    let bytes = std::fs::read(root.join(relative)).ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    let index = usize::try_from(line.checked_sub(1)?).ok()?;
+    let source = text.lines().nth(index)?;
+    let (redacted, _) = super::excerpts::redact_secrets(source.trim());
+    Some(redacted.chars().take(240).collect())
+}
+
+fn detail_entry<'a>(result: &'a ProviderResult, key: &str, id: &str) -> Option<&'a Value> {
+    result.details.get(key)?.as_object()?.get(id)
+}
+
+/// Candidates a candidate-generator `result` raised, in finding-id order.
+pub fn scanner_candidates(
+    root: &Path,
+    provider: &str,
+    result: &ProviderResult,
+) -> Vec<ScannerCandidate> {
+    let mut candidates = result
+        .findings
+        .iter()
+        .map(|finding| {
+            let id = finding.id.as_str();
+            let location = detail_entry(result, "findingLocations", id)
+                .and_then(Value::as_array)
+                .and_then(|locations| locations.iter().find_map(Value::as_str))
+                .map(parse_location);
+            let rule = detail_entry(result, "findingEvidence", id)
+                .and_then(Value::as_object)
+                .and_then(|evidence| {
+                    ["ruleId", "rule", "checkId"]
+                        .iter()
+                        .find_map(|key| evidence.get(*key).and_then(Value::as_str))
+                })
+                .unwrap_or(provider)
+                .to_owned();
+            let message = ["findingMessages", "findingTitles"]
+                .iter()
+                .find_map(|key| detail_entry(result, key, id).and_then(Value::as_str))
+                .unwrap_or_default()
+                .to_owned();
+            let (path, line) = match location {
+                Some((path, line)) => (Some(path), line),
+                None => (None, None),
+            };
+            let evidence_excerpt = path
+                .as_deref()
+                .zip(line)
+                .and_then(|(path, line)| excerpt_line(root, path, line));
+            ScannerCandidate {
+                finding_id: id.to_owned(),
+                provider: provider.to_owned(),
+                rule,
+                severity: finding.severity.clone(),
+                path,
+                line,
+                message,
+                evidence_excerpt,
+            }
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| left.finding_id.cmp(&right.finding_id));
+    candidates
+}
+
+/// A confirmed (surviving) verdict reduced to what variant analysis needs.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmedSecurityFinding {
+    pub candidate_id: String,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub line: Option<u64>,
+    pub verdict: SecurityVerdictKind,
+    #[serde(default)]
+    pub severity: Option<String>,
+    pub verdict_digest: String,
+}
+
+/// Closes every scanner candidate with exactly one verdict from an
+/// independent adjudicator: unknown, duplicate and missing candidate ids are
+/// rejected, and each verdict must clear the evidentiary bar for its kind
+/// (`finalize_security_verdict`). `verdicts` items are `SecurityVerdictInput`
+/// objects plus `candidateId`.
+pub fn adjudicate_scanner_candidates(
+    candidates: &[ScannerCandidate],
+    verdicts: &[Value],
+    packet_digest: &str,
+) -> Result<Vec<SecurityVerdict>, String> {
+    let by_id = candidates
+        .iter()
+        .map(|candidate| (candidate.finding_id.as_str(), candidate))
+        .collect::<BTreeMap<_, _>>();
+    let mut closed = BTreeMap::new();
+    for (index, value) in verdicts.iter().enumerate() {
+        let id = value
+            .get("candidateId")
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("verdict {index}: `candidateId` is required"))?;
+        let candidate = by_id
+            .get(id)
+            .ok_or_else(|| format!("verdict {index}: {id} is not a candidate in this packet"))?;
+        if closed.contains_key(id) {
+            return Err(format!("verdict {index}: duplicate verdict for {id}"));
+        }
+        let input: SecurityVerdictInput = serde_json::from_value(value.clone())
+            .map_err(|error| format!("verdict for {id}: {error}"))?;
+        let claim = if candidate.message.trim().is_empty() {
+            candidate.rule.clone()
+        } else {
+            format!("{}: {}", candidate.rule, candidate.message)
+        };
+        let stamp = format!("frozen:{packet_digest}");
+        let security_candidate = create_security_candidate(NewSecurityCandidate {
+            id,
+            provider: &candidate.provider,
+            context_id: &format!("scanner:{}", candidate.provider),
+            claim: &claim,
+            alleged_root_cause: None,
+            alleged_trigger: None,
+            alleged_impact: None,
+            evidence: vec![json!({
+                "findingId": id,
+                "path": candidate.path,
+                "line": candidate.line,
+                "excerpt": candidate.evidence_excerpt,
+            })],
+            generated_at: Some(stamp.clone()),
+        })
+        .map_err(|error| format!("candidate {id}: {error}"))?;
+        let packet = create_adjudication_packet(
+            security_candidate,
+            ADJUDICATOR_PROVIDER_ID,
+            &format!("adjudicator:{packet_digest}"),
+            Some(stamp),
+        )
+        .map_err(|error| format!("candidate {id}: {error}"))?;
+        let verdict = finalize_security_verdict(&packet, input)
+            .map_err(|error| format!("verdict for {id}: {error}"))?;
+        closed.insert(id, verdict);
+    }
+    let missing = by_id
+        .keys()
+        .filter(|id| !closed.contains_key(*id))
+        .copied()
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
+        return Err(format!(
+            "every scanner candidate needs exactly one verdict; missing: {}",
+            missing.join(", ")
+        ));
+    }
+    Ok(candidates
+        .iter()
+        .filter_map(|candidate| closed.remove(candidate.finding_id.as_str()))
+        .collect())
+}
+
+/// The surviving (`TRUE_POSITIVE` / `LIKELY_TRUE_POSITIVE`) verdicts with the
+/// scanner location they confirm.
+pub fn confirmed_findings(
+    candidates: &[ScannerCandidate],
+    verdicts: &[SecurityVerdict],
+) -> Vec<ConfirmedSecurityFinding> {
+    verdicts
+        .iter()
+        .filter(|verdict| verdict.verdict.is_surviving())
+        .map(|verdict| {
+            let candidate = candidates
+                .iter()
+                .find(|candidate| candidate.finding_id == verdict.candidate_id);
+            ConfirmedSecurityFinding {
+                candidate_id: verdict.candidate_id.clone(),
+                path: candidate.and_then(|candidate| candidate.path.clone()),
+                line: candidate.and_then(|candidate| candidate.line),
+                verdict: verdict.verdict,
+                severity: verdict.severity.clone(),
+                verdict_digest: verdict.verdict_digest.clone(),
+            }
+        })
+        .collect()
+}
+
+/// Sorted, unique paths of confirmed findings: the input to the
+/// `confirmedSecurityFinding` selector.
+pub fn confirmed_paths(confirmed: &[ConfirmedSecurityFinding]) -> Vec<String> {
+    confirmed
+        .iter()
+        .filter_map(|finding| finding.path.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
 fn chrono_now_rfc3339() -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -607,5 +851,172 @@ mod tests {
             finalize_security_verdict(&packet, surviving_result()).unwrap_err(),
             SecurityAdjudicationError::InvalidPacket
         ));
+    }
+
+    fn scanner_fixture() -> (std::path::PathBuf, ProviderResult) {
+        use legion_contracts::{FindingId, FindingRef, ProviderId, ProviderStatus};
+        let root = std::env::temp_dir().join(format!(
+            "legion-adjudication-candidates-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(
+            root.join("src/db.rs"),
+            "fn run(q: &str) {\n    db.execute(&format!(\"select {q}\"));\n}\n",
+        )
+        .unwrap();
+        let finding = |id: &str| FindingRef {
+            id: FindingId::new(id).unwrap(),
+            severity: "high".into(),
+        };
+        let result = ProviderResult {
+            schema_version: 1,
+            provider: ProviderId::new("legacy.security.sast").unwrap(),
+            applicable: true,
+            required: false,
+            status: ProviderStatus::Ok,
+            complete: false,
+            coverage: None,
+            findings: vec![finding("cand-sql"), finding("cand-doc")],
+            coverage_gaps: Vec::new(),
+            degradation: Vec::new(),
+            details: BTreeMap::from([
+                (
+                    "findingLocations".to_owned(),
+                    json!({"cand-sql": ["src/db.rs:2"], "cand-doc": ["docs/x.md:1"]}),
+                ),
+                (
+                    "findingMessages".to_owned(),
+                    json!({"cand-sql": "query built by concatenation", "cand-doc": "doc note"}),
+                ),
+                (
+                    "findingEvidence".to_owned(),
+                    json!({"cand-sql": {"ruleId": "sql-concat"}}),
+                ),
+            ]),
+        };
+        (root, result)
+    }
+
+    fn tp_verdict(id: &str) -> Value {
+        json!({
+            "candidateId": id,
+            "verdict": "TRUE_POSITIVE",
+            "evidenceStrength": "observed",
+            "severity": "high",
+            "threatModel": "remote unauthenticated attacker",
+            "attackerControl": "full",
+            "reachability": "reachable from a public handler",
+            "proof": "trace from handler to execute",
+            "impact": "data exfiltration",
+            "devilsAdvocate": "no parameterization found"
+        })
+    }
+
+    fn fp_verdict(id: &str) -> Value {
+        json!({
+            "candidateId": id,
+            "verdict": "FALSE_POSITIVE",
+            "threatModel": "none",
+            "reachability": "documentation only",
+            "impact": "none"
+        })
+    }
+
+    #[test]
+    fn scanner_candidates_carry_rule_location_and_excerpt() {
+        let (root, result) = scanner_fixture();
+        let candidates = scanner_candidates(&root, "legacy.security.sast", &result);
+        assert_eq!(candidates.len(), 2);
+        let sql = candidates
+            .iter()
+            .find(|candidate| candidate.finding_id == "cand-sql")
+            .unwrap();
+        assert_eq!(sql.rule, "sql-concat");
+        assert_eq!(sql.path.as_deref(), Some("src/db.rs"));
+        assert_eq!(sql.line, Some(2));
+        assert!(sql
+            .evidence_excerpt
+            .as_deref()
+            .is_some_and(|excerpt| excerpt.contains("db.execute")));
+        let doc = candidates
+            .iter()
+            .find(|candidate| candidate.finding_id == "cand-doc")
+            .unwrap();
+        // No rule id in the evidence: falls back to the generating provider.
+        assert_eq!(doc.rule, "legacy.security.sast");
+        assert_eq!(doc.evidence_excerpt, None);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn candidate_to_verdict_to_variant_selection() {
+        use crate::inventory::{InventoryEntry, InventoryEnvelope};
+        let (root, result) = scanner_fixture();
+        let candidates = scanner_candidates(&root, "legacy.security.sast", &result);
+
+        // A candidate left without a verdict, or closed twice, is rejected.
+        let missing = adjudicate_scanner_candidates(&candidates, &[tp_verdict("cand-sql")], "d")
+            .unwrap_err();
+        assert!(missing.contains("missing: cand-doc"), "{missing}");
+        let duplicate = adjudicate_scanner_candidates(
+            &candidates,
+            &[tp_verdict("cand-sql"), tp_verdict("cand-sql")],
+            "d",
+        )
+        .unwrap_err();
+        assert!(duplicate.contains("duplicate"), "{duplicate}");
+        let unknown =
+            adjudicate_scanner_candidates(&candidates, &[tp_verdict("nope")], "d").unwrap_err();
+        assert!(unknown.contains("not a candidate"), "{unknown}");
+
+        // A surviving verdict without proof does not clear the evidentiary bar.
+        let mut unproven = tp_verdict("cand-sql");
+        unproven.as_object_mut().unwrap().remove("proof");
+        let weak = adjudicate_scanner_candidates(&candidates, &[unproven, fp_verdict("cand-doc")], "d")
+            .unwrap_err();
+        assert!(weak.contains("requires proof"), "{weak}");
+
+        let verdicts = adjudicate_scanner_candidates(
+            &candidates,
+            &[tp_verdict("cand-sql"), fp_verdict("cand-doc")],
+            "d",
+        )
+        .unwrap();
+        assert_eq!(verdicts.len(), 2);
+        let confirmed = confirmed_findings(&candidates, &verdicts);
+        assert_eq!(confirmed.len(), 1);
+        assert_eq!(confirmed[0].candidate_id, "cand-sql");
+        let paths = confirmed_paths(&confirmed);
+        assert_eq!(paths, vec!["src/db.rs".to_owned()]);
+
+        // The confirmed verdict, and only it, triggers variant analysis.
+        let entry = |path: &str| InventoryEntry {
+            path: path.into(),
+            symbols: Vec::new(),
+            dependencies: Vec::new(),
+            package_scripts: Vec::new(),
+            source_file: true,
+            digest: None,
+        };
+        let inventory = InventoryEnvelope::new(
+            "repo",
+            "generation",
+            vec![entry("src/db.rs"), entry("src/other.rs")],
+        )
+        .unwrap();
+        let selector = json!({"op": "confirmedSecurityFinding"});
+        assert!(inventory
+            .denominator_entries(&selector)
+            .unwrap()
+            .entries
+            .is_empty());
+        let selected = inventory
+            .denominator_entries_with_security_context(&selector, &[], &paths)
+            .unwrap();
+        assert_eq!(selected.entries.len(), 1);
+        assert_eq!(selected.entries[0].path, "src/db.rs");
+        let _ = std::fs::remove_dir_all(root);
     }
 }

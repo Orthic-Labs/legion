@@ -76,7 +76,7 @@ fn language_for(path: &str) -> &'static str {
 /// — no cross-line PEM-block state machine, since a false negative here is
 /// bounded by "the lens sees a redaction placeholder, not the secret",
 /// while a false positive only costs a little excerpt fidelity.
-fn redact_secrets(line: &str) -> (String, bool) {
+pub(crate) fn redact_secrets(line: &str) -> (String, bool) {
     const SECRET_NAME_HINTS: &[&str] = &[
         "secret",
         "token",
@@ -303,18 +303,51 @@ pub fn build_excerpt(root: &Path, path: &str, mode: ExcerptMode) -> Option<Excer
 /// already deterministic from the frozen denominator). Unreadable files are
 /// skipped rather than aborting the whole batch.
 pub fn build_excerpts(root: &Path, paths: &[String], mode: ExcerptMode) -> Vec<Excerpt> {
+    build_excerpt_set(root, paths, mode).excerpts
+}
+
+/// A denominator path the packet carries no excerpt for.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OmittedExcerpt {
+    pub path: String,
+    /// `total-byte-cap` (aggregate ceiling reached) or `unreadable`.
+    pub reason: &'static str,
+}
+
+/// The excerpts one packet carries plus every denominator path it does not,
+/// so coverage is reconciled against what a reviewer was actually given.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExcerptSet {
+    pub excerpts: Vec<Excerpt>,
+    pub omitted: Vec<OmittedExcerpt>,
+}
+
+/// `build_excerpts` that also records omitted paths instead of dropping them.
+pub fn build_excerpt_set(root: &Path, paths: &[String], mode: ExcerptMode) -> ExcerptSet {
     let mut total = 0usize;
     let mut excerpts = Vec::new();
+    let mut omitted = Vec::new();
     for path in paths {
         if total >= MAX_TOTAL_EXCERPT_BYTES {
-            break;
+            omitted.push(OmittedExcerpt {
+                path: path.clone(),
+                reason: "total-byte-cap",
+            });
+            continue;
         }
-        if let Some(excerpt) = build_excerpt(root, path, mode) {
-            total += excerpt.content.len();
-            excerpts.push(excerpt);
+        match build_excerpt(root, path, mode) {
+            Some(excerpt) => {
+                total += excerpt.content.len();
+                excerpts.push(excerpt);
+            }
+            None => omitted.push(OmittedExcerpt {
+                path: path.clone(),
+                reason: "unreadable",
+            }),
         }
     }
-    excerpts
+    ExcerptSet { excerpts, omitted }
 }
 
 #[cfg(test)]
@@ -438,5 +471,29 @@ mod tests {
         let excerpts = build_excerpts(dir.path(), &paths, ExcerptMode::Raw);
         assert!(excerpts.len() < file_count, "cap did not bound the batch");
         assert_eq!(excerpts[0].path, "f00.rs");
+    }
+
+    #[test]
+    fn excerpt_set_reconciles_every_path_it_does_not_carry() {
+        let dir = ScratchDir::new();
+        let big = "x".repeat(MAX_BYTES_PER_FILE);
+        let file_count = (MAX_TOTAL_EXCERPT_BYTES / MAX_BYTES_PER_FILE) + 4;
+        let mut paths = Vec::new();
+        for i in 0..file_count {
+            let name = format!("f{i:02}.rs");
+            write(dir.path(), &name, &big);
+            paths.push(name);
+        }
+        paths.push("gone.rs".to_owned());
+        let set = build_excerpt_set(dir.path(), &paths, ExcerptMode::Raw);
+        // Every denominator path is either excerpted or omitted with a reason.
+        assert_eq!(set.excerpts.len() + set.omitted.len(), paths.len());
+        assert!(set
+            .omitted
+            .iter()
+            .any(|omitted| omitted.reason == "total-byte-cap"));
+        // Cap omissions precede the unreadable file in input order, so the
+        // unreadable path is reported by the cap, never silently dropped.
+        assert!(set.omitted.iter().any(|omitted| omitted.path == "gone.rs"));
     }
 }

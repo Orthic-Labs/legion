@@ -30,9 +30,14 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 
 use super::{
-    authenticate_receipt, lens_plan, lens_schemas, verify_authenticated_receipt, verify_response,
-    PendingLensWork, ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS,
-    REASONING_RECEIPT_KIND, REASONING_RECEIPT_SCHEMA_VERSION,
+    authenticate_receipt, lens_plan, lens_schemas,
+    security_adjudication::{
+        adjudicate_scanner_candidates, confirmed_findings, confirmed_paths,
+        ConfirmedSecurityFinding, ScannerCandidate, ADJUDICATOR_PROVIDER_ID,
+    },
+    verify_authenticated_receipt, verify_response, PendingLensWork, ReasoningHostResponse,
+    ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
+    REASONING_RECEIPT_SCHEMA_VERSION,
 };
 use crate::{
     error::AuditError,
@@ -290,8 +295,106 @@ pub struct IngestedLens {
     pub findings: usize,
     pub withdrawn: usize,
     pub anchors_verified: usize,
+    /// Denominator paths the packet proves were examined (see `packet_coverage`).
+    pub examined: u64,
+    pub expected: u64,
+    pub complete: bool,
+    pub coverage_gaps: Vec<String>,
     pub receipt_id: String,
     pub receipt_path: String,
+}
+
+/// Coverage derived from what the lens packet carried, never from the
+/// submitter's attestation.
+struct PacketCoverage {
+    examined: u64,
+    gaps: Vec<String>,
+    detail: Value,
+}
+
+fn string_list(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Examined coverage for one packet. `bounded-excerpts` packets count only
+/// denominator paths whose excerpt is present and untruncated; omitted and
+/// truncated paths become a coverage gap. `candidate-verdicts` packets (the
+/// security adjudicator) are covered only when every scanner candidate got a
+/// verdict. A packet that records no basis proves nothing.
+fn packet_coverage(
+    provider_id: &str,
+    packet: &Value,
+    denominator_paths: &[String],
+    candidates_supplied: bool,
+) -> PacketCoverage {
+    let expected = denominator_paths.len() as u64;
+    let coverage = packet.get("excerptCoverage").filter(|value| value.is_object());
+    let basis = coverage
+        .and_then(|value| value.get("basis"))
+        .and_then(Value::as_str)
+        .unwrap_or("unrecorded");
+    match basis {
+        "bounded-excerpts" => {
+            let included = string_list(coverage.and_then(|value| value.get("examinedPaths")))
+                .into_iter()
+                .collect::<BTreeSet<_>>();
+            let examined = denominator_paths
+                .iter()
+                .filter(|path| included.contains(*path))
+                .count() as u64;
+            let truncated = string_list(coverage.and_then(|value| value.get("truncatedPaths")));
+            let omitted = coverage
+                .and_then(|value| value.get("omittedPaths"))
+                .cloned()
+                .unwrap_or(Value::Array(Vec::new()));
+            let gaps = if examined < expected {
+                vec![format!(
+                    "reasoning-excerpt-coverage:{provider_id}:{examined}/{expected} paths examined ({} omitted, {} truncated)",
+                    omitted.as_array().map_or(0, Vec::len),
+                    truncated.len()
+                )]
+            } else {
+                Vec::new()
+            };
+            PacketCoverage {
+                examined,
+                gaps,
+                detail: json!({
+                    "basis": basis,
+                    "examined": examined,
+                    "expected": expected,
+                    "omittedPaths": omitted,
+                    "truncatedPaths": truncated,
+                }),
+            }
+        }
+        "candidate-verdicts" => {
+            let examined = if candidates_supplied { expected } else { 0 };
+            PacketCoverage {
+                examined,
+                gaps: if candidates_supplied {
+                    Vec::new()
+                } else {
+                    vec![format!("scanner-candidates-unavailable:{provider_id}")]
+                },
+                detail: json!({"basis": basis, "examined": examined, "expected": expected}),
+            }
+        }
+        _ => PacketCoverage {
+            examined: 0,
+            gaps: vec![format!("excerpt-coverage-unrecorded:{provider_id}")],
+            detail: json!({"basis": "unrecorded", "examined": 0, "expected": expected}),
+        },
+    }
 }
 
 fn expected_request_id(work: &PendingLensWork) -> Result<String, AuditError> {
@@ -342,7 +445,14 @@ fn array_field(value: &Value, field: &str, who: &str) -> Result<Vec<Value>, Audi
 /// `{schemaVersion:1, kind, provider, packetDigest, planDigest, complete:true,
 ///   findings:[{...lens schema fields, anchor:{path,line,text}}],
 ///   withdrawn:[{id, reason, disproof:{path,line,text}}],
+///   verdicts:[{candidateId, verdict, ...}]  (legacy.security.adjudication only:
+///     exactly one per packet `scannerCandidates` entry; a surviving verdict
+///     also needs a finding with id `adjudicated:<candidateId>`),
 ///   details:{semanticReview?, changeRisk?}}`
+///
+/// `complete:true` only attests the submitter finished. Examined coverage is
+/// computed from the paths the packet carried: omitted or truncated excerpts
+/// leave a coverage gap and the receipt is `partial`, not `complete`.
 pub fn ingest_lens_result(
     run_dir: &Path,
     provider_id: &str,
@@ -565,6 +675,60 @@ pub fn ingest_lens_result(
         anchors_verified += 1;
     }
 
+    // --- security verdicts (adjudicator only) --------------------------------------
+    let submitted_verdicts = array_field(result, "verdicts", &who)?;
+    let mut candidates_supplied = false;
+    let mut verdict_details: Option<(Value, Value)> = None;
+    if provider_id == ADJUDICATOR_PROVIDER_ID {
+        match request.packet.get("scannerCandidates") {
+            Some(Value::Array(items)) => {
+                let candidates: Vec<ScannerCandidate> =
+                    serde_json::from_value(Value::Array(items.clone()))
+                        .map_err(|error| invalid(format!("{who}: packet candidates: {error}")))?;
+                let verdicts =
+                    adjudicate_scanner_candidates(&candidates, &submitted_verdicts, &packet_digest)
+                        .map_err(|error| invalid(format!("{who}: {error}")))?;
+                for verdict in verdicts.iter().filter(|verdict| verdict.verdict.is_surviving()) {
+                    let finding_id = format!("adjudicated:{}", verdict.candidate_id);
+                    if !seen_ids.contains(&finding_id) {
+                        return Err(invalid(format!(
+                            "{who}: surviving verdict for {} needs an anchored finding with id {finding_id}",
+                            verdict.candidate_id
+                        )));
+                    }
+                }
+                let confirmed = confirmed_findings(&candidates, &verdicts);
+                verdict_details = Some((
+                    serde_json::to_value(&verdicts).map_err(|error| invalid(error.to_string()))?,
+                    serde_json::to_value(&confirmed).map_err(|error| invalid(error.to_string()))?,
+                ));
+                candidates_supplied = true;
+            }
+            _ if submitted_verdicts.is_empty() => {}
+            _ => {
+                return Err(invalid(format!(
+                    "{who}: verdicts submitted but the packet carries no scanner candidates"
+                )))
+            }
+        }
+    } else if !submitted_verdicts.is_empty() {
+        return Err(invalid(format!(
+            "{who}: only {ADJUDICATOR_PROVIDER_ID} accepts verdicts"
+        )));
+    }
+    let coverage = packet_coverage(
+        provider_id,
+        &request.packet,
+        &request.denominator_paths,
+        candidates_supplied,
+    );
+    let complete = coverage.gaps.is_empty();
+    let status = if complete {
+        ProviderStatus::Complete
+    } else {
+        ProviderStatus::Partial
+    };
+
     // --- build the result and the MAC'd receipt ----------------------------------
     let expected = request.denominator_count;
     let mut details: BTreeMap<String, Value> = BTreeMap::new();
@@ -584,6 +748,11 @@ pub fn ingest_lens_result(
             "anchorsVerified": anchors_verified,
         }),
     );
+    details.insert("packetCoverage".into(), coverage.detail.clone());
+    if let Some((verdicts, confirmed)) = verdict_details {
+        details.insert("securityVerdicts".into(), verdicts);
+        details.insert("securityConfirmed".into(), confirmed);
+    }
     for (field, value) in extra_details {
         details.insert(field, value);
     }
@@ -593,16 +762,16 @@ pub fn ingest_lens_result(
         provider,
         applicable: true,
         required,
-        status: ProviderStatus::Complete,
-        complete: true,
+        status,
+        complete,
         coverage: Some(Coverage {
             denominator_digest: request.denominator_digest.clone(),
             expected,
-            examined: expected,
-            gaps: Vec::new(),
+            examined: coverage.examined,
+            gaps: coverage.gaps.clone(),
         }),
         findings: finding_refs,
-        coverage_gaps: Vec::new(),
+        coverage_gaps: coverage.gaps.clone(),
         degradation: Vec::new(),
         details,
     };
@@ -635,9 +804,9 @@ pub fn ingest_lens_result(
         denominator_digest: request.denominator_digest.clone(),
         denominator_count: request.denominator_count,
         result_digest,
-        status: ProviderStatus::Complete,
-        complete: true,
-        gaps: Vec::new(),
+        status,
+        complete,
+        gaps: coverage.gaps.clone(),
         authentication: Value::Null,
     };
     receipt.authentication =
@@ -678,6 +847,10 @@ pub fn ingest_lens_result(
         findings: findings.len(),
         withdrawn: withdrawn.len(),
         anchors_verified,
+        examined: coverage.examined,
+        expected,
+        complete,
+        coverage_gaps: coverage.gaps,
         receipt_id,
         receipt_path: path.to_string_lossy().into_owned(),
     })
@@ -706,6 +879,9 @@ pub struct Recomputed {
     pub ingested: Vec<String>,
     /// Reasoning providers still `pending-host`.
     pub pending: Vec<String>,
+    /// Surviving security verdicts from ingested adjudication receipts: the
+    /// trigger for variant analysis.
+    pub confirmed_security: Vec<ConfirmedSecurityFinding>,
 }
 
 fn verify_ingested(
@@ -745,13 +921,13 @@ fn verify_ingested(
         || receipt.plan_digest != execution.plan_digest
         || receipt.inventory_digest != execution.inventory_digest
         || receipt.inventory_generation != execution.generation
-        || !receipt.complete
-        || !result.complete
-        || receipt.status != ProviderStatus::Complete
-        || !receipt.gaps.is_empty()
+        || receipt.complete != result.complete
+        || receipt.status != result.status
+        || receipt.gaps != result.coverage_gaps
+        || (receipt.complete && !receipt.gaps.is_empty())
     {
         return Err(invalid(format!(
-            "{who}: not bound to this run or not complete"
+            "{who}: not bound to this run or its completeness is inconsistent"
         )));
     }
     if !execution
@@ -841,6 +1017,8 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         .collect();
     let mut next = execution.clone();
     let mut resolved = BTreeSet::new();
+    let mut partial: BTreeSet<String> = BTreeSet::new();
+    let mut confirmed_security: Vec<ConfirmedSecurityFinding> = Vec::new();
     for (provider, result) in &receipts {
         let slot = next
             .results
@@ -848,17 +1026,29 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
             .find(|entry| &entry.provider == provider)
             .ok_or_else(|| invalid(format!("{provider} is not part of this run")))?;
         resolved.extend(slot.result.coverage_gaps.iter().cloned());
-        resolved.insert(format!("provider-incomplete:{provider}"));
         resolved.insert(format!("reasoning-lens-pending-host:{provider}"));
         slot.result = result.clone();
         slot.skipped = false;
-        if let Some(lenses) = result.details.get("lensIds").and_then(Value::as_array) {
-            next.lenses_ran.extend(
-                lenses
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .map(ToOwned::to_owned),
+        if let Some(confirmed) = result.details.get("securityConfirmed") {
+            confirmed_security.extend(
+                serde_json::from_value::<Vec<ConfirmedSecurityFinding>>(confirmed.clone())
+                    .map_err(|error| invalid(format!("{provider}: securityConfirmed: {error}")))?,
             );
+        }
+        // Only a lens whose packet coverage is proven counts as having run; a
+        // partial receipt stays incomplete and carries its own coverage gaps.
+        if result.complete {
+            resolved.insert(format!("provider-incomplete:{provider}"));
+            if let Some(lenses) = result.details.get("lensIds").and_then(Value::as_array) {
+                next.lenses_ran.extend(
+                    lenses
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(ToOwned::to_owned),
+                );
+            }
+        } else {
+            partial.insert(provider.clone());
         }
     }
     // A gap another still-pending provider reports (the shared host-unavailable
@@ -871,6 +1061,13 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         }
     }
     next.gaps.retain(|gap| !resolved.contains(gap));
+    for (provider, result) in &receipts {
+        if partial.contains(provider) {
+            next.gaps.extend(result.coverage_gaps.iter().cloned());
+        }
+    }
+    next.gaps.sort();
+    next.gaps.dedup();
     next.pending_host
         .retain(|provider| !ingested.contains(provider));
     next.lenses_ran.sort();
@@ -889,6 +1086,17 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         .cloned()
         .collect();
     gaps.extend(rebuilt.gaps.iter().cloned());
+    let variant_paths = confirmed_paths(&confirmed_security);
+    if !confirmed_security.is_empty() {
+        // Variant analysis is required for every surviving finding, and the
+        // frozen plan's `confirmedSecurityFinding` denominator was empty, so
+        // the lens cannot run inside this run: say so instead of reporting
+        // the finding as fully handled.
+        gaps.insert(format!(
+            "security-variant-analysis-pending:{} confirmed finding(s)",
+            confirmed_security.len()
+        ));
+    }
     let status = if !gaps.is_empty() {
         ReportStatus::Incomplete
     } else if rebuilt.findings.is_empty() {
@@ -922,6 +1130,16 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
             "unproven"
         }),
     );
+    if !confirmed_security.is_empty() {
+        report.claims.insert(
+            "securityVariantTrigger".into(),
+            json!({
+                "selector": "confirmedSecurityFinding",
+                "confirmed": confirmed_security,
+                "paths": variant_paths,
+            }),
+        );
+    }
     report.claims.insert(
         "ingestedLenses".into(),
         json!(ingested.iter().collect::<Vec<_>>()),
@@ -934,7 +1152,12 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
                 .map(ToOwned::to_owned);
             if let (Some(provider), Some(object)) = (provider, item.as_object_mut()) {
                 if ingested.contains(&provider) {
-                    object.insert("status".into(), json!("ingested"));
+                    let state = if partial.contains(&provider) {
+                        "ingested-partial"
+                    } else {
+                        "ingested"
+                    };
+                    object.insert("status".into(), json!(state));
                 }
             }
         }
@@ -946,6 +1169,7 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
     Ok(Recomputed {
         report,
         pending: next.pending_host.clone(),
+        confirmed_security,
         execution: next,
         ingested: ingested.into_iter().collect(),
     })

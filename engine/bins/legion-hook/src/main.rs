@@ -38,6 +38,7 @@ pub fn dispatch(request: HookRequest) -> HookResponse {
     let provenance = pinned_session_provenance(&request);
     let response = dispatch_inner(request.clone());
     emit_route_trace(&request, &response, started.elapsed(), provenance.as_ref());
+    emit_child_lifecycle(&request, &response);
     response
 }
 
@@ -1572,6 +1573,9 @@ fn read_request() -> Result<Vec<u8>, HookError> {
 
 const MAX_TRACE_FILE_BYTES: u64 = 2 * 1024 * 1024;
 const TRACE_FILE_NAME: &str = "route-outcome-trace.v1.jsonl";
+/// Child launch lifecycle observed by this hook itself (SubagentStart/Stop).
+/// Separate from the route-outcome trace so that schema stays unchanged.
+const CHILD_TRACE_FILE_NAME: &str = "child-lifecycle-trace.v1.jsonl";
 const SESSION_PROVENANCE_DIRECTORY: &str = "session-provenance";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1918,6 +1922,210 @@ fn emit_route_trace(
     }
 }
 
+/// Hook-observed child launch counters. Unlike `roleDecisions` (host/lead
+/// supplied) the launch counters come from SubagentStart/SubagentStop frames
+/// the hook received, keyed by the host's child id.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ChildLaunchCounters {
+    /// Role decisions in state selected, bound or launched (latest per request+role).
+    pub selected: usize,
+    /// Distinct child ids for which a SubagentStart frame reached the hook.
+    pub attempted_launch: usize,
+    /// Distinct attempted child ids whose start the hook accepted.
+    pub accepted_launch: usize,
+    /// Distinct accepted child ids that later produced a SubagentStop.
+    pub completed: usize,
+    /// Distinct attempted child ids never accepted (start refused).
+    pub rejected: usize,
+    /// Role decisions in state skipped (latest per request+role).
+    pub explicitly_skipped: usize,
+}
+
+fn child_lifecycle_event(event_type: &str) -> Option<&'static str> {
+    match event_type {
+        "SubagentStart" | "subagent-start" => Some("SubagentStart"),
+        "SubagentStop" | "subagent-stop" => Some("SubagentStop"),
+        _ => None,
+    }
+}
+
+fn child_id_from_payload(payload: &Map<String, Value>) -> Option<String> {
+    let source = trace_source(payload);
+    first_string(
+        source,
+        &[
+            "agent_id",
+            "agentId",
+            "child_id",
+            "childId",
+            "subagent_id",
+            "subagentId",
+            "request_id",
+            "requestId",
+            "tool_use_id",
+            "toolUseId",
+        ],
+    )
+    .or_else(|| {
+        first_string(
+            payload,
+            &[
+                "agent_id",
+                "agentId",
+                "child_id",
+                "childId",
+                "subagent_id",
+                "subagentId",
+                "request_id",
+                "requestId",
+                "tool_use_id",
+                "toolUseId",
+            ],
+        )
+    })
+}
+
+fn child_lifecycle_record(request: &HookRequest, response: &HookResponse) -> Option<Value> {
+    let event = child_lifecycle_event(request.event_type.as_str())?;
+    let payload = request.payload.as_object()?;
+    let child_id = child_id_from_payload(payload)?;
+    let mut record = Map::new();
+    record.insert("schemaVersion".into(), Value::from(1));
+    record.insert("kind".into(), Value::from("legion-child-lifecycle"));
+    record.insert("event".into(), Value::from(event));
+    record.insert("childId".into(), Value::from(child_id));
+    record.insert("accepted".into(), Value::Bool(response.allowed));
+    if let Some(agent) = first_string(
+        payload,
+        &["agent_type", "agentType", "subagent_type", "subagentType", "role"],
+    ) {
+        record.insert("agentType".into(), Value::from(agent));
+    }
+    if let Some(session) = first_string(payload, &["session_id", "sessionId"]) {
+        record.insert("sessionId".into(), Value::from(session));
+    }
+    record.insert(
+        "observedAtUnixMs".into(),
+        Value::from((unix_nanos() / 1_000_000).min(u64::MAX as u128) as u64),
+    );
+    Some(Value::Object(record))
+}
+
+/// Test builds never fall back to the per-user receipts directory.
+fn child_trace_path(payload: &Value) -> Option<PathBuf> {
+    if cfg!(test) {
+        let object = payload.as_object()?;
+        if first_string(object, &["stateRoot", "state_root"]).is_none()
+            && std::env::var_os("LEGION_STATE_ROOT").is_none()
+        {
+            return None;
+        }
+    }
+    receipt_root(payload).map(|root| root.join(CHILD_TRACE_FILE_NAME))
+}
+
+fn emit_child_lifecycle(request: &HookRequest, response: &HookResponse) {
+    let Some(record) = child_lifecycle_record(request, response) else {
+        return;
+    };
+    let Some(path) = child_trace_path(&request.payload) else {
+        return;
+    };
+    if append_json_line(&path, &record).is_err() {
+        eprintln!(
+            "legion-hook: child lifecycle trace was not written to {}",
+            path.display()
+        );
+    }
+}
+
+fn append_json_line(path: &Path, value: &Value) -> Result<(), ()> {
+    let mut line = serde_json::to_vec(value).map_err(|_| ())?;
+    if (line.len() as u64).saturating_add(1) > MAX_TRACE_FILE_BYTES {
+        return Err(());
+    }
+    line.push(b'\n');
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent).map_err(|_| ())?;
+    }
+    if fs::metadata(path)
+        .ok()
+        .map(|metadata| metadata.len().saturating_add(line.len() as u64) > MAX_TRACE_FILE_BYTES)
+        .unwrap_or(false)
+    {
+        fs::rename(path, PathBuf::from(format!("{}.1", path.display()))).map_err(|_| ())?;
+    }
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|_| ())?;
+    file.write_all(&line).map_err(|_| ())
+}
+
+/// Fold hook-observed child lifecycle records and route traces into the
+/// separate launch counters. Records that are not well-formed are ignored.
+pub fn fold_child_launch_counters(
+    records: &[Value],
+    traces: &[RouteOutcomeTrace],
+) -> ChildLaunchCounters {
+    use std::collections::BTreeSet;
+    let mut attempted = BTreeSet::new();
+    let mut accepted = BTreeSet::new();
+    let mut stopped = BTreeSet::new();
+    for record in records {
+        let Some(object) = record.as_object() else {
+            continue;
+        };
+        let Some(id) = object.get("childId").and_then(Value::as_str) else {
+            continue;
+        };
+        match object.get("event").and_then(Value::as_str) {
+            Some("SubagentStart") => {
+                attempted.insert(id.to_owned());
+                if object.get("accepted").and_then(Value::as_bool) == Some(true) {
+                    accepted.insert(id.to_owned());
+                }
+            }
+            Some("SubagentStop") => {
+                stopped.insert(id.to_owned());
+            }
+            _ => {}
+        }
+    }
+    let mut latest: Vec<(&RequestId, AuthorityKind, legion_contracts::RoleDecisionState)> =
+        Vec::new();
+    for trace in traces {
+        let Some(decisions) = trace.role_decisions.as_ref() else {
+            continue;
+        };
+        for decision in decisions {
+            if let Some(existing) = latest.iter_mut().find(|(request, role, _)| {
+                request.as_str() == trace.request_id.as_str() && *role == decision.role
+            }) {
+                existing.2 = decision.state;
+            } else {
+                latest.push((&trace.request_id, decision.role, decision.state));
+            }
+        }
+    }
+    let skipped = latest
+        .iter()
+        .filter(|(_, _, state)| *state == legion_contracts::RoleDecisionState::Skipped)
+        .count();
+    ChildLaunchCounters {
+        selected: latest.len() - skipped,
+        attempted_launch: attempted.len(),
+        accepted_launch: accepted.len(),
+        completed: stopped.intersection(&accepted).count(),
+        rejected: attempted.difference(&accepted).count(),
+        explicitly_skipped: skipped,
+    }
+}
+
 fn route_trace_from_request(
     request: &HookRequest,
     response: &HookResponse,
@@ -2227,55 +2435,7 @@ fn receipt_root(payload: &Value) -> Option<PathBuf> {
             .ok()
             .map(|dir| dir.to_string_lossy().into_owned())
     })?;
-    let digest = legion_contracts::canonical_digest(&identity).ok()?;
-    let key = digest.trim_start_matches("sha256:");
-    let key = key.get(..16).unwrap_or(key);
-    let base = user_state_receipts_root(
-        cfg!(target_os = "macos"),
-        cfg!(windows),
-        std::env::var_os("HOME").map(PathBuf::from),
-        std::env::var_os("USERPROFILE").map(PathBuf::from),
-        std::env::var_os("LOCALAPPDATA").map(PathBuf::from),
-        std::env::var_os("XDG_STATE_HOME").map(PathBuf::from),
-    )?;
-    Some(base.join(key))
-}
-
-/// The per-user receipts directory for this platform, before repository keying.
-fn user_state_receipts_root(
-    macos: bool,
-    windows: bool,
-    home: Option<PathBuf>,
-    user_profile: Option<PathBuf>,
-    local_app_data: Option<PathBuf>,
-    xdg_state_home: Option<PathBuf>,
-) -> Option<PathBuf> {
-    let non_empty = |value: Option<PathBuf>| value.filter(|path| !path.as_os_str().is_empty());
-    if macos {
-        return Some(
-            non_empty(home)?
-                .join("Library")
-                .join("Application Support")
-                .join("Orthic Labs")
-                .join("Legion")
-                .join("state")
-                .join("receipts"),
-        );
-    }
-    if windows {
-        let base = non_empty(local_app_data).or_else(|| {
-            non_empty(user_profile).map(|profile| profile.join("AppData").join("Local"))
-        })?;
-        return Some(
-            base.join("Orthic Labs")
-                .join("Legion")
-                .join("state")
-                .join("receipts"),
-        );
-    }
-    let base = non_empty(xdg_state_home)
-        .or_else(|| non_empty(home).map(|home| home.join(".local").join("state")))?;
-    Some(base.join("legion").join("receipts"))
+    legion_contracts::state_root::per_user_repository_receipts_root(&identity)
 }
 
 fn append_trace(path: &Path, trace: &RouteOutcomeTrace) -> Result<(), ()> {
@@ -2528,6 +2688,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use legion_contracts::state_root::user_state_receipts_root;
     use super::*;
     use serde_json::json;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -3511,6 +3672,96 @@ mod tests {
             response.allowed,
             "a current bound Oracle PASS should permit Stop"
         );
+    }
+
+    #[test]
+    fn subagent_lifecycle_is_recorded_and_counted_by_child_id() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-hook-child-lifecycle-{}-{}",
+            std::process::id(),
+            unix_nanos()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let send = |event: &str, child: &str| {
+            dispatch(HookRequest {
+                schema_version: protocol::SCHEMA_VERSION,
+                kind: protocol::REQUEST_KIND.into(),
+                event_type: event.into(),
+                payload: json!({
+                    "agent_id": child,
+                    "agent_type": "alchemist",
+                    "stateRoot": root.to_string_lossy(),
+                }),
+            })
+        };
+        assert!(send("SubagentStart", "child-1").allowed);
+        assert!(send("SubagentStart", "child-2").allowed);
+        assert!(send("SubagentStop", "child-1").allowed);
+        let file = root.join("receipts").join(CHILD_TRACE_FILE_NAME);
+        let records: Vec<Value> = fs::read_to_string(&file)
+            .expect("child lifecycle trace persisted")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("valid record"))
+            .collect();
+        assert_eq!(records.len(), 3);
+        assert_eq!(records[0]["event"], "SubagentStart");
+        assert_eq!(records[0]["childId"], "child-1");
+        assert_eq!(records[2]["event"], "SubagentStop");
+        let counters = fold_child_launch_counters(&records, &[]);
+        assert_eq!(counters.attempted_launch, 2);
+        assert_eq!(counters.accepted_launch, 2);
+        assert_eq!(counters.completed, 1);
+        assert_eq!(counters.rejected, 0);
+        // The route-outcome trace file is untouched by child lifecycle frames.
+        assert!(!root.join("receipts").join(TRACE_FILE_NAME).exists());
+        fs::remove_dir_all(root).expect("remove test state");
+    }
+
+    #[test]
+    fn child_counters_separate_rejected_stop_without_start_and_skips() {
+        let records = vec![
+            json!({"event":"SubagentStart","childId":"a","accepted":true}),
+            json!({"event":"SubagentStart","childId":"a","accepted":true}),
+            json!({"event":"SubagentStart","childId":"b","accepted":false}),
+            json!({"event":"SubagentStop","childId":"b"}),
+            json!({"event":"SubagentStop","childId":"a"}),
+            json!({"event":"SubagentStop","childId":"never-started"}),
+            json!({"event":"garbage"}),
+        ];
+        let counters = fold_child_launch_counters(&records, &[]);
+        assert_eq!(
+            counters,
+            ChildLaunchCounters {
+                selected: 0,
+                attempted_launch: 2,
+                accepted_launch: 1,
+                completed: 1,
+                rejected: 1,
+                explicitly_skipped: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn child_counters_take_selected_and_skipped_from_latest_role_decisions() {
+        let mut payload = complete_trace_payload("unused");
+        payload["roleDecisions"] = json!([
+            {"role": "sage", "eligible": true, "state": "selected"},
+            {"role": "oracle", "eligible": true, "state": "skipped", "reason": "small reversible"}
+        ]);
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload,
+        };
+        let response = HookResponse::allowed("SessionStart", "ok");
+        let trace = route_trace_from_request(&request, &response, Duration::from_millis(1), None)
+            .expect("v2 trace with role decisions");
+        let counters = fold_child_launch_counters(&[], &[trace]);
+        assert_eq!(counters.selected, 1);
+        assert_eq!(counters.explicitly_skipped, 1);
+        assert_eq!(counters.attempted_launch, 0);
     }
 
     #[test]

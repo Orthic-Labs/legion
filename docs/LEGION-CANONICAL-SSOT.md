@@ -76,14 +76,14 @@ Primary rules:
    Oracle, Covenant, Audit, Architect, Debugger, Arcane, capabilities — are selected/attached
    concerns, not peer orchestrators.
 2. **Capabilities describe expertise and method; roles do not contain skills.**
-3. **Capabilities own routine domain judgment. Sage is optional design,
+3. **Capabilities own routine domain judgment. Sage is design,
    reassessment, and adjudication authority when a material choice exceeds routine capability judgment.**
 4. **Authority is attached to the work that requires it, not statically to a domain, capability,
    operation, or effect.**
 5. **Effects are explicit, and deterministic effect enforcement belongs to the Guard.**
 6. **Evaluation methodology is not independent assurance.**
 7. **Complexity carries the burden of proof.**
-8. **Oracle review is proportional, not universal.** Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.
+8. **Oracle reviews work Legion did not produce.** Use Oracle for any independent review or verification of others' work; never its own fix. Routine replies & read-only answers need no Oracle.
 
 ## 3. Canonical ownership model
 
@@ -223,7 +223,7 @@ and their detailed mandate, boundary, inputs, outputs, and interactions are dele
 
 | Authority | Cross-role responsibility |
 |---|---|
-| Sage | optional cross-cutting design, reassessment, and adjudication of material unresolved meaning; never a routine domain owner or product-state executor |
+| Sage | cross-cutting design, reassessment, and adjudication of material unresolved meaning; never a routine domain owner or product-state executor |
 | Alchemist | controlled bounded transformation of settled meaning; never an independent semantic decision-maker |
 | Oracle | independent, read-only Completion Validation; never an implementer or self-certifier |
 
@@ -310,7 +310,7 @@ Cross-boundary invariants:
   receipt-store runtime used by governed work, and none of that is an effect-decision receipt.
   Receipt kinds stay distinct: Guard effect-decision receipts, contract/runtime receipts, handoff
   receipts, and the Oracle completion-validation receipt.
-- Oracle is optional (principle 8). The one place a typed `verificationRequirement` may demand an
+- Oracle is not a stop gate (principle 8). The one place a typed `verificationRequirement` may demand an
   Oracle receipt at Stop is a requirement set by a route or completion producer for a concrete
   outcome or safety risk; absent such a requirement, Stop never demands Oracle.
 - Brief/Minimize and `BUDGET_STOP` are Arcane policy delivered through Guard's Stop surface. No

@@ -20,7 +20,7 @@
     "surfaces": {
       "instructions": { "fidelity": "strong", "mechanism": { "kind": "agents-md", "path": "AGENTS.md" } },
       "skills": { "fidelity": "strong", "mechanism": { "kind": "skills-dir", "path": ".agents/skills" }, "note": "native Agent Skills discovery with generated implicit/explicit invocation policy" },
-      "agents": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "no native subagents" },
+      "agents": { "fidelity": "strong", "mechanism": { "kind": "agent-config", "path": ".codex/agents", "registration": ".codex/config.toml" }, "note": "bind projects roster roles and native registrations; verify effective config and runtime launch separately" },
       "mcp": { "fidelity": "strong", "mechanism": { "kind": "toml", "path": ".codex/config.toml", "table": "mcp_servers" } },
       "hooks": { "fidelity": "unsupported", "mechanism": { "kind": "none" }, "note": "no effect-enforcement hook surface; Guard enforcement is absent, not degraded" }
     }

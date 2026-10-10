@@ -45,13 +45,53 @@ fn bind_explicit_claude_code_is_retired() {
 }
 
 #[test]
-fn hooks_install_fails_loudly_instead_of_faking_success() {
-    let output = legion(&["--json", "hooks", "install"]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("not implemented"), "{stderr}");
-    assert!(stderr.contains("git hooks"), "{stderr}");
+fn hooks_status_reads_host_configs_from_an_isolated_home() {
+    let home = std::env::temp_dir().join(format!("legion-hooks-status-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_legion"))
+        .env("HOME", &home)
+        .env("USERPROFILE", &home)
+        .args(["--json", "hooks", "status"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    let value = output_json(&output);
+    assert_eq!(value["kind"], "legion-hooks-status");
+    assert_eq!(value["registered"], false);
+    assert_eq!(value["hosts"].as_array().unwrap().len(), 3);
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn fix_defaults_to_dry_run_and_mcp_install_previews() {
+    let home = std::env::temp_dir().join(format!("legion-fix-dry-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    let run = |args: &[&str]| {
+        std::process::Command::new(env!("CARGO_BIN_EXE_legion"))
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    let fix = run(&["--json", "fix"]);
+    assert_eq!(fix.status.code(), Some(0), "{}", String::from_utf8_lossy(&fix.stderr));
+    let value = output_json(&fix);
+    assert_eq!(value["kind"], "legion-fix");
+    assert_eq!(value["dryRun"], true);
+    assert_eq!(value["mutationApplied"], false);
+    let manual = value["classes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|class| class["status"] == "manual")
+        .count();
+    assert!(manual >= 1);
+    let mcp = run(&["--json", "mcp", "install", "--client", "codex"]);
+    assert_eq!(mcp.status.code(), Some(0));
+    assert_eq!(output_json(&mcp)["dryRun"], true);
+    assert!(!home.join(".codex").exists());
+    let _ = std::fs::remove_dir_all(&home);
 }
 
 fn explain_missing_id_is_usage_exit() {

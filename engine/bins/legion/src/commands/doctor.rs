@@ -405,22 +405,96 @@ fn binding_section(root: &Path) -> Value {
     json!({"receiptPresent":true,"harnesses":harnesses})
 }
 
-/// Codex hook trust is informational. Legion ships no Codex plugin hooks (the
-/// harness matrix reports Guard enforcement on Codex as unsupported), so there
-/// is no plugin id whose hooks must be trusted and no gap to raise. Report the
-/// hook-state entries Codex itself recorded, without judging them.
-fn codex_hook_trust(home: &Path) -> Value {
+/// Codex hook state, reported as four separately observed facts rather than
+/// one verdict: (1) Legion's hooks file is present on disk, (2) Codex's own
+/// config registers hook state for Legion, (3) a hook event was observed
+/// executing (last event in Legion's receipt traces), (4) enforcement is
+/// qualified (declared strong by the host adapter AND registered AND executed).
+/// A later state never implies an earlier one is skipped; each is reported
+/// from its own evidence.
+fn codex_hook_trust(home: &Path, legion_hooks_file: Option<&Path>) -> Value {
+    codex_hook_state(home, legion_hooks_file, &hook_receipt_dirs(home))
+}
+
+fn hook_receipt_dirs(home: &Path) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(root) = std::env::var_os("LEGION_STATE_ROOT") {
+        dirs.push(PathBuf::from(root).join("receipts"));
+    }
+    if cfg!(target_os = "macos") {
+        dirs.push(
+            home.join("Library/Application Support/Orthic Labs/Legion/state/receipts"),
+        );
+    } else if cfg!(windows) {
+        dirs.push(home.join("AppData/Local/Orthic Labs/Legion/state/receipts"));
+    } else {
+        dirs.push(home.join(".local/state/legion/receipts"));
+    }
+    dirs
+}
+
+/// Newest hook-trace file (route outcome or child lifecycle) under the receipt
+/// directories, up to one repository-key level deep.
+fn last_observed_hook_event(dirs: &[PathBuf]) -> Option<(PathBuf, SystemTime)> {
+    const NAMES: [&str; 2] = ["route-outcome-trace.v1.jsonl", "child-lifecycle-trace.v1.jsonl"];
+    let mut newest: Option<(PathBuf, SystemTime)> = None;
+    let mut consider = |path: PathBuf| {
+        let Ok(modified) = std::fs::metadata(&path).and_then(|m| m.modified()) else {
+            return;
+        };
+        if newest.as_ref().map_or(true, |(_, t)| modified > *t) {
+            newest = Some((path, modified));
+        }
+    };
+    for dir in dirs {
+        for name in NAMES {
+            consider(dir.join(name));
+        }
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.filter_map(Result::ok) {
+                if entry.path().is_dir() {
+                    for name in NAMES {
+                        consider(entry.path().join(name));
+                    }
+                }
+            }
+        }
+    }
+    newest
+}
+
+fn codex_hook_state(home: &Path, legion_hooks_file: Option<&Path>, receipt_dirs: &[PathBuf]) -> Value {
     let config_path = home.join(".codex").join("config.toml");
     let text = std::fs::read_to_string(&config_path).unwrap_or_default();
     let mut trusted = BTreeSet::new();
+    let mut legion_registered = BTreeSet::new();
     let mut current = None::<String>;
+    let mut current_enabled = true;
+    let flush = |event: &Option<String>, enabled: bool, registered: &mut BTreeSet<String>| {
+        if let Some(event) = event {
+            let lowered = event.to_ascii_lowercase();
+            if enabled && (lowered.starts_with("legion@") || lowered.contains("/legion/")) {
+                registered.insert(event.clone());
+            }
+        }
+    };
     for line in text.lines().map(str::trim) {
         if let Some(value) = line
             .strip_prefix("[hooks.state.\"")
             .and_then(|v| v.strip_suffix("\"]"))
         {
+            flush(&current, current_enabled, &mut legion_registered);
             current = Some(value.to_owned());
+            current_enabled = true;
             continue;
+        }
+        if line.starts_with('[') {
+            flush(&current, current_enabled, &mut legion_registered);
+            current = None;
+            continue;
+        }
+        if line.replace(' ', "") == "enabled=false" {
+            current_enabled = false;
         }
         if let Some(value) = line
             .strip_prefix("trusted_hash = \"")
@@ -438,11 +512,59 @@ fn codex_hook_trust(home: &Path) -> Value {
             }
         }
     }
+    flush(&current, current_enabled, &mut legion_registered);
+
+    let file_present = legion_hooks_file.is_some_and(Path::is_file);
+    let registered = !legion_registered.is_empty();
+    let last_event = last_observed_hook_event(receipt_dirs);
+    let executed = last_event.is_some();
+    let declared_strong = legion_runtime::p7_host::host_adapters::codex_descriptor()["surfaces"]
+        ["hooks"]["fidelity"]
+        == "strong";
+    let qualified = declared_strong && registered && executed;
+    let state = if qualified {
+        "enforcement-qualified"
+    } else if executed {
+        "executed"
+    } else if registered {
+        "registered"
+    } else if file_present {
+        "file-present"
+    } else {
+        "absent"
+    };
+    let detail = format!(
+        "hooks file {}; Codex {} Legion hook state; {}; enforcement {}. Trusted entries below are recorded by Codex and are not all Legion's.",
+        if file_present { "present on disk" } else { "not found" },
+        if registered { "registers" } else { "does not register" },
+        if executed {
+            "a hook event was observed executing (receipt traces are host-agnostic)"
+        } else {
+            "no hook event has been observed executing"
+        },
+        if qualified {
+            "qualified"
+        } else if !declared_strong {
+            "not qualified (host adapter declares Codex hook enforcement unsupported)"
+        } else {
+            "not qualified (requires registered and executed)"
+        },
+    );
     json!({
         "configPath": config_path,
         "configPresent": !text.is_empty(),
-        "state": "not-applicable",
-        "detail": "Legion ships no Codex plugin hooks, so no hook trust is required; trusted entries below are recorded by Codex and are not Legion's.",
+        "state": state,
+        "states": {
+            "filePresent": {"observed": file_present, "path": legion_hooks_file},
+            "hostRegistered": {"observed": registered, "entries": legion_registered.iter().collect::<Vec<_>>()},
+            "hostExecuted": {
+                "observed": executed,
+                "lastObservedEvent": last_event.as_ref().map(|(_, t)| format_time(*t)),
+                "source": last_event.as_ref().map(|(path, _)| path),
+            },
+            "enforcementQualified": {"observed": qualified, "declaredFidelity": if declared_strong {"strong"} else {"unsupported"}},
+        },
+        "detail": detail,
         "trusted": trusted.into_iter().collect::<Vec<_>>(),
         "remediation": Value::Null,
     })
@@ -849,7 +971,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
             .join("outbox.json"),
     )
     .unwrap_or_else(|| json!({"pending":[],"delivered":[],"deadLetter":[]}));
-    json!({"projection":{"path":projection_path,"source":projection_source,"present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check"},"installations":{"claude-code":installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(&projection_path),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":command_path("legion-hook").is_some(),"adapter":{"kind":"legion-hook","onPath":command_path("legion-hook")},"codexHookTrust":codex_hook_trust(&home)}})
+    json!({"projection":{"path":projection_path,"source":projection_source,"present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check"},"installations":{"claude-code":installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(&projection_path),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":command_path("legion-hook").is_some(),"adapter":{"kind":"legion-hook","onPath":command_path("legion-hook")},"codexHookTrust":codex_hook_trust(&home,Some(&claude_base.join("hooks/hooks.json")))}})
 }
 
 pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
@@ -979,19 +1101,64 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
-    fn codex_hook_trust_raises_no_retired_plugin_gap() {
-        let root = std::env::temp_dir().join(format!("legion-doctor-home-{}", std::process::id()));
+    fn codex_hook_state_distinguishes_file_registration_execution_and_qualification() {
+        let root = std::env::temp_dir().join(format!("legion-doctor-codex-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join(".codex")).unwrap();
+        let hooks = root.join("hooks.json");
+        let receipts = root.join("receipts");
+
+        // Nothing at all.
+        let v = codex_hook_state(&root, Some(&hooks), &[receipts.clone()]);
+        assert_eq!(v["state"], "absent");
+
+        // File present only: not registered, not executed.
+        std::fs::write(&hooks, "{}").unwrap();
         std::fs::write(
             root.join(".codex/config.toml"),
             "[plugins.\"arcane@local-brief\"]\nenabled = true\n",
         )
         .unwrap();
-        let value = codex_hook_trust(&root);
-        assert_eq!(value["state"], "not-applicable");
-        assert_eq!(value["trusted"], json!([]));
-        assert!(value.get("plugin").is_none());
-        assert!(value.get("missing").is_none());
+        let v = codex_hook_state(&root, Some(&hooks), &[receipts.clone()]);
+        assert_eq!(v["state"], "file-present");
+        assert_eq!(v["states"]["filePresent"]["observed"], true);
+        assert_eq!(v["states"]["hostRegistered"]["observed"], false);
+        assert!(!v["detail"].as_str().unwrap().contains("ships no"));
+
+        // Host registered (hash valid), still not executed. A disabled Legion
+        // entry and a non-Legion entry do not count.
+        let hash = format!("sha256:{}", "a".repeat(64));
+        std::fs::write(
+            root.join(".codex/config.toml"),
+            format!(
+                "[hooks.state.\"legion@orthic:hooks/hooks.json:session_start:0:0\"]\ntrusted_hash = \"{hash}\"\n\n[hooks.state.\"legion@orthic:hooks/hooks.json:stop:0:0\"]\ntrusted_hash = \"{hash}\"\nenabled = false\n\n[hooks.state.\"other@x:hooks/hooks.json:stop:0:0\"]\ntrusted_hash = \"{hash}\"\n"
+            ),
+        )
+        .unwrap();
+        let v = codex_hook_state(&root, Some(&hooks), &[receipts.clone()]);
+        assert_eq!(v["state"], "registered");
+        assert_eq!(
+            v["states"]["hostRegistered"]["entries"],
+            json!(["legion@orthic:hooks/hooks.json:session_start:0:0"])
+        );
+        assert_eq!(v["states"]["hostExecuted"]["observed"], false);
+        assert_eq!(v["trusted"].as_array().unwrap().len(), 3);
+
+        // Executed: a hook trace exists. Host adapter declares codex hooks
+        // unsupported, so enforcement is not qualified.
+        std::fs::create_dir_all(&receipts).unwrap();
+        std::fs::write(receipts.join("child-lifecycle-trace.v1.jsonl"), "{}\n").unwrap();
+        let v = codex_hook_state(&root, Some(&hooks), &[receipts.clone()]);
+        assert_eq!(v["states"]["hostExecuted"]["observed"], true);
+        assert!(v["states"]["hostExecuted"]["lastObservedEvent"].is_string());
+        let declared_strong = legion_runtime::p7_host::host_adapters::codex_descriptor()
+            ["surfaces"]["hooks"]["fidelity"]
+            == "strong";
+        assert_eq!(v["states"]["enforcementQualified"]["observed"], declared_strong);
+        assert_eq!(
+            v["state"],
+            if declared_strong { "enforcement-qualified" } else { "executed" }
+        );
         let _ = std::fs::remove_dir_all(root);
     }
     #[test]

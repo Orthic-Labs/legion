@@ -63,6 +63,11 @@ pub fn canonical_report(
                     })
                 });
         }
+        if let Some(reason) =
+            crate::native_providers::availability::unavailable_reason(&provider.result)
+        {
+            coverage_notes.push(format!("unavailable:{}:{reason}", provider.provider));
+        }
         if !provider.result.applicable
             && provider
                 .result

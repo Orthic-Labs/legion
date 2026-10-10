@@ -15,7 +15,7 @@ Legion provides shared routing, execution, and independent semantic validation a
 - Windows installer commands (native check, unsigned development build, CI route) live in `docs/reference/release/local-windows-development.md`. Read it before any installer work.
 
 ## Locked invariants
-- Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.
+- Use Oracle for any independent review or verification of work Legion did not produce itself; never for its own fix. Routine replies & read-only answers need no Oracle.
 - Keep Completion Validation read-only, semantic, source-first, and free of test reruns or review artifacts.
 - Reconstruct scope from raw user requests rather than implementer summaries.
 - Preserve one canonical owner for each role and routing concept.

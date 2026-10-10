@@ -67,6 +67,10 @@ impl ProviderExecutorAdapter {
         provider: &AuditProvider,
         inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError> {
+        // No producer feeds these analyzers: absent configuration or an
+        // injected input, the analysis runs over `{}` and can only report gaps.
+        let input_supplied =
+            provider.configuration.contains_key("input") || self.inputs.contains_key(&provider.id);
         let input = self.input_for(provider);
         let original_input = input.clone();
         let mut input_object = input.clone();
@@ -109,7 +113,7 @@ impl ProviderExecutorAdapter {
             .iter()
             .map(|entry| entry.path.clone())
             .collect::<Vec<_>>();
-        common::provider_result(
+        let mut result = common::provider_result(
             &provider.id,
             provider.required,
             denominator.digest,
@@ -119,7 +123,14 @@ impl ProviderExecutorAdapter {
             Vec::new(),
             &paths,
         )
-        .map_err(AuditError::Provider)
+        .map_err(AuditError::Provider)?;
+        if !input_supplied {
+            super::availability::mark_unavailable(
+                &mut result,
+                &format!("input-not-produced:{}", provider.id),
+            );
+        }
+        Ok(result)
     }
 }
 

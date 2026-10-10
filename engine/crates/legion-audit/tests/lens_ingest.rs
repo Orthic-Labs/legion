@@ -149,13 +149,13 @@ struct Run {
 /// Mirrors what `legion audit --out` leaves behind for a signed plan with one
 /// pending reasoning lens.
 fn setup(name: &str) -> Run {
+    setup_with(name, "pub fn add(a: i32, b: i32) -> i32 {\n    a - b\n}\n")
+}
+
+fn setup_with(name: &str, source: &str) -> Run {
     let root = temp_dir(name);
     fs::create_dir_all(root.join("src")).unwrap();
-    fs::write(
-        root.join("src/lib.rs"),
-        "pub fn add(a: i32, b: i32) -> i32 {\n    a - b\n}\n",
-    )
-    .unwrap();
+    fs::write(root.join("src/lib.rs"), source).unwrap();
     let repository = root.to_string_lossy().into_owned();
     let inventory = FilesystemInventorySource::new(&root)
         .unwrap()
@@ -542,4 +542,39 @@ fn shipped_registry_qualifies_bench_providers_and_never_requires_an_unqualified_
         }
     }
     assert_eq!(qualified, bench.len());
+}
+
+#[test]
+fn truncated_excerpts_leave_a_coverage_gap_instead_of_full_coverage() {
+    // The file exceeds the per-file excerpt cap, so the packet cannot prove it
+    // was examined; the submitter's `complete: true` must not change that.
+    let padding = "// padding line\n".repeat(3000);
+    let run = setup_with(
+        "truncated",
+        &format!("pub fn add(a: i32, b: i32) -> i32 {{\n    a - b\n}}\n{padding}"),
+    );
+    let ingested =
+        ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    assert!(!ingested.complete);
+    assert_eq!((ingested.examined, ingested.expected), (0, 1));
+    assert_eq!(ingested.coverage_gaps.len(), 1);
+    assert!(ingested.coverage_gaps[0].starts_with("reasoning-excerpt-coverage:"));
+
+    let recomputed = recompute_run(&run.run).unwrap();
+    assert_eq!(recomputed.report.status, ReportStatus::Incomplete);
+    assert_eq!(recomputed.report.claims["lensesRan"], json!([]));
+    assert!(recomputed
+        .report
+        .gaps
+        .iter()
+        .any(|gap| gap.starts_with("reasoning-excerpt-coverage:")));
+}
+
+#[test]
+fn untruncated_excerpts_report_exact_examined_coverage() {
+    let run = setup("exact-coverage");
+    let ingested =
+        ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    assert!(ingested.complete);
+    assert_eq!((ingested.examined, ingested.expected), (1, 1));
 }

@@ -11,6 +11,7 @@ pub mod publication_policy;
 pub mod publication_surface;
 pub mod release_obligations;
 pub mod retirements;
+pub mod run_skill_evals;
 pub mod skill_evals;
 pub mod skill_references;
 pub mod version_parity;

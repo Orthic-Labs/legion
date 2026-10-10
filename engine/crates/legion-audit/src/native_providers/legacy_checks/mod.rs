@@ -351,6 +351,20 @@ impl LegacyCheckDispatcher {
             gaps.push(format!("external-error:{}", error.message));
             degradation.push(format!("external-error:{}", error.message));
         }
+        // The package ships no `audit-runtime` executable and the resolver
+        // refuses a checkout-script fallback, so this check cannot run unless a
+        // host supplies one: say so with a typed status, not only a process gap.
+        let runtime_unavailable = provider.id == "legacy.runtime.app"
+            && execution.state == LegacyCheckProcessState::MissingExecutable;
+        if runtime_unavailable {
+            gaps.push(super::availability::unavailable_gap(
+                "executable-not-shipped:audit-runtime",
+            ));
+            output.details.insert(
+                super::availability::AVAILABILITY_DETAIL.into(),
+                super::availability::unavailable_detail("executable-not-shipped:audit-runtime"),
+            );
+        }
         let coverage = output.coverage.take().unwrap_or_else(|| Coverage {
             denominator_digest: input.denominator.digest.clone(),
             expected: input.denominator.entries.len() as u64,

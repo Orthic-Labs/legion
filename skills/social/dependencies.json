@@ -9,6 +9,30 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "../_shared/parametric-design.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/content/reference.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/instagram/reference.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/pinterest/reference.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/twitter/reference.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/youtube/reference.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/manual.md"
     }
   ]
 }

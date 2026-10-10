@@ -23,7 +23,7 @@ fn temp_cwd(name: &str) -> PathBuf {
 #[test]
 fn verify_closure_without_host_fn_is_internal_error() {
     let cwd = temp_cwd("closure");
-    let capability = JudgmentControlCapability::from_cwd(&cwd, None).expect("capability");
+    let capability = JudgmentControlCapability::from_receipt_root(cwd.join("receipts"), None).expect("capability");
     let result = dispatch_governance_judgment(
         &json!({
             "operation": "finding.verify-closure",
@@ -38,7 +38,7 @@ fn verify_closure_without_host_fn_is_internal_error() {
 #[test]
 fn deficit_classify_without_host_fn_is_internal_error() {
     let cwd = temp_cwd("deficit");
-    let capability = JudgmentControlCapability::from_cwd(&cwd, None).expect("capability");
+    let capability = JudgmentControlCapability::from_receipt_root(cwd.join("receipts"), None).expect("capability");
     let result = dispatch_governance_judgment(
         &json!({
             "operation": "deficit.classify",
@@ -53,7 +53,7 @@ fn deficit_classify_without_host_fn_is_internal_error() {
 #[test]
 fn finding_upsert_persists_across_invocations() {
     let cwd = temp_cwd("upsert");
-    let capability = JudgmentControlCapability::from_cwd(&cwd, None).expect("capability");
+    let capability = JudgmentControlCapability::from_receipt_root(cwd.join("receipts"), None).expect("capability");
     let request = json!({
         "operation": "finding.upsert",
         "payload": {
@@ -81,9 +81,9 @@ fn finding_upsert_persists_across_invocations() {
             .map(|items| items.len()),
         Some(1)
     );
-    let receipt_root = cwd.join(".audit").join("arcane").join("receipts");
+    let receipt_root = cwd.join("receipts");
     let store = ReceiptStore::new(receipt_root).expect("receipt store");
-    let reloaded = JudgmentControlCapability::from_cwd(&cwd, None).expect("reload");
+    let reloaded = JudgmentControlCapability::from_receipt_root(cwd.join("receipts"), None).expect("reload");
     let third = dispatch_governance_judgment(
         &json!({
             "operation": "finding.records",

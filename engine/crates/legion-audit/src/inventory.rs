@@ -520,6 +520,20 @@ impl InventoryEnvelope {
         selector: &Value,
         candidates: &[InventoryDenominator],
     ) -> Result<InventoryDenominator, AuditError> {
+        self.denominator_entries_with_security_context(selector, candidates, &[])
+    }
+
+    /// Like `denominator_entries_with_candidates`, plus the paths of security
+    /// findings an independent adjudicator confirmed (ingested surviving
+    /// verdicts). `confirmedSecurityFinding` selects exactly those paths, so
+    /// variant analysis is triggered by a verdict, never by a scanner claim.
+    /// With no confirmed paths the selector is empty, as before.
+    pub fn denominator_entries_with_security_context(
+        &self,
+        selector: &Value,
+        candidates: &[InventoryDenominator],
+        confirmed_paths: &[String],
+    ) -> Result<InventoryDenominator, AuditError> {
         let normalized = normalize_selector(selector)?;
         let selector = &normalized;
         let op = selector.get("op").and_then(Value::as_str).unwrap_or("all");
@@ -539,7 +553,11 @@ impl InventoryEnvelope {
                 }
                 let mut selected = Vec::new();
                 for nested in selectors {
-                    let nested = self.denominator_entries_with_candidates(nested, candidates)?;
+                    let nested = self.denominator_entries_with_security_context(
+                        nested,
+                        candidates,
+                        confirmed_paths,
+                    )?;
                     if op == "all" && nested.entries.is_empty() {
                         return Ok(InventoryDenominator {
                             entries: Vec::new(),
@@ -753,7 +771,17 @@ impl InventoryEnvelope {
                 }
                 dedup_entries(selected)
             }
-            "confirmedSecurityFinding" => Vec::new(),
+            "confirmedSecurityFinding" => {
+                let confirmed = confirmed_paths
+                    .iter()
+                    .map(|path| normalize_path(path))
+                    .collect::<BTreeSet<_>>();
+                self.entries
+                    .iter()
+                    .filter(|entry| confirmed.contains(&entry.path))
+                    .cloned()
+                    .collect()
+            }
             other => {
                 return Err(AuditError::Invalid(format!(
                     "unsupported provider selector operation: {other}"
@@ -1085,5 +1113,49 @@ mod tests {
                 "selector {selector} returned {result:?}"
             );
         }
+    }
+
+    #[test]
+    fn confirmed_security_finding_selects_only_confirmed_paths() {
+        let entry = |path: &str| InventoryEntry {
+            path: path.into(),
+            symbols: Vec::new(),
+            dependencies: Vec::new(),
+            package_scripts: Vec::new(),
+            source_file: true,
+            digest: None,
+        };
+        let inventory = InventoryEnvelope::new(
+            "repo",
+            "generation",
+            vec![entry("src/a.rs"), entry("src/b.rs")],
+        )
+        .unwrap();
+        let selector = serde_json::json!({"op": "confirmedSecurityFinding"});
+        assert!(inventory
+            .denominator_entries(&selector)
+            .unwrap()
+            .entries
+            .is_empty());
+        let confirmed = inventory
+            .denominator_entries_with_security_context(&selector, &[], &["src/b.rs".to_owned()])
+            .unwrap();
+        assert_eq!(
+            confirmed
+                .entries
+                .iter()
+                .map(|entry| entry.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["src/b.rs"]
+        );
+        // Composes under any/all like every other selector.
+        let nested = inventory
+            .denominator_entries_with_security_context(
+                &serde_json::json!({"op": "any", "selectors": [selector]}),
+                &[],
+                &["src/a.rs".to_owned()],
+            )
+            .unwrap();
+        assert_eq!(nested.entries.len(), 1);
     }
 }

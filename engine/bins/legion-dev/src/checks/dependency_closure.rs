@@ -814,7 +814,56 @@ pub fn verify_dependency_closure(
     })
 }
 
-pub fn run(root: &Path) -> bool {
+/// Every `skills/_shared/<file>` a bundle depends on must also exist under
+/// the assembled portable plugin tree (`<plugin_root>/skills/_shared/<file>`).
+pub fn verify_plugin_shared_closure(
+    package_root: &Path,
+    plugin_root: &Path,
+    manifests: &HashMap<String, Value>,
+) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    let shared_root = normalize(&package_root.join("skills").join("_shared"));
+    let mut ids: Vec<&String> = manifests.keys().collect();
+    ids.sort();
+    for id in ids {
+        let skill_root = package_root.join("skills").join(id);
+        let Some(document) = load_dependency_declaration(&skill_root).document else {
+            continue;
+        };
+        let resources = document
+            .get("resources")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        for entry in resources {
+            if entry.get("class").and_then(|v| v.as_str()) != Some("PACKAGE_INTERNAL") {
+                continue;
+            }
+            let Some(path_str) = entry.get("path").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let target = normalize(&skill_root.join(path_str));
+            let Ok(relative) = target.strip_prefix(&shared_root) else {
+                continue;
+            };
+            let relative = relative.to_string_lossy().replace('\\', "/");
+            if !plugin_root.join("skills/_shared").join(&relative).is_file() {
+                findings.push(finding(
+                    Some(id),
+                    Some(path_str),
+                    "missing-plugin-shared",
+                    format!(
+                        "skills/_shared/{relative} is declared but absent from the portable plugin tree {}",
+                        plugin_root.display()
+                    ),
+                ));
+            }
+        }
+    }
+    findings
+}
+
+pub fn run(root: &Path, plugin_root: Option<&Path>) -> bool {
     let manifest_dir = root.join("skills/manifests");
     let mut manifests: HashMap<String, Value> = HashMap::new();
     if let Ok(entries) = std::fs::read_dir(&manifest_dir) {
@@ -837,13 +886,20 @@ pub fn run(root: &Path) -> bool {
         }
     }
 
-    let result = match verify_dependency_closure(root, &manifests) {
+    let mut result = match verify_dependency_closure(root, &manifests) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("dependency closure failed: {e}");
             return false;
         }
     };
+
+    if let Some(plugin_root) = plugin_root {
+        result
+            .findings
+            .extend(verify_plugin_shared_closure(root, plugin_root, &manifests));
+        result.ok = result.findings.is_empty();
+    }
 
     if result.ok {
         println!(

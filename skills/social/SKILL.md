@@ -19,11 +19,17 @@ hostRequirements: []
 # Social
 
 PRIMARY_DELIVERABLE: Platform-native artifact or strategy.
-SPECIALIST_REFS_MAX: 1
+SPECIALIST_REFS_MAX: 1 (optional extras beyond REQUIRED_READS)
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: brand (brand code known or customer-facing output), writing (prose), designer (visual), ads (paid), marketing (positioning), qa (rendered evidence)
+REQUIRED_READS:
+- `references/<platform>/reference.md` or `references/content/reference.md` for the selected route
+- `../_shared/anti-slop.md` for any prose output
+- `../_shared/parametric-design.md` for any visual direction work
+- `references/manual.md` for strategy, calendar, audit, analytics, or multi-platform work
+PRECEDENCE: The selected specialist's REQUIRED_READS override this router's budget; draft mode may skip the edit pass only when the user says draft.
 TERMINAL: Platform-native artifact or strategy meets frozen scope.
 
 1. Freeze brand, platform, account, audience, objective, period, source material, constraints, & metrics.

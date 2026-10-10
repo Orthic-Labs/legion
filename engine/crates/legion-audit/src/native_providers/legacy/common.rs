@@ -268,7 +268,14 @@ impl ProviderExecutor for ProviderExecutorAdapter {
         inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError> {
         let input = self.input(provider, inventory);
-        match provider.id.as_str() {
+        // Providers whose analysis needs a host-supplied artifact that nothing
+        // in the ordinary composition produces.
+        let missing_artifact = match provider.id.as_str() {
+            "governance.policy" => self.artifacts.get("policies").is_none(),
+            "legacy.visual.core" => self.artifacts.get("visualSpec").is_none(),
+            _ => false,
+        };
+        let mut result = match provider.id.as_str() {
             "governance.policy" => super::governance::execute(&input),
             "governance.capability-ownership" => super::governance_ownership::execute(&input),
             "legacy.accessibility.internal-suite" => super::accessibility::execute(&input),
@@ -278,6 +285,13 @@ impl ProviderExecutor for ProviderExecutorAdapter {
                 "unsupported native legacy provider {}",
                 provider.id
             ))),
+        }?;
+        if missing_artifact {
+            crate::native_providers::availability::mark_unavailable(
+                &mut result,
+                &format!("artifact-not-produced:{}", provider.id),
+            );
         }
+        Ok(result)
     }
 }

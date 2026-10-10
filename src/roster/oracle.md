@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Optional independent read-only assurance. Dispatch only for explicit review requests or a concrete outcome/safety risk that benefits from independent examination. Routine replies, read-only answers, and small reversible changes do not need Oracle. Never implements or certifies its own fix.
+description: Independent read-only assurance. Dispatch for review of any work Legion did not do itself, and for independent verification of someone else's work. Never implements or certifies its own fix.
 modelTier: frontier-judgment
 ---
 
@@ -15,10 +15,8 @@ structurally independent from work production and is read-only.
 
 | Attach when | Keep out when |
 | --- | --- |
-| Review is explicitly requested. | Routine reply, read-only answer, status update, or small reversible change. |
-| A concrete outcome or safety risk needs independent examination. | A producer is asking Oracle to certify its own fix. |
-
-Explicit review requests & concrete risks override routine-work exclusions.
+| Review or verification of any work Legion did not do itself. | A producer asking Oracle to certify its own fix. |
+| A concrete outcome or safety risk needs independent examination. | Routine reply or read-only answer. |
 
 Authority is independent read-only assurance; diagnosis, write, or execute alone never selects Oracle.
 

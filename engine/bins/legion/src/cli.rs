@@ -69,23 +69,26 @@ enum Command {
     Explain(CommonArgs),
     /// Render a stored audit report in another format.
     Report(commands::report::ReportArgs),
-    /// Validate a sealed remediation plan; does not apply any change.
+    /// List repair classes (dry-run), or apply them with --apply.
     ///
-    /// Usage: legion fix --plan <sealed-remediation-plan>. Checks the plan's
-    /// digest and shape and reports `mutationApplied: false`; remediation is
-    /// applied by the Alchemist, never by this command.
+    /// Usage: legion fix [--apply] [--class <id>] [--client <id>]. Each applier
+    /// is existing machinery (`legion setup repair --confirm`); classes with no
+    /// applier are listed as manual with the command to run. `legion fix --plan
+    /// <sealed-remediation-plan>` validates a sealed plan (digest and shape);
+    /// applying it is manual (Alchemist).
     Fix(CommonArgs),
-    /// Install or remove git hooks (pre-commit, pre-push); not yet implemented.
+    /// Show, install or remove Legion hooks registered in host configs.
     ///
-    /// Usage: legion hooks install|uninstall [--pre-commit|--pre-push]. These are
-    /// git hooks, not Claude Code hooks (those are registered by the plugin;
-    /// see `legion bind --registrations`). Install and uninstall currently exit
-    /// non-zero with a not-implemented error.
+    /// Usage: legion hooks status | install [--client <id>] [--confirm] | remove
+    /// [--client <id>] [--confirm]. Install and remove delegate to the setup
+    /// registry (`legion setup repair|remove`) and preview unless --confirm.
     Hooks(CommonArgs),
-    /// Print the Legion MCP server config, or preview an install (writes nothing).
+    /// Print the Legion MCP server config, or register it with a host.
     ///
-    /// Usage: legion mcp print-config | legion mcp install --preview. Install
-    /// only previews; merge the printed config into your MCP client yourself.
+    /// Usage: legion mcp print-config | legion mcp install [--client <id>]
+    /// [--preview] [--confirm]. Install previews unless --confirm, then
+    /// registers through `legion setup repair`; it refuses when a registration
+    /// already exists at another scope.
     Mcp(CommonArgs),
     /// Manage contracted run transactions.
     ///
@@ -1370,9 +1373,9 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Verify(args) => commands::verify::run(args, cancellation.clone()).await,
         Command::Explain(args) => commands::explain::run(args),
         Command::Report(args) => commands::report::run(args, cancellation.clone()).await,
-        Command::Fix(args) => commands::fix::run(args),
-        Command::Hooks(args) => commands::hooks::run(args),
-        Command::Mcp(args) => commands::mcp_config::run(args),
+        Command::Fix(args) => commands::fix::run(args, cancellation.clone()).await,
+        Command::Hooks(args) => commands::hooks::run(args, cancellation.clone()).await,
+        Command::Mcp(args) => commands::mcp_config::run(args, cancellation.clone()).await,
         Command::Run(args) => commands::run::run(args, cancellation.clone()).await,
         Command::Budget(args) => commands::budget::run(args),
         Command::Contract(args) => commands::contract::run(args),

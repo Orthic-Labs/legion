@@ -17,6 +17,46 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "../_shared/parametric-design.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/product-context/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/strategy/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/daily-mvp/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/offer-design/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/growth/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/cro/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/ideas/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/graham.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/visual-story.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/manual.md"
     }
   ]
 }

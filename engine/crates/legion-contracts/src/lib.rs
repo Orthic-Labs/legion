@@ -30,6 +30,7 @@ pub mod provider;
 pub mod provider_result;
 pub mod receipt;
 pub mod report;
+pub mod state_root;
 pub mod task;
 pub mod trace;
 

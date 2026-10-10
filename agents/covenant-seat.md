@@ -1,7 +1,7 @@
 ---
 name: covenant-seat
 description: One isolated seat in a Covenant deliberation. Dispatched only by the /covenant skill with an immutable review packet — never routed to directly for ordinary work. Each seat reviews the packet independently from its assigned lens and returns advisory findings; it holds no authority and performs no effects.
-model: sonnet
+model: fable
 ---
 
 # Covenant seat — advisory challenge

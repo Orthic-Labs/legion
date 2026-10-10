@@ -179,6 +179,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 &lens_basis,
                 plan_digest.as_str(),
                 args.out.as_deref(),
+                None,
             );
             let mut input_gaps = native_audit_input_gaps(&args);
             input_gaps.extend(lens_work_gaps);
@@ -234,6 +235,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     &lens_basis,
                     execution.plan_digest.as_str(),
                     args.out.as_deref(),
+                    Some(&execution),
                 )
             };
             report.gaps.extend(lens_work_gaps);
@@ -451,6 +453,7 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
         "ingested": ingested,
         "ingestedLenses": recomputed.ingested,
         "reasoningLensesPending": recomputed.pending,
+        "confirmedSecurity": recomputed.confirmed_security,
         "findingCount": recomputed.report.findings.len(),
         "gaps": recomputed.report.gaps,
         "coverageNotes": recomputed.execution.coverage_notes,
@@ -490,15 +493,27 @@ fn lens_work_items(
     basis: &LensBasis,
     executed_plan_digest: &str,
     out: Option<&std::path::Path>,
+    execution: Option<&legion_audit::ExecutionReport>,
 ) -> (Vec<Value>, Vec<String>) {
     let built = (|| -> Result<Vec<Value>, String> {
         let (plan, inventory) = basis.as_ref().map_err(Clone::clone)?;
         if executed_plan_digest != plan.digest() {
             return Err("plan digest differs from the executed plan".into());
         }
-        let work =
-            legion_audit::native_providers::reasoning::pending_lens_work(root, plan, inventory)
-                .map_err(|error| error.to_string())?;
+        // The security adjudicator closes scanner candidates, so it needs the
+        // executed scanner results; a plan-only run has none (`None`).
+        let candidates = execution.map(|execution| {
+            legion_audit::native_providers::reasoning::scanner_candidates_from_execution(
+                root, plan, execution,
+            )
+        });
+        let work = legion_audit::native_providers::reasoning::pending_lens_work_with_candidates(
+            root,
+            plan,
+            inventory,
+            candidates.as_deref(),
+        )
+        .map_err(|error| error.to_string())?;
         let mut items = Vec::new();
         for item in work {
             let file = format!("{}.json", item.provider_id);

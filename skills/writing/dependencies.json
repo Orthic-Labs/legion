@@ -9,6 +9,46 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "../_shared/parametric-design.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/editorial/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/blogs/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/copywriting/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/profile-copy/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/email/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/changelog/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/research-article.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/script.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/content-repurposer/reference.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/manual.md"
     }
   ]
 }

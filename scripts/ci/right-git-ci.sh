@@ -20,6 +20,7 @@ checks=(
   "check-publication-surface"
   "check-skill-references"
   "check-skill-evals"
+  "run-skill-evals"
   "check-retirements"
   "check-packed-import-closure"
   "check-distribution-contract"

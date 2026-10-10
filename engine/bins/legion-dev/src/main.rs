@@ -43,6 +43,15 @@ enum Command {
     /// reported as `requires-model`, never as passed. Deterministic half of
     /// the deleted `scripts/run-skill-evals.mjs`.
     CheckSkillEvals,
+    /// Execute skill-eval routing cases deterministically. The only native
+    /// router is explicit slash-alias resolution; natural-language cases are
+    /// `requires-model` and never fail. Nonzero exit on any mismatch.
+    RunSkillEvals {
+        #[arg(long = "bundle")]
+        bundles: Vec<String>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Every path deleted under skills/, scripts/, hooks/, doctrine/,
     /// docs/agent-rules*, or engine/bins/*/src/commands/ since the baseline
     /// commit needs a row in `docs/provenance/retirements.md`.
@@ -155,7 +164,11 @@ enum Command {
     /// Port of `scripts/plugin-dev.mjs`.
     PluginDev,
     /// Port of `scripts/check-dependency-closure.mjs`.
-    CheckDependencyClosure,
+    CheckDependencyClosure {
+        /// Assembled portable plugin tree; also require `skills/_shared/*` dependencies there.
+        #[arg(long)]
+        plugin_root: Option<std::path::PathBuf>,
+    },
     /// Port of `scripts/check-packed-import-closure.mjs`.
     CheckPackedImportClosure,
     /// Port of `scripts/native-cli/run-installed-parity.mjs`. Windows-only
@@ -192,6 +205,9 @@ fn main() -> ExitCode {
         Command::CheckPublicationSurface => checks::publication_surface::run(&root),
         Command::CheckSkillReferences => checks::skill_references::run(&root),
         Command::CheckSkillEvals => checks::skill_evals::run(&root),
+        Command::RunSkillEvals { bundles, json } => {
+            checks::run_skill_evals::run(&root, &bundles, json)
+        }
         Command::CheckRetirements => checks::retirements::run(&root),
         Command::CheckAuthorityParity => checks::authority_parity::run(&root),
         Command::EvaluateAuthorityReplay {
@@ -235,7 +251,9 @@ fn main() -> ExitCode {
             generators::report_to_sarif::run(&report, out.as_deref())
         }
         Command::PluginDev => generators::plugin_dev::run(&root),
-        Command::CheckDependencyClosure => checks::dependency_closure::run(&root),
+        Command::CheckDependencyClosure { plugin_root } => {
+            checks::dependency_closure::run(&root, plugin_root.as_deref())
+        }
         Command::CheckPackedImportClosure => checks::packed_import_closure::run(&root),
         Command::NativeCliParityInstalled => generators::native_cli_installed_parity::run(&root),
         Command::NativeCliCaptureRust { diagnostic } => {

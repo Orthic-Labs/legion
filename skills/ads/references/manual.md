@@ -2,7 +2,7 @@
 
 PRIMARY_DELIVERABLE: Bounded paid-media findings or strategy for frozen account, object, or domain scope.
 SPECIALIST_REFS_MAX: 0
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 6
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
