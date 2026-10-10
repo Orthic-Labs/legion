@@ -83,7 +83,36 @@ fn specialist_of(path: &str) -> Option<(&str, &str)> {
     (!parent.contains('/') && !branch.contains('/')).then_some((parent, branch))
 }
 
-fn evaluate_case(case: &Value, known: &BTreeSet<String>, rel: &str) -> Outcome {
+/// Explicit aliases from `src/config/capability-aliases.json` that point at a
+/// skill (`"/jury": "/council quick"` → `jury` → `council`). Hook and tool
+/// targets are not skills and are left out.
+fn skill_aliases(root: &Path) -> BTreeMap<String, String> {
+    let Ok(text) = std::fs::read_to_string(root.join("src/config/capability-aliases.json")) else {
+        return BTreeMap::new();
+    };
+    let Ok(document) = serde_json::from_str::<Value>(&text) else {
+        return BTreeMap::new();
+    };
+    document
+        .get("aliases")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flatten()
+        .filter_map(|(alias, target)| {
+            let alias = alias.strip_prefix('/')?;
+            let target = target.as_str()?.strip_prefix('/')?;
+            let skill = target.split_whitespace().next()?;
+            Some((alias.to_string(), skill.to_string()))
+        })
+        .collect()
+}
+
+fn evaluate_case(
+    case: &Value,
+    known: &BTreeSet<String>,
+    aliases: &BTreeMap<String, String>,
+    rel: &str,
+) -> Outcome {
     let Some(prompt) = case.get("prompt").and_then(Value::as_str) else {
         return Outcome::Skip;
     };
@@ -99,7 +128,14 @@ fn evaluate_case(case: &Value, known: &BTreeSet<String>, rel: &str) -> Outcome {
     let Some(name) = alias_name(prompt) else {
         return Outcome::RequiresModel;
     };
-    let selected = known.contains(&name).then_some(name);
+    let selected = if known.contains(&name) {
+        Some(name)
+    } else {
+        aliases
+            .get(&name)
+            .filter(|skill| known.contains(*skill))
+            .cloned()
+    };
     if let Some(sel) = &selected {
         if forbidden.contains(&sel.as_str()) {
             return Outcome::Fail(format!("selected forbidden skill `{sel}`"));
@@ -132,6 +168,7 @@ fn bundle_of(path: &str) -> String {
 
 pub fn evaluate(root: &Path, files: &[String], bundles: &[String]) -> Summary {
     let known = known_names(files);
+    let aliases = skill_aliases(root);
     let mut summary = Summary::default();
     for rel in files.iter().filter(|f| is_eval_file(f)) {
         let bundle = bundle_of(rel);
@@ -156,7 +193,7 @@ pub fn evaluate(root: &Path, files: &[String], bundles: &[String]) -> Summary {
             };
             for case in cases {
                 let id = case.get("id").and_then(Value::as_str).unwrap_or("?");
-                match evaluate_case(case, &known, rel) {
+                match evaluate_case(case, &known, &aliases, rel) {
                     Outcome::Pass => entry.passed += 1,
                     Outcome::Skip => entry.skipped += 1,
                     Outcome::RequiresModel => entry.requires_model += 1,
