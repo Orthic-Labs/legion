@@ -4,7 +4,7 @@ import Darwin
 @main
 final class LegionInstaller: NSObject, NSApplicationDelegate {
   private let fileManager = FileManager.default
-  private let commandTimeout: TimeInterval = 60
+  private let commandTimeout: TimeInterval = 300
   private var headless: Bool { CommandLine.arguments.contains("--headless") }
 
   static func main() {

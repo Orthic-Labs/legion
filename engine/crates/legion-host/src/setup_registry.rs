@@ -5847,6 +5847,7 @@ mod tests {
         fs::symlink_metadata(path).is_ok()
     }
 
+    #[cfg(unix)]
     /// A projection installed for catalog {a, b, old}.
     fn upgrade_fixture(label: &str) -> (TestRoot, ClientProjectionInput) {
         let root = TestRoot::new(label);
@@ -5886,6 +5887,9 @@ mod tests {
         (mine, ext)
     }
 
+    // Skills are projected as links on Unix and as ledger-tracked copies on
+    // Windows, so the link reconciliation these exercise is Unix-only.
+    #[cfg(unix)]
     #[test]
     fn upgrade_that_retires_a_skill_reconciles_links_and_agent_cards() {
         let (root, input) = upgrade_fixture("projection-upgrade-retired-skill");
@@ -5961,6 +5965,9 @@ mod tests {
         kept
     }
 
+    // Skills are projected as links on Unix and as ledger-tracked copies on
+    // Windows, so the link reconciliation these exercise is Unix-only.
+    #[cfg(unix)]
     #[test]
     fn retired_link_that_still_resolves_is_unlinked_not_followed() {
         let (_root, input) = upgrade_fixture("projection-upgrade-live-retired-link");
@@ -5985,6 +5992,9 @@ mod tests {
         assert_eq!(fs::read(kept.join("SKILL.md")).unwrap(), b"# old");
     }
 
+    // Skills are projected as links on Unix and as ledger-tracked copies on
+    // Windows, so the link reconciliation these exercise is Unix-only.
+    #[cfg(unix)]
     #[test]
     fn remove_unlinks_retired_links_without_deleting_through_them() {
         let (_root, input) = upgrade_fixture("projection-remove-retired-link");
@@ -6001,6 +6011,9 @@ mod tests {
         assert!(!link_entry_exists(&input.target_root.join("skills/a")));
     }
 
+    // Skills are projected as links on Unix and as ledger-tracked copies on
+    // Windows, so the link reconciliation these exercise is Unix-only.
+    #[cfg(unix)]
     #[test]
     fn foreign_link_in_a_catalog_slot_is_a_conflict_not_an_abort() {
         let (root, input) = upgrade_fixture("projection-foreign-link-in-catalog-slot");
@@ -6024,6 +6037,9 @@ mod tests {
             .is_symlink());
     }
 
+    // Skills are projected as links on Unix and as ledger-tracked copies on
+    // Windows, so the link reconciliation these exercise is Unix-only.
+    #[cfg(unix)]
     #[test]
     fn link_outside_the_link_directory_is_still_refused() {
         let (root, input) = upgrade_fixture("projection-link-outside-link-dir");
