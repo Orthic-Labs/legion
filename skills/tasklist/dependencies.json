@@ -5,6 +5,10 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "legion"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "rightkit-owns"
     }
   ]
 }

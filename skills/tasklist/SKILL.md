@@ -15,6 +15,7 @@ effects:
   - process-exec
 hostRequirements:
   - legion
+  - rightkit-owns
 ---
 
 # Tasklist

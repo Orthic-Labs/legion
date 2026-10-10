@@ -5,6 +5,10 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "references/manual.md"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "rightkit-owns"
     }
   ]
 }

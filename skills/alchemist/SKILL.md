@@ -10,7 +10,8 @@ effects:
   - source-read
   - repository-write
   - process-exec
-hostRequirements: []
+hostRequirements:
+  - rightkit-owns
 ---
 
 # Alchemist
