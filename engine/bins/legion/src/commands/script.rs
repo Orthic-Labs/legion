@@ -14,7 +14,6 @@ use serde_json::json;
 use std::io::Write;
 
 use legion_handoff::{l1_port, l1b_port};
-use legion_provider_sdk::l1b_port::execution as coder_execution;
 use legion_runtime::p9_skills;
 use legion_runtime::wf_port::{
     r00, r02, r03, r04, r05, r07, r08, r12, r13, r14, r18, r22, r24, r32, r37, r46, r54, w2_005,
@@ -57,11 +56,6 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("alchemist/parse_events", alchemist_parse_events),
     ("alchemist/viewer", alchemist_viewer),
     ("brand-identity/color-check", brand_identity_color_check),
-    ("coder/api-worker", coder_api_worker),
-    (
-        "coder/enforce_cheap_review_routing",
-        coder_enforce_cheap_review_routing,
-    ),
     ("covenant/digest", covenant_digest),
     (
         "covenant/validate-external-review-packet",
@@ -861,21 +855,6 @@ fn designer_hook_before_edit(_args: &[String]) -> i32 {
     0
 }
 
-/// Port of `context.mjs`'s CLI: argv parse -> target selection -> load
-/// context -> directive block. The `computeUpdateDirective` skill
-/// self-update network poll is intentionally skipped (`update_directive =
-/// None`) — it needs the running skill's own install directory, which this
-/// dispatcher (invoked as `legion script designer/context`, not as
-/// `node <skill>/scripts/context.mjs`) has no equivalent of; documented as
-/// a gap in `r04`'s own finish note (`read_local_skill_version`).
-/// Port of `skills/coder/scripts/api-worker.py`'s `main()` (delegates
-/// unmodified to `src/lib/coder-api-worker/api-worker.py`, whose `argparse`
-/// CLI is already ported as `legion_provider_sdk::l1b_port::execution::run`).
-fn coder_api_worker(args: &[String]) -> i32 {
-    let runner = coder_execution::RealProcessRunner;
-    coder_execution::run(args, &runner)
-}
-
 /// `%Y-%m-%d` for today (UTC), matching Python's `datetime.now().strftime(...)`
 /// closely enough for the paste-prompt's evidence-path fragment.
 fn today_ymd() -> String {
@@ -925,6 +904,9 @@ fn handoff_transcript_handoff(args: &[String]) -> i32 {
     print_cli_outcome(code, &String::from_utf8_lossy(&stdout), "")
 }
 
+/// Port of `context.mjs`'s CLI: argv parse -> target selection -> load
+/// context -> directive block. The `computeUpdateDirective` self-update
+/// network poll is intentionally skipped.
 fn designer_context(args: &[String]) -> i32 {
     let cwd = cwd();
     let out = r04::cli::run_cli(args, &cwd, "context", None);
@@ -3487,40 +3469,6 @@ fn seo_validate_schema(args: &[String]) -> i32 {
         }
     }
     w2_027::schema_exit_code(&errors)
-}
-
-fn coder_enforce_cheap_review_routing(args: &[String]) -> i32 {
-    const USAGE: &str =
-        "Usage: legion script coder/enforce_cheap_review_routing <dispatch-packet.json>";
-    if wants_help(args) {
-        println!("{USAGE}");
-        return 0;
-    }
-    let Some(path) = args.first() else {
-        eprintln!("{USAGE}");
-        return 2;
-    };
-    let packet = match read_json_file(path) {
-        Ok(v) => v,
-        Err(e) => {
-            println!("FAIL: {e}");
-            return 2;
-        }
-    };
-    let errors = legion_runtime::wf_port::w2_044::routing::routing_errors(
-        &packet,
-        std::path::Path::new(path),
-    );
-    if errors.is_empty() {
-        println!("PASS");
-        0
-    } else {
-        println!("FAIL: {} routing defect(s)", errors.len());
-        for error in &errors {
-            println!("- {error}");
-        }
-        1
-    }
 }
 
 fn dispatch_validate_route(args: &[String]) -> i32 {

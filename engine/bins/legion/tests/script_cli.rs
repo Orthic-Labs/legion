@@ -328,9 +328,9 @@ fn native_script_seo_google_report_missing_data_file_exits_1() {
     assert!(stderr.contains("Error reading data file"), "{stderr}");
 }
 
-/// `legion script --list` must include the SC4c handoff/coder ports.
+/// `legion script --list` must include the SC4c handoff ports.
 #[test]
-fn native_script_list_includes_handoff_and_coder_ports() {
+fn native_script_list_includes_handoff_ports() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args(["script", "--list"])
         .output()
@@ -347,7 +347,6 @@ fn native_script_list_includes_handoff_and_coder_ports() {
     for name in [
         "handoff/validate-handoff",
         "handoff/transcript-handoff",
-        "coder/api-worker",
     ] {
         assert!(scripts.contains(&name), "expected {name} in {scripts:?}");
     }
@@ -451,26 +450,6 @@ fn native_script_handoff_transcript_handoff_unknown_command_exits_2() {
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2), "{output:?}");
-}
-
-/// `coder/api-worker` with no model/tier/fallback selected and a prompt
-/// supplied: the ported CLI itself must run (not the Legion "unknown
-/// script" path); it fails because no real `pi` CLI is on PATH here.
-#[test]
-fn native_script_coder_api_worker_missing_model_selection_fails() {
-    use std::process::Stdio;
-    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "coder/api-worker", "--input", "-"])
-        .env("HOME", std::env::temp_dir())
-        .stdin(Stdio::null())
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !stderr.contains("unknown script"),
-        "dispatcher fell through to the unknown-script path: {stderr}"
-    );
-    assert_ne!(output.status.code(), Some(4), "{output:?}");
 }
 
 #[test]
@@ -966,7 +945,6 @@ fn native_script_list_includes_wired_library_ports() {
         .map(|v| v.as_str().unwrap())
         .collect();
     for name in [
-        "coder/enforce_cheap_review_routing",
         "designer/add-music",
         "designer/convert-formats",
         "dispatch/validate-route",

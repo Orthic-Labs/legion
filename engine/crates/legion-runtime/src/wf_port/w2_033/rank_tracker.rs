@@ -222,7 +222,7 @@ pub fn compare(prev: &[NormalizedObservation], curr: &[NormalizedObservation]) -
 }
 
 /// Port of `now()`: pure integer civil-from-days conversion, no external crate —
-/// same technique as `legion_audit::wf_port::wf065::audit_store::utc_now_from_unix`.
+/// same technique as the retired `wf065` audit store (`utc_now_from_unix`).
 pub fn now() -> String {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)

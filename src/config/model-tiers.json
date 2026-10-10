@@ -5,22 +5,26 @@
   "tiers": {
     "frontier-judgment": {
       "hosts": {
-        "claude-code": "opus"
+        "claude-code": "opus",
+        "codex": "gpt-6.1-sol"
       }
     },
     "balanced-executor": {
       "hosts": {
-        "claude-code": "sonnet"
+        "claude-code": "sonnet",
+        "codex": "gpt-6-luna"
       }
     },
     "mechanical-cheap": {
       "hosts": {
-        "claude-code": "haiku"
+        "claude-code": "haiku",
+        "codex": "gpt-6-luna"
       }
     },
     "deliberation": {
       "hosts": {
-        "claude-code": "fable"
+        "claude-code": "fable",
+        "codex": "gpt-6-astra"
       }
     }
   }

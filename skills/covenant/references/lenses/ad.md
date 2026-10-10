@@ -1,24 +1,16 @@
 # Covenant lens — Ad
 
-**What this is:** a domain review lens. Assigned to a Covenant seat at convene time — **one lens per seat**, per
-`doctrine/covenant-seat.md` §"lens index" — this file IS the specialization a seat reads once
-assigned.
+The convener assigns one role card from this file to a seat.
 
-**Read `doctrine/covenant-seat.md` first.** This bundle is domain craft under
-that constitution, not a replacement for it. Everything below is preserved verbatim from Council
-except where a `> **Superseded:**` note marks a doctrine conflict.
-
-> **Superseded:** every "Veto power" line below is retained verbatim as the original review
-> craft's framing of severity/blocking judgment. Under Covenant doctrine (C-invariants), no seat
-> decides or disposes — a seat is advisory only (`doctrine/covenant-seat.md`). What reads as
-> "blocks" here is the analogue of a maximum-severity finding handed to the caller (Sage or
-> Alchemist) for disposition, never a seat-authored block.
+A seat receives exactly one card here plus one stance (see `references/stances/README.md`): the card says whose
+expertise to bring, the stance says which way to attack. Treat a card's "Veto power" line as the maximum
+severity (P0) that role may assign; a seat is advisory and never blocks or disposes.
 
 ---
 
-# Self Review: Ad
+# Role cards: Ad
 
-Run roles independently, then synthesize.
+One seat plays exactly one card below; it does not play the others.
 
 ## Creative Strategist
 
@@ -55,9 +47,9 @@ Run roles independently, then synthesize.
 ## Brand Guardian
 
 - Mandate: Check brand fit, voice, visual system, offer posture, and cross-brand contamination.
-- References: active brand rules and venture boundaries.
+- References: active brand rules and boundaries.
 - Evidence: copy, creative, landing page, CTA, claims, product/category context.
-- Veto power: blocks wrong-brand ads, SS commercial framing, and off-system promises.
+- Veto power: blocks wrong-brand ads, commercial framing for brands the packet marks non-commercial, and off-system promises.
 - Ignore: platform mechanics unless they affect brand trust.
 
 ## Skeptical Buyer

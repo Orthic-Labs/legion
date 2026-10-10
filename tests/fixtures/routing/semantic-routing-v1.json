@@ -150,20 +150,8 @@
       "forbiddenSelections": []
     },
     {
-      "id": "explicit-coder",
-      "concerns": ["explicit-only", "minimal-pair-coder"],
-      "prompt": "/coder use API models for independent read-only concurrency analysis",
-      "source": "explicit",
-      "expectedCapabilities": [],
-      "expectedEntrypoints": ["coder"],
-      "operations": ["analyze", "evaluate"],
-      "effects": ["source-read", "network-request"],
-      "attachedAuthorities": [],
-      "forbiddenSelections": []
-    },
-    {
       "id": "ordinary-code-analysis",
-      "concerns": ["zero-capability", "minimal-pair-coder"],
+      "concerns": ["zero-capability"],
       "prompt": "Explain whether this loop has an off-by-one error.",
       "source": "semantic",
       "expectedCapabilities": [],
@@ -171,7 +159,7 @@
       "operations": ["analyze"],
       "effects": ["source-read"],
       "attachedAuthorities": [],
-      "forbiddenSelections": ["coder"]
+      "forbiddenSelections": []
     },
     {
       "id": "routine-architect-no-sage",
@@ -519,7 +507,7 @@
       "operations": ["analyze", "evaluate"],
       "effects": ["source-read"],
       "attachedAuthorities": [],
-      "forbiddenSelections": ["commit", "coder"]
+      "forbiddenSelections": ["commit"]
     },
     {
       "id": "public-ios-development",

@@ -299,50 +299,6 @@
       "reason": "consumer-grounded re-triage names real src/packages/arcane/compatibility/forge/* paths awaiting disposition"
     },
     {
-      "path": "engine/crates/legion-audit/src/wf_port/wf055/abuse_resilience.rs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R0",
-      "reason": "ordinary security verb (Rust port of abuse-resilience.mjs)"
-    },
-    {
-      "path": "engine/crates/legion-audit/src/wf_port/wf059/crypto_identity_protocols.rs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 1
-      },
-      "class": "R0",
-      "reason": "ordinary security verb (Rust port of crypto-identity-protocols.mjs)"
-    },
-    {
-      "path": "engine/crates/legion-audit/src/wf_port/wf061/mod.rs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 4
-      },
-      "class": "R0",
-      "reason": "ordinary security verb (Rust port of mobile/output-handling packs)"
-    },
-    {
-      "path": "engine/crates/legion-audit/src/wf_port/wf066/security_pipeline.rs",
-      "tokens": [
-        "sentinel"
-      ],
-      "occurrences": {
-        "sentinel": 1
-      },
-      "class": "R0",
-      "reason": "Rust port of security-pipeline.mjs"
-    },
-    {
       "path": "engine/crates/legion-host/src/p4_port/forges.rs",
       "tokens": [
         "forge"

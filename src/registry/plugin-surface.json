@@ -4,7 +4,7 @@
   "version": "0.3.22",
   "digest": "sha256:1998cff6111c6a18dbde58aee74d0bc46036476b48d81c3d98ebab9301b4cf9c",
   "counts": {
-    "skills": 29,
+    "skills": 28,
     "agents": 4,
     "mcpServers": 1,
     "hookEvents": 9
@@ -20,7 +20,6 @@
       "blueprint",
       "brand",
       "brand-identity",
-      "coder",
       "commit",
       "covenant",
       "debugger",

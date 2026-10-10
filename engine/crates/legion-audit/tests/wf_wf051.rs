@@ -15,8 +15,7 @@
 //!   - `SERVICE_RUNTIME_SCENARIOS` -> ported in at least two places:
 //!       - `legion_audit::native_providers::p10_runtime::desktop::SERVICE_RUNTIME_SCENARIOS`
 //!       - `legion_audit::native_providers::p10_runtime::browser_service::SERVICE_RUNTIME_SCENARIOS`
-//!       - also referenced/re-declared in `legion_audit::wf_port::wf047::faults::SERVICE_RUNTIME_SCENARIOS`
-//!     all three carry the same 17 scenario ids in the same order as the JS array, and
+//!     both carry the same 17 scenario ids in the same order as the JS array, and
 //!     `tests/p10_desktop.rs` already asserts `SERVICE_RUNTIME_SCENARIOS.len() == 17` plus spot-checks
 //!     for `"api-contract"` and `"observability"`.
 //!
@@ -24,11 +23,7 @@
 //! record that verification and to pin the scenario list's length/order so a future edit to either
 //! wired native copy is caught here too.
 //!
-//! Note: `legion_audit::wf_port::wf047::faults::SERVICE_RUNTIME_SCENARIOS` also re-declares this list,
-//! but as of this writing `src/wf_port/mod.rs` does not yet exist and `wf_port` is not wired into
-//! `src/lib.rs`, so that copy is not reachable from an integration test. Once the integrator wires
-//! `pub mod wf_port;` (and `pub mod wf047;` within it), add a third comparison against
-//! `legion_audit::wf_port::wf047::faults::SERVICE_RUNTIME_SCENARIOS` here.
+//! The unwired `wf_port::wf047` copy of this list was retired with its module.
 
 #[test]
 fn wf051_service_runtime_scenarios_agree_across_native_copies() {

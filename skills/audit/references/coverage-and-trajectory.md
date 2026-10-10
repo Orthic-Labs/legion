@@ -5,8 +5,9 @@ Two report-renderer additions layered on the standard `report.json` shape
 diff-scoped gate) supply input data; the renderer computes the gate/verdict and persists what
 needs to persist across runs. Neither one mutates `facts.json` or the frozen check set.
 
-**Status.** The renderer logic is ported in `engine/crates/legion-audit/src/wf_port/wf066/render_report.rs`
-(`coverage_gate`, `compute_trajectory`, `persist_trajectory`) but `legion report` does not call it yet:
+**Status.** Not implemented in the native engine. A port of the renderer (`coverage_gate`,
+`compute_trajectory`, `persist_trajectory`) existed but was never wired to a command and was removed on
+2026-10-10 (`docs/provenance/retirements.md`); `legion report` does not provide it:
 `legion report <report.json> --format md|html|sarif|json` only renders what the frozen report already
 contains. Until it is wired, a coverage gate or `audit_diff` block that is absent from `report.json` is
 reported as `UNPROVEN`, never computed by hand.

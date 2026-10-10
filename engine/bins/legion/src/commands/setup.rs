@@ -3855,7 +3855,7 @@ mod tests {
                 "probe": {"kind": "command-any", "commands": ["python3", "python"]}
             }],
             "capabilities": [
-                {"capabilityId": "coder", "availability": "unavailable", "degraded": true, "requirements": []},
+                {"capabilityId": "seo", "availability": "unavailable", "degraded": true, "requirements": []},
                 {"capabilityId": "writing", "availability": "available", "degraded": false, "requirements": []}
             ],
             "degradedCount": 1

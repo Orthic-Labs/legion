@@ -28,21 +28,6 @@
       },
       "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
     },
-    "pi-cli": {
-      "kind": "command-line-provider",
-      "summary": "Pi command-line model provider used only by Coder's explicit, bounded read-only analysis route.",
-      "degradation": "Coder returns a typed unavailable-provider result and performs no outsourced analysis.",
-      "probe": {
-        "kind": "command-any",
-        "commands": [
-          "pi"
-        ]
-      },
-      "commands": [
-        "pi"
-      ],
-      "remedy": "Install the Pi CLI and expose its `pi` command on PATH, then invoke Coder again."
-    },
     "banana-image": {
       "kind": "mcp-server",
       "summary": "Image generation and editing through the nano-banana MCP tools (mcp__nano-banana__*), used by Ads, Designer, Marketing, and SEO image steps.",

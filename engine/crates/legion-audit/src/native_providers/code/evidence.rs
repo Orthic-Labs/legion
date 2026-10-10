@@ -9,8 +9,9 @@
 //!   findings natively: debt markers, oversized files, duplicate blocks, and
 //!   per-language error-handling / debug-leftover / unsafe-call smells;
 //! * derives the analyzer's required context from manifests in the denominator;
-//! * discovers (never runs) the external tools each provider names, so a missing
-//!   tool is a typed gap and a present-but-unrun tool is never a pass.
+//! * discovers the external tools each provider names, so a missing tool is a
+//!   typed gap and a present-but-unrun tool is never a pass. Running them is
+//!   [`super::tools`]' job, and only on the plan-bound async path.
 //!
 //! Every file that is not read is reported with its path; `examined` counts
 //! only files actually read.
@@ -73,7 +74,7 @@ impl Default for EvidenceLimits {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NativeFinding {
-    pub rule: &'static str,
+    pub rule: std::borrow::Cow<'static, str>,
     pub severity: &'static str,
     pub path: String,
     pub line: usize,
@@ -479,7 +480,7 @@ impl DuplicateIndex {
                     if first_path.as_str() != path || first_index + DUP_WINDOW <= i =>
                 {
                     out.push(NativeFinding {
-                        rule: "duplicate-block",
+                        rule: "duplicate-block".into(),
                         severity: "low",
                         path: path.to_string(),
                         line: window[0].0,
@@ -516,7 +517,7 @@ fn scan_text(
     let mut sig = Vec::new();
     if lines.len() > OVERSIZED_LINES {
         out.push(NativeFinding {
-            rule: "oversized-file",
+            rule: "oversized-file".into(),
             severity: "low",
             path: path.to_string(),
             line: 1,
@@ -535,7 +536,7 @@ fn scan_text(
                     .any(|leader| prefix.contains(leader));
             if commented && reported.insert(("debt-marker", number)) {
                 out.push(NativeFinding {
-                    rule: "debt-marker",
+                    rule: "debt-marker".into(),
                     severity: "low",
                     path: path.to_string(),
                     line: number,
@@ -560,7 +561,7 @@ fn scan_text(
             }
             if reported.insert((rule.id, number)) {
                 out.push(NativeFinding {
-                    rule: rule.id,
+                    rule: rule.id.into(),
                     severity: rule.severity,
                     path: path.to_string(),
                     line: number,

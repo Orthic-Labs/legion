@@ -115,3 +115,83 @@ Method: line counts are newline counts of every `*.rs` under each module directo
 - `audit/wf051` has a test file `engine/crates/legion-audit/tests/wf_wf051.rs` that refers to it only in prose. It is UNREFERENCED in code by design (the doc says it carries no logic).
 - Most WIRED modules get their only production reference from the `use legion_runtime::wf_port::{...}` block and call sites in `engine/bins/legion/src/commands/script.rs`. `audit/wf010` is wired only by `engine/bins/legion-dev/src/generators/manifest.rs:18`. The three UNREFERENCED modules were grepped for any bare-name mention; none found outside their own directories.
 
+
+## Disposition (2026-10-10)
+
+Decision: delete ported `wf_port` code that runs nowhere. Each candidate was re-verified against the DELETE rules: no reference from `engine/bins/**/src` or `engine/crates/*/src` outside `wf_port`; not imported (word-level, any path form) by any module that stays; not named by `script.rs`, `src/registry/*.json`, or any non-Rust file. Reachability was computed as a closure from every module with an outside-`wf_port` production reference, so chains kept alive by a WIRED module are kept.
+
+### Deleted (39 modules, 63231 lines, all in `legion-audit`)
+
+| module | lines |
+|---|---:|
+| `audit/wf065` | 8122 |
+| `audit/wf052` | 3722 |
+| `audit/wf047` | 3632 |
+| `audit/wf066` | 3283 |
+| `audit/wf049` | 3245 |
+| `audit/wf055` | 2737 |
+| `audit/wf060` | 2539 |
+| `audit/wf059` | 2499 |
+| `audit/wf062` | 2485 |
+| `audit/wf048` | 2329 |
+| `audit/wf053` | 2293 |
+| `audit/r66` | 2008 |
+| `audit/wf063` | 2005 |
+| `audit/wf050` | 1985 |
+| `audit/wf061` | 1869 |
+| `audit/wf057` | 1773 |
+| `audit/wf003` | 1661 |
+| `audit/wf005` | 1583 |
+| `audit/wf054` | 1448 |
+| `audit/wf011` | 1295 |
+| `audit/wf014` | 1238 |
+| `audit/wf056` | 1124 |
+| `audit/wf019` | 1092 |
+| `audit/wf013` | 852 |
+| `audit/wf021` | 846 |
+| `audit/wf012` | 801 |
+| `audit/wf037` | 691 |
+| `audit/wf058` | 606 |
+| `audit/wf038` | 563 |
+| `audit/wf001` | 506 |
+| `audit/wf039` | 427 |
+| `audit/wf022` | 402 |
+| `audit/wf009` | 362 |
+| `audit/w2_059` | 360 |
+| `audit/wf004` | 346 |
+| `audit/q_q6` | 307 |
+| `audit/w2_058` | 140 |
+| `audit/wf020` | 48 |
+| `audit/wf051` | 7 |
+
+Includes the INTERNAL `audit/r66` (only user `wf063`, deleted) and `audit/wf051` (doc-only, 7 lines). Deleted with them: 36 integration test files under `engine/crates/legion-audit/tests/` (`wf_wf*.rs`, `wf_w2_058.rs`, `wf_w2_059.rs`; 15,002 lines), 8 fixture directories `tests/fixtures/wf_*` (including the orphan `wf_wf049`), and the dependency edge `legion-runtime` from `legion-audit/Cargo.toml` and `engine/Cargo.lock` (its only users were `wf009`, `wf047`, `wf065`, `wf066`).
+
+Edited instead of deleted: `tests/audit_conformance.rs` (dropped case 4, which used `wf012::testkit`, and the `wf065` half of case 10; header now says ten cases), `tests/wf_wf051.rs` (prose only; the test checks kept `native_providers` copies), `runtime/w2_033/rank_tracker.rs` (doc comment pointed at `wf065`), and `src/config/naming-legacy-allowlist.json` (four stale rules for `wf055`, `wf059`, `wf061`, `wf066` files).
+
+### Kept
+
+| module | class in report | reason |
+|---|---|---|
+| `audit/wf010` | WIRED | `legion-dev` generators/manifest.rs |
+| `audit/wf064` | TEST-ONLY | imported by WIRED `wf010` |
+| `runtime/u03` | UNREFERENCED | kept: uncertain. `engine/bins/legion-dev/src/checks/version_parity.rs:226` reads `wf_port/u03/version.rs` by path; deleting it fails the version-parity check |
+| `runtime/q_q1`, `w2_008`, `w2_011`, `w2_012`, `w2_013`, `w2_014`, `w2_015`, `w2_021`, `w2_022` | TEST-ONLY | imported by WIRED runtime modules (`r03`, `r05`, `r07`, `r09`, `r13`, `r14`, `r18`, `r22`, `r24`, `w2_017`..`w2_020`) |
+| `runtime/r09`, `runtime/r11` | TEST-ONLY / INTERNAL | reachable through `r05` -> `w2_013` -> `r11` -> `r09`; the report's INTERNAL label for `r11` missed that `w2_013` is used by WIRED `r05` |
+| 39 WIRED modules | WIRED | unchanged |
+
+No runtime module was deleted. Module-level reachability only: unused items inside kept modules (for example parts of `r05` or `w2_013`) are untouched.
+
+### Totals
+
+| | modules | lines |
+|---|---:|---:|
+| before | 91 | 184,854 |
+| deleted | 39 | 63,231 |
+| kept | 52 | 121,623 |
+
+(Kept = before minus deleted, by the report's line counts.)
+
+### Follow-ups
+
+- `skills/audit/references/coverage-and-trajectory.md` and `references/coverage-and-trajectory.md` line 8 still say the renderer is ported in `wf066/render_report.rs`; that path is gone. Reword to say it is not implemented, then refresh `skills/manifests/audit.json`.
+- `legion-audit` still declares `legion-rules`, which no `src/` or `tests/` file in the crate uses (only `engine/tests/native_audit.rs` does, via the `[[test]]` entry). Left as is.

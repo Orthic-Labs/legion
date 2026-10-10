@@ -32,7 +32,7 @@ When invoked, decide which reference matches, Read it, follow its instructions.
 
 ## Internal Planning Council
 
-Run a short self-council before drafting the plan. This is an internal planning aid, not `/review plan`; `/review plan` is still the external API jury after the draft exists.
+Run a short self-council before drafting the plan. This is an internal planning aid, not an independent review.
 
 | Reference | Role pass |
 |---|---|
@@ -47,7 +47,7 @@ Run a short self-council before drafting the plan. This is an internal planning 
 
 Output standard: decision, rejected alternatives, assumptions, risks, validation path, and the smallest next move.
 
-Pair with `/review plan` AFTER drafting to validate via multi-LLM jury.
+For a high-stakes plan, offer `/covenant` (or `/jury` for a verdict-only pass) AFTER drafting.
 
 ## Plan → tasklist handoff (MANDATORY for multi-step plans)
 

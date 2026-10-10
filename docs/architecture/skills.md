@@ -43,11 +43,6 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 - **Absent behavior:** Research skips the notebooklm provider and records it as unrun.
 - **Remedy:** Provide NotebookLM access in the host.
 
-### `pi-cli`
-
-- **Absent behavior:** Coder returns a typed unavailable-provider result and performs no outsourced analysis.
-- **Remedy:** Install the Pi CLI and expose its `pi` command on `PATH`, then invoke Coder again.
-
 ### `scholarly-search`
 
 - **Absent behavior:** Research returns `UNPROVEN` for scholarly claims.
@@ -291,18 +286,6 @@ The following catalog entries have `domain: null`. The `entrypoint` bundles omit
 - **Effects:** `source-read`
 - **Host requirements:** None declared.
 - **Discoverability:** `public`
-
-### `coder`
-
-- **Manifest:** [coder.json](../../skills/manifests/coder.json)
-- **Kind:** `entrypoint`
-- **Purpose:** Explicit opt-in router for scoped read-only code analysis through a declared external model-provider CLI. Use only for `/coder`, explicit outsourced analysis, or a named provider model/tier.
-- **Capability class:** Not declared; catalog value is `null`.
-- **Domain:** Not declared; catalog value is `null`.
-- **Operations:** `analyze`
-- **Effects:** `source-read`, `network-request`
-- **Host requirements:** `pi-cli`. See [its declared absence behavior](#host-capability-degradation).
-- **Discoverability:** `explicit`
 
 ### `commit`
 

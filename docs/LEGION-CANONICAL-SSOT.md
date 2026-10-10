@@ -209,7 +209,6 @@ Entrypoint targets are semantically explicit:
 /alchemist → authority:alchemist
 /covenant  → challenge:covenant
 /commit    → workflow:commit
-/coder     → outsourced-analysis:coder
 ```
 
 Only `kind: entrypoint` may carry a `target` field. No ordinary capability has a static
@@ -341,7 +340,7 @@ At the current ~20–30 semantic entries, no retrieval infrastructure (RAG, embe
 search, graph routing, RDF/JSON-LD, hierarchical retrieval) is added. Add retrieval only after
 measured discovery failure. Blueprint graph infrastructure remains unrelated to capability routing.
 
-Explicit-only entrypoints (`alchemist`, `covenant`, `commit`, `coder`) are excluded
+Explicit-only entrypoints (`alchemist`, `covenant`, `commit`) are excluded
 from automatic natural-language capability selection; explicit user intent resolves them.
 
 Dispatch is a public workflow capability: natural-language delegation intent selects it
@@ -502,9 +501,7 @@ Model policy is tiered; concrete models are host configuration. Canonical archit
 identity, and generic capability doctrine use abstract model classes/tiers where model strength
 matters; the role-specific policy is delegated to `docs/architecture/{sage,alchemist,oracle}.md`.
 
-Concrete provider/model IDs belong to host/runtime configuration, except when a capability's
-explicit purpose is to invoke a user-selected named provider/model (for example `coder`, which
-remains explicit before any external/provider call and does not canonically force one vendor).
+Concrete provider/model IDs belong to host/runtime configuration.
 
 ## 15. Complexity / simplicity / retirement rules
 

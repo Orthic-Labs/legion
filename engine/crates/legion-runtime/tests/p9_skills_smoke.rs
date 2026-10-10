@@ -42,8 +42,13 @@ fn covenant_contracts_digest_and_validate_entry_points() {
     let record = json!({
         "mode": "BLOCKER_CONSULT",
         "outcome": "CONTRACT_SAFE",
+        "dispositionState": "PENDING",
         "integrity": {"digestVerified": true, "mutationDetected": false},
-        "seatRecords": [{"isolated": true}],
+        "seatRecords": [
+            {"lens": "red-team/code:lead-architect", "isolated": true},
+            {"lens": "minimize/code:senior-developer", "isolated": true},
+            {"lens": "security-ops/code:security-reliability-reviewer", "isolated": true},
+        ],
     });
     let errors = validate_record_fields(&record, None);
     assert!(errors.is_empty(), "unexpected errors: {errors:?}");

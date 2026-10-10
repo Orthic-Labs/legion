@@ -317,11 +317,11 @@ impl AuditScratch {
         self.root.join("reports")
     }
 
-    fn tmp_dir(&self) -> PathBuf {
+    pub(crate) fn tmp_dir(&self) -> PathBuf {
         self.root.join("tmp")
     }
 
-    fn cache_dir(&self) -> PathBuf {
+    pub(crate) fn cache_dir(&self) -> PathBuf {
         self.root.join("cache")
     }
 }
@@ -657,7 +657,7 @@ impl NativeLegacyCheckExecutor {
         self
     }
 
-    fn scratch(&self) -> Result<Arc<AuditScratch>, AuditError> {
+    pub(crate) fn scratch(&self) -> Result<Arc<AuditScratch>, AuditError> {
         let mut slot = self.scratch.lock().expect("scratch lock");
         if let Some(existing) = slot.as_ref() {
             return Ok(existing.clone());
@@ -968,7 +968,7 @@ fn accepted_exit_codes(check: &str) -> BTreeSet<i32> {
     }
 }
 
-fn audit_environment(scratch: &AuditScratch) -> (BTreeMap<String, String>, BTreeSet<String>) {
+pub(crate) fn audit_environment(scratch: &AuditScratch) -> (BTreeMap<String, String>, BTreeSet<String>) {
     let names = [
         "PATH",
         "PATHEXT",

@@ -78,14 +78,9 @@ pub const ORACLE_CLAIM: &[&str] = &[
 /// Authority context supplied by an explicit Covenant caller.
 pub const CALLER_AUTHORITY: &[&str] = &["SAGE", "ALCHEMIST", "USER_OVERRIDE"];
 
-/// Covenant advisory modes. `DISPUTE_REVIEW` is exceptional; its presence
-/// does not make Covenant a routine Oracle route or release gate.
-pub const COVENANT_MODE: &[&str] = &[
-    "DECISION_CHALLENGE",
-    "BLOCKER_CONSULT",
-    "PACKET_ONLY",
-    "DISPUTE_REVIEW",
-];
+/// Covenant advisory modes. A disputed finding is a `DECISION_CHALLENGE`;
+/// none of these makes Covenant a routine Oracle route or release gate.
+pub const COVENANT_MODE: &[&str] = &["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY"];
 
 /// Covenant outcomes across all modes. Not every value applies to every
 /// mode; see ids.md / schema descriptions.

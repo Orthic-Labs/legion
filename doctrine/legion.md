@@ -56,10 +56,11 @@ argument. Keep roster tiers vendor-neutral; never silently downgrade required ju
 requested authority to satisfy a host gate. Surface a rejected launch with its observed reason,
 repair compatible configuration when authorized, then retry within existing bounds.
 
-Codex projections preserve explicit role model/settings. Otherwise judgment roles use configured
-parent model/effort, & executor roles use configured subagent defaults when available. Exact model
-names belong to host configuration. This prevents accidental inheritance of a cheaper worker
-default; configuration alone still proves neither model availability nor tier compatibility.
+Codex projections preserve explicit role model/settings. Otherwise each role takes its tier's
+`codex` model from `src/config/model-tiers.json` (Covenant seats use `deliberation`), falling back to
+configured parent/subagent defaults only when a tier has no entry. Exact model names live in that
+file & host configuration, never in roster prose; configuration alone still proves neither model
+availability nor tier compatibility.
 
 Configuration presence proves registration only. Record selected, bound, launched, or skipped from
 observed events; launched requires host acceptance, & skipped requires a reason. Eligibility labels

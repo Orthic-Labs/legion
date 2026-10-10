@@ -15,7 +15,7 @@ use legion_policy_model::{
 };
 use serde_json::{json, Value};
 
-const PUBLIC_SKILLS: [&str; 24] = [
+const PUBLIC_SKILLS: [&str; 23] = [
     "ads",
     "alchemist",
     "architect",
@@ -24,7 +24,6 @@ const PUBLIC_SKILLS: [&str; 24] = [
     "audit-visual",
     "brand",
     "brand-identity",
-    "coder",
     "commit",
     "covenant",
     "debugger",

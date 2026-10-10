@@ -180,8 +180,10 @@ fn codex_role_target_content_from(root: &Path, id: &str, report: &Value) -> Stri
     for key in ["name", "description", "developer_instructions"] {
         table.insert(key.into(), canonical[key].clone());
     }
-    // Frontier roles must not silently inherit a cheaper worker default.
-    // Exact names come from host configuration, never roster prose.
+    // A role without a `model` key takes the codex model of its tier from
+    // `src/config/model-tiers.json`, the one source of host model names. Only a
+    // tier with no codex mapping falls back to the host-config inheritance
+    // below; frontier roles then never inherit a cheaper worker default.
     let judgment = role(id).tier == "frontier-judgment";
     let (model, effort) = if judgment || defaults["subagent"].as_str().is_none() {
         (&defaults["parent"], &defaults["parentEffort"])
@@ -189,8 +191,14 @@ fn codex_role_target_content_from(root: &Path, id: &str, report: &Value) -> Stri
         (&defaults["subagent"], &defaults["subagentEffort"])
     };
     if !table.contains_key("model") {
-        if let Some(model) = model.as_str().filter(|s| !s.trim().is_empty()) {
-            table.insert("model".into(), toml::Value::String(model.into()));
+        let resolved = codex_tier_model(&role(id).tier).or_else(|| {
+            model
+                .as_str()
+                .filter(|s| !s.trim().is_empty())
+                .map(str::to_string)
+        });
+        if let Some(model) = resolved {
+            table.insert("model".into(), toml::Value::String(model));
             if !table.contains_key("model_reasoning_effort") {
                 if let Some(effort) = effort.as_str() {
                     table.insert(
@@ -233,15 +241,38 @@ const MODEL_TIERS: &str = include_str!(concat!(
     "/../../../src/config/model-tiers.json"
 ));
 
-/// Codex model for the Covenant seat: set only when model-tiers declares a codex `deliberation`
-/// entry; otherwise the role file leaves `model` unset and the host default applies.
-fn covenant_seat_codex_model() -> Option<String> {
-    serde_json::from_str::<Value>(MODEL_TIERS)
+/// Codex model id for `tier` from model-tiers.json (`tiers.<tier>.hosts.codex`); `None` when the
+/// tier or its codex mapping is absent, so the host default applies.
+fn codex_tier_model(tier: &str) -> Option<String> {
+    codex_tier_model_from(MODEL_TIERS, tier)
+}
+
+fn codex_tier_model_from(model_tiers: &str, tier: &str) -> Option<String> {
+    serde_json::from_str::<Value>(model_tiers)
         .ok()?
-        .pointer("/tiers/deliberation/hosts/codex")?
+        .get("tiers")?
+        .get(tier)?
+        .get("hosts")?
+        .get("codex")?
         .as_str()
         .filter(|s| !s.trim().is_empty())
         .map(str::to_string)
+}
+
+/// Codex model for the Covenant seat: the `deliberation` tier's codex entry. An existing `model`
+/// key in the seat's role file is a host setting and wins; with neither, `model` stays unset.
+fn covenant_seat_codex_model(root: &Path) -> Option<String> {
+    std::fs::read_to_string(root.join(".codex/agents/covenant-seat.toml"))
+        .ok()
+        .and_then(|text| toml::from_str::<toml::Value>(&text).ok())
+        .and_then(|profile| {
+            profile
+                .get("model")
+                .and_then(toml::Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+                .map(str::to_string)
+        })
+        .or_else(|| codex_tier_model("deliberation"))
 }
 const HOST_PROJECTION: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -381,8 +412,10 @@ mod role_binding_tests {
     }
 
     #[test]
-    fn judgment_profiles_use_parent_model_and_preserve_operator_overrides() {
+    fn profiles_take_the_tier_model_and_preserve_operator_overrides() {
         let f = Fixture::new();
+        // Host defaults are present but must not supply the model: the codex
+        // entry of the role's tier in model-tiers.json does.
         f.write("project/deep/.codex/config.toml", "model = 'host-frontier'\nmodel_reasoning_effort = 'high'\n[agents]\ndefault_subagent_model = 'host-executor'\n");
         let root = f.0.join("project/deep");
         let home = f.0.join("home");
@@ -392,11 +425,12 @@ mod role_binding_tests {
         };
         for id in ["sage", "oracle"] {
             let profile: toml::Value = toml::from_str(&content(id)).unwrap();
-            assert_eq!(profile["model"].as_str(), Some("host-frontier"));
+            assert_eq!(profile["model"].as_str(), Some("gpt-6.1-sol"));
+            // Effort handling is unchanged: judgment roles take the parent effort.
             assert_eq!(profile["model_reasoning_effort"].as_str(), Some("high"));
         }
         let profile: toml::Value = toml::from_str(&content("alchemist")).unwrap();
-        assert_eq!(profile["model"].as_str(), Some("host-executor"));
+        assert_eq!(profile["model"].as_str(), Some("gpt-6-luna"));
         f.write(
             "project/deep/.codex/agents/alchemist.toml",
             "model = 'operator-model'\nsandbox_mode = 'read-only'\n",
@@ -404,6 +438,41 @@ mod role_binding_tests {
         let profile: toml::Value = toml::from_str(&content("alchemist")).unwrap();
         assert_eq!(profile["model"].as_str(), Some("operator-model"));
         assert_eq!(profile["sandbox_mode"].as_str(), Some("read-only"));
+    }
+
+    #[test]
+    fn tier_models_come_from_the_single_map_and_a_missing_codex_entry_yields_none() {
+        assert_eq!(codex_tier_model("frontier-judgment").as_deref(), Some("gpt-6.1-sol"));
+        assert_eq!(codex_tier_model("balanced-executor").as_deref(), Some("gpt-6-luna"));
+        assert_eq!(codex_tier_model("mechanical-cheap").as_deref(), Some("gpt-6-luna"));
+        assert_eq!(codex_tier_model("deliberation").as_deref(), Some("gpt-6-astra"));
+        assert_eq!(codex_tier_model("no-such-tier"), None);
+        let claude_only = r#"{"tiers":{"x":{"hosts":{"claude-code":"opus"}}}}"#;
+        assert_eq!(codex_tier_model_from(claude_only, "x"), None);
+        assert_eq!(codex_tier_model_from("not json", "x"), None);
+    }
+
+    #[test]
+    fn covenant_seat_uses_deliberation_model_unless_the_host_file_sets_one() {
+        let f = Fixture::new();
+        let root = f.0.join("project/deep");
+        assert_eq!(covenant_seat_codex_model(&root).as_deref(), Some("gpt-6-astra"));
+        let seat = |root: &Path| {
+            codex_targets(root)
+                .into_iter()
+                .find(|target| target.path.ends_with(".codex/agents/covenant-seat.toml"))
+                .unwrap()
+                .expected
+        };
+        assert!(seat(&root).contains("\nmodel = \"gpt-6-astra\"\n"));
+        f.write(
+            "project/deep/.codex/agents/covenant-seat.toml",
+            "model = 'operator-seat'\n",
+        );
+        assert_eq!(covenant_seat_codex_model(&root).as_deref(), Some("operator-seat"));
+        let preserved = seat(&root);
+        assert!(preserved.contains("\nmodel = \"operator-seat\"\n"));
+        assert!(!preserved.contains("gpt-6-astra"));
     }
 
     #[test]
@@ -922,7 +991,7 @@ fn codex_targets(root: &Path) -> Vec<Target> {
             content,
         ));
     }
-    let seat_model = covenant_seat_codex_model()
+    let seat_model = covenant_seat_codex_model(root)
         .map(|m| format!("model = {}\n", json_string(&m)))
         .unwrap_or_default();
     let content=format!("# Generated by Legion bind. Do not edit; re-run `legion bind --write`.\nname = {}\ndescription = {}\n{}developer_instructions = {}\n\n",json_string("covenant-seat"),json_string(&frontmatter(COVENANT_DOCTRINE).0.get("description").cloned().unwrap_or_default()),seat_model,json_string(COVENANT_DOCTRINE));

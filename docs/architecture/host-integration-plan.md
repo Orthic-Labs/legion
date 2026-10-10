@@ -47,11 +47,11 @@ Legion's canonical content is host-neutral. Its delivery was not. Before this wo
 `scripts/generate-host-projection.mjs` → `src/registry/host-projection.json`.
 
 Derived from canonical owners only: `skills/*/SKILL.md`, `src/roster/*.md`,
-`src/registry/capabilities.json`. Emits 18 domain capabilities, 5 explicit entrypoints, 3 roles,
+`src/registry/capabilities.json`. Emits 18 domain capabilities, 4 explicit entrypoints, 3 roles,
 16 host capabilities, the 4 reference classes, and a fidelity declaration per harness.
 `--check` fails on drift.
 
-`skills/alchemist`, `skills/coder`, `skills/commit`, `skills/covenant`, and `skills/dispatch`
+`skills/alchemist`, `skills/commit`, `skills/covenant`, and `skills/dispatch`
 project as `kind: entrypoint`, `discoverability: explicit`. Alchemist attaches its authority;
 Covenant requests optional challenge; the others enter their owned explicit workflows.
 

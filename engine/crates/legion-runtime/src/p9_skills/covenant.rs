@@ -86,7 +86,6 @@ pub fn allowed_outcomes(mode: &str) -> Option<&'static [&'static str]> {
             "AMENDMENT_REQUIRED",
             "INSUFFICIENT_EVIDENCE",
         ]),
-        "DISPUTE_REVIEW" => Some(&["SUPPORTED", "REVISE", "UNRESOLVED"]),
         _ => None,
     }
 }
@@ -182,11 +181,52 @@ pub fn validate_record_fields(record: &Value, request: Option<&Value>) -> Vec<St
         }
     }
 
-    if mode == "DECISION_CHALLENGE" {
-        validate_dispositions(record, &mut errors);
+    validate_seat_lenses(record, &mut errors);
+
+    // A record is PENDING until the decision owner dispositions every finding, then COMPLETE.
+    // Dispositions are required only when COMPLETE, so a record can be validated before the
+    // owner has acted. A fresh-verdict record id cannot be attached while PENDING.
+    match record.get("dispositionState").and_then(Value::as_str) {
+        Some("COMPLETE") => {
+            if mode == "DECISION_CHALLENGE" {
+                validate_dispositions(record, &mut errors);
+            }
+        }
+        Some("PENDING") => {
+            let fresh = record.get("freshVerdictRecordId");
+            if fresh.is_some_and(|v| !v.is_null()) {
+                errors.push(
+                    "$.freshVerdictRecordId cannot be set while dispositionState is PENDING"
+                        .to_string(),
+                );
+            }
+        }
+        _ => errors.push("$.dispositionState must be PENDING or COMPLETE".to_string()),
     }
 
     errors
+}
+
+/// A panel needs at least three seats, each with a distinct lens id
+/// (`<stance>/<domain>:<role>`); two seats sharing a lens share a blind spot.
+fn validate_seat_lenses(record: &Value, errors: &mut Vec<String>) {
+    let empty = Vec::new();
+    let seats = record
+        .get("seatRecords")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty);
+    let mut seen: BTreeSet<&str> = BTreeSet::new();
+    for seat in seats {
+        let lens = seat.get("lens").and_then(Value::as_str).unwrap_or("").trim();
+        if lens.is_empty() {
+            errors.push("$.seatRecords every seat needs a lens id".to_string());
+        } else if !seen.insert(lens) {
+            errors.push(format!("$.seatRecords lens {lens} is used by more than one seat"));
+        }
+    }
+    if seen.len() < 3 {
+        errors.push("$.seatRecords needs at least 3 seats with distinct lens ids".to_string());
+    }
 }
 
 /// Minimal structural JSON-Schema check (subset used by the covenant schemas: `type`, `const`,
@@ -419,12 +459,22 @@ mod tests {
             .any(|e| e.contains("digestVerified must be true")));
     }
 
+    fn three_seats() -> Value {
+        json!([
+            {"lens": "improvement-path/code:senior-developer", "isolated": true},
+            {"lens": "scope-alternatives/code:lead-architect", "isolated": true},
+            {"lens": "user-outcome/code:qa-test-lead", "isolated": true},
+        ])
+    }
+
     #[test]
-    fn decision_challenge_requires_terminal_dispositions() {
+    fn decision_challenge_requires_terminal_dispositions_when_complete() {
         let record = json!({
             "mode": "DECISION_CHALLENGE",
             "outcome": "REVISE",
+            "dispositionState": "COMPLETE",
             "integrity": {"digestVerified": true, "mutationDetected": false},
+            "seatRecords": three_seats(),
             "findings": [{"findingId": "F1"}],
             "callerDispositions": [],
         });
@@ -432,5 +482,117 @@ mod tests {
         assert!(errors
             .iter()
             .any(|e| e.contains("missing terminal disposition for F1")));
+    }
+
+    #[test]
+    fn pending_record_validates_without_dispositions() {
+        let record = json!({
+            "mode": "DECISION_CHALLENGE",
+            "outcome": "REVISE",
+            "dispositionState": "PENDING",
+            "integrity": {"digestVerified": true, "mutationDetected": false},
+            "seatRecords": three_seats(),
+            "findings": [{"findingId": "F1"}],
+            "callerDispositions": [],
+            "freshVerdictRecordId": null,
+        });
+        let errors = validate_record_fields(&record, None);
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn pending_record_rejects_fresh_verdict_record_id() {
+        let record = json!({
+            "mode": "DECISION_CHALLENGE",
+            "outcome": "REVISE",
+            "dispositionState": "PENDING",
+            "integrity": {"digestVerified": true, "mutationDetected": false},
+            "seatRecords": three_seats(),
+            "findings": [{"findingId": "F1"}],
+            "callerDispositions": [],
+            "freshVerdictRecordId": "CV-2",
+        });
+        let errors = validate_record_fields(&record, None);
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("freshVerdictRecordId cannot be set while")));
+    }
+
+    #[test]
+    fn complete_record_with_dispositions_accepts_fresh_verdict_record_id() {
+        let record = json!({
+            "mode": "DECISION_CHALLENGE",
+            "outcome": "REVISE",
+            "dispositionState": "COMPLETE",
+            "integrity": {"digestVerified": true, "mutationDetected": false},
+            "seatRecords": three_seats(),
+            "findings": [{"findingId": "F1"}],
+            "callerDispositions": [{"findingId": "F1", "disposition": "ACCEPT"}],
+            "freshVerdictRecordId": "CV-2",
+        });
+        let errors = validate_record_fields(&record, None);
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn disposition_state_is_required() {
+        let record = json!({
+            "mode": "BLOCKER_CONSULT",
+            "outcome": "CONTRACT_SAFE",
+            "integrity": {"digestVerified": true},
+            "seatRecords": three_seats(),
+        });
+        let errors = validate_record_fields(&record, None);
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("dispositionState must be PENDING or COMPLETE")));
+    }
+
+    #[test]
+    fn panel_needs_three_distinct_lens_ids() {
+        let two = json!({
+            "mode": "BLOCKER_CONSULT",
+            "outcome": "CONTRACT_SAFE",
+            "dispositionState": "PENDING",
+            "integrity": {"digestVerified": true},
+            "seatRecords": [
+                {"lens": "red-team/code:lead-architect", "isolated": true},
+                {"lens": "minimize/code:senior-developer", "isolated": true},
+            ],
+        });
+        assert!(validate_record_fields(&two, None)
+            .iter()
+            .any(|e| e.contains("at least 3 seats with distinct lens ids")));
+
+        let duplicate = json!({
+            "mode": "BLOCKER_CONSULT",
+            "outcome": "CONTRACT_SAFE",
+            "dispositionState": "PENDING",
+            "integrity": {"digestVerified": true},
+            "seatRecords": [
+                {"lens": "red-team/code:lead-architect", "isolated": true},
+                {"lens": "red-team/code:lead-architect", "isolated": true},
+                {"lens": "minimize/code:senior-developer", "isolated": true},
+            ],
+        });
+        let errors = validate_record_fields(&duplicate, None);
+        assert!(errors.iter().any(|e| e.contains("more than one seat")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("at least 3 seats with distinct lens ids")));
+
+        let three = json!({
+            "mode": "BLOCKER_CONSULT",
+            "outcome": "CONTRACT_SAFE",
+            "dispositionState": "PENDING",
+            "integrity": {"digestVerified": true},
+            "seatRecords": three_seats(),
+        });
+        assert!(validate_record_fields(&three, None).is_empty());
+    }
+
+    #[test]
+    fn dispute_review_mode_is_retired() {
+        assert!(allowed_outcomes("DISPUTE_REVIEW").is_none());
     }
 }

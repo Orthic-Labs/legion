@@ -1,24 +1,16 @@
 # Covenant lens — Offer
 
-**What this is:** a domain review lens. Assigned to a Covenant seat at convene time — **one lens per seat**, per
-`doctrine/covenant-seat.md` §"lens index" — this file IS the specialization a seat reads once
-assigned.
+The convener assigns one role card from this file to a seat.
 
-**Read `doctrine/covenant-seat.md` first.** This bundle is domain craft under
-that constitution, not a replacement for it. Everything below is preserved verbatim from Council
-except where a `> **Superseded:**` note marks a doctrine conflict.
-
-> **Superseded:** every "Veto power" line below is retained verbatim as the original review
-> craft's framing of severity/blocking judgment. Under Covenant doctrine (C-invariants), no seat
-> decides or disposes — a seat is advisory only (`doctrine/covenant-seat.md`). What reads as
-> "blocks" here is the analogue of a maximum-severity finding handed to the caller (Sage or
-> Alchemist) for disposition, never a seat-authored block.
+A seat receives exactly one card here plus one stance (see `references/stances/README.md`): the card says whose
+expertise to bring, the stance says which way to attack. Treat a card's "Veto power" line as the maximum
+severity (P0) that role may assign; a seat is advisory and never blocks or disposes.
 
 ---
 
-# Self Review: Offer
+# Role cards: Offer
 
-Run roles independently, then synthesize.
+One seat plays exactly one card below; it does not play the others.
 
 ## Hormozi Offer Architect
 
@@ -54,8 +46,8 @@ Run roles independently, then synthesize.
 
 ## Brand Guardian
 
-- Mandate: Check venture fit, tone, and SS exemption.
+- Mandate: Check brand fit, tone, and whether the packet marks the work non-commercial.
 - References: active brand rules.
 - Evidence: voice, visuals, claims, audience, channel.
-- Veto power: blocks commercial offer work for SS or off-brand promises.
+- Veto power: blocks commercial offer work on brands the packet marks non-commercial, and off-brand promises.
 - Ignore: marginal conversion tricks.

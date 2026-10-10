@@ -1,14 +1,11 @@
 #![forbid(unsafe_code)]
-//! Port of deleted `tests/run-audit-conformance-tests.mjs`: eleven
+//! Port of deleted `tests/run-audit-conformance-tests.mjs`: ten
 //! conformance cases proving the audit engine closes every verified gap
 //! from the provider architecture runbook. Cases that the JS version proved
 //! by grepping now-deleted `.mjs` source are re-proved here against the
 //! equivalent native Rust behaviour/artifacts instead.
 
 use legion_audit::wf_port::wf010::provider_registry::validate_provider_registry;
-use legion_audit::wf_port::wf012::testkit::{
-    validate_provider_result, ProviderResultValidationError,
-};
 use legion_audit::wf_port::wf064::finalize::finalize_audit;
 use serde_json::{json, Value};
 
@@ -108,25 +105,6 @@ fn case_3_trust_boundary_signing_key_not_inherited() {
     assert!(
         source.contains("AUDIT_PLAN_SIGNING_KEY"),
         "signing key semantics must remain documented at the native plan-sealing boundary"
-    );
-}
-
-// --- Case 4: Result contract — validation rejects invalid results ---
-#[test]
-fn case_4_result_contract_rejects_invalid_results() {
-    let err = validate_provider_result(&json!({
-        "schemaVersion": 1, "provider": "test", "status": "invalid-status", "complete": true
-    }))
-    .expect_err("invalid status must be rejected");
-    assert_eq!(err.field, "status", "error must name the offending field");
-
-    let err: ProviderResultValidationError = validate_provider_result(&json!({
-        "schemaVersion": 1, "provider": "test", "complete": true
-    }))
-    .expect_err("missing status must be rejected");
-    assert_eq!(
-        err.field, "status",
-        "missing status must be rejected as the status field"
     );
 }
 
@@ -240,31 +218,11 @@ fn case_9_qualification_receipts_generated_status() {
 // checked the deleted `tools/audit/collect-facts.mjs` and
 // `tools/audit/audit-plan.mjs` for `tool_absent`, `flag_if_absent`, and
 // `tier: 'supplemental'` source strings. Those tools are now
-// `legion-audit`'s native wf065 (fact collection) and wf064 (plan
-// reconciliation) ports; assert the same declaration exists there.
+// `legion-audit`'s native wf064 (plan reconciliation) port; assert the
+// same declaration exists there. The wf065 fact-collection port was
+// retired unwired; its assertions went with it.
 #[test]
 fn case_10_supplemental_tier_flags_absent_scanners() {
-    let collect_facts = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/wf_port/wf065/collect_facts_exec.rs"
-    ))
-    .expect("wf065 collect_facts_exec source");
-    // tool_absent must be recorded, not treated as a clean pass.
-    assert!(
-        collect_facts.contains("tool_absent"),
-        "tool_absent flag must exist for missing scanners"
-    );
-    // flag_if_absent must be present in check definitions.
-    assert!(
-        collect_facts.contains("flag_if_absent"),
-        "flag_if_absent must mark supplemental scanners"
-    );
-    // tier: "supplemental" must be present in check definitions.
-    assert!(
-        collect_facts.contains("tier: \"supplemental\""),
-        "supplemental tier must be declared on check definitions"
-    );
-
     let plan = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/src/wf_port/wf064/plan.rs"

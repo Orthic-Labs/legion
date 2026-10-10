@@ -64,6 +64,13 @@ impl NativeProviderRegistry {
         self
     }
 
+    /// Replace the `code.*` adapter (search path, sandbox policy and tool
+    /// bounds for its tool runs). The root is re-applied.
+    pub fn with_code(mut self, code: code::ProviderExecutorAdapter) -> Self {
+        self.code = code.with_root(self.root.clone());
+        self
+    }
+
     pub fn with_external_project_tool(mut self, tool: Arc<dyn ExternalProjectTool>) -> Self {
         self.legacy_checks = self
             .legacy_checks
@@ -143,6 +150,19 @@ impl ProviderExecutor for NativeProviderRegistry {
                 .legacy_checks
                 .execute_async(plan, provider, inventory, cancellation)
                 .await;
+        }
+        // With an authorized external-tool route the `code.*` providers run
+        // their read-only verification tools through it; scratch is the run's
+        // `AuditScratch`, shared with the legacy checks. Without the route
+        // they keep the discovery-only synchronous accounting.
+        if provider.id.starts_with("code.") {
+            if let Some(tool) = &self.external_project_tool {
+                let scratch = self.legacy_checks.scratch()?;
+                return self
+                    .code
+                    .execute_async(plan, provider, inventory, tool.clone(), scratch, cancellation)
+                    .await;
+            }
         }
         self.execute_bound(plan, provider, inventory)
     }

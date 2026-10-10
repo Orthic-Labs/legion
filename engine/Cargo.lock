@@ -2058,7 +2058,6 @@ dependencies = [
  "legion-effects",
  "legion-provider-sdk",
  "legion-rules",
- "legion-runtime",
  "regex",
  "serde",
  "serde_json",

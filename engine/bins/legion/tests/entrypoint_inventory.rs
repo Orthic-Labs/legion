@@ -16,7 +16,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-const SCRIPT_COUNT: usize = 92;
+const SCRIPT_COUNT: usize = 90;
 const ROOT_COUNT: usize = 42;
 const DEV_COUNT: usize = 27;
 const XTASK_COUNT: usize = 16;
@@ -69,12 +69,6 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
     },
     ScriptProbe {
         key: "brand-identity/color-check",
-        mode: ProbeMode::Help,
-        args: HELP,
-        reason: None,
-    },
-    ScriptProbe {
-        key: "coder/api-worker",
         mode: ProbeMode::Help,
         args: HELP,
         reason: None,
@@ -527,12 +521,6 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
         key: "tasklist/validate-tasklist",
         mode: ProbeMode::Precondition,
         args: EMPTY,
-        reason: None,
-    },
-    ScriptProbe {
-        key: "coder/enforce_cheap_review_routing",
-        mode: ProbeMode::Help,
-        args: HELP,
         reason: None,
     },
     ScriptProbe {

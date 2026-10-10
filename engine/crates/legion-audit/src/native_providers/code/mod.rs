@@ -10,6 +10,7 @@ pub mod mobile;
 pub mod php_ruby;
 pub mod python;
 pub mod rust;
+pub mod tools;
 
 use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
 use legion_contracts::{
@@ -17,8 +18,13 @@ use legion_contracts::{
 };
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use legion_provider_sdk::ExternalProjectTool;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
+
+use super::{legacy_checks::AuditScratch, security::producer::SandboxPolicy};
 
 /// Executes the `code.*` providers.
 ///
@@ -33,7 +39,20 @@ pub struct ProviderExecutorAdapter {
     root: Option<PathBuf>,
     inputs: BTreeMap<String, Value>,
     limits: evidence::EvidenceLimits,
+    /// Directories searched for tools instead of the process `PATH`.
+    search_path: Option<Vec<PathBuf>>,
+    /// `None` is `SandboxPolicy::Required`.
+    sandbox: Option<SandboxPolicy>,
+    /// Per-tool-run timeout (default 120s, or the provider's `timeoutMs`).
+    tool_timeout_ms: Option<u64>,
+    /// Total wall-clock budget for all tool runs of one provider.
+    tool_budget_ms: Option<u64>,
 }
+
+/// Default total tool budget for one provider (all runs together).
+const DEFAULT_TOOL_BUDGET_MS: u64 = 900_000;
+const DEFAULT_TOOL_TIMEOUT_MS: u64 = 120_000;
+const DEFAULT_TOOL_OUTPUT_LIMIT: u64 = 32 * 1024 * 1024;
 
 impl ProviderExecutorAdapter {
     pub fn new() -> Self {
@@ -53,6 +72,93 @@ impl ProviderExecutorAdapter {
     pub fn with_limits(mut self, limits: evidence::EvidenceLimits) -> Self {
         self.limits = limits;
         self
+    }
+
+    /// Search these directories (in order) for tools instead of `PATH`; the
+    /// same list becomes the tool's `PATH`.
+    pub fn with_search_path(mut self, dirs: Vec<PathBuf>) -> Self {
+        self.search_path = Some(dirs);
+        self
+    }
+
+    /// Whether tool runs need an authenticated OS sandbox. The default is
+    /// `Required`: a host without an authenticator reports
+    /// `sandbox-missing:<tool>` instead of running unsandboxed.
+    pub fn with_sandbox(mut self, policy: SandboxPolicy) -> Self {
+        self.sandbox = Some(policy);
+        self
+    }
+
+    pub fn with_tool_bounds(mut self, per_tool_timeout_ms: u64, total_budget_ms: u64) -> Self {
+        self.tool_timeout_ms = Some(per_tool_timeout_ms);
+        self.tool_budget_ms = Some(total_budget_ms);
+        self
+    }
+
+    /// Plan-bound async path: self-sourced providers additionally run their
+    /// read-only verification tools through `tool` (see [`tools`]). Scratch,
+    /// caches and artifacts live in `scratch`, which must be the same
+    /// `AuditScratch` the tool's artifact sink is rooted at. Host-injected
+    /// input is analyzed exactly as on the synchronous path.
+    pub async fn execute_async(
+        &self,
+        plan: &crate::FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        tool: Arc<dyn ExternalProjectTool>,
+        scratch: Arc<AuditScratch>,
+        cancellation: CancellationToken,
+    ) -> Result<ProviderResult, AuditError> {
+        let injected = provider.configuration.contains_key("input")
+            || self.inputs.contains_key(&provider.id);
+        let Some(config) = evidence::config_for(&provider.id) else {
+            return self.execute_with(provider, inventory, None);
+        };
+        if injected {
+            return self.execute_with(provider, inventory, None);
+        }
+        let selector = provider
+            .configuration
+            .get("selector")
+            .cloned()
+            .unwrap_or_else(|| json!({"op": "always"}));
+        let denominator = inventory.denominator_entries(&selector)?;
+        let selected_paths: BTreeSet<String> = evidence::select_entries(config, &denominator.entries)
+            .iter()
+            .map(|entry| entry.path.clone())
+            .collect();
+        let root = self.root.clone().or_else(|| std::env::current_dir().ok());
+        let Some(root) = root.filter(|_| !selected_paths.is_empty()) else {
+            return self.execute_with(provider, inventory, None);
+        };
+        let bound = |key: &str| provider.bounds.get(key).and_then(Value::as_u64);
+        let plan_digest = plan.digest().to_owned();
+        let ctx = tools::ToolContext {
+            root: &root,
+            tool: tool.as_ref(),
+            scratch: scratch.as_ref(),
+            sandbox: self.sandbox.unwrap_or(SandboxPolicy::Required),
+            search_path: self.search_path.as_deref(),
+            plan_digest: &plan_digest,
+            inventory_digest: &inventory.digest,
+            provider_id: &provider.id,
+            per_tool_timeout_ms: bound("timeoutMs")
+                .or(self.tool_timeout_ms)
+                .unwrap_or(DEFAULT_TOOL_TIMEOUT_MS),
+            total_budget_ms: bound("totalTimeoutMs")
+                .or(self.tool_budget_ms)
+                .unwrap_or(DEFAULT_TOOL_BUDGET_MS),
+            output_limit: bound("stdoutLimit").unwrap_or(DEFAULT_TOOL_OUTPUT_LIMIT) as usize,
+        };
+        let evidence = tools::run(
+            &ctx,
+            config.tools,
+            &denominator.entries,
+            &selected_paths,
+            cancellation,
+        )
+        .await;
+        self.execute_with(provider, inventory, Some(&evidence))
     }
 }
 
@@ -102,6 +208,19 @@ impl ProviderExecutor for ProviderExecutorAdapter {
         provider: &AuditProvider,
         inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError> {
+        self.execute_with(provider, inventory, None)
+    }
+}
+
+impl ProviderExecutorAdapter {
+    /// `tools` is the evidence of real tool runs; `None` keeps the
+    /// discovery-only accounting (tools are `tool-missing` / `tool-not-run`).
+    fn execute_with(
+        &self,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        tools: Option<&tools::ToolEvidence>,
+    ) -> Result<ProviderResult, AuditError> {
         let config = evidence::config_for(&provider.id).ok_or_else(|| {
             AuditError::Provider(format!("unsupported native code provider: {}", provider.id))
         })?;
@@ -144,7 +263,7 @@ impl ProviderExecutor for ProviderExecutorAdapter {
                     .unwrap_or_else(|| json!({"op": "always"}));
                 let denominator = inventory.denominator_entries(&selector)?;
                 let root = self.root.clone().or_else(|| std::env::current_dir().ok());
-                let made = evidence::produce(
+                let mut made = evidence::produce(
                     &provider.id,
                     config,
                     root.as_deref(),
@@ -172,7 +291,16 @@ impl ProviderExecutor for ProviderExecutorAdapter {
                         provider.id, made.expected, frozen_count
                     )
                 });
-                let input = made.input.clone();
+                let mut input = made.input.clone();
+                if let Some(tools) = tools {
+                    // Tool receipts feed the analyzer so evidence gaps clear
+                    // for tools that actually ran; diagnostics join the native
+                    // findings.
+                    if let Some(object) = input.as_object_mut() {
+                        object.insert("tools".into(), Value::Object(tools.tools.clone()));
+                    }
+                    made.findings.extend(tools.findings.iter().cloned());
+                }
                 produced = Some(made);
                 input
             }
@@ -239,6 +367,9 @@ impl ProviderExecutor for ProviderExecutorAdapter {
             if made.duplicate_detection_truncated {
                 gaps.push(format!("{}:duplicate-detection-truncated", provider.id));
             }
+            if let Some(tools) = tools {
+                gaps.extend(tools.gaps.iter().cloned());
+            }
             if let Some(gap) = &selection_gap {
                 gaps.push(gap.clone());
                 complete = false;
@@ -267,6 +398,22 @@ impl ProviderExecutor for ProviderExecutorAdapter {
                 locations.insert(key, json!([format!("{}:{}", finding.path, finding.line)]));
                 findings.push(reference);
             }
+            let discovery: Vec<Value> = made
+                .tool_discovery
+                .iter()
+                .map(|item| {
+                    let mut item = item.clone();
+                    let id = item.get("tool").and_then(Value::as_str).map(str::to_owned);
+                    let ran = matches!(
+                        (tools, id.as_deref()),
+                        (Some(tools), Some(id)) if tools.outcomes.get(id) == Some(&tools::Outcome::Ran)
+                    );
+                    if ran {
+                        item["executed"] = json!(true);
+                    }
+                    item
+                })
+                .collect();
             details.insert("findingEvidence".into(), Value::Object(evidence_items));
             details.insert("findingLocations".into(), Value::Object(locations));
             details.insert(
@@ -282,7 +429,8 @@ impl ProviderExecutor for ProviderExecutorAdapter {
                         "maxTotalBytes": self.limits.max_total_bytes,
                         "maxFindings": self.limits.max_findings,
                     },
-                    "toolDiscovery": made.tool_discovery,
+                    "toolDiscovery": discovery,
+                    "toolReceipts": tools.map(|tools| tools.receipts.clone()).unwrap_or_default(),
                 }),
             );
         }
@@ -318,10 +466,13 @@ impl ProviderExecutor for ProviderExecutorAdapter {
             Some(made) => {
                 if made.expected > 0 {
                     for tool in config.tools {
-                        let reason = if made.unrun_tools.contains(tool) {
-                            format!("tool-not-run:{tool}")
-                        } else {
-                            format!("tool-missing:{tool}")
+                        let reason = match tools.and_then(|tools| tools.outcomes.get(*tool)) {
+                            Some(tools::Outcome::Ran) => continue,
+                            Some(outcome) => outcome.reason(tool),
+                            None if made.unrun_tools.contains(tool) => {
+                                format!("tool-not-run:{tool}")
+                            }
+                            None => format!("tool-missing:{tool}"),
                         };
                         super::availability::mark_unavailable(&mut result, &reason);
                     }

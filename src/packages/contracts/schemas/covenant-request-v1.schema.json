@@ -24,9 +24,9 @@
       "const": "legion",
       "description": "Present only when the Legion orchestrator convened this request on user/policy request. Never equals callerAuthority; the orchestrator never becomes the caller of record."
     },
-    "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY", "DISPUTE_REVIEW"] },
+    "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY"] },
 
-    "subjectType": { "type": "string", "minLength": 1, "description": "e.g. 'execution-contract', 'blocker', 'audit-finding' (DISPUTE_REVIEW only)." },
+    "subjectType": { "type": "string", "minLength": 1, "description": "e.g. 'execution-contract', 'blocker', 'artifact'." },
     "subjectId": { "type": "string", "minLength": 1 },
     "subjectVersion": { "type": ["string", "integer", "null"] },
     "sourceRevision": { "type": "string", "minLength": 7 },
@@ -66,6 +66,7 @@
       "required": ["seatCount"],
       "properties": {
         "seatCount": { "type": "integer", "minimum": 1 },
+        "stage": { "enum": ["COUNCIL", "JURY"], "description": "COUNCIL (advisory, stage 1) or JURY (verdict, stage 2). A JURY request is built fresh after dispositions and carries no stage-1 findings, votes, or preferred verdict." },
         "lensRequirements": { "type": "array", "items": { "type": "string" } },
         "requireFreshVerdict": { "type": "boolean", "default": false }
       },
