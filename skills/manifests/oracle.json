@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/oracle",
-      "Optional independent read-only Completion Validation against the raw user request. Use /oracle only for explicit review requests or concrete outcome or safety risk."
+      "Independent read-only Completion Validation against the raw user request. Use /oracle to review any work Legion did not produce itself, and for independent verification of someone else's work."
     ],
     "outputs": [],
     "scripts": [],
@@ -45,12 +45,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://oracle/SKILL.md",
-      "digest": "sha256:299b2761764800fe6b83380c273a1bbab03d651ce5e2ae45d441b4cc9aa27303"
+      "digest": "sha256:c6e270b567d37e51e5ede7932bf11875a6c54302b76be075c67b0542d2c9be98"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://oracle/agents/openai.yaml",
-      "digest": "sha256:34efc8a3a7a55934b2c430334b485dd6532748f67d2220b6ed06a855e9b3e15d"
+      "digest": "sha256:5f0b4d5c38ded19bfc033f0718667db02ea54ab29eb69dcfa7cb55fc9b1d26ce"
     },
     {
       "path": "dependencies.json",
