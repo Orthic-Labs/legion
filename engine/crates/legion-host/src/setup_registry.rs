@@ -748,6 +748,7 @@ pub fn repair_client_projection(
         }
     }
     if let Some(prior) = &prior_ledger {
+        let mut deleted = Vec::new();
         for relative in prior.files.keys() {
             if expected.contains_key(relative) {
                 continue;
@@ -763,10 +764,12 @@ pub fn repair_client_projection(
                 continue;
             }
             fs::remove_file(&destination).map_err(io)?;
-            remove_empty_projection_parents(&input.target_root, &destination);
             next_files.remove(relative);
+            deleted.push(destination.clone());
             repaired.push(destination);
         }
+        remove_empty_projection_parents(&input.target_root, &deleted);
+        prune_retired_skill_shells(&input.target_root);
     }
     if !repaired.is_empty()
         || root_owned
@@ -869,6 +872,7 @@ pub fn remove_client_projection(
             removed.push(target.clone());
         }
     }
+    let mut deleted = Vec::new();
     for (relative, digest) in &ledger.files {
         let destination = input.target_root.join(relative);
         if linked_targets
@@ -884,12 +888,13 @@ pub fn remove_client_projection(
         }
         if digest_path(&destination)? == *digest {
             fs::remove_file(&destination).map_err(io)?;
-            remove_empty_projection_parents(&input.target_root, &destination);
+            deleted.push(destination.clone());
             removed.push(destination);
         } else {
             preserved.push(destination);
         }
     }
+    remove_empty_projection_parents(&input.target_root, &deleted);
     if preserved.is_empty() {
         let path = projection_ledger_path(input);
         if path.exists() {
@@ -3816,14 +3821,71 @@ fn projection_path_crosses_link(root: &Path, path: &Path) -> bool {
     false
 }
 
-/// Remove directories emptied by deleting `file`, stopping at `root`.
-fn remove_empty_projection_parents(root: &Path, file: &Path) {
-    let mut parent = file.parent();
-    while let Some(directory) = parent {
-        if directory == root || !directory.starts_with(root) || fs::remove_dir(directory).is_err() {
-            break;
+/// Remove nested directories emptied by deleting `files` under `root`.
+///
+/// Every ancestor of every deleted file is a candidate, so a directory that
+/// became empty only after a sibling subtree was removed is still reached. The
+/// root and its top-level directories (`skills`, `agents`, `hooks`, `share`)
+/// are never candidates. Candidates run deepest first so a directory is tried
+/// only after everything beneath it. `remove_dir` succeeds only on an empty
+/// directory, so non-empty directories and errors are ignored. Links are never
+/// followed or removed.
+/// Removes `skills/<retired id>` when it holds no file at all. An earlier
+/// build deleted a retired skill's files but left its empty directories, and
+/// the ledger no longer lists them, so they are found by name. Only empty
+/// directories are removed (`remove_dir`); links are never followed.
+fn prune_retired_skill_shells(root: &Path) {
+    fn prune(directory: &Path) -> bool {
+        let plain = fs::symlink_metadata(directory)
+            .map(|metadata| metadata.is_dir() && !metadata.file_type().is_symlink())
+            .unwrap_or(false);
+        if !plain {
+            return false;
         }
-        parent = directory.parent();
+        let Ok(entries) = fs::read_dir(directory) else {
+            return false;
+        };
+        let mut empty = true;
+        for entry in entries.flatten() {
+            if !prune(&entry.path()) {
+                empty = false;
+            }
+        }
+        empty && fs::remove_dir(directory).is_ok()
+    }
+    for id in crate::legacy_claude::RETIRED_SKILL_IDS {
+        prune(&root.join("skills").join(id));
+    }
+}
+
+fn remove_empty_projection_parents(root: &Path, files: &[PathBuf]) {
+    let mut candidates = Vec::new();
+    for file in files {
+        let mut parent = file.parent();
+        while let Some(directory) = parent {
+            let top_level = directory.parent() == Some(root);
+            if directory == root || !directory.starts_with(root) || top_level {
+                break;
+            }
+            candidates.push(directory.to_path_buf());
+            parent = directory.parent();
+        }
+    }
+    candidates.sort_by(|left, right| {
+        right
+            .components()
+            .count()
+            .cmp(&left.components().count())
+            .then_with(|| left.cmp(right))
+    });
+    candidates.dedup();
+    for directory in candidates {
+        let is_plain_directory = fs::symlink_metadata(&directory)
+            .map(|metadata| metadata.is_dir() && !metadata.file_type().is_symlink())
+            .unwrap_or(false);
+        if is_plain_directory {
+            let _ = fs::remove_dir(&directory);
+        }
     }
 }
 
@@ -5624,6 +5686,39 @@ mod tests {
             .expect("ledger")
             .files
             .contains_key("hooks/hooks.json"));
+    }
+
+    #[test]
+    fn repair_prunes_nested_directories_emptied_by_dropped_skill() {
+        let root = TestRoot::new("projection-prune-emptied-nested-dirs");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let gone = input.source_root.join("skills/gone");
+        fs::create_dir_all(gone.join("references/a")).unwrap();
+        fs::create_dir_all(gone.join("evals")).unwrap();
+        fs::write(gone.join("SKILL.md"), b"# Gone").unwrap();
+        fs::write(gone.join("references/a/b.md"), b"deep").unwrap();
+        fs::write(gone.join("evals/e.json"), b"{}").unwrap();
+        repair_client_projection(&input).unwrap();
+        assert!(input
+            .target_root
+            .join("skills/gone/references/a/b.md")
+            .is_file());
+
+        // Release N+1 drops the skill entirely. The operator's own empty
+        // directory and file beside it must survive the repair.
+        fs::remove_dir_all(&gone).unwrap();
+        let mine = input.target_root.join("skills/mine");
+        fs::create_dir_all(&mine).unwrap();
+        let mine2 = input.target_root.join("skills/mine2");
+        fs::create_dir_all(&mine2).unwrap();
+        fs::write(mine2.join("note.md"), b"keep").unwrap();
+
+        repair_client_projection(&input).unwrap();
+
+        assert!(fs::symlink_metadata(input.target_root.join("skills/gone")).is_err());
+        assert!(input.target_root.join("skills/example/SKILL.md").is_file());
+        assert!(mine.is_dir());
+        assert!(mine2.join("note.md").is_file());
     }
 
     // Mixed `\` separators only denote the same root on Windows; on Unix `\`
