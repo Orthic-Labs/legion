@@ -33,7 +33,11 @@ pub async fn run(args: CommonArgs, cancellation: CancellationToken) -> CommandRe
         if !classes.iter().any(|item| item.id == class.as_str()) {
             return Err(CommandError::usage(format!(
                 "unknown fix class {class}; known: {}",
-                classes.iter().map(|item| item.id).collect::<Vec<_>>().join(", ")
+                classes
+                    .iter()
+                    .map(|item| item.id)
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )));
         }
     }
@@ -126,7 +130,9 @@ fn parse_fix_options(argv: &[String]) -> Result<FixOptions, CommandError> {
             "--client" => options.client = Some(value("--client")?),
             "--plan" => options.plan = Some(PathBuf::from(value("--plan")?)),
             other => {
-                return Err(CommandError::usage(format!("unknown fix argument: {other}")))
+                return Err(CommandError::usage(format!(
+                    "unknown fix argument: {other}"
+                )))
             }
         }
     }
@@ -261,7 +267,10 @@ fn select_actions(classes: &[FixClass], apply: bool, only: Option<&str>) -> Vec<
         .map(|(index, _)| index)
         .collect::<Vec<_>>();
     if only.is_none() {
-        let ids = chosen.iter().map(|index| classes[*index].id).collect::<Vec<_>>();
+        let ids = chosen
+            .iter()
+            .map(|index| classes[*index].id)
+            .collect::<Vec<_>>();
         chosen.retain(|index| {
             classes[*index]
                 .covered_by
@@ -280,10 +289,7 @@ struct SetupInvocation {
 /// Run `legion setup <argv>` in-process. This is the single delegation point
 /// for `fix`, `hooks` and `mcp`: no repair logic lives outside the setup
 /// registry.
-pub(super) async fn run_setup(
-    argv: Vec<String>,
-    cancellation: CancellationToken,
-) -> CommandResult {
+pub(super) async fn run_setup(argv: Vec<String>, cancellation: CancellationToken) -> CommandResult {
     use clap::Parser;
     let parsed = SetupInvocation::try_parse_from(
         std::iter::once("setup".to_owned()).chain(argv.into_iter()),
@@ -376,7 +382,10 @@ mod tests {
             .unwrap();
         assert_eq!(duplicate.detected, Some(true));
         let selected = select_actions(&classes, true, None);
-        let ids = selected.iter().map(|index| classes[*index].id).collect::<Vec<_>>();
+        let ids = selected
+            .iter()
+            .map(|index| classes[*index].id)
+            .collect::<Vec<_>>();
         // The duplicate is covered by the all-client repair, so it runs once.
         assert_eq!(ids, vec!["projection-repair"]);
         assert_eq!(
@@ -384,13 +393,21 @@ mod tests {
             Some(&["repair".to_owned(), "--confirm".to_owned()][..])
         );
         for class in classes.iter().filter(|class| class.applier.is_none()) {
-            assert!(class.manual.is_some(), "{} needs a manual command", class.id);
+            assert!(
+                class.manual.is_some(),
+                "{} needs a manual command",
+                class.id
+            );
         }
         let only = select_actions(&classes, true, Some("duplicate-mcp-registration"));
         assert_eq!(only.len(), 1);
         assert_eq!(
             classes[only[0]].applier.as_deref().unwrap()[..3],
-            ["repair".to_owned(), "--client".to_owned(), "claude-code".to_owned()]
+            [
+                "repair".to_owned(),
+                "--client".to_owned(),
+                "claude-code".to_owned()
+            ]
         );
         let _ = std::fs::remove_dir_all(&home);
     }
@@ -415,8 +432,12 @@ mod tests {
     #[test]
     fn options_reject_unknown_and_conflicting_flags() {
         assert!(parse_fix_options(&["--wat".into()]).is_err());
-        assert!(parse_fix_options(&["--plan".into(), "p".into(), "--class".into(), "x".into()]).is_err());
-        let parsed = parse_fix_options(&["--apply".into(), "--client".into(), "codex".into()]).unwrap();
+        assert!(
+            parse_fix_options(&["--plan".into(), "p".into(), "--class".into(), "x".into()])
+                .is_err()
+        );
+        let parsed =
+            parse_fix_options(&["--apply".into(), "--client".into(), "codex".into()]).unwrap();
         assert!(parsed.apply);
         assert_eq!(parsed.client.as_deref(), Some("codex"));
     }

@@ -422,9 +422,7 @@ fn hook_receipt_dirs(home: &Path) -> Vec<PathBuf> {
         dirs.push(PathBuf::from(root).join("receipts"));
     }
     if cfg!(target_os = "macos") {
-        dirs.push(
-            home.join("Library/Application Support/Orthic Labs/Legion/state/receipts"),
-        );
+        dirs.push(home.join("Library/Application Support/Orthic Labs/Legion/state/receipts"));
     } else if cfg!(windows) {
         dirs.push(home.join("AppData/Local/Orthic Labs/Legion/state/receipts"));
     } else {
@@ -436,7 +434,10 @@ fn hook_receipt_dirs(home: &Path) -> Vec<PathBuf> {
 /// Newest hook-trace file (route outcome or child lifecycle) under the receipt
 /// directories, up to one repository-key level deep.
 fn last_observed_hook_event(dirs: &[PathBuf]) -> Option<(PathBuf, SystemTime)> {
-    const NAMES: [&str; 2] = ["route-outcome-trace.v1.jsonl", "child-lifecycle-trace.v1.jsonl"];
+    const NAMES: [&str; 2] = [
+        "route-outcome-trace.v1.jsonl",
+        "child-lifecycle-trace.v1.jsonl",
+    ];
     let mut newest: Option<(PathBuf, SystemTime)> = None;
     let mut consider = |path: PathBuf| {
         let Ok(modified) = std::fs::metadata(&path).and_then(|m| m.modified()) else {
@@ -463,7 +464,11 @@ fn last_observed_hook_event(dirs: &[PathBuf]) -> Option<(PathBuf, SystemTime)> {
     newest
 }
 
-fn codex_hook_state(home: &Path, legion_hooks_file: Option<&Path>, receipt_dirs: &[PathBuf]) -> Value {
+fn codex_hook_state(
+    home: &Path,
+    legion_hooks_file: Option<&Path>,
+    receipt_dirs: &[PathBuf],
+) -> Value {
     let config_path = home.join(".codex").join("config.toml");
     let text = std::fs::read_to_string(&config_path).unwrap_or_default();
     let mut trusted = BTreeSet::new();
@@ -1154,10 +1159,17 @@ mod tests {
         let declared_strong = legion_runtime::p7_host::host_adapters::codex_descriptor()
             ["surfaces"]["hooks"]["fidelity"]
             == "strong";
-        assert_eq!(v["states"]["enforcementQualified"]["observed"], declared_strong);
+        assert_eq!(
+            v["states"]["enforcementQualified"]["observed"],
+            declared_strong
+        );
         assert_eq!(
             v["state"],
-            if declared_strong { "enforcement-qualified" } else { "executed" }
+            if declared_strong {
+                "enforcement-qualified"
+            } else {
+                "executed"
+            }
         );
         let _ = std::fs::remove_dir_all(root);
     }

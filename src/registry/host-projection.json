@@ -1146,19 +1146,19 @@
   "roles": [
     {
       "id": "alchemist",
-      "description": "Bounded implementation authority. Dispatch when settled implementation benefits from a distinct executor or a declared controlled execution boundary. Ordinary inline implementation remains ambient; contracts apply only to locked or explicitly contracted work. Escalate changed requirements, public boundaries, or material tradeoffs. Never dispatch for undecided meaning or independent assurance.",
+      "description": "Bounded implementation authority. Dispatch for any assignment that writes files, runs commands with effects, or produces an artifact. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.",
       "modelTier": "balanced-executor",
       "source": "src/roster/alchemist.md"
     },
     {
       "id": "oracle",
-      "description": "Optional independent read-only assurance. Dispatch only for explicit review requests or a concrete outcome/safety risk that benefits from independent examination. Routine replies, read-only answers, and small reversible changes do not need Oracle. Never implements or certifies its own fix.",
+      "description": "Independent read-only assurance. Dispatch for review of any work Legion did not do itself, and for independent verification of someone else's work. Never implements or certifies its own fix.",
       "modelTier": "frontier-judgment",
       "source": "src/roster/oracle.md"
     },
     {
       "id": "sage",
-      "description": "Optional cross-cutting design and adjudication authority. Dispatch for material unresolved choices, disputed ownership or boundaries, bounded reassessment before expensive commitment, repeated local repairs that fail to advance the outcome, or explicit adjudication. Do not dispatch for routine local work.",
+      "description": "Cross-cutting design and adjudication authority. Dispatch for any design, adjudication, or reassessment: material choices, disputed ownership or boundaries, reassessment before expensive commitment, repeated failed repairs. Not for bounded implementation inside settled criteria.",
       "modelTier": "frontier-judgment",
       "source": "src/roster/sage.md"
     }
@@ -1166,7 +1166,7 @@
   "modelTiers": {
     "frontier-judgment": {
       "hosts": {
-        "claude-code": "sonnet"
+        "claude-code": "opus"
       }
     },
     "balanced-executor": {

@@ -1997,7 +1997,13 @@ fn child_lifecycle_record(request: &HookRequest, response: &HookResponse) -> Opt
     record.insert("accepted".into(), Value::Bool(response.allowed));
     if let Some(agent) = first_string(
         payload,
-        &["agent_type", "agentType", "subagent_type", "subagentType", "role"],
+        &[
+            "agent_type",
+            "agentType",
+            "subagent_type",
+            "subagentType",
+            "role",
+        ],
     ) {
         record.insert("agentType".into(), Value::from(agent));
     }
@@ -2096,8 +2102,11 @@ pub fn fold_child_launch_counters(
             _ => {}
         }
     }
-    let mut latest: Vec<(&RequestId, AuthorityKind, legion_contracts::RoleDecisionState)> =
-        Vec::new();
+    let mut latest: Vec<(
+        &RequestId,
+        AuthorityKind,
+        legion_contracts::RoleDecisionState,
+    )> = Vec::new();
     for trace in traces {
         let Some(decisions) = trace.role_decisions.as_ref() else {
             continue;
@@ -2688,8 +2697,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use legion_contracts::state_root::user_state_receipts_root;
     use super::*;
+    use legion_contracts::state_root::user_state_receipts_root;
     use serde_json::json;
     use std::time::{SystemTime, UNIX_EPOCH};
 

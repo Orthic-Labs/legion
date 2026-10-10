@@ -93,7 +93,14 @@ async fn install(
     let conflicts = existing
         .iter()
         .filter(|item| item.scope != "user")
-        .map(|item| format!("{} ({} scope: {})", item.host, item.scope, item.path.display()))
+        .map(|item| {
+            format!(
+                "{} ({} scope: {})",
+                item.host,
+                item.scope,
+                item.path.display()
+            )
+        })
         .collect::<Vec<_>>();
     if confirm && !conflicts.is_empty() {
         return Err(CommandError::usage(format!(
@@ -177,7 +184,12 @@ mod tests {
         std::fs::create_dir_all(&plugin).unwrap();
         std::fs::write(plugin.join("plugin.json"), "{}").unwrap();
         let error = run_with(
-            &["install".into(), "--client".into(), "claude-code".into(), "--confirm".into()],
+            &[
+                "install".into(),
+                "--client".into(),
+                "claude-code".into(),
+                "--confirm".into(),
+            ],
             &home,
             None,
             CancellationToken::new(),

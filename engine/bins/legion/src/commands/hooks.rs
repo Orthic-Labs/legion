@@ -40,7 +40,11 @@ pub(super) async fn run_with(
             Ok(status_value(home, options.client.as_deref()))
         }
         "install" | "remove" => {
-            let setup_action = if action == "install" { "repair" } else { "remove" };
+            let setup_action = if action == "install" {
+                "repair"
+            } else {
+                "remove"
+            };
             let mut setup_argv = vec![setup_action.to_owned()];
             if let Some(client) = &options.client {
                 setup_argv.extend(["--client".into(), client.clone()]);
@@ -159,7 +163,10 @@ pub(super) fn hook_registrations(home: &Path) -> Vec<Value> {
     if plugin_hooks.is_file() {
         claude.push(json!({"scope": "skills-dir-plugin", "path": plugin_hooks}));
     }
-    let installed = home.join(".claude").join("plugins").join("installed_plugins.json");
+    let installed = home
+        .join(".claude")
+        .join("plugins")
+        .join("installed_plugins.json");
     if read_json(&installed).is_some_and(|value| {
         value
             .get("plugins")
@@ -219,7 +226,12 @@ pub(super) fn mcp_registrations(home: &Path, project_root: Option<&Path>) -> Vec
     let mut found = Vec::new();
     let has_server = |path: &Path| {
         read_json(path)
-            .and_then(|value| value.get("mcpServers").and_then(|s| s.get("legion")).cloned())
+            .and_then(|value| {
+                value
+                    .get("mcpServers")
+                    .and_then(|s| s.get("legion"))
+                    .cloned()
+            })
             .is_some()
     };
     let user = home.join(".claude.json");
@@ -253,7 +265,10 @@ pub(super) fn mcp_registrations(home: &Path, project_root: Option<&Path>) -> Vec
             path: skills_plugin,
         });
     }
-    let installed = home.join(".claude").join("plugins").join("installed_plugins.json");
+    let installed = home
+        .join(".claude")
+        .join("plugins")
+        .join("installed_plugins.json");
     if read_json(&installed).is_some_and(|value| {
         value
             .get("plugins")
@@ -270,7 +285,12 @@ pub(super) fn mcp_registrations(home: &Path, project_root: Option<&Path>) -> Vec
     if std::fs::read_to_string(&codex)
         .ok()
         .and_then(|text| toml::from_str::<toml::Value>(&text).ok())
-        .and_then(|value| value.get("mcp_servers").and_then(toml::Value::as_table).cloned())
+        .and_then(|value| {
+            value
+                .get("mcp_servers")
+                .and_then(toml::Value::as_table)
+                .cloned()
+        })
         .is_some_and(|servers| servers.contains_key("legion"))
     {
         found.push(McpRegistration {
@@ -361,7 +381,8 @@ mod tests {
     fn unknown_action_and_flags_are_usage_errors() {
         assert!(parse_options(&["--bogus".into()]).is_err());
         assert!(parse_options(&["--client".into()]).is_err());
-        let parsed = parse_options(&["--client".into(), "devin".into(), "--confirm".into()]).unwrap();
+        let parsed =
+            parse_options(&["--client".into(), "devin".into(), "--confirm".into()]).unwrap();
         assert!(parsed.confirm);
         assert_eq!(parsed.client.as_deref(), Some("devin"));
     }

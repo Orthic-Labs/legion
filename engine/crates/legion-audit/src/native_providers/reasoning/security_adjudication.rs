@@ -957,8 +957,8 @@ mod tests {
         let candidates = scanner_candidates(&root, "legacy.security.sast", &result);
 
         // A candidate left without a verdict, or closed twice, is rejected.
-        let missing = adjudicate_scanner_candidates(&candidates, &[tp_verdict("cand-sql")], "d")
-            .unwrap_err();
+        let missing =
+            adjudicate_scanner_candidates(&candidates, &[tp_verdict("cand-sql")], "d").unwrap_err();
         assert!(missing.contains("missing: cand-doc"), "{missing}");
         let duplicate = adjudicate_scanner_candidates(
             &candidates,
@@ -974,8 +974,9 @@ mod tests {
         // A surviving verdict without proof does not clear the evidentiary bar.
         let mut unproven = tp_verdict("cand-sql");
         unproven.as_object_mut().unwrap().remove("proof");
-        let weak = adjudicate_scanner_candidates(&candidates, &[unproven, fp_verdict("cand-doc")], "d")
-            .unwrap_err();
+        let weak =
+            adjudicate_scanner_candidates(&candidates, &[unproven, fp_verdict("cand-doc")], "d")
+                .unwrap_err();
         assert!(weak.contains("requires proof"), "{weak}");
 
         let verdicts = adjudicate_scanner_candidates(

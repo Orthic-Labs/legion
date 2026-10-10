@@ -480,8 +480,7 @@ fn build_invocation(
         scanner_candidates,
         paths.len(),
     );
-    let excerpts = excerpt_set
-        .map(|set| serde_json::to_value(set.excerpts).unwrap_or(Value::Null));
+    let excerpts = excerpt_set.map(|set| serde_json::to_value(set.excerpts).unwrap_or(Value::Null));
     // Scanner candidates for the adjudicator: one verdict per candidate.
     // `null` means the caller did not supply scanner results (unknown, not
     // "none"); ingest then refuses to treat the lens as covered.

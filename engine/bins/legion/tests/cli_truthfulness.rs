@@ -54,7 +54,12 @@ fn hooks_status_reads_host_configs_from_an_isolated_home() {
         .args(["--json", "hooks", "status"])
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let value = output_json(&output);
     assert_eq!(value["kind"], "legion-hooks-status");
     assert_eq!(value["registered"], false);
@@ -75,7 +80,12 @@ fn fix_defaults_to_dry_run_and_mcp_install_previews() {
             .unwrap()
     };
     let fix = run(&["--json", "fix"]);
-    assert_eq!(fix.status.code(), Some(0), "{}", String::from_utf8_lossy(&fix.stderr));
+    assert_eq!(
+        fix.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&fix.stderr)
+    );
     let value = output_json(&fix);
     assert_eq!(value["kind"], "legion-fix");
     assert_eq!(value["dryRun"], true);

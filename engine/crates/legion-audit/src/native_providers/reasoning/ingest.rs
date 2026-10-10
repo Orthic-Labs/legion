@@ -337,7 +337,9 @@ fn packet_coverage(
     candidates_supplied: bool,
 ) -> PacketCoverage {
     let expected = denominator_paths.len() as u64;
-    let coverage = packet.get("excerptCoverage").filter(|value| value.is_object());
+    let coverage = packet
+        .get("excerptCoverage")
+        .filter(|value| value.is_object());
     let basis = coverage
         .and_then(|value| value.get("basis"))
         .and_then(Value::as_str)
@@ -688,7 +690,10 @@ pub fn ingest_lens_result(
                 let verdicts =
                     adjudicate_scanner_candidates(&candidates, &submitted_verdicts, &packet_digest)
                         .map_err(|error| invalid(format!("{who}: {error}")))?;
-                for verdict in verdicts.iter().filter(|verdict| verdict.verdict.is_surviving()) {
+                for verdict in verdicts
+                    .iter()
+                    .filter(|verdict| verdict.verdict.is_surviving())
+                {
                     let finding_id = format!("adjudicated:{}", verdict.candidate_id);
                     if !seen_ids.contains(&finding_id) {
                         return Err(invalid(format!(

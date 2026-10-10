@@ -147,7 +147,9 @@ pub fn evaluate(root: &Path, files: &[String], bundles: &[String]) -> Summary {
                     Outcome::RequiresModel => entry.requires_model += 1,
                     Outcome::Fail(why) => {
                         entry.failed += 1;
-                        summary.mismatches.push(format!("{rel}: {array}/{id}: {why}"));
+                        summary
+                            .mismatches
+                            .push(format!("{rel}: {array}/{id}: {why}"));
                     }
                 }
             }
@@ -277,7 +279,10 @@ mod tests {
     fn namespaced_alias_and_bundle_filter() {
         assert_eq!(alias_name("/legion:alpha x").as_deref(), Some("alpha"));
         assert_eq!(alias_name("no alias"), None);
-        let (dir, files) = setup("filter", r#"{"id":"a","prompt":"/zzz","expected_skill":"alpha"}"#);
+        let (dir, files) = setup(
+            "filter",
+            r#"{"id":"a","prompt":"/zzz","expected_skill":"alpha"}"#,
+        );
         let s = evaluate(&dir, &files, &["other".to_string()]);
         let _ = fs::remove_dir_all(&dir);
         assert!(s.bundles.is_empty());
