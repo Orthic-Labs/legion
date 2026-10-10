@@ -191,9 +191,7 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
             })
             .unwrap_or_else(|| application.provider_specs())
             .into_iter()
-            .filter(|provider| {
-                planned_ids.is_empty() || planned_ids.contains(provider.id.as_str())
-            })
+            .filter(|provider| planned_ids.is_empty() || planned_ids.contains(provider.id.as_str()))
             .collect::<Vec<_>>();
         let verification = application
             .invoke_with_cancellation(
