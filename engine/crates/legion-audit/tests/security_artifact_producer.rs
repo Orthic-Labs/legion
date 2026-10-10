@@ -208,6 +208,8 @@ fn lockfile_inventory_lists_planted_dependencies() {
     assert!(gaps.contains("supply-chain-provenance-invalid"), "{gaps}");
 }
 
+// The stub scanner is a `#!/bin/sh` script; Windows cannot execute it as `opengrep`.
+#[cfg(unix)]
 #[test]
 fn stub_scanner_on_path_is_run_and_its_receipt_recorded() {
     let root = fixture("stub-root");

@@ -58,6 +58,27 @@ impl SecurityProviderExecutor {
         Self::analyze_input(provider, &input)
     }
 
+    /// The provider's frozen selector denominator as (digest, count): the plan's
+    /// recorded values when present, else recomputed from the inventory.
+    fn frozen_denominator(
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+    ) -> Option<(String, u64)> {
+        let selector = provider.configuration.get("selector")?;
+        let computed = inventory.denominator_entries(selector).ok()?;
+        let digest = provider
+            .configuration
+            .get("denominatorDigest")
+            .and_then(Value::as_str)
+            .map_or(computed.digest, str::to_owned);
+        let count = provider
+            .configuration
+            .get("denominatorCount")
+            .and_then(Value::as_u64)
+            .unwrap_or(computed.entries.len() as u64);
+        Some((digest, count))
+    }
+
     fn analyze_input(provider: &AuditProvider, input: &Value) -> Option<Value> {
         let input = input.clone();
         Some(match provider.id.as_str() {
@@ -112,7 +133,27 @@ impl ProviderExecutor for SecurityProviderExecutor {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
+        // Coverage must be bound to the provider's frozen denominator. Host-injected
+        // artifacts keep their own counts (the host froze them); a produced
+        // artifact is scoped by the producer, so it is reconciled to the frozen
+        // selector denominator and only complete when both agree exactly.
+        let produced_artifact = produced.is_some();
+        let frozen = Self::frozen_denominator(provider, inventory);
+        let (expected, examined) = match (&frozen, produced_artifact) {
+            (Some((_, count)), true) if expected > 0 => (*count, examined.min(*count)),
+            _ => (expected, examined),
+        };
+        let analysis_expected = analysis
+            .get("denominator")
+            .and_then(|d| d.get("expected"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let reconciled = !produced_artifact
+            || frozen
+                .as_ref()
+                .is_some_and(|(_, count)| *count == analysis_expected);
         let complete = analysis.get("complete").and_then(Value::as_bool) == Some(true)
+            && reconciled
             && expected == examined
             && expected > 0
             && gaps.is_empty();
@@ -135,8 +176,9 @@ impl ProviderExecutor for SecurityProviderExecutor {
             .configuration
             .get("denominatorDigest")
             .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_owned();
+            .map(str::to_owned)
+            .or_else(|| frozen.as_ref().map(|(digest, _)| digest.clone()))
+            .unwrap_or_default();
         let coverage = (expected > 0).then_some(Coverage {
             denominator_digest,
             expected,

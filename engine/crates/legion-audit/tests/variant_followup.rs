@@ -14,8 +14,8 @@ use std::{
 use legion_audit::native_providers::reasoning::{
     followup::{compile_followup, FOLLOWUP_DIR, FROZEN_PLAN_FILE, VARIANT_PROVIDER_ID},
     ingest::{create_epoch, ingest_lens_result, recompute_run, EPOCH_KEY_FILE},
-    pending_lens_work_with_candidates, PendingLensWork, ReasoningProviderExecutor,
-    ScannerCandidate, ADJUDICATOR_PROVIDER_ID,
+    pending_lens_work_with_candidates, scanner_candidates_from_execution, PendingLensWork,
+    ReasoningProviderExecutor, ADJUDICATOR_PROVIDER_ID,
 };
 use legion_audit::{
     canonical_report, execute, AuditError, AuditPlan, AuditProvider, FilesystemInventorySource,
@@ -26,6 +26,7 @@ use legion_contracts::{
 };
 use serde_json::{json, Value};
 
+const SCANNER_PROVIDER_ID: &str = "fixture.scanner";
 const KEY: &[u8] = b"variant-followup-fixture-signing-key";
 const DB_SOURCE: &str = "fn run(q: &str) {\n    db.execute(&format!(\"select {q}\"));\n}\n";
 const DB_ANCHOR: &str = "db.execute(&format!(\"select {q}\"));";
@@ -45,21 +46,24 @@ fn temp_dir(name: &str) -> PathBuf {
     fs::canonicalize(dir).unwrap()
 }
 
-fn spec(id: &str, runner: Value, role: &str, lenses: &[&str], selector: Value) -> ProviderSpec {
+/// A hand-built candidate generator. Every non-deterministic provider must name
+/// its lenses (`reasoning providers require explicit lens identifiers`), so it
+/// carries `security` like the registry's security scanners do.
+fn scanner_spec() -> ProviderSpec {
     ProviderSpec {
         schema_version: 2,
-        id: ProviderId::new(id).unwrap(),
+        id: ProviderId::new(SCANNER_PROVIDER_ID).unwrap(),
         provider_version: "1.0.0".into(),
         family: "fixture".into(),
-        lens_ids: lenses.iter().map(|lens| (*lens).to_owned()).collect(),
-        role: role.into(),
+        lens_ids: vec!["security".into()],
+        role: "candidate-generator".into(),
         phase: "source".into(),
         depends_on: Vec::new(),
         consumes: vec!["repository-inventory".into()],
-        produces: vec!["provider-result".into()],
-        selector,
+        produces: vec!["security-candidates".into()],
+        selector: json!({"op":"always"}),
         denominator_kind: "first-party-source-files".into(),
-        runner,
+        runner: json!({"kind":"built-in"}),
         host_capabilities: Vec::new(),
         execution: json!({}),
         reasoning: json!({}),
@@ -71,36 +75,60 @@ fn spec(id: &str, runner: Value, role: &str, lenses: &[&str], selector: Value) -
     }
 }
 
-fn scanner_spec() -> ProviderSpec {
-    spec(
-        "fixture.scanner",
-        json!({"kind":"built-in"}),
-        "candidate-generator",
-        &[],
-        json!({"op":"always"}),
-    )
+/// The shipped registry entry for `id`, exactly as production freezes it.
+fn registry_spec(id: &str) -> ProviderSpec {
+    let raw = fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/providers.json"
+    ))
+    .unwrap();
+    let registry: Value = serde_json::from_str(&raw).unwrap();
+    let entry = registry["providers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|provider| provider["id"] == id)
+        .unwrap_or_else(|| panic!("{id} is not in the shipped registry"))
+        .clone();
+    serde_json::from_value(entry).unwrap()
 }
 
 fn adjudication_spec() -> ProviderSpec {
-    spec(
-        ADJUDICATOR_PROVIDER_ID,
-        json!({"kind":"reasoning-contract","contract":"security-adjudication-v1"}),
-        "adjudicator",
-        &["security"],
-        json!({"op":"securityCandidatesSelected"}),
-    )
+    registry_spec(ADJUDICATOR_PROVIDER_ID)
 }
 
 /// The registry's variant provider: frozen with an empty `confirmedSecurityFinding`
 /// denominator in the parent plan.
 fn variant_spec() -> ProviderSpec {
-    spec(
-        VARIANT_PROVIDER_ID,
-        json!({"kind":"reasoning-contract","contract":"security-variant-analysis-v1"}),
-        "variant-analysis",
-        &["security"],
-        json!({"op":"confirmedSecurityFinding"}),
-    )
+    registry_spec(VARIANT_PROVIDER_ID)
+}
+
+/// Candidate generators may not emit findings; they raise candidates under
+/// `details.candidates` ({id, ruleId, claim, severityHint, evidence:[{file,line}]}).
+fn scanner_details(provider: &str) -> BTreeMap<String, Value> {
+    let mut details = BTreeMap::new();
+    if provider == SCANNER_PROVIDER_ID {
+        details.insert(
+            "candidates".into(),
+            json!([
+                {
+                    "id": "cand-sql",
+                    "ruleId": "sql-concat",
+                    "claim": "query built by interpolation",
+                    "severityHint": "high",
+                    "evidence": [{"file": "src/db.rs", "line": 2}],
+                },
+                {
+                    "id": "cand-doc",
+                    "ruleId": "todo-marker",
+                    "claim": "marker",
+                    "severityHint": "low",
+                    "evidence": [{"file": "src/other.rs", "line": 1}],
+                },
+            ]),
+        );
+    }
+    details
 }
 
 struct Fixture {
@@ -134,7 +162,7 @@ impl ProviderExecutor for Fixture {
             findings: Vec::new(),
             coverage_gaps: Vec::new(),
             degradation: Vec::new(),
-            details: BTreeMap::new(),
+            details: scanner_details(&provider.id),
         })
     }
 
@@ -191,28 +219,9 @@ fn setup(name: &str) -> Run {
     assert_eq!(execution.pending_host, vec![ADJUDICATOR_PROVIDER_ID]);
     let report = canonical_report(&repository, &execution).unwrap();
 
-    let candidates = vec![
-        ScannerCandidate {
-            finding_id: "cand-sql".into(),
-            provider: "fixture.scanner".into(),
-            rule: "sql-concat".into(),
-            severity: "high".into(),
-            path: Some("src/db.rs".into()),
-            line: Some(2),
-            message: "query built by interpolation".into(),
-            evidence_excerpt: Some(DB_ANCHOR.into()),
-        },
-        ScannerCandidate {
-            finding_id: "cand-doc".into(),
-            provider: "fixture.scanner".into(),
-            rule: "todo-marker".into(),
-            severity: "low".into(),
-            path: Some("src/other.rs".into()),
-            line: Some(1),
-            message: "marker".into(),
-            evidence_excerpt: None,
-        },
-    ];
+    let candidates = scanner_candidates_from_execution(&root, &plan, &execution);
+    assert_eq!(candidates.len(), 2, "{candidates:?}");
+    assert_eq!(candidates[1].evidence_excerpt.as_deref(), Some(DB_ANCHOR));
     let adjudication =
         pending_lens_work_with_candidates(&root, &plan, &inventory, Some(&candidates))
             .unwrap()
