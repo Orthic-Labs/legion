@@ -102,11 +102,11 @@
     "windows:qualify": "bash scripts/cargo.sh run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- qualify-windows-release"
   },
   "dependencies": {
-    "@rightkit/hooks": "0.1.1"
+    "@rightkit/hooks": "0.1.2"
   },
   "devDependencies": {
     "@rightkit/ax": "0.2.4",
-    "@rightkit/git": "0.2.24",
-    "@rightkit/release": "0.2.109"
+    "@rightkit/git": "0.2.33",
+    "@rightkit/release": "0.2.145"
   }
 }
