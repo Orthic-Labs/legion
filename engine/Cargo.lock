@@ -1958,7 +1958,7 @@ checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 
 [[package]]
 name = "legion"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "clap",
  "hex",
@@ -1995,7 +1995,7 @@ dependencies = [
 
 [[package]]
 name = "legion-apple"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "brotli",
  "futures-util",
@@ -2014,7 +2014,7 @@ dependencies = [
 
 [[package]]
 name = "legion-application"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "async-trait",
  "legion-audit",
@@ -2034,7 +2034,7 @@ dependencies = [
 
 [[package]]
 name = "legion-arcane"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "hmac 0.13.0",
@@ -2048,7 +2048,7 @@ dependencies = [
 
 [[package]]
 name = "legion-audit"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "async-trait",
  "headless_chrome",
@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "legion-catalog"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "legion-contracts",
  "serde",
@@ -2084,7 +2084,7 @@ dependencies = [
 
 [[package]]
 name = "legion-contracts"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "serde",
@@ -2095,7 +2095,7 @@ dependencies = [
 
 [[package]]
 name = "legion-decisions"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "legion-contracts",
  "regex",
@@ -2107,7 +2107,7 @@ dependencies = [
 
 [[package]]
 name = "legion-dev"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "brotli",
  "clap",
@@ -2125,7 +2125,7 @@ dependencies = [
 
 [[package]]
 name = "legion-effects"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "legion-contracts",
@@ -2140,7 +2140,7 @@ dependencies = [
 
 [[package]]
 name = "legion-handoff"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "async-trait",
  "hex",
@@ -2157,7 +2157,7 @@ dependencies = [
 
 [[package]]
 name = "legion-harness"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "legion-runtime",
  "regex",
@@ -2169,7 +2169,7 @@ dependencies = [
 
 [[package]]
 name = "legion-hook"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "legion-application",
  "legion-contracts",
@@ -2181,7 +2181,7 @@ dependencies = [
 
 [[package]]
 name = "legion-host"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "directories-next",
  "legion-catalog",
@@ -2194,7 +2194,7 @@ dependencies = [
 
 [[package]]
 name = "legion-mcp"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "legion-application",
  "legion-contracts",
@@ -2205,7 +2205,7 @@ dependencies = [
 
 [[package]]
 name = "legion-minimize"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "legion-runtime",
@@ -2218,7 +2218,7 @@ dependencies = [
 
 [[package]]
 name = "legion-policy"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "legion-contracts",
@@ -2233,7 +2233,7 @@ dependencies = [
 
 [[package]]
 name = "legion-policy-model"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "legion-contracts",
  "serde",
@@ -2243,7 +2243,7 @@ dependencies = [
 
 [[package]]
 name = "legion-provider-sdk"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -2262,7 +2262,7 @@ dependencies = [
 
 [[package]]
 name = "legion-report"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "legion-contracts",
  "serde_json",
@@ -2270,7 +2270,7 @@ dependencies = [
 
 [[package]]
 name = "legion-research"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "hmac 0.13.0",
@@ -2288,7 +2288,7 @@ dependencies = [
 
 [[package]]
 name = "legion-review"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "icu_normalizer",
@@ -2306,7 +2306,7 @@ dependencies = [
 
 [[package]]
 name = "legion-rules"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "legion-contracts",
@@ -2321,7 +2321,7 @@ dependencies = [
 
 [[package]]
 name = "legion-runtime"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "async-trait",
  "headless_chrome",
@@ -2348,7 +2348,7 @@ dependencies = [
 
 [[package]]
 name = "legion-topology"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "hex",
  "regex",
@@ -2360,7 +2360,7 @@ dependencies = [
 
 [[package]]
 name = "legion-workspace-tests"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "legion-contracts",
  "legion-effects",
@@ -4976,7 +4976,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.3.21"
+version = "0.3.22"
 dependencies = [
  "clap",
  "hex",

@@ -172,11 +172,34 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     if errors.is_empty() {
         let signing_key = verification_key(&root)?;
         let application = super::audit::audit_application_for(&repository_id)?;
+        // Verify against the providers this run froze, not every configured
+        // one: selection (`--only`/`--skip`, applicability) is part of the plan.
+        let planned_ids = plan
+            .get("providers")
+            .and_then(Value::as_array)
+            .map(|ids| {
+                ids.iter()
+                    .filter_map(Value::as_str)
+                    .collect::<std::collections::BTreeSet<_>>()
+            })
+            .unwrap_or_default();
+        let providers = plan
+            .get("providerSpecs")
+            .cloned()
+            .and_then(|specs| {
+                serde_json::from_value::<Vec<legion_contracts::ProviderSpec>>(specs).ok()
+            })
+            .unwrap_or_else(|| application.provider_specs())
+            .into_iter()
+            .filter(|provider| {
+                planned_ids.is_empty() || planned_ids.contains(provider.id.as_str())
+            })
+            .collect::<Vec<_>>();
         let verification = application
             .invoke_with_cancellation(
                 legion_application::NativeOperation::VerifyRequest {
                     repository_id: repository_id.clone(),
-                    providers: application.provider_specs(),
+                    providers,
                     signing_key: Some(signing_key),
                     facts: facts.clone(),
                     plan: plan.clone(),
