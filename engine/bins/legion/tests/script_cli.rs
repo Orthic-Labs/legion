@@ -383,7 +383,10 @@ fn native_script_handoff_validate_handoff_requires_receipt_mode() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos(),
-    { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+        {
+            static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0);
+            NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+        }
     ));
     std::fs::write(&path, "not a real handoff\n").unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
@@ -411,7 +414,10 @@ fn native_script_handoff_transcript_handoff_bootstrap_no_session_fails() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos(),
-    { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+        {
+            static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0);
+            NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+        }
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
@@ -667,7 +673,10 @@ fn native_script_foundation_validate_atom_report_passes_clean_report() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos(),
-    { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+        {
+            static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0);
+            NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+        }
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let report = dir.join("report.md");
@@ -794,7 +803,10 @@ fn native_script_continuity_roundtrip_and_tamper_rejection() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos(),
-    { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+        {
+            static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0);
+            NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+        }
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let home = dir.as_path();

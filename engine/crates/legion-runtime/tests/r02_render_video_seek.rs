@@ -92,7 +92,10 @@ fn full_orchestration_runs_against_fakes() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos(),
-    { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+        {
+            static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0);
+            NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+        }
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     let html = tmp.join("anim.html");

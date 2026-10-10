@@ -296,7 +296,11 @@ mod tests {
             let dir = std::env::temp_dir().join(format!(
                 "legion-skillrefs-{label}-{}-{nonce}-{}",
                 std::process::id(),
-                { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+                {
+                    static NEXT: ::std::sync::atomic::AtomicU64 =
+                        ::std::sync::atomic::AtomicU64::new(0);
+                    NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+                }
             ));
             fs::create_dir_all(&dir).unwrap();
             Self(dir)

@@ -10,7 +10,10 @@ fn languages_scans_the_path_argument_not_the_cwd() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos(),
-    { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+        {
+            static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0);
+            NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+        }
     ));
     let repo = base.join("repo");
     let elsewhere = base.join("elsewhere");

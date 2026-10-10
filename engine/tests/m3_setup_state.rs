@@ -24,7 +24,15 @@ impl TempRoot {
         let temp_dir = std::env::temp_dir();
         #[cfg(unix)]
         let temp_dir = fs::canonicalize(temp_dir).expect("physical temp directory");
-        Self(temp_dir.join(format!("legion-m3-{label}-{}-{nonce}-{}", std::process::id(), { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) })))
+        Self(temp_dir.join(format!(
+            "legion-m3-{label}-{}-{nonce}-{}",
+            std::process::id(),
+            {
+                static NEXT: ::std::sync::atomic::AtomicU64 =
+                    ::std::sync::atomic::AtomicU64::new(0);
+                NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+            }
+        )))
     }
 
     fn path(&self) -> &Path {

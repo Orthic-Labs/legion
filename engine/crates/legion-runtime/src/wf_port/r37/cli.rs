@@ -322,7 +322,11 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos(),
-        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+            {
+                static NEXT: ::std::sync::atomic::AtomicU64 =
+                    ::std::sync::atomic::AtomicU64::new(0);
+                NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+            }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let mut args = parse_args(&a(&[
@@ -345,7 +349,11 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos(),
-        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+            {
+                static NEXT: ::std::sync::atomic::AtomicU64 =
+                    ::std::sync::atomic::AtomicU64::new(0);
+                NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+            }
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let mut args = parse_args(&a(&[

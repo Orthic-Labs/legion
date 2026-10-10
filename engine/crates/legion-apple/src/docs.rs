@@ -901,7 +901,10 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let root = std::env::temp_dir().join(format!("legion-docs-{stamp}-{}.docset", { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }));
+        let root = std::env::temp_dir().join(format!("legion-docs-{stamp}-{}.docset", {
+            static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0);
+            NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+        }));
         let resources = root.join("Contents/Resources");
         let documents = resources.join("Documents");
         fs::create_dir_all(documents.join("fs")).unwrap();

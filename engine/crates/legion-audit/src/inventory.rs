@@ -947,7 +947,11 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos(),
-        { static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0); NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed) }
+            {
+                static NEXT: ::std::sync::atomic::AtomicU64 =
+                    ::std::sync::atomic::AtomicU64::new(0);
+                NEXT.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
+            }
         ));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("src")).unwrap();
