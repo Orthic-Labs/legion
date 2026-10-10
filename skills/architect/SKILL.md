@@ -12,7 +12,8 @@ operations:
 effects:
   - source-read
   - artifact-write
-hostRequirements: []
+hostRequirements:
+  - rightkit-owns
 ---
 
 # Architect
@@ -51,7 +52,9 @@ the triggered method only. Reopen only on a material delta with cause, scope, an
 Before proposing new components or dependencies, read the host-declared shared-capability index
 (session-injected ownership index or host-declared lookup command) and the workspace/repository
 agent rules, then decide reuse owner → extend owner → build new. Building new, or adding a
-third-party dependency for a capability the index declares, needs a recorded reason. If the host
+third-party dependency for a capability the index declares, needs a recorded reason. When the host provides `rightkit owns --compact`, start every design from its full output:
+name the owner for each capability, integrate owners, and design only the gaps. Carry that output
+into the tasklist's RightKit Capabilities block. If the host
 declares no index, say so and proceed. Detail: `doctrine/architecture/workflow/01-frame.md`.
 
 ## Current-state entrypoint

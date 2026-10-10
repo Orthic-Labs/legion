@@ -222,6 +222,21 @@
       "summary": "Optional AppStoreConnectCLI adapter for specifically authorized App Store Connect operations.",
       "degradation": "Return local release preparation and name the unperformed account/upload/submission operation; never install, authenticate, or publish automatically.",
       "remedy": "Use an existing compatible authorized CLI/account workflow; credentials and consequential actions remain governed by live permission. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations."
+    },
+    "rightkit-owns": {
+      "kind": "command-line-provider",
+      "summary": "RightKit shared-capability ownership index (`rightkit owns --compact`) that Architect starts designs from and Tasklist pastes into its RightKit Capabilities block.",
+      "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
+      "probe": {
+        "kind": "command-any",
+        "commands": [
+          "rightkit"
+        ]
+      },
+      "commands": [
+        "rightkit"
+      ],
+      "remedy": "Install RightKit so `rightkit owns --compact` is on PATH."
     }
   }
 }
