@@ -855,9 +855,12 @@ mod tests {
 
     fn scanner_fixture() -> (std::path::PathBuf, ProviderResult) {
         use legion_contracts::{FindingId, FindingRef, ProviderId, ProviderStatus};
+        // Parallel tests share the process id; the counter keeps fixtures apart.
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(
-            "legion-adjudication-candidates-{}",
-            std::process::id()
+            "legion-adjudication-candidates-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("src")).unwrap();
