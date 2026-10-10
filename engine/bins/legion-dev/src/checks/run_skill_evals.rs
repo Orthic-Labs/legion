@@ -73,7 +73,17 @@ enum Outcome {
     Skip,
 }
 
-fn evaluate_case(case: &Value, known: &BTreeSet<String>) -> Outcome {
+/// `skills/<parent>/specialists/<branch>/evals/..` → `(parent, branch)`.
+/// A specialist is a branch of its parent skill, not a skill of its own, so
+/// an alias resolves to the parent and the fixture names the branch.
+fn specialist_of(path: &str) -> Option<(&str, &str)> {
+    let rest = path.strip_prefix("skills/")?;
+    let (parent, rest) = rest.split_once("/specialists/")?;
+    let (branch, _) = rest.split_once("/evals/")?;
+    (!parent.contains('/') && !branch.contains('/')).then_some((parent, branch))
+}
+
+fn evaluate_case(case: &Value, known: &BTreeSet<String>, rel: &str) -> Outcome {
     let Some(prompt) = case.get("prompt").and_then(Value::as_str) else {
         return Outcome::Skip;
     };
@@ -96,7 +106,12 @@ fn evaluate_case(case: &Value, known: &BTreeSet<String>) -> Outcome {
         }
     }
     match expected {
-        Some(Value::String(want)) if selected.as_deref() != Some(want.as_str()) => {
+        Some(Value::String(want))
+            if selected.as_deref() != Some(want.as_str())
+                && !specialist_of(rel).is_some_and(|(parent, branch)| {
+                    want == branch && selected.as_deref() == Some(parent)
+                }) =>
+        {
             Outcome::Fail(format!(
                 "expected `{want}`, router selected {}",
                 selected.map_or("nothing".to_string(), |s| format!("`{s}`"))
@@ -141,7 +156,7 @@ pub fn evaluate(root: &Path, files: &[String], bundles: &[String]) -> Summary {
             };
             for case in cases {
                 let id = case.get("id").and_then(Value::as_str).unwrap_or("?");
-                match evaluate_case(case, &known) {
+                match evaluate_case(case, &known, rel) {
                     Outcome::Pass => entry.passed += 1,
                     Outcome::Skip => entry.skipped += 1,
                     Outcome::RequiresModel => entry.requires_model += 1,
