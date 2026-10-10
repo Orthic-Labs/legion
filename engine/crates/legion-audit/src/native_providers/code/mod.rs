@@ -16,9 +16,9 @@ use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
 use legion_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
+use legion_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
-use legion_provider_sdk::ExternalProjectTool;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -109,8 +109,8 @@ impl ProviderExecutorAdapter {
         scratch: Arc<AuditScratch>,
         cancellation: CancellationToken,
     ) -> Result<ProviderResult, AuditError> {
-        let injected = provider.configuration.contains_key("input")
-            || self.inputs.contains_key(&provider.id);
+        let injected =
+            provider.configuration.contains_key("input") || self.inputs.contains_key(&provider.id);
         let Some(config) = evidence::config_for(&provider.id) else {
             return self.execute_with(provider, inventory, None);
         };
@@ -123,10 +123,11 @@ impl ProviderExecutorAdapter {
             .cloned()
             .unwrap_or_else(|| json!({"op": "always"}));
         let denominator = inventory.denominator_entries(&selector)?;
-        let selected_paths: BTreeSet<String> = evidence::select_entries(config, &denominator.entries)
-            .iter()
-            .map(|entry| entry.path.clone())
-            .collect();
+        let selected_paths: BTreeSet<String> =
+            evidence::select_entries(config, &denominator.entries)
+                .iter()
+                .map(|entry| entry.path.clone())
+                .collect();
         let root = self.root.clone().or_else(|| std::env::current_dir().ok());
         let Some(root) = root.filter(|_| !selected_paths.is_empty()) else {
             return self.execute_with(provider, inventory, None);

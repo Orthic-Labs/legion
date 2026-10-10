@@ -1044,7 +1044,9 @@ fn accepted_exit_codes(check: &str) -> BTreeSet<i32> {
     }
 }
 
-pub(crate) fn audit_environment(scratch: &AuditScratch) -> (BTreeMap<String, String>, BTreeSet<String>) {
+pub(crate) fn audit_environment(
+    scratch: &AuditScratch,
+) -> (BTreeMap<String, String>, BTreeSet<String>) {
     let names = [
         "PATH",
         "PATHEXT",

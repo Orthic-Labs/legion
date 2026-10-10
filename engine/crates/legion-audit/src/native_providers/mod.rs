@@ -160,7 +160,14 @@ impl ProviderExecutor for NativeProviderRegistry {
                 let scratch = self.legacy_checks.scratch()?;
                 return self
                     .code
-                    .execute_async(plan, provider, inventory, tool.clone(), scratch, cancellation)
+                    .execute_async(
+                        plan,
+                        provider,
+                        inventory,
+                        tool.clone(),
+                        scratch,
+                        cancellation,
+                    )
                     .await;
             }
         }

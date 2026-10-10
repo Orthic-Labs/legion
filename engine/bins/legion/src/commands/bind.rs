@@ -452,10 +452,22 @@ mod role_binding_tests {
 
     #[test]
     fn tier_models_come_from_the_single_map_and_a_missing_codex_entry_yields_none() {
-        assert_eq!(codex_tier_model("frontier-judgment").as_deref(), Some("gpt-6.1-sol"));
-        assert_eq!(codex_tier_model("balanced-executor").as_deref(), Some("gpt-6-luna"));
-        assert_eq!(codex_tier_model("mechanical-cheap").as_deref(), Some("gpt-6-luna"));
-        assert_eq!(codex_tier_model("deliberation").as_deref(), Some("gpt-6-astra"));
+        assert_eq!(
+            codex_tier_model("frontier-judgment").as_deref(),
+            Some("gpt-6.1-sol")
+        );
+        assert_eq!(
+            codex_tier_model("balanced-executor").as_deref(),
+            Some("gpt-6-luna")
+        );
+        assert_eq!(
+            codex_tier_model("mechanical-cheap").as_deref(),
+            Some("gpt-6-luna")
+        );
+        assert_eq!(
+            codex_tier_model("deliberation").as_deref(),
+            Some("gpt-6-astra")
+        );
         assert_eq!(codex_tier_model("no-such-tier"), None);
         let claude_only = r#"{"tiers":{"x":{"hosts":{"claude-code":"opus"}}}}"#;
         assert_eq!(codex_tier_model_from(claude_only, "x"), None);
@@ -466,7 +478,10 @@ mod role_binding_tests {
     fn council_seat_uses_deliberation_model_unless_the_host_file_sets_one() {
         let f = Fixture::new();
         let root = f.0.join("project/deep");
-        assert_eq!(council_seat_codex_model(&root).as_deref(), Some("gpt-6-astra"));
+        assert_eq!(
+            council_seat_codex_model(&root).as_deref(),
+            Some("gpt-6-astra")
+        );
         let seat = |root: &Path| {
             codex_targets(root)
                 .into_iter()
@@ -479,7 +494,10 @@ mod role_binding_tests {
             "project/deep/.codex/agents/council-seat.toml",
             "model = 'operator-seat'\n",
         );
-        assert_eq!(council_seat_codex_model(&root).as_deref(), Some("operator-seat"));
+        assert_eq!(
+            council_seat_codex_model(&root).as_deref(),
+            Some("operator-seat")
+        );
         let preserved = seat(&root);
         assert!(preserved.contains("\nmodel = \"operator-seat\"\n"));
         assert!(!preserved.contains("gpt-6-astra"));
@@ -506,11 +524,17 @@ mod role_binding_tests {
         );
 
         // The operator's model survives the rename.
-        assert_eq!(council_seat_codex_model(&root).as_deref(), Some("operator-seat"));
+        assert_eq!(
+            council_seat_codex_model(&root).as_deref(),
+            Some("operator-seat")
+        );
 
         let codex = build_harness(&root, "codex", None);
         assert_eq!(codex.retired.len(), 1);
-        assert_eq!(codex.report["retiredFiles"][0], ".codex/agents/covenant-seat.toml");
+        assert_eq!(
+            codex.report["retiredFiles"][0],
+            ".codex/agents/covenant-seat.toml"
+        );
         assert_eq!(codex.report["drift"][0]["kind"], "retired-present");
         let config = codex
             .targets
@@ -533,9 +557,13 @@ mod role_binding_tests {
         .unwrap();
         assert_eq!(result["dryRun"], false);
         assert!(!root.join(".codex/agents/covenant-seat.toml").exists());
-        assert!(!root.join(".gemini/commands/legion/covenant-seat.toml").exists());
+        assert!(!root
+            .join(".gemini/commands/legion/covenant-seat.toml")
+            .exists());
         assert!(root.join(".codex/agents/council-seat.toml").is_file());
-        assert!(root.join(".gemini/commands/legion/council-seat.toml").is_file());
+        assert!(root
+            .join(".gemini/commands/legion/council-seat.toml")
+            .is_file());
         assert!(root.join(".claude/agents/covenant-seat.md").is_file());
         let seat = std::fs::read_to_string(root.join(".codex/agents/council-seat.toml")).unwrap();
         assert!(seat.contains("name = \"council-seat\""));
@@ -740,7 +768,11 @@ fn build_harness(root: &Path, name: &str, receipt: Option<&Value>) -> HarnessPla
             }
         }
     }
-    HarnessPlan { targets, report, retired }
+    HarnessPlan {
+        targets,
+        report,
+        retired,
+    }
 }
 
 /// Seat projections Legion generated before the Covenant became the Council. Only a file that

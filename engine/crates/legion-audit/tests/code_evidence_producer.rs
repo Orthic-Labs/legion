@@ -393,7 +393,8 @@ mod real_tools {
     use std::sync::{Arc, Mutex};
     use tokio_util::sync::CancellationToken;
 
-    const CLEAN_RUST: &str = "pub fn add(a: u32, b: u32) -> u32 {\n    a + b\n}\n\npub fn one() -> u32 {\n    1\n}\n";
+    const CLEAN_RUST: &str =
+        "pub fn add(a: u32, b: u32) -> u32 {\n    a + b\n}\n\npub fn one() -> u32 {\n    1\n}\n";
 
     /// Canned `cargo check --message-format=json` output: an error in the
     /// denominator, a warning in the denominator, and an error in a file that
@@ -500,7 +501,11 @@ exit 3
             for entry in fs::read_dir(dir).unwrap() {
                 let path = entry.unwrap().path();
                 let meta = fs::symlink_metadata(&path).unwrap();
-                let relative = path.strip_prefix(root).unwrap().to_string_lossy().into_owned();
+                let relative = path
+                    .strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned();
                 out.insert(format!("{relative}:{}", meta.len()));
                 if meta.is_dir() {
                     walk(&path, root, out);
@@ -513,7 +518,10 @@ exit 3
     }
 
     const RUST_FILES: &[(&str, &str)] = &[
-        ("Cargo.toml", "[package]\nname = \"fx\"\nversion = \"0.1.0\"\n"),
+        (
+            "Cargo.toml",
+            "[package]\nname = \"fx\"\nversion = \"0.1.0\"\n",
+        ),
         ("src/lib.rs", CLEAN_RUST),
     ];
     const RUST_PATHS: &[&str] = &["Cargo.toml", "src/lib.rs"];
@@ -548,7 +556,10 @@ exit 3
             .iter()
             .map(|finding| {
                 (
-                    evidence[finding.id.as_str()]["ruleId"].as_str().unwrap().to_string(),
+                    evidence[finding.id.as_str()]["ruleId"]
+                        .as_str()
+                        .unwrap()
+                        .to_string(),
                     finding.severity.clone(),
                 )
             })
@@ -589,20 +600,36 @@ exit 3
                 "--message-format=json"
             ]
         );
-        assert!(check["artifactDigest"].as_str().unwrap().starts_with("sha256:"));
-        assert!(check["executableDigest"].as_str().unwrap().starts_with("sha256:"));
+        assert!(check["artifactDigest"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:"));
+        assert!(check["executableDigest"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:"));
 
         // Tool evidence cleared for the tools that ran; typed gaps for the rest.
         let gaps = &result.coverage_gaps;
         for ran in ["metadata", "check"] {
             assert!(
-                !gaps.iter().any(|gap| gap == &format!("code.rust:tool-evidence-gap:{ran}")),
+                !gaps
+                    .iter()
+                    .any(|gap| gap == &format!("code.rust:tool-evidence-gap:{ran}")),
                 "{ran} ran with a receipt: {gaps:?}"
             );
-            assert!(!gaps.iter().any(|gap| gap == &format!("unavailable:tool-missing:{ran}")));
+            assert!(!gaps
+                .iter()
+                .any(|gap| gap == &format!("unavailable:tool-missing:{ran}")));
         }
-        assert_eq!(result.details["nativeAnalysis"]["toolEvidence"][1]["status"], "pass");
-        assert!(gaps.contains(&"unavailable:tool-missing:lint".to_string()), "no cargo-clippy: {gaps:?}");
+        assert_eq!(
+            result.details["nativeAnalysis"]["toolEvidence"][1]["status"],
+            "pass"
+        );
+        assert!(
+            gaps.contains(&"unavailable:tool-missing:lint".to_string()),
+            "no cargo-clippy: {gaps:?}"
+        );
         assert!(gaps.contains(
             &"unavailable:tool-not-run:test:policy-no-project-code-execution".to_string()
         ));
@@ -632,7 +659,9 @@ exit 3
         assert!(result.findings.is_empty());
         for tool in ["metadata", "check", "lint"] {
             assert!(
-                result.coverage_gaps.contains(&format!("unavailable:tool-missing:{tool}")),
+                result
+                    .coverage_gaps
+                    .contains(&format!("unavailable:tool-missing:{tool}")),
                 "{tool}: {:?}",
                 result.coverage_gaps
             );
@@ -685,7 +714,9 @@ exit 3
         );
         for tool in ["metadata", "check"] {
             assert!(
-                result.coverage_gaps.contains(&format!("unavailable:tool-timeout:{tool}")),
+                result
+                    .coverage_gaps
+                    .contains(&format!("unavailable:tool-timeout:{tool}")),
                 "{tool}: {:?}",
                 result.coverage_gaps
             );
@@ -694,7 +725,11 @@ exit 3
         assert!(!result.complete);
 
         let requests = requests.lock().unwrap();
-        assert_eq!(requests.len(), 2, "metadata and check; clippy is not installed");
+        assert_eq!(
+            requests.len(),
+            2,
+            "metadata and check; clippy is not installed"
+        );
         for request in requests.iter() {
             assert!(!request.shell);
             assert_eq!(request.timeout_ms, 777);

@@ -344,10 +344,7 @@ fn native_script_list_includes_handoff_ports() {
         .iter()
         .map(|v| v.as_str().unwrap())
         .collect();
-    for name in [
-        "handoff/validate-handoff",
-        "handoff/transcript-handoff",
-    ] {
+    for name in ["handoff/validate-handoff", "handoff/transcript-handoff"] {
         assert!(scripts.contains(&name), "expected {name} in {scripts:?}");
     }
 }

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.23",
-  "digest": "sha256:1998cff6111c6a18dbde58aee74d0bc46036476b48d81c3d98ebab9301b4cf9c",
+  "digest": "sha256:55d58e444be1f5a62f32c658966592ae00bd674b1cf7eeb1b3d6a76d61047c93",
   "counts": {
     "skills": 28,
     "agents": 4,
