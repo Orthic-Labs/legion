@@ -106,3 +106,21 @@ jobs:
           path: dist/local-windows/installer/*
           retention-days: 7
           if-no-files-found: error
+      - name: Package unsigned dev app (macOS)
+        if: ${{ (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch') && runner.os == 'macOS' }}
+        shell: bash
+        env:
+          DEV_APP_PATH: "dist/dev-macos/Legion Installer.app"
+        run: |
+          set -euo pipefail
+          test -d "$DEV_APP_PATH"
+          mkdir -p "$RUNNER_TEMP/dev-unsigned"
+          ditto -c -k --keepParent "$DEV_APP_PATH" "$RUNNER_TEMP/dev-unsigned/app.zip"
+      - name: Upload unsigned dev app (macOS)
+        if: ${{ (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch') && runner.os == 'macOS' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dev-mac-unsigned-${{ github.sha }}
+          path: ${{ runner.temp }}/dev-unsigned/app.zip
+          retention-days: 7
+          if-no-files-found: error

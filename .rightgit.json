@@ -63,7 +63,9 @@
     "windows": "unsigned",
     "windowsGlob": "dist/local-windows/installer/*",
     "retentionDays": 7,
-    "dispatch": true
+    "dispatch": true,
+    "mac": "unsigned",
+    "macAppPath": "dist/dev-macos/Legion Installer.app"
   },
   "ciAllOs": true,
   "regenerate": {

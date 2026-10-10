@@ -88,6 +88,20 @@ if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
   pwsh -NoProfile -NonInteractive -File scripts/release/local-windows-development.ps1 -BuildOnly
 fi
 
+# Unsigned macOS development installer (formerly macos-development.yml): the
+# same headless installer app the release ships, wrapped around the payload
+# assembled above. The managed ci.yml zips it as dev-mac-unsigned-<sha>.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  dev_app="dist/dev-macos/Legion Installer.app"
+  mkdir -p "$dev_app/Contents/MacOS" "$dev_app/Contents/Resources"
+  swiftc -parse-as-library scripts/release/macos/LegionInstaller.swift -framework Cocoa -o "$dev_app/Contents/MacOS/Legion Installer"
+  cp -R "${RUNNER_TEMP}/legion-install" "$dev_app/Contents/Resources/payload"
+  node -p 'require("./release/version.json").version' > "$dev_app/Contents/Resources/version.txt"
+  /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string Legion Installer' "$dev_app/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.orthiclabs.legion.installer' "$dev_app/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$dev_app/Contents/Info.plist"
+fi
+
 # Known-answer recall gate. The bench scores planted defects against
 # negative controls and fails on any false positive, so a detector that
 # flags everything cannot pass. It was lost when the skill became a
