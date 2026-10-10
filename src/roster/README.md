@@ -1,8 +1,8 @@
 # Legion roster
 
 `roster/{sage,alchemist,oracle}.md` is Legion's sole source for authority identity,
-authority boundary, trigger boundary, & abstract model tiers. `doctrine/covenant-seat.md`
-remains source for Covenant seats; Covenant is not a roster role.
+authority boundary, trigger boundary, & abstract model tiers. `doctrine/council-seat.md`
+remains source for Council seats; Council is not a roster role.
 
 Roster files own identity, authority, tier, and trigger boundary (positive trigger first, exclusions only for the genuinely excluded case). Detailed operating method lives in
 delegated doctrine (`doctrine/{sage,alchemist,oracle}.md` and specialist skill references),

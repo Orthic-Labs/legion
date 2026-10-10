@@ -163,7 +163,7 @@ pub fn check(root: &Path) -> Vec<String> {
         }
     }
 
-    check_covenant_seat(root, &model_tier_map, &mut problems);
+    check_council_seat(root, &model_tier_map, &mut problems);
 
     problems
 }
@@ -175,18 +175,14 @@ fn body_after_frontmatter(path: &Path) -> Result<String, String> {
     Ok(body.replace("\r\n", "\n").trim().to_string())
 }
 
-/// Covenant seat is not a roster role: its doctrine keeps a frontmatter description (the Codex and
+/// Council seat is not a roster role: its doctrine keeps a frontmatter description (the Codex and
 /// Gemini projections read it) and the Claude card must carry the same description, the same body,
 /// and the `deliberation` tier model, which no roster role may share.
-fn check_covenant_seat(
-    root: &Path,
-    model_tier_map: &serde_json::Value,
-    problems: &mut Vec<String>,
-) {
-    let doctrine = root.join("doctrine/covenant-seat.md");
-    let card = root.join("agents/covenant-seat.md");
-    let doctrine_desc = description(&doctrine, "doctrine/covenant-seat.md");
-    let card_desc = description(&card, "agents/covenant-seat.md");
+fn check_council_seat(root: &Path, model_tier_map: &serde_json::Value, problems: &mut Vec<String>) {
+    let doctrine = root.join("doctrine/council-seat.md");
+    let card = root.join("agents/council-seat.md");
+    let doctrine_desc = description(&doctrine, "doctrine/council-seat.md");
+    let card_desc = description(&card, "agents/council-seat.md");
     for d in [&doctrine_desc, &card_desc] {
         if let Some(err) = &d.error {
             problems.push(format!("{}: {err}", d.path));
@@ -195,7 +191,7 @@ fn check_covenant_seat(
     if let (Some(a), Some(b)) = (&doctrine_desc.value, &card_desc.value) {
         if a != b {
             problems.push(format!(
-                "covenant-seat: description drift between doctrine/covenant-seat.md and agents/covenant-seat.md\n  doctrine: {a}\n  card: {b}"
+                "council-seat: description drift between doctrine/council-seat.md and agents/council-seat.md\n  doctrine: {a}\n  card: {b}"
             ));
         }
     }
@@ -206,7 +202,7 @@ fn check_covenant_seat(
         (Ok(a), Ok(b)) => {
             if a != b {
                 problems.push(
-                    "covenant-seat: agents/covenant-seat.md body differs from doctrine/covenant-seat.md body; the card must carry the doctrine body verbatim".to_string(),
+                    "council-seat: agents/council-seat.md body differs from doctrine/council-seat.md body; the card must carry the doctrine body verbatim".to_string(),
                 );
             }
         }
@@ -221,12 +217,12 @@ fn check_covenant_seat(
     let actual = frontmatter_field(&card, "model");
     match deliberation {
         None => problems.push(format!(
-            "covenant-seat: no {MODEL_HOST} model for tier 'deliberation' in src/config/model-tiers.json"
+            "council-seat: no {MODEL_HOST} model for tier 'deliberation' in src/config/model-tiers.json"
         )),
         Some(expected) => {
             if actual.as_deref() != Some(expected) {
                 problems.push(format!(
-                    "covenant-seat: agents/covenant-seat.md model '{}' does not match tiers.deliberation.hosts.{MODEL_HOST} ('{expected}')",
+                    "council-seat: agents/council-seat.md model '{}' does not match tiers.deliberation.hosts.{MODEL_HOST} ('{expected}')",
                     actual.as_deref().unwrap_or("<missing>")
                 ));
             }
@@ -234,7 +230,7 @@ fn check_covenant_seat(
                 let role_model = frontmatter_field(&root.join(format!("agents/{role}.md")), "model");
                 if role_model.as_deref() == Some(expected) {
                     problems.push(format!(
-                        "{role}: agents/{role}.md uses the deliberation model '{expected}', which is reserved for Covenant seats"
+                        "{role}: agents/{role}.md uses the deliberation model '{expected}', which is reserved for Council seats"
                     ));
                 }
             }

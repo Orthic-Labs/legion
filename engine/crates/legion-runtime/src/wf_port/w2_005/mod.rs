@@ -1,10 +1,10 @@
-//! Rust port of `skills/covenant/scripts/validate-external-review-packet.py` and its
-//! engine dependency `skills/covenant/engine/packet-validator.py`.
+//! Rust port of `skills/council/scripts/validate-external-review-packet.py` and its
+//! engine dependency `skills/council/engine/packet-validator.py`.
 //!
 //! `validate-external-review-packet.py` is a thin wrapper: it checks the packet's
-//! `**Mode:**` label carries the canonical `PACKET_ONLY — DO_NOT_RUN_COVENANT` marker
+//! `**Mode:**` label carries the canonical `PACKET_ONLY — DO_NOT_RUN_COUNCIL` marker
 //! before delegating to the engine validator's `validate()`. The engine validator does
-//! the substantive, fail-closed structural/content checks on a Covenant "external review
+//! the substantive, fail-closed structural/content checks on a Council "external review
 //! packet" markdown document (heading order, required labels, unfilled placeholders,
 //! absolute-path/packet-path agreement, evidence bundle substance, banned old-context
 //! phrases, secret-pattern scanning, and response-contract verdict values).
@@ -33,12 +33,12 @@ pub mod validate_atom_report;
 
 /// The canonical `**Mode:**` value a packet must declare. Mirrors
 /// `validate-external-review-packet.py`'s `CANONICAL`.
-pub const CANONICAL_EXTERNAL_MODE: &str = "PACKET_ONLY — DO_NOT_RUN_COVENANT";
+pub const CANONICAL_EXTERNAL_MODE: &str = "PACKET_ONLY — DO_NOT_RUN_COUNCIL";
 
 /// The canonical `**Mode:**` value the engine validator itself checks. Mirrors
 /// `packet-validator.py`'s `CANONICAL_MODE` (identical string; kept as a separate
 /// constant so each layer mirrors its Python source independently).
-pub const CANONICAL_MODE: &str = "PACKET_ONLY — DO_NOT_RUN_COVENANT";
+pub const CANONICAL_MODE: &str = "PACKET_ONLY — DO_NOT_RUN_COUNCIL";
 
 const HEADINGS: &[&str] = &[
     "# EXTERNAL REVIEW PACKET",
@@ -76,7 +76,7 @@ const FORBIDDEN_STORAGE: &[&str] = &[
     "review-run",
     "review-runs",
     ".review-runs",
-    ".covenant-runs",
+    ".council-runs",
     "scratch",
 ];
 
@@ -407,9 +407,9 @@ pub fn validate_packet(
 }
 
 /// Rust port of `validate-external-review-packet.py`'s `validate(text, path, inline,
-/// template=False)`: checks the canonical `PACKET_ONLY — DO_NOT_RUN_COVENANT` mode
+/// template=False)`: checks the canonical `PACKET_ONLY — DO_NOT_RUN_COUNCIL` mode
 /// marker is present anywhere in `text` before delegating to [`validate_packet`]. If the
-/// marker is absent, returns exactly `["Mode must be PACKET_ONLY — DO_NOT_RUN_COVENANT"]`
+/// marker is absent, returns exactly `["Mode must be PACKET_ONLY — DO_NOT_RUN_COUNCIL"]`
 /// without running the deeper structural checks (matching the Python short-circuit).
 pub fn validate_external_review_packet(
     text: &str,
@@ -433,7 +433,7 @@ pub fn run(argv: &[String]) -> i32 {
     let mut inline = false;
     let mut template = false;
     if argv.iter().any(|a| a == "--help" || a == "-h") {
-        println!("usage: legion script covenant/validate-external-review-packet [--inline] [--template-self-check] <packet.md>\nValidate a PACKET_ONLY Covenant external review packet (exit 0 valid, 1 defects, 2 usage/IO).");
+        println!("usage: legion script council/validate-external-review-packet [--inline] [--template-self-check] <packet.md>\nValidate a PACKET_ONLY Council external review packet (exit 0 valid, 1 defects, 2 usage/IO).");
         return 0;
     }
     for arg in argv {
@@ -471,7 +471,7 @@ pub fn run(argv: &[String]) -> i32 {
         }
         return 1;
     }
-    println!("PASS: Covenant packet is zero-context complete & packet-only");
+    println!("PASS: Council packet is zero-context complete & packet-only");
     0
 }
 
@@ -490,7 +490,7 @@ mod tests {
         );
         assert_eq!(
             errors,
-            vec!["Mode must be PACKET_ONLY — DO_NOT_RUN_COVENANT"]
+            vec!["Mode must be PACKET_ONLY — DO_NOT_RUN_COUNCIL"]
         );
     }
 

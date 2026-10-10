@@ -28,11 +28,11 @@
 
     "classification": {
       "enum": ["CLEARLY_SEMANTIC", "POSSIBLY_CONTRACT_SAFE"],
-      "description": "Classification is evidence for routing: material unresolved semantics attach Sage; optional Covenant BLOCKER_CONSULT may challenge a proposed contract-safe resolution."
+      "description": "Classification is evidence for routing: material unresolved semantics attach Sage; optional Council BLOCKER_CONSULT may challenge a proposed contract-safe resolution."
     },
-    "status": { "enum": ["OPEN", "COVENANT_CONSULTED", "AMENDED", "RESOLVED"] },
-    "covenantRequestId": { "type": ["string", "null"], "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
-    "covenantRecordId": { "type": ["string", "null"], "pattern": "^CV-\\d+$" },
+    "status": { "enum": ["OPEN", "COUNCIL_CONSULTED", "AMENDED", "RESOLVED"] },
+    "councilRequestId": { "type": ["string", "null"], "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "councilRecordId": { "type": ["string", "null"], "pattern": "^CV-\\d+$" },
     "amendmentId": { "type": ["string", "null"], "pattern": "^A-\\d+$" },
 
     "raisedBy": { "const": "alchemist", "description": "A governed execution blocker is raised by its Alchemist execution authority." },

@@ -232,7 +232,7 @@
     {
       "path": "references/generate.md",
       "uri": "legion-skill://ads/references/generate.md",
-      "digest": "sha256:634522f3eca92713f9438a29a609769264ebca6f0cd7c6b05323845710d8ead6"
+      "digest": "sha256:bb822b3c87581f832e3063ec658ea64c09572c3c194fbfda80cc616fb82ac35a"
     },
     {
       "path": "references/google-audit.md",
@@ -277,7 +277,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://ads/references/manual.md",
-      "digest": "sha256:d3ecbac24a410faad6c748820206834a4be46f25e86b2f28e1b054fd6886cfb8"
+      "digest": "sha256:bb21493f31e888234a554cf0038e9182b6c4069c0b1b74e4c1110e1d7d87f79a"
     },
     {
       "path": "references/meta-audit.md",

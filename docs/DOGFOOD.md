@@ -52,12 +52,12 @@ ORACLE Completion Validation   (optional: explicit request or concrete outcome/s
 DELIVERY
 ```
 
-### 1.2 The three roles + Covenant (Sage / Alchemist / Oracle / covenant-seat)
+### 1.2 The three roles + Council (Sage / Alchemist / Oracle / council-seat)
 Source: `doctrine/{sage,alchemist,oracle}.md`. Now confirmed shipped as real agents, not just skills:
 
 ```
 $ claude plugin details legion@skills-dir
-Agents (4)  alchemist, covenant-seat, oracle, sage
+Agents (4)  alchemist, council-seat, oracle, sage
 ```
 
 | Role | Owns one question | Source |
@@ -65,12 +65,12 @@ Agents (4)  alchemist, covenant-seat, oracle, sage
 | **Sage** | "Does a material unresolved decision require authoritative closure beyond the selected capability's routine mandate?" | `doctrine/sage.md` |
 | **Alchemist** | "How do I make the already-decided meaning exist?" | `doctrine/alchemist.md` |
 | **Oracle** | "What actually exists, what applies, what is proven, what fails, what remains unknown?" | `doctrine/oracle.md` |
-| **covenant-seat** | one isolated deliberation seat, dispatched only by `/covenant` | not a roster role |
+| **council-seat** | one isolated deliberation seat, dispatched only by `/council` | not a roster role |
 
 ### 1.3 The 26 shipped skills
 `legion skills` and `claude plugin details legion@skills-dir` agree: **26 skills, 4 agents**, exactly:
 ads, alchemist, architect, audit, audit-fix, audit-visual, blueprint, brand, brand-identity,
-commit, covenant, debugger, designer, dispatch, foundation, gotchas, handoff, marketing, oracle, qa,
+commit, council, debugger, designer, dispatch, foundation, gotchas, handoff, marketing, oracle, qa,
 research, seo, social, tasklist, wake, writing.
 
 ---
@@ -84,7 +84,7 @@ research, seo, social, tasklist, wake, writing.
 | 2.3 | `legion` on PATH | `where legion` | `…\current\bin\legion.exe` | `%USERPROFILE%\AppData\Local\Orthic Labs\Legion\current\bin\legion.exe` | PASS |
 | 2.4 | Version | `legion --version` | `0.3.13` | `0.3.13` | PASS |
 | 2.5 | Plugin discovered by Claude Code | `claude plugin list --json` | an entry with `id: "legion@skills-dir"`, `enabled: true` | `{"id":"legion@skills-dir","version":"0.3.13","scope":"user","enabled":true,"installPath":"C:\\Users\\<user>\\.claude\\skills\\legion"}` | **PASS (fixed, was FAIL in the 0.3.12 draft)** |
-| 2.6 | Plugin component inventory | `claude plugin details legion@skills-dir` | Skills (27), Agents (4) | `Skills (27)` … `Agents (4) alchemist, covenant-seat, oracle, sage` | **PASS (fixed)** |
+| 2.6 | Plugin component inventory | `claude plugin details legion@skills-dir` | Skills (27), Agents (4) | `Skills (27)` … `Agents (4) alchemist, council-seat, oracle, sage` | **PASS (fixed)** |
 | 2.7 | Skill loader connected | `legion skills` | lists 27 skills with descriptions, no "not connected" gap | 27 rows printed, each with id + description, no error | **PASS (fixed)** |
 | 2.8 | `--json` honoured | `legion --json skills` | valid JSON, `count: 27`, `releaseVersion: "0.3.13"` | `{"arguments":[],"count":27,"kind":"legion-skills","releaseVersion":"0.3.13","schemaVersion":1,"skills":[...]}` | **PASS (fixed)** |
 | 2.9 | `legion --help` has descriptions | `legion --help` | every subcommand has a one-line description | every listed subcommand (`status`, `serve`, `init`, `doctor`, `bind`, `inspect`, `targets`, `components`, `stacks`, `controls`, `governance`, `skills`, `languages`, `providers`, `rules`, `schedule`, `plan`, `audit`, `verify`, `explain`, `report`, `fix`, `hooks`, …) has descriptive text | **PASS (fixed)** |
@@ -94,7 +94,7 @@ research, seo, social, tasklist, wake, writing.
 | 2.12 | Codex MCP server registered | `grep -A5 mcp_servers.legion ~/.codex/config.toml` | present, with an ownership marker | `[mcp_servers.legion]` present: `command = '…\current\bin\legion.exe'`, `args = ['serve', '--stdio']`, `# /legion-owned` comment marker | **PASS (fixed)** |
 | 2.13 | `~/.claude/skills` is a real directory | `ls -la ~/.claude \| grep skills` | real directory (not a junction to the dev tree) | `skills/` is a real directory containing `legion/`; **no junction to `<workspace>\tools\skills`** | **PASS (fixed)** — the development tree still exists at `<workspace>\tools\skills` but is no longer on the host's path. |
 | 2.13a | Plugin root ships the declared hook manifest | `ls "$env:USERPROFILE\.claude\skills\legion\hooks\hooks.json"` | the file exists (Claude Code reads plugin hooks only from `<plugin root>/hooks/hooks.json`) | **absent** — projection root holds only `.claude-plugin/`, `agents/`, `mcp.json`, `plugin.json`, `rightax-portable-core.json`, `skills/` | **FAIL — see §6 #7** |
-| 2.13b | Plugin root ships agents | `ls "$env:USERPROFILE\.claude\skills\legion\agents"` | `alchemist.md`, `covenant-seat.md`, `oracle.md`, `sage.md` | all four present | PASS (fixed) |
+| 2.13b | Plugin root ships agents | `ls "$env:USERPROFILE\.claude\skills\legion\agents"` | `alchemist.md`, `council-seat.md`, `oracle.md`, `sage.md` | all four present | PASS (fixed) |
 | 2.14 | `legion --json setup status` | `legion --json setup status` | per-client block with `installed: true`, `origin: "installed"`, hashes matching `legion --version` | 5 clients present (`antigravity`, `claude-code`, `codex`, `cursor`, `pi`); `antigravity` block shown: `installed: true`, `origin: "installed"`, `bound_release.release_version: "0.3.13"` | PASS |
 
 ---
@@ -115,9 +115,9 @@ research, seo, social, tasklist, wake, writing.
 - **OBSERVED:** the MCP registration exists with the correct binary path and an ownership marker.
   **UNVERIFIED live** — no interactive Codex session was driven for this document.
 
-### 3.3 Routing case that should reach Sage / 3.4 Alchemist / 3.5 Oracle / Covenant
-- **Pass condition:** Legion routes to the named role per `doctrine/{sage,alchemist,oracle}.md`; `/covenant`
-  dispatches an isolated `covenant-seat`.
+### 3.3 Routing case that should reach Sage / 3.4 Alchemist / 3.5 Oracle / Council
+- **Pass condition:** Legion routes to the named role per `doctrine/{sage,alchemist,oracle}.md`; `/council`
+  dispatches an isolated `council-seat`.
 - **OBSERVED:** all four agents are shipped and enumerated by `claude plugin details legion@skills-dir`
   (§1.2, §2.6). **Live routing behavior is UNVERIFIED** — this document confirms the agents exist and are
   registered, not that a live conversation routes to them correctly.
@@ -207,8 +207,8 @@ Known reference-resolution issues, reverified tonight against the installed proj
   under `~/.claude/skills` carrying a `.claude-plugin/plugin.json` manifest, which Claude Code does scan.
   0.3.13 ships the projection that way, and `claude plugin list --json` now shows `legion@skills-dir`.
 - **Agents never firing (fixed):** the release assembler previously shipped **skills only**. The four
-  declared agents (sage, alchemist, covenant-seat, oracle) never reached any client, which is why sage,
-  alchemist, and covenant-seat never fired in practice, while oracle appeared to work anyway — because
+  declared agents (sage, alchemist, council-seat, oracle) never reached any client, which is why sage,
+  alchemist, and council-seat never fired in practice, while oracle appeared to work anyway — because
   oracle also exists as a skill, independent of the agent surface. 0.3.13's `claude plugin details`
   output now shows `Agents (4)` alongside `Skills (27)`.
 
@@ -221,7 +221,7 @@ Items not confirmed live on this machine tonight, listed so they are not mistake
 1. **Live slash-command routing in a running Claude Code or Codex session** (§3.1, §3.2). This document
    confirms plugin discovery, registration, and skill/agent listing — not that typing `/audit` in a live
    session actually surfaces Legion's skill text and begins execution.
-2. **Live routing to Sage / Alchemist / Oracle / covenant-seat** (§3.3–3.5). Agents are shipped and
+2. **Live routing to Sage / Alchemist / Oracle / council-seat** (§3.3–3.5). Agents are shipped and
    enumerated; a live conversation was not driven to trigger role hand-off.
 3. ~~The exact count of declared hook events and the reason `Hooks (0)` shows.~~ **Resolved tonight —
    see §6 #7.** The nine events are declared in the repo-root `hooks/hooks.json` and counted into

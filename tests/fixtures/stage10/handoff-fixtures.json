@@ -12,7 +12,7 @@
     "doctrine/sage.md": ["freeze a handoff record", "immutable acceptance IDs", "cutover obligations", "file/artifact consumption", "maximal ready antichain", "shared-contract writes, integration, commits, pins, & pushes"],
     "doctrine/alchemist.md": ["Advance only acceptance IDs frozen", "event & checkpoint", "delivery deficit", "Invoke Debugger when root-cause work becomes necessary", "Forward-test", "CANDIDATE | BLOCKED"],
     "doctrine/oracle.md": ["Completion Validation", "raw user turns", "do not run or rerun tests", "PASS", "BLOCK", "Create no file, receipt, ledger, evidence packet", "ephemeral chat packet", "Block only incorrect requested behavior", "never duplicates their methods", "material resulting-state/evidence delta"],
-    "doctrine/covenant-seat.md": ["one-shot advisory review", "no authority", "neither dispatches a successor nor opens"],
+    "doctrine/council-seat.md": ["one-shot advisory review", "no authority", "neither dispatches a successor nor opens"],
     "doctrine/legion.md": ["routing and orchestration reference", "constrained by", "conditional independent review", "never copies a stage DAG", "maximal ready antichain"]
   },
   "forbidden_phrases": {

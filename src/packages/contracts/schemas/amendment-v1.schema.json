@@ -20,7 +20,7 @@
     "toVersion": { "type": "integer", "minimum": 2 },
 
     "blockerId": { "type": ["string", "null"], "pattern": "^B-\\d+$" },
-    "covenantRecordId": { "type": ["string", "null"], "pattern": "^CV-\\d+$" },
+    "councilRecordId": { "type": ["string", "null"], "pattern": "^CV-\\d+$" },
 
     "rationale": { "type": "string", "minLength": 1 },
     "changedDecisions": {

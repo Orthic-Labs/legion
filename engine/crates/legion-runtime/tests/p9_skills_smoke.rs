@@ -4,7 +4,7 @@
 
 use legion_runtime::p9_skills::alchemist::extract_model_from_profile;
 use legion_runtime::p9_skills::brand_identity::{audit_pairs, check_contrast, AuditPair};
-use legion_runtime::p9_skills::covenant::{digest_value, validate_record_fields};
+use legion_runtime::p9_skills::council::{digest_value, validate_record_fields};
 use legion_runtime::p9_skills::qa::{build_dispatch, QaVerb};
 use legion_runtime::p9_skills::render_gap::{diff_signals, SeoSignals};
 use legion_runtime::p9_skills::seo::check_files;
@@ -38,7 +38,7 @@ fn seo_pre_commit_check_blocks_on_placeholder_text() {
 }
 
 #[test]
-fn covenant_contracts_digest_and_validate_entry_points() {
+fn council_contracts_digest_and_validate_entry_points() {
     let record = json!({
         "mode": "BLOCKER_CONSULT",
         "outcome": "CONTRACT_SAFE",
@@ -91,13 +91,13 @@ fn render_gap_diff_flags_client_only_signal() {
 }
 
 #[test]
-fn covenant_schema_copies_are_byte_equal() {
+fn council_schema_copies_are_byte_equal() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     for name in [
-        "covenant-record-v1.schema.json",
-        "covenant-request-v1.schema.json",
+        "council-record-v1.schema.json",
+        "council-request-v1.schema.json",
     ] {
-        let skill = std::fs::read(root.join("skills/covenant/lib/schemas").join(name)).unwrap();
+        let skill = std::fs::read(root.join("skills/council/lib/schemas").join(name)).unwrap();
         let contracts =
             std::fs::read(root.join("src/packages/contracts/schemas").join(name)).unwrap();
         assert_eq!(skill, contracts, "{name} copies diverged");

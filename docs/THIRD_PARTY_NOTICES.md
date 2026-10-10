@@ -62,7 +62,7 @@ external project must be listed here with its license and attribution before it 
 ## Idea provenance (no code or text vendored)
 
 These projects informed the review discipline in `doctrine/oracle.md`,
-`doctrine/covenant-seat.md`, `agents/oracle.md`, and `agents/covenant-seat.md`. The wording is
+`doctrine/council-seat.md`, `agents/oracle.md`, and `agents/council-seat.md`. The wording is
 Legion's own; no source text, code, or data was copied. Listed for attribution.
 
 | Source | License | Idea absorbed |

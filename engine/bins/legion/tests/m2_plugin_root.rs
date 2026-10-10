@@ -25,7 +25,7 @@ const PUBLIC_SKILLS: [&str; 23] = [
     "brand",
     "brand-identity",
     "commit",
-    "covenant",
+    "council",
     "debugger",
     "designer",
     "dispatch",

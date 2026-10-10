@@ -849,21 +849,21 @@ mod tests {
         base(&fx);
         let with_proof = case(
             "a-1",
-            r#","assertions":["runs covenant.test.mjs and scripts/gone.sh"]"#,
+            r#","assertions":["runs council.test.mjs and scripts/gone.sh"]"#,
         );
         let prose = r#"{"id":"a-2","prompt":"discover current tools/version/schema","expected_behavior":"ok"}"#;
         let mut document = doc("alpha", &with_proof, prose);
         document = document.replacen(
             "{\"schema_version\":1,",
-            "{\"schema_version\":1,\"proof_note\":\"was covenant.test.mjs\",",
+            "{\"schema_version\":1,\"proof_note\":\"was council.test.mjs\",",
             1,
         );
         fx.write("skills/alpha/evals/evals.json", &document);
         let text = fx.run().issues.join("\n");
-        assert!(text.contains("covenant.test.mjs"), "{text}");
+        assert!(text.contains("council.test.mjs"), "{text}");
         assert!(text.contains("scripts/gone.sh"), "{text}");
         assert_eq!(
-            text.matches("covenant.test.mjs").count(),
+            text.matches("council.test.mjs").count(),
             1,
             "note key must be skipped: {text}"
         );

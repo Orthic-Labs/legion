@@ -100,9 +100,9 @@
       "prompt": "Just pick the best concept and write it up — don't give me 100 options.",
       "expected_skill": "ideas",
       "forbidden_skills": [],
-      "expected_behavior": "Acknowledges the request; still surfaces 3-5 strongest candidates before picking. Pairs with /covenant for an explicitly requested multi-model verdict if needed. Does not collapse diverge-then-converge into single answer.",
+      "expected_behavior": "Acknowledges the request; still surfaces 3-5 strongest candidates before picking. Pairs with /council for an explicitly requested multi-model verdict if needed. Does not collapse diverge-then-converge into single answer.",
       "assertions": [
-        { "type": "required_text", "value": "/covenant" }
+        { "type": "required_text", "value": "/council" }
       ],
       "severity": "warning",
       "mode": "static"

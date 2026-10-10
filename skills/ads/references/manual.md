@@ -56,7 +56,7 @@ Failing a front-door gate blocks launch recommendations.
 
 ## Internal Ads Council
 
-Use this after route selection and context intake, before recommendations or creative output. This is a self-council for better ad work, not an independent review. For a high-stakes ad, offer `/covenant` (or `/jury` for a verdict-only pass).
+Use this after route selection and context intake, before recommendations or creative output. This is a self-council for better ad work, not an independent review. For a high-stakes ad, offer `/council` (or `/jury` for a verdict-only pass).
 
 | Task/ref group | Role pass |
 |---|---|

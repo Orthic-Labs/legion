@@ -34,6 +34,12 @@
     "kernel": { "displayName": "Kernel" }
   },
   "seats": {
-    "covenant": { "displayName": "Covenant", "authority": false }
+    "council": {
+      "displayName": "Council",
+      "authority": false,
+      "aliases": [
+        { "id": "covenant", "status": "retired_alias", "read": true, "write": false, "removalCondition": "remove after installed predecessor agent, skill and record state (covenant-seat, /covenant, legion-covenant-* records) is migrated" }
+      ]
+    }
   }
 }

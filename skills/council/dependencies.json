@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-dependencies",
+  "resources": [
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "assets/external-review-packet-template.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "lib/schemas/council-record-v1.schema.json"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "lib/schemas/council-request-v1.schema.json"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/README.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/ad.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/blogs.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/brand-voice.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/business-plan.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/code.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/compliance-risk.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/content-strategy.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/design.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/idea.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/image.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/launch.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/offer.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/plan.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/priority.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/seo.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/lenses/video.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/README.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/ad.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/audit-visual.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/blogs.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/brand-voice.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/business-plan.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/code.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/compliance-risk.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/content-strategy.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/design.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/idea.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/image.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/launch.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/offer.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/plan.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/priority.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/seo.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/rubrics/video.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/stances/README.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/stances/improvement-path.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/stances/minimize.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/stances/red-team.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/stances/scope-alternatives.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/stances/security-ops.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/stances/user-outcome.md"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "legion"
+    }
+  ]
+}

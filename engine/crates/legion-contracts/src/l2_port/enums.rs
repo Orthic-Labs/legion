@@ -9,7 +9,7 @@
 //! docs/LEGION-CANONICAL-SSOT.md owns semantics; this module projects only
 //! current contract/runtime vocabulary.
 
-/// Runtime identities permitted in authority-bearing contract fields. Covenant is advisory.
+/// Runtime identities permitted in authority-bearing contract fields. Council is advisory.
 pub const AUTHORITY_ID: &[&str] = &["legion", "sage", "alchemist", "oracle", "arcane", "kernel"];
 
 /// Decision latitude on an artifact/task.
@@ -75,16 +75,16 @@ pub const ORACLE_CLAIM: &[&str] = &[
     "EVIDENCE_INSUFFICIENT",
 ];
 
-/// Authority context supplied by an explicit Covenant caller.
+/// Authority context supplied by an explicit Council caller.
 pub const CALLER_AUTHORITY: &[&str] = &["SAGE", "ALCHEMIST", "USER_OVERRIDE"];
 
-/// Covenant advisory modes. A disputed finding is a `DECISION_CHALLENGE`;
-/// none of these makes Covenant a routine Oracle route or release gate.
-pub const COVENANT_MODE: &[&str] = &["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY"];
+/// Council advisory modes. A disputed finding is a `DECISION_CHALLENGE`;
+/// none of these makes Council a routine Oracle route or release gate.
+pub const COUNCIL_MODE: &[&str] = &["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY"];
 
-/// Covenant outcomes across all modes. Not every value applies to every
+/// Council outcomes across all modes. Not every value applies to every
 /// mode; see ids.md / schema descriptions.
-pub const COVENANT_OUTCOME: &[&str] = &[
+pub const COUNCIL_OUTCOME: &[&str] = &[
     "SUPPORTED",
     "REVISE",
     "UNRESOLVED",
@@ -93,7 +93,7 @@ pub const COVENANT_OUTCOME: &[&str] = &[
     "INSUFFICIENT_EVIDENCE",
 ];
 
-/// Originating decision owner disposition of a Covenant finding.
+/// Originating decision owner disposition of a Council finding.
 pub const DISPOSITION_VALUE: &[&str] = &[
     "ACCEPT",
     "REJECT",
@@ -102,7 +102,7 @@ pub const DISPOSITION_VALUE: &[&str] = &[
     "SUPERSEDED",
 ];
 
-/// Covenant finding scope classification.
+/// Council finding scope classification.
 pub const FINDING_SCOPE_CLASS: &[&str] = &[
     "IN_SCOPE_DEFECT",
     "LATER_PHASE",
@@ -146,7 +146,7 @@ pub const AUTHENTICATION_METHOD: &[&str] = &[
     "unauthenticated",
 ];
 
-/// Advisory contract-safety outcome from Covenant blocker challenge.
+/// Advisory contract-safety outcome from Council blocker challenge.
 pub const BLOCKER_CONSULT_OUTCOME: &[&str] = &[
     "CONTRACT_SAFE",
     "AMENDMENT_REQUIRED",
@@ -157,7 +157,7 @@ pub const BLOCKER_CONSULT_OUTCOME: &[&str] = &[
 pub const BLOCKER_CLASS: &[&str] = &["CLEARLY_SEMANTIC", "POSSIBLY_CONTRACT_SAFE"];
 
 /// Blocker lifecycle status.
-pub const BLOCKER_STATUS: &[&str] = &["OPEN", "COVENANT_CONSULTED", "AMENDED", "RESOLVED"];
+pub const BLOCKER_STATUS: &[&str] = &["OPEN", "COUNCIL_CONSULTED", "AMENDED", "RESOLVED"];
 
 /// Claim object lifecycle status; Arcane owns validation transitions.
 pub const CLAIM_STATUS: &[&str] = &["PENDING", "VALIDATED", "REJECTED"];

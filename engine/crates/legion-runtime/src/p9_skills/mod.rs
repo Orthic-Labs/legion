@@ -1,4 +1,4 @@
-//! Packet P9-skill-scripts: Rust port of `skills/{seo,alchemist,brand-identity,covenant,
+//! Packet P9-skill-scripts: Rust port of `skills/{seo,alchemist,brand-identity,council,
 //! dispatch,handoff,qa,tasklist,ads}/**` script/hook JS (everything except `skills/designer`
 //! and `skills/audit`, which are owned by other packets).
 //!
@@ -7,12 +7,12 @@
 //! confirmed by exhaustive `find` for `*.js`/`*.mjs`/`*.cjs`/`*.ts`/`*.sh`); there is nothing to
 //! port for them. See the packet report (`full-P9-skill-scripts.md`) for the exact per-file
 //! table, including the JS that remains unported and why (raw-CDP browser automation in
-//! `render_gap.mjs` and provider-IO orchestration in `covenant/lib/flows.mjs`).
+//! `render_gap.mjs` and provider-IO orchestration in `council/lib/flows.mjs`).
 
 pub mod alchemist;
 pub mod alchemist_viewer;
 pub mod brand_identity;
-pub mod covenant;
+pub mod council;
 pub mod qa;
 pub mod render_gap;
 pub mod seo;

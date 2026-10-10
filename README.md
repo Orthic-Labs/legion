@@ -29,7 +29,7 @@ Work splits into independent units where safe, then reunites at delivery. Capabi
 | **Oracle** | Independently perform Completion Validation over requested outcome & evidence | Own Audit/QA/Audit Visual methods or certify its own fix |
 | **Arcane** | Shape bounded cognitive processing & response policy | Select capabilities, attach authority, or authorize effects |
 | **Guard** | Deterministically gate typed effects, report enforcement health, & own effect-decision receipts | Interpret intent, select capabilities, or attach authority |
-| **Covenant** | Isolated challenge chamber over frozen evidence | Override caller authority |
+| **Council** | Isolated challenge chamber over frozen evidence | Override caller authority |
 
 Oracle is optional independent assurance authority for Completion Validation; it is never a delivery gate.
 
@@ -72,7 +72,7 @@ One doctrine & kernel project into harness-native slots. Legion does not pretend
 | Native authority agents | yes | host-dependent | host-dependent |
 | Guard pre-effect interception | when host hooks support it | when host hooks support it | boundary-gated |
 | Receipts | hook or CLI | hook or CLI | CLI/boundary |
-| Covenant isolation | engine-owned | engine-owned | engine-owned |
+| Council isolation | engine-owned | engine-owned | engine-owned |
 | Oracle Completion Validation | yes | yes | yes |
 
 Run `legion doctor` to inspect current repository, binding, coverage, & host state. Run `legion bind --registrations` to inventory installed hooks across settings & plugins and detect duplicate registrations.

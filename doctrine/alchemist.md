@@ -34,7 +34,7 @@ success or converted into `COMPLETE`.
 - **PASS** → next ready unit / `CANDIDATE`.
 - **Implementation failure** → repair autonomously inside settled acceptance criteria, then repeat checks. For governed work, any repair that changes frozen behavior, invariants, architecture, acceptance semantics, public contract, or scope requires amendment.
 - **Self-introduced contract violation** → repair or roll back.
-- **Difficult blocker with a scope-safe resolution** → prove it against settled acceptance & proceed within scope; optionally use Covenant (BLOCKER_CONSULT) for bounded challenge. Any material unresolved meaning → Sage.
+- **Difficult blocker with a scope-safe resolution** → prove it against settled acceptance & proceed within scope; optionally use Council (BLOCKER_CONSULT) for bounded challenge. Any material unresolved meaning → Sage.
 - **Changed requirement, public boundary, or material tradeoff** → blocker to Legion/Sage with relevant task, expected/observed state, evidence, completed work, safe state, & question. For governed work, include contract context & never mutate it silently.
 - **Out-of-scope finding** → record it; never opportunistically fix.
 

@@ -87,17 +87,17 @@
     {
       "path": "references/repurpose-content/reference.md",
       "uri": "legion-skill://writing/references/repurpose-content/reference.md",
-      "digest": "sha256:9b59541bc1804ac6b1ebd74fe3c2918fb3254b6a54f5beeba6d6063ed41fafbb"
+      "digest": "sha256:1deba0c456cb66679679c9a31d49e84fd638e250fedd80c2f93c57bb2e8f151f"
     },
     {
       "path": "references/research-article.md",
       "uri": "legion-skill://writing/references/research-article.md",
-      "digest": "sha256:bbe1cf284b2ceb74a6adc2ce24115294202b5c922a52a35a9e10628f414af5ef"
+      "digest": "sha256:0d678918c7e5dd0b6450e2ba8e9a7ed04b86f04b8b07d3c729d6e57909487e55"
     },
     {
       "path": "references/script.md",
       "uri": "legion-skill://writing/references/script.md",
-      "digest": "sha256:9f6d7ce25a2df5eb29652a41895496b26f0587441bed4f581ab917b5a8f2c1f1"
+      "digest": "sha256:c2d024940172b91b8ed1e28896d565686ef49d44db281f6c53e8b92e030e46e9"
     },
     {
       "path": "specialists/blogs/GUIDE.md",
@@ -147,7 +147,7 @@
     {
       "path": "specialists/copywriting/references/ad.md",
       "uri": "legion-skill://writing/specialists/copywriting/references/ad.md",
-      "digest": "sha256:5c62c28506569c62c9602166b5bf8f810240a8f4be7ec65d2e8e2c3359c9a7b2"
+      "digest": "sha256:51d7a84a442b461943dfe62d8cb4ff5ab129823c0d2c6faf48955101492bbef3"
     },
     {
       "path": "specialists/copywriting/references/craft-research.md",
@@ -162,7 +162,7 @@
     {
       "path": "specialists/editorial/GUIDE.md",
       "uri": "legion-skill://writing/specialists/editorial/GUIDE.md",
-      "digest": "sha256:003a602552fb08feb65dbbb4e7167375ebddbb387883fbaf9c7a6e02e6e839a2"
+      "digest": "sha256:617194bb61c5a2d6503c081c43c8f646903611ddb0123f886e204e1dcbccbc74"
     },
     {
       "path": "specialists/email/GUIDE.md",
@@ -227,7 +227,7 @@
     {
       "path": "specialists/profile-copy/GUIDE.md",
       "uri": "legion-skill://writing/specialists/profile-copy/GUIDE.md",
-      "digest": "sha256:06ea356fc188376b2943c364b37266b8d96b1b383309d614a54effe784c1a8ac"
+      "digest": "sha256:2f2262063d06c509c0632e7505c1ef514bb4270b5e94ed74fafe55c20a2609de"
     },
     {
       "path": "specialists/profile-copy/evals/evals.json",

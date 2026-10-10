@@ -193,7 +193,7 @@ Then:
   next move is a *fresh perspective on the diagnosis*, not fix #4. Two escalation paths: (a) the root
   cause is structural (state modelled wrong, coupling forcing the bug, an abstraction that can't
   represent reality) → switch to Architect to design the fix, then resume here at Fix + verify; (b) the
-  diagnosis itself is uncertain / multiple hypotheses fit equally → escalate to `/covenant` for
+  diagnosis itself is uncertain / multiple hypotheses fit equally → escalate to `/council` for
   **differential diagnosis** — package it to attack the *diagnosis* (observations, evidence, live +
   rejected hypotheses), not to review code prematurely.
 
@@ -217,7 +217,7 @@ language, layer, or condition it applies to — so one incident does not become 
 
 ## Optional external review
 
-External review is explicit opt-in. Run `/covenant code <changed-file-or-diff>` only when the operator asks
+External review is explicit opt-in. Run `/council code <changed-file-or-diff>` only when the operator asks
 for Council, a jury, or external review; ordinary fixes close on regression and relevant-suite proof.
 (Distinct from the local-minimum escalation above: that attacks a *stuck diagnosis*; this reviews a *finished fix*.)
 

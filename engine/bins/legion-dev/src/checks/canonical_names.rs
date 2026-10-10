@@ -232,14 +232,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
         ));
     }
     if let Ok(readme) = std::fs::read_to_string(root.join("README.md")) {
-        for display in [
-            "Legion",
-            "Sage",
-            "Alchemist",
-            "Oracle",
-            "Arcane",
-            "Covenant",
-        ] {
+        for display in ["Legion", "Sage", "Alchemist", "Oracle", "Arcane", "Council"] {
             if !readme.contains(&format!("| **{display}** |")) {
                 issues.push(mk(
                     "README.md",
@@ -254,7 +247,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
             .and_then(|v| v.as_array())
             .map(|a| a.iter().filter_map(|x| x.as_str()).collect())
             .unwrap_or_default();
-        for id in ["legion", "alchemist", "arcane", "sage", "covenant"] {
+        for id in ["legion", "alchemist", "arcane", "sage", "council"] {
             if !keywords.contains(&id) {
                 issues.push(mk(
                     "package.json",

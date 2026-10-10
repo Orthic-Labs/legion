@@ -51,9 +51,9 @@ Derived from canonical owners only: `skills/*/SKILL.md`, `src/roster/*.md`,
 16 host capabilities, the 4 reference classes, and a fidelity declaration per harness.
 `--check` fails on drift.
 
-`skills/alchemist`, `skills/commit`, `skills/covenant`, and `skills/dispatch`
+`skills/alchemist`, `skills/commit`, `skills/council`, and `skills/dispatch`
 project as `kind: entrypoint`, `discoverability: explicit`. Alchemist attaches its authority;
-Covenant requests optional challenge; the others enter their owned explicit workflows.
+Council requests optional challenge; the others enter their owned explicit workflows.
 
 ### 1.3 Diagnosis
 

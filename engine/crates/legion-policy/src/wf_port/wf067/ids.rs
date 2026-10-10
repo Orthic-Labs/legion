@@ -35,7 +35,7 @@ pub enum Family {
     Finding,
     Blocker,
     Amendment,
-    Covenant,
+    Council,
 }
 
 /// Prefix for a mintable opaque-handle family, or `None` for a
@@ -87,7 +87,7 @@ pub fn is_id(family: Family, value: &str) -> bool {
         Family::Finding => matches_seq(value, "F-"),
         Family::Blocker => matches_seq(value, "B-"),
         Family::Amendment => matches_seq(value, "A-"),
-        Family::Covenant => matches_seq(value, "CV-"),
+        Family::Council => matches_seq(value, "CV-"),
     }
 }
 
@@ -141,7 +141,7 @@ fn family_name(family: Family) -> &'static str {
         Family::Finding => "finding",
         Family::Blocker => "blocker",
         Family::Amendment => "amendment",
-        Family::Covenant => "covenant",
+        Family::Council => "council",
     }
 }
 

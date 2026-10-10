@@ -189,7 +189,7 @@ pub fn low_fidelity_projection(root: &Path) -> Result<String, String> {
         ));
     }
     lines.push(
-        "- **Covenant seat** — doctrine-only advisory review seat; not an authority.".to_string(),
+        "- **Council seat** — doctrine-only advisory review seat; not an authority.".to_string(),
     );
     lines.push(String::new());
     lines.push(

@@ -21,7 +21,7 @@
       "brand",
       "brand-identity",
       "commit",
-      "covenant",
+      "council",
       "debugger",
       "designer",
       "dispatch",
@@ -46,8 +46,8 @@
         "name": "alchemist"
       },
       {
-        "file": "agents/covenant-seat.md",
-        "name": "covenant-seat"
+        "file": "agents/council-seat.md",
+        "name": "council-seat"
       },
       {
         "file": "agents/oracle.md",

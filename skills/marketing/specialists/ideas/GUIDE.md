@@ -23,7 +23,7 @@ When invoked, decide which reference matches, Read it, follow its instructions.
 
 ## Internal Ideas Council
 
-Use this for divergent ideation before ranking. It is a self-council for range and quality, not a verdict gate. Use `/covenant` only after there are surviving candidates to judge.
+Use this for divergent ideation before ranking. It is a self-council for range and quality, not a verdict gate. Use `/council` only after there are surviving candidates to judge.
 
 | Reference | Role pass |
 |---|---|
@@ -33,4 +33,4 @@ Use this for divergent ideation before ranking. It is a self-council for range a
 
 Output standard: broad option set, clusters/themes, strongest 3-5, why they survived, and what to test next.
 
-**Diverge first, then converge.** Pair with `/covenant` to advise, revise, and verdict the surviving candidates.
+**Diverge first, then converge.** Pair with `/council` to advise, revise, and verdict the surviving candidates.

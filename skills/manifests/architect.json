@@ -193,7 +193,7 @@
     {
       "path": "doctrine/architecture/controls/objective-lineage-budgets.md",
       "uri": "legion-skill://architect/doctrine/architecture/controls/objective-lineage-budgets.md",
-      "digest": "sha256:2ce9ace16131c87a250a71dd6407822a2971bfdd25875fdd3567dd9422aa14f8"
+      "digest": "sha256:85a34b06ad10215a2d5b6c63858213d7cc468e61e3d2f8575287bab8e02c9901"
     },
     {
       "path": "doctrine/architecture/controls/ownership-disposition.md",
@@ -213,7 +213,7 @@
     {
       "path": "doctrine/architecture/controls/reviewer-scope.md",
       "uri": "legion-skill://architect/doctrine/architecture/controls/reviewer-scope.md",
-      "digest": "sha256:b2f02396b4bf49b300b6dac13517a2ba956bc9127b828b24e830d438fc82d729"
+      "digest": "sha256:6de370e18eea64b95d52a9716599e927cc6a7fab4f67a5342b79c142b47f71c5"
     },
     {
       "path": "doctrine/architecture/controls/seal-reachability.md",
@@ -373,7 +373,7 @@
     {
       "path": "doctrine/architecture/schemas/execution-trajectory-event.schema.json",
       "uri": "legion-skill://architect/doctrine/architecture/schemas/execution-trajectory-event.schema.json",
-      "digest": "sha256:bfd23fa5133b370415f10212a60e54e79ccbdb32becc42c5a3186d5905d7523c"
+      "digest": "sha256:98f7dd4a3e7cd6d119ed68d78dfe87e77a20c20b613311dfd6deab4e91966e11"
     },
     {
       "path": "doctrine/architecture/schemas/external-provider-capability.schema.json",

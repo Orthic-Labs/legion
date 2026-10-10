@@ -110,7 +110,7 @@ pub fn expected_codex_plugin(root: &Path) -> Result<Value, String> {
             [
                 "Legion orchestration",
                 "Arcane cognitive policy",
-                "Covenant review",
+                "Council review",
             ]
             .iter()
             .map(|s| Value::from(*s))

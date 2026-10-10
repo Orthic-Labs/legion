@@ -74,19 +74,19 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
         reason: None,
     },
     ScriptProbe {
-        key: "covenant/digest",
+        key: "council/digest",
         mode: ProbeMode::Help,
         args: HELP,
         reason: None,
     },
     ScriptProbe {
-        key: "covenant/validate-external-review-packet",
+        key: "council/validate-external-review-packet",
         mode: ProbeMode::Help,
         args: HELP,
         reason: None,
     },
     ScriptProbe {
-        key: "covenant/validate-record",
+        key: "council/validate-record",
         mode: ProbeMode::Help,
         args: HELP,
         reason: None,

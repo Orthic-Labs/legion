@@ -9,7 +9,7 @@ Current semantic boundaries:
 - Sage participates only when material unresolved meaning required actual adjudication.
 - `openQuestions` may be non-empty in a draft, but executable validation requires it empty.
 - Contract amendments are explicit, versioned, & immutable by version.
-- Covenant records are advisory challenge artifacts; Covenant is not an authority or release gate.
+- Council records are advisory challenge artifacts; Council is not an authority or release gate.
 - Arcane deterministically validates effects, receipts, freshness, invalidation, & runtime gates.
 - Concrete model/provider IDs are host configuration, not contract semantics.
 

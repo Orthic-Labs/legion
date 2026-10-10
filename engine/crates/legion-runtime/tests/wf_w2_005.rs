@@ -1,6 +1,6 @@
-//! Tests ported from `skills/covenant/scripts/test_validate_external_review_packet.py`
-//! for wf_port chunk w2_005 (`skills/covenant/scripts/validate-external-review-packet.py`
-//! and its engine dependency `skills/covenant/engine/packet-validator.py`).
+//! Tests ported from `skills/council/scripts/test_validate_external_review_packet.py`
+//! for wf_port chunk w2_005 (`skills/council/scripts/validate-external-review-packet.py`
+//! and its engine dependency `skills/council/engine/packet-validator.py`).
 //!
 //! This test file depends on `legion_runtime::wf_port::w2_005`, which is not yet wired
 //! into `legion-runtime`'s public module tree (the integrator adds `pub mod wf_port;` in
@@ -27,9 +27,9 @@ fn canonical_marker_and_no_run_rejection() {
     let errors = validate_external_review_packet(TEMPLATE, template_path, false, true, false);
     assert_eq!(errors, Vec::<String>::new());
 
-    // Py: errors = validator.validate(canonical.replace(CANONICAL, "RUN_COVENANT", 1), ...)
+    // Py: errors = validator.validate(canonical.replace(CANONICAL, "RUN_COUNCIL", 1), ...)
     //     assert any("Mode must be" in error for error in errors)
-    let mutated = TEMPLATE.replacen(CANONICAL_EXTERNAL_MODE, "RUN_COVENANT", 1);
+    let mutated = TEMPLATE.replacen(CANONICAL_EXTERNAL_MODE, "RUN_COUNCIL", 1);
     let errors = validate_external_review_packet(&mutated, template_path, false, true, false);
     assert!(errors.iter().any(|e| e.contains("Mode must be")));
 }
@@ -49,7 +49,7 @@ fn filled_packet(packet_path_label: &str) -> String {
 ## 0. Packet Control
 
 - **Created:** 2026-09-23T00:00:00Z
-- **Mode:** PACKET_ONLY — DO_NOT_RUN_COVENANT
+- **Mode:** PACKET_ONLY — DO_NOT_RUN_COUNCIL
 - **Audience:** External reviewer
 - **Packet path:** {packet_path_label}
 - **Requested response:** Diagnosis
@@ -80,12 +80,12 @@ validate() returns an empty list of defects for this packet.
 
 ## 4. Current System & State
 
-The Covenant packet validator is a Python CLI ported to Rust for legion-runtime.
+The Council packet validator is a Python CLI ported to Rust for legion-runtime.
 
 ## 5. Constraints & Invariants
 
 - Must preserve packet-only mode
-- Must not run Covenant directly
+- Must not run Council directly
 - Must stay within Guard boundary
 
 ## 6. Existing Attempts & Inputs
@@ -229,11 +229,11 @@ fn secret_pattern_is_detected() {
 #[test]
 fn wrong_mode_label_is_rejected() {
     let text =
-        filled_packet("`INLINE`").replace("PACKET_ONLY — DO_NOT_RUN_COVENANT", "RUN_COVENANT_NOW");
+        filled_packet("`INLINE`").replace("PACKET_ONLY — DO_NOT_RUN_COUNCIL", "RUN_COUNCIL_NOW");
     let errors = validate_packet(&text, Path::new("packet.md"), true, false, false);
     assert!(errors
         .iter()
-        .any(|e| e == "Mode must be PACKET_ONLY — DO_NOT_RUN_COVENANT"));
+        .any(|e| e == "Mode must be PACKET_ONLY — DO_NOT_RUN_COUNCIL"));
 }
 
 #[test]

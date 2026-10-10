@@ -1148,24 +1148,200 @@ fn publishes_artifact(command: &str) -> bool {
         || contains_command_pair(command, "gh", "release")
 }
 
-fn contains_command_pair(command: &str, first: &str, second: &str) -> bool {
-    command
-        .split(|character| matches!(character, ';' | '&' | '|' | '\n'))
-        .any(|segment| {
-            // Tokens are matched as they appear. Stripping quotes here looked
-            // like it would help the unwrapped-shell case, but then any quoted
-            // mention matched: a script that merely contained the words was
-            // classified as running them, and this very edit was refused by
-            // the guard it was fixing. `unwrap_shell_command` already removes
-            // the wrapper quotes, which is the only place they need removing.
-            let mut tokens = segment.split_whitespace();
-            while let Some(token) = tokens.next() {
-                if token == first && tokens.next() == Some(second) {
-                    return true;
+/// Splits a shell command into the pieces that are each run as a command:
+/// at unquoted `;`, `&`, `|`, newlines and parentheses, and at command
+/// substitutions (`$(…)`, backticks), which run even inside double quotes.
+/// Quoted text stays inside its segment, and heredoc bodies are dropped unless
+/// they are fed to a shell, so a command that merely quotes dangerous words
+/// (a message, a commit body, a `grep` pattern) is not read as running them.
+fn command_segments(command: &str) -> Vec<String> {
+    const SHELLS: [&str; 6] = ["bash", "sh", "zsh", "dash", "pwsh", "powershell"];
+    let mut text = String::new();
+    let mut heredoc_end: Option<String> = None;
+    for line in command.lines() {
+        if let Some(end) = &heredoc_end {
+            if line.trim() == end {
+                heredoc_end = None;
+            }
+            continue;
+        }
+        if let Some(index) = line.find("<<") {
+            let before = line[..index].trim_end();
+            let fed_to_shell = before
+                .rsplit(|character| matches!(character, ';' | '&' | '|'))
+                .next()
+                .and_then(|piece| strip_command_prefixes(piece).split_whitespace().next())
+                .map(|head| head.rsplit(['/', '\\']).next().unwrap_or(head))
+                .is_some_and(|head| SHELLS.contains(&head));
+            let delimiter = line[index + 2..]
+                .trim_start_matches(['-', '<'].as_ref())
+                .trim_start()
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .trim_matches(['"', '\''].as_ref())
+                .to_owned();
+            if !fed_to_shell && !delimiter.is_empty() && !line[index..].starts_with("<<<") {
+                heredoc_end = Some(delimiter);
+            }
+        }
+        text.push_str(line);
+        text.push('\n');
+    }
+    let mut segments = Vec::new();
+    let mut current = String::new();
+    let mut quote: Option<char> = None;
+    let mut substitutions: Vec<Option<char>> = Vec::new();
+    let mut backtick: Option<Option<char>> = None;
+    let mut characters = text.chars().peekable();
+    while let Some(character) = characters.next() {
+        match character {
+            '\\' if quote != Some('\'') => {
+                current.push(character);
+                if let Some(next) = characters.next() {
+                    current.push(next);
                 }
             }
-            false
-        })
+            '\'' | '"' if quote.is_none() => {
+                quote = Some(character);
+                current.push(character);
+            }
+            _ if quote == Some(character) => {
+                quote = None;
+                current.push(character);
+            }
+            '$' if quote != Some('\'') && characters.peek() == Some(&'(') => {
+                characters.next();
+                substitutions.push(quote);
+                quote = None;
+                segments.push(std::mem::take(&mut current));
+            }
+            '`' if quote != Some('\'') => {
+                quote = match backtick.take() {
+                    Some(saved) => saved,
+                    None => {
+                        backtick = Some(quote);
+                        None
+                    }
+                };
+                segments.push(std::mem::take(&mut current));
+            }
+            ')' if quote.is_none() => {
+                if let Some(saved) = substitutions.pop() {
+                    quote = saved;
+                }
+                segments.push(std::mem::take(&mut current));
+            }
+            ';' | '&' | '|' | '\n' | '(' if quote.is_none() => {
+                segments.push(std::mem::take(&mut current));
+            }
+            _ => current.push(character),
+        }
+    }
+    segments.push(current);
+    segments
+        .into_iter()
+        .map(|segment| segment.trim().to_owned())
+        .filter(|segment| !segment.is_empty())
+        .collect()
+}
+
+/// Shell words of one segment with quotes removed; a quoted phrase is one word.
+fn shell_words(segment: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut current = String::new();
+    let mut started = false;
+    let mut quote: Option<char> = None;
+    let mut characters = segment.chars();
+    while let Some(character) = characters.next() {
+        match character {
+            '\\' if quote != Some('\'') => {
+                if let Some(next) = characters.next() {
+                    current.push(next);
+                    started = true;
+                }
+            }
+            '\'' | '"' if quote.is_none() => {
+                quote = Some(character);
+                started = true;
+            }
+            _ if quote == Some(character) => quote = None,
+            _ if character.is_whitespace() && quote.is_none() => {
+                if started {
+                    words.push(std::mem::take(&mut current));
+                    started = false;
+                }
+            }
+            _ => {
+                current.push(character);
+                started = true;
+            }
+        }
+    }
+    if started {
+        words.push(current);
+    }
+    words
+}
+
+/// Skips what may precede the program in a simple command: `NAME=value`
+/// assignments and transparent launchers such as `sudo` or `env`.
+fn strip_command_prefixes(segment: &str) -> &str {
+    const LAUNCHERS: [&str; 6] = ["sudo", "command", "env", "time", "nohup", "exec"];
+    let mut rest = segment.trim_start();
+    loop {
+        let word = rest.split_whitespace().next().unwrap_or("");
+        let assignment = word.split_once('=').is_some_and(|(name, _)| {
+            !name.is_empty()
+                && name
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || character == '_')
+        });
+        if word.is_empty() || !(assignment || LAUNCHERS.contains(&word)) {
+            return rest;
+        }
+        rest = rest[word.len()..].trim_start();
+    }
+}
+
+/// True when some segment of `command` runs `first` with subcommand `second`.
+/// The program must be in command position; options between the program and
+/// its subcommand are skipped (`git -C repo push`). Quoted mentions do not
+/// match, and `bash -c '…'` style wrapping is unwrapped.
+fn contains_command_pair(command: &str, first: &str, second: &str) -> bool {
+    command_segments(command).iter().any(|segment| {
+        let unwrapped = unwrap_shell_command(segment);
+        if unwrapped != segment.as_str() {
+            return contains_command_pair(unwrapped, first, second);
+        }
+        let words = shell_words(strip_command_prefixes(segment));
+        let mut words = words.iter().map(String::as_str);
+        let Some(program) = words.next() else {
+            return false;
+        };
+        let program = program.rsplit(['/', '\\']).next().unwrap_or(program);
+        let program = program.strip_suffix(".exe").unwrap_or(program);
+        if program == "xargs" {
+            let rest = words
+                .skip_while(|word| word.starts_with('-'))
+                .collect::<Vec<_>>()
+                .join(" ");
+            return contains_command_pair(&rest, first, second);
+        }
+        if program != first {
+            return false;
+        }
+        while let Some(word) = words.next() {
+            if !word.starts_with('-') {
+                return word == second;
+            }
+            // `git -C <path>` and `git -c <key=value>` take a separate value.
+            if first == "git" && matches!(word, "-c" | "-C") {
+                words.next();
+            }
+        }
+        false
+    })
 }
 
 fn default_operation(effect_class: EffectClass) -> &'static str {
@@ -1322,7 +1498,7 @@ fn is_regenerable_relative_path(operand: &str) -> bool {
 /// a regenerable directory. `/`, home, the repository root (`.`), absolute
 /// paths and anything with `..` or a glob stay denied.
 fn rm_is_destructive(segment: &str) -> bool {
-    let mut tokens = segment.split_whitespace();
+    let mut tokens = strip_command_prefixes(segment).split_whitespace();
     if tokens.next() != Some("rm") {
         return false;
     }
@@ -1361,6 +1537,31 @@ fn restore_is_index_only(segment: &str) -> bool {
             .any(|token| token == "--worktree" || token == "-w")
 }
 
+/// `git restore <file>` discards one file's edits, which is bounded. A
+/// pathspec that names the tree, a directory or a glob discards unbounded
+/// uncommitted work.
+fn restore_discards_many(segment: &str) -> bool {
+    let words = shell_words(strip_command_prefixes(segment));
+    let operands = words
+        .iter()
+        .skip_while(|word| word.as_str() != "restore")
+        .skip(1)
+        .filter(|word| !word.starts_with('-'))
+        .collect::<Vec<_>>();
+    operands.is_empty()
+        || operands.iter().any(|operand| {
+            let name = operand
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or("");
+            operand.ends_with('/')
+                || operand.contains(['*', '?', '[', ':'])
+                || matches!(name, "" | "." | "..")
+                || !name.trim_start_matches('.').contains('.')
+        })
+}
+
 fn asks_for_help(segment: &str) -> bool {
     segment
         .split_whitespace()
@@ -1375,14 +1576,21 @@ fn is_destructive_command(payload: &Value) -> bool {
         return false;
     };
     let command = command.to_ascii_lowercase();
-    let destructive_segment = |segment: &str| {
+    command_is_destructive(&command)
+}
+
+fn command_is_destructive(command: &str) -> bool {
+    let destructive_segment = |segment: &String| {
         // A shell wrapper is not a different command. `rm -rf build` was
         // denied while `bash -c 'rm -rf build'` and
         // `powershell -c "Remove-Item -Recurse -Force build"` were admitted,
-        // because the segment began with the shell's name. Unwrap one level
-        // and judge what is actually being run.
-        let segment = unwrap_shell_command(segment.trim_start());
-        let segment = segment.trim_start();
+        // because the segment began with the shell's name. Unwrap it and
+        // judge what is actually being run.
+        let unwrapped = unwrap_shell_command(segment.trim_start());
+        if unwrapped != segment.trim_start() {
+            return command_is_destructive(unwrapped);
+        }
+        let segment = strip_command_prefixes(segment);
         if rm_is_destructive(segment) {
             return true;
         }
@@ -1404,7 +1612,7 @@ fn is_destructive_command(payload: &Value) -> bool {
                 && (segment.contains(" -- .") || segment.trim_end().ends_with(" -- ")))
             // `git restore --staged .` only unstages; it destroys nothing.
             || (contains_command_pair(segment, "git", "restore")
-                && segment.contains('.')
+                && restore_discards_many(segment)
                 && !restore_is_index_only(segment));
         (segment.starts_with("remove-item") && segment.contains("-recurse"))
             || windows_recursive_delete
@@ -1414,9 +1622,7 @@ fn is_destructive_command(payload: &Value) -> bool {
             || (contains_command_pair(segment, "terraform", "apply") && !asks_for_help(segment))
             || (contains_command_pair(segment, "terraform", "destroy") && !asks_for_help(segment))
     };
-    command
-        .split(|character| matches!(character, ';' | '&' | '|'))
-        .any(destructive_segment)
+    command_segments(command).iter().any(destructive_segment)
         || command
             .split('|')
             .collect::<Vec<_>>()
@@ -3903,6 +4109,51 @@ mod tests {
             "terraform destroy",
         ] {
             assert!(destructive(command), "wrongly allowed: {command}");
+        }
+    }
+
+    #[test]
+    fn quoted_mentions_are_not_commands() {
+        for command in [
+            "echo \"never run git restore . here\"",
+            "pulse send --to mac 'the guard blocked git restore . and rm -rf src'",
+            "git commit -m \"stop suggesting git reset --hard\"",
+            "grep -rn 'git clean -fd' docs",
+            "cat <<'EOF' > note.md\ngit restore .\nrm -rf src\nEOF",
+            "gh pr comment 4 --body \"terraform destroy is blocked\"",
+        ] {
+            assert!(!destructive(command), "wrongly denied: {command}");
+        }
+    }
+
+    #[test]
+    fn executed_forms_stay_destructive() {
+        for command in [
+            "echo \"$(git reset --hard)\"",
+            "echo `git clean -fd`",
+            "sudo rm -rf /",
+            "FOO=1 git reset --hard",
+            "git -C repo reset --hard",
+            "(git restore .)",
+            "bash -c 'cd repo; git reset --hard'",
+            "bash <<EOF\ngit reset --hard\nEOF",
+            "cd repo && git restore src/",
+            "git restore src",
+            "git restore '*.rs'",
+            "git restore",
+        ] {
+            assert!(destructive(command), "wrongly allowed: {command}");
+        }
+    }
+
+    #[test]
+    fn restoring_named_files_is_bounded() {
+        for command in [
+            "git restore src/main.rs",
+            "git restore --source=HEAD~1 docs/readme.md Cargo.toml",
+            "git restore .gitignore.bak",
+        ] {
+            assert!(!destructive(command), "wrongly denied: {command}");
         }
     }
 

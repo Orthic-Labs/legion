@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "legion-model-tier-map",
-  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources. Sage and Oracle run frontier-judgment (Opus on Claude Code, Sol on Codex); Covenant seats run deliberation (Fable on Claude Code, Astra on Codex) and nothing else uses those models.",
+  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources. Sage and Oracle run frontier-judgment (Opus on Claude Code, Sol on Codex); Council seats run deliberation (Fable on Claude Code, Astra on Codex) and nothing else uses those models.",
   "tiers": {
     "frontier-judgment": {
       "hosts": {

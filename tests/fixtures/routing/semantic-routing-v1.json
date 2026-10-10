@@ -125,16 +125,16 @@
       "forbiddenSelections": []
     },
     {
-      "id": "explicit-covenant",
+      "id": "explicit-council",
       "concerns": ["explicit-only", "authority-independence"],
-      "prompt": "/covenant challenge this decision with independent seats",
+      "prompt": "/council challenge this decision with independent seats",
       "source": "explicit",
       "expectedCapabilities": [],
-      "expectedEntrypoints": ["covenant"],
+      "expectedEntrypoints": ["council"],
       "operations": ["evaluate"],
       "effects": ["source-read"],
       "attachedAuthorities": [],
-      "challenge": ["covenant"],
+      "challenge": ["council"],
       "forbiddenSelections": ["oracle"]
     },
     {
@@ -471,9 +471,9 @@
       "forbiddenSelections": ["designer", "audit-visual"]
     },
     {
-      "id": "legacy-covenant-no-auto",
+      "id": "legacy-council-no-auto",
       "concerns": ["explicit-only", "legacy-natural-route"],
-      "legacyRoute": "covenant",
+      "legacyRoute": "council",
       "prompt": "Run a full council review with fallback seats.",
       "source": "semantic",
       "expectedCapabilities": [],
@@ -481,7 +481,7 @@
       "operations": ["evaluate"],
       "effects": ["source-read"],
       "attachedAuthorities": [],
-      "forbiddenSelections": ["covenant"]
+      "forbiddenSelections": ["council"]
     },
     {
       "id": "legacy-alchemist-no-auto",

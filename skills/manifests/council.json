@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "id": "council",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://council/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/council",
+      "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /council."
+    ],
+    "outputs": [
+      "references/lenses/README.md",
+      "references/lenses/ad.md",
+      "references/lenses/blogs.md",
+      "references/lenses/brand-voice.md",
+      "references/lenses/business-plan.md",
+      "references/lenses/code.md",
+      "references/lenses/compliance-risk.md",
+      "references/lenses/content-strategy.md",
+      "references/lenses/design.md",
+      "references/lenses/idea.md",
+      "references/lenses/image.md",
+      "references/lenses/launch.md",
+      "references/lenses/offer.md",
+      "references/lenses/plan.md",
+      "references/lenses/priority.md",
+      "references/lenses/seo.md",
+      "references/lenses/video.md"
+    ],
+    "scripts": [],
+    "templates": [
+      "assets/external-review-packet-template.md"
+    ],
+    "schemas": [
+      "lib/schemas/council-record-v1.schema.json",
+      "lib/schemas/council-request-v1.schema.json"
+    ],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://council/SKILL.md",
+      "digest": "sha256:79294ceddcd8fd81223de9f57be123e0baae402b644a4c1e91544d05e70cadc6"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://council/agents/openai.yaml",
+      "digest": "sha256:39200128436a1a8640b8faf4d727e7b37600f1a921d09b3590c25c6db391c993"
+    },
+    {
+      "path": "assets/external-review-packet-template.md",
+      "uri": "legion-skill://council/assets/external-review-packet-template.md",
+      "digest": "sha256:443acaffd44bef2e3527e6c88d54c12a5321af69156e7597ba1d6d95e32612c0"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://council/dependencies.json",
+      "digest": "sha256:840c134bb39b3f91a0715a5207bbc6df93e293a80c7fb988517bfeb0f986b134"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://council/evals/evals.json",
+      "digest": "sha256:7b785dad3b024982967eeda76eb4fe247383289fc63b0794ca18f076c66b23a5"
+    },
+    {
+      "path": "lib/schemas/council-record-v1.schema.json",
+      "uri": "legion-skill://council/lib/schemas/council-record-v1.schema.json",
+      "digest": "sha256:03e75a88cdbe1034688afb50a98b725152897e1ba3247108b18ca743914d211b"
+    },
+    {
+      "path": "lib/schemas/council-request-v1.schema.json",
+      "uri": "legion-skill://council/lib/schemas/council-request-v1.schema.json",
+      "digest": "sha256:8208e2523ad2c9028c83d27faf69f2034c4fab8caac6ff447d86abbdf69097b7"
+    },
+    {
+      "path": "references/lenses/README.md",
+      "uri": "legion-skill://council/references/lenses/README.md",
+      "digest": "sha256:83a5e4e5ef0a6055b07e9d604a523726de3e6b711c7272293ab7046d17cda7d0"
+    },
+    {
+      "path": "references/lenses/ad.md",
+      "uri": "legion-skill://council/references/lenses/ad.md",
+      "digest": "sha256:59799d397c051a9fca48e0e20478c812308e0e4134b26ec697a61b2e4253fed5"
+    },
+    {
+      "path": "references/lenses/blogs.md",
+      "uri": "legion-skill://council/references/lenses/blogs.md",
+      "digest": "sha256:d33d40f7b96cc22f875ea4ffb2d2e4e53f926b539a194f617eeb649e5a1578c2"
+    },
+    {
+      "path": "references/lenses/brand-voice.md",
+      "uri": "legion-skill://council/references/lenses/brand-voice.md",
+      "digest": "sha256:1848af01eb9b9e63585bb71e0a4b95f732b622360742ef65194be13370955764"
+    },
+    {
+      "path": "references/lenses/business-plan.md",
+      "uri": "legion-skill://council/references/lenses/business-plan.md",
+      "digest": "sha256:6d454220e5054e6a0a3c932cf043dd3fd27a62e243c3a2e90dd64b3dc6162d26"
+    },
+    {
+      "path": "references/lenses/code.md",
+      "uri": "legion-skill://council/references/lenses/code.md",
+      "digest": "sha256:20ed2d024445e9286a3e7e5a3ee5592020e70a876ef0ae1ebc3cec83f3c18fdf"
+    },
+    {
+      "path": "references/lenses/compliance-risk.md",
+      "uri": "legion-skill://council/references/lenses/compliance-risk.md",
+      "digest": "sha256:308dc8e765d5fbdc382b36570a3510f5c961af512fa51b7c121b987af6d148ec"
+    },
+    {
+      "path": "references/lenses/content-strategy.md",
+      "uri": "legion-skill://council/references/lenses/content-strategy.md",
+      "digest": "sha256:696d89bacfbdd65b469c723f0656bfddf8ed796fb361c7a99ca7847c83fe82f9"
+    },
+    {
+      "path": "references/lenses/design.md",
+      "uri": "legion-skill://council/references/lenses/design.md",
+      "digest": "sha256:9e86925123409c636c660078c25d8eeb80548412c84560e4d5cf70110b501e26"
+    },
+    {
+      "path": "references/lenses/idea.md",
+      "uri": "legion-skill://council/references/lenses/idea.md",
+      "digest": "sha256:e090fa99e00ba313ba1e777e027c6247ad865e972aa007e42acfbd565c81209b"
+    },
+    {
+      "path": "references/lenses/image.md",
+      "uri": "legion-skill://council/references/lenses/image.md",
+      "digest": "sha256:d4310a4c16fead64ac6319ac993f2b28b9bf08935f4ac2870d4aaf254e4227e3"
+    },
+    {
+      "path": "references/lenses/launch.md",
+      "uri": "legion-skill://council/references/lenses/launch.md",
+      "digest": "sha256:c8d0b536f52a5d36fb0cfb4260d95655155a46acb324a620f6c90032621f9764"
+    },
+    {
+      "path": "references/lenses/offer.md",
+      "uri": "legion-skill://council/references/lenses/offer.md",
+      "digest": "sha256:be00a904e9880cb6f1e6a1a99f3f28c52aae9e17e6ca45f0ec424957345086d0"
+    },
+    {
+      "path": "references/lenses/plan.md",
+      "uri": "legion-skill://council/references/lenses/plan.md",
+      "digest": "sha256:5bc3c59f62fb8fabdf2a208ddcc8b1fe05c723186eb005e8f4728432a7eb946b"
+    },
+    {
+      "path": "references/lenses/priority.md",
+      "uri": "legion-skill://council/references/lenses/priority.md",
+      "digest": "sha256:2f542e1b52f803965824a38133e044f5b1db72889f661a2d4001e5adde91b553"
+    },
+    {
+      "path": "references/lenses/seo.md",
+      "uri": "legion-skill://council/references/lenses/seo.md",
+      "digest": "sha256:bc305f1e2af662df56b260b03c8b77541bdbcbde0bea2b22aaa955ef187cf50b"
+    },
+    {
+      "path": "references/lenses/video.md",
+      "uri": "legion-skill://council/references/lenses/video.md",
+      "digest": "sha256:ccdee587264029649c1c30a6c16c9d388a05ca3a520558f7817d8d6ddcafb5ff"
+    }
+  ]
+}

@@ -148,4 +148,4 @@ If DataForSEO MCP tools are available, use `dataforseo_labs_google_competitors_d
 
 ## Optional independent review
 
-When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/council` for a contested decision); ordinary work uses the inline checks and needs no external review.

@@ -103,7 +103,7 @@
     {
       "path": "references/coverage-and-trajectory.md",
       "uri": "legion-skill://audit/references/coverage-and-trajectory.md",
-      "digest": "sha256:63be903c8ba87aaa43843b771cf1d7d2228bbb70eb3f004c01b46b192060abce"
+      "digest": "sha256:4a2de3b6897373c5f5f046868353703831b1e63d6cf46d90a32d40144278a9b2"
     },
     {
       "path": "references/desktop-tauri-checklist.md",
@@ -133,7 +133,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
-      "digest": "sha256:7f551b55ac7f96f7b4d947fe310194e801dcc8cc43791fa95aa294363c363c1a"
+      "digest": "sha256:5ff695ad5b21bc72dbe379d17bfd4f840126f5f03c12fede2aab4b5b93cd65f2"
     },
     {
       "path": "references/migration-safety.md",

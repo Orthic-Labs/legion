@@ -106,7 +106,7 @@
       "reason": "GoalRoute schema preserves predecessor wire alias"
     },
     {
-      "pathPrefix": "skills/covenant/evals/",
+      "pathPrefix": "skills/council/evals/",
       "tokens": [
         "seer"
       ],

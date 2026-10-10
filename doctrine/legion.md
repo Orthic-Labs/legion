@@ -22,7 +22,7 @@ It may describe:
 ## Handoff reference
 
 Legion routes work by capability descriptions and explicit authority invocation. A frozen Sage
-handoff goes to Alchemist. Oracle reviews any work Legion did not produce itself; Covenant is only a one-shot advisory escalation. Execution derives a
+handoff goes to Alchemist. Oracle reviews any work Legion did not produce itself; Council is only an explicit, advisory escalation (at most two loops). Execution derives a
 file/artifact task DAG from actual consumption only for genuinely parallel or governed work,
 launches maximal ready antichains where useful, and never copies a stage DAG into execution.
 Routine work may remain inline. Only shared contract writes, integration, commits, pins, and
@@ -36,7 +36,7 @@ Every delegated assignment names its role as the host subagent type (`legion:alc
 runs commands with effects, or produces an artifact; Oracle for independent review or verification
 of someone else's work; Sage for design, adjudication, or reassessment. Generic agents
 (`general-purpose`, `Explore`) are permitted only for read-only lookup that produces no artifact.
-`legion:covenant-seat` only while Legion executes `/covenant`.
+`legion:council-seat` only while Legion executes `/council`.
 
 Capability selection is positive: when the requested result is prose for a reader, a visual/UI, a
 repository-quality verdict, or a research synthesis, select `writing`, `designer`, `audit`, or
@@ -57,7 +57,7 @@ requested authority to satisfy a host gate. Surface a rejected launch with its o
 repair compatible configuration when authorized, then retry within existing bounds.
 
 Codex projections preserve explicit role model/settings. Otherwise each role takes its tier's
-`codex` model from `src/config/model-tiers.json` (Covenant seats use `deliberation`), falling back to
+`codex` model from `src/config/model-tiers.json` (Council seats use `deliberation`), falling back to
 configured parent/subagent defaults only when a tier has no entry. Exact model names live in that
 file & host configuration, never in roster prose; configuration alone still proves neither model
 availability nor tier compatibility.

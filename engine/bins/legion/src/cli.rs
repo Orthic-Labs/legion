@@ -617,7 +617,7 @@ fn validate_portable_plugin_root(
             .any(|skill| !expected_files.contains(&format!("skills/{skill}/SKILL.md")))
         // Every declared agent must be a declared file too, so a core cannot
         // advertise an agent it does not carry: shipping skills while silently
-        // dropping the agents is exactly how sage, alchemist and the covenant
+        // dropping the agents is exactly how sage, alchemist and the council
         // seat stayed unreachable from every client.
         || portable_contract
             .public_agents

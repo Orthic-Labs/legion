@@ -56,12 +56,12 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("alchemist/parse_events", alchemist_parse_events),
     ("alchemist/viewer", alchemist_viewer),
     ("brand-identity/color-check", brand_identity_color_check),
-    ("covenant/digest", covenant_digest),
+    ("council/digest", council_digest),
     (
-        "covenant/validate-external-review-packet",
-        covenant_validate_external_review_packet,
+        "council/validate-external-review-packet",
+        council_validate_external_review_packet,
     ),
-    ("covenant/validate-record", covenant_validate_record),
+    ("council/validate-record", council_validate_record),
     ("designer/add-music", designer_add_music),
     ("designer/context", designer_context),
     ("designer/context-signals", designer_context_signals),
@@ -266,16 +266,16 @@ fn brand_identity_color_check(args: &[String]) -> i32 {
     p9_skills::brand_identity::run(args)
 }
 
-// ---- covenant --------------------------------------------------------
+// ---- council --------------------------------------------------------
 
-fn covenant_validate_external_review_packet(args: &[String]) -> i32 {
+fn council_validate_external_review_packet(args: &[String]) -> i32 {
     w2_005::run(args)
 }
 
-const COVENANT_DIGEST_HELP: &str = "usage: legion script covenant/digest <file|->\nPrint the canonical sha256 digest of a Covenant request JSON document.";
-const COVENANT_VALIDATE_RECORD_HELP: &str = "usage: legion script covenant/validate-record <record.json> [--request <req.json>]\nValidate a Covenant record against its schema and field rules (exit 0 valid, 1 defects, 2 usage/IO).";
+const COUNCIL_DIGEST_HELP: &str = "usage: legion script council/digest <file|->\nPrint the canonical sha256 digest of a Council request JSON document.";
+const COUNCIL_VALIDATE_RECORD_HELP: &str = "usage: legion script council/validate-record <record.json> [--request <req.json>]\nValidate a Council record against its schema and field rules (exit 0 valid, 1 defects, 2 usage/IO).";
 
-fn covenant_read_json(path: &str) -> Result<serde_json::Value, String> {
+fn council_read_json(path: &str) -> Result<serde_json::Value, String> {
     let text = if path == "-" {
         let mut buf = String::new();
         std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)
@@ -287,18 +287,18 @@ fn covenant_read_json(path: &str) -> Result<serde_json::Value, String> {
     serde_json::from_str(&text).map_err(|e| format!("invalid JSON in {path}: {e}"))
 }
 
-fn covenant_digest(args: &[String]) -> i32 {
+fn council_digest(args: &[String]) -> i32 {
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("{COVENANT_DIGEST_HELP}");
+        println!("{COUNCIL_DIGEST_HELP}");
         return 0;
     }
     let [path] = args else {
-        eprintln!("error: expected one argument <file|->\n{COVENANT_DIGEST_HELP}");
+        eprintln!("error: expected one argument <file|->\n{COUNCIL_DIGEST_HELP}");
         return 2;
     };
-    match covenant_read_json(path) {
+    match council_read_json(path) {
         Ok(value) => {
-            println!("{}", p9_skills::covenant::digest_value(&value));
+            println!("{}", p9_skills::council::digest_value(&value));
             0
         }
         Err(e) => {
@@ -308,9 +308,9 @@ fn covenant_digest(args: &[String]) -> i32 {
     }
 }
 
-fn covenant_validate_record(args: &[String]) -> i32 {
+fn council_validate_record(args: &[String]) -> i32 {
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("{COVENANT_VALIDATE_RECORD_HELP}");
+        println!("{COUNCIL_VALIDATE_RECORD_HELP}");
         return 0;
     }
     let mut record_path: Option<&String> = None;
@@ -321,22 +321,22 @@ fn covenant_validate_record(args: &[String]) -> i32 {
             match iter.next() {
                 Some(v) => request_path = Some(v),
                 None => {
-                    eprintln!("error: --request needs a path\n{COVENANT_VALIDATE_RECORD_HELP}");
+                    eprintln!("error: --request needs a path\n{COUNCIL_VALIDATE_RECORD_HELP}");
                     return 2;
                 }
             }
         } else if record_path.is_none() {
             record_path = Some(arg);
         } else {
-            eprintln!("error: unexpected argument {arg}\n{COVENANT_VALIDATE_RECORD_HELP}");
+            eprintln!("error: unexpected argument {arg}\n{COUNCIL_VALIDATE_RECORD_HELP}");
             return 2;
         }
     }
     let Some(record_path) = record_path else {
-        eprintln!("error: record path is required\n{COVENANT_VALIDATE_RECORD_HELP}");
+        eprintln!("error: record path is required\n{COUNCIL_VALIDATE_RECORD_HELP}");
         return 2;
     };
-    let record = match covenant_read_json(record_path) {
+    let record = match council_read_json(record_path) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("error: {e}");
@@ -344,7 +344,7 @@ fn covenant_validate_record(args: &[String]) -> i32 {
         }
     };
     let request = match request_path {
-        Some(p) => match covenant_read_json(p) {
+        Some(p) => match council_read_json(p) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("error: {e}");
@@ -354,21 +354,21 @@ fn covenant_validate_record(args: &[String]) -> i32 {
         None => None,
     };
     let schema_path =
-        find_skills_root().join("skills/covenant/lib/schemas/covenant-record-v1.schema.json");
-    let schema = match covenant_read_json(&schema_path.to_string_lossy()) {
+        find_skills_root().join("skills/council/lib/schemas/council-record-v1.schema.json");
+    let schema = match council_read_json(&schema_path.to_string_lossy()) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("error: {e}");
             return 2;
         }
     };
-    let mut errors = p9_skills::covenant::validate_against_schema(&record, &schema);
-    errors.extend(p9_skills::covenant::validate_record_fields(
+    let mut errors = p9_skills::council::validate_against_schema(&record, &schema);
+    errors.extend(p9_skills::council::validate_record_fields(
         &record,
         request.as_ref(),
     ));
     if errors.is_empty() {
-        println!("PASS: Covenant record is valid");
+        println!("PASS: Council record is valid");
         0
     } else {
         println!("FAIL: {} record defect(s)", errors.len());

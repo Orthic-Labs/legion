@@ -54,7 +54,7 @@ fn fixture_registry() -> NamingRegistry {
             "kernel": { "displayName": "Kernel" }
         },
         "seats": {
-            "covenant": { "displayName": "Covenant", "authority": false }
+            "council": { "displayName": "Council", "authority": false }
         }
     }))
 }

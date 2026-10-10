@@ -402,9 +402,9 @@
       "source": "skills/commit/SKILL.md"
     },
     {
-      "id": "covenant",
-      "name": "covenant",
-      "description": "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /covenant.",
+      "id": "council",
+      "name": "council",
+      "description": "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /council.",
       "kind": "entrypoint",
       "discoverability": "explicit",
       "invocation": {
@@ -429,7 +429,7 @@
         }
       ],
       "scopedRequirements": [],
-      "source": "skills/covenant/SKILL.md"
+      "source": "skills/council/SKILL.md"
     },
     {
       "id": "debugger",

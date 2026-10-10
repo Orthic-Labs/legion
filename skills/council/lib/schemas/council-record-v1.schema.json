@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-council-record-v1",
+  "title": "CouncilRecord",
+  "description": "Advisory Council record. Digest- & source-bound findings are evidence only; a record about an old source revision is stale for a changed subject.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "recordId", "requestId", "mode", "packetDigest", "sourceRevision",
+    "seatRecords", "synthesis", "findings", "disagreements", "missingEvidence", "risks",
+    "outcome", "dispositionState", "callerDispositions", "lane", "providerMetadata", "integrity"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-council-record" },
+
+    "recordId": { "type": "string", "pattern": "^CV-\\d+$" },
+    "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY"] },
+    "loop": { "enum": [1, 2], "description": "Which complete loop this record belongs to. Loop 1 is the plan/design review before the build; loop 2 is the evidence review after it. Never more than two." },
+    "packetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "sourceRevision": { "type": "string", "minLength": 7 },
+
+    "seatRecords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["seatId", "lens", "isolated", "position"],
+        "properties": {
+          "seatId": { "type": "string", "minLength": 1 },
+          "lens": { "type": "string", "minLength": 1, "description": "Seat lens id: <stance>/<domain>:<role>, e.g. red-team/code:lead-architect. Distinct per seat." },
+          "stage": { "enum": ["COUNCIL", "JURY"] },
+          "round": { "enum": ["POSITION", "DEBATE"], "description": "COUNCIL seats only. POSITION is the blind opening read; DEBATE is the one re-launch with the other seats' positions. Absent means POSITION." },
+          "score": { "type": ["integer", "null"], "minimum": 1, "maximum": 10, "description": "Overall 1-10 score (JURY seats)." },
+          "scores": { "type": ["object", "null"], "additionalProperties": { "type": "number", "minimum": 1, "maximum": 10 }, "description": "Per-dimension 1-10 scores from the rubric (JURY seats)." },
+          "topConcern": { "type": ["string", "null"] },
+          "answers": { "type": ["object", "null"], "additionalProperties": { "type": "string" }, "description": "Forced answers keyed by question id (rubric questions plus the stance's own)." },
+          "isolated": { "type": "boolean", "description": "Independence contract: no cross-seat priming." },
+          "providerId": { "type": ["string", "null"] },
+          "reusedModel": { "type": "boolean", "default": false, "description": "Record explicitly when the same model is reused rather than hiding degraded independence." },
+          "position": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "synthesis": { "type": ["string", "null"] },
+
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["findingId", "lens", "statement", "severity", "classification"],
+        "properties": {
+          "findingId": { "type": "string", "pattern": "^F-\\d+$" },
+          "lens": { "type": "string", "minLength": 1 },
+          "statement": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "minLength": 1 },
+          "tier": { "enum": ["P0", "P1", "P2"] },
+          "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+          "affectedDecisions": { "type": "array", "items": { "type": "string", "pattern": "^D-\\d+$" } },
+          "affectedAcceptance": { "type": "array", "items": { "type": "string", "pattern": "^AC-\\d+$" } },
+          "failurePath": { "type": ["string", "null"] },
+          "recommendedAction": { "type": ["string", "null"] },
+          "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "classification": { "enum": ["IN_SCOPE_DEFECT", "LATER_PHASE", "OUT_OF_SCOPE", "MISSING_EVIDENCE", "OPTIONAL_VALUE"] },
+          "contested": { "type": "boolean", "default": false, "description": "True when another Council seat contested this finding in the peer-debate round." },
+          "sustainedBy": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Lens ids that sustained the finding after the debate round (its author, if it did not withdraw, and any seat that endorsed it)." }
+        }
+      },
+      "description": "Findings carry a classification."
+    },
+    "disagreements": { "type": "array", "items": { "type": "string" } },
+    "missingEvidence": { "type": "array", "items": { "type": "string" } },
+    "risks": { "type": "array", "items": { "type": "string" } },
+
+    "outcome": {
+      "enum": ["SUPPORTED", "REVISE", "UNRESOLVED", "CONTRACT_SAFE", "AMENDMENT_REQUIRED", "INSUFFICIENT_EVIDENCE"],
+      "description": "DECISION_CHALLENGE uses {SUPPORTED,REVISE,UNRESOLVED}; BLOCKER_CONSULT uses {CONTRACT_SAFE,AMENDMENT_REQUIRED,INSUFFICIENT_EVIDENCE}; PACKET_ONLY produces no outcome and no record at all so this field is not applicable to that mode."
+    },
+
+    "dispositionState": {
+      "enum": ["PENDING", "COMPLETE"],
+      "description": "PENDING until the decision owner has dispositioned every finding; COMPLETE once they have. Dispositions are validated only when COMPLETE, and a fresh-verdict record id may be set only when COMPLETE."
+    },
+    "callerDispositions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["findingId", "disposition"],
+        "properties": {
+          "findingId": { "type": "string", "pattern": "^F-\\d+$" },
+          "disposition": { "enum": ["ACCEPT", "REJECT", "DEFER_TO_PHASE", "NEEDS_EVIDENCE", "SUPERSEDED"] },
+          "rationale": { "type": ["string", "null"], "description": "A REJECT must contain rationale (enforced by validate_record_fields, not structurally)." },
+          "owningPhase": { "type": ["string", "null"], "description": "Required in practice when disposition == DEFER_TO_PHASE." },
+          "ruledBy": { "enum": ["OWNER", "USER"], "default": "OWNER", "description": "Who ruled. Only the user may reject or supersede a finding that stayed contested and sustained after the debate round (enforced by validate_record_fields)." }
+        }
+      }
+    },
+
+    "revisionSubjectId": { "type": ["string", "null"] },
+    "revisionDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+    "freshVerdictRecordId": {
+      "type": ["string", "null"],
+      "pattern": "^CV-\\d+$",
+      "description": "Reference to a fresh sibling CouncilRecord, independently digest- & source-bound."
+    },
+
+    "lane": { "type": ["string", "null"] },
+    "providerMetadata": { "type": "object" },
+    "timing": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "startedAt": { "type": ["string", "null"], "format": "date-time" },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digestVerified"],
+      "properties": {
+        "digestVerified": { "type": "boolean" },
+        "mutationDetected": { "type": "boolean", "default": false, "description": "Any seat mutating the subject under review invalidates that review." }
+      }
+    }
+  }
+}

@@ -1,15 +1,15 @@
-//! wf_port chunk w2_004 (`skills/covenant/lib/flows.mjs`).
+//! wf_port chunk w2_004 (`skills/council/lib/flows.mjs`).
 //!
-//! `flows.mjs` is ALREADY-NATIVE-VERIFIED via `legion_runtime::p9_skills::covenant`, which ports
+//! `flows.mjs` is ALREADY-NATIVE-VERIFIED via `legion_runtime::p9_skills::council`, which ports
 //! the deterministic pieces of `flows.mjs` (`CONTRACT_BOUNDARIES`, `aggregateDecisionVerdict`)
 //! and documents why the provider-IO orchestration (`runSeats`, `executeDecisionChallenge`,
 //! `executeBlockerConsult`, `executePacketOnly`) is not natively portable. See
-//! `src/wf_port/w2_004/mod.rs` and `src/p9_skills/covenant.rs` for the full rationale.
+//! `src/wf_port/w2_004/mod.rs` and `src/p9_skills/council.rs` for the full rationale.
 //!
-//! These tests assert on the PRODUCTION entry point (`p9_skills::covenant`), not on a duplicate
+//! These tests assert on the PRODUCTION entry point (`p9_skills::council`), not on a duplicate
 //! helper, per the "assert on the production entry point" rule in `docs/agent-rules.md`.
 
-use legion_runtime::p9_skills::covenant::{aggregate_decision_verdict, CONTRACT_BOUNDARIES};
+use legion_runtime::p9_skills::council::{aggregate_decision_verdict, CONTRACT_BOUNDARIES};
 
 /// Mirrors flows.mjs's frozen `CONTRACT_BOUNDARIES` array exactly, in order.
 #[test]

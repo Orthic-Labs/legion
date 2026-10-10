@@ -98,7 +98,7 @@
       "prompt": "Create an OG image (1200x630) for the Harbor Coffee about page.",
       "expected_skill": "designer",
       "forbidden_skills": [],
-      "expected_behavior": "Output filename follows convention: <brand>_og_about_<date>_v1.png. File location note: the consuming project's asset output directory for this brand. No automatic jury runs; `/covenant` may be offered for a high-stakes artifact.",
+      "expected_behavior": "Output filename follows convention: <brand>_og_about_<date>_v1.png. File location note: the consuming project's asset output directory for this brand. No automatic jury runs; `/council` may be offered for a high-stakes artifact.",
       "severity": "warning",
       "mode": "static"
     }

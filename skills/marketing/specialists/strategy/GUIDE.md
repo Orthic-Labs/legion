@@ -47,7 +47,7 @@ Run a short self-council before drafting the plan. This is an internal planning 
 
 Output standard: decision, rejected alternatives, assumptions, risks, validation path, and the smallest next move.
 
-For a high-stakes plan, offer `/covenant` (or `/jury` for a verdict-only pass) AFTER drafting.
+For a high-stakes plan, offer `/council` (or `/jury` for a verdict-only pass) AFTER drafting.
 
 ## Plan → tasklist handoff (MANDATORY for multi-step plans)
 

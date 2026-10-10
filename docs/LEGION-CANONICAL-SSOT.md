@@ -67,13 +67,13 @@ ORACLE COMPLETION VALIDATION — when requested or justified by concrete outcome
     ↓
 DELIVERY
 
-COVENANT — optional bounded adversarial challenge beside the work graph
+COUNCIL — optional bounded adversarial challenge beside the work graph
 ```
 
 Primary rules:
 
 1. **Legion is the only always-on orchestrator.** All other components — Sage, Alchemist,
-   Oracle, Covenant, Audit, Architect, Debugger, Arcane, capabilities — are selected/attached
+   Oracle, Council, Audit, Architect, Debugger, Arcane, capabilities — are selected/attached
    concerns, not peer orchestrators.
 2. **Capabilities describe expertise and method; roles do not contain skills.**
 3. **Capabilities own routine domain judgment. Sage is design,
@@ -97,7 +97,7 @@ Primary rules:
 | Alchemist identity / authority / tier | `src/roster/alchemist.md` | `agents/alchemist.md`, doctrine method |
 | Oracle identity / authority / tier | `src/roster/oracle.md` | `agents/oracle.md`, doctrine method |
 | Sage / Alchemist / Oracle role architecture | `docs/architecture/{sage,alchemist,oracle}.md` | role-specific architecture summaries |
-| Covenant challenge standing | `doctrine/covenant-seat.md` | `agents/covenant-seat.md`, entrypoint |
+| Council challenge standing | `doctrine/council-seat.md` | `agents/council-seat.md`, entrypoint |
 | Architecture craft | `skills/architect/SKILL.md` + `skills/architect/doctrine/architecture/**` | old Sage Architect bundle |
 | Diagnosis craft | `skills/debugger/SKILL.md` + debugger references | old Sage Diagnose bundle |
 | Audit method | `skills/audit/**` | Oracle may consume evidence |
@@ -207,7 +207,7 @@ Entrypoint targets are semantically explicit:
 
 ```text
 /alchemist → authority:alchemist
-/covenant  → challenge:covenant
+/council   → challenge:council
 /commit    → workflow:commit
 ```
 
@@ -235,7 +235,7 @@ settles routine meaning, Legion materializes the executable work unit/contract, 
 participates only when an item remains genuinely OPEN and requires adjudication.
 Alchemist applies settled bounded work; Oracle independently validates the delivered result.
 
-Covenant is not an authority. It is optional, bounded, advisory, read-only, policy/user-triggered,
+Council is not an authority. It is optional, bounded, advisory, read-only, policy/user-triggered,
 not the default reviewer, and without disposition/effect authority. It does not join the
 authority roster.
 
@@ -340,7 +340,7 @@ At the current ~20–30 semantic entries, no retrieval infrastructure (RAG, embe
 search, graph routing, RDF/JSON-LD, hierarchical retrieval) is added. Add retrieval only after
 measured discovery failure. Blueprint graph infrastructure remains unrelated to capability routing.
 
-Explicit-only entrypoints (`alchemist`, `covenant`, `commit`) are excluded
+Explicit-only entrypoints (`alchemist`, `council`, `commit`) are excluded
 from automatic natural-language capability selection; explicit user intent resolves them.
 
 Dispatch is a public workflow capability: natural-language delegation intent selects it
@@ -371,7 +371,7 @@ Review ownership is concern-specific. There is no generic Review authority.
 ```text
 capability self-verification → method-local correctness
 Audit                        → systematic evaluation methodology
-Covenant                     → adversarial challenge
+Council                      → adversarial challenge
 Oracle                       → independent assurance
 Arcane                       → cognitive processing shape and response policy
 Guard                        → deterministic effect enforcement
@@ -399,7 +399,7 @@ Ownership boundaries:
 - **Oracle** (`doctrine/oracle.md` delegated from `src/roster/oracle.md`) owns independent
   assurance and Completion Validation; it may consume Audit/QA/Audit Visual evidence but does not
   own their methods.
-- **Covenant** (`doctrine/covenant-seat.md`) owns bounded adversarial challenge, advisory only.
+- **Council** (`doctrine/council-seat.md`) owns bounded adversarial challenge, advisory only.
 - **Arcane** (`doctrine/arcane.md`) owns the cognitive processing shape and response policy.
 - **Guard** (`doctrine/guard.md`; seed `engine/bins/legion-hook/**`) owns deterministic effect
   enforcement and its receipts.
@@ -555,7 +555,7 @@ Legion routing reference           → doctrine/legion.md
 Role identity/authority/tier       → src/roster/{sage,alchemist,oracle}.md
 Role architecture                  → docs/architecture/{sage,alchemist,oracle}.md
 Role method                        → doctrine/{sage,alchemist,oracle}.md
-Covenant challenge seat            → doctrine/covenant-seat.md
+Council challenge seat             → doctrine/council-seat.md
 Architecture craft                 → skills/architect/SKILL.md + skills/architect/doctrine/architecture/**
 Diagnosis craft                    → skills/debugger/SKILL.md + skills/debugger/references/manual.md
 Audit method                       → skills/audit/**

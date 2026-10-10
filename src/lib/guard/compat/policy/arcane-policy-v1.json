@@ -63,7 +63,7 @@
       "requiredEnforcement": "strong",
       "allowStaleEvidence": false,
       "requiredFields": ["intentRestatement", "blastRadius", "whySafe"],
-      "note": "High-risk completion requires deterministic evidence, strong enforcement, & a producer-bound intent/blast-radius/why-safe context. Optional Covenant challenge is advisory & cannot satisfy or block release prerequisites."
+      "note": "High-risk completion requires deterministic evidence, strong enforcement, & a producer-bound intent/blast-radius/why-safe context. Optional Council challenge is advisory & cannot satisfy or block release prerequisites."
     },
     "release": {
       "requiredEvidenceClasses": ["deterministic"],

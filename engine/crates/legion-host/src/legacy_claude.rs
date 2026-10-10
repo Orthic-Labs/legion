@@ -17,7 +17,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-pub const RETIRED_SKILL_IDS: &[&str] = &["canon", "compshop"];
+pub const RETIRED_SKILL_IDS: &[&str] = &["canon", "compshop", "covenant"];
 const MAX_TREE_ENTRIES: usize = 4096;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

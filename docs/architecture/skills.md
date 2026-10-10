@@ -299,11 +299,11 @@ The following catalog entries have `domain: null`. The `entrypoint` bundles omit
 - **Host requirements:** None declared.
 - **Discoverability:** `explicit`
 
-### `covenant`
+### `council`
 
-- **Manifest:** [covenant.json](../../skills/manifests/covenant.json)
+- **Manifest:** [council.json](../../skills/manifests/council.json)
 - **Kind:** `entrypoint`
-- **Purpose:** Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use `/covenant`.
+- **Purpose:** Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use `/council`.
 - **Capability class:** Not declared; catalog value is `null`.
 - **Domain:** Not declared; catalog value is `null`.
 - **Operations:** `analyze`, `evaluate`, `produce`

@@ -45,4 +45,4 @@ Output standard: spec recap, 3 variant briefs, generated assets (or prompts), fi
 
 ## Optional independent review
 
-When the stakes justify independent review of this artifact, request it through `/oracle`, or offer `/covenant` (or `/jury` for a verdict-only pass) for a high-stakes or contested artifact; ordinary work uses the inline checks and needs no external review.
+When the stakes justify independent review of this artifact, request it through `/oracle`, or offer `/council` (or `/jury` for a verdict-only pass) for a high-stakes or contested artifact; ordinary work uses the inline checks and needs no external review.

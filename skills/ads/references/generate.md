@@ -164,6 +164,6 @@ Use `/banana generate` directly with the specified prompt and aspect ratio.
 
 ## Optional independent review
 
-When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/council` for a contested decision); ordinary work uses the inline checks and needs no external review.
 
 _Additional assets: see generate-assets/_

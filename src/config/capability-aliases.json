@@ -10,7 +10,7 @@
     "/motion": "/designer motion",
     "/script": "tool:execution-preflight",
     "/test-author": "/audit contract-tests",
-    "/council": "/covenant",
-    "/jury": "/covenant"
+    "/covenant": "/council",
+    "/jury": "/council quick"
   }
 }

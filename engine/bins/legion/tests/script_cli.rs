@@ -471,9 +471,9 @@ fn native_script_list_includes_sc4d_ports() {
         "alchemist/parse_events",
         "alchemist/viewer",
         "brand-identity/color-check",
-        "covenant/digest",
-        "covenant/validate-external-review-packet",
-        "covenant/validate-record",
+        "council/digest",
+        "council/validate-external-review-packet",
+        "council/validate-record",
         "seo/provider_registry",
         "seo/question_inventory",
         "seo/query_ownership",
@@ -485,11 +485,11 @@ fn native_script_list_includes_sc4d_ports() {
 }
 
 #[test]
-fn native_script_covenant_validate_external_review_packet_missing_file_exits_2() {
+fn native_script_council_validate_external_review_packet_missing_file_exits_2() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
             "script",
-            "covenant/validate-external-review-packet",
+            "council/validate-external-review-packet",
             "/nonexistent/packet.md",
         ])
         .output()
@@ -498,11 +498,11 @@ fn native_script_covenant_validate_external_review_packet_missing_file_exits_2()
 }
 
 #[test]
-fn native_script_covenant_routes_help_exits_0() {
+fn native_script_council_routes_help_exits_0() {
     for key in [
-        "covenant/digest",
-        "covenant/validate-record",
-        "covenant/validate-external-review-packet",
+        "council/digest",
+        "council/validate-record",
+        "council/validate-external-review-packet",
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_legion"))
             .args(["script", key, "--help"])
@@ -513,8 +513,8 @@ fn native_script_covenant_routes_help_exits_0() {
 }
 
 #[test]
-fn native_script_covenant_validate_record_rejects_unverified_digest() {
-    let dir = std::env::temp_dir().join(format!("legion-covenant-record-{}", std::process::id()));
+fn native_script_council_validate_record_rejects_unverified_digest() {
+    let dir = std::env::temp_dir().join(format!("legion-council-record-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("record.json");
     std::fs::write(
@@ -523,7 +523,7 @@ fn native_script_covenant_validate_record_rejects_unverified_digest() {
     )
     .unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["script", "covenant/validate-record"])
+        .args(["script", "council/validate-record"])
         .arg(&path)
         .output()
         .unwrap();

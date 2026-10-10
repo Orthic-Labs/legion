@@ -17,9 +17,9 @@ ownership. IDs identify records; they never confer capability or authority.
 | Finding | `^F-\d+$` | `F-31` |
 | Blocker | `^B-\d+$` | `B-5` |
 | Amendment | `^A-\d+$` | `A-2` |
-| Covenant advisory record | `^CV-\d+$` | `CV-7` |
+| Council advisory record | `^CV-\d+$` | `CV-7` |
 
-`CV-` identifies challenge artifacts only. It does not place Covenant in authority roster or make
+`CV-` identifies challenge artifacts only. It does not place Council in authority roster or make
 challenge evidence a release gate.
 
 ## Opaque runtime handles

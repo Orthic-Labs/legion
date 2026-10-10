@@ -736,12 +736,12 @@
     {
       "path": "specialists/static-creative/GUIDE.md",
       "uri": "legion-skill://designer/specialists/static-creative/GUIDE.md",
-      "digest": "sha256:4e0b173ea60214f73cfa2427d82feb3c220754dae31a7a6562456e4a10fcfe36"
+      "digest": "sha256:6f5b12543310c501cb0a03c80f4bf873b3bece954205b3a3cb2df62fe050f084"
     },
     {
       "path": "specialists/static-creative/evals/evals.json",
       "uri": "legion-skill://designer/specialists/static-creative/evals/evals.json",
-      "digest": "sha256:a748e53e7258bb9e511999c433b665260220effbf024ebbf8aca09333f3ba9d7"
+      "digest": "sha256:9f34d16035fe7a10388891a4a0b1b16d4b7630fda32260df0c0697a9c3f537eb"
     },
     {
       "path": "specialists/static-creative/references/app.md",
@@ -756,7 +756,7 @@
     {
       "path": "specialists/static-creative/references/marketing.md",
       "uri": "legion-skill://designer/specialists/static-creative/references/marketing.md",
-      "digest": "sha256:032f7ce5727bcc0a1299ab48731a9eba5dc8acaf0b262df0d031ff8b1bd453cc"
+      "digest": "sha256:81a986d78216487cde786805a6386677ab317bd76467d693bdd7ff543e95e776"
     },
     {
       "path": "specialists/static-creative/references/ui-ux-pro-max/reference.md",
