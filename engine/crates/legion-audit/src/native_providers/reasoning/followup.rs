@@ -140,10 +140,7 @@ fn scoped_paths(confirmed: &[ConfirmedSecurityFinding]) -> Result<Vec<String>, A
 
 /// One seed per confirmed finding: scanner rule/location plus the adjudicator's
 /// reasoning, joined from the parent adjudication packet and receipt.
-fn seeds(
-    run_dir: &Path,
-    confirmed: &[ConfirmedSecurityFinding],
-) -> Result<Vec<Value>, AuditError> {
+fn seeds(run_dir: &Path, confirmed: &[ConfirmedSecurityFinding]) -> Result<Vec<Value>, AuditError> {
     let packet = read_json(
         &run_dir
             .join(LENS_PACKET_DIR)
@@ -176,7 +173,8 @@ fn seeds(
         .map(|finding| {
             let candidate = by_id(&candidates, "findingId", &finding.candidate_id);
             let verdict = by_id(&verdicts, "candidateId", &finding.candidate_id);
-            let pick = |source: &Value, field: &str| source.get(field).cloned().unwrap_or(Value::Null);
+            let pick =
+                |source: &Value, field: &str| source.get(field).cloned().unwrap_or(Value::Null);
             json!({
                 "parentFindingId": format!("adjudicated:{}", finding.candidate_id),
                 "candidateId": finding.candidate_id,
@@ -254,8 +252,8 @@ pub fn compile_followup(
             .join(format!("{ADJUDICATOR_PROVIDER_ID}.json")),
     )?)
     .map_err(|error| invalid(format!("adjudication packet is invalid: {error}")))?;
-    let inventory = FilesystemInventorySource::new(&root)?
-        .inventory(&adjudication.request.repository_id)?;
+    let inventory =
+        FilesystemInventorySource::new(&root)?.inventory(&adjudication.request.repository_id)?;
     if inventory.generation != revision
         || parent_plan
             .pointer("/binding/inventoryDigest")
@@ -280,7 +278,11 @@ pub fn compile_followup(
         &digest_of_confirmed,
     )?
     .freeze(Some(key.as_slice()))?;
-    let execution = execute(&plan, &inventory, &ReasoningProviderExecutor::unavailable(&root))?;
+    let execution = execute(
+        &plan,
+        &inventory,
+        &ReasoningProviderExecutor::unavailable(&root),
+    )?;
     if execution.pending_host != [VARIANT_PROVIDER_ID] {
         return Err(invalid(
             "the follow-up plan did not leave the variant lens pending-host",
@@ -393,7 +395,8 @@ fn reuse(
     paths: &[String],
 ) -> Option<FollowupPlanned> {
     let plan_json = read_json(&dir.join("plan.json")).ok()?;
-    let frozen: AuditPlan = serde_json::from_value(read_json(&dir.join(FROZEN_PLAN_FILE)).ok()?).ok()?;
+    let frozen: AuditPlan =
+        serde_json::from_value(read_json(&dir.join(FROZEN_PLAN_FILE)).ok()?).ok()?;
     let binding = frozen.followup_binding()?;
     let matches = binding.get("parentPlanDigest").and_then(Value::as_str) == Some(parent_digest)
         && binding.get("confirmedDigest").and_then(Value::as_str) == Some(confirmed_digest)
@@ -521,8 +524,9 @@ fn check(
         ));
     }
 
-    let execution: ExecutionReport = serde_json::from_value(read_json(&dir.join("execution.json"))?)
-        .map_err(|error| invalid(format!("follow-up execution.json is invalid: {error}")))?;
+    let execution: ExecutionReport =
+        serde_json::from_value(read_json(&dir.join("execution.json"))?)
+            .map_err(|error| invalid(format!("follow-up execution.json is invalid: {error}")))?;
     if execution.plan_digest != digest || execution.planned_providers != [VARIANT_PROVIDER_ID] {
         return Err(invalid("follow-up execution is not bound to its plan"));
     }
@@ -537,7 +541,11 @@ fn check(
     // The ordinary verdict recomputation over the follow-up run: receipts must
     // verify (MAC, epoch, plan binding, result digest).
     let recomputed = recompute_run(dir)?;
-    if !recomputed.ingested.iter().any(|id| id == VARIANT_PROVIDER_ID) {
+    if !recomputed
+        .ingested
+        .iter()
+        .any(|id| id == VARIANT_PROVIDER_ID)
+    {
         return Ok(FollowupState::Pending(
             "the variant-analysis lens result has not been ingested".into(),
         ));

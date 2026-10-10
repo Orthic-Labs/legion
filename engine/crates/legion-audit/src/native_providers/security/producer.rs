@@ -43,7 +43,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use legion_provider_sdk::{ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest};
+use legion_provider_sdk::{
+    ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
+};
 use regex::Regex;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
@@ -109,11 +111,14 @@ pub struct ArtifactProducer {
 
 impl ArtifactProducer {
     pub fn new(root: impl Into<PathBuf>) -> Self {
-        let osv_database = ["OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY", "OSV_SCANNER_OFFLINE_DB"]
-            .iter()
-            .filter_map(|name| std::env::var_os(name))
-            .map(PathBuf::from)
-            .find(|path| !path.as_os_str().is_empty());
+        let osv_database = [
+            "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY",
+            "OSV_SCANNER_OFFLINE_DB",
+        ]
+        .iter()
+        .filter_map(|name| std::env::var_os(name))
+        .map(PathBuf::from)
+        .find(|path| !path.as_os_str().is_empty());
         Self {
             root: root.into(),
             run_dir: None,
@@ -317,7 +322,8 @@ impl<'a> Run<'a> {
     fn execution_receipt(&self, run: &ToolRun) -> Value {
         let mut receipt = run.receipt.clone();
         receipt["tool"] = run.tool_identity();
-        receipt["stdoutArtifact"] = json!({"digest": digest(&run.stdout), "bytes": run.stdout.len()});
+        receipt["stdoutArtifact"] =
+            json!({"digest": digest(&run.stdout), "bytes": run.stdout.len()});
         receipt
     }
 
@@ -357,46 +363,49 @@ impl<'a> Run<'a> {
         }
         let allowlist: BTreeSet<String> = environment.keys().cloned().collect();
 
-        let (launch_executable, launch_args, sandbox, version_args, requires_sandbox) =
-            match self.producer.sandbox {
-                SandboxPolicy::Disabled => {
-                    (executable_text.clone(), args.clone(), None, None, false)
-                }
-                SandboxPolicy::Required => {
-                    match legion_effects::authenticate_sandbox(
-                        &executable_text,
-                        &args,
-                        &root_text,
-                        legion_effects::SandboxMode::DenyNetwork,
-                        &self.scratch.path.join("sandbox"),
-                    ) {
-                        Ok(auth) => {
-                            // Probe the real tool's version through the same
-                            // wrapper prefix (`-f profile -- tool`).
-                            let mut probe: Vec<String> =
-                                auth.wrapped_args.iter().take(4).cloned().collect();
-                            probe.push("--version".into());
-                            (
-                                auth.wrapped_executable,
-                                auth.wrapped_args,
-                                Some(legion_effects::SandboxReceipt {
-                                    id: auth.id,
-                                    network: auth.network,
-                                    filesystem_scope: auth.filesystem_scope,
-                                }),
-                                Some(probe),
-                                true,
-                            )
-                        }
-                        // No authenticator: leave the receipt absent so the
-                        // executor refuses (typed degradation, never unsandboxed).
-                        Err(_) => (executable_text.clone(), args.clone(), None, None, true),
+        let (launch_executable, launch_args, sandbox, version_args, requires_sandbox) = match self
+            .producer
+            .sandbox
+        {
+            SandboxPolicy::Disabled => (executable_text.clone(), args.clone(), None, None, false),
+            SandboxPolicy::Required => {
+                match legion_effects::authenticate_sandbox(
+                    &executable_text,
+                    &args,
+                    &root_text,
+                    legion_effects::SandboxMode::DenyNetwork,
+                    &self.scratch.path.join("sandbox"),
+                ) {
+                    Ok(auth) => {
+                        // Probe the real tool's version through the same
+                        // wrapper prefix (`-f profile -- tool`).
+                        let mut probe: Vec<String> =
+                            auth.wrapped_args.iter().take(4).cloned().collect();
+                        probe.push("--version".into());
+                        (
+                            auth.wrapped_executable,
+                            auth.wrapped_args,
+                            Some(legion_effects::SandboxReceipt {
+                                id: auth.id,
+                                network: auth.network,
+                                filesystem_scope: auth.filesystem_scope,
+                            }),
+                            Some(probe),
+                            true,
+                        )
                     }
+                    // No authenticator: leave the receipt absent so the
+                    // executor refuses (typed degradation, never unsandboxed).
+                    Err(_) => (executable_text.clone(), args.clone(), None, None, true),
                 }
-            };
+            }
+        };
 
         let request = ExternalToolRequest {
-            request_id: format!("security-producer:{}:{}", self.provider.id, self.inventory.digest),
+            request_id: format!(
+                "security-producer:{}:{}",
+                self.provider.id, self.inventory.digest
+            ),
             provider_id: self.provider.id.clone(),
             plan_id: self.inventory.digest.clone(),
             policy_id: POLICY_ID.into(),
@@ -440,7 +449,9 @@ impl<'a> Run<'a> {
             .unwrap_or_default()
             .trim()
             .to_owned();
-        let argv: Vec<String> = std::iter::once(tool.clone()).chain(args.iter().cloned()).collect();
+        let argv: Vec<String> = std::iter::once(tool.clone())
+            .chain(args.iter().cloned())
+            .collect();
         let receipt_value = json!({
             "tool": tool,
             "version": version,
@@ -716,7 +727,10 @@ impl<'a> Run<'a> {
             }
             let target = relative_path(
                 self.root(),
-                result.get("Target").and_then(Value::as_str).unwrap_or_default(),
+                result
+                    .get("Target")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
             );
             if source.contains(&target) {
                 covered_sources += 1;
@@ -856,7 +870,11 @@ impl<'a> Run<'a> {
             }));
         }
         let files: Vec<String> = self.entries().map(|entry| entry.path.clone()).collect();
-        Production::Artifact(self.input(&files, json!({"dependencyReceipts": receipts}), run.producer()))
+        Production::Artifact(self.input(
+            &files,
+            json!({"dependencyReceipts": receipts}),
+            run.producer(),
+        ))
     }
 
     // ------------------------------------------------------------------ secrets
@@ -906,7 +924,10 @@ impl<'a> Run<'a> {
                     item.get("File").and_then(Value::as_str).unwrap_or_default(),
                 );
                 let line = item.get("StartLine").and_then(Value::as_u64).unwrap_or(1);
-                let rule = item.get("RuleID").and_then(Value::as_str).unwrap_or("secret.unknown");
+                let rule = item
+                    .get("RuleID")
+                    .and_then(Value::as_str)
+                    .unwrap_or("secret.unknown");
                 let fingerprint = item
                     .get("Fingerprint")
                     .and_then(Value::as_str)
@@ -971,15 +992,27 @@ impl<'a> Run<'a> {
                 for (rule, regex) in &rules {
                     if let Some(found) = regex.find(line) {
                         if seen.insert((line_number, *rule)) {
-                            findings.push(native_secret_finding(path, line_number, rule, found.as_str()));
+                            findings.push(native_secret_finding(
+                                path,
+                                line_number,
+                                rule,
+                                found.as_str(),
+                            ));
                         }
                     }
                 }
                 if !lockfile {
                     if let Some(captures) = generic.captures(line) {
                         let value = captures.get(1).map(|m| m.as_str()).unwrap_or_default();
-                        if looks_like_secret(value) && seen.insert((line_number, "generic.high-entropy")) {
-                            findings.push(native_secret_finding(path, line_number, "generic.high-entropy", value));
+                        if looks_like_secret(value)
+                            && seen.insert((line_number, "generic.high-entropy"))
+                        {
+                            findings.push(native_secret_finding(
+                                path,
+                                line_number,
+                                "generic.high-entropy",
+                                value,
+                            ));
                         }
                     }
                 }
@@ -1037,7 +1070,8 @@ impl<'a> Run<'a> {
         }
         let (sbom_packages, cyclonedx_digest, spdx_digest, producer) = match &syft {
             Some((cyclonedx, spdx)) => {
-                let document: Value = serde_json::from_slice(&cyclonedx.stdout).unwrap_or(Value::Null);
+                let document: Value =
+                    serde_json::from_slice(&cyclonedx.stdout).unwrap_or(Value::Null);
                 let packages: Vec<String> = document
                     .get("components")
                     .and_then(Value::as_array)
@@ -1050,14 +1084,23 @@ impl<'a> Run<'a> {
                     .collect();
                 let mut producer = cyclonedx.producer();
                 producer["spdx"] = spdx.receipt.clone();
-                (packages, json!(digest(&cyclonedx.stdout)), json!(digest(&spdx.stdout)), producer)
+                (
+                    packages,
+                    json!(digest(&cyclonedx.stdout)),
+                    json!(digest(&spdx.stdout)),
+                    producer,
+                )
             }
             None => {
                 // Native SBOM: a CycloneDX document derived from the same
                 // lockfile inventory. It reconciles by construction, so the
                 // evidence is labelled and no SPDX/provenance is claimed.
-                let components: Vec<Value> = lock_packages.iter().map(|purl| json!({"type":"library","purl":purl})).collect();
-                let document = json!({"bomFormat":"CycloneDX","specVersion":"1.5","components":components});
+                let components: Vec<Value> = lock_packages
+                    .iter()
+                    .map(|purl| json!({"type":"library","purl":purl}))
+                    .collect();
+                let document =
+                    json!({"bomFormat":"CycloneDX","specVersion":"1.5","components":components});
                 (
                     lock_packages.clone(),
                     json!(digest_json(&document)),
@@ -1135,11 +1178,23 @@ impl<'a> Run<'a> {
                 "source": source,
             });
             if let Ok(parsed) = serde_json::from_str::<Value>(&raw) {
-                let runs: Vec<Value> = parsed.get("runs").and_then(Value::as_array).cloned().unwrap_or_default();
-                let driver = runs.first().and_then(|r| r.get("tool")).and_then(|t| t.get("driver"));
+                let runs: Vec<Value> = parsed
+                    .get("runs")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                let driver = runs
+                    .first()
+                    .and_then(|r| r.get("tool"))
+                    .and_then(|t| t.get("driver"));
                 let results: Vec<Value> = runs
                     .iter()
-                    .flat_map(|run| run.get("results").and_then(Value::as_array).cloned().unwrap_or_default())
+                    .flat_map(|run| {
+                        run.get("results")
+                            .and_then(Value::as_array)
+                            .cloned()
+                            .unwrap_or_default()
+                    })
                     .collect();
                 item["artifact"] = json!({
                     "schemaVersion": "2.1.0",
@@ -1209,7 +1264,11 @@ fn ruleset_digest(root: &Path, rules: &[String]) -> String {
     let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
     for rule in rules {
         let base = root.join(rule);
-        for entry in WalkDir::new(&base).follow_links(false).into_iter().flatten() {
+        for entry in WalkDir::new(&base)
+            .follow_links(false)
+            .into_iter()
+            .flatten()
+        {
             if entry.file_type().is_file() {
                 if let Ok(bytes) = fs::read(entry.path()) {
                     entries.push((relative_path(root, &entry.path().to_string_lossy()), bytes));
@@ -1263,13 +1322,22 @@ fn secret_denominator(tracked: usize) -> Value {
 const SECRET_PATTERNS: &[(&str, &str)] = &[
     ("aws.access-key-id", r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
     ("github.token", r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"),
-    ("github.fine-grained-pat", r"\bgithub_pat_[A-Za-z0-9_]{22,}\b"),
+    (
+        "github.fine-grained-pat",
+        r"\bgithub_pat_[A-Za-z0-9_]{22,}\b",
+    ),
     ("slack.token", r"\bxox[baprs]-[A-Za-z0-9-]{10,}"),
     ("stripe.live-key", r"\b[sr]k_live_[0-9A-Za-z]{20,}\b"),
     ("google.api-key", r"\bAIza[0-9A-Za-z_\-]{35}\b"),
     ("npm.access-token", r"\bnpm_[A-Za-z0-9]{36}\b"),
-    ("private-key.pem", r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY(?: BLOCK)?-----"),
-    ("jwt", r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
+    (
+        "private-key.pem",
+        r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY(?: BLOCK)?-----",
+    ),
+    (
+        "jwt",
+        r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b",
+    ),
 ];
 
 fn secret_rules() -> Vec<(&'static str, Regex)> {
@@ -1312,7 +1380,10 @@ fn is_lockfile(path: &str) -> bool {
     name.ends_with(".lock")
         || name.ends_with(".sum")
         || name.ends_with(".min.js")
-        || matches!(name.as_str(), "package-lock.json" | "pnpm-lock.yaml" | "npm-shrinkwrap.json")
+        || matches!(
+            name.as_str(),
+            "package-lock.json" | "pnpm-lock.yaml" | "npm-shrinkwrap.json"
+        )
 }
 
 fn shannon_entropy(value: &str) -> f64 {
@@ -1333,7 +1404,15 @@ fn shannon_entropy(value: &str) -> f64 {
 fn looks_like_secret(value: &str) -> bool {
     let lower = value.to_ascii_lowercase();
     const PLACEHOLDERS: &[&str] = &[
-        "example", "placeholder", "changeme", "xxxxx", "your_", "your-", "dummy", "sample", "redacted",
+        "example",
+        "placeholder",
+        "changeme",
+        "xxxxx",
+        "your_",
+        "your-",
+        "dummy",
+        "sample",
+        "redacted",
     ];
     !PLACEHOLDERS.iter().any(|p| lower.contains(p))
         && value.chars().any(|c| c.is_ascii_digit())
@@ -1358,7 +1437,11 @@ fn lockfile_kind(path: &str) -> Option<&'static str> {
 }
 
 fn lockfile_paths(paths: &[String]) -> Vec<String> {
-    paths.iter().filter(|p| lockfile_kind(p).is_some()).cloned().collect()
+    paths
+        .iter()
+        .filter(|p| lockfile_kind(p).is_some())
+        .cloned()
+        .collect()
 }
 
 fn purl(kind: &str, name: &str, version: &str) -> String {
@@ -1397,7 +1480,11 @@ fn pypi_name(name: &str) -> String {
 }
 
 fn toml_value(line: &str, key: &str) -> Option<String> {
-    let rest = line.trim().strip_prefix(key)?.trim_start().strip_prefix('=')?;
+    let rest = line
+        .trim()
+        .strip_prefix(key)?
+        .trim_start()
+        .strip_prefix('=')?;
     Some(rest.trim().trim_matches('"').to_owned())
 }
 
@@ -1507,7 +1594,10 @@ fn yarn_packages(text: &str) -> Vec<String> {
                 .unwrap_or_default()
                 .trim()
                 .trim_matches('"');
-            name = first.rfind('@').filter(|i| *i > 0).map(|i| first[..i].to_owned());
+            name = first
+                .rfind('@')
+                .filter(|i| *i > 0)
+                .map(|i| first[..i].to_owned());
         } else if let Some(current) = &name {
             let trimmed = line.trim();
             let version = trimmed
@@ -1536,11 +1626,18 @@ fn go_sum_packages(text: &str) -> Vec<String> {
 fn requirements_packages(text: &str) -> Vec<String> {
     text.lines()
         .filter_map(|line| {
-            let line = line.split('#').next().unwrap_or_default().split(';').next()?.trim();
+            let line = line
+                .split('#')
+                .next()
+                .unwrap_or_default()
+                .split(';')
+                .next()?
+                .trim();
             let (name, version) = line.split_once("==")?;
             let name = name.split('[').next()?.trim();
             let version = version.trim().split_whitespace().next()?;
-            (!name.is_empty() && !version.is_empty()).then(|| purl("pypi", &pypi_name(name), version))
+            (!name.is_empty() && !version.is_empty())
+                .then(|| purl("pypi", &pypi_name(name), version))
         })
         .collect()
 }

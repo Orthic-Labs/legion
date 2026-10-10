@@ -60,7 +60,10 @@ lazy_re!(
     js_import_re,
     r#"(?m)\b(?:import|export)\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]"#
 );
-lazy_re!(js_call_re, r#"\b(?:require|import)\(\s*['"]([^'"]+)['"]\s*\)"#);
+lazy_re!(
+    js_call_re,
+    r#"\b(?:require|import)\(\s*['"]([^'"]+)['"]\s*\)"#
+);
 lazy_re!(py_import_re, r"(?m)^[ \t]*import[ \t]+([^\n#;]+)");
 lazy_re!(
     py_from_re,
@@ -68,10 +71,7 @@ lazy_re!(
 );
 lazy_re!(md_link_re, r#"\]\(([^)\s]+)(?:\s+"[^"]*")?\)"#);
 lazy_re!(md_span_re, r"`([^`\n]+)`");
-lazy_re!(
-    req_id_re,
-    r"\b(?:REQ|FR|NFR|SR|US)-[0-9]{1,5}\b"
-);
+lazy_re!(req_id_re, r"\b(?:REQ|FR|NFR|SR|US)-[0-9]{1,5}\b");
 lazy_re!(
     fake_assert_re,
     r"assert!\(\s*true\s*\)|assert_eq!\(\s*true\s*,\s*true\s*\)|expect\(\s*true\s*\)\s*\.\s*to(?:Be|Equal|StrictEqual)\(\s*true\s*\)|\bassert\s+True\b|assertTrue\(\s*True\s*\)|assert\.ok\(\s*true\s*\)"
@@ -110,10 +110,7 @@ lazy_re!(
     route_go_re,
     r#"\.(Get|Post|Put|Patch|Delete|Handle|HandleFunc|GET|POST|PUT|PATCH|DELETE)\(\s*"(/[^"]*)""#
 );
-lazy_re!(
-    cargo_name_re,
-    r#"(?m)^[ \t]*name[ \t]*=[ \t]*"([^"]+)""#
-);
+lazy_re!(cargo_name_re, r#"(?m)^[ \t]*name[ \t]*=[ \t]*"([^"]+)""#);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Lang {
@@ -220,9 +217,7 @@ fn is_manifest_name(name: &str) -> bool {
 }
 
 fn retain(path: &str) -> bool {
-    lang_of(path) != Lang::Other
-        || extension(path) == "md"
-        || is_manifest_name(file_name(path))
+    lang_of(path) != Lang::Other || extension(path) == "md" || is_manifest_name(file_name(path))
 }
 
 fn is_test_path(path: &str) -> bool {
@@ -230,11 +225,9 @@ fn is_test_path(path: &str) -> bool {
     name.contains(".test.")
         || name.contains(".spec.")
         || name.starts_with("test_")
-        || [
-            "_test.rs", "_test.py", "_test.go", "_spec.rb", "_spec.py",
-        ]
-        .iter()
-        .any(|suffix| name.ends_with(suffix))
+        || ["_test.rs", "_test.py", "_test.go", "_spec.rb", "_spec.py"]
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
         || path
             .split('/')
             .any(|part| matches!(part, "tests" | "test" | "__tests__" | "e2e"))
@@ -360,7 +353,11 @@ impl Ctx<'_> {
 
 /// Reads one denominator file within the caps. `Ok(None)` means the file was
 /// examined but has no analyzable text (symlink or non-UTF-8).
-fn load(root: &Path, entry: &InventoryEntry, budget: &mut u64) -> Result<Option<String>, &'static str> {
+fn load(
+    root: &Path,
+    entry: &InventoryEntry,
+    budget: &mut u64,
+) -> Result<Option<String>, &'static str> {
     let full = root.join(&entry.path);
     let meta = std::fs::symlink_metadata(&full).map_err(|_| "unreadable")?;
     if meta.file_type().is_symlink() {
@@ -477,9 +474,7 @@ fn build_manifests(ctx: &Ctx, facts: &mut Facts) {
 }
 
 fn cargo_package_name(text: &str) -> Option<String> {
-    let start = text
-        .find("[package]")
-        .or_else(|| text.find("[project]"))?;
+    let start = text.find("[package]").or_else(|| text.find("[project]"))?;
     let section = &text[start + 1..];
     let end = section.find("\n[").unwrap_or(section.len());
     cargo_name_re()
@@ -497,7 +492,12 @@ fn expand_use(spec: &str) -> Vec<Vec<String>> {
     use_tree(&chars, &mut pos, Vec::new(), 0)
 }
 
-fn use_tree(chars: &[char], pos: &mut usize, prefix: Vec<String>, depth: usize) -> Vec<Vec<String>> {
+fn use_tree(
+    chars: &[char],
+    pos: &mut usize,
+    prefix: Vec<String>,
+    depth: usize,
+) -> Vec<Vec<String>> {
     let mut path = prefix;
     let mut out = Vec::new();
     loop {
@@ -689,7 +689,8 @@ fn build_graph(ctx: &Ctx, facts: &mut Facts) {
                 {
                     let target = trees[target_tree].by_path[&target_module].clone();
                     let structural = tree == Some(target_tree)
-                        && (is_prefix(&module, &target_module) || is_prefix(&target_module, &module));
+                        && (is_prefix(&module, &target_module)
+                            || is_prefix(&target_module, &module));
                     edges.add(file, &target, "use", structural);
                 }
             }
@@ -949,8 +950,12 @@ fn find_cycles(edges: &EdgeSet) -> Vec<Value> {
         let mut consumers: Vec<String> = members.iter().map(|m| (*m).to_owned()).collect();
         for ((from, to), edge) in &edges.map {
             if !edge.structural
-                && index.get(to.as_str()).is_some_and(|i| member_set.contains(i))
-                && !index.get(from.as_str()).is_some_and(|i| member_set.contains(i))
+                && index
+                    .get(to.as_str())
+                    .is_some_and(|i| member_set.contains(i))
+                && !index
+                    .get(from.as_str())
+                    .is_some_and(|i| member_set.contains(i))
             {
                 consumers.push(from.clone());
             }
@@ -991,8 +996,26 @@ fn code_span_path(span: &str) -> Option<String> {
         c.is_whitespace()
             || matches!(
                 c,
-                '<' | '>' | '*' | '{' | '}' | '$' | '(' | ')' | '=' | ',' | ';' | '|' | '"'
-                    | '\'' | '@' | '#' | '?' | '[' | ']' | '\\' | ':'
+                '<' | '>'
+                    | '*'
+                    | '{'
+                    | '}'
+                    | '$'
+                    | '('
+                    | ')'
+                    | '='
+                    | ','
+                    | ';'
+                    | '|'
+                    | '"'
+                    | '\''
+                    | '@'
+                    | '#'
+                    | '?'
+                    | '['
+                    | ']'
+                    | '\\'
+                    | ':'
             )
     }) {
         return None;
@@ -1006,13 +1029,11 @@ fn code_span_path(span: &str) -> Option<String> {
     }
     let trimmed = span.trim_end_matches('/');
     let last = trimmed.rsplit('/').next().unwrap_or("");
-    let has_extension = last
-        .rsplit_once('.')
-        .is_some_and(|(stem, ext)| {
-            !stem.is_empty()
-                && (1..=6).contains(&ext.len())
-                && ext.chars().all(|c| c.is_ascii_alphanumeric())
-        });
+    let has_extension = last.rsplit_once('.').is_some_and(|(stem, ext)| {
+        !stem.is_empty()
+            && (1..=6).contains(&ext.len())
+            && ext.chars().all(|c| c.is_ascii_alphanumeric())
+    });
     if !(span.ends_with('/') || has_extension) {
         return None;
     }
@@ -1035,14 +1056,18 @@ fn build_docs(ctx: &Ctx, facts: &mut Facts) {
             rest = tail;
         }
     }
-    let exists_exact = |rel: &str| rel.is_empty() || ctx.all.contains(rel) || ctx.dirs.contains(rel);
+    let exists_exact =
+        |rel: &str| rel.is_empty() || ctx.all.contains(rel) || ctx.dirs.contains(rel);
     let mut seen_claims: HashSet<String> = HashSet::new();
     for (doc, text) in &ctx.texts {
         if extension(doc) != "md" {
             continue;
         }
         let lower = file_name(doc).to_ascii_lowercase();
-        if lower.starts_with("changelog") || lower.starts_with("changes") || lower.starts_with("history") {
+        if lower.starts_with("changelog")
+            || lower.starts_with("changes")
+            || lower.starts_with("history")
+        {
             continue;
         }
         let mut headings: Vec<String> = Vec::new();
@@ -1228,7 +1253,10 @@ fn is_source_candidate(path: &str, text: &str) -> bool {
 fn build_tests(ctx: &Ctx, facts: &mut Facts) {
     let mut importers: HashMap<&str, Vec<&str>> = HashMap::new();
     for ((from, to), _) in &facts.edges.map {
-        importers.entry(to.as_str()).or_default().push(from.as_str());
+        importers
+            .entry(to.as_str())
+            .or_default()
+            .push(from.as_str());
     }
     // Per package: names a test file refers to, and test stems.
     let mut words: HashMap<String, HashSet<String>> = HashMap::new();
@@ -1273,9 +1301,7 @@ fn build_tests(ctx: &Ctx, facts: &mut Facts) {
             && !test_files.is_empty();
         if named || referenced {
             for test in &test_files {
-                if ctx.package_dir(test) == package
-                    && (test_subject(test) == stem || referenced)
-                {
+                if ctx.package_dir(test) == package && (test_subject(test) == stem || referenced) {
                     tests.insert((*test).clone());
                 }
             }
@@ -1287,7 +1313,8 @@ fn build_tests(ctx: &Ctx, facts: &mut Facts) {
                 "inlineTests": inline,
             }));
         }
-        if !inline && tests.is_empty() && !named && !referenced && facts.test_obs.len() < MAX_ITEMS {
+        if !inline && tests.is_empty() && !named && !referenced && facts.test_obs.len() < MAX_ITEMS
+        {
             facts.test_obs.push(json!({
                 "id": format!("test-quality.core:missing:{}", short_hash(path)),
                 "severity": "warning",
@@ -1356,7 +1383,11 @@ fn manifest_framework_dependencies(ctx: &Ctx) -> Vec<(String, String, Vec<String
                 }
             }
         }
-        out.push((parent(&entry.path).to_owned(), name.to_owned(), dependencies));
+        out.push((
+            parent(&entry.path).to_owned(),
+            name.to_owned(),
+            dependencies,
+        ));
     }
     out
 }
@@ -1388,12 +1419,22 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
             for (framework, wanted, exts, suffix) in [
                 ("react", vec!["react"], vec![".tsx", ".jsx"], None),
                 ("next", vec!["next"], vec![".tsx", ".jsx"], None),
-                ("remix", vec!["@remix-run/react"], vec![".tsx", ".jsx"], None),
+                (
+                    "remix",
+                    vec!["@remix-run/react"],
+                    vec![".tsx", ".jsx"],
+                    None,
+                ),
                 ("vue", vec!["vue"], vec![".vue"], None),
                 ("nuxt", vec!["nuxt"], vec![".vue"], None),
                 ("svelte", vec!["svelte"], vec![".svelte"], None),
                 ("astro", vec!["astro"], vec![".astro"], None),
-                ("angular", vec!["@angular/core"], vec![".ts"], Some(".component.ts")),
+                (
+                    "angular",
+                    vec!["@angular/core"],
+                    vec![".ts"],
+                    Some(".component.ts"),
+                ),
             ] {
                 if has(&wanted) {
                     frontend
@@ -1427,9 +1468,15 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
             }
         } else if name == "go.mod"
             && deps.iter().any(|dep| {
-                ["go-chi/chi", "gorilla/mux", "gin-gonic/gin", "labstack/echo", "julienschmidt/httprouter"]
-                    .iter()
-                    .any(|wanted| dep.contains(wanted))
+                [
+                    "go-chi/chi",
+                    "gorilla/mux",
+                    "gin-gonic/gin",
+                    "labstack/echo",
+                    "julienschmidt/httprouter",
+                ]
+                .iter()
+                .any(|wanted| dep.contains(wanted))
             })
         {
             backend.entry("go-router").or_default().insert(dir.clone());
@@ -1506,7 +1553,12 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
         }
         facts.backend.push(json!({"name": name, "routes": routes}));
     }
-    for path in ctx.texts.keys().chain(ctx.all.iter()).collect::<BTreeSet<_>>() {
+    for path in ctx
+        .texts
+        .keys()
+        .chain(ctx.all.iter())
+        .collect::<BTreeSet<_>>()
+    {
         let name = file_name(path);
         let ext = extension(path);
         let is_model = ext == "prisma"
@@ -1657,9 +1709,9 @@ pub fn reconcile(facts: &Facts, provider: &str, analysis: &mut Analysis) {
             if facts.test_obs.is_empty() {
                 // The producer's denominator is the files it classified: a
                 // clean scan is a measured zero, not an empty denominator.
-                analysis
-                    .coverage_gaps
-                    .retain(|g| g.get("kind").and_then(Value::as_str) != Some("test-quality-denominator-zero"));
+                analysis.coverage_gaps.retain(|g| {
+                    g.get("kind").and_then(Value::as_str) != Some("test-quality-denominator-zero")
+                });
                 if analysis.coverage_gaps.is_empty() {
                     analysis.status = "pass".into();
                     analysis.complete = true;

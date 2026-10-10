@@ -174,9 +174,19 @@ fn planted_defects_are_found_with_exact_locations_and_counts() {
             "{id}"
         );
         let coverage = result.coverage.as_ref().unwrap();
-        assert_eq!((coverage.expected, coverage.examined), (*files, *files), "{id}");
-        assert_eq!(coverage.denominator_digest, inventory(&root, DEFECT_PATHS).digest);
-        assert!(!result.complete, "{id}: no tool receipts, so never complete");
+        assert_eq!(
+            (coverage.expected, coverage.examined),
+            (*files, *files),
+            "{id}"
+        );
+        assert_eq!(
+            coverage.denominator_digest,
+            inventory(&root, DEFECT_PATHS).digest
+        );
+        assert!(
+            !result.complete,
+            "{id}: no tool receipts, so never complete"
+        );
         assert_eq!(result.status, ProviderStatus::Partial);
         assert_eq!(
             result.details["nativeAnalysis"]["denominator"]["examined"],
@@ -189,7 +199,10 @@ fn planted_defects_are_found_with_exact_locations_and_counts() {
 
 #[test]
 fn clean_fixture_yields_no_findings_and_typed_tool_gaps() {
-    let root = fixture(&[("src/lib.rs", "pub fn add(a: u32, b: u32) -> u32 {\n    a + b\n}\n")]);
+    let root = fixture(&[(
+        "src/lib.rs",
+        "pub fn add(a: u32, b: u32) -> u32 {\n    a + b\n}\n",
+    )]);
     let result = run(&root, &["src/lib.rs"], "code.rust");
     assert!(result.findings.is_empty());
     let coverage = result.coverage.as_ref().unwrap();
@@ -215,10 +228,16 @@ fn clean_fixture_yields_no_findings_and_typed_tool_gaps() {
 fn unread_files_are_named_gaps_and_never_counted_as_examined() {
     let root = fixture(&[
         ("src/a.rs", "pub fn a() {}\n"),
-        ("src/big.rs", &"// padding line to exceed the cap\n".repeat(40)),
+        (
+            "src/big.rs",
+            &"// padding line to exceed the cap\n".repeat(40),
+        ),
         ("src/b.rs", "pub fn b() {}\n"),
     ]);
-    let inv = inventory(&root, &["src/a.rs", "src/b.rs", "src/big.rs", "src/gone.rs"]);
+    let inv = inventory(
+        &root,
+        &["src/a.rs", "src/b.rs", "src/big.rs", "src/gone.rs"],
+    );
     let adapter = ProviderExecutorAdapter::new()
         .with_root(&root)
         .with_limits(EvidenceLimits {
@@ -251,7 +270,9 @@ fn unread_files_are_named_gaps_and_never_counted_as_examined() {
 
     // A file that changed after inventory is not examined.
     fs::write(root.join("src/a.rs"), "pub fn a() { /* TODO */ }\n").unwrap();
-    let result = adapter_for(&root).execute(&provider("code.rust"), &inv).unwrap();
+    let result = adapter_for(&root)
+        .execute(&provider("code.rust"), &inv)
+        .unwrap();
     assert!(result
         .coverage_gaps
         .contains(&"code.rust:file-skipped:changed-since-inventory:src/a.rs".to_string()));
@@ -284,7 +305,10 @@ fn host_injected_input_takes_precedence_and_is_not_replaced() {
         assert!(result
             .coverage_gaps
             .contains(&"unavailable:tool-evidence-not-produced:code.rust".to_string()));
-        assert_eq!(result.coverage.as_ref().unwrap().expected, inv.entries.len() as u64);
+        assert_eq!(
+            result.coverage.as_ref().unwrap().expected,
+            inv.entries.len() as u64
+        );
         assert!(!result.complete);
     }
     fs::remove_dir_all(root).unwrap();
