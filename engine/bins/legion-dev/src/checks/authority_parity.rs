@@ -178,7 +178,11 @@ fn body_after_frontmatter(path: &Path) -> Result<String, String> {
 /// Covenant seat is not a roster role: its doctrine keeps a frontmatter description (the Codex and
 /// Gemini projections read it) and the Claude card must carry the same description, the same body,
 /// and the `deliberation` tier model, which no roster role may share.
-fn check_covenant_seat(root: &Path, model_tier_map: &serde_json::Value, problems: &mut Vec<String>) {
+fn check_covenant_seat(
+    root: &Path,
+    model_tier_map: &serde_json::Value,
+    problems: &mut Vec<String>,
+) {
     let doctrine = root.join("doctrine/covenant-seat.md");
     let card = root.join("agents/covenant-seat.md");
     let doctrine_desc = description(&doctrine, "doctrine/covenant-seat.md");
@@ -195,7 +199,10 @@ fn check_covenant_seat(root: &Path, model_tier_map: &serde_json::Value, problems
             ));
         }
     }
-    match (body_after_frontmatter(&doctrine), body_after_frontmatter(&card)) {
+    match (
+        body_after_frontmatter(&doctrine),
+        body_after_frontmatter(&card),
+    ) {
         (Ok(a), Ok(b)) => {
             if a != b {
                 problems.push(

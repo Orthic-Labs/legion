@@ -359,7 +359,8 @@ fn covenant_validate_record(args: &[String]) -> i32 {
         },
         None => None,
     };
-    let schema_path = find_skills_root().join("skills/covenant/lib/schemas/covenant-record-v1.schema.json");
+    let schema_path =
+        find_skills_root().join("skills/covenant/lib/schemas/covenant-record-v1.schema.json");
     let schema = match covenant_read_json(&schema_path.to_string_lossy()) {
         Ok(v) => v,
         Err(e) => {

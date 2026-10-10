@@ -28,7 +28,25 @@
       "/covenant",
       "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /covenant."
     ],
-    "outputs": [],
+    "outputs": [
+      "references/lenses/README.md",
+      "references/lenses/ad.md",
+      "references/lenses/blogs.md",
+      "references/lenses/brand-voice.md",
+      "references/lenses/business-plan.md",
+      "references/lenses/code.md",
+      "references/lenses/compliance-risk.md",
+      "references/lenses/content-strategy.md",
+      "references/lenses/design.md",
+      "references/lenses/idea.md",
+      "references/lenses/image.md",
+      "references/lenses/launch.md",
+      "references/lenses/offer.md",
+      "references/lenses/plan.md",
+      "references/lenses/priority.md",
+      "references/lenses/seo.md",
+      "references/lenses/video.md"
+    ],
     "scripts": [],
     "templates": [
       "assets/external-review-packet-template.md"
@@ -39,8 +57,7 @@
     ],
     "receipts": [],
     "evals": [
-      "evals/evals.json",
-      "evals/legacy-council.json"
+      "evals/evals.json"
     ],
     "consumers": [
       "src/registry/skills/index.json",
@@ -51,7 +68,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://covenant/SKILL.md",
-      "digest": "sha256:017ec6fcdadaabce5975f2fa0bd8de3b1bbcac92679861037367854c91aacae5"
+      "digest": "sha256:03cf89e277fcb1d361039a55ba49fdd6506124d15299401c62ae032e2c7a3c75"
     },
     {
       "path": "agents/openai.yaml",
@@ -66,27 +83,107 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://covenant/dependencies.json",
-      "digest": "sha256:8a34d459970a98a73a95601f078181a474bd698c07290b1d1ca2b8c506230384"
+      "digest": "sha256:0ba6b19b05d391c229c3b32754bd894f7d5e0bcb89d4b3c4bcff12e3d5125f78"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://covenant/evals/evals.json",
-      "digest": "sha256:3b6da3043c95119dca4f8ab60c7c20bf819d6238cc8e1ebac751093b8d9ee047"
-    },
-    {
-      "path": "evals/legacy-council.json",
-      "uri": "legion-skill://covenant/evals/legacy-council.json",
-      "digest": "sha256:0f0b116943c1c59070c978ea66ee5420e6eb5c5216dad9a0d8013c4c3d7bbf9a"
+      "digest": "sha256:3929975aadd40716cc18f03d75cee4b26951c09a9427a85603cc36b54727fe99"
     },
     {
       "path": "lib/schemas/covenant-record-v1.schema.json",
       "uri": "legion-skill://covenant/lib/schemas/covenant-record-v1.schema.json",
-      "digest": "sha256:86a9770696bc4f1812569218b7c44dcfae256f96efb4b7ab05bd609f0e57a5af"
+      "digest": "sha256:6f85484bc8659c2c56a302048e2c4ac01d23064c4555ac7f17aae1c7a64adc6f"
     },
     {
       "path": "lib/schemas/covenant-request-v1.schema.json",
       "uri": "legion-skill://covenant/lib/schemas/covenant-request-v1.schema.json",
-      "digest": "sha256:9928c784b6de4d61566fbc105c972304970eabe9197848eb52f32adc3c0417b6"
+      "digest": "sha256:33d7923a05d245888155382cd618aebf0bd422c354aea667812a42a9ed86a7b4"
+    },
+    {
+      "path": "references/lenses/README.md",
+      "uri": "legion-skill://covenant/references/lenses/README.md",
+      "digest": "sha256:fa751321703d502485a15e7533d2e595633b00afd81207567ea26e3ebd8487ed"
+    },
+    {
+      "path": "references/lenses/ad.md",
+      "uri": "legion-skill://covenant/references/lenses/ad.md",
+      "digest": "sha256:00825790d23c21cb4a74873af4ed6d6f29d239ff151af8c25a695f68a7ba906e"
+    },
+    {
+      "path": "references/lenses/blogs.md",
+      "uri": "legion-skill://covenant/references/lenses/blogs.md",
+      "digest": "sha256:5ec1bf20455e1204b44530726463019ea660ebb9e147235f50060cf4e5972c2c"
+    },
+    {
+      "path": "references/lenses/brand-voice.md",
+      "uri": "legion-skill://covenant/references/lenses/brand-voice.md",
+      "digest": "sha256:740045b14a7636474e85856001f8887064b4b7e6832202792ed994b01b90f0f1"
+    },
+    {
+      "path": "references/lenses/business-plan.md",
+      "uri": "legion-skill://covenant/references/lenses/business-plan.md",
+      "digest": "sha256:2c31fe3269a415ff9ab05142c78627cbb00f085d274e8d9c29312f5ba74dab95"
+    },
+    {
+      "path": "references/lenses/code.md",
+      "uri": "legion-skill://covenant/references/lenses/code.md",
+      "digest": "sha256:357973c1a9eb0499f87ca199fdd21a87a6a134b145ad95da896c561eb4825fdf"
+    },
+    {
+      "path": "references/lenses/compliance-risk.md",
+      "uri": "legion-skill://covenant/references/lenses/compliance-risk.md",
+      "digest": "sha256:9b03c5f194f82754d152b4f28ed291d0dda974b50bd2c0137b363faa0948cbcf"
+    },
+    {
+      "path": "references/lenses/content-strategy.md",
+      "uri": "legion-skill://covenant/references/lenses/content-strategy.md",
+      "digest": "sha256:118809acec0b20c677d0fe0622f044f528b61d02b5669dbb4a92dbff2e07dc7d"
+    },
+    {
+      "path": "references/lenses/design.md",
+      "uri": "legion-skill://covenant/references/lenses/design.md",
+      "digest": "sha256:8e48fd42245bc7b4074d0b571fd309e8042d08c8d38dd3757fa825739633853b"
+    },
+    {
+      "path": "references/lenses/idea.md",
+      "uri": "legion-skill://covenant/references/lenses/idea.md",
+      "digest": "sha256:97cf5be321059e97b41299a1e3a40967286b7c392b5381f9ccff0d20d0b9a481"
+    },
+    {
+      "path": "references/lenses/image.md",
+      "uri": "legion-skill://covenant/references/lenses/image.md",
+      "digest": "sha256:220d245cc17ef703f2602ec3f96b7b3c0ed6c5b6d1b2635e3c1de0ce97e5b39e"
+    },
+    {
+      "path": "references/lenses/launch.md",
+      "uri": "legion-skill://covenant/references/lenses/launch.md",
+      "digest": "sha256:de42f170e47f93b99501f70ffb7bcb1f73a3051d689c88417e3f5c4fbdcaff67"
+    },
+    {
+      "path": "references/lenses/offer.md",
+      "uri": "legion-skill://covenant/references/lenses/offer.md",
+      "digest": "sha256:f205eab75ae4a0f38dcb8b61b4bc5bb7c6c29b101f4f8734f2ffa31ecb2b121a"
+    },
+    {
+      "path": "references/lenses/plan.md",
+      "uri": "legion-skill://covenant/references/lenses/plan.md",
+      "digest": "sha256:1712b5c57cb64a84a1670a8e00e419b2a43cdd22a2000fcd524a5c780f0c6e48"
+    },
+    {
+      "path": "references/lenses/priority.md",
+      "uri": "legion-skill://covenant/references/lenses/priority.md",
+      "digest": "sha256:ee198a302fb6645b33500caea2d66c95a004fa35901686737ad73715b10474d2"
+    },
+    {
+      "path": "references/lenses/seo.md",
+      "uri": "legion-skill://covenant/references/lenses/seo.md",
+      "digest": "sha256:33250a66d3825403245319dfadf45bdf72f811b7a128a0901dc819f09b9fd184"
+    },
+    {
+      "path": "references/lenses/video.md",
+      "uri": "legion-skill://covenant/references/lenses/video.md",
+      "digest": "sha256:69bdb92370a639d7fc89be2fb09d09847c4e5679f282156fdb6704182fb520e3"
     }
   ]
 }
