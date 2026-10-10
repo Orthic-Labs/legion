@@ -105,6 +105,10 @@ where
     }
 }
 
+/// Gap text the effect layer attaches to a refused network-sandbox request
+/// (`legion-effects` executor). Matched, never produced, by this crate.
+const SANDBOX_RECEIPT_REQUIRED: &str = "network sandbox receipt is required";
+
 /// Where a legacy check's machine-readable output actually lands. Most tools
 /// print JSON (or JSON-ish text) on stdout, but a minority disagree: `cargo
 /// deny --format json check` streams its JSONL diagnostics on **stderr**,
@@ -503,9 +507,27 @@ impl LegacyCheckDispatcher {
         })?;
         let mut output = execution.output.unwrap_or_default();
         let process_ok = execution.state == LegacyCheckProcessState::Completed;
+        // The network-sandbox refusal reaches here as `unauthorized_effect`
+        // (the effect layer's `SandboxMissing` state maps to `Unauthorized`).
+        // It is a typed unavailable check only when no process started and the
+        // receipt names the sandbox requirement; every other unauthorized cause
+        // stays a failure.
+        let process_started = output
+            .details
+            .get("executionReceipt")
+            .and_then(|receipt| receipt.pointer("/processTree/started"))
+            .and_then(Value::as_bool);
+        let sandbox_refused = execution.state == LegacyCheckProcessState::Unauthorized
+            && process_started == Some(false)
+            && output
+                .coverage_gaps
+                .iter()
+                .chain(output.degradation.iter())
+                .chain(execution.error.iter().map(|error| &error.message))
+                .any(|gap| gap.contains(SANDBOX_RECEIPT_REQUIRED));
         let mut gaps = output.coverage_gaps.clone();
         let mut degradation = output.degradation.clone();
-        if !process_ok {
+        if !process_ok && !sandbox_refused {
             gaps.push(format!("external-process:{}", execution.state.as_str()));
             degradation.push(format!("external-process:{}", execution.state.as_str()));
         }
@@ -540,6 +562,9 @@ impl LegacyCheckDispatcher {
                     Some(_) => format!("not-configured:{}", contract.check),
                     None => format!("tool-missing:{}", contract.tool),
                 }
+            })
+            .or_else(|| {
+                sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool))
             });
         if let Some(reason) = &unavailable_reason {
             gaps.push(super::availability::unavailable_gap(reason));

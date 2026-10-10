@@ -187,6 +187,64 @@ fn terminal_states_remain_incomplete_and_typed() {
     }
 }
 
+/// Refuses before any process starts, the way the effect layer does when a
+/// network-sandboxed check has no sandbox (Windows has no sandbox).
+struct SandboxRefusedTool;
+
+#[async_trait]
+impl ExternalProjectTool for SandboxRefusedTool {
+    async fn execute(
+        &self,
+        request: ExternalToolRequest,
+        _cancellation: CancellationToken,
+    ) -> ExecutionReceipt {
+        ExecutionReceipt::failure(
+            &request,
+            ExecutionState::SandboxMissing,
+            "network sandbox receipt is required",
+        )
+    }
+}
+
+#[test]
+fn sandbox_refusal_is_typed_unavailable_not_a_failed_provider() {
+    let root = root();
+    fs::write(root.join("package.json"), "{}").unwrap();
+    let inventory = inventory();
+    let plan = plan(&inventory);
+    let registry = NativeProviderRegistry::new(&root)
+        .with_external_project_tool(Arc::new(SandboxRefusedTool));
+    let report = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    let result = &report.results[0].result;
+    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert!(!result.complete);
+    assert!(
+        result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap.starts_with("unavailable:sandbox-missing:")),
+        "{:?}",
+        result.coverage_gaps
+    );
+    assert!(
+        !result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap == "external-process:unauthorized_effect"),
+        "{:?}",
+        result.coverage_gaps
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
 #[test]
 fn untyped_json_can_never_become_a_false_clean() {
     let root = root();

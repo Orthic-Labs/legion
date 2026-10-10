@@ -256,6 +256,8 @@ pub fn inspect_client_projection(
     let mut preserved = Vec::new();
     let mut conflicts = Vec::new();
     let mut stale = false;
+    let mut stale_links: Vec<String> = Vec::new();
+    let mut foreign_catalog_units: Vec<String> = Vec::new();
     let mut current = !expected.is_empty();
     let ownership = if let Some(ledger) = &ledger {
         if !ledger_metadata_matches(ledger, input) {
@@ -304,8 +306,34 @@ pub fn inspect_client_projection(
                 allowed_target_root_link.as_deref(),
             )?;
         }
+        // Classify link entries by `symlink_metadata` and their lexical target
+        // only; a link is never walked. A Legion-owned link that is not the
+        // exact expected link (retired id, superseded version) makes the
+        // projection stale; a link Legion does not own is preserved.
+        let link_units = projection_link_units(input)?;
+        let link_scan = scan_projection_links(input, &link_units)?;
+        for path in &link_scan.stale_owned {
+            current = false;
+            stale = true;
+            stale_links.push(projection_relative_string(&input.target_root, path));
+        }
+        for path in &link_scan.foreign {
+            let relative = projection_relative_string(&input.target_root, path);
+            if link_units.iter().any(|(name, _)| *name == relative) {
+                conflicts.push(path.clone());
+                foreign_catalog_units.push(relative);
+            } else {
+                preserved.push(path.clone());
+            }
+        }
         for (relative, (_, expected_digest)) in &expected {
             let destination = input.target_root.join(relative);
+            if foreign_catalog_units
+                .iter()
+                .any(|unit| projection_relative_is_under_unit(relative, unit))
+            {
+                continue;
+            }
             if !path_exists(&destination)? {
                 current = false;
                 stale = true;
@@ -330,23 +358,26 @@ pub fn inspect_client_projection(
             }
         }
         if let Some(ledger) = &ledger {
-            for (relative, digest) in &ledger.files {
+            for relative in ledger.files.keys() {
                 let destination = input.target_root.join(relative);
                 if !path_exists(&destination)? {
                     current = false;
                     stale = true;
                     continue;
                 }
-                let actual = digest_path(&destination)?;
-                if actual != *digest && !expected.contains_key(relative) {
+                // A file Legion wrote that the release no longer ships (a
+                // retired or renamed skill's agent card, say) is stale
+                // whether or not it was edited; repair removes it.
+                if !expected.contains_key(relative) {
                     current = false;
                     stale = true;
                 }
             }
         }
         let allowed_links = projection_link_targets(input)?;
+        let link_dir = projection_link_dir(input);
         for scan_root in projection_scan_roots(input) {
-            for path in projection_tree_files(&scan_root, &allowed_links)? {
+            for path in projection_tree_files(&scan_root, &allowed_links, &link_dir)? {
                 let relative = path
                     .strip_prefix(&input.target_root)
                     .map_err(|_| {
@@ -397,6 +428,7 @@ pub fn inspect_client_projection(
     {
         missing_surfaces.push("host-registration".into());
     }
+    missing_surfaces.extend(stale_links.iter().map(|link| format!("stale-link:{link}")));
     if state == "current" && !missing_surfaces.is_empty() {
         state = "degraded";
     } else if state == "current" {
@@ -504,6 +536,31 @@ pub fn repair_client_projection(
     // whole-root link cannot: the destination there holds other products'
     // skills too, so only our own entries may be touched.
     let link_units = projection_link_units(input)?;
+    // Reconcile link entries before anything walks the tree. A link is
+    // classified by `symlink_metadata` and its lexical target, never followed:
+    // a Legion-owned link that is no longer the exact expected link (a skill
+    // the release retired or renamed, or a superseded version) is unlinked;
+    // any other link is the operator's and is preserved.
+    let mut removed_links = Vec::new();
+    let mut foreign_units: Vec<String> = Vec::new();
+    let mut foreign_links = Vec::new();
+    if path_exists(&input.source_root)? {
+        let target_is_link = fs::symlink_metadata(&input.target_root)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false);
+        if !target_is_link {
+            ensure_projection_parent_safe_with_allowed_root(
+                &projection_link_dir(input),
+                allowed_target_root_link.as_deref(),
+            )?;
+        }
+        let scan = scan_projection_links(input, &link_units)?;
+        removed_links = remove_stale_projection_links(&scan)?;
+        for path in &scan.foreign {
+            foreign_units.push(projection_relative_string(&input.target_root, path));
+        }
+        foreign_links = scan.foreign;
+    }
     let mut linked_units_created = Vec::new();
     if path_exists(&input.source_root)? {
         for (name, source) in &link_units {
@@ -605,6 +662,15 @@ pub fn repair_client_projection(
             .iter()
             .any(|unit| projection_relative_is_under_unit(relative, unit));
         let reclaim_orphan = orphan_projection;
+        if foreign_units
+            .iter()
+            .any(|unit| projection_relative_is_under_unit(relative, unit))
+        {
+            // The operator's own link occupies this skill's slot; Legion
+            // neither follows nor replaces it.
+            preserved.push(destination.clone());
+            continue;
+        }
         if path_exists(&destination)? {
             let actual = digest_path(&destination)?;
             let owned = prior_ledger
@@ -691,7 +757,13 @@ pub fn repair_client_projection(
                 next_files.remove(relative);
                 continue;
             }
+            if projection_path_crosses_link(&input.target_root, &destination) {
+                // Reached through a link, so it is not a copy Legion wrote.
+                next_files.remove(relative);
+                continue;
+            }
             fs::remove_file(&destination).map_err(io)?;
+            remove_empty_projection_parents(&input.target_root, &destination);
             next_files.remove(relative);
             repaired.push(destination);
         }
@@ -730,15 +802,17 @@ pub fn repair_client_projection(
     } else {
         preserved.extend(after.conflicts.clone());
     }
+    preserved.extend(foreign_links);
     preserved.sort();
     preserved.dedup();
     repaired.sort();
     repaired.dedup();
+    removed_links.sort();
     Ok(ClientProjectionRepair {
         inspection: after,
         repaired,
         preserved,
-        removed: Vec::new(),
+        removed: removed_links,
     })
 }
 
@@ -785,6 +859,10 @@ pub fn remove_client_projection(
     let mut removed = Vec::new();
     let mut preserved = Vec::new();
     let linked_targets = projection_link_targets(input)?;
+    // Unlink Legion-owned links for ids the release no longer ships before any
+    // file below is deleted, so no deletion can pass through a retired link.
+    let link_scan = scan_projection_links(input, &projection_link_units(input)?)?;
+    removed.extend(remove_stale_projection_links(&link_scan)?);
     for (target, source) in &linked_targets {
         if projection_root_links_to(target, source)? {
             remove_projection_link(target).map_err(io)?;
@@ -799,11 +877,14 @@ pub fn remove_client_projection(
         {
             continue;
         }
-        if !path_exists(&destination)? {
+        if !path_exists(&destination)?
+            || projection_path_crosses_link(&input.target_root, &destination)
+        {
             continue;
         }
         if digest_path(&destination)? == *digest {
             fs::remove_file(&destination).map_err(io)?;
+            remove_empty_projection_parents(&input.target_root, &destination);
             removed.push(destination);
         } else {
             preserved.push(destination);
@@ -3575,6 +3656,177 @@ fn projection_link_units(
     Ok(units)
 }
 
+/// Directory whose entries are the per-skill links of a projection: the target
+/// root itself for a shared skills-only root, `skills/` for a plugin root.
+fn projection_link_dir(input: &ClientProjectionInput) -> PathBuf {
+    if input.projection == "skills-only" {
+        input.target_root.clone()
+    } else {
+        input.target_root.join("skills")
+    }
+}
+
+/// Link entries found in the link directory that are not the exact expected
+/// link of a current skill.
+#[derive(Default)]
+struct ProjectionLinkScan {
+    /// Links whose target lies inside a Legion-owned root: retired or renamed
+    /// ids, or links to a superseded version. Dangling or not.
+    stale_owned: Vec<PathBuf>,
+    /// Links pointing anywhere else. They belong to the operator.
+    foreign: Vec<PathBuf>,
+}
+
+/// Roots a Legion-created link may point into: the release plugin root, and
+/// the whole Legion install root (the stable `current` root and the versioned
+/// roots beside it) when the projection is bound to an installed product.
+fn projection_owned_roots(input: &ClientProjectionInput) -> Vec<PathBuf> {
+    let mut roots = vec![lexical_normalize(&input.source_root)];
+    if let Some(install_root) = &input.install_root {
+        roots.push(lexical_normalize(install_root));
+    }
+    for root in roots.clone() {
+        if let Ok(canonical) = fs::canonicalize(&root) {
+            if !roots.contains(&canonical) {
+                roots.push(canonical);
+            }
+        }
+    }
+    roots
+}
+
+/// Resolve `.` and `..` without touching the filesystem.
+fn lexical_normalize(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !result.pop() {
+                    result.push(component.as_os_str());
+                }
+            }
+            other => result.push(other.as_os_str()),
+        }
+    }
+    result
+}
+
+/// True when the link's own target (read without following it) lies inside a
+/// Legion-owned root.
+fn projection_link_is_owned(link: &Path, owned_roots: &[PathBuf]) -> bool {
+    let Ok(target) = fs::read_link(link) else {
+        return false;
+    };
+    let absolute = if target.is_absolute() {
+        target
+    } else {
+        link.parent()
+            .map_or_else(|| target.clone(), |parent| parent.join(&target))
+    };
+    let absolute = lexical_normalize(&absolute);
+    owned_roots
+        .iter()
+        .any(|root| path_starts_with(&absolute, root))
+}
+
+/// Classify the link entries of the projection without following any of them.
+/// A target root that is itself a link is never scanned: entries below it live
+/// in the linked tree, not in this projection.
+fn scan_projection_links(
+    input: &ClientProjectionInput,
+    link_units: &[(String, PathBuf)],
+) -> Result<ProjectionLinkScan, SetupError> {
+    let mut scan = ProjectionLinkScan::default();
+    for directory in [&input.target_root, &projection_link_dir(input)] {
+        match fs::symlink_metadata(directory) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+                return Ok(scan);
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(scan),
+            Err(error) => return Err(io(error)),
+        }
+    }
+    let owned_roots = projection_owned_roots(input);
+    for entry in fs::read_dir(projection_link_dir(input)).map_err(io)? {
+        let path = entry.map_err(io)?.path();
+        let metadata = fs::symlink_metadata(&path).map_err(io)?;
+        if !metadata.file_type().is_symlink() {
+            continue;
+        }
+        let is_expected = link_units.iter().any(|(name, source)| {
+            paths_equal(&input.target_root.join(name), &path)
+                && projection_root_links_to(&path, source).unwrap_or(false)
+        });
+        if is_expected {
+            continue;
+        }
+        if projection_link_is_owned(&path, &owned_roots) {
+            scan.stale_owned.push(path);
+        } else {
+            scan.foreign.push(path);
+        }
+    }
+    scan.stale_owned.sort();
+    scan.foreign.sort();
+    Ok(scan)
+}
+
+/// Unlink Legion-owned stale links. Only the link itself is removed; its
+/// target is never followed, so nothing in an install tree is touched.
+fn remove_stale_projection_links(scan: &ProjectionLinkScan) -> Result<Vec<PathBuf>, SetupError> {
+    let mut removed = Vec::new();
+    for path in &scan.stale_owned {
+        let still_link = fs::symlink_metadata(path)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false);
+        if !still_link {
+            continue;
+        }
+        remove_projection_link(path).map_err(io)?;
+        removed.push(path.clone());
+    }
+    Ok(removed)
+}
+
+fn projection_relative_string(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+/// True when any directory between `root` and `path` is a link.
+fn projection_path_crosses_link(root: &Path, path: &Path) -> bool {
+    let Ok(relative) = path.strip_prefix(root) else {
+        return true;
+    };
+    let components = relative.components().collect::<Vec<_>>();
+    let mut current = root.to_path_buf();
+    for component in components.iter().take(components.len().saturating_sub(1)) {
+        current.push(component.as_os_str());
+        if fs::symlink_metadata(&current)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Remove directories emptied by deleting `file`, stopping at `root`.
+fn remove_empty_projection_parents(root: &Path, file: &Path) {
+    let mut parent = file.parent();
+    while let Some(directory) = parent {
+        if directory == root || !directory.starts_with(root) || fs::remove_dir(directory).is_err() {
+            break;
+        }
+        parent = directory.parent();
+    }
+}
+
 fn projection_link_targets(
     input: &ClientProjectionInput,
 ) -> Result<Vec<(PathBuf, PathBuf)>, SetupError> {
@@ -3607,11 +3859,13 @@ fn ensure_projection_target_safe(
     allowed_links: &[(PathBuf, PathBuf)],
     allowed_target_root_link: Option<&Path>,
 ) -> Result<(), SetupError> {
+    let link_dir = projection_link_dir(input);
     if input.projection != "devin-user" {
         return ensure_projection_tree_safe_with_allowed_links(
             &input.target_root,
             allowed_links,
             allowed_target_root_link,
+            &link_dir,
         );
     }
     ensure_projection_parent_safe_with_allowed_root(&input.target_root, allowed_target_root_link)?;
@@ -3632,6 +3886,7 @@ fn ensure_projection_target_safe(
             &root,
             allowed_links,
             allowed_target_root_link,
+            &link_dir,
         )?;
     }
     Ok(())
@@ -3710,6 +3965,7 @@ fn ensure_projection_tree_safe_with_allowed_links(
     root: &Path,
     allowed_links: &[(PathBuf, PathBuf)],
     allowed_target_root_link: Option<&Path>,
+    link_dir: &Path,
 ) -> Result<(), SetupError> {
     ensure_projection_parent_safe_with_allowed_root(root, allowed_target_root_link)?;
     if !path_exists(root)? {
@@ -3727,7 +3983,14 @@ fn ensure_projection_tree_safe_with_allowed_links(
         let path = entry.path();
         let metadata = fs::symlink_metadata(&path).map_err(io)?;
         if metadata.file_type().is_symlink() {
-            if !projection_link_is_allowed(&path, allowed_links)? {
+            // Entries of the link directory are classified by reconciliation
+            // (owned, stale, or preserved) and are never walked. A link
+            // anywhere else in the tree is still refused.
+            if !projection_link_is_allowed(&path, allowed_links)?
+                && !path
+                    .parent()
+                    .is_some_and(|parent| paths_equal(parent, link_dir))
+            {
                 return Err(err(
                     SetupErrorCode::PathEscapeRefused,
                     format!("projection tree contains symlink: {}", path.display()),
@@ -3740,6 +4003,7 @@ fn ensure_projection_tree_safe_with_allowed_links(
                 &path,
                 allowed_links,
                 allowed_target_root_link,
+                link_dir,
             )?;
         }
     }
@@ -3972,6 +4236,7 @@ fn collect_projection_files(
 fn projection_tree_files(
     root: &Path,
     allowed_links: &[(PathBuf, PathBuf)],
+    link_dir: &Path,
 ) -> Result<Vec<PathBuf>, SetupError> {
     let mut files = Vec::new();
     if !path_exists(root)? {
@@ -3982,7 +4247,11 @@ fn projection_tree_files(
         let path = entry.path();
         let metadata = fs::symlink_metadata(&path).map_err(io)?;
         if metadata.file_type().is_symlink() {
-            if projection_link_is_allowed(&path, allowed_links)? {
+            if projection_link_is_allowed(&path, allowed_links)?
+                || path
+                    .parent()
+                    .is_some_and(|parent| paths_equal(parent, link_dir))
+            {
                 continue;
             }
             return Err(err(
@@ -3991,7 +4260,7 @@ fn projection_tree_files(
             ));
         }
         if metadata.is_dir() {
-            files.extend(projection_tree_files(&path, allowed_links)?);
+            files.extend(projection_tree_files(&path, allowed_links, link_dir)?);
         } else if metadata.is_file() {
             files.push(path);
         }
@@ -5560,5 +5829,225 @@ mod tests {
         assert_eq!(config["version"].as_u64().unwrap(), 1);
         assert!(!devin_root.join("agents/sage.md").exists());
         assert!(devin_root.join("sessions.db").exists());
+    }
+
+    fn write_catalog_skill(source_root: &Path, id: &str) {
+        let directory = source_root.join("skills").join(id);
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("SKILL.md"), format!("# {id}")).unwrap();
+    }
+
+    fn write_catalog_agent(source_root: &Path, name: &str) {
+        let directory = source_root.join("agents");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join(name), format!("agent {name}")).unwrap();
+    }
+
+    fn link_entry_exists(path: &Path) -> bool {
+        fs::symlink_metadata(path).is_ok()
+    }
+
+    /// A projection installed for catalog {a, b, old}.
+    fn upgrade_fixture(label: &str) -> (TestRoot, ClientProjectionInput) {
+        let root = TestRoot::new(label);
+        let mut input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        input.install_root = Some(root.0.join("install"));
+        fs::remove_dir_all(input.source_root.join("skills/example")).unwrap();
+        for id in ["a", "b", "old"] {
+            write_catalog_skill(&input.source_root, id);
+        }
+        write_catalog_agent(&input.source_root, "old-seat.md");
+        write_catalog_agent(&input.source_root, "a-seat.md");
+        let installed = repair_client_projection(&input).unwrap();
+        assert_eq!(installed.inspection.state, "current");
+        for id in ["a", "b", "old"] {
+            let link = input.target_root.join("skills").join(id);
+            assert!(fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+        }
+        assert!(input.target_root.join("agents/old-seat.md").is_file());
+        (root, input)
+    }
+
+    /// The operator's own entries beside Legion's: a real directory and a link
+    /// that points outside every Legion-owned root.
+    fn add_operator_entries(root: &TestRoot, input: &ClientProjectionInput) -> (PathBuf, PathBuf) {
+        let mine = input.target_root.join("skills/mine");
+        fs::create_dir_all(&mine).unwrap();
+        fs::write(mine.join("NOTES.md"), b"mine").unwrap();
+        let elsewhere = root.0.join("somewhere-else");
+        fs::create_dir_all(&elsewhere).unwrap();
+        fs::write(elsewhere.join("SKILL.md"), b"# external").unwrap();
+        let ext = input.target_root.join("skills/ext");
+        assert!(link_projection_root(&elsewhere, &ext).unwrap());
+        fs::write(input.target_root.join("agents/my-agent.md"), b"mine").unwrap();
+        (mine, ext)
+    }
+
+    #[test]
+    fn upgrade_that_retires_a_skill_reconciles_links_and_agent_cards() {
+        let (root, input) = upgrade_fixture("projection-upgrade-retired-skill");
+        let (mine, ext) = add_operator_entries(&root, &input);
+
+        // Release N+1: `old` is gone (its link now dangles), `new` appears,
+        // and the old agent card is replaced by a new one.
+        fs::remove_dir_all(input.source_root.join("skills/old")).unwrap();
+        fs::remove_file(input.source_root.join("agents/old-seat.md")).unwrap();
+        write_catalog_skill(&input.source_root, "new");
+        write_catalog_agent(&input.source_root, "new-seat.md");
+
+        // Status never aborts on a stale projection; it reports it.
+        let status = inspect_client_projection(&input).unwrap();
+        assert_eq!(status.state, "stale");
+        assert!(status
+            .missing_surfaces
+            .iter()
+            .any(|surface| surface == "stale-link:skills/old"));
+        assert!(status.preserved.contains(&ext));
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.state, "current");
+        assert!(result.inspection.conflicts.is_empty());
+        assert!(!link_entry_exists(&input.target_root.join("skills/old")));
+        assert!(result
+            .removed
+            .contains(&input.target_root.join("skills/old")));
+        assert!(projection_root_links_to(
+            &input.target_root.join("skills/new"),
+            &input.source_root.join("skills/new")
+        )
+        .unwrap());
+        for id in ["a", "b"] {
+            assert!(projection_root_links_to(
+                &input.target_root.join("skills").join(id),
+                &input.source_root.join("skills").join(id)
+            )
+            .unwrap());
+        }
+        // The operator's entries are untouched and reported preserved.
+        assert_eq!(fs::read(mine.join("NOTES.md")).unwrap(), b"mine");
+        assert!(fs::symlink_metadata(&ext).unwrap().file_type().is_symlink());
+        assert!(result.preserved.contains(&ext));
+        assert!(result.preserved.contains(&mine.join("NOTES.md")));
+        // The Legion-written retired card is removed; the operator's stays.
+        assert!(!input.target_root.join("agents/old-seat.md").exists());
+        assert!(input.target_root.join("agents/new-seat.md").is_file());
+        assert!(input.target_root.join("agents/my-agent.md").is_file());
+        let ledger = read_projection_ledger(&input).unwrap().unwrap();
+        assert!(!ledger.files.contains_key("skills/old/SKILL.md"));
+        assert!(!ledger.files.contains_key("agents/old-seat.md"));
+
+        // A second repair and a status read are stable.
+        assert_eq!(inspect_client_projection(&input).unwrap().state, "current");
+        let again = repair_client_projection(&input).unwrap();
+        assert_eq!(again.inspection.state, "current");
+        assert!(again.removed.is_empty());
+    }
+
+    /// `old` leaves the catalog; its previous content survives in a versioned
+    /// install root beside `current`.
+    fn retired_version_skill(input: &ClientProjectionInput) -> PathBuf {
+        let kept = input
+            .install_root
+            .as_ref()
+            .unwrap()
+            .join("versions/0.3.22/plugin/skills/old");
+        fs::create_dir_all(&kept).unwrap();
+        fs::write(kept.join("SKILL.md"), b"# old").unwrap();
+        fs::remove_dir_all(input.source_root.join("skills/old")).unwrap();
+        kept
+    }
+
+    #[test]
+    fn retired_link_that_still_resolves_is_unlinked_not_followed() {
+        let (_root, input) = upgrade_fixture("projection-upgrade-live-retired-link");
+
+        // `old` leaves the catalog but its content still exists inside a
+        // versioned install root, and the link keeps resolving to it.
+        let kept = retired_version_skill(&input);
+        let link = input.target_root.join("skills/old");
+        remove_projection_link(&link).unwrap();
+        assert!(link_projection_root(&kept, &link).unwrap());
+        fs::remove_file(input.source_root.join("agents/old-seat.md")).unwrap();
+        assert!(link.join("SKILL.md").is_file());
+
+        let status = inspect_client_projection(&input).unwrap();
+        assert_eq!(status.state, "stale");
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.state, "current");
+        assert!(!link_entry_exists(&link));
+        // Nothing was deleted through the link.
+        assert_eq!(fs::read(kept.join("SKILL.md")).unwrap(), b"# old");
+    }
+
+    #[test]
+    fn remove_unlinks_retired_links_without_deleting_through_them() {
+        let (_root, input) = upgrade_fixture("projection-remove-retired-link");
+        let kept = retired_version_skill(&input);
+        let link = input.target_root.join("skills/old");
+        remove_projection_link(&link).unwrap();
+        assert!(link_projection_root(&kept, &link).unwrap());
+
+        let result = remove_client_projection(&input).unwrap();
+
+        assert!(!link_entry_exists(&link));
+        assert!(result.removed.contains(&link));
+        assert_eq!(fs::read(kept.join("SKILL.md")).unwrap(), b"# old");
+        assert!(!link_entry_exists(&input.target_root.join("skills/a")));
+    }
+
+    #[test]
+    fn foreign_link_in_a_catalog_slot_is_a_conflict_not_an_abort() {
+        let (root, input) = upgrade_fixture("projection-foreign-link-in-catalog-slot");
+        let elsewhere = root.0.join("operator-a");
+        fs::create_dir_all(&elsewhere).unwrap();
+        fs::write(elsewhere.join("SKILL.md"), b"# operator").unwrap();
+        let slot = input.target_root.join("skills/a");
+        remove_projection_link(&slot).unwrap();
+        assert!(link_projection_root(&elsewhere, &slot).unwrap());
+
+        let status = inspect_client_projection(&input).unwrap();
+        assert_eq!(status.state, "foreign");
+        assert!(status.conflicts.contains(&slot));
+
+        let result = repair_client_projection(&input).unwrap();
+        assert!(result.preserved.contains(&slot));
+        assert_eq!(fs::read(elsewhere.join("SKILL.md")).unwrap(), b"# operator");
+        assert!(fs::symlink_metadata(&slot)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+    }
+
+    #[test]
+    fn link_outside_the_link_directory_is_still_refused() {
+        let (root, input) = upgrade_fixture("projection-link-outside-link-dir");
+        let elsewhere = root.0.join("operator-hooks");
+        fs::create_dir_all(&elsewhere).unwrap();
+        let hooks = input.target_root.join("hooks");
+        fs::create_dir_all(&hooks).unwrap();
+        assert!(link_projection_root(&elsewhere, &hooks.join("nested")).unwrap());
+
+        assert_eq!(
+            inspect_client_projection(&input).unwrap_err().code,
+            SetupErrorCode::PathEscapeRefused
+        );
+    }
+
+    #[test]
+    fn lexical_link_ownership_resolves_dot_dot_without_following() {
+        let normalized = lexical_normalize(Path::new("/a/b/../c/./d"));
+        assert_eq!(normalized, PathBuf::from("/a/c/d"));
+        let owned = vec![PathBuf::from("/a/c")];
+        assert!(path_starts_with(&normalized, &owned[0]));
+        assert!(!path_starts_with(
+            &lexical_normalize(Path::new("/a/c/../x")),
+            &owned[0]
+        ));
     }
 }

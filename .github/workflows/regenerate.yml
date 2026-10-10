@@ -55,7 +55,7 @@ jobs:
             engine -> target
           shared-key: legion-rust
           add-job-id-key: false
-          cache-workspace-crates: false
+          cache-workspace-crates: true
           cache-on-failure: true
           save-if: false
       - name: Regenerate derived artifacts

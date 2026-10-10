@@ -70,5 +70,6 @@
   "ciAllOs": true,
   "regenerate": {
     "script": "ci:regenerate"
-  }
+  },
+  "ciIncremental": true
 }
