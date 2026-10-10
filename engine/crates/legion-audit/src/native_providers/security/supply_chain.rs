@@ -45,7 +45,16 @@ pub fn analyze(input: &Value) -> Value {
     if lock.is_empty() {
         gaps.push(json!({"kind":"dependency-inventory-missing"}));
     }
-    if !valid_digest(chain.get("cycloneDxDigest")) || !valid_digest(chain.get("spdxDigest")) {
+    // The native lockfile fallback emits a CycloneDX document only and labels
+    // itself (`producer.mode`); a scanner-produced SBOM must carry both formats.
+    let native_fallback = input
+        .get("producer")
+        .and_then(|producer| producer.get("mode"))
+        .and_then(Value::as_str)
+        == Some("native-fallback");
+    if !valid_digest(chain.get("cycloneDxDigest"))
+        || (!native_fallback && !valid_digest(chain.get("spdxDigest")))
+    {
         gaps.push(json!({"kind":"sbom-artifact-missing"}));
     }
     let valid = provenance.is_some_and(|p| {

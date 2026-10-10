@@ -339,3 +339,108 @@ fn injected_artifacts_still_win_over_the_producer() {
         .unwrap();
     assert!(!result.details.contains_key("producer"));
 }
+
+fn provider_with_selector(id: &str) -> AuditProvider {
+    serde_json::from_value(json!({
+        "id": id,
+        "version": "1.0.0",
+        "role": "security",
+        "phase": "source",
+        "lensIds": [],
+        "dependencies": [],
+        "kind": "typed-external-project-tool",
+        "configuration": {"selector": {"op": "always"}},
+        "bounds": {},
+        "cleanClaim": "candidates-only",
+        "benchmarkStatus": "not-required",
+        "benchmarkRequiredForCleanClaim": false,
+        "qualificationDigest": null,
+        "required": false
+    }))
+    .unwrap()
+}
+
+fn run_selected(root: &Path, id: &str) -> ProviderResult {
+    SecurityProviderExecutor::default()
+        .with_producer(bare(root))
+        .execute(&provider_with_selector(id), &inventory(root))
+        .unwrap()
+}
+
+#[test]
+fn flagged_findings_carry_evidence_and_locations_without_the_value() {
+    let root = fixture("evidence");
+    write(
+        &root,
+        "src/leak.rs",
+        &format!("fn main() {{\n    let t = \"{}\";\n}}\n", fake_token()),
+    );
+    write(&root, "src/clean.rs", "fn main() {}\n");
+    let result = run_selected(&root, "secrets.current-history");
+
+    assert_eq!(result.findings.len(), 1, "{:?}", result.findings);
+    let id = result.findings[0].id.to_string();
+    let evidence = &result.details["findingEvidence"][&id];
+    assert_eq!(evidence["path"], json!("src/leak.rs"));
+    assert_eq!(evidence["line"], json!(2));
+    assert_eq!(evidence["ruleId"], json!("github.token"));
+    assert!(evidence["excerptDigest"]
+        .as_str()
+        .is_some_and(|digest| digest.starts_with("sha256:")));
+    assert_eq!(
+        result.details["findingLocations"][&id],
+        json!(["src/leak.rs:2"])
+    );
+    assert!(!serde_json::to_string(&result.details)
+        .unwrap()
+        .contains(&fake_token()));
+    // It ran and found something: partial with coverage, never failed.
+    assert_ne!(
+        result.status,
+        legion_contracts::ProviderStatus::Failed,
+        "{:?}",
+        result.coverage_gaps
+    );
+}
+
+#[test]
+fn lockfile_sbom_fallback_is_not_reported_as_missing() {
+    let root = fixture("sbom-native");
+    write(
+        &root,
+        "Cargo.lock",
+        "[[package]]\nname = \"serde\"\nversion = \"1.0.200\"\n",
+    );
+    write(&root, "src/lib.rs", "pub fn f() {}\n");
+    let result = run_selected(&root, "supply-chain.license-sbom-provenance");
+    let gaps = result.coverage_gaps.join(" ");
+    assert!(!gaps.contains("sbom-artifact-missing"), "{gaps}");
+    // Provenance cannot come from a source tree: the gap stays visible.
+    assert!(gaps.contains("supply-chain-provenance-invalid"), "{gaps}");
+    assert!(!result.complete);
+    assert_ne!(result.status, legion_contracts::ProviderStatus::Failed);
+}
+
+#[test]
+fn unavailable_osv_still_reports_the_selected_manifests() {
+    let root = fixture("osv-denominator");
+    write(
+        &root,
+        "Cargo.lock",
+        "[[package]]\nname = \"serde\"\nversion = \"1.0.200\"\n",
+    );
+    write(&root, "src/lib.rs", "pub fn f() {}\n");
+    let result = run_selected(&root, "dependency.osv");
+    let gaps = result.coverage_gaps.join(" ");
+    assert!(
+        !gaps.contains("dependency-manifest-denominator-zero"),
+        "{gaps}"
+    );
+    assert!(
+        gaps.contains("unavailable:tool-missing:osv-scanner"),
+        "{gaps}"
+    );
+    assert_eq!(analysis(&result)["denominator"]["expected"], json!(1));
+    assert_eq!(analysis(&result)["denominator"]["examined"], json!(0));
+    assert_ne!(result.status, legion_contracts::ProviderStatus::Failed);
+}

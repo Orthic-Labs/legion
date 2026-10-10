@@ -81,7 +81,10 @@ where
             Ok(value) => value,
             Err(error) => {
                 let state = match error {
-                    ResolveError::MissingExecutable(_) => {
+                    // Nothing to run (no tool, or the project declares no
+                    // script/linter/type checker): surfaced as an absent
+                    // tool, not an internal failure.
+                    ResolveError::MissingExecutable(_) | ResolveError::NotConfigured(_) => {
                         legion_provider_sdk::ExecutionState::MissingExecutable
                     }
                     ResolveError::Unavailable(_) => legion_provider_sdk::ExecutionState::Internal,
@@ -510,18 +513,39 @@ impl LegacyCheckDispatcher {
             gaps.push(format!("external-error:{}", error.message));
             degradation.push(format!("external-error:{}", error.message));
         }
-        // The package ships no `audit-runtime` executable and the resolver
-        // refuses a checkout-script fallback, so this check cannot run unless a
-        // host supplies one: say so with a typed status, not only a process gap.
-        let runtime_unavailable = provider.id == "legacy.runtime.app"
-            && execution.state == LegacyCheckProcessState::MissingExecutable;
-        if runtime_unavailable {
-            gaps.push(super::availability::unavailable_gap(
-                "executable-not-shipped:audit-runtime",
-            ));
+        // A tool or project configuration that is simply absent is a typed
+        // `unavailable:<reason>` gap, never a failed provider: nothing ran and
+        // nothing broke. (`legacy.runtime.app` has no shipped `audit-runtime`
+        // executable, so it always lands here.)
+        let unavailable_reason = (execution.state == LegacyCheckProcessState::MissingExecutable)
+            .then(|| {
+                if provider.id == "legacy.runtime.app" {
+                    return "executable-not-shipped:audit-runtime".to_owned();
+                }
+                let gap_text = output
+                    .coverage_gaps
+                    .iter()
+                    .chain(output.degradation.iter())
+                    .find(|gap| {
+                        gap.starts_with("missing executable: ")
+                            || gap.contains("is not configured")
+                            || gap.starts_with("no configured project")
+                            || gap.contains("metadata is unavailable")
+                    })
+                    .cloned();
+                match gap_text {
+                    Some(gap) if gap.starts_with("missing executable: ") => {
+                        format!("tool-missing:{}", &gap["missing executable: ".len()..])
+                    }
+                    Some(_) => format!("not-configured:{}", contract.check),
+                    None => format!("tool-missing:{}", contract.tool),
+                }
+            });
+        if let Some(reason) = &unavailable_reason {
+            gaps.push(super::availability::unavailable_gap(reason));
             output.details.insert(
                 super::availability::AVAILABILITY_DETAIL.into(),
-                super::availability::unavailable_detail("executable-not-shipped:audit-runtime"),
+                super::availability::unavailable_detail(reason),
             );
         }
         let coverage = output.coverage.take().unwrap_or_else(|| Coverage {
@@ -561,6 +585,36 @@ impl LegacyCheckDispatcher {
             "stderrBytes".into(),
             Value::from(execution.stderr.len() as u64),
         );
+        // Structural guarantee: a candidate-generator never emits findings.
+        // Anything a parser routed there is demoted to an unadjudicated
+        // candidate carrying its evidence, so the result stays valid.
+        if contract.role.contains("candidate") && !output.findings.is_empty() {
+            for finding in std::mem::take(&mut output.findings) {
+                let id = finding.id.to_string();
+                let evidence = output
+                    .details
+                    .get_mut("findingEvidence")
+                    .and_then(Value::as_object_mut)
+                    .and_then(|items| items.remove(&id))
+                    .unwrap_or(Value::Null);
+                if let Some(items) = output
+                    .details
+                    .get_mut("findingLocations")
+                    .and_then(Value::as_object_mut)
+                {
+                    items.remove(&id);
+                }
+                output.candidates.push(json!({
+                    "id": id,
+                    "role": "candidate-generator",
+                    "severityHint": finding.severity,
+                    "evidence": evidence,
+                    "evidenceStrength": "candidate",
+                    "verdict": "UNADJUDICATED",
+                    "adjudicationRequired": true,
+                }));
+            }
+        }
         let candidates = std::mem::take(&mut output.candidates);
         output
             .details
@@ -588,6 +642,8 @@ impl LegacyCheckDispatcher {
             }
         } else if process_ok {
             output.status
+        } else if unavailable_reason.is_some() {
+            ProviderStatus::Partial
         } else {
             ProviderStatus::Failed
         };
@@ -745,6 +801,10 @@ impl NativeLegacyCheckExecutor {
         );
         let (environment, environment_allowlist) = audit_environment(&scratch);
         let needs_sandbox = sandbox_required_check(contract.check);
+        // Once the sandbox wrapper is the executable the adapter can no longer
+        // see the tool it wraps, so the working directory the tool needs (a
+        // nested Cargo workspace, `src-tauri`) is resolved here.
+        let mut tool_cwd: Option<PathBuf> = None;
         let (executable, args, sandbox_receipt, version_args) = if needs_sandbox {
             let mode = sandbox_mode_for_check(contract.check);
             let profile_dir = scratch.sandbox_dir();
@@ -768,6 +828,7 @@ impl NativeLegacyCheckExecutor {
                 resolve_request(&self.root, executable, &args)
                     .ok()
                     .map(|resolved| {
+                        tool_cwd = Some(resolved.cwd.clone());
                         (
                             resolved.executable.to_string_lossy().into_owned(),
                             resolved.args,
@@ -829,6 +890,21 @@ impl NativeLegacyCheckExecutor {
         } else {
             (executable.to_string(), args, None, None)
         };
+        // `cargo-outdated` is a cargo subcommand binary: its identity probe
+        // is `cargo-outdated outdated --version`, not `cargo-outdated --version`.
+        let version_args = if contract.check == "cargo_outdated" {
+            Some(match version_args {
+                Some(mut probe) => {
+                    let at = probe.len().saturating_sub(1);
+                    probe.insert(at, "outdated".into());
+                    probe
+                }
+                None => vec!["outdated".into(), "--version".into()],
+            })
+        } else {
+            version_args
+        };
+        let request_cwd = tool_cwd.unwrap_or_else(|| self.root.clone());
         let request = ExternalToolRequest {
             request_id,
             provider_id: provider.id.clone(),
@@ -842,7 +918,7 @@ impl NativeLegacyCheckExecutor {
             task_id: Some(contract.check.into()),
             executable,
             args,
-            cwd: self.root.to_string_lossy().into_owned(),
+            cwd: request_cwd.to_string_lossy().into_owned(),
             shell: false,
             expected_digest: None,
             accepted_exit_codes: accepted_exit_codes(contract.check),
@@ -1187,12 +1263,20 @@ fn execute_input(input: &LegacyCheckInput, contract: &LegacyCheckSpec) -> Legacy
         CommandShape::Native { operation } => {
             let output = native_operation(input, operation);
             let gaps = output.coverage_gaps.clone();
-            let state = if gaps.is_empty() {
+            // The analysis itself ran. A file that is too large or not text is
+            // a bounded coverage limit (partial, gap named), not a broken
+            // analyzer; only integrity or unimplemented-operation gaps fail.
+            let hard_gap = gaps.iter().any(|gap| {
+                !(gap.starts_with("source-file-byte-limit:")
+                    || gap.starts_with("source-total-byte-limit:")
+                    || gap.starts_with("source-invalid-utf8:"))
+            });
+            let state = if !hard_gap {
                 LegacyCheckProcessState::Completed
             } else {
                 LegacyCheckProcessState::Failed
             };
-            let error = (!gaps.is_empty()).then(|| "native source analysis was incomplete");
+            let error = hard_gap.then(|| "native source analysis was incomplete");
             terminal_execution(
                 input,
                 contract.command,
@@ -1240,6 +1324,9 @@ fn native_operation(input: &LegacyCheckInput, operation: &str) -> LegacyCheckOut
     output.coverage_gaps.sort();
     output.coverage_gaps.dedup();
     output.complete = output.coverage_gaps.is_empty();
+    if !output.coverage_gaps.is_empty() {
+        output.status = ProviderStatus::Partial;
+    }
     output.coverage = Some(Coverage {
         denominator_digest: input.denominator.digest.clone(),
         expected: input.denominator.entries.len() as u64,
@@ -2085,14 +2172,14 @@ fn apply_parse_outcome(
                 .first()
                 .map(|entry| entry.path.as_str())
                 .unwrap_or("provider-artifacts");
-            push_finding(
-                output,
-                outcome.rule,
-                outcome.severity,
-                path,
-                1,
-                &format!("{} reported {} finding(s)", input.check, count),
-            );
+            let claim = format!("{} reported {} finding(s)", input.check, count);
+            // A candidate-generator carries unadjudicated claims in
+            // `details.candidates`; only deterministic checks emit findings.
+            if is_candidate_provider(input.provider_id.as_str()) {
+                push_candidate(output, outcome.rule, outcome.severity, path, 1, &claim);
+            } else {
+                push_finding(output, outcome.rule, outcome.severity, path, 1, &claim);
+            }
         }
     }
     output.complete = true;

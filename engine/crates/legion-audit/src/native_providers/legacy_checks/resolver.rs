@@ -24,6 +24,9 @@ pub struct ResolvedCommand {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResolveError {
     MissingExecutable(String),
+    /// The project declares nothing to run (no build script, linter, type
+    /// checker or package manager). Nothing is broken; the check has no input.
+    NotConfigured(String),
     Unavailable(String),
 }
 
@@ -31,7 +34,7 @@ impl ResolveError {
     pub fn message(&self) -> String {
         match self {
             Self::MissingExecutable(value) => format!("missing executable: {value}"),
-            Self::Unavailable(value) => value.clone(),
+            Self::NotConfigured(value) | Self::Unavailable(value) => value.clone(),
         }
     }
 }
@@ -71,13 +74,27 @@ pub fn resolve_request(
         "package-audit" => package_manager_operation_dynamic(root, "audit", args)?,
         "package-outdated" => package_manager_operation_dynamic(root, "outdated", args)?,
         "audit-runtime" => (resolve_named_path(root, "audit-runtime")?, args.to_vec()),
+        // A cargo subcommand binary run directly (not through `cargo`) takes
+        // its own name as the first argument.
+        "cargo-outdated" => (resolve_named_path(root, executable)?, {
+            let mut values = vec!["outdated".to_owned()];
+            values.extend(args.iter().cloned());
+            values
+        }),
         _ => (resolve_named_path(root, executable)?, args.to_vec()),
     };
-    let cwd = if uses_cargo_working_directory(executable)
-        && !root.join("Cargo.toml").is_file()
-        && root.join("src-tauri/Cargo.toml").is_file()
-    {
-        root.join("src-tauri")
+    let cwd = if uses_cargo_working_directory(executable) && !root.join("Cargo.toml").is_file() {
+        if root.join("src-tauri/Cargo.toml").is_file() {
+            root.join("src-tauri")
+        } else if is_cargo_analysis_tool(executable) {
+            // Analysis tools only read manifests and lockfiles, so a repository
+            // whose single Cargo workspace lives in a subdirectory (for
+            // example `engine/`) is analyzed there. Build and lint never
+            // discover a nested workspace: that would start a full compile.
+            nested_cargo_dir(root).unwrap_or_else(|| root.to_path_buf())
+        } else {
+            root.to_path_buf()
+        }
     } else {
         root.to_path_buf()
     };
@@ -127,7 +144,7 @@ fn project_script(
             values
         }));
     }
-    Err(ResolveError::Unavailable(format!(
+    Err(ResolveError::NotConfigured(format!(
         "project script `{script}` is not configured"
     )))
 }
@@ -154,7 +171,7 @@ fn project_script_dynamic(
         values.extend(extra.iter().cloned());
         return Ok((resolve_named_path(root, "cargo")?, values));
     }
-    Err(ResolveError::Unavailable(format!(
+    Err(ResolveError::NotConfigured(format!(
         "project script `{script}` is not configured"
     )))
 }
@@ -186,7 +203,7 @@ fn project_lint_dynamic(
             return Ok((path, values));
         }
     }
-    Err(ResolveError::Unavailable(
+    Err(ResolveError::NotConfigured(
         "no configured project linter was found".into(),
     ))
 }
@@ -205,7 +222,7 @@ fn project_types_dynamic(
             return Ok((path, values));
         }
     }
-    Err(ResolveError::Unavailable(
+    Err(ResolveError::NotConfigured(
         "no configured project type checker was found".into(),
     ))
 }
@@ -234,7 +251,7 @@ fn project_lint(root: &Path, _extra: &[&str]) -> Result<(PathBuf, Vec<String>), 
             return Ok((path, values));
         }
     }
-    Err(ResolveError::Unavailable(
+    Err(ResolveError::NotConfigured(
         "no configured project linter was found".into(),
     ))
 }
@@ -250,7 +267,7 @@ fn project_types(root: &Path, _extra: &[&str]) -> Result<(PathBuf, Vec<String>),
             return Ok((path, values));
         }
     }
-    Err(ResolveError::Unavailable(
+    Err(ResolveError::NotConfigured(
         "no configured project type checker was found".into(),
     ))
 }
@@ -261,7 +278,7 @@ fn package_manager_operation(
     extra: &[&str],
 ) -> Result<(PathBuf, Vec<String>), ResolveError> {
     let manager = package_manager(root).ok_or_else(|| {
-        ResolveError::Unavailable("package manager metadata is unavailable".into())
+        ResolveError::NotConfigured("package manager metadata is unavailable".into())
     })?;
     let path = resolve_named_path(root, &manager)?;
     let mut values = vec![operation.to_owned()];
@@ -275,7 +292,7 @@ fn package_manager_operation_dynamic(
     extra: &[String],
 ) -> Result<(PathBuf, Vec<String>), ResolveError> {
     let manager = package_manager(root).ok_or_else(|| {
-        ResolveError::Unavailable("package manager metadata is unavailable".into())
+        ResolveError::NotConfigured("package manager metadata is unavailable".into())
     })?;
     let path = resolve_named_path(root, &manager)?;
     let mut values = vec![operation.to_owned()];
@@ -289,7 +306,7 @@ fn package_manager_script(
     extra: &[&str],
 ) -> Result<(PathBuf, Vec<String>), ResolveError> {
     let manager = package_manager(root).ok_or_else(|| {
-        ResolveError::Unavailable("package manager metadata is unavailable".into())
+        ResolveError::NotConfigured("package manager metadata is unavailable".into())
     })?;
     let path = resolve_named_path(root, &manager)?;
     let mut values = if manager == "yarn" {
@@ -310,7 +327,7 @@ fn package_manager_script_dynamic(
     extra: &[String],
 ) -> Result<(PathBuf, Vec<String>), ResolveError> {
     let manager = package_manager(root).ok_or_else(|| {
-        ResolveError::Unavailable("package manager metadata is unavailable".into())
+        ResolveError::NotConfigured("package manager metadata is unavailable".into())
     })?;
     let path = resolve_named_path(root, &manager)?;
     let mut values = if manager == "yarn" {
@@ -457,6 +474,30 @@ fn existing_file_with_platform_extensions(path: &Path) -> Option<PathBuf> {
         }
         None
     })
+}
+
+fn is_cargo_analysis_tool(tool: &str) -> bool {
+    matches!(
+        tool,
+        "cargo-audit" | "cargo-deny" | "cargo-geiger" | "cargo-machete" | "cargo-outdated"
+    )
+}
+
+/// The one first-level directory holding a `Cargo.toml`, if exactly one does.
+fn nested_cargo_dir(root: &Path) -> Option<PathBuf> {
+    let mut found = fs::read_dir(root)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        .filter(|entry| {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            !name.starts_with('.') && !matches!(name.as_ref(), "node_modules" | "target" | "vendor")
+        })
+        .map(|entry| entry.path())
+        .filter(|path| path.join("Cargo.toml").is_file());
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
 }
 
 fn uses_cargo_working_directory(tool: &str) -> bool {

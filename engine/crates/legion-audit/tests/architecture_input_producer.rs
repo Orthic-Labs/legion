@@ -181,7 +181,8 @@ fn cyclic_imports_become_findings_with_member_paths() {
     let root = dirty_fixture();
     let result = run(&root, "architecture.core");
     assert!(unavailable_reason(&result).is_none());
-    assert_eq!(result.status, ProviderStatus::Failed);
+    // Findings do not make a provider `failed`: the analyzer ran.
+    assert_eq!(result.status, ProviderStatus::Partial);
     let findings = located(&result);
     let paths: Vec<&str> = findings.iter().map(|(_, path)| path.as_str()).collect();
     assert!(paths.contains(&"src/alpha.rs"), "{paths:?}");

@@ -126,10 +126,16 @@ pub fn provider_result(
             severity,
         });
         evidence.insert(id.clone(), finding.clone());
+        // A location must lie inside the frozen denominator; a finding whose
+        // own path does not (it keeps that path in its evidence) is located at
+        // the first denominator path instead.
         let location = finding
             .get("path")
             .or_else(|| finding.get("evidencePath"))
             .and_then(Value::as_str)
+            .filter(|path| {
+                denominator_paths.is_empty() || denominator_paths.iter().any(|item| item == path)
+            })
             .map(|path| serde_json::json!([path]))
             .or_else(|| {
                 denominator_paths
@@ -149,7 +155,8 @@ pub fn provider_result(
         .collect::<Vec<_>>();
     let status = match analysis.status.as_str() {
         "pass" | "measured" => ProviderStatus::Complete,
-        "fail" => ProviderStatus::Failed,
+        // An analysis that ran and found something is a finding-bearing
+        // result, not a failed provider (`failed` means the analyzer broke).
         _ => ProviderStatus::Partial,
     };
     let complete = analysis.complete;

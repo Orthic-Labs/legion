@@ -290,3 +290,43 @@ fn production_adapter_resolves_and_seals_symbolic_request() {
     assert!(request.request_id.starts_with("legion-audit/"));
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn candidate_generator_reports_audit_hits_as_candidates_never_findings() {
+    let root = root();
+    fs::write(root.join("package.json"), "{}").unwrap();
+    let inventory = inventory();
+    let plan = plan_for(
+        &inventory,
+        "legacy.security.node-dependencies",
+        "deps_cve",
+        "candidate-generator",
+    );
+    let body = br#"{"metadata":{"vulnerabilities":{"total":2}}}"#.to_vec();
+    let registry =
+        NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(FakeTool {
+            state: ExecutionState::Completed,
+            body: Some(body),
+        }));
+    let report = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    assert!(
+        !report
+            .gaps
+            .iter()
+            .any(|gap| gap.starts_with("invalid-provider-result:")),
+        "{:?}",
+        report.gaps
+    );
+    let result = &report.results[0].result;
+    assert!(result.findings.is_empty());
+    assert_eq!(result.details["candidates"].as_array().unwrap().len(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
