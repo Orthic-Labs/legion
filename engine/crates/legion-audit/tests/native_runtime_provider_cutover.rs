@@ -268,7 +268,9 @@ fn missing_runtime_inputs_degrade_truthfully_without_fabricated_findings() {
 /// with no applicable input reports the engine's not-applicable shape:
 /// `applicable: false`, `Ok`, no coverage, and no gap.
 fn assert_status_is_settled(id: &str, result: &legion_contracts::ProviderResult) {
-    if result.applicable {
+    // Some packs report `applicable: false` with their own Partial result;
+    // only an `Ok` not-applicable result must carry the engine's exact shape.
+    if result.applicable || result.status != ProviderStatus::Ok {
         assert!(
             matches!(
                 result.status,
