@@ -154,8 +154,8 @@ Each row was checked against the deletion commit and the successor files at HEAD
 | `skills/designer/engine/scripts/live/sveltekit-adapter.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_022/sveltekit_adapter.rs` | successor |
 | `skills/designer/engine/scripts/live/vocabulary.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_022/vocabulary.rs` | successor |
 | `skills/designer/engine/scripts/modern-screenshot.umd.js` | ebb349ae | no successor yet; `skills/designer/engine/scripts/live-browser.js` (lines 6749-6755) lazy-loads /modern-screenshot.js, which no route serves | dropped, restoration pending |
-| `skills/designer/scripts/design-gate.mjs` | cae05d40 | none; no Designer route or skill reference expects it, and the Phase 5d gate it wrapped has no Rust port | intentionally dropped |
-| `skills/designer/scripts/open-for-review.mjs` | cae05d40 | `engine/crates/legion-runtime/src/p7_host/open_for_review.rs` (PARTIAL: decision logic ported; argv entry point, caller and OS viewer launch not ported) | successor |
+| `skills/designer/scripts/design-gate.mjs` | cae05d40 | `legion script designer/design-gate` (`engine/crates/legion-runtime/src/wf_port/w2_045/design_gate.rs`; lighthouse and axe checks report unavailable, so the gate fails without a waiver) | successor |
+| `skills/designer/scripts/open-for-review.mjs` | cae05d40 | `legion script designer/open-for-review` (`engine/crates/legion-runtime/src/wf_port/w2_045/open_for_review.rs`, decision logic from `engine/crates/legion-runtime/src/p7_host/open_for_review.rs`) | successor |
 
 ## Other script dispositions verified against history (2026-10-11 review)
 

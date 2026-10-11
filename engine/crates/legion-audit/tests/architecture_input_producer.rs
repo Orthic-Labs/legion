@@ -230,20 +230,87 @@ fn undelivered_requirement_is_reported() {
 #[test]
 fn providers_without_derivable_input_stay_unavailable_with_a_specific_reason() {
     let root = dirty_fixture();
+    // framework.frontend and framework.data have no frontend or data files in
+    // this fixture, so they are not applicable (see the test below).
     for (id, prefix) in [
         (
             "compatibility.core",
             "compatibility-observations-not-derivable",
         ),
         ("framework.backend", "no-backend-framework-detected"),
-        ("framework.frontend", "no-frontend-framework-detected"),
-        ("framework.data", "no-data-model-files-detected"),
     ] {
         let result = run(&root, id);
         let reason = unavailable_reason(&result).unwrap_or_else(|| panic!("{id} not unavailable"));
         assert!(reason.starts_with(prefix), "{id}: {reason}");
         assert!(!result.complete);
     }
+}
+
+/// Without frontend or data files, those frameworks have nothing to analyse:
+/// not-applicable with no gap. Rust sources could host an undetected backend
+/// framework, so backend keeps its unavailable gap.
+#[test]
+fn framework_providers_without_their_files_are_not_applicable() {
+    let root = fixture_root("not-applicable");
+    write(
+        &root,
+        "Cargo.toml",
+        "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\n",
+    );
+    write(&root, "src/lib.rs", "pub fn value() -> u32 {\n    1\n}\n");
+    for (id, reason, subject) in [
+        (
+            "framework.frontend",
+            "no-frontend-files-in-inventory",
+            "frontend",
+        ),
+        ("framework.data", "no-data-files-in-inventory", "data"),
+    ] {
+        let result = run(&root, id);
+        assert!(!result.applicable, "{id}");
+        assert_eq!(result.status, ProviderStatus::Ok, "{id}");
+        assert!(!result.complete, "{id}");
+        assert!(result.coverage.is_none(), "{id}");
+        assert!(
+            result.coverage_gaps.is_empty(),
+            "{id}: {:?}",
+            result.coverage_gaps
+        );
+        assert!(unavailable_reason(&result).is_none(), "{id}");
+        assert_eq!(result.details["applicability"], json!("not-applicable"));
+        assert_eq!(result.details["notApplicableReason"], json!(reason));
+        assert_eq!(
+            result.details["summary"],
+            json!(format!("not applicable: no {subject} files"))
+        );
+        result.validate().unwrap();
+    }
+    let backend = run(&root, "framework.backend");
+    assert!(backend.applicable);
+    assert_eq!(
+        unavailable_reason(&backend),
+        Some("no-backend-framework-detected")
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// A declared frontend framework with no components is a framework that
+/// exists but cannot be analysed: it keeps its gap, it is not not-applicable.
+#[test]
+fn a_declared_frontend_framework_keeps_its_gap() {
+    let root = fixture_root("frontend-declared");
+    write(
+        &root,
+        "package.json",
+        "{\"name\":\"web\",\"dependencies\":{\"react\":\"18.3.1\"}}\n",
+    );
+    write(&root, "src/index.js", "export const x = 1;\n");
+    let result = run(&root, "framework.frontend");
+    assert!(result.applicable);
+    assert!(!result.details.contains_key("applicability"));
+    assert!(!result.complete);
+    assert!(!result.coverage_gaps.is_empty());
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]

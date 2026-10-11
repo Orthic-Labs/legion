@@ -16,7 +16,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-const SCRIPT_COUNT: usize = 86;
+const SCRIPT_COUNT: usize = 88;
 const ROOT_COUNT: usize = 42;
 const DEV_COUNT: usize = 27;
 const XTASK_COUNT: usize = 16;
@@ -107,6 +107,12 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
         key: "designer/critique-storage",
         mode: ProbeMode::Precondition,
         args: SAFE_UNKNOWN,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "designer/design-gate",
+        mode: ProbeMode::Help,
+        args: HELP,
         reason: None,
     },
     ScriptProbe {
@@ -237,6 +243,12 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
     },
     ScriptProbe {
         key: "designer/live-wrap",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "designer/open-for-review",
         mode: ProbeMode::Help,
         args: HELP,
         reason: None,

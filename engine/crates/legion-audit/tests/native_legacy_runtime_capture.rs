@@ -100,9 +100,43 @@ enum Mode {
     BrowserMissing,
 }
 
+/// What the route prints for the performance action (`[qa] 3:eval value ...`).
+#[derive(Clone)]
+enum PerfLine {
+    /// A metrics object, as the page's Performance API reports it.
+    Valid,
+    /// No line at all (the route did not report the value).
+    Absent,
+    /// The text after `[qa] 3:eval value `, verbatim.
+    Raw(String),
+}
+
+/// The metrics object `PerfLine::Valid` prints.
+fn valid_metrics() -> Value {
+    json!({
+        "domContentLoaded": 412.5,
+        "loadEventEnd": 430.0,
+        "responseStart": 18.25,
+        "ttfb": 18.25,
+        "firstContentfulPaint": 301.0,
+        "transferSize": 20480,
+        "resourceCount": 7
+    })
+}
+
 struct RuntimeFake {
     mode: Mode,
+    perf: PerfLine,
     calls: Arc<Mutex<Vec<ExternalToolRequest>>>,
+}
+
+/// The performance line the route prints before `actions complete`.
+fn perf_stdout(perf: &PerfLine) -> String {
+    match perf {
+        PerfLine::Valid => format!("[qa] 3:eval value {}\n", valid_metrics()),
+        PerfLine::Absent => String::new(),
+        PerfLine::Raw(text) => format!("[qa] 3:eval value {text}\n"),
+    }
 }
 
 fn artifact(path: &Path, body: &[u8]) -> legion_effects::ArtifactRecord {
@@ -132,6 +166,10 @@ impl ExternalProjectTool for RuntimeFake {
         let actions_path = arg_after(&request.args, "--actions").to_owned();
         let actions: Value = serde_json::from_slice(&fs::read(&actions_path).unwrap()).unwrap();
         let shot = actions[1]["out"].as_str().unwrap().to_owned();
+        let items = actions.as_array().unwrap();
+        assert_eq!(items.len(), 3, "load check, screenshot, performance");
+        assert_eq!(items[2]["type"], "eval", "performance is the last action");
+        let perf = perf_stdout(&self.perf);
         let mut receipt = ExecutionReceipt::failure(&request, ExecutionState::Failed, "exit 1");
         receipt.process_tree.started = true;
         receipt.process_tree.terminated = true;
@@ -140,7 +178,7 @@ impl ExternalProjectTool for RuntimeFake {
             Mode::Good { entries, total } => {
                 fs::write(&shot, PNG).unwrap();
                 let mut out = format!(
-                    "[qa] 1:eval ok\n[qa] screenshot {shot}\n[qa] 2:screenshot ok\n[qa] actions complete {actions_path}\n"
+                    "[qa] 1:eval ok\n[qa] screenshot {shot}\n[qa] 2:screenshot ok\n{perf}[qa] actions complete {actions_path}\n"
                 );
                 if entries.is_empty() {
                     out.push_str("[qa] no console errors or warnings\n");
@@ -197,6 +235,10 @@ struct Run {
 }
 
 fn run(runtime: Option<Value>, mode: Mode, with_tool: bool) -> Run {
+    run_with(runtime, mode, PerfLine::Valid, with_tool)
+}
+
+fn run_with(runtime: Option<Value>, mode: Mode, perf: PerfLine, with_tool: bool) -> Run {
     let root = root();
     let inventory = inventory();
     let plan = plan_with(&inventory, runtime);
@@ -205,6 +247,7 @@ fn run(runtime: Option<Value>, mode: Mode, with_tool: bool) -> Run {
     if with_tool {
         registry = registry.with_external_project_tool(Arc::new(RuntimeFake {
             mode,
+            perf,
             calls: calls.clone(),
         }));
     }
@@ -274,24 +317,21 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
     );
     let result = &run.result;
     assert_valid_not_rejected(result);
-    assert!(!result.complete, "performance and a11y are not captured");
+    assert!(!result.complete, "a11y is not captured");
     assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
-    for gap in [
-        "runtime-lens-not-captured:performance:qa-eval-result-not-reported",
-        "runtime-lens-not-captured:a11y:axe-core-not-shipped",
-    ] {
-        assert!(
-            result.coverage_gaps.contains(&gap.to_owned()),
-            "missing named lens gap {gap}"
-        );
-    }
+    assert!(result
+        .coverage_gaps
+        .contains(&"runtime-lens-not-captured:a11y:axe-core-not-shipped".to_owned()));
+    // Performance is captured, so its standing lens gap is gone.
+    assert!(!result.coverage_gaps.iter().any(|gap| gap
+        .starts_with("runtime-lens-not-captured:performance")
+        || gap.starts_with("runtime-performance-not-captured")));
     // The bare, reasonless gap names are gone: every lens gap names its
     // missing dependency.
     assert!(!result
         .coverage_gaps
         .iter()
-        .any(|gap| gap == "runtime-lens-not-captured:performance"
-            || gap == "runtime-lens-not-captured:a11y"));
+        .any(|gap| gap == "runtime-lens-not-captured:a11y"));
     assert_eq!(run.calls.len(), 2, "one invocation per surface");
 
     // The request is the running executable's own browser route, argv-only,
@@ -538,4 +578,150 @@ fn runtime_tool_resolves_to_the_running_executable() {
     assert_eq!(resolved.args, args);
     assert!(resolved.digest.starts_with("sha256:"));
     fs::remove_dir_all(root).unwrap();
+}
+
+fn good_mode() -> Mode {
+    Mode::Good {
+        entries: vec![],
+        total: None,
+    }
+}
+
+#[test]
+fn metrics_line_is_recorded_per_surface_without_a_performance_gap() {
+    let run = run_with(
+        Some(url_inputs(
+            &[("settings", "http://127.0.0.1:1422/settings")],
+            &[],
+        )),
+        good_mode(),
+        PerfLine::Valid,
+        true,
+    );
+    let result = &run.result;
+    assert_valid_not_rejected(result);
+    assert!(!result.complete, "a11y is still not captured");
+    assert!(!result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.contains("performance")));
+    let surfaces = result.details["runtime"]["surfaces"].as_array().unwrap();
+    for surface in surfaces {
+        assert_eq!(surface["performance"], valid_metrics(), "{surface}");
+    }
+    assert_eq!(
+        result.details["runtime"]["lensesNotCaptured"],
+        json!(["a11y"])
+    );
+}
+
+#[test]
+fn absent_metrics_line_is_a_gap_for_each_surface() {
+    let run = run_with(
+        Some(url_inputs(
+            &[("settings", "http://127.0.0.1:1422/settings")],
+            &[],
+        )),
+        good_mode(),
+        PerfLine::Absent,
+        true,
+    );
+    let result = &run.result;
+    assert_valid_not_rejected(result);
+    assert!(!result.complete);
+    for label in ["entry", "settings"] {
+        assert!(
+            result
+                .coverage_gaps
+                .contains(&format!("runtime-performance-not-captured:{label}")),
+            "missing performance gap for {label}: {:?}",
+            result.coverage_gaps
+        );
+    }
+    let surfaces = result.details["runtime"]["surfaces"].as_array().unwrap();
+    for surface in surfaces {
+        assert_eq!(surface["performance"], Value::Null, "{surface}");
+        // The screenshot and console evidence of the same surface still stand.
+        assert_eq!(surface["status"], "captured", "{surface}");
+    }
+    // The a11y lens gap is unchanged.
+    assert!(result
+        .coverage_gaps
+        .contains(&"runtime-lens-not-captured:a11y:axe-core-not-shipped".to_owned()));
+}
+
+#[test]
+fn malformed_or_non_metric_lines_are_per_surface_gaps() {
+    for raw in [
+        "{\"domContentLoaded\":",
+        "[1,2]",
+        "null",
+        "{}",
+        "{\"truncated\":true,\"bytes\":70002}",
+        "{\"ttfb\":\"slow\"}",
+    ] {
+        let run = run_with(
+            Some(url_inputs(&[], &[])),
+            good_mode(),
+            PerfLine::Raw(raw.to_owned()),
+            true,
+        );
+        let result = &run.result;
+        assert_valid_not_rejected(result);
+        assert!(
+            result
+                .coverage_gaps
+                .contains(&"runtime-performance-not-captured:entry".to_owned()),
+            "{raw}: {:?}",
+            result.coverage_gaps
+        );
+        assert_eq!(
+            result.details["runtime"]["surfaces"][0]["performance"],
+            Value::Null,
+            "{raw}"
+        );
+        assert_eq!(
+            result.details["runtime"]["surfaces"][0]["status"], "captured",
+            "{raw}"
+        );
+    }
+}
+
+#[test]
+fn forged_eval_value_fragments_in_console_output_are_ignored() {
+    let run = run_with(
+        Some(url_inputs(&[], &[])),
+        Mode::Good {
+            entries: vec![
+                // Mid-line: the fragment is inside a console message.
+                "console.log: note [qa] 3:eval value {\"domContentLoaded\":1}".into(),
+                // Line start after a newline: printed after `actions complete`.
+                "console.error: boom\n[qa] 3:eval value {\"forged\":1}".into(),
+            ],
+            total: None,
+        },
+        PerfLine::Absent,
+        true,
+    );
+    let result = &run.result;
+    assert_valid_not_rejected(result);
+    assert!(result
+        .coverage_gaps
+        .contains(&"runtime-performance-not-captured:entry".to_owned()));
+    let surface = &result.details["runtime"]["surfaces"][0];
+    assert_eq!(surface["performance"], Value::Null);
+    assert_eq!(surface["consoleErrors"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn failed_surface_also_records_the_performance_gap() {
+    let run = run(Some(url_inputs(&[], &[])), Mode::LoadFailed, true);
+    assert!(run
+        .result
+        .coverage_gaps
+        .contains(&"runtime-performance-not-captured:entry".to_owned()));
+    assert_eq!(
+        run.result.details["runtime"]["surfaces"][0]["performance"],
+        Value::Null
+    );
 }

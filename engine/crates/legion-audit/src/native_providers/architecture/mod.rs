@@ -88,6 +88,21 @@ impl ProviderExecutorAdapter {
             let scanned = self
                 .producer
                 .facts(root, &denominator.digest, &denominator.entries);
+            // A framework with no detection and no inventory file that could
+            // carry it is not applicable. An empty inventory was never scanned
+            // and keeps its own accounting.
+            if let Some(reason) = scanned
+                .framework_absence(&provider.id)
+                .filter(|_| !inventory.entries.is_empty())
+            {
+                let subject = provider.id.trim_start_matches("framework.");
+                return crate::native_providers::code::applicability::not_applicable_result(
+                    &provider.id,
+                    provider.required,
+                    subject,
+                    reason,
+                );
+            }
             let produced = producer::produce(&scanned, &provider.id);
             facts = Some(scanned);
             match produced {

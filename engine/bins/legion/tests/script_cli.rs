@@ -69,8 +69,10 @@ fn native_script_list_includes_known_ports() {
         "designer/context",
         "designer/context-signals",
         "designer/critique-storage",
+        "designer/design-gate",
         "designer/detect",
         "designer/detect-csp",
+        "designer/open-for-review",
         "designer/palette",
     ] {
         assert!(scripts.contains(&name), "expected {name} in {scripts:?}");

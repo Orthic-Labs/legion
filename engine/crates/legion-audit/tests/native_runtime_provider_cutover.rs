@@ -201,6 +201,7 @@ fn every_frozen_runtime_script_id_dispatches_with_bound_denominator() {
             .unwrap_or_else(|error| panic!("{}: {error}", spec.id));
         assert_eq!(result.provider.to_string(), spec.id.to_string());
         assert_authority(&result);
+        assert_status_is_settled(&spec.id.to_string(), &result);
         if let Some(coverage) = result.coverage {
             assert_eq!(
                 coverage.denominator_digest, expected.digest,
@@ -213,10 +214,6 @@ fn every_frozen_runtime_script_id_dispatches_with_bound_denominator() {
                 spec.id
             );
         }
-        assert!(matches!(
-            result.status,
-            ProviderStatus::Complete | ProviderStatus::Partial | ProviderStatus::Failed
-        ));
     }
     assert_eq!(
         ids,
@@ -262,10 +259,36 @@ fn missing_runtime_inputs_degrade_truthfully_without_fabricated_findings() {
                 spec.id
             );
         }
-        assert!(matches!(
-            result.status,
-            ProviderStatus::Complete | ProviderStatus::Partial | ProviderStatus::Failed
-        ));
+        assert_status_is_settled(&spec.id.to_string(), &result);
     }
     fs::remove_dir_all(root).unwrap();
+}
+
+/// A provider that applies reports Complete, Partial or Failed. A provider
+/// with no applicable input reports the engine's not-applicable shape:
+/// `applicable: false`, `Ok`, no coverage, and no gap.
+fn assert_status_is_settled(id: &str, result: &legion_contracts::ProviderResult) {
+    if result.applicable {
+        assert!(
+            matches!(
+                result.status,
+                ProviderStatus::Complete | ProviderStatus::Partial | ProviderStatus::Failed
+            ),
+            "{id} status {:?}",
+            result.status
+        );
+    } else {
+        assert_eq!(
+            result.status,
+            ProviderStatus::Ok,
+            "{id} not-applicable status"
+        );
+        assert!(result.coverage.is_none(), "{id} not-applicable coverage");
+        assert!(result.coverage_gaps.is_empty(), "{id} not-applicable gaps");
+        assert_eq!(
+            result.details["applicability"],
+            Value::String("not-applicable".into()),
+            "{id} not-applicable marker"
+        );
+    }
 }

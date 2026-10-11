@@ -316,6 +316,51 @@ pub struct Facts {
     frontend: Vec<Value>,
     backend: Vec<Value>,
     data_models: Vec<Value>,
+    /// Inventory files with an extension only frontend frameworks use.
+    frontend_source_files: usize,
+    /// Inventory files in a server-capable language. Broad on purpose: a
+    /// framework the producer does not detect must keep its gap.
+    backend_source_files: usize,
+    /// Inventory paths that could hold a data model. Broader than the models
+    /// `build_frameworks` recognises, so an unrecognised model keeps its gap.
+    data_hint_files: usize,
+}
+
+/// Extensions only frontend frameworks use. Plain `.js` is deliberately absent.
+const FRONTEND_SOURCE_EXTENSIONS: &[&str] = &["jsx", "tsx", "vue", "svelte", "astro", "hbs"];
+
+/// Server-capable source extensions.
+const BACKEND_SOURCE_EXTENSIONS: &[&str] = &[
+    "rs", "js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "py", "go", "java", "kt", "scala",
+    "rb", "php", "cs", "fs", "vb",
+];
+
+fn is_data_hint(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    ["model", "schema", "migrat", "entity"]
+        .iter()
+        .any(|hint| lower.contains(*hint))
+        || matches!(
+            extension(path).as_str(),
+            "prisma" | "sql" | "graphql" | "gql"
+        )
+}
+
+impl Facts {
+    /// Typed reason the framework provider has nothing to analyse, or `None`
+    /// when it applies. Absence needs an empty detection AND no inventory file
+    /// that could carry the framework; any such file keeps the provider's gap.
+    pub fn framework_absence(&self, provider: &str) -> Option<&'static str> {
+        match provider {
+            "framework.frontend" => (self.frontend.is_empty() && self.frontend_source_files == 0)
+                .then_some("no-frontend-files-in-inventory"),
+            "framework.backend" => (self.backend.is_empty() && self.backend_source_files == 0)
+                .then_some("no-backend-files-in-inventory"),
+            "framework.data" => (self.data_models.is_empty() && self.data_hint_files == 0)
+                .then_some("no-data-files-in-inventory"),
+            _ => None,
+        }
+    }
 }
 
 /// Shared scan results keyed by root and denominator digest.
@@ -443,6 +488,18 @@ pub fn scan(root: &Path, entries: &[InventoryEntry]) -> Facts {
         texts,
         manifest_dirs,
     };
+    for path in &ctx.all {
+        let ext = extension(path);
+        if FRONTEND_SOURCE_EXTENSIONS.contains(&ext.as_str()) {
+            facts.frontend_source_files += 1;
+        }
+        if BACKEND_SOURCE_EXTENSIONS.contains(&ext.as_str()) {
+            facts.backend_source_files += 1;
+        }
+        if is_data_hint(path) {
+            facts.data_hint_files += 1;
+        }
+    }
     build_manifests(&ctx, &mut facts);
     build_graph(&ctx, &mut facts);
     build_docs(&ctx, &mut facts);

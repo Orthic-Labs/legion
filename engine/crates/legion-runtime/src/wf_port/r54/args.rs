@@ -161,7 +161,9 @@ pub const USAGE: &str = r#"Usage:
 
 Options:
   --shot                 Capture one viewport-only app screenshot.
-  --actions <file>       JSON action file for hover/click/assert/screenshot QA.
+  --actions <file>       JSON action file for hover/click/assert/screenshot/eval QA. An eval action
+                         also prints `[qa] N:eval value <json>` on its own line (compact JSON,
+                         64 KiB max; larger values print {"truncated":true,"bytes":n}).
   --url <url>            Use an already-running app URL.
   --start <command>      Start command. Use {port} placeholder for the selected port.
   --route <route>        Route to open on the local server. Default: /?qa=1

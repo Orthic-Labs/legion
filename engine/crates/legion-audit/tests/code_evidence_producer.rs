@@ -347,14 +347,165 @@ fn long_tail_with_host_input_and_no_rules_is_not_complete() {
     fs::remove_dir_all(root).unwrap();
 }
 
+/// A family with no file in the inventory is not applicable: no coverage, no
+/// gap, and a summary that says nothing was there to inspect.
 #[test]
-fn language_with_no_files_is_a_denominator_gap_not_a_pass() {
+fn language_with_no_files_is_not_applicable_not_a_gap() {
     let root = fixture(&[("README.md", "# readme\n")]);
     let result = run(&root, &["README.md"], "code.python");
+    assert!(!result.applicable);
+    assert_eq!(result.status, ProviderStatus::Ok);
+    assert!(!result.complete);
+    assert!(result.coverage.is_none());
+    assert!(
+        result.coverage_gaps.is_empty(),
+        "{:?}",
+        result.coverage_gaps
+    );
+    assert!(result.degradation.is_empty());
+    assert!(result.findings.is_empty());
+    assert_eq!(result.details["applicability"], json!("not-applicable"));
+    assert_eq!(
+        result.details["notApplicableReason"],
+        json!("no-python-files-in-inventory")
+    );
+    assert_eq!(
+        result.details["summary"],
+        json!("not applicable: no python files")
+    );
+    result.validate().unwrap();
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Families other than JavaScript have no file in a JavaScript-only inventory,
+/// so each one is not applicable and carries zero gaps.
+#[test]
+fn javascript_only_inventory_makes_other_families_not_applicable() {
+    let root = fixture(&[
+        ("package.json", "{\"name\":\"app\"}\n"),
+        ("src/app.js", "export const app = 1;\n"),
+    ]);
+    let paths = ["package.json", "src/app.js"];
+    for family in [
+        "c-family", "dotnet", "go", "jvm", "mobile", "php-ruby", "python", "rust",
+    ] {
+        let id = format!("code.{family}");
+        let result = run(&root, &paths, &id);
+        assert!(!result.applicable, "{id}");
+        assert!(!result.complete, "{id}");
+        assert_eq!(result.status, ProviderStatus::Ok, "{id}");
+        assert!(result.coverage.is_none(), "{id}");
+        assert!(
+            result.coverage_gaps.is_empty(),
+            "{id}: {:?}",
+            result.coverage_gaps
+        );
+        assert!(result.degradation.is_empty(), "{id}");
+        assert!(result.findings.is_empty(), "{id}");
+        assert_eq!(result.details["applicability"], json!("not-applicable"));
+        assert_eq!(
+            result.details["notApplicableReason"],
+            json!(format!("no-{family}-files-in-inventory"))
+        );
+        assert_eq!(
+            result.details["summary"],
+            json!(format!("not applicable: no {family} files"))
+        );
+        result.validate().unwrap();
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// The JavaScript family applies to the same inventory and keeps its
+/// accounting: one file read against the frozen denominator of two.
+#[test]
+fn javascript_family_is_unchanged_in_a_javascript_only_inventory() {
+    let root = fixture(&[
+        ("package.json", "{\"name\":\"app\"}\n"),
+        ("src/app.js", "export const app = 1;\n"),
+    ]);
+    let result = run(&root, &["package.json", "src/app.js"], "code.javascript");
+    assert!(result.applicable);
+    assert!(!result.details.contains_key("applicability"));
+    assert!(!result.complete, "tools never ran on the sync path");
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!((coverage.expected, coverage.examined), (2, 1));
+    assert!(result
+        .coverage_gaps
+        .contains(&"code.javascript:selection-narrower-than-denominator:1of2".to_string()));
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// A present family file that cannot be selected keeps the family's gaps.
+#[test]
+fn c_sources_without_a_compile_database_keep_their_gaps() {
+    let root = fixture(&[("src/main.c", "int main(void) {\n    return 0;\n}\n")]);
+    let result = run(&root, &["src/main.c"], "code.c-family");
+    assert!(result.applicable);
+    assert!(!result.details.contains_key("applicability"));
+    assert!(!result.complete);
+    assert_eq!(result.status, ProviderStatus::Partial);
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!((coverage.expected, coverage.examined), (1, 1));
+    assert!(
+        result
+            .coverage_gaps
+            .contains(&"code.c-family:context-gap:compileDatabase".to_string()),
+        "{:?}",
+        result.coverage_gaps
+    );
+    assert!(
+        result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap.ends_with(":compiler")),
+        "compiler tool must stay a typed gap: {:?}",
+        result.coverage_gaps
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// A family manifest with no source is still applicable, so its gaps stay.
+#[test]
+fn family_manifest_without_source_keeps_its_gaps() {
+    let root = fixture(&[(
+        "Cargo.toml",
+        "[package]\nname = \"fx\"\nversion = \"0.1.0\"\n",
+    )]);
+    let result = run(&root, &["Cargo.toml"], "code.rust");
+    assert!(result.applicable);
+    assert!(!result.details.contains_key("applicability"));
+    assert!(!result.complete);
     let coverage = result.coverage.as_ref().unwrap();
     assert_eq!((coverage.expected, coverage.examined), (1, 0));
+    assert!(
+        result
+            .coverage_gaps
+            .contains(&"code.rust:denominator-gap:rust".to_string()),
+        "{:?}",
+        result.coverage_gaps
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// An empty inventory was never scanned: the existing empty-denominator
+/// accounting is unchanged and the provider stays applicable.
+#[test]
+fn empty_inventory_keeps_the_existing_denominator_accounting() {
+    let root = fixture(&[("README.md", "# readme\n")]);
+    let result = run(&root, &[], "code.c-family");
+    assert!(result.applicable);
+    assert!(!result.details.contains_key("applicability"));
     assert!(!result.complete);
-    assert!(result.findings.is_empty());
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!((coverage.expected, coverage.examined), (0, 0));
+    assert!(
+        result
+            .coverage_gaps
+            .contains(&"code.c-family:denominator-gap:c-family".to_string()),
+        "{:?}",
+        result.coverage_gaps
+    );
     fs::remove_dir_all(root).unwrap();
 }
 

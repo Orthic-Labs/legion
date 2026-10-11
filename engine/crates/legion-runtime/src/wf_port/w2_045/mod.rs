@@ -49,4 +49,6 @@
 //! did not fit packet r46's pass either. See the packet r46 report for the
 //! exact function inventory and suggested follow-up split.
 
+pub mod design_gate;
+pub mod open_for_review;
 pub mod path_utils;

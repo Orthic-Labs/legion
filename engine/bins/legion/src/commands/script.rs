@@ -66,6 +66,7 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/context-signals", designer_context_signals),
     ("designer/convert-formats", designer_convert_formats),
     ("designer/critique-storage", designer_critique_storage),
+    ("designer/design-gate", designer_design_gate),
     ("designer/detect", designer_detect),
     ("designer/detect-csp", designer_detect_csp),
     ("designer/export-deck-pdf", designer_export_deck_pdf),
@@ -94,6 +95,7 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/live-status", designer_live_status),
     ("designer/live-target", designer_live_target),
     ("designer/live-wrap", designer_live_wrap),
+    ("designer/open-for-review", designer_open_for_review),
     ("designer/palette", designer_palette),
     ("designer/render-video", designer_render_video),
     ("designer/render-video-seek", designer_render_video_seek),
@@ -1757,6 +1759,37 @@ fn designer_verify(args: &[String]) -> i32 {
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
     r03::verify::run(args, &fs, &mut driver, &mut stdout, &mut stderr)
+}
+
+// ---- designer / design-gate and open-for-review (w2_045) ---------------
+
+/// `legion script designer/design-gate [--root <dir>] [--surface <dir>]`, port of
+/// `skills/designer/scripts/design-gate.mjs`. Exit 0 on a pass verdict, 1 otherwise.
+fn designer_design_gate(args: &[String]) -> i32 {
+    let mut stdout = std::io::stdout();
+    let mut stderr = std::io::stderr();
+    legion_runtime::wf_port::w2_045::design_gate::run_cli(
+        args,
+        &cwd(),
+        &legion_runtime::wf_port::w2_045::design_gate::PathToolProbe,
+        &mut stdout,
+        &mut stderr,
+    )
+}
+
+/// `legion script designer/open-for-review [--print] <path> [<path> ...]`, entry point
+/// for the decision logic ported from `skills/designer/scripts/open-for-review.mjs`.
+/// Exit 0 when opened (or printed under `--print`), 1 on failure, 2 without paths.
+fn designer_open_for_review(args: &[String]) -> i32 {
+    let mut stdout = std::io::stdout();
+    let mut stderr = std::io::stderr();
+    legion_runtime::wf_port::w2_045::open_for_review::run_cli(
+        args,
+        &cwd(),
+        &legion_runtime::wf_port::w2_045::open_for_review::OsLauncher,
+        &mut stdout,
+        &mut stderr,
+    )
 }
 
 // ---- dispatch / tasklist --------------------------------------------------

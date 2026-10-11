@@ -24,6 +24,9 @@ const SHARED_TOPICS: [&str; 8] = [
 // Build, release & UI guidance share file coverage, but Xcode destinations,
 // App Store platform values & UI APIs differ between iOS & macOS bundles.
 const BYTE_IDENTICAL_TOPICS: [&str; 3] = ["architecture", "concurrency", "profiling"];
+// Ledger files whose source or digest is not in source-inventory.json must
+// carry this marker; the inventory is the pinned denominator.
+const SOURCE_NOT_INVENTORIED: &str = "source-not-inventoried";
 
 fn repository_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -382,8 +385,32 @@ fn assert_source_ledgers(root: &Path) {
                 && expected.path == *source_path
                 && expected.hash.as_ref() == ledger_hash.as_ref()
         });
-        if let Some((index, _)) = inventory_match {
-            assert!(seen.insert(index), "duplicate ledger file: {identity}");
+        // A ledger file that is not in the pinned inventory is only acceptable
+        // when the ledger says so explicitly. Such a file must not be silently
+        // checked against nothing, nor claim an inventory digest it lacks.
+        let inventory_status = file.get("inventoryStatus").and_then(Value::as_str);
+        let inventoried_identity = expected
+            .iter()
+            .any(|other| other.source_id == *source_id && other.path == *source_path);
+        match inventory_match {
+            Some((index, _)) => {
+                assert!(seen.insert(index), "duplicate ledger file: {identity}");
+                assert!(
+                    inventory_status.is_none(),
+                    "inventoried ledger file carries source-not-inventoried marker: {identity}"
+                );
+            }
+            None => {
+                assert!(
+                    !inventoried_identity,
+                    "ledger file digest differs from its inventory entry: {identity}"
+                );
+                assert_eq!(
+                    inventory_status,
+                    Some(SOURCE_NOT_INVENTORIED),
+                    "ledger file is neither inventoried nor marked source-not-inventoried: {identity}"
+                );
+            }
         }
 
         assert!(

@@ -141,7 +141,7 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         .unwrap();
     assert_eq!(
         output.status.code(),
-        Some(0),
+        Some(2),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );

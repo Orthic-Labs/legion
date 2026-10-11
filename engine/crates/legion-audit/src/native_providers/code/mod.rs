@@ -1,3 +1,4 @@
+pub mod applicability;
 pub mod c_family;
 pub mod common;
 pub mod dotnet;
@@ -257,6 +258,19 @@ impl ProviderExecutorAdapter {
                 input
             }
             None => {
+                // A family with no file in the frozen inventory has nothing to
+                // inspect: not-applicable, never a denominator or tool gap.
+                if let Some(reason) =
+                    applicability::family_absence(&provider.id, &inventory.entries)
+                {
+                    let subject = provider.id.trim_start_matches("code.");
+                    return applicability::not_applicable_result(
+                        &provider.id,
+                        provider.required,
+                        subject,
+                        &reason,
+                    );
+                }
                 let selector = provider
                     .configuration
                     .get("selector")

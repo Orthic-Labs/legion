@@ -10,18 +10,21 @@
 //! exceptions seen during the load.
 //!
 //! What is captured is a strict subset of the historical tool: load, viewport
-//! screenshot and console output. The performance and accessibility lenses are
-//! not captured, each for a named, checkable reason (see `LENSES_NOT_CAPTURED`),
-//! so every result carries the standing
-//! `runtime-lens-not-captured:<lens>:<reason>` gaps and is never complete:
+//! screenshot, console output and navigation/paint performance metrics. Each
+//! surface runs a final `eval` action that reads the page's Performance API;
+//! the route prints its value as one `[qa] N:eval value <json>` line, which is
+//! parsed only when it appears before the route's `actions complete` line (console
+//! text is printed after it, so page text cannot fake a metric line). A surface
+//! without a valid metric line carries `runtime-performance-not-captured:<label>`.
+//! The accessibility lens is not captured, for a named, checkable reason (see
+//! `LENSES_NOT_CAPTURED`), so every result carries the standing
+//! `runtime-lens-not-captured:<lens>:<reason>` gap and is never complete.
 //!
-//! - performance: the route's `eval` action checks only `ok` and discards the
-//!   value, so no page-side metric can leave the page. Wiring it needs the
-//!   route to report eval values (`legion-runtime`, `wf_port/r54/actions.rs`).
-//!   `wf_port::wf064::runtime::ChromeRuntimeDriver` is deliberately not used:
-//!   it holds an in-process browser outside the process-receipt path, types
-//!   and clicks into the audited app, and injects its instrumentation before
-//!   navigation, where it does not survive.
+//! `wf_port::wf064::runtime::ChromeRuntimeDriver` is deliberately not used:
+//! it holds an in-process browser outside the process-receipt path, types
+//! and clicks into the audited app, and injects its instrumentation before
+//! navigation, where it does not survive.
+//!
 //! - a11y: axe-core is not vendored anywhere in this repository (the historical
 //!   tool only ran axe when the target project had it installed).
 //!
@@ -56,10 +59,7 @@ pub(super) const UNAVAILABLE_URL: &str = "runtime-url-not-supplied";
 /// Lenses the historical tool covered that this capture does not, each with
 /// the exact missing dependency. A reason is removed only together with the
 /// capture it stands for.
-const LENSES_NOT_CAPTURED: [(&str, &str); 2] = [
-    ("performance", "qa-eval-result-not-reported"),
-    ("a11y", "axe-core-not-shipped"),
-];
+const LENSES_NOT_CAPTURED: [(&str, &str); 1] = [("a11y", "axe-core-not-shipped")];
 
 const MAX_EXTRA_SURFACES: usize = 32;
 const MAX_DIMENSION: u64 = 16_384;
@@ -72,6 +72,16 @@ const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
 /// the browser is showing its own error page (connection refused, DNS, TLS)
 /// or the navigation response carried an HTTP error status.
 const LOAD_CHECK: &str = "(() => { const nav = performance.getEntriesByType('navigation')[0]; const status = nav && nav.responseStatus ? nav.responseStatus : 0; return { ok: !location.href.startsWith('chrome-error:') && !(status >= 400), href: location.href, status: status }; })()";
+
+/// The route's 1-based label for the performance action: the third and last action
+/// of every surface (see `capture_surface`), printed as `[qa] 3:eval value`.
+const PERFORMANCE_ACTION_LABEL: usize = 3;
+
+/// Evaluated after the screenshot, as the last action of every surface. It returns
+/// one object of numbers, with `null` for entries the browser did not expose. It
+/// never throws (a throw would fail the whole surface, screenshot included), and
+/// it carries no `ok` key, so the route never treats it as a failed assertion.
+const PERFORMANCE_METRICS: &str = "(() => { try { const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : null); const nav = performance.getEntriesByType('navigation')[0]; const fcp = performance.getEntriesByType('paint').find((e) => e.name === 'first-contentful-paint'); const resources = performance.getEntriesByType('resource'); let transfer = 0; for (const e of resources) { transfer += typeof e.transferSize === 'number' ? e.transferSize : 0; } return { domContentLoaded: nav ? num(nav.domContentLoadedEventEnd) : null, loadEventEnd: nav ? num(nav.loadEventEnd) : null, responseStart: nav ? num(nav.responseStart) : null, ttfb: nav ? num(nav.responseStart) : null, firstContentfulPaint: fcp ? num(fcp.startTime) : null, transferSize: num(transfer), resourceCount: resources.length }; } catch (e) { return null; } })()";
 
 /// Validated inputs of one runtime capture (`runner.runtime`).
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -246,6 +256,36 @@ struct QaOutput {
     console_total: Option<usize>,
     console_entries: Vec<String>,
     gaps: Vec<String>,
+    /// `(action index, JSON text)` of each `[qa] N:eval value <json>` line printed
+    /// before `actions complete`.
+    eval_values: Vec<(usize, String)>,
+}
+
+/// Matches `N:eval value <json>` at the start of a `[qa] ` line body, returning the
+/// 1-based action label and the JSON text that follows.
+fn eval_value_line(rest: &str) -> Option<(usize, &str)> {
+    let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+    if digits == 0 {
+        return None;
+    }
+    let (number, tail) = rest.split_at(digits);
+    let json = tail.strip_prefix(":eval value ")?;
+    Some((number.parse().ok()?, json))
+}
+
+/// The metrics object of a performance line. Anything else is rejected: unparsable
+/// JSON, a non-object, an empty object, a value that is not a number or `null`, and
+/// the route's `{"truncated":true,...}` marker.
+fn parse_performance(json: &str) -> Option<Value> {
+    let value: Value = serde_json::from_str(json).ok()?;
+    let object = value.as_object()?;
+    if object.is_empty() || object.contains_key("truncated") {
+        return None;
+    }
+    if !object.values().all(|v| v.is_number() || v.is_null()) {
+        return None;
+    }
+    Some(value)
 }
 
 /// Parse the `[qa] ...` lines the route prints (see `wf_port::r54::run`).
@@ -255,7 +295,13 @@ fn parse_qa_output(text: &str) -> QaOutput {
         let Some(rest) = line.strip_prefix("[qa] ") else {
             continue;
         };
-        if let Some(path) = rest.strip_prefix("screenshot ") {
+        if let Some((index, json)) = eval_value_line(rest) {
+            // The route prints action output before `actions complete`; console text
+            // comes after it, so a forged line there is never a metric.
+            if !out.actions_complete {
+                out.eval_values.push((index, json.to_owned()));
+            }
+        } else if let Some(path) = rest.strip_prefix("screenshot ") {
             if out.screenshot.is_none() {
                 out.screenshot = Some(path.trim().to_owned());
             }
@@ -391,6 +437,8 @@ struct SurfaceOutcome {
     /// `captured` | `failed` | `unavailable`
     status: &'static str,
     screenshot: Option<Value>,
+    /// Page performance metrics, when the surface's metric line was valid.
+    performance: Option<Value>,
     console_errors: Vec<String>,
     console_warnings: Vec<String>,
     gaps: Vec<String>,
@@ -410,6 +458,7 @@ impl SurfaceOutcome {
             url: url.to_owned(),
             status: "failed",
             screenshot: None,
+            performance: None,
             console_errors: Vec::new(),
             console_warnings: Vec::new(),
             gaps: Vec::new(),
@@ -472,6 +521,7 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
         let actions = json!([
             {"type": "eval", "expression": LOAD_CHECK},
             {"type": "screenshot", "out": shot_path.to_string_lossy().into_owned()},
+            {"type": "eval", "expression": PERFORMANCE_METRICS},
         ]);
         let bytes = serde_json::to_vec(&actions).map_err(|error| error.to_string())?;
         std::fs::write(&actions_path, bytes).map_err(|error| format!("actions-file: {error}"))
@@ -550,6 +600,11 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
         ));
         return outcome;
     }
+    outcome.performance = qa
+        .eval_values
+        .iter()
+        .find(|(index, _)| *index == PERFORMANCE_ACTION_LABEL)
+        .and_then(|(_, json)| parse_performance(json));
     let expected_shot = shot_path.to_string_lossy().into_owned();
     if qa.screenshot.as_deref() != Some(expected_shot.as_str()) {
         outcome
@@ -735,7 +790,7 @@ fn assemble(
     provider: &AuditProvider,
     input: &LegacyCheckInput,
     params: &RuntimeParams,
-    outcomes: Vec<SurfaceOutcome>,
+    mut outcomes: Vec<SurfaceOutcome>,
 ) -> Result<ProviderResult, AuditError> {
     let provider_id =
         ProviderId::new(&provider.id).map_err(|error| AuditError::Provider(error.to_string()))?;
@@ -771,6 +826,14 @@ fn assemble(
     let mut gaps: Vec<String> = Vec::new();
     for label in &params.unsupported {
         gaps.push(format!("runtime-surface-unsupported:{label}"));
+    }
+    for outcome in &mut outcomes {
+        if outcome.performance.is_none() {
+            outcome.gaps.push(format!(
+                "runtime-performance-not-captured:{}",
+                outcome.label
+            ));
+        }
     }
     for outcome in &outcomes {
         gaps.extend(outcome.gaps.iter().cloned());
@@ -817,6 +880,7 @@ fn assemble(
                 "viewport": {"width": params.width, "height": params.height},
                 "status": outcome.status,
                 "screenshot": outcome.screenshot,
+                "performance": outcome.performance.clone().unwrap_or(Value::Null),
                 "consoleErrors": outcome.console_errors,
                 "consoleWarnings": outcome.console_warnings,
                 "gaps": outcome.gaps,
@@ -1046,5 +1110,53 @@ mod tests {
         let (unavailable, gap) = classify_failure("s", "timeout", "");
         assert_eq!(unavailable, None);
         assert_eq!(gap, "runtime-surface-capture-failed:s:timeout");
+    }
+
+    #[test]
+    fn eval_value_lines_must_start_with_the_action_label() {
+        assert_eq!(eval_value_line("3:eval value {}"), Some((3, "{}")));
+        assert_eq!(eval_value_line("3:eval ok"), None);
+        assert_eq!(eval_value_line(":eval value {}"), None);
+        assert_eq!(eval_value_line("console.log: 3:eval value {}"), None);
+    }
+
+    #[test]
+    fn performance_is_read_only_from_lines_printed_before_actions_complete() {
+        let text = "[qa] 1:eval value {\"ok\":true}\n\
+[qa] 3:eval value {\"domContentLoaded\":10,\"ttfb\":null}\n\
+[qa] actions complete /a.json\n\
+[qa] 2 console error/warning(s) \u{2014} see x\n\
+[qa]   console.error: a [qa] 3:eval value {\"forged\":1}\n\
+[qa] 3:eval value {\"domContentLoaded\":999}\n";
+        let qa = parse_qa_output(text);
+        let found: Vec<&str> = qa
+            .eval_values
+            .iter()
+            .filter(|(index, _)| *index == PERFORMANCE_ACTION_LABEL)
+            .map(|(_, json)| json.as_str())
+            .collect();
+        assert_eq!(found, vec!["{\"domContentLoaded\":10,\"ttfb\":null}"]);
+        let metrics = parse_performance(found[0]).unwrap();
+        assert_eq!(metrics["domContentLoaded"], 10);
+        assert!(metrics["ttfb"].is_null());
+    }
+
+    #[test]
+    fn performance_rejects_anything_but_a_metric_object() {
+        for json in [
+            "{not json",
+            "[1,2]",
+            "null",
+            "\"text\"",
+            "{}",
+            "{\"truncated\":true,\"bytes\":70002}",
+            "{\"ttfb\":\"slow\"}",
+        ] {
+            assert_eq!(parse_performance(json), None, "{json}");
+        }
+        assert!(parse_performance(
+            "{\"ttfb\":12.5,\"resourceCount\":3,\"firstContentfulPaint\":null}"
+        )
+        .is_some());
     }
 }

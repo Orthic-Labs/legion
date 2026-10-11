@@ -753,7 +753,9 @@ mod tests {
 
     #[test]
     fn high_benchmark_with_one_cluster_is_downgraded() {
-        let evidence = vec![good_evidence("e1", "https://a.test/1", "alpha body")];
+        let mut primary = good_evidence("e1", "https://a.test/1", "alpha body");
+        primary["is_primary"] = json!(true);
+        let evidence = vec![primary];
         let claims = vec![claim("c1", "benchmark", "high", &["e1"])];
         let checked = check(&evidence, &claims).unwrap();
         assert!(checked.overall_ok);
@@ -766,9 +768,9 @@ mod tests {
     #[test]
     fn load_bearing_claim_without_sources_blocks_and_render_refuses() {
         let evidence = vec![good_evidence("e1", "https://a.test/1", "alpha body")];
-        let claims = vec![claim("c1", "observation", "low", &[])];
+        let claims = vec![claim("c1", "inference", "low", &[])];
         let checked = check(&evidence, &claims).unwrap();
-        assert!(checked.overall_ok, "observation is not load-bearing");
+        assert!(checked.overall_ok, "an inference is not load-bearing");
 
         let blocked = vec![claim("c2", "price", "low", &[])];
         let checked = check(&evidence, &blocked).unwrap();
@@ -801,7 +803,9 @@ mod tests {
 
     #[test]
     fn admit_claim_returns_normalised_row() {
-        let evidence = vec![good_evidence("e1", "https://a.test/1", "alpha body")];
+        let mut primary = good_evidence("e1", "https://a.test/1", "alpha body");
+        primary["is_primary"] = json!(true);
+        let evidence = vec![primary];
         let row = claim("c1", "benchmark", "high", &["e1"]);
         let normalised = admit_claim(&evidence, &[], &row).unwrap();
         assert_eq!(normalised["confidence"], "medium");

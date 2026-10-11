@@ -196,6 +196,21 @@ fn is_pending_host(provider: &AuditProvider, result: &ProviderResult) -> bool {
             == Some("pending-host")
 }
 
+/// True when a provider's own result is a well-formed not-applicable
+/// declaration: nothing inspected, nothing claimed, and an explicit marker.
+fn declares_not_applicable(provider: &AuditProvider, result: &ProviderResult) -> bool {
+    !result.applicable
+        && result.provider.to_string() == provider.id
+        && result.required == provider.required
+        && matches!(result.status, ProviderStatus::Ok)
+        && !result.complete
+        && result.coverage.is_none()
+        && result.findings.is_empty()
+        && result.coverage_gaps.is_empty()
+        && result.degradation.is_empty()
+        && result.details.get("applicability").and_then(Value::as_str) == Some("not-applicable")
+}
+
 fn not_applicable_execution(provider: &AuditProvider) -> Result<ProviderExecution, AuditError> {
     Ok(ProviderExecution {
         provider: provider.id.clone(),
@@ -300,6 +315,17 @@ pub fn execute(
             failed_execution(provider, gap, "skipped-after-dependency-failure", true)?
         } else {
             match executor.execute_bound(plan, provider, inventory) {
+                // A provider that finds nothing of its kind in the frozen
+                // inventory declares itself not applicable; that settles it
+                // like a plan-level not-applicable, with no gap.
+                Ok(result) if declares_not_applicable(provider, &result) => {
+                    completed.insert(provider.id.clone());
+                    ProviderExecution {
+                        provider: provider.id.clone(),
+                        result,
+                        skipped: false,
+                    }
+                }
                 Ok(result) => {
                     let denominator =
                         provider_denominator(provider, inventory, &candidate_denominators)?;
@@ -467,6 +493,17 @@ pub async fn execute_with_cancellation(
                 .execute_async(plan, provider, inventory, cancellation.clone())
                 .await
             {
+                // A provider that finds nothing of its kind in the frozen
+                // inventory declares itself not applicable; that settles it
+                // like a plan-level not-applicable, with no gap.
+                Ok(result) if declares_not_applicable(provider, &result) => {
+                    completed.insert(provider.id.clone());
+                    ProviderExecution {
+                        provider: provider.id.clone(),
+                        result,
+                        skipped: false,
+                    }
+                }
                 Ok(result) => {
                     let denominator =
                         provider_denominator(provider, inventory, &candidate_denominators)?;

@@ -101,19 +101,24 @@ fn rust_dispatch_map(source: &str) -> Result<BTreeMap<String, String>, String> {
     Ok(map)
 }
 
-fn enum_values(source: &str, name: &str) -> Vec<String> {
+/// Return the kebab-case variant names of a typed clap enum. A missing enum,
+/// or one with no variants, is an error: it must never produce an empty route
+/// list that looks like a clean inventory.
+fn enum_values(source: &str, name: &str) -> Result<Vec<String>, String> {
     let pattern = format!(r"(?s)enum {name} \{{(.*?)\n\}}");
-    let re = Regex::new(&pattern).unwrap();
-    match re.captures(source) {
-        Some(block) => {
-            let variant_re = Regex::new(r"(?m)^\s+([A-Z][A-Za-z0-9]*)\(").unwrap();
-            variant_re
-                .captures_iter(&block[1])
-                .map(|c| kebab(&c[1]))
-                .collect()
-        }
-        None => Vec::new(),
+    let re = Regex::new(&pattern).map_err(|e| e.to_string())?;
+    let block = re
+        .captures(source)
+        .ok_or_else(|| format!("typed enum {name} not found in its command module"))?;
+    let variant_re = Regex::new(r"(?m)^\s+([A-Z][A-Za-z0-9]*)\(").map_err(|e| e.to_string())?;
+    let values: Vec<String> = variant_re
+        .captures_iter(&block[1])
+        .map(|c| kebab(&c[1]))
+        .collect();
+    if values.is_empty() {
+        return Err(format!("typed enum {name} has no variants"));
     }
+    Ok(values)
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -126,22 +131,24 @@ struct RouteRow {
 
 /// Enumerate typed Rust nested enums, plus string-routed CommonArgs modules.
 fn rust_nested_routes(
-    source: &str,
     module_sources: &BTreeMap<String, String>,
     expected_routes: &[String],
-) -> Vec<RouteRow> {
+) -> Result<Vec<RouteRow>, String> {
     let expected: BTreeSet<&str> = expected_routes.iter().map(|s| s.as_str()).collect();
-    let typed: [(&str, &str); 4] = [
-        ("run", "RunCommand"),
-        ("completion", "CompletionCommand"),
-        ("host", "HostCommand"),
-        ("state", "StateCommand"),
+    // (route command, typed clap enum, command module stem). Each enum is
+    // declared in its command module; a missing module or enum is an error.
+    let typed: [(&str, &str, &str); 2] = [
+        ("decision", "DecisionCommand", "decision"),
+        ("setup", "SetupCommand", "setup"),
     ];
 
     let mut by_route: BTreeMap<String, RouteRow> = BTreeMap::new();
 
-    for (command, enum_name) in typed {
-        for value in enum_values(source, enum_name) {
+    for (command, enum_name, module) in typed {
+        let module_source = module_sources
+            .get(module)
+            .ok_or_else(|| format!("typed route module commands/{module}.rs not found"))?;
+        for value in enum_values(module_source, enum_name)? {
             let route = format!("{command}.{value}");
             by_route.insert(
                 route.clone(),
@@ -153,18 +160,6 @@ fn rust_nested_routes(
                 },
             );
         }
-    }
-    for value in enum_values(source, "HostEventsCommand") {
-        let route = format!("host.events.{value}");
-        by_route.insert(
-            route.clone(),
-            RouteRow {
-                route,
-                command: "host".to_string(),
-                subcommand: format!("events.{value}"),
-                source: "enum HostEventsCommand".to_string(),
-            },
-        );
     }
 
     // String-routed modules match subcommands as `Some("x")`, as match arms
@@ -228,7 +223,7 @@ fn rust_nested_routes(
 
     let mut rows: Vec<RouteRow> = by_route.into_values().collect();
     rows.sort_by(|a, b| a.route.cmp(&b.route));
-    rows
+    Ok(rows)
 }
 
 fn route_mismatches(node_routes: &[Value], rust_routes: &[RouteRow]) -> Vec<String> {
@@ -481,7 +476,7 @@ fn run_inner(root: &Path) -> Result<bool, String> {
     let rust = rust_commands(&rust_cli)?;
     let dispatch = rust_dispatch_map(&rust_cli)?;
     let module_sources = all_rust_module_sources(root)?;
-    let nested_rust = rust_nested_routes(&rust_cli, &module_sources, &nested_node_strings);
+    let nested_rust = rust_nested_routes(&module_sources, &nested_node_strings)?;
 
     let nested_route_mismatches = route_mismatches(&nested_node, &nested_rust);
 
@@ -795,5 +790,25 @@ fn value_as_count(value: &Value) -> String {
         n.to_string()
     } else {
         value.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn enum_values_reads_typed_decision_variants() {
+        let source = "pub enum DecisionCommand {\n    /// Draft.\n    Propose(ProposeArgs),\n    SetStatus(SetStatusArgs),\n}\n";
+        assert_eq!(
+            enum_values(source, "DecisionCommand").unwrap(),
+            vec!["propose".to_string(), "set-status".to_string()]
+        );
+    }
+
+    #[test]
+    fn enum_values_errors_when_enum_is_missing() {
+        let source = "enum OtherCommand {\n    Run(RunArgs),\n}\n";
+        assert!(enum_values(source, "RunCommand").is_err());
     }
 }

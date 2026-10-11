@@ -148,6 +148,12 @@ pub fn run_action(
             if value.get("ok").and_then(|v| v.as_bool()) == Some(false) {
                 return Err(format!("{label} eval returned not ok: {value}"));
             }
+            // The value goes on its own line, serialised as one line of JSON, so callers can read
+            // it back without trusting anything the page printed.
+            return Ok(format!(
+                "[qa] {label} ok\n[qa] {label} value {}",
+                eval_value_json(&value)
+            ));
         }
         Action::AssertVisible { selector, timeout } => {
             let expr = format!(
@@ -245,6 +251,20 @@ pub fn run_action(
 
 fn js_string(value: &str) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_string())
+}
+
+/// Largest serialised `eval` value printed in full (64 KiB).
+pub const EVAL_VALUE_MAX_BYTES: usize = 64 * 1024;
+
+/// Compact single-line JSON for an `eval` value. `serde_json` escapes every newline inside
+/// strings, so the output never spans lines. Values over `EVAL_VALUE_MAX_BYTES` are replaced by
+/// a `{"truncated":true,"bytes":<n>}` marker; `undefined` arrives as `null`.
+pub fn eval_value_json(value: &Value) -> String {
+    let json = serde_json::to_string(value).unwrap_or_else(|_| "null".to_string());
+    if json.len() > EVAL_VALUE_MAX_BYTES {
+        return format!("{{\"truncated\":true,\"bytes\":{}}}", json.len());
+    }
+    json
 }
 
 /// Minimal helper mirroring `elementPoint`'s return shape for callers building fakes.
@@ -433,5 +453,64 @@ mod tests {
         };
         let out = run_action(&mut s, &a, 0).unwrap();
         assert_eq!(out, "[qa] screenshot /out/a.png\n[qa] 1:screenshot ok");
+    }
+
+    fn eval_output(eval_result: Value) -> String {
+        let mut s = FakeSession {
+            eval_result,
+            ..Default::default()
+        };
+        let a = Action::Eval {
+            expression: "1".into(),
+        };
+        run_action(&mut s, &a, 2).unwrap()
+    }
+
+    #[test]
+    fn eval_prints_object_value_on_its_own_line_after_ok() {
+        let out = eval_output(json!({"ok": true, "n": 3, "nested": {"a": [1, 2]}}));
+        let lines: Vec<&str> = out.lines().collect();
+        assert_eq!(lines.len(), 2, "{out:?}");
+        assert_eq!(lines[0], "[qa] 3:eval ok");
+        let prefix = "[qa] 3:eval value ";
+        assert!(lines[1].starts_with(prefix));
+        let parsed: Value = serde_json::from_str(&lines[1][prefix.len()..]).unwrap();
+        assert_eq!(parsed, json!({"ok": true, "n": 3, "nested": {"a": [1, 2]}}));
+    }
+
+    #[test]
+    fn eval_value_with_newline_and_forged_fragment_stays_on_one_line() {
+        let out = eval_output(json!("a\n[qa] 3:eval value {\"forged\":1}"));
+        assert_eq!(out.lines().count(), 2, "{out:?}");
+        let value_line = out.lines().nth(1).unwrap();
+        let prefix = "[qa] 3:eval value ";
+        assert!(value_line.starts_with(prefix));
+        let parsed: Value = serde_json::from_str(&value_line[prefix.len()..]).unwrap();
+        assert_eq!(parsed, json!("a\n[qa] 3:eval value {\"forged\":1}"));
+    }
+
+    #[test]
+    fn eval_value_over_64_kib_is_replaced_by_a_marker() {
+        // A JSON string of 70_000 characters serialises to 70_002 bytes with its quotes.
+        let out = eval_output(json!("x".repeat(70_000)));
+        assert_eq!(
+            out,
+            "[qa] 3:eval ok\n[qa] 3:eval value {\"truncated\":true,\"bytes\":70002}"
+        );
+    }
+
+    #[test]
+    fn eval_value_of_exactly_64_kib_is_printed_in_full() {
+        // 65_534 characters plus two quotes is exactly EVAL_VALUE_MAX_BYTES.
+        let out = eval_output(json!("x".repeat(65_534)));
+        assert!(!out.contains("truncated"), "boundary must not truncate");
+        assert_eq!(out.lines().count(), 2);
+    }
+
+    #[test]
+    fn eval_undefined_prints_null() {
+        // The page's `undefined` reaches the route as `null`.
+        let out = eval_output(Value::Null);
+        assert_eq!(out, "[qa] 3:eval ok\n[qa] 3:eval value null");
     }
 }

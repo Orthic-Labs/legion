@@ -17,6 +17,7 @@
       "files": [
         {
           "path": "OPTIMIZATION-CHECKS.md",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "120c1e947ad2fc5eb3c86255aafe608b3e89848d3d706682a0db4834145baa2b",
           "kind": "reference",
           "review": "Fully read; consolidated checks retained as operational lanes.",
@@ -31,6 +32,7 @@
         },
         {
           "path": "references/benchmark-artifacts.md",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "8087ebebff618af462200af9a49f825281ea039feaa7c5d5e3dbc49afe425798",
           "kind": "reference",
           "review": "Fully read; duplicate of benchmark skill copy.",
@@ -43,6 +45,7 @@
         },
         {
           "path": "references/build-optimization-sources.md",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "5a949a1985f709529150031c82a8985ec9ba37992f0644a09c0ab21572cbec4d",
           "kind": "reference",
           "review": "Fully read; original source map retained as links and adapted summaries.",
@@ -67,6 +70,7 @@
         },
         {
           "path": "references/recommendation-format.md",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "ad8eb87228be739d2dd53d0b927558fc9e68b2135e1b1eec475a981c4cd1feb2",
           "kind": "reference",
           "review": "Fully read; shared fields retained.",
@@ -78,6 +82,7 @@
         },
         {
           "path": "schemas/build-benchmark.schema.json",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "473b377e7677bc4aeeac8cc16ea09b90b6e3ea00c23ee7f027e1f9a5c96a27ba",
           "kind": "schema",
           "review": "Fully read; represented by artifact contract, no schema copy vendored.",
@@ -89,6 +94,7 @@
         },
         {
           "path": "scripts/benchmark_builds.py",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "efb10cb4702243a69441692d6fc49106618ad693ad26333a8b0c29f0e5425227",
           "kind": "script",
           "review": "Fully read; pure behavior implemented in native Rust build_analysis.rs; no donor runtime shipped or executed.",
@@ -102,6 +108,7 @@
         },
         {
           "path": "scripts/diagnose_compilation.py",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "5d3783b053ae54f0e3730d40cf3931a4261625daa5893ad4a942b55303a9cdc6",
           "kind": "script",
           "review": "Fully read; pure behavior implemented in native Rust build_analysis.rs; no donor runtime shipped or executed.",
@@ -115,6 +122,7 @@
         },
         {
           "path": "scripts/check_spm_pins.py",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "913fe3cb2e79f39b7790fc4afd75570dfb1d8540af59422f8e2d3ec60107809d",
           "kind": "script",
           "review": "Fully read; read-only behavior implemented in native Rust build_analysis.rs with branch-name parser fix; no donor runtime shipped or executed.",
@@ -126,6 +134,7 @@
         },
         {
           "path": "scripts/summarize_build_timing.py",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "0924c00e407d87ce416b52066c471429b0f56b91309dc19c5617bdee06b076b2",
           "kind": "script",
           "review": "Fully read; parser/report behavior implemented in native Rust build_analysis.rs; no donor runtime shipped or executed.",
@@ -136,6 +145,7 @@
         },
         {
           "path": "scripts/render_recommendations.py",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "d8e8536fb27ed07ac364c034aa35c475df883e81745eda29e78139b5cbdbc2f7",
           "kind": "script",
           "review": "Fully read; renderer behavior implemented in native Rust build_analysis.rs and extended for wait-time field; no donor runtime shipped or executed.",
@@ -146,6 +156,7 @@
         },
         {
           "path": "scripts/generate_optimization_report.py",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "7c03d61fbce2c7ae44eaa752fbf65ce5256ddba336690a9265976dd9c0a69a85",
           "kind": "script",
           "review": "Fully read; report-generator behavior implemented in native Rust build_analysis.rs; no donor runtime shipped or executed.",
@@ -159,6 +170,7 @@
         },
         {
           "path": ".github/scripts/sync-readme.js",
+          "inventoryStatus": "source-not-inventoried",
           "sha256": "d3f122164a1a00631a724c306e6485089a7d1598b97cbcab9b7e2cb56c2a9021",
           "kind": "metadata",
           "review": "Fully read; packaging automation excluded.",
