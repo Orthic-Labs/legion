@@ -47,7 +47,7 @@
 - **Baseline revision:** c1c7e818 legacy-retirement boundary.
 - **Dirty state:** Shared checkout may contain concurrent Handoff library & test edits.
 - **OS / shell:** macOS zsh with python3.
-- **Tools / dependencies:** Legion native `handoff/*` script routes (`legion script handoff/...`).
+- **Tools / dependencies:** Legion native `handoff/*` script routes (`legion script handoff/<name>`).
 - **Services / processes:** NONE_CHECKED: do not stop any shared process.
 - **Agents / tasks / threads:** Concurrent Handoff library & test owners may be active.
 - **Scheduled work:** NONE_CHECKED: no scheduler inspection needed.

@@ -578,7 +578,7 @@ Deck 需要 **intentional variety**：
 
 ## 导出为 PPTX / PDF（自助脚本）
 
-HTML 优先是第一公民。但用户经常需要 PPTX/PDF 交付。提供两个通用导出路由，**任何多文件 deck 都能用**，通过 `legion script designer/…` 调用：
+HTML 优先是第一公民。但用户经常需要 PPTX/PDF 交付。提供两个通用导出路由，**任何多文件 deck 都能用**，通过 `legion script designer/<name>` 调用：
 
 ### `legion script designer/export-deck-pdf` — 导出矢量 PDF（多文件架构）
 
