@@ -27,6 +27,3 @@ lopdf.workspace = true
 image.workspace = true
 scraper.workspace = true
 libc.workspace = true
-
-[target.'cfg(windows)'.dependencies]
-rightkit-process = "=0.3.3"
