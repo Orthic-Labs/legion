@@ -1,9 +1,6 @@
----
-name: build-script
-description: Use this skill whenever the user wants to write a YouTube video script, YouTube Shorts script, Reels script, or Instagram/LinkedIn carousel content. Trigger this skill when the user says things like "write a script", "script this for me", "write a reel", "make a carousel", "YouTube script", "short-form script", "content script", "write slides for this", or asks to turn an idea/topic into video or carousel content. Also trigger when the user gives a topic and says "help me make content around this" or "how should I say this on camera." This skill produces scripts that feel like one friend talking to another — genuine, emotional, relatable, and impossible to scroll past.
----
-
 # Killer Scripter
+
+Scope: YouTube, Shorts, Reels, and Instagram/LinkedIn carousel scripts. Produces scripts that feel like one friend talking to another.
 
 The goal every single time: make them feel something. Make them stay. Make them share it because it said what they couldn't say themselves.
 

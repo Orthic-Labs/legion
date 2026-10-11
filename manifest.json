@@ -1566,6 +1566,81 @@
       "may_close_own_candidates": false
     },
     {
+      "id": "security.credentials",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.credentials"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.insecure-defaults",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.insecure-defaults"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.misuse-resistance",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.misuse-resistance"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.agentic-ci",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.agentic-ci"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.agent-skill-mcp",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.agent-skill-mcp"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
       "id": "structural.ast-grep",
       "role": "deterministic",
       "phase": "facts",

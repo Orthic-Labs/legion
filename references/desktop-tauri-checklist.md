@@ -1,6 +1,6 @@
 # Desktop / Tauri checklist — cues for `correctness`, `performance`, `security`, `resilience`, `platform-parity`
 
-House reference for local-first desktop apps (every Right Suite app). Carried by the lenses when the
+House reference for local-first desktop apps (every desktop app built with this checklist). Carried by the lenses when the
 target has `src-tauri/` or is otherwise a desktop/daemon app. Every cue below is greppable — cite a
 real `file:line` per the hard rules. Source: 2026-07 six-model audit bake-off (converged finding
 classes /audit previously had no name for).
@@ -75,7 +75,7 @@ For one-codebase-two-platform apps (CLAUDE.md rule 14):
   dead-ends (mic/accessibility prompt flows that exist on one OS only), caches never invalidated on
   one OS (`OnceLock` font cache), SRT/VTT export on one OS only.
 - Per-OS CI: is each shipped OS actually built+tested in CI (Apple Silicon runner present)?
-- Window chrome / hotkeys conform to the suite standard (`docs/RIGHT-SUITE-CROSS-PLATFORM.md`) —
+- Window chrome / hotkeys conform to the cross-platform house standard —
   native overlay traffic lights on macOS, custom caption buttons on Windows, `<Kbd>` per-OS chords.
 
 ## 7. Rust `unsafe` inventory (`correctness` / negative-space)

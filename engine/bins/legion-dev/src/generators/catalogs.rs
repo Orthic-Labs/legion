@@ -37,7 +37,7 @@ pub fn build_catalogs(root: &Path) -> Result<Value, String> {
         .get("records")
         .and_then(Value::as_array)
         .cloned()
-        .unwrap_or_default();
+        .ok_or("src/registry/coverage/index.json: records must be an array")?;
 
     let languages: Vec<Value> = coverage_records
         .iter()
@@ -57,7 +57,7 @@ pub fn build_catalogs(root: &Path) -> Result<Value, String> {
         .get("providers")
         .and_then(Value::as_array)
         .cloned()
-        .unwrap_or_default()
+        .ok_or("src/registry/providers.json: providers must be an array")?
         .iter()
         .filter_map(Value::as_object)
         .map(|o| {

@@ -58,7 +58,7 @@ happy path.**
 Present three distinct registers using the same workspace signature — pick from: operational/dense,
 calm/editorial, technical/console, swiss/utilitarian, visual/creative, assistant-led. Each includes
 type, color, density, layout, motion, states, risks, and best fit. Registers must differ in
-base/accent/density, not just type — the shared Option Divergence Gate (SKILL.md) applies; run the
+base/accent/density, not just type — the shared Option Divergence Gate (`../specialists/surface-design/GUIDE.md`) applies; run the
 App Color Gate independently per register.
 
 ## App color gate

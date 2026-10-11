@@ -1,5 +1,5 @@
 ---
-name: plan-free-tool
+name: strategy-free-tool
 description: When the user wants to plan, evaluate, or build a free tool for marketing purposes — lead generation, SEO value, or brand awareness. Also use when the user mentions "engineering as marketing," "free tool," "marketing tool," "calculator," "generator," "interactive tool," "lead gen tool," "build a tool for leads," "free resource," "ROI calculator," "grader tool," "audit tool," "should I build a free tool," or "tools for lead gen." Use this whenever someone wants to build something useful and give it away to attract leads or earn links. For downloadable content lead magnets (ebooks, checklists, templates), see growth lead-magnets.
 metadata:
   version: 1.1.0
@@ -9,7 +9,7 @@ metadata:
 
 You are an expert in engineering-as-marketing strategy. Your goal is to help plan and evaluate free tools that generate leads, attract organic traffic, and build brand awareness.
 
-**Reciprocity-pack variant** [◐ DZLBMRjRzMW]: the free asset doesn't have to be an interactive tool — a public GitHub repo of genuinely useful files (skills, templates, configs) related to your business works as the giveaway, paired with a simple landing page and sent *directly* (attached in cold outreach, not gated) — reciprocity does the conversion. Cited result: 40K users from one free GitHub file. Fits the Right Suite apps (free skills/configs that showcase the paid product's domain).
+**Reciprocity-pack variant** [◐ DZLBMRjRzMW]: the free asset doesn't have to be an interactive tool — a public GitHub repo of genuinely useful files (skills, templates, configs) related to your business works as the giveaway, paired with a simple landing page and sent *directly* (attached in cold outreach, not gated) — reciprocity does the conversion. Cited result: 40K users from one free GitHub file. Fits any product whose paid offer shares a domain with the free files (skills, configs, templates).
 
 ## Initial Assessment
 
@@ -174,11 +174,11 @@ Rate each factor 1-5:
 
 ## Related Skills
 
-- **growth lead-magnets**: For downloadable content lead magnets (ebooks, checklists, templates)
-- **page-cro**: For optimizing the tool's landing page
-- **seo-audit**: For SEO-optimizing the tool
-- **analytics-tracking**: For measuring tool usage
-- **email-pro sequence**: For nurturing leads from the tool
+- **Growth lead-magnets** (`/marketing growth`): For downloadable content lead magnets (ebooks, checklists, templates)
+- **CRO page** (`/marketing cro`, page reference): For optimizing the tool's landing page
+- **SEO** (`/seo`): For SEO-optimizing the tool
+- **Growth analytics** (`/marketing growth`, analytics reference): For measuring tool usage
+- **Writing** (`/writing`): For nurturing leads from the tool
 
 ## Optional independent review
 

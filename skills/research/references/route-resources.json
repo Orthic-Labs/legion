@@ -109,7 +109,7 @@
         "path": "references/domains/legal/india/consumer/GUIDE.md"
       },
       {
-        "absent": "Generate the consumer pack from the GUIDE's inline template instead of a project template.",
+        "absent": "Build the case spec from the facts supplied in the request and assemble the six documents by hand per references/domains/legal/india/consumer/drafting-standards.md.",
         "class": "PROJECT_OVERLAY",
         "optional": true,
         "path": "<project-overlay>/research/legal/india/consumer/case-template.yaml"

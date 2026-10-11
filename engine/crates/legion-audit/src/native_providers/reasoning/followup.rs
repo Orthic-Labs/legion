@@ -292,6 +292,13 @@ pub fn compile_followup(
         .into_iter()
         .find(|item| item.provider_id == VARIANT_PROVIDER_ID)
         .ok_or_else(|| invalid("the follow-up plan produced no variant lens packet"))?;
+    if work.part().is_some() {
+        // The follow-up chain binds exactly one variant packet; a partitioned
+        // variant denominator would be silently under-covered.
+        return Err(invalid(
+            "the variant-analysis denominator needs more than one packet part, which the follow-up does not support",
+        ));
+    }
     let seeds = seeds(parent_run, &confirmed)?;
     let seed_count = seeds.len();
     let packet = work

@@ -1,12 +1,12 @@
 # Social - platform content router
 
 PRIMARY_DELIVERABLE: Bounded platform strategy or content for frozen account, domain, or source scope.
-SPECIALIST_REFS_MAX: 0
+SPECIALIST_REFS_MAX: 1 (optional extras beyond REQUIRED_READS)
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
-TERMINAL: Requested social deliverable meets frozen D3 source budget.
+MAY_CALL_SKILLS: brand (brand code known or customer-facing output), writing (prose and scripts), designer (visual), ads (paid), marketing (positioning), qa (rendered evidence), seo (YouTube and search optimization)
+TERMINAL: Platform-native artifact or strategy meets frozen scope.
 
 Single entry for social platform strategy, creation, optimization, and performance review. Load only the matching reference.
 
@@ -15,7 +15,7 @@ Single entry for social platform strategy, creation, optimization, and performan
 Before creating or approving social content, verify:
 
 - **Platform-native gate:** format, length, aspect ratio, hook shape, CTA, and cadence fit the platform.
-- **Brand gate:** brand voice or `brand-identity` exists; if not, extract a lightweight voice/promise first.
+- **Brand gate:** a brand card exists (load it with `/brand`); if not, extract a lightweight voice/promise first.
 - **Hook gate:** first line/first 3 seconds/thumbnail-title promise is specific enough to stop the intended audience.
 - **Proof gate:** claims, numbers, transformation, and examples are supported or removed.
 - **Anti-slop gate:** no generic motivational filler, bland carousel headings, or posts that could fit any competitor. Banned AI-copy slop words: leverage, synergy, seamless, elevate, delve, innovative, revolutionary, disruptive, game-changing, unlock. Banned cliché openers: "In today's fast-paced world", "In this day and age", "It's no secret that", "Have you ever wondered". Banned passive CTAs: "Submit", "Click Here", "Learn More" (without specificity). Any of these in copy = revise before delivery.
@@ -70,7 +70,7 @@ Output should preserve platform-native choices, brand fit, cadence, and success 
 3. Read the matching reference only.
 4. If the task spans multiple platforms, read `references/content/reference.md` first, then only the platform-specific references needed.
 5. **Visual-asset handoff.** For carousels, pins, thumbnails, or story graphics, produce the exact copy + slide-by-slide structure, then offer to route to `/designer` (static) for the actual assets — don't leave "Slide 1: [hook]" as the deliverable. Video scripts → hand off to the host's media/video production capability if available.
-6. **Distribution boundary.** Source material already exists? Repurpose it, don't rewrite from scratch. Paid ads/budgets/funnel → `/marketing`; deep YouTube search optimisation → `/seo`. A CTA link must resolve (WebFetch) and, for conversion, carry UTM params — never ship a dead or untracked link.
+6. **Distribution boundary.** Source material already exists? Repurpose it, don't rewrite from scratch. Paid distribution and budgets → `/ads`; positioning, offers, and funnel → `/marketing`; deep YouTube search optimisation → `/seo`. A CTA link must resolve: check it with the host `web-search` capability when it is available, otherwise mark the link unchecked. For conversion, the link carries UTM params — never ship a dead or untracked link.
 
 Existing Instagram carousel slide extraction stays owned by social end-to-end: concept, copy,
 slide sequence, platform fit, publishing strategy, & optimization. Hand off to the host's media

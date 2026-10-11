@@ -7,8 +7,6 @@ pub struct PolicyArgs {
     #[arg(long)]
     pub file: Option<PathBuf>,
     #[arg(long)]
-    pub effect: Option<String>,
-    #[arg(long)]
     pub json: bool,
 }
 pub fn run(args: PolicyArgs) -> CommandResult {
@@ -22,6 +20,6 @@ pub fn run(args: PolicyArgs) -> CommandResult {
         .digest()
         .map_err(|error| CommandError::policy(error.to_string()))?;
     Ok(
-        json!({"schemaVersion": 1, "kind": "legion-policy", "policyId": pack.policy_id, "valid": true, "digest": digest, "effect": args.effect}),
+        json!({"schemaVersion": 1, "kind": "legion-policy", "policyId": pack.policy_id, "valid": true, "digest": digest}),
     )
 }

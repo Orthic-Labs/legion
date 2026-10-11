@@ -1,6 +1,6 @@
 ---
 name: growth referral
-description: "When the user wants to create, optimize, or analyze a referral program, affiliate program, or word-of-mouth strategy. Also use when the user mentions 'referral,' 'affiliate,' 'ambassador,' 'word of mouth,' 'viral loop,' 'refer a friend,' 'partner program,' 'referral incentive,' 'how to get referrals,' 'customers referring customers,' or 'affiliate payout.' Use this whenever someone wants existing users or partners to bring in new customers. For launch-specific virality, see launch-strategy."
+description: "When the user wants to create, optimize, or analyze a referral program, affiliate program, or word-of-mouth strategy. Also use when the user mentions 'referral,' 'affiliate,' 'ambassador,' 'word of mouth,' 'viral loop,' 'refer a friend,' 'partner program,' 'referral incentive,' 'how to get referrals,' 'customers referring customers,' or 'affiliate payout.' Use this whenever someone wants existing users or partners to bring in new customers. For launch-specific virality, route to `/marketing strategy` (launch reference)."
 metadata:
   version: 1.1.0
 ---
@@ -235,23 +235,23 @@ They get [their reward] too.
 
 ## Tool Integrations
 
-For implementation, see the tools registry. Key tools for referral programs:
+Key tools for referral programs (use whichever the project already runs):
 
-| Tool | Best For | Guide |
-|------|----------|-------|
-| **Rewardful** | Stripe-native affiliate programs | rewardful.md |
-| **Tolt** | SaaS affiliate programs | tolt.md |
-| **Mention Me** | Enterprise referral programs | mention-me.md |
-| **Dub.co** | Link tracking and attribution | dub-co.md |
-| **Stripe** | Payment processing (for commission tracking) | stripe.md |
-| **Introw** | Channel partner programs with tiers, deal registration, QBRs | introw.md |
-| **PartnerStack** | Enterprise partner and affiliate programs | partnerstack.md |
+| Tool | Best For |
+|------|----------|
+| **Rewardful** | Stripe-native affiliate programs |
+| **Tolt** | SaaS affiliate programs |
+| **Mention Me** | Enterprise referral programs |
+| **Dub.co** | Link tracking and attribution |
+| **Stripe** | Payment processing (for commission tracking) |
+| **Introw** | Channel partner programs with tiers, deal registration, QBRs |
+| **PartnerStack** | Enterprise partner and affiliate programs |
 
 ---
 
 ## Related Skills
 
-- **launch-strategy**: For launching referral program effectively
-- **email-pro sequence**: For referral nurture campaigns
-- **marketing-psychology**: For understanding referral motivation
-- **analytics-tracking**: For tracking referral attribution
+- **Launch** (`/marketing strategy`, launch reference): For launching referral program effectively
+- **Writing** (`/writing`): For referral nurture campaigns
+- **Ideas** (`/marketing ideas`, marketing reference): For understanding referral motivation
+- **Growth analytics** (`/marketing growth`): For tracking referral attribution

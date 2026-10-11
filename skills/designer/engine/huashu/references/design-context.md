@@ -21,11 +21,10 @@
 **读代码抄exact values**：hex codes、spacing scale、font stack、border radius。不要凭记忆重画。
 
 ### 3. 用户已发布的产品
-如果用户有上线的产品但没给代码，用Playwright或让用户提供截图。
+如果用户有上线的产品但没给代码，用宿主浏览器截图（需宿主 Chromium，见 `references/verification.md`）或让用户提供截图。
 
 ```bash
-# 用Playwright截图一个公开URL
-npx playwright screenshot https://example.com screenshot.png --viewport-size=1920,1080
+# 宿主浏览器截图一个公开 URL（需宿主 Chromium；无则请用户提供截图）：打开 https://example.com，视口 1920×1080，存为 screenshot.png
 ```
 
 让你看到真实的视觉vocabulary。

@@ -6,6 +6,7 @@ use std::path::Path;
 
 use super::host_adapters::host_adapters;
 use crate::shared::capabilities::load_capability_registry;
+use crate::shared::read_dir_entries;
 use crate::shared::route_resources::scoped_requirement_details;
 use crate::shared::skill_frontmatter::parse_skill_frontmatter_map as parse_skill_frontmatter;
 
@@ -118,10 +119,9 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
         .cloned()
         .ok_or_else(|| "src/registry/mcp-tools.json tools must be an array".to_string())?;
 
-    let mut skill_ids: Vec<String> = fs::read_dir(&skills_dir)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .filter_map(|e| e.file_name().into_string().ok())
+    let mut skill_ids: Vec<String> = read_dir_entries(&skills_dir)?
+        .into_iter()
+        .map(|(name, _)| name)
         .filter(|id| skills_dir.join(id).join("SKILL.md").is_file())
         .collect();
     skill_ids.sort();
@@ -220,41 +220,43 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
     }
 
     let roster_dir = root.join("src/roster");
-    let mut roster_files: Vec<String> = fs::read_dir(&roster_dir)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .filter_map(|e| e.file_name().into_string().ok())
+    let mut roster_files: Vec<String> = read_dir_entries(&roster_dir)?
+        .into_iter()
+        .map(|(name, _)| name)
         .filter(|f| f.ends_with(".md") && f != "README.md")
         .collect();
     roster_files.sort();
-    let roles: Vec<Value> = roster_files
-        .iter()
-        .map(|f| {
-            let rel = format!("src/roster/{f}");
-            let text = fs::read_to_string(root.join(&rel)).unwrap_or_default();
-            let fm = roster_frontmatter(&text);
-            let mut role = Map::new();
-            role.insert("id".into(), Value::from(f.trim_end_matches(".md")));
-            role.insert(
-                "description".into(),
-                Value::from(fm.get("description").cloned().unwrap_or_default()),
-            );
-            role.insert(
-                "modelTier".into(),
-                fm.get("modelTier")
-                    .map(|s| Value::from(s.clone()))
-                    .unwrap_or(Value::Null),
-            );
-            role.insert("source".into(), Value::from(rel));
-            Value::Object(role)
-        })
-        .collect();
+    let mut roles: Vec<Value> = Vec::new();
+    for f in &roster_files {
+        let rel = format!("src/roster/{f}");
+        let text = fs::read_to_string(root.join(&rel)).map_err(|e| format!("{rel}: {e}"))?;
+        let fm = roster_frontmatter(&text);
+        let description = fm
+            .get("description")
+            .cloned()
+            .ok_or_else(|| format!("{rel}: frontmatter has no description"))?;
+        let model_tier = fm
+            .get("modelTier")
+            .cloned()
+            .ok_or_else(|| format!("{rel}: frontmatter has no modelTier"))?;
+        let mut role = Map::new();
+        role.insert("id".into(), Value::from(f.trim_end_matches(".md")));
+        role.insert("description".into(), Value::from(description));
+        role.insert("modelTier".into(), Value::from(model_tier));
+        role.insert("source".into(), Value::from(rel));
+        roles.push(Value::Object(role));
+    }
 
+    let model_tiers_path = root.join("src/config/model-tiers.json");
     let model_tiers_doc: Value = serde_json::from_str(
-        &fs::read_to_string(root.join("src/config/model-tiers.json")).map_err(|e| e.to_string())?,
+        &fs::read_to_string(&model_tiers_path)
+            .map_err(|e| format!("{}: {e}", model_tiers_path.display()))?,
     )
-    .map_err(|e| e.to_string())?;
-    let model_tiers = model_tiers_doc.get("tiers").cloned().unwrap_or(Value::Null);
+    .map_err(|e| format!("{}: {e}", model_tiers_path.display()))?;
+    let model_tiers = model_tiers_doc
+        .get("tiers")
+        .cloned()
+        .ok_or_else(|| format!("{}: tiers is missing", model_tiers_path.display()))?;
 
     let mut host_capabilities: Vec<Value> = registry
         .get("capabilities")

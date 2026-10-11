@@ -36,7 +36,6 @@
         "simulator.*",
         "device.*",
         "debug.batch",
-        "profile.record",
         "profile"
       ],
       "recipeReference": "references/tool-setup.md#native-first-lifecycle"
@@ -113,7 +112,7 @@
       "scope": "versioned source checkout; local docsets/cache; project docs",
       "useWhen": "local Apple documentation extraction and search",
       "setupRecipe": "Optional compatibility path only: reuse an existing approved checkout; native legion apple docs uses local SQLite DocSet data without Python",
-      "verify": "Prefer legion apple docs catalog/query; if project-selected adapter exists, inspect its checkout and local docset/cache scope",
+      "verify": "Prefer legion apple docs with operation catalog, discover, search or read; if project-selected adapter exists, inspect its checkout and local docset/cache scope",
       "versionPolicy": "No package-manager formula or MCP server is assumed. Native Rust docs is primary; external checkout and Python dependencies are optional.",
       "recipeReference": "references/tool-setup.md#docsetquery"
     },

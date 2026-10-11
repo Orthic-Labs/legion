@@ -1,6 +1,6 @@
 interface:
   display_name: "Qa"
-  short_description: "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring."
-  default_prompt: "Use $qa when this request matches: Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring."
+  short_description: "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, and runtime checks."
+  default_prompt: "Use $qa when this request matches: Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, and runtime checks."
 policy:
   allow_implicit_invocation: true

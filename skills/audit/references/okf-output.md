@@ -57,4 +57,4 @@ seo → one concept per page/issue), then calls `okf emit --compress`.
 - **Never compress the human doc.** Compression is for the agent bundle only.
 - **`type` is required** on every OKF concept (the one OKF-mandated field) — `okf` raises if missing.
 - Link concepts with ordinary markdown links so the bundle is a graph; `index.md` is auto-generated.
-- LLMLingua model loads once (CPU, ~110M, cached in HF cache); reuse `_pc` across a bundle.
+- The LLMLingua compressor is host-provided. Use only a model already present locally; if it is absent, never fetch one during an audit: report `unavailable` and emit the bundle uncompressed. Reuse one compressor instance across a bundle.

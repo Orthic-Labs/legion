@@ -12,7 +12,7 @@ Most AI-generated UIs fail not because of bad code, but because of skipped think
 
 **Do NOT write any code or make any design decisions during this phase.** Your only job is to understand the feature deeply enough to make excellent design decisions later.
 
-This is a required interaction, not optional guidance. Ask these questions in conversation, adapting based on answers. Don't dump them all at once; have a natural dialogue. STOP and call the AskUserQuestion tool to clarify.
+This is a required interaction, not optional guidance. Ask these questions in conversation, adapting based on answers. Don't dump them all at once; have a natural dialogue. STOP and ask the user to clarify (use the host's question tool if it has one).
 
 ### Interview cadence
 
@@ -158,7 +158,7 @@ Anything genuinely unresolved. Don't list "open questions" you've already recomm
 
 ---
 
-STOP and call the AskUserQuestion tool to clarify. Ask for explicit confirmation of the brief before finishing.
+STOP and ask the user to clarify (use the host's question tool if it has one). Ask for explicit confirmation of the brief before finishing.
 
 If the user disagrees with any part, revisit the relevant discovery questions. A shape run is incomplete until the user confirms direction.
 

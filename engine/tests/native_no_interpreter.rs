@@ -30,10 +30,8 @@ fn external_effect_boundary_owns_process_launch_and_interpreter_rejection() {
 /// Known interpreter launches that predate this guard. This list is a ratchet:
 /// it may only shrink. A listed file that stops launching an interpreter must
 /// be removed from the list, and any new launch fails the test.
-const KNOWN_LEGACY_INTERPRETER_LAUNCHES: &[&str] = &[
-    "crates/legion-runtime/src/wf_port/r02/narrate_pipeline.rs",
-    "bins/legion-dev/src/checks/packed_import_closure.rs",
-];
+const KNOWN_LEGACY_INTERPRETER_LAUNCHES: &[&str] =
+    &["bins/legion-dev/src/checks/packed_import_closure.rs"];
 
 #[test]
 fn production_source_does_not_reenter_interpreters() {

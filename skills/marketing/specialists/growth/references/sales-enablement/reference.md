@@ -1,6 +1,6 @@
 ---
 name: growth sales-enablement
-description: "When the user wants to create sales collateral, pitch decks, one-pagers, objection handling docs, or demo scripts. Also use when the user mentions 'sales deck,' 'pitch deck,' 'one-pager,' 'leave-behind,' 'objection handling,' 'deal-specific ROI analysis,' 'demo script,' 'talk track,' 'sales playbook,' 'proposal template,' 'buyer persona card,' 'help my sales team,' 'sales materials,' or 'what should I give my sales reps.' Use this for any document or asset that helps a sales team close deals. For competitor comparison pages and battle cards, see competitor-alternatives. For marketing website copy, see copywriting. For cold outreach emails, see cold-email."
+description: "When the user wants to create sales collateral, pitch decks, one-pagers, objection handling docs, or demo scripts. Also use when the user mentions 'sales deck,' 'pitch deck,' 'one-pager,' 'leave-behind,' 'objection handling,' 'deal-specific ROI analysis,' 'demo script,' 'talk track,' 'sales playbook,' 'proposal template,' 'buyer persona card,' 'help my sales team,' 'sales materials,' or 'what should I give my sales reps.' Use this for any document or asset that helps a sales team close deals. For public-facing comparison pages, route to `/seo`. For marketing website copy and outbound email, route to `/writing`."
 metadata:
   version: 1.1.0
 ---
@@ -341,19 +341,18 @@ If context is missing, ask:
 
 ## Tool Integrations
 
-For partner sales enablement, see the tools registry:
+For partner sales enablement, Introw is one option (use whichever the project already runs):
 
-| Tool | What It Does | Guide |
-|------|-------------|-------|
-| **Introw** | Partner engagement tracking, deal registration, mutual action plans | introw.md |
+| Tool | What It Does |
+|------|-------------|
+| **Introw** | Partner engagement tracking, deal registration, mutual action plans |
 
 ---
 
 ## Related Skills
 
-- **competitor-alternatives**: For public-facing comparison and alternative pages
-- **copywriting**: For marketing website copy
-- **cold-email**: For outbound prospecting emails
-- **growth revops**: For lead lifecycle, scoring, routing, and pipeline management
-- **growth pricing**: For pricing decisions and packaging
-- **product-marketing-context**: For foundational positioning and messaging
+- **SEO** (`/seo`): For public-facing comparison and alternative pages
+- **Writing** (`/writing`): For marketing website copy and outbound prospecting emails
+- **Growth revops** (`/marketing growth`): For lead lifecycle, scoring, routing, and pipeline management
+- **Growth pricing** (`/marketing growth`): For pricing decisions and packaging
+- **Product context** (`/marketing context`): For foundational positioning and messaging

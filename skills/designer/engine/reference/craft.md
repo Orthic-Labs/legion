@@ -29,7 +29,7 @@ Look at the working directory. Run `ls`. Check for:
 - An existing component library or design system: `src/components/`, `app/components/`, a `tokens.css` / `theme.ts`, an `astro.config` `integrations`. Read what's there before adding to it.
 - An existing icon set: `lucide-react`, `@phosphor-icons/react`, `@iconify/*`, hand-rolled SVG sprites in `assets/icons/`. **Use what's already in the project**; don't introduce a second set.
 
-If the directory is empty (greenfield), don't pick a framework silently. Ask the user via the AskUserQuestion tool, with sensible defaults framed by the brief:
+If the directory is empty (greenfield), don't pick a framework silently. Ask the user (via the host's question tool if it has one), with sensible defaults framed by the brief:
 
 ```text
 What should this be built on?

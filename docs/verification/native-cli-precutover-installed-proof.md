@@ -13,7 +13,7 @@
 - Inventory: 41 commands; 35 subcommands; 0 stubs, partials, divergent, unknown, uncharacterized, or nested-route mismatches.
 - Parity/surface tests: 30/30 passed.
 - Locked release all-target compiler gate: passed through RightKit receipt `766c47de-d703-4fcc-863b-cfa70392b088`.
-- Managed cache: `D:\.rightkit-managed\rightkit-build-control\ws\19d3fa2de785\g\005\target`.
+- Managed cache: `<rightkit-managed-target>`.
 - Inno compiler: installer toolchain's configured local `ISCC.exe`.
 - Authorization: `.rightkit-local-development.json` exists for local unsigned Windows installer work.
 

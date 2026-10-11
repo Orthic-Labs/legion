@@ -153,6 +153,9 @@ fn semantic_health(env: &HashMap<String, String>) -> Value {
         .get("ARCANE_SEMANTIC_HEALTH_INJECT_FAILURE")
         .map(|value| value.split(',').map(str::trim).collect::<BTreeSet<_>>())
         .unwrap_or_default();
+    // This command executes no semantic probe. A probe is "failed" only when the
+    // environment injects its failure, and "not-run" otherwise, never a pass.
+    // Health is true only when every probe passed, so it is unknown (null) here.
     let probes = SEMANTIC_PROBES
         .iter()
         .map(|id| {
@@ -162,20 +165,31 @@ fn semantic_health(env: &HashMap<String, String>) -> Value {
                 json!({"id":id,"phase":"started","timeoutMs":SEMANTIC_TIMEOUT_MS}),
             );
             let failed = injected.contains(id);
-            let error = if failed {
-                Some("injected semantic failure fixture")
+            let (status, ok, error) = if failed {
+                (
+                    "failed",
+                    Value::Bool(false),
+                    Some("injected semantic failure fixture"),
+                )
             } else {
-                None
+                ("not-run", Value::Null, None)
             };
-            let mut finished = json!({"id":id,"phase":"finished","ok":!failed});
+            let mut finished = json!({"id":id,"phase":"finished","status":status});
             if let Some(error) = error {
                 finished["error"] = json!(error);
             }
             lifecycle("semantic-probe", finished);
-            json!({"id":id,"ok":!failed,"startedAt":started,"finishedAt":now(),"error":error})
+            json!({"id":id,"status":status,"ok":ok,"startedAt":started,"finishedAt":now(),"error":error})
         })
         .collect::<Vec<_>>();
-    json!({"schemaVersion":1,"kind":"arcane-semantic-health","healthy":probes.iter().all(|probe| probe["ok"] == true),"probes":probes})
+    let healthy = if probes.iter().any(|probe| probe["status"] == "failed") {
+        Value::Bool(false)
+    } else if probes.iter().all(|probe| probe["status"] == "passed") {
+        Value::Bool(true)
+    } else {
+        Value::Null
+    };
+    json!({"schemaVersion":1,"kind":"arcane-semantic-health","healthy":healthy,"probes":probes})
 }
 
 fn inspect_mcp_naming(value: &Value) -> Value {
@@ -275,32 +289,51 @@ fn naming_rule<'a>(rules: &'a [Value], path: &str, token: &str) -> Option<&'a Va
     })
 }
 
-fn naming_files(root: &Path) -> Vec<String> {
+/// The files the naming audit scans: git's view of `root`. A listing that cannot
+/// be produced is an error, never an empty set that reads as clean.
+fn naming_files(root: &Path) -> Result<Vec<String>, String> {
     let output = Command::new("git")
         .args(["ls-files", "-co", "--exclude-standard", "-z"])
         .current_dir(root)
-        .output();
-    output
-        .ok()
-        .filter(|value| value.status.success())
-        .map(|value| {
-            String::from_utf8_lossy(&value.stdout)
-                .split('\0')
-                .filter(|path| !path.is_empty())
-                .map(str::to_owned)
-                .collect()
-        })
-        .unwrap_or_default()
+        .output()
+        .map_err(|error| format!("git could not run in {}: {error}", root.display()))?;
+    if !output.status.success() {
+        return Err(format!(
+            "git ls-files failed in {}: {}",
+            root.display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .split('\0')
+        .filter(|path| !path.is_empty())
+        .map(str::to_owned)
+        .collect())
 }
 
-fn naming_contract(_assets: Option<&Path>) -> Value {
-    let root = naming_source_root();
-    let rules = read_json(&root.join("src/config/naming-legacy-allowlist.json"))
+/// Naming audit of `root`. The allowlist of legacy names is Legion's own
+/// (compile-time source tree); the files audited are those of `root`.
+fn naming_contract(root: &Path) -> Value {
+    let rules = read_json(&naming_source_root().join("src/config/naming-legacy-allowlist.json"))
         .and_then(|value| value.get("rules").cloned())
         .and_then(|value| value.as_array().cloned())
         .unwrap_or_default();
+    let files = match naming_files(root) {
+        Ok(files) => files,
+        Err(reason) => {
+            return json!({
+                "schemaVersion":1,
+                "kind":"legion-naming-contract-report",
+                "status":"unavailable",
+                "reason":reason,
+                "canonicalAuthorities":["alchemist","arcane","oracle","sage"],
+                "deprecatedAliases":["forge","seer","sentinel","sorcerer"],
+                "unclassified":[]
+            });
+        }
+    };
     let mut issues = Vec::new();
-    for path in naming_files(&root).into_iter().filter(|path| {
+    for path in files.into_iter().filter(|path| {
         ![
             ".git/",
             ".agent/",
@@ -993,7 +1026,7 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
         json!({"healthy":semantic["healthy"]}),
     );
     let (assets, plugin, _) = installed_roots();
-    let naming = naming_contract(assets.as_deref());
+    let naming = naming_contract(&root);
     let bindings = naming_bindings(&root);
     lifecycle("host-probes-started", Value::Null);
     let host = host_section(&root, assets.as_deref(), plugin.as_deref());
@@ -1002,11 +1035,16 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
         json!({"state":host.pointer("/hostRequirements/state").cloned().unwrap_or(Value::Null)}),
     );
     let mut gaps = Vec::new();
-    if semantic["healthy"] != true {
-        gaps.push(json!({"kind":"arcane-semantic-health-unhealthy","detail":semantic["probes"].as_array().into_iter().flatten().filter(|p| p["ok"] == false).map(|p| json!({"id":p["id"],"error":p["error"]})).collect::<Vec<_>>() }));
+    if semantic["healthy"] == false {
+        gaps.push(json!({"kind":"arcane-semantic-health-unhealthy","detail":semantic["probes"].as_array().into_iter().flatten().filter(|p| p["status"] == "failed").map(|p| json!({"id":p["id"],"error":p["error"]})).collect::<Vec<_>>() }));
+    } else if semantic["healthy"].is_null() {
+        gaps.push(json!({"kind":"arcane-semantic-health-not-run","detail":"no Arcane semantic probe was executed; health is unknown"}));
     }
     if naming["status"] == "fail" {
         gaps.push(json!({"kind":"naming-contract-failed","detail":naming["unclassified"]}));
+    }
+    if naming["status"] == "unavailable" {
+        gaps.push(json!({"kind":"naming-contract-unavailable","detail":naming["reason"]}));
     }
     let binding_pending = bindings
         .as_object()
@@ -1040,7 +1078,7 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
     {
         commands.push("Set AUDIT_PLAN_SIGNING_KEY to sign the frozen plan.".to_owned());
     }
-    if semantic["healthy"] != true {
+    if semantic["healthy"] == false {
         commands.push(
             "Run legion doctor after repairing the failing Arcane semantic probe.".to_owned(),
         );
@@ -1058,9 +1096,11 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
                 .join(", ")
         ));
     }
-    if naming["status"] != "pass" {
-        commands
-            .push("Run pnpm naming:check after repairing unclassified legacy names.".to_owned());
+    if naming["status"] == "fail" {
+        commands.push(
+            "Reinstall Legion or run legion setup repair to clear the naming check, then re-run legion doctor."
+                .to_owned(),
+        );
     }
     if binding_pending {
         commands.push(

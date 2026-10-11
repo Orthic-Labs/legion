@@ -59,7 +59,7 @@ Best practice: 8-10 headlines, 2-3 descriptions (Claude), 12-15 for Excellent (G
 | In-Feed | 16:9 | 1920×1080 | Any | N/A |
 | YouTube Shorts | 9:16 | 1080×1920 | ≤60s | Swipe |
 
-**YouTube Shorts Safe Zone:** Center 1080×1420px. Bottom 480px = UI overlay.
+**YouTube Shorts Safe Zone:** Center 1080×1420px (Y:250-1670, per `youtube-creative-specs.md`). Bottom 250px = UI overlay.
 
 ### Google Extensions / Assets
 | Type | Char Limit | Max Count | Notes |

@@ -17,7 +17,7 @@ user: Validate the generated ad assets.
 assistant: I'll read the manifest and validate each asset against platform specs.
 [Reads generation-manifest.json]
 [Reads legion-skill://ads/references/meta-creative-specs.md for Meta dimensions]
-[For each asset: checks dimensions with Python Pillow]
+[For each asset: checks dimensions from the manifest against the spec]
 [Checks file sizes against platform limits]
 [Reports missing formats per platform]
 [Writes format-report.md]

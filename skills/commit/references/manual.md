@@ -2,11 +2,10 @@
 
 ```text
 PRIMARY_DELIVERABLE: Frozen diff disposition, focused checks, plus bounded repair result.
-SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 8
-EXTERNAL_REQUESTS_MAX: 0
+EXTERNAL_REQUESTS_MAX: 4
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: audit, audit-fix, architect, gotchas
 TERMINAL: One applicable lens wave plus focused checks finish with at most two repair or recheck cycles.
 ```
 
@@ -22,8 +21,8 @@ the audit skill's `references/manual.md` "CodeRabbit absorption" and `references
 ## When to use / not
 
 - **Use:** "/commit", "review then commit", "fix this diff and push", any guarded commit-and-ship.
-- **Not:** whole-repo health → `/audit` / `audit-fix`. PR-inline GitHub comments → the built-in
-  `/review` GitHub PR workflow (external CodeRabbit is retired). Designing a refactor →
+- **Not:** whole-repo health → `/audit` / `audit-fix`. PR-inline GitHub comments → outside this
+  skill (no packaged PR-comment route; use the host's PR review workflow if it has one). Designing a refactor →
   `architect`. A trivial doc-only typo commit needs no gate —
   just commit (still add the co-author trailer).
 
@@ -59,7 +58,7 @@ the audit skill's `references/manual.md` "CodeRabbit absorption" and `references
    A mismatch means the committed content is not the validated content: re-run the gate, do not push.
    Record `candidateTree` in the gate artifact (step 8).
 
-  **Blast radius via Legion's direct Membrane Blueprint provider (when `.agent/index.json` exists
+  **Blast radius via Legion's direct Blueprint graph provider (host capability `blueprint-graph`; used when `.agent/index.json` exists
   in the repo).** Request `graph impact` over changed files/symbols through resident Hub transport
   when available, or bounded one-shot for supplied root when Hub is off or resident access reports
   `project is not enrolled`. Enrollment does not gate one-shot access. Two uses, both diff-scoped:
@@ -239,7 +238,9 @@ the audit skill's `references/manual.md` "CodeRabbit absorption" and `references
    evidence makes it unambiguous; anything wider is MANUAL by definition — a pre-commit gate that
    quietly edits files the user did not change is doing something other than guarding a diff.
 
-   Re-run step 1-2 after fixing. Loop until the diff is clean or no-progress is proven.
+   Re-run steps 1-2 after fixing. Allow at most two repair-or-recheck cycles in total (the TERMINAL
+   cap). Stop early when no-progress is proven. If the diff is still not clean when the cap or
+   no-progress is reached, report it `incomplete` with the open findings and do not commit or push.
    **No-progress needs stable fingerprints, not identical text** — lens wording varies run to run, so
    byte-equality is too strict, while identical finding *IDs* are too loose (they hide a severity drop
    or a partial fix). Declare no-progress when the fingerprint set is unchanged AND no severity fell
@@ -250,7 +251,7 @@ the audit skill's `references/manual.md` "CodeRabbit absorption" and `references
    project's fast/unit suite, or the tests covering the changed files (`pnpm test`/`cargo test`/`pytest`
    — the repo's own command). A green suite is what proves your fixes didn't break behavior. A **red
    test is a HARD STOP — do not commit, do not push**; fix it or revert and report. Do NOT auto-run
-   integration/e2e suites that hit a live DB/network (the `prod-db-guard` exists for a reason) — if only
+   integration/e2e suites that hit a live DB/network — if only
    those cover the change, say so and treat shipping as user-gated, never silently skip.
 
 4. **Commit message — intent-linked, not diff-summarized.** A message derived only from the diff
@@ -301,14 +302,13 @@ the audit skill's `references/manual.md` "CodeRabbit absorption" and `references
    `deployed` → `verified-in-production`. `/commit` gets you to **pushed**. It cannot observe CI,
    review, merge, or deploy, so it must not describe its own success as "shipped", "live", or "done".
    Saying "pushed; CI not yet observed" is the accurate close.
-   - **GitHub inline handoff.** If the remote is GitHub and this change is (or is becoming) a PR, offer
-     to bridge local findings to the PR: "Push done — run `/review` to post these as inline GitHub PR
-     comments?" On yes, pass `.audit/<ts>/pr-walkthrough.md` as the PR body and the diff-scoped findings
-     as inline comments. This closes the one real gap vs. CodeRabbit — GitHub-native delivery — without
-     giving up the local test-execution + fix-before-it-leaves-the-machine advantage.
+   - **GitHub inline handoff.** If the remote is GitHub, this change is (or is becoming) a PR, and the
+     host provides a PR review workflow, offer to post the diff-scoped findings as inline PR comments
+     through that workflow, passing `.audit/<ts>/pr-walkthrough.md` as the PR body. Post only on a
+     clear yes. Without such a workflow, state that no inline delivery was performed.
 
 6. **Graph freshness (post-push, non-blocking).** If the repo has a Blueprint index
-   (`.agent/index.json`), request refresh through Legion's direct Membrane Blueprint provider so
+   (`.agent/index.json`), request refresh through Legion's direct Blueprint graph provider (`blueprint-graph`) so
    graph tracks reality. It selects resident Hub transport when available, or bounded one-shot for
    supplied root when Hub is off/not enrolled. Never block or fail commit/push on this — refresh
    failure is reported as residue, not a gate. Repos without an index are left alone; adopting
@@ -338,9 +338,10 @@ the audit skill's `references/manual.md` "CodeRabbit absorption" and `references
    for a rule the **user** authored.
 
 8. **Emit Minimize commit authority.** Write `.audit/minimize/commit-review.json` for exact staged
-   tree using `legion minimize commit init-review`, update it with actual lens
-   findings/new files/new dependencies, require `CLEAN`, then write
-   `.audit/minimize/commit-receipt.json`. Re-run `commit verify` immediately before every commit.
+   tree with `legion minimize commit init-review .audit/minimize/commit-review.json`, update it with
+   actual lens findings/new files/new dependencies, require `CLEAN`, then write the receipt with
+   `legion minimize commit receipt .audit/minimize/commit-review.json .audit/minimize/commit-receipt.json`.
+   Re-run `legion minimize commit verify .audit/minimize/commit-receipt.json` immediately before every commit.
    Missing, stale, open-finding, policy-drift, validator-drift, or staged-tree mismatch blocks commit.
    Never use `--no-verify`.
 
@@ -361,7 +362,7 @@ the audit skill's `references/manual.md` "CodeRabbit absorption" and `references
 ## Hard stops — surface, do NOT push
 
 Pushing is outward-facing. Refuse to push (and say why) when:
-- A **secret** is in the diff (gitleaks hit) that auto-fix can't resolve — never push a leaked key.
+- A **secret** is in the diff (a hit from the host's secret scanner, if the host provides one) that auto-fix can't resolve — never push a leaked key.
 - A **test is failing** (or the only coverage is an integration/e2e suite that needs live services) — never push red.
 - A **`data-safety` finding** confirms data loss or a prod-locking migration (the audit skill's `references/migration-safety.md`) — surface it, don't push.
 - Fixes **won't converge** (no-progress with findings still open) — report the open findings, don't ship a broken state.
@@ -369,7 +370,9 @@ Pushing is outward-facing. Refuse to push (and say why) when:
   **Discover the norms, don't assume them** — a shared skill cannot carry one machine's habits as a
   parenthetical. Read the actual remote/default branch, branch protection or rulesets, required status
   checks, CODEOWNERS, and signing policy (`git remote`, `git symbolic-ref refs/remotes/origin/HEAD`,
-  `gh api repos/{owner}/{repo}/rulesets` or `/branches/{b}/protection`, a `CODEOWNERS` file). Where
+  a `CODEOWNERS` file; and, only if the host provides GitHub API access such as the `gh` CLI, the
+  rulesets endpoint `repos/{owner}/{repo}/rulesets` and the branch-protection endpoint
+  `/branches/{b}/protection`). Where
   direct-to-default is genuinely the norm for that repo, proceed; where protection or a required check
   exists, open a PR. When it cannot be determined, ask.
 - The **candidate tree does not match the committed tree** (step 1) — the content that shipped is not

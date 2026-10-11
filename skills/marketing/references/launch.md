@@ -1,6 +1,6 @@
 ---
-name: plan-launch
-description: "When the user wants to plan a product launch, feature announcement, or release strategy. Also use when the user mentions 'launch,' 'Product Hunt,' 'feature release,' 'announcement,' 'go-to-market,' 'beta launch,' 'early access,' 'waitlist,' 'product update,' 'how do I launch this,' 'launch checklist,' 'GTM plan,' or 'we're about to ship.' Use this whenever someone is preparing to release something publicly. For ongoing marketing after launch, see marketing-ideas."
+name: strategy-launch
+description: "When the user wants to plan a product launch, feature announcement, or release strategy. Also use when the user mentions 'launch,' 'Product Hunt,' 'feature release,' 'announcement,' 'go-to-market,' 'beta launch,' 'early access,' 'waitlist,' 'product update,' 'how do I launch this,' 'launch checklist,' 'GTM plan,' or 'we're about to ship.' Use this whenever someone is preparing to release something publicly. For ongoing marketing after launch, route to `/marketing ideas`."
 metadata:
   version: 1.1.0
 ---
@@ -347,12 +347,12 @@ Even small changelog updates remind customers your product is evolving. This bui
 
 ## Related Skills
 
-- **marketing-ideas**: For additional launch tactics (#22 Product Hunt, #23 Early Access Referrals)
-- **email-pro sequence**: For launch and onboarding email sequences
-- **page-cro**: For optimizing launch landing pages
-- **marketing-psychology**: For psychology behind waitlists and exclusivity
-- **programmatic-seo**: For comparison pages mentioned in post-launch
-- **growth sales-enablement**: For launch sales collateral and enablement materials
+- **Ideas** (`/marketing ideas`): For additional launch tactics (#22 Product Hunt, #23 Early Access Referrals)
+- **Writing** (`/writing`): For launch and onboarding email sequences
+- **CRO page** (`/marketing cro`, page reference): For optimizing launch landing pages
+- **Ideas** (`/marketing ideas`, marketing reference): For psychology behind waitlists and exclusivity
+- **SEO** (`/seo`): For comparison pages mentioned in post-launch
+- **Growth sales-enablement** (`/marketing growth`): For launch sales collateral and enablement materials
 
 ---
 

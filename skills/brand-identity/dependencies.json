@@ -9,6 +9,22 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "../_shared/parametric-design.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/manual.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/brand-registry.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../designer/engine/scripts/detector/detect-antipatterns-browser.js"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "legion"
     }
   ]
 }

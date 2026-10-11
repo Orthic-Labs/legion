@@ -50,7 +50,7 @@ Mistake: local direct proof bypassed nested capture, signed installer, hosted pa
 - Added shared process boundary with 64 MiB capture, explicit timeout, exit/signal/error/stdout/stderr diagnostics, compact evidence, & large-output tests.
 - Public CI run `33414239349` passed.
 - Release run `33415054310` built & signed both platforms, then installed qualification failed again.
-- Improved diagnostics exposed setup repair exit `2` under `C:\Users\RUNNER~1\...`.
+- Improved diagnostics exposed setup repair exit `2` under `<home>\...`.
 
 Mistake: blank output plus roughly sixty-second duration was treated as enough evidence for max-buffer root cause. Capture defect was real but secondary. Primary defect was Windows 8.3 alias versus canonical long-path lexical containment.
 

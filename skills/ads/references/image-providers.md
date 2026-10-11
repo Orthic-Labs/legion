@@ -94,24 +94,9 @@ ads-generate reads this after generation and includes cost summary in generation
 
 ---
 
-## Fallback Providers
+## Provider Scope
 
-These providers are reachable only through the `banana-image` host capability; this package ships no direct generator.
-
-### OpenAI (gpt-image-1)
-- Env: `OPENAI_API_KEY`
-- Price: ~$0.040/image (1024x1024), ~$0.060 (1024x1536)
-- Package: `openai>=1.75.0`
-
-### Stability AI (stable-diffusion-3.5-large)
-- Env: `STABILITY_API_KEY`
-- Price: ~$0.065/image flat
-- Package: `stability-sdk>=0.8.4`
-
-### Replicate (FLUX.1 Pro)
-- Env: `REPLICATE_API_TOKEN`
-- Price: ~$0.055/image
-- Package: `replicate>=1.0.4`
+banana-claude via the `banana-image` host capability is the only image provider this package uses. No fallback provider ships; if the capability is unavailable, generation stops and reports it.
 
 ---
 

@@ -17,5 +17,7 @@ shortest alternative path to the same want?
 **Ignore.** Internal elegance and implementation preference that the user will never feel. Security and
 removal hunts, which other seats cover.
 
-**Output.** Stage 1: advice only, tiered findings. Stage 2: a position, a 1-10 score, per-dimension
-scores from the rubric, `top_concern`, and tiered findings.
+**Output.** Council stage: a blind opening position (your read of whether the artifact delivers the
+verbatim want, given without seeing other seats), then tiered advice findings. No verdict and no score.
+Jury stage: a position, a 1-10 score, per-dimension scores from the rubric, `top_concern`, and tiered
+findings.

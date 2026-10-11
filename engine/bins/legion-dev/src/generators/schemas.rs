@@ -230,7 +230,7 @@ pub fn run(root: &Path, check: bool) -> bool {
         if committed != generated {
             if check {
                 eprintln!(
-                    "SCHEMA DRIFT: {rel} is not up to date with the code-owned enums; run: pnpm schemas:check"
+                    "SCHEMA DRIFT: {rel} is not up to date with the code-owned enums; run: cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-schemas"
                 );
                 failed = true;
             } else {

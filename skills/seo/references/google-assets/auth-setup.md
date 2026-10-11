@@ -8,7 +8,7 @@ Three credential types serve different APIs:
 |------|---------|------|
 | **API Key** | PageSpeed Insights, CrUX, CrUX History, Knowledge Graph | Free |
 | **Service Account** | Search Console, Indexing API, GA4 | Free |
-| **Both** | Full seo-google skill | Free |
+| **Both** | Full Google lane | Free |
 
 ## Step 1: Create a Google Cloud Project
 

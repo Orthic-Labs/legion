@@ -999,7 +999,7 @@ pub fn split_manual_apply_batch(batch: &Value, max_ops: usize) -> Vec<ManualAppl
 /// Port of `manualApplyResultShapeHint(eventId)`.
 pub fn manual_apply_result_shape_hint(event_id: &str) -> String {
     format!(
-        "Use live-poll.mjs --reply {event_id} done --data '{{\"status\":\"done\",\"appliedEntryIds\":[\"ENTRY_ID\"],\"failed\":[],\"files\":[\"src/page.html\"],\"notes\":[]}}'"
+        "Use legion script designer/live-poll --reply {event_id} done --data '{{\"status\":\"done\",\"appliedEntryIds\":[\"ENTRY_ID\"],\"failed\":[],\"files\":[\"src/page.html\"],\"notes\":[]}}'"
     )
 }
 
@@ -1264,7 +1264,7 @@ fn first_failure_reason(result: &Value) -> Option<String> {
 
 /// Port of `manualApplyReplyCommand(eventOrId)`.
 pub fn manual_apply_reply_command(event_id: &str) -> String {
-    format!("live-poll.mjs --reply {event_id} done --data '<json>'")
+    format!("legion script designer/live-poll --reply {event_id} done --data '<json>'")
 }
 
 /// Port of `buildManualApplyAgentAction(eventOrId)`.

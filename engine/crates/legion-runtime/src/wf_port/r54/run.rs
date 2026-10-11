@@ -190,8 +190,13 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
             0
         }
         Plan::Usage => {
+            // Explicit --help is a success; missing required input is a usage error.
             println!("{}", args::usage());
-            0
+            if args.help {
+                0
+            } else {
+                2
+            }
         }
         Plan::Run {
             needs_server,
@@ -344,6 +349,15 @@ fn run_shot_fast(
             status.code()
         ));
     }
+    let written = std::fs::metadata(&out)
+        .map(|m| m.is_file() && m.len() > 0)
+        .unwrap_or(false);
+    if !written {
+        return Err(format!(
+            "Headless screenshot was not written to {}.",
+            out.display()
+        ));
+    }
     Ok(())
 }
 
@@ -394,6 +408,12 @@ fn run_cdp_session(
     if do_shot {
         let out = abs(repo_root, &args.out);
         let file = session.capture(&out.to_string_lossy())?;
+        let written = std::fs::metadata(&file)
+            .map(|m| m.is_file() && m.len() > 0)
+            .unwrap_or(false);
+        if !written {
+            return Err(format!("screenshot was not written to {file}"));
+        }
         println!("[qa] url {url}");
         println!("[qa] screenshot {file}");
     }

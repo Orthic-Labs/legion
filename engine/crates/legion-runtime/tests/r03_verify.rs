@@ -3,8 +3,8 @@
 //! for the full mapping back to the legacy script.
 //!
 //! This file depends on `legion_runtime::wf_port::r03`, which is not yet
-//! wired into `legion-runtime`'s public module tree (see
-//! `r03_tts_doubao.rs`'s header for the exact wiring step). Until that
+//! wired into `legion-runtime`'s public module tree (see the r03 module
+//! doc comment in `wf_port/r03/mod.rs` for the wiring note). Until that
 //! lands, this file will not compile as part of the crate's test target.
 //!
 //! No test here launches a real browser: [`FakeDriver`] stands in for

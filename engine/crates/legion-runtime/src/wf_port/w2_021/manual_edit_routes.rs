@@ -493,6 +493,12 @@ fn handle_commit(
             if async_mode {
                 return async_response;
             }
+            if message.starts_with("unavailable:") {
+                return HttpResponse::json(
+                    503,
+                    json!({ "error": "unavailable", "message": message }),
+                );
+            }
             return HttpResponse::json(
                 500,
                 json!({ "error": "manual_edit_commit_failed", "message": message }),

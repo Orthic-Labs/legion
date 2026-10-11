@@ -1,16 +1,8 @@
 //! wf_port packet r03 (area `skills/designer/engine/huashu/scripts`,
 //! target crate `legion-runtime`).
 //!
-//! Completes three huashu scripts:
+//! Completes the huashu video and verification scripts.
 //!
-//!   - `tts-doubao.mjs` -> [`tts_doubao`] — the earlier `q_q0` packet ported
-//!     only the pure `.env`/argv parsing and JSON request/response shapes
-//!     because `legion-runtime` had no HTTP client dependency at the time.
-//!     `reqwest` (with the `blocking` feature) and `headless_chrome` are now
-//!     both already declared in this crate's `Cargo.toml` (wired by later
-//!     packets), so this module closes that gap for real: a real blocking
-//!     HTTP POST to the Doubao endpoint and a real `ffprobe` subprocess call
-//!     for duration, each behind a small trait so tests use fakes.
 //!   - `render-video.js` -> [`render_video`] — full CLI parsing, the
 //!     chrome-hiding CSS/JS injection strings, the ready-signal/trim
 //!     decision, and a `Recorder` trait whose production implementation
@@ -39,5 +31,4 @@
 //! by the `r00`/`r07`/`r09`/`r15`/`r18` packets in this crate.
 
 pub mod render_video;
-pub mod tts_doubao;
 pub mod verify;

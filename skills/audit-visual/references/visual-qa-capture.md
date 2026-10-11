@@ -1,11 +1,11 @@
 # Headless Visual QA Capture Protocol
 
-Capture/interaction layer for `audit-visual` Phase 1. Use this for routine background visual QA. It must not foreground a native app window, steal focus, or depend on the user's visible desktop.
+Capture/interaction layer for `audit-visual` step 3 (see `SKILL.md`). Use this for routine background visual QA. It must not foreground a native app window, steal focus, or depend on the user's visible desktop.
 
 Preferred capture order:
 
 1. **Local `/qa` skill and project QA harness.**
-   - Load the `/qa` skill instructions first and use its configured browser command, normally the gstack `browse` binary (`$B goto`, `$B snapshot`, `$B screenshot`, `$B responsive`, `$B click`, `$B fill`).
+   - Load the `/qa` skill instructions first and use the browser capability the host provides for driving the page (navigate, snapshot, screenshot, click, fill). If the host provides none, this route is unavailable; go to the next route or report the captures as `UNPROVEN`.
    - Start the app's documented browser QA mode, such as `npm run qa`, `pnpm qa:browser`, or the project-specific script in `AGENTS.md`, `CLAUDE.md`, `README`, or the project's QA doc (for example `docs/QA.md`, a project-overlay file that may not exist).
    - Use the QA URL it emits, usually `http://127.0.0.1:<port>/?qa=1` or a documented route.
    - QA mode should use deterministic mocks for visual states.
@@ -21,8 +21,8 @@ Preferred capture order:
    - If no root selector exists, screenshot the browser viewport only. Do not capture the monitor or native window frame.
    - Do not add Playwright/Puppeteer for this default QA loop.
 
-3. **Built-in Claude/Codex browser, hidden/in-app, when available.**
-   - Open the QA URL in the built-in browser.
+3. **Host built-in browser, hidden/in-app, when the host provides one.**
+   - Open the QA URL in the host's built-in browser.
    - Keep the browser hidden/background when the host supports that.
    - Interact with the page to create hover, focus, selected, loading, error, empty, dialog, and success states.
    - Save screenshots of the rendered app surface or viewport.
@@ -30,7 +30,7 @@ Preferred capture order:
 
 4. **Native Tauri/WebView2 foreground QA only by explicit request.**
    - Use the project's pinned native dev script, not a bare native dev command.
-   - For SampleApp-style Tauri apps, use the documented script such as `.\scripts\dev.ps1`.
+   - For SampleApp-style Tauri apps, use the documented script (Windows example: `.\scripts\dev.ps1`; elsewhere, the project's documented native dev script).
    - Treat native QA as WebView2 parity/smoke testing, not the routine visual review loop.
    - If native screenshot tooling captures blank or stale WebView2 content, it is not acceptable evidence.
 
@@ -43,6 +43,17 @@ Required capture scope:
 - **Artifacts:** save screenshots to a local evidence directory and report paths in the review.
 
 Suggested generic `/qa` pattern:
+
+Mac/Linux:
+
+```bash
+pnpm qa:browser
+url="$(cat .cache/qa-browser/url.txt)"
+legion script qa/qa-shot --url "$url" --out .cache/qa-shots/current/app-default.png
+legion script qa/qa-functional --url "$url" --actions .cache/qa-actions.json
+```
+
+Windows example:
 
 ```powershell
 pnpm qa:browser

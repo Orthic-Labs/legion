@@ -55,7 +55,9 @@ pub fn completion_ack_for_accept_result(
         obj.insert("requiresComplete".to_string(), Value::Bool(true));
         obj.insert(
             "nextCommand".to_string(),
-            Value::String(format!("live-complete.mjs --id {event_id}")),
+            Value::String(format!(
+                "legion script designer/live-complete --id {event_id}"
+            )),
         );
         obj.insert(
             "message".to_string(),
@@ -180,7 +182,10 @@ mod tests {
         assert_eq!(ack["type"], json!("agent_done"));
         assert_eq!(ack["final"], json!(false));
         assert_eq!(ack["requiresComplete"], json!(true));
-        assert_eq!(ack["nextCommand"], json!("live-complete.mjs --id abc12345"));
+        assert_eq!(
+            ack["nextCommand"],
+            json!("legion script designer/live-complete --id abc12345")
+        );
         assert_eq!(
             ack["message"],
             json!("Carbonize cleanup must be verified, then the session must be completed explicitly before polling again.")

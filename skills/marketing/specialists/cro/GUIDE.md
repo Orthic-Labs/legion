@@ -30,7 +30,7 @@ When invoked, decide which reference matches, Read it, follow its instructions.
 
 ## Internal CRO Council
 
-Run this internally after identifying the flow and metric. It improves the test plan; it is not `/review`.
+Run this internally after identifying the flow and metric. It improves the test plan.
 
 | Reference | Role pass |
 |---|---|

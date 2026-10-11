@@ -56,7 +56,7 @@ presence check) and make the fallback a *real* state, not an absent one:
 
 ## §3 — Performance is engine-, device-, and effect-dependent
 
-The core web rules in `SKILL.md` transfer, but promotion and filter cost are implementation details.
+The core web rules in `../../references/website.md` transfer, but promotion and filter cost are implementation details.
 Treat these as hypotheses to profile, not guaranteed rankings:
 
 - Large or changing `backdrop-filter` regions are high-risk. Prefer a fixed blur surface and animate

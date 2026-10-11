@@ -11,6 +11,18 @@
       "capability": "ahrefs"
     },
     {
+      "class": "HOST_CAPABILITY",
+      "capability": "media-production"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "blueprint-graph"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "morph"
+    },
+    {
       "class": "PACKAGE_INTERNAL",
       "path": "../_shared/anti-slop.md"
     },

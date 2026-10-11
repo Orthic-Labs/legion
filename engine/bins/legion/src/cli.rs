@@ -28,8 +28,14 @@ enum Command {
     /// Native Apple tools, documentation, diagnostics & App Store Connect.
     Apple(commands::apple::AppleArgs),
     /// Report the native M1 installed-release status.
+    ///
+    /// The composition comes from --config, else the LEGION_M1_CONFIG
+    /// environment variable, else the installed release.
     Status(M1ConfigArgs),
     /// Serve the Legion MCP server over stdio for a plugin host.
+    ///
+    /// The composition comes from --config, else the LEGION_M1_CONFIG
+    /// environment variable, else the installed release.
     Serve(ServeArgs),
     /// Initialize Legion evidence scaffolding in a repository.
     Init(commands::init::InitArgs),
@@ -57,7 +63,10 @@ enum Command {
     Providers(CommonArgs),
     /// Render the workspace and package rule set.
     Rules(commands::rules::RulesArgs),
-    /// Durably enqueue and start a workflow trigger.
+    /// Render a schedule receipt, or durably record a workflow trigger.
+    ///
+    /// --trigger only records the trigger as QUEUED; it does not start the
+    /// workflow.
     Schedule(commands::schedule::ScheduleArgs),
     /// Produce the frozen audit provider plan for a repository.
     Plan(commands::plan::PlanArgs),
@@ -65,7 +74,9 @@ enum Command {
     Audit(commands::audit::AuditArgs),
     /// Verify audit facts against a sealed provider plan.
     Verify(commands::verify::VerifyArgs),
-    /// Explain an audit finding or capability.
+    /// Explain an audit finding or coverage gap by id (not capabilities).
+    ///
+    /// Usage: legion explain <finding-or-gap-id> [--run <run-dir>]
     Explain(CommonArgs),
     /// Render a stored audit report in another format.
     Report(commands::report::ReportArgs),
@@ -109,6 +120,7 @@ enum Command {
     /// Inspect host lifecycle events or describe a host.
     ///
     /// Usage: legion host events inspect [--session <id>] | legion host describe [<root>] [--descriptor <path>]
+    /// `describe` does not detect installed clients: "detected" is null with status not-implemented.
     Host(CommonArgs),
     /// List, detect, verify, install or remove host harness adapters.
     ///
@@ -130,9 +142,11 @@ enum Command {
     Catalog(commands::catalog::CatalogArgs),
     /// Inspect the native policy pack.
     Policy(commands::policy::PolicyArgs),
-    /// Record or inspect a routing decision.
+    /// Draft a decision record (not persisted).
     Decision(commands::decision::DecisionArgs),
-    /// Prepare or validate a cold-start handoff packet.
+    /// Parse a handoff packet (structure only).
+    ///
+    /// Semantic validation is `legion script handoff/validate-handoff`.
     Handoff(commands::handoff::HandoffArgs),
     /// Route an evidence research request.
     Research(commands::research::ResearchArgs),
@@ -411,6 +425,12 @@ fn load_m1_application(
     legion_application::M1Application::from_inputs_with_origin(inputs, origin)
         .map(Arc::new)
         .map_err(|error| commands::CommandError::incomplete(error.to_string()))
+}
+
+/// True when `legion serve` (without `--config`) can bind a release: the
+/// installed release, or `LEGION_M1_CONFIG`. Same binding path `serve` uses.
+pub(crate) fn serve_binding_available() -> bool {
+    load_m1_application(&M1ConfigArgs { config: None }).is_ok()
 }
 
 pub(crate) fn installed_m1_composition() -> Result<PathBuf, commands::CommandError> {
@@ -1518,8 +1538,15 @@ fn finish(result: CommandResult) -> i32 {
                 .or_else(|| value.get("status"))
                 .and_then(Value::as_str)
             {
-                Some("incomplete") | Some("unproven") | Some("partial") | Some("failed")
-                | Some("cancelled") | Some("unavailable") | Some("unknown") => 2,
+                Some("incomplete")
+                | Some("unproven")
+                | Some("partial")
+                | Some("failed")
+                | Some("cancelled")
+                | Some("unavailable")
+                | Some("unknown")
+                | Some("not-found")
+                | Some("not-implemented") => 2,
                 Some("fail") | Some("denied") => 1,
                 _ => 0,
             }

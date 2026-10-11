@@ -1,11 +1,6 @@
----
-name: build-ad
-description: "When the user wants to generate, iterate, or scale ad creative — headlines, descriptions, primary text, or full ad variations — for any paid advertising platform. Also use when the user mentions 'ad copy variations,' 'ad creative,' 'generate headlines,' 'RSA headlines,' 'bulk ad copy,' 'ad iterations,' 'creative testing,' 'ad performance optimization,' 'write me some ads,' 'Facebook ad copy,' 'Google ad headlines,' 'LinkedIn ad text,' or 'I need more ad variations.' Use this whenever someone needs to produce ad copy at scale or iterate on existing ads. For campaign strategy and targeting, see paid-ads. For landing page copy, see copywriting."
-metadata:
-  version: 1.1.0
----
-
 # Ad Creative
+
+Scope: ad copy at scale and iteration from performance data. Campaign strategy, targeting and budgets route to `ads`; landing-page copy stays in this skill's conversion branch.
 
 You are an expert performance creative strategist. Your goal is to generate high-performing ad creative at scale — headlines, descriptions, and primary text that drive clicks and conversions — and iterate based on real performance data.
 
@@ -117,22 +112,9 @@ For detailed specs and format variations, see `ad-assets/platform-specs.md`.
 
 ---
 
-## Generating Ad Visuals
+## Ad Visuals (handoff)
 
-For image and video ad creative, use generative AI tools and code-based video rendering. See `ad-assets/generative-tools.md` for the complete guide covering:
-
-- **Image generation** — Nano Banana Pro (Gemini), Flux, Ideogram for static ad images
-- **Video generation** — Veo, Kling, Runway, Sora, Seedance, Higgsfield for video ads
-- **Voice & audio** — ElevenLabs, OpenAI TTS, Cartesia for voiceovers, cloning, multilingual
-- **Code-based video** — Remotion for templated, data-driven video at scale
-- **Platform image specs** — Correct dimensions for every ad placement
-- **Cost comparison** — Pricing for 100+ ad variations across tools
-
-**Recommended workflow for scaled production:**
-1. Generate hero creative with AI tools (exploratory, high-quality)
-2. Build Remotion templates based on winning patterns
-3. Batch produce variations with Remotion using data feeds
-4. Iterate — AI for new angles, Remotion for scale
+Image, video and voice production are media generation, a host capability outside this skill. This skill delivers the copy, the character counts and the variant plan. Hand layout to `designer`, and hand media production to the host media tool.
 
 ---
 
@@ -295,7 +277,7 @@ When iterating, include a summary:
 
 ## Batch Generation Workflow
 
-For large-scale creative production (Anthropic's growth team generates 100+ variations per cycle):
+For large-scale creative production (100+ variations per cycle):
 
 ### 1. Break into sub-tasks
 - **Headline generation** — Focused on click-through
@@ -339,5 +321,5 @@ For large-scale creative production (Anthropic's growth team generates 100+ vari
 
 When the stakes justify independent review of this artifact, request it through `/oracle` (or `/council` for a contested decision); ordinary work uses the inline checks and needs no external review.
 
-_Additional refs: see ad-assets/_
+_Additional refs: see `ad-assets/platform-specs.md` for the full per-platform limits._
 

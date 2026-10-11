@@ -139,11 +139,15 @@ fn knip(value: &Value) -> ParseOutcome {
             .map(|rows| rows.iter().filter(|row| knip_row_has_findings(row)).count() as u64)
             .or_else(|| issues.as_object().map(|o| o.len() as u64))
     });
-    let count = match (files_len, issues_len) {
-        (None, None) => None,
-        (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
-    };
-    ParseOutcome::ok("legacy.dead_code.knip", "low", count)
+    match (files_len, issues_len) {
+        // Neither expected key present: not a knip report, so not a clean scan.
+        (None, None) => ParseOutcome::malformed("legacy.dead_code.knip", "low"),
+        (a, b) => ParseOutcome::ok(
+            "legacy.dead_code.knip",
+            "low",
+            Some(a.unwrap_or(0) + b.unwrap_or(0)),
+        ),
+    }
 }
 
 /// Array-form `issues` rows are per-file objects whose category fields
@@ -219,13 +223,17 @@ fn lint_json(value: &Value) -> Option<ParseOutcome> {
             ));
         }
         // ruff shape: [{code, filename, ...}, ...] (or an empty array — clean run).
+        if !files.iter().all(Value::is_object) {
+            return Some(ParseOutcome::malformed("legacy.lint.ruff", "medium"));
+        }
         return Some(ParseOutcome::ok(
             "legacy.lint.ruff",
             "medium",
             Some(files.len() as u64),
         ));
     }
-    None
+    // Neither a biome report nor an array of violations: unexpected shape.
+    Some(ParseOutcome::malformed("legacy.lint.tool", "medium"))
 }
 
 // ---------- clippy (cargo clippy --message-format=json, JSONL on stdout) ----------
@@ -234,6 +242,7 @@ fn lint_json(value: &Value) -> Option<ParseOutcome> {
 // never null — no malformed rule).
 fn clippy(text: &str) -> ParseOutcome {
     let mut count = 0_u64;
+    let mut saw_reason = false;
     for line in text.lines() {
         let line = line.trim();
         if line.is_empty() {
@@ -242,6 +251,9 @@ fn clippy(text: &str) -> ParseOutcome {
         let Ok(value) = serde_json::from_str::<Value>(line) else {
             continue;
         };
+        if value.get("reason").and_then(Value::as_str).is_some() {
+            saw_reason = true;
+        }
         if value.get("reason").and_then(Value::as_str) != Some("compiler-message") {
             continue;
         }
@@ -259,6 +271,11 @@ fn clippy(text: &str) -> ParseOutcome {
         if has_spans && level_ok {
             count += 1;
         }
+    }
+    if !saw_reason {
+        // cargo always emits cargo-message lines (at least build-finished);
+        // none means the output was not a cargo JSON stream (or was empty).
+        return ParseOutcome::malformed("legacy.lint.clippy", "medium");
     }
     ParseOutcome::ok("legacy.lint.clippy", "medium", Some(count))
 }
@@ -281,38 +298,61 @@ fn tsc(text: &str) -> ParseOutcome {
 
 // basedpyright --outputjson: summary.errorCount, or null on parse failure (no malformed rule).
 fn types_json(value: &Value) -> Option<ParseOutcome> {
-    value.get("summary").map(|summary| {
-        let count = summary.get("errorCount").and_then(Value::as_u64);
-        ParseOutcome::ok("legacy.types.basedpyright", "high", count)
+    let count = value
+        .get("summary")
+        .and_then(|summary| summary.get("errorCount"))
+        .and_then(Value::as_u64);
+    Some(match count {
+        Some(count) => ParseOutcome::ok("legacy.types.basedpyright", "high", Some(count)),
+        None => ParseOutcome::malformed("legacy.types.basedpyright", "high"),
     })
 }
 
 // ---------- sast (semgrep --json) ----------
 // JS: count = (JSON.parse(r.stdout).results || []).length. No malformed rule.
 fn semgrep(value: &Value) -> ParseOutcome {
-    let count = value
-        .get("results")
-        .and_then(Value::as_array)
-        .map(|a| a.len() as u64);
-    ParseOutcome::ok("legacy.sast.semgrep", "high", count)
+    match value.get("results").and_then(Value::as_array) {
+        Some(results) => {
+            ParseOutcome::ok("legacy.sast.semgrep", "high", Some(results.len() as u64))
+        }
+        None => ParseOutcome::malformed("legacy.sast.semgrep", "high"),
+    }
 }
 
 // ---------- ci_lint (actionlint -format "{{json .}}", a JSON array) ----------
 fn actionlint(value: &Value) -> ParseOutcome {
-    let count = value.as_array().map(|a| a.len() as u64);
-    ParseOutcome::ok("legacy.ci_lint.actionlint", "medium", count)
+    // actionlint's `{{json .}}` template prints `null` for a clean run.
+    if value.is_null() {
+        return ParseOutcome::ok("legacy.ci_lint.actionlint", "medium", Some(0));
+    }
+    match value.as_array() {
+        Some(rows) => ParseOutcome::ok(
+            "legacy.ci_lint.actionlint",
+            "medium",
+            Some(rows.len() as u64),
+        ),
+        None => ParseOutcome::malformed("legacy.ci_lint.actionlint", "medium"),
+    }
 }
 
 // ---------- docker (hadolint --format json Dockerfile, a JSON array) ----------
 fn hadolint(value: &Value) -> ParseOutcome {
-    let count = value.as_array().map(|a| a.len() as u64);
-    ParseOutcome::ok("legacy.docker.hadolint", "medium", count)
+    match value.as_array() {
+        Some(rows) => ParseOutcome::ok("legacy.docker.hadolint", "medium", Some(rows.len() as u64)),
+        None => ParseOutcome::malformed("legacy.docker.hadolint", "medium"),
+    }
 }
 
 // ---------- swift_lint (swiftlint lint --reporter json, a JSON array) ----------
 fn swiftlint(value: &Value) -> ParseOutcome {
-    let count = value.as_array().map(|a| a.len() as u64);
-    ParseOutcome::ok("legacy.swift_lint.swiftlint", "medium", count)
+    match value.as_array() {
+        Some(rows) => ParseOutcome::ok(
+            "legacy.swift_lint.swiftlint",
+            "medium",
+            Some(rows.len() as u64),
+        ),
+        None => ParseOutcome::malformed("legacy.swift_lint.swiftlint", "medium"),
+    }
 }
 
 // ---------- js_licenses (license-checker --json --production) ----------
@@ -323,7 +363,7 @@ fn js_licenses(value: &Value) -> ParseOutcome {
         "GPL", "AGPL", "LGPL", "SSPL", "CC-BY-SA", "EUPL", "OSL", "CPAL",
     ];
     let Some(object) = value.as_object() else {
-        return ParseOutcome::ok("legacy.js_licenses.license-checker", "high", None);
+        return ParseOutcome::malformed("legacy.js_licenses.license-checker", "high");
     };
     let mut total = 0_u64;
     let mut flagged = 0_u64;
@@ -376,7 +416,10 @@ fn py_deps_cve(value: &Value) -> ParseOutcome {
         .as_array()
         .cloned()
         .or_else(|| value.get("dependencies").and_then(Value::as_array).cloned());
-    let count = deps.map(|deps| {
+    let Some(deps) = deps else {
+        return ParseOutcome::malformed("legacy.py_deps_cve.pip-audit", "critical");
+    };
+    let count = Some({
         deps.iter()
             .map(|dep| {
                 dep.get("vulns")
@@ -397,7 +440,10 @@ fn cargo_audit(value: &Value) -> ParseOutcome {
         .get("vulnerabilities")
         .and_then(|v| v.get("count"))
         .and_then(Value::as_u64);
-    ParseOutcome::ok("legacy.cargo_audit.cargo-audit", "critical", count)
+    match count {
+        Some(count) => ParseOutcome::ok("legacy.cargo_audit.cargo-audit", "critical", Some(count)),
+        None => ParseOutcome::malformed("legacy.cargo_audit.cargo-audit", "critical"),
+    }
 }
 
 // ---------- cargo_deny (cargo deny --format json check; JSONL on stderr in JS) ----------
@@ -460,8 +506,10 @@ fn cargo_machete(text: &str) -> ParseOutcome {
 // ---------- cargo_unsafe (cargo geiger --output-format Json) ----------
 // JS: sum of every package's used unsafety categories' `unsafe_` counters. No malformed rule.
 fn cargo_unsafe(value: &Value) -> ParseOutcome {
-    let packages = value.get("packages").and_then(Value::as_array);
-    let count = packages.map(|packages| {
+    let Some(packages) = value.get("packages").and_then(Value::as_array) else {
+        return ParseOutcome::malformed("legacy.cargo_unsafe.cargo-geiger", "medium");
+    };
+    let count = Some({
         packages
             .iter()
             .filter_map(|p| p.get("unsafety")?.get("used"))
@@ -478,7 +526,7 @@ fn cargo_unsafe(value: &Value) -> ParseOutcome {
 // JS: total = entry count; majors_behind = entries whose latest major > current major.
 fn outdated(value: &Value) -> ParseOutcome {
     let Some(object) = value.as_object() else {
-        return ParseOutcome::ok("legacy.outdated.pkg-mgr", "low", None);
+        return ParseOutcome::malformed("legacy.outdated.pkg-mgr", "low");
     };
     let total = object.len() as u64;
     let majors = object
@@ -492,7 +540,7 @@ fn outdated(value: &Value) -> ParseOutcome {
 // ---------- cargo_outdated (cargo outdated --format json --root-deps-only) ----------
 fn cargo_outdated(value: &Value) -> ParseOutcome {
     let Some(deps) = value.get("dependencies").and_then(Value::as_array) else {
-        return ParseOutcome::ok("legacy.cargo_outdated.cargo-outdated", "low", None);
+        return ParseOutcome::malformed("legacy.cargo_outdated.cargo-outdated", "low");
     };
     let relevant: Vec<&Value> = deps
         .iter()
@@ -828,6 +876,45 @@ mod tests {
         let text = "Compiling foo v0.1.0\nwarning: unused variable `x`\nerror[E0308]: mismatched types\nWARNING: deprecated API\nCompiling done";
         let outcome = build(text);
         assert_eq!(outcome.findings_count, Some(2));
+    }
+
+    #[test]
+    fn unexpected_shapes_are_malformed_not_clean() {
+        let wrong = json(r#"{"unrelated":true}"#);
+        let scalar = json("42");
+        assert!(knip(&wrong).malformed);
+        assert!(jscpd(&wrong).malformed);
+        assert!(lint_json(&scalar).expect("lint outcome").malformed);
+        assert!(
+            lint_json(&json(r#"["a","b"]"#))
+                .expect("lint outcome")
+                .malformed
+        );
+        assert!(types_json(&wrong).expect("types outcome").malformed);
+        assert!(semgrep(&wrong).malformed);
+        assert!(actionlint(&wrong).malformed);
+        assert!(hadolint(&wrong).malformed);
+        assert!(swiftlint(&wrong).malformed);
+        assert!(js_licenses(&json("[]")).malformed);
+        assert!(deps_cve(&wrong).malformed);
+        assert!(py_deps_cve(&wrong).malformed);
+        assert!(cargo_audit(&wrong).malformed);
+        assert!(cargo_unsafe(&wrong).malformed);
+        assert!(outdated(&json("[]")).malformed);
+        assert!(cargo_outdated(&wrong).malformed);
+        assert!(clippy("").malformed);
+        assert!(clippy("plain text, not cargo json").malformed);
+    }
+
+    #[test]
+    fn legitimately_empty_expected_shapes_stay_clean() {
+        assert_eq!(semgrep(&json(r#"{"results":[]}"#)).findings_count, Some(0));
+        assert_eq!(actionlint(&Value::Null).findings_count, Some(0));
+        assert!(!actionlint(&Value::Null).malformed);
+        assert_eq!(hadolint(&json("[]")).findings_count, Some(0));
+        assert_eq!(swiftlint(&json("[]")).findings_count, Some(0));
+        assert_eq!(outdated(&json("{}")).findings_count, Some(0));
+        assert!(!clippy(r#"{"reason":"build-finished","success":true}"#).malformed);
     }
 
     #[test]

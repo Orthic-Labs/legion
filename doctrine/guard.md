@@ -114,9 +114,10 @@ subagent's own effects are guarded inside its session.
 
 ```text
 FILE_WRITE          FILE_DELETE          FILE_MOVE
-COMMAND_EXEC        NETWORK_EGRESS      PROCESS_SPAWN
-CREDENTIAL_ACCESS   DEPENDENCY_INSTALL  VCS_COMMIT
-VCS_PUSH            PUBLISH
+COMMAND_EXEC        NETWORK_EGRESS       PROCESS_SPAWN
+CREDENTIAL_ACCESS   DEPENDENCY_INSTALL   VCS_COMMIT
+VCS_PUSH            PUBLISH              EXTERNAL_SIDE_EFFECT
+MCP_UNCLASSIFIED_OBSERVATION  MCP_KNOWN_OBSERVATION
 ```
 
 `parse_effect_class` gives an explicit `effectClass` or `effect_class`

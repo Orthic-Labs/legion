@@ -1,6 +1,6 @@
 ---
 name: growth pricing
-description: "When the user wants help with pricing decisions, packaging, or monetization strategy. Also use when the user mentions 'pricing,' 'pricing tiers,' 'freemium,' 'free trial,' 'packaging,' 'price increase,' 'value metric,' 'Van Westendorp,' 'willingness to pay,' 'monetization,' 'how much should I charge,' 'my pricing is wrong,' 'pricing page,' 'annual vs monthly,' 'per seat pricing,' or 'should I offer a free plan.' Use this whenever someone is figuring out what to charge or how to structure their plans. For in-app upgrade screens, see paywall-upgrade-cro."
+description: "When the user wants help with pricing decisions, packaging, or monetization strategy. Also use when the user mentions 'pricing,' 'pricing tiers,' 'freemium,' 'free trial,' 'packaging,' 'price increase,' 'value metric,' 'Van Westendorp,' 'willingness to pay,' 'monetization,' 'how much should I charge,' 'my pricing is wrong,' 'pricing page,' 'annual vs monthly,' 'per seat pricing,' or 'should I offer a free plan.' Use this whenever someone is figuring out what to charge or how to structure their plans. For in-app upgrade screens, see `/marketing cro` (paywall reference)."
 metadata:
   version: 1.1.0
 ---
@@ -222,10 +222,10 @@ Identifies which features customers value most:
 
 ## Related Skills
 
-- **churn-prevention**: For cancel flows, save offers, and reducing revenue churn
-- **page-cro**: For optimizing pricing page conversion
-- **copywriting**: For pricing page copy
-- **marketing-psychology**: For pricing psychology principles
-- **growth ab-test**: For testing pricing changes
+- **Retention** (`/marketing cro`, retention reference): For cancel flows, save offers, and reducing revenue churn
+- **Page** (`/marketing cro`, page reference): For optimizing pricing page conversion
+- **Writing** (`/writing`): For pricing page copy
+- **Ideas** (`/marketing ideas`, marketing reference): For pricing psychology principles
+- **Growth ab-test** (`/marketing growth`): For testing pricing changes
 - **growth revops**: For deal desk processes and pipeline pricing
 - **growth sales-enablement**: For proposal templates and pricing presentations

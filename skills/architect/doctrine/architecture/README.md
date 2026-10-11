@@ -17,8 +17,13 @@ Reject unknown phase, cancelled epoch, restart without delta, backward no cause 
 - `reviews/**` — architecture review method.
 - `templates/**` — architecture artifact templates.
 - `schemas/**` — architecture state/control schemas.
-- `docs/provenance/canon-map-archived.md` — archived former ownership map; the root SSOT ownership
-  table is active canon.
+
+## Stage and ledger ids (Sxx, S02-08)
+
+`Stage: Sxx` and `Ledger: Sxx-nn` labels in `controls/**` (for example `S02`, `S02-08`, `S10`) are
+historical stage labels from the original build plan. They carry no current meaning in this skill,
+and no stage plan ships here to look them up. Where a control names an owning stage, that naming
+is historical; read the control text itself for the rule it states.
 
 Sage participates only when a material unresolved architecture decision requires exceptional
 adjudication beyond Architect's routine mandate.

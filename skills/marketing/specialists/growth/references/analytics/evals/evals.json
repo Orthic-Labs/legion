@@ -50,7 +50,7 @@
       "mode": "discovery",
       "assertions": [
         "Recognizes overlap with A/B test setup",
-        "References or defers to ab-test-setup skill",
+        "References or defers to the growth ab-test reference",
         "May help with tracking implementation specifics",
         "Does not attempt to design the full experiment"
       ]

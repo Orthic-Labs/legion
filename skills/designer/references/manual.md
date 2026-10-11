@@ -3,9 +3,9 @@
 PRIMARY_DELIVERABLE: Design route or bounded design artifact
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
-EXTERNAL_REQUESTS_MAX: 0
+EXTERNAL_REQUESTS_MAX: 3 (web-search for fact checks; official brand-channel page and asset fetches; public asset-library downloads)
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: brand (brand code known or customer-facing output), qa (rendered evidence), writing (copy handoff), audit-visual (coverage evidence)
 TERMINAL: Return one bounded route or artifact; do not widen scope.
 
 Use one memorable design entrypoint. Classify the requested outcome, then load only the matching
@@ -32,7 +32,7 @@ Paths are under `skills/designer/` unless shown from `skills/`.
 | Build/redesign product or app UI, dashboard, tool, settings, table, workflow | `specialists/surface-design/GUIDE.md`, then `references/app.md` |
 | Flyer, social post, OG image, banner, ad creative, poster, print, packaging insert | `specialists/static-creative/GUIDE.md`, then `specialists/static-creative/references/marketing.md` |
 | Deep craft command: craft, shape, polish, bolder, quieter, colorize, typeset, layout, delight, harden, live, document | `engine/GUIDE.md`, then exactly one `engine/reference/<command>.md` |
-| Slide deck, editable PPTX, motion render, voiceover, device frame | `engine/huashu/GUIDE.md` |
+| Slide deck, editable PPTX, motion render, device frame | `engine/huashu/GUIDE.md` |
 | Qualitatively critique an existing rendered surface | `designer` critique via `engine/GUIDE.md` |
 | Enumerate/capture rendered states or prove visual regression coverage | `audit-visual` |
 | Create or evolve the underlying brand identity | `brand-identity` |

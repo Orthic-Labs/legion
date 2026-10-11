@@ -66,6 +66,18 @@ pub fn check(root: &Path) -> Result {
     let package_files = package_files.unwrap();
     let manifest_files = manifest_files.unwrap();
 
+    // Two empty lists would otherwise compare equal and pass vacuously.
+    if package_files.is_empty() {
+        errors
+            .push("publication surface is empty: package.json#files lists no entries".to_string());
+    }
+    if manifest_files.is_empty() {
+        errors.push(
+            "publication surface is empty: MANIFEST.package.json#allowlistedTopLevel lists no entries"
+                .to_string(),
+        );
+    }
+
     for (label, entries) in [
         ("package.json#files", &package_files),
         ("MANIFEST.package.json#allowlistedTopLevel", &manifest_files),

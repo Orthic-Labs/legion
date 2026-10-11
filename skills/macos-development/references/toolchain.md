@@ -4,7 +4,7 @@ Native route first: use `legion apple catalog --input '{}'` to discover operatio
 `legion apple preflight --input '{"list":true}'` for read-only PATH inventory, or MCP
 `legion_apple` with `operation`, `arguments` and optional `policyContext`. Plans do not
 execute until `execute: true` is requested within existing authorization. Native routes
-cover `project.*`, `swiftpm.*`, `simulator.*`, `device.*`, `debug.batch`, `profile.record`,
+cover `project.*`, `swiftpm.*`, `simulator.*`, `device.*`, `debug.batch`, `profile`,
 `build-analysis`, `flamegraph`, `memgraph`, `build-log` & `app-store`. Compatibility
 adapters below remain optional fallbacks.
 

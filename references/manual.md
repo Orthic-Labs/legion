@@ -107,7 +107,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    bounded `ContextCandidateSet v1`. It never narrows the scanner/check denominator, and exact files
    used to verify a finding are still read in full.
 
-   > **Membrane status.** Audit still runs standalone directly after Blueprint — no planner
+   > **Planner status.** Audit still runs standalone directly after Blueprint — no planner
    > prerequisite. The typed Audit finding store (`<repo>/.audit/audit/findings.jsonl`, `status ==
    > open` only) is a project-overlay artifact: read it when present, never require it.
 
@@ -163,8 +163,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 ### CodeRabbit-inspired ergonomics
 
 Local-review scope/diff flags (`--doctor`, `--dir`, `--type all|local|committed|uncommitted`,
-`--base`/`--base-commit`) plus the OKF bundle emit and `crypt prep`
-lens-input compression are specified in `references/engine-interface.md` §CLI ergonomics. Scope
+`--base`/`--base-commit`) plus the OKF bundle emit and lens-input compression are specified in `references/engine-interface.md` §CLI ergonomics. Scope
 metadata is advisory context; scanner coverage remains honest — a scoped report must not claim
 unscanned checks were clean, and none of this turns `/audit` into single-PR review.
 

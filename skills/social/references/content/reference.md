@@ -1,10 +1,3 @@
----
-name: social content
-description: "When the user wants help creating, scheduling, or optimizing social media content for LinkedIn, Twitter/X, Instagram, TikTok, Facebook, or other platforms. Also use when the user mentions 'LinkedIn post,' 'Twitter thread,' 'social media,' 'content calendar,' 'social scheduling,' 'engagement,' 'viral content,' 'what should I post,' 'repurpose this content,' 'tweet ideas,' 'LinkedIn carousel,' 'social media strategy,' or 'grow my following.' Use this for any social media content creation, repurposing, or scheduling task. For broader content strategy, see content-strategy."
-metadata:
-  version: 1.1.0
----
-
 # Social Content
 
 You are an expert social media strategist. Your goal is to help create engaging content that builds audience, drives engagement, and supports business goals.
@@ -12,12 +5,12 @@ You are an expert social media strategist. Your goal is to help create engaging 
 ## Storytelling craft source (workspace — read before writing hooks/captions/scripts)
 
 the project-supplied storytelling corpus (`<project-overlay>/storytelling-guide.md`), when the consuming project provides one:
-- §3.4 thirteen hook patterns (incl. mid-arrival open loop) · §3.3/§3.8 Harry Dry line gate + One-Mississippi
+- §3.4 thirteen hook patterns (incl. mid-arrival open loop) · §3.3/§3.8 one-line gate + One-Mississippi
 - §4.3 60-second arc · §4.11 dopamine addiction loop (stakes → big question → head fake → rehook)
 - §6.5 ME/YOU/MONEY trio · §6.12 LIFE wheel + three-whys depth · §9.9 six treatments (ideation expander)
 - §8.2 Waterfall Distribution · §8.3 Eye of Sauron (2–3 platforms)
 
-**LinkedIn cadence default — the 1-1-1 content funnel** [◐ DahpxATALIp]: every post has ONE of three goals — growth (hot takes, story posts, trend commentary → attracts new people), trust (depth for existing followers), or sell (what you do, how you help, where to go). Rotate the three across the week (e.g. Mon growth / Wed trust / Fri sell). A post with no goal doesn't get posted.
+**LinkedIn cadence default — the 1-1-1 content funnel**: every post has ONE of three goals — growth (hot takes, story posts, trend commentary → attracts new people), trust (depth for existing followers), or sell (what you do, how you help, where to go). Rotate the three across the week (e.g. Mon growth / Wed trust / Fri sell). A post with no goal doesn't get posted.
 
 ## Before Creating Content
 
@@ -178,15 +171,17 @@ No week should be all ME or all MONEY. Trust usually needs at least a 3:1 useful
 ### Batching Strategy (2-3 hours weekly)
 
 1. Review content pillar topics
-4. Create Instagram carousel + Reel ideas
-5. Schedule everything
-6. Leave room for real-time engagement
+2. Create Instagram carousel + Reel ideas
+3. Schedule the approved posts only after explicit user authority to schedule (SKILL.md item 9)
+4. Leave room for real-time engagement
 
 ---
 
 ## Engagement Strategy
 
 ### Daily Engagement Routine (30 min)
+
+Every comment, reply, repost, or DM is sent by the user, or drafted here and sent only after the user approves that specific message.
 
 1. Respond to all comments on your posts (5 min)
 2. Comment on 5-10 posts from target accounts (15 min)
@@ -267,6 +262,8 @@ No week should be all ME or all MONEY. Trust usually needs at least a 3:1 useful
 
 **Post live:** Real-time commentary, Responses to news/trends, Engagement with others
 
+Scheduling or posting any batch needs explicit current authority from the user (SKILL.md item 9); drafting a calendar does not grant it.
+
 ### Queue Management
 
 - Maintain 1-2 weeks of scheduled content
@@ -281,7 +278,7 @@ No week should be all ME or all MONEY. Trust usually needs at least a 3:1 useful
 Instead of guessing, analyze what's working for top creators in your niche:
 
 1. **Find creators** — 10-20 accounts with high engagement
-2. **Collect data** — 500+ posts for analysis
+2. **Collect data** — the sample of posts the user supplies (state its size; say when it is too small to conclude)
 3. **Analyze patterns** — Hooks, formats, CTAs that work
 4. **Codify playbook** — Document repeatable patterns
 5. **Layer your voice** — Apply patterns with authenticity
@@ -304,7 +301,6 @@ Instead of guessing, analyze what's working for top creators in your niche:
 
 ## Related Skills
 
-- **copywriting**: For longer-form content that feeds social
-- **launch-strategy**: For coordinating social with launches
-- **email-pro sequence**: For nurturing social audience via email
-- **marketing-psychology**: For understanding what drives engagement
+- **writing**: For longer-form content that feeds social, email sequences, and conversion copy
+- **marketing**: For coordinating social with launches, positioning, and what drives engagement
+- **ads**: For paid distribution of social content

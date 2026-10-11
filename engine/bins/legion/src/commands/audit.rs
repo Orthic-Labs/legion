@@ -90,36 +90,6 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // mirroring Node's crashed facts collection without a CLI-level error.
     let scope = audit_scope(&root, &args);
     let direct = args.provider_plan.is_some() || !args.provider_results.is_empty();
-    // Digest of the run's epoch key when that key (not a host-injected one)
-    // also signs the plan; `legion verify` reloads it from `<out>/epoch.key`.
-    let mut run_epoch_digest: Option<String> = None;
-    let signing_key = if args.plan_only {
-        Some(super::audit_signing_key()?)
-    } else {
-        match std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|value| !value.is_empty()) {
-            Some(value) => Some(value.to_string_lossy().as_bytes().to_vec()),
-            // A run written to `--out` is signed with the run's epoch key
-            // (persisted 0600 as `epoch.key`), so lens packets can be ingested
-            // and the run verified later without any extra environment.
-            None => match args.out.as_ref() {
-                Some(out) => {
-                    let ingest =
-                        legion_audit::native_providers::reasoning::ingest::create_epoch(out)
-                            .and_then(|_| {
-                                legion_audit::native_providers::reasoning::ingest::load_epoch(out)
-                            })
-                            .map_err(|error| {
-                                CommandError::incomplete(format!(
-                                    "could not create the run epoch key: {error}"
-                                ))
-                            })?;
-                    run_epoch_digest = Some(ingest.1);
-                    Some(ingest.0)
-                }
-                None => None,
-            },
-        }
-    };
     let (application, context_notices) = if direct {
         let (application, notices) = direct_application(&args, &root)?;
         (Arc::new(application), notices)
@@ -156,6 +126,38 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "provider selection produced an empty plan",
         ));
     }
+    // Key creation removes the run's prior epoch key and lens receipts, so it
+    // runs only after every argument and provider-ID check above has passed.
+    // Digest of the run's epoch key when that key (not a host-injected one)
+    // also signs the plan; `legion verify` reloads it from `<out>/epoch.key`.
+    let mut run_epoch_digest: Option<String> = None;
+    let signing_key = if args.plan_only {
+        Some(super::audit_signing_key()?)
+    } else {
+        match std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|value| !value.is_empty()) {
+            Some(value) => Some(value.to_string_lossy().as_bytes().to_vec()),
+            // A run written to `--out` is signed with the run's epoch key
+            // (persisted 0600 as `epoch.key`), so lens packets can be ingested
+            // and the run verified later without any extra environment.
+            None => match args.out.as_ref() {
+                Some(out) => {
+                    let ingest =
+                        legion_audit::native_providers::reasoning::ingest::create_epoch(out)
+                            .and_then(|_| {
+                                legion_audit::native_providers::reasoning::ingest::load_epoch(out)
+                            })
+                            .map_err(|error| {
+                                CommandError::incomplete(format!(
+                                    "could not create the run epoch key: {error}"
+                                ))
+                            })?;
+                    run_epoch_digest = Some(ingest.1);
+                    Some(ingest.0)
+                }
+                None => None,
+            },
+        }
+    };
     let review_context = review_context(&root, &scope);
     for provider in &mut selected_specs {
         if let Some(reasoning) = provider.reasoning.as_object_mut() {
@@ -669,26 +671,18 @@ fn lens_work_items(
             candidates.as_deref(),
         )
         .map_err(|error| error.to_string())?;
-        let mut items = Vec::new();
-        for item in work {
-            let file = format!("{}.json", item.provider_id);
-            let packet_digest = legion_contracts::canonical_digest(&item.request.packet)
-                .map_err(|error| error.to_string())?;
-            let packet = out.map(|out| out.join("lens-packets").join(&file));
-            if let Some(out) = out {
-                let bytes = serde_json::to_vec_pretty(&item).map_err(|error| error.to_string())?;
-                write_artifact(&out.join("lens-packets"), &file, &bytes)
-                    .map_err(|error| error.message)?;
+        // A provider whose denominator does not fit one packet is split into
+        // parts; the writer names each part file and the provider index.
+        let items = match out {
+            Some(out) => legion_audit::native_providers::reasoning::ingest::write_lens_packets(
+                &out.join("lens-packets"),
+                &work,
+            ),
+            None => {
+                legion_audit::native_providers::reasoning::ingest::lens_packet_items(&work, None)
             }
-            items.push(json!({
-                "provider": item.provider_id,
-                "lensIds": item.lens_ids,
-                "status": "pending-host",
-                "packet": packet,
-                "packetDigest": packet_digest,
-                "planDigest": item.request.plan_digest,
-            }));
         }
+        .map_err(|error| error.to_string())?;
         Ok(items)
     })();
     match built {
@@ -1354,12 +1348,35 @@ fn read_provider_plan(
     let value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(path).map_err(super::io_error)?)
             .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))?;
-    let providers = value
-        .as_array()
-        .or_else(|| value.get("providers").and_then(serde_json::Value::as_array))
-        .ok_or_else(|| {
-            CommandError::usage("provider plan must be an array or contain providers")
-        })?;
+    parse_provider_plan_value(&value)
+}
+
+/// Accepts the shapes a provider plan can take: a bare array of provider
+/// objects, a `providerSpecs` array (what `--plan-only` writes alongside its
+/// provider ids), or a `providers` array of provider objects. A `providers`
+/// array of ids alone carries no specifications and is rejected explicitly.
+fn parse_provider_plan_value(
+    value: &serde_json::Value,
+) -> Result<Vec<legion_contracts::ProviderSpec>, CommandError> {
+    let providers = if let Some(array) = value.as_array() {
+        array
+    } else if let Some(array) = value
+        .get("providerSpecs")
+        .and_then(serde_json::Value::as_array)
+    {
+        array
+    } else if let Some(array) = value.get("providers").and_then(serde_json::Value::as_array) {
+        if array.iter().any(|item| !item.is_object()) {
+            return Err(CommandError::usage(
+                "provider plan carries provider ids only; it has no provider specifications. Use the plan written with providerSpecs (for example the plan.json from --plan-only), or a plan whose providers are objects",
+            ));
+        }
+        array
+    } else {
+        return Err(CommandError::usage(
+            "provider plan must be an array or contain providerSpecs or providers",
+        ));
+    };
     providers
         .iter()
         .cloned()
@@ -1388,6 +1405,47 @@ fn write_artifact(root: &std::path::Path, name: &str, bytes: &[u8]) -> Result<()
     let temporary = root.join(format!(".{name}.tmp-{}", std::process::id()));
     std::fs::write(&temporary, bytes).map_err(super::io_error)?;
     std::fs::rename(&temporary, destination).map_err(super::io_error)
+}
+
+#[cfg(test)]
+mod provider_plan_reader_tests {
+    use super::*;
+
+    #[test]
+    fn provider_plan_prefers_provider_specs_over_provider_ids() {
+        // `--plan-only` writes provider ids under `providers` and the full
+        // specifications under `providerSpecs`; the reader must use the latter.
+        let plan = json!({
+            "providers": ["reasoning.security", "reasoning.data-safety"],
+            "providerSpecs": []
+        });
+        let specs = parse_provider_plan_value(&plan).expect("providerSpecs is readable");
+        assert!(specs.is_empty());
+    }
+
+    #[test]
+    fn provider_plan_with_ids_only_is_a_clear_usage_error() {
+        let plan = json!({"providers": ["reasoning.security"]});
+        match parse_provider_plan_value(&plan) {
+            Ok(_) => panic!("ids-only plan must be rejected"),
+            Err(error) => {
+                assert_eq!(error.code, 4);
+                assert!(
+                    error.message.contains("provider ids only"),
+                    "{}",
+                    error.message
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn provider_plan_rejects_documents_without_any_provider_list() {
+        match parse_provider_plan_value(&json!({"kind": "audit-provider-plan"})) {
+            Ok(_) => panic!("plan without providers must be rejected"),
+            Err(error) => assert_eq!(error.code, 4),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -46,7 +46,7 @@ pub fn compute_next_action(snapshot: &Value) -> String {
             manual_apply_resume_hint(&to_manual_apply_event(pending))
         } else {
             format!(
-                "Run live-poll.mjs, handle {ev_type} {ev_id}, then acknowledge with live-poll.mjs --reply {ev_id} done."
+                "Run legion script designer/live-poll, handle {ev_type} {ev_id}, then acknowledge with legion script designer/live-poll --reply {ev_id} done."
             )
         };
     }
@@ -57,11 +57,11 @@ pub fn compute_next_action(snapshot: &Value) -> String {
         "carbonize_required" => {
             let source_file = snapshot.get("sourceFile").and_then(Value::as_str);
             let suffix = source_file.map(|f| format!(" in {f}")).unwrap_or_default();
-            format!("Finish carbonize cleanup{suffix}, then run live-complete.mjs --id {id}.")
+            format!("Finish carbonize cleanup{suffix}, then run legion script designer/live-complete --id {id}.")
         }
         "accept_requested" => {
             format!(
-                "Run live-complete.mjs --id {id} after verifying the accepted variant is written."
+                "Run legion script designer/live-complete --id {id} after verifying the accepted variant is written."
             )
         }
         _ => format!("Inspect {id}; no pending agent event is currently queued."),
@@ -110,13 +110,13 @@ pub fn run(cwd: &Path, argv: &[String]) -> (i32, String) {
     if args.help {
         return (
             0,
-            "Usage: node live-resume.mjs [--id SESSION_ID]\n\nPrint the active durable session checkpoint and the next safe agent action.".to_string(),
+            "Usage: legion script designer/live-resume [--id SESSION_ID]\n\nPrint the active durable session checkpoint and the next safe agent action.".to_string(),
         );
     }
     match resume_output(cwd, args.id.as_deref()) {
         Ok(output) => (0, serde_json::to_string_pretty(&output).unwrap()),
         Err(err) => (
-            0,
+            1,
             serde_json::to_string_pretty(&json!({
                 "active": false,
                 "nextAction": format!("Error: {err}"),
@@ -208,7 +208,7 @@ mod tests {
         let out = resume_output(&dir, Some("sess2")).unwrap();
         assert_eq!(
             out["nextAction"],
-            json!("Run live-poll.mjs, handle generate sess2, then acknowledge with live-poll.mjs --reply sess2 done.")
+            json!("Run legion script designer/live-poll, handle generate sess2, then acknowledge with legion script designer/live-poll --reply sess2 done.")
         );
     }
 
@@ -222,7 +222,7 @@ mod tests {
         });
         assert_eq!(
             compute_next_action(&snapshot),
-            "Finish carbonize cleanup in src/Foo.svelte, then run live-complete.mjs --id sess3."
+            "Finish carbonize cleanup in src/Foo.svelte, then run legion script designer/live-complete --id sess3."
         );
     }
 
@@ -232,7 +232,7 @@ mod tests {
             json!({ "id": "sess4", "phase": "carbonize_required", "pendingEvent": null });
         assert_eq!(
             compute_next_action(&snapshot),
-            "Finish carbonize cleanup, then run live-complete.mjs --id sess4."
+            "Finish carbonize cleanup, then run legion script designer/live-complete --id sess4."
         );
     }
 
@@ -241,7 +241,7 @@ mod tests {
         let snapshot = json!({ "id": "sess5", "phase": "accept_requested", "pendingEvent": null });
         assert_eq!(
             compute_next_action(&snapshot),
-            "Run live-complete.mjs --id sess5 after verifying the accepted variant is written."
+            "Run legion script designer/live-complete --id sess5 after verifying the accepted variant is written."
         );
     }
 
@@ -259,7 +259,7 @@ mod tests {
         let dir = temp_dir();
         let (code, text) = run(&dir, &["--help".to_string()]);
         assert_eq!(code, 0);
-        assert!(text.starts_with("Usage: node live-resume.mjs"));
+        assert!(text.starts_with("Usage: legion script designer/live-resume"));
     }
 
     #[test]

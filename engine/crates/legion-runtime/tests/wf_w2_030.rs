@@ -60,14 +60,18 @@ fn google_auth_full_credential_lifecycle() {
     assert!(tier2.missing.is_none());
 
     let gsc_check2 = check_credentials("gsc", &cfg, &authenticated);
-    assert!(gsc_check2.available);
+    assert!(!gsc_check2.available);
+    assert!(gsc_check2
+        .note
+        .as_deref()
+        .is_some_and(|n| n.starts_with("present-unverified")));
     assert_eq!(
         gsc_check2.client_email.as_deref(),
         Some("svc@project.iam.gserviceaccount.com")
     );
 
     let ga4_check = check_credentials("ga4", &cfg, &authenticated);
-    assert!(ga4_check.available);
+    assert!(!ga4_check.available);
 }
 
 #[test]

@@ -1,11 +1,11 @@
 # Ads: Multi-Platform Paid Advertising Audit & Optimization
 
 PRIMARY_DELIVERABLE: Bounded paid-media findings or strategy for frozen account, object, or domain scope.
-SPECIALIST_REFS_MAX: 0
+SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 6
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: writing, designer, audit-visual, qa
 TERMINAL: Requested paid-media deliverable meets frozen D3 source budget.
 
 Comprehensive ad account analysis across all major platforms (Google, Meta,
@@ -31,7 +31,7 @@ Failing a front-door gate blocks launch recommendations.
 
 | User intent | Reference to Read |
 |---|---|
-| Full multi-platform audit | spawn parallel subagents per platform, each reads its own ref |
+| Full multi-platform audit | fan out to the six `audit-*` briefs (see Orchestration Logic) |
 | Google Ads (Search, PMax, YouTube, Demand Gen) | `references/google.md` + `references/google-audit.md` |
 | Meta Ads (Facebook, Instagram, Advantage+) | `references/meta.md` + `references/meta-audit.md` |
 | YouTube Ads specifically | `references/youtube.md` |
@@ -104,7 +104,6 @@ Visible output should be the synthesized recommendation, prioritized risks, and 
 | `/ads creative` | Cross-platform creative quality audit |
 | `/ads landing` | Landing page quality assessment for ad campaigns |
 | `/ads budget` | Budget allocation and bidding strategy review |
-| `/ads plan <business-type>` | Strategic ad plan with industry templates |
 | `/ads apple` | Apple Search Ads (ASA) deep analysis |
 | `/ads competitor` | Competitor ad intelligence analysis |
 | `/ads dna <url>` | Extract brand DNA from website, outputs `brand-profile.json` |
@@ -155,9 +154,9 @@ Sequential pipeline (each step is independently runnable):
 3. `/ads generate` → reads brief + profile → `ad-assets/` directory
 4. `/ads photoshoot` → standalone or reads profile for style injection
 
-Requires `GOOGLE_API_KEY` (Gemini default) or `ADS_IMAGE_PROVIDER` + matching key.
-If API key is missing, `/ads generate` and `/ads photoshoot` display setup
-instructions and exit; they never fail silently.
+Image generation uses only the `banana-image` host capability. If it is
+unavailable, `/ads generate` and `/ads photoshoot` report that and stop; no other
+provider is used, and they never fail silently.
 
 ## Industry Detection
 
@@ -205,7 +204,7 @@ When sub-skills or agents reference `ads/references/*.md`, resolve to
 - `references/tiktok-audit.md`: 25-check TikTok Ads audit checklist
 - `references/microsoft-audit.md`: 20-check Microsoft Ads audit checklist
 - `references/brand-dna-template.md`: Brand DNA schema and extraction guide
-- `references/image-providers.md`: Provider config (Gemini/OpenAI/Stability/Replicate)
+- `references/image-providers.md`: banana-image provider config, pricing, limits
 - `references/google-creative-specs.md`: PMax/RSA/YouTube generation-ready specs
 - `references/meta-creative-specs.md`: Feed/Reels/Stories specs + safe zones
 - `references/linkedin-creative-specs.md`: Single image/video B2B constraints
@@ -246,25 +245,24 @@ Aggregate = Sum(Platform_Score x Platform_Budget_Share)
 
 ## Sub-Skills
 
-This skill orchestrates 17 specialized sub-skills:
+This skill routes to 16 targets. They are sections of this package, not separate installed skills; each is served by the reference named in Routing above:
 
-1. **ads-audit**: Full multi-platform audit with parallel delegation
-2. **ads-google**: Google Ads deep analysis (Search, PMax, YouTube)
-3. **ads-meta**: Meta Ads deep analysis (FB, IG, Advantage+)
-4. **ads-youtube**: YouTube Ads specific analysis
-5. **ads-linkedin**: LinkedIn Ads deep analysis
-6. **ads-tiktok**: TikTok Ads deep analysis
-7. **ads-microsoft**: Microsoft/Bing Ads deep analysis
-8. **ads-creative**: Cross-platform creative quality audit
-9. **ads-landing**: Landing page quality for ad campaigns
-10. **ads-budget**: Budget allocation and bidding strategy
-11. **plan**: Strategic ad planning, run from `references/manual.md` with the platform references (no separate plan reference ships)
-12. **ads-competitor**: Competitor ad intelligence
-13. **ads-apple**: Apple Search Ads (ASA) deep analysis
-14. **ads-dna**: Brand DNA extraction from website URL
-15. **ads-create**: Campaign concepts, copy decks, creative briefs
-16. **ads-generate**: AI image generation with pluggable providers
-17. **ads-photoshoot**: Product photography in 5 professional styles
+1. Full multi-platform audit: `/ads audit` (six `audit-*` briefs)
+2. Google Ads: `references/google.md` + `references/google-audit.md`
+3. Meta Ads: `references/meta.md` + `references/meta-audit.md`
+4. YouTube Ads: `references/youtube.md`
+5. LinkedIn Ads: `references/linkedin.md` + `references/linkedin-audit.md`
+6. TikTok Ads: `references/tiktok.md` + `references/tiktok-audit.md`
+7. Microsoft/Bing Ads: `references/microsoft.md` + `references/microsoft-audit.md`
+8. Cross-platform creative: `references/create.md`
+9. Landing page: `references/landing.md`
+10. Budget and bidding: `references/audit-ad-budget.md`
+11. Competitor intelligence: `references/competitor.md`
+12. Apple Search Ads: `references/apple.md`
+13. Brand DNA: `references/dna.md`
+14. Campaign concepts and copy briefs: `references/create.md`
+15. AI image generation: `references/generate.md`
+16. Product photography: `references/photoshoot.md`
 
 ## Subagents
 

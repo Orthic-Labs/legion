@@ -86,13 +86,13 @@
   ],
   "should_not_trigger": [
     {
-      "id": "product-marketing-context-not-ss-commercial",
-      "prompt": "Use this for Harbor Coffee (a non-commercial passion-project venture) growth, SEO, ads, or monetization.",
+      "id": "product-marketing-context-not-noncommercial-commercial",
+      "prompt": "Use this for a non-commercial passion-project venture's growth, SEO, ads, or monetization.",
       "expected_skill": null,
       "forbidden_skills": [
         "product-context"
       ],
-      "expected_behavior": "Do not apply commercial/growth tooling to Harbor Coffee.",
+      "expected_behavior": "Do not apply commercial/growth tooling to that venture.",
       "assertions": [
         {
           "type": "forbidden_skill",
@@ -105,11 +105,11 @@
     {
       "id": "product-marketing-context-not-direct-copy",
       "prompt": "Write the homepage copy for my SaaS product.",
-      "expected_skill": "copywriting",
+      "expected_skill": "writing",
       "forbidden_skills": [
         "product-context"
       ],
-      "expected_behavior": "Writing persuasive copy routes to /writing copy (or /website for full pages). /marketing context captures foundational positioning data that other skills reference — it does not write the copy itself.",
+      "expected_behavior": "Writing persuasive copy routes to /writing copy./marketing context captures foundational positioning data that other skills reference — it does not write the copy itself.",
       "assertions": [
         {
           "type": "forbidden_skill",

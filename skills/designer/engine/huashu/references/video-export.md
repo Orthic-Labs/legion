@@ -27,7 +27,7 @@
 
 ## 工具链
 
-以下工具均通过 `legion script designer/<name>` 运行（`legion script --list` 可查）；需要宿主有 Chromium 与 ffmpeg：
+以下工具均通过 `legion script designer/<name>` 运行（`legion script --list` 可查）；需要宿主提供 Chromium 与 ffmpeg（缺一则如实报告该步未执行）：
 
 ### 1. `legion script designer/render-video` — HTML → MP4
 
@@ -45,41 +45,7 @@ legion script designer/render-video <html文件>
 
 输出：与 HTML 同目录，同名 `.mp4`。
 
-### 2. `legion script designer/add-music` — MP4 + BGM → MP4
-
-给无声 MP4 混入背景音乐。**内置 BGM 音频库（`assets/bgm-<mood>.mp3`）未随本包发布**，所以必须用 `--music=<path>` 指定音频；下表的 mood 仅在宿主自行提供了 `assets/bgm-<mood>.mp3` 时可用。自动匹配时长、加淡入淡出。
-
-```bash
-legion script designer/add-music in.mp4 --music=<audio-path>
-legion script designer/add-music in.mp4 --mood=tech   # 仅当 bgm-tech.mp3 已由宿主提供
-```
-
-**BGM mood 约定**（文件名 `assets/bgm-<mood>.mp3`，本包不含这些文件）：
-
-| `--mood=` | 风格 | 适配场景 |
-|-----------|------|---------|
-| `tech`（默认） | Apple Silicon / 苹果发布会，极简合成器+钢琴 | 产品发布、AI工具、Skill 宣传 |
-| `ad` | upbeat 现代电子，有 build + drop | 社交媒体广告、产品预告、促销片 |
-| `educational` | 温暖明亮、轻吉他/电钢琴，inviting | 科普、教程介绍、课程预告 |
-| `educational-alt` | 同类备选，换一首试试 | 同上 |
-| `tutorial` | lo-fi 环境音，几乎无存在感 | 软件演示、编程教程、长演示 |
-| `tutorial-alt` | 同类备选 | 同上 |
-
-**行为**：
-- 音乐按视频时长裁剪
-- 0.3s 淡入 + 1s 淡出（避免硬切）
-- 视频流 `-c:v copy` 不重编码，音频 AAC 192k
-- `--music=<path>` 优先级高于 `--mood`，可以直接指定任意外部音频
-- 传错 mood 名会列出所有可用选项，不会静默失败
-
-**典型流水线**（动画导出三件套 + 配乐）：
-```bash
-legion script designer/render-video animation.html                        # 录屏
-legion script designer/convert-formats animation.mp4                      # 60fps MP4 + GIF
-legion script designer/add-music animation.mp4 --music=<audio-path>       # 配乐
-```
-
-### 3. `legion script designer/convert-formats` — MP4 → 60fps MP4 + GIF
+### 2. `legion script designer/convert-formats` — MP4 → 60fps MP4 + GIF
 
 从已有 MP4 生成 60fps 版本和 GIF。
 
@@ -105,7 +71,7 @@ legion script designer/convert-formats in.mp4
 - 1280 —— 更清晰但文件更大
 - 600 —— Twitter/X 优先加载
 
-### 4. `legion script designer/render-video-seek` — 真 60fps / 确定性渲染（推荐高质量交付）
+### 3. `legion script designer/render-video-seek` — 真 60fps / 确定性渲染（推荐高质量交付）
 
 `legion script designer/render-video` 的 recordVideo 路径有三个固有限制：帧率被 Chromium compositor 锁死 25fps、开头有加载黑帧需 trim、60fps 只能靠事后 minterpolate 插帧（有 ghosting + macOS QuickTime 兼容 bug，见 `animation-pitfalls.md §14`）。需要**真 60fps、确定性输出、或交付 B站/作品集**时，改用 seek 渲染。
 
@@ -122,11 +88,11 @@ legion script designer/render-video-seek <html文件> --fps=60
 - **无开头黑帧**：不录屏，根本没有加载期黑帧，不需要 `--trim` / `--fontwait`
 - **确定性**：seek 到时间戳截图，同输入同输出，不受机器负载/丢帧影响
 
-**适用边界（重要）**：只支持走 Stage 时钟的动画——`assets/animations.jsx` 的 `<Stage>` 或 `narration_stage.jsx` 的 `<NarrationStage>`，它们会响应 `window.__seekRender` 冻结自驱时钟并暴露 `window.__seek(t)`。纯 CSS `@keyframes` / Lottie / 手写非 Stage 动画不吃 `__seek`，这类继续用 `legion script designer/render-video`（脚本检测不到 `__seek` 会报错并提示）。
+**适用边界（重要）**：只支持走 Stage 时钟的动画——`assets/animations.jsx` 的 `<Stage>`，它会响应 `window.__seekRender` 冻结自驱时钟并暴露 `window.__seek(t)`。纯 CSS `@keyframes` / Lottie / 手写非 Stage 动画不吃 `__seek`，这类继续用 `legion script designer/render-video`（脚本检测不到 `__seek` 会报错并提示）。
 
 **代价**：逐帧截图，长视频总耗时可能比 recordVideo 实时录更久（靠 `--concurrency` 多 worker 缓解）；大量临时 PNG 占盘，渲染前建议关其他大内存 App。
 
-**二选一策略**：默认仍用 `legion script designer/render-video`（零风险、覆盖所有动画类型）；需要真 60fps / 确定性 / 高质量交付、且动画走 Stage 时钟时，用 `legion script designer/render-video-seek`。带解说的长动画用 `legion script designer/render-narration --seek` 一键走 seek 渲染 + 混音。
+**二选一策略**：默认仍用 `legion script designer/render-video`（零风险、覆盖所有动画类型）；需要真 60fps / 确定性 / 高质量交付、且动画走 Stage 时钟时，用 `legion script designer/render-video-seek`。
 
 ## 完整流程（标准推荐）
 
@@ -194,7 +160,7 @@ GIF 只能 256 色。一次 pass 的 GIF 会把全动画色彩压到 256 色通�
 - [ ] Duration 参数与 HTML 里的实际动画时长匹配
 - [ ] HTML 中 Stage 检测 `window.__recording` 强制 loop=false（手写 Stage 必查；用 `assets/animations.jsx` 自带）
 - [ ] 结尾 Sprite 的 `fadeOut={0}`（视频末帧不淡出）
-- [ ] 含「Created by Huashu-Design」水印（仅动画场景必加；第三方品牌作品加「非官方出品 · 」前缀。详见 SKILL.md §「Skill 推广水印」）
+- [ ] 含「Created by Huashu-Design」水印（仅动画场景必加；第三方品牌作品加「非官方出品 · 」前缀。详见 `engine/huashu/GUIDE.md` 的「Skill 推广水印」）
 
 ## 交付时附带的说明
 

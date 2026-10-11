@@ -50,7 +50,7 @@
       "mode": "discovery",
       "assertions": [
         "Recognizes this as pricing page CRO, not pricing strategy",
-        "References or defers to page-cro skill",
+        "References or defers to the cro page reference",
         "Explains that pricing-strategy is about pricing decisions",
         "Does not attempt full page CRO audit"
       ]
@@ -106,7 +106,7 @@
         "Applies decoy effect or visual emphasis",
         "Applies charm pricing or Rule of 100",
         "Provides specific pricing page recommendations",
-        "Cross-references page-cro or marketing-psychology"
+        "Cross-references the cro page reference or the ideas marketing reference"
       ]
     }
   ],

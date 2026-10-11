@@ -212,22 +212,22 @@ pub fn collect_surface(root: &Path, check_installed_binaries: bool) -> Result<Su
     let mut problems = Vec::new();
 
     let skills_dir = root.join("skills");
-    let mut skills: Vec<String> = fs::read_dir(&skills_dir)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir())
-        .filter_map(|e| e.file_name().into_string().ok())
+    let mut skills: Vec<String> = crate::shared::read_dir_entries(&skills_dir)?
+        .into_iter()
+        .map(|(name, _)| name)
+        .filter(|id| skills_dir.join(id).is_dir())
         .filter(|id| skills_dir.join(id).join("SKILL.md").is_file())
         .collect();
     skills.sort();
 
     let agents_dir = root.join("agents");
     let mut agents = Vec::new();
-    if agents_dir.is_dir() {
-        let mut files: Vec<String> = fs::read_dir(&agents_dir)
-            .map_err(|e| e.to_string())?
-            .filter_map(|e| e.ok())
-            .filter_map(|e| e.file_name().into_string().ok())
+    if !agents_dir.is_dir() {
+        problems.push("agents directory missing".to_string());
+    } else {
+        let mut files: Vec<String> = crate::shared::read_dir_entries(&agents_dir)?
+            .into_iter()
+            .map(|(name, _)| name)
             .filter(|f| f.ends_with(".md"))
             .collect();
         files.sort();

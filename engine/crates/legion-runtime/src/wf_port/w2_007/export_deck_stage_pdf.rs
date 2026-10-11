@@ -36,7 +36,7 @@ pub struct Args {
 /// The usage message `parseArgs` prints to stderr before `process.exit(1)`
 /// when `--html`/`--out` are missing.
 pub const USAGE: &str =
-    "用法: node export_deck_stage_pdf.mjs --html <deck.html> --out <file.pdf> [--width 1920] [--height 1080]";
+    "用法: legion script designer/export-deck-stage-pdf --html <deck.html> --out <file.pdf> [--width 1920] [--height 1080]";
 
 /// Error mirroring the `console.error(...); process.exit(1)` path — the
 /// caller decides how to surface `USAGE` and pick the process exit code

@@ -35,8 +35,8 @@ use super::{
         adjudicate_scanner_candidates, confirmed_findings, confirmed_paths,
         ConfirmedSecurityFinding, ScannerCandidate, ADJUDICATOR_PROVIDER_ID,
     },
-    verify_authenticated_receipt, verify_response, PendingLensWork, ReasoningHostResponse,
-    ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
+    verify_authenticated_receipt, verify_response, LensPartRef, PendingLensWork,
+    ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
     REASONING_RECEIPT_SCHEMA_VERSION,
 };
 use crate::{
@@ -53,6 +53,21 @@ pub const INGEST_HOST: &str = "legion-cli-ingest";
 pub const LENS_RESULT_KIND: &str = "legion-lens-result";
 const EPOCH_DOMAIN: &[u8] = b"legion-audit-epoch:v1";
 const NOT_COMPLETE_GAP: &str = "selected reasoning lenses did not complete";
+
+/// Lens-schema finding fields (`lens_schemas.rs`: the shared shape plus the
+/// per-lens extras `verificationMethod`, `ponytailTag`, `parentFindingId`)
+/// that the consolidated finding projection carries in `evidence`.
+/// `reviewAxis`/`sourceQuote`/`sourceLocation`/`disposition`/
+/// `changeAttribution` are projected by `report.rs` from `lensFindings`.
+const LENS_TRIAGE_FIELDS: &[&str] = &[
+    "lens",
+    "confidence",
+    "verifyStatus",
+    "verificationMethod",
+    "ponytailTag",
+    "parentFindingId",
+    "action",
+];
 
 pub(super) fn invalid(message: impl Into<String>) -> AuditError {
     AuditError::Invalid(message.into())
@@ -302,6 +317,19 @@ pub struct IngestedLens {
     pub coverage_gaps: Vec<String>,
     pub receipt_id: String,
     pub receipt_path: String,
+    /// For a part of a multi-part provider: the part just ingested. The
+    /// `examined`/`complete`/`coverage_gaps` above are then the PROVIDER-level
+    /// aggregate over every ingested part, so the outstanding work is named
+    /// (`reasoning-parts-pending:<provider>:<ingested>/<total>`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parts_total: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parts_ingested: Option<u32>,
+    /// Part numbers still awaiting ingest.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parts_pending: Vec<u32>,
 }
 
 /// Coverage derived from what the lens packet carried, never from the
@@ -335,6 +363,7 @@ fn packet_coverage(
     packet: &Value,
     denominator_paths: &[String],
     candidates_supplied: bool,
+    part: Option<LensPartRef>,
 ) -> PacketCoverage {
     let expected = denominator_paths.len() as u64;
     let coverage = packet
@@ -358,6 +387,53 @@ fn packet_coverage(
                 .and_then(|value| value.get("omittedPaths"))
                 .cloned()
                 .unwrap_or(Value::Array(Vec::new()));
+            if let Some(part) = part {
+                // A part proves only what it carries. Provider-level
+                // completeness is the union over parts (`merge_parts`).
+                let denominator: BTreeSet<&str> =
+                    denominator_paths.iter().map(String::as_str).collect();
+                let examined_paths = denominator_paths
+                    .iter()
+                    .filter(|path| included.contains(*path))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let chunked: Vec<Value> = coverage
+                    .and_then(|value| value.get("chunkedPaths"))
+                    .and_then(Value::as_array)
+                    .map(|items| {
+                        items
+                            .iter()
+                            .filter(|item| {
+                                item.get("path")
+                                    .and_then(Value::as_str)
+                                    .is_some_and(|path| denominator.contains(path))
+                            })
+                            .cloned()
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let part_meta = packet.get("part").cloned().unwrap_or(Value::Null);
+                return PacketCoverage {
+                    examined,
+                    gaps: vec![format!(
+                        "reasoning-part-scope:{provider_id}:part {}/{}",
+                        part.number, part.total
+                    )],
+                    detail: json!({
+                        "basis": basis,
+                        "examined": examined,
+                        "expected": expected,
+                        "part": {"number": part.number, "total": part.total},
+                        "requiredParts": part_meta.get("requiredParts"),
+                        "overCeiling": part_meta.get("overCeiling"),
+                        "partPaths": part_meta.get("paths"),
+                        "examinedPaths": examined_paths,
+                        "chunkedPaths": chunked,
+                        "omittedPaths": omitted,
+                        "truncatedPaths": truncated,
+                    }),
+                };
+            }
             let gaps = if examined < expected {
                 vec![format!(
                     "reasoning-excerpt-coverage:{provider_id}:{examined}/{expected} paths examined ({} omitted, {} truncated)",
@@ -440,8 +516,102 @@ fn array_field(value: &Value, field: &str, who: &str) -> Result<Vec<Value>, Audi
     }
 }
 
+fn parse_packet(path: &Path) -> Result<PendingLensWork, AuditError> {
+    serde_json::from_value(read_json(path)?)
+        .map_err(|error| invalid(format!("lens packet is invalid: {error}")))
+}
+
+/// `<provider>.part-NNNN.json` files under `dir`, sorted by part number.
+fn part_packet_files(dir: &Path, provider_id: &str) -> Vec<(u32, PathBuf)> {
+    let prefix = format!("{provider_id}.part-");
+    let mut files = fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let number = name
+                .strip_prefix(prefix.as_str())?
+                .strip_suffix(".json")?
+                .parse::<u32>()
+                .ok()?;
+            Some((number, entry.path()))
+        })
+        .collect::<Vec<_>>();
+    files.sort();
+    files
+}
+
+/// Finds the lens packet a result was produced from. A single un-numbered
+/// packet is `<provider>.json`; a partitioned provider has
+/// `<provider>.part-NNNN.json` files plus `<provider>.index.json`, and the
+/// result's `packetDigest` selects the part (the index is only a hint; the
+/// part file's own digest decides).
+fn locate_packet(
+    run_dir: &Path,
+    provider_id: &str,
+    result: &Value,
+) -> Result<PendingLensWork, AuditError> {
+    let dir = run_dir.join(LENS_PACKET_DIR);
+    let single = dir.join(format!("{provider_id}.json"));
+    let parts = part_packet_files(&dir, provider_id);
+    if single.is_file() {
+        if !parts.is_empty() {
+            return Err(invalid(format!(
+                "lens packets for {provider_id} are ambiguous: both {provider_id}.json and numbered parts exist; rerun `legion audit --out`"
+            )));
+        }
+        let work = parse_packet(&single)?;
+        if let Some(part) = work.part() {
+            return Err(invalid(format!(
+                "{provider_id}.json is part {}/{} of a partitioned lens; part packets must be filed as {provider_id}.part-NNNN.json (rerun `legion audit --out` with a current CLI)",
+                part.number, part.total
+            )));
+        }
+        return Ok(work);
+    }
+    if parts.is_empty() {
+        return parse_packet(&single);
+    }
+    let wanted = result.get("packetDigest").and_then(Value::as_str);
+    let hinted = read_json(&dir.join(format!("{provider_id}.index.json")))
+        .ok()
+        .and_then(|index| {
+            index
+                .get("parts")?
+                .as_array()?
+                .iter()
+                .find(|entry| entry.get("packetDigest").and_then(Value::as_str) == wanted)
+                .and_then(|entry| entry.get("part")?.as_u64())
+        })
+        .and_then(|number| u32::try_from(number).ok());
+    let mut ordered = parts.clone();
+    if let Some(hint) = hinted {
+        ordered.sort_by_key(|(number, _)| *number != hint);
+    }
+    for (number, path) in ordered {
+        let work = parse_packet(&path)?;
+        let digest =
+            canonical_digest(&work.request.packet).map_err(|error| invalid(error.to_string()))?;
+        if Some(digest.as_str()) == wanted {
+            return match work.part() {
+                Some(part) if part.number == number => Ok(work),
+                _ => Err(invalid(format!(
+                    "{} does not carry part number {number}",
+                    path.display()
+                ))),
+            };
+        }
+    }
+    Err(invalid(format!(
+        "lens result for {provider_id}: packetDigest does not match any of the {} lens packet parts",
+        parts.len()
+    )))
+}
+
 /// Validates a lens result against the frozen run and, when accepted, writes a
-/// MAC'd receipt to `<run>/lens-receipts/<provider>.json`.
+/// MAC'd receipt to `<run>/lens-receipts/<provider>.json` (or
+/// `<provider>.part-NNNN.json` for one part of a partitioned lens).
 ///
 /// Result shape (`kind: legion-lens-result`):
 /// `{schemaVersion:1, kind, provider, packetDigest, planDigest, complete:true,
@@ -512,11 +682,8 @@ pub fn ingest_lens_result(
     let required = slot.result.required;
 
     // --- the lens packet -----------------------------------------------------
-    let packet_path = run_dir
-        .join(LENS_PACKET_DIR)
-        .join(format!("{provider_id}.json"));
-    let work: PendingLensWork = serde_json::from_value(read_json(&packet_path)?)
-        .map_err(|error| invalid(format!("lens packet is invalid: {error}")))?;
+    let work = locate_packet(run_dir, provider_id, result)?;
+    let part = work.part();
     let request = &work.request;
     request.validate().map_err(|error| {
         invalid(format!(
@@ -625,6 +792,7 @@ pub fn ingest_lens_result(
     let mut titles = Map::new();
     let mut messages = Map::new();
     let mut locations = Map::new();
+    let mut finding_evidence = Map::new();
     for (index, finding) in findings.iter().enumerate() {
         let id = string_field(finding, "id", &format!("{who} finding {index}"))?;
         let label = format!("{who} finding {id}");
@@ -667,6 +835,19 @@ pub fn ingest_lens_result(
                 .unwrap_or("Lens reported a finding")),
         );
         locations.insert(id.to_owned(), Value::Array(evidence));
+        // Lens triage fields the lens schema defines, carried into the
+        // public finding's evidence (the full finding stays in
+        // `details.lensFindings`). Existing summary keys are unchanged.
+        let mut triage = Map::new();
+        for field in LENS_TRIAGE_FIELDS {
+            if let Some(value) = finding.get(*field) {
+                triage.insert((*field).to_owned(), value.clone());
+            }
+        }
+        finding_evidence.insert(id.to_owned(), Value::Object(triage));
+    }
+    if let Some(part) = part {
+        ensure_ids_unique_across_parts(run_dir, provider_id, part.number, &seen_ids)?;
     }
     for (index, entry) in withdrawn.iter().enumerate() {
         let id = string_field(entry, "id", &format!("{who} withdrawn {index}"))?;
@@ -726,6 +907,7 @@ pub fn ingest_lens_result(
         &request.packet,
         &request.denominator_paths,
         candidates_supplied,
+        part,
     );
     let complete = coverage.gaps.is_empty();
     let status = if complete {
@@ -744,6 +926,7 @@ pub fn ingest_lens_result(
     details.insert("findingTitles".into(), Value::Object(titles));
     details.insert("findingMessages".into(), Value::Object(messages));
     details.insert("findingLocations".into(), Value::Object(locations));
+    details.insert("findingEvidence".into(), Value::Object(finding_evidence));
     details.insert(
         "ingest".into(),
         json!({
@@ -835,18 +1018,25 @@ pub fn ingest_lens_result(
     let accepted = verify_response(request, &denominator, &response, &key)
         .map_err(|error| invalid(format!("{who} rejected: {error}")))?;
 
-    let stored = json!({
+    let mut stored = json!({
         "schemaVersion": 1,
         "kind": "legion-lens-receipt",
         "provider": provider_id,
         "result": accepted,
     });
+    let receipt_name = match part {
+        Some(part) => {
+            stored["part"] = json!({"number": part.number, "total": part.total});
+            format!("{provider_id}.part-{:04}.json", part.number)
+        }
+        None => format!("{provider_id}.json"),
+    };
     let path = write_atomic(
         &run_dir.join(LENS_RECEIPT_DIR),
-        &format!("{provider_id}.json"),
+        &receipt_name,
         &serde_json::to_vec_pretty(&stored).map_err(|error| invalid(error.to_string()))?,
     )?;
-    Ok(IngestedLens {
+    let mut ingested = IngestedLens {
         provider: provider_id.into(),
         lens_ids: work.lens_ids.clone(),
         findings: findings.len(),
@@ -858,7 +1048,80 @@ pub fn ingest_lens_result(
         coverage_gaps: coverage.gaps,
         receipt_id,
         receipt_path: path.to_string_lossy().into_owned(),
-    })
+        part: None,
+        parts_total: None,
+        parts_ingested: None,
+        parts_pending: Vec::new(),
+    };
+    if let Some(part) = part {
+        // Report the PROVIDER-level state after this part: the union over
+        // every ingested part, with the outstanding work named.
+        let loaded = load_receipts(run_dir, &plan, &execution, Some(provider_id))?;
+        let merged = loaded
+            .iter()
+            .find(|entry| entry.provider == provider_id)
+            .ok_or_else(|| invalid(format!("{who}: the ingested part receipt did not load")))?;
+        ingested.examined = merged
+            .result
+            .coverage
+            .as_ref()
+            .map_or(0, |coverage| coverage.examined);
+        ingested.complete = merged.result.complete;
+        ingested.coverage_gaps = merged.result.coverage_gaps.clone();
+        ingested.part = Some(part.number);
+        if let Some(progress) = &merged.parts {
+            ingested.parts_total = Some(progress.total);
+            ingested.parts_ingested = Some(progress.ingested.len() as u32);
+            ingested.parts_pending = progress.pending.clone();
+        }
+    }
+    Ok(ingested)
+}
+
+/// Rejects a part whose finding ids collide with another ingested part's:
+/// the consolidated report keys findings by id.
+fn ensure_ids_unique_across_parts(
+    run_dir: &Path,
+    provider_id: &str,
+    part_number: u32,
+    ids: &BTreeSet<String>,
+) -> Result<(), AuditError> {
+    let dir = run_dir.join(LENS_RECEIPT_DIR);
+    let prefix = format!("{provider_id}.part-");
+    for entry in fs::read_dir(&dir)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+    {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Some(other) = name
+            .strip_prefix(prefix.as_str())
+            .and_then(|rest| rest.strip_suffix(".json"))
+            .and_then(|number| number.parse::<u32>().ok())
+        else {
+            continue;
+        };
+        if other == part_number {
+            continue;
+        }
+        let Ok(value) = read_json(&entry.path()) else {
+            continue;
+        };
+        let used = value
+            .pointer("/result/details/lensFindings")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|finding| finding.get("id").and_then(Value::as_str));
+        for id in used {
+            if ids.contains(id) {
+                return Err(invalid(format!(
+                    "finding id {id} is already used by part {other} of {provider_id}; ids must be unique across parts (prefix with p{part_number:04}-)"
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Reads `result_file` and ingests it. See `ingest_lens_result`.
@@ -882,11 +1145,15 @@ pub struct Recomputed {
     pub execution: ExecutionReport,
     /// Providers whose lens is backed by a verified ingested receipt.
     pub ingested: Vec<String>,
-    /// Reasoning providers still `pending-host`.
+    /// Reasoning providers still `pending-host`, including partitioned
+    /// providers with parts not yet ingested (see `lens_parts`).
     pub pending: Vec<String>,
     /// Surviving security verdicts from ingested adjudication receipts: the
     /// trigger for variant analysis.
     pub confirmed_security: Vec<ConfirmedSecurityFinding>,
+    /// Part progress of every partitioned provider with at least one
+    /// ingested part (also reported as the `lensParts` report claim).
+    pub lens_parts: BTreeMap<String, PartsProgress>,
 }
 
 fn verify_ingested(
@@ -947,11 +1214,436 @@ fn verify_ingested(
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Receipts: single and per-part
+// ---------------------------------------------------------------------------
+
+/// Progress of a partitioned provider.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PartsProgress {
+    pub total: u32,
+    pub ingested: Vec<u32>,
+    pub pending: Vec<u32>,
+}
+
+/// One provider's verified receipt state: the result the verdict is rebuilt
+/// from (the union over parts for a partitioned provider) and its progress.
+struct LoadedReceipt {
+    provider: String,
+    result: ProviderResult,
+    parts: Option<PartsProgress>,
+}
+
+fn string_at<'a>(value: &'a Value, pointer: &str) -> Option<&'a str> {
+    value.pointer(pointer).and_then(Value::as_str)
+}
+
+/// Merges the verified per-part results of one provider into the single
+/// provider-level result: examined coverage is the union of the ingested
+/// parts' paths (plus split files whose every chunk was covered), the provider
+/// is complete only when every part is ingested and nothing is omitted or
+/// unscheduled, and the outstanding work is named in the gaps.
+fn merge_parts(
+    provider: &str,
+    mut parts: Vec<(u32, u32, ProviderResult)>,
+) -> Result<(ProviderResult, PartsProgress), AuditError> {
+    let who = format!("lens receipts for {provider}");
+    parts.sort_by_key(|(number, _, _)| *number);
+    let total = parts
+        .first()
+        .map(|(_, total, _)| *total)
+        .ok_or_else(|| invalid(format!("{who}: no parts")))?;
+    let template = parts[0].2.clone();
+    let template_coverage = template
+        .coverage
+        .clone()
+        .ok_or_else(|| invalid(format!("{who}: part result carries no coverage")))?;
+
+    let mut examined_paths: BTreeSet<String> = BTreeSet::new();
+    let mut chunk_state: BTreeMap<String, (u64, BTreeSet<u64>)> = BTreeMap::new();
+    let mut omitted: BTreeMap<String, String> = BTreeMap::new();
+    let mut over_ceiling = Value::Null;
+    let mut finding_refs: Vec<FindingRef> = Vec::new();
+    let mut finding_ids: BTreeSet<String> = BTreeSet::new();
+    let mut lens_findings: Vec<Value> = Vec::new();
+    let mut withdrawn: Vec<Value> = Vec::new();
+    let mut titles = Map::new();
+    let mut messages = Map::new();
+    let mut locations = Map::new();
+    let mut evidence = Map::new();
+    let mut anchors_verified = 0u64;
+    let mut part_receipts: Vec<Value> = Vec::new();
+    let mut ingest_parts: Vec<Value> = Vec::new();
+    let mut semantic_reviews: Vec<(u32, Value)> = Vec::new();
+    let mut change_risks: Vec<(u32, Value)> = Vec::new();
+    let mut ingested: Vec<u32> = Vec::new();
+
+    for (number, file_total, result) in &parts {
+        let coverage = result
+            .coverage
+            .as_ref()
+            .ok_or_else(|| invalid(format!("{who}: part {number} carries no coverage")))?;
+        let packet_coverage = result
+            .details
+            .get("packetCoverage")
+            .ok_or_else(|| invalid(format!("{who}: part {number} records no packet coverage")))?;
+        let recorded_number = packet_coverage
+            .pointer("/part/number")
+            .and_then(Value::as_u64);
+        let recorded_total = packet_coverage
+            .pointer("/part/total")
+            .and_then(Value::as_u64);
+        if recorded_number != Some(u64::from(*number))
+            || recorded_total != Some(u64::from(*file_total))
+            || *file_total != total
+            || coverage.denominator_digest != template_coverage.denominator_digest
+            || coverage.expected != template_coverage.expected
+        {
+            return Err(invalid(format!(
+                "{who}: part {number} is not consistent with the other parts of this run"
+            )));
+        }
+        ingested.push(*number);
+        if over_ceiling.is_null() {
+            if let Some(value) = packet_coverage.get("overCeiling").filter(|v| !v.is_null()) {
+                over_ceiling = value.clone();
+            }
+        }
+        examined_paths.extend(string_list(packet_coverage.get("examinedPaths")));
+        for item in packet_coverage
+            .get("chunkedPaths")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let (Some(path), Some(chunk), Some(chunks)) = (
+                item.get("path").and_then(Value::as_str),
+                item.get("chunk").and_then(Value::as_u64),
+                item.get("chunks").and_then(Value::as_u64),
+            ) else {
+                return Err(invalid(format!(
+                    "{who}: part {number} has a malformed chunk record"
+                )));
+            };
+            let state = chunk_state
+                .entry(path.to_owned())
+                .or_insert((chunks, BTreeSet::new()));
+            if state.0 != chunks {
+                return Err(invalid(format!(
+                    "{who}: part {number} disagrees on the chunk count of {path}"
+                )));
+            }
+            state.1.insert(chunk);
+        }
+        for item in packet_coverage
+            .get("omittedPaths")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            if let Some(path) = item.get("path").and_then(Value::as_str) {
+                omitted.insert(
+                    path.to_owned(),
+                    item.get("reason")
+                        .and_then(Value::as_str)
+                        .unwrap_or("omitted")
+                        .to_owned(),
+                );
+            }
+        }
+        for finding in &result.findings {
+            if !finding_ids.insert(finding.id.as_str().to_owned()) {
+                return Err(invalid(format!(
+                    "{who}: finding id {} appears in more than one part",
+                    finding.id
+                )));
+            }
+            finding_refs.push(finding.clone());
+        }
+        let detail_array = |field: &str| {
+            result
+                .details
+                .get(field)
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+        };
+        lens_findings.extend(detail_array("lensFindings"));
+        withdrawn.extend(detail_array("withdrawnFindings"));
+        for (field, target) in [
+            ("findingTitles", &mut titles),
+            ("findingMessages", &mut messages),
+            ("findingLocations", &mut locations),
+            ("findingEvidence", &mut evidence),
+        ] {
+            if let Some(Value::Object(map)) = result.details.get(field) {
+                for (key, value) in map {
+                    target.insert(key.clone(), value.clone());
+                }
+            }
+        }
+        anchors_verified += result
+            .details
+            .get("ingest")
+            .and_then(|ingest| ingest.get("anchorsVerified"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let receipt = result.details.get("executionReceipt");
+        part_receipts.push(json!({
+            "part": number,
+            "receiptId": receipt.and_then(|r| r.get("receiptId")),
+            "requestId": receipt.and_then(|r| r.get("requestId")),
+        }));
+        ingest_parts.push(json!({
+            "part": number,
+            "packetDigest": result.details.get("ingest").and_then(|i| i.get("packetDigest")),
+        }));
+        if let Some(review) = result.details.get("semanticReview") {
+            semantic_reviews.push((*number, review.clone()));
+        }
+        if let Some(risk) = result.details.get("changeRisk") {
+            change_risks.push((*number, risk.clone()));
+        }
+    }
+
+    let mut covered = examined_paths;
+    let mut partial: Vec<String> = Vec::new();
+    for (path, (chunks, seen)) in &chunk_state {
+        if covered.contains(path) {
+            continue;
+        }
+        if (1..=*chunks).all(|chunk| seen.contains(&chunk)) {
+            covered.insert(path.clone());
+        } else {
+            partial.push(path.clone());
+        }
+    }
+    for path in omitted.keys() {
+        covered.remove(path);
+    }
+    let expected = template_coverage.expected;
+    let examined = (covered.len() as u64).min(expected);
+    let pending: Vec<u32> = (1..=total).filter(|n| !ingested.contains(n)).collect();
+
+    let mut gaps = Vec::new();
+    if !pending.is_empty() {
+        gaps.push(format!(
+            "reasoning-parts-pending:{provider}:{}/{}",
+            ingested.len(),
+            total
+        ));
+    }
+    if let Some(object) = over_ceiling.as_object() {
+        gaps.push(format!(
+            "reasoning-denominator-over-ceiling:{provider}:{} parts required, ceiling {}, {} paths unscheduled",
+            object.get("requiredParts").and_then(Value::as_u64).unwrap_or(0),
+            object.get("ceiling").and_then(Value::as_u64).unwrap_or(0),
+            object.get("unscheduledPathCount").and_then(Value::as_u64).unwrap_or(0),
+        ));
+    }
+    if pending.is_empty() && examined < expected {
+        gaps.push(format!(
+            "reasoning-excerpt-coverage:{provider}:{examined}/{expected} paths examined ({} omitted, {} partially covered)",
+            omitted.len(),
+            partial.len()
+        ));
+    }
+    let complete = gaps.is_empty() && examined >= expected;
+
+    let mut details: BTreeMap<String, Value> = BTreeMap::new();
+    details.insert("reasoningHostState".into(), json!("ingested"));
+    details.insert(
+        "lensIds".into(),
+        template
+            .details
+            .get("lensIds")
+            .cloned()
+            .unwrap_or(Value::Array(Vec::new())),
+    );
+    details.insert("lensFindings".into(), Value::Array(lens_findings));
+    details.insert("withdrawnFindings".into(), Value::Array(withdrawn));
+    details.insert("findingTitles".into(), Value::Object(titles));
+    details.insert("findingMessages".into(), Value::Object(messages));
+    details.insert("findingLocations".into(), Value::Object(locations));
+    details.insert("findingEvidence".into(), Value::Object(evidence));
+    details.insert(
+        "ingest".into(),
+        json!({
+            "host": INGEST_HOST,
+            "epochDigest": template.details.get("ingest").and_then(|i| i.get("epochDigest")),
+            "anchorsVerified": anchors_verified,
+            "parts": ingest_parts,
+        }),
+    );
+    details.insert("partReceipts".into(), Value::Array(part_receipts));
+    details.insert(
+        "packetCoverage".into(),
+        json!({
+            "basis": "bounded-excerpts",
+            "examined": examined,
+            "expected": expected,
+            "partsTotal": total,
+            "partsIngested": ingested,
+            "partsPending": pending,
+            "omittedPaths": omitted
+                .iter()
+                .map(|(path, reason)| json!({"path": path, "reason": reason}))
+                .collect::<Vec<_>>(),
+            "partiallyCoveredPaths": partial,
+            "overCeiling": over_ceiling,
+        }),
+    );
+    if !semantic_reviews.is_empty() {
+        details.insert(
+            "semanticReview".into(),
+            merge_semantic_reviews(&semantic_reviews, !pending.is_empty()),
+        );
+    }
+    if !change_risks.is_empty() {
+        details.insert("changeRisk".into(), merge_change_risks(&change_risks));
+    }
+
+    let result = ProviderResult {
+        schema_version: 1,
+        provider: template.provider.clone(),
+        applicable: true,
+        required: template.required,
+        status: if complete {
+            ProviderStatus::Complete
+        } else {
+            ProviderStatus::Partial
+        },
+        complete,
+        coverage: Some(Coverage {
+            denominator_digest: template_coverage.denominator_digest.clone(),
+            expected,
+            examined,
+            gaps: gaps.clone(),
+        }),
+        findings: finding_refs,
+        coverage_gaps: gaps,
+        degradation: Vec::new(),
+        details,
+    };
+    result
+        .validate()
+        .map_err(|error| invalid(format!("{who}: {error}")))?;
+    Ok((
+        result,
+        PartsProgress {
+            total,
+            ingested,
+            pending,
+        },
+    ))
+}
+
+/// Union of per-part semantic reviews: any unproven part (or an outstanding
+/// part) leaves the axis unproven; otherwise findings > pass > not-applicable.
+fn merge_semantic_reviews(reviews: &[(u32, Value)], parts_pending: bool) -> Value {
+    let axis = reviews
+        .iter()
+        .find_map(|(_, review)| review.get("axis").and_then(Value::as_str))
+        .unwrap_or("");
+    let statuses: Vec<&str> = reviews
+        .iter()
+        .filter_map(|(_, review)| review.get("status").and_then(Value::as_str))
+        .collect();
+    let status = if parts_pending || statuses.contains(&"unproven") {
+        "unproven"
+    } else if statuses.contains(&"findings") {
+        "findings"
+    } else if statuses.contains(&"pass") {
+        "pass"
+    } else {
+        "not-applicable"
+    };
+    let mut reasons = reviews
+        .iter()
+        .map(|(number, review)| {
+            format!(
+                "part {number}: {}",
+                review.get("reason").and_then(Value::as_str).unwrap_or("")
+            )
+        })
+        .collect::<Vec<_>>();
+    if parts_pending {
+        reasons.push("some packet parts are not yet reviewed".to_owned());
+    }
+    let sources = reviews
+        .iter()
+        .flat_map(|(_, review)| {
+            review
+                .get("sources")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>();
+    json!({"axis": axis, "status": status, "reason": reasons.join("; "), "sources": sources})
+}
+
+/// Union of per-part change-risk records: the most severe reversibility wins
+/// (`one-way` > `unknown` > `reversible`), reasons and evidence concatenate.
+fn merge_change_risks(risks: &[(u32, Value)]) -> Value {
+    let reversibilities: Vec<&str> = risks
+        .iter()
+        .filter_map(|(_, risk)| risk.get("reversibility").and_then(Value::as_str))
+        .collect();
+    let reversibility = if reversibilities.contains(&"one-way") {
+        "one-way"
+    } else if reversibilities.contains(&"unknown") {
+        "unknown"
+    } else {
+        "reversible"
+    };
+    let join = |field: &str| {
+        let mut seen = Vec::new();
+        for (_, risk) in risks {
+            if let Some(text) = risk.get(field).and_then(Value::as_str) {
+                if !seen.contains(&text) {
+                    seen.push(text);
+                }
+            }
+        }
+        seen.join("; ")
+    };
+    let evidence = |field: &str| {
+        let mut out: Vec<Value> = Vec::new();
+        for (_, risk) in risks {
+            for item in risk
+                .get(field)
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                if !out.contains(item) {
+                    out.push(item.clone());
+                }
+            }
+        }
+        out
+    };
+    json!({
+        "reversibility": reversibility,
+        "blastRadius": join("blastRadius"),
+        "reason": join("reason"),
+        "beforeEvidence": evidence("beforeEvidence"),
+        "afterEvidence": evidence("afterEvidence"),
+    })
+}
+
+/// Loads and verifies every lens receipt (optionally only `only`'s). A
+/// partitioned provider's `<provider>.part-NNNN.json` receipts are each
+/// verified independently (MAC, epoch, plan binding, result digest) and then
+/// merged into one provider-level result.
 fn load_receipts(
     run_dir: &Path,
     plan: &Value,
     execution: &ExecutionReport,
-) -> Result<Vec<(String, ProviderResult)>, AuditError> {
+    only: Option<&str>,
+) -> Result<Vec<LoadedReceipt>, AuditError> {
     let dir = run_dir.join(LENS_RECEIPT_DIR);
     if !dir.is_dir() {
         return Ok(Vec::new());
@@ -977,7 +1669,8 @@ fn load_receipts(
         })
         .collect::<Vec<_>>();
     files.sort();
-    let mut receipts = Vec::new();
+    let mut singles: Vec<LoadedReceipt> = Vec::new();
+    let mut grouped: BTreeMap<String, Vec<(u32, u32, ProviderResult)>> = BTreeMap::new();
     for file in files {
         let value = read_json(&file)?;
         let provider = value
@@ -985,21 +1678,267 @@ fn load_receipts(
             .and_then(Value::as_str)
             .ok_or_else(|| invalid(format!("{} names no provider", file.display())))?
             .to_owned();
-        if file.file_name().and_then(|name| name.to_str())
-            != Some(format!("{provider}.json").as_str())
-        {
-            return Err(invalid(format!(
-                "{} is filed under the wrong provider",
-                file.display()
-            )));
+        if only.is_some_and(|only| only != provider) {
+            continue;
         }
+        let name = file
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        let part = value
+            .get("part")
+            .filter(|part| !part.is_null())
+            .map(|part| {
+                (
+                    part.get("number").and_then(Value::as_u64),
+                    part.get("total").and_then(Value::as_u64),
+                )
+            });
         let result: ProviderResult =
             serde_json::from_value(value.get("result").cloned().unwrap_or(Value::Null))
                 .map_err(|error| invalid(format!("{}: {error}", file.display())))?;
-        verify_ingested(&provider, &result, &key, &digest, execution)?;
-        receipts.push((provider, result));
+        match part {
+            None => {
+                if name != format!("{provider}.json") {
+                    return Err(invalid(format!(
+                        "{} is filed under the wrong provider",
+                        file.display()
+                    )));
+                }
+                verify_ingested(&provider, &result, &key, &digest, execution)?;
+                singles.push(LoadedReceipt {
+                    provider,
+                    result,
+                    parts: None,
+                });
+            }
+            Some((Some(number), Some(total))) => {
+                let (number, total) = match (u32::try_from(number), u32::try_from(total)) {
+                    (Ok(number), Ok(total)) if number >= 1 && number <= total => (number, total),
+                    _ => {
+                        return Err(invalid(format!(
+                            "{} records an invalid part number",
+                            file.display()
+                        )))
+                    }
+                };
+                if name != format!("{provider}.part-{number:04}.json") {
+                    return Err(invalid(format!(
+                        "{} is filed under the wrong provider or part",
+                        file.display()
+                    )));
+                }
+                verify_ingested(&provider, &result, &key, &digest, execution)?;
+                grouped
+                    .entry(provider)
+                    .or_default()
+                    .push((number, total, result));
+            }
+            Some(_) => {
+                return Err(invalid(format!(
+                    "{} records an invalid part",
+                    file.display()
+                )))
+            }
+        }
     }
-    Ok(receipts)
+    for (provider, parts) in grouped {
+        if singles.iter().any(|single| single.provider == provider) {
+            return Err(invalid(format!(
+                "lens receipts for {provider} mix a whole-lens receipt with part receipts"
+            )));
+        }
+        let (result, progress) = merge_parts(&provider, parts)?;
+        singles.push(LoadedReceipt {
+            provider,
+            result,
+            parts: Some(progress),
+        });
+    }
+    singles.sort_by(|left, right| left.provider.cmp(&right.provider));
+    Ok(singles)
+}
+
+// ---------------------------------------------------------------------------
+// Packet files and the part index
+// ---------------------------------------------------------------------------
+
+pub const LENS_INDEX_KIND: &str = "legion-lens-packet-index";
+
+/// The `<provider>.index.json` for a partitioned provider: every part, its
+/// packet digest and request id, and the paths homed in it. `None` for a
+/// provider whose denominator fits one un-numbered packet.
+fn part_index(items: &[&PendingLensWork]) -> Result<Option<Value>, AuditError> {
+    let Some(first) = items.first() else {
+        return Ok(None);
+    };
+    if first.part().is_none() {
+        return Ok(None);
+    }
+    let mut parts = Vec::new();
+    for item in items {
+        let Some(part) = item.part() else {
+            return Err(invalid(format!(
+                "{} mixes numbered and un-numbered packets",
+                item.provider_id
+            )));
+        };
+        let meta = item
+            .request
+            .packet
+            .get("part")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let paths = meta.get("paths").cloned().unwrap_or(Value::Null);
+        parts.push(json!({
+            "part": part.number,
+            "file": item.packet_file_name(),
+            "packetDigest": canonical_digest(&item.request.packet)
+                .map_err(|error| invalid(error.to_string()))?,
+            "requestId": item.request.request_id,
+            "pathCount": paths.as_array().map_or(0, Vec::len),
+            "pathsDigest": meta.get("pathsDigest"),
+            "paths": paths,
+            "continuedPaths": meta.get("continuedPaths"),
+            "chunkCount": item
+                .request
+                .packet
+                .get("excerpts")
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len),
+            "omitted": item.request.packet.pointer("/excerptCoverage/omittedPaths"),
+        }));
+    }
+    let meta = first
+        .request
+        .packet
+        .get("part")
+        .cloned()
+        .unwrap_or(Value::Null);
+    Ok(Some(json!({
+        "schemaVersion": 1,
+        "kind": LENS_INDEX_KIND,
+        "provider": first.provider_id,
+        "planDigest": first.request.plan_digest,
+        "denominatorDigest": first.request.denominator_digest,
+        "denominatorCount": first.request.denominator_count,
+        "totalParts": items.len(),
+        "requiredParts": meta.get("requiredParts"),
+        "overCeiling": meta.get("overCeiling"),
+        "parts": parts,
+    })))
+}
+
+/// Per-provider status items for pending lens work, in the shape the CLI
+/// reports (`provider`, `lensIds`, `status`, `packet`, `packetDigest`,
+/// `planDigest`), plus for a partitioned provider `parts` (each with its
+/// packet path, digest and path count), `partsTotal` and `index`. `packet` is
+/// the single packet, or the first part, so existing consumers keep working.
+/// `packet_dir` is where the packets were (or will be) written.
+pub fn lens_packet_items(
+    work: &[PendingLensWork],
+    packet_dir: Option<&Path>,
+) -> Result<Vec<Value>, AuditError> {
+    let mut order: Vec<&str> = Vec::new();
+    for item in work {
+        if !order.contains(&item.provider_id.as_str()) {
+            order.push(item.provider_id.as_str());
+        }
+    }
+    let mut out = Vec::new();
+    for provider in order {
+        let items: Vec<&PendingLensWork> = work
+            .iter()
+            .filter(|item| item.provider_id == provider)
+            .collect();
+        let first = items[0];
+        let path_of =
+            |item: &PendingLensWork| packet_dir.map(|dir| dir.join(item.packet_file_name()));
+        let digest_of = |item: &PendingLensWork| {
+            canonical_digest(&item.request.packet).map_err(|error| invalid(error.to_string()))
+        };
+        let mut entry = json!({
+            "provider": first.provider_id,
+            "lensIds": first.lens_ids,
+            "status": "pending-host",
+            "packet": path_of(first),
+            "packetDigest": digest_of(first)?,
+            "planDigest": first.request.plan_digest,
+        });
+        if first.part().is_some() {
+            let mut listed = Vec::new();
+            for item in items.iter().copied() {
+                let meta = item
+                    .request
+                    .packet
+                    .get("part")
+                    .cloned()
+                    .unwrap_or(Value::Null);
+                listed.push(json!({
+                    "part": item.part().map(|part| part.number),
+                    "packet": path_of(item),
+                    "packetDigest": digest_of(item)?,
+                    "requestId": item.request.request_id,
+                    "pathCount": meta.get("paths").and_then(Value::as_array).map_or(0, Vec::len),
+                    "status": "pending-host",
+                }));
+            }
+            let meta = first
+                .request
+                .packet
+                .get("part")
+                .cloned()
+                .unwrap_or(Value::Null);
+            entry["partsTotal"] = json!(items.len());
+            entry["requiredParts"] = meta.get("requiredParts").cloned().unwrap_or(Value::Null);
+            entry["overCeiling"] = meta.get("overCeiling").cloned().unwrap_or(Value::Null);
+            entry["index"] =
+                json!(packet_dir.map(|dir| dir.join(format!("{provider}.index.json"))));
+            entry["parts"] = Value::Array(listed);
+        }
+        out.push(entry);
+    }
+    Ok(out)
+}
+
+/// Writes lens packets under `packet_dir` (`<out>/lens-packets`): the single
+/// `<provider>.json` when a provider's denominator fits one part, otherwise
+/// `<provider>.part-NNNN.json` for every part plus `<provider>.index.json`.
+/// Stale packet files of a provider (an earlier run with a different part
+/// count) are removed first. Returns the same items as `lens_packet_items`.
+pub fn write_lens_packets(
+    packet_dir: &Path,
+    work: &[PendingLensWork],
+) -> Result<Vec<Value>, AuditError> {
+    let items = lens_packet_items(work, Some(packet_dir))?;
+    let mut providers: Vec<&str> = Vec::new();
+    for item in work {
+        if !providers.contains(&item.provider_id.as_str()) {
+            providers.push(item.provider_id.as_str());
+        }
+    }
+    for provider in providers {
+        let group: Vec<&PendingLensWork> = work
+            .iter()
+            .filter(|item| item.provider_id == provider)
+            .collect();
+        let _ = fs::remove_file(packet_dir.join(format!("{provider}.json")));
+        let _ = fs::remove_file(packet_dir.join(format!("{provider}.index.json")));
+        for (_, stale) in part_packet_files(packet_dir, provider) {
+            let _ = fs::remove_file(stale);
+        }
+        for item in &group {
+            let bytes =
+                serde_json::to_vec_pretty(item).map_err(|error| invalid(error.to_string()))?;
+            write_atomic(packet_dir, &item.packet_file_name(), &bytes)?;
+        }
+        if let Some(index) = part_index(&group)? {
+            let bytes =
+                serde_json::to_vec_pretty(&index).map_err(|error| invalid(error.to_string()))?;
+            write_atomic(packet_dir, &format!("{provider}.index.json"), &bytes)?;
+        }
+    }
+    Ok(items)
 }
 
 /// Rebuilds the run verdict. Reasoning lenses count as ran only when a lens
@@ -1012,7 +1951,20 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
     let stored: ReportV1 = serde_json::from_value(read_json(&run_dir.join("report.json"))?)
         .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
     let plan = read_json(&run_dir.join("plan.json"))?;
-    let receipts = load_receipts(run_dir, &plan, &execution)?;
+    let loaded = load_receipts(run_dir, &plan, &execution, None)?;
+    let lens_parts: BTreeMap<String, PartsProgress> = loaded
+        .iter()
+        .filter_map(|entry| {
+            entry
+                .parts
+                .clone()
+                .map(|progress| (entry.provider.clone(), progress))
+        })
+        .collect();
+    let receipts: Vec<(String, ProviderResult)> = loaded
+        .into_iter()
+        .map(|entry| (entry.provider, entry.result))
+        .collect();
     let repository = stored.targets.first().cloned().unwrap_or_default();
     let original = canonical_report(&repository, &execution)?;
 
@@ -1073,8 +2025,13 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
     }
     next.gaps.sort();
     next.gaps.dedup();
-    next.pending_host
-        .retain(|provider| !ingested.contains(provider));
+    // A partitioned provider with parts still to ingest stays pending.
+    next.pending_host.retain(|provider| {
+        !ingested.contains(provider)
+            || lens_parts
+                .get(provider)
+                .is_some_and(|progress| !progress.pending.is_empty())
+    });
     next.lenses_ran.sort();
     next.lenses_ran.dedup();
     if next.lenses_ran == next.selected_reasoning_lenses {
@@ -1178,6 +2135,9 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         "ingestedLenses".into(),
         json!(ingested.iter().collect::<Vec<_>>()),
     );
+    if !lens_parts.is_empty() {
+        report.claims.insert("lensParts".into(), json!(lens_parts));
+    }
     if let Some(Value::Array(items)) = report.claims.get_mut("lensWork") {
         for item in items {
             let provider = item
@@ -1206,5 +2166,6 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         confirmed_security,
         execution: next,
         ingested: ingested.into_iter().collect(),
+        lens_parts,
     })
 }

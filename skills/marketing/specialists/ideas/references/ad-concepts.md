@@ -2,10 +2,10 @@
 name: ideas-ad-concepts
 description: >
   Generate 100+ ad/video concept variants for a creative brief BEFORE any pixel is generated. Use when
-  the user wants concepts brainstormed for a new campaign, ad, reel, or video. Trigger with /concept-pack,
+  the user wants concepts brainstormed for a new campaign, ad, reel, or video. Trigger with "/marketing ideas ad-concepts",
   "brainstorm concepts for", "give me 100 hook variants", "ideate for a campaign", or any framing that asks
   for hook angles / concept variation / ad concepts.
-  This is the upstream half of the recipe library (PJ Ace's bottleneck = ideas, not the rendering tools).
+  This is the upstream half of the production pipeline (the bottleneck is ideas, not the rendering tools).
   CRITICAL: mine transcripts FIRST (real founder/creator language), then LLM-expand. Never start
   inventing concepts from scratch — that's what makes AI ads sound like AI ads.
 ---
@@ -16,11 +16,11 @@ You generate **100+ concept variants** for a creative brief, organized by hook a
 
 ## When this skill fires
 
-The user typed `/concept-pack <brief>` OR asked for concepts/hooks/angles for an ad/video/campaign.
+The user typed `/marketing ideas ad-concepts <brief>` OR asked for concepts/hooks/angles for an ad/video/campaign.
 
 ## Required inputs (ask if missing)
 
-1. **Brand** — DD / RH / TS / HR / DV / SS — drives voice + brand-default lookups
+1. **Brand** — the project's brand code (see `/brand`) — drives voice + brand-default lookups
 2. **Brief** — what is the campaign/ad/launch about? 1-3 sentences.
 3. **Format** — Reel / TikTok / YouTube Short / Static ad / Email / Carousel / Long-form video
 4. **Length** — for video, target duration (15s / 30s / 60s)
@@ -54,7 +54,7 @@ Now that you have 20-30 real openers + structural patterns, expand to 100+ varia
 
 | Category | Count | Generation rule |
 |---|---|---|
-| **Comedy / IP juxtaposition** (PJ Ace pattern) | 15 | Pick familiar IP (historical setting, meme, classic film, folklore) + add product as the absurd twist |
+| **Comedy / IP juxtaposition** | 15 | Pick familiar IP (historical setting, meme, classic film, folklore) + add product as the absurd twist |
 | **Problem → Solution** | 15 | Lead with specific pain in the audience's language (mined from transcripts), pivot to product |
 | **Before / After (BAB)** | 10 | Visible state change — software / EDC / wellness fits this |
 | **Founder direct** | 10 | First-person, lived-experience opener (mine from transcripts where founders talk to camera) |
@@ -69,8 +69,8 @@ For each variant, output:
 - 1-line hook (the opening line — what plays in 0-3s)
 - Pattern category
 - Brief sketch of how the rest of the ad continues (one sentence)
-- Which `ad-patterns.json` template fits
-- Which `aesthetics.json` preset fits (UGC / lifestyle / cinematic / documentary / etc.)
+- Which project ad-pattern template fits, if the project supplies one (optional project-overlay input)
+- Which project aesthetic preset fits, if the project supplies one (optional; UGC / lifestyle / cinematic / documentary are example categories)
 - Score: viral_potential (1-10) — your honest take on scroll-stop strength
 - Score: brand_fit (1-10) — how well it aligns with the brand voice
 - Status: `transcript_mined` | `llm_expanded`
@@ -93,32 +93,25 @@ Then a SUMMARY with:
 
 ## Brand-specific rules
 
-| Brand | Lean into | Avoid |
-|---|---|---|
-| **DD** | premium, considered, "slow is premium" motion, tactile EDC sensory | salesman language, hype, fast cuts, noisy aesthetics |
-| **RH** | slow fashion as anti-fast-fashion, real textile facts, US-only stat scoping | preachy environmentalism, generic sustainability speak |
-| **TS** | counter-culture energy, ALL-CAPS condensed, two-beat headlines, lived-experience | influencer slang, hype emoji, vague sustainability |
-| **HR** | direct without curt, founder voice, real accent examples, V3 voice command center positioning, "Speak to type. Speak to do." | "AI assistant" framing, revolutionary/disruptive, generic dictation framing |
-| **DV** | founder-as-builder, technical credibility, Linear/Cron/Arc visual peers | corporate AI buzzwords, agency-speak |
-| **SS** | photography brand, yellow eyes are real, first-person voice | fabricated backstory, generic photo-influencer language |
+Take voice, lean-into, and avoid-lists from the project's brand card (`/brand`). Do not reuse one brand's rules for another brand. This reference carries no brand-specific content.
 
 ## Anti-patterns (do NOT do these)
 
 - Skipping stage 1 — going straight to LLM expansion produces averaged training-data slop
 - Generating <100 variants — at <100 the brand doesn't have meaningful choice
 - Using banned vocab from each brand's brand book (revolutionary, AI-powered, unlock, leverage, synergy, "limited time")
-- Outputting a single "best" concept — Codex's acceptance gate 4 requires DIVERGENCE, not convergence
+- Outputting a single "best" concept — the acceptance gate requires DIVERGENCE, not convergence
 - Pretending to mine transcripts without actually reading them — be specific about which transcript each pattern came from
 
 ## What's NEXT after this skill runs
 
-User picks 3-5 winning concepts → those concepts feed into:
-- `composePrompt()` for video shots (with the picked `ad_pattern` + `aesthetic` keys)
-- `composeImagePrompt()` for static ads + OG images (Phase 2)
-- `composeEmail()` for email lifecycle (Phase 3)
-- `composeAd()` for paid creative (Phase 4)
+User picks 3-5 winning concepts → those concepts feed the consuming project's production pipeline, using the picked ad-pattern and aesthetic keys for:
+- video shot prompts
+- static ads and OG images
+- email lifecycle content
+- paid creative
 
-The output of this skill is THE input to Phases 1-4 of the recipe-library pipeline.
+The output of this skill is the input to that pipeline. This package ships no pipeline; the consuming project supplies it.
 
 ## Source authority
 

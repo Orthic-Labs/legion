@@ -40,9 +40,7 @@ provider set, and expected denominators. Missing signing material leaves a valid
 but adds an `unsigned-plan` coverage gap and keeps the audit `UNPROVEN`. A generation, dirty-tree,
 registry, denominator, or signature change invalidates the experiment.
 
-If Blueprint is missing, stale, corrupt, incomplete, or changes generation during projection, Audit may
-run only providers explicitly declared safe without Blueprint. The audit remains `UNPROVEN`; it never
-falls back to an agent-invented language inventory.
+If Blueprint is missing, stale, corrupt, incomplete, or changes generation during projection, A standalone run without Blueprint is allowed: Audit runs only the providers explicitly declared safe without Blueprint, every graph-dependent claim stays `UNPROVEN`, and it never falls back to an agent-invented language inventory.
 
 ## Registry
 
@@ -72,8 +70,7 @@ Result shape is defined by the `legion-audit` provider-result contract (`engine/
 ## Offline execution
 
 The canonical entrypoint is `legion audit`. Audit always sets defense-in-depth offline controls for
-package managers and toolchains and excludes checks that inherently require remote advisory or
-version services.
+package managers and toolchains and runs dependency advisory and version checks (for example `deps_cve`, `py_deps_cve`, `cargo_audit`, `outdated`, `cargo_outdated`, and the GitHub lookup in `binary_pins`) only when the host run is explicitly online and the tool is present; otherwise they report typed `unavailable`, never clean. The skill itself makes no external request.
 
 Environment variables alone do not prove network denial because audited project code can open its
 own sockets. Therefore project-executing providers—build, type, lint, test, and runtime capture—run

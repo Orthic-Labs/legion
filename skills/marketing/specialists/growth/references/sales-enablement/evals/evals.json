@@ -44,12 +44,12 @@
       "prompt": "We need a public comparison page showing how we stack up against Zendesk and Intercom.",
       "expected_skill": "seo",
       "forbidden_skills": ["growth"],
-      "expected_behavior": "Public-facing competitor comparison pages route to /seo (SEO-focused comparison content) or /website (page design). Sales-enablement covers internal materials (battle cards, objection handling). Should clarify the distinction and route accordingly.",
+      "expected_behavior": "Public-facing competitor comparison pages route to /seo (SEO-focused comparison content). Sales-enablement covers internal materials (battle cards, objection handling). Should clarify the distinction and route accordingly.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [
         "Recognizes this as a public comparison page",
-        "References or defers to competitor-alternatives skill",
+        "References or defers to the seo skill",
         "Explains the distinction between internal and public collateral",
         "Does not attempt public SEO comparison page using sales enablement patterns"
       ]
@@ -135,9 +135,9 @@
   ],
   "compatibility": [
     {
-      "id": "sales-enablement-compat-copywriting",
+      "id": "sales-enablement-compat-writing",
       "prompt": "Rewrite our sales page headline and body copy to convert better.",
-      "expected_skill": "copywriting",
+      "expected_skill": "writing",
       "forbidden_skills": ["growth"],
       "expected_behavior": "Public-facing sales page copy (conversion copy for a web page) routes to /writing copy. Sales-enablement handles internal collateral (decks, objection docs, demo scripts, one-pagers). Should redirect and clarify the boundary.",
       "severity": "info",

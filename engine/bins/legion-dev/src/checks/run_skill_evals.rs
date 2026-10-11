@@ -66,6 +66,13 @@ fn alias_name(prompt: &str) -> Option<String> {
     Some(name.strip_prefix("legion:").unwrap_or(name).to_string())
 }
 
+/// Eval files that are specifications rather than case corpora. Each is
+/// named here explicitly; every other eval file must yield at least one case.
+const NON_CASE_EVAL_FILES: &[&str] = &[
+    // Specification only, not runnable (its own `purpose` says so).
+    "skills/commit/evals/evidence-gauntlet.json",
+];
+
 enum Outcome {
     Pass,
     Fail(String),
@@ -113,10 +120,19 @@ fn evaluate_case(
     aliases: &BTreeMap<String, String>,
     rel: &str,
 ) -> Outcome {
-    let Some(prompt) = case.get("prompt").and_then(Value::as_str) else {
-        return Outcome::Skip;
-    };
     let expected = case.get("expected_skill");
+    if let Some(value) = expected {
+        if !value.is_string() && !value.is_null() {
+            return Outcome::Fail("expected_skill must be a string or null".to_string());
+        }
+    }
+    let Some(prompt) = case.get("prompt").and_then(Value::as_str) else {
+        return if expected.is_some() {
+            Outcome::Fail("case has expected_skill but no prompt".to_string())
+        } else {
+            Outcome::Skip
+        };
+    };
     let forbidden: Vec<&str> = case
         .get("forbidden_skills")
         .and_then(Value::as_array)
@@ -187,6 +203,16 @@ pub fn evaluate(root: &Path, files: &[String], bundles: &[String]) -> Summary {
                 continue;
             }
         };
+        let case_count: usize = CASE_ARRAYS
+            .iter()
+            .filter_map(|array| doc.get(*array).and_then(Value::as_array))
+            .map(Vec::len)
+            .sum();
+        if case_count == 0 && !NON_CASE_EVAL_FILES.contains(&rel.as_str()) {
+            entry.failed += 1;
+            summary.mismatches.push(format!("no cases found in {rel}"));
+            continue;
+        }
         for array in CASE_ARRAYS {
             let Some(cases) = doc.get(array).and_then(Value::as_array) else {
                 continue;
@@ -212,7 +238,13 @@ pub fn evaluate(root: &Path, files: &[String], bundles: &[String]) -> Summary {
 }
 
 pub fn run(root: &Path, bundles: &[String], as_json: bool) -> bool {
-    let files = tracked_files(root);
+    let files = match tracked_files(root) {
+        Ok(files) => files,
+        Err(e) => {
+            eprintln!("run-skill-evals: {e}");
+            return false;
+        }
+    };
     let summary = evaluate(root, &files, bundles);
     if as_json {
         let rows: BTreeMap<_, _> = summary
@@ -338,5 +370,36 @@ mod tests {
         let s = evaluate(&dir, &files, &["other".to_string()]);
         let _ = fs::remove_dir_all(&dir);
         assert!(s.bundles.is_empty());
+    }
+
+    #[test]
+    fn expected_skill_without_prompt_is_a_mismatch() {
+        let (dir, files) = setup("noprompt", r#"{"id":"a","expected_skill":"alpha"}"#);
+        let s = evaluate(&dir, &files, &[]);
+        let _ = fs::remove_dir_all(&dir);
+        assert!(!s.ok());
+        assert_eq!(s.bundles["alpha"].failed, 1);
+        assert!(s.mismatches[0].contains("expected_skill but no prompt"));
+    }
+
+    #[test]
+    fn non_string_expected_skill_is_a_mismatch() {
+        let (dir, files) = setup(
+            "badtype",
+            r#"{"id":"a","prompt":"/alpha x","expected_skill":5}"#,
+        );
+        let s = evaluate(&dir, &files, &[]);
+        let _ = fs::remove_dir_all(&dir);
+        assert!(!s.ok());
+        assert!(s.mismatches[0].contains("must be a string or null"));
+    }
+
+    #[test]
+    fn eval_file_without_cases_is_a_mismatch() {
+        let (dir, files) = setup("empty", "");
+        let s = evaluate(&dir, &files, &[]);
+        let _ = fs::remove_dir_all(&dir);
+        assert!(!s.ok());
+        assert!(s.mismatches[0].starts_with("no cases found in skills/alpha/evals/evals.json"));
     }
 }

@@ -2,7 +2,7 @@
 
 Generate `/llms.txt` for a brand site — the AI-crawler equivalent of `sitemap.xml`. It tells AI crawlers (ChatGPT, Perplexity, Claude, Google AI Overviews) what the site is about and which pages are worth citing. Spec: https://llmstxt.org.
 
-This is the GENERATOR. The `seo-geo` subagent + `references/geo.md` handle AUDITING an existing llms.txt for compliance; come here to WRITE one.
+This is the GENERATOR. `references/geo.md` handles AUDITING an existing llms.txt for compliance; come here to WRITE one.
 
 **Trigger:** `/seo llms-txt`, "llms.txt", "AI search file", "Perplexity file", "AI crawler file", "generate an llms.txt".
 
@@ -24,7 +24,7 @@ This is the GENERATOR. The `seo-geo` subagent + `references/geo.md` handle AUDIT
 2. **Categorize** — products / collections / blog / about / policies / tools
 3. **Hero list** — pick 10-20 pages that, if cited, would drive the best results
 4. **Write llms.txt** in spec format (template below)
-5. **Optional AI-buyer file:** generate `/pricing.md` when agents need machine-readable pricing, tiers, limits, and features (mostly for software/SaaS like HR)
+5. **Optional AI-buyer file:** generate `/pricing.md` when agents need machine-readable pricing, tiers, limits, and features (mostly for software or SaaS brands)
 6. **Save** to the site root — user deploys it there
 7. **Optional:** also generate `llms-full.txt` (full content of hero pages)
 
@@ -76,21 +76,11 @@ For software/SaaS, agents increasingly want machine-readable pricing. Generate a
 - Buy / start: [URL]
 ```
 
-Keep `/pricing.md` linked from the pricing page and updated with every pricing change. (HR example: Free basic dictation + Pro one-time — confirm current locked pricing from the HR brand docs before writing numbers; never fabricate prices.)
+Keep `/pricing.md` linked from the pricing page and updated with every pricing change. Take prices from the brand's own pricing source (brand card or live pricing page) before writing numbers; never fabricate prices.
 
-## Brand templates
+## Brand positioning
 
-### RH
-Position: ethical manufacturing, textile science, anti-fast-fashion, longevity. Hero = textile-science blog posts + collection pages.
-
-### DD
-Position: precision EDC, craftsmanship, materials science. Hero = product pages for hero SKUs + craft-process blog posts.
-
-### HR
-Position: local-first transcription + voice commands. Hero = the homepage, feature/how-it-works pages, and the pricing page. Generate a companion `/pricing.md` (machine-readable plans) since HR is software. Use the locked HR voice + banned-vocabulary list from the brand card.
-
-### TS
-Position: counter-culture streetwear, slow-fashion wedge ("the antidote to fast fashion"). Hero = manifesto/about pages + hero product/collection pages.
+Take each brand's position, voice and hero pages from its brand card (`/brand`) in the consuming project. Do not hardcode positioning here. Hero content is the set of pages the brand most wants cited; confirm it against a real crawl.
 
 ### Non-commercial ventures — NOT ELIGIBLE
 Any venture flagged non-commercial/passion-project in the consuming project's brand policy is excluded — `llms.txt-for-ranking` is banned for it. If asked to generate an llms.txt for one, decline and explain the policy.
@@ -109,4 +99,4 @@ Any venture flagged non-commercial/passion-project in the consuming project's br
 - Marketing speak (LLMs cite specifics, not slogans)
 - Forgetting the `>` description block (parsers expect it)
 - Inventing URLs or page titles — require an actual crawl (site URL + sitemap or firecrawl) before listing any hero page
-- Generating one for SS (banned — see above)
+- Generating one for a non-commercial venture (banned — see above)

@@ -13,7 +13,9 @@ effects:
   - repository-write
   - process-exec
   - network-request
-hostRequirements: []
+hostRequirements:
+  - blueprint-graph
+  - legion
 metadata:
   legion:
     provenance: legion-authored
@@ -29,11 +31,15 @@ review lenses, test gates, or Git effects.
 
 ```text
 CHILD_AGENTS_MAX: 8
-EXTERNAL_REQUESTS_MAX: 0
+EXTERNAL_REQUESTS_MAX: 4
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: audit, audit-fix, architect, gotchas
 TERMINAL: Frozen diff is verified, committed, pushed, & identity-proven.
 ```
+`MAY_CALL_SKILLS` names the routes the manual uses: `audit` and `audit-fix` (step 6), `architect`
+(decomposition), and `gotchas` (step 7). `EXTERNAL_REQUESTS_MAX: 4` is exactly `git fetch` and
+`git push` to the verified origin plus two read-only GitHub API reads (rulesets and branch
+protection), the latter only when the host provides GitHub access.
 Per-step tool/model authority is declared inline below via each step's `EXECUTOR` block, which
 supersedes the legacy flat `SPECIALIST_REFS_MAX` cap with a per-step capability declaration.
 

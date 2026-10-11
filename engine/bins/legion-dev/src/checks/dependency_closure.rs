@@ -687,10 +687,15 @@ fn verify_route_resources(
             )]
         }
     };
-    let mut findings = Vec::new();
     let Some(sections) = document.as_object() else {
-        return findings;
+        return vec![finding(
+            Some(manifest_id),
+            Some("references/route-resources.json"),
+            "invalid-resource-document",
+            "route resource table is not a JSON object".to_string(),
+        )];
     };
+    let mut findings = Vec::new();
     for (section, table) in sections {
         let Some(table) = table.as_object() else {
             continue;
@@ -758,7 +763,9 @@ pub fn verify_dependency_closure(
     let mut declaration_count = 0usize;
     let mut typed_resource_count = 0usize;
 
-    let file_ext_re = Regex::new(r"(?i)\.(?:md|mdx|txt|json|ya?ml|mjs|js|py|sh|ps1|vbs)$").unwrap();
+    let file_ext_re =
+        Regex::new(r"(?i)\.(?:md|mdx|txt|json|ya?ml|mjs|js|cjs|ts|tsx|toml|html|py|sh|ps1|vbs)$")
+            .unwrap();
 
     for manifest in manifests.values() {
         let id = manifest
@@ -768,6 +775,12 @@ pub fn verify_dependency_closure(
             .to_string();
         let skill_root = package_root.join("skills").join(&id);
         if !skill_root.is_dir() {
+            findings.push(finding(
+                Some(id.as_str()),
+                Some(&format!("skills/{id}")),
+                "missing-skill-directory",
+                "manifest declares a semantic bundle whose skill directory is absent".to_string(),
+            ));
             continue;
         }
         let declaration =
@@ -784,8 +797,17 @@ pub fn verify_dependency_closure(
             if !file_ext_re.is_match(&relative_path) {
                 continue;
             }
-            let Ok(text) = std::fs::read_to_string(&file) else {
-                continue;
+            let text = match std::fs::read_to_string(&file) {
+                Ok(text) => text,
+                Err(e) => {
+                    findings.push(finding(
+                        Some(id.as_str()),
+                        Some(&relative_path),
+                        "unreadable-packaged-file",
+                        format!("packaged text file cannot be read: {e}"),
+                    ));
+                    continue;
+                }
             };
             for f in scan_packaged_text(&text, &relative_path, &skill_root, package_root) {
                 findings.push(Finding {

@@ -1,5 +1,5 @@
 ---
-name: plan-visual-story
+name: strategy-visual-story
 description: Transform any script, brand story, or content idea into a complete visual storytelling plan — shot-by-shot breakdown, art direction, color mood, image prompts, and video prompts. Use this skill whenever the user wants to turn a script into visuals, plan a video or reel, develop a visual art direction for a brand, create image or video prompts for AI tools like Midjourney, Leonardo, Kling, or Runway, or when they say things like "make this visual", "plan the shots for this", "what should this look like on camera", "create a visual story", "shot breakdown", "art direction", or "help me visualize this script." Also trigger when the user shares a voiceover script or brand script and asks how to bring it to life visually. Always use this skill before generating any image or video prompts for story-driven content.
 ---
 

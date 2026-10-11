@@ -79,7 +79,7 @@ pub fn report(root: &Path) -> Report {
                     issues.push(Issue {
                         path: ".agent/config.json".to_string(),
                         reason: format!(
-                            "ignoredPrefixes must exclude {prefix} from Blueprint indexing"
+                            "ignoredPrefixes must contain the required entry {prefix:?}"
                         ),
                     });
                 }

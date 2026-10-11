@@ -1,7 +1,9 @@
 # 多视角并行实验 · Case Study
 
 > huashu-md-html v2.0 launch film 项目 · 2026-05-11
-> 6 位艺术家视角的并行 director's notes + HTML + 关键帧实验
+> 6 位艺术家视角的 director's notes + HTML + 关键帧实验
+>
+> **策略注记**：本 skill 不 spawn subagent（SKILL 限制 CHILD_AGENTS_MAX: 0）。下文原实验中的并行步骤，现已改为依次 inline 执行；记录里的并行耗时与失败数据是历史证据，不是操作指引。
 
 ---
 
@@ -62,34 +64,30 @@
 8. 输出验证清单 + 完成报告格式
 ```
 
-**关键**：每个 brief 必须强调「**不要重复 v5 的美学**」——否则 subagent 会被 v5 director-notes 影响而趋同。
+**关键**：每个 brief 必须强调「**不要重复 v5 的美学**」——否则前一版会被 v5 director-notes 影响而趋同。
 
-### Step 2 · 并行启动 6 个 subagent（同一 message 中 6 个 Agent tool calls）
+### Step 2 · 依次 inline 产出 6 个视角（不 spawn subagent）
 
-```js
-Agent({ subagent_type: "general-purpose", run_in_background: true, name: "v5a-anderson", ... })
-Agent({ subagent_type: "general-purpose", run_in_background: true, name: "v5b-bass", ... })
-// ... 6 个
-```
+每个视角：只读自己的 brief → 独立产出完整版本（spec + HTML + 关键帧）→ 写入项目目录 → 再开下一个视角。前一版的产出不作为下一版的输入。
 
-后台运行，预期 30-60 分钟。
+逐个完成，不做后台运行。
 
-### Step 3 · 等待期间的 idle work
+### Step 3 · 视角之间的间隙工作
 
-不要 polling agent 状态。subagent 完成会自动 task-notification。等待期间做：
+每完成一个视角、开下一个之前可做：
 
 - 修主线程的 v5 基线 bug
 - 写 review framework（每个版本要打的分维度 / Q&A）
 - 沉淀方法论到 skill（这正是这份 case study 的来源）
 - 准备 final summary 文档骨架
 
-### Step 4 · 失败处理（约 16% 失败率，可接受）
+### Step 4 · 失败处理
 
-实战观测：6 个 subagent 中约 1 个会因网络或 token 超限失败（Bass 首轮 socket error）。处理：
+实战观测：6 个视角中约 1 个会因网络或 token 超限中断（Bass 首轮 socket error）。处理：
 
-1. 收到 completion notification 时**立即检查**该 agent 的输出文件夹
-2. 缺少关键交付物 → 重启该 agent（同样 brief，可标注「上次失败，请重新执行」）
-3. 部分完成（如有 html 没截图）→ 主线程补 Playwright 截图，不重启 agent
+1. 视角完成后**立即检查**其输出文件夹
+2. 缺少关键交付物 → 重做该视角（同样 brief，可标注「上次失败，请重新执行」）
+3. 部分完成（如有 html 没截图）→ 补截图（`legion script designer/verify`），不重做该视角
 
 ### Step 5 · 6 版本完成后系统审校
 
@@ -139,8 +137,8 @@ use case 分配（按平台和受众）：
 
 ### 时长
 
-- 6 个 subagent 并行运行：约 12-15 分钟（duration_ms 显示）
-- 主线程并行 idle work（修 v5 + 写方法论）：同期完成
+- 每个视角约 12-15 分钟（历史 duration_ms 记录）
+- 视角间隙的 idle work（修 v5 + 写方法论）：同期完成（历史记录）
 - 整体「从启动 6 视角到所有 deliverable 到位」：约 60 分钟
 
 ---
@@ -185,26 +183,26 @@ use case 分配（按平台和受众）：
 - Hara → 客户演示 / 静态截图（极简哲学）
 - Kusama → X 短视频 / 病毒传播（视觉冲击）
 
-**结论**：marketing 不是 single-shot，是 platform-specific multiplex。6 视角并行的真正价值是**让一个项目有 6 个差异化武器**，不是让 5 个版本上不了台面。
+**结论**：marketing 不是 single-shot，是 platform-specific multiplex。6 视角实验的真正价值是**让一个项目有 6 个差异化武器**，不是让 5 个版本上不了台面。
 
-### 洞察 5 · subagent 的失败率 ~16% 是可接受的
+### 洞察 5 · 单个视角中断的代价
 
-6 个里 1 个失败（Bass 首轮 socket error）。处理代价：重启 + 5 分钟简化版 brief，再等 12-15 分钟。**对比 vs. 等 1 个 agent 顺序跑 6 个版本（90+ 分钟）**——并行 + 重试明显更经济。
+6 个里 1 个中断（Bass 首轮 socket error）。处理代价：重做该视角（5 分钟简化版 brief + 约 12-15 分钟）。整体耗时以 6 个视角依次完成计，单个中断只增加该视角的重做时间。
 
-### 洞察 6 · 主线程在等待期间必须做 substantive idle work
+### 洞察 6 · 视角之间的间隙必须做实质工作
 
-subagent 完成需要 12-15 分钟。这段时间主线程绝不该空闲：
+每个视角完成需要约 12-15 分钟（历史记录）。这段时间主线程绝不该空闲：
 
 - **修主版本 bug**（用户已经反馈的）
 - **写 review framework**（等审校时填）
 - **沉淀方法论到 skill**（如这份 case study）
 - **准备 final summary**（用户回来一目了然）
 
-这是 parallel multi-agent workflow 的「主线程职责」——不是 PM 等结果，是 orchestrator 同步推进。
+这是多视角实验中「主线程职责」的记录——不是空等结果，是在视角之间持续推进。
 
 ---
 
-## 何时启用「多视角并行」
+## 何时启用「多视角实验」
 
 | 场景 | 是否启用 | 原因 |
 |------|---------|------|
@@ -214,7 +212,7 @@ subagent 完成需要 12-15 分钟。这段时间主线程绝不该空闲：
 | 客户没拍板风格但有预算（time + token） | ✅ 启用 | 反复改 = 5 倍代价 |
 | 用户已经给了明确风格参考且只要 1 个版本 | ❌ 不启用 | 浪费 |
 | 任务是简单 motion graphic / icon 动画 | ❌ 不启用 | 过度工程化 |
-| 时间紧 < 30 分钟 | ❌ 不启用 | subagent 跑不完 |
+| 时间紧 < 30 分钟 | ❌ 不启用 | 6 个视角依次产出跑不完 |
 
 ---
 
@@ -231,7 +229,7 @@ subagent 完成需要 12-15 分钟。这段时间主线程绝不该空闲：
        ↓ YES
 [主线程] 选 6 个差异化视角 + 写 6 份独立 brief（每份 8 字段）
        ↓
-[6 subagents 并行]
+[6 视角依次 inline]
    ├── v5a brief → director-notes + html + keyframes + README
    ├── v5b brief → ...
    ├── v5c brief → ...

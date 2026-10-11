@@ -137,11 +137,11 @@ impl ManualEditRoutesDeps for LiveServerManualEditDeps<'_> {
     fn build_manual_edit_evidence(&self, _page_url: Option<&str>) -> Value {
         json!({
             "error": "not_implemented",
-            "message": "buildManualEditEvidence depends on unported ../live-manual-edit-evidence.mjs",
+            "message": "buildManualEditEvidence depends on live-manual-edit-evidence, which is not available in the native build.",
         })
     }
 
     fn commit_manual_edits(&self, _args: CommitManualEditsArgs) -> Result<Value, String> {
-        Err("commitManualEdits depends on unported ../live-commit-manual-edits.mjs".to_string())
+        Err("unavailable: manual-edit commit is not implemented".to_string())
     }
 }

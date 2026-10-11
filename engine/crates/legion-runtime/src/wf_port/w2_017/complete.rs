@@ -306,7 +306,7 @@ fn status_label(status: &Status) -> &'static str {
 pub fn completion_cli(poster: &dyn HttpPoster, cwd: &Path, argv: &[String]) -> (i32, String) {
     let args = parse_args(argv);
     if let Some(code) = usage_exit_code(&args) {
-        let usage = "Usage: node live-complete.mjs --id SESSION_ID [--discarded|--error MESSAGE]\n\nAppend the final durable session acknowledgement. Use after accept/discard cleanup is verified.";
+        let usage = "Usage: legion script designer/live-complete --id SESSION_ID [--discarded|--error MESSAGE]\n\nAppend the final durable session acknowledgement. Use after accept/discard cleanup is verified.";
         return (code, usage.to_string());
     }
     let id = args
@@ -314,7 +314,13 @@ pub fn completion_cli(poster: &dyn HttpPoster, cwd: &Path, argv: &[String]) -> (
         .clone()
         .expect("usage_exit_code guarantees id is present");
     let result = complete_through_server_or_store(poster, cwd, &id, &args);
-    (0, serde_json::to_string_pretty(&result).unwrap())
+    // A payload with `ok: false` is a failed completion and must not exit 0.
+    let code = if result.get("ok").and_then(Value::as_bool) == Some(true) {
+        0
+    } else {
+        1
+    };
+    (code, serde_json::to_string_pretty(&result).unwrap())
 }
 
 #[cfg(test)]

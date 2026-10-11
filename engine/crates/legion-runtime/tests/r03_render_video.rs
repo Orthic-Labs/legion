@@ -6,8 +6,8 @@
 //!
 //! This file depends on `legion_runtime::wf_port::r03`, which is not yet
 //! wired into `legion-runtime`'s public module tree (see the r00/r03
-//! module doc comments and `r03_tts_doubao.rs`'s header for the exact
-//! wiring step). Until that lands, this file will not compile as part of
+//! module doc comments in `wf_port/r00/mod.rs` and `wf_port/r03/mod.rs`
+//! for the exact wiring step). Until that lands, this file will not compile as part of
 //! the crate's test target.
 //!
 //! No test here launches a real browser or spawns `ffmpeg`: [`FakeRecorder`]

@@ -52,7 +52,10 @@ fn completion_pipeline_drives_ack_shape() {
     assert_eq!(completion_type, "agent_done");
     let ack = completion_ack_for_accept_result("deadbeef", completion_type, Some(&accept_result));
     assert_eq!(ack["requiresComplete"], json!(true));
-    assert_eq!(ack["nextCommand"], json!("live-complete.mjs --id deadbeef"));
+    assert_eq!(
+        ack["nextCommand"],
+        json!("legion script designer/live-complete --id deadbeef")
+    );
 }
 
 #[test]

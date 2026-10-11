@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "skill": "seo",
-  "_note": "Migrated 2026-06-20 from the deleted standalone `llms-txt` skill. The llms.txt GENERATOR now lives at seo/references/llms-txt.md, invoked as `/seo llms-txt`. Auditing an existing llms.txt is handled by the seo-geo subagent + references/geo.md.",
+  "_note": "Migrated 2026-06-20 from the deleted standalone `llms-txt` skill. The llms.txt GENERATOR now lives at seo/references/llms-txt.md, invoked as `/seo llms-txt`. Auditing an existing llms.txt is handled by references/geo.md.",
   "should_trigger": [
     {
       "id": "seo-llms-txt-explicit",
@@ -36,11 +36,11 @@
   ],
   "should_not_trigger": [
     {
-      "id": "seo-llms-txt-not-ss-commercial",
-      "prompt": "Generate an llms.txt for Willow & Pine so it ranks better in AI search.",
+      "id": "seo-llms-txt-not-noncommercial",
+      "prompt": "Generate an llms.txt for Example Passion Project so it ranks better in AI search.",
       "expected_skill": null,
       "forbidden_skills": [],
-      "expected_behavior": "Do not generate an llms.txt for Willow & Pine. It is flagged non-commercial/passion-project in this project's brand policy — llms.txt-for-ranking is banned for such ventures. They get only the defensive AI-training block + passive technical optimization, not active commercial SEO. Decline and explain the venture policy.",
+      "expected_behavior": "Do not generate an llms.txt for Example Passion Project. It is flagged non-commercial/passion-project in this project's brand policy — llms.txt-for-ranking is banned for such ventures. They get only the defensive AI-training block + passive technical optimization, not active commercial SEO. Decline and explain the venture policy.",
       "assertions": [
         {
           "type": "expected_skill",
@@ -54,7 +54,7 @@
   "output_quality": [
     {
       "id": "seo-llms-txt-spec-format",
-      "prompt": "Generate an llms.txt for the Harbor & Thread site.",
+      "prompt": "Generate an llms.txt for the Example Brand site.",
       "expected_skill": "seo",
       "forbidden_skills": [],
       "expected_behavior": "Output starts with /brand for the given brand. File follows spec: # brand name, > description block, ## sections (Products, Collections, Guides, About). Lists only hero pages (10-20), not every URL. Uses plain text, no marketing slogans. Save target noted: the site root.",

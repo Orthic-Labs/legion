@@ -38,7 +38,9 @@ async fn run_with(
                 "command": "legion",
                 "args": ["serve", "--stdio"],
                 "tools": tools,
-                "implemented": true,
+                // True only when `legion serve` can bind a release; otherwise
+                // the served server would list no tools.
+                "implemented": crate::cli::serve_binding_available(),
             }))
         }
         Some("install") => install(&argv[1..], home, project, cancellation).await,

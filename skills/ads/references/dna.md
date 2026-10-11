@@ -25,7 +25,7 @@ If the user hasn't provided a URL, ask:
 
 ### Step 2: Fetch Pages
 
-Use the **WebFetch tool** to retrieve each page. For each URL, use this fetch prompt:
+Use the **`web-search` host capability** (page fetch) to retrieve each page. If the host does not provide it, ask the user to paste each page's text and source. For each URL, use this fetch prompt:
 > "Return all visible text content, the full contents of any `<style>` blocks, inline
 > `style=` attributes, `<meta>` tags, Google Fonts `@import` URLs, and any `og:image`
 > values found on this page."

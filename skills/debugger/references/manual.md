@@ -50,8 +50,8 @@ for bugs that defeat this path, and applying it to an off-by-one wastes the disc
 
 ### Before Phase 1 — check what is already known
 
-Cheap, in this order: Crypt recall for a standing rule on this symptom; `git log`/`git blame` on the
-failing file for a past fix to the same thing; recent Audit findings. Any hit is a **hypothesis seed,
+Cheap, in this order: the host's durable memory for a standing rule on this symptom, if the host provides
+one; `git log`/`git blame` on the failing file for a past fix to the same thing; recent Audit findings. Any hit is a **hypothesis seed,
 never a conclusion** — reverify it against the active commit, working tree, environment, and
 reproduction before treating it as current evidence.
 
@@ -115,9 +115,9 @@ mask the very race or ordering bug being chased. Earn step 5.
 | Input-driven crash | property/fuzz testing (Hypothesis, fast-check, proptest, cargo-fuzz) |
 | Production-only behaviour | telemetry — see fields below |
 
-**Membrane boundary.** Blueprint is the current-repository truth producer; Audit may contribute
+**Blueprint boundary.** Blueprint is the current-repository truth producer; Audit may contribute
 current diagnostic evidence; Architect designs a future state only when the investigation exposes
-an architectural change. Crypt is durable memory, not current execution proof.
+an architectural change. Durable memory, where the host provides it, is not current execution proof.
 
 ### 3. Hypothesize
 
@@ -211,7 +211,7 @@ approach**, not an escalation trigger and not permission to stop. The escalation
 
 When the root cause was a genuine gotcha a future agent would hit again (an API that needs null-handling
 under load, a framework footgun, an env-specific trap), capture it as a durable rule via
-the host's Crypt durable-memory rule tool (an optional host capability, not shipped in this package) so Crypt recall prevents the repeat.
+the host's durable memory, if the host provides one (an optional host capability, not shipped in this package), so later sessions can recall it. Without durable memory, state the rule in the final report instead.
 The bar is "a standing trap worth remembering," not a log of this one fix. **State the scope** —
 language, layer, or condition it applies to — so one incident does not become an unconditional law.
 

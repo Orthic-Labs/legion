@@ -283,9 +283,14 @@ pub fn check_credentials(
                                     .to_string(),
                             );
                         } else {
-                            result.available = true;
+                            // The file exists with the required fields, but no token is minted
+                            // here, so the key is not verified against Google. Report it as
+                            // present-unverified rather than available.
                             result.method = "service_account".to_string();
                             result.client_email = sa.client_email.clone();
+                            result.note = Some(
+                                "present-unverified: service account file found with required fields; key not verified against Google".to_string(),
+                            );
                         }
                     }
                 }
@@ -318,7 +323,7 @@ fn no_api_key_error() -> String {
 }
 
 fn no_credentials_error() -> String {
-    "No OAuth token or service account found. Either:\n         1. Run: python scripts/google_auth.py --auth --creds /path/to/client_secret.json\n         2. Or add 'service_account_path' to config".to_string()
+    "No OAuth token or service account found. Either:\n         1. Run: legion script seo/google_auth --auth --creds /path/to/client_secret.json\n         2. Or add 'service_account_path' to config".to_string()
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1072,7 +1077,7 @@ pub fn run_with_io(
             Ok(c) => c,
             Err(e) => {
                 let _ = writeln!(err, "{e}");
-                return 0;
+                return 1;
             }
         };
         return match exchange_code(http, &client, &code) {

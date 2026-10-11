@@ -55,9 +55,8 @@ justified with searched scope and reason. Present but incomplete or inaccessible
   2026-09-19 left every lens on the cheapest model and the judgment lenses under-reasoned.)
 - `security`, `architecture`, and `correctness` run on the strongest available native tier. They
   decide exploitability, structural shape, and real bugs, and a miss there is expensive.
-- `schema`, `minimize`, `doc-drift`, `data-safety`, `resilience`, and `release-readiness` run on at
-  least the mid tier; they receive raw logic, exact contracts, or failure-mode evidence.
-- `ai-slop`, `naming`, `dead-file`, `performance`, `a11y`, and `platform-parity` are mechanical:
+- `schema`, `minimize`, `doc-drift`, `data-safety`, `resilience`, `release-readiness`, `ai-slop`, `naming`, and `performance` are judgment lenses and run on at least the mid tier; they receive raw logic, exact contracts, or failure-mode evidence. `ai-slop` carries the suite's highest false-positive risk, so its findings stay capped as `manual.md` states.
+- `dead-file`, `a11y`, and `platform-parity` are mechanical:
   the lowest available native tier is fine. They receive scoped evidence; a11y and platform parity
   still receive relevant raw excerpts.
 - If a tier is unavailable on the host, use the next tier down and record the downgrade in the lens

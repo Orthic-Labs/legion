@@ -1,7 +1,7 @@
 ---
 name: marketing-mvp
 description: >
-  Idea-to-shipped-MVP loop in one session. Domain check → landing page → teaser → deploy. Use when user
+  Idea-to-live-MVP loop in one session. Domain candidates → landing page → teaser → live page with email capture. Use when user
   says "/marketing mvp", "ship today", "build this idea", "MVP", "landing page for". For rapid validation,
   not production builds.
 ---
@@ -17,7 +17,7 @@ Idea → live URL with email capture in <4 hours.
 1. **Idea brief:** problem, audience, why-now, monetization hypothesis
 2. `/research` quick-scan: does anyone want this?
 3. **Verdict gate:** if no signal, pivot or kill
-4. `/marketing ideas domain` — 5 available domain name candidates (the `/marketing ideas` skill loads its own `specialists/ideas/references/domain.md`)
+4. `/marketing ideas domain` — 5 domain name candidates (the `/marketing ideas` skill loads its own `specialists/ideas/references/domain.md`). Availability is not checked here; the user verifies it at a registrar.
 5. User picks + registers
 
 ### Phase 2 — Build (2 hours)
@@ -37,7 +37,7 @@ Idea → live URL with email capture in <4 hours.
 1. `/designer static` — 3 social variants (1:1, 9:16, 16:9)
 2. Optional: a 5-second teaser via the host's media-production capability, when the host provides one
 3. `/writing` — 3 caption variants
-4. Post manually to relevant communities (use reddit-mining for which)
+4. Post manually to relevant communities (use `/research` to pick them)
 
 ## Scope discipline
 - ONE primary action (email capture, not "buy + signup + book demo")

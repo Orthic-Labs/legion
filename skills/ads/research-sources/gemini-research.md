@@ -1,7 +1,6 @@
 # Gemini Deep Research: The State of Paid Advertising 2026
 
 > Source: Gemini Deep Research, February 2026
-> Original file: `~/Downloads/the state of paid advertising 2026.txt`
 > 344 lines, 36 cited sources
 
 ## Executive Summary

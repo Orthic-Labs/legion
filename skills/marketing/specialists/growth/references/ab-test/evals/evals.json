@@ -42,16 +42,16 @@
   ],
   "should_not_trigger": [
     {
-      "id": "ab-test-not-trigger-copywriting",
+      "id": "ab-test-not-trigger-writing",
       "prompt": "Can you help me write copy for our new landing page? We want to test it against the current version.",
-      "expected_skill": "copywriting",
+      "expected_skill": "writing",
       "forbidden_skills": [],
-      "expected_behavior": "Writing the actual landing page copy is a copywriting task. Ab-test reference handles test design and statistical setup, not copy creation. Should cross-reference copywriting skill.",
+      "expected_behavior": "Writing the actual landing page copy is a writing task. Ab-test reference handles test design and statistical setup, not copy creation. Should cross-reference the writing skill.",
       "severity": "warning",
       "mode": "discovery",
       "assertions": [
-        "Recognizes this as primarily a copywriting task",
-        "References or defers to copywriting skill",
+        "Recognizes this as primarily a writing task",
+        "References or defers to the writing skill",
         "Does not attempt to write full page copy using test setup patterns",
         "May offer to help with test hypothesis and setup"
       ]
@@ -161,7 +161,7 @@
       "mode": "discovery",
       "assertions": [
         "Recognizes overlap with A/B test setup",
-        "References or defers to ab-test-setup skill",
+        "References or defers to the growth ab-test reference",
         "May help with tracking implementation specifics",
         "Does not attempt to design the full experiment"
       ]

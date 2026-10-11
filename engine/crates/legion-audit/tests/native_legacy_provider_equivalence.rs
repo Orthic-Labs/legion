@@ -425,12 +425,25 @@ impl ExternalProjectTool for FakeTool {
         receipt.process_tree.started = self.state == ExecutionState::Completed;
         receipt.process_tree.terminated = receipt.process_tree.started;
         receipt.process_tree.reaped = receipt.process_tree.started;
-        receipt.parser.attempted = self.body.is_some();
-        receipt.parser.succeeded = self.body.is_some();
+        // actionlint, hadolint and swiftlint print a top-level JSON array, so
+        // an object fixture body is an unexpected shape for them.
+        let body_for_tool: Option<Vec<u8>> = match &self.body {
+            Some(body)
+                if body.first() == Some(&b'{')
+                    && ["actionlint", "hadolint", "swiftlint"]
+                        .iter()
+                        .any(|tool| request.executable.contains(tool)) =>
+            {
+                Some(b"[]".to_vec())
+            }
+            other => other.clone(),
+        };
+        receipt.parser.attempted = body_for_tool.is_some();
+        receipt.parser.succeeded = body_for_tool.is_some();
         if self.state == ExecutionState::Completed {
             receipt.gaps.clear();
             receipt.complete = true;
-            if let Some(body) = &self.body {
+            if let Some(body) = &body_for_tool {
                 let path = PathBuf::from(&request.cwd).join("provider-result.json");
                 fs::write(&path, body).unwrap();
                 receipt.stdout = Some(legion_effects::ArtifactRecord {
@@ -742,7 +755,7 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             // collect-facts.mjs's npm/pnpm-audit parser) finds a proven
             // zero-vulnerability count instead of treating the body as
             // unparseable.
-            body: Some(br#"{"complete":true,"status":"ok","coverageGaps":[],"duplicates":[],"metadata":{"vulnerabilities":{"total":0}}}"#.to_vec()),
+            body: Some(br#"{"complete":true,"status":"ok","coverageGaps":[],"duplicates":[],"metadata":{"vulnerabilities":{"total":0}},"files":[],"diagnostics":[],"summary":{"errorCount":0},"results":[],"vulnerabilities":{"count":0},"packages":[],"dependencies":[]}"#.to_vec()),
         }));
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let mut checked = 0;
@@ -846,7 +859,8 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
                 invalid
                     .coverage_gaps
                     .iter()
-                    .any(|gap| gap == "artifact-bytes-unreadable"),
+                    .any(|gap| gap == "artifact-bytes-unreadable"
+                        || gap.starts_with("legacy-tool-output-unparseable:")),
                 "{id} invalid gap"
             );
         }

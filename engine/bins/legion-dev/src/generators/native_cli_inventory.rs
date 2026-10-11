@@ -399,6 +399,16 @@ fn md_join(mut items: Vec<String>, sep: &str, empty: &str) -> String {
     items.join(sep)
 }
 
+/// A frozen-surface array that is absent or not an array is an error; an
+/// empty inventory must never be produced from a malformed frozen surface.
+fn frozen_array(frozen: &Value, key: &str) -> Result<Vec<Value>, String> {
+    frozen
+        .get(key)
+        .and_then(Value::as_array)
+        .cloned()
+        .ok_or_else(|| format!("frozen Node CLI surface has no {key} array"))
+}
+
 pub fn run(root: &Path) -> bool {
     match run_inner(root) {
         Ok(ok) => ok,
@@ -442,25 +452,27 @@ fn run_inner(root: &Path) -> Result<bool, String> {
         .cloned()
         .unwrap_or_default();
 
-    let node: Vec<String> = frozen_node["commands"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default()
+    let node: Vec<String> = frozen_array(&frozen_node, "commands")?
         .iter()
-        .filter_map(|v| v.as_str().map(str::to_string))
-        .collect();
-    let dispatched_routes = frozen_node["dispatchRoutes"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
+        .map(|v| {
+            v.as_str().map(str::to_string).ok_or_else(|| {
+                format!("frozen Node CLI surface commands entry is not a string: {v}")
+            })
+        })
+        .collect::<Result<_, _>>()?;
+    let dispatched_routes = frozen_array(&frozen_node, "dispatchRoutes")?;
     let dispatched: Vec<String> = dispatched_routes
         .iter()
-        .filter_map(|r| r.get("command").and_then(Value::as_str).map(str::to_string))
-        .collect();
-    let nested_node = frozen_node["nestedRoutes"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
+        .map(|r| {
+            r.get("command")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    format!("frozen Node CLI surface dispatchRoutes entry has no command: {r}")
+                })
+        })
+        .collect::<Result<_, _>>()?;
+    let nested_node = frozen_array(&frozen_node, "nestedRoutes")?;
     let nested_node_strings: Vec<String> = nested_node
         .iter()
         .filter_map(|r| r.get("route").and_then(Value::as_str).map(str::to_string))

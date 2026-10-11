@@ -259,7 +259,7 @@ pub fn run_accessibility_suite(
     }
     findings.sort_by(|left, right| left.id.cmp(&right.id));
     Ok(
-        json!({"provider":"accessibility.internal-suite", "phase":"runtime", "applicable":!scanned.is_empty(), "required":!scanned.is_empty(), "status":if findings.is_empty(){"pass"}else{"fail"}, "complete":gaps.is_empty(), "coverage":{"expectedFiles":selected.entries.len(),"scannedFiles":scanned.len(),"scanned":scanned}, "findings":findings, "coverageGaps":gaps, "degradation":[] }),
+        json!({"provider":"accessibility.internal-suite", "phase":"static-source", "applicable":!scanned.is_empty(), "required":!scanned.is_empty(), "status":if findings.is_empty(){"pass"}else{"fail"}, "complete":gaps.is_empty(), "coverage":{"expectedFiles":selected.entries.len(),"scannedFiles":scanned.len(),"scanned":scanned}, "findings":findings, "coverageGaps":gaps, "degradation":[] }),
     )
 }
 
@@ -284,10 +284,11 @@ pub fn execute(
     let complete = gaps.is_empty() && files.len() == selected.entries.len();
     super::common::result(
         input,
-        if findings.is_empty() {
+        // Findings do not make a run partial; unproven coverage does.
+        if complete {
             ProviderStatus::Complete
         } else {
-            ProviderStatus::Complete
+            ProviderStatus::Partial
         },
         complete,
         &selected,

@@ -9,5 +9,4 @@
 The native `legion research` command atomically consumes the route-scoped budget before every
 provider request and worker start (`BudgetAccount` in `engine/crates/legion-research/src/budget.rs`).
 A breach blocks the run; models never count or widen their own budget. Dossier initialization fails
-until both request and worker ceilings are supplied. (`src/lib/research-core/meter.py` was the
-retired Python prototype's equivalent and is not part of the installed plugin.)
+until both request and worker ceilings are supplied. (The retired Python prototype's equivalent is not part of the installed plugin.)

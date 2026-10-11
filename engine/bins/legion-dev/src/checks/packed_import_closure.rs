@@ -176,13 +176,18 @@ fn pnpm_pack(root: &Path) -> Result<std::path::PathBuf, String> {
 /// Read a packed tarball's file list and UTF-8 JavaScript sources. Package
 /// tarballs nest content under a `package/` prefix, which is stripped to
 /// match the packed-path convention used by `package.json#files`.
-fn read_tarball(tgz_path: &Path) -> Result<(Vec<String>, HashMap<String, String>), String> {
+fn read_tarball(
+    tgz_path: &Path,
+) -> Result<(Vec<String>, HashMap<String, String>, Vec<String>), String> {
     let file = std::fs::File::open(tgz_path).map_err(|e| e.to_string())?;
     let decoder = GzDecoder::new(file);
     let mut archive = tar::Archive::new(decoder);
     let js_re = javascript_file_re();
     let mut files = Vec::new();
     let mut sources = HashMap::new();
+    // JavaScript entries that could not be read as UTF-8 text. They are
+    // problems, never silently dropped from the import closure.
+    let mut unreadable = Vec::new();
     for entry in archive.entries().map_err(|e| e.to_string())? {
         let mut entry = entry.map_err(|e| e.to_string())?;
         if !entry.header().entry_type().is_file() {
@@ -201,14 +206,17 @@ fn read_tarball(tgz_path: &Path) -> Result<(Vec<String>, HashMap<String, String>
         files.push(path.clone());
         if js_re.is_match(&path) {
             let mut buf = String::new();
-            if std::io::Read::read_to_string(&mut entry, &mut buf).is_ok() {
-                sources.insert(path, buf);
+            match std::io::Read::read_to_string(&mut entry, &mut buf) {
+                Ok(_) => {
+                    sources.insert(path, buf);
+                }
+                Err(e) => unreadable.push(format!("{path}: {e}")),
             }
         }
     }
     files.sort();
     files.dedup();
-    Ok((files, sources))
+    Ok((files, sources, unreadable))
 }
 
 pub struct Outcome {
@@ -238,7 +246,7 @@ pub fn check(root: &Path) -> Outcome {
     if let Some(parent) = tgz.parent() {
         let _ = std::fs::remove_dir(parent);
     }
-    let (packed_files, sources) = match result {
+    let (packed_files, sources, unreadable) = match result {
         Ok(v) => v,
         Err(e) => {
             return Outcome {
@@ -247,16 +255,17 @@ pub fn check(root: &Path) -> Outcome {
             }
         }
     };
-    let missing = find_missing_packed_relative_imports(&packed_files, &sources);
-    if missing.is_empty() {
-        Outcome {
-            status: "pass",
+    if !unreadable.is_empty() {
+        return Outcome {
+            status: "error",
             message: format!(
-                "packed import closure passes ({} JavaScript files)",
-                sources.len()
+                "packed import closure failed: unreadable or non-UTF-8 JavaScript source(s): {}",
+                unreadable.join("; ")
             ),
-        }
-    } else {
+        };
+    }
+    let missing = find_missing_packed_relative_imports(&packed_files, &sources);
+    if !missing.is_empty() {
         let detail = missing
             .iter()
             .map(|m| {
@@ -269,9 +278,23 @@ pub fn check(root: &Path) -> Outcome {
             })
             .collect::<Vec<_>>()
             .join("; ");
-        Outcome {
+        return Outcome {
             status: "error",
             message: format!("packed import closure failed: {detail}"),
+        };
+    }
+    if sources.is_empty() {
+        Outcome {
+            status: "pass",
+            message: "no JavaScript files in package; nothing to check".to_string(),
+        }
+    } else {
+        Outcome {
+            status: "pass",
+            message: format!(
+                "packed import closure passes ({} JavaScript files)",
+                sources.len()
+            ),
         }
     }
 }

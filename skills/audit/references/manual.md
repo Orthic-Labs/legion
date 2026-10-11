@@ -6,7 +6,7 @@ SPECIALIST_REFS_MAX: 5
 CHILD_AGENTS_MAX: 16
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: BLUEPRINT, ARCHITECT
+MAY_CALL_SKILLS: BLUEPRINT, ARCHITECT, AUDIT-VISUAL
 TERMINAL: Frozen audit checks finish with evidence-backed findings or typed degradation.
 ```
 
@@ -107,8 +107,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    bounded `ContextCandidateSet v1`. It never narrows the scanner/check denominator, and exact files
    used to verify a finding are still read in full.
 
-   > **Membrane status.** Audit still runs standalone directly after Blueprint — no planner
-   > prerequisite. The typed Audit finding store (`<repo>/.audit/audit/findings.jsonl`, `status ==
+   > **Blueprint status.** A standalone run without Blueprint is allowed and needs no planner prerequisite; every graph-dependent claim stays `UNPROVEN` in that case. The typed Audit finding store (`<repo>/.audit/audit/findings.jsonl`, `status ==
    > open` only) is a project-overlay artifact: read it when present, never require it.
 
 1. **Detect + collect facts (deterministic).** Run:
@@ -163,8 +162,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 ### CodeRabbit-inspired ergonomics
 
 Local-review scope/diff flags (`--doctor`, `--dir`, `--type all|local|committed|uncommitted`,
-`--base`/`--base-commit`) plus the OKF bundle emit and `crypt prep`
-lens-input compression are specified in `references/engine-interface.md` §CLI ergonomics. Scope
+`--base`/`--base-commit`) plus the OKF bundle emit and optional host lens-input compression are specified in `references/engine-interface.md` §CLI ergonomics. Scope
 metadata is advisory context; scanner coverage remains honest — a scoped report must not claim
 unscanned checks were clean, and none of this turns `/audit` into single-PR review.
 
@@ -271,7 +269,7 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
 | `data-safety` *(migrations/SQL **and PII/privacy** in scope)* | migration files, raw SQL, ORM destructive ops, client storage sites, telemetry/analytics init, `tsc`/lint | per `references/migration-safety.md` — irreversible/no-down migration, blocking DDL on a large table, column/table drop = **data loss**, non-`CONCURRENTLY` index, unbatched backfill, `DELETE`/`UPDATE` without a guarded `WHERE`. Plus unbounded retention (history/log/telemetry tables or an outbox with no pruning/orphan sweep) and, when payments/FSM code is in scope: idempotency keys on refund/settlement paths, unique constraint on `(tenant, provider_ref)`, gateway-call-inside-DB-txn, attacker-supplied-tenant-id tracing. **PII & privacy** (any app target): plaintext PII in `localStorage`/`AsyncStorage`/plain SQLite instead of OS keychain/keystore, analytics/telemetry firing before user consent (GDPR/CCPA) or before an EULA/first-run gate, secrets/tokens persisted unencrypted at rest, and **PII leaking into logs/telemetry** (full request bodies, tokens, emails). Runs when the target/diff touches a migration, SQL, a payment/state-machine seam, client-side storage, or telemetry | greppable (migration dirs, DDL keywords, storage APIs, analytics init); high-value, low false-positive |
 | `resilience` *(app/daemon targets — trigger: sidecar/child-process/server/queue code present)* | source, `facts.checks[negative_space].meta` (unsafe_sites), runtime pass cold-start result | per `references/desktop-tauri-checklist.md` §5 — sidecar/child death+hang (watchdog, RPC timeouts), crash/corrupt-file recovery, partial-artifact cleanup, graceful shutdown, backpressure, offline/degraded-network static cues (fetch without retry/backoff/last-known-good), observability (persistent structured logs — is a field bug diagnosable post-hoc? no log file in a shipped desktop app is a finding) | greppable (spawn/Command sites, fetch sites, log-init); runtime cold-start smoke |
 | `platform-parity` *(trigger: `#[cfg(target_os` or `usePlatform` present)* | per-OS branches, CI workflows, marketing/docs claims | per `references/desktop-tauri-checklist.md` §6 — matrix every per-OS branch × shipped OSes; flag stubs (`Empty`/`unimplemented!`/silent `Ok(())`) behind cross-platform claims, per-OS CI coverage, rule-14 window-chrome/hotkey conformance | `git grep cfg(target_os` (deterministic branch inventory) |
-| `release-readiness` *(trigger: publish/signing/updater scripts or `tauri.conf.json` bundle config present)* | publish scripts, `tauri.conf.json`, license/attribution files, `facts.checks[dep_pinning\|vendored_deps\|binary_pins]` (STALE + MANUAL-CHECK pins = shipping outdated bundled binaries; surface each to the user with its upstream latest) | third-party attribution completeness (LGPL/CC-BY notices linked in-app, not just LICENSE-exists), signing symmetry (Windows Authenticode checked wherever Mac notarization is), updater pubkey = suite key + endpoint config sanity (one `curl` for `latest.json` liveness is in scope; auditing deployed infra beyond that is NOT), prod CSP carrying dev origins, entitlements posture, EULA/pricing placeholder sweep | scripts + config are static files; `dep_pinning`/`vendored_deps` scanners |
+| `release-readiness` *(trigger: publish/signing/updater scripts or `tauri.conf.json` bundle config present)* | publish scripts, `tauri.conf.json`, license/attribution files, `facts.checks[dep_pinning\|vendored_deps\|binary_pins]` (STALE + MANUAL-CHECK pins = shipping outdated bundled binaries; surface each to the user with its upstream latest) | third-party attribution completeness (LGPL/CC-BY notices linked in-app, not just LICENSE-exists), signing symmetry (Windows Authenticode checked wherever Mac notarization is), updater pubkey = suite key + endpoint config sanity (one `latest.json` liveness request is in scope only when the host run is explicitly online (else typed `unavailable`); auditing deployed infra beyond that is NOT), prod CSP carrying dev origins, entitlements posture, EULA/pricing placeholder sweep | scripts + config are static files; `dep_pinning`/`vendored_deps` scanners |
 
 | `citation-integrity` *(trigger: >1 doc file in scope)* | doc graph (`cites`/`supersedes`/`mentions-code` edges), filesystem, section anchors | doc-vs-**doc** hygiene, distinct from `doc-drift`'s doc-vs-code: cites to nonexistent paths, anchors that moved, links into superseded docs, circular/self cites, cross-doc contradictions, missing `README`/`LICENSE` | path + anchor resolution are deterministic |
 | `okf-hygiene` *(trigger: `.agent/okf/` present)* | the OKF bundle at `.agent/okf/` (`index.md` + one markdown concept per file, `type` frontmatter — **not** a JSON manifest), the `type: risk` / `type: contradiction` debt concepts, and their `supersedes` links | the audit consumes OKF as ground truth but never audits it: `open` debt aged >30d, `in_progress` with no linked commit in 30d, `acknowledged` with no owner, supersession chains that never terminate at a `current` concept, contradictions >0 with 0 acknowledged | all fields are structured — objective, read-only; never closes debt |
@@ -326,7 +324,7 @@ canonical prompt `references/ponytail-lens.md`. The audit ABSORBS ponytail; neve
 CodeRabbit's entire review surface across existing lenses — running the CLI afterward is redundant;
 the class→lens ownership map and the per-lens **cue lists** (high-signal heuristics per lens) live
 in that reference. If a CodeRabbit class isn't mapped there, the lens is under-running, not the
-audit under-scoped (PR-inline delivery = the built-in `/review` workflow, not a coverage gap). At
+audit under-scoped (PR-inline delivery = the host's PR review flow, if any, not a coverage gap). At
 lens fan-out, feed each lens its cue section from that reference alongside its `facts.json` slice.
 
 ## Scanner registry
@@ -374,28 +372,12 @@ budgets, team skill, scale, or intentional trade-offs. Render this section only 
 Constraints narrow invalid recommendations (for example, an async or file-split suggestion) but do
 not suppress a verified correctness/security finding.
 
-### Coverage-on-the-change (§2A) and trajectory (report renderer)
+### Coverage-on-the-change (§2A) and trajectory — not implemented
 
-Two renderer-owned additions on top of the report shape above — full contract, matching schema, and
-worked examples in `references/coverage-and-trajectory.md`:
-
-- **Per-change coverage rows.** A binary "tests pass" hides that the CHANGED symbols are untested.
-  When a lens supplies `report.coverage = { ratio, perFile:[{file,touched,covered,uncovered,tests,
-  verdict}] }` (the same shape locked with `/commit`'s diff-scoped gate), the report renderer renders
-  it as report §2A and computes a coverage gate: ratio < 0.8 is `high`, ratio < 0.5 **or** any touched
-  file with an empty `tests` array is `critical`, and a missing ratio (no test infrastructure to read
-  against) is `UNPROVEN` — never `CLEAN`. This is a READ of the diff against the test set; the lens
-  never re-runs tests to compute it. A whole-repo `/audit` pass with no `coverage` field simply omits
-  §2A — coverage-on-the-change is diff-scoped, nothing to render against.
-- **`audit_diff` trajectory.** A snapshot audit has no sense of direction. The report renderer itself
-  (the runner, not a lens) persists a compact fingerprint digest at
-  `<workspace>/.audit/audit-trajectory.json` (override with `--trajectory-history <path>`) and diffs
-  the current finding set against it on every invocation: `resolved`/`new`/`aged`/`unchanged`/
-  `newly_p0` counts plus `aging_buckets` (`0-7d`/`8-30d`/`31-90d`/`90+d`). Fingerprint = `file:line +
-  category + title`, with a rename-tolerant fallback (`category+title+basename(file)`, accepted only
-  as a unique 1:1 pairing). First-ever run at a given history path has nothing to diff against —
-  `vs_prior_run` is `null` until a second run exists. Both fields land in the Markdown report and the
-  JSON summary (`coverage_gate`, `audit_diff`).
+Not implemented in the native engine. `legion report` only renders what the frozen `report.json` already
+contains, so a per-change coverage gate (§2A) or an `audit_diff` trajectory is reported as `UNPROVEN`
+when absent. It is never computed by hand and never presented as a trend. The design notes in
+`references/coverage-and-trajectory.md` describe no current behaviour.
 
 ## Hard rules
 
@@ -447,8 +429,7 @@ source of truth; the main session verifies every rendered `file:line` and owns t
 
 `audit` is read-only. **`audit-fix` is the mutating, closed-loop mode** — it fixes, then RE-AUDITS
 to prove the fix landed, and loops until the scanners **and** lenses are actually clean — nothing
-skipped, no false "done". No flag is needed: the phrases "audit and fix", "audit and clean up", or
-`/audit-fix` select this protocol.
+skipped, no false "done". Only an explicit `/audit-fix` invocation selects this protocol. A request to fix or clean up ("audit and fix", "audit and clean up") never runs inside `/audit`: it becomes a separate, explicit `/audit-fix` step after `/audit` evidence exists.
 
 ### GoalRoute v2 fix-route gate
 
@@ -627,7 +608,7 @@ fix while preserving functionality.
    - **no-progress** — same finding set as the previous iteration → stop; surface the remainder as OPEN.
    - else → loop to step 2.
 5. On exit, emit a final report with a before→after: what was fixed (with the change), what's still open
-   (GUIDED/MANUAL), and the working-tree `git diff`. Run `audit-verify` to prove the final state.
+   (GUIDED/MANUAL), and the working-tree `git diff`. Run `legion verify <run-dir>` to prove the final state.
    **Do not `git commit` / `push`** — committing/pushing is a shared action that requires explicit approval.
 
 ### Final-response truth gate

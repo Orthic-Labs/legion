@@ -9,6 +9,14 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "legion"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "skill-emit"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "okf"
     }
   ]
 }

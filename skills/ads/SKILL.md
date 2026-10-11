@@ -14,6 +14,7 @@ effects:
   - network-request
 hostRequirements:
   - banana-image
+  - web-search
 ---
 
 # Ads
@@ -23,14 +24,14 @@ SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 6
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: writing, designer, audit-visual, qa
 TERMINAL: Paid-media findings or plan answer frozen scope with evidence.
 
 Work only within granted accounts, URLs, files, dates, platforms, & spend.
 
 ## Route
 
-- Platform audit: read `references/<platform>-audit.md`; use `references/scoring-system.md`.
+- Platform audit: read `references/google-audit.md`, `references/meta-audit.md`, `references/linkedin-audit.md`, `references/tiktok-audit.md`, or `references/microsoft-audit.md` for the matching platform; use `references/scoring-system.md`. YouTube and Apple have no audit reference: read `references/youtube.md` or `references/apple.md` instead.
 - Platform strategy: read `references/<platform>.md` plus only relevant targeting, bidding, budget, tracking, compliance, or benchmark reference.
 - Creative: read `references/create.md`; add exact platform creative spec & `references/compliance.md`.
 - Landing page: read `references/landing.md`.

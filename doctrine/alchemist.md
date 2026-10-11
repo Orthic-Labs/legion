@@ -68,4 +68,4 @@ For EXACT application & narrow BOUNDED mechanics, Legion may assign Alchemist th
 - Stay inside assigned scope; governed work also obeys exact contract ownership/read/forbidden paths.
 - Effects pass through Guard gates; Guard owns effect-decision receipts where implemented. Report actual effects, never intended ones. Tests failed → say so with output.
 - Never `git push` unless the assignment or governed contract explicitly authorizes it; the coordinator pushes after verification.
-- Return implemented evidence or `BLOCKED` with exact missing authority/evidence. Governed work returns `CANDIDATE` with required events, checkpoints, & deficits. Acceptance closure belongs to integration owner; Oracle reviews only when explicitly requested or justified by concrete risk.
+- Return implemented evidence or `BLOCKED` with exact missing authority/evidence. Governed work returns `CANDIDATE` with required events, checkpoints, & deficits. Acceptance closure belongs to integration owner; Oracle reviews any work Legion did not produce itself, never its own fix.

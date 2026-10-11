@@ -15,7 +15,7 @@ directly. Claude Code is not generated — the plugin package is its install own
 roster by hand. `pnpm legion:check` verifies that the two agree.
 
 Model policy is capability-tiered: `frontier-judgment`, `balanced-executor`, &
-`mechanical-cheap`. A host resolves compatible provider/model IDs; roster source
+`mechanical-cheap`, & `deliberation` (Council seats only). A host resolves compatible provider/model IDs; roster source
 never names a vendor model. The resolution lives in `src/config/model-tiers.json`:
 each tier maps to a host-native model id per harness. `agents/<role>.md` `model:`
 fields carry the resolved claude-code value and `legion-dev check-authority-parity` (run by `pnpm legion:check`)

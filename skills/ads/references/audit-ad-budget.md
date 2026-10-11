@@ -13,7 +13,7 @@ user-invokable: false
 3. Read `ads/references/bidding-strategies.md` for strategy decision trees
 4. Read `ads/references/benchmarks.md` for CPC/CPA benchmarks
 5. Read `ads/references/scoring-system.md` for health score algorithm
-6. **Validate**: confirm spend data covers ≥14 days before evaluating kill/scale decisions
+6. **Validate**: confirm spend data covers the window for each kill decision in the Kill Decision Framework below (≥7 days for CPA-based pauses, ≥14 days for ROAS-based changes) before evaluating kill/scale decisions
 7. Evaluate budget allocation, bidding strategy, and scaling readiness
 8. **Validate**: verify kill list candidates have sufficient data (≥20 clicks or ≥$100 spend) before recommending pause
 9. Generate recommendations with kill list and scale list
@@ -34,7 +34,7 @@ user-invokable: false
 | Local Service | Google Search, Google LSA | Meta | Microsoft, YouTube |
 | B2B Enterprise | LinkedIn, Google Search | Meta | Microsoft, TikTok |
 | Info Products | Meta, YouTube | Google Search | TikTok |
-| Mobile App | Meta, Google UAC | TikTok | Apple Search Ads |
+| Mobile App | Meta, Google UAC | TikTok, Apple Search Ads | — |
 | Real Estate | Google Search, Meta | YouTube | Microsoft |
 | Healthcare | Google Search | Meta | Microsoft, YouTube |
 | Finance | Google Search, Meta | LinkedIn | Microsoft |

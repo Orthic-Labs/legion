@@ -38,7 +38,7 @@ pub struct ManualApplySummary {
 /// Port of `manualApplyReplyCommand(eventOrId = 'EVENT_ID')`.
 pub fn manual_apply_reply_command(event_id: Option<&str>) -> String {
     format!(
-        "live-poll.mjs --reply {} done --data '<json>'",
+        "legion script designer/live-poll --reply {} done --data '<json>'",
         event_id.unwrap_or("EVENT_ID")
     )
 }
@@ -166,10 +166,10 @@ pub fn manual_apply_resume_hint(event: &ManualApplyEvent) -> String {
     };
     let reply_cmd = manual_apply_reply_command(event.id.as_deref());
     format!(
-        "Manual Apply pending{scope}. If you have not already leased it, run live-poll.mjs. \
+        "Manual Apply pending{scope}. If you have not already leased it, run legion script designer/live-poll. \
          Apply the source edits from the manual_edit_apply batch, then reply with {reply_cmd}. \
          Polling only leases this work item; it does not commit source edits. Do not run \
-         live-commit-manual-edits.mjs for this leased event. Do not poll again before replying."
+         legion script designer/live-commit-manual-edits for this leased event. Do not poll again before replying."
     )
 }
 
@@ -208,11 +208,11 @@ mod tests {
     fn manual_apply_reply_command_defaults_and_uses_id() {
         assert_eq!(
             manual_apply_reply_command(None),
-            "live-poll.mjs --reply EVENT_ID done --data '<json>'"
+            "legion script designer/live-poll --reply EVENT_ID done --data '<json>'"
         );
         assert_eq!(
             manual_apply_reply_command(Some("ev9")),
-            "live-poll.mjs --reply ev9 done --data '<json>'"
+            "legion script designer/live-poll --reply ev9 done --data '<json>'"
         );
     }
 
@@ -282,8 +282,12 @@ mod tests {
         assert!(hint.starts_with(
             "Manual Apply pending (page http://localhost:5173/, chunk 1/3, 3 op(s), 2 entries, likely files: "
         ));
-        assert!(hint.contains("reply with live-poll.mjs --reply ev1 done --data '<json>'"));
-        assert!(hint.contains("Do not run live-commit-manual-edits.mjs for this leased event."));
+        assert!(hint.contains(
+            "reply with legion script designer/live-poll --reply ev1 done --data '<json>'"
+        ));
+        assert!(hint.contains(
+            "Do not run legion script designer/live-commit-manual-edits for this leased event."
+        ));
     }
 
     #[test]

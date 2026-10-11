@@ -1,6 +1,6 @@
 # SQLite / local-first checklist — cues for `performance`, `data-safety`, `resilience`
 
-House reference for embedded-DB apps (every Right Suite app is local-first SQLite/SQLCipher).
+House reference for embedded-DB apps (every app built with this reference is local-first SQLite/SQLCipher).
 Carried by the lenses when the target opens a SQLite DB (rusqlite/sqlx/better-sqlite3/sql.js/
 Drizzle-sqlite in deps, or `.db`/`PRAGMA` hits in source). The generic checklist stops at
 "missing indexes / N+1"; this is the embedded-DB depth beneath it.

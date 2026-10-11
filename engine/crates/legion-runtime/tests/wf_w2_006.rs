@@ -1,6 +1,6 @@
 //! Integration tests for wf_port chunk w2_006
 //! (`skills/designer/engine/huashu/{assets/deck_stage.js,
-//! scripts/add-music.sh, scripts/convert-formats.sh,
+//! scripts/convert-formats.sh,
 //! scripts/export_deck_pdf.mjs, scripts/export_deck_pptx.mjs}`).
 //!
 //! Each submodule's own `#[cfg(test)]` block already covers its unit-level
@@ -17,7 +17,7 @@
 use std::path::{Path, PathBuf};
 
 use legion_runtime::wf_port::w2_006::{
-    add_music, convert_formats, deck_stage, export_deck_pdf, export_deck_pptx,
+    convert_formats, deck_stage, export_deck_pdf, export_deck_pptx,
 };
 
 // ---------------------------------------------------------------------------
@@ -59,34 +59,6 @@ fn deck_stage_full_navigation_and_persistence_cycle() {
     .unwrap();
     assert!(transform.scale > 0.0);
     assert!(transform.to_css().starts_with("translate("));
-}
-
-// ---------------------------------------------------------------------------
-// add-music.sh
-// ---------------------------------------------------------------------------
-
-#[test]
-fn add_music_end_to_end_plan_and_ffmpeg_args() {
-    let args = add_music::parse_args(["my.mp4", "--mood=ad", "--out=final.mp4"]);
-    let plan = add_music::build_plan(&args, Path::new("/skill/assets")).unwrap();
-
-    assert_eq!(plan.music, PathBuf::from("/skill/assets/bgm-ad.mp3"));
-    assert_eq!(plan.output, PathBuf::from("final.mp4"));
-
-    let ffmpeg_args = add_music::ffmpeg_args(&plan, 42.5);
-    assert!(ffmpeg_args.contains(&"-shortest".to_string()));
-    assert!(ffmpeg_args
-        .iter()
-        .any(|a| a.contains("afade=t=out:st=41.5:d=1")));
-}
-
-#[test]
-fn add_music_missing_input_is_rejected() {
-    let args = add_music::parse_args(["--mood=tech"]);
-    assert_eq!(
-        add_music::build_plan(&args, Path::new("/assets")),
-        Err(add_music::AddMusicError::MissingOrUnreadableInput)
-    );
 }
 
 // ---------------------------------------------------------------------------

@@ -12,7 +12,8 @@ operations:
 effects:
   - source-read
   - artifact-write
-hostRequirements: []
+hostRequirements:
+  - media-production
 ---
 
 # Writing
@@ -22,7 +23,7 @@ SPECIALIST_REFS_MAX: 1 (optional extras beyond REQUIRED_READS)
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: brand (brand code known or customer-facing output), designer (layout handoff), social (distribution handoff), marketing (strategy handoff)
+MAY_CALL_SKILLS: brand (branded output), designer (layout handoff), social (distribution handoff), marketing (strategy handoff), seo (search intent, indexing, publish SEO), research (sourcing), ads (paid-media handoff), qa and audit-visual (rendered-page evidence), oracle and council (optional independent review)
 REQUIRED_READS:
 - The selected branch's GUIDE or reference (routes below)
 - `../_shared/anti-slop.md` for any prose output

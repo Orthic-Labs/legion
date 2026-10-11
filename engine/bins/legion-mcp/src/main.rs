@@ -11,6 +11,10 @@ async fn run_binary(application: Arc<NativeApplication>) -> std::io::Result<()> 
     // M1 release binding is supplied by the later CLI composition layer. Until
     // then the standalone binary fails closed instead of advertising tools
     // without a verified installed release identity.
+    eprintln!(
+        "legion-mcp: this standalone binary serves no tools without a verified release binding; \
+         `legion serve --stdio` is the supported entry point"
+    );
     run_with_application(
         application,
         Arc::new(RejectingBindingGate::new("legion setup repair --confirm")),

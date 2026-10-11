@@ -22,8 +22,7 @@ audit under-scoped):
 CodeRabbit's edge is that it *runs a suite of OSS analyzers and is diff-aware by default* — `/audit`
 matches the first with its own scanner pool (`gitleaks`/`tsc`/`eslint`/`knip`/`jscpd`/`semgrep`/…) and
 the second with the scope flags. What it does NOT do that the CLI also does: post inline GitHub PR
-comments. If you want PR-inline delivery specifically, use the built-in `/review` GitHub PR
-workflow (CodeRabbit as an external reviewer is retired); that is not a coverage gap in `/audit`.
+comments. If you want PR-inline delivery specifically, use the host's PR review flow, if any (CodeRabbit as an external reviewer is retired); that is not a coverage gap in `/audit`.
 
 ## Lens cues (high-signal heuristics, applied within the relevant lens)
 

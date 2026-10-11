@@ -15,8 +15,6 @@ pub struct PlanArgs {
     pub json: bool,
     #[arg(long)]
     pub out: Option<PathBuf>,
-    #[arg(long, default_value = "standard")]
-    pub profile: String,
 }
 
 pub async fn run(args: PlanArgs, cancellation: CancellationToken) -> CommandResult {
@@ -68,7 +66,6 @@ pub async fn run(args: PlanArgs, cancellation: CancellationToken) -> CommandResu
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
             "repository": repository_id,
-            "profile": args.profile,
             "seal": {"digest": plan_digest, "authenticity": "hmac-sha256", "signature": plan_signature},
             "providers": providers,
             "status": "complete"

@@ -1,6 +1,6 @@
 ---
-name: email-pro sequence
-description: When the user wants to create or optimize an email sequence, drip campaign, automated email flow, or lifecycle email program. Also use when the user mentions "email sequence," "drip campaign," "nurture sequence," "onboarding emails," "welcome sequence," "re-engagement emails," "email automation," "lifecycle emails," "trigger-based emails," "email funnel," "email workflow," "what emails should I send," "welcome series," or "email cadence." Use this for any multi-email automated flow. For cold outreach emails, see cold-email. For in-app onboarding, see onboarding-cro.
+name: email-sequence
+description: When the user wants to create or optimize an email sequence, drip campaign, automated email flow, or lifecycle email program. Also use when the user mentions "email sequence," "drip campaign," "nurture sequence," "onboarding emails," "welcome sequence," "re-engagement emails," "email automation," "lifecycle emails," "trigger-based emails," "email funnel," "email workflow," "what emails should I send," "welcome series," or "email cadence." Use this for any multi-email automated flow. For cold outreach emails, see the email specialist's cold-outbound section. For in-app onboarding, route to marketing (CRO).
 metadata:
   version: 1.1.0
 ---
@@ -285,28 +285,11 @@ What to measure and benchmarks
 
 ---
 
-## Tool Integrations
-
-For implementation, see the tools registry. Key email tools:
-
-| Tool | Best For | MCP | Guide |
-|------|----------|:---:|-------|
-| **Customer.io** | Behavior-based automation | - | customer-io.md |
-| **Mailchimp** | SMB email marketing | ✓ | mailchimp.md |
-| **Nitrosend** | AI-native email (sequences via prompts) | ✓ | nitrosend.md |
-| **Resend** | Developer-friendly transactional | ✓ | resend.md |
-| **SendGrid** | Transactional email at scale | - | sendgrid.md |
-| **Kit** | Creator/newsletter focused | - | kit.md |
-
 ---
 
 ## Related Skills
 
-- **growth lead-magnets**: For planning lead magnets that feed into nurture sequences
-- **churn-prevention**: For cancel flows, save offers, and dunning strategy (email supports this)
-- **onboarding-cro**: For in-app onboarding (email supports this)
-- **copywriting**: For landing pages emails link to
-- **growth ab-test**: For testing email elements
-- **popup-cro**: For email capture popups
-- **growth revops**: For lifecycle stages that trigger email sequences
+- **marketing**: lead magnets that feed nurture sequences, cancel flows and save offers, in-app onboarding CRO, email capture popups, A/B testing of email elements, and lifecycle-stage definitions.
+- **writing copy branch** (`specialists/copywriting/GUIDE.md`): landing pages that emails link to.
+- Sending platform setup is outside this skill; the user's email platform owns it.
 

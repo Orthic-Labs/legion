@@ -2,8 +2,8 @@
 
 ## Scope
 
-QA owns functional/behavioral QA, deterministic browser/runtime checks, mocks, contract tests, and
-viewport capture as supporting QA artifacts. This manual carries the recovered QA method (project QA contract,
+QA owns functional/behavioral QA, deterministic browser/runtime checks, mocks, and viewport capture
+as supporting QA artifacts. This manual carries the recovered QA method (project QA contract,
 shared runners, hidden-browser defaults, functional and rendered browser checks, report format, machine-state
 boundary). It is **not** Oracle assurance, not Audit Visual's rendered-state audit, and not
 Designer's qualitative craft.
@@ -69,7 +69,7 @@ Windows:
 {
   "scripts": {
     "qa:browser": "powershell -ExecutionPolicy Bypass -File qa/browser.ps1",
-    "qa:browser:stop": "powershell -ExecutionPolicy Bypass -File qa/browser-stop.ps1",
+    "qa:browser:stop": "powershell -ExecutionPolicy Bypass -File qa/browser-stop.ps1"
   }
 }
 ```
@@ -80,7 +80,7 @@ Mac/Linux:
 {
   "scripts": {
     "qa:browser": "bash qa/browser.sh",
-    "qa:browser:stop": "bash qa/browser-stop.sh",
+    "qa:browser:stop": "bash qa/browser-stop.sh"
   }
 }
 ```
@@ -166,8 +166,8 @@ Use SampleApp-style capture:
 - Capture default, hover, active, selected, focused, disabled, error, empty, loading, long-text, and scrolled states.
 - Assert only frozen observable criteria such as visibility, overlap, focus, state transition, exact computed style, viewport containment, or required text.
 - Use computed styles to verify exact cursor/color/spacing acceptance; screenshots are supporting evidence, not a qualitative design oracle.
-- Route rendered-state enumeration, regression comparison, & evidence coverage to Audit Visual.
-- Route subjective hierarchy, typography, spacing craft, density, theme fit, brand expression, & polish judgment or remediation to Designer.
+- Refer rendered-state enumeration, regression comparison, & evidence coverage to Audit Visual (named as the owner; QA does not invoke it).
+- Refer subjective hierarchy, typography, spacing craft, density, theme fit, brand expression, & polish judgment or remediation to Designer (named as the owner; QA does not invoke it).
 
 Run:
 
@@ -224,16 +224,22 @@ Lead with findings:
 
 ## Verification
 - `pnpm qa:browser`
-- `pnpm qa:functional -- --actions .cache/qa-actions.json`
-- `pnpm qa:shot -- --out .cache/qa-shots/default.png`
+- `legion script qa/qa-functional --url "http://127.0.0.1:3000/?qa=1" --actions .cache/qa-actions.json`
+- `legion script qa/qa-shot --url "http://127.0.0.1:3000/?qa=1" --out .cache/qa-shots/default.png`
+
+## Skipped coverage
+- List each frozen case not run, with the reason. Write `none` only when nothing was skipped.
+
+## Cleanup
+- `pnpm qa:browser:stop` (stops only the recorded QA server), then state what was removed or left running.
 ```
 
 Do not say a UI satisfies frozen browser acceptance just because automation can click it. Assert each
-required observable criterion or mark it unknown. Route screenshot-matrix coverage & regression review
+required observable criterion or mark it unknown. Refer screenshot-matrix coverage & regression review
 to Audit Visual, and qualitative judgment to Designer.
 
 Classify each finding with the four-state verdict (`pass | fail | unknown | not-applicable`), not
-a bare priority label. Missing evidence never becomes a pass: an unrun `qa:functional` check is
+a bare priority label. Missing evidence never becomes a pass: an unrun `qa/qa-functional` check is
 `unknown`, not a silent skip.
 
 ## Machine-State Boundary (added 2026-08-10 after the SampleApp route-contamination escape)

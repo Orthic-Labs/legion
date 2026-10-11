@@ -1,5 +1,5 @@
 ---
-name: plan-ad-campaign
+name: strategy-ad-campaign
 description: "Strategic paid advertising planning with industry-specific templates. Covers platform selection, campaign architecture, budget planning, creative strategy, and phased implementation roadmap. Use when user says ad plan, ad strategy, campaign planning, media plan, PPC strategy, or advertising plan."
 user-invokable: false
 ---
@@ -24,7 +24,7 @@ user-invokable: false
 - Note keyword/audience gaps (opportunities competitors are missing)
 
 ### 3. Platform Selection
-- Load industry template from `assets/` directory
+- Derive the industry mix from the brief (no industry template ships with this skill)
 - Match business type to recommended platform mix
 - Read `ads/references/budget-allocation.md` for platform selection matrix
 - Read `ads/references/conversion-tracking.md` for tracking setup requirements
@@ -139,20 +139,9 @@ Before launching any ads, ensure tracking is configured:
 - Expand to testing platforms (10% budget)
 - Monthly performance reviews
 
-## Industry Templates
+## Industry Context
 
-Load from `assets/` directory based on detected or specified business type:
-- `saas.md`: SaaS companies
-- `ecommerce.md`: E-commerce stores
-- `local-service.md`: Local service businesses
-- `b2b-enterprise.md`: B2B enterprise
-- `info-products.md`: Info products and courses
-- `mobile-app.md`: Mobile app companies
-- `real-estate.md`: Real estate
-- `healthcare.md`: Healthcare
-- `finance.md`: Financial services
-- `agency.md`: Marketing agencies
-- `generic.md`: General business template
+Derive the business type, channel mix, and budget norms from the brief and the product context. No industry template ships with this skill.
 
 ## Output
 

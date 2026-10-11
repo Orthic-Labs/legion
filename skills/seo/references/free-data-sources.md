@@ -24,8 +24,7 @@ themselves hand you the same facts for free — and more accurately, because it'
 | Traffic, conversions | GA4 | No |
 | **Competitor** backlinks / keywords / rankings | — | **Yes (Ahrefs/Semrush/DataForSEO)** |
 
-So the rule: **owned-site audit = 100% free. Competitor espionage = paid.** All 7 Right-Suite/brand
-sites are owned, so the free stack below covers them completely.
+So the rule: **owned-site audit = 100% free. Competitor espionage = paid.** Owned sites are covered completely by the free stack below.
 
 ## The providers
 
@@ -65,12 +64,12 @@ sites are owned, so the free stack below covers them completely.
    Settings (gear) → **API access → API Key** → generate. One key covers all your BWT sites.
 6. **IndexNow key** — no signup. Run `legion script seo/indexnow genkey`, then host the printed key
    as a text file at the site root: `https://<host>/<key>.txt` whose *contents are exactly the key*
-   (for the Right-Suite Qwik sites: drop `<key>.txt` in `public/`).
+   (for a Qwik site: drop `<key>.txt` in `public/`).
 
-## Setting the env vars (PowerShell, Windows)
+## Setting the env vars (Windows example; macOS/Linux: export the same names in your shell profile)
 
 `SetEnvironmentVariable(..., 'User')` persists across reboots; the `$env:` line makes it live in the
-**current** session without a restart. Do both. (Restart Claude/Codex after, so the new session
+**current** session without a restart. Do both. (Restart the agent host after, so the new session
 inherits them — env is captured at process start.)
 
 ```powershell

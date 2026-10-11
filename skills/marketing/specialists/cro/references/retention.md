@@ -1,6 +1,6 @@
 ---
 name: optimize-retention
-description: "When the user wants to reduce churn, build cancellation flows, set up save offers, recover failed payments, or implement retention strategies. Also use when the user mentions 'churn,' 'cancel flow,' 'offboarding,' 'save offer,' 'dunning,' 'failed payment recovery,' 'win-back,' 'retention,' 'exit survey,' 'pause subscription,' 'involuntary churn,' 'people keep canceling,' 'churn rate is too high,' 'how do I keep users,' or 'customers are leaving.' Use this whenever someone is losing subscribers or wants to build systems to prevent it. For post-cancel win-back email sequences, see email-pro sequence. For in-app upgrade paywalls, see paywall-upgrade-cro."
+description: "When the user wants to reduce churn, build cancellation flows, set up save offers, recover failed payments, or implement retention strategies. Also use when the user mentions 'churn,' 'cancel flow,' 'offboarding,' 'save offer,' 'dunning,' 'failed payment recovery,' 'win-back,' 'retention,' 'exit survey,' 'pause subscription,' 'involuntary churn,' 'people keep canceling,' 'churn rate is too high,' 'how do I keep users,' or 'customers are leaving.' Use this whenever someone is losing subscribers or wants to build systems to prevent it. For post-cancel win-back email sequences, route to `/writing`. For in-app upgrade paywalls, see `references/paywall.md`."
 metadata:
   version: 1.1.0
 ---
@@ -252,7 +252,7 @@ Health Score = (
 | Trigger | Intervention |
 |---------|-------------|
 | Usage drop >50% for 2 weeks | "We noticed you haven't used [feature]. Need help?" email |
-| Approaching plan limit | Upgrade nudge (not a wall — paywall-upgrade-cro handles this) |
+| Approaching plan limit | Upgrade nudge (not a wall — see `references/paywall.md`) |
 | No login for 14 days | Re-engagement email with recent product updates |
 | NPS detractor (0-6) | Personal follow-up within 24 hours |
 | Support ticket unresolved >48h | Escalation + proactive status update |
@@ -360,8 +360,7 @@ Test one variable at a time:
 | Offer presentation (modal vs full page) | Full page gets more attention | Save rate |
 | Copy tone (empathetic vs direct) | Empathetic reduces friction | Save rate |
 
-**How to run cancel flow experiments:** Use the **growth ab-test** skill to design statistically rigorous tests. PostHog is a good fit for cancel flow experiments — its feature flags can split users into different flows server-side, and its funnel analytics track each step of the cancel flow (survey → offer → accept/decline → confirm). See the PostHog integration guide for setup.
-
+**How to run cancel flow experiments:** Use the **growth ab-test** skill to design statistically rigorous tests. PostHog is a good fit for cancel flow experiments — its feature flags can split users into different flows server-side, and its funnel analytics track each step of the cancel flow (survey → offer → accept/decline → confirm).
 ---
 
 ## Common Mistakes
@@ -380,8 +379,6 @@ Test one variable at a time:
 ---
 
 ## Tool Integrations
-
-For implementation, see the tools registry.
 
 ### Retention Platforms
 
@@ -402,25 +399,26 @@ For implementation, see the tools registry.
 | **Recurly** | Built-in | Built-in | Built-in |
 | **Braintree** | Manual config | Manual | Via gateway |
 
-### Related CLI Tools
+### Tooling by Category (conditional)
 
-| Tool | Use For |
-|------|---------|
-| `stripe` | Subscription management, dunning config, payment retries |
-| `customer-io` | Dunning email sequences, retention campaigns |
-| `posthog` | Cancel flow A/B tests via feature flags, funnel analytics |
-| `mixpanel` / `ga4` | Usage tracking, churn signal analysis |
-| `segment` | Event routing for health scoring |
+Use whatever the project already runs. None of these are required:
+
+| Category | Use For |
+|----------|---------|
+| Billing provider | Subscription management, dunning config, payment retries |
+| Email automation | Dunning email sequences, retention campaigns |
+| Product analytics | Cancel flow A/B tests via feature flags, funnel analytics, usage tracking |
+| Event router | Event routing for health scoring |
 
 ---
 
 ## Related Skills
 
-- **email-pro sequence**: For win-back email sequences after cancellation
-- **paywall-upgrade-cro**: For in-app upgrade moments and trial expiration
-- **growth pricing**: For plan structure and annual discount strategy
-- **onboarding-cro**: For activation to prevent early churn
-- **analytics-tracking**: For setting up churn signal events
-- **growth ab-test**: For testing cancel flow variations with statistical rigor
+- **Writing** (`/writing`): For win-back email sequences after cancellation
+- **Paywall** (`references/paywall.md`): For in-app upgrade moments and trial expiration
+- **Growth pricing** (`/marketing growth`): For plan structure and annual discount strategy
+- **Onboarding** (`references/onboarding.md`): For activation to prevent early churn
+- **Growth analytics** (`/marketing growth`): For setting up churn signal events
+- **Growth ab-test** (`/marketing growth`): For testing cancel flow variations with statistical rigor
 
 _Additional refs: see retention-assets/_

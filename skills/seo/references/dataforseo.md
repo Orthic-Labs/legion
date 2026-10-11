@@ -1,24 +1,3 @@
----
-name: seo-dataforseo
-description: >
-  Live SEO data via DataForSEO MCP server. SERP analysis (Google, Bing, Yahoo,
-  YouTube), keyword research (volume, difficulty, intent, trends), backlink
-  profiles, on-page analysis (Lighthouse, content parsing), competitor analysis,
-  content analysis, business listings, AI visibility (ChatGPT scraper, LLM
-  mention tracking), and domain analytics. Requires DataForSEO extension
-  installed. Use when user says "dataforseo", "live SERP", "keyword volume",
-  "backlink data", "competitor data", "AI visibility check", "LLM mentions",
-  or "real search data".
-user-invokable: true
-argument-hint: "[command] [query]"
-license: MIT
-compatibility: "Requires DataForSEO MCP server"
-metadata:
-  author: AgriciDaniel
-  version: "1.6.1"
-  category: seo
----
-
 # DataForSEO: Live SEO Data (Extension)
 
 Live search data via the DataForSEO MCP server. Provides real-time SERP results,
@@ -42,7 +21,7 @@ installed and provide install instructions.
 
 DataForSEO charges per API call. Be efficient:
 - Prefer bulk endpoints over multiple single calls
-- Use default parameters (US, English) unless user specifies otherwise
+- Use the project's market and language defaults (see `openseo-absorption.md`, Project defaults); never silently fall back to US/en
 - Cache results mentally within a session; don't re-fetch the same data
 - Warn user before running expensive operations (full backlink crawls, large keyword lists)
 
@@ -99,7 +78,7 @@ Fetch YouTube search results. Valuable for GEO. YouTube mentions correlate most 
 
 ### `/seo dataforseo youtube <video_id>`
 
-Deep analysis of a specific YouTube video: info, comments, and subtitles. YouTube mentions have the strongest correlation (0.737) with AI visibility, making this critical for GEO analysis.
+Deep analysis of a specific YouTube video: info, comments, and subtitles. YouTube mentions are reported to correlate most strongly with AI visibility (unverified, check a primary source), making this relevant for GEO analysis.
 
 **MCP tools:** `serp_youtube_video_info_live_advanced`, `serp_youtube_video_comments_live_advanced`, `serp_youtube_video_subtitles_live_advanced`
 
@@ -366,14 +345,14 @@ These DataForSEO tools are available for internal use by the agent but do not ha
 
 ## Cross-Skill Integration
 
-When DataForSEO MCP tools are available, other claude-seo skills can leverage live data:
+When DataForSEO MCP tools are available, the SEO lanes below use live data. Lanes run inline and sequentially (CHILD_AGENTS_MAX: 0); no sub-agent is spawned:
 
-- **seo-audit**:Spawn `seo-dataforseo` agent for real SERP, backlink, on-page, and listings data
-- **seo-technical**:Use `on_page_instant_pages` / `on_page_lighthouse` for real crawl data, `domain_analytics_technologies_domain_technologies` for stack detection
-- **seo-content**:Use `kw_data_google_ads_search_volume`, `dataforseo_labs_bulk_keyword_difficulty`, `dataforseo_labs_search_intent` for real keyword metrics, `content_analysis_summary` for content quality
-- **seo-page**:Use `serp_organic_live_advanced` for real SERP positions, `backlinks_summary` for link data
-- **seo-geo**:Use `ai_optimization_chat_gpt_scraper` for real ChatGPT visibility, `ai_opt_llm_ment_search` for LLM mention tracking
-- **seo-plan**:Use `dataforseo_labs_google_competitors_domain`, `dataforseo_labs_google_domain_intersection`, `dataforseo_labs_bulk_traffic_estimation` for real competitive intelligence
+- **Full audit**: DataForSEO lookups for real SERP, backlink, on-page, and listings data
+- **Technical checks**: `on_page_instant_pages` / `on_page_lighthouse` for real crawl data, `domain_analytics_technologies_domain_technologies` for stack detection
+- **Content checks**: `kw_data_google_ads_search_volume`, `dataforseo_labs_bulk_keyword_difficulty`, `dataforseo_labs_search_intent` for real keyword metrics, `content_analysis_summary` for content quality
+- **Page checks**: `serp_organic_live_advanced` for real SERP positions, `backlinks_summary` for link data
+- **GEO checks**: `ai_optimization_chat_gpt_scraper` for real ChatGPT visibility, `ai_opt_llm_ment_search` for LLM mention tracking
+- **Competitive checks**: `dataforseo_labs_google_competitors_domain`, `dataforseo_labs_google_domain_intersection`, `dataforseo_labs_bulk_traffic_estimation` for real competitive intelligence
 
 ## Error Handling
 
@@ -385,7 +364,7 @@ When DataForSEO MCP tools are available, other claude-seo skills can leverage li
 
 ## Output Formatting
 
-Match existing claude-seo output patterns:
+Match this skill's output patterns:
 - Use tables for comparative data
 - Prioritize issues as Critical > High > Medium > Low
 - Include specific, actionable recommendations

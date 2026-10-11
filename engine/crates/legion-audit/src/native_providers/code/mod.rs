@@ -435,6 +435,12 @@ impl ProviderExecutorAdapter {
                 }),
             );
         }
+        if produced.is_none() && config.tools.is_empty() {
+            // Host-supplied input and no tools to run: nothing was inspected
+            // and no rule applied, so this can never read as a clean pass.
+            gaps.push(format!("{}:no-rules-applicable", provider.id));
+            complete = false;
+        }
         gaps.sort();
         gaps.dedup();
         let status = if complete {

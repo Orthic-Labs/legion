@@ -72,7 +72,7 @@ Use this breakdown to identify which phase is causing LCP issues.
 ### LCP (Largest Contentful Paint)
 - Unoptimized hero images (compress, use WebP/AVIF, add preload)
 - Render-blocking CSS/JS (defer, async, critical CSS inlining)
-- Slow server response (TTFB >200ms: use edge CDN, caching)
+- Slow server response (TTFB above 800ms: use edge CDN, caching)
 - Third-party script blocking (defer analytics, chat widgets)
 - Web font loading delay (use font-display: swap + preload)
 
@@ -100,11 +100,10 @@ Use this breakdown to identify which phase is causing LCP issues.
 ## Tools
 
 ```bash
-# PageSpeed Insights API
-curl "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=URL&key=API_KEY"
+# PageSpeed Insights (Lighthouse lab + CrUX field), native route
+legion script seo/pagespeed_check <url> --json
 
-# Lighthouse CLI
-npx lighthouse URL --output json --output-path report.json
+# Standalone Lighthouse CLI: only if the host provides Lighthouse
 ```
 
 ## Performance Tooling Updates (2025)

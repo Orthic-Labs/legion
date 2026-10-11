@@ -1,6 +1,6 @@
 # Typography Craft Rules
 
-Folded from make-interfaces-feel-better. Implementation-level rules for the Visual Architecture pass (Phase 2) and Craft & Delight pass (Phase 4).
+Folded from make-interfaces-feel-better. Implementation-level rules for the visual-architecture pass and the craft pass of a surface build (`../specialists/surface-design/GUIDE.md`, Phase 4 inner loop).
 
 ## Text Wrapping
 

@@ -1,6 +1,6 @@
 ---
-name: plan-seo-structure
-description: When the user wants to plan, map, or restructure their website's page hierarchy, navigation, URL structure, or internal linking. Also use when the user mentions "sitemap," "site map," "visual sitemap," "site structure," "page hierarchy," "information architecture," "IA," "navigation design," "URL structure," "breadcrumbs," "internal linking strategy," "website planning," "what pages do I need," "how should I organize my site," or "site navigation." Use this whenever someone is planning what pages a website should have and how they connect. NOT for XML sitemaps (that's technical SEO — see seo-audit). For SEO audits, see seo-audit. For structured data, see schema-markup.
+name: strategy-seo-structure
+description: When the user wants to plan, map, or restructure their website's page hierarchy, navigation, URL structure, or internal linking. Also use when the user mentions "sitemap," "site map," "visual sitemap," "site structure," "page hierarchy," "information architecture," "IA," "navigation design," "URL structure," "breadcrumbs," "internal linking strategy," "website planning," "what pages do I need," "how should I organize my site," or "site navigation." Use this whenever someone is planning what pages a website should have and how they connect. NOT for XML sitemaps, SEO audits, or structured data (that's technical SEO — route to `/seo`).
 metadata:
   version: 1.1.0
 ---
@@ -349,12 +349,9 @@ Mermaid diagram showing page relationships and navigation zones. Use `graph TD` 
 
 ## Related Skills
 
-- **content-strategy**: For planning what content to create and topic clusters
-- **programmatic-seo**: For building SEO pages at scale with templates and data
-- **seo-audit**: For technical SEO, on-page optimization, and indexation issues
-- **page-cro**: For optimizing individual pages for conversion
-- **schema-markup**: For implementing breadcrumb and site navigation structured data
-- **competitor-alternatives**: For comparison page frameworks and URL patterns
+- **Content strategy** (`/marketing strategy`, content reference): For planning what content to create and topic clusters
+- **SEO** (`/seo`): For building SEO pages at scale, technical SEO, on-page optimization, indexation issues, structured data, and comparison page URL patterns
+- **CRO page** (`/marketing cro`, page reference): For optimizing individual pages for conversion
 
 ## Optional independent review
 

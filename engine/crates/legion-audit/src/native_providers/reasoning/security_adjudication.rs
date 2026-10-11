@@ -10,6 +10,22 @@
 //! challenge.  Digests are computed the same way the rest of the reasoning
 //! protocol computes them: canonical JSON over the object with the digest
 //! field itself excluded.
+//!
+//! ## Isolation and content integrity
+//!
+//! Presence of a field is not an assessment. A batch of scanner candidates is
+//! adjudicated as one work item per candidate ([`adjudication_work_items`]):
+//! each item is its own packet, identified by a digest of the batch packet
+//! digest and the candidate id, carrying only that candidate's evidence, and
+//! bound to its own adjudicator context (`adjudicator:{itemId}`). A verdict
+//! records the context it was reached in; one that shares a context with
+//! another candidate, or equals the generator's context, is rejected. The
+//! batch entry point only fans out to those per-candidate items.
+//!
+//! Verdict text must be meaningful ([`SecurityAdjudicationError`] variants
+//! `EmptyField`, `PlaceholderContent`, `ThinContent`, `DuplicateContent`), and a
+//! surviving verdict must reference the candidate's path or sink and cite an
+//! evidence location inside the candidate's file.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -118,7 +134,79 @@ pub enum SecurityAdjudicationError {
     MissingDevilsAdvocate(SecurityVerdictKind),
     #[error("digest computation failed: {0}")]
     Digest(String),
+    #[error("candidate {candidate}: `{field}` is empty")]
+    EmptyField {
+        candidate: String,
+        field: &'static str,
+    },
+    #[error("candidate {candidate}: `{field}` is placeholder content ({text:?})")]
+    PlaceholderContent {
+        candidate: String,
+        field: &'static str,
+        text: String,
+    },
+    #[error("candidate {candidate}: `{field}` is too thin to be an assessment (needs at least 12 characters and 2 words)")]
+    ThinContent {
+        candidate: String,
+        field: &'static str,
+    },
+    #[error("candidate {candidate}: `{field}` repeats candidate {other}'s text verbatim")]
+    DuplicateContent {
+        candidate: String,
+        other: String,
+        field: &'static str,
+    },
+    #[error("surviving verdict for {candidate} does not reference the candidate's path ({path}) or sink")]
+    MissingCandidateReference { candidate: String, path: String },
+    #[error("surviving verdict for {0} must cite at least one evidence location (file and line)")]
+    MissingEvidenceCitation(String),
+    #[error("surviving verdict for {candidate} cites no evidence inside the candidate's file {expected} (cited {cited})")]
+    EvidenceOutsideCandidateFile {
+        candidate: String,
+        expected: String,
+        cited: String,
+    },
+    #[error(
+        "verdict for {candidate}: adjudicator context {context} is shared with candidate {other}"
+    )]
+    SharedContext {
+        candidate: String,
+        other: String,
+        context: String,
+    },
+    #[error("verdict for {0}: adjudicator context equals the generator's context")]
+    GeneratorContext(String),
+    #[error("verdict for {candidate}: context {actual} is not the isolated context {expected} issued for this candidate")]
+    UnexpectedContext {
+        candidate: String,
+        expected: String,
+        actual: String,
+    },
+    #[error("verdict for {0}: the adjudicator context attestation (`contextId`) is required")]
+    MissingContextAttestation(String),
+    #[error("verdict {0}: `candidateId` is required")]
+    MissingCandidateId(usize),
+    #[error("verdict {index}: {id} is not a candidate in this packet")]
+    UnknownCandidate { index: usize, id: String },
+    #[error("verdict {index}: duplicate verdict for {id}")]
+    DuplicateVerdict { index: usize, id: String },
+    #[error("verdict for {id}: {reason}")]
+    MalformedVerdict { id: String, reason: String },
+    #[error("candidate {id}: {reason}")]
+    CandidateSetup { id: String, reason: String },
+    #[error("every scanner candidate needs exactly one verdict; missing: {0}")]
+    MissingVerdicts(String),
+    #[error("verdict for {id}: {source}")]
+    Verdict {
+        id: String,
+        source: Box<SecurityAdjudicationError>,
+    },
 }
+
+/// Shortest verdict text that can be an assessment rather than a stub.
+pub const MIN_CONTENT_CHARS: usize = 12;
+/// Fewest words in such a text.
+pub const MIN_CONTENT_WORDS: usize = 2;
 
 pub struct NewSecurityCandidate<'a> {
     pub id: &'a str,
@@ -312,6 +400,11 @@ pub struct SecurityVerdict {
     pub impact: String,
     pub rationale: Option<String>,
     pub devils_advocate: Option<String>,
+    /// Evidence locations the adjudicator cited (`{file, line}`); a surviving
+    /// verdict from the batch path always carries at least one in the
+    /// candidate's file.
+    #[serde(default)]
+    pub cited_evidence: Vec<Value>,
     pub variant_analysis_required: bool,
     pub verdict_digest: String,
 }
@@ -323,8 +416,27 @@ pub fn finalize_security_verdict(
     packet: &SecurityAdjudicationPacket,
     result: SecurityVerdictInput,
 ) -> Result<SecurityVerdict, SecurityAdjudicationError> {
+    finalize_with_evidence(packet, result, Vec::new())
+}
+
+fn non_blank(text: &Option<String>) -> bool {
+    text.as_deref().is_some_and(|text| !text.trim().is_empty())
+}
+
+fn finalize_with_evidence(
+    packet: &SecurityAdjudicationPacket,
+    result: SecurityVerdictInput,
+    cited_evidence: Vec<Value>,
+) -> Result<SecurityVerdict, SecurityAdjudicationError> {
     if !verify_adjudication_packet(packet) {
         return Err(SecurityAdjudicationError::InvalidPacket);
+    }
+    // A blank string is no more an assessment than an absent one.
+    if !non_blank(&result.threat_model)
+        || !non_blank(&result.reachability)
+        || !non_blank(&result.impact)
+    {
+        return Err(SecurityAdjudicationError::IncompleteVerdict);
     }
     let threat_model = result
         .threat_model
@@ -340,7 +452,7 @@ pub fn finalize_security_verdict(
         .ok_or(SecurityAdjudicationError::IncompleteVerdict)?;
 
     let surviving = result.verdict.is_surviving();
-    if surviving && result.severity.is_none() {
+    if surviving && !non_blank(&result.severity) {
         return Err(SecurityAdjudicationError::MissingSeverity(result.verdict));
     }
     if !surviving && result.severity.is_some() {
@@ -358,7 +470,7 @@ pub fn finalize_security_verdict(
                 result.verdict,
             ));
         }
-        if result.proof.is_none() {
+        if !non_blank(&result.proof) {
             return Err(SecurityAdjudicationError::MissingProof(result.verdict));
         }
         let strength = result
@@ -369,7 +481,7 @@ pub fn finalize_security_verdict(
                 result.verdict,
             ));
         }
-        if result.devils_advocate.is_none() {
+        if !non_blank(&result.devils_advocate) {
             return Err(SecurityAdjudicationError::MissingDevilsAdvocate(
                 result.verdict,
             ));
@@ -400,6 +512,7 @@ pub fn finalize_security_verdict(
         impact,
         rationale: result.rationale,
         devils_advocate: result.devils_advocate,
+        cited_evidence,
         variant_analysis_required: surviving,
         verdict_digest: String::new(),
     };
@@ -533,10 +646,19 @@ pub fn scanner_candidates(
             let line = evidence
                 .and_then(|item| item.get("line"))
                 .and_then(Value::as_u64);
-            let evidence_excerpt = path
-                .as_deref()
-                .zip(line)
-                .and_then(|(path, line)| excerpt_line(root, path, line));
+            // A generator that already stored a redacted excerpt (the heuristic
+            // security packs) is trusted over re-reading the source line, so a
+            // matched secret is never copied into the adjudication packet.
+            let evidence_excerpt = candidate
+                .get("redactedExcerpt")
+                .and_then(Value::as_str)
+                .filter(|excerpt| !excerpt.is_empty())
+                .map(ToOwned::to_owned)
+                .or_else(|| {
+                    path.as_deref()
+                        .zip(line)
+                        .and_then(|(path, line)| excerpt_line(root, path, line))
+                });
             Some(ScannerCandidate {
                 finding_id: id.to_owned(),
                 provider: provider.to_owned(),
@@ -581,83 +703,555 @@ pub struct ConfirmedSecurityFinding {
     pub verdict_digest: String,
 }
 
-/// Closes every scanner candidate with exactly one verdict from an
-/// independent adjudicator: unknown, duplicate and missing candidate ids are
-/// rejected, and each verdict must clear the evidentiary bar for its kind
-/// (`finalize_security_verdict`). `verdicts` items are `SecurityVerdictInput`
-/// objects plus `candidateId`.
-pub fn adjudicate_scanner_candidates(
+/// The generator-side context a scanner candidate was raised in.
+fn generator_context_id(candidate: &ScannerCandidate) -> String {
+    format!("scanner:{}", candidate.provider)
+}
+
+/// The isolated adjudicator context issued for one candidate of a batch: a
+/// digest of the batch packet digest and the candidate id. Distinct for every
+/// candidate, deterministic for a given batch, and never the generator's.
+pub fn adjudication_item_id(
+    packet_digest: &str,
+    candidate_id: &str,
+) -> Result<String, SecurityAdjudicationError> {
+    canonical_digest(&json!({
+        "kind": "security-adjudication-item",
+        "packetDigest": packet_digest,
+        "candidateId": candidate_id,
+    }))
+    .map_err(|error| SecurityAdjudicationError::Digest(error.to_string()))
+}
+
+/// The adjudicator context id issued for `candidate_id` in the batch.
+pub fn adjudication_context_id(
+    packet_digest: &str,
+    candidate_id: &str,
+) -> Result<String, SecurityAdjudicationError> {
+    Ok(format!(
+        "adjudicator:{}",
+        adjudication_item_id(packet_digest, candidate_id)?
+    ))
+}
+
+/// One candidate's isolated adjudication work item: its own packet, holding
+/// only that candidate's evidence, bound to its own adjudicator context.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CandidateAdjudicationItem {
+    /// `sha256` of (batch packet digest, candidate id).
+    pub item_id: String,
+    /// The fresh context the verdict for this candidate must be reached in.
+    pub context_id: String,
+    pub packet: SecurityAdjudicationPacket,
+}
+
+fn build_item(
+    candidate: &ScannerCandidate,
+    packet_digest: &str,
+) -> Result<CandidateAdjudicationItem, SecurityAdjudicationError> {
+    let id = candidate.finding_id.as_str();
+    let setup = |error: SecurityAdjudicationError| SecurityAdjudicationError::CandidateSetup {
+        id: id.to_owned(),
+        reason: error.to_string(),
+    };
+    let item_id = adjudication_item_id(packet_digest, id)?;
+    let context_id = format!("adjudicator:{item_id}");
+    let claim = if candidate.message.trim().is_empty() {
+        candidate.rule.clone()
+    } else {
+        format!("{}: {}", candidate.rule, candidate.message)
+    };
+    let stamp = format!("frozen:{packet_digest}");
+    let security_candidate = create_security_candidate(NewSecurityCandidate {
+        id,
+        provider: &candidate.provider,
+        context_id: &generator_context_id(candidate),
+        claim: &claim,
+        alleged_root_cause: None,
+        alleged_trigger: None,
+        alleged_impact: None,
+        evidence: vec![json!({
+            "findingId": id,
+            "path": candidate.path,
+            "line": candidate.line,
+            "excerpt": candidate.evidence_excerpt,
+        })],
+        generated_at: Some(stamp.clone()),
+    })
+    .map_err(setup)?;
+    let packet = create_adjudication_packet(
+        security_candidate,
+        ADJUDICATOR_PROVIDER_ID,
+        &context_id,
+        Some(stamp),
+    )
+    .map_err(setup)?;
+    Ok(CandidateAdjudicationItem {
+        item_id,
+        context_id,
+        packet,
+    })
+}
+
+/// Fans a batch out into one isolated work item per candidate, in candidate
+/// order. A host runs each item in its own fresh adjudicator context.
+pub fn adjudication_work_items(
+    candidates: &[ScannerCandidate],
+    packet_digest: &str,
+) -> Result<Vec<CandidateAdjudicationItem>, SecurityAdjudicationError> {
+    let mut seen = BTreeSet::new();
+    let mut items = Vec::new();
+    for candidate in candidates {
+        if seen.insert(candidate.finding_id.as_str()) {
+            items.push(build_item(candidate, packet_digest)?);
+        }
+    }
+    Ok(items)
+}
+
+/// How a verdict's adjudicator context is established.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ContextPolicy {
+    /// The context is the one issued for the candidate; a verdict that names a
+    /// different one (`contextId`) is rejected. A verdict that names none is
+    /// accepted, which proves nothing about how it was reached: use only where
+    /// the host cannot yet attest.
+    Derived,
+    /// Every verdict must name the context it was reached in, and it must be
+    /// the one issued for its candidate.
+    Attested,
+}
+
+/// A location a verdict cites as evidence.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct Citation {
+    file: String,
+    line: u64,
+}
+
+fn normalize_cited_path(path: &str) -> String {
+    let path = path.trim().replace('\\', "/");
+    path.strip_prefix("./").unwrap_or(&path).to_owned()
+}
+
+fn parse_citations(value: &Value) -> Vec<Citation> {
+    value
+        .get("evidence")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|item| match item {
+            Value::String(location) => {
+                let (file, line) = parse_location(location);
+                Some(Citation {
+                    file: normalize_cited_path(&file),
+                    line: line.filter(|line| *line > 0)?,
+                })
+            }
+            Value::Object(_) => {
+                let file = item
+                    .get("file")
+                    .or_else(|| item.get("path"))
+                    .and_then(Value::as_str)?;
+                let line = item
+                    .get("line")
+                    .and_then(Value::as_u64)
+                    .filter(|l| *l > 0)?;
+                Some(Citation {
+                    file: normalize_cited_path(file),
+                    line,
+                })
+            }
+            _ => None,
+        })
+        .filter(|citation| !citation.file.is_empty())
+        .collect()
+}
+
+/// Lowercased alphanumerics only: the comparison form for placeholder and
+/// verbatim-duplicate checks.
+fn normal_form(text: &str) -> String {
+    text.chars()
+        .filter(|character| character.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+const PLACEHOLDER_TEXTS: &[&str] = &[
+    "none",
+    "na",
+    "nil",
+    "null",
+    "undefined",
+    "unknown",
+    "tbd",
+    "todo",
+    "wip",
+    "placeholder",
+    "notapplicable",
+    "yes",
+    "no",
+    "ok",
+    "true",
+    "false",
+    "same",
+    "seeabove",
+    "asabove",
+    "default",
+    "test",
+    "example",
+    "sample",
+    "string",
+    "text",
+    "lorem",
+    "loremipsum",
+];
+
+/// Rejects empty, field-name, stock-placeholder (and, unless `short_ok`, thin)
+/// text. Returns the comparison form on success.
+fn check_text(
+    candidate: &str,
+    field: &'static str,
+    text: &str,
+    short_ok: bool,
+) -> Result<String, SecurityAdjudicationError> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Err(SecurityAdjudicationError::EmptyField {
+            candidate: candidate.to_owned(),
+            field,
+        });
+    }
+    let form = normal_form(trimmed);
+    if form.is_empty() || form == normal_form(field) || PLACEHOLDER_TEXTS.contains(&form.as_str()) {
+        return Err(SecurityAdjudicationError::PlaceholderContent {
+            candidate: candidate.to_owned(),
+            field,
+            text: trimmed.chars().take(40).collect(),
+        });
+    }
+    if !short_ok
+        && (trimmed.chars().count() < MIN_CONTENT_CHARS
+            || trimmed.split_whitespace().count() < MIN_CONTENT_WORDS)
+    {
+        return Err(SecurityAdjudicationError::ThinContent {
+            candidate: candidate.to_owned(),
+            field,
+        });
+    }
+    Ok(form)
+}
+
+/// The text fields of a verdict that must be meaningful, with whether they
+/// are mandatory for this verdict kind. `attackerControl` is an assessment
+/// level ("full", "partial") and so is exempt from the length floor.
+fn content_fields<'a>(
+    input: &'a SecurityVerdictInput,
+    surviving: bool,
+) -> Vec<(&'static str, Option<&'a str>, bool, bool)> {
+    // (field, text, mandatory, short_ok)
+    vec![
+        ("threatModel", input.threat_model.as_deref(), true, false),
+        ("reachability", input.reachability.as_deref(), true, false),
+        ("impact", input.impact.as_deref(), true, false),
+        ("proof", input.proof.as_deref(), surviving, false),
+        (
+            "devilsAdvocate",
+            input.devils_advocate.as_deref(),
+            surviving,
+            false,
+        ),
+        (
+            "attackerControl",
+            if surviving {
+                input.attacker_control.as_deref()
+            } else {
+                None
+            },
+            surviving,
+            true,
+        ),
+        ("rationale", input.rationale.as_deref(), false, false),
+    ]
+}
+
+/// Content validation that does not depend on the rest of the batch. Returns
+/// the comparison forms of the verbatim-comparable fields.
+fn validate_content(
+    candidate: &ScannerCandidate,
+    input: &SecurityVerdictInput,
+    citations: &[Citation],
+) -> Result<Vec<(&'static str, String)>, SecurityAdjudicationError> {
+    let id = candidate.finding_id.as_str();
+    let surviving = input.verdict.is_surviving();
+    let mut forms = Vec::new();
+    for (field, text, mandatory, short_ok) in content_fields(input, surviving) {
+        match text {
+            Some(text) => {
+                let form = check_text(id, field, text, short_ok)?;
+                if !short_ok {
+                    forms.push((field, form));
+                }
+            }
+            None if mandatory => {
+                return Err(SecurityAdjudicationError::EmptyField {
+                    candidate: id.to_owned(),
+                    field,
+                })
+            }
+            None => {}
+        }
+    }
+    if !surviving {
+        return Ok(forms);
+    }
+    let Some(path) = candidate.path.as_deref().map(normalize_cited_path) else {
+        // Nothing to anchor a surviving verdict to.
+        return Err(SecurityAdjudicationError::MissingCandidateReference {
+            candidate: id.to_owned(),
+            path: "<none>".to_owned(),
+        });
+    };
+    // The verdict must talk about this candidate: its path or file name, or a
+    // sink that actually appears on the anchored line.
+    let discussion = [
+        input.threat_model.as_deref(),
+        input.reachability.as_deref(),
+        input.proof.as_deref(),
+        input.rationale.as_deref(),
+        input.sink.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .chain(input.trust_boundaries.iter().map(String::as_str))
+    .chain(input.primary_controls.iter().map(String::as_str))
+    .collect::<Vec<_>>()
+    .join("\n")
+    .to_lowercase();
+    let lower_path = path.to_lowercase();
+    let file_name = lower_path.rsplit('/').next().unwrap_or(&lower_path);
+    let names_path = discussion.contains(&lower_path)
+        || (!file_name.is_empty() && discussion.contains(file_name));
+    let names_sink = input
+        .sink
+        .as_deref()
+        .map(|sink| sink.trim().to_lowercase())
+        .filter(|sink| sink.chars().count() >= 3)
+        .is_some_and(|sink| {
+            [
+                candidate.evidence_excerpt.as_deref(),
+                Some(candidate.message.as_str()),
+            ]
+            .into_iter()
+            .flatten()
+            .any(|anchored| anchored.to_lowercase().contains(&sink))
+        });
+    if !names_path && !names_sink {
+        return Err(SecurityAdjudicationError::MissingCandidateReference {
+            candidate: id.to_owned(),
+            path,
+        });
+    }
+    if citations.is_empty() {
+        return Err(SecurityAdjudicationError::MissingEvidenceCitation(
+            id.to_owned(),
+        ));
+    }
+    if !citations.iter().any(|citation| citation.file == path) {
+        return Err(SecurityAdjudicationError::EvidenceOutsideCandidateFile {
+            candidate: id.to_owned(),
+            expected: path,
+            cited: citations
+                .iter()
+                .map(|citation| format!("{}:{}", citation.file, citation.line))
+                .collect::<Vec<_>>()
+                .join(", "),
+        });
+    }
+    Ok(forms)
+}
+
+fn wrap(id: &str, error: SecurityAdjudicationError) -> SecurityAdjudicationError {
+    SecurityAdjudicationError::Verdict {
+        id: id.to_owned(),
+        source: Box::new(error),
+    }
+}
+
+/// Closes every scanner candidate with exactly one verdict, each reached in
+/// the candidate's own isolated context.
+///
+/// * Unknown, duplicate and missing candidate ids are rejected.
+/// * Each candidate is finalized against its own packet
+///   ([`adjudication_work_items`]) holding only its evidence.
+/// * A verdict that names a context (`contextId`) must name the one issued
+///   for its candidate; one shared with another candidate, or equal to the
+///   generator's, is rejected. With [`ContextPolicy::Attested`] naming it is
+///   mandatory.
+/// * Verdict text must be meaningful and not copied between candidates; a
+///   surviving verdict must reference the candidate's path or sink and cite
+///   an evidence location in the candidate's file (`evidence`: `[{file,line}]`).
+///
+/// `verdicts` items are `SecurityVerdictInput` objects plus `candidateId`,
+/// optional `contextId` and `evidence`.
+pub fn adjudicate_scanner_candidates_isolated(
     candidates: &[ScannerCandidate],
     verdicts: &[Value],
     packet_digest: &str,
-) -> Result<Vec<SecurityVerdict>, String> {
-    let by_id = candidates
-        .iter()
-        .map(|candidate| (candidate.finding_id.as_str(), candidate))
+    policy: ContextPolicy,
+) -> Result<Vec<SecurityVerdict>, SecurityAdjudicationError> {
+    let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
+    for candidate in candidates {
+        by_id
+            .entry(candidate.finding_id.as_str())
+            .or_insert(candidate);
+    }
+    let items = adjudication_work_items(candidates, packet_digest)?
+        .into_iter()
+        .map(|item| (item.packet.candidate.id.clone(), item))
         .collect::<BTreeMap<_, _>>();
-    let mut closed = BTreeMap::new();
+    // Which candidate each issued context belongs to, to name the other party
+    // when a verdict claims a context that is not its own.
+    let issued = items
+        .iter()
+        .map(|(id, item)| (item.context_id.clone(), id.clone()))
+        .collect::<BTreeMap<_, _>>();
+
+    let mut closed: BTreeMap<String, SecurityVerdict> = BTreeMap::new();
+    let mut claimed_contexts: BTreeMap<String, String> = BTreeMap::new();
+    // normal form of a text -> (candidate that wrote it first)
+    let mut seen_text: BTreeMap<String, String> = BTreeMap::new();
     for (index, value) in verdicts.iter().enumerate() {
         let id = value
             .get("candidateId")
             .and_then(Value::as_str)
-            .ok_or_else(|| format!("verdict {index}: `candidateId` is required"))?;
-        let candidate = by_id
-            .get(id)
-            .ok_or_else(|| format!("verdict {index}: {id} is not a candidate in this packet"))?;
+            .ok_or(SecurityAdjudicationError::MissingCandidateId(index))?;
+        let candidate =
+            by_id
+                .get(id)
+                .copied()
+                .ok_or_else(|| SecurityAdjudicationError::UnknownCandidate {
+                    index,
+                    id: id.to_owned(),
+                })?;
         if closed.contains_key(id) {
-            return Err(format!("verdict {index}: duplicate verdict for {id}"));
+            return Err(SecurityAdjudicationError::DuplicateVerdict {
+                index,
+                id: id.to_owned(),
+            });
         }
-        let input: SecurityVerdictInput = serde_json::from_value(value.clone())
-            .map_err(|error| format!("verdict for {id}: {error}"))?;
-        let claim = if candidate.message.trim().is_empty() {
-            candidate.rule.clone()
-        } else {
-            format!("{}: {}", candidate.rule, candidate.message)
-        };
-        let stamp = format!("frozen:{packet_digest}");
-        let security_candidate = create_security_candidate(NewSecurityCandidate {
-            id,
-            provider: &candidate.provider,
-            context_id: &format!("scanner:{}", candidate.provider),
-            claim: &claim,
-            alleged_root_cause: None,
-            alleged_trigger: None,
-            alleged_impact: None,
-            evidence: vec![json!({
-                "findingId": id,
-                "path": candidate.path,
-                "line": candidate.line,
-                "excerpt": candidate.evidence_excerpt,
-            })],
-            generated_at: Some(stamp.clone()),
-        })
-        .map_err(|error| format!("candidate {id}: {error}"))?;
-        let packet = create_adjudication_packet(
-            security_candidate,
-            ADJUDICATOR_PROVIDER_ID,
-            &format!("adjudicator:{packet_digest}"),
-            Some(stamp),
-        )
-        .map_err(|error| format!("candidate {id}: {error}"))?;
-        let verdict = finalize_security_verdict(&packet, input)
-            .map_err(|error| format!("verdict for {id}: {error}"))?;
-        closed.insert(id, verdict);
+        let item = &items[id];
+        let input: SecurityVerdictInput =
+            serde_json::from_value(value.clone()).map_err(|error| {
+                SecurityAdjudicationError::MalformedVerdict {
+                    id: id.to_owned(),
+                    reason: error.to_string(),
+                }
+            })?;
+
+        // Context isolation.
+        let attested = value.get("contextId").and_then(Value::as_str);
+        match attested {
+            Some(context) => {
+                if context == generator_context_id(candidate) {
+                    return Err(SecurityAdjudicationError::GeneratorContext(id.to_owned()));
+                }
+                if let Some(other) = issued.get(context).filter(|other| other.as_str() != id) {
+                    return Err(SecurityAdjudicationError::SharedContext {
+                        candidate: id.to_owned(),
+                        other: other.clone(),
+                        context: context.to_owned(),
+                    });
+                }
+                if let Some(other) = claimed_contexts.get(context) {
+                    return Err(SecurityAdjudicationError::SharedContext {
+                        candidate: id.to_owned(),
+                        other: other.clone(),
+                        context: context.to_owned(),
+                    });
+                }
+                if context != item.context_id {
+                    return Err(SecurityAdjudicationError::UnexpectedContext {
+                        candidate: id.to_owned(),
+                        expected: item.context_id.clone(),
+                        actual: context.to_owned(),
+                    });
+                }
+                claimed_contexts.insert(context.to_owned(), id.to_owned());
+            }
+            None if policy == ContextPolicy::Attested => {
+                return Err(SecurityAdjudicationError::MissingContextAttestation(
+                    id.to_owned(),
+                ))
+            }
+            None => {}
+        }
+
+        // The evidentiary bar for the verdict kind, then meaningful content.
+        let citations = parse_citations(value);
+        let cited = citations
+            .iter()
+            .map(|citation| json!({"file": citation.file, "line": citation.line}))
+            .collect::<Vec<_>>();
+        let verdict = finalize_with_evidence(&item.packet, input.clone(), cited)
+            .map_err(|error| wrap(id, error))?;
+        let forms =
+            validate_content(candidate, &input, &citations).map_err(|error| wrap(id, error))?;
+        for (field, form) in forms {
+            match seen_text.get(&form) {
+                Some(other) if other != id => {
+                    return Err(wrap(
+                        id,
+                        SecurityAdjudicationError::DuplicateContent {
+                            candidate: id.to_owned(),
+                            other: other.clone(),
+                            field,
+                        },
+                    ))
+                }
+                Some(_) => {}
+                None => {
+                    seen_text.insert(form, id.to_owned());
+                }
+            }
+        }
+        closed.insert(id.to_owned(), verdict);
     }
     let missing = by_id
         .keys()
-        .filter(|id| !closed.contains_key(*id))
+        .filter(|id| !closed.contains_key(**id))
         .copied()
         .collect::<Vec<_>>();
     if !missing.is_empty() {
-        return Err(format!(
-            "every scanner candidate needs exactly one verdict; missing: {}",
-            missing.join(", ")
+        return Err(SecurityAdjudicationError::MissingVerdicts(
+            missing.join(", "),
         ));
     }
     Ok(candidates
         .iter()
         .filter_map(|candidate| closed.remove(candidate.finding_id.as_str()))
         .collect())
+}
+
+/// Batch entry point kept for compatibility. It fans out to the per-candidate
+/// contexts of [`adjudicate_scanner_candidates_isolated`] under
+/// [`ContextPolicy::Derived`]: the isolation and content checks apply, but a
+/// verdict that names no context is accepted. Hosts that can attest the
+/// context each verdict was reached in should call the isolated entry point
+/// with [`ContextPolicy::Attested`].
+pub fn adjudicate_scanner_candidates(
+    candidates: &[ScannerCandidate],
+    verdicts: &[Value],
+    packet_digest: &str,
+) -> Result<Vec<SecurityVerdict>, String> {
+    adjudicate_scanner_candidates_isolated(
+        candidates,
+        verdicts,
+        packet_digest,
+        ContextPolicy::Derived,
+    )
+    .map_err(|error| error.to_string())
 }
 
 /// The surviving (`TRUE_POSITIVE` / `LIKELY_TRUE_POSITIVE`) verdicts with the
@@ -958,12 +1552,14 @@ mod tests {
             "verdict": "TRUE_POSITIVE",
             "evidenceStrength": "observed",
             "severity": "high",
-            "threatModel": "remote unauthenticated attacker",
+            "threatModel": "remote unauthenticated attacker supplying the query fragment",
             "attackerControl": "full",
-            "reachability": "reachable from a public handler",
-            "proof": "trace from handler to execute",
-            "impact": "data exfiltration",
-            "devilsAdvocate": "no parameterization found"
+            "reachability": "reachable from a public handler that calls run() in src/db.rs",
+            "sink": "db.execute",
+            "proof": "trace from the handler argument q to db.execute in src/db.rs line 2",
+            "impact": "data exfiltration through the interpolated query",
+            "devilsAdvocate": "no parameterization or allowlist found between q and the query text",
+            "evidence": [{"file": "src/db.rs", "line": 2}]
         })
     }
 
@@ -971,9 +1567,9 @@ mod tests {
         json!({
             "candidateId": id,
             "verdict": "FALSE_POSITIVE",
-            "threatModel": "none",
-            "reachability": "documentation only",
-            "impact": "none"
+            "threatModel": "documentation marker, not executable code",
+            "reachability": "documentation only; nothing here reaches a runtime sink",
+            "impact": "no security impact because the line is prose"
         })
     }
 

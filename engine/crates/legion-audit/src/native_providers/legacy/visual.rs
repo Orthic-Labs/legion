@@ -247,9 +247,9 @@ pub fn execute(
         })
         .unwrap_or_default();
     let complete = analysis.get("complete").and_then(Value::as_bool) == Some(true);
-    let status = if analysis.get("status").and_then(Value::as_str) == Some("fail") {
-        ProviderStatus::Complete
-    } else if complete {
+    // A regression verdict is a finding, not completeness: only a fully
+    // proven capture matrix reports Complete.
+    let status = if complete {
         ProviderStatus::Complete
     } else {
         ProviderStatus::Partial

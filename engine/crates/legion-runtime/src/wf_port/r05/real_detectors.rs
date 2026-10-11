@@ -24,7 +24,9 @@
 use std::path::Path;
 
 use super::super::r07::browser::ChromeDriver;
-use super::super::r07::detect_url::{detect_url as port_detect_url, DetectUrlOptions, Viewport};
+use super::super::r07::detect_url::{
+    detect_url as port_detect_url, visual_contrast_unavailable, DetectUrlOptions, Viewport,
+};
 use super::super::r07::findings::AntipatternLookup;
 use super::super::r08::detect_text_matchers::{
     extract_css_in_js, extract_style_blocks, run_regex_matchers,
@@ -266,8 +268,9 @@ pub fn detect_html(
 }
 
 /// Thin wrapper over `wf_port::r07::detect_url::detect_url`, unifying its
-/// `Finding` shape into [`CliFinding`]. `visual_contrast_findings` is
-/// always the JS `visualContrast: false` no-op (`|_| Ok(Vec::new())`); see
+/// `Finding` shape into [`CliFinding`]. The visual-contrast hook
+/// (`visual_contrast_findings`) has no implementation, so it reports `unavailable:visual-contrast-not-implemented`
+/// (never zero findings) if the visual-contrast option is ever enabled; see
 /// `wf_port::r07`'s module doc for why the visual-contrast fallback lane
 /// itself isn't ported.
 pub fn detect_url(
@@ -277,9 +280,14 @@ pub fn detect_url(
     browser_script: &str,
     options: &DetectUrlOptions,
 ) -> Result<Vec<CliFinding>, String> {
-    let findings = port_detect_url(driver, registry, url, browser_script, options, |_| {
-        Ok(Vec::new())
-    })?;
+    let findings = port_detect_url(
+        driver,
+        registry,
+        url,
+        browser_script,
+        options,
+        visual_contrast_unavailable,
+    )?;
     Ok(findings
         .into_iter()
         .map(|f| {

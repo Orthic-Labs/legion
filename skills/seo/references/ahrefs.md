@@ -1,25 +1,3 @@
----
-name: seo-ahrefs
-description: >
-  Live SEO data via Ahrefs MCP. Domain Rating, backlinks, referring domains,
-  organic keywords, top pages by traffic, rank tracker, SERP overview, site
-  audit issues, Brand Radar AI visibility (mentions, SOV, cited domains/pages),
-  GSC keyword/page performance, and web analytics. Runs alongside DataForSEO
-  when both are present — Ahrefs provides DR history, rank tracking, GSC, Brand
-  Radar, and web analytics that DataForSEO does not cover. Use when user says
-  "ahrefs", "domain rating", "DR", "rank tracker", "brand radar", "AI mentions",
-  "SOV", "share of voice", "GSC data", "web analytics", "referring domains",
-  "top pages", "organic keywords", or when Ahrefs MCP is available during a
-  full audit.
-user-invokable: true
-argument-hint: "[command] [domain or keyword]"
-license: MIT
-metadata:
-  author: the approving human
-  version: "1.0.0"
-  category: seo
----
-
 # Ahrefs: Live SEO Data And Manual UI Exports
 
 Live data via the Ahrefs MCP server (host capability `ahrefs`; its tools carry whatever `mcp__<connector>__` prefix the host assigned, so resolve them by tool name, e.g. `site-explorer-metrics`, `doc`).
@@ -39,8 +17,7 @@ This is not scraping. The agent acts as an attended browser assistant and uses t
 ### Hard Rules
 
 - Use only the host's built-in browser capability:
-  - Codex: use the Browser plugin / in-app browser when available.
-  - Claude: use the available built-in browser/computer-use browser surface when available.
+  - Use the host's built-in browser when one is provided. If no browser is available, report the Ahrefs export step unavailable; no registry capability id covers browser automation.
 - Do not use Scrapling, stealth fetchers, proxy rotation, cookie theft, raw HTTP requests, DOM harvesting, hidden XHR/fetch interception, unofficial Ahrefs endpoints, or any technique designed to bypass UI/API/export limits.
 - Do not automate Ahrefs unless the user is already authorized to access that account/session and explicitly asks for browser-assisted export.
 - Do not scrape tables out of the DOM as the source of truth. Click official Ahrefs export/download controls and use the downloaded CSV/XLSX as the source of truth.
@@ -387,17 +364,17 @@ Use these to find project/report IDs needed by other tools:
 
 ## Cross-Skill Integration
 
-When Ahrefs MCP is available alongside other SEO skills, it enriches them:
+When Ahrefs MCP is available alongside the other SEO lanes, it enriches them (lanes run inline and sequentially):
 
-| Skill | Ahrefs enrichment |
+| Lane | Ahrefs enrichment |
 |-------|-------------------|
-| **seo-audit** | Spawn as parallel subagent — contributes DR, backlinks, organic keywords, site audit issues |
-| **seo-backlinks** | Use `site-explorer-all-backlinks`, `site-explorer-anchors`, `site-explorer-broken-backlinks` as primary source; DataForSEO as secondary |
-| **seo-content** | `site-explorer-top-pages` shows what content drives traffic; `keywords-explorer-*` for gap analysis |
-| **seo-geo** | `brand-radar-*` is the definitive AI visibility data source — prefer over DataForSEO ai-mentions |
-| **seo-google** | `gsc-*` tools complement Google API credentials; use Ahrefs GSC when direct API credentials aren't configured |
-| **seo-plan** | `site-explorer-organic-competitors`, `batch-analysis` for competitive landscape |
-| **seo-technical** | `site-audit-issues` as primary crawl data source |
+| **Full audit** | Run as an inline lane — contributes DR, backlinks, organic keywords, site audit issues |
+| **Backlinks** | Use `site-explorer-all-backlinks`, `site-explorer-anchors`, `site-explorer-broken-backlinks` as primary source; DataForSEO as secondary |
+| **Content** | `site-explorer-top-pages` shows what content drives traffic; `keywords-explorer-*` for gap analysis |
+| **GEO** | `brand-radar-*` is the definitive AI visibility data source — prefer over DataForSEO ai-mentions |
+| **Google** | `gsc-*` tools complement Google API credentials; use Ahrefs GSC when direct API credentials aren't configured |
+| **Competitive** | `site-explorer-organic-competitors`, `batch-analysis` for competitive landscape |
+| **Technical** | `site-audit-issues` as primary crawl data source |
 
 **Deduplication rule when both Ahrefs and DataForSEO are present:**
 - DR / UR / backlinks → use **Ahrefs** (authoritative source)

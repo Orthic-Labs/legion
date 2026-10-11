@@ -399,7 +399,7 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
     } else if let Some(u) = &url {
         inspect_url_with(&ReqwestInspectionTransport, &bearer, u, &site_url, "en")
     } else {
-        let _ = writeln!(err, "usage: gsc_inspect.py [-h] [--site-url SITE_URL] [--batch BATCH] [--delay DELAY] [--json] [url]");
+        let _ = writeln!(err, "usage: legion script seo/gsc_inspect [-h] [--site-url SITE_URL] [--batch BATCH] [--delay DELAY] [--json] [url]");
         return 1;
     };
 

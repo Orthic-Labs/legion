@@ -12,7 +12,7 @@ This file supersedes prior chat summaries and completion estimates for this job.
 
 ## Adjudication 2026-09-14
 
-1. **Build allowance:** 0/3 is current authority; no installer builds remain authorized. The two builds this plan requires proceed only when Adrian grants at least two new builds after static gates pass.
+1. **Build allowance:** 0/3 is current authority; no installer builds remain authorized. The two builds this plan requires proceed only when the operator grants at least two new builds after static gates pass.
 2. **Score:** Accepted completion is 65%. Rust command-source implementation earns 25/25. Audit provider source earns 20/20 after exact 29-provider runtime dispatch coverage, authenticated 17-provider reasoning coverage, exact 32-provider legacy registry/route/selector coverage, production symbolic-tool resolution, sealed executable composition, and canonical async receipt/failure coverage. Source parity is 141/141 diagnostically, but parity points remain gated on a complete installed-executable run.
 3. **Builds 1–3:** Historical failed-build evidence only (RightKit requests `9ae627dc-6e02-4e3d-a7a7-c7b28c830dfe`, `c81e465c-c774-4841-91e0-a09bbdf7540e`, `89c0575e-329d-4b55-ac09-e6de3c86f2d3`). All three failed during managed Rust compilation; none reached assembly, installer, or installed qualification; they qualify nothing about the current working tree.
 4. **Parity gate:** Gate on 100% of a hashed behavior-row manifest (`tests/native-cli-characterization/fixtures.json`, SHA-256 recorded in build evidence), not on a fixed count of 75.
@@ -54,7 +54,7 @@ Percentage measures accepted end-to-end outcome, not lines written or time spent
   ```
 
 - Fixed all compiler errors currently visible across Rust workspace/all targets.
-- Latest current-source compile check passed using RightKit target `D:\.rightkit-managed\rightkit-build-control\ws\19d3fa2de785\g\005\target` (receipt `66e20601-c5e6-4af8-8859-d8a3e679d29d`).
+- Latest current-source compile check passed using RightKit target `<rightkit-managed-target>` (receipt `66e20601-c5e6-4af8-8859-d8a3e679d29d`).
 
 ### Current implementation pass — 2026-09-14
 
@@ -194,7 +194,7 @@ Commit only this final green state. Push, CI, signing, publication, and Mac rele
 
 ## Build discipline
 
-Existing three-build allowance is exhausted. 0/3 is current authority; no installer builds remain authorized. Reaching 100% requires two successful installer builds: one before Node deletion and one after deletion. Those two builds proceed only when Adrian grants at least two new builds, and only after static gates pass (compile check, tests, parity fixtures, build evidence). Current compile gate passed under receipt `766c47de-d703-4fcc-863b-cfa70392b088`; current full locked release Rust workspace/all-features tests passed with 0 failures under receipt `992742da-1f2a-401e-9f67-c872366410bd`. A granted-build failure returns work to source diagnosis and cached check/test gates; it never triggers an immediate build loop, and each further build requires fresh authorization.
+Existing three-build allowance is exhausted. 0/3 is current authority; no installer builds remain authorized. Reaching 100% requires two successful installer builds: one before Node deletion and one after deletion. Those two builds proceed only when the operator grants at least two new builds, and only after static gates pass (compile check, tests, parity fixtures, build evidence). Current compile gate passed under receipt `766c47de-d703-4fcc-863b-cfa70392b088`; current full locked release Rust workspace/all-features tests passed with 0 failures under receipt `992742da-1f2a-401e-9f67-c872366410bd`. A granted-build failure returns work to source diagnosis and cached check/test gates; it never triggers an immediate build loop, and each further build requires fresh authorization.
 
 ## 100% definition
 

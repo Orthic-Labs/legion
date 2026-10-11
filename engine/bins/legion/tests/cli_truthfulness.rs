@@ -20,6 +20,7 @@ fn bind_registrations_reports_host_state() {
     assert_eq!(value["kind"], "legion-bind-registrations");
 }
 
+#[test]
 fn bind_explicit_claude_code_is_retired() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -104,6 +105,7 @@ fn fix_defaults_to_dry_run_and_mcp_install_previews() {
     let _ = std::fs::remove_dir_all(&home);
 }
 
+#[test]
 fn explain_missing_id_is_usage_exit() {
     let output = legion(&["explain", "--json"]);
     assert_eq!(output.status.code(), Some(4));
@@ -209,6 +211,7 @@ fn budget_inspect_requires_arcane_key_dir() {
     assert!(stderr.contains("ARC_AUTH_KEY_UNAVAILABLE"));
 }
 
+#[test]
 fn mcp_print_config_uses_current_executable() {
     let output = legion(&["mcp", "print-config", "--json"]);
     assert_eq!(output.status.code(), Some(0));
@@ -217,6 +220,7 @@ fn mcp_print_config_uses_current_executable() {
     assert_eq!(value["args"], serde_json::json!(["serve", "--stdio"]));
 }
 
+#[test]
 fn init_preview_reports_complete_without_installed_binding() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -332,6 +336,195 @@ fn assurance_is_an_unknown_command() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("unknown command: assurance"));
 }
 
+/// A fresh, empty directory used as HOME and as the working directory, so no
+/// installed release, state, or trigger store from the developer machine leaks
+/// into the assertions.
+fn isolated_home(label: &str) -> std::path::PathBuf {
+    let home = std::env::temp_dir().join(format!("legion-truth-{label}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    std::fs::create_dir_all(&home).unwrap();
+    home
+}
+
+fn run_in(home: &std::path::Path, arguments: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_legion"))
+        .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
+        .env_remove("LEGION_M1_CONFIG")
+        .env("HOME", home)
+        .env("USERPROFILE", home)
+        .current_dir(home)
+        .args(arguments)
+        .output()
+        .expect("native Legion CLI must execute")
+}
+
+#[test]
+fn skills_verify_without_installed_release_is_unavailable_not_pass() {
+    let home = isolated_home("skills-verify");
+    let output = run_in(&home, &["skills", "verify"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value = output_json(&output);
+    assert_eq!(value["status"], "unavailable");
+    assert_eq!(value["count"], 0);
+    assert!(value["reason"]
+        .as_str()
+        .is_some_and(|reason| reason.contains("installed release")));
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn init_dry_run_reports_would_write_and_writes_nothing() {
+    let home = isolated_home("init-dry");
+    let repo = home.join("repo");
+    std::fs::create_dir_all(&repo).unwrap();
+    let repo_arg = repo.to_str().unwrap();
+
+    let preview = run_in(&home, &["init", repo_arg, "--json"]);
+    assert_eq!(preview.status.code(), Some(0));
+    let value = output_json(&preview);
+    assert_eq!(value["dryRun"], true);
+    assert_eq!(value["wouldWrite"].as_array().map(Vec::len), Some(2));
+    assert!(value.get("wrote").is_none());
+    assert!(!repo.join("legion.config.json").exists());
+    assert!(!repo.join(".gitignore").exists());
+
+    // --dry-run wins even when --write is also given.
+    let forced = run_in(&home, &["init", repo_arg, "--write", "--dry-run", "--json"]);
+    assert_eq!(output_json(&forced)["dryRun"], true);
+    assert!(!repo.join("legion.config.json").exists());
+
+    // A real write lists what it wrote; a second write changes nothing and
+    // must report an empty `wrote` list.
+    let written = run_in(&home, &["init", repo_arg, "--write", "--json"]);
+    assert_eq!(written.status.code(), Some(0));
+    let value = output_json(&written);
+    assert_eq!(value["dryRun"], false);
+    assert_eq!(value["wrote"].as_array().map(Vec::len), Some(2));
+    assert!(repo.join("legion.config.json").is_file());
+
+    let again = run_in(&home, &["init", repo_arg, "--write", "--json"]);
+    assert_eq!(
+        output_json(&again)["wrote"].as_array().map(Vec::len),
+        Some(0)
+    );
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn state_verify_on_empty_snapshot_is_unproven_not_clean() {
+    let home = isolated_home("state-empty");
+    let snapshot = home.join("snapshot.json");
+    std::fs::write(
+        &snapshot,
+        r#"{"schema":"legion-state-snapshot.v1","takenAt":"2026-01-01T00:00:00.000Z","surfaces":{}}"#,
+    )
+    .unwrap();
+    let output = run_in(
+        &home,
+        &["state", "verify", "--snapshot", snapshot.to_str().unwrap()],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    let value = output_json(&output);
+    assert_eq!(value["verdict"], "unproven");
+    assert_eq!(value["complete"], false);
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn authority_proof_inspect_unknown_invocation_is_not_found() {
+    let home = isolated_home("authority");
+    let output = run_in(
+        &home,
+        &[
+            "authority",
+            "proof",
+            "inspect",
+            "--invocation",
+            "INV-missing",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    let value = output_json(&output);
+    assert_eq!(value["status"], "not-found");
+    assert_eq!(value["invocationId"], "INV-missing");
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn schedule_trigger_is_recorded_queued_and_states_no_workflow_started() {
+    let home = isolated_home("schedule-trigger");
+    let trigger = home.join("trigger.json");
+    std::fs::write(
+        &trigger,
+        r#"{"triggerId":"TRG-1","type":"manual","source":"test","target":"example-workflow","idempotencyKey":"idem-1","runArgs":[]}"#,
+    )
+    .unwrap();
+    let output = run_in(&home, &["schedule", "--trigger", trigger.to_str().unwrap()]);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value = output_json(&output);
+    assert_eq!(value["state"], "QUEUED");
+    assert_eq!(value["workflowStarted"], false);
+    assert!(value["note"]
+        .as_str()
+        .is_some_and(|note| note.contains("no workflow was started")));
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn mcp_print_config_is_not_implemented_without_a_binding() {
+    let home = isolated_home("mcp-config");
+    let output = run_in(&home, &["mcp", "print-config", "--json"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(output_json(&output)["implemented"], false);
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn decision_draft_reports_not_persisted() {
+    let output = legion(&["decision", "--task", "T-1", "--rationale", "test"]);
+    assert_eq!(output.status.code(), Some(0));
+    let value = output_json(&output);
+    assert_eq!(value["kind"], "legion-decision");
+    assert_eq!(value["persisted"], false);
+}
+
+#[test]
+fn host_describe_does_not_report_an_empty_detection_list_as_fact() {
+    let output = legion(&["host", "describe", ".", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let value = output_json(&output);
+    assert!(value["detected"].is_null());
+    assert_eq!(value["status"], "not-implemented");
+}
+
+#[test]
+fn handoff_help_states_structure_only_validation() {
+    let output = legion(&["handoff", "--help"]);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("structure only"), "{stdout}");
+}
+
+#[test]
+fn governance_rejects_key_dir_outside_judgment() {
+    let output = legion(&[
+        "governance",
+        "delivery",
+        "--json",
+        r#"{"operation":"dispatch-capacity","input":{}}"#,
+        "--key-dir",
+        "keys",
+    ]);
+    assert_eq!(output.status.code(), Some(4));
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("--key-dir applies only to governance judgment"));
+}
+
 #[test]
 fn run_lifecycle_never_uses_default_provider_as_completion_evidence() {
     // Node parity (`src/lib/cli/commands/run.mjs`): a non-EC contract id is a
@@ -344,4 +537,51 @@ fn run_lifecycle_never_uses_default_provider_as_completion_evidence() {
         stderr.contains("run open requires --contract <EC-#>"),
         "{stderr}"
     );
+}
+
+#[test]
+fn fix_apply_selecting_nothing_reports_nothing_to_apply() {
+    // legacy-mcp-binding has no applier, so --apply on it selects nothing and
+    // must not claim that anything was applied.
+    let home = isolated_home("fix-nothing");
+    let output = run_in(
+        &home,
+        &["--json", "fix", "--apply", "--class", "legacy-mcp-binding"],
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value = output_json(&output);
+    assert_eq!(value["dryRun"], false);
+    assert_eq!(value["status"], "nothing-to-apply");
+    assert_eq!(value["mutationApplied"], false);
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn bind_check_without_receipt_reports_unbound_not_clean() {
+    // A repository with a Codex projection and no binding receipt has drift
+    // that cannot be observed. The check must say so and fail, not report no drift.
+    let home = isolated_home("bind-unbound");
+    let repo = home.join("repo");
+    std::fs::create_dir_all(repo.join(".codex")).unwrap();
+    let output = run_in(
+        &home,
+        &["bind", "--check", repo.to_str().unwrap(), "--json"],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let value = output_json(&output);
+    assert_eq!(value["valid"], false);
+    let codex = value["harnesses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["name"] == "codex")
+        .expect("codex harness");
+    assert_eq!(codex["status"], "unbound");
+    assert_eq!(codex["driftStatus"], "unknown");
+    let _ = std::fs::remove_dir_all(&home);
 }

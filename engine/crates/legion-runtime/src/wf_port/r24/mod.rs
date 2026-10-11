@@ -195,7 +195,7 @@ pub fn random_token() -> String {
 
 /// `--help`/`-h` text, byte-for-byte the same content as the JS source's
 /// `console.log` usage block (see lines 991-1020 of `live-server.mjs`).
-pub const HELP_TEXT: &str = "Usage: node live-server.mjs [options]
+pub const HELP_TEXT: &str = "Usage: legion script designer/live-server [options]
 
 Start the live variant mode server (zero dependencies).
 
@@ -207,7 +207,7 @@ Commands:
 Options:
   --background  Start detached, print connection JSON to stdout, then exit
   --port=PORT   Use a specific port (default: auto-detect starting at 8400)
-  --keep-inject Only with stop: skip live-inject.mjs --remove
+  --keep-inject Only with stop: skip legion script designer/live-inject --remove
   --help        Show this help
 
 Endpoints:
@@ -392,7 +392,7 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
             "Live server already running on port {} (pid {}).",
             existing.port, existing.pid
         );
-        eprintln!("Stop it first with: node live-server.mjs stop");
+        eprintln!("Stop it first with: legion script designer/live-server stop");
         return RunOutcome::AlreadyRunning {
             port: existing.port,
             pid: existing.pid,
@@ -431,8 +431,8 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     println!("\nImpeccable live server running on http://localhost:{port}");
     println!("Token: {token}\n");
     println!("Script: http://localhost:{port}/live.js");
-    println!("Inject: managed by live-inject.mjs; Astro source tags use is:inline automatically.");
-    println!("Stop:   node live-server.mjs stop");
+    println!("Inject: managed by legion script designer/live-inject; Astro source tags use is:inline automatically.");
+    println!("Stop:   legion script designer/live-server stop");
 
     // Annotation screenshots live under the project root, sessioned per run
     // (mirrors `state.sessionDir = fs.mkdtempSync(path.join(annotRoot,

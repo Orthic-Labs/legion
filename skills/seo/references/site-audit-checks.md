@@ -56,7 +56,7 @@ sitemap_urls, broken_links_all, redirects, issues{class: [loci]}, severity{error
   (need GSC OAuth). site_audit checks crawlability, not what Google actually indexed/ranks.
 - **Backlinks, DR, keyword volume, competitor SERPs** → Ahrefs/DataForSEO MCP lanes.
 - **Judgment classes** (E-E-A-T, search-intent match, cannibalization, GEO/AI-citability,
-  content quality) → native seo sub-agents (sonnet judgment / haiku mechanical; no external model APIs).
+  content quality) → run inline as sequential judgment passes of this skill (no sub-agents; no external model APIs).
 
 ## Provenance
 

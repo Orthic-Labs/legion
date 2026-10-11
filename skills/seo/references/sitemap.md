@@ -1,18 +1,3 @@
----
-name: seo-sitemap
-description: >
-  Analyze existing XML sitemaps or generate new ones with industry templates.
-  Validates format, URLs, and structure. Use when user says "sitemap",
-  "generate sitemap", "sitemap issues", or "XML sitemap".
-user-invokable: true
-argument-hint: "[url or generate]"
-license: MIT
-metadata:
-  author: AgriciDaniel
-  version: "1.7.0"
-  category: seo
----
-
 # Sitemap Analysis & Generation
 
 ## Mode 1: Analyze Existing Sitemap
@@ -48,10 +33,9 @@ metadata:
 
 ### Process
 1. Ask for business type (or auto-detect from existing site)
-2. Load industry template from `../seo-plan/assets/` directory
+2. Derive the page structure from the brief (no template directory ships with this skill)
 3. Interactive structure planning with user
-   - ⚠️ WARNING at 30+ location pages (require 60%+ unique content)
-   - 🛑 HARD STOP at 50+ location pages (require justification)
+   - Check unique-content depth per location page before scaling; the thresholds in `programmatic.md` apply (no universal page-count gate)
 5. Generate valid XML output
 6. Split at 50k URLs with sitemap index
 7. Generate STRUCTURE.md documentation

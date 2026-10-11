@@ -194,6 +194,48 @@ mod tests {
         assert!(assert_live_browser_script_parts(&resolved, |_| true).is_ok());
     }
 
+    /// `skills/designer/engine/scripts` relative to this crate
+    /// (`engine/crates/legion-runtime` -> repository root is three levels up).
+    fn shipped_scripts_dir() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../skills/designer/engine/scripts")
+    }
+
+    #[test]
+    fn shipped_live_browser_parts_are_all_present() {
+        let resolved = resolve_live_browser_script_parts(
+            &shipped_scripts_dir().to_string_lossy(),
+            LIVE_BROWSER_SCRIPT_PARTS,
+        )
+        .unwrap();
+        assert_eq!(resolved.len(), 3);
+        assert_live_browser_script_parts(&resolved, |p| p.is_file()).unwrap();
+    }
+
+    #[test]
+    fn shipped_live_browser_parts_assemble_all_three_sources() {
+        let resolved = resolve_live_browser_script_parts(
+            &shipped_scripts_dir().to_string_lossy(),
+            LIVE_BROWSER_SCRIPT_PARTS,
+        )
+        .unwrap();
+        let parts = read_live_browser_script_parts(&resolved, |p| std::fs::read_to_string(p))
+            .expect("shipped live-browser parts must be readable");
+        let script = assemble_live_browser_script("tok", 1, "{}", &parts);
+        for (name, file) in [
+            ("session-state", "live-browser-session.js"),
+            ("dom-helpers", "live-browser-dom.js"),
+            ("browser-ui", "live-browser.js"),
+        ] {
+            assert!(
+                script.contains(&format!(
+                    "// --- impeccable live script part: {name} ({file}) ---"
+                )),
+                "assembled script is missing part {name}"
+            );
+        }
+    }
+
     #[test]
     fn assemble_builds_prelude_and_concatenated_body() {
         let parts = vec![

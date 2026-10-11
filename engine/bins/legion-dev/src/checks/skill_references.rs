@@ -12,6 +12,7 @@
 use super::{read_json, read_text, tracked_files};
 use crate::shared::skill_frontmatter::parse_skill_frontmatter;
 use regex::Regex;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -230,14 +231,43 @@ fn check_host_requirements(root: &Path, rel: &str, text: &str) -> Vec<Failure> {
     failures
 }
 
+/// True when the sibling `<stem>.receipt.json` records the SHA-256 of this
+/// markdown file's current bytes, in a `sha256` or `*_sha256` field. Missing,
+/// unreadable, or non-matching receipts do not seal the file.
+fn sealed_by_receipt(root: &Path, rel: &str) -> bool {
+    let md_path = root.join(rel);
+    let receipt_path = md_path.with_extension("receipt.json");
+    let Ok(receipt_text) = std::fs::read_to_string(&receipt_path) else {
+        return false;
+    };
+    let Ok(receipt) = serde_json::from_str::<serde_json::Value>(&receipt_text) else {
+        return false;
+    };
+    let Ok(bytes) = std::fs::read(&md_path) else {
+        return false;
+    };
+    let digest: String = Sha256::digest(&bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let Some(object) = receipt.as_object() else {
+        return false;
+    };
+    object.iter().any(|(key, value)| {
+        (key.as_str() == "sha256" || key.ends_with("_sha256"))
+            && value.as_str() == Some(digest.as_str())
+    })
+}
+
 /// Scans the given root-relative files.
 pub fn check_files(root: &Path, files: &[String], script_table: &BTreeSet<String>) -> Vec<Failure> {
     let mut failures = Vec::new();
     for rel in files.iter().filter(|f| is_skill_markdown(f)) {
-        // A markdown file sealed by a sibling `<stem>.receipt.json` is
-        // HISTORICAL_EVIDENCE: its bytes are digest-bound, so it records what
-        // ran then and cannot be rewritten to current commands.
-        if root.join(rel).with_extension("receipt.json").is_file() {
+        // A markdown file whose bytes are sealed by a sibling
+        // `<stem>.receipt.json` is HISTORICAL_EVIDENCE: it records what ran
+        // then and is not rewritten to current commands. A receipt for other
+        // bytes does not seal the file, so the file is scanned.
+        if sealed_by_receipt(root, rel) {
             continue;
         }
         if let Some(text) = read_text(&root.join(rel)) {
@@ -260,7 +290,13 @@ pub fn run(root: &Path) -> bool {
         eprintln!("check-skill-references: no entries parsed from {SCRIPT_DISPATCH_SOURCE}");
         return false;
     }
-    let files = tracked_files(root);
+    let files = match tracked_files(root) {
+        Ok(files) => files,
+        Err(e) => {
+            eprintln!("check-skill-references: {e}");
+            return false;
+        }
+    };
     let checked = files.iter().filter(|f| is_skill_markdown(f)).count();
     let failures = check_files(root, &files, &table);
     if failures.is_empty() {
@@ -401,5 +437,30 @@ mod tests {
         assert!(!is_skill_markdown("skills/manifests/x.md"));
         assert!(is_skill_markdown("skills/a/b.md"));
         assert!(!is_skill_markdown("docs/a.md"));
+    }
+
+    #[test]
+    fn receipt_seals_only_the_bytes_it_records() {
+        let fx = Fixture::new("receipt");
+        let body = "run `legion script seo/seo_closure`\n";
+        fx.write("skills/a/doc.md", body);
+        let digest: String = Sha256::digest(body.as_bytes())
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        fx.write(
+            "skills/a/doc.receipt.json",
+            &format!("{{\"sha256\": \"{digest}\"}}"),
+        );
+        assert!(sealed_by_receipt(&fx.0, "skills/a/doc.md"));
+        assert!(scan(&fx, "skills/a/doc.md").is_empty());
+
+        // Edited bytes no longer match the receipt, so the file is scanned again.
+        fx.write(
+            "skills/a/doc.md",
+            "edited `legion script seo/seo_closure`\n",
+        );
+        assert!(!sealed_by_receipt(&fx.0, "skills/a/doc.md"));
+        assert_eq!(scan(&fx, "skills/a/doc.md").len(), 1);
     }
 }

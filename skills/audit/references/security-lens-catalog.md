@@ -1,6 +1,6 @@
 # Legion security lens catalogue
 
-Generated from `registry/security-lenses.json`.
+Generated from `src/registry/security-lenses.json`.
 
 | Lens | Family | Implementation | Benchmark | Clean-claim |
 |---|---|---|:---:|:---:|

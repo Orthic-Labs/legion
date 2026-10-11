@@ -79,7 +79,7 @@ Detailed strategies for each major social platform.
 - Threads keep people on platform (rewarded)
 - Images and video get more reach
 - Engagement in first 30 min matters
-- Twitter Blue/Premium may boost reach
+- Paid platform tiers may affect reach; verify against current platform policy
 
 ---
 
@@ -105,7 +105,7 @@ Detailed strategies for each major social platform.
 - Only promotional content
 
 **Format tips:**
-- Reels get 2x reach of static posts
+- Reels are often reported to reach more people than static posts; any multiplier is an unverified claim. Check it against the account's own data before quoting it.
 - First frame of Reels must hook
 - Carousels: 10 slides with educational content
 - Use all Story features (polls, links, etc.)

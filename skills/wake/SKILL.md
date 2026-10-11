@@ -1,6 +1,6 @@
 ---
 name: wake
-description: Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state.
+description: Request one bounded wakeup for an active job, external review, or goal-alignment check, only where the host exposes a scheduler or event wait; inspect once per wake, stop polling, & continue only from observed state.
 kind: capability
 capabilityClass: workflow
 discoverability: public
@@ -17,7 +17,7 @@ hostRequirements: []
 
 # Wake
 
-`/wake` schedules one bounded later inspection. It is not polling, an implicit retry loop, or
+`/wake` requests one bounded later inspection when the host can schedule or wait on events. It is not polling, an implicit retry loop, or
 permission to continue stopped work.
 
 ## Trigger & duration
@@ -31,7 +31,8 @@ Scope narrowing cancels only work outside remaining authorization; continue auth
 ## Choose event or schedule
 
 1. Use an existing completion/event wait for an active job when host can notify on state change.
-2. Use a scheduled wake for a later time-based follow-up or alignment check.
+2. If the host exposes a scheduler, use a scheduled wake for a later time-based follow-up or alignment
+   check. If it does not, schedule nothing and report `next_check: none`.
 3. Create/update exactly one next check bound to target & one question: what changed toward requested
    outcome, & what useful action remains authorized?
 4. Report scheduler-observed next occurrence. Never claim timing, execution, or deadline enforcement

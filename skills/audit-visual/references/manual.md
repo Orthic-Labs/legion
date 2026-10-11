@@ -5,10 +5,11 @@ SPECIALIST_REFS_MAX: 0
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: qa (capture and interaction procedure only)
 TERMINAL: `visual.core` reconciles its frozen matrix or reports typed `UNPROVEN` coverage.
 
-Audit Visual owns deterministic enumeration, capture, comparison, & coverage of rendered UI. It
+Audit Visual owns deterministic enumeration, capture, & coverage of rendered UI. Baseline comparison
+is not implemented in the native runner (section 5). It
 does not own qualitative design taste, design-law critique, motion craft, typography direction,
 composition, brand expression, or remediation; those belong to Designer. QA owns functional,
 behavioral, browser, & runtime checks. Oracle may consume this evidence for independent assurance
@@ -77,6 +78,13 @@ Do not convert subjective judgments such as “generic,” “weak hierarchy,”
 
 ## 5. Regression comparison
 
+**Not implemented in the native runner.** `legion audit` accepts `--visual-baselines`, `--url`,
+`--surfaces`, `--visual-spec`, `--width`, and `--height`, but never reads them. No baseline comparison
+runs. Any case that needs baseline comparison is `UNPROVEN` until the owner builds it; do not report a
+pixel or structural difference from these options.
+
+The rules below apply only if and when a comparison is built.
+
 Baseline comparison requires matching revision identity, case parameters, rendering environment,
 mask set, & tolerance policy. If any binding differs, classify comparison `UNPROVEN` unless frozen
 spec explicitly permits normalization.
@@ -109,9 +117,13 @@ incomplete. A full-page image does not prove hidden overlays or interaction stat
 `/audit-visual` uses client-native capture tools plus Legion's shared frozen Audit plan.
 
 1. Write visual specification.
-2. Capture specified states, then run `legion audit <root> --out <run-dir>` with evidence-bound provider results.
-3. For runtime captures, also supply `--url`, `--surfaces`, & optional `--visual-baselines`.
-4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution.
+2. Capture specified states, then run `legion audit <root> --out <run-dir>`. The native runner does not
+   bind captured evidence into its results.
+3. Do not rely on `--url`, `--surfaces`, `--visual-spec`, or `--visual-baselines`: the native runner
+   accepts them and ignores them (section 5).
+4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution. The
+   native runner's frozen provider registry has no `visual.core` provider, so this step cannot pass
+   natively and coverage stays `UNPROVEN` unless that provider exists.
 5. Finalize through shared report & SARIF pipeline; do not emit an incompatible report shape.
 
 External vision review runs only when user explicitly requests it. Its output is advisory evidence,

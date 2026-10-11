@@ -7,7 +7,7 @@ description: Use when writing, auditing, upgrading, publishing, planning, or QA-
 
 The job is not "write an article." The job is to ship a post that can rank, convert, and survive expert review: keyword-mapped, answer-first, internally linked, cited, brand-voiced, non-generic, schema-ready, and preview-tested.
 
-This skill is based on `references/writing-research.md` and the project's own SEO/blog-post contract reference, where one exists.
+This guide is based on `references/writing-research.md`. Where SEO gates apply, also use `skills/seo/references/blog-post-contract.md`.
 
 Load `references/writing-research.md` for serious drafts, audits, upgrades, posts that feel generic, or any request asking for better writing craft, research depth, hooks, intros, information gain, or "why would this rank?" For blog titles, intros, TL;DRs, meta descriptions, CTAs, and section hooks, apply the copy craft gates from `skills/writing/specialists/copywriting/references/craft-research.md`; do not route the whole blog task to `copywriting` unless the user is writing sales/landing-page copy rather than a blog post.
 
@@ -26,7 +26,7 @@ Linear with hard gates. Never call a post done until every gate passes.
 | 6 | **Draft** | auto | answer-first article in brand voice |
 | 7 | **SEO/content QA** | auto **HARD GATE** | keyword, links, facts, schema, craft, anti-slop |
 | 8 | **Preview/publish QA** | auto **HARD GATE** | mobile preview, image/meta/schema/publish checks |
-| 9 | **Post-publish loop** | auto | GSC/Bing submission + monitoring plan |
+| 9 | **Post-publish loop** | handoff to `seo` | indexing submission + monitoring plan |
 
 ## Phase 0: Setup
 
@@ -66,7 +66,7 @@ Hard stop until these exist:
 - One primary target query/keyword
 - Search intent: informational, commercial, local, troubleshooting, comparison, transactional
 - Secondary keyword cluster
-- 4-6 FAQ questions from real related queries or plausible long-tail intent — source from real-question tools (findquestions.com, AnswerThePublic) or the GSC 8+ word query export in `seo/references/google.md`, not keyword-planner abstractions
+- 4-6 FAQ questions from real related queries or plausible long-tail intent — source from real questions (Search Console query export, People Also Ask, support logs, forums; see the GSC long-query export in `skills/seo/references/google.md`), not keyword-planner abstractions
 - Ranking angle: why this post deserves to exist
 - Internal destination pages: 2-3 related posts, 2-3 service/product pages, 1 pricing/contact/shop page
 - Existing-post decision: create new post, refresh existing post, consolidate/canonicalize, or skip
@@ -243,20 +243,20 @@ Every publishable post must have:
 - Alt text for every image
 - Images optimized, `.webp` preferred, body images lazy-loaded
 - Mobile preview checked
-- Lighthouse 90+ target for live/published page where applicable
+- Performance score target 90+ for the live page, when the host provides a performance audit
 - Share buttons appropriate to audience
 
-For a live/local preview URL, use the shared `qa` skill for preview evidence instead of ad hoc browser screenshots: start the project's `qa:browser` route when available, capture viewport screenshots with the project's browser-automation tool, and use its interaction tooling for menu/share/button/CTA checks. Capture only the page/app viewport, not the desktop.
+Schema markup and indexing checks are owned by `seo`; hand them there rather than re-deriving them here.
+
+For a live/local preview URL, use the shared `qa` skill for preview evidence instead of ad hoc screenshots, when the host provides it. Capture only the page/app viewport, not the desktop, and check menu/share/button/CTA interactions.
 
 ## Phase 9: Post-Publish Loop
 
-After publish:
+After publish, hand indexing and monitoring to `seo`. This guide owns the content side:
 
-- Submit URL to Google Search Console
-- Submit to Bing Webmaster
-- Share on appropriate brand channels
+- Share on appropriate brand channels (hand distribution to `social`)
 - Add 1-2 links from existing high-traffic posts
-- Monitor GSC impressions/CTR after 14 days
+- Review impressions and CTR with `seo` after 14 days
 - If CTR is below 2% with meaningful impressions, revise title/meta
 - Refresh modified_time when materially updated
 

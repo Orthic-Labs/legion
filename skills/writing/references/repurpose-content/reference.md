@@ -1,12 +1,12 @@
 ---
 name: repurpose-content
 description: >
-  Atomize one piece of content into 3 platform-native variants. Use when user says "/repost-3x",
-  "repurpose this", "3 versions", "platform variants", "atomize". Always /brand first. Different from
-  content-repurposer (which makes 10-15) — this is focused 3-platform expansion.
+  Atomize one piece of content into 3 platform-native variants. Use when user says "repurpose this",
+  "3 versions", "platform variants", "atomize". Always /brand first. Different from content-repurposer
+  (which makes 10-15) — this is focused 3-platform expansion.
 ---
 
-# Repost 3x
+# Repurpose to Three Platforms
 
 ## When to use
 - You have ONE strong piece (blog, video, thread, podcast clip)
@@ -15,23 +15,14 @@ description: >
 
 ## Workflow
 
-1. `/brand <brand-code>` — do not repurpose content from a brand the project marks non-commercial for commercial or marketing ends
+1. `/brand <brand-code>` — load the brand card first. Do not repurpose content from a brand the project marks non-commercial for commercial or marketing ends.
 2. **Identify source:** blog / video / podcast / thread / long caption
-3. **Pick 3 platforms** (defaults below)
+3. **Pick 3 platforms** (use the brand card's platform mix; if it has none, pick three that fit the source format and state the choice)
 4. **Generate native variants** — different hook, different structure, same core insight
 
-## Brand defaults
+## Platform mix
 
-### RH
-- IG carousel (10 slides) + IG Reel (45s) + email newsletter section
-- Or: blog → Pinterest pin (3 vertical variants) → IG Story sequence
-
-### DD
-- YouTube Short (60s) + IG Reel (30s) + Twitter/X thread (8 posts)
-- Or: blog → email teaser → Reddit r/EDC native post
-
-### SS
-- IG carousel + Pinterest idea pin + LinkedIn long-form (visual essay)
+Take the default three-platform mix from the brand card loaded via `/brand`. Do not assume a mix from the brand's name. A brand card that names no mix means you choose one and say why.
 
 ## Variant rules
 
@@ -74,7 +65,7 @@ description: >
 ## Output
 
 ```markdown
-## Repost-3x — [source] — [brand]
+## Repurpose — [source] — [brand]
 
 ### Platform 1: [name]
 [Native variant, ready to post]

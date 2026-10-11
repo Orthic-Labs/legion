@@ -275,15 +275,17 @@ fn verdict(id: &str, confirmed: bool) -> Value {
             "proof": "trace from handler to execute",
             "impact": "data exfiltration",
             "rationale": "user input is interpolated into the query text",
+            "sink": "db.execute",
+            "evidence": [{"file": "src/db.rs", "line": 2}],
             "devilsAdvocate": "no parameterization found"
         })
     } else {
         json!({
             "candidateId": id,
             "verdict": "FALSE_POSITIVE",
-            "threatModel": "none",
-            "reachability": "documentation only",
-            "impact": "none"
+            "threatModel": "marker comment in a helper, not attacker reachable",
+            "reachability": "documentation only; no runtime sink is reachable",
+            "impact": "no security impact because nothing executes"
         })
     }
 }

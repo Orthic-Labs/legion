@@ -2,7 +2,7 @@
 
 PRIMARY_DELIVERABLE: Bounded SEO/AEO/GEO findings, decision, or change with explicit evidence coverage.
 CHILD_AGENTS_MAX: 0
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: brand, social
 
 This manual governs mixed/full SEO work. The public `SKILL.md` remains the thin router. Legion—not this capability—owns work-graph orchestration, capability composition, authority and delivery state.
 

@@ -75,7 +75,7 @@ For one-codebase-two-platform apps (CLAUDE.md rule 14):
   dead-ends (mic/accessibility prompt flows that exist on one OS only), caches never invalidated on
   one OS (`OnceLock` font cache), SRT/VTT export on one OS only.
 - Per-OS CI: is each shipped OS actually built+tested in CI (Apple Silicon runner present)?
-- Window chrome / hotkeys conform to the suite standard (`docs/RIGHT-SUITE-CROSS-PLATFORM.md`) —
+- Window chrome / hotkeys conform to the cross-platform window and hotkey conventions —
   native overlay traffic lights on macOS, custom caption buttons on Windows, `<Kbd>` per-OS chords.
 
 ## 7. Rust `unsafe` inventory (`correctness` / negative-space)

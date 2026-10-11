@@ -46,6 +46,21 @@ fn same(a: &Value, b: &Value) -> bool {
     a == b
 }
 
+/// Reads the right-release config; an unreadable file is an issue, never a
+/// silent skip of the marker and retired-authority checks.
+fn read_config_or_issue(path: &Path, issues: &mut Vec<String>) -> Option<String> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Some(text),
+        Err(e) => {
+            issues.push(format!(
+                "right-release config is unreadable: {}: {e}",
+                path.display()
+            ));
+            None
+        }
+    }
+}
+
 fn check_manifest_authority(value: Option<&Value>, issues: &mut Vec<String>, label: &str) {
     let value = value.cloned().unwrap_or(Value::Null);
     if s(&value, "manifestAuthority") != Some(MANIFEST_AUTHORITY) {
@@ -332,7 +347,7 @@ pub fn validate(root: &Path) -> Report {
     let config_path = root.join(RELEASE_CONFIG_PATH);
     if !config_path.is_file() {
         issues.push("right-release.config.mjs is missing".to_string());
-    } else if let Ok(config) = std::fs::read_to_string(&config_path) {
+    } else if let Some(config) = read_config_or_issue(&config_path, &mut issues) {
         for marker in [
             "provider: \"github-releases\"",
             "repository: \"Orthic-Labs/legion\"",

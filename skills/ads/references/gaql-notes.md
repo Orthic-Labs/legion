@@ -29,7 +29,7 @@ For active audits, filter to ENABLED resources only:
 - **Campaigns:** `campaign.status = 'ENABLED'` (not `!= 'REMOVED'`, which includes PAUSED)
 - **Ad groups:** ENABLED campaigns + non-removed groups
 - **Keywords:** ENABLED campaigns + non-removed groups + non-removed keywords
-- **Search terms:** Extended from `LAST_30_DAYS` to `LAST_90_DAYS` for deeper analysis, ordered by cost DESC
+- **Search terms:** Extended beyond `LAST_30_DAYS` for deeper analysis using an explicit range (`segments.date BETWEEN 'YYYY-MM-DD' AND 'YYYY-MM-DD'`); `DURING LAST_90_DAYS` is invalid. Order by cost DESC
 
 **Why:** Including paused campaigns/ad groups causes false positives. Paused ad groups can have ENABLED keywords at criterion level but aren't visible in the UI; auditing them confuses users.
 

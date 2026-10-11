@@ -1,6 +1,6 @@
 ---
 name: optimize-popup
-description: When the user wants to create or optimize popups, modals, overlays, slide-ins, or banners for conversion purposes. Also use when the user mentions "exit intent," "popup conversions," "modal optimization," "lead capture popup," "email popup," "announcement banner," "overlay," "collect emails with a popup," "exit popup," "scroll trigger," "sticky bar," or "notification bar." Use this for any overlay or interrupt-style conversion element. For forms outside of popups, see form-cro. For general page conversion optimization, see page-cro.
+description: When the user wants to create or optimize popups, modals, overlays, slide-ins, or banners for conversion purposes. Also use when the user mentions "exit intent," "popup conversions," "modal optimization," "lead capture popup," "email popup," "announcement banner," "overlay," "collect emails with a popup," "exit popup," "scroll trigger," "sticky bar," or "notification bar." Use this for any overlay or interrupt-style conversion element. For forms outside of popups, see `references/form.md`. For general page conversion optimization, see `references/page.md`.
 metadata:
   version: 1.1.0
 ---
@@ -447,8 +447,8 @@ Ideas to A/B test with expected outcomes
 
 ## Related Skills
 
-- **growth lead-magnets**: For planning lead magnets to promote via popups
-- **form-cro**: For optimizing the form inside the popup
-- **page-cro**: For the page context around popups
-- **email-pro sequence**: For what happens after popup conversion
-- **growth ab-test**: For testing popup variations
+- **Growth lead-magnets** (`/marketing growth`): For planning lead magnets to promote via popups
+- **Form** (`references/form.md`): For optimizing the form inside the popup
+- **Page** (`references/page.md`): For the page context around popups
+- **Writing** (`/writing`): For what happens after popup conversion
+- **Growth ab-test** (`/marketing growth`): For testing popup variations

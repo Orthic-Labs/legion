@@ -62,7 +62,7 @@ Three renderings of the same signature mechanism, differing in register, not jus
 register, type system, color strategy (base environment, accent behavior, semantic roles, contrast,
 sibling differentiation), layout grid, motion character, how the signature works in hero and body,
 strengths/risks/failure modes. Recommend one; park for user choice on major work. The shared Option
-Divergence Gate (SKILL.md) applies.
+Divergence Gate (`../specialists/surface-design/GUIDE.md`) applies.
 
 ## Website color gate
 

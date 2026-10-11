@@ -17,7 +17,10 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let domain = argv.first().map(String::as_str);
     if matches!(domain, Some("--help") | Some("help")) {
         return Ok(json_raw(
-            "Usage: legion governance execution|delivery|judgment --json <structured-request> [--key-dir <dir>]\n",
+            "Usage: legion governance execution|delivery --json <structured-request>\n\
+             \x20      legion governance judgment --json <structured-request> [--key-dir <dir>]\n\
+             --key-dir applies to judgment only. Without it, judgment reads the key\n\
+             directory from the ARCANE_KEY_DIR environment variable.\n",
         ));
     }
     if !matches!(
@@ -30,6 +33,13 @@ pub fn run(args: CommonArgs) -> CommandResult {
         )));
     }
     let (request, key_dir) = parse_json_request(&argv[1..])?;
+    // Execution and delivery dispatch take no key directory, so accepting one
+    // there would be silently ignored.
+    if key_dir.is_some() && domain != Some("judgment") {
+        return Err(CommandError::usage(
+            "--key-dir applies only to governance judgment",
+        ));
+    }
     if domain == Some("execution") {
         return Ok(compact(dispatch_execution_control(&request, None)));
     }

@@ -32,9 +32,9 @@ fn default_rights_receipt(
 
 fn files(root: &Path, current: &Path, out: &mut Vec<String>) -> Result<(), String> {
     let mut entries: Vec<_> = fs::read_dir(current)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .collect();
+        .map_err(|e| format!("{}: {e}", current.display()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("{}: {e}", current.display()))?;
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
         let name = entry.file_name().to_string_lossy().to_string();
@@ -137,10 +137,23 @@ pub fn build_local_skill_manifest(root: &Path, bundle: &str) -> Result<BuiltMani
     if !skill_root.join("SKILL.md").is_file() {
         return Err(format!("missing skill entrypoint: {bundle}"));
     }
-    let prior: Value = fs::read_to_string(&manifest_path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or(Value::Object(Map::new()));
+    // A missing prior manifest is a first-time build; a present but unreadable
+    // or unparseable one must fail rather than be replaced by defaults.
+    let prior: Value = match fs::read_to_string(&manifest_path) {
+        Ok(text) => serde_json::from_str(&text).map_err(|e| {
+            format!(
+                "{}: unparseable prior manifest: {e}",
+                manifest_path.display()
+            )
+        })?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Value::Object(Map::new()),
+        Err(e) => {
+            return Err(format!(
+                "{}: unreadable prior manifest: {e}",
+                manifest_path.display()
+            ))
+        }
+    };
 
     let (index, _domains) = build_skill_catalog(root)?;
     let semantic = index
@@ -272,7 +285,7 @@ pub fn run_with_args(root: &Path, check: bool, requested: &[String]) -> bool {
         vec![]
     };
     if bundles.is_empty() {
-        eprintln!("usage: refresh-local-skill-manifests.mjs [--check] BUNDLE...");
+        eprintln!("usage: legion-dev refresh-local-skill-manifests [--check] BUNDLE...");
         return false;
     }
 
@@ -315,4 +328,34 @@ pub fn run_with_args(root: &Path, check: bool, requested: &[String]) -> bool {
 /// arguments. The CLI uses `run_with_args` so positional bundle ids are kept.
 pub fn run(root: &Path, check: bool) -> bool {
     run_with_args(root, check, &[])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_root(name: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "legion-refresh-manifest-{name}-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("skills/demo")).unwrap();
+        fs::create_dir_all(root.join("skills/manifests")).unwrap();
+        fs::write(root.join("skills/demo/SKILL.md"), "---\nname: demo\n---\n").unwrap();
+        root
+    }
+
+    #[test]
+    fn unparseable_prior_manifest_is_an_error_not_replaced_by_defaults() {
+        let root = temp_root("unparseable");
+        fs::write(root.join("skills/manifests/demo.json"), "{ not json").unwrap();
+        let err = match build_local_skill_manifest(&root, "demo") {
+            Ok(_) => panic!("unparseable prior manifest must not be replaced silently"),
+            Err(e) => e,
+        };
+        assert!(err.contains("unparseable prior manifest"), "{err}");
+        assert!(err.contains("demo.json"), "{err}");
+        let _ = fs::remove_dir_all(&root);
+    }
 }

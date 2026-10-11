@@ -16,7 +16,7 @@
       "prompt": "Compare desktop and mobile rendered states against these bound baselines after the change.",
       "expected_skill": "audit-visual",
       "forbidden_skills": [],
-      "expected_behavior": "Validates baseline bindings, captures or consumes every declared case, measures and localizes differences, and marks missing or mismatched cases UNPROVEN.",
+      "expected_behavior": "States that baseline comparison is not implemented in the native runner, does not report any measured pixel or structural difference, and marks every baseline-dependent case UNPROVEN.",
       "severity": "error",
       "mode": "discovery"
     },

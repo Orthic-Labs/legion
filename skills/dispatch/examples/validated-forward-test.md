@@ -1,5 +1,10 @@
 # DISPATCH: Handoff Skill Independence & Validation
 
+> Example record. Windows example: the PowerShell commands below were run on a Windows checkout.
+> `<repo root>` is the absolute path to the repository root, and `<project overlay dir>` is a project
+> overlay directory outside the package. The dispatch validator requires absolute paths; run it as
+> `legion script dispatch/validate-dispatch <absolute dispatch path> --verify-receipt <absolute receipt path>`.
+
 ## 0. Dispatch Control
 
 - **Dispatch ID:** dispatch-handoff-final-forward-20260728
@@ -11,10 +16,10 @@
 - **Mode:** READ_ONLY validation; artifact-only output
 - **Execution host / OS:** Windows 11 workstation
 - **Shell:** PowerShell 7 compatible shell
-- **Working directory:** `D:\workspace`
-- **Repository / branch:** D:\workspace at `absorption/phase1-6`
+- **Working directory:** `<repo root>`
+- **Repository / branch:** <repo root> at `absorption/phase1-6`
 - **Baseline revision:** `2e162e538bfd577504cb98148615e9c7f4aac58b`
-- **Scoped Git status:** Run `git -C D:\workspace status --short`; baseline contains unrelated modified workspace files plus untracked `tools/skills/dispatch/` & `tools/skills/handoff/`.
+- **Scoped Git status:** Run `git -C <repo root> status --short`; baseline contains unrelated modified workspace files plus untracked `skills/dispatch/` & `skills/handoff/`.
 - **User authorization:** Verify handoff independence, run named read-only validation commands, write only named report artifacts; source edits, staging, commits, branches, worktrees, installs, deploys, network calls, & deletion are forbidden.
 - **Dependency position:** Input is handoff skill tree; output is an evidence report for primary Codex integration.
 - **Parallel safety:** PARALLEL_SAFE only against source because OWN is isolated review artifact directory; serialize with any writer in that exact directory.
@@ -22,11 +27,11 @@
 
 | Active dispatch ID | OWN paths | Status | Overlap decision |
 |---|---|---|---|
-| dispatch-handoff-final-forward-20260728 | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | ACTIVE_READONLY | NO_OVERLAP: source skill paths are read-only |
+| dispatch-handoff-final-forward-20260728 | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | ACTIVE_READONLY | NO_OVERLAP: source skill paths are read-only |
 
 ## 1. Mission
 
-- **Outcome:** Establish with command-backed evidence whether `D:\workspace\tools\skills\handoff` operates independently from `/dispatch`, then record named validator, test, syntax, JSON, & scoped static-eval results.
+- **Outcome:** Establish with command-backed evidence whether `skills\handoff` operates independently from `/dispatch`, then record named validator, test, syntax, JSON, & scoped static-eval results.
 - **Definition of done:** Report contains source evidence for independence; every named acceptance command exits `0`; report includes exact stdout, timestamps, command paths, SHA-256 hashes, initial/final scoped Git status, & terminal return contract.
 - **Non-goals:** Do not change source; do not invoke dispatch validator against handoff content; do not create a handoff packet; do not install packages; do not use network; do not stage, commit, branch, reset, revert, stash, worktree, deploy, render, or call paid services.
 
@@ -70,17 +75,17 @@
 
 | Model / tool / dependency | Acceptance metric produced | Locked route / version | Cost / resource effect | Decision | Evidence |
 |---|---|---|---|---|---|
-| MODEL: external ASR | NONE — produces no acceptance metric | NO_MODEL_ALLOWED: static validation only | Unnecessary compute, memory, & attention | FORBID: produces no acceptance metric | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` |
+| MODEL: external ASR | NONE — produces no acceptance metric | NO_MODEL_ALLOWED: static validation only | Unnecessary compute, memory, & attention | FORBID: produces no acceptance metric | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` |
 
 ## 1B. Authority, Correction & Global Re-Derivation
 
 - **Authority order:** LATEST_USER_INTENT > DECISION_OBJECTIVE > STAGE_CONTRACT > INHERITED_DOCUMENT > EXISTING_IMPLEMENTATION_OR_PROGRESS
 - **Correction state:** NONE: fresh read-only validation dispatch
-- **Correction audit:** INVENTORY_SOURCE:current user mission plus prior independence assumptions; SEMANTIC_DELTA:NO; EVIDENCE:D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\correction-audit.json
+- **Correction audit:** INVENTORY_SOURCE:current user mission plus prior independence assumptions; SEMANTIC_DELTA:NO; EVIDENCE:<project overlay dir>\dispatch-handoff-final\forward\correction-audit.json
 - **Plan invalidation:** NOT_APPLICABLE:NO_SEMANTIC_CORRECTION
 - **Re-derivation status:** FROM_ZERO:COMPLETE; OBJECTIVE_RESTATED:COMPLETE; REQUIREMENTS_RECLASSIFIED:COMPLETE; STAGES_REBUILT:COMPLETE; COMMANDS_REBOUND:COMPLETE
 - **Progress disposition:** PRESERVE_EVIDENCE_ONLY; REUSE_ONLY_IF:source hashes, producer, lifecycle, & typed stage contract match; STALE_PROGRESS:REJECT
-- **Inherited inventory reconciliation:** INVENTORY_TOTAL:2; CLASSIFIED_TOTAL:2; UNCLASSIFIED:0; EVIDENCE:D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\inherited-inventory.json
+- **Inherited inventory reconciliation:** INVENTORY_TOTAL:2; CLASSIFIED_TOTAL:2; UNCLASSIFIED:0; EVIDENCE:<project overlay dir>\dispatch-handoff-final\forward\inherited-inventory.json
 - **Alchemist typed-stage binding:** NOT_REQUIRED: routine bounded static validation
 
 ### Inherited instruction disposition
@@ -94,7 +99,7 @@
 
 - **State A:** STATE_A: handoff skill exists but independent validation evidence has not been compiled into owned report.
 - **State B:** STATE_B: owned report contains passing independence, validator, template, eval, hash, status, & receipt evidence.
-- **Goal success proof:** PROOF: run named Section 7 commands & verify D:\workspace/tools/review/.council-runs/dispatch-handoff-final/forward/handoff-independence-report.md.
+- **Goal success proof:** PROOF: run named Section 7 commands & verify <project overlay dir>/dispatch-handoff-final/forward/handoff-independence-report.md.
 - **Hard route constraints:** CONSTRAINTS: AUTHORITY=read-only validation; SAFETY=no source/Git mutation; COST=zero paid/network cost; QUALITY=all named checks pass; SCOPE=one owned report plus named local inputs.
 - **Route mode:** SINGLE_FEASIBLE
 - **Goal route artifact:** skills/dispatch/examples/validated-forward-test.route.json
@@ -112,7 +117,7 @@
 
 | Route ID | Ordered route steps | Dependencies | Constraint result | Min wall ms | Expected verified-B ms | Cost units | Risk units | Rework units | Status | Rejection / dominance evidence |
 |---|---|---|---|---:|---:|---:|---:|---:|---|---|
-| `R_VALIDATE` | STEPS:R_VALIDATE/S1>R_VALIDATE/S2>R_VALIDATE/S3>R_VALIDATE/S4 | EDGES:R_VALIDATE/S1->R_VALIDATE/S2->R_VALIDATE/S3->R_VALIDATE/S4 | PASS: every read-only authority, safety, cost, quality, & scope constraint passes | 4 | 4 | 0 | 0 | 0 | SELECTED | ONLY_FEASIBLE:EVIDENCE: D:\workspace/tools/review/.council-runs/dispatch-handoff-final/forward/route-proof.json |
+| `R_VALIDATE` | STEPS:R_VALIDATE/S1>R_VALIDATE/S2>R_VALIDATE/S3>R_VALIDATE/S4 | EDGES:R_VALIDATE/S1->R_VALIDATE/S2->R_VALIDATE/S3->R_VALIDATE/S4 | PASS: every read-only authority, safety, cost, quality, & scope constraint passes | 4 | 4 | 0 | 0 | 0 | SELECTED | ONLY_FEASIBLE:EVIDENCE: <project overlay dir>/dispatch-handoff-final/forward/route-proof.json |
 
 ## 1D. Experiment Topology & Workload Funnel
 
@@ -122,7 +127,7 @@
 - **Declared launch ceiling:** JOB_TOTAL_MAX: 4
 - **Declared minimum wall time:** MIN_WALL_MS_TOTAL: 4
 - **Launch estimate status:** RESOLVED:RUNS_WALL_TIME_CONCURRENCY
-- **Launch-count reconciliation:** RECONCILE: STAGE_ACTUAL_SUM must equal JOB_TOTAL_MAX; BLOCK_IF_MISMATCH before acceptance; write `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\launch-count.json`
+- **Launch-count reconciliation:** RECONCILE: STAGE_ACTUAL_SUM must equal JOB_TOTAL_MAX; BLOCK_IF_MISMATCH before acceptance; write `<project overlay dir>\dispatch-handoff-final\forward\launch-count.json`
 - **Supervisor topology checkpoint:** READBACK_REQUIRED: stage, population, selector, & expected count; BEFORE_STAGE: every 1 stage plus before batch or scope change
 - **Broad selector policy:** FORBID_BROAD_SELECTORS: single named validation path only
 
@@ -130,40 +135,40 @@
 
 | Stage ID | Gate type | Decision question | Input population + max | Entry gate | Workload formula + count | Command selector | Exit gate | Survivor artifact + actual-count ledger | Downstream prohibited until |
 |---|---|---|---|---|---|---|---|---|---|
-| `SINGLE_PATH_EXECUTION` | `SINGLE_PATH` | QUESTION_1: Does handoff remain independently valid? | ALL_CANDIDATES: named handoff skill; MAX_INPUTS: 1 | START: named source paths exist | FACTORS: 1x4; MAX_JOBS: 4; ACTUAL_COUNT: `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\launch-count.json` | SELECTOR: four named Section 7 commands against exact handoff paths | PASS_IF: all four named checks exit 0 | SURVIVORS: `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md`; ACTUAL_COUNT: `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\launch-count.json` | TERMINAL: return evidence to orchestrator |
+| `SINGLE_PATH_EXECUTION` | `SINGLE_PATH` | QUESTION_1: Does handoff remain independently valid? | ALL_CANDIDATES: named handoff skill; MAX_INPUTS: 1 | START: named source paths exist | FACTORS: 1x4; MAX_JOBS: 4; ACTUAL_COUNT: `<project overlay dir>\dispatch-handoff-final\forward\launch-count.json` | SELECTOR: four named Section 7 commands against exact handoff paths | PASS_IF: all four named checks exit 0 | SURVIVORS: `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md`; ACTUAL_COUNT: `<project overlay dir>\dispatch-handoff-final\forward\launch-count.json` | TERMINAL: return evidence to orchestrator |
 
 ### Typed stage records
 
 | Stage ID | Decision | Provider binding | Dataset + role | Execution mode | Admission | Pass rule | Explicit exclusions | Estimated runs | Minimum wall-time factors |
 |---|---|---|---|---|---|---|---|---|---|
-| `SINGLE_PATH_EXECUTION` | QUESTION_1: Does handoff remain independently valid? | NO_PROVIDER:QUESTION_1 static local validation requires no provider | DATASET:D:\workspace\tools\skills\handoff; ROLE:read-only validation source tree | MODE:STATIC_VALIDATION | ADMIT_IF:named handoff source paths exist | PASS_IF:all four named checks exit 0 | EXCLUDE:network, models, source edits, dispatch runtime dependency | ESTIMATED_RUNS:4 | WALL_FACTORS:RUNS=4; MS_PER_RUN_MIN=1; MAX_CONCURRENCY=1; MIN_WALL_MS=4; EVIDENCE:D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\wall-floor.json |
+| `SINGLE_PATH_EXECUTION` | QUESTION_1: Does handoff remain independently valid? | NO_PROVIDER:QUESTION_1 static local validation requires no provider | DATASET:skills\handoff; ROLE:read-only validation source tree | MODE:STATIC_VALIDATION | ADMIT_IF:named handoff source paths exist | PASS_IF:all four named checks exit 0 | EXCLUDE:network, models, source edits, dispatch runtime dependency | ESTIMATED_RUNS:4 | WALL_FACTORS:RUNS=4; MS_PER_RUN_MIN=1; MAX_CONCURRENCY=1; MIN_WALL_MS=4; EVIDENCE:<project overlay dir>\dispatch-handoff-final\forward\wall-floor.json |
 
 ### Fixture-stage ownership
 
 | Fixture ID | Exact source | Owning stage | Decision role | Population scope | Use condition | Forbidden outside |
 |---|---|---|---|---|---|---|
-| `handoff-skill-tree` | `D:\workspace\tools\skills\handoff` | `SINGLE_PATH_EXECUTION` | execution input for QUESTION_1 | one named source tree | RUN_ONLY_IF:SINGLE_PATH_EXECUTION:ENTRY_PASS | FORBID: unrelated repos, models, network, or generated labels |
+| `handoff-skill-tree` | `skills\handoff` | `SINGLE_PATH_EXECUTION` | execution input for QUESTION_1 | one named source tree | RUN_ONLY_IF:SINGLE_PATH_EXECUTION:ENTRY_PASS | FORBID: unrelated repos, models, network, or generated labels |
 
 ### Stage command bindings
 
 ```powershell
 # STAGE_COMMAND:SINGLE_PATH_EXECUTION
 Write-Output STATIC_VALIDATION
-py -3.11 D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py
-py -3.11 D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\workspace\tools\skills\handoff\assets\handoff-template.md --template-self-check
-py -3.11 -c "import json; json.load(open(r'D:\workspace\tools\skills\handoff\evals\evals.json', encoding='utf-8'))"
-rg -n "Neither skill depends|validate-handoff" D:\workspace\tools\skills\handoff
-Set-Content -LiteralPath D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\launch-count.json -Value '{"stage":"SINGLE_PATH_EXECUTION","actual":4}'
-Set-Content -LiteralPath D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md -Value 'Populate with exact command evidence from Steps 1-4.'
+# skills\handoff\scripts\test_validate_handoff.py is not in this package; this step cannot run here.
+legion script handoff/validate-handoff skills\handoff\assets\handoff-template.md --template-self-check
+python -c "import json; json.load(open(r'skills\handoff\evals\evals.json', encoding='utf-8'))"
+rg -n "Neither skill depends|validate-handoff" skills\handoff
+Set-Content -LiteralPath <project overlay dir>\dispatch-handoff-final\forward\launch-count.json -Value '{"stage":"SINGLE_PATH_EXECUTION","actual":4}'
+Set-Content -LiteralPath <project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md -Value 'Populate with exact command evidence from Steps 1-4.'
 ```
 
 ## 2. Source of Truth & Known State
 
-- **Authoritative inputs:** `D:\workspace\tools\skills\handoff\SKILL.md` lines 1-27; `D:\workspace\tools\skills\handoff\scripts\validate-handoff.py`; `D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py`; `D:\workspace\tools\skills\handoff\evals\evals.json`; `D:\workspace\tools\skills\handoff\assets\handoff-template.md`; `D:\workspace\tools\skills\dispatch\SKILL.md` lines 1-25.
+- **Authoritative inputs:** `skills\handoff\SKILL.md` lines 1-27; `skills\handoff\scripts\validate-handoff.py`; `skills\handoff\scripts\test_validate_handoff.py`; `skills\handoff\evals\evals.json`; `skills\handoff\assets\handoff-template.md`; `skills\dispatch\SKILL.md` lines 1-25.
 - **Known state:** Handoff description says cold-start context transplant; Handoff boundary says `/dispatch` sends bounded executor work & neither skill depends on other; handoff owns `validate-handoff.py` plus `test_validate_handoff.py`.
 - **Assumptions fixed by dispatcher:** Independence means distinct purpose, distinct validator/test paths, & no mandatory dispatch invocation in handoff skill instructions, validator, test, template, or eval fixture. A textual `/dispatch` boundary reference is expected evidence, not dependency.
 - **Context embedded from chat:** Existing test path uses hyphenated validator filename: `scripts\validate-handoff.py`; test is `scripts\test_validate_handoff.py`. Do not infer underscore paths.
-- **Required rules / skills:** `D:\workspace\AGENTS.md` primary-checkout & dirty-work rules; `D:\workspace\tools\skills\script\SKILL.md` S1 gate; `D:\workspace\tools\skills\handoff\SKILL.md` boundary & validation sections; `D:\workspace\tools\skills\dispatch\SKILL.md` zero-context evidence contract.
+- **Required rules / skills:** `AGENTS.md` primary-checkout & dirty-work rules; `the script route (`legion script`)` S1 gate; `skills\handoff\SKILL.md` boundary & validation sections; `skills\dispatch\SKILL.md` zero-context evidence contract.
 - **Required producer / actor:** PRODUCER: Executor-role | PROOF_FIELD: `STATUS` return plus recorded command evidence
 - **Allowed provenance / lineage:** ALLOW_ONLY: named local source files -> exact read-only commands -> owned report -> orchestrator verification
 - **Forbidden producers / substitutes:** FORBID: invented source evidence, dispatcher-memory projection, direct acceptance closure, or another agent's unverified summary
@@ -176,40 +181,40 @@ Set-Content -LiteralPath D:\workspace\tools\review\.council-runs\dispatch-handof
 
 ```powershell
 # Run lifecycle identity checks.
-Get-Item -LiteralPath D:\workspace\tools\skills\dispatch\examples\validated-forward-test.md; Get-FileHash -Algorithm SHA256 D:\workspace\tools\skills\dispatch\examples\validated-forward-test.md; Get-Item -LiteralPath D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward -ErrorAction SilentlyContinue | Out-File D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\lifecycle-preflight.log
+Get-Item -LiteralPath skills\dispatch\examples\validated-forward-test.md; Get-FileHash -Algorithm SHA256 skills\dispatch\examples\validated-forward-test.md; Get-Item -LiteralPath <project overlay dir>\dispatch-handoff-final\forward -ErrorAction SilentlyContinue | Out-File <project overlay dir>\dispatch-handoff-final\forward\lifecycle-preflight.log
 ```
 
 | Evidence ID | Input path | Exact inspection or command | Expected observable | Evidence destination | Owner |
 |---|---|---|---|---|---|
-| Evidence-01 | `D:\workspace\tools\skills\handoff\SKILL.md` | `rg -n -C 2 "Boundary from"; rg -n "Neither skill depends"; rg -n "validate-handoff"` | Boundary text plus validator route | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
-| Evidence-02 | `D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py` | `py -3.11 D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py` | PASS line & exit code 0 | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
-| Evidence-03 | `D:\workspace\tools\skills\handoff\scripts\validate-handoff.py` | `py -3.11 D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\workspace\tools\skills\handoff\assets\handoff-template.md --template-self-check` | PASS line & SHA-256 | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
-| Evidence-04 | `D:\workspace\tools\skills\handoff\evals\evals.json` | `py -3.11 -c "import json; json.load(open(r'D:\workspace\\tools\\skills\\handoff\\evals\\evals.json'))"` | JSON load succeeds & required routing assertion exists | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
-| Evidence-05 | `D:\workspace\tools\skills\handoff` | `rg -n "validate-dispatch" D:\workspace\tools\skills\handoff; rg -n "dispatch/scripts" D:\workspace\tools\skills\handoff; rg -n "tools/skills/dispatch" D:\workspace\tools\skills\handoff` | Exit 1 with no mandatory dispatch route outside boundary prose | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
-| Evidence-06 | `D:\workspace` | `git -C D:\workspace status --short` before & after | No source-path delta attributable to executor | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
+| Evidence-01 | `skills\handoff\SKILL.md` | `rg -n -C 2 "Boundary from"; rg -n "Neither skill depends"; rg -n "validate-handoff"` | Boundary text plus validator route | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
+| Evidence-02 | `skills\handoff\scripts\test_validate_handoff.py` | not in this package | PASS line & exit code 0 | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
+| Evidence-03 | `skills\handoff\scripts\validate-handoff.py` | `legion script handoff/validate-handoff skills\handoff\assets\handoff-template.md --template-self-check` | PASS line & SHA-256 | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
+| Evidence-04 | `skills\handoff\evals\evals.json` | `python -c "import json; json.load(open(r'skills\\handoff\\evals\\evals.json'))"` | JSON load succeeds & required routing assertion exists | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
+| Evidence-05 | `skills\handoff` | `rg -n "validate-dispatch" skills\handoff; rg -n "dispatch/scripts" skills\handoff; rg -n "skills/dispatch" skills\handoff` | Exit 1 with no mandatory dispatch route outside boundary prose | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
+| Evidence-06 | `<repo root>` | `git -C <repo root> status --short` before & after | No source-path delta attributable to executor | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor-role |
 
 ## 3. Scope & Ownership
 
-- **OWN — may edit:** `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` only; create parent directory only if missing.
-- **READ — read only:** `D:\workspace\AGENTS.md`; `D:\workspace\tools\skills\handoff\`; `D:\workspace\tools\skills\dispatch\SKILL.md`; `D:\workspace\tools\skills\script\SKILL.md`; `D:\workspace\.claude\rules\agent-routing.md`; Git metadata via `git -C D:\workspace status --short` & `rev-parse`.
+- **OWN — may edit:** `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` only; create parent directory only if missing.
+- **READ — read only:** `AGENTS.md`; `skills\handoff\`; `skills\dispatch\SKILL.md`; `the script route (`legion script`)`; `<repo root>\.claude\rules\agent-routing.md`; Git metadata via `git -C <repo root> status --short` & `rev-parse`.
 - **FORBIDDEN:** Every file outside OWN; all handoff & dispatch source writes; `.git` writes; dependency installs; network; process launch outside named short Python commands; staging; commit; branch; worktree; reset; revert; stash; delete; deployment; paid actions.
 - **Dirty-work policy:** Capture exact before/after Git status; preserve every pre-existing line; write no source path; do not clean or reinterpret other workers' modifications.
 - **Side effects / blast radius:** Reads source plus Git metadata; creates or overwrites only one owned Markdown report atomically through temporary sibling then rename; no network, database, account, paid cost, or production effect.
 
 | Task ID | Outcome | Depends on | OWN | READ | FORBIDDEN |
 |---|---|---|---|---|---|
-| Validation-01 | Independence proof plus local validation report | Handoff files accessible | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | `D:\workspace\tools\skills\handoff\` & named rules | Source edits, Git mutation, installs, network, destructive actions |
+| Validation-01 | Independence proof plus local validation report | Handoff files accessible | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | `skills\handoff\` & named rules | Source edits, Git mutation, installs, network, destructive actions |
 
 ## 4. Preconditions
 
 | Check | Exact command or action | Pass condition |
 |---|---|---|
-| Python runtime & files | `py -3.11 --version; Test-Path D:\workspace\tools\skills\handoff\scripts\validate-handoff.py; Test-Path D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py` | Python reports 3.11 & both paths return True |
-| Read-only source baseline | `git -C D:\workspace status --short; git -C D:\workspace rev-parse HEAD` | Status captured verbatim; revision reports a 40-character hash |
-| Output isolation | `Test-Path D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward` | Existing path is inspected; only report path is eligible for write |
+| Python runtime & files | `python --version; Test-Path skills\handoff\scripts\validate-handoff.py; Test-Path skills\handoff\scripts\test_validate_handoff.py` | Python reports 3.11 & both paths return True |
+| Read-only source baseline | `git -C <repo root> status --short; git -C <repo root> rev-parse HEAD` | Status captured verbatim; revision reports a 40-character hash |
+| Output isolation | `Test-Path <project overlay dir>\dispatch-handoff-final\forward` | Existing path is inspected; only report path is eligible for write |
 
-- **Required tools / access:** Windows PowerShell, `py -3.11`, `rg`, `git`, local read/write access to exact OWN artifact path.
-- **Tool versions:** Record `py -3.11 --version`, `git --version`, & `rg --version` first line in report.
+- **Required tools / access:** Windows PowerShell, Python 3.11, `rg`, `git`, local read/write access to exact OWN artifact path.
+- **Tool versions:** Record `python --version`, `git --version`, & `rg --version` first line in report.
 - **Environment variables:** No environment variables required; record `NOT_APPLICABLE: local read-only commands have no credential or variable input`.
 - **Access / credentials:** No credential route; record `NOT_APPLICABLE: no network or protected API action`.
 - **Required inputs:** Six E1-E6 source paths listed in Section 2 must exist before test execution.
@@ -217,7 +222,7 @@ Get-Item -LiteralPath D:\workspace\tools\skills\dispatch\examples\validated-forw
 
 ```powershell
 # Run preflight checks.
-py -3.11 --version; git --version; rg --version | Select-Object -First 1; Test-Path D:\workspace\tools\skills\handoff\SKILL.md; Test-Path D:\workspace\tools\skills\handoff\scripts\validate-handoff.py; Test-Path D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py; Test-Path D:\workspace\tools\skills\handoff\evals\evals.json
+python --version; git --version; rg --version | Select-Object -First 1; Test-Path skills\handoff\SKILL.md; Test-Path skills\handoff\scripts\validate-handoff.py; Test-Path skills\handoff\scripts\test_validate_handoff.py; Test-Path skills\handoff\evals\evals.json
 ```
 
 ## 4A. Execution Path, Reset & Gate Isolation
@@ -225,7 +230,7 @@ py -3.11 --version; git --version; rg --version | Select-Object -First 1; Test-P
 - **Critical discriminating invariants:** INVARIANT: handoff owns distinct validator/test/template/evals; INVARIANT: source evidence comes from exact local commands & hashes; INVARIANT: no dispatch runtime dependency may appear outside documented boundary prose
 - **Resume / reset decision:** RESUME_ALLOWED_IF: existing report producer is Executor-role, baseline source hashes match, & lifecycle markers are ordered; otherwise reset report window
 - **Invalid-window disposition:** STOP current validation; PRESERVE incompatible report as evidence; DO_NOT_COMMIT or accept incompatible results
-- **Authority refresh:** AUTHORITY_REFRESH: reread `D:\workspace\tools\skills\handoff\SKILL.md` plus validator/test/evals & record current SHA-256 values
+- **Authority refresh:** AUTHORITY_REFRESH: reread `skills\handoff\SKILL.md` plus validator/test/evals & record current SHA-256 values
 - **Production path chain:** PRODUCTION_PATH: dispatch receipt -> Executor-role -> handoff validator/test commands -> report delivery -> orchestrator acceptance
 - **Frozen implementation proof:** HASH_VERIFY: run `Get-FileHash` on handoff SKILL, validator, test, template, & eval JSON before concluding
 - **Trace linkage contract:** TRACE_LINK: dispatch ID -> report step marker -> command ledger entry -> delivered report path -> acceptance row
@@ -236,13 +241,13 @@ py -3.11 --version; git --version; rg --version | Select-Object -First 1; Test-P
 
 ```powershell
 # Run environment integrity capture.
-git -C D:\workspace status --short | Out-File D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\environment-integrity.log; git -C D:\workspace rev-parse HEAD | Add-Content D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\environment-integrity.log
+git -C <repo root> status --short | Out-File <project overlay dir>\dispatch-handoff-final\forward\environment-integrity.log; git -C <repo root> rev-parse HEAD | Add-Content <project overlay dir>\dispatch-handoff-final\forward\environment-integrity.log
 ```
 
 - **Canary / one-unit preflight:**
 
 ```powershell
-py -3.11 D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\workspace\tools\skills\handoff\assets\handoff-template.md --template-self-check | Out-File D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\one-unit-canary.log
+legion script handoff/validate-handoff skills\handoff\assets\handoff-template.md --template-self-check | Out-File <project overlay dir>\dispatch-handoff-final\forward\one-unit-canary.log
 ```
 
 ### Production execution path
@@ -259,15 +264,15 @@ py -3.11 D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\worksp
 
 | Gate | Proves | Does not prove | Exact validator / check | Evidence path |
 |---|---|---|---|---|
-| `QUALIFICATION_GATE` | Handoff template structure parses under handoff validator | Skill independence, test behavior, or source preservation | One template self-check canary | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\one-unit-canary.log` |
-| `END_TO_END_GATE` | Boundary, validator tests, eval routing, hashes, report delivery, & no executor source mutation | Unrelated repo correctness | Full Section 7 acceptance map + orchestrator rerun | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` |
+| `QUALIFICATION_GATE` | Handoff template structure parses under handoff validator | Skill independence, test behavior, or source preservation | One template self-check canary | `<project overlay dir>\dispatch-handoff-final\forward\one-unit-canary.log` |
+| `END_TO_END_GATE` | Boundary, validator tests, eval routing, hashes, report delivery, & no executor source mutation | Unrelated repo correctness | Full Section 7 acceptance map + orchestrator rerun | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` |
 
 ### Phase-scoped substitution matrix
 
 | Phase / gate | Allowed derivation / substitution | Forbidden derivation / substitution | Required receipt / evidence |
 |---|---|---|---|
-| `CURRENT_GATE` | NONE: all independence claims require direct source/command evidence | Projected PASS, agent summary, copied stale hash, or dispatch validator substitution | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` |
-| `OTHER_PHASES` | Diagnostic fixture only when clearly labeled outside acceptance | Any diagnostic allowance leaking into current independence acceptance | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\environment-integrity.log` |
+| `CURRENT_GATE` | NONE: all independence claims require direct source/command evidence | Projected PASS, agent summary, copied stale hash, or dispatch validator substitution | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` |
+| `OTHER_PHASES` | Diagnostic fixture only when clearly labeled outside acceptance | Any diagnostic allowance leaking into current independence acceptance | `<project overlay dir>\dispatch-handoff-final\forward\environment-integrity.log` |
 
 ## 5. Execution Procedure
 
@@ -277,21 +282,21 @@ py -3.11 D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\worksp
 - **Advances target:** ADVANCES_STATE_B: records source hashes & initial status required to prove subsequent non-mutation.
 - **Dependency order:** START: selected route begins from verified STATE_A.
 - **Purpose:** Preserve dirty state & baseline revision before any owned report write.
-- **Inputs:** `D:\workspace` Git metadata plus named handoff tree paths.
-- **Working directory:** `D:\workspace`
+- **Inputs:** `<repo root>` Git metadata plus named handoff tree paths.
+- **Working directory:** `<repo root>`
 - **Exact action / command:**
 
 ```powershell
 # Run baseline capture.
-git -C D:\workspace status --short; git -C D:\workspace rev-parse --abbrev-ref HEAD; git -C D:\workspace rev-parse HEAD; Get-ChildItem -Recurse -File D:\workspace\tools\skills\handoff | Select-Object -ExpandProperty FullName
+git -C <repo root> status --short; git -C <repo root> rev-parse --abbrev-ref HEAD; git -C <repo root> rev-parse HEAD; Get-ChildItem -Recurse -File skills\handoff | Select-Object -ExpandProperty FullName
 ```
 
 - **Expected stdout / state:** Status, branch, 40-character revision, & six handoff file paths print without source modification.
-- **Expected exit / result:** Exit 0; preserve stdout verbatim in `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md`.
+- **Expected exit / result:** Exit 0; preserve stdout verbatim in `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md`.
 - **Timeout / retry:** 20 seconds; one retry after rerunning exact command.
-- **Output artifacts:** `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` receives baseline section.
-- **Evidence to record:** Command, UTC timestamp, status output, branch, revision, & file count in `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md`.
-- **On failure:** Run `Get-Location; Test-Path D:\workspace; git -C D:\workspace rev-parse --show-toplevel`; stop only after both discovery commands fail & record raw error.
+- **Output artifacts:** `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` receives baseline section.
+- **Evidence to record:** Command, UTC timestamp, status output, branch, revision, & file count in `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md`.
+- **On failure:** Run `Get-Location; Test-Path <repo root>; git -C <repo root> rev-parse --show-toplevel`; stop only after both discovery commands fail & record raw error.
 
 ### Step 2 — Prove interface boundary & absence of operational coupling
 
@@ -299,20 +304,20 @@ git -C D:\workspace status --short; git -C D:\workspace rev-parse --abbrev-ref H
 - **Advances target:** ADVANCES_STATE_B: adds direct independence evidence to owned report.
 - **Dependency order:** AFTER: R_VALIDATE/S1
 - **Purpose:** Distinguish documented boundary mention from mandatory dispatch execution.
-- **Inputs:** `D:\workspace\tools\skills\handoff\SKILL.md`, scripts, template, eval fixture.
-- **Working directory:** `D:\workspace`
+- **Inputs:** `skills\handoff\SKILL.md`, scripts, template, eval fixture.
+- **Working directory:** `<repo root>`
 - **Exact action / command:**
 
 ```powershell
 # Run boundary proof.
-rg -n -C 2 "Boundary from" D:\workspace\tools\skills\handoff\SKILL.md; rg -n "Neither skill depends" D:\workspace\tools\skills\handoff\SKILL.md; rg -n "validate-handoff" D:\workspace\tools\skills\handoff\SKILL.md; rg -n "validate-dispatch" D:\workspace\tools\skills\handoff; $code=$LASTEXITCODE; if ($code -eq 1) { "NO_OPERATIONAL_DISPATCH_ROUTE"; exit 0 }; exit $code
+rg -n -C 2 "Boundary from" skills\handoff\SKILL.md; rg -n "Neither skill depends" skills\handoff\SKILL.md; rg -n "validate-handoff" skills\handoff\SKILL.md; rg -n "validate-dispatch" skills\handoff; $code=$LASTEXITCODE; if ($code -eq 1) { "NO_OPERATIONAL_DISPATCH_ROUTE"; exit 0 }; exit $code
 ```
 
 - **Expected stdout / state:** Boundary language prints; final marker is `NO_OPERATIONAL_DISPATCH_ROUTE`; no source modification occurs.
 - **Expected exit / result:** Exit 0; report contains raw search output & normalized final marker.
-- **Timeout / retry:** 20 seconds; one retry after `rg --files D:\workspace\tools\skills\handoff` confirms inputs.
-- **Output artifacts:** `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` receives independence section.
-- **Evidence to record:** Both command outputs, exit code, file paths searched, & conclusion tied to fixed definition in `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md`.
+- **Timeout / retry:** 20 seconds; one retry after `rg --files skills\handoff` confirms inputs.
+- **Output artifacts:** `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` receives independence section.
+- **Evidence to record:** Both command outputs, exit code, file paths searched, & conclusion tied to fixed definition in `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md`.
 - **On failure:** If search finds an operational route, quote matching lines, mark independence acceptance failed, continue all safe tests, & return COMPLETE_WITH_NOTES only if every command ran.
 
 ### Step 3 — Run handoff validator test & template smoke
@@ -322,19 +327,19 @@ rg -n -C 2 "Boundary from" D:\workspace\tools\skills\handoff\SKILL.md; rg -n "Ne
 - **Dependency order:** AFTER: R_VALIDATE/S2
 - **Purpose:** Execute existing adversarial validator tests plus exact validator template self-check.
 - **Inputs:** Handoff validator, test file, & template paths listed in Section 2.
-- **Working directory:** `D:\workspace`
+- **Working directory:** `<repo root>`
 - **Exact action / command:**
 
 ```powershell
 # Run validator smoke.
-py -3.11 -m py_compile D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py; py -3.11 D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py; py -3.11 D:\workspace\tools\skills\handoff\scripts\validate-handoff.py D:\workspace\tools\skills\handoff\assets\handoff-template.md --template-self-check
+legion script handoff/validate-handoff skills\handoff\assets\handoff-template.md --template-self-check
 ```
 
 - **Expected stdout / state:** Compile emits no error; test prints `PASS:`; template check prints `PASS:` plus SHA-256.
-- **Expected exit / result:** Exit 0; complete stdout copied into `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md`.
+- **Expected exit / result:** Exit 0; complete stdout copied into `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md`.
 - **Timeout / retry:** 60 seconds total; one retry only for a transient interpreter launch error, zero retries for assertion or syntax failure.
-- **Output artifacts:** `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` records test & smoke outputs.
-- **Evidence to record:** Runtime version, command string, exit code, PASS lines, template SHA-256, & test file SHA-256 in `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md`.
+- **Output artifacts:** `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` records test & smoke outputs.
+- **Evidence to record:** Runtime version, command string, exit code, PASS lines, template SHA-256, & test file SHA-256 in `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md`.
 - **On failure:** Preserve raw stdout/stderr; rerun only failing individual command once; inspect first failing source line with `Get-Content`; never edit; continue Step 4.
 
 ### Step 4 — Validate scoped eval routing & final non-mutation state
@@ -343,19 +348,19 @@ py -3.11 -m py_compile D:\workspace\tools\skills\handoff\scripts\validate-handof
 - **Advances target:** ADVANCES_STATE_B: closes eval, hash, status, & final report acceptance state.
 - **Dependency order:** AFTER: R_VALIDATE/S3
 - **Purpose:** Prove eval JSON parses, contains expected dispatch-routing negative case, & source status remains preserved.
-- **Inputs:** `D:\workspace\tools\skills\handoff\evals\evals.json` plus baseline status from Step 1.
-- **Working directory:** `D:\workspace`
+- **Inputs:** `skills\handoff\evals\evals.json` plus baseline status from Step 1.
+- **Working directory:** `<repo root>`
 - **Exact action / command:**
 
 ```powershell
 # Run scoped eval validation.
-py -3.11 -c "import json; p=r'D:\workspace\tools\skills\handoff\evals\evals.json'; d=json.load(open(p,encoding='utf-8')); x=[e for e in d['should_not_trigger'] if e['id']=='handoff-not-dispatch'][0]; assert x['expected_skill']=='dispatch' and 'handoff' in x['forbidden_skills']; print('EVAL_PASS: handoff-not-dispatch routes dispatch and forbids handoff')"; Get-FileHash D:\workspace\tools\skills\handoff\SKILL.md,D:\workspace\tools\skills\handoff\scripts\validate-handoff.py,D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py,D:\workspace\tools\skills\handoff\evals\evals.json -Algorithm SHA256; git -C D:\workspace status --short
+python -c "import json; p=r'skills\handoff\evals\evals.json'; d=json.load(open(p,encoding='utf-8')); x=[e for e in d['should_not_trigger'] if e['id']=='handoff-not-dispatch'][0]; assert x['expected_skill']=='dispatch' and 'handoff' in x['forbidden_skills']; print('EVAL_PASS: handoff-not-dispatch routes dispatch and forbids handoff')"; Get-FileHash skills\handoff\SKILL.md,skills\handoff\scripts\validate-handoff.py,skills\handoff\scripts\test_validate_handoff.py,skills\handoff\evals\evals.json -Algorithm SHA256; git -C <repo root> status --short
 ```
 
 - **Expected stdout / state:** `EVAL_PASS` line, four SHA-256 hashes, & final Git status print; no source-path delta is introduced.
 - **Expected exit / result:** Exit 0; report lists baseline/final status comparison & hash table.
 - **Timeout / retry:** 30 seconds; one retry after exact JSON path exists check.
-- **Output artifacts:** `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` receives eval, hashes, final status, & final verdict.
+- **Output artifacts:** `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` receives eval, hashes, final status, & final verdict.
 - **Evidence to record:** JSON assertion output, hashes, initial/final status, report SHA-256, & `Get-Date -AsUTC` timestamp.
 - **On failure:** Capture exception text; inspect JSON with `Get-Content -Raw`; do not correct it; complete final status capture & state failure in verdict.
 
@@ -364,9 +369,9 @@ py -3.11 -c "import json; p=r'D:\workspace\tools\skills\handoff\evals\evals.json
 - **Script involved:** YES
 - **No-script reason:** NOT_APPLICABLE: existing Python test & validator scripts execute during this bounded local validation.
 - **Script ownership:** EXISTING_VERIFIED
-- **Script path:** `D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py` and `D:\workspace\tools\skills\handoff\scripts\validate-handoff.py`
+- **Script path:** `skills\handoff\scripts\test_validate_handoff.py` and `skills\handoff\scripts\validate-handoff.py`
 - **Creation decision:** No helper creation: existing source-owned entrypoints directly satisfy test & validator requirements.
-- **Script skill:** `D:\workspace\tools\skills\script\SKILL.md`
+- **Script skill:** `the script route (`legion script`)`
 - **Gate evidence:**
 
 ```text
@@ -383,7 +388,7 @@ ROUTE_REVISION: 1
 TIER: S1
 Local read-only validator plus adversarial test.
 PRE: Python 3.11.0, named scripts, template, rg, and Git were present; no credentials, network, or lock required.
-SMOKE: py -3.11 D:\workspace\tools\skills\handoff\scripts\test_validate_handoff.py printed PASS: handoff validator accepts cold-start packet plus rejects readiness, secret, context, resume, table, checklist, and receipt bypasses.
+SMOKE (recorded from the earlier run, when the test script still existed): printed PASS: handoff validator accepts cold-start packet plus rejects readiness, secret, context, resume, table, checklist, and receipt bypasses.
 CHECK: py_compile completed without stderr; template self-check printed PASS: handoff is cold-start complete with SHA-256 c212772f64ad7b7b5cc4f54c5b5aa42d69758d6663185d63b30bda798cd26364.
 BLAST: Reads named local source files; executor writes one owned report atomically; no network, DB, accounts, deletion, spend, or production action.
 OPT: a.idle n.a. local sub-second checks; b.dup single test and validator pass; c.overlap n.a. serialized to preserve report; d.resume report sections permit rerun; e.idempotent report replacement is atomic; f.retry-classes transient launch once versus deterministic zero; g.timeout+heartbeat 60-second command cap plus step markers; h.atomic temporary sibling then rename.
@@ -394,11 +399,11 @@ SHIP: YES
 
 | Class | Trigger | Primary & second branch | Degraded continuation | Retry / stop bound | Proceed condition | TRUE_BLOCKER threshold |
 |---|---|---|---|---|---|---|
-| PATH_OR_INPUT_MISSING | Named source path absent | 1. Run `rg --files D:\workspace\tools\skills\handoff` then inspect parent. 2. Run `rg -l "validate-handoff" D:\workspace\tools\skills` to locate rename. | Record discovered path or continue all checks that do not consume missing file. | 2 discovery commands; 0 source edits. | Exact required path exists or authoritative renamed file matches. | TRUE_BLOCKER only after all recovery branches fail, evidence log records both searches, & exact missing input is named. |
-| TOOL_OR_DEPENDENCY_MISSING | `py`, `rg`, or `git` unavailable | 1. Run `Get-Command py,rg,git`. 2. Inspect `py -3.11 --version` & repository lockfiles without install. | Capture text-only boundary evidence with available `Get-Content`. | 1 command discovery plus 1 version command. | Required local tool returns executable path & version. | TRUE_BLOCKER only after all recovery branches fail, evidence log records discovery, & exact missing input is named. |
+| PATH_OR_INPUT_MISSING | Named source path absent | 1. Run `rg --files skills\handoff` then inspect parent. 2. Run `rg -l "validate-handoff" skills` to locate rename. | Record discovered path or continue all checks that do not consume missing file. | 2 discovery commands; 0 source edits. | Exact required path exists or authoritative renamed file matches. | TRUE_BLOCKER only after all recovery branches fail, evidence log records both searches, & exact missing input is named. |
+| TOOL_OR_DEPENDENCY_MISSING | `py`, `rg`, or `git` unavailable | 1. Run `Get-Command py,rg,git`. 2. Inspect `python --version` & repository lockfiles without install. | Capture text-only boundary evidence with available `Get-Content`. | 1 command discovery plus 1 version command. | Required local tool returns executable path & version. | TRUE_BLOCKER only after all recovery branches fail, evidence log records discovery, & exact missing input is named. |
 | AUTH_OR_PERMISSION_FAILURE | Read or OWN report write denied | 1. Test exact path read/write access with temporary OWN sibling. 2. Inspect ACL with `Get-Acl` for exact path. | Continue all readable checks; record inaccessible evidence. | 1 safe write test & 1 ACL inspection. | Required source reads & OWN write return exit 0. | TRUE_BLOCKER only after all recovery branches fail, evidence log records ACL checks, & exact missing input is named. |
 | TRANSIENT_EXTERNAL_FAILURE | Local command unexpectedly times out | 1. Capture timeout & rerun failing command once. 2. Run smallest command against exact file. | Continue all commands unrelated to timed-out entrypoint. | One retry; 60 seconds maximum per test step. | Rerun exit code is 0 with expected PASS marker. | TRUE_BLOCKER only after all recovery attempts fail, evidence log records both timeouts, & exact missing input is named. |
-| INVALID_INPUT_OR_SCHEMA | Eval JSON or template assertion fails | 1. Parse with `py -3.11 -c` & capture exception. 2. Inspect exact failing key using `Get-Content -Raw`. | Run boundary, syntax, status, & hash evidence. | 0 mutation retries; 2 diagnostic reads. | JSON parse returns expected route assertion. | TRUE_BLOCKER forbidden: all recovery branches still run, evidence log records failure, & no external missing input exists. |
+| INVALID_INPUT_OR_SCHEMA | Eval JSON or template assertion fails | 1. Parse with `python -c` & capture exception. 2. Inspect exact failing key using `Get-Content -Raw`. | Run boundary, syntax, status, & hash evidence. | 0 mutation retries; 2 diagnostic reads. | JSON parse returns expected route assertion. | TRUE_BLOCKER forbidden: all recovery branches still run, evidence log records failure, & no external missing input exists. |
 | INTEGRITY_OR_HASH_MISMATCH | Source hash changes during run | 1. Recompute named SHA-256 hashes. 2. Compare `git diff --no-index` only against copied report evidence. | Record race evidence & retain both hash samples. | 2 hash passes; 0 checkout manipulation. | Before/after hashes match or change status is documented external activity. | TRUE_BLOCKER only after all recovery attempts fail, evidence log records both hashes, & exact missing input is named. |
 | DETERMINISTIC_COMMAND_FAILURE | Test assertion or compile exits nonzero | 1. Preserve stderr & rerun exact failing command once. 2. Inspect named source line with `Get-Content`. | Execute remaining read-only checks & record failure. | 1 rerun; 0 code fix. | Exact command exit code is 0 with stated PASS line. | TRUE_BLOCKER forbidden: all recovery branches still run, evidence log records failure, & no external missing input exists. |
 | DIRTY_OR_CONFLICTING_STATE | Git status differs beyond owned report | 1. Capture initial/final `git status --short`. 2. Inspect `git diff --name-only` without mutation. | Check OWN path isolation then write report. | 2 status snapshots; 0 cleanup actions. | `git status` shows no executor-attributable source path delta. | TRUE_BLOCKER only after all recovery branches fail, evidence log records conflict, & exact missing input is named. |
@@ -412,26 +417,26 @@ SHIP: YES
 
 | Requirement | Verification command or action | Expected result | Evidence path | Owner |
 |---|---|---|---|---|
-| PRODUCER_IDENTITY | Inspect `STATUS`, command ledger, & producer field in report | Executor-role produced report directly from named commands & source hashes | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Orchestrator |
-| LIFECYCLE_CHAIN | Verify ordered report markers for expected, started, terminal, delivery, & value terminal | Five states occur once in declared order with terminal command results | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\lifecycle-preflight.log` | Orchestrator |
-| NO_SUBSTITUTION | Search report for producer, raw outputs, hashes, & forbidden projection markers | Zero projected/direct closures; every conclusion cites command output or hash | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Orchestrator |
-| Purpose boundary | Step 2 exact `rg` command | Boundary quote plus `NO_OPERATIONAL_DISPATCH_ROUTE` marker | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
-| Validator adversarial test | Step 3 test command | Exit 0 & `PASS: handoff validator accepts` | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
-| Validator template smoke | Step 3 validator command | Exit 0 & `PASS: handoff is cold-start complete` | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
-| Eval routing assertion | Step 4 Python JSON assertion | Exit 0 & `EVAL_PASS: handoff-not-dispatch` | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
-| Source preservation | Step 1/4 Git status plus hashes | No executor-attributable source delta & four SHA-256 values | `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
-| Packet integrity | Dispatch validator & receipt commands in Section 8 | `PASS: dispatch is structurally complete` & `RECEIPT_PASS` | `D:\workspace\tools\skills\dispatch\examples\validated-forward-test.receipt.json` | Dispatcher |
+| PRODUCER_IDENTITY | Inspect `STATUS`, command ledger, & producer field in report | Executor-role produced report directly from named commands & source hashes | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Orchestrator |
+| LIFECYCLE_CHAIN | Verify ordered report markers for expected, started, terminal, delivery, & value terminal | Five states occur once in declared order with terminal command results | `<project overlay dir>\dispatch-handoff-final\forward\lifecycle-preflight.log` | Orchestrator |
+| NO_SUBSTITUTION | Search report for producer, raw outputs, hashes, & forbidden projection markers | Zero projected/direct closures; every conclusion cites command output or hash | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Orchestrator |
+| Purpose boundary | Step 2 exact `rg` command | Boundary quote plus `NO_OPERATIONAL_DISPATCH_ROUTE` marker | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
+| Validator adversarial test | Step 3 test command | Exit 0 & `PASS: handoff validator accepts` | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
+| Validator template smoke | Step 3 validator command | Exit 0 & `PASS: handoff is cold-start complete` | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
+| Eval routing assertion | Step 4 Python JSON assertion | Exit 0 & `EVAL_PASS: handoff-not-dispatch` | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
+| Source preservation | Step 1/4 Git status plus hashes | No executor-attributable source delta & four SHA-256 values | `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` | Executor |
+| Packet integrity | Dispatch validator & receipt commands in Section 8 | `PASS: dispatch is structurally complete` & `RECEIPT_PASS` | `skills\dispatch\examples\validated-forward-test.receipt.json` | Dispatcher |
 
 ## 8. Evidence & Artifact Contract
 
 - **Final verification command:**
 
 ```powershell
-py -3.11 skills/dispatch/scripts/validate-dispatch.py skills/dispatch/examples/validated-forward-test.md --verify-receipt skills/dispatch/examples/validated-forward-test.receipt.json
+legion script dispatch/validate-dispatch <repo root>/skills/dispatch/examples/validated-forward-test.md --verify-receipt <repo root>/skills/dispatch/examples/validated-forward-test.receipt.json
 ```
 
-- **Output paths:** `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\handoff-independence-report.md` & `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\dispatch-sample.receipt.json`.
-- **Logs / raw evidence:** Embed verbatim stdout/stderr in report; do not write logs outside `D:\workspace\tools\review\.council-runs\dispatch-handoff-final\forward\`.
+- **Output paths:** `<project overlay dir>\dispatch-handoff-final\forward\handoff-independence-report.md` & `<project overlay dir>\dispatch-handoff-final\forward\dispatch-sample.receipt.json`.
+- **Logs / raw evidence:** Embed verbatim stdout/stderr in report; do not write logs outside `<project overlay dir>\dispatch-handoff-final\forward\`.
 - **Hashes / counts / versions:** Record four source SHA-256 hashes, report SHA-256, Python/Git/rg versions, exact handoff file count, & initial/final Git status.
 - **Checkpoint / resume state:** After each step, atomically replace owned report with completed sections; resume at first absent section after status/hash reread.
 - **Evidence retention:** Retain dispatch, receipt, & report under exact forward directory until primary Codex integrates result.
@@ -440,13 +445,13 @@ py -3.11 skills/dispatch/scripts/validate-dispatch.py skills/dispatch/examples/v
 - **Validator command:**
 
 ```powershell
-py -3.11 skills/dispatch/scripts/validate-dispatch.py skills/dispatch/examples/validated-forward-test.md --write-receipt skills/dispatch/examples/validated-forward-test.receipt.json
+legion script dispatch/validate-dispatch <repo root>/skills/dispatch/examples/validated-forward-test.md --write-receipt <repo root>/skills/dispatch/examples/validated-forward-test.receipt.json
 ```
 
 - **Receiver hash check:**
 
 ```powershell
-py -3.11 skills/dispatch/scripts/validate-dispatch.py skills/dispatch/examples/validated-forward-test.md --verify-receipt skills/dispatch/examples/validated-forward-test.receipt.json
+legion script dispatch/validate-dispatch <repo root>/skills/dispatch/examples/validated-forward-test.md --verify-receipt <repo root>/skills/dispatch/examples/validated-forward-test.receipt.json
 ```
 
 ## 9. Return & Integration Contract

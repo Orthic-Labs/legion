@@ -440,7 +440,7 @@ HOST-SPECIFIC
 ```
 
 Canonical semantic ownership defined by this SSOT remains authoritative. Target product topology
-and native runtime lifecycle are described by `migration/native-rust/PRODUCT-ARCHITECTURE-V2.md`.
+and native runtime lifecycle are described in the native Rust runtime architecture.
 Public distribution, activation transactions, Agent Plugins packaging, and exact client boundaries
 are owned by `docs/architecture/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md`. Thin target adapters preserve
 collision-safe/reversible installation, truthful fidelity, legacy-writer quarantine, and
@@ -489,8 +489,7 @@ its target OS. CI cannot publish release payloads.
 
 Protected local release hosts consume exact candidate & evidence digests. They own post-sign
 installed-artifact qualification, release sealing, manifest-catalog signing, & upload to immutable
-GitHub Releases & approved bootstrap publication; they do not rebuild candidates. Private `bogusyogi`
-repos run same RightKit pipeline locally with zero
+GitHub Releases & approved bootstrap publication; they do not rebuild candidates. Private repositories run same RightKit pipeline locally with zero
 GitHub Actions; public & private differ only by runner, authentication, & spend boundary. Release trust
 binds `release-manifest.json` to `release-manifest.cat`, a Windows Authenticode catalog. An unsigned CI
 candidate is not a published release.

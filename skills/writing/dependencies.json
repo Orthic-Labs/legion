@@ -49,6 +49,26 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "references/manual.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/repurpose-content/reference.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/email/references/sequence/reference.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/copywriting/references/craft-research.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/blogs/references/writing-research.md"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "media-production"
     }
   ]
 }

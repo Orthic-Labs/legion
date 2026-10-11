@@ -43,14 +43,14 @@
     {
       "id": "revops-not-trigger-cold-email",
       "prompt": "Can you help me write cold outreach emails to prospects in our pipeline?",
-      "expected_skill": "email",
+      "expected_skill": "writing",
       "forbidden_skills": ["growth"],
       "expected_behavior": "Cold email / outbound copy writing routes to /writing email, not /marketing growth revops. RevOps covers systems, processes, and data infrastructure — not email content creation.",
       "severity": "error",
       "mode": "discovery",
       "assertions": [
         "Recognizes this as cold email writing, not RevOps",
-        "References or defers to cold-email skill",
+        "References or defers to the writing skill",
         "Explains RevOps covers systems and processes, not email content"
       ]
     }

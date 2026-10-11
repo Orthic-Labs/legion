@@ -1187,6 +1187,18 @@ fn execution_from_receipt(
             parsed = parse_external_value(input, &value, &mut output);
         }
         if !parsed {
+            let empty = bytes.iter().all(u8::is_ascii_whitespace);
+            if json_document_required(input.check.as_str(), empty, receipt.exit_code) {
+                // The tool always prints a JSON document and this was not
+                // one (empty or free text): not proven, never a clean pass.
+                output
+                    .coverage_gaps
+                    .push(format!("legacy-tool-output-unparseable:{}", input.check));
+                output.details.insert("findingsCount".into(), Value::Null);
+                parsed = true;
+            }
+        }
+        if !parsed {
             parsed = parse_text_output(input, bytes, &mut output);
         }
     } else if matches!(report_source, ReportSource::File(_)) && receipt.complete {
@@ -1240,6 +1252,20 @@ fn execution_from_receipt(
         receipt_id: Some(receipt.receipt_id),
         output: Some(output),
         error: None,
+    }
+}
+
+/// Checks whose tool always prints one JSON document on a healthy run. Empty
+/// or non-JSON output from these is an unparseable result. `outdated` prints
+/// nothing when every package is current, so empty output is only clean there
+/// when the tool also exited 0.
+fn json_document_required(check: &str, empty: bool, exit_code: Option<i32>) -> bool {
+    match check {
+        "dead_code" | "duplication" | "sast" | "ci_lint" | "docker" | "swift_lint"
+        | "js_licenses" | "deps_cve" | "py_deps_cve" | "cargo_audit" | "cargo_unsafe"
+        | "cargo_outdated" => true,
+        "outdated" => !(empty && exit_code == Some(0)),
+        _ => false,
     }
 }
 

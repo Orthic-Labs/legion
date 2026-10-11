@@ -75,8 +75,7 @@ its target OS. CI cannot upload a release.
 
 Protected local release hosts consume exact candidate & evidence digests. They perform post-sign
 installed-artifact qualification, release sealing, manifest-catalog signing, & upload to immutable
-GitHub Releases & approved bootstrap publication. They do not rebuild candidates. Private `bogusyogi`
-repos run same RightKit pipeline wholly locally, with
+GitHub Releases & approved bootstrap publication. They do not rebuild candidates. Private repositories run same RightKit pipeline wholly locally, with
 zero GitHub Actions; public & private differ only by runner, authentication, & spend boundary.
 
 ## 3. Install, update, rollback, removal
@@ -145,7 +144,7 @@ signing, schema, or workflow success cannot claim distribution readiness alone.
 
 ## 6. Retirement & evolution
 
-`migration/native-rust/m0/distribution-contract.json` records superseded package-manager M0
+The superseded package-manager M0 distribution contract records
 provenance only. Active release gates reject package-manager metadata; GitHub Pages plus GitHub
 Releases remain sole public channel.
 

@@ -60,7 +60,6 @@
 - **网格系统**：画布尺寸 + 外边距 + column grid + baseline grid + 关键安全区 + 黄金分割锚点
 - **动画系统**：easing 库（4 条以内）+ duration 字典 + stagger 法则 + scene 过渡规则
 - **Chrome 元素**：贯穿全片的小细节（counter / chip / ticker / watermark / texture），每个含位置 + 入退场时机
-- **音频系统**：BGM 30 秒走向曲线（分层）+ SFX 字典（10+ cues 含时间码 + 音量 + 频段隔离）
 - **反 AI slop checklist**：per-shot 自检表（10-15 项）
 
 铁律：**所有视觉决策都从 Visual System 推导，不要在 shot list 里临时发明新值**。
@@ -79,7 +78,7 @@
 
 ### Part IV · Shot-by-Shot Storyboard（分镜脚本，约 5000-7000 字 · 占 60% 篇幅）
 
-每镜含 10 个字段（缺一不可）：
+每镜含 9 个字段（缺一不可）：
 
 ```
 SHOT NN · NAME
@@ -88,7 +87,6 @@ SHOT NN · NAME
 [VISUAL]      画面构图 + 元素位置 + 运动方向
 [TYPE]        排版 spec（字体 / 字号 / 字距 / 行高 / 颜色 / 对齐）
 [ANIM]        每元素 in/out 时机 + easing + duration + stagger + delay
-[AUDIO]       music beat + SFX cue（每镜对应 BGM 节奏 + 必含 SFX 时间表）
 [CHROME]      四角元素状态（哪些 chrome 在 / 哪些 fade in/out / 哪个 pulse）
 [ANTI-SLOP]   这一镜通过了哪些自检项 + 有什么 120% 细节签名
 [WHY]         承接上一镜的逻辑 + 推进下一镜的钩子
@@ -104,11 +102,8 @@ SHOT NN · NAME
 
 - 字体加载 URL（含 preconnect）
 - CSS 变量（直接可粘贴）
-- BGM 来源选择标准 + Suno/Udio prompt 关键词 + 备选库
-- SFX 字典（按时间码逐 cue 列出文件路径 + 音量）
 - **关键帧验证计划**：12-15 张 pause-and-check 关键帧时间码，每帧验证项列出（fonts / positions / chrome state）
 - 录制参数（fps / codec / bitrate / preset）
-- ffmpeg 音频混合命令（含 audio stream 验证）
 - 交付物清单（mp4 / mp4-60fps / gif / poster.png / silent.mp4 / shot-list.csv）
 - 全链路时间估算（小时级精度）
 
@@ -163,7 +158,7 @@ trace 不上的决策就是装饰，删掉。
 3. **按 Sprite start/end 时间轴对照 Part IV 时间码** — 不擅自加镜
 4. **chrome 元素抽成独立组件**（ChromeA/B/C/D），用 useTime() 驱动状态切换
 5. **destination cards 内容必须真实可读**（不是 fake bar lines）—— 这是 v5 项目里最被反复提及的 120% 细节签名
-6. **每写完一镜就立即截关键帧验证**（用 `?t=NN` URL 参数 + Playwright），不要写完全片再统一验证
+6. **每写完一镜就立即截关键帧验证**（用 `?t=NN` URL 参数 + 宿主浏览器截图），不要写完全片再统一验证
 
 ---
 
@@ -180,17 +175,7 @@ const [playing, setPlaying] = useState(frozenTime == null);
 
 → 这样 `file:///path/animation.html?t=14.5` 直接 freeze 在 14.5 秒。
 
-批量截图：
-
-```bash
-for t in 0.5 2.5 4.9 7.0 10.5 13.5 16.5 19.0 21.5 23.4 25.5 28.0 29.9; do
-  npx -y playwright screenshot \
-    "file://$PWD/animation.html?t=$t" \
-    "keyframes/t-$t.png" \
-    --viewport-size=1920,1136 \
-    --wait-for-timeout=2500
-done
-```
+批量截图（需宿主 Chromium；无则如实报告未验证）：对时间码 0.5 2.5 4.9 7.0 10.5 13.5 16.5 19.0 21.5 23.4 25.5 28.0 29.9，逐个打开 `file://$PWD/animation.html?t=<时间码>`，视口 1920×1136，截图存为 `keyframes/t-<时间码>.png`。
 
 每张截图必须验证：
 - [ ] 元素无溢出 1920×1080 canvas
@@ -202,11 +187,11 @@ done
 
 ---
 
-## 7. 多视角并行策略（advanced）
+## 7. 多视角实验策略（advanced）
 
-复杂项目（如 launch film 选不出方向 / 想看多个美学差异 / 客户没拍板风格）可以**启动多个 subagent 并行做不同导演视角的版本**。
+复杂项目（如 launch film 选不出方向 / 想看多个美学差异 / 客户没拍板风格）可以**依次 inline 做不同导演视角的版本**（本 skill 不 spawn subagent）。
 
-实战配置（2026-05-11 huashu-md-html 项目，并行 6 个版本）：
+实战配置（2026-05-11 huashu-md-html 项目，6 个版本）：
 
 ```
 v5  · 基线（Anthropic / Penguin Classics 出版社品位）
@@ -218,21 +203,21 @@ v5e · 原研哉 Kenya Hara（极简日式 + 留白）
 v5f · 草间彌生 Yayoi Kusama（圆点 + 重复 + 单一强色）
 ```
 
-每个 subagent 接到独立 brief：
+每个版本接到独立 brief：
 - 项目背景（同一份）
 - 必读参考（同一份 v5-director-notes.md 作为方法论模板）
 - **指定的艺术家 DNA**（色板 / 字体 / 视觉语言 / 节奏 / 招牌元素 / 反 slop 强化版本，每条 30-50 字）
 - 统一任务清单（director-notes.md + animation.html + keyframes/ + README.md）
 - 统一约束（30s / 1920×1080 / file:// / Google Fonts）
 
-并行启动 + 后台运行，约 30-60 分钟出 6 套完整版本。
+依次产出 6 套完整版本。
 
 完成后审校对比：
 1. 各版本核心美学决策表
 2. 关键帧并排对比（每版同时刻一帧）
 3. 投票：哪个最贴合用户的真实需求
 
-**关键**：不要让 subagent 之间相互参考——它们必须独立产出，否则就会撞到「平均值」。每个 subagent 的指令里要明说「不要重复 v5 的美学」。
+**关键**：不要让版本之间相互参考——它们必须独立产出，否则就会撞到「平均值」。每个版本的指令里要明说「不要重复 v5 的美学」。
 
 ---
 
@@ -241,12 +226,11 @@ v5f · 草间彌生 Yayoi Kusama（圆点 + 重复 + 单一强色）
 | 用户场景 | 是否触发 | 备注 |
 |---------|---------|------|
 | 「做个 SaaS 升级宣传片」 | ✅ 触发 | 默认走完整流程 |
-| 「Apple 级别 / 超级碗品质感的视频」 | ✅ 触发 + 升级 | 强力推荐多视角并行 |
+| 「Apple 级别 / 超级碗品质感的视频」 | ✅ 触发 + 升级 | 强力推荐多视角实验 |
 | 「30 秒品牌 launch film」 | ✅ 触发 | |
 | 「这个项目 1 万字脚本再做动画」 | ✅ 触发 | 用户明确指明 |
 | 「简单 motion graphic，logo 转一下」 | ❌ 不触发 | 用 animations.md 标准流程 |
 | 「做个 onboarding 动画 demo」 | ❌ 不触发 | 用 animations.md |
-| 「教程视频带配音」 | ❌ 不触发 | 走 voiceover-pipeline.md |
 | 「单个 hero animation」 | ⚠️ 看复杂度 | 如果是高规格 hero，触发；普通 hero 用 hero-animation-case-study.md |
 
 ---
@@ -276,8 +260,8 @@ v5f · 草间彌生 Yayoi Kusama（圆点 + 重复 + 单一强色）
 ❌ **director's notes 写完就交付，不做实施**
 → 文档不是交付物，动画才是。文档 + 动画一起交付，文档作为「设计依据」附录。
 
-❌ **多视角并行时让 subagent 看其他版本**
-→ 各 subagent 必须独立，否则趋同。审校阶段才对比。
+❌ **多视角实验时让前一版影响后一版**
+→ 各版本必须独立产出，否则趋同。审校阶段才对比。
 
 ❌ **跳过关键帧验证直接录 MP4**
 → 必然返工。关键帧验证是最便宜的 quality gate。

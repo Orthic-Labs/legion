@@ -32,7 +32,6 @@
     "tests/native_no_interpreter.rs"
    ],
    "tests": [
-    "crates/legion-runtime/tests/r02_narrate_pipeline.rs",
     "crates/legion-runtime/tests/r02_render_video_seek.rs"
    ]
   },
@@ -43,7 +42,6 @@
    ],
    "tests": [
     "crates/legion-runtime/tests/r03_render_video.rs",
-    "crates/legion-runtime/tests/r03_tts_doubao.rs",
     "crates/legion-runtime/tests/r03_verify.rs"
    ]
   },

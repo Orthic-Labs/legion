@@ -58,7 +58,7 @@ Two concrete differences vs Sage/Alchemist:
 
 1. **[Critical — Harness]** `Stop` unconditionally allowed with no Oracle-ran check (`main.rs:28-30`, `protocol.rs:126-134`). *Fix:* either explicitly accept the honor-system for the ambient tier and soften the "Universal … policy" doctrine language, or have the Stop branch consult a lightweight per-session "oracle ran" marker for sessions that touched files.
 2. **[High — Packaging]** Completion-validation schema fully disconnected — no producer, consumer, or validation. *Fix:* wire Oracle's response into this shape and store it (e.g., alongside `legion completion evidence`), or mark the schema experimental.
-3. **[High — Packaging]** `src/packages/oracle/**` collides with the real authority, ships with zero consumers. *Fix:* rename to `audit-facade` (as its own README proposes) or delete — decision explicitly deferred to Adrian.
+3. **[High — Packaging]** `src/packages/oracle/**` collides with the real authority, ships with zero consumers. *Fix:* rename to `audit-facade` (as its own README proposes) or delete — decision explicitly deferred to the operator.
 4. **[Medium — Harness]** No `/oracle` skill / manual invocation entrypoint. *Fix:* thin `skills/oracle/SKILL.md` packaging the ephemeral-packet doctrine into a repeatable procedure, optionally with a packet validator.
 5. **[Medium — Agent contract]** Ambient-path dispatch has no structural input contract. *Fix:* minimal checklist/validator Legion runs against its own dispatch prompt (verbatim turns present, diff present, exclusions present, claims present).
 6. **[Low — Consistency]** Doctrine description drift uncaught by CI. *Fix:* add doctrine to the parity check or drop its `description:` frontmatter.

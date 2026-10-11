@@ -21,6 +21,14 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "ahrefs"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "web-search"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "okf"
     }
   ]
 }

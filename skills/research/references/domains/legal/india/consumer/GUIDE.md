@@ -38,11 +38,9 @@ If any of those is missing, the route halts and asks **one** clarifying question
    drafting assumptions.
 6. Preserve chronology, exhibit IDs, exact amounts, and requested relief across every
    document.
-7. Deterministic pack assembly (`generate_pack.py`) is a repository-only script under
-   `src/lib/research-core/workflows/legal/india/consumer/scripts/` — it is **not part of the
-   installed plugin** and cannot be run from an installed skill. Until it is ported natively,
-   assemble the pack manually against `drafting-standards.md` and flag this gap to
-   the user rather than claiming automated generation is available.
+7. No pack generator ships with this skill. Assemble the pack by hand against
+   `drafting-standards.md` and flag this to the user rather than claiming automated
+   generation is available.
 8. Flag limitation, jurisdiction, service, evidence, privacy, or professional-review
    risks before filing.
 

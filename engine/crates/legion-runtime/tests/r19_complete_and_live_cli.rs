@@ -45,7 +45,7 @@ fn completion_cli_missing_id_prints_usage_and_exits_1() {
     let cwd = tmp_dir("complete-usage");
     let (code, out) = completion_cli(&NoServer, &cwd, &[]);
     assert_eq!(code, 1);
-    assert!(out.contains("Usage: node live-complete.mjs"));
+    assert!(out.contains("Usage: legion script designer/live-complete"));
 }
 
 #[test]
@@ -136,7 +136,7 @@ fn live_cli_help_exits_0() {
     let cwd = tmp_dir("live-help");
     let (code, out) = live_cli(&NeverRunner, &cwd, &["--help".to_string()]);
     assert_eq!(code, 0);
-    assert!(out.contains("Usage: node live.mjs"));
+    assert!(out.contains("Usage: legion script designer/live"));
 }
 
 #[test]

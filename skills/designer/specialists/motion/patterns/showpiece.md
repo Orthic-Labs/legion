@@ -2,7 +2,7 @@
 
 Immersive-register patterns — for surfaces where motion IS the experience (campaign pages,
 portfolios, product-story pages, award-bar marketing sites). These are ONLY valid in the
-**showpiece register** (SKILL.md §Registers); in the product register most of them are findings.
+**showpiece register** (`../GUIDE.md` §Registers); in the product register most of them are findings.
 
 **Floors still apply:** reduced-motion variant, transform/opacity only, no CLS, no hydration
 mismatch, content in initial HTML, CTA reachable ≤ 1.5s. Full section exemplars with complete code:

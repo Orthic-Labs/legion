@@ -11,8 +11,7 @@ NotebookLM is not a top-level skill and is not an evidence authority.
 6. Keep OAuth state and `NOTEBOOKLM_AUTH_JSON` secret.
 
 NotebookLM CLI usage belongs behind the `research` router, not a standalone entry point.
-`src/lib/research-core/providers/notebooklm.py` was the retired Python prototype's adapter and is
-not part of the installed plugin; the native `legion-research` crate carries the current
+The retired Python prototype's adapter is not part of the installed plugin; the native `legion-research` crate carries the current
 NotebookLM/source concepts (see `engine/crates/legion-research/src/source.rs`). Provider help must
 not reintroduce `/notebooklm`, `notebooklm` as a catalog skill name, skill install commands, or any
 other public activation surface outside the root `research` router.

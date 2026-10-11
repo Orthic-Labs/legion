@@ -21,7 +21,7 @@
 
 - **Original user intent verbatim:** Restore Handoff artifacts while preserving unrelated workspace changes.
 - **Underlying goal:** Ship a callable, validated cold-start Handoff skill package.
-- **Current objective:** Verify package template, Membrane transport, validator, & focused tests.
+- **Current objective:** Verify package template, transcript transport, validator, & receipt check.
 - **Definition of success:** Template self-check, receipt verification, & focused tests exit successfully.
 - **Out of scope:** Registry, aliases, repository topology, commits, pushes, & unrelated package edits.
 - **First responsibility:** Verify this packet receipt before inspecting live state.
@@ -37,7 +37,7 @@
 - **Last action:** Run template validator self-check.
 - **Last observed result:** Template validator exited zero with PASS evidence.
 - **Active goal / plan:** Restore package parity then report exact paths & hashes.
-- **Current hypothesis:** Pointer transport preserves host boundary while Membrane owns semantics.
+- **Current hypothesis:** Pointer transport preserves host boundary while Legion owns semantics.
 
 ## 3. Environment & Active Work
 
@@ -47,7 +47,7 @@
 - **Baseline revision:** c1c7e818 legacy-retirement boundary.
 - **Dirty state:** Shared checkout may contain concurrent Handoff library & test edits.
 - **OS / shell:** macOS zsh with python3.
-- **Tools / dependencies:** Python standard library plus installed Membrane continuity command.
+- **Tools / dependencies:** Legion native `handoff/*` script routes (`legion script handoff/...`).
 - **Services / processes:** NONE_CHECKED: do not stop any shared process.
 - **Agents / tasks / threads:** Concurrent Handoff library & test owners may be active.
 - **Scheduled work:** NONE_CHECKED: no scheduler inspection needed.
@@ -127,19 +127,19 @@ legion script handoff/validate-handoff <package-root>/skills/handoff/assets/hand
 - **If failure:** Repair only template defect, then repeat receipt verification.
 - **Depends on:** Resume Step 1 receipt verification.
 
-### Resume Step 3 — Run focused suite
+### Resume Step 3 — Re-run native receipt check
 
 - **Owner:** Fresh receiver
 - **Working directory / system:** <workspace-root>
 - **Exact action:**
 
 ```text
-Run python3 -m unittest discover -s <package-root>/tests -p '*handoff*.py'
+legion script handoff/validate-handoff <package-root>/skills/handoff/examples/validated-forward-test.md --verify-receipt <package-root>/skills/handoff/examples/validated-forward-test.receipt.json
 ```
 
-- **Expected result:** Focused Handoff tests exit zero.
-- **Evidence path:** <package-root>/tests
-- **Timeout / retry:** 60 seconds; retry once after inspecting named test failure.
+- **Expected result:** Native handoff validator reports RECEIPT_PASS.
+- **Evidence path:** <package-root>/skills/handoff/examples/validated-forward-test.receipt.json
+- **Timeout / retry:** 60 seconds; retry once after reading the named validator failure.
 - **If failure:** Preserve output & route only owned defect to correct owner.
 - **Depends on:** Resume Step 2 template verification.
 

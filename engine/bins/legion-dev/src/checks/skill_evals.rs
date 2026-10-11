@@ -581,7 +581,13 @@ pub fn check_files(root: &Path, files: &[String]) -> Report {
 }
 
 pub fn run(root: &Path) -> bool {
-    let files = tracked_files(root);
+    let files = match tracked_files(root) {
+        Ok(files) => files,
+        Err(e) => {
+            eprintln!("check-skill-evals: {e}");
+            return false;
+        }
+    };
     let report = check_files(root, &files);
     if report.files == 0 {
         eprintln!("check-skill-evals: no skills/**/evals/*.json files found");

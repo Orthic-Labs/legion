@@ -44,7 +44,7 @@ impl std::fmt::Display for ArgError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingSlidesOrOut => f.write_str(
-                "用法: node export_deck_pdf.mjs --slides <dir> --out <file.pdf> [--width 1920] [--height 1080]",
+                "用法: legion script designer/export-deck-pdf --slides <dir> --out <file.pdf> [--width 1920] [--height 1080]",
             ),
         }
     }

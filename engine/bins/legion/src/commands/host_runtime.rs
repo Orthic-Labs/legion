@@ -91,7 +91,6 @@ pub fn run(args: CommonArgs) -> CommandResult {
 fn run_describe(argv: &[String]) -> CommandResult {
     let mut root = PathBuf::from(".");
     let mut descriptor = None;
-    let mut json_output = false;
     let mut positional = false;
     let mut i = 0;
     while i < argv.len() {
@@ -105,7 +104,8 @@ fn run_describe(argv: &[String]) -> CommandResult {
                 };
                 descriptor = Some(PathBuf::from(value));
             }
-            "--json" => json_output = true,
+            // Output is always JSON, so the flag is accepted and has no effect.
+            "--json" => {}
             "--help" | "help" => {
                 return Ok(json!({
                     "__raw": "Usage: legion host describe [<root>] [--descriptor <path>] [--json]\n"
@@ -128,11 +128,7 @@ fn run_describe(argv: &[String]) -> CommandResult {
         }
         i += 1;
     }
-    super::host::run(super::host::HostArgs {
-        root,
-        descriptor,
-        json: json_output,
-    })
+    super::host::run(super::host::HostArgs { root, descriptor })
 }
 
 pub fn inspect_ledger(session: Option<&str>, key_dir: Option<&str>) -> Result<Value, String> {

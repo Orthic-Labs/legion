@@ -19,7 +19,7 @@
     {
       "id": "canon-not-source-inventory",
       "prompt": "Compare these repositories from source and discover every implemented feature.",
-      "expected_behavior": "Use compshop for source discovery before canon normalization.",
+      "expected_behavior": "Use /foundation compare for source discovery before atomic canon normalization.",
       "forbidden_skills": ["canon"],
       "assertions": [{"type": "forbidden_skill", "value": "canon"}]
     }

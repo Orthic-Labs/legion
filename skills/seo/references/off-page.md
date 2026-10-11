@@ -1,27 +1,8 @@
----
-name: seo-off-page
-description: >
-  Off-page SEO and link/trust-signal ACQUISITION — the earn-links half of SEO that
-  the rest of this skill only diagnoses. Digital PR / HARO (journalist sourcing +
-  linkable-asset stat pages), unlinked brand-mention reclamation, guest posting,
-  content distribution/syndication, and outreach tracking. Use when user says
-  "link building", "get backlinks", "digital PR", "HARO", "Qwoted", "guest post",
-  "outreach", "brand mentions", "unlinked mentions", "content distribution",
-  "syndication", "earn links", or "off-page SEO".
-user-invokable: true
-argument-hint: "[tactic] [domain]"
-license: MIT
-metadata:
-  category: seo
-  version: "1.0.0"
----
-
 # Off-Page SEO — Link & Trust-Signal Acquisition
 
 The rest of `/seo` analyzes the link profile (`backlinks.md`: toxic links, anchor ratios,
 competitor gap). **This reference is the missing half: how to actually EARN links and
-brand/trust signals.** Pairs with `geo.md` ("Brand mentions correlate 3× more strongly
-with AI visibility than backlinks" — so mention-earning here is also AEO/GEO work).
+brand/trust signals.** Pairs with `geo.md`. The claim that brand mentions correlate more strongly with AI visibility than backlinks is unverified (check a primary source before quoting it), so mention-earning is treated here as AEO/GEO work only where its own evidence shows it.
 
 ## HARD GUARDRAIL — white-hat only (non-negotiable)
 
@@ -45,18 +26,16 @@ real value, real earned coverage. If a tactic requires faking a signal, stop.
 ## Tactic 1 — Digital PR / HARO (highest authority, hardest)
 
 Earn editorial links + brand mentions from journalists by being a real source.
-Pattern proven by the Qwoted skill (`github.com/Bomx/qwoted-seo-backlinks-skill`):
+Pattern used by public third-party pitch-skill tooling:
 sourcing platforms (Qwoted, Featured, Help a B2B Writer, SourceBottle) connect experts
 to reporters writing stories who need a quote/stat.
 
 **Workflow:**
 1. **Build a linkable asset first.** A genuinely sourced statistics/research page on the
-   brand site (40–80 real, cited stats on the brand's topic) — knife/EDC steel data for DD,
-   slow-fashion/textile-waste data for RH, local-dictation/privacy data for HR. This is what
+   brand site (40–80 real, cited stats on the brand's topic, taken from the brand card and project data). This is what
    journalists link to. **Every stat cited to a primary source — never fabricate** (see
    `blog-post-contract.md` §5). Add `Article` + `Dataset` schema.
-2. **Find requests** matching real expertise (the approving human: 11+ yr fashion buying → RH/TS;
-   product/CNC/EDC → DD; local-first software → HR). Filter by deadline + relevance.
+2. **Find requests** matching the approving human's real expertise (from the project-supplied author profile). Filter by deadline + relevance.
 3. **Pitch** a tight, specific, quotable answer (2–4 sentences) + 1 stat from the asset +
    1-line credential. No fluff. Reference the asset only where it genuinely supports the story.
 4. **Log every pitch** (dedupe; track placement). See Outreach Tracker below.
@@ -107,7 +86,7 @@ Plus: spam score <5% (Moz), organic traffic trending up, fresh content <30 days,
 - Proof: 2 published samples (prefer DA 50+, niche-relevant)
 - Close: offer outline or full draft. **One** follow-up after 7 business days. No third.
 
-**Content standards:** 1,500–2,500 words, original research/firsthand data, H1→H2→H3,
+**Content standards:** length set by the task and evidence (no fixed word count; see `quality-gates.md`), original research/firsthand data, H1→H2→H3,
 author bio (50–100 words, verifiable credentials from the project-supplied author profile), 2–5 original/
 royalty-free images w/ alt text, suggested internal links to THEIR content. Follow their
 guidelines exactly. Expectations: 5–10% cold acceptance; ranking impact 45–90 days post-index.
@@ -116,7 +95,7 @@ guidelines exactly. Expectations: 5–10% cold acceptance; ranking impact 45–9
 
 Get existing content in front of more humans + AI crawlers — **legitimately** (NOT the
 Distribb backlink-exchange). Repurpose each pillar post into: LinkedIn article (the approving human's
-founder voice), a YouTube explainer (strongest AI-citation correlation, 0.737 — see geo.md),
+founder voice), a YouTube explainer (a correlation with AI citations is reported for this format; unverified, check a primary source),
 genuine participation in relevant Reddit/forum/Quora threads (answer first, link only if it
 truly helps), an email-list send, and brand social. Canonical-tag any full-text syndication
 back to the original. Route platform specifics through `/social`.
@@ -130,17 +109,16 @@ Mirror Qwoted's pitch log. One row per prospect, per brand, to dedupe and measur
 `brand | tactic | target_domain | DA/DR | contact | url_mentioned | pitch_date | follow_up_date | status | placement_url | anchor`
 
 Statuses: `prospect → pitched → followed_up → won → lost → no-reply`. Save as
-`SEO/data/<brand>/outreach-log.csv`. Never pitch a `won`/`pitched` domain twice.
+`<project-overlay>/seo/<brand>/outreach-log.csv`. Never pitch a `won`/`pitched` domain twice.
 
 ## Where this plugs into the rest of /seo
 
 - **Targets come from** `backlinks.md` §6 competitor gap (domains linking to rivals, not us) +
   unlinked mentions found here.
 - **Linkable assets** are built to `blog-post-contract.md` (cited stats, schema, author bio).
-- **Brand-mention earning = AEO/GEO** — see `geo.md` Pillar 3 (Presence) + the brand-mention
-  vs backlink correlation table.
-- **Measure** placements + referral traffic via `seo-google` (GSC links report, GA4 referral)
-  and `ahrefs` (new/lost backlinks, referring domains).
+- **Brand-mention earning** supports AEO/GEO; see `geo.md` section 5 (entity and corroboration).
+- **Measure** placements + referral traffic via the Google reference (GSC links report, GA4 referral)
+  and the Ahrefs reference (new/lost backlinks, referring domains).
 
 ## Output
 
@@ -149,8 +127,8 @@ When asked to "build links" / "off-page plan" for a domain, produce `OFF-PAGE-PL
 2. Unlinked-mention list (found via WebSearch/Ahrefs) + outreach drafts
 3. Guest-post prospect list (qualified by the tier table) + pitch drafts
 4. Distribution plan per pillar post
-5. Outreach tracker seeded (`SEO/data/<brand>/outreach-log.csv`)
+5. Outreach tracker seeded (`<project-overlay>/seo/<brand>/outreach-log.csv`)
 6. 30/60/90 measurement plan (GSC + GA4 + Ahrefs)
 
-> Author facts: `<project-overlay>/seo/author-profile.md`. Brand voice: `/brand <brand-code>`.
-> Never fabricate stats, reviews, quotes, or press (CLAUDE.md). White-hat guardrail above is hard.
+> Author facts: `<project-overlay>/seo/author-profile.md`. Brand voice: `/brand` (brand card).
+> Never fabricate stats, reviews, quotes, or press (project rules). White-hat guardrail above is hard.

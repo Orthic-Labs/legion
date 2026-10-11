@@ -103,7 +103,7 @@ pub struct ReplyArgsError {
 }
 
 const REPLY_USAGE: &str =
-    "Usage: node live-poll.mjs --reply <id> <status> [--file path] [--data '<json>'] [message]";
+    "Usage: legion script designer/live-poll --reply <id> <status> [--file path] [--data '<json>'] [message]";
 
 /// Mirrors `validateReplyArgs({ id, status })`.
 fn validate_reply_args(id: Option<&str>, status: Option<&str>) -> Result<(), ReplyArgsError> {
@@ -259,10 +259,10 @@ pub fn manual_apply_poll_banner(event_id: Option<&str>) -> String {
     let id = event_id.filter(|s| !s.is_empty()).unwrap_or("EVENT_ID");
     let lines = [
         format!(
-            "Manual Apply action required: edit source, then reply with `live-poll.mjs --reply {id} done --data '<json>'`."
+            "Manual Apply action required: edit source, then reply with `legion script designer/live-poll --reply {id} done --data '<json>'`."
         ),
         "The JSON data must include status, appliedEntryIds, failed, files, and notes; summary counters are only a recovery fallback.".to_string(),
-        "Do not run live-commit-manual-edits.mjs for this leased event.".to_string(),
+        "Do not run legion script designer/live-commit-manual-edits for this leased event.".to_string(),
         "Do not poll again before replying.".to_string(),
     ];
     format!("{}\n", lines.join("\n"))
@@ -304,7 +304,8 @@ pub fn read_server_info(cwd: &Path) -> Result<r24::ServerInfo, String> {
     r24::read_live_server_info(cwd)
         .map(|(info, _path)| info)
         .ok_or_else(|| {
-            "No running live server found. Start one with: node live-server.mjs".to_string()
+            "No running live server found. Start one with: legion script designer/live-server"
+                .to_string()
         })
 }
 
@@ -553,7 +554,7 @@ pub fn write_carbonize_banner(event: &Value) {
     {
         let id = event.get("id").and_then(Value::as_str).unwrap_or("");
         eprintln!(
-            "\n\u{26A0} Carbonize cleanup REQUIRED before next poll. After cleanup, run live-complete.mjs --id {id}. See reference/live.md \"Required after accept\".\n"
+            "\n\u{26A0} Carbonize cleanup REQUIRED before next poll. After cleanup, run legion script designer/live-complete --id {id}. See reference/live.md \"Required after accept\".\n"
         );
     }
 }
@@ -619,7 +620,7 @@ fn handle_poll_error(err: &PollError) -> i32 {
     match err.code {
         Some("AUTH_FAILED") => {
             eprintln!("{}", err.message);
-            eprintln!("Try restarting: node live-server.mjs stop && node live.mjs");
+            eprintln!("Try restarting: legion script designer/live-server stop && legion script designer/live");
             1
         }
         Some("ACK_TIMEOUT") => {

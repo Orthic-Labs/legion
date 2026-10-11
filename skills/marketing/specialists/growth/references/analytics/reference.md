@@ -289,21 +289,21 @@ dataLayer.push({
 
 ## Tool Integrations
 
-For implementation, see the tools registry. Key analytics tools:
+Key analytics tools (use whichever the project already runs):
 
-| Tool | Best For | MCP | Guide |
-|------|----------|:---:|-------|
-| **GA4** | Web analytics, Google ecosystem | ✓ | ga4.md |
-| **Mixpanel** | Product analytics, event tracking | - | mixpanel.md |
-| **Amplitude** | Product analytics, cohort analysis | - | amplitude.md |
-| **PostHog** | Open-source analytics, session replay | - | posthog.md |
-| **Segment** | Customer data platform, routing | - | segment.md |
+| Tool | Best For |
+|------|----------|
+| **GA4** | Web analytics, Google ecosystem |
+| **Mixpanel** | Product analytics, event tracking |
+| **Amplitude** | Product analytics, cohort analysis |
+| **PostHog** | Open-source analytics, session replay |
+| **Segment** | Customer data platform, routing |
 
 ---
 
 ## Related Skills
 
 - **growth ab-test**: For experiment tracking
-- **seo-audit**: For organic traffic analysis
-- **page-cro**: For conversion optimization (uses this data)
+- **SEO** (`/seo`): For organic traffic analysis
+- **CRO page** (`/marketing cro`, page reference): For conversion optimization (uses this data)
 - **growth revops**: For pipeline metrics, CRM tracking, and revenue attribution

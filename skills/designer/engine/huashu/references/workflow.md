@@ -148,7 +148,7 @@ HTML文件头部先写你的**assumptions+reasoning comments**，像junior给man
 
 ### Pass 4：验证+交付
 
-- 用Playwright截图（见`references/verification.md`）
+- 用 `legion script designer/verify` 截图（见`references/verification.md`）
 - 打开浏览器肉眼确认
 - 总结**极简**：只说caveats和next steps
 

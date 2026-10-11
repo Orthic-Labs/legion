@@ -60,7 +60,13 @@ impl StatusEnv for HttpStatusEnv {
     }
 
     fn list_active_sessions(&self) -> Vec<Value> {
-        Vec::new()
+        // Durable sessions come from the local session store (`store.listActiveSessions()`).
+        // A store that cannot be opened yields no sessions here; the payload does not
+        // distinguish that from an empty store.
+        match crate::wf_port::w2_021::session_store::LiveSessionStore::new(&self.root, None) {
+            Ok(mut store) => store.list_active_sessions(),
+            Err(_) => Vec::new(),
+        }
     }
 }
 
@@ -128,12 +134,12 @@ pub fn build_status_payload(server: Option<&Value>, active_sessions: &[Value]) -
         )))
     } else if server.is_some() {
         Value::String(
-            "Run live-poll.mjs to continue pending work, or live-complete.mjs --id <session> after manual cleanup."
+            "Run legion script designer/live-poll to continue pending work, or legion script designer/live-complete --id <session> after manual cleanup."
                 .to_string(),
         )
     } else {
         Value::String(
-            "Start live-server.mjs to requeue pending durable events, then run live-poll.mjs."
+            "Start legion script designer/live-server to requeue pending durable events, then run legion script designer/live-poll."
                 .to_string(),
         )
     };
@@ -248,7 +254,7 @@ mod tests {
         let payload = build_status_payload(Some(&server), &[]);
         assert_eq!(
             payload["recoveryHint"],
-            "Run live-poll.mjs to continue pending work, or live-complete.mjs --id <session> after manual cleanup."
+            "Run legion script designer/live-poll to continue pending work, or legion script designer/live-complete --id <session> after manual cleanup."
         );
     }
 
@@ -258,7 +264,7 @@ mod tests {
         assert_eq!(payload["liveServer"], Value::Null);
         assert_eq!(
             payload["recoveryHint"],
-            "Start live-server.mjs to requeue pending durable events, then run live-poll.mjs."
+            "Start legion script designer/live-server to requeue pending durable events, then run legion script designer/live-poll."
         );
     }
 
@@ -297,7 +303,7 @@ mod tests {
         let payload = run(&env);
         assert_eq!(
             payload["recoveryHint"],
-            "Start live-server.mjs to requeue pending durable events, then run live-poll.mjs."
+            "Start legion script designer/live-server to requeue pending durable events, then run legion script designer/live-poll."
         );
     }
 

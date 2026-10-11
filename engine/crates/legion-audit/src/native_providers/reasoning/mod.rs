@@ -296,7 +296,7 @@ impl ReasoningProviderExecutor {
         if self.host.is_none() {
             return pending_host_result(provider, &denominator);
         }
-        let request = build_invocation(
+        let mut requests = build_invocations(
             plan,
             provider,
             inventory,
@@ -305,6 +305,27 @@ impl ReasoningProviderExecutor {
             &self.root,
             None,
         )?;
+        // One in-process host invocation yields one receipt, which cannot
+        // prove a partitioned denominator. Multi-part work is only ever
+        // `pending-host` work for the invoking session.
+        if requests.len() != 1
+            || requests[0]
+                .packet
+                .get("part")
+                .is_some_and(|part| !part.is_null())
+        {
+            return failure_result(
+                provider,
+                &denominator,
+                format!(
+                    "reasoning-parts-unsupported-in-process:{}:{} parts",
+                    provider.id,
+                    requests.len()
+                ),
+                "host-multipart-unsupported",
+            );
+        }
+        let request = requests.remove(0);
         request
             .validate()
             .map_err(|error| AuditError::Invalid(error.to_owned()))?;
@@ -431,7 +452,25 @@ fn reasoning_denominator(
     Ok(denominator)
 }
 
-fn build_invocation(
+/// Provider-level ceiling on packet parts: `bounds.maxReasoningParts` from the
+/// frozen provider, else `excerpts::DEFAULT_MAX_PARTS`.
+fn part_ceiling(provider: &AuditProvider) -> usize {
+    provider
+        .bounds
+        .get("maxReasoningParts")
+        .and_then(Value::as_u64)
+        .map(|value| value.clamp(1, 100_000) as usize)
+        .unwrap_or(excerpts::DEFAULT_MAX_PARTS)
+}
+
+/// Builds every packet part for one provider. The frozen denominator is
+/// partitioned deterministically (stable path order) so each denominator path
+/// is homed in exactly one part; a provider whose denominator fits one part
+/// yields exactly one invocation with the pre-continuation packet shape (no
+/// `part` key). Every part carries the full frozen denominator in its
+/// envelope, so the plan digest binding and receipt denominator checks are
+/// identical for every part.
+fn build_invocations(
     plan: &FrozenPlan,
     provider: &AuditProvider,
     inventory: &InventoryEnvelope,
@@ -439,7 +478,7 @@ fn build_invocation(
     invocation_epoch: &str,
     root: &Path,
     scanner_candidates: Option<&[ScannerCandidate]>,
-) -> Result<ReasoningInvocation, AuditError> {
+) -> Result<Vec<ReasoningInvocation>, AuditError> {
     let contract = provider
         .configuration
         .get("runner")
@@ -471,17 +510,9 @@ fn build_invocation(
     // naming/dead-file, per lens-routing.md's
     // "Excerpt compression" section. `None` only for
     // `legacy.security.adjudication`, which is not lens-routed here.
-    let excerpt_set = lens_plan::lens_plan_excerpt_mode(&provider.id)
-        .map(|mode| excerpts::build_excerpt_set(root, &paths, mode));
-    // What this packet actually carries, reconciled against the denominator.
-    // Ingest derives examined coverage from this, never from an attestation.
-    let excerpt_coverage = excerpt_coverage_value(
-        &provider.id,
-        excerpt_set.as_ref(),
-        scanner_candidates,
-        paths.len(),
-    );
-    let excerpts = excerpt_set.map(|set| serde_json::to_value(set.excerpts).unwrap_or(Value::Null));
+    let ceiling = part_ceiling(provider);
+    let partition = lens_plan::lens_plan_excerpt_mode(&provider.id)
+        .map(|mode| excerpts::partition_excerpts(root, &paths, mode, ceiling));
     // Scanner candidates for the adjudicator: one verdict per candidate.
     // `null` means the caller did not supply scanner results (unknown, not
     // "none"); ingest then refuses to treat the lens as covered.
@@ -516,89 +547,184 @@ fn build_invocation(
         .and_then(|reasoning| reasoning.get("reviewContext"))
         .cloned()
         .unwrap_or(Value::Null);
-    let packet = json!({
-        "schemaVersion": 1,
-        "kind": "legion-reasoning-packet",
-        "provider": provider.id,
-        "contract": contract,
-        "binding": {
+    let part_slots: Vec<Option<&excerpts::ExcerptPart>> = match &partition {
+        Some(partition) => partition.parts.iter().map(Some).collect(),
+        None => vec![None],
+    };
+    let emitted_parts = part_slots.len();
+    let required_parts = partition
+        .as_ref()
+        .map_or(1, |partition| partition.required_parts);
+    let multi_part = required_parts > 1;
+    let over_ceiling = partition
+        .as_ref()
+        .filter(|partition| partition.required_parts > partition.parts.len())
+        .map(|partition| {
+            json!({
+                "requiredParts": partition.required_parts,
+                "ceiling": ceiling,
+                "unscheduledPathCount": partition.unscheduled_paths.len(),
+                "unscheduledPaths": partition.unscheduled_paths,
+            })
+        })
+        .unwrap_or(Value::Null);
+    // Chunks of files continued from an earlier part, per part.
+    let mut invocations = Vec::with_capacity(emitted_parts);
+    for (index, part) in part_slots.into_iter().enumerate() {
+        let number = index + 1;
+        // What this packet actually carries, reconciled against the
+        // denominator. Ingest derives examined coverage from this, never
+        // from an attestation.
+        let excerpt_coverage =
+            excerpt_coverage_value(&provider.id, part, scanner_candidates, paths.len());
+        let excerpts_value =
+            part.map(|part| serde_json::to_value(&part.excerpts).unwrap_or(Value::Null));
+        let part_meta = match (multi_part, part) {
+            (true, Some(part)) => {
+                let continued = part
+                    .excerpts
+                    .iter()
+                    .filter(|excerpt| excerpt.chunk > 1)
+                    .map(|excerpt| excerpt.path.clone())
+                    .collect::<BTreeSet<_>>();
+                json!({
+                    "number": number,
+                    "total": emitted_parts,
+                    "requiredParts": required_parts,
+                    "paths": part.paths,
+                    "pathsDigest": canonical_digest(&part.paths)
+                        .map_err(|error| AuditError::Invalid(error.to_string()))?,
+                    "continuedPaths": continued,
+                    "overCeiling": over_ceiling,
+                    "indexFile": format!("{}.index.json", provider.id),
+                    "findingIdPrefix": format!("p{number:04}-"),
+                    "note": "this packet is one part of a partitioned denominator; finding ids must be unique across parts (use findingIdPrefix); the provider completes only when every part is ingested",
+                })
+            }
+            _ => Value::Null,
+        };
+        let mut packet = json!({
+            "schemaVersion": 1,
+            "kind": "legion-reasoning-packet",
+            "provider": provider.id,
+            "contract": contract,
+            "binding": {
+                "repositoryId": inventory.repository_id,
+                "inventoryGeneration": inventory.generation,
+                "inventoryDigest": inventory.digest,
+                "planDigest": plan.digest(),
+                "planSignature": plan.signature(),
+                "denominatorDigest": denominator.digest,
+                "denominatorCount": denominator.entries.len(),
+            },
+            "lensPlan": lens_plan,
+            "excerpts": excerpts_value,
+            "excerptCoverage": excerpt_coverage,
+            "scannerCandidates": candidates_value,
+            "triggerEvidence": trigger_evidence,
+            "reportSchemaBody": report_schema_body,
+            "semanticReviewContract": semantic_contract,
+            "changeRiskContract": change_risk_contract,
+            "reviewContext": review_context,
+            // Later parts reference part 1 for the inventory projection
+            // rather than repeating it in every part.
+            "projection": if number == 1 { projection.clone() } else { Value::Null },
+            "artifactIds": [],
+        });
+        if multi_part {
+            if let Some(object) = packet.as_object_mut() {
+                object.insert("part".into(), part_meta);
+            }
+        }
+        let identity = json!({
+            "invocationEpoch": invocation_epoch,
+            "packetDigest": canonical_digest(&packet).map_err(|error| AuditError::Invalid(error.to_string()))?,
+            "providerId": provider.id,
+            "contract": contract,
+            "planDigest": plan.digest(),
+            "planSignature": plan.signature(),
             "repositoryId": inventory.repository_id,
             "inventoryGeneration": inventory.generation,
             "inventoryDigest": inventory.digest,
-            "planDigest": plan.digest(),
-            "planSignature": plan.signature(),
             "denominatorDigest": denominator.digest,
             "denominatorCount": denominator.entries.len(),
-        },
-        "lensPlan": lens_plan,
-        "excerpts": excerpts,
-        "excerptCoverage": excerpt_coverage,
-        "scannerCandidates": candidates_value,
-        "triggerEvidence": trigger_evidence,
-        "reportSchemaBody": report_schema_body,
-        "semanticReviewContract": semantic_contract,
-        "changeRiskContract": change_risk_contract,
-        "reviewContext": review_context,
-        "projection": projection,
-        "artifactIds": [],
-    });
-    let identity = json!({
-        "invocationEpoch": invocation_epoch,
-        "packetDigest": canonical_digest(&packet).map_err(|error| AuditError::Invalid(error.to_string()))?,
-        "providerId": provider.id,
-        "contract": contract,
-        "planDigest": plan.digest(),
-        "planSignature": plan.signature(),
-        "repositoryId": inventory.repository_id,
-        "inventoryGeneration": inventory.generation,
-        "inventoryDigest": inventory.digest,
-        "denominatorDigest": denominator.digest,
-        "denominatorCount": denominator.entries.len(),
-        "denominatorPaths": paths,
-    });
-    let request_id =
-        canonical_digest(&identity).map_err(|error| AuditError::Invalid(error.to_string()))?;
-    Ok(ReasoningInvocation {
-        schema_version: REASONING_RECEIPT_SCHEMA_VERSION,
-        kind: REASONING_INVOCATION_KIND.into(),
-        request_id,
-        provider_id: provider.id.clone(),
-        contract: contract.into(),
-        plan_digest: plan.digest().into(),
-        plan_signature: plan.signature().unwrap_or_default().into(),
-        repository_id: inventory.repository_id.clone(),
-        inventory_generation: inventory.generation.clone(),
-        inventory_digest: inventory.digest.clone(),
-        denominator_digest: denominator.digest.clone(),
-        denominator_count: denominator.entries.len() as u64,
-        denominator_paths: paths,
-        packet,
-    })
+            "denominatorPaths": paths,
+        });
+        let request_id =
+            canonical_digest(&identity).map_err(|error| AuditError::Invalid(error.to_string()))?;
+        invocations.push(ReasoningInvocation {
+            schema_version: REASONING_RECEIPT_SCHEMA_VERSION,
+            kind: REASONING_INVOCATION_KIND.into(),
+            request_id,
+            provider_id: provider.id.clone(),
+            contract: contract.into(),
+            plan_digest: plan.digest().into(),
+            plan_signature: plan.signature().unwrap_or_default().into(),
+            repository_id: inventory.repository_id.clone(),
+            inventory_generation: inventory.generation.clone(),
+            inventory_digest: inventory.digest.clone(),
+            denominator_digest: denominator.digest.clone(),
+            denominator_count: denominator.entries.len() as u64,
+            denominator_paths: paths.clone(),
+            packet,
+        });
+    }
+    Ok(invocations)
 }
 
 /// Coverage the packet itself can prove. `examinedPaths` lists denominator
-/// paths whose excerpt is present and complete; `truncatedPaths` were cut at
-/// the per-file cap; `omittedPaths` have no excerpt at all.
+/// paths whose every chunk is present in this packet; `chunkedPaths` lists
+/// the chunks of paths only partly present here (their remaining chunks are
+/// in other parts, and the path counts as examined only once every chunk is
+/// ingested); `omittedPaths` have no excerpt at all (named reason).
+/// `truncatedPaths` is retained for consumers and is always empty: nothing is
+/// truncated any more.
 fn excerpt_coverage_value(
     provider_id: &str,
-    set: Option<&excerpts::ExcerptSet>,
+    part: Option<&excerpts::ExcerptPart>,
     scanner_candidates: Option<&[ScannerCandidate]>,
     denominator_count: usize,
 ) -> Value {
-    if let Some(set) = set {
-        let path_list = |truncated: bool| {
-            set.excerpts
-                .iter()
-                .filter(|excerpt| excerpt.truncated == truncated)
-                .map(|excerpt| excerpt.path.as_str())
-                .collect::<Vec<_>>()
-        };
+    if let Some(part) = part {
+        let mut present: BTreeMap<&str, (usize, usize)> = BTreeMap::new();
+        for excerpt in &part.excerpts {
+            let entry = present
+                .entry(excerpt.path.as_str())
+                .or_insert((0, excerpt.chunks));
+            entry.0 += 1;
+        }
+        let mut examined = Vec::new();
+        let mut seen = BTreeSet::new();
+        for excerpt in &part.excerpts {
+            let (count, chunks) = present[excerpt.path.as_str()];
+            if count == chunks && seen.insert(excerpt.path.as_str()) {
+                examined.push(excerpt.path.as_str());
+            }
+        }
+        let chunked = part
+            .excerpts
+            .iter()
+            .filter(|excerpt| {
+                let (count, chunks) = present[excerpt.path.as_str()];
+                count != chunks
+            })
+            .map(|excerpt| {
+                json!({
+                    "path": excerpt.path,
+                    "chunk": excerpt.chunk,
+                    "chunks": excerpt.chunks,
+                    "startLine": excerpt.start_line,
+                    "endLine": excerpt.end_line,
+                })
+            })
+            .collect::<Vec<_>>();
         return json!({
             "basis": "bounded-excerpts",
             "denominatorCount": denominator_count,
-            "examinedPaths": path_list(false),
-            "truncatedPaths": path_list(true),
-            "omittedPaths": set.omitted,
+            "examinedPaths": examined,
+            "truncatedPaths": Vec::<&str>::new(),
+            "chunkedPaths": chunked,
+            "omittedPaths": part.omitted,
         });
     }
     if provider_id == ADJUDICATOR_PROVIDER_ID {
@@ -873,6 +999,45 @@ pub struct PendingLensWork {
     pub request: ReasoningInvocation,
 }
 
+/// Position of a packet within a partitioned denominator.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub struct LensPartRef {
+    /// 1-based part number.
+    pub number: u32,
+    /// Parts emitted for the provider.
+    pub total: u32,
+}
+
+impl PendingLensWork {
+    /// `Some` when this packet is one part of a multi-part provider
+    /// (`packet.part`); `None` for the single unnumbered packet.
+    pub fn part(&self) -> Option<LensPartRef> {
+        let part = self
+            .request
+            .packet
+            .get("part")
+            .filter(|part| !part.is_null())?;
+        Some(LensPartRef {
+            number: u32::try_from(part.get("number")?.as_u64()?).ok()?,
+            total: u32::try_from(part.get("total")?.as_u64()?).ok()?,
+        })
+    }
+
+    /// File stem under `lens-packets/`: `<provider>` for a single packet,
+    /// `<provider>.part-NNNN` for a numbered part.
+    pub fn packet_file_stem(&self) -> String {
+        match self.part() {
+            Some(part) => format!("{}.part-{:04}", self.provider_id, part.number),
+            None => self.provider_id.clone(),
+        }
+    }
+
+    /// `<packet_file_stem>.json`.
+    pub fn packet_file_name(&self) -> String {
+        format!("{}.json", self.packet_file_stem())
+    }
+}
+
 /// Builds the `pending-host` work items for every reasoning provider of the
 /// plan that applies to the repository: each carries the full invocation
 /// packet (lens plan, scoped excerpts, trigger evidence, report schema) that a
@@ -929,7 +1094,9 @@ pub fn pending_lens_work_with_candidates(
             continue;
         }
         let denominator = reasoning_denominator(plan, provider, inventory)?;
-        let request = build_invocation(
+        // One work item per packet part (a single item, with the unnumbered
+        // packet shape, when the denominator fits one part).
+        for request in build_invocations(
             plan,
             provider,
             inventory,
@@ -937,13 +1104,14 @@ pub fn pending_lens_work_with_candidates(
             "pending-host",
             root,
             scanner_candidates,
-        )?;
-        work.push(PendingLensWork {
-            provider_id: provider.id.clone(),
-            lens_ids: provider.lens_ids.clone(),
-            status: "pending-host".into(),
-            request,
-        });
+        )? {
+            work.push(PendingLensWork {
+                provider_id: provider.id.clone(),
+                lens_ids: provider.lens_ids.clone(),
+                status: "pending-host".into(),
+                request,
+            });
+        }
     }
     Ok(work)
 }

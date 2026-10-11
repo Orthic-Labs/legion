@@ -1,20 +1,3 @@
----
-name: seo-competitor-pages
-description: >
-  Generate SEO-optimized competitor comparison and alternatives pages. Covers
-  "X vs Y" layouts, "alternatives to X" pages, feature matrices, schema markup,
-  and conversion optimization. Use when user says "comparison page", "vs page",
-  "alternatives page", "competitor comparison", "X vs Y", "versus",
-  "compare competitors", or "alternative to".
-user-invokable: true
-argument-hint: "[url or generate] [competitor]"
-license: MIT
-metadata:
-  author: AgriciDaniel
-  version: "1.7.0"
-  category: seo
----
-
 # Competitor Comparison & Alternatives Pages
 
 Create high-converting comparison and alternatives pages that target
@@ -195,7 +178,7 @@ competitive intent keywords with accurate, structured content.
 ### Comparison Page Template
 - `COMPARISON-PAGE.md`: Ready-to-implement page structure with sections
 - Feature matrix table
-- Content outline with word count targets (minimum 1,500 words)
+- Content outline sized to task completion and evidence, with no fixed minimum (see `quality-gates.md`, content sufficiency)
 
 ### Schema Markup
 - `comparison-schema.json`: Product/SoftwareApplication/ItemList JSON-LD

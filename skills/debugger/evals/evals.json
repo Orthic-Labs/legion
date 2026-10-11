@@ -7,7 +7,7 @@
     {"id":"debugger-natural","prompt":"This test is failing; reproduce and debug it.","expected_skill":"debugger","forbidden_skills":[],"expected_behavior":"Natural-language failure diagnosis routes to Debugger.","severity":"error","mode":"discovery","assertions":[{"type":"expected_skill","value":"debugger"}]}
   ],
   "should_not_trigger": [
-    {"id":"debugger-not-script-preflight","prompt":"I wrote batch script to process 500 videos. Smoke-test it before I run it.","expected_skill":"execution-preflight","forbidden_skills":["debugger"],"expected_behavior":"Preflight without a known failure does not route to diagnosis.","severity":"error","mode":"discovery","assertions":[{"type":"forbidden_skill","value":"debugger"}]},
+    {"id":"debugger-not-script-preflight","prompt":"I wrote batch script to process 500 videos. Smoke-test it before I run it.","expected_skill":null,"forbidden_skills":["debugger"],"expected_behavior":"Preflight without a known failure does not route to diagnosis.","note":"Preflight is handled by the tool route tool:execution-preflight (the /script alias in src/config/capability-aliases.json), not by a skill; expected_skill is null because no skill should trigger.","severity":"error","mode":"discovery","assertions":[{"type":"forbidden_skill","value":"debugger"}]},
     {"id":"debugger-not-verification-gate","prompt":"Before claiming this fix is done, verify tests pass.","expected_skill":"audit","forbidden_skills":["debugger"],"expected_behavior":"Completion assurance alone does not route to diagnosis.","severity":"error","mode":"discovery","assertions":[{"type":"forbidden_skill","value":"debugger"}]}
   ],
   "output_quality": [

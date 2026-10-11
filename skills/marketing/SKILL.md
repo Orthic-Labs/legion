@@ -15,16 +15,19 @@ effects:
 hostRequirements:
   - dataforseo
   - ahrefs
+  - media-production
+  - blueprint-graph
+  - morph
 ---
 
 # Marketing
 
 PRIMARY_DELIVERABLE: Commercial decision or specialist route.
 SPECIALIST_REFS_MAX: 1 (optional extras beyond REQUIRED_READS)
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 1 (at most one /oracle or /council review, only when the user requests it)
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: brand (brand code known or customer-facing output), research (evidence), ads, seo, social, writing (prose), designer (visual)
+MAY_CALL_SKILLS: brand (brand code known or customer-facing output), research (evidence), ads, seo, social, writing (prose), designer (visual), qa (live-URL browser evidence), oracle (independent review of a deliverable), council (contested decision)
 REQUIRED_READS:
 - The selected branch's GUIDE or reference (routes below)
 - `../_shared/anti-slop.md` for any prose output

@@ -33,9 +33,12 @@ with Cause & Effect & Time Profiler before naming cause. See Apple's
 
 ## Focused ETTrace
 
-Choose one visible flow with explicit start/stop, build the exact simulator app,
-temporarily link simulator-compatible ETTrace into app target, and remove wiring after
-capture. Use one app trace at a time. Capture a matching dSYM set for app executable
+This section applies only when a host-provided ETTrace runner and `ETTrace.xcframework` are
+available; ETTrace is not declared in the route resources. Otherwise skip it, report focused
+ETTrace evidence as unrun, and use native `legion apple profile` (Time Profiler template)
+for trace evidence. When available, choose one visible flow with explicit start/stop, build
+the exact simulator app, temporarily link simulator-compatible ETTrace into app target, and
+remove wiring after capture. Use one app trace at a time. Capture a matching dSYM set for app executable
 and app-owned embedded dynamic frameworks after final build; verify UUIDs. A missing
 first-party symbol fails meaningful attribution. System/ETTrace noise may remain.
 

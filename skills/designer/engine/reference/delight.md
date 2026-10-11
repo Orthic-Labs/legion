@@ -35,9 +35,9 @@ Identify where delight would enhance (not distract from) the experience:
    - **Subtle sophistication**: Refined micro-interactions (luxury brands)
    - **Playful personality**: Whimsical illustrations and copy (consumer apps)
    - **Helpful surprises**: Anticipating needs before users ask (productivity tools)
-   - **Sensory richness**: Satisfying sounds, smooth animations (creative tools)
+   - **Sensory richness**: Satisfying motion and texture, smooth animations (creative tools)
 
-If any of these are unclear from the codebase, STOP and call the AskUserQuestion tool to clarify.
+If any of these are unclear from the codebase, STOP and ask the user to clarify (use the host's question tool if it has one).
 
 **CRITICAL**: Delight should enhance usability, never obscure it. If users notice the delight more than accomplishing their goal, you've gone too far.
 
@@ -104,7 +104,6 @@ Add personality and joy through these methods:
 - Checkmark draw animation
 - Confetti burst for major achievements
 - Gentle scale + fade for confirmation
-- Satisfying sound effects (subtle)
 
 **Hover surprises**:
 - Icons that animate on hover
@@ -169,14 +168,12 @@ Add personality and joy through these methods:
 **Drag and drop delight**:
 - Lift effect on drag (shadow, scale)
 - Snap animation when dropped
-- Satisfying placement sound
 - Undo toast ("Dropped in wrong place? [Undo]")
 
 **Toggle switches**:
 - Smooth slide with spring physics
 - Color transition
 - Haptic feedback on mobile
-- Optional sound effect
 
 **Progress & achievements**:
 - Streak counters with celebratory milestones
@@ -189,21 +186,6 @@ Add personality and joy through these methods:
 - Checkboxes with a satisfying scale pulse when checked
 - Success state that celebrates valid input
 - Auto-grow textareas
-
-### Sound Design
-
-**Subtle audio cues** (when appropriate):
-- Notification sounds (distinctive but not annoying)
-- Success sounds (satisfying "ding")
-- Error sounds (empathetic, not harsh)
-- Typing sounds for chat/messaging
-- Ambient background audio (very subtle)
-
-**IMPORTANT**:
-- Respect system sound settings
-- Provide mute option
-- Keep volumes quiet (subtle cues, not alarms)
-- Don't play on every interaction (sound fatigue is real)
 
 ### Easter Eggs & Hidden Delights
 
@@ -267,10 +249,6 @@ Loading messages: write ones specific to your product, not generic AI filler:
 - GSAP (universal)
 - Lottie (After Effects animations)
 - Canvas confetti (party effects)
-
-**Sound libraries**:
-- Howler.js (audio management)
-- Use-sound (React hook)
 
 **Physics libraries**:
 - React Spring (spring physics)

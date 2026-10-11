@@ -6,7 +6,7 @@ Resolve one stable target, run two independent assessments, synthesize a design 
 
 - Assessment A (design review) and Assessment B (detector/browser evidence) are both required.
 - Assessment A must finish before detector findings enter the parent synthesis context. Detector output is deterministic, but it still anchors judgment.
-- If sub-agents are unavailable, fall back sequentially: finish and record Assessment A first, then run Assessment B, then synthesize.
+- Run Assessment A, then Assessment B, one after the other inline (no sub-agents): finish and record A first, then B, then synthesize.
 - A skipped detector is a failed critique run unless `legion script designer/detect` is missing or crashes after a real attempt.
 - Viewable targets require browser inspection when available.
 - Any local server started only for critique visualization must run in the background, have a recorded stop method, and be stopped before final reporting unless the user asks to keep it.
@@ -27,7 +27,7 @@ Resolve one stable target, run two independent assessments, synthesize a design 
 
 ### Assessment Orchestration
 
-Delegate Assessment A and Assessment B to separate sub-agents when possible. They must not see each other's output. Do not show findings to the user until synthesis.
+Run Assessment A and Assessment B inline, one after the other; B must not see A's output. Do not show findings to the user until synthesis.
 
 If browser automation is available, each assessment creates its own new tab. Never reuse an existing tab, even if it is already at the right URL.
 
@@ -189,7 +189,7 @@ This is fire-and-forget. Do not show the user the helper's JSON output; only the
 
 ### Ask the User
 
-**After presenting findings**, use targeted questions based on what was actually found. STOP and call the AskUserQuestion tool to clarify. These answers will shape the action plan.
+**After presenting findings**, use targeted questions based on what was actually found. STOP and ask the user to clarify (use the host's question tool if it has one). These answers will shape the action plan.
 
 Ask questions along these lines (morph to the specific findings; do NOT ask generic questions):
 

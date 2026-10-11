@@ -5,6 +5,14 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "legion"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/model.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/protocol.md"
     }
   ]
 }

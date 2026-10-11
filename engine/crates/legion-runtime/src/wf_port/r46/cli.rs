@@ -679,7 +679,7 @@ pub fn run(opts: &RunOptions<'_>, minimize_gate: &dyn MinimizeGate) -> RunOutcom
             "artifact_path": canonical_locator(opts.dispatch),
             "sha256": digest,
             "validated_at": now_iso8601(),
-            "validator": "dispatch/validate-dispatch.py",
+            "validator": "dispatch/validate-dispatch",
         });
         if let Some(parent) = write_receipt.parent() {
             if let Err(exc) = std::fs::create_dir_all(parent) {

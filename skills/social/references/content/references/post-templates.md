@@ -26,7 +26,7 @@ Ready-to-use templates for different platforms and content types.
 
 [The lesson for readers]
 
-[Question to prompt engagement]
+[Optional: one specific question about the lesson, not a generic engagement ask; or leave out]
 ```
 
 ### The Contrarian Take
@@ -41,7 +41,7 @@ Here's why:
 
 [What you recommend instead]
 
-[Invite discussion: "Am I wrong?"]
+[Optional: a specific point readers can check, or leave out]
 ```
 
 ### The List Post
@@ -56,7 +56,7 @@ Here's why:
 
 [Wrap-up insight]
 
-Which resonates most with you?
+[Optional closing line: a specific ask tied to the list, or leave out]
 ```
 
 ### The How-To
@@ -74,7 +74,7 @@ Step 3: [Action]
 
 [Result you can expect]
 
-[CTA or question]
+[CTA, optional specific question, or none]
 ```
 
 ---

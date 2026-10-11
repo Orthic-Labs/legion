@@ -15,7 +15,30 @@ pub fn project_response(response: &HookResponse) -> (i32, Value) {
             output["hookSpecificOutput"] = context.clone();
         }
     }
-    (if response.allowed { 0 } else { 2 }, output)
+    // Only events the host can block exit 2. A denial on a lifecycle or
+    // observation event (SessionStart, UserPromptSubmit, PostToolUse,
+    // Notification, ...) must not turn an internal failure into a host error.
+    // Unidentified events stay blocking so a malformed frame still fails closed.
+    let blocking = !matches!(
+        response.event_type.as_str(),
+        "SessionStart"
+            | "SubagentStart"
+            | "SubagentStop"
+            | "UserPromptSubmit"
+            | "PostCompact"
+            | "PostToolUse"
+            | "PostToolUseFailure"
+            | "Notification"
+            | "session-start"
+            | "subagent-start"
+            | "subagent-stop"
+            | "user-prompt-submit"
+            | "post-compact"
+            | "post-effect"
+            | "post-effect-failure"
+            | "ci-boundary"
+    );
+    (if response.allowed || !blocking { 0 } else { 2 }, output)
 }
 
 fn bounded_id(value: &str) -> bool {
@@ -120,8 +143,10 @@ fn notify_computer_use(_request: &HookRequest) -> Result<(), String> {
 
 pub fn emit_response(response: &HookResponse, request: Option<&HookRequest>) -> i32 {
     let (exit_code, output) = project_response(response);
-    if exit_code != 0 {
+    if !response.allowed {
         eprintln!("{}", response.reason);
+    }
+    if exit_code != 0 {
         return exit_code;
     }
     if let Some(request) = request {
@@ -182,6 +207,23 @@ mod tests {
             crate::SESSION_START_CONTEXT
         );
         assert!(output.get("kind").is_none());
+    }
+
+    #[test]
+    fn only_blocking_events_exit_two_on_denial() {
+        for event in ["PreToolUse", "pre-effect", "Stop", "stop", "unknown"] {
+            let denied = HookResponse::denied(event, "ARC_X", "no", "strong");
+            assert_eq!(project_response(&denied).0, 2, "{event}");
+        }
+        for event in [
+            "SessionStart",
+            "UserPromptSubmit",
+            "PostToolUse",
+            "Notification",
+        ] {
+            let denied = HookResponse::denied(event, "ARC_X", "no", "strong");
+            assert_eq!(project_response(&denied).0, 0, "{event}");
+        }
     }
 
     #[test]

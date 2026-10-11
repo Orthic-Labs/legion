@@ -16,6 +16,8 @@ effects:
 hostRequirements:
   - blueprint-graph
   - legion
+  - skill-emit
+  - okf
 metadata:
   legion:
     provenance: legion-authored
@@ -32,7 +34,7 @@ SPECIALIST_REFS_MAX: 5
 CHILD_AGENTS_MAX: 16
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: BLUEPRINT, ARCHITECT
+MAY_CALL_SKILLS: BLUEPRINT, ARCHITECT, AUDIT-VISUAL
 TERMINAL: Frozen provider plan reconciles to evidence or typed degradation.
 ```
 
@@ -41,7 +43,7 @@ overrides it.
 
 1. Freeze repository root, scope, revision, dirty state, & requested mode.
 2. Read [provider architecture](references/provider-architecture.md); route repository discovery
-   through public Blueprint/Membrane — never build a parallel registry.
+   through the Blueprint host capability (`blueprint-graph`) — never build a parallel registry.
    The provider uses resident Hub transport when available, otherwise a bounded one-shot for
    supplied root. Enrollment controls resident watcher operation only; `project is not enrolled`
    must fall through to one-shot.

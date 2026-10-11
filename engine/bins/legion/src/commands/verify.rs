@@ -210,9 +210,40 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
             errors.push(error.message);
         }
     }
-    Ok(
-        json!({"schemaVersion":1,"kind":"legion-verify","status":if errors.is_empty(){"complete"}else{"failed"},"repository":repository_id,"factsDigest":facts_digest,"planContentDigest":plan_digest,"valid":errors.is_empty(),"contentErrors":errors,"verdict":verdict}),
-    )
+    // `valid` is integrity only. `status` and `complete` also reflect the
+    // recomputed run verdict: "complete" only when that verdict is clean or
+    // has findings (every lens ran); an incomplete or absent verdict is not.
+    let verdict_status = verdict
+        .get("status")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let (status, complete) = if !errors.is_empty() {
+        ("failed".to_owned(), false)
+    } else {
+        match verdict_status.as_deref() {
+            Some("clean") | Some("findings") => ("complete".to_owned(), true),
+            Some(other) => (other.to_owned(), false),
+            None => ("incomplete".to_owned(), false),
+        }
+    };
+    let gaps = if verdict.is_null() {
+        vec!["no audit verdict: the directory has no execution.json and report.json".to_owned()]
+    } else {
+        Vec::new()
+    };
+    Ok(json!({
+        "schemaVersion":1,
+        "kind":"legion-verify",
+        "status":status,
+        "complete":complete,
+        "repository":repository_id,
+        "factsDigest":facts_digest,
+        "planContentDigest":plan_digest,
+        "valid":errors.is_empty(),
+        "contentErrors":errors,
+        "verdict":verdict,
+        "gaps":gaps,
+    }))
 }
 
 /// Recomputes the run verdict from `execution.json` plus the ingested lens

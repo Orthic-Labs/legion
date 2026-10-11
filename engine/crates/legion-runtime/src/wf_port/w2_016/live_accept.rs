@@ -929,7 +929,7 @@ fn read_source_shadow_preview_meta(content: &str, id: &str) -> Option<(String, i
 // CLI entrypoint (`acceptCli`)
 // ---------------------------------------------------------------------------
 
-const HELP_TEXT: &str = "Usage: node live-accept.mjs [options]\n\n\
+const HELP_TEXT: &str = "Usage: legion script designer/live-accept [options]\n\n\
 Deterministic accept/discard for live variant sessions.\n\n\
 Modes:\n  \
 --discard          Remove variants, restore original\n  \
@@ -1005,7 +1005,7 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
             "handled": false,
             "error": format!("Session markers not found for id: {id}"),
         });
-        return (0, out.to_string());
+        return (1, out.to_string());
     }
 
     if let Some(manifest) = svelte_manifest {
@@ -1039,7 +1039,8 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
                 );
             }
         }
-        return (0, value.to_string());
+        let code = if result.handled { 0 } else { 1 };
+        return (code, value.to_string());
     }
 
     let found = found.unwrap();
@@ -1062,7 +1063,7 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
             "error": "source_shadow_preview_deprecated",
             "hint": "Svelte live mode now uses svelte-component injection. Re-wrap the element and regenerate variants.",
         });
-        return (0, out.to_string());
+        return (1, out.to_string());
     }
 
     let is_generated_options = IsGeneratedOptions {
@@ -1075,7 +1076,7 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
             "file": rel_file,
             "hint": "Session is in a generated file. Persist the accepted variant in source; do not rely on this script.",
         });
-        return (0, out.to_string());
+        return (1, out.to_string());
     }
 
     if is_discard {
@@ -1087,7 +1088,7 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
             }
             Ok(result) => {
                 let out = serde_json::json!({ "handled": false, "file": rel_file, "error": result.error });
-                (0, out.to_string())
+                (1, out.to_string())
             }
             Err(e) => (1, format!("io error: {e}")),
         }
@@ -1114,7 +1115,7 @@ pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
             }
             Ok(result) => {
                 let out = serde_json::json!({ "handled": false, "file": rel_file, "error": result.error });
-                (0, out.to_string())
+                (1, out.to_string())
             }
             Err(e) => (1, format!("io error: {e}")),
         }
@@ -1435,7 +1436,7 @@ mod tests {
     fn run_help_returns_zero_and_usage() {
         let (code, out) = run(&["--help".to_string()], Path::new("."));
         assert_eq!(code, 0);
-        assert!(out.contains("Usage: node live-accept.mjs"));
+        assert!(out.contains("Usage: legion script designer/live-accept"));
     }
 
     #[test]
@@ -1453,7 +1454,7 @@ mod tests {
     }
 
     #[test]
-    fn run_session_not_found_reports_unhandled_with_zero_exit() {
+    fn run_session_not_found_reports_unhandled_with_error_exit() {
         let dir = r17_tmp_dir("run-not-found");
         let (code, out) = run(
             &[
@@ -1463,7 +1464,7 @@ mod tests {
             ],
             &dir,
         );
-        assert_eq!(code, 0);
+        assert_eq!(code, 1);
         assert!(out.contains("\"handled\":false"));
         assert!(out.contains("Session markers not found"));
         let _ = fs::remove_dir_all(&dir);

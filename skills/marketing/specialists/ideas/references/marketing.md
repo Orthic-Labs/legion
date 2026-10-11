@@ -4,13 +4,12 @@ description: >
   Marketing ideation that pulls from BOTH tactical marketing playbooks (channel mixes, growth tactics,
   campaign concepts) AND psychological principles (Cialdini's 7, behavioral econ, mental models,
   cognitive biases). Use when the user wants marketing ideas, growth tactics, campaign concepts,
-  or wants to apply psychology/mental models to marketing. Replaces marketing-ideas + marketing-psychology
-  (merged into one ideation surface). Use when user says "/marketing ideas-marketing", "marketing ideas",
+  or wants to apply psychology/mental models to marketing. Use when user says "/marketing ideas", "marketing ideas",
   "growth ideas", "campaign ideas", "psychological angle", "behavioral marketing", "what tactics
   could I try", "how do I apply [Cialdini/loss-aversion/scarcity] here".
 ---
 
-# /marketing ideas-marketing — Tactical + Psychological Ideation
+# /marketing ideas — Tactical + Psychological Ideation
 
 ## Two angles in one skill
 
@@ -55,9 +54,9 @@ Score finalists on customer impact, content-market fit, distribution fit, and re
 - "What's the ad/page hook?" → psychology first
 
 ## Pairs cleanly with
-- `/research-audience` (input — who) → `/marketing ideas-marketing` (what tactic + frame) → `/build-copy` or `/build-ad` (execution) → `/review-ad` or `/review-blogs` (gate)
+- `/research` (input — who) → `/marketing ideas` (what tactic + frame) → `/writing` or `/ads` (execution) → `/oracle` (independent gate)
 
 ## Anti-patterns
-- Listing 50 generic tactics with no audience grounding (run `/research-audience` first)
+- Listing 50 generic tactics with no audience grounding (run `/research` first)
 - Picking the "fanciest" psychological principle when the obvious one (scarcity, social proof) fits better
 - Stacking too many principles in one piece (one principal lens per asset)

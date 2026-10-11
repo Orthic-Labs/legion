@@ -25,8 +25,8 @@ because it exists; context budget is an engineering constraint.
 Search project-local vetted docs before remote lookup. For Apple API questions, use the
 project’s approved documentation cache or official Apple docs, record symbol/version context,
 and cite the page used. If docs are missing, report that gap and fetch only the needed topic
-through an approved mechanism. DocSetQuery-style local extraction can export, sanitize, index,
-and search an existing docset; it does not authorize downloading or managing docsets.
+through an approved mechanism. The native reader only searches and reads an existing docset; it does not export,
+sanitize, index, download, or manage docsets.
 
 ```text
 search local index → inspect anchored section → fetch one missing topic → sanitize/index → cite
@@ -51,44 +51,31 @@ resume from returned `resume.scan_offset`; do not retry from start without chang
 The reader consumes local `docSet.dsidx`, `cache.db`, and raw/Brotli DocC chunks only; it does not
 download, update, or write docsets.
 
-## Optional DocSetQuery compatibility adapter
+## Native docs operations
 
-Native `legion-apple` search/read is the read-only lookup path. Use this adapter only when an
-existing DocSetQuery checkout is already available & an export, sanitization, or index write is
-explicitly in scope. Select an already-installed `python3` or `python`; do not install Python,
-download a docset, or mirror a docs cache. Confirm source/runtime before use:
+Use native `legion apple docs` for local Apple API lookup. Every operation is read-only and
+takes one JSON object through `--input`:
 
 ```bash
-DOCSET_PYTHON=python3  # choose preinstalled python3 or python
-DOCSET_CHECKOUT=/path/to/existing/DocSetQuery  # external checkout; its tools/ directory is not part of this package
-DOCSET_ROOT=/path/to/existing/Apple_API_Reference.docset
-"$DOCSET_PYTHON" --version
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docset_query.py --help
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docset_query.py export --help
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docset_query.py fetch --help
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docset_query.py init --help
+legion apple docs --input '{"operation":"catalog"}'
+legion apple docs --input '{"operation":"discover","docset_path":"/path/Apple_API_Reference.docset"}'
+legion apple docs --input '{"operation":"search","docset_path":"/path/Apple_API_Reference.docset","query":"URLSession"}'
+legion apple docs --input '{"operation":"read","docset_path":"/path/Apple_API_Reference.docset","path":"/documentation/foundation/urlsession"}'
 ```
 
-Pinned upstream entrypoints expose no tool `--version` flag; record checkout revision & runtime
-version. Match global options before subcommand: `--docset PATH` or `DOCSET_ROOT` selects an
-existing docset, `--language swift` selects language variant, & `DOCSET_CACHE_DIR` selects its
-optional cache. Export/fetch depth defaults are 7/1; keep those bounded unless source help
-confirms another value:
+Required fields:
 
-```bash
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docset_query.py --docset "$DOCSET_ROOT" --language swift \
-  export --root /documentation/foundation --max-depth 7 --output docs/apple/foundation.md
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docset_query.py --docset "$DOCSET_ROOT" --language swift \
-  fetch --path /documentation/foundation/urlsession --max-depth 1 \
-  --output docs/apple/urlsession.md
-DOCSET_CACHE_DIR=.cache/apple-docs \
-  "$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docset_query.py --docset "$DOCSET_ROOT" init /documentation/foundation
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docset_sanitize.py --input docs/apple/foundation.md --in-place --toc-depth 2
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docindex.py --docs-root docs/apple --index Build/DocIndex/index.json rebuild
-"$DOCSET_PYTHON" "$DOCSET_CHECKOUT"/tools/docindex.py --docs-root docs/apple --index Build/DocIndex/index.json \
-  search "URLSession"
-```
+- `catalog`: none. Lists the operations and their arguments.
+- `discover`: none required. `docset_path` selects a `.docset`; `xcode_path` searches a local Xcode
+  install for one. With neither, `DOCSET_ROOT` and standard Xcode paths are tried. Returns
+  documentation roots.
+- `search`: `query` required (1 to 256 characters). Returns matches, each with a `read` pointer.
+- `read`: `path` required, a `/documentation/...` path taken from a search result. Optional:
+  `language` (default `swift`), `max_chunks`, `max_bytes`, `chunk_cursor`.
 
-These commands may write exported Markdown, sanitized front matter/TOC, manifests, cache data,
-or index JSON. Keep writes in ignored/owned paths & do not call any download or `sync_docs.sh`
-mirroring workflow.
+Follow `next_cursor` as `chunk_cursor` for later sections. If a read stops early, resume from the
+returned `resume.scan_offset`.
+
+Docset rebuilding is not available in the native build. The DocSetQuery export, fetch, init,
+sanitize, and index-rebuild steps have no native equivalent, and the native reader cannot download,
+update, or write docsets. If a docset is missing or stale, report that gap instead of rebuilding it.

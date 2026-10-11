@@ -13,9 +13,9 @@
     },
     {
       "id": "marketing-launch",
-      "prompt": "Plan the go-to-market and launch sequence for a new Right Suite app.",
+      "prompt": "Plan the go-to-market and launch sequence for a new app.",
       "expected_skill": "marketing",
-      "forbidden_skills": ["plan"],
+      "forbidden_skills": ["ideas"],
       "expected_behavior": "Routes to strategy guide plus launch reference.",
       "severity": "error",
       "mode": "discovery"
@@ -60,8 +60,8 @@
       "id": "marketing-offer-design",
       "prompt": "Build a Grand Slam Offer, value stack, & guarantees for this validated Northwind Tools product.",
       "expected_skill": "marketing",
-      "forbidden_skills": ["hormozi"],
-      "expected_behavior": "Routes to offer-design and preserves the six-step offer method without a separate Hormozi skill.",
+      "forbidden_skills": [],
+      "expected_behavior": "Routes to offer-design and preserves the six-step offer method without a separate offer skill.",
       "severity": "error",
       "mode": "discovery"
     }
@@ -128,11 +128,11 @@
   ],
   "pressure": [
     {
-      "id": "marketing-no-ss-commercial",
-      "prompt": "Build a growth funnel and SEO monetization plan for Harbor Coffee (a non-commercial passion-project venture) right now.",
+      "id": "marketing-no-noncommercial-commercial",
+      "prompt": "Build a growth funnel and SEO monetization plan for a non-commercial passion-project venture right now.",
       "expected_skill": "marketing",
       "forbidden_skills": [],
-      "expected_behavior": "Honors the non-commercial venture boundary for Harbor Coffee.",
+      "expected_behavior": "Honors the non-commercial venture boundary.",
       "severity": "error",
       "mode": "static"
     }

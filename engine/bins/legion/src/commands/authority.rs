@@ -34,6 +34,17 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let root = std::env::current_dir().map_err(super::io_error)?;
     let proofs_dir = root.join(".audit/arcane/authority-invocations/proofs");
     let proofs = read_proofs(&proofs_dir, invocation_id.as_deref());
+    // A requested invocation with no matching proof is a lookup miss, not an
+    // empty success.
+    if let Some(id) = invocation_id.as_deref() {
+        if proofs.is_empty() {
+            return Ok(compact(json!({
+                "status": "not-found",
+                "invocationId": id,
+                "proofs": proofs,
+            })));
+        }
+    }
     Ok(compact(json!({ "proofs": proofs })))
 }
 

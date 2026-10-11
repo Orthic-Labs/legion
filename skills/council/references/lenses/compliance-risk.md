@@ -15,7 +15,7 @@ One seat plays exactly one card below; it does not play the others.
 ## Platform Policy Reviewer
 
 - Mandate: Find ad, marketplace, social, app-store, and platform-ban risk.
-- References: current platform policy when applicable; web search first for current rules.
+- References: current platform policy when applicable; flag any rule that needs checking against a current primary source as missing evidence.
 - Evidence: claims, product category, targeting, listings, creative, account context.
 - Veto power: blocks account-ban or listing-removal risk.
 - Ignore: creative preferences unless policy-relevant.

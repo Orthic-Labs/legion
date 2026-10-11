@@ -9,11 +9,11 @@
 
 1. **先按输出类型选半区**：做网页/落地页/官网 → 网页 20 种；做 PPT/deck/演示 → PPT 20 种。
 2. **温度体系**：每种标了 `大胆 / 中性 / 安静`。**故意让大胆款占多数**——模型的确定性偏差天然偏安静极简，库的配比要把它往大胆推。
-   - 方向 A（稳妥底盘）从安静/中性里按需求选；方向 B 取不同温度拉反差；**方向 C 由 SKILL 的「秒数轮盘」强制注入大胆款**。
+   - 方向 A（稳妥底盘）从安静/中性里按需求选；方向 B 取不同温度拉反差；**方向 C 由 `engine/huashu/GUIDE.md`「设计方向顾问」的「秒数轮盘」强制注入大胆款**。
    - ❌ 三个方向不要都落在「米白+留白+一个点缀色」——那是最常见的失败模式。
 3. **还原度**：≥90% 闭眼做；70-90% 主体可做、个别细节降级；<70%（如 Memphis 做旧纹理）必须在产出里**明确标注哪部分用纯色块降级**，不假装能做出原版质感。
 4. **字体**：每种给了开源替代（Inter/Geist/Manrope/Space Grotesk/Fraunces/Playfair 等），不要写付费字体（Söhne/Circular 等）。
-5. 配套：SKILL「设计方向顾问」Phase 3-5 用本库推 3 方向；`assets/showcases/` 有预制截图画廊。
+5. 配套：`engine/huashu/GUIDE.md`「设计方向顾问」Phase 3-5 用本库推 3 方向。
 
 ---
 
@@ -100,7 +100,7 @@
 - HTML实现:纯CSS完全还原。position:sticky做固定侧栏+CSS Grid双栏+单accent变量+等宽字标签+:hover下划线transform滑入。零素材，纯版式与微交互。
 - 字体:Inter + JetBrains Mono（等宽）
 
-**暖色出版物 Warm Editorial（奶油纸底+赤陶橙+衬线无衬线混排）** `中性·还原97%`
+**暖色出版物 Warm Editorial（奶油纸底+赤陶橙+衬线无衬线混排）** `中性·还原97%` ⚠️ 仅当品牌卡明确指定奶油纸底时才用（默认禁用 cream 体底，见 designer 的 `references/design-slop.md`）
 - 参考:Anthropic / Claude（DBCo + Geist Studio，Styrene×Tiempos）；Penguin/Pelican平装书排印
 - 适配:AI产品站、品牌官网、长文阅读页、橙皮书电子书、调研报告、培训材料
 - 视觉DNA:配色奶油纸底#F5F0E8+赤陶橙#CC785C/#D97757点缀+近黑文字#191919，温暖低饱和。字体衬线标题（Tiempos感）×无衬线正文（Styrene感）混排。布局书籍式单栏阅读流、舒适行高、节制分隔线。标志元素：纸感暖底、赤陶橙、出版级排印节奏。
@@ -356,7 +356,7 @@
 | 规定布局位置 | 引用具体美学（"Pentagram editorial feel"） |
 | 列出所有视觉元素 | 描述观众应该感受到什么 |
 
-完整 AI 生图方法论 → `huashu-gpt-image` skill。
+AI 生图方法论见上方「AI 生图专用风格」段（仅宿主提供 `banana-image` 生图能力时使用）。
 
 ---
 

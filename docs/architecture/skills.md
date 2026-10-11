@@ -25,8 +25,8 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 
 ### `blueprint-graph`
 
-- **Absent behavior:** Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a `NO_CAPABILITY` result naming `blueprint-graph` only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.
-- **Remedy:** Provide resident Membrane transport or install the Blueprint graph engine and put its `blueprint` executable on `PATH`, then re-run. This package does not ship it.
+- **Absent behavior:** Use bounded Blueprint one-shot regardless of enrollment. Return a `NO_CAPABILITY` result naming `blueprint-graph` only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.
+- **Remedy:** Install the Blueprint graph engine and put its `blueprint` executable on `PATH`, then re-run. This package does not ship it.
 
 ### `legion`
 
@@ -153,6 +153,12 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 - **Host requirements:** `blueprint-graph`, `legion`. See [their declared absence behavior](#host-capability-degradation).
 - **Discoverability:** `public`
 
+### `blueprint`
+
+- **Kind:** `capability` (class `context`, domain `engineering`)
+- **Purpose:** Query or reconcile a repository graph or current-state map through the optional Blueprint host capability when that map is requested or required.
+- **Host requirements:** `blueprint-graph`; without it the skill returns a `NO_CAPABILITY` result.
+
 ### `debugger`
 
 - **Manifest:** [debugger.json](../../skills/manifests/debugger.json)
@@ -164,6 +170,12 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 - **Effects:** `source-read`, `process-exec`
 - **Host requirements:** `blueprint-graph`. See [its declared absence behavior](#host-capability-degradation).
 - **Discoverability:** `public`
+
+### `foundation`
+
+- **Kind:** `capability` (class `domain`, domain `engineering`)
+- **Purpose:** Create, audit, normalize, reconcile, or compare a product's atomic capability foundation (atom inventories, feature ledgers, evidence rows, qualification gates). `/foundation compare` replaces the retired CompShop.
+- **Host requirements:** `legion`.
 
 ### `ios-development`
 

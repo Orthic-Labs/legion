@@ -3,7 +3,7 @@
   "skill": "blueprint",
   "route": "capability:blueprint",
   "should_trigger": [
-    {"id":"bp-current-map","prompt":"Map current architecture, flows, symbols, and impact in this repository.","expected_skill":"blueprint","forbidden_skills":["architect","audit"],"expected_behavior":"Builds or queries fresh source-grounded Blueprint current state.","severity":"error","mode":"discovery"},
+    {"id":"bp-current-map","prompt":"Map current architecture, flows, symbols, and impact in this repository.","expected_skill":"blueprint","forbidden_skills":["architect","audit"],"expected_behavior":"Queries fresh source-grounded Blueprint current state through the host capability, or returns NO_CAPABILITY naming blueprint-graph.","severity":"error","mode":"discovery"},
     {"id":"bp-doc-reconcile","prompt":"Reconcile repository documentation against current code and show stale claims.","expected_skill":"blueprint","forbidden_skills":["writing"],"expected_behavior":"Uses fresh graph and Blueprint doc-truth reconciliation.","severity":"error","mode":"discovery"}
   ],
   "should_not_trigger": [

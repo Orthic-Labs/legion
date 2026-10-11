@@ -1,4 +1,4 @@
-# OKF output + LLMLingua compression for doc-heavy skills
+# OKF output + structure-safe compression for doc-heavy skills
 
 Canonical pattern for skills that emit **many agent-facing documents + one human doc**
 (`blueprint`, `audit`, `architecture`, `seo`). Tool: the host `okf` capability (not shipped in this package). Sibling of SampleApp's
@@ -13,8 +13,8 @@ concepts linked by ordinary markdown links, an `index.md` per dir. Any agent rea
 no SDK, no parser. It is the portable, incrementally-updatable form of the multi-doc agent
 artifacts these skills already produce.
 
-Compression is the second half: agent-facing prose is the compressible part. LLMLingua-2
-(the host's compressor) drops low-information tokens — but it **breaks code and paths**.
+Compression is the second half: agent-facing prose is the compressible part. The host's `okf`
+compressor (LLMLingua-2-style) drops low-information tokens — but it **breaks code and paths**.
 So OKF compression is **structure-safe**: frontmatter, code fences, markdown links, URLs,
 inline code, and `path:line` refs are passed through VERBATIM; only the prose *between* protected
 spans is token-dropped. The one human doc is never compressed.
@@ -55,4 +55,4 @@ seo → one concept per page/issue), then calls `okf emit --compress`.
 - **Never compress the human doc.** Compression is for the agent bundle only.
 - **`type` is required** on every OKF concept (the one OKF-mandated field) — the emitter rejects a concept without it.
 - Link concepts with ordinary markdown links so the bundle is a graph; `index.md` is auto-generated.
-- LLMLingua model loads once (CPU, ~110M, cached in HF cache); reuse `_pc` across a bundle.
+- Compression never fetches models at runtime. If the host `okf` capability is absent, emit the uncompressed bundle or none, as stated under Usage.

@@ -8,11 +8,18 @@ pub struct HostArgs {
     pub root: PathBuf,
     #[arg(long)]
     pub descriptor: Option<PathBuf>,
-    #[arg(long)]
-    pub json: bool,
 }
 pub fn run(args: HostArgs) -> CommandResult {
-    let mut result = json!({"schemaVersion": 1, "kind": "legion-host", "root": args.root, "detected": [], "surfaces": legion_host::SURFACES});
+    // Client detection is not wired to this command, so it reports that
+    // instead of an empty list that reads as "no clients detected".
+    let mut result = json!({
+        "schemaVersion": 1,
+        "kind": "legion-host",
+        "root": args.root,
+        "detected": null,
+        "status": "not-implemented",
+        "surfaces": legion_host::SURFACES
+    });
     if let Some(path) = args.descriptor {
         let bytes = std::fs::read(path).map_err(super::io_error)?;
         let descriptor = legion_host::HostDescriptor::from_json(&bytes).map_err(super::io_error)?;

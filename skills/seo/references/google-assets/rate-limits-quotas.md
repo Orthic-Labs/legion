@@ -65,7 +65,7 @@ The CrUX API and CrUX History API share the same 150 QPM quota per project. Plan
 
 ## Cost Summary
 
-**All APIs used by seo-google are free** at normal usage levels. No billing is required for:
+**All APIs used by the Google lane are free** at normal usage levels. No billing is required for:
 - PSI, CrUX, CrUX History (API key, unlimited free)
 - GSC (service account, 30M QPD)
 - Indexing API (service account, 200 publish/day)

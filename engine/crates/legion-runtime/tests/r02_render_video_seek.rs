@@ -5,9 +5,6 @@
 //! from outside the crate with fake `BrowserDriver`/`FfmpegEncoder`
 //! implementations, so this file never launches a real browser or shells
 //! out to `ffmpeg`.
-//!
-//! NOTE: same wiring caveat as `r02_narrate_pipeline.rs` — `pub mod r02;`
-//! is not yet added to `src/wf_port/mod.rs` by this port.
 
 use std::path::Path;
 use std::sync::Arc;

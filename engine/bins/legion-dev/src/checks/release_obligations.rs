@@ -6,7 +6,6 @@
 // gate.
 
 use super::read_json;
-use regex::Regex;
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -21,9 +20,14 @@ pub struct Report {
     pub issues: Vec<String>,
 }
 
-fn artifact_pattern() -> Regex {
-    Regex::new(r"(?i)^[a-z0-9-]+(\.json|-summary| readback| fetch)$").unwrap()
-}
+/// Symbolic stage names and artifact names that the release pipeline emits.
+/// Evidence values outside this exact list are unknown producers, not
+/// artifacts: a pattern match alone never proves a producer exists.
+const KNOWN_ARTIFACT_EVIDENCE: &[&str] = &[
+    "candidate stage-summary",
+    "qualification-failure.json",
+    "pub-upload readback",
+];
 
 pub fn check(root: &Path) -> Report {
     let path = root.join("release/obligations.json");
@@ -69,7 +73,6 @@ pub fn check(root: &Path) -> Report {
 
     let mut seen_gates: HashSet<String> = HashSet::new();
     let mut seen_obligations: HashSet<String> = HashSet::new();
-    let artifact_re = artifact_pattern();
 
     for gate in gates {
         let gate_id = gate.get("id").and_then(|v| v.as_str());
@@ -161,8 +164,7 @@ pub fn check(root: &Path) -> Report {
                 has_script(&evidence_str)
             };
             let is_file = evidence_str.contains('/') && root.join(&evidence_str).exists();
-            let is_artifact =
-                artifact_re.is_match(&evidence_str) || evidence_str.ends_with("stage-summary");
+            let is_artifact = KNOWN_ARTIFACT_EVIDENCE.contains(&evidence_str.as_str());
             if !is_script && !is_file && !is_artifact {
                 issues.push(format!(
                     "obligation {ob_id} names an evidence producer that does not exist: {evidence_str}"
@@ -268,6 +270,36 @@ mod tests {
         assert!(!report.ok);
         assert!(
             report.issues.iter().any(|i| i.contains("does not exist")),
+            "{}",
+            report.issues.join("; ")
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    // An unlisted "stage-summary" name is an unknown producer, not an artifact.
+    #[test]
+    fn unlisted_stage_summary_name_is_rejected() {
+        let root = temp_dir("unlisted-artifact");
+        write(&root, "package.json", r#"{"scripts":{}}"#);
+        write(
+            &root,
+            "release/obligations.json",
+            r#"{
+              "schemaVersion": 1, "kind": "legion-release-obligations", "product": "legion",
+              "gates": [
+                { "id": "0A", "name": "static", "grant": null, "obligations": [{ "id": "a", "requirement": "r", "evidence": "release:does-not-exist" }] },
+                { "id": "1", "name": "candidate", "grant": "BUILD_AUTHORIZED", "obligations": [{ "id": "b", "requirement": "r", "evidence": "unknown stage-summary" }] },
+                { "id": "3", "name": "sign", "grant": "SIGNING_AUTHORIZED", "obligations": [{ "id": "c", "requirement": "r", "evidence": "candidate stage-summary" }] },
+                { "id": "6", "name": "auth", "grant": "RELEASE_AUTHORIZED", "obligations": [{ "id": "d", "requirement": "r", "evidence": "candidate stage-summary" }] }
+              ]
+            }"#,
+        );
+        let report = check(&root);
+        assert!(
+            report
+                .issues
+                .iter()
+                .any(|i| i.contains("unknown stage-summary")),
             "{}",
             report.issues.join("; ")
         );

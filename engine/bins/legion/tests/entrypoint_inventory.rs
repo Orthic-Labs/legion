@@ -16,7 +16,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-const SCRIPT_COUNT: usize = 90;
+const SCRIPT_COUNT: usize = 85;
 const ROOT_COUNT: usize = 42;
 const DEV_COUNT: usize = 27;
 const XTASK_COUNT: usize = 16;
@@ -242,27 +242,9 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
         reason: None,
     },
     ScriptProbe {
-        key: "designer/mix-voiceover",
-        mode: ProbeMode::Precondition,
-        args: EMPTY,
-        reason: None,
-    },
-    ScriptProbe {
-        key: "designer/narrate-pipeline",
-        mode: ProbeMode::Precondition,
-        args: EMPTY,
-        reason: None,
-    },
-    ScriptProbe {
         key: "designer/palette",
         mode: ProbeMode::Precondition,
         args: PALETTE,
-        reason: None,
-    },
-    ScriptProbe {
-        key: "designer/render-narration",
-        mode: ProbeMode::Precondition,
-        args: EMPTY,
         reason: None,
     },
     ScriptProbe {
@@ -273,12 +255,6 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
     },
     ScriptProbe {
         key: "designer/render-video-seek",
-        mode: ProbeMode::Precondition,
-        args: EMPTY,
-        reason: None,
-    },
-    ScriptProbe {
-        key: "designer/tts-doubao",
         mode: ProbeMode::Precondition,
         args: EMPTY,
         reason: None,
@@ -521,12 +497,6 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
         key: "tasklist/validate-tasklist",
         mode: ProbeMode::Precondition,
         args: EMPTY,
-        reason: None,
-    },
-    ScriptProbe {
-        key: "designer/add-music",
-        mode: ProbeMode::Help,
-        args: HELP,
         reason: None,
     },
     ScriptProbe {

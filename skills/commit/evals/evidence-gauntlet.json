@@ -1,19 +1,8 @@
 {
   "name": "phase-6.7-evidence-gauntlet",
-  "purpose": "Three diff-scoped mechanical checks (mutation, changed-lines coverage, test-order independence) wired into /commit as a host-issued Arcane check.",
+  "purpose": "Specification only, not wired into /commit and not runnable: three diff-scoped mechanical checks (mutation, changed-lines coverage, test-order independence) that a future engine could implement.",
   "rerunnable_command": null,
-  "engine_status": "The node gauntlet engine (mutation, coverage, order) was deleted in ebb349ae and has no native replacement. The layers below are retained as a specification, not a runnable proof.",
-  "arcane_mapping": {
-    "kind": "gauntlet",
-    "executor": "host",
-    "authority": "host",
-    "status_field": "passed_when_exit_0",
-    "receipt_field": "orthic.tool-receipt.v1",
-    "trust_class": "tool",
-    "where_to_pass": "checks[] in checkpoint or verify",
-    "issuer_derived_fields": ["status", "executor", "exit_code"],
-    "normalize_reference": "Arcane normalizeCheck: reads executor and status from caller data only when authority !== 'model'"
-  },
+  "engine_status": "The node gauntlet engine (mutation, coverage, order) was deleted in ebb349ae and has no native replacement. No command exists that runs these layers, and /commit does not invoke them. The layers below are retained as a specification, not a runnable proof.",
   "layers": [
     {
       "name": "mutation",

@@ -48,7 +48,7 @@ seo → one concept per page/issue), then calls `okf emit --compress`.
 - Structure-safety: on a mixed concept (prose + `engine/.../shell.rs:212` + a ```rust fence + a
   a `sandbox` markdown link plus `type:` frontmatter) — prose compressed ~50% at `--rate 0.5`,
   **every** ref / fence / link / frontmatter field preserved.
-- Real doc floor: `docs/competitors/GROK-BUILD.md` (ref-dense) → **2235→1799 tokens (−20%)**,
+- Real doc floor: a reference-dense competitor document → **2235→1799 tokens (−20%)**,
   16/16 `path:line` refs + inline code intact. Prose-heavy docs compress more; ref-dense docs are
   the conservative floor and prove the protection holds on the hardest case.
 

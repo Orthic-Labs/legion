@@ -1,7 +1,7 @@
 # 核心资产协议（完整版）
 
-> 从 SKILL.md「核心哲学 #1.a」下沉的完整协议（2026-06 瘦身）。SKILL.md 留了触发条件 + 5 步标题 + 自检；这里是 5 步详细操作、下载命令、brand-spec 模板、全流程失败兜底、反例与代价对比。
-> 触发：任务涉及具体品牌/产品时强制执行。回 SKILL.md 看精简版与上下文。
+> 从 `engine/huashu/GUIDE.md`「核心哲学 #1.a」下沉的完整协议（2026-06 瘦身）。GUIDE.md 留了触发条件 + 5 步标题 + 自检；这里是 5 步详细操作、下载命令、brand-spec 模板、全流程失败兜底、反例与代价对比。
+> 触发：任务涉及具体品牌/产品时强制执行。回 `engine/huashu/GUIDE.md` 看精简版与上下文。
 
 #### 1.a 核心资产协议（涉及具体品牌时强制执行）
 
@@ -102,9 +102,9 @@
 按优先级：
 1. **官方产品页 hero image**（最高优先级）：右键查看图片地址 / curl 获取。分辨率通常 2000px+
 2. **官方 press kit**：`<brand>.com/press` 常有高清产品图下载
-3. **官方 launch video 截帧**：用 `yt-dlp` 下载 YouTube 视频，ffmpeg 抽几帧高清图
+3. **官方 launch video 截帧**：用 yt-dlp（若宿主提供）下载 YouTube 视频，ffmpeg（若宿主提供）抽几帧高清图
 4. **Wikimedia Commons**：公共领域常有
-5. **AI 生成兜底**（nano-banana-pro）：把真实产品图作为参考发给 AI，让它生成符合动画场景的变体。**不要用 CSS/SVG 手画代替**
+5. **AI 生成兜底**（宿主 `banana-image` 生图能力，可选）：把真实产品图作为参考发给 AI，让它生成符合动画场景的变体。**不要用 CSS/SVG 手画代替**
 
 ```bash
 # 示例：下载 DJI 官网产品 hero image
@@ -130,7 +130,7 @@ curl -A "Mozilla/5.0" -L "<hero-image-url>" -o assets/<brand>-brand/product-hero
 | **5 轮搜索** | 多渠道交叉搜（官网 / press kit / 官方社媒 / YouTube 截帧 / Wikimedia / 用户账号截屏），不是一轮抓前 2 个就停 | 第一页结果直接用 |
 | **10 个候选** | 至少凑 10 个备选才开始筛 | 只抓 2 个，没得选 |
 | **选 2 个好的** | 从 10 个里精选 2 个作为最终素材 | 全都用 = 视觉过载 + 品位稀释 |
-| **每个 8/10 分以上** | 不够 8 分**宁可不用**，用诚实 placeholder（灰块+文字标签）或 AI 生成（nano-banana-pro 以官方参考为基底）| 凑数 7 分素材进 brand-spec.md |
+| **每个 8/10 分以上** | 不够 8 分**宁可不用**，用诚实 placeholder（灰块+文字标签）或 AI 生成（`banana-image`，可选，以官方参考为基底）| 凑数 7 分素材进 brand-spec.md |
 
 **8/10 评分维度**（打分时记录在 `brand-spec.md`）：
 
@@ -225,7 +225,7 @@ curl -A "Mozilla/5.0" -L "<hero-image-url>" -o assets/<brand>-brand/product-hero
 | 缺失 | 处理 |
 |---|---|
 | **Logo 完全找不到** | **停下问用户**，不要硬做（logo 是品牌识别度的根基） |
-| **产品图（实体产品）找不到** | 优先 nano-banana-pro AI 生成（以官方参考图为基底）→ 次选向用户索取 → 最后才是诚实 placeholder（灰块+文字标签，明确标注"产品图待补"） |
+| **产品图（实体产品）找不到** | 优先 `banana-image` AI 生成（可选，以官方参考图为基底）→ 次选向用户索取 → 最后才是诚实 placeholder（灰块+文字标签，明确标注"产品图待补"） |
 | **UI 截图（数字产品）找不到** | 向用户索取自己账号的截屏 → 官方演示视频截帧。不用 mockup 生成器凑 |
 | **色值完全找不到** | 按「设计方向顾问模式」走，向用户推荐 3 个方向并标注 assumption |
 

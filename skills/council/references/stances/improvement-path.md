@@ -16,5 +16,6 @@ and the packet evidence that shows it is needed.
 **Ignore.** Rewriting the whole approach (that is scope-alternatives). Hypothetical attacks (that is
 red-team). Taste preferences with no effect on the success criteria.
 
-**Output.** Findings are advice, tiered P0/P1/P2, each with a concrete recommended action. No position
-and no score: advice never blocks.
+**Output.** Council stage: a blind opening position (your read of the artifact against its success
+criteria, given without seeing other seats), then findings as advice, tiered P0/P1/P2, each with a
+concrete recommended action. No verdict and no score: advice never blocks.

@@ -16,4 +16,6 @@ evidence that would decide between it and the current one.
 **Ignore.** Polishing the chosen path (improvement-path). Attacking it (red-team). Alternatives that
 fail the stated constraints or non-goals.
 
-**Output.** Findings are advice, tiered P0/P1/P2. No position and no score: advice never blocks.
+**Output.** Council stage: a blind opening position (your read of whether the chosen mechanism fits the
+intention, given without seeing other seats), then findings as advice, tiered P0/P1/P2. No verdict and
+no score: advice never blocks.

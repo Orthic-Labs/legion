@@ -1,20 +1,3 @@
----
-name: seo-firecrawl
-description: >
-  Full-site crawling, scraping, and site mapping via Firecrawl MCP.
-  Use when user says "crawl site", "map site", "full crawl",
-  "find all pages", "broken links", "site structure",
-  "discover pages", "JS rendering", or needs site-wide analysis.
-user-invokable: true
-argument-hint: "[command] <url>"
-license: MIT
-compatibility: "Requires Firecrawl MCP server"
-metadata:
-  author: AgriciDaniel
-  version: "1.7.2"
-  category: seo
----
-
 # Firecrawl Extension for Claude SEO
 
 This skill requires the Firecrawl extension to be installed:
@@ -54,7 +37,7 @@ metadata, and links for all discovered pages.
 - `scrapeOptions.formats`: Output formats -- `["markdown", "html", "links"]`
 
 **SEO Usage Patterns:**
-1. **Comprehensive audit crawl**: Crawl full site, extract all pages for subagent analysis
+1. **Comprehensive audit crawl**: Crawl full site, extract all pages for the inline analysis lanes
 2. **Section-focused crawl**: Use `includePaths` to audit only `/blog/*` or `/products/*`
 3. **Broken link detection**: Crawl with `["links"]` format, check all hrefs for 404s
 4. **Content inventory**: Extract all page titles, meta descriptions, H1s at scale
@@ -65,7 +48,7 @@ metadata, and links for all discovered pages.
 1. firecrawl_map(url) -> get all URLs (fast, no content)
 2. Filter to top 50 most important pages (homepage, key sections)
 3. firecrawl_crawl(url, limit=50) -> get full content
-4. Feed content to seo-technical, seo-content, seo-schema agents
+4. Feed content to the technical, content and schema checks, run inline in sequence
 ```
 
 **Cost awareness:**
@@ -157,31 +140,31 @@ related to a topic without crawling everything.
 
 ## Cross-Skill Integration
 
-### With seo-audit (full audit)
+### Full audit
 When Firecrawl is available during `/seo audit`:
 1. Use `firecrawl_map` to discover all site URLs
-2. Compare with XML sitemap (seo-sitemap) to find orphan/missing pages
+2. Compare with XML sitemap (sitemap reference) to find orphan/missing pages
 3. Select top pages for deep analysis
-4. Feed crawled content to all subagents (technical, content, schema, geo)
+4. Feed crawled content to the technical, content, schema and geo checks, run inline in sequence
 5. Report total crawlable pages, URL patterns, and crawl depth
 
-### With seo-technical
+### Technical checks
 - Broken link detection: crawl all internal links, check for 404s
 - Redirect chain mapping: follow all redirects, flag chains > 2 hops
 - Mixed content detection: check HTTP resources on HTTPS pages
 - Canonical verification: compare canonical URLs with actual URLs
 
-### With seo-sitemap
+### Sitemap checks
 - Sitemap coverage: % of crawled pages present in sitemap
 - Orphan pages: pages found by crawl but missing from sitemap
 - Stale sitemap entries: URLs in sitemap that return 404/410
 
-### With seo-content
+### Content checks
 - Content extraction: feed clean markdown to E-E-A-T analysis
 - Thin content detection: identify pages with < 300 words at scale
 - Duplicate content: compare content across pages for near-duplicates
 
-### With seo-schema
+### Schema checks
 - Schema extraction: pull JSON-LD from all crawled pages
 - Schema coverage: % of pages with structured data
 - Schema validation: batch-validate extracted schemas
@@ -198,5 +181,5 @@ When Firecrawl is available during `/seo audit`:
 
 **Graceful fallback:** If Firecrawl is unavailable, inform the user and suggest:
 1. Use `legion script seo/fetch_page` for single-page analysis (no API cost)
-2. Use `WebFetch` tool for basic HTML retrieval
+2. Use page fetch (`web-search` host capability) for basic HTML retrieval
 3. Connect the `firecrawl` MCP host capability

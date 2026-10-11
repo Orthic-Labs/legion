@@ -2,7 +2,7 @@
 
 Absorbs Emil Kowalski's `find-animation-opportunities` skill. Use when the ask is **"what could be
 animated here?" / "make this feel more alive"** on an existing surface. Read-only: it proposes
-motion with exact values; implementation goes through the normal workflow (SKILL.md steps 5-8).
+motion with exact values; implementation goes through the normal workflow (surface build phases in `../surface-design/GUIDE.md`).
 
 Posture: a filter as much as a finder. Expect to reject most candidates. A short high-conviction
 list beats a wishlist. Cap output at 5-7 suggestions for a whole app, fewer for one view. "Nothing

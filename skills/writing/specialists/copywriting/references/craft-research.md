@@ -2,26 +2,9 @@
 
 Use this reference for serious persuasion copy, audit mode, landing-page rewrites, hooks, hero sections, sales pages, product pages, bios, and any copy that is currently too generic.
 
-Primary local source:
+The gates below are self-contained. Use them directly; no external source is required.
 
-- Consult your project's storytelling/quote-audit reference if one exists.
-
-Key extracted sources:
-
-- Harry Dry, `[TUMjnmfsPeM]`, "Learn Copywriting in 76 Minutes"
-- Callaway, `[2byPP_9F0-Q]`, hook clarity and speed-to-value
-- Romm, `[Bt3AACk6dbo]`, But/Therefore story editing
-
-Source trace:
-
-- `SOURCE_MATRIX.md`: `[TUMjnmfsPeM]` is the extracted 72-minute Harry Dry copywriting video; the matrix lists Three Questions, Zoom-In, One-Mississippi, Burrito Test, Kaplan's Law, specificity moves, headline patterns, rhythm devices, and before/after pairs.
-- `STORYTELLING_GUIDE.md` section 3.3: Harry Dry Three Questions.
-- `STORYTELLING_GUIDE.md` section 3.5: Zoom-In Worksheet.
-- `STORYTELLING_GUIDE.md` section 3.8: One-Mississippi test.
-- `STORYTELLING_GUIDE.md` section 4.2: Romm But/Therefore edit.
-- `_review/quote_audit.md`: verifies the Harry Dry lines for visual memory, uncopyable copy, competitor-signable ads, and every word working.
-
-## Harry Dry Three-Question Gate
+## Three-Question Gate
 
 Run this on every headline, hero line, subhead, CTA promise, and major claim:
 
@@ -30,8 +13,6 @@ Run this on every headline, hero line, subhead, CTA promise, and major claim:
 3. Can nobody else say this?
 
 If a line fails any one question, rewrite it.
-
-Verified source anchors: `[TUMjnmfsPeM:L54]`, `[TUMjnmfsPeM:L217]`, `[TUMjnmfsPeM:L345]`, `[TUMjnmfsPeM:L1467]`.
 
 Operational meaning:
 
@@ -60,7 +41,7 @@ The final line should be photographable, demonstrable, or measurable.
 
 ## Speed-To-Value Hook Gate
 
-Borrowed from the Storytelling corpus' Callaway/Harry synthesis:
+Gate criteria:
 
 - The topic must be clear immediately.
 - The reader must know why they should keep reading.
@@ -78,7 +59,7 @@ Prefer pointable evidence over assertion.
 
 Bad: "Trusted by high-performing teams."
 
-Better: "Used by 14 clinic managers to cut missed-call follow-up from next day to under 10 minutes."
+Better: "[verified count] [role] used this to cut [measured task] from [before] to [after]." (Placeholders: supply a real, sourced result before using the line.)
 
 If there is no pointable evidence yet, either:
 

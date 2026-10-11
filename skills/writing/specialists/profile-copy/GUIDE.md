@@ -62,7 +62,7 @@ Also identify the dominant brand role: teacher, builder, curator, operator, arti
 
 **Line 3 — Proof or credibility signal**
 > Numbers, transformation, experience, social proof.
-> e.g., "Helped 200+ brands grow without ads" / "3 years of organic-only growth"
+> e.g., "[verified result, e.g., clients served and measured outcome]" / "[verified time-in-business or track record]" (use only real, sourced proof)
 
 **Line 4 — CTA**
 > One action. One link.
@@ -106,12 +106,12 @@ Present all three. Let the user feel which one sounds most like them.
 
 **Secondary Links** (2–4 max)
 - Named by what the visitor gets, not what the creator calls it internally
-- e.g., "Watch: How I grew to 10K without ads" not "YouTube"
+- e.g., "Watch: [what the viewer learns]" not "YouTube"
 - e.g., "Read: My brand system (free)" not "Blog"
 
 **Social proof snippet** (optional but powerful)
 - One specific result from a real person / real data
-- e.g., "Over 5,000 creators use this system" or a 1-line client quote
+- e.g., "[verified count] people use this" or a 1-line client quote with a named, real source; otherwise leave it out
 
 ### Rules
 - No "Welcome to my page" — they're already there

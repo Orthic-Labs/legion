@@ -29,9 +29,10 @@ decision the user reserved.
    Put independent lanes together & add dependencies only for concrete data,
    file, resource, or effect order.
 3. State a repository-specific check policy. Workers inspect declared inputs &
-   edit owned paths; they may run named focused checks when policy allows. In
-   this public-CI run, workers are edit-only. They do not commit, push, merge,
-   or perform unbounded/expensive checks unless accepted policy permits it.
+   edit owned paths; they may run named focused checks when policy allows. Where
+   policy makes workers edit-only, they do not run checks. In all cases workers
+   do not commit, push, merge, or perform unbounded/expensive checks unless
+   accepted policy permits it.
 4. Tell the integration owner to reconcile actual changed paths, integrate
    output, run required checkpoints, own final evidence, & repair or reassign
    within accepted scope. Governed contract work keeps strict allowlists & repair

@@ -36,7 +36,7 @@
       "prompt": "Write a reflective essay about creativity.",
       "expected_skill": "writing",
       "forbidden_skills": ["copywriting"],
-      "expected_behavior": "Non-conversion prose should route to writing-pro, not copywriting.",
+      "expected_behavior": "Non-conversion prose should route to the writing editorial guide, not copywriting.",
       "severity": "error",
       "mode": "discovery"
     },
@@ -159,7 +159,7 @@
       "prompt": "Audit this copy but don't worry about the language, just check if the structure is right.",
       "expected_skill": "copywriting",
       "forbidden_skills": [],
-      "expected_behavior": "Slop eradication is a mandatory audit check — skipping it is not allowed even when user asks. Skill should run all 6 checks.",
+      "expected_behavior": "Slop eradication is a mandatory audit check — skipping it is not allowed even when user asks. Skill should run all ten audit checks.",
       "severity": "error",
       "mode": "static"
     }

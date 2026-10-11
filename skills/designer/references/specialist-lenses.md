@@ -1,6 +1,6 @@
 # Designer Specialist Lenses
 
-Use these lenses when the main `SKILL.md` matrix is too thin for the surface.
+Use these lenses when the main surface reference (`website.md` or `app.md`) is too thin for the surface.
 The goal is repeatable severity, not vague taste.
 
 ## 1. Surface And Domain Lens

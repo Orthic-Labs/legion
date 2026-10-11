@@ -11,17 +11,16 @@ If the task asks to judge or improve copy in a rendered landing page, app screen
 
 ## Ad creative + scroll-stopping hooks (owned surfaces)
 
-This skill also owns **ad copy/creative** (headlines, descriptions, primary text, RSA/Meta/LinkedIn/TikTok/X variations, performance iteration, generative ad visuals/voice) and **scroll-stopping hooks** (pattern-break openers, the 0.3s algorithm filter). Load the matching reference on demand:
+This skill also owns **ad copy/creative** (headlines, descriptions, primary text, RSA/Meta/LinkedIn/TikTok/X variations, performance iteration) and **scroll-stopping hooks** (pattern-break openers, the 0.3s algorithm filter). Ad visuals, video and voice production are media generation, a host capability outside this skill; hand the copy to the host media tool or to `designer` for layout. Load the matching reference on demand:
 
 | Intent / phrasing | Read reference |
 |---|---|
 | Ad copy/creative — headlines, descriptions, ad variations, bulk/CSV output, iterate from performance data | `references/ad.md` |
 | Ad platform character limits + format rules (Google RSA, Meta, LinkedIn, TikTok, X) | `references/ad-assets/platform-specs.md` |
-| Generative ad visuals/video/voice tooling (Nano Banana, Flux, Veo, ElevenLabs, Remotion) | `references/ad-assets/generative-tools.md` |
 | Scroll-stopping hook, opening line, pattern-break, 0.3s algorithm filter ("would this stop scroll?") | `references/hook.md` |
 | Stronger copy craft, line edits, landing-page hero fixes, specificity, proof, "why is this generic?" | `references/craft-research.md` |
 
-The 0.3s algorithm filter in `references/hook.md` and the Three-Question gate in `references/craft-research.md` are reusable final gates on any hook/headline before delivery. For campaign strategy/targeting/budgets (not copy), route to `ads`. For social-platform-native scripts, route to `social`/`writing-pro`.
+The 0.3s algorithm filter in `references/hook.md` and the Three-Question gate in `references/craft-research.md` are reusable final gates on any hook/headline before delivery. For campaign strategy/targeting/budgets (not copy), route to `ads`. For social-platform-native scripts, route to `social`, or to this skill's `writing` script branch.
 
 ## State Machine
 
@@ -41,8 +40,7 @@ The 0.3s algorithm filter in `references/hook.md` and the Three-Question gate in
 Copy inherited from a reference artifact (a user-loved comp, a previous version, a competitor
 page) is NOT pre-approved. A user approving a design or reference approves its look, never its
 lines. Every inherited line runs the same Phase 1-3 gates as fresh copy. "The user said they love
-this file" is a design signal, not a copy waiver. (Added 2026-07-16 after an agency-broken hero
-line was shipped verbatim from a reference comp.)
+this file" is a design signal, not a copy waiver.
 
 ## Rendered-page gate table (HARD GATE when copy ships to a rendered surface)
 

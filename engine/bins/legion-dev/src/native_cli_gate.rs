@@ -174,6 +174,13 @@ pub fn source_identity(root: &Path) -> Result<SourceIdentity, String> {
         .current_dir(root)
         .output()
         .map_err(|e| e.to_string())?;
+    if !listing.status.success() {
+        return Err(format!(
+            "git ls-files failed for {}: {}",
+            root.display(),
+            String::from_utf8_lossy(&listing.stderr).trim()
+        ));
+    }
     let mut paths: Vec<String> = listing
         .stdout
         .split(|b| *b == 0)
@@ -1395,7 +1402,10 @@ pub struct Sandbox {
 
 fn copy_fixture(source: &Path, destination: &Path) -> Result<(), String> {
     if !source.is_dir() {
-        return Ok(());
+        return Err(format!(
+            "fixture cwd is missing or not a directory: {}",
+            source.display()
+        ));
     }
     copy_dir_filtered(source, destination)
 }
@@ -1588,18 +1598,25 @@ pub fn run_bounded(
     let (stderr_tx, stderr_rx) = mpsc::channel();
     std::thread::spawn(move || {
         let mut buf = Vec::new();
-        let _ = stdout_pipe.read_to_end(&mut buf);
-        let _ = stdout_tx.send(buf);
+        let result = stdout_pipe
+            .read_to_end(&mut buf)
+            .map(|_| buf)
+            .map_err(|e| e.to_string());
+        let _ = stdout_tx.send(result);
     });
     std::thread::spawn(move || {
         let mut buf = Vec::new();
-        let _ = stderr_pipe.read_to_end(&mut buf);
-        let _ = stderr_tx.send(buf);
+        let result = stderr_pipe
+            .read_to_end(&mut buf)
+            .map(|_| buf)
+            .map_err(|e| e.to_string());
+        let _ = stderr_tx.send(result);
     });
 
     let start = Instant::now();
     let timeout = Duration::from_millis(timeout_ms);
     let mut timed_out = false;
+    let mut failures: Vec<String> = Vec::new();
     let exit_status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break Some(status),
@@ -1612,16 +1629,37 @@ pub fn run_bounded(
                 }
                 std::thread::sleep(Duration::from_millis(20));
             }
-            Err(_) => break None,
+            Err(e) => {
+                failures.push(format!("waiting for child failed: {e}"));
+                break None;
+            }
         }
     };
 
-    let stdout_bytes = stdout_rx
-        .recv_timeout(Duration::from_secs(5))
-        .unwrap_or_default();
-    let stderr_bytes = stderr_rx
-        .recv_timeout(Duration::from_secs(5))
-        .unwrap_or_default();
+    // A pipe that failed or never drained is an error for this row; its bytes
+    // are not silently blanked into an apparently clean observation.
+    let stdout_bytes = match stdout_rx.recv_timeout(Duration::from_secs(5)) {
+        Ok(Ok(bytes)) => bytes,
+        Ok(Err(e)) => {
+            failures.push(format!("stdout pipe read failed: {e}"));
+            Vec::new()
+        }
+        Err(e) => {
+            failures.push(format!("stdout pipe reader did not finish: {e}"));
+            Vec::new()
+        }
+    };
+    let stderr_bytes = match stderr_rx.recv_timeout(Duration::from_secs(5)) {
+        Ok(Ok(bytes)) => bytes,
+        Ok(Err(e)) => {
+            failures.push(format!("stderr pipe read failed: {e}"));
+            Vec::new()
+        }
+        Err(e) => {
+            failures.push(format!("stderr pipe reader did not finish: {e}"));
+            Vec::new()
+        }
+    };
     let output_bytes = stdout_bytes.len() + stderr_bytes.len();
     let output_limit_exceeded = output_bytes > max_output_bytes;
 
@@ -1633,6 +1671,12 @@ pub fn run_bounded(
         error = Some(format!("output limit exceeded ({max_output_bytes} bytes)"));
     } else if timed_out {
         error = Some(format!("timeout exceeded ({timeout_ms} ms)"));
+    }
+    if !failures.is_empty() {
+        if let Some(prior) = error.take() {
+            failures.push(prior);
+        }
+        error = Some(failures.join("; "));
     }
 
     Observation {

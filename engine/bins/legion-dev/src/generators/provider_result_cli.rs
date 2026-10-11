@@ -63,7 +63,7 @@ fn self_test() -> bool {
     }
 
     if ok {
-        println!("OK: normalize-provider-result.mjs self-test passed");
+        println!("OK: normalize-provider-result self-test passed");
     }
     ok
 }
@@ -76,25 +76,35 @@ fn assert_eq_print(cond: bool, label: &str) -> bool {
 }
 
 /// `legion-dev normalize-provider-result [--contract PATH --raw PATH | --self-test]`
+///
+/// Normalizing requires both inputs. A single missing input would otherwise
+/// be defaulted (to an `unproven` result) and written out with exit 0.
 pub fn run(contract: Option<&Path>, raw: Option<&Path>, self_test_flag: bool) -> bool {
     if self_test_flag || (contract.is_none() && raw.is_none()) {
         return self_test();
     }
-    let contract_value = match contract.map(read_json) {
-        Some(Ok(v)) => v,
-        Some(Err(e)) => {
-            eprintln!("normalize-provider-result: {e}");
+    let (contract, raw) = match (contract, raw) {
+        (Some(contract), Some(raw)) => (contract, raw),
+        _ => {
+            eprintln!(
+                "usage: legion-dev normalize-provider-result --contract PATH --raw PATH (both required)"
+            );
             return false;
         }
-        None => serde_json::Value::Null,
     };
-    let raw_value = match raw.map(read_json) {
-        Some(Ok(v)) => v,
-        Some(Err(e)) => {
+    let contract_value = match read_json(contract) {
+        Ok(v) => v,
+        Err(e) => {
             eprintln!("normalize-provider-result: {e}");
             return false;
         }
-        None => serde_json::Value::Null,
+    };
+    let raw_value = match read_json(raw) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("normalize-provider-result: {e}");
+            return false;
+        }
     };
     match normalize_provider_result(&contract_value, &raw_value) {
         Ok(v) => {

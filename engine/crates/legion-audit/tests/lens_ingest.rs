@@ -153,9 +153,15 @@ fn setup(name: &str) -> Run {
 }
 
 fn setup_with(name: &str, source: &str) -> Run {
+    setup_files(name, &[("src/lib.rs", source.as_bytes())])
+}
+
+fn setup_files(name: &str, files: &[(&str, &[u8])]) -> Run {
     let root = temp_dir(name);
     fs::create_dir_all(root.join("src")).unwrap();
-    fs::write(root.join("src/lib.rs"), source).unwrap();
+    for (path, bytes) in files {
+        fs::write(root.join(path), bytes).unwrap();
+    }
     let repository = root.to_string_lossy().into_owned();
     let inventory = FilesystemInventorySource::new(&root)
         .unwrap()
@@ -545,29 +551,80 @@ fn shipped_registry_qualifies_bench_providers_and_never_requires_an_unqualified_
 }
 
 #[test]
-fn truncated_excerpts_leave_a_coverage_gap_instead_of_full_coverage() {
-    // The file exceeds the per-file excerpt cap, so the packet cannot prove it
-    // was examined; the submitter's `complete: true` must not change that.
+fn oversized_file_is_chunked_not_truncated_and_stays_covered() {
+    // The file exceeds the per-file chunk size, so it is split on line
+    // boundaries into consecutive chunks of the same packet; every chunk is
+    // present, so the packet proves the file was examined.
     let padding = "// padding line\n".repeat(3000);
     let run = setup_with(
-        "truncated",
+        "chunked",
         &format!("pub fn add(a: i32, b: i32) -> i32 {{\n    a - b\n}}\n{padding}"),
+    );
+    let excerpts = run.work.request.packet["excerpts"].as_array().unwrap();
+    assert!(excerpts.len() >= 2, "expected the file to be split");
+    assert_eq!(excerpts[0]["chunk"], json!(1));
+    assert_eq!(excerpts[0]["chunks"], json!(excerpts.len()));
+    assert_eq!(
+        excerpts[1]["startLine"].as_u64().unwrap(),
+        excerpts[0]["endLine"].as_u64().unwrap() + 1
+    );
+    assert_eq!(
+        run.work.request.packet["excerptCoverage"]["truncatedPaths"],
+        json!([])
     );
     let ingested =
         ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    assert!(ingested.complete, "{:?}", ingested.coverage_gaps);
+    assert_eq!((ingested.examined, ingested.expected), (1, 1));
+    let recomputed = recompute_run(&run.run).unwrap();
+    assert_eq!(recomputed.report.status, ReportStatus::Clean);
+}
+
+#[test]
+fn an_unreadable_denominator_file_leaves_a_named_coverage_gap() {
+    // A file the packet cannot excerpt (non-UTF-8 here) is omitted with a
+    // reason and never counts as examined, whatever the submitter attests.
+    let run = setup_files(
+        "omitted",
+        &[
+            (
+                "src/lib.rs",
+                b"pub fn add(a: i32, b: i32) -> i32 {\n    a - b\n}\n" as &[u8],
+            ),
+            ("src/blob.rs", &[0xff_u8, 0xfe, 0x00, 0x41] as &[u8]),
+        ],
+    );
+    let omitted = &run.work.request.packet["excerptCoverage"]["omittedPaths"];
+    assert_eq!(omitted[0]["path"], json!("src/blob.rs"));
+    assert_eq!(omitted[0]["reason"], json!("binary"));
+    let ingested =
+        ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
     assert!(!ingested.complete);
-    assert_eq!((ingested.examined, ingested.expected), (0, 1));
+    assert_eq!((ingested.examined, ingested.expected), (1, 2));
     assert_eq!(ingested.coverage_gaps.len(), 1);
     assert!(ingested.coverage_gaps[0].starts_with("reasoning-excerpt-coverage:"));
-
     let recomputed = recompute_run(&run.run).unwrap();
     assert_eq!(recomputed.report.status, ReportStatus::Incomplete);
     assert_eq!(recomputed.report.claims["lensesRan"], json!([]));
-    assert!(recomputed
-        .report
-        .gaps
-        .iter()
-        .any(|gap| gap.starts_with("reasoning-excerpt-coverage:")));
+}
+
+#[test]
+fn finding_summary_carries_confidence_and_verify_status() {
+    let run = setup("triage-fields");
+    let result = lens_result(&run, json!([finding("a - b", 2)]), json!([]));
+    ingest_lens_result(&run.run, PROVIDER, &result).unwrap();
+    let recomputed = recompute_run(&run.run).unwrap();
+    let evidence = &recomputed.report.findings[0].evidence;
+    assert_eq!(evidence["confidence"], json!("likely"));
+    assert_eq!(evidence["verifyStatus"], json!("unverified"));
+    assert_eq!(evidence["lens"], json!("naming"));
+    assert_eq!(evidence["action"], json!("use +"));
+    // Existing summary keys are unchanged.
+    let finding = &recomputed.report.findings[0];
+    assert_eq!(finding.severity, "medium");
+    assert_eq!(finding.message, "add subtracts instead of adding");
+    assert_eq!(finding.title, "use +");
+    assert_eq!(finding.locations, vec!["src/lib.rs:2".to_owned()]);
 }
 
 #[test]

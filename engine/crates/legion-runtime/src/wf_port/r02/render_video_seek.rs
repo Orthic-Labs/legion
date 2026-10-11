@@ -121,7 +121,7 @@ pub fn parse_args(argv: &[String]) -> Result<SeekArgs, ()> {
 }
 
 pub fn usage_text() -> String {
-    "Usage: node render-video-seek.js <html-file>\nExample: NODE_PATH=$(npm root -g) node render-video-seek.js my-animation.html --fps=60".to_string()
+    "Usage: legion script designer/render-video-seek <html-file>\nExample: legion script designer/render-video-seek my-animation.html --fps=60".to_string()
 }
 
 fn js_parse_float(s: &str) -> Option<f64> {

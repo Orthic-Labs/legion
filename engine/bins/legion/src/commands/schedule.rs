@@ -177,10 +177,15 @@ fn enqueue_artifact(path: PathBuf) -> CommandResult {
         .filter(|value| !value.is_null())
         .cloned()
         .unwrap_or_else(|| json!(iso_now()));
-    receipt["state"] = json!("STARTED");
+    // This command only records the trigger as a durable artifact. Nothing
+    // reads it back to start a workflow, so the state is QUEUED, never STARTED.
+    receipt["state"] = json!("QUEUED");
     receipt["deduplicated"] = json!(false);
-    receipt["startedAt"] = json!(iso_now());
+    receipt["queuedAt"] = json!(iso_now());
+    receipt["workflowStarted"] = json!(false);
     receipt["startResult"] = json!({"exitCode": null});
+    receipt["note"] =
+        json!("trigger recorded in .audit/arcane/triggers only; no workflow was started");
     store
         .state
         .get_mut("triggers")

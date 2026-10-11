@@ -9,6 +9,10 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "references/route-resources.json"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "web-search"
     }
   ]
 }

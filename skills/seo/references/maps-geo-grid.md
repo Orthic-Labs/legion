@@ -15,7 +15,7 @@ and where competitors dominate (red).
 ### Algorithm
 
 1. Take center coordinates (business location): `center_lat`, `center_lng`
-2. Define grid size (e.g., 7x7 = 49 points) and radius in km
+2. Define grid size and radius in km. Default 3x3 (9 points, within the 12-request EXTERNAL_REQUESTS_MAX); larger grids need explicit user authorization after the cost estimate
 3. Calculate spacing: `step = (2 * radius_km) / (grid_size - 1)`
 4. Generate grid points using offset formula:
 
@@ -35,7 +35,7 @@ Where `center_index = (grid_size - 1) / 2` and `111.32 km = 1 degree latitude`.
 |------|--------|---------------|----------|-----------------|
 | 3x3 | 9 | 2 km | Quick snapshot, low budget | $0.018/keyword |
 | 5x5 | 25 | 3 km | Standard urban audit | $0.050/keyword |
-| **7x7** | **49** | **5 km** | **Default. Best balance of coverage and cost** | **$0.098/keyword** |
+| **7x7** | **49** | **5 km** | **Needs explicit authorization (exceeds the default request limit)** | **$0.098/keyword** |
 | 9x9 | 81 | 8 km | Suburban/wide service area | $0.162/keyword |
 | 13x13 | 169 | 15 km | Rural or large metro | $0.338/keyword |
 

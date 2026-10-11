@@ -681,7 +681,7 @@ pub fn run<C: AdsClient>(
             "{}",
             serde_json::to_string_pretty(&value).unwrap_or_default()
         );
-        return 0;
+        return if error.is_some() { 1 } else { 0 };
     }
 
     if parsed.command == "ideas" {

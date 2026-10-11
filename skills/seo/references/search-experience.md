@@ -1,6 +1,6 @@
 # Search Experience / SERP-Fit Diagnosis
 
-Absorbed conceptually from AgriciDaniel/claude-seo v2.3.1 `seo-sxo`, adapted to Legion ownership and evidence contracts. Do not import its separate-agent orchestration or opaque score as authority.
+Absorbed conceptually from AgriciDaniel/claude-seo v2.3.1 (SXO method), adapted to Legion ownership and evidence contracts. Do not import its separate-agent orchestration or opaque score as authority.
 
 Use when a technically healthy page does not rank, the user asks about intent/page-type mismatch, or a page redesign/reposition is being considered.
 

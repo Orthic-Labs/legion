@@ -5,15 +5,15 @@ description: Generate scroll-stopping hooks and pattern-break opening lines for 
 
 # /writing copy hook — Hook generator + 0.3s algorithm filter
 
-Anjela Petkova's 5-prompt sequence for scroll-stopping content. Adapted for one-pass generation. Includes the 0.3s filter as a final gate (also reusable standalone inside `/writing copy` ad copy, `/writing` scripts, `/social twitter`, and content-strategy review).
+A five-prompt sequence for scroll-stopping content, adapted for one-pass generation. Includes the 0.3s filter as a final gate (also reusable standalone inside `/writing copy` ad copy, `/writing` scripts, `/social twitter`, and content-strategy review).
 
-## Storytelling hook canon
+## Hook craft pass
 
 Before generating, run this compact craft pass:
 
 - **Entry contract:** the first 1-2 seconds must deliver topic clarity and on-target curiosity. If the audience cannot tell what the piece is about, curiosity-bait fails.
 - **Four failure modes:** delay, confusion, irrelevance, disinterest. Diagnose the weakest one before rewriting.
-- **Harry's three questions:** Can the reader visualize it? Can they falsify it? Could a competitor sign it? If yes to competitor, add a concrete owner, object, number, place, or lived detail.
+- **Three-question gate:** Can the reader visualize it? Can they falsify it? Could a competitor sign it? If yes to competitor, add a concrete owner, object, number, place, or lived detail.
 - **Zoom-In drill:** vague claim -> concrete object -> named scene. "Better productivity" becomes "the 4:55pm report nobody wants to open."
 - **One-Mississippi test:** read the hook aloud. The topic should be clear before "one Mississippi" ends.
 - **Pattern menu:** open with a question, contrast, surprise, specific number, named pain, self-referential time-of-read, before/after state, or "I tried X and Y happened."
@@ -22,7 +22,7 @@ Before generating, run this compact craft pass:
 
 - **Topic / message:** what the post is about (1-2 sentences)
 - **Format:** reel script / IG carousel / X thread / blog headline / ad headline / LinkedIn post
-- **Brand (if applicable):** DD / RH / HR / TS — applies brand voice rules
+- **Brand (if applicable):** name the brand; load its brand card with `/brand` and apply its voice rules
 - **Existing draft (optional):** if rewriting, paste the current version
 
 ## Output (always all 5 sections + final filter)

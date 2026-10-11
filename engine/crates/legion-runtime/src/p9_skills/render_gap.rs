@@ -348,17 +348,26 @@ pub trait RenderedFetcher {
     ) -> Result<SeoSignals, String>;
 }
 
-fn parse_dom_extract_json(raw: &serde_json::Value) -> SeoSignals {
+/// Error text for rendered DOM input that is not a JSON object. Unparseable input is a
+/// failure, never an empty signal set.
+const DOM_INPUT_INVALID_JSON: &str = "rendered DOM input is not valid JSON";
+
+fn parse_dom_extract_json(raw: &serde_json::Value) -> Result<SeoSignals, String> {
     // `evaluate` on the production driver returns the JSON string itself (see
     // `ChromeRenderedFetcher`); this parses that string form. Also accept an already-decoded
     // object shape for fakes that hand back structured values directly.
     let obj: serde_json::Value = match raw {
-        serde_json::Value::String(s) => serde_json::from_str(s).unwrap_or(serde_json::Value::Null),
+        serde_json::Value::String(s) => {
+            serde_json::from_str(s).map_err(|_| DOM_INPUT_INVALID_JSON.to_string())?
+        }
         other => other.clone(),
     };
+    if !obj.is_object() {
+        return Err(DOM_INPUT_INVALID_JSON.to_string());
+    }
     let s = |k: &str| obj.get(k).and_then(|v| v.as_str()).map(str::to_string);
     let n = |k: &str| obj.get(k).and_then(|v| v.as_i64()).unwrap_or(0);
-    SeoSignals {
+    Ok(SeoSignals {
         title: s("title"),
         meta_description: s("meta_description"),
         canonical: s("canonical"),
@@ -367,7 +376,7 @@ fn parse_dom_extract_json(raw: &serde_json::Value) -> SeoSignals {
         main_text_length: n("main_text_length"),
         internal_links: n("internal_links"),
         meta_robots: s("meta_robots"),
-    }
+    })
 }
 
 /// Production [`RawFetcher`] using `reqwest`'s blocking client with the same Googlebot UA and
@@ -436,7 +445,7 @@ impl RenderedFetcher for ChromeRenderedFetcher {
             .evaluate(DOM_EXTRACT_JS, false)
             .map_err(|e| e.to_string())?;
         let value = remote.value.ok_or_else(|| "eval failed".to_string())?;
-        Ok(parse_dom_extract_json(&value))
+        parse_dom_extract_json(&value)
     }
 }
 
@@ -491,10 +500,10 @@ pub fn parse_args(argv: &[String]) -> Result<RenderGapArgs, String> {
 }
 
 const HELP_TEXT: &str = r#"
-render_gap.mjs — Raw-vs-rendered DOM diff for SEO render-gap detection
+legion script seo/render_gap — Raw-vs-rendered DOM diff for SEO render-gap detection
 
 Usage:
-  node seo/scripts/render_gap.mjs --url <url> [options]
+  legion script seo/render_gap --url <url> [options]
 
 Options:
   --url <url>         Target URL (required)
@@ -549,7 +558,11 @@ pub fn run(
         match rendered_fetcher.fetch(&args.url, args.width, args.height, args.timeout_ms) {
             Ok(s) => s,
             Err(e) => {
-                let _ = writeln!(stderr, "Error: CDP render failed — {e}");
+                if e == DOM_INPUT_INVALID_JSON {
+                    let _ = writeln!(stderr, "error: {DOM_INPUT_INVALID_JSON}");
+                } else {
+                    let _ = writeln!(stderr, "Error: CDP render failed — {e}");
+                }
                 return 1;
             }
         };

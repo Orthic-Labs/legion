@@ -19,15 +19,13 @@ retain routine judgment.
 
 ## Mandate
 
-Sage attaches only when the selected capability cannot safely settle a material decision within
-its routine mandate. Qualifying conditions include:
+Sage attaches when the assignment matches the trigger boundary in `src/roster/sage.md`:
 
-- material ambiguity or competing interpretations with materially different outcomes;
-- a conflict between capabilities;
-- disputed ownership or boundaries;
-- an acceptance-semantics decision requiring an explicit freeze;
-- a semantic blocker discovered while work is executing; or
-- an explicit request for authoritative adjudication.
+- design, adjudication, or reassessment is the assignment, including choices before expensive commitment;
+- competing interpretations, cross-capability conflict, or disputed ownership or boundaries need closure; or
+- repeated local repairs fail to advance the outcome, or Sage is explicitly requested.
+
+Bounded implementation inside accepted criteria, and diagnosis, writing, or execution that merely has an effect, do not attach Sage.
 
 A request does not qualify merely because it is architectural, difficult, important, or being
 implemented. Sage is an optional branch, never a mandatory stage in every route.

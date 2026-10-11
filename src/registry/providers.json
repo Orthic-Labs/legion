@@ -3681,7 +3681,18 @@
             "op": "anyPath",
             "patterns": [
               "**/migrations/**",
-              "**/schema.prisma"
+              "**/schema.prisma",
+              "**/*.sql",
+              "**/schema.rs",
+              "**/schema.sql",
+              "**/models.py",
+              "**/*receipt*",
+              "**/*ledger*",
+              "**/*journal*",
+              "**/*store*.rs",
+              "**/*storage*",
+              "**/db/**",
+              "**/database/**"
             ]
           }
         ]
@@ -5719,6 +5730,433 @@
       "runner": {
         "kind": "runtime-script",
         "module": "security.opengrep"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "security.credentials",
+      "providerVersion": "1.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "sourceFilesAtLeast",
+            "count": 1
+          },
+          {
+            "op": "anyPath",
+            "patterns": [
+              "**/.env",
+              "**/.env.*",
+              "**/*.env",
+              "**/*.ini",
+              "**/*.toml",
+              "**/*.yaml",
+              "**/*.yml",
+              "**/*.json",
+              "**/*.properties",
+              "**/*.conf",
+              "**/*.cfg"
+            ]
+          }
+        ]
+      },
+      "denominatorKind": "security-relevant-source-and-config-files",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.credentials"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "security.insecure-defaults",
+      "providerVersion": "1.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "sourceFilesAtLeast",
+            "count": 1
+          },
+          {
+            "op": "anyPath",
+            "patterns": [
+              "**/.env",
+              "**/.env.*",
+              "**/*.env",
+              "**/*.ini",
+              "**/*.toml",
+              "**/*.yaml",
+              "**/*.yml",
+              "**/*.json",
+              "**/*.properties",
+              "**/*.conf",
+              "**/*.cfg"
+            ]
+          }
+        ]
+      },
+      "denominatorKind": "security-relevant-source-and-config-files",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.insecure-defaults"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "security.misuse-resistance",
+      "providerVersion": "1.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.misuse-resistance"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "security.agentic-ci",
+      "providerVersion": "1.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "sourceFilesAtLeast",
+            "count": 1
+          },
+          {
+            "op": "anyPath",
+            "patterns": [
+              ".github/workflows/**",
+              ".github/actions/**",
+              ".gitlab-ci.yml",
+              "**/azure-pipelines*.yml",
+              ".circleci/**",
+              "**/Jenkinsfile"
+            ]
+          }
+        ]
+      },
+      "denominatorKind": "ci-workflows-and-agent-source",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.agentic-ci"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "security.agent-skill-mcp",
+      "providerVersion": "1.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/SKILL.md",
+          "**/skills/**",
+          "**/.claude/**",
+          "**/.claude-plugin/**",
+          "**/.cursor/**",
+          "**/.mcp.json",
+          "**/mcp.json",
+          "**/hooks/**",
+          "**/AGENTS.md",
+          "**/CLAUDE.md",
+          "**/*.mdc",
+          "**/agents/**",
+          "**/commands/**"
+        ]
+      },
+      "denominatorKind": "agent-skill-hook-and-mcp-files",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.agent-skill-mcp"
       },
       "hostCapabilities": [],
       "execution": {

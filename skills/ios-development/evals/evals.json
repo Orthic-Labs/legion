@@ -165,7 +165,7 @@
       "prompt": "Use Legion's Apple tool to list simulators, build a scheme and capture a profile.",
       "expected_skill": "ios-development",
       "forbidden_skills": [],
-      "expected_behavior": "Discover typed operations through legion apple catalog or legion_apple, select simulator.list/project.build/profile.record, preserve JSON arguments, and distinguish dry-run plans from authorized execution.",
+      "expected_behavior": "Discover typed operations through legion apple catalog or legion_apple, select simulator.list/project.build/profile, preserve JSON arguments, and distinguish dry-run plans from authorized execution.",
       "severity": "error",
       "mode": "static"
     }

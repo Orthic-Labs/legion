@@ -130,5 +130,4 @@ Prompt modifier: `"single clear message, product/brand front and center, high re
 Full video ads (MP4) cannot be generated with still image models. Use:
 - banana MCP → thumbnail, companion banner, storyboard frames
 - `/ads generate` → static assets only
-- For video generation → use `/ads generate` with the `ads-youtube` video generation workflow
-  (requires a separate video generation capability, not covered by banana MCP)
+- Video ad production (MP4 editing or rendering) is not shipped by this skill; no video workflow exists here.

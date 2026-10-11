@@ -41,7 +41,7 @@ fn rules(family: &str) -> &'static [Rule] {
         "rails" => &[Rule { id: "rails-forgery-skip", level: "warning", needle: "skip_forgery_protection", message: "Rails request forgery protection is bypassed." }, Rule { id: "rails-html-safe", level: "warning", needle: ".html_safe", message: "Rails output is explicitly marked HTML-safe." }, Rule { id: "rails-constantize-input", level: "error", needle: ".constantize", message: "Request-controlled value may select a Ruby constant." }],
         "phoenix" => &[Rule { id: "phoenix-check-origin-disabled", level: "warning", needle: "check_origin: false", message: "Phoenix origin checks are disabled." }, Rule { id: "phoenix-raw-html", level: "warning", needle: "raw(", message: "Phoenix template emits raw HTML." }],
         "flutter" => &[Rule { id: "flutter-bad-cert-callback", level: "error", needle: "badCertificateCallback", message: "Flutter/Dart accepts every TLS certificate." }, Rule { id: "flutter-webview-js-unrestricted", level: "warning", needle: "JavaScriptMode.unrestricted", message: "Flutter WebView enables unrestricted JavaScript." }],
-        "go-web" => &[Rule { id: "go-http-no-timeouts", level: "warning", needle: "http.Server", message: "Go HTTP server has no visible timeout configuration." }, Rule { id: "go-template-html", level: "warning", needle: "template.HTML(", message: "Potentially untrusted content is cast to trusted template HTML." }],
+        "go-web" => &[Rule { id: "go-http-no-timeouts", level: "warning", needle: "http.Server", message: "Go HTTP server is used; verify read/write timeouts are configured." }, Rule { id: "go-template-html", level: "warning", needle: "template.HTML(", message: "Potentially untrusted content is cast to trusted template HTML." }],
         "rust-web" => &[Rule { id: "rust-web-unbounded-body", level: "note", needle: "Bytes<", message: "Request body handling should have an explicit size bound." }, Rule { id: "rust-web-command-input", level: "error", needle: "Command::new", message: "Request-derived data may reach a process argument." }],
         _ => &[],
     }
@@ -158,7 +158,11 @@ pub fn execute(
     );
     super::common::result(
         input,
-        ProviderStatus::Complete,
+        if complete {
+            ProviderStatus::Complete
+        } else {
+            ProviderStatus::Partial
+        },
         complete,
         &selected,
         files.len(),

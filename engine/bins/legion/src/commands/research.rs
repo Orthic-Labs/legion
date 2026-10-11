@@ -307,7 +307,22 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
     }
     let outcome = workflow.run_with_route(request.clone(), route.clone(), authorization.clone());
     let outcome = outcome.map_err(|error| super::CommandError::incomplete(error.to_string()))?;
-    let status = serde_json::to_value(outcome.status).map_err(super::io_error)?;
+    // Source records rejected or unreadable before the workflow ran are failures
+    // of this run too. Dropping them would let a run with missing evidence read
+    // as complete, so they are reported and the status is at most partial.
+    let mut failure_values = Vec::new();
+    for failure in failures.iter().chain(outcome.failures.iter()) {
+        failure_values.push(serde_json::to_value(failure).map_err(super::io_error)?);
+    }
+    let status = if outcome.status == legion_research::WorkflowStatus::Ok
+        && !failure_values.is_empty()
+    {
+        serde_json::to_value(legion_research::WorkflowStatus::Partial).map_err(super::io_error)?
+    } else {
+        serde_json::to_value(outcome.status).map_err(super::io_error)?
+    };
+    let incomplete =
+        outcome.status != legion_research::WorkflowStatus::Ok || !failure_values.is_empty();
     let receipt = legion_research::ResearchReceipt::from_outcome(&outcome)
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
     let external_requests = receipt.external_requests;
@@ -317,7 +332,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         "schemaVersion": 1,
         "kind": "legion-research",
         "status": status,
-        "incomplete": outcome.status != legion_research::WorkflowStatus::Ok,
+        "incomplete": incomplete,
         "request": request,
         "route": route,
         "report": outcome.report,
@@ -327,7 +342,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         "requiredIndependentProviders": args.min_independent_providers,
         "evidence": evidence,
         "claims": claims,
-        "failures": outcome.failures,
+        "failures": failure_values,
         "budget": outcome.budget,
         "stages": outcome.stages
     }))

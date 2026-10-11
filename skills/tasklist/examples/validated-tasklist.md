@@ -1,25 +1,27 @@
 # TASKLIST tasklist-validator-example
 
+Example note: paths are relative to the repository root. Run commands from that root. No native route validates Markdown tasklists, so Tasks for Markdown structure and receipt checks are not part of this example.
+
 ## 0. Control
 
 - **Tasklist ID:** tasklist-validator-example
 - **Created:** 2026-07-28T21:00:00+05:30
 - **Purpose:** GOAL_RECORD
 - **Owner:** current Codex agent
-- **Canonical path:** /workspace/legion/skills/tasklist/examples/validated-tasklist.md
+- **Canonical path:** skills/tasklist/examples/validated-tasklist.md
 - **Status:** PLANNED
 - **Tasklist revision:** TASKLIST_REVISION:1
 - **Goal ID:** NOT_CREATED
-- **Scope boundary:** IN:validate route, task structure, and receipts; OUT:delegation, handoff, production mutation, and paid calls
+- **Scope boundary:** IN:validate route binding and its receipt; OUT:delegation, handoff, production mutation, and paid calls
 - **Authority:** latest user request for simple /tasklist skill
 
 ## 1. Goal Contract
 
 - **State A:** STATE_A:No durable route-verified tasklist exists for current validation goal.
-- **State B:** STATE_B:Permanent tasklist example passes route, structure, and receipt verification.
-- **Success proof:** PROOF_COMMAND:py -3.11 /workspace/legion/skills/tasklist/scripts/test_validate_tasklist.py; EXPECTED:Exit 0 and output begins PASS: tasklist validator.; EVIDENCE:/workspace/.audit/tasklist-example/test-output.txt
+- **State B:** STATE_B:The route binding in this example passes native GoalRoute receipt verification.
+- **Success proof:** PROOF_COMMAND:legion script dispatch/validate-route skills/tasklist/examples/validated-tasklist.route.json --verify-receipt skills/tasklist/examples/validated-tasklist.route.receipt.json; EXPECTED:Exit 0 and output reports RECEIPT_PASS; EVIDENCE:.audit/tasklist-example/test-output.txt
 - **Non-goals:** dispatch to another agent, cold-chat handoff, architecture design, production mutation, or personal todo management
-- **Hard constraints:** AUTHORITY=current user request; SAFETY=local owned artifacts only; SCOPE=tasklist contract; QUALITY=adversarial tests and receipt replay; COST=zero paid calls
+- **Hard constraints:** AUTHORITY=current user request; SAFETY=local owned artifacts only; SCOPE=tasklist contract; QUALITY=native receipt verification; COST=zero paid calls
 - **Total minutes:** TOTAL_MINUTES:11
 - **Files touched:** FILES_TOUCHED:5
 - **Lines changed:** LINES_CHANGED:150
@@ -27,8 +29,8 @@
 
 ## 2. GoalRoute Binding
 
-- **Goal route artifact:** /workspace/legion/skills/tasklist/examples/validated-tasklist.route.json
-- **Goal route receipt:** /workspace/legion/skills/tasklist/examples/validated-tasklist.route.receipt.json
+- **Goal route artifact:** skills/tasklist/examples/validated-tasklist.route.json
+- **Goal route receipt:** skills/tasklist/examples/validated-tasklist.route.receipt.json
 - **Goal route schema:** goal-route.v2
 - **Selected route:** SELECTED_ROUTE:R_RELIABLE
 - **Expected time to verified B:** EXPECTED_TIME_TO_VERIFIED_B_MS:624000
@@ -42,13 +44,13 @@
 
 ### Exact Next Actions & Path Ledger
 
-- **Next action now:** NEXT_ACTION:1. Validate sibling GoalRoute receipt; PATHS: none (read-only).
-- **Lane graph:** LANE A: Task 1; LANE B: Task 2 after Task 1; LANE C: Task 3 after Task 2. Serial because each receipt/check consumes prior state.
+- **Next action now:** NEXT_ACTION:1. Verify the GoalRoute receipt; PATHS: none (read-only).
+- **Lane graph:** LANE A: Task 1 only.
 - **Path rule:** every planned changed file appears exactly once below; no globs, directory ownership, hidden cleanup, or integrator repair edits.
 
 | Exact path | Operation | Owning task | Lane | Dependency | Final check | Evidence path |
 |---|---|---|---|---|---|---|
-| `/workspace/legion/skills/tasklist/examples/validated-tasklist.receipt.json` | CREATE | Task 2 | LANE B | Task 1 | verify tasklist receipt | `/workspace/.audit/tasklist-example/structure-check.txt` |
+| none | NONE | - | - | - | - | - |
 
 ### Task 1 — Validate route authority
 
@@ -59,52 +61,19 @@
 - **Exact touch paths:** PATHS:none (read-only)
 - **Parallel lane:** LANE A; serial because route receipt is prerequisite state.
 - **Advances target:** ADVANCES_STATE_B:Route authority and expected-success winner are proven.
-- **Done check:** CHECK:py -3.11 /workspace/legion/src/lib/goalroute/scripts/validate-route.py /workspace/legion/skills/tasklist/examples/validated-tasklist.route.json --verify-receipt /workspace/legion/skills/tasklist/examples/validated-tasklist.route.receipt.json
+- **Done check:** CHECK:legion script dispatch/validate-route skills/tasklist/examples/validated-tasklist.route.json --verify-receipt skills/tasklist/examples/validated-tasklist.route.receipt.json
 - **Expected result:** EXPECTED:exit 0 and RECEIPT_PASS output
-- **Evidence path:** /workspace/.audit/tasklist-example/route-check.txt
-- **On failure:** TRY:regenerate receipt from unchanged valid route; FALLBACK:preserve route errors and continue template-only checks; RECOMPILE_IF:route bytes, target, constraints, or winner changed
+- **Evidence path:** .audit/tasklist-example/route-check.txt
+- **On failure:** TRY:regenerate receipt with --write-receipt from unchanged valid route; FALLBACK:preserve route errors and stop; RECOMPILE_IF:route bytes, target, constraints, or winner changed
 - **Time span:** minute 0-3
 - **Basis:** inspect=2, test=1
-- **Parallelizable:** no
-
-### Task 2 — Validate task DAG
-
-- **Task status:** TODO
-- **Route step:** ROUTE_STEP:R_RELIABLE/S2
-- **Action:** ACTION:Validate tasklist structure against selected route DAG.
-- **Depends on:** AFTER:R_RELIABLE/S1
-- **Exact touch paths:** PATHS:none (read-only)
-- **Parallel lane:** LANE B; serial after Task 1 because route receipt is consumed.
-- **Advances target:** ADVANCES_STATE_B:Every selected route step has one executable evidence-bearing task.
-- **Done check:** CHECK:py -3.11 /workspace/legion/skills/tasklist/scripts/validate-tasklist.py /workspace/legion/skills/tasklist/examples/validated-tasklist.md --write-receipt /workspace/legion/skills/tasklist/examples/validated-tasklist.receipt.json
-- **Expected result:** EXPECTED:exit 0 and PASS output
-- **Evidence path:** /workspace/.audit/tasklist-example/structure-check.txt
-- **On failure:** TRY:repair exact reported structural defect; FALLBACK:run py_compile and template self-check independently; RECOMPILE_IF:selected route step set or dependency DAG changed
-- **Time span:** minute 3-8
-- **Basis:** inspect=2, test=3
-- **Parallelizable:** no
-
-### Task 3 — Verify tasklist receipt
-
-- **Task status:** TODO
-- **Route step:** ROUTE_STEP:R_RELIABLE/S3
-- **Action:** ACTION:Verify exact tasklist receipt and record final acceptance.
-- **Depends on:** AFTER:R_RELIABLE/S2
-- **Exact touch paths:** PATHS:none (read-only)
-- **Parallel lane:** LANE C; serial after Task 2 because receipt is created from final bytes.
-- **Advances target:** ADVANCES_STATE_B:Permanent tasklist and receipt reach verified target state.
-- **Done check:** CHECK:py -3.11 /workspace/legion/skills/tasklist/scripts/validate-tasklist.py /workspace/legion/skills/tasklist/examples/validated-tasklist.md --verify-receipt /workspace/legion/skills/tasklist/examples/validated-tasklist.receipt.json
-- **Expected result:** EXPECTED:exit 0 and RECEIPT_PASS output
-- **Evidence path:** /workspace/.audit/tasklist-example/receipt-check.txt
-- **On failure:** TRY:compare tasklist SHA-256 against receipt and regenerate after valid change; FALLBACK:preserve both files plus raw mismatch; RECOMPILE_IF:tasklist goal, route binding, or task DAG changed
-- **Time span:** minute 8-11
-- **Basis:** verify=3
 - **Parallelizable:** no
 
 ## 4. Recovery & TRUE_BLOCKER
 
 - **Retry contract:** deterministic validation defects get zero blind retries; transient file-read errors get one retry after path check
 - **Alternative route policy:** RECOMPILE_GOAL_ROUTE_IF:current selected route cannot reach verified B or lower-expected valid route becomes available
+- **Native validation gap:** route steps R_RELIABLE/S2 and R_RELIABLE/S3 have no native validator for Markdown tasklists; this example does not execute them.
 - **TRUE_BLOCKER allowed only if:** RECOVERY_EXHAUSTED; INDEPENDENT_WORK_COMPLETE; NO_FEASIBLE_ROUTE; ONE_MISSING_EXTERNAL_INPUT
 - **Blocked artifact path:** NOT_APPLICABLE_UNLESS_TRUE_BLOCKER
 - **Blocked artifact fields:** SYMPTOM; ATTEMPTS; MISSING_INPUT; UNBLOCK_CHANGE; RESUME_ACTION; OWNER
@@ -114,13 +83,13 @@
 - **Boundary update rule:** BEFORE=IN_PROGRESS; PASS=DONE_WITH_EVIDENCE; RECOVERABLE_FAILURE=IN_PROGRESS_WITH_ATTEMPT
 - **Receipt update rule:** REWRITE_RECEIPT_AFTER_EVERY_DURABLE_TASKLIST_CHANGE
 - **Semantic correction:** STOP -> PRESERVE_EVIDENCE -> RECOMPILE_ROUTE_FROM_ROOT -> REBUILD_TASKS -> NEW_RECEIPTS
-- **Resume rule:** VERIFY_TASKLIST_RECEIPT -> VERIFY_ROUTE_RECEIPT -> CONFIRM_FIRST_NON_DONE_TASK -> CONTINUE
+- **Resume rule:** VERIFY_ROUTE_RECEIPT -> CONFIRM_FIRST_NON_DONE_TASK -> CONTINUE
 
 ## 6. Completion Contract
 
-- **Final verification:** py -3.11 /workspace/legion/skills/tasklist/scripts/test_validate_tasklist.py
-- **Final expected result:** exit 0 and PASS: tasklist validator output
-- **Final evidence path:** /workspace/.audit/tasklist-example/test-output.txt
+- **Final verification:** legion script dispatch/validate-route skills/tasklist/examples/validated-tasklist.route.json --verify-receipt skills/tasklist/examples/validated-tasklist.route.receipt.json
+- **Final expected result:** exit 0 and RECEIPT_PASS output
+- **Final evidence path:** .audit/tasklist-example/test-output.txt
 - **Completion rule:** ALL_TASKS_DONE_AND_FINAL_PROOF_PASS_BEFORE_STATUS_COMPLETE
 - **Review gate:** FRESH_ADVERSARIAL_SUBAGENT_PASS_ON_ACTIONS_PATH_LEDGER_DEPENDENCIES_PARALLELISM_SCOPE_AND_PROOF; RECHECK_AFTER_ANY_BYTE_CHANGE
-- **Terminal record:** STATUS=PLANNED; DONE=0/3; NEXT=R_RELIABLE/S1
+- **Terminal record:** STATUS=PLANNED; DONE=0/1; NEXT=R_RELIABLE/S1

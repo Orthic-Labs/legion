@@ -1,6 +1,6 @@
 //! Integration tests for the wf_port w2_007 chunk: port of
 //! `skills/designer/engine/huashu/scripts/{export_deck_stage_pdf.mjs,
-//! fetch_images.py, gen_deck_thumbs.mjs, html2pptx.js, mix-voiceover.sh}`.
+//! fetch_images.py, gen_deck_thumbs.mjs, html2pptx.js}`.
 //!
 //! NOTE: these tests reference `legion_runtime::wf_port::w2_007`, which
 //! requires the integrator wiring described in the w2_007 report
@@ -8,7 +8,7 @@
 //! adding to `engine/crates/legion-runtime/src/wf_port/mod.rs`).
 
 use legion_runtime::wf_port::w2_007::{
-    export_deck_stage_pdf, fetch_images, gen_deck_thumbs, html2pptx, mix_voiceover,
+    export_deck_stage_pdf, fetch_images, gen_deck_thumbs, html2pptx,
 };
 use std::path::{Path, PathBuf};
 
@@ -177,50 +177,4 @@ fn html2pptx_rotation_and_shadow_and_radius_agree_with_js_semantics() {
         html2pptx::border_radius_to_rect_radius("100%", 40.0, 40.0),
         1.0
     );
-}
-
-// ---- mix-voiceover.sh -------------------------------------------------------
-
-#[test]
-fn mix_voiceover_full_flow_voice_and_bgm_ducked() {
-    let opts =
-        mix_voiceover::parse_args(["anim.mp4", "--voiceover=v.mp3", "--bgm-mood=tech"]).unwrap();
-    let script_dir = Path::new("/skills/designer/engine/huashu/scripts");
-    let bgm = mix_voiceover::validate(&opts, |_| true, |_| true, |_| true, script_dir).unwrap();
-    assert_eq!(
-        bgm,
-        Some(PathBuf::from(
-            "/skills/designer/engine/huashu/scripts/../assets/bgm-tech.mp3"
-        ))
-    );
-
-    let output = opts
-        .out
-        .clone()
-        .unwrap_or_else(|| mix_voiceover::default_output_path(opts.input.as_deref().unwrap()));
-    assert_eq!(output, "anim-voiced.mp4");
-
-    let args = mix_voiceover::build_ffmpeg_args(
-        opts.input.as_deref().unwrap(),
-        opts.voiceover.as_deref().unwrap(),
-        bgm.as_ref().and_then(|p| p.to_str()),
-        &opts.voice_volume,
-        &opts.bgm_volume,
-        opts.ducking,
-        &output,
-    );
-    assert!(args.iter().any(|a| a.contains("sidechaincompress")));
-    assert_eq!(args.last().unwrap(), "anim-voiced.mp4");
-
-    let block = mix_voiceover::status_block(&opts, bgm.as_deref(), &output);
-    assert!(block.contains("ducking=1"));
-    assert_eq!(mix_voiceover::done_line(&output), "✓ 完成：anim-voiced.mp4");
-}
-
-#[test]
-fn mix_voiceover_missing_input_short_circuits_validation() {
-    let opts = mix_voiceover::Options::default();
-    let err = mix_voiceover::validate(&opts, |_| false, |_| false, |_| false, Path::new("/s"))
-        .unwrap_err();
-    assert_eq!(err, mix_voiceover::ValidationError::MissingOrNoSuchInput);
 }

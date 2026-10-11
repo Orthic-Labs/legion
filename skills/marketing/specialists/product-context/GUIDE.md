@@ -223,7 +223,7 @@ After gathering information, create the project's product marketing context docu
 
 ## Step 4: Confirm and Save
 
-**MANDATORY Membrane handoff:** after saving, send document path plus requested scope to Membrane's durable-memory ingress. Legion does not write repository truth or invoke a legacy memory engine directly.
+**Optional handoff:** if the host provides the `blueprint-graph` capability, send the saved document path and requested scope to it so later runs can find this context. Otherwise say the context was saved locally and not indexed.
 
 - Show the completed document
 - Ask if anything needs adjustment

@@ -15,6 +15,7 @@ effects:
   - artifact-write
 hostRequirements:
   - banana-image
+  - web-search
 ---
 
 # Designer
@@ -22,7 +23,7 @@ hostRequirements:
 PRIMARY_DELIVERABLE: Rendered design artifact.
 SPECIALIST_REFS_MAX: 1 (optional extras beyond REQUIRED_READS)
 CHILD_AGENTS_MAX: 0
-EXTERNAL_REQUESTS_MAX: 0
+EXTERNAL_REQUESTS_MAX: 3 (web-search for fact checks; official brand-channel page and asset fetches; public asset-library downloads)
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: brand (brand code known or customer-facing output), qa (rendered evidence), writing (copy handoff), audit-visual (coverage evidence)
 REQUIRED_READS:

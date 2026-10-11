@@ -9,6 +9,26 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "legion"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/manual.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/visual-qa-capture.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/platform-fidelity.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../qa/SKILL.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../designer/references/typography.md"
     }
   ]
 }

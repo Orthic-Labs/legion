@@ -1,16 +1,3 @@
----
-name: seo-image-gen
-description: "AI image generation for SEO assets: OG/social preview images, blog hero images, schema images, product photography, infographics. Powered by Gemini via nanobanana-mcp. Requires banana extension installed. Use when user says \"generate image\", \"OG image\", \"social preview\", \"hero image\", \"blog image\", \"product photo\", \"infographic\", \"seo image\", \"create visual\", \"image-gen\", \"favicon\", \"schema image\", \"pinterest pin\", \"generate visual\", \"banner\", or \"thumbnail\"."
-argument-hint: "[og|hero|product|infographic|custom|batch] <description>"
-user-invokable: true
-license: MIT
-compatibility: "Requires the banana-image host capability"
-metadata:
-  author: AgriciDaniel
-  version: "1.6.1"
-  category: seo
----
-
 # SEO Image Gen: AI Image Generation for SEO Assets (Extension)
 
 Generate production-ready images for SEO use cases using Gemini's image generation
@@ -60,7 +47,7 @@ Each use case maps to pre-configured banana parameters:
 | **Schema Image** | `4:3` | `1K` | Product | Clean, descriptive, schema ImageObject |
 | **Social Square** | `1:1` | `1K` | UI/Web | Platform-optimized square |
 | **Product Photo** | `4:3` | `2K` | Product | White background, studio lighting |
-| **Infographic** | `2:3` | `4K` | Infographic | Data-heavy, vertical layout |
+| **Infographic** | `2:3` | `2K` | Infographic | Data-heavy, vertical layout |
 | **Favicon/Icon** | `1:1` | `512` | Logo | Minimal, scalable, recognizable |
 | **Pinterest Pin** | `2:3` | `2K` | Editorial | Tall vertical card |
 
@@ -150,9 +137,9 @@ Approximate costs (gemini-3.1-flash):
 
 ## Cross-Skill Integration
 
-- **seo-images** (analysis) feeds into **seo-image-gen** (generation): audit results from `/seo images` identify missing or low-quality images; use those findings to drive `/seo image-gen` commands
-- **seo-audit** runs the image audit pass (not this generation skill) to analyze OG/social images across the site and produce a prioritized generation plan
-- **seo-schema** can consume generated images: after generation, suggest `ImageObject` schema markup pointing to the new assets
+- **Image analysis** (`/seo images`) feeds **image generation** (this reference): audit results identify missing or low-quality images; use those findings to drive `/seo image-gen` commands
+- **Full audit** runs the image audit pass (not this generation step) to analyze OG/social images across the site and produce a prioritized generation plan
+- **Schema checks** can consume generated images: after generation, suggest `ImageObject` schema markup pointing to the new assets
 
 ## Reference Documentation
 

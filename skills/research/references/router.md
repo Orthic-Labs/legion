@@ -22,24 +22,28 @@ domain classifier described below were built as a Python prototype
 the source checkout and `SKILL.md` calls it retired. The only thing that ships and runs is
 the native `legion research` command (`legion-research` crate). Use `legion research --help`
 for its real, current contract: `--query`, `--provider`, `--max-hits`,
-`--source-record <record.json>` (host-opened evidence you supply), and
-`--min-independent-providers`.
+`--source-record <record.json>` (host-opened evidence you supply), `--min-independent-providers`,
+`--domain`, and `--sensitivity` (defined in `engine/bins/legion/src/commands/research.rs`).
 
-**Known capability gap:** `legion research` always freezes `ResearchRoute.domain = "general"`
-(`ResearchRoute::host_injected` in `engine/crates/legion-research/src/workflow.rs`). There is
-no `--domain` flag and no query classifier in the native binary, so the medical and legal
-routing gates, patient-history handling, and jurisdiction inference documented under
-"Medical context" and "Legal context" below are **not reachable from the installed skill**.
-The gate-evaluation machinery for medical/legal effects still exists in the Rust crate
-(`medical_effects_satisfied`, `gates_satisfied`) but nothing in the shipped CLI ever
-constructs a route with `domain != "general"`, so that code path is currently dead from the
-CLI's perspective. Treat every claim below as the intended design once domain routing is
-ported natively, not as current installed behavior — do not tell a user the installed skill
-enforces a medical or legal gate it cannot currently reach.
+**Domain and sensitivity flags:** `--domain` defaults to `general` and accepts `general`,
+`market`, `technical`, `scientific`, `medical`, `legal`. `--sensitivity` defaults to `public`
+and accepts `public`, `private`, `highly-sensitive`. The route is built with the values given
+and validated (`ResearchRoute::host_injected_with` in
+`engine/crates/legion-research/src/workflow.rs`); an undeclared value is refused. The CLI has
+no query classifier, so the caller chooses the domain.
 
-The sections below describe that intended design (kept for when domain routing is ported, and
-because the retired Python prototype still implements it for anyone working from a source
-checkout) rather than the current native runtime.
+**Medical and legal routes are refused by the CLI.** `--domain medical` requires
+`subject.patient.kind`, and `--domain legal` requires `subject.country` (ISO alpha-2) and
+`subject.area`, plus an issue. The CLI has no flags for those subject fields, so validation
+fails closed and the route never reaches a provider. The gates for these routes
+(`gates_satisfied`, `medical_effects_satisfied`) are enforced in the native run path but cannot
+be satisfied from the command line. Do not tell a user the installed skill can run a medical
+or legal route; route them to a human or a host that supplies the subject context.
+
+The sections below describe the prototype's design: its query classifier, two-stage flow, and
+medical/legal context rules. The native CLI implements none of the classifier and cannot supply
+the subject context those rules need. The sections are kept for anyone working from a source
+checkout; they do not describe the current native runtime.
 
 ## Stage 1 — route only (prototype design, not shipped)
 

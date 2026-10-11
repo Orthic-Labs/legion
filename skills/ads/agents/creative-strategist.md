@@ -116,7 +116,7 @@ commentary: Always inform the user when working without audit data. The concepts
 **Safe zone notes:** [Any composition constraints for this placement]
 
 ## Next Steps
-1. The `copy-writer` agent will append `## Copy Deck` automatically (spawned next by `/ads create`)
+1. The `copy-writer` agent will append `## Copy Deck` automatically (run inline next by `/ads create`)
 2. Run `/ads generate` to produce images from the briefs above
 3. Review and adjust messaging for your specific offer before launching
 ```
@@ -162,7 +162,7 @@ The `## Image Generation Briefs` section is parsed programmatically by the visua
 
 | Platform        | Copy zone statement to include in prompt                              |
 |-----------------|-----------------------------------------------------------------------|
-| TikTok (9:16)   | `"top 15% and bottom 20% minimal, active visual centered"`           |
+| TikTok (9:16)   | `"top 15% and bottom 25% minimal, active visual centered"`           |
 | Meta Feed (4:5) | `"lower 30% minimal and uncluttered for copy overlay"`               |
 | LinkedIn (1:1)  | `"generous margin all sides, centered composition"`                  |
 | Google PMax     | `"right third lighter and open for Google's text overlay"`           |

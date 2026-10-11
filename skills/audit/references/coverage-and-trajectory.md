@@ -61,7 +61,7 @@ by default.
 
 **Rendering.** §2A prints the gate line, an inline `⛔` banner naming every file with no covering
 test, and the full per-file table (`file | touched | covered | uncovered | tests | verdict`). The
-`--agent` JSON summary carries the same data as `coverage_gate: {state, ratio, severity,
+`--json` summary carries the same data as `coverage_gate: {state, ratio, severity,
 no_test_files}`.
 
 **Scope.** A whole-repo `/audit` pass typically has no diff to read coverage against, so
@@ -131,7 +131,7 @@ silently guessed.
   against yet. `aging_buckets` still renders (everything lands in `0-7d`).
 
 **Rendering.** The Markdown report prints a one-line trajectory summary right under the quality-gate
-banner (before §1), and the aging-bucket breakdown beneath it. The `--agent` JSON summary carries the
+banner (before §1), and the aging-bucket breakdown beneath it. The `--json` summary carries the
 identical object under `audit_diff`.
 
 ## Demonstration (fixture, run 2026-07-25)
@@ -144,7 +144,7 @@ Two consecutive renderer invocations 45 days apart, isolated to a scratch histor
   `src/config/secrets.ts:5`) newly introduced. `coverage.perFile` shows `src/db/query.ts` fully
   covered and `src/config/secrets.ts` with an empty `tests` array.
 
-Run 2's `--agent` output:
+Run 2's `--json` output:
 
 ```json
 {

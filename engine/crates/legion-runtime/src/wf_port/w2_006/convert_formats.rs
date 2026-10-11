@@ -2,7 +2,7 @@
 //! (chunk w2_006): converts an MP4 animation into a 60fps MP4 and a
 //! palette-optimized GIF via `ffmpeg`.
 //!
-//! As with [`super::add_music`], the pure argument-resolution and
+//! As with the other ports in this chunk, the pure argument-resolution and
 //! `ffmpeg` argument-vector construction is fully ported and tested; the
 //! actual process spawning is left to the host/caller.
 

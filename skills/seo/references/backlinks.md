@@ -1,21 +1,3 @@
----
-name: seo-backlinks
-description: >
-  Backlink profile analysis: referring domains, anchor text distribution,
-  toxic link detection, competitor gap analysis. Requires DataForSEO extension.
-  Use when user says "backlinks", "link profile", "referring domains",
-  "anchor text", "toxic links", "link gap", "link building",
-  "disavow", or "backlink audit".
-user-invokable: true
-argument-hint: "<url>"
-license: MIT
-compatibility: "Requires DataForSEO MCP server (extension)"
-metadata:
-  author: AgriciDaniel
-  version: "1.7.2"
-  category: seo
----
-
 # Backlink Profile Analysis
 
 This skill requires the DataForSEO extension:

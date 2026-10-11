@@ -17,6 +17,7 @@ const PROVIDER_BEARER_TOKEN_ENV: &str = "LEGION_PROVIDER_BEARER_TOKEN";
 pub struct ReviewArgs {
     #[arg(long)]
     pub input: Option<String>,
+    /// Accepted for compatibility; output is always JSON.
     #[arg(long)]
     pub json: bool,
     /// OpenAI-compatible endpoint for an independently authorized reviewer.

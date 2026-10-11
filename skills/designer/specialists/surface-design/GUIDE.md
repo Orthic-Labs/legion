@@ -10,7 +10,7 @@ designs — the name is the workflow, not a precondition.
 
 ## Step 0 — Mode gate (before anything else)
 
-Declare **draft** or **ship** per the mode table in the designer `SKILL.md`. **Draft mode runs
+Declare **draft** or **ship** per the mode table in `../../references/manual.md`. **Draft mode runs
 only:** brand card + Phase 0 truth sentence -> exemplar-first build (Step "Phase 4" craft rules +
 `../../references/components/`) with motion register declared inline from `../motion/GUIDE.md` -> detector structure scan
 (Phase 5 structure gate commands) -> human eyes. Phases 0.5-3, the artifact files, motion-plan/gate
@@ -23,9 +23,9 @@ Route away first:
 - Brand identity system (when none exists) -> `/brand-identity` first
 - Qualitative review/critique of an existing surface with no build work -> `/designer critique`
 - Rendered-state enumeration, capture, coverage, or regression evidence -> `/audit-visual`
-- Deep specialist passes and deliverables (PPTX decks, motion renders, voiceover, live in-browser
+- Deep specialist passes and deliverables (PPTX decks, motion renders, live in-browser
   variants) -> `/designer <command>` — this skill is the entry; impeccable is the engine room for
-  `critique/polish/bolder/quieter/typeset/colorize/layout/delight/live/deck/motion/video/voiceover`.
+  `critique/polish/bolder/quieter/typeset/colorize/layout/delight/live/deck/motion/video`.
 
 ## Step 1 — Classify the surface, load its reference
 

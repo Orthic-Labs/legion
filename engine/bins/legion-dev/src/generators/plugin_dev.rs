@@ -18,7 +18,7 @@ pub fn run(root: &Path) -> bool {
     }
 
     println!(
-        "\nLoad the live plugin (not the installed cache):\n\n    claude --plugin-dir {}\n\nThen in-session, after editing skills/agents/hooks/MCP:\n\n    /reload-plugins\n\nKeep the marketplace install disabled while developing so the two do not both\nown the harness. Bump the version only for a real release, which regenerates the\nsurface digest via 'npm run plugin:surface'.",
+        "\nLoad the live plugin (not the installed cache):\n\n    claude --plugin-dir {}\n\nThen in-session, after editing skills/agents/hooks/MCP:\n\n    /reload-plugins\n\nKeep the marketplace install disabled while developing so the two do not both\nown the harness. Bump the version only for a real release, which regenerates the\nsurface digest via 'cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity'.",
         root.display()
     );
     true

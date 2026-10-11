@@ -1,21 +1,12 @@
----
-name: pinterest-pro
-description: >
-  Pinterest workflow per brand: pin creation, board strategy, traffic-driving. Use when user says
-  "/pinterest", "pins", "pinterest strategy", "boards", "traffic from pinterest". Pinterest API for
-  live data (todo.md P1) — without it, creation-only.
----
-
 # Pinterest
 
 ## When to use
 - Brand has visual content + ecommerce or blog
 - Want long-tail traffic (pins live for years)
-- Audience: women 25-55, US-skewing, high purchase intent (RH best, then SS, then DD)
+- Audience and purchase intent: take from the brand card's audience section
 
 ## Status
-- Live data + scheduling needs Pinterest Business API (todo.md P1)
-- Without: creation-only, post manually or via Tailwind
+- Live data and scheduling need a host `social-data` or `social-scheduler` capability (neither is declared by this package). Without one, deliver creation only; the user posts manually or through their own scheduler.
 
 ## Always start with
 1. `/brand <brand-code>`
@@ -24,24 +15,14 @@ description: >
 
 ## Board strategy
 
-### RH (highest priority)
-- Slow Fashion Essentials (product pins)
-- Sustainable Wardrobe Basics (educational → blog)
-- Textile Science (deep content)
-- Outfit Inspiration with [collection] (lifestyle)
-- Care & Repair (longevity)
+Each brand gets its own board set, derived from the brand card's pillars. Archetypes to choose from:
+- Product pins (the product or collection itself)
+- Educational boards that lead to a blog post or guide
+- Process or making boards (materials, craft, care)
+- Lifestyle boards that show the product in use
+- Series boards for recurring content
 
-### DD
-- EDC Inspiration (product)
-- Desk Setups with Fidget Tools (lifestyle)
-- Knife Care & Sharpening (educational)
-- Handmade Tools (process)
-
-### SS
-- Portrait Photography (work)
-- Visual Storytelling (BTS + thinking)
-- Lighting Studies (technical)
-- Per-collection boards for series
+Name boards with the search terms people type. Do not reuse one brand's board set for another brand.
 
 ## Pin creation
 
@@ -67,9 +48,9 @@ description: >
 - "How to" + "best" + "ideas" + season = high-intent
 
 ## Posting cadence
-- 5-15 pins/day per brand (own + curated)
-- Schedule via Tailwind or native scheduler
-- Best times: 8-11pm audience timezone, weekends
+- Take the daily pin volume from the brand card; if none is set, propose one and label it an untested assumption
+- Schedule through the host scheduler capability if present, or the platform's native scheduler
+- Posting windows: take from the brand card's audience timezone; if none, label them hypotheses to test
 
 ## Output
 

@@ -6,20 +6,20 @@
       "id": "ideas-ad-concepts",
       "prompt": "Give me 100 concept variants for the next Northwind Tools video ad campaign.",
       "expected_skill": "ideas",
-      "forbidden_skills": ["copywriting", "plan"],
+      "forbidden_skills": ["writing", "strategy"],
       "expected_behavior": "100+ ad concept ideation triggers ideas, routes to references/ad-concepts.md. Diverges first; does not produce finished copy.",
       "assertions": [
         { "type": "expected_skill", "value": "ideas" },
-        { "type": "forbidden_skill", "value": "copywriting" }
+        { "type": "forbidden_skill", "value": "writing" }
       ],
       "severity": "error",
       "mode": "discovery"
     },
     {
       "id": "ideas-domain-brainstorm",
-      "prompt": "Brainstorm domain names for a new faceless YouTube channel about Japanese EDC — check availability.",
+      "prompt": "Brainstorm domain names for a new faceless YouTube channel about a hobby niche — list candidates to check.",
       "expected_skill": "ideas",
-      "forbidden_skills": ["plan"],
+      "forbidden_skills": ["strategy"],
       "expected_behavior": "Domain brainstorming triggers ideas, routes to references/domain.md.",
       "assertions": [
         { "type": "expected_skill", "value": "ideas" }
@@ -31,7 +31,7 @@
       "id": "ideas-marketing-tactics",
       "prompt": "Brainstorm marketing tactics and psychological principles for launching a new KDP yoga title.",
       "expected_skill": "ideas",
-      "forbidden_skills": ["plan", "growth"],
+      "forbidden_skills": ["strategy", "growth"],
       "expected_behavior": "Marketing idea generation triggers ideas, routes to references/marketing.md. Not /marketing strategy (strategy) or /marketing growth (experiments/analytics).",
       "assertions": [
         { "type": "expected_skill", "value": "ideas" }
@@ -43,8 +43,8 @@
   "should_not_trigger": [
     {
       "id": "ideas-not-write-the-ad",
-      "prompt": "Write the ad copy for the Harbor Coffee spring drop — hero headline, 3 variants.",
-      "expected_skill": "copywriting",
+      "prompt": "Write the ad copy for a spring product drop — hero headline, 3 variants.",
+      "expected_skill": "writing",
       "forbidden_skills": ["ideas"],
       "expected_behavior": "Writing finished ad copy routes to /writing copy, not /marketing ideas. Ideas is divergent ideation, not production.",
       "assertions": [
@@ -56,7 +56,7 @@
     {
       "id": "ideas-not-plan-the-launch",
       "prompt": "Plan the launch campaign for Northwind Tools v1 — timeline, channels, milestones.",
-      "expected_skill": "plan",
+      "expected_skill": "strategy",
       "forbidden_skills": ["ideas"],
       "expected_behavior": "Launch strategy/planning routes to /marketing strategy, not /marketing ideas.",
       "assertions": [
@@ -69,7 +69,7 @@
   "output_quality": [
     {
       "id": "ideas-diverge-then-converge",
-      "prompt": "/marketing ideas ad-concepts — brief: Harbor Coffee slow-roast awareness reel.",
+      "prompt": "/marketing ideas ad-concepts — brief: slow-roast coffee awareness reel.",
       "expected_skill": "ideas",
       "forbidden_skills": [],
       "expected_behavior": "Output: broad option set (20+), clusters/themes, strongest 3-5 with rationale, suggestion for what to test next. Does not produce a single finished concept.",

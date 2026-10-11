@@ -666,7 +666,19 @@ pub fn run(args: BindArgs) -> CommandResult {
             .as_array()
             .is_some_and(|items| !items.is_empty())
     });
-    let failed = (args.write && has_conflicts) || (args.check && (has_conflicts || has_drift));
+    // Without a receipt that tracks a target, drift is unknown, not absent. A
+    // check that cannot see drift must not report that nothing drifted.
+    let has_unbound = plans.iter().any(|p| p.report.get("unbound").is_some());
+    if args.check {
+        for plan in &mut plans {
+            if plan.report.get("unbound").is_some() {
+                plan.report["status"] = json!("unbound");
+                plan.report["driftStatus"] = json!("unknown");
+            }
+        }
+    }
+    let failed = (args.write && has_conflicts)
+        || (args.check && (has_conflicts || has_drift || has_unbound));
     if args.write && !failed {
         for plan in &mut plans {
             let mut wrote = Vec::new();
@@ -738,12 +750,37 @@ fn build_harness(root: &Path, name: &str, receipt: Option<&Value>) -> HarnessPla
         .map(|t| artifact(root, t))
         .collect::<Vec<_>>();
     let drift = drift_for_harness(root, prior, &targets);
+    // Targets the receipt does not track (or every target, with no receipt for
+    // this harness) cannot be checked for drift.
+    let tracked = prior.and_then(|h| h["files"].as_array()).map(|files| {
+        files
+            .iter()
+            .filter_map(|record| {
+                record
+                    .as_str()
+                    .or_else(|| record["path"].as_str())
+                    .map(str::to_owned)
+            })
+            .collect::<Vec<_>>()
+    });
+    let unbound = targets
+        .iter()
+        .map(|t| relative_path(root, &t.path))
+        .filter(|path| {
+            tracked
+                .as_ref()
+                .map_or(true, |tracked| !tracked.contains(path))
+        })
+        .collect::<Vec<_>>();
     let managed = targets
         .iter()
         .filter(|t| !t.conflicts.is_empty())
         .map(|t| json!({"path":t.path,"conflicts":t.conflicts}))
         .collect::<Vec<_>>();
     let mut report = json!({"name":name,"present":present,"fidelityTier":fidelity,"wouldWrite":targets.iter().filter(|t|!t.skip_write && t.conflicts.is_empty()).map(|t|json!({"path":t.path,"reason":t.reason})).collect::<Vec<_>>(),"artifacts":artifacts,"drift":drift,"managedConflicts":managed});
+    if !unbound.is_empty() {
+        report["unbound"] = json!(unbound);
+    }
     if retired.is_some() {
         report["retired"] = json!(true);
     }

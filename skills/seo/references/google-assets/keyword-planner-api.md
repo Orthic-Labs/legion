@@ -6,7 +6,7 @@ Gold-standard source for keyword search volume. DataForSEO gets its volume data 
 
 1. **Google Ads Manager Account** -- create at ads.google.com (free to create)
 2. **Developer Token** -- apply at Google Ads API Center (requires Basic access approval)
-3. **OAuth 2.0 credentials** -- reuse existing OAuth client from seo-google config
+3. **OAuth 2.0 credentials** -- reuse existing OAuth client from the Google lane config
 4. **For exact volumes**: Run a minimal campaign (~$5-10/day). Without spend, volumes are bucketed ranges ("1K-10K")
 
 ## Key Methods

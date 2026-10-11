@@ -18,9 +18,9 @@ Before drafting, route sharper work to the more specific skill:
 | Blog post, article page, SEO post, post audit, blog publish QA | `blogs` |
 | Landing-page copy, sales copy, offer, bio, DM/email script, CTA, conversion copy | `copywriting` |
 | Brand identity, voice system, guidelines, naming direction | `brand-identity` |
-| Website/page design or app UI | `redesign` |
+| Website/page design or app UI | `designer` |
 
-Use `writing-pro` only when the primary deliverable is prose rather than SEO/publish gates or conversion copy.
+Use this editorial guide only when the primary deliverable is prose rather than SEO/publish gates or conversion copy.
 
 ## Always start with
 
@@ -36,14 +36,14 @@ This skill owns **video/carousel/long-form scripts**, **long-form research artic
 |---|---|
 | YouTube / Shorts / Reels / IG-LinkedIn carousel script, "write a script", "make a reel/carousel" | `references/script.md` |
 | Long-form research article with citations + iterative section-by-section writing | `references/research-article.md` |
-| Focused 3-platform repurposing / "3 versions" / "repost 3x" / atomize into 3 native variants | `references/repurpose-content/reference.md` |
+| Focused 3-platform repurposing / "3 versions" / "repurpose" / atomize into 3 native variants | `references/repurpose-content/reference.md` |
 | Full content bank from one source / 10–15 platform-native outputs / "turn this into a content week" | `references/content-repurposer/reference.md` |
 
 For social-platform calendars/optimization, route to `social`. For conversion ad copy + hooks, route to `copywriting`. For blog SEO posts, route to `blogs`.
 
 ## Internal Writing Council
 
-Use this before drafting substantial writing. For routed work, inherit the more specific role pass from `/writing email`; this section covers direct `writing-pro` output.
+Use this before drafting substantial writing. For routed work, inherit the more specific role pass from the matching specialist (for example `/writing email`); this section covers direct editorial output.
 
 Roles:
 - **Reader Advocate:** what the audience needs to understand, feel, or do.
@@ -72,7 +72,7 @@ Pick ONE level per piece. Mixing collapses depth.
 
 ### Blog post
 1. Confirm: brand, level, target keyword (if SEO), promise to reader
-2. Research via subagents (last30days + web search) — never fabricate stats
+2. Hand sourcing to the `research` skill and return a sourced fact list before drafting — never fabricate stats
 3. Outline (H2s only) → review → expand
 5. Citations: link to sources, never invent quotes
 6. Hook test: would you click the headline? Would you keep reading after sentence 1?
@@ -91,7 +91,7 @@ Pick ONE level per piece. Mixing collapses depth.
 - Read aloud before approving — does it sound like a human said it?
 
 ### Email
-- Routes to /email skill
+- Routes to the email specialist (`specialists/email/GUIDE.md`)
 - Subject < 40 chars, no all-caps, no emoji unless brand voice allows
 - One CTA per email
 - Plain text > HTML for nurture sequences
@@ -102,18 +102,14 @@ Pick ONE level per piece. Mixing collapses depth.
 - T1 = hook, T2 = stakes, T3-N = payoff in chunks, last = CTA
 
 ### About page / Bio
-- Route to offer-and-bio-writer
+- Route to the profile-copy specialist (`specialists/profile-copy/GUIDE.md`)
 - Open with the reader's pain, not your story
 - Brand story in middle (only if it earns its place)
 - Close with what to do next
 
 ## Brand voice notes
 
-| Brand | Voice tightening |
-|---|---|
-| **DD** | Cut 30% adjectives. Replace 2/3 of "really/very/truly" with nothing. Exclamation points are banned. |
-| **RH** | Specific over vague. "85% of US textiles are dumped" beats "lots of textiles get dumped." Always cite scope. |
-| **SS** | Sentences shorter than you think. Let images carry. First-person. No "we" — only "I." |
+Take voice and cadence from the brand card loaded with `/brand`. This guide does not carry brand-specific rules. When a brand card is missing, state that the voice is unlocked and default to plain, specific, first-person-neutral prose with cited scope for every number.
 
 ## Anti-patterns
 

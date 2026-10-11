@@ -50,7 +50,7 @@ user-invokable: false
 
 ### Account Structure (15% weight)
 - Campaign-level organization follows business logic
-- Ad groups themed tightly (15-20 keywords max per group)
+- Ad groups themed tightly (≤10 keywords per group; 11-20 with one consistent theme is a warning, per G03 in google-audit.md)
 - RSA ad groups have ≥3 active ads
 - PMax campaigns structured correctly (asset groups, signals)
 - SKAGs evaluated (migrate to themed groups if present)
@@ -93,11 +93,9 @@ deduplication patterns, and filter scope best practices. Key rules:
 
 ## Google Ads MCP Integration (Optional)
 
-For automated data collection, connect the [Google Ads MCP server](https://github.com/googleads/google-ads-mcp):
+For automated data collection, if the host provides a Google Ads MCP server ([reference project](https://github.com/googleads/google-ads-mcp)) with a `search` tool (GAQL queries) and `list_accessible_customers`, use it. This package does not declare that capability (no matching registry id); when it is absent, use the manual export workflow.
 
-- **Tools available**: `search` (GAQL queries), `list_accessible_customers`
-- **Setup**: Configure in `.mcp.json` or Claude Code MCP settings
-- **Customer ID**: Extract from CLAUDE.md under Accounts > Google Ads, or ask the user
+- **Customer ID**: Take it from the project overlay declared by the host, or ask the user
 - **Fallback**: If MCP is not configured, fall back to manual data export (the default workflow)
 
 When MCP is available, use it to pull Search Terms Reports, keyword data, conversion actions,

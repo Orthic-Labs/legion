@@ -22,18 +22,17 @@ Identify 10-20 creators in your space who consistently get high engagement:
 **Where to find them:**
 - LinkedIn: Search by industry keywords, check "People also viewed"
 - Twitter/X: Check who your target audience follows and engages with
-- Use tools like SparkToro, Followerwonk, or manual research
+- Use audience-research tools the user already has, or manual research
 - Look at who gets featured in industry newsletters
 
 ### 2. SCRAPE — Collect Posts at Scale
 
-Gather 500-1000+ posts from your identified creators for analysis:
+Build a sample of posts from your identified creators for analysis. This package does not scrape platforms; work from data the user supplies:
 
-**Tools:**
-- **Apify** — LinkedIn scraper, Twitter scraper actors
-- **Phantom Buster** — Multi-platform automation
-- **Export tools** — Platform-specific export features
-- **Manual collection** — For smaller datasets, copy/paste into spreadsheet
+**Sources:**
+- **Export tools** — platform-specific export features, or exports the user already has
+- **Manual collection** — copy/paste into a spreadsheet; a smaller sample is fine if you state its size
+- **Third-party collection tools** — only if the user already uses one and provides the output
 
 **Data to collect:**
 - Post text/content
@@ -184,7 +183,7 @@ Bridge from engagement to business results:
 ## Reverse Engineering Checklist
 
 - [ ] Identified 10-20 top creators in niche
-- [ ] Collected 500+ posts for analysis
+- [ ] Collected the user-supplied sample of posts (size stated)
 - [ ] Ranked by engagement rate
 - [ ] Documented top 10 hook patterns
 - [ ] Documented top 5 format patterns

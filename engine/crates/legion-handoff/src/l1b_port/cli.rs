@@ -172,7 +172,7 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             "artifact_path": resolved.display().to_string(),
             "sha256": digest,
             "validated_at": iso8601_now_utc(),
-            "validator": "legion/lib/handoff/validate-handoff.py",
+            "validator": "handoff/validate-handoff",
         });
         if let Some(parent) = write_receipt.parent() {
             if !parent.as_os_str().is_empty() {

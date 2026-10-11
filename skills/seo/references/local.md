@@ -1,29 +1,3 @@
----
-name: seo-local
-description: >
-  Local SEO analysis covering Google Business Profile optimization, NAP
-  consistency, citation health, review signals, local schema markup,
-  location page quality, multi-location SEO, and industry-specific
-  recommendations. Detects business type (brick-and-mortar, SAB, hybrid)
-  and industry vertical (restaurant, healthcare, legal, home services,
-  real estate, automotive). Use when user says "local SEO", "Google
-  Business Profile", "GBP", "map pack", "local pack", "citations",
-  "NAP consistency", "local rankings", "service area", "multi-location",
-  "local search", "geo-grid", "rank tracking", "GBP audit", "review
-  velocity", "competitor radius", "maps analysis", "local rank tracking",
-  "Share of Local Voice", or "SoLV".
-  (Consolidates former seo-maps skill — includes geo-grid rank tracking,
-  GBP profile auditing, review intelligence, cross-platform NAP verification,
-  and competitor radius mapping.)
-user-invokable: true
-argument-hint: "[url]"
-license: MIT
-metadata:
-  author: AgriciDaniel
-  version: "1.7.0"
-  category: seo
----
-
 # Local SEO Analysis (March 2026)
 
 ## Key Statistics
@@ -142,7 +116,7 @@ Dedicated service pages = **#1 local organic factor AND #2 AI visibility factor*
   - Local photos, area-specific testimonials, local FAQs
 - Embedded Google Map (geographic signal reinforcement, not direct ranking factor -- lazy-load to mitigate speed impact)
 - Click-to-call button (`tel:` link) and contact form above the fold
-- Internal linking architecture: hub-and-spoke, every critical page within 3 clicks of homepage
+- Internal linking architecture: hub-and-spoke; keep critical pages shallow and reachable (click depth is an impact signal, not a gate; see `technical.md`)
 - 2-5 contextual internal links per 1,000 words with descriptive anchor text
 
 **Multi-location specific:**
@@ -165,7 +139,7 @@ Citations declining for traditional pack rankings but **3 of top 5 AI visibility
   2. LocalBusiness JSON-LD schema
   3. Any visible GBP data
   - Flag any discrepancies between these three sources
-- Citation presence on Tier 1 directories (check via WebFetch or site: search patterns):
+- Citation presence on Tier 1 directories (check via page fetch (`web-search` host capability) or site: search patterns):
   - Google Business Profile signals on page
   - Yelp: `site:yelp.com "Business Name"`
   - BBB: `site:bbb.org "Business Name"`
@@ -220,7 +194,7 @@ Links declining for local pack but remain **~26% of local organic ranking** (Whi
   - Community involvement signals (sponsorships, local events, partnerships)
 - "Best of" list presence (top AI visibility factor per Whitespark 2026)
 - Digital PR signals: 66.2% of PR practitioners now track AI citations as KPI (BuzzStream 2026)
-- Brand mentions correlate **3x more strongly** with AI visibility than traditional backlinks (Ahrefs: 0.664 vs 0.218 correlation)
+- Brand mentions are reported to correlate more strongly with AI visibility than backlinks (unverified figures; check the primary source before quoting)
 - Link velocity benchmark: 5-10 quality local links/month for small businesses (consensus)
 
 **Scoring guide:**
@@ -232,7 +206,7 @@ Links declining for local pack but remain **~26% of local organic ranking** (Whi
 
 ## AI Search Impact on Local
 
-**Do not duplicate seo-geo analysis.** Provide local-specific AI context and recommend `/seo geo <url>` for full analysis.
+**Do not duplicate the GEO analysis.** Provide local-specific AI context and recommend `/seo geo <url>` for full analysis.
 
 Key local AI facts:
 - AI Overviews appear on up to 68% of local searches (Whitespark Q2 2025)
@@ -317,18 +291,18 @@ If DataForSEO MCP tools are available, use `local_business_data` for live GBP da
 
 ---
 
-## Absorbed from seo-maps
+## Absorbed from the former maps skill
 
-The seo-maps skill provided maps platform intelligence (Google Maps, Bing Places, Apple Maps, OpenStreetMap) via external APIs. Its unique contributions -- geo-grid rank tracking, GBP profile audit via API, review intelligence, competitor radius mapping, cross-platform NAP verification, and schema generation from API data -- are preserved below.
+The former maps skill provided maps platform intelligence (Google Maps, Bing Places, Apple Maps, OpenStreetMap) via external APIs. Its unique contributions -- geo-grid rank tracking, GBP profile audit via API, review intelligence, competitor radius mapping, cross-platform NAP verification, and schema generation from API data -- are preserved below.
 
-**Boundary note:** The maps analysis below focuses on maps PLATFORMS (via APIs). The seo-local sections above analyze local SEO signals on the WEBSITE (via HTML fetch). They complement each other.
+**Boundary note:** The maps analysis below focuses on maps PLATFORMS (via APIs). The local sections above analyze local SEO signals on the WEBSITE (via HTML fetch). They complement each other.
 
 ### Maps Quick Reference
 
 | Command | What it does | Tier |
 |---------|-------------|------|
 | `/seo maps <url>` | Full maps presence audit (auto-selects tier) | 0+ |
-| `/seo maps grid <keyword> <location>` | Geo-grid rank scan (7x7, 1 keyword default) | 1+ |
+| `/seo maps grid <keyword> <location>` | Geo-grid rank scan (3x3 default; 7x7 needs explicit authorization) | 1+ |
 | `/seo maps reviews <business> <location>` | Cross-platform review intelligence | 1+ |
 | `/seo maps competitors <keyword> <location>` | Competitor radius mapping | 0+ |
 | `/seo maps nap <business-name>` | Cross-platform NAP verification | 0+ |
@@ -355,7 +329,7 @@ Load: `references/maps-geo-grid.md` for algorithm, SoLV formula, heatmap format.
 
 **Workflow:**
 1. Geocode business address to get center lat/lng
-2. Generate grid points (default: 7x7, 5km radius) using Haversine offset formula
+2. Generate grid points (default: 3x3 = 9 points, 2 km radius per maps-geo-grid.md, within the 12-request EXTERNAL_REQUESTS_MAX; a larger grid such as 7x7 = 49 points requires explicit user authorization after the cost estimate) using Haversine offset formula
 3. Display cost estimate and ask for confirmation before proceeding
 4. Fire DataForSEO Maps SERP API calls with `location_coordinate` per grid point
 5. Find target business rank at each point
@@ -365,7 +339,7 @@ Load: `references/maps-geo-grid.md` for algorithm, SoLV formula, heatmap format.
 **Cost Warning (REQUIRED):** Before every geo-grid scan, display:
 ```
 Geo-Grid Scan: [keyword] at [location]
-Grid: 7x7 (49 points) | Keywords: [N] | Est. cost: $[amount]
+Grid: [N]x[N] ([N*N] points) | Keywords: [N] | Est. cost: $[amount]
 DataForSEO credits will be consumed. Proceed?
 ```
 
@@ -380,7 +354,7 @@ Audits the 25 fields that affect Google Business Profile quality and ranking. Lo
 5. Normalize to 0-100 scale
 
 **Tier 0 Workflow:**
-1. Fetch the business website via WebFetch
+1. Fetch the business website via page fetch (`web-search` host capability)
 2. Extract visible GBP signals (Maps embed, place references, review widgets)
 4. Mark undetectable fields as "Unknown (requires DataForSEO for live data)"
 
@@ -423,7 +397,7 @@ Cross-platform review analysis: velocity, sentiment, rating distribution, fake d
 
 1. Search for business name on each platform:
    - Google: infer from GBP data or Maps SERP result
-   - Bing: `WebFetch https://www.bing.com/maps?q=BUSINESS+NAME+LOCATION`
+   - Bing: page fetch of `https://www.bing.com/maps?q=BUSINESS+NAME+LOCATION` (`web-search` host capability)
    - Apple: manual check (no public API -- recommend Apple Business Connect)
    - OSM: Overpass or Nominatim search
 2. Extract NAP from each source
@@ -440,7 +414,7 @@ Cross-platform review analysis: velocity, sentiment, rating distribution, fake d
 5. Add `aggregateRating` if review data available
 6. Output valid JSON-LD block
 
-**Do NOT generate self-serving review markup** -- Google ignores LocalBusiness review markup from the business itself.
+**Do NOT generate self-serving review markup** -- aggregateRating must come from third-party reviews; Google ignores LocalBusiness review markup the business writes about itself.
 
 ### Maps Reference Files
 

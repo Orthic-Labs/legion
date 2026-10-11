@@ -155,6 +155,9 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
     let argv = parse_argv(&raw);
     match (&argv, &frozen_digest) {
         (Some(_), Some(frozen)) if *frozen == command_digest(&raw) => {}
+        // The host never declared a usable command (unset/invalid command or
+        // no frozen digest): nothing was declared, so nothing drifted.
+        (None, _) | (_, None) => gaps.push("ownership-scan-declaration-missing".into()),
         _ => gaps.push("ownership-scan-declaration-drift".into()),
     }
 
@@ -226,7 +229,14 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
     details.insert("findingEvidence".into(), Value::Object(evidence));
     details.insert("findingLocations".into(), Value::Object(locations));
     details.insert("findingMessages".into(), Value::Object(messages));
-    details.insert("hostDeclared".into(), Value::Bool(true));
+    details.insert(
+        "hostDeclared".into(),
+        Value::Bool(
+            !gaps
+                .iter()
+                .any(|gap| gap.starts_with("ownership-scan-declaration-")),
+        ),
+    );
     let complete = gaps.is_empty();
     result(
         input,

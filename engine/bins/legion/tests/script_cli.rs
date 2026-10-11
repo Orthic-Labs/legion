@@ -84,8 +84,6 @@ fn native_script_list_includes_known_ports() {
         "designer/fetch-images",
         "designer/render-video",
         "designer/render-video-seek",
-        "designer/narrate-pipeline",
-        "designer/tts-doubao",
         "designer/verify",
     ] {
         assert!(scripts.contains(&name), "expected {name} in {scripts:?}");
@@ -942,7 +940,6 @@ fn native_script_list_includes_wired_library_ports() {
         .map(|v| v.as_str().unwrap())
         .collect();
     for name in [
-        "designer/add-music",
         "designer/convert-formats",
         "dispatch/validate-route",
         "seo/ai_visibility_import",

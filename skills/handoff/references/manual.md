@@ -22,7 +22,7 @@ Plain `/handoff` in current source chat means:
 2. resolve exact transcript path without semantically reading transcript;
 3. freeze byte cutoff, SHA-256, last complete row, timestamp, & workspace;
 4. return generated paste block for target chat;
-5. stop. Do not synthesize packet, inspect workspace, reconstruct state, run MiniMax, or validate handoff here.
+5. stop. Do not synthesize packet, inspect workspace, reconstruct state, or validate handoff here.
 
 macOS & Windows:
 
@@ -129,7 +129,7 @@ For `TRANSCRIPT_INGEST`, begin with typed Legion context JSON & record its absol
 4. exact artifacts, logs, tests, receipts, hashes, timestamps, & last command results;
 5. decisions + rationale + rejected options + reopen conditions;
 6. failed attempts, raw errors, causes, fixes, & “do not retry unless” guards;
-7. relevant Crypt topics or prior handoff, then verify drift-prone facts live;
+7. relevant prior handoff, then verify drift-prone facts live;
 8. user preferences, naming locks, authorization, safety limits, & do-not-touch zones.
 
 Never substitute memory or conversation summary for cheap live verification. Never copy secrets; include credential/env names, store/location, presence, & required scope only.

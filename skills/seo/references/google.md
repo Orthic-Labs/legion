@@ -1,27 +1,7 @@
----
-name: seo-google
-description: >
-  Google SEO APIs: Search Console (Search Analytics, URL Inspection, Sitemaps),
-  PageSpeed Insights v5, CrUX field data with 25-week history, Indexing API v3,
-  and GA4 organic traffic. Provides real Google field data for Core Web Vitals,
-  indexation status, search performance, and organic traffic trends. Use when
-  user says "search console", "GSC", "PageSpeed", "CrUX", "field data",
-  "indexing API", "GA4 organic", "URL inspection", "google api setup",
-  "real CWV data", "impressions", "clicks", "CTR", "position data",
-  "LCP", "INP", "CLS", "FCP", "TTFB", or "Lighthouse scores".
-user-invokable: true
-argument-hint: "[command] [url|property]"
-license: MIT
-metadata:
-  author: AgriciDaniel
-  version: "1.7.0"
-  category: seo
----
-
 # Google SEO APIs
 
 Direct access to Google's own SEO data. Bridges the gap between crawl-based
-analysis (existing claude-seo skills) and Google's real-time field data: actual
+analysis (the other SEO lanes) and Google's real-time field data: actual
 Chrome user metrics, real indexation status, search performance, and organic traffic.
 
 Run the commands in this reference through `legion script seo/<name>` from any working directory.
@@ -142,7 +122,7 @@ are the gold.
 **Gap / "didn't show up" analysis (where you're missing or barely ranking):**
 1. **Near-miss (you appear, don't rank):** in the `legion script seo/gsc_query` JSON, filter `position > 8 AND impressions > N` — queries Google already shows you for but you're on page 2+. These are the cheapest wins: you're relevant but not strong enough. Strengthen the matching page (answer-first block, depth, internal links) rather than writing new content.
 2. **Zero-click questions:** high impressions + ~0 clicks at a decent position often means an AI Overview / PAA ate the click — target the *exact question* with a self-contained answer block to become the cited source.
-3. **True content gaps (queries you DON'T appear for at all):** GSC only shows queries you already surface for, so for "didn't show up at all," cross-reference: Ahrefs **content gap** (`site-explorer-organic-competitors` → keywords competitors rank for and you don't) + the brand `keyword-map.csv` `(planned)/gap` clusters + PAA harvest (see `geo.md` FAQ-coverage audit). Map each gap to a new page/post.
+3. **True content gaps (queries you DON'T appear for at all):** GSC only shows queries you already surface for, so for "didn't show up at all," cross-reference: Ahrefs **content gap** (`site-explorer-organic-competitors` → keywords competitors rank for and you don't) + the brand `keyword-map.csv` `(planned)/gap` clusters + PAA harvest (see `ai-search-2026.md` question inventory). Map each gap to a new page/post.
 
 ### `/seo google inspect <url>`
 
@@ -207,7 +187,7 @@ Top organic landing pages ranked by sessions.
 
 ## YouTube (Video SEO)
 
-YouTube mentions have the strongest AI visibility correlation (0.737). Free, API key only.
+YouTube mentions are reported to have the strongest AI visibility correlation (unverified, check a primary source). Free, API key only.
 
 ### `/seo google youtube <query>`
 
@@ -326,12 +306,12 @@ Generate a professional PDF report with charts and analytics.
 
 ## Cross-Skill Integration
 
-- **seo-audit**: Spawns `seo-google` agent for live CWV + indexation data (conditional)
-- **seo-technical**: Uses `legion script seo/pagespeed_check` for real CWV field data
-- **seo-performance**: CrUX field data supplements Lighthouse lab data
-- **seo-sitemap**: GSC sitemap status shows real crawl/index coverage
-- **seo-content**: GSC query data informs keyword targeting
-- **seo-geo**: GSC search appearance data includes AI Overview references
+- **Full audit**: runs the Google lane inline for live CWV + indexation data (conditional)
+- **Technical checks**: Uses `legion script seo/pagespeed_check` for real CWV field data
+- **Performance**: CrUX field data supplements Lighthouse lab data
+- **Sitemap checks**: GSC sitemap status shows real crawl/index coverage
+- **Content checks**: GSC query data informs keyword targeting
+- **GEO checks**: GSC search appearance data includes AI Overview references
 
 ## Output Format
 
@@ -339,7 +319,7 @@ Generate a professional PDF report with charts and analytics.
 - Performance reports: tables with sortable columns
 - Always include data freshness note
 - Save reports as `GOOGLE-API-REPORT-{domain}.md`
-- Use templates from `assets/templates/` for structured output
+- Structure output from the brief; no template directory ships with this skill
 
 ## Technical Notes
 

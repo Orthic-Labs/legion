@@ -199,7 +199,7 @@ moxt philosophy 页第一版用 2×2 = 4 段 + 底部 3 信条 = 7 块内容，�
 | 代码结构 | 一个 HTML，所有 slide 是 `<section>` | 每页独立 HTML，`index.html` 用 iframe 拼接 |
 | CSS 作用域 | ❌ 全局，一页的样式可能影响所有页 | ✅ 天然隔离，iframe 各自一片天 |
 | 验证粒度 | ❌ 要 JS goTo 才能切到某页 | ✅ 单页文件双击就能在浏览器看 |
-| 并行开发 | ❌ 一个文件，多 agent 改会冲突 | ✅ 多 agent 可并行做不同页，零冲突 merge |
+| 多人分页协作 | ❌ 一个文件，多人改会冲突 | ✅ 多人可分页做，零冲突 merge |
 | 调试难度 | ❌ 一处 CSS 出错，全 deck 翻车 | ✅ 一页出错只影响自己 |
 | 内嵌交互 | ✅ 跨页共享状态很简单 | 🟡 iframe 间需 postMessage |
 | 打印 PDF | ✅ 内置 | ✅ 拼接器 beforeprint 遍历 iframe |
@@ -210,7 +210,7 @@ moxt philosophy 页第一版用 2×2 = 4 段 + 底部 3 信条 = 7 块内容，�
 ```
 │ 问：deck 预计有多少页？
 ├── ≤10 页、需要 in-deck 动画或跨页交互、pitch deck → 单文件
-└── ≥10 页、学术讲座、课件、长 deck、多 agent 并行 → 多文件（推荐）
+└── ≥10 页、学术讲座、课件、长 deck、多人分页协作 → 多文件（推荐）
 ```
 
 **默认走多文件路径**。它不是「备选」，是**长 deck 和团队协作的主路径**。原因：单文件架构的每一个优势（键盘导航、打印、scale）多文件都有，而多文件的作用域隔离和可验证性是单文件补不回来的。
@@ -319,9 +319,9 @@ open slides/05-personas.html
 
 Playwright 截图也是直接 `goto(file://.../slides/05-personas.html)`，不需要 JS 跳页，也不会被别的页的 CSS 干扰。这让「改一点验一点」的工作流成本接近零。
 
-### 并行开发
+### 多人分页协作
 
-把每张 slide 的任务拆给不同 agent，同时跑——HTML 文件彼此独立，merge 时没有冲突。长 deck 用这种并行方式能把制作时间压到 1/N。
+若由多人（或用户自己开的多个会话）分页制作，每张 slide 是独立 HTML 文件，彼此独立，merge 时没有冲突。本 skill 自身不 spawn subagent（CHILD_AGENTS_MAX: 0），这里的分工由用户安排。
 
 ### `shared/tokens.css` 该放什么
 
@@ -578,13 +578,11 @@ Deck 需要 **intentional variety**：
 
 ## 导出为 PPTX / PDF（自助脚本）
 
-HTML 优先是第一公民。但用户经常需要 PPTX/PDF 交付。提供两个通用脚本，**任何多文件 deck 都能用**，位于 `scripts/` 下：
+HTML 优先是第一公民。但用户经常需要 PPTX/PDF 交付。提供两个通用导出路由，**任何多文件 deck 都能用**，通过 `legion script designer/…` 调用：
 
 ### `legion script designer/export-deck-pdf` — 导出矢量 PDF（多文件架构）
 
 ```bash
-legion script designer/export-deck-pdf --slides <slides-dir> --out deck.pdf
-# 原生 Rust 端口（推荐）：
 legion script designer/export-deck-pdf --slides <slides-dir> --out deck.pdf
 ```
 
@@ -746,5 +744,5 @@ legion script designer/export-deck-pptx --slides <dir> --out deck.pptx
 2. [ ] 按 → 键翻到每一页，没有空白页、没有布局错位
 3. [ ] 按 P 键打印预览，每页恰好一张 A4（或 1920×1080）且无裁切
 4. [ ] 随机选 3 页 Cmd+Shift+R 强刷，localStorage 记忆正常工作
-5. [ ] Playwright 批量截图（单页架构：遍历 `slides/*.html`；单文件架构：用 goTo 切换），人工肉眼过一遍
+5. [ ] 批量截图（`legion script designer/verify`）（单页架构：遍历 `slides/*.html`；单文件架构：用 goTo 切换），人工肉眼过一遍
 6. [ ] 搜一下 `TODO` / `placeholder` 残留，确认都清理了

@@ -16,6 +16,18 @@
     },
     {
       "class": "PACKAGE_INTERNAL",
+      "path": "references/content/references/platforms.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/content/references/post-templates.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/content/references/reverse-engineering.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
       "path": "references/instagram/reference.md"
     },
     {
@@ -33,6 +45,14 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "references/manual.md"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "web-search"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "media-production"
     }
   ]
 }

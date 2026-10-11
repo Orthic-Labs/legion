@@ -18,7 +18,7 @@ about macOS traffic lights. The verdict must name which OSes were actually inspe
 - No custom-drawn fake traffic lights.
 - Shortcuts render as mac chords (`⌘⌥⌃⇧` via `<Kbd>`), never "Ctrl+…" strings.
 - Menu-bar/dock behavior matches app type; fullscreen transition doesn't break the titlebar.
-- Font smoothing applied at root (see `../../designer/references/typography.md`); mac renders text heavier by default.
+- Font smoothing is a Designer typography check (see `../../designer/references/typography.md`); this lens does not judge it. Mac renders text heavier by default, so report only what the capture shows, and route the judgment to Designer.
 
 ## Windows (desktop)
 

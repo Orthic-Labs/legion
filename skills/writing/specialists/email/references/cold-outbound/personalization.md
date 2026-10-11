@@ -1,12 +1,12 @@
 # Personalization at Scale
 
-Personalization drives **50–250% more replies** (Lavender). The key insight: **if your personalization has nothing to do with the problem you solve, it's just an attention hack** (Clay).
+Third-party aggregates put personalization at **50–250% more replies**; treat that range as unverified until a dated source is cited. The key insight: **if your personalization has nothing to do with the problem you solve, it's just an attention hack.**
 
 ## Four Levels of Personalization
 
 ### Level 1 — Basic (merge tags)
 
-First name, company name, job title. Table stakes, no longer differentiating. ~5% lift.
+First name, company name, job title. Table stakes, no longer differentiating.
 
 ### Level 2 — Industry/segment
 
@@ -30,17 +30,15 @@ Specific, timely observations about that person connected to the problem you sol
 
 | Signal            | Where to find it                   | How to use it                                                                |
 | ----------------- | ---------------------------------- | ---------------------------------------------------------------------------- |
-| Recent funding    | Crunchbase, LinkedIn, press        | "Congrats on Series B — scaling teams fast usually creates X challenge"      |
+| Recent funding    | Company databases, LinkedIn, press | "Congrats on Series B — scaling teams fast usually creates X challenge"      |
 | Job postings      | LinkedIn Jobs, careers page        | "Noticed you're hiring 3 SDRs — sounds like you're scaling outbound"         |
-| Tech stack        | BuiltWith, Wappalyzer, HG Insights | "I see you're using HubSpot — most teams at your stage hit a ceiling with X" |
+| Tech stack        | Technographic data providers       | "I see you're using [tool] — most teams at your stage hit a ceiling with X" |
 | LinkedIn activity | Posts, comments, job changes       | "Really enjoyed your post about X"                                           |
 | Company news      | Google News, press releases        | "Congrats on acquiring X — integrating teams usually creates Y challenge"    |
-| Podcast/talks     | Google, YouTube, podcasts          | "Caught your talk at SaaStr on X — really insightful"                        |
+| Podcast/talks     | Google, YouTube, podcasts          | "Caught your talk at [event] on X — really insightful"                       |
 | Website changes   | Manual review                      | "Your new pricing page caught my eye — curious how it's converting"          |
 
 ## The 3-Minute Personalization System
-
-From "30 Minutes to President's Club":
 
 **Step 1:** Build a research stack of top 10 buying signals — 5 company triggers, 5 person triggers. Stack-rank by relevance.
 
@@ -48,9 +46,9 @@ From "30 Minutes to President's Club":
 
 **Step 3:** Create 5 "trigger templates" — pre-written personalization paragraphs for each trigger, with a smooth segue into the problem.
 
-The personalization must logically connect to the problem. This creates 5 reusable triggers with the rest of the email constant. A top SDR writes a personalized email in **under 3 minutes**.
+The personalization must logically connect to the problem. This creates 5 reusable triggers with the rest of the email constant. Practitioners report a personalized email can take under 3 minutes with this system.
 
-## The Four -Graphic Principles (Becc Holland)
+## The Four Lenses (Demographic, Technographic, Firmographic, Psychographic)
 
 - **Demographic** — Age, profession, background
 - **Technographic** — Tech stack, tools used

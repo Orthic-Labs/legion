@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    ast_grep, container_iac, dependency_osv, imported_sarif, opengrep,
+    ast_grep, container_iac, dependency_osv, imported_sarif, opengrep, packs,
     producer::{ArtifactProducer, Production},
     secrets, supply_chain,
 };
@@ -30,6 +30,9 @@ pub struct SecurityProviderExecutor {
     pub artifacts: BTreeMap<String, Value>,
     /// Used only for providers with no injected artifact.
     pub producer: Option<ArtifactProducer>,
+    /// The audited root, read directly by the heuristic packs
+    /// (`security.credentials` and its four siblings; see [`packs`]).
+    pub root: Option<std::path::PathBuf>,
 }
 
 impl SecurityProviderExecutor {
@@ -37,12 +40,17 @@ impl SecurityProviderExecutor {
         Self {
             artifacts,
             producer: None,
+            root: None,
         }
     }
 
     /// Source artifacts for the audited `root` when the host injected none.
+    /// The heuristic packs read `root` directly.
     pub fn with_root(self, root: impl Into<std::path::PathBuf>) -> Self {
-        self.with_producer(ArtifactProducer::new(root))
+        let root = root.into();
+        let mut executor = self.with_producer(ArtifactProducer::new(root.clone()));
+        executor.root = Some(root);
+        executor
     }
 
     pub fn with_producer(mut self, producer: ArtifactProducer) -> Self {
@@ -133,6 +141,17 @@ impl ProviderExecutor for SecurityProviderExecutor {
         provider: &AuditProvider,
         inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError> {
+        // The five heuristic packs read the frozen selector paths themselves
+        // and raise candidates only; they have no scanner artifact.
+        if let Some(pack) = packs::pack_for(&provider.id) {
+            return packs::execute(
+                provider,
+                pack,
+                self.root.as_deref(),
+                Self::frozen_denominator(provider, inventory),
+                Self::frozen_paths(provider, inventory),
+            );
+        }
         let mut unavailable_reason = None;
         let mut produced = None;
         if !self.artifacts.contains_key(&provider.id) {

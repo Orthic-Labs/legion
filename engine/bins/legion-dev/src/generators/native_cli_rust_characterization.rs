@@ -9,7 +9,26 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-fn semantic_oracle(fixture: &Value, observation: &gate::Observation) -> Vec<String> {
+/// Every `stdoutIncludes` / `stderrIncludes` entry must be a string; a
+/// non-string needle is a malformed fixture, not something to skip.
+fn include_needles<'a>(expect: &'a Value, key: &str) -> Result<Vec<&'a str>, String> {
+    match expect.get(key) {
+        None | Some(Value::Null) => Ok(Vec::new()),
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|item| {
+                item.as_str()
+                    .ok_or_else(|| format!("rustExpect.{key} entry is not a string: {item}"))
+            })
+            .collect(),
+        Some(other) => Err(format!("rustExpect.{key} must be an array, got {other}")),
+    }
+}
+
+fn semantic_oracle(
+    fixture: &Value,
+    observation: &gate::Observation,
+) -> Result<Vec<String>, String> {
     let empty = json!({});
     let expect = fixture.get("rustExpect").unwrap_or(&empty);
     let mut mismatches = Vec::new();
@@ -24,28 +43,14 @@ fn semantic_oracle(fixture: &Value, observation: &gate::Observation) -> Vec<Stri
             ));
         }
     }
-    for needle in expect
-        .get("stdoutIncludes")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-    {
-        if let Some(n) = needle.as_str() {
-            if !observation.stdout.contains(n) {
-                mismatches.push(format!("native stdout missing: {n}"));
-            }
+    for n in include_needles(expect, "stdoutIncludes")? {
+        if !observation.stdout.contains(n) {
+            mismatches.push(format!("native stdout missing: {n}"));
         }
     }
-    for needle in expect
-        .get("stderrIncludes")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-    {
-        if let Some(n) = needle.as_str() {
-            if !observation.stderr.contains(n) {
-                mismatches.push(format!("native stderr missing: {n}"));
-            }
+    for n in include_needles(expect, "stderrIncludes")? {
+        if !observation.stderr.contains(n) {
+            mismatches.push(format!("native stderr missing: {n}"));
         }
     }
     if let Some(kind) = expect.get("kind").and_then(Value::as_str) {
@@ -58,7 +63,7 @@ fn semantic_oracle(fixture: &Value, observation: &gate::Observation) -> Vec<Stri
             Err(_) => mismatches.push("native stdout is not JSON".to_string()),
         }
     }
-    mismatches
+    Ok(mismatches)
 }
 
 pub fn run(root: &Path, diagnostic: bool) -> bool {
@@ -196,7 +201,7 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
         if row_result.status == "matched" || row_result.status == "mismatched" {
             row_result
                 .mismatch
-                .extend(semantic_oracle(&row.fixture, &observation));
+                .extend(semantic_oracle(&row.fixture, &observation)?);
             row_result.status = if row_result.mismatch.is_empty() {
                 "matched"
             } else {

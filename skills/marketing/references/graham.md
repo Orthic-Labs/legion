@@ -1,13 +1,13 @@
 ---
-name: plan-graham
-description: Generate the 5-stage Paul Graham startup validation plan for an idea. Use when user says "/marketing strategy-graham", "graham 5-step", "validate this idea", "5-stage plan", "first 10 customers", "MVP plan", or after `/review-idea` returns BUILD/PIVOT and user wants the actionable next steps. This is the GENERATOR (outputs artifacts you act on). The verdict gate is `/review-idea` (separate skill).
+name: strategy-graham
+description: Generate the 5-stage Paul Graham startup validation plan for an idea. Use when user says "graham 5-step", "validate this idea", "5-stage plan", "first 10 customers", "MVP plan", or after a prior verdict returns BUILD/PIVOT and user wants the actionable next steps. This is the GENERATOR (outputs artifacts you act on). An optional challenge of the verdict is `/council`.
 ---
 
-# /marketing strategy-graham — Paul Graham 5-stage validation plan
+# Paul Graham 5-stage validation plan
 
 Generator for the 5-stage Graham framework. Outputs the artifacts you actually use to validate, not a verdict.
 
-Pair with `/review-idea` (verdict) — `/marketing strategy-graham` runs after the idea passes the kill gate, OR before if you want a structured plan to feed into the verdict.
+Run this after the idea passes the kill gate, or before a verdict when a structured plan should feed it. An optional challenge of the verdict goes to `/council`.
 
 ## Inputs (ask if missing)
 

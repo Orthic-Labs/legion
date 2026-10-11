@@ -19,7 +19,7 @@ pub async fn run(args: CommonArgs, cancellation: CancellationToken) -> CommandRe
         .collect::<Vec<_>>();
     if argv.iter().any(|value| value == "--help") {
         return Ok(json!({
-            "__raw": "Usage: legion fix [--apply] [--class <id>] [--client <id>]\n       legion fix --plan <sealed-remediation-plan> [--apply]\nDry-run by default: lists fix classes and their appliers. --apply runs each existing applier (`legion setup repair --confirm`). Classes without an applier are listed as manual. --plan validates a sealed remediation plan; applying it is manual (Alchemist).\n"
+            "__raw": "Usage: legion fix [--apply] [--class <id>] [--client <id>]\n       legion fix --plan <sealed-remediation-plan> [--apply]\nDry-run by default: lists fix classes and their appliers. --apply runs each existing applier (`legion setup repair --confirm`). Classes without an applier are listed as manual. --plan validates a sealed remediation plan; applying it is manual (Alchemist).\n--json is accepted for compatibility; output is always JSON.\n"
         }));
     }
     let options = parse_fix_options(&argv)?;
@@ -50,11 +50,26 @@ pub async fn run(args: CommonArgs, cancellation: CancellationToken) -> CommandRe
         let argv = class.applier.clone().unwrap_or_default();
         match run_setup(argv, cancellation.clone()).await {
             Ok(result) => {
+                // The applier ran, so it may have changed state; but a setup
+                // result reporting failure is not an applied class.
                 mutated = true;
-                outcomes.insert(
-                    class.id.into(),
-                    json!({"status": "applied", "setupStatus": result.get("status").cloned()}),
+                let setup_status = result.get("status").cloned();
+                let setup_failed = matches!(
+                    setup_status.as_ref().and_then(Value::as_str),
+                    Some("failed" | "fail" | "unavailable" | "incomplete" | "partial" | "denied")
                 );
+                if setup_failed {
+                    failed = true;
+                    outcomes.insert(
+                        class.id.into(),
+                        json!({"status": "failed", "setupStatus": setup_status}),
+                    );
+                } else {
+                    outcomes.insert(
+                        class.id.into(),
+                        json!({"status": "applied", "setupStatus": setup_status}),
+                    );
+                }
             }
             Err(error) => {
                 failed = true;
@@ -96,7 +111,15 @@ pub async fn run(args: CommonArgs, cancellation: CancellationToken) -> CommandRe
         "schemaVersion": 1,
         "kind": "legion-fix",
         "dryRun": !options.apply,
-        "status": if failed { "failed" } else if options.apply { "applied" } else { "dry-run" },
+        "status": if failed {
+            "failed"
+        } else if !options.apply {
+            "dry-run"
+        } else if mutated {
+            "applied"
+        } else {
+            "nothing-to-apply"
+        },
         "mutationApplied": mutated,
         "classes": rows,
     }))
@@ -125,6 +148,7 @@ fn parse_fix_options(argv: &[String]) -> Result<FixOptions, CommandError> {
         };
         match arg.as_str() {
             "--apply" => options.apply = true,
+            // Output is always JSON; the flag is accepted and changes nothing.
             "--json" => {}
             "--class" => options.class = Some(value("--class")?),
             "--client" => options.client = Some(value("--client")?),

@@ -10,11 +10,9 @@ use std::path::{Path, PathBuf};
 
 const FORBIDDEN_RUNTIME_PATHS: [&str; 2] = ["src/bin/legion.mjs", "src/lib/cli/run.mjs"];
 
-// The Node-side CLI binding test was retired with the JS CLI; CLI behaviour
-// is now exercised directly against the native binary by
-// `engine/bins/legion/tests/*.rs` under `cargo test`. Any future JS-side
-// product CLI test must still go through the native executable helper.
-const PRODUCT_CLI_TESTS: [&str; 0] = [];
+// Product CLI behaviour is exercised directly against the native binary by
+// `engine/bins/legion/tests/*.rs` under `cargo test`; no JS-side product CLI
+// test exists, so there is no native-helper requirement to enforce here.
 
 #[derive(Serialize)]
 struct Summary {
@@ -27,8 +25,14 @@ struct Summary {
     note: &'static str,
 }
 
-fn present(path: &Path) -> Option<fs::Metadata> {
-    fs::symlink_metadata(path).ok()
+/// `Ok(None)` only when the path is genuinely absent; any other metadata
+/// failure (permissions, I/O) is an error so it cannot read as "not present".
+fn present(path: &Path) -> Result<Option<fs::Metadata>, String> {
+    match fs::symlink_metadata(path) {
+        Ok(meta) => Ok(Some(meta)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("{}: {e}", path.display())),
+    }
 }
 
 fn is_node_runtime_file(path: &Path) -> bool {
@@ -39,19 +43,17 @@ fn is_node_runtime_file(path: &Path) -> bool {
     has_ext && !file.ends_with(".test.mjs")
 }
 
-fn walk(dir: &Path, visitor: &mut dyn FnMut(&Path)) {
-    let meta = match present(dir) {
+fn walk(dir: &Path, visitor: &mut dyn FnMut(&Path)) -> Result<(), String> {
+    let meta = match present(dir)? {
         Some(m) => m,
-        None => return,
+        None => return Ok(()),
     };
     if !meta.is_dir() || meta.file_type().is_symlink() {
-        return;
+        return Ok(());
     }
-    let entries = match fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    for entry in entries.flatten() {
+    let entries = fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("{}: {e}", dir.display()))?;
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
         if name_str == "node_modules" || name_str == ".git" || name_str == "dist" {
@@ -59,24 +61,25 @@ fn walk(dir: &Path, visitor: &mut dyn FnMut(&Path)) {
         }
         let path = entry.path();
         if path.is_dir() && !path.is_symlink() {
-            walk(&path, visitor);
+            walk(&path, visitor)?;
         } else {
             visitor(&path);
         }
     }
+    Ok(())
 }
 
-fn node_runtime_files(root: &Path) -> Vec<PathBuf> {
+fn node_runtime_files(root: &Path) -> Result<Vec<PathBuf>, String> {
     let mut files = Vec::new();
     for rel in ["src/bin", "src/lib/cli"] {
         walk(&root.join(rel), &mut |path| {
             if is_node_runtime_file(path) {
                 files.push(path.to_path_buf());
             }
-        });
+        })?;
     }
     files.sort();
-    files
+    Ok(files)
 }
 
 fn rel_forward(root: &Path, path: &Path) -> String {
@@ -86,19 +89,37 @@ fn rel_forward(root: &Path, path: &Path) -> String {
         .replace('\\', "/")
 }
 
+fn read_json_value(path: &Path) -> Result<serde_json::Value, String> {
+    let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Accepts exactly `enforce` or `record`; anything else is a usage error.
+fn parse_phase(phase_arg: &str) -> Result<&'static str, String> {
+    match phase_arg {
+        "enforce" => Ok("enforce"),
+        "record" => Ok("record"),
+        other => Err(format!(
+            "usage: check-native-cli-surface --phase must be `enforce` or `record`, got `{other}`"
+        )),
+    }
+}
+
 pub fn run(root: &Path, phase_arg: &str) -> bool {
-    let summary = compute(root, phase_arg);
+    let phase = match parse_phase(phase_arg) {
+        Ok(phase) => phase,
+        Err(e) => {
+            eprintln!("{e}");
+            return false;
+        }
+    };
+    let summary = compute(root, phase);
     let exit_ok = !(!summary.ok && summary.phase == "enforce");
     println!("{}", serde_json::to_string_pretty(&summary).unwrap());
     exit_ok
 }
 
-fn compute(root: &Path, phase_arg: &str) -> Summary {
-    let phase = if phase_arg == "enforce" {
-        "enforce"
-    } else {
-        "record"
-    };
+fn compute(root: &Path, phase: &'static str) -> Summary {
     let mut issues: Vec<String> = Vec::new();
     let mut reported: BTreeSet<String> = BTreeSet::new();
 
@@ -124,52 +145,53 @@ fn compute(root: &Path, phase_arg: &str) -> Summary {
 
     for rel in FORBIDDEN_RUNTIME_PATHS {
         let path = root.join(rel);
-        if present(&path).is_some() {
-            report_runtime_file(&path, &mut issues, &mut reported);
+        match present(&path) {
+            Ok(Some(_)) => report_runtime_file(&path, &mut issues, &mut reported),
+            Ok(None) => {}
+            Err(e) => issues.push(format!("cannot inspect {rel}: {e}")),
         }
     }
 
-    let command_directory = present(&root.join("src/lib/cli/commands"));
-    if command_directory
-        .as_ref()
-        .map(|m| m.file_type().is_symlink())
-        .unwrap_or(false)
-    {
-        issues.push("forbidden Node Legion command directory is a symlink".to_string());
+    match present(&root.join("src/lib/cli/commands")) {
+        Ok(Some(meta)) if meta.file_type().is_symlink() => {
+            issues.push("forbidden Node Legion command directory is a symlink".to_string());
+        }
+        Ok(_) => {}
+        Err(e) => issues.push(format!("cannot inspect src/lib/cli/commands: {e}")),
     }
-    for path in node_runtime_files(root) {
-        report_runtime_file(&path, &mut issues, &mut reported);
+    match node_runtime_files(root) {
+        Ok(paths) => {
+            for path in paths {
+                report_runtime_file(&path, &mut issues, &mut reported);
+            }
+        }
+        Err(e) => issues.push(format!("cannot scan Node runtime directories: {e}")),
     }
 
-    walk(&root.join("tests"), &mut |path| {
+    let mut test_issues: Vec<String> = Vec::new();
+    let walked = walk(&root.join("tests"), &mut |path| {
         let path_str = path.to_string_lossy();
         if !path_str.ends_with(".test.mjs") && !path_str.ends_with(".mjs") {
             return;
         }
-        if let Ok(text) = fs::read_to_string(path) {
-            if text.contains("src/bin/legion.mjs") || text.contains("from '../bin/legion.mjs'") {
-                let rel = path
-                    .strip_prefix(root)
-                    .unwrap_or(path)
-                    .to_string_lossy()
-                    .to_string();
-                issues.push(format!("product test still invokes Node CLI: {rel}"));
+        let rel = rel_forward(root, path);
+        match fs::read_to_string(path) {
+            Ok(text) => {
+                if text.contains("src/bin/legion.mjs") || text.contains("from '../bin/legion.mjs'")
+                {
+                    test_issues.push(format!("product test still invokes Node CLI: {rel}"));
+                }
             }
+            Err(e) => test_issues.push(format!("cannot read product test {rel}: {e}")),
         }
     });
-
-    for rel in PRODUCT_CLI_TESTS {
-        if let Ok(text) = fs::read_to_string(root.join(rel)) {
-            if !text.contains("scripts/native-cli/test-helper.mjs") {
-                issues.push(format!(
-                    "product CLI test must use native executable helper: {rel}"
-                ));
-            }
-        }
+    if let Err(e) = walked {
+        issues.push(format!("cannot scan tests directory: {e}"));
     }
+    issues.extend(test_issues);
 
-    if let Ok(pkg_text) = fs::read_to_string(root.join("package.json")) {
-        if let Ok(pkg) = serde_json::from_str::<serde_json::Value>(&pkg_text) {
+    match read_json_value(&root.join("package.json")) {
+        Ok(pkg) => {
             let bin = pkg.get("bin");
             let has_legion = bin.and_then(|b| b.get("legion")).is_some();
             let has_scoped = bin.and_then(|b| b.get("@orthic-labs/legion")).is_some();
@@ -177,10 +199,11 @@ fn compute(root: &Path, phase_arg: &str) -> Summary {
                 issues.push("package.json must not register npm bin legion".to_string());
             }
         }
+        Err(e) => issues.push(format!("cannot verify package.json bin entries: {e}")),
     }
 
-    if let Ok(contract_text) = fs::read_to_string(root.join("release/distribution-contract.json")) {
-        if let Ok(contract) = serde_json::from_str::<serde_json::Value>(&contract_text) {
+    match read_json_value(&root.join("release/distribution-contract.json")) {
+        Ok(contract) => {
             let access = contract
                 .get("nodePackage")
                 .and_then(|n| n.get("access"))
@@ -192,6 +215,7 @@ fn compute(root: &Path, phase_arg: &str) -> Summary {
                 );
             }
         }
+        Err(e) => issues.push(format!("cannot verify distribution contract: {e}")),
     }
 
     let ok = issues.is_empty();
@@ -288,14 +312,26 @@ mod tests {
     }
 
     #[test]
-    fn native_helper_requirement_matches_current_empty_product_test_list() {
-        // PRODUCT_CLI_TESTS is currently empty upstream (the Node-side CLI
-        // binding test was retired), so this check is a no-op today; adding
-        // an entry to PRODUCT_CLI_TESTS revives the assertion on both sides.
+    fn phase_accepts_only_enforce_or_record() {
+        assert_eq!(parse_phase("enforce"), Ok("enforce"));
+        assert_eq!(parse_phase("record"), Ok("record"));
+        assert!(parse_phase("enfroce").is_err());
+        assert!(parse_phase("").is_err());
         let tree = Tree::new();
-        tree.add("tests/bind.test.mjs", "// no invocation helper\n");
+        assert!(!run(&tree.root, "enfroce"));
+        assert!(!run(&tree.root, ""));
+    }
+
+    #[test]
+    fn unparseable_package_json_is_an_issue_not_a_pass() {
+        let tree = Tree::new();
+        fs::write(tree.root.join("package.json"), "{ not json").unwrap();
         let summary = compute(&tree.root, "enforce");
-        assert!(summary.ok, "{:?}", summary.issues);
+        assert!(!summary.ok);
+        assert!(summary
+            .issues
+            .iter()
+            .any(|i| i.contains("cannot verify package.json")));
     }
 
     #[test]

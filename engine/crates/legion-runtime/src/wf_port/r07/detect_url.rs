@@ -10,6 +10,28 @@ use serde_json::{json, Value};
 use super::browser::ChromeDriver;
 use super::findings::{filter_by_providers, AntipatternLookup, Finding};
 
+/// Prefix on `Err` strings that mean "this check could not run", as opposed to
+/// a real failure or a clean result. Callers must never treat such an error as
+/// zero findings. Format: `unavailable:<reason>`.
+pub const UNAVAILABLE_PREFIX: &str = "unavailable:";
+
+/// The injected browser detector (`window.impeccableDetect`) is absent: the
+/// script was empty or did not define the function.
+pub const REASON_DETECTOR_SCRIPT_MISSING: &str = "detector-script-missing";
+
+/// The documented visual-contrast fallback has no implementation.
+pub const REASON_VISUAL_CONTRAST_NOT_IMPLEMENTED: &str = "visual-contrast-not-implemented";
+
+/// Builds the typed unavailable error for `reason`.
+pub fn unavailable_error(reason: &str) -> String {
+    format!("{UNAVAILABLE_PREFIX}{reason}")
+}
+
+/// Returns the reason when `err` is a typed unavailable error.
+pub fn unavailable_reason(err: &str) -> Option<&str> {
+    err.strip_prefix(UNAVAILABLE_PREFIX)
+}
+
 /// Port of `options.viewport` default `{ width: 1280, height: 800 }`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Viewport {
@@ -125,9 +147,11 @@ pub struct RawFinding {
 }
 
 /// Parses the `Value` returned by evaluating
-/// `window.impeccableDetect({ decorate: false, serialize: true })` (or `[]`
-/// if `window.impeccableDetect` is absent) into the flattened raw-finding
-/// list both callers build. Tolerant of missing/malformed fields the same
+/// `window.impeccableDetect({ decorate: false, serialize: true })` into the
+/// flattened raw-finding list both callers build. A non-array value (the
+/// detector is absent, which evaluates to `null`) is not parsed here; callers
+/// must report it as unavailable, see [`detect_url_cdp`]. Tolerant of
+/// missing/malformed fields the same
 /// way JS's optional chaining is: a missing `findings` array yields no
 /// entries for that group rather than erroring.
 pub fn flatten_serialized_groups(groups: &Value) -> Vec<RawFinding> {
@@ -200,6 +224,10 @@ pub fn to_findings(
 /// launch+CDP-connect+navigate+evaluate sequence (`launchHeadless` +
 /// `findPageTarget` + `cdpConnect` + `runtimeEval`); production callers pass
 /// [`super::real::RealChromeDriver`], tests pass a fake.
+///
+/// Returns `Err("unavailable:detector-script-missing")` when `browser_script`
+/// is empty or the injected `window.impeccableDetect` is not a function. A
+/// check that could not run never resolves to an empty success.
 pub fn detect_url_cdp(
     driver: &mut impl ChromeDriver,
     registry: &impl AntipatternLookup,
@@ -207,6 +235,10 @@ pub fn detect_url_cdp(
     browser_script: &str,
     options: &DetectUrlOptions,
 ) -> Result<Vec<Finding>, String> {
+    if browser_script.trim().is_empty() {
+        return Err(unavailable_error(REASON_DETECTOR_SCRIPT_MISSING));
+    }
+
     driver.navigate(url)?;
 
     let design_system = serialize_design_system_for_browser(options.design_system.as_ref());
@@ -219,12 +251,23 @@ pub fn detect_url_cdp(
         config_patch
     ))?;
     driver.evaluate(browser_script)?;
+    // Absent function evaluates to `null`, which is not a result list.
     let serialized = driver.evaluate(
-        "window.impeccableDetect ? window.impeccableDetect({ decorate: false, serialize: true }) : []",
+        "typeof window.impeccableDetect === 'function' ? window.impeccableDetect({ decorate: false, serialize: true }) : null",
     )?;
+    if !serialized.is_array() {
+        return Err(unavailable_error(REASON_DETECTOR_SCRIPT_MISSING));
+    }
 
     let raw = flatten_serialized_groups(&serialized);
     Ok(to_findings(registry, url, raw, &options.providers))
+}
+
+/// Visual-contrast fallback for callers that have no implementation. Always
+/// unavailable, never zero findings. The production wrapper in
+/// `wf_port::r05::real_detectors` should pass this instead of `|_| Ok(Vec::new())`.
+pub fn visual_contrast_unavailable(_url: &str) -> Result<Vec<Finding>, String> {
+    Err(unavailable_error(REASON_VISUAL_CONTRAST_NOT_IMPLEMENTED))
 }
 
 /// Port of `detectUrl(url, options)`'s post-import-resolution body: the
@@ -425,5 +468,91 @@ mod tests {
         )
         .unwrap();
         assert_eq!(out.len(), 1);
+    }
+
+    #[test]
+    fn empty_browser_script_is_unavailable_not_empty_success() {
+        let mut driver = FakeDriver {
+            navigated_to: vec![],
+            evaluated: vec![],
+            responses: vec![],
+        };
+        let reg = registry();
+        let opts = DetectUrlOptions::default();
+        for script in ["", "   \n\t"] {
+            let err = detect_url_cdp(&mut driver, &reg, "https://x.test", script, &opts)
+                .expect_err("empty script must not succeed");
+            assert_eq!(unavailable_reason(&err), Some("detector-script-missing"));
+        }
+        // Rejected before any navigation or evaluation.
+        assert!(driver.navigated_to.is_empty());
+        assert!(driver.evaluated.is_empty());
+    }
+
+    #[test]
+    fn script_without_impeccable_detect_is_unavailable_not_empty_success() {
+        let mut driver = FakeDriver {
+            navigated_to: vec![],
+            evaluated: vec![],
+            // config patch, browser script, then the absent-function probe -> null.
+            responses: vec![Value::Null, Value::Null, Value::Null],
+        };
+        let reg = registry();
+        let opts = DetectUrlOptions::default();
+        let err = detect_url_cdp(
+            &mut driver,
+            &reg,
+            "https://x.test",
+            "/* no detector */",
+            &opts,
+        )
+        .expect_err("missing impeccableDetect must not succeed");
+        assert_eq!(err, "unavailable:detector-script-missing".to_string());
+        assert_eq!(driver.navigated_to, vec!["https://x.test".to_string()]);
+    }
+
+    #[test]
+    fn non_array_detector_result_is_unavailable() {
+        let mut driver = FakeDriver {
+            navigated_to: vec![],
+            evaluated: vec![],
+            responses: vec![Value::Null, Value::Null, json!({ "unexpected": true })],
+        };
+        let reg = registry();
+        let opts = DetectUrlOptions::default();
+        let err = detect_url_cdp(&mut driver, &reg, "https://x.test", "/* s */", &opts)
+            .expect_err("malformed detector output must not succeed");
+        assert_eq!(unavailable_reason(&err), Some("detector-script-missing"));
+    }
+
+    #[test]
+    fn visual_contrast_hook_without_implementation_is_unavailable() {
+        let mut driver = FakeDriver {
+            navigated_to: vec![],
+            evaluated: vec![],
+            responses: vec![Value::Null, Value::Null, json!([])],
+        };
+        let reg = registry();
+        let mut opts = DetectUrlOptions::default();
+        opts.visual_contrast = true;
+        let err = detect_url(
+            &mut driver,
+            &reg,
+            "https://x.test",
+            "/* s */",
+            &opts,
+            visual_contrast_unavailable,
+        )
+        .expect_err("unimplemented visual contrast must not look like zero findings");
+        assert_eq!(
+            unavailable_reason(&err),
+            Some("visual-contrast-not-implemented")
+        );
+    }
+
+    #[test]
+    fn unavailable_reason_only_matches_typed_prefix() {
+        assert_eq!(unavailable_reason("unavailable:x"), Some("x"));
+        assert_eq!(unavailable_reason("network down"), None);
     }
 }

@@ -20,5 +20,6 @@ pub fn run(args: DecisionArgs) -> CommandResult {
         args.rationale,
         legion_decisions::DecisionStatus::Proposed,
     );
-    Ok(json!({"schemaVersion": 1, "kind": "legion-decision", "record": record}))
+    // Drafted in memory only: nothing is written to any store.
+    Ok(json!({"schemaVersion": 1, "kind": "legion-decision", "persisted": false, "record": record}))
 }

@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning.
+description: Software and system architecture capability for architecture decisions, ADRs, quality attributes, invariants, migrations, and architecture-significant planning.
 kind: capability
 capabilityClass: domain
 discoverability: public
@@ -29,12 +29,10 @@ Architect's routine mandate.
 - architecture-significant requirements;
 - quality attributes and quality scenarios;
 - responsibility allocation;
-- interfaces and contracts;
 - invariants;
 - state/data authority;
 - consistency and lifecycle;
 - runtime and deployment topology;
-- architecture tactics;
 - alternatives and trade-offs;
 - ADRs where warranted;
 - migration and evolution;

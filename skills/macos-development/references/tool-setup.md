@@ -23,7 +23,7 @@ credentials remain host requirements for selected actions.
 `docs` uses local SQLite DocSet data through native Rust when available; Python is not
 required. `build-analysis`, `flamegraph`, `memgraph` & `build-log` consume bounded
 supplied text/files without running tools. `project.*`, `swiftpm.*`, `simulator.*`,
-`device.*`, `debug.batch` & `profile.record` are typed native routes. Use native CLI or MCP
+`device.*`, `debug.batch` & `profile` are typed native routes. Use native CLI or MCP
 before optional compatibility adapters below.
 
 Lifecycle is detect → select → reuse → authorized setup only when missing → verify.

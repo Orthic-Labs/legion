@@ -185,6 +185,8 @@ asc web privacy apply --app "APP_ID" --file "./privacy.json"
 asc web privacy publish --app "APP_ID" --confirm
 ```
 
+Before the `publish --confirm` line, run `asc web privacy publish --app "APP_ID" --help`; if it lists `--dry-run`, run that first and inspect the planned effects. Otherwise the `plan` output and the readback of the App Privacy draft are the effect inspection. The `publish --confirm` step makes App Privacy answers live for this app and needs explicit user authorization in chat for this app and version.
+
 `apply` means answers were written to an App Privacy draft; it does not mean they were published. Verify published state after the separate publish step. If web automation is declined or unavailable, inspect App Privacy manually at `https://appstoreconnect.apple.com/apps/APP_ID/appPrivacy` & report that manual evidence.
 
 ## Return to release flow
@@ -228,5 +230,8 @@ Add required Game Center *version* item IDs only. Do not attach parent product I
 ```bash
 asc review submissions-get --id "SUBMISSION_ID" --include items --output table
 asc review items list --submission "SUBMISSION_ID" --paginate --output table
+asc review submissions-submit --id "SUBMISSION_ID" --dry-run --output table
 asc review submissions-submit --id "SUBMISSION_ID" --confirm
 ```
+
+Run the `--dry-run` first and inspect its planned effects against the readback above. The `--confirm` line submits the draft for App Review and needs explicit user authorization in chat for this submission.

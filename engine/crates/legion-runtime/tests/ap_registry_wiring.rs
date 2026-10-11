@@ -110,7 +110,7 @@ fn real_detectors_url_scan_uses_the_same_registry() {
         driver: &mut driver,
         registry: &registry,
         fetcher: &fetcher,
-        browser_script: "",
+        browser_script: "/* detector */",
         providers: &providers,
     };
     let opts = UrlScanOptions {
@@ -119,4 +119,27 @@ fn real_detectors_url_scan_uses_the_same_registry() {
     };
     let findings = detectors.detect_url("https://example.com", &opts).unwrap();
     assert!(findings.is_empty());
+}
+
+#[test]
+fn real_detectors_url_scan_without_detector_script_is_unavailable_not_clean() {
+    let mut driver = FakeDriver { responses: vec![] };
+    let registry = RegistryLookup;
+    let fetcher = FakeFetcher;
+    let providers: Vec<String> = vec![];
+    let mut detectors = RealDetectors {
+        driver: &mut driver,
+        registry: &registry,
+        fetcher: &fetcher,
+        browser_script: "",
+        providers: &providers,
+    };
+    let opts = UrlScanOptions {
+        viewport: None,
+        providers: vec![],
+    };
+    let err = detectors
+        .detect_url("https://example.com", &opts)
+        .expect_err("an empty detector script must not produce a clean scan");
+    assert_eq!(err, "unavailable:detector-script-missing");
 }

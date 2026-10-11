@@ -115,9 +115,19 @@ fn pattern_by_id(id: &str) -> Option<Pattern> {
 }
 
 pub fn report(root: &Path) -> Report {
-    let files = tracked_files(root);
-    let allowlist_path = "src/config/portability-allowlist.json";
     let mut issues = Vec::new();
+    let files = match tracked_files(root) {
+        Ok(files) => files,
+        Err(e) => {
+            issues.push(Issue {
+                path: ".".to_string(),
+                pattern: None,
+                reason: e,
+            });
+            Vec::new()
+        }
+    };
+    let allowlist_path = "src/config/portability-allowlist.json";
 
     let allowlist = match read_json(&root.join(allowlist_path)) {
         Ok(v) => v,
@@ -212,7 +222,24 @@ pub fn report(root: &Path) -> Report {
     for path in &files {
         let content = match read_text(&root.join(path)) {
             Some(c) => c,
-            None => continue,
+            None => {
+                // Genuine binaries are skipped; any other non-UTF-8 or NUL-bearing
+                // tracked file is scanned lossily so it cannot hide a local path.
+                if is_known_binary(path) {
+                    continue;
+                }
+                match std::fs::read(root.join(path)) {
+                    Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+                    Err(e) => {
+                        issues.push(Issue {
+                            path: path.clone(),
+                            pattern: None,
+                            reason: format!("tracked file is unreadable: {e}"),
+                        });
+                        continue;
+                    }
+                }
+            }
         };
         for pattern in patterns() {
             let observed = (pattern.count)(&content);
@@ -248,6 +275,23 @@ pub fn report(root: &Path) -> Report {
         files_scanned: files.len(),
         issues,
     }
+}
+
+const KNOWN_BINARY_EXTENSIONS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "ico", "icns", "woff", "woff2", "ttf", "otf", "pdf", "zip", "gz",
+    "wasm", "mp3", "mp4", "webp",
+];
+
+fn is_known_binary(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| {
+            KNOWN_BINARY_EXTENSIONS
+                .iter()
+                .any(|known| known.eq_ignore_ascii_case(e))
+        })
+        .unwrap_or(false)
 }
 
 fn leak(s: &str) -> &'static str {

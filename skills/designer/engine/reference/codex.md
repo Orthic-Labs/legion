@@ -75,17 +75,11 @@ If a photographic, architectural, product, or place-led mock becomes generic CSS
 
 Don't substitute a different hero composition or visual driver post-approval without user sign-off.
 
-## Step F: Asset Slicing via the Asset Producer
+## Step F: Asset Slicing
 
-Raster ingredients identified in Step E need clean production assets. Use the bundled `impeccable_asset_producer` subagent rather than producing inline.
+Raster ingredients identified in Step E need clean production assets. Produce them inline in this thread; this skill does not spawn subagents (CHILD_AGENTS_MAX: 0).
 
-Spawn it as a scoped subagent. If you do not have explicit permission to use agents, stop and ask:
-
-```text
-Asset production will work better as a scoped subagent job. Should I spawn the Impeccable asset producer subagent for this step?
-```
-
-Pass to the agent:
+Work from these inputs:
 
 - Approved mock path or screenshot reference
 - Crop paths or a contact sheet with crop ids
@@ -94,9 +88,7 @@ Pass to the agent:
 - Avoid list
 - Notes on what should remain semantic HTML/CSS/SVG instead of raster
 
-Attach image generation capability to the spawned agent when the harness supports it. Do **not** load image-generation reference material into the parent thread.
-
-Inline asset production is allowed only if the user declines subagents, the harness cannot spawn the authorized agent, or the user explicitly asks for single-thread mode.
+Use image generation only when the host provides it. Load image-generation reference material only at the point an asset is actually being produced.
 
 Prefer HTML/CSS/SVG/canvas when they can credibly reproduce an ingredient; reach for real, generated, or stock imagery when the mock or subject matter calls for actual visual content.
 

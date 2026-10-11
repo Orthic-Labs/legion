@@ -331,6 +331,23 @@ fn long_tail_reads_unclaimed_source_files() {
 }
 
 #[test]
+fn long_tail_with_host_input_and_no_rules_is_not_complete() {
+    let root = fixture(&[("lib/tool.lua", "return 1\n")]);
+    let inv = inventory(&root, &["lib/tool.lua"]);
+    let adapter = ProviderExecutorAdapter::new().with_input(
+        "code.long-tail",
+        json!({"files": [{"path": "lib/tool.lua"}]}),
+    );
+    let result = adapter.execute(&provider("code.long-tail"), &inv).unwrap();
+    assert!(!result.complete);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.ends_with("no-rules-applicable")));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn language_with_no_files_is_a_denominator_gap_not_a_pass() {
     let root = fixture(&[("README.md", "# readme\n")]);
     let result = run(&root, &["README.md"], "code.python");

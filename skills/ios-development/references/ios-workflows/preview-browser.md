@@ -2,8 +2,11 @@
 
 ## Mirror an app
 
-Resolve simulator UDID first, then run one long-lived `serve-sim` session scoped to
-that UDID. Clean only stale helper state for that simulator before starting, and use
+This mirror requires a host-provided `serve-sim` tool. It is not declared in the route
+resources; if the host does not provide it, skip the browser mirror, report it unrun, and
+capture simulator frames with native `legion apple simulator.screenshot` instead. When it
+is available, resolve simulator UDID first, then run one long-lived `serve-sim` session
+scoped to that UDID. Clean only stale helper state for that simulator before starting, and use
 a process-exit trap to clean it. Keep terminal alive while browser is open; when done,
 stop it and wait for exit so cleanup runs. Never issue an unscoped kill because another
 session may own a different simulator. Opening a URL is not proof: verify a live frame

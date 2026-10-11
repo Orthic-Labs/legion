@@ -164,6 +164,7 @@ pub fn check(root: &Path) -> Vec<String> {
     }
 
     check_council_seat(root, &model_tier_map, &mut problems);
+    check_method_embedded(root, &mut problems);
 
     problems
 }
@@ -233,6 +234,44 @@ fn check_council_seat(root: &Path, model_tier_map: &serde_json::Value, problems:
                         "{role}: agents/{role}.md uses the deliberation model '{expected}', which is reserved for Council seats"
                     ));
                 }
+            }
+        }
+    }
+}
+
+/// Each role card is self-contained: it carries the doctrine body verbatim under `## Method`, and
+/// outside that embedded body it must not point at `doctrine/` or `src/roster/` paths, which the
+/// installed plugin does not ship. The doctrine body itself may cross-reference the roster, so the
+/// path rule is applied only to card text outside the embedded body.
+fn check_method_embedded(root: &Path, problems: &mut Vec<String>) {
+    for role in ROLES {
+        let doctrine = root.join(format!("doctrine/{role}.md"));
+        let card = root.join(format!("agents/{role}.md"));
+        let body = match body_after_frontmatter(&doctrine) {
+            Ok(body) => body,
+            Err(e) => {
+                problems.push(e);
+                continue;
+            }
+        };
+        let card_text = match fs::read_to_string(&card) {
+            Ok(text) => text.replace("\r\n", "\n"),
+            Err(e) => {
+                problems.push(format!("{}: {e}", card.display()));
+                continue;
+            }
+        };
+        if !card_text.contains(body.as_str()) {
+            problems.push(format!(
+                "{role}: agents/{role}.md does not contain the doctrine/{role}.md body verbatim under ## Method"
+            ));
+        }
+        let outside = card_text.replacen(body.as_str(), "", 1);
+        for forbidden in ["doctrine/", "src/roster/"] {
+            if outside.contains(forbidden) {
+                problems.push(format!(
+                    "{role}: agents/{role}.md refers to `{forbidden}` outside its embedded method; the installed card cannot read that path"
+                ));
             }
         }
     }

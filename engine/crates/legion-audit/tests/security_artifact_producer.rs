@@ -444,3 +444,35 @@ fn unavailable_osv_still_reports_the_selected_manifests() {
     assert_eq!(analysis(&result)["denominator"]["examined"], json!(0));
     assert_ne!(result.status, legion_contracts::ProviderStatus::Failed);
 }
+
+#[test]
+fn heuristic_pack_providers_without_a_frozen_selector_are_unavailable_not_clean() {
+    // The five heuristic packs read their frozen selector paths; a provider
+    // that carries no selector cannot bind coverage, so it reports
+    // `unavailable` with no coverage claim instead of a clean pass.
+    let root = fixture("pack-no-selector");
+    write(&root, "src/a.js", "const a = 1;\n");
+    for id in [
+        "security.credentials",
+        "security.insecure-defaults",
+        "security.misuse-resistance",
+        "security.agentic-ci",
+        "security.agent-skill-mcp",
+    ] {
+        let result = SecurityProviderExecutor::default()
+            .with_root(root.clone())
+            .execute(&provider(id), &inventory(&root))
+            .unwrap();
+        assert!(!result.complete, "{id}");
+        assert!(result.coverage.is_none(), "{id}");
+        assert!(result.findings.is_empty(), "{id}");
+        assert!(
+            result
+                .coverage_gaps
+                .iter()
+                .any(|gap| gap.starts_with("unavailable:frozen-denominator-unresolvable")),
+            "{id}: {:?}",
+            result.coverage_gaps
+        );
+    }
+}

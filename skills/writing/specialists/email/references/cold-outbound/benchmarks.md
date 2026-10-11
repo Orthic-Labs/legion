@@ -1,15 +1,17 @@
 # Benchmarks, Data & Expert Methods
 
+> Source note: every figure in this file is a third-party aggregate from 2024–2025 vendor and industry reports. None has been verified in this package. Cite a dated, named source before quoting any number to a client or in published copy; otherwise leave the number out.
+
 ## Core Performance Metrics (2024–2025)
 
-| Metric                     | Average | Good   | Excellent | Source                   |
-| -------------------------- | ------- | ------ | --------- | ------------------------ |
-| Open rate                  | 27.7%   | 40–45% | 50%+      | Belkins, Snov.io         |
-| Reply rate                 | 4–5.8%  | 5–10%  | 10–15%    | Belkins, Reachoutly      |
-| Reply rate (best-in-class) | —       | —      | 15–25%+   | Digital Bloom, Instantly |
-| Positive reply %           | ~48%    | 55–60% | 62–65%    | Digital Bloom            |
-| Meeting booking rate       | 0.5–1%  | 1–2%   | 2.3%+     | Reachoutly               |
-| Bounce rate                | 7.5%    | <4%    | <2%       | Belkins                  |
+| Metric                     | Average | Good   | Excellent |
+| -------------------------- | ------- | ------ | --------- |
+| Open rate                  | 27.7%   | 40–45% | 50%+      |
+| Reply rate                 | 4–5.8%  | 5–10%  | 10–15%    |
+| Reply rate (best-in-class) | —       | —      | 15–25%+   |
+| Positive reply %           | ~48%    | 55–60% | 62–65%    |
+| Meeting booking rate       | 0.5–1%  | 1–2%   | 2.3%+     |
+| Bounce rate                | 7.5%    | <4%    | <2%       |
 
 ## Realistic Funnel Model
 
@@ -48,7 +50,7 @@ Reply rates dropped from 7–8% (2020–2022) to 4–5.8% (2024–2025), ~15% Yo
 2. **Too self-focused** — "We are a leading..." signals sales pitch. Count I/We sentences
 3. **No clear value prop** — 71% of decision-makers ignore irrelevant emails
 4. **Generic templates** — {{FirstName}} isn't personalization. Recipients detect instantly
-5. **Feature dumping** — "Great reps lead with problems" (Lavender). One proof point beats ten features
+5. **Feature dumping** — Lead with the problem. One proof point beats ten features
 6. **False personalization** — "Loved your post!" without specifics is transparent
 7. **Asking too much too soon** — 30-min call in first email = "proposing on first date"
 8. **Pushy language** — "Act Now" stacking increases spam flagging by 67%
@@ -70,14 +72,16 @@ Reply rates dropped from 7–8% (2020–2022) to 4–5.8% (2024–2025), ~15% Yo
 
 North America: 4.1% response. Europe: 3.1%. Asia-Pacific: 2.8%. Shorter, more direct sequences work better in US. UK needs more insight/personality. GDPR affects European tone.
 
-## Expert Quick Reference
+## Method Reference
 
-| Expert         | Core Method                                                     | Best For                                        |
-| -------------- | --------------------------------------------------------------- | ----------------------------------------------- |
-| Alex Berman    | 3C's: Compliment → Case Study → CTA                             | High-ticket B2B services, agencies              |
-| Josh Braun     | "Poke the Bear" — neutral questions exposing invisible problems | Empathy-driven consultative selling             |
-| Kyle Coleman   | Systematic research + AI personalization at scale               | Bridging mass outreach and deep personalization |
-| Becc Holland   | Psychographic personalization, Premise Buckets                  | Combining personalization with relevance        |
-| Will Allred    | Data-driven coaching, Mouse Trap, Vanilla Ice Cream             | Any context; universal frameworks               |
-| Justin Michael | 1–3 sentence hyper-brevity, quote their own words               | High-velocity SDR teams at scale                |
-| Sam Nelson     | Agoge Sequence — Triple on Day 1 (email + LinkedIn + call)      | Multi-channel, tiered personalization           |
+Use these as named methods, not as endorsements. Each names a technique, not a person's proven results.
+
+| Method | Core technique | Best for |
+| ------ | -------------- | -------- |
+| Compliment → case study → CTA | Short praise, one relevant case, one ask | High-ticket B2B services, agencies |
+| "Poke the bear" | Neutral questions that expose an invisible problem | Empathy-driven consultative selling |
+| Systematic research + AI personalization | Research each account, then personalize at scale | Bridging mass outreach and deep personalization |
+| Psychographic personalization | Premise-based buckets tied to relevance | Combining personalization with relevance |
+| Data-driven coaching | Mouse-trap binary question; universal frameworks | Any context |
+| Hyper-brevity | 1–3 sentences, quote the prospect's own words | High-velocity SDR teams at scale |
+| Agoge sequence | Triple touch on day 1 (email + social + call) | Multi-channel, tiered personalization |

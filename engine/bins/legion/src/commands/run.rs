@@ -116,6 +116,38 @@ fn seal(root: &Path, id: &str, v: u64) -> Result<Value, CommandError> {
     )
     .map_err(|_| CommandError::incomplete("ARC_STORE_CORRUPT: unreadable contract seal"))
 }
+/// Acceptance criteria of a sealed contract version for a completion check. An
+/// unreadable or unparseable seal is an error naming its path: treating it as
+/// "no criteria" would let a complete close skip the evidence check.
+fn sealed_acceptance_criteria(root: &Path, id: &str, v: u64) -> Result<Vec<Value>, CommandError> {
+    let p = legion_arcane::state_paths::state_file(
+        &root.join(".audit/arcane/contract-seals"),
+        "arcane.contract-seal.key.v1",
+        &[id.into(), v.to_string()],
+    )
+    .map_err(|e| CommandError::integrity(e.to_string()))?;
+    let bytes = fs::read(&p).map_err(|error| {
+        CommandError::incomplete(format!(
+            "ARC_STORE_CORRUPT: contract seal unreadable at {}: {error}",
+            p.display()
+        ))
+    })?;
+    let seal: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        CommandError::incomplete(format!(
+            "ARC_STORE_CORRUPT: contract seal unparseable at {}: {error}",
+            p.display()
+        ))
+    })?;
+    seal["contract"]["acceptanceCriteria"]
+        .as_array()
+        .cloned()
+        .ok_or_else(|| {
+            CommandError::incomplete(format!(
+                "ARC_STORE_CORRUPT: contract seal at {} has no acceptanceCriteria array",
+                p.display()
+            ))
+        })
+}
 fn manifest_path(root: &Path, o: &Value) -> PathBuf {
     root.join(".audit/arcane/delivery/manifests").join(format!(
         "{}.json",
@@ -438,15 +470,15 @@ fn close(a: &[String]) -> CommandResult {
     }
     let rs =
         ReceiptStore::new(root.join(".audit/arcane/receipts")).map_err(CommandError::incomplete)?;
+    // Set only when a complete close actually evaluated acceptance criteria.
+    let mut acceptance_evaluated = 0usize;
     if disp == "complete" {
-        let criteria = seal(
+        let criteria = sealed_acceptance_criteria(
             &root,
             b["contractId"].as_str().unwrap_or_default(),
             b["contractVersion"].as_u64().unwrap_or_default(),
-        )
-        .ok()
-        .and_then(|v| v["contract"]["acceptanceCriteria"].as_array().cloned())
-        .unwrap_or_default();
+        )?;
+        acceptance_evaluated = criteria.len();
         let receipts = rs.list();
         for criterion in criteria {
             let id = criterion["id"].as_str().unwrap_or_default();
@@ -473,7 +505,18 @@ fn close(a: &[String]) -> CommandResult {
         }
         rs.append(&r);
     }
-    let terminal = json!({"schemaVersion":1,"kind":"legion-run-close-receipt","runId":b["runId"],"taskId":b["taskId"],"contractId":b["contractId"],"contractVersion":b["contractVersion"],"contractDigest":b["contractDigest"],"sessionId":s,"finalClaimState":"passed","completionCode":if disp=="archive"{"ARC_ARCHIVE"}else{"ARC_COMPLETION_PASSED"},"enforcementHealth":if disp=="archive"{"not-applicable"}else{"strong"},"deliveryDisposition":disp,"deliveryEvidence":ev,"closedAt":now()});
+    // "passed" only for a complete close whose acceptance criteria were
+    // evaluated (the loop above returned early on any missing evidence). A
+    // complete close of a contract with no criteria checked nothing, so it is
+    // "unchecked", not passed.
+    let (final_claim_state, completion_code) = if disp == "archive" {
+        ("archived", "ARC_ARCHIVE")
+    } else if acceptance_evaluated > 0 {
+        ("passed", "ARC_COMPLETION_PASSED")
+    } else {
+        ("unchecked", "ARC_COMPLETION_UNCHECKED")
+    };
+    let terminal = json!({"schemaVersion":1,"kind":"legion-run-close-receipt","runId":b["runId"],"taskId":b["taskId"],"contractId":b["contractId"],"contractVersion":b["contractVersion"],"contractDigest":b["contractDigest"],"sessionId":s,"finalClaimState":final_claim_state,"completionCode":completion_code,"enforcementHealth":if disp=="archive"{"not-applicable"}else{"strong"},"deliveryDisposition":disp,"deliveryEvidence":ev,"closedAt":now()});
     let stamp = rs.append(&terminal);
     release_delivery(d);
     let mut clear = b.as_object().cloned().unwrap_or_default();

@@ -62,7 +62,6 @@ Note: CTR improved across all 14 tracked industries while CVR declined in 13 of 
 | Local Services | $18.00 |
 | Healthcare | $28.00 |
 | B2B SaaS | $35.00 |
-| Healthcare (highest) | $36.82 |
 | Legal | $45.00 |
 | Finance | $50.00 |
 

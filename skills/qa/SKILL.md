@@ -1,6 +1,6 @@
 ---
 name: qa
-description: "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring."
+description: "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, and runtime checks."
 kind: capability
 capabilityClass: domain
 discoverability: public
@@ -56,4 +56,4 @@ TERMINAL: Frozen criteria have exact passing evidence or failing artifact.
        - source-read
        - artifact-write
 
-Read `references/manual.md` for harness, rendered browser acceptance, native, or Tauri QA. `/qa contract-tests` derives smallest observable boundary, negative, transition, & regression tests.
+Read `references/manual.md` for harness, rendered browser acceptance, native, or Tauri QA.

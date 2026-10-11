@@ -113,9 +113,9 @@ pub fn should_warn_missing_target(
 /// Port of `buildMissingTargetDirective`.
 pub fn build_missing_target_directive(script_display_name: &str) -> String {
     format!(
-        "MONOREPO_TARGET_REQUIRED: This is a monorepo and context.mjs ran without --target. \
+        "MONOREPO_TARGET_REQUIRED: This is a monorepo and legion script designer/context ran without --target. \
 If the user named a file, route, or child app, do not answer from this output. \
-Rerun `node {script_display_name} --target <path>` and answer from that run's RESOLVED_CONTEXT fields."
+Rerun `legion script designer/{script_display_name} --target <path>` and answer from that run's RESOLVED_CONTEXT fields."
     )
 }
 

@@ -55,48 +55,136 @@ fn resolve_path(cwd: &Path, value: &str) -> PathBuf {
     output
 }
 
-fn collect(root: &Path) -> Map<String, Value> {
-    let mut entries = Map::new();
-    let Ok(metadata) = std::fs::metadata(root) else {
-        return entries;
-    };
-    if metadata.is_file() {
-        if let Ok(bytes) = std::fs::read(root) {
-            entries.insert(
-                ".".into(),
-                json!({"sha256":sha256(&bytes),"size":metadata.len()}),
-            );
-        }
-        return entries;
-    }
-    if metadata.is_dir() {
-        collect_dir(root, Path::new(""), &mut entries);
-    }
-    entries
+/// Files observed under one surface, plus every entry that could not be read.
+/// An unreadable entry is recorded, never silently absent from the snapshot.
+#[derive(Default)]
+struct Observed {
+    entries: Map<String, Value>,
+    /// `{"path": <relative>, "reason": <error>}` per entry that could not be observed.
+    unreadable: Vec<Value>,
 }
 
-fn collect_dir(root: &Path, prefix: &Path, entries: &mut Map<String, Value>) {
-    let Ok(children) = std::fs::read_dir(root.join(prefix)) else {
-        return;
+/// A relative path as recorded in a snapshot; the surface root is ".".
+fn display_rel(path: &Path) -> String {
+    if path.as_os_str().is_empty() {
+        ".".to_owned()
+    } else {
+        path.to_string_lossy().replace('\\', "/")
+    }
+}
+
+fn unreadable_entry(path: &Path, reason: impl std::fmt::Display) -> Value {
+    json!({"path": display_rel(path), "reason": reason.to_string()})
+}
+
+/// The relative paths named by a list of unreadable entries.
+fn entry_paths(entries: &[Value]) -> Vec<String> {
+    entries
+        .iter()
+        .filter_map(|entry| entry["path"].as_str().map(str::to_owned))
+        .collect()
+}
+
+fn collect(root: &Path) -> Observed {
+    let mut observed = Observed::default();
+    let metadata = match std::fs::metadata(root) {
+        Ok(metadata) => metadata,
+        // An absent surface is observed as empty; any other failure is not.
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return observed,
+        Err(error) => {
+            observed
+                .unreadable
+                .push(unreadable_entry(Path::new(""), error));
+            return observed;
+        }
     };
-    for child in children.flatten() {
+    if metadata.is_file() {
+        match std::fs::read(root) {
+            Ok(bytes) => {
+                observed.entries.insert(
+                    ".".into(),
+                    json!({"sha256":sha256(&bytes),"size":metadata.len()}),
+                );
+            }
+            Err(error) => observed
+                .unreadable
+                .push(unreadable_entry(Path::new(""), error)),
+        }
+    } else if metadata.is_dir() {
+        collect_dir(root, Path::new(""), &mut observed);
+    }
+    observed
+}
+
+fn collect_dir(root: &Path, prefix: &Path, observed: &mut Observed) {
+    let children = match std::fs::read_dir(root.join(prefix)) {
+        Ok(children) => children,
+        Err(error) => {
+            observed.unreadable.push(unreadable_entry(prefix, error));
+            return;
+        }
+    };
+    for child in children {
+        let child = match child {
+            Ok(child) => child,
+            Err(error) => {
+                observed.unreadable.push(unreadable_entry(prefix, error));
+                continue;
+            }
+        };
         let name = child.file_name();
         let relative = prefix.join(&name);
         let full = root.join(&relative);
         // Node's stat follows links; state records observable files.
-        let Ok(metadata) = std::fs::metadata(&full) else {
-            continue;
+        let metadata = match std::fs::metadata(&full) {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                observed.unreadable.push(unreadable_entry(&relative, error));
+                continue;
+            }
         };
         if metadata.is_dir() {
-            collect_dir(root, &relative, entries);
+            collect_dir(root, &relative, observed);
         } else if metadata.is_file() {
-            if let Ok(bytes) = std::fs::read(&full) {
-                entries.insert(
-                    relative.to_string_lossy().replace('\\', "/"),
-                    json!({"sha256":sha256(&bytes),"size":metadata.len()}),
-                );
+            match std::fs::read(&full) {
+                Ok(bytes) => {
+                    observed.entries.insert(
+                        display_rel(&relative),
+                        json!({"sha256":sha256(&bytes),"size":metadata.len()}),
+                    );
+                }
+                Err(error) => observed.unreadable.push(unreadable_entry(&relative, error)),
             }
         }
+    }
+}
+
+/// The base that relative surface keys are taken against, when parity mode is on.
+fn parity_root(cwd: &Path) -> Option<PathBuf> {
+    std::env::var("LEGION_PARITY_ROOT")
+        .ok()
+        .filter(|value| !value.is_empty())
+        .map(|value| resolve_path(cwd, &value))
+}
+
+/// The key a surface is recorded under. Distinct surfaces get distinct keys.
+/// With LEGION_PARITY_ROOT set, a surface under that root is keyed by its path
+/// relative to it, so snapshots stay portable across checkouts; any other
+/// surface keeps its resolved path.
+fn surface_key(cwd: &Path, resolved: &Path) -> String {
+    if let Some(parity) = parity_root(cwd) {
+        if let Ok(relative) = resolved.strip_prefix(&parity) {
+            return display_rel(relative);
+        }
+    }
+    resolved.to_string_lossy().into_owned()
+}
+
+/// The filesystem path a recorded surface key refers to at verify time.
+fn surface_path(cwd: &Path, key: &str) -> PathBuf {
+    match parity_root(cwd) {
+        Some(parity) if !Path::new(key).is_absolute() => resolve_path(&parity, key),
+        _ => PathBuf::from(key),
     }
 }
 
@@ -176,14 +264,16 @@ fn snapshot(args: &[String]) -> CommandResult {
         ));
     }
     let mut surfaces = Map::new();
+    let mut unreadable = Vec::new();
     for path in &paths {
         let resolved = resolve_path(&cwd, path);
-        let entries = collect(&resolved);
-        let surface = std::env::var("LEGION_PARITY_ROOT")
-            .ok()
-            .filter(|value| !value.is_empty())
-            .unwrap_or_else(|| resolved.to_string_lossy().into_owned());
-        surfaces.insert(surface, Value::Object(entries));
+        let key = surface_key(&cwd, &resolved);
+        let observed = collect(&resolved);
+        for mut entry in observed.unreadable {
+            entry["surface"] = json!(&key);
+            unreadable.push(entry);
+        }
+        surfaces.insert(key, Value::Object(observed.entries));
     }
     // Repeated/aliased --path arguments resolve to one observed surface in the
     // artifact. Count the final map, as Node does, not discarded duplicates.
@@ -192,7 +282,8 @@ fn snapshot(args: &[String]) -> CommandResult {
         .filter_map(Value::as_object)
         .map(Map::len)
         .sum();
-    let snapshot = json!({"schema":SNAPSHOT_SCHEMA,"takenAt":iso_now(),"surfaces":surfaces});
+    let unreadable_count = unreadable.len();
+    let snapshot = json!({"schema":SNAPSHOT_SCHEMA,"takenAt":iso_now(),"surfaces":surfaces,"unreadable":unreadable});
     let output = resolve_path(&cwd, &out);
     if let Some(parent) = output.parent() {
         std::fs::create_dir_all(parent).map_err(super::io_error)?;
@@ -205,9 +296,15 @@ fn snapshot(args: &[String]) -> CommandResult {
         ),
     )
     .map_err(super::io_error)?;
-    let rendered = serde_json::to_string(
-        &json!({"kind":"legion-state-snapshot","surfaces":paths.len(),"files":files,"out":output}),
-    )
+    // Unreadable entries are listed here and make verify unproven; the snapshot
+    // itself only records what it could observe.
+    let rendered = serde_json::to_string(&json!({
+        "kind":"legion-state-snapshot",
+        "surfaces":paths.len(),
+        "files":files,
+        "unreadable":unreadable_count,
+        "out":output
+    }))
     .map_err(super::io_error)?;
     Ok(json!({"__raw": format!("{rendered}\n")}))
 }
@@ -253,6 +350,21 @@ fn verify(args: &[String]) -> CommandResult {
             "snapshot surfaces must be a JSON object",
         ));
     };
+    // A snapshot that records no files inspected nothing, so an absence of
+    // deltas is not evidence of a clean boundary.
+    let snapshotted: usize = surfaces
+        .values()
+        .filter_map(Value::as_object)
+        .map(Map::len)
+        .sum();
+    // Entries that were unreadable when the snapshot was taken, or are unreadable
+    // now, are unknown: they are neither deleted nor created, and they keep the
+    // verdict from being clean.
+    let mut unknown: Vec<Value> = snapshot
+        .get("unreadable")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut deltas = Vec::new();
     for (surface, before) in surfaces {
         let Some(before) = before.as_object() else {
@@ -260,9 +372,19 @@ fn verify(args: &[String]) -> CommandResult {
                 "snapshot surface entries must be JSON objects",
             ));
         };
-        let after = collect(Path::new(surface));
+        let observed = collect(&surface_path(&cwd, surface));
+        let unobservable = entry_paths(&observed.unreadable);
+        let recorded = entry_paths(
+            &unknown
+                .iter()
+                .filter(|entry| entry["surface"].as_str() == Some(surface.as_str()))
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
+        let after = observed.entries;
         for (relative, old) in before {
             match after.get(relative) {
+                None if unobservable.contains(relative) => {}
                 None => deltas.push(json!({"surface":surface,"path":relative,"change":"deleted"})),
                 Some(new) if new.get("sha256") != old.get("sha256") => {
                     deltas.push(json!({"surface":surface,"path":relative,"change":"modified"}))
@@ -271,26 +393,61 @@ fn verify(args: &[String]) -> CommandResult {
             }
         }
         for relative in after.keys() {
-            if !before.contains_key(relative) {
+            if !before.contains_key(relative) && !recorded.contains(relative) {
                 deltas.push(json!({"surface":surface,"path":relative,"change":"created"}));
             }
         }
+        for mut entry in observed.unreadable {
+            entry["surface"] = json!(surface);
+            unknown.push(entry);
+        }
+    }
+    if deltas.is_empty() && unknown.is_empty() && snapshotted == 0 {
+        return Ok(json!({
+            "kind":"legion-state-verify",
+            "verdict":"unproven",
+            "complete":false,
+            "deltas":[],
+            "gaps":["snapshot records no files; nothing was verified"]
+        }));
+    }
+    if deltas.is_empty() && unknown.is_empty() {
+        return Ok(json!({"kind":"legion-state-verify","verdict":"clean","deltas":[]}));
     }
     if deltas.is_empty() {
-        Ok(json!({"kind":"legion-state-verify","verdict":"clean","deltas":[]}))
-    } else {
-        eprintln!(
-            "STATE BOUNDARY BREACH: {} delta(s) under snapshotted production state",
-            deltas.len()
-        );
-        for delta in deltas.iter().take(20) {
-            eprintln!(
-                "  {}: {} :: {}",
-                delta["change"].as_str().unwrap_or_default(),
-                delta["surface"].as_str().unwrap_or_default(),
-                delta["path"].as_str().unwrap_or_default()
-            );
-        }
-        Ok(json!({"kind":"legion-state-verify","verdict":"breach","deltas":deltas}))
+        let gaps = unknown
+            .iter()
+            .map(|entry| {
+                format!(
+                    "unreadable: {} :: {} ({})",
+                    entry["surface"].as_str().unwrap_or_default(),
+                    entry["path"].as_str().unwrap_or_default(),
+                    entry["reason"].as_str().unwrap_or_default()
+                )
+            })
+            .collect::<Vec<_>>();
+        return Ok(json!({
+            "kind":"legion-state-verify",
+            "verdict":"unproven",
+            "complete":false,
+            "deltas":[],
+            "unreadable":unknown,
+            "gaps":gaps
+        }));
     }
+    eprintln!(
+        "STATE BOUNDARY BREACH: {} delta(s) under snapshotted production state",
+        deltas.len()
+    );
+    for delta in deltas.iter().take(20) {
+        eprintln!(
+            "  {}: {} :: {}",
+            delta["change"].as_str().unwrap_or_default(),
+            delta["surface"].as_str().unwrap_or_default(),
+            delta["path"].as_str().unwrap_or_default()
+        );
+    }
+    Ok(
+        json!({"kind":"legion-state-verify","verdict":"breach","deltas":deltas,"unreadable":unknown}),
+    )
 }

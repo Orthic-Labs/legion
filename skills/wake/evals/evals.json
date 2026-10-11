@@ -118,7 +118,7 @@
       "mode": "static",
       "assertions": [
         { "type": "required_text", "value": "Carry corrections forward" },
-        { "type": "required_text", "value": "existing authorization" }
+        { "type": "required_text", "value": "within remaining authority" }
       ]
     },
     {
@@ -130,7 +130,7 @@
       "severity": "error",
       "mode": "static",
       "assertions": [
-        { "type": "required_text", "value": "Non-divergent" },
+        { "type": "required_text", "value": "remains active, bounded, & aligned" },
         { "type": "required_text", "value": "cancel divergent continuation" }
       ]
     },

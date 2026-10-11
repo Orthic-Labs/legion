@@ -71,7 +71,7 @@ One doctrine & kernel project into harness-native slots. Legion does not pretend
 | Doctrine & routing | yes | yes | yes |
 | Native authority agents | yes | host-dependent | host-dependent |
 | Guard pre-effect interception | when host hooks support it | when host hooks support it | boundary-gated |
-| Receipts | hook or CLI | hook or CLI | CLI/boundary |
+| Receipts | decision returned to host; no persisted effect receipt yet | same | CLI/boundary; no persisted effect receipt yet |
 | Council isolation | engine-owned | engine-owned | engine-owned |
 | Oracle Completion Validation | yes | yes | yes |
 

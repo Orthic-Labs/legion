@@ -18,5 +18,14 @@ pub fn run(args: HandoffArgs) -> CommandResult {
     let bytes = std::fs::read(path).map_err(super::io_error)?;
     let packet: legion_handoff::HandoffPacket =
         serde_json::from_slice(&bytes).map_err(super::io_error)?;
-    Ok(json!({"schemaVersion": 1, "kind": "legion-handoff", "valid": true, "packet": packet}))
+    // Only the JSON structure is checked here. Semantic validation lives in the
+    // `handoff/validate-handoff` script.
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "legion-handoff",
+        "valid": true,
+        "validated": "structure-only",
+        "validationCommand": "legion script handoff/validate-handoff",
+        "packet": packet,
+    }))
 }

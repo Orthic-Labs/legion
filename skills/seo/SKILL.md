@@ -21,6 +21,8 @@ hostRequirements:
   - dataforseo
   - firecrawl
   - ahrefs
+  - web-search
+  - okf
 ---
 
 # SEO
@@ -30,12 +32,12 @@ SPECIALIST_REFS_MAX: 2
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: brand, social
 TERMINAL: Frozen scope has explicit evidence coverage, one primary next action or justified no-action, and verification/outcome state where applicable.
 
 Freeze domain, market, language, page/query set, dates, repository, access, business goal, irreversible effects, and evidence budget. When durable project context exists, load it rather than rediscovering goals/market/competitors/key pages every run; `references/openseo-absorption.md` defines the portable project-state contract.
 
-SEO owns search diagnosis and search-specific methods. Legion owns orchestration across capabilities; this skill does not spawn agents or invoke other skills. Writing owns prose, Marketing owns broader commercial strategy, Designer owns presentation/UX work, and authorized execution follows Legion's normal effect/verification lifecycle.
+SEO owns search diagnosis and search-specific methods. Legion owns orchestration across capabilities; this skill does not spawn agents and calls only the skills named in MAY_CALL_SKILLS (`brand` for the brand card, `social` for platform-specific distribution). Writing owns prose, Marketing owns broader commercial strategy, Designer owns presentation/UX work, and authorized execution follows Legion's normal effect/verification lifecycle.
 
 ## Route
 
@@ -54,6 +56,19 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 - Local: `references/local.md` plus only relevant maps/local-schema reference.
 - Links/authority: `references/backlinks.md`, `backlink-quality.md`, or `off-page.md`.
 - Programmatic: `references/programmatic.md`; international: `references/hreflang.md`.
+- Ahrefs data and export (host capability `ahrefs`; manual export only through the host's built-in browser and only when the user is authorized): `references/ahrefs.md`.
+- DataForSEO live SERP, backlink, on-page, keyword and listings data (host capability `dataforseo`; cost preflight, project market defaults): `references/dataforseo.md`.
+- Firecrawl crawl, rendered extraction and site mapping (host capability `firecrawl`): `references/firecrawl.md`.
+- Google Search Console, GA4, PageSpeed/CrUX, Indexing, Keyword Planner, NLP and YouTube APIs: `references/google.md` and `references/google-assets/*`; use `legion script seo/google_auth`, `seo/gsc_query_v2`, `seo/gsc_inspect`, `seo/pagespeed_check`, `seo/ga4_report`.
+- Generating `/llms.txt` or `/pricing.md` (the generator only; auditing an existing llms.txt uses `geo.md`): `references/llms-txt.md`.
+- Image generation for OG, hero, product and infographic assets (host capability `banana-image`; use `legion script seo/banana-generate`, `seo/banana-presets`, `seo/banana-cost-tracker`): `references/image-gen.md` and `references/image-gen-assets/*`.
+- Schema markup, validation and type eligibility: `references/schema-markup.md`, `schema-types.md`, `local-schema-types.md`; validate with `legion script seo/validate-schema`.
+- Competitor and comparison pages: `references/competitor-pages.md`.
+- Sitewide crawl checks: `references/site-audit-checks.md`; use `legion script seo/site_audit`.
+- Local signals on the website and maps platform references: `references/local-seo-signals.md`, plus `maps-*` through `references/local.md`.
+- Free-tier data sources and provider setup: `references/free-data-sources.md`.
+- Agent-facing OKF bundle output (host capability `okf`; uncompressed output when absent): `references/okf-output.md`.
+- Blog posts: `references/blog-post-contract.md` (brand facts from `/brand`, locations from the project overlay).
 
 ## Execute
 

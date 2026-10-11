@@ -266,9 +266,18 @@ fn reference_closure_issues(root: &Path, bundle: &str) -> Vec<String> {
 }
 
 fn relative_files(path: &Path) -> HashSet<String> {
+    // A missing topic directory must fail, not compare equal to another
+    // missing directory as an empty inventory.
+    assert!(
+        path.is_dir(),
+        "missing or unreadable topic directory: {}",
+        path.display()
+    );
     walkdir::WalkDir::new(path)
         .into_iter()
-        .filter_map(Result::ok)
+        .map(|entry| {
+            entry.unwrap_or_else(|e| panic!("unreadable entry under {}: {e}", path.display()))
+        })
         .filter(|entry| entry.file_type().is_file())
         .map(|entry| {
             entry

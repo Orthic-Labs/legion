@@ -51,9 +51,9 @@ Google's documentation explicitly recommends JSON-LD over Microdata and RDFa.
 
 > Google severely limited FAQ rich results in August 2023. Only authoritative sources (government, health organizations) receive FAQ rich results.
 >
-> **GEO nuance**: FAQPage schema still benefits AI/LLM citation visibility (ChatGPT, Perplexity, Google AI Overviews), even without Google rich results.
-> - **Existing FAQPage on commercial site**: Flag at Info priority, not Critical. Removal removes GEO citation upside.
-> - **Adding new FAQPage**: Not recommended for Google benefit; acceptable if AI search visibility is a priority.
+> **GEO nuance**: FAQ markup does not create AI citation value by itself; citation follows answer extractability (see `geo.md` and `ai-search-2026.md`).
+> - **Existing FAQPage on commercial site**: keep it only where the page visibly shows the Q&A; flag at Info priority, not Critical.
+> - **Adding new FAQPage**: Not recommended, for Google rich results or for AI citation.
 
 ---
 

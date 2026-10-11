@@ -1,7 +1,6 @@
 # Claude Deep Research: The Definitive Paid Advertising Reference for 2026
 
 > Source: Claude Deep Research, February 2026
-> Original: ~/Documents/Ads Documentation & Research/
 > 492 lines; Most comprehensive and up-to-date source
 
 ## Key Unique Data Points (Not in Other Sources)

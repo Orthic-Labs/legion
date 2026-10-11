@@ -1067,7 +1067,25 @@ pub fn run_cli(args: &[String], cwd: PathBuf, env: &HashMap<String, String>) -> 
     };
     let runner = SystemProcessRunner;
     let result = commit_manual_edits(opts, &runner);
-    (0, result.to_string())
+    // Exit 0 only for a committed outcome: at least one applied entry, no
+    // failures, and no `reason` (reasons cover no-op, invalid buffer, and
+    // needs-decision). Every other outcome exits 1 so callers cannot read a
+    // failed or empty commit as success.
+    let has_reason = result.get("reason").is_some();
+    let has_failures = result
+        .get("failed")
+        .and_then(Value::as_array)
+        .map_or(true, |f| !f.is_empty());
+    let has_applied = result
+        .get("applied")
+        .and_then(Value::as_array)
+        .map_or(false, |a| !a.is_empty());
+    let code = if !has_reason && !has_failures && has_applied {
+        0
+    } else {
+        1
+    };
+    (code, result.to_string())
 }
 
 #[cfg(test)]

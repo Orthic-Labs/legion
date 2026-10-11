@@ -18,9 +18,9 @@ When review is warranted, Legion provides one ephemeral chat packet containing:
 - outcomes Legion intends to claim;
 - explicit exclusions stated by user.
 
-Use Oracle only when explicitly requested or when a concrete outcome or safety risk benefits from
-independent review. Routine replies, read-only answers, status updates, ending a turn, and small
-reversible changes do not need Oracle. Oracle's own validation response does not recursively
+Use Oracle for review or verification of any work Legion did not produce itself, and for
+independent verification of someone else's work; never for its own fix. Routine replies and
+read-only answers need no Oracle. Oracle's own validation response does not recursively
 require another validation.
 
 Legion is responsible for transmitting scope. Oracle is responsible for reconstructing and

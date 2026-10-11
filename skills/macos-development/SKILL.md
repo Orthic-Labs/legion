@@ -68,6 +68,9 @@ This adds platform expertise to Legion; it does not replace its runtime or autho
   do not duplicate their general workflow or infer authority from platform effects.
 - Use ios-development for iOS/iPadOS targets; share only the changes the task genuinely
   requires. Catalyst and multiplatform apps need explicit target-by-target validation.
+- Host tools (Xcode, Swift toolchain, Legion Apple CLI/MCP, and optional adapters) are declared
+  per route in [route resources](references/route-resources.json), not in `dependencies.json`;
+  load a route's tools only when that route is selected.
 
 [Source manifest](config/source-manifest.json) records reviewed sources and reuse limits.
 [Third-party notices](references/third-party-notices.md) travel with this standalone bundle.

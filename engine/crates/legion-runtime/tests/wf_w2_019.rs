@@ -120,7 +120,7 @@ fn manual_apply_resume_hint_matches_js_wording_shape() {
     assert!(hint.contains("1 op(s)"));
     assert!(hint.contains("1 entry"));
     assert!(hint.contains("likely files: src/Pricing.svelte"));
-    assert!(hint.contains("live-poll.mjs --reply ev5 done --data '<json>'"));
+    assert!(hint.contains("legion script designer/live-poll --reply ev5 done --data '<json>'"));
 }
 
 #[test]

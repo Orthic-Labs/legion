@@ -743,7 +743,7 @@ pub fn run(
             "{}",
             serde_json::to_string_pretty(&value).unwrap_or_default()
         );
-        return 0;
+        return if result.error.is_some() { 1 } else { 0 };
     }
 
     if let Some(url) = &result.source_url {

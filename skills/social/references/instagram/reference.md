@@ -1,49 +1,17 @@
----
-name: instagram-pro
-description: >
-  Instagram workflow per brand: content calendar, post review, performance analysis, growth strategy.
-  Use when user says "/instagram", "IG", "Instagram strategy", "IG content calendar", "review my IG",
-  "why isn't IG working", "IG performance", "Reels strategy". Requires IG Graph API for live analytics
-  (todo.md P0) — without it, creation + manual-data analysis only.
----
-
 # Instagram
 
 ## Status
-- Content calendar + creation: works now
-- **Live analytics: use `agent-browser` CLI** to navigate IG dashboard while user is logged in (preferred — DOM snapshot, no inline screenshots)
-- Bulk historical exports + publishing: needs IG Graph API MCP (todo.md P0)
+- Content calendar + creation: works from the brand card and the user's inputs.
+- Live analytics: needs a host browser or platform-data capability. Neither is declared by this package (missing: `browser`, `social-data`). Without one, ask the user for Insights screenshots or exports and analyze those.
+- Bulk historical exports and publishing: need a host `social-data` or `social-scheduler` capability (missing from this package). Without one, the user posts manually.
 
-## Live analytics via agent-browser (preferred path, works today)
+## Live analytics (only if the host provides it)
 
-`agent-browser` is the Rust CLI + Chrome-for-Testing daemon (~7.6× cheaper per snapshot than Playwright MCP). User must be logged into Instagram in the Chrome-for-Testing profile (run `agent-browser --profile Default open https://www.instagram.com/` once to seed cookies). Then:
+If the host provides a browser capability and the user is logged in to the account, read the Professional Dashboard → Insights panels the user names. Read-only; do not change settings, post, or reply.
 
-```bash
-# 1. Profile + dashboard
-agent-browser open "https://www.instagram.com/<username>/" && agent-browser wait 3000 && agent-browser snapshot -i
-
-# 2. Professional Dashboard → Insights (click via @ref from the snapshot above)
-agent-browser click @e<N>          # the dashboard link
-agent-browser snapshot              # account-level DOM with numbers parsable inline
-
-# 3. Per-post insights
-agent-browser open "https://www.instagram.com/p/<shortcode>/" && agent-browser click "View insights" && agent-browser snapshot
-
-# 4. Reels overview (if available)
-agent-browser open "https://www.instagram.com/reels/audience/" && agent-browser snapshot
-
-# 5. Stories: dashboard → Stories tab, snapshot per slide
-
-# 6. For chart visualizations that don't appear in DOM, capture as image and Read it:
-agent-browser screenshot /tmp/ig_chart.png
-# Then in the conversation: use the Read tool on /tmp/ig_chart.png so Claude can reason about the chart visually.
-```
-
-If agent-browser fails (2FA, account locked, layout change): fall back to user-provided screenshots OR the IG Graph API token path (todo.md P0).
-
-If the daemon throws "version mismatch" on Windows: `taskkill //F //IM agent-browser-win32-x64.exe && rm ~/.agent-browser/default.{port,pid,version,stream}` then retry.
-
-**Always read on-screen numbers back to the user** before analyzing — lets them flag if agent-browser grabbed stale or wrong panels.
+- Read every on-screen number back to the user before analyzing, so they can flag a stale or wrong panel.
+- Charts that are not in the page text: use an image the user supplies.
+- If the browser capability fails (2FA, locked account, layout change), fall back to user-provided screenshots or exports.
 
 ## Always start with
 1. `/brand <brand-code>`
@@ -54,12 +22,7 @@ If the daemon throws "version mismatch" on Windows: `taskkill //F //IM agent-bro
 ### Content calendar (weekly/monthly)
 Ask: posting frequency, content mix, themes/launches.
 
-Default mix:
-| Brand | Reels | Carousel | Single | Story |
-|---|---|---|---|---|
-| RH | 4/wk | 2/wk | 0 | daily 3-5 |
-| DD | 3/wk | 1/wk | 1/wk | 2-3/wk |
-| SS | 2/wk | 3/wk | 2/wk | 2/wk |
+Content mix: take the per-format cadence (Reels, carousels, single posts, Stories) from the brand card loaded via `/brand`. If the card sets none, propose a starting mix and label it an untested assumption to check against the account's own data.
 
 Output: 7- or 30-day grid with topic, format, hook, CTA, hashtag set, posting time.
 
@@ -68,11 +31,11 @@ Output: 7- or 30-day grid with topic, format, hook, CTA, hashtag set, posting ti
 2. Hook test (first frame for Reel, first slide for carousel, first line for caption)
 3. Caption: hook → 2-3 body lines → CTA OR question (never both)
 4. Hashtags: 5-15 mid-tail in first comment
-5. Generate via `/designer static` or `/social youtube` for Reel
+5. Generate via `/designer static` for the visual, or the YouTube reference for a Reel script
 
 ### Performance review (with screenshots/exports)
 Analyze:
-- Reach vs followers (>20% healthy, <5% punished)
+- Reach vs followers (compare with the brand's own history; avoid fixed benchmarks presented as fact)
 - Saves + shares (best signal — not likes)
 - Profile visits / reach
 - Follow rate / profile visits
@@ -85,7 +48,7 @@ Pattern-match last 30 posts:
 - Off-brand vs on-brand: which performs better? (data > theory)
 
 ### Growth strategy
-- Audit current state
+- Audit current state from the data the user supplies
 - Identify ONE bottleneck (reach? CTR? bio? content-market fit?)
 - 4-week experiment to test the fix
 
@@ -94,10 +57,8 @@ Pattern-match last 30 posts:
 - Mix: 30% brand/community, 50% mid-tail (10k-100k posts), 20% topic-broad
 - Rotate sets weekly to avoid shadow-ban patterns
 
-## Posting times (US-skewed)
-- RH: 7-9am ET weekdays + Sun 8pm
-- DD: 12-2pm ET weekdays + Sat 10am
-- SS: 8-10pm ET Tue/Thu/Sun
+## Posting times
+Take the posting windows from the brand card and the audience's timezone. If the card has none, propose windows and label them hypotheses to test against the account's own insights.
 
 ## Why IG doesn't work for new accounts (cold truth)
 - < 1k followers: algo barely shows posts to non-followers
@@ -120,7 +81,7 @@ Review:
 ## IG Review — [brand] — [period]
 
 ### Scorecard
-- Reach: X% of followers (target 20%+)
+- Reach: X% of followers (vs the account's own baseline)
 - Save rate: X per 1k reach
 - Profile visit → follow: X%
 - Comments-to-likes: 1:X

@@ -1,5 +1,30 @@
 {
   "schemaVersion": 1,
   "kind": "legion-skill-dependencies",
-  "resources": []
+  "resources": [
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "blueprint-graph"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "legion"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../audit/references/manual.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../audit/references/lens-routing.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../audit/references/migration-safety.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../audit/references/ponytail-lens.md"
+    }
+  ]
 }

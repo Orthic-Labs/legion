@@ -1,6 +1,6 @@
 # Topic Architecture / SERP-Overlap Clustering
 
-Absorbed conceptually from AgriciDaniel/claude-seo v2.3.1 `seo-cluster`, adapted to Legion's evidence and capability boundaries.
+Absorbed conceptually from AgriciDaniel/claude-seo v2.3.1 (cluster method), adapted to Legion's evidence and capability boundaries.
 
 Use for keyword grouping, pillar/spoke planning, topic architecture and cannibalization prevention.
 

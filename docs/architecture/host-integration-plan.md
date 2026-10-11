@@ -1,5 +1,7 @@
 > Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
 
+> **Historical design note — superseded by the native Rust runtime; counts and file names below describe the retired Node implementation.**
+
 # Legion host-integration implementation plan
 
 **Status:** historical, frozen; superseded by the Rust port
@@ -47,13 +49,11 @@ Legion's canonical content is host-neutral. Its delivery was not. Before this wo
 `scripts/generate-host-projection.mjs` → `src/registry/host-projection.json`.
 
 Derived from canonical owners only: `skills/*/SKILL.md`, `src/roster/*.md`,
-`src/registry/capabilities.json`. Emits 18 domain capabilities, 4 explicit entrypoints, 3 roles,
-16 host capabilities, the 4 reference classes, and a fidelity declaration per harness.
+`src/registry/capabilities.json`. Emits 28 capabilities, 3 roles, 27 host capabilities, the 4 reference classes, and a fidelity declaration per harness.
 `--check` fails on drift.
 
-`skills/alchemist`, `skills/commit`, `skills/council`, and `skills/dispatch`
-project as `kind: entrypoint`, `discoverability: explicit`. Alchemist attaches its authority;
-Council requests optional challenge; the others enter their owned explicit workflows.
+`skills/alchemist`, `skills/commit`, and `skills/council` project as `kind: entrypoint`, `discoverability: explicit`; `skills/dispatch` projects as `kind: capability`. Alchemist attaches its authority;
+Council requests optional challenge; Commit enters its owned explicit workflow.
 
 ### 1.3 Diagnosis
 
@@ -102,7 +102,7 @@ Command Code signal and `.vscode` as a Cline signal: those are cross-harness or 
 conventions, and matching on them made one ordinary repository detect as three harnesses at once.
 Two harnesses that genuinely coexist are still both reported — from their own evidence.
 
-Gemini is intentionally absent — it is not built, because it is not used.
+Gemini is built in the native bind path (`legion bind`, harness `gemini`, `engine/bins/legion/src/commands/bind.rs`), detected from `.gemini/` or `GEMINI.md`.
 
 ## 3. Remaining work
 
@@ -123,7 +123,7 @@ the installed copy's layout still matches its source.
 ### 3.2 Claude native projection — done
 
 The plugin package is the single installation owner for Claude Code. Parity is proven by
-`verify-plugin-parity` (23 skills, 4 agents, 1 MCP server, 8 hook events all resolve), so
+`verify-plugin-parity` (28 skills, 4 agents, 1 MCP server, 9 hook events all resolve), so
 `bind/claude-code.mjs` is retired: it detects nothing, writes nothing, and an explicit
 `--harness claude-code` request returns a note pointing at the plugin. `legion bind` no longer
 competes for the Claude harness; one installation path owns each harness.

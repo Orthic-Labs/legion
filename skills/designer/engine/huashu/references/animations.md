@@ -17,8 +17,9 @@
 ## 起手
 
 ```html
-<script type="text/babel" src="animations.jsx"></script>
 <script type="text/babel">
+  // 1) 把 assets/animations.jsx 全文粘贴到这里（内联，不用 src；file:// 下外链 .jsx 会 CORS 黑屏，见 animation-pitfalls.md #15）
+  // 2) 再写应用代码
   const { Stage, Sprite, useTime, useSprite, Easing, interpolate } = window.Animations;
 
   function Title() {

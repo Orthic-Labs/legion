@@ -244,6 +244,34 @@ impl HookResponse {
     }
 }
 
+fn is_pre_tool_use_name(name: &str) -> bool {
+    matches!(name.trim(), "PreToolUse" | "pre-effect")
+}
+
+/// Whether a frame that failed to become a request was a PreToolUse event.
+/// `--event` wins; otherwise the raw text is scanned for an event-name field
+/// holding PreToolUse, which survives malformed JSON elsewhere in the frame.
+/// An unidentifiable frame returns false so existing behaviour is unchanged.
+pub fn identifies_pre_tool_use(input: &[u8], argv_event: Option<&str>) -> bool {
+    if argv_event.is_some_and(is_pre_tool_use_name) {
+        return true;
+    }
+    let text = String::from_utf8_lossy(input);
+    for key in ["\"hook_event_name\"", "\"eventType\""] {
+        for (index, _) in text.match_indices(key) {
+            let rest = text[index + key.len()..].trim_start();
+            let Some(rest) = rest.strip_prefix(':') else {
+                continue;
+            };
+            let rest = rest.trim_start();
+            if rest.starts_with("\"PreToolUse\"") || rest.starts_with("\"pre-effect\"") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn string(object: &Map<String, Value>, key: &str) -> Option<String> {
     object
         .get(key)
@@ -274,5 +302,24 @@ mod tests {
         request.validate().expect("SubagentStop is registered");
         assert!(request.is_lifecycle());
         assert!(!request.is_pre_effect());
+    }
+
+    #[test]
+    fn malformed_pre_tool_use_frames_are_identified_from_argv_or_raw_text() {
+        assert!(identifies_pre_tool_use(b"", Some("PreToolUse")));
+        assert!(identifies_pre_tool_use(
+            br#"{"hook_event_name": "PreToolUse", "tool_input": {"#,
+            None
+        ));
+        assert!(identifies_pre_tool_use(
+            br#"{"eventType":"pre-effect","hook_event_name":"Stop" "#,
+            None
+        ));
+        assert!(!identifies_pre_tool_use(b"", None));
+        assert!(!identifies_pre_tool_use(b"not json at all", Some("Stop")));
+        assert!(!identifies_pre_tool_use(
+            br#"{"hook_event_name":"Stop","last_assistant_message":"PreToolUse"#,
+            None
+        ));
     }
 }

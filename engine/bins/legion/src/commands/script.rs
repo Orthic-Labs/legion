@@ -17,8 +17,8 @@ use legion_handoff::{l1_port, l1b_port};
 use legion_runtime::p9_skills;
 use legion_runtime::wf_port::{
     r00, r02, r03, r04, r05, r07, r08, r12, r13, r14, r18, r22, r24, r32, r37, r46, r54, w2_005,
-    w2_006, w2_007, w2_010, w2_016, w2_017, w2_018, w2_019, w2_020, w2_023, w2_027, w2_028, w2_029,
-    w2_030, w2_031, w2_032, w2_033, w2_034, w2_044,
+    w2_006, w2_010, w2_016, w2_017, w2_018, w2_019, w2_020, w2_023, w2_027, w2_028, w2_029, w2_030,
+    w2_031, w2_032, w2_033, w2_034, w2_044,
 };
 use sha2::{Digest, Sha256};
 
@@ -62,7 +62,6 @@ pub const TABLE: &[(&str, Entry)] = &[
         council_validate_external_review_packet,
     ),
     ("council/validate-record", council_validate_record),
-    ("designer/add-music", designer_add_music),
     ("designer/context", designer_context),
     ("designer/context-signals", designer_context_signals),
     ("designer/convert-formats", designer_convert_formats),
@@ -95,13 +94,9 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/live-status", designer_live_status),
     ("designer/live-target", designer_live_target),
     ("designer/live-wrap", designer_live_wrap),
-    ("designer/narrate-pipeline", designer_narrate_pipeline),
     ("designer/palette", designer_palette),
-    ("designer/mix-voiceover", designer_mix_voiceover),
-    ("designer/render-narration", designer_render_narration),
     ("designer/render-video", designer_render_video),
     ("designer/render-video-seek", designer_render_video_seek),
-    ("designer/tts-doubao", designer_tts_doubao),
     ("designer/verify", designer_verify),
     ("dispatch/validate-dispatch", dispatch_validate_dispatch),
     ("dispatch/validate-route", dispatch_validate_route),
@@ -518,7 +513,14 @@ fn seo_fetch_page(args: &[String]) -> i32 {
 }
 
 fn seo_ga4_report(args: &[String]) -> i32 {
-    let bearer_token = std::env::var("GA4_BEARER_TOKEN").unwrap_or_default();
+    let bearer_token = if wants_help(args) {
+        String::new()
+    } else {
+        match required_credential("GA4_BEARER_TOKEN") {
+            Ok(token) => token,
+            Err(code) => return code,
+        }
+    };
     let client = w2_029::ga4_report::ReqwestGa4Http::new(bearer_token);
     let config_property = std::env::var("GA4_PROPERTY_ID").ok();
     let outcome = w2_029::ga4_report::run(args, &client, civil_today(), config_property.as_deref());
@@ -530,14 +532,42 @@ fn seo_indexnow(args: &[String]) -> i32 {
     let files = RealFileReader;
     let env_key = std::env::var("INDEXNOW_KEY").ok();
     let outcome = w2_031::indexnow::run(args, &transport, &files, env_key.as_deref());
+    let mut write_failed = false;
     if let Some((path, contents)) = &outcome.write_file {
-        let _ = std::fs::write(path, contents);
+        if let Err(e) = std::fs::write(path, contents) {
+            eprintln!("error: could not write {path}: {e}");
+            write_failed = true;
+        }
     }
-    print_cli_outcome(outcome.exit_code, &outcome.stdout, &outcome.stderr)
+    let code = print_cli_outcome(outcome.exit_code, &outcome.stdout, &outcome.stderr);
+    if write_failed {
+        1
+    } else {
+        code
+    }
+}
+
+/// Reads a required credential from the environment. A missing or blank value
+/// is reported as `unavailable` (exit 3) so no request is sent with an empty token.
+fn required_credential(name: &str) -> Result<String, i32> {
+    match std::env::var(name) {
+        Ok(value) if !value.trim().is_empty() => Ok(value),
+        _ => {
+            eprintln!("unavailable: missing credential {name}");
+            Err(3)
+        }
+    }
 }
 
 fn seo_indexing_notify(args: &[String]) -> i32 {
-    let bearer_token = std::env::var("GOOGLE_INDEXING_BEARER_TOKEN").unwrap_or_default();
+    let bearer_token = if wants_help(args) {
+        String::new()
+    } else {
+        match required_credential("GOOGLE_INDEXING_BEARER_TOKEN") {
+            Ok(token) => token,
+            Err(code) => return code,
+        }
+    };
     let client = w2_031::indexing_notify::ReqwestIndexingClient::new(bearer_token);
     let files = RealFileReader;
     let outcome = w2_031::indexing_notify::run(args, &client, &files);
@@ -583,7 +613,10 @@ fn seo_bing_webmaster(args: &[String]) -> i32 {
         eprintln!("{usage}");
     }
     if let (Some(path), Some(json)) = (bwt_args.out.as_ref(), outcome.written_json.as_ref()) {
-        let _ = std::fs::write(path, json);
+        if let Err(e) = std::fs::write(path, json) {
+            eprintln!("error: could not write {path}: {e}");
+            return 1;
+        }
     }
     outcome.exit_code
 }
@@ -1042,7 +1075,9 @@ fn designer_critique_storage(args: &[String]) -> i32 {
         }
         _ => {
             let _ = it;
-            eprintln!("usage: critique-storage.mjs <slug|write|latest|trend> [args]");
+            eprintln!(
+                "usage: legion script designer/critique-storage <slug|write|latest|trend> [args]"
+            );
             1
         }
     }
@@ -1122,16 +1157,16 @@ fn designer_palette(args: &[String]) -> i32 {
 /// for URL scans (browser executable auto-discovered via `r07`), `RegistryLookup`
 /// for antipattern metadata, `ReqwestFetcher` for `--site` sweeps.
 ///
-/// Gap: `main.mjs`'s `--site`/`--url`/direct-URL scan path calls the
-/// browser-injection script `window.impeccableDetect` (`browser_script.js`),
-/// which is not present anywhere in this tree (not `detect.mjs`,
-/// `detect-antipatterns.mjs`, or any `.js` under `detector/`) and is not
-/// ported by any prior packet (`r05`'s and `r07`'s own finish notes record
-/// the same gap). It is passed here as an empty string, so a URL/browser
-/// scan runs the browser but the injected findings collector returns
-/// nothing; file/dir text and HTML scanning (the common path) are fully
-/// wired and unaffected.
+/// URL scans need the browser-injection script `window.impeccableDetect`, loaded
+/// from the shipped `detector/detect-antipatterns-browser.js`. If that file is
+/// missing, a URL target reports `unavailable` with reason
+/// `detector-script-missing` and exits 3. It never reports an empty pass.
+/// File/dir text and HTML scanning are unaffected.
 fn designer_detect(args: &[String]) -> i32 {
+    let browser_script = load_detector_browser_script_from(&find_skills_root());
+    if let Some(reason) = url_scan_unavailable_reason(&browser_script, args) {
+        return designer_detect_unavailable(reason);
+    }
     let cwd = cwd();
     let env = r07::browser::ProcessEnv;
     let fs_lookup = r07::browser::RealFs;
@@ -1153,13 +1188,16 @@ fn designer_detect(args: &[String]) -> i32 {
     let mut maybe_driver =
         executable.and_then(|exe| r07::RealChromeDriver::new(exe, r07::Viewport::default()).ok());
 
+    // Typed `unavailable:` error so a URL target reports unavailable (exit 3)
+    // instead of an untyped failure when no browser driver could be built.
+    const NO_DRIVER: &str = "unavailable:browser-driver-missing";
     struct NullDriver;
     impl r07::ChromeDriver for NullDriver {
         fn navigate(&mut self, _url: &str) -> Result<(), String> {
-            Err("no browser executable found".to_string())
+            Err(NO_DRIVER.to_string())
         }
         fn evaluate(&mut self, _script: &str) -> Result<serde_json::Value, String> {
-            Err("no browser executable found".to_string())
+            Err(NO_DRIVER.to_string())
         }
     }
     let mut null_driver = NullDriver;
@@ -1169,21 +1207,130 @@ fn designer_detect(args: &[String]) -> i32 {
             driver,
             registry: &registry,
             fetcher: &fetcher,
-            browser_script: "",
+            browser_script: browser_script.as_str(),
             providers: &providers,
         };
-        run_r05(&cwd, args, &mut detectors)
+        run_designer_detect(&cwd, args, &mut detectors)
     } else {
         let mut detectors = r05::real_detectors::RealDetectors {
             driver: &mut null_driver,
             registry: &registry,
             fetcher: &fetcher,
-            browser_script: "",
+            browser_script: browser_script.as_str(),
             providers: &providers,
         };
-        run_r05(&cwd, args, &mut detectors)
+        run_designer_detect(&cwd, args, &mut detectors)
     };
     outcome
+}
+
+fn looks_like_url(target: &str) -> bool {
+    let lower = target.to_ascii_lowercase();
+    lower.starts_with("http://") || lower.starts_with("https://")
+}
+
+/// Shipped browser-injection script (`window.impeccableDetect`) for URL scans,
+/// relative to the skills root.
+const DETECTOR_BROWSER_SCRIPT: &str =
+    "skills/designer/engine/scripts/detector/detect-antipatterns-browser.js";
+
+/// Reads the shipped browser detector from `skills_root`, the same root the
+/// neighbouring designer routes resolve assets from. Empty when absent or
+/// unreadable, which the route reports as unavailable.
+fn load_detector_browser_script_from(skills_root: &std::path::Path) -> String {
+    std::fs::read_to_string(skills_root.join(DETECTOR_BROWSER_SCRIPT)).unwrap_or_default()
+}
+
+/// Unavailable reason when URL targets are requested but the browser script is
+/// missing. `None` when the script is present or no URL target was given.
+fn url_scan_unavailable_reason(browser_script: &str, args: &[String]) -> Option<&'static str> {
+    if browser_script.trim().is_empty() && args.iter().any(|a| looks_like_url(a)) {
+        Some(r07::detect_url::REASON_DETECTOR_SCRIPT_MISSING)
+    } else {
+        None
+    }
+}
+
+/// Typed unavailable result for the designer detect route. Prints a JSON status
+/// to stdout and exits 3, distinct from 0 clean, 1 usage error, and 2 findings.
+fn designer_detect_unavailable(reason: &str) -> i32 {
+    eprintln!("Error: URL detection unavailable: {reason}");
+    println!(
+        "{}",
+        json!({
+            "schema": "legion.designer-detect-result.v1",
+            "status": "unavailable",
+            "reason": reason,
+        })
+    );
+    3
+}
+
+use legion_runtime::wf_port::w2_011::design_system::DesignSystem;
+
+/// Forwards to the production detectors and records every URL scan that
+/// returned a typed `unavailable:<reason>` error. The r05 CLI only prints such
+/// errors to stderr, so without this the route would exit clean.
+struct UnavailableTracker<'a, D> {
+    inner: &'a mut D,
+    reasons: Vec<String>,
+}
+
+impl<D: r05::cli::Detectors> r05::cli::Detectors for UnavailableTracker<'_, D> {
+    fn detect_text(
+        &mut self,
+        content: &str,
+        file_path: &str,
+        design_system: Option<&DesignSystem>,
+    ) -> Vec<r05::output::CliFinding> {
+        self.inner.detect_text(content, file_path, design_system)
+    }
+
+    fn detect_html(
+        &mut self,
+        file_path: &str,
+        design_system: Option<&DesignSystem>,
+    ) -> Result<Vec<r05::output::CliFinding>, String> {
+        self.inner.detect_html(file_path, design_system)
+    }
+
+    fn detect_url(
+        &mut self,
+        url: &str,
+        options: &r05::cli::UrlScanOptions,
+    ) -> Result<Vec<r05::output::CliFinding>, String> {
+        let result = self.inner.detect_url(url, options);
+        if let Err(err) = &result {
+            if let Some(reason) = r07::detect_url::unavailable_reason(err) {
+                self.reasons.push(reason.to_string());
+            }
+        }
+        result
+    }
+
+    fn sweep_site(&mut self, url: &str, site_type: Option<&str>) -> Vec<r05::output::CliFinding> {
+        self.inner.sweep_site(url, site_type)
+    }
+}
+
+/// Runs the r05 CLI with unavailable tracking. If any URL scan could not run,
+/// the route reports `unavailable` and exits 3, even when other targets produced
+/// findings or a clean report. The normal report may already be printed above
+/// the unavailable JSON line.
+fn run_designer_detect<D: r05::cli::Detectors>(
+    cwd: &std::path::Path,
+    args: &[String],
+    detectors: &mut D,
+) -> i32 {
+    let mut tracked = UnavailableTracker {
+        inner: detectors,
+        reasons: Vec::new(),
+    };
+    let code = run_r05(cwd, args, &mut tracked);
+    match tracked.reasons.first() {
+        Some(reason) => designer_detect_unavailable(reason),
+        None => code,
+    }
 }
 
 fn run_r05<D: r05::cli::Detectors>(
@@ -1226,7 +1373,7 @@ fn run_r05<D: r05::cli::Detectors>(
     r05::cli::run(args, cwd, &mut io, detectors, design_system.as_ref())
 }
 
-// ---- designer / huashu deck+video (packet r00, w2_007, r02, r03) --------
+// ---- designer / huashu deck+video (packet r00, r02, r03) --------
 
 /// Real [`r00::export_deck_stage_pdf::FileSystem`]: `std::fs`.
 struct RealDeckStageFs;
@@ -1273,7 +1420,9 @@ fn designer_export_deck_pptx(args: &[String]) -> i32 {
     let parsed = match r00::export_deck_pptx::parse_args(args) {
         Ok(a) => a,
         Err(_) => {
-            eprintln!("用法: node export_deck_pptx.mjs --slides <dir> --out <file.pptx>");
+            eprintln!(
+                "用法: legion script designer/export-deck-pptx --slides <dir> --out <file.pptx>"
+            );
             return 1;
         }
     };
@@ -1316,7 +1465,7 @@ fn designer_export_deck_stage_pdf(args: &[String]) -> i32 {
         Ok(a) => a,
         Err(_) => {
             eprintln!(
-                "用法: node export_deck_stage_pdf.mjs --html <deck.html> --out <file.pdf> [--width 1920] [--height 1080]"
+                "用法: legion script designer/export-deck-stage-pdf --html <deck.html> --out <file.pdf> [--width 1920] [--height 1080]"
             );
             return 1;
         }
@@ -1393,7 +1542,7 @@ fn designer_fetch_images(args: &[String]) -> i32 {
         Ok(a) => a,
         Err(_) => {
             eprintln!(
-                "usage: fetch_images.py --query <q...> --out <dir> [--count 2] [--width 1600]"
+                "usage: legion script designer/fetch-images --query <q...> --out <dir> [--count 2] [--width 1600]"
             );
             return 1;
         }
@@ -1480,7 +1629,7 @@ fn designer_render_video_seek(args: &[String]) -> i32 {
     let parsed = match r02::render_video_seek::parse_args(&argv) {
         Ok(a) => a,
         Err(_) => {
-            eprintln!("Usage: node render-video-seek.js <html-file> [--duration=N] [--fps=N] [--width=N] [--height=N] [--concurrency=N]");
+            eprintln!("Usage: legion script designer/render-video-seek <html-file> [--duration=N] [--fps=N] [--width=N] [--height=N] [--concurrency=N]");
             return 1;
         }
     };
@@ -1517,343 +1666,6 @@ fn designer_render_video_seek(args: &[String]) -> i32 {
             1
         }
     }
-}
-
-/// `legion script designer/narrate-pipeline <script.json> <out-dir>`, port
-/// of `narrate-pipeline.mjs`. `tts_script` points at the sibling
-/// `tts-doubao.mjs` next to the given script file, matching the original's
-/// `path.join(__dirname, 'tts-doubao.mjs')` (this dispatcher has no
-/// `__dirname`; the huashu `scripts/` directory convention is that every
-/// narration script and `tts-doubao.mjs` live side by side).
-/// `legion script designer/mix-voiceover <video.mp4> --voiceover=<v.mp3> [options]`,
-/// port of `mix-voiceover.sh`. Builds the `ffmpeg` filter-graph args via
-/// `w2_007::mix_voiceover` and runs the real `ffmpeg` binary.
-fn designer_mix_voiceover(args: &[String]) -> i32 {
-    let owned: Vec<String> = args.to_vec();
-    let opts = match w2_007::mix_voiceover::parse_args(owned.iter().map(String::as_str)) {
-        Ok(o) => o,
-        Err(e) => {
-            eprintln!("\u{672a}\u{77e5}参数：{}", e.0);
-            return 1;
-        }
-    };
-    let script_dir = cwd();
-    let bgm = match w2_007::mix_voiceover::validate(
-        &opts,
-        |p| std::path::Path::new(p).is_file(),
-        |p| std::path::Path::new(p).is_file(),
-        |p| p.is_file(),
-        &script_dir,
-    ) {
-        Ok(bgm) => bgm,
-        Err(w2_007::mix_voiceover::ValidationError::MissingOrNoSuchInput) => {
-            eprintln!("{}", w2_007::mix_voiceover::USAGE_LINE);
-            return 1;
-        }
-        Err(w2_007::mix_voiceover::ValidationError::MissingOrNoSuchVoiceover) => {
-            eprintln!("{}", w2_007::mix_voiceover::MISSING_VOICEOVER_LINE);
-            return 1;
-        }
-        Err(w2_007::mix_voiceover::ValidationError::MissingBgmFile { path }) => {
-            eprintln!("\u{2717} BGM \u{6587}件不存在: {path}");
-            return 1;
-        }
-    };
-    let input = opts.input.clone().unwrap();
-    let voiceover = opts.voiceover.clone().unwrap();
-    let output = opts
-        .out
-        .clone()
-        .unwrap_or_else(|| w2_007::mix_voiceover::default_output_path(&input));
-    let ffmpeg_args = w2_007::mix_voiceover::build_ffmpeg_args(
-        &input,
-        &voiceover,
-        bgm.as_deref().and_then(|p| p.to_str()),
-        &opts.voice_volume,
-        &opts.bgm_volume,
-        opts.ducking,
-        &output,
-    );
-    match std::process::Command::new("ffmpeg")
-        .args(&ffmpeg_args)
-        .status()
-    {
-        Ok(status) if status.success() => {
-            println!("\u{2713} 完成: {output}");
-            0
-        }
-        Ok(status) => {
-            eprintln!("✗ ffmpeg failed with status {status}");
-            1
-        }
-        Err(e) => {
-            eprintln!("✗ ffmpeg 无法启动: {e}");
-            1
-        }
-    }
-}
-
-/// `legion script designer/render-narration <html> --timeline=<path> [options]`,
-/// port of `render-narration.sh`: renders the silent MP4 (via
-/// `render-video`/`render-video-seek`, in-process) then mixes in the
-/// voiceover (via `mix-voiceover`, in-process), replacing the shell
-/// pipeline's two subprocess hops and `node -e` JSON field reads.
-fn designer_render_narration(args: &[String]) -> i32 {
-    let owned: Vec<String> = args.to_vec();
-    let opts = match w2_007::render_narration::parse_args(owned.iter().map(String::as_str)) {
-        Ok(o) => o,
-        Err(e) => {
-            eprintln!("\u{672a}知参数：{}", e.0);
-            return 1;
-        }
-    };
-    if let Err(err) = w2_007::render_narration::validate(
-        &opts,
-        |p| std::path::Path::new(p).is_file(),
-        |p| std::path::Path::new(p).is_file(),
-    ) {
-        match err {
-            w2_007::render_narration::ValidationError::MissingOrNoSuchHtml => {
-                eprintln!("{}", w2_007::render_narration::USAGE_LINE);
-            }
-            w2_007::render_narration::ValidationError::MissingOrNoSuchTimeline => {
-                eprintln!("{}", w2_007::render_narration::MISSING_TIMELINE_LINE);
-            }
-        }
-        return 1;
-    }
-    let html = opts.html.clone().unwrap();
-    let timeline_path = opts.timeline.clone().unwrap();
-    let timeline_text = match std::fs::read_to_string(&timeline_path) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!("✗ 无法读取 timeline.json: {e}");
-            return 1;
-        }
-    };
-    let timeline = match w2_007::render_narration::parse_timeline(&timeline_text) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!("✗ timeline.json 解析失败: {}", e.0);
-            return 1;
-        }
-    };
-    let timeline_dir = std::path::Path::new(&timeline_path)
-        .parent()
-        .map(std::path::Path::to_path_buf)
-        .unwrap_or_default();
-    let voiceover = timeline_dir.join(&timeline.voiceover_rel);
-    if !voiceover.is_file() {
-        eprintln!("✗ voiceover.mp3 不存在: {}", voiceover.display());
-        return 1;
-    }
-    let record_duration = w2_007::render_narration::record_duration(timeline.total_duration);
-    let html_abs = match std::fs::canonicalize(&html) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("✗ 无法解析 HTML 路径: {e}");
-            return 1;
-        }
-    };
-    let paths = w2_007::render_narration::derive_paths(&html_abs, opts.out.as_deref());
-    println!(
-        "{}",
-        w2_007::render_narration::status_block(
-            &opts,
-            &paths,
-            &timeline_path,
-            &voiceover,
-            timeline.total_duration,
-            record_duration,
-        )
-    );
-
-    // ── Step 1: render the silent MP4, in-process ──────────────────────
-    println!();
-    let render_ok = if opts.use_seek {
-        println!("▸ Step 1/2 · 逐帧 seek 渲染 HTML 动画 (无声)");
-        let mut argv = vec!["legion".to_string(), "render-video-seek".to_string()];
-        argv.push(html_abs.to_string_lossy().to_string());
-        argv.push(format!("--duration={record_duration}"));
-        argv.push(format!("--fps={}", opts.seek_fps));
-        argv.push(format!("--width={}", opts.width));
-        argv.push(format!("--height={}", opts.height));
-        match r02::render_video_seek::parse_args(&argv) {
-            Ok(parsed) => match r02::render_video_seek::HeadlessChromeDriver::launch() {
-                Ok(driver) => {
-                    let encoder = r02::render_video_seek::RealFfmpegEncoder;
-                    static COUNTER: std::sync::atomic::AtomicU64 =
-                        std::sync::atomic::AtomicU64::new(0);
-                    let suffix = format!(
-                        "{}-{}",
-                        std::process::id(),
-                        COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                    );
-                    let tmp_dir =
-                        std::env::temp_dir().join(format!("legion-render-narration-{suffix}"));
-                    match r02::render_video_seek::run(&parsed, &driver, &encoder, &tmp_dir) {
-                        Ok(outcome) => {
-                            for line in &outcome.log_lines {
-                                println!("{line}");
-                            }
-                            true
-                        }
-                        Err(e) => {
-                            eprintln!("{e:?}");
-                            false
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("{e}");
-                    false
-                }
-            },
-            Err(_) => {
-                eprintln!("Usage: render-video-seek <html-file> [--duration=N] [--fps=N] [--width=N] [--height=N]");
-                false
-            }
-        }
-    } else {
-        println!("▸ Step 1/2 · 录制 HTML 动画 (无声)");
-        let render_argv = vec![
-            html_abs.to_string_lossy().to_string(),
-            format!("--duration={record_duration}"),
-            format!("--width={}", opts.width),
-            format!("--height={}", opts.height),
-        ];
-        match r03::render_video::ChromeRecorder::launch() {
-            Ok(mut recorder) => {
-                let ffmpeg = r03::render_video::RealFfmpeg;
-                let fs = r03::render_video::RealFileSystem;
-                let mut stdout = std::io::stdout();
-                static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-                let suffix = format!(
-                    "{}-{}",
-                    std::process::id(),
-                    COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                );
-                match r03::render_video::run(
-                    &render_argv,
-                    html_abs.parent().unwrap_or(std::path::Path::new(".")),
-                    &suffix,
-                    &mut recorder,
-                    &ffmpeg,
-                    &fs,
-                    &mut stdout,
-                ) {
-                    Ok(_) => true,
-                    Err(e) => {
-                        eprintln!("{e}");
-                        false
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("{e}");
-                false
-            }
-        }
-    };
-    if !render_ok || !paths.silent_mp4.is_file() {
-        eprintln!("✗ 无声 MP4 没生成: {}", paths.silent_mp4.display());
-        return 1;
-    }
-
-    // ── Step 2: mix in the voiceover ────────────────────────────────────
-    println!();
-    println!("▸ Step 2/2 · 混入人声");
-    let mut mix_args = vec![
-        paths.silent_mp4.to_string_lossy().to_string(),
-        format!("--voiceover={}", voiceover.to_string_lossy()),
-        format!("--out={}", paths.out.to_string_lossy()),
-    ];
-    if let Some(mood) = &opts.bgm_mood {
-        mix_args.push(format!("--bgm-mood={mood}"));
-    }
-    if let Some(bgm) = &opts.bgm {
-        mix_args.push(format!("--bgm={bgm}"));
-    }
-    if opts.bgm_mood.is_some() || opts.bgm.is_some() {
-        mix_args.push(format!("--bgm-volume={}", opts.bgm_volume));
-    }
-    if !opts.ducking {
-        mix_args.push("--no-ducking".to_string());
-    }
-    let mix_status = designer_mix_voiceover(&mix_args);
-    if mix_status != 0 {
-        return mix_status;
-    }
-
-    if !opts.keep_silent {
-        let _ = std::fs::remove_file(&paths.silent_mp4);
-    }
-
-    println!();
-    println!("✓ 完成: {}", paths.out.display());
-    if opts.keep_silent {
-        println!("  (中间产物保留: {})", paths.silent_mp4.display());
-    }
-    0
-}
-
-fn designer_narrate_pipeline(args: &[String]) -> i32 {
-    let tts_script = args
-        .first()
-        .map(std::path::PathBuf::from)
-        .and_then(|p| p.parent().map(|d| d.join("tts-doubao.mjs")))
-        .unwrap_or_else(|| std::path::PathBuf::from("tts-doubao.mjs"));
-    let runner = r02::narrate_pipeline::RealProcessRunner::new(tts_script);
-    let (code, log) = r02::narrate_pipeline::run_cli(args, &runner);
-    for line in &log {
-        println!("{line}");
-    }
-    code
-}
-
-/// `legion script designer/tts-doubao --text <t> --out <file> [--voice v] [--speed s]`,
-/// port of `tts-doubao.mjs`.
-fn designer_tts_doubao(args: &[String]) -> i32 {
-    struct RealFileIo;
-    impl r03::tts_doubao::FileIo for RealFileIo {
-        fn read_to_string(&self, path: &std::path::Path) -> std::io::Result<String> {
-            std::fs::read_to_string(path)
-        }
-        fn read_dotenv(&self, skill_root: &std::path::Path) -> Option<String> {
-            std::fs::read_to_string(skill_root.join(".env")).ok()
-        }
-        fn create_dir_all(&self, path: &std::path::Path) -> std::io::Result<()> {
-            std::fs::create_dir_all(path)
-        }
-        fn write(&self, path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
-            std::fs::write(path, bytes)
-        }
-    }
-    let skill_root = cwd();
-    let process_env: std::collections::HashMap<String, String> = std::env::vars().collect();
-    let reqid = format!(
-        "{:x}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    );
-    let io = RealFileIo;
-    let http = r03::tts_doubao::ReqwestHttpPost;
-    let probe = r03::tts_doubao::RealFfprobe;
-    let mut stdout = std::io::stdout();
-    let mut stderr = std::io::stderr();
-    r03::tts_doubao::run(
-        args,
-        &skill_root,
-        &process_env,
-        reqid,
-        &io,
-        &http,
-        &probe,
-        &mut stdout,
-        &mut stderr,
-    )
 }
 
 /// `legion script designer/verify <html> [--viewports ...] [--slides N] [--output dir] [--wait N]`,
@@ -2353,24 +2165,26 @@ fn qa_qa_shot(args: &[String]) -> i32 {
 }
 
 /// `legion script qa/qa-functional ...`, port of
-/// `skills/qa/scripts/qa-functional.mjs`: forwards to the QA engine with
-/// `--actions` forced, falling back to `--help` when the caller passed
-/// neither `--actions` nor `--actions=...` (matching the `.mjs`'s
-/// `args.includes("--actions") || args.some(a => a.startsWith("--actions="))
-/// ? args : ["--help"]`).
+/// `skills/qa/scripts/qa-functional.mjs`: forwards to the QA engine. Without
+/// `--actions` or `--actions=...` it does not run anything: explicit `--help`
+/// prints the usage (exit 0); otherwise the usage goes to stderr and the route
+/// exits 2 as a usage error.
 fn qa_qa_functional(args: &[String]) -> i32 {
     let has_actions = args
         .iter()
         .any(|a| a == "--actions" || a.starts_with("--actions="));
-    let forwarded: Vec<String> = if has_actions {
-        args.to_vec()
-    } else {
-        vec!["--help".to_string()]
-    };
+    if !has_actions {
+        if wants_help(args) {
+            println!("{}", r54::usage());
+            return 0;
+        }
+        eprintln!("{}", r54::usage());
+        return 2;
+    }
     let repo_root = std::env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| ".".to_string());
-    r54::run(&forwarded, &repo_root)
+    r54::run(args, &repo_root)
 }
 
 // ---- foundation ----------------------------------------------------------
@@ -2457,7 +2271,7 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
     }
 
     let (Some(report), Some(mode)) = (report, mode) else {
-        eprintln!("usage: validate_atom_report.py <report> --mode <mode> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--write-receipt <path>]");
+        eprintln!("usage: legion script foundation/validate-atom-report <report> --mode <mode> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--write-receipt <path>]");
         return 1;
     };
 
@@ -2549,7 +2363,7 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
             };
             let receipt = json!({
                 "schema_version": 1,
-                "producer": "validate_atom_report.py",
+                "producer": "legion script foundation/validate-atom-report",
                 "result": "PASS",
                 "output": outcome.stdout,
                 "mode": mode,
@@ -2594,7 +2408,7 @@ fn seo_banana_presets(args: &[String]) -> i32 {
     use legion_runtime::wf_port::w2_025::presets;
 
     let Some(command) = args.first() else {
-        eprintln!("usage: presets.py <list|show|create|delete> ...");
+        eprintln!("usage: legion script seo/banana-presets <list|show|create|delete> ...");
         return 1;
     };
     let presets_dir = banana_dir().join("presets");
@@ -2632,7 +2446,7 @@ fn seo_banana_presets(args: &[String]) -> i32 {
         }
         "show" => {
             let Some(name) = args.get(1) else {
-                eprintln!("usage: presets.py show <name>");
+                eprintln!("usage: legion script seo/banana-presets show <name>");
                 return 1;
             };
             let filename = match presets::preset_filename(name) {
@@ -2656,7 +2470,7 @@ fn seo_banana_presets(args: &[String]) -> i32 {
         }
         "create" => {
             let Some(name) = args.get(1) else {
-                eprintln!("usage: presets.py create <name> [--colors ...] [--style ...] ...");
+                eprintln!("usage: legion script seo/banana-presets create <name> [--colors ...] [--style ...] ...");
                 return 1;
             };
             let mut input = presets::CreatePresetInput {
@@ -2738,7 +2552,7 @@ fn seo_banana_presets(args: &[String]) -> i32 {
         }
         "delete" => {
             let Some(name) = args.get(1) else {
-                eprintln!("usage: presets.py delete <name> [--confirm]");
+                eprintln!("usage: legion script seo/banana-presets delete <name> [--confirm]");
                 return 1;
             };
             let confirmed = args.iter().any(|a| a == "--confirm");
@@ -2803,7 +2617,9 @@ fn seo_banana_cost_tracker(args: &[String]) -> i32 {
     use legion_runtime::wf_port::w2_025::cost_tracker;
 
     let Some(command) = args.first() else {
-        eprintln!("usage: cost_tracker.py <log|summary|today|estimate|reset> ...");
+        eprintln!(
+            "usage: legion script seo/banana-cost-tracker <log|summary|today|estimate|reset> ..."
+        );
         return 1;
     };
 
@@ -3052,12 +2868,19 @@ fn input_and_out(args: &[String]) -> (Option<String>, Option<String>) {
 }
 
 /// Prints `value` pretty-printed, optionally also writing it to `out`.
-fn emit_json_report(value: &serde_json::Value, out: Option<&str>) {
+/// Prints the report and, when `out` is set, writes it there too. Returns
+/// `false` (after printing the error) when the requested file could not be written.
+fn emit_json_report(value: &serde_json::Value, out: Option<&str>) -> bool {
     let text = serde_json::to_string_pretty(value).unwrap_or_default();
+    let mut written = true;
     if let Some(path) = out {
-        let _ = std::fs::write(path, format!("{text}\n"));
+        if let Err(e) = std::fs::write(path, format!("{text}\n")) {
+            eprintln!("error: could not write {path}: {e}");
+            written = false;
+        }
     }
     println!("{text}");
+    written
 }
 
 fn today_date() -> w2_034::date_math::Date {
@@ -3113,7 +2936,9 @@ fn seo_coverage(args: &[String]) -> i32 {
     let result = w2_029::coverage::calculate(&rows);
     let ok = result.status == "pass";
     let value = serde_json::to_value(&result).unwrap_or_default();
-    emit_json_report(&value, out.as_deref());
+    if !emit_json_report(&value, out.as_deref()) {
+        return 1;
+    }
     if ok {
         0
     } else {
@@ -3123,11 +2948,11 @@ fn seo_coverage(args: &[String]) -> i32 {
 
 fn seo_contracts(args: &[String]) -> i32 {
     if wants_help(args) {
-        println!("Usage: legion script seo/contracts <bundle.json>");
+        println!("Usage: legion script seo/contracts <bundle.json> [--out FILE]");
         return 0;
     }
-    let (Some(input), _) = input_and_out(args) else {
-        eprintln!("Usage: legion script seo/contracts <bundle.json>");
+    let (Some(input), out) = input_and_out(args) else {
+        eprintln!("Usage: legion script seo/contracts <bundle.json> [--out FILE]");
         return 2;
     };
     let payload = match read_json_file(&input) {
@@ -3139,7 +2964,9 @@ fn seo_contracts(args: &[String]) -> i32 {
     };
     let result = w2_029::contracts::validate_bundle(&payload);
     let ok = result.get("status").and_then(|v| v.as_str()) == Some("pass");
-    emit_json_report(&result, None);
+    if !emit_json_report(&result, out.as_deref()) {
+        return 1;
+    }
     if ok {
         0
     } else {
@@ -3176,7 +3003,9 @@ fn seo_page_engine(args: &[String]) -> i32 {
     };
     let result = w2_031::page_engine::assess(&cfg, &bundle);
     let ok = result.get("status").and_then(|v| v.as_str()) == Some("pass");
-    emit_json_report(&result, out.as_deref());
+    if !emit_json_report(&result, out.as_deref()) {
+        return 1;
+    }
     if ok {
         0
     } else {
@@ -3420,17 +3249,25 @@ fn seo_checklist_compiler(args: &[String]) -> i32 {
 
 /// SEO schema hook (`PostToolUse` Write/Edit). With a path argument it validates that file;
 /// with none it reads the hook JSON from stdin and uses `tool_input.file_path`.
-/// Exit 0 clean, 1 warnings only, 2 blocking findings.
+/// Exit 0 clean, 1 warnings only, 2 blocking findings. Missing, unreadable, or
+/// schema-less input exits 2 (never a false clean).
 fn seo_validate_schema(args: &[String]) -> i32 {
     if wants_help(args) {
         println!("Usage: legion script seo/validate-schema [FILE]   (no FILE: hook JSON on stdin)");
         return 0;
     }
+    // Hook mode (no path argument) reads the PostToolUse JSON from stdin.
+    let hook_mode = args.is_empty();
     let filepath = match args.first() {
         Some(path) => path.clone(),
         None => {
             let mut stdin_text = String::new();
-            let _ = std::io::Read::read_to_string(&mut std::io::stdin(), &mut stdin_text);
+            if std::io::Read::read_to_string(&mut std::io::stdin(), &mut stdin_text).is_err() {
+                eprintln!(
+                    "error: could not read stdin (usage: legion script seo/validate-schema <FILE>)"
+                );
+                return 2;
+            }
             let hook: serde_json::Value = serde_json::from_str(&stdin_text).unwrap_or_default();
             let from_hook = hook
                 .get("tool_input")
@@ -3439,18 +3276,38 @@ fn seo_validate_schema(args: &[String]) -> i32 {
                 .map(str::to_string);
             match from_hook {
                 Some(path) => path,
-                None => return 0,
+                None => {
+                    eprintln!("error: no input file (usage: legion script seo/validate-schema <FILE>, or hook JSON with tool_input.file_path on stdin)");
+                    return 2;
+                }
             }
         }
     };
-    if !std::path::Path::new(&filepath).is_file() || !w2_027::is_schema_checked_extension(&filepath)
-    {
-        return 0;
+    if !std::path::Path::new(&filepath).is_file() {
+        eprintln!("error: file not found: {filepath}");
+        return 2;
+    }
+    if !w2_027::is_schema_checked_extension(&filepath) {
+        if hook_mode {
+            // The hook matches every Edit/Write; files outside the schema-checked
+            // types are not inputs to this validator, so the hook stays silent.
+            return 0;
+        }
+        eprintln!("error: no schema to validate in {filepath}: not a schema-checked file type");
+        return 2;
     }
     let content = match std::fs::read(&filepath) {
         Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
-        Err(_) => return 0,
+        Err(e) => {
+            eprintln!("error: could not read {filepath}: {e}");
+            return 2;
+        }
     };
+    // A file with no JSON-LD block was never validated; it must not report clean.
+    if !content.to_ascii_lowercase().contains("application/ld+json") {
+        eprintln!("error: no JSON-LD schema found in {filepath}");
+        return 2;
+    }
     let errors = w2_027::validate_jsonld(&content);
     if errors.is_empty() {
         return 0;
@@ -3621,9 +3478,9 @@ fn designer_convert_formats(args: &[String]) -> i32 {
         match std::process::Command::new("ffmpeg").args(pass).status() {
             Ok(status) if status.success() => {}
             Ok(status) => return status.code().unwrap_or(1),
-            Err(e) => {
-                eprintln!("ffmpeg unavailable: {e}");
-                return 1;
+            Err(_) => {
+                eprintln!("unavailable: ffmpeg not found on PATH");
+                return 3;
             }
         }
     }
@@ -3631,69 +3488,6 @@ fn designer_convert_formats(args: &[String]) -> i32 {
     println!("{}", paths.out_60fps.display());
     println!("{}", paths.out_gif.display());
     0
-}
-
-fn designer_add_music(args: &[String]) -> i32 {
-    use w2_006::add_music as am;
-    if wants_help(args) {
-        println!("Usage: legion script designer/add-music <input.mp4> [--mood=<name>] [--music=<path>] [--out=<path>]");
-        return 0;
-    }
-    let parsed = am::parse_args(args);
-    match &parsed.input {
-        Some(input) if std::path::Path::new(input).is_file() => {}
-        _ => {
-            eprintln!("{}", am::AddMusicError::MissingOrUnreadableInput);
-            return 1;
-        }
-    }
-    let assets_dir = find_skills_root().join("skills/designer/assets");
-    let plan = match am::build_plan(&parsed, &assets_dir) {
-        Ok(plan) => plan,
-        Err(e) => {
-            eprintln!("{e}");
-            return 1;
-        }
-    };
-    if !plan.music.is_file() {
-        eprintln!(
-            "{}",
-            am::AddMusicError::MusicNotFound(plan.music.display().to_string())
-        );
-        return 1;
-    }
-    let probe = std::process::Command::new("ffprobe")
-        .args([
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
-        ])
-        .arg(&plan.input)
-        .output();
-    let duration: Option<f64> = probe
-        .ok()
-        .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse().ok());
-    let Some(duration) = duration else {
-        eprintln!("{}", am::AddMusicError::DurationUnreadable);
-        return 1;
-    };
-    match std::process::Command::new("ffmpeg")
-        .args(am::ffmpeg_args(&plan, duration))
-        .status()
-    {
-        Ok(status) if status.success() => {
-            println!("{}", plan.output.display());
-            0
-        }
-        Ok(status) => status.code().unwrap_or(1),
-        Err(e) => {
-            eprintln!("ffmpeg unavailable: {e}");
-            1
-        }
-    }
 }
 
 fn seo_analyze_visual(args: &[String]) -> i32 {
@@ -3874,4 +3668,97 @@ fn seo_capture_screenshot(args: &[String]) -> i32 {
         }
     }
     exit
+}
+
+#[cfg(test)]
+mod designer_detect_tests {
+    use super::*;
+    use legion_runtime::wf_port::r05::cli::UrlScanOptions;
+    use legion_runtime::wf_port::r05::output::CliFinding;
+
+    fn repo_skills_root() -> std::path::PathBuf {
+        // engine/bins/legion -> repository root
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..")
+    }
+
+    #[test]
+    fn shipped_detector_script_is_loaded_and_passes_the_url_gate() {
+        let script = load_detector_browser_script_from(&repo_skills_root());
+        assert!(
+            !script.trim().is_empty(),
+            "shipped detector script must load"
+        );
+        assert!(script.contains("impeccableDetect"));
+        let args = vec!["https://example.test".to_string()];
+        assert_eq!(url_scan_unavailable_reason(&script, &args), None);
+    }
+
+    #[test]
+    fn absent_detector_script_reports_unavailable_for_url_targets() {
+        let missing_root =
+            std::env::temp_dir().join(format!("legion-no-skills-root-{}", std::process::id()));
+        let script = load_detector_browser_script_from(&missing_root);
+        assert!(script.is_empty());
+        let args = vec!["https://example.test".to_string()];
+        let reason = url_scan_unavailable_reason(&script, &args);
+        assert_eq!(reason, Some("detector-script-missing"));
+        assert_eq!(designer_detect_unavailable(reason.unwrap()), 3);
+    }
+
+    #[test]
+    fn file_targets_do_not_need_the_detector_script() {
+        let args = vec!["src/index.html".to_string()];
+        assert_eq!(url_scan_unavailable_reason("", &args), None);
+    }
+
+    #[test]
+    fn only_http_schemes_count_as_url_targets() {
+        assert!(looks_like_url("https://x.test"));
+        assert!(looks_like_url("HTTP://x.test"));
+        assert!(!looks_like_url("src/index.html"));
+    }
+
+    /// Detectors whose URL scan reports the typed unavailable error.
+    struct UnavailableUrlDetectors;
+
+    impl r05::cli::Detectors for UnavailableUrlDetectors {
+        fn detect_text(
+            &mut self,
+            _content: &str,
+            _file_path: &str,
+            _design_system: Option<&DesignSystem>,
+        ) -> Vec<CliFinding> {
+            Vec::new()
+        }
+
+        fn detect_html(
+            &mut self,
+            _file_path: &str,
+            _design_system: Option<&DesignSystem>,
+        ) -> Result<Vec<CliFinding>, String> {
+            Ok(Vec::new())
+        }
+
+        fn detect_url(
+            &mut self,
+            _url: &str,
+            _options: &UrlScanOptions,
+        ) -> Result<Vec<CliFinding>, String> {
+            Err(r07::detect_url::unavailable_error(
+                r07::detect_url::REASON_DETECTOR_SCRIPT_MISSING,
+            ))
+        }
+
+        fn sweep_site(&mut self, _url: &str, _site_type: Option<&str>) -> Vec<CliFinding> {
+            Vec::new()
+        }
+    }
+
+    #[test]
+    fn unavailable_url_scan_overrides_clean_exit_code() {
+        let cwd = std::env::current_dir().unwrap();
+        let args = vec!["https://example.test".to_string()];
+        let mut detectors = UnavailableUrlDetectors;
+        assert_eq!(run_designer_detect(&cwd, &args, &mut detectors), 3);
+    }
 }

@@ -16,7 +16,7 @@
 
     "recordId": { "type": "string", "pattern": "^CV-\\d+$" },
     "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
-    "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT", "PACKET_ONLY"] },
+    "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT"], "description": "PACKET_ONLY is not a record mode: it runs no seats and produces no record, and validate-record rejects it." },
     "loop": { "enum": [1, 2], "description": "Which complete loop this record belongs to. Loop 1 is the plan/design review before the build; loop 2 is the evidence review after it. Never more than two." },
     "packetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "sourceRevision": { "type": "string", "minLength": 7 },

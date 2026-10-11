@@ -19,7 +19,7 @@ hostRequirements:
 # Handoff
 
 Legion owns source-pointer discovery, frozen-prefix verification, native transcript normalization,
-typed continuity context, omissions, redaction, & receipts. No external Membrane installation is required.
+typed continuity context, omissions, redaction, & receipts.
 
 ```text
 PRIMARY_DELIVERABLE: Source pointer or validated cold-start continuation packet.

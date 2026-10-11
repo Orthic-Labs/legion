@@ -12,13 +12,14 @@ effects:
   - source-read
 hostRequirements:
   - legion
+  - web-search
 ---
 
 # Council
 
 PRIMARY_DELIVERABLE: Digest-bound Council request, record, or packet-only artifact.
 CHILD_AGENTS_MAX: 10
-EXTERNAL_REQUESTS_MAX: 0
+EXTERNAL_REQUESTS_MAX: 0 (seats; the owner's source research in step 6 is outside the seats)
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Mode-specific record exists, or packet-only marker proves no panel ran.
@@ -153,7 +154,14 @@ build-and-measure step between loops, is what makes the process converge.
 - `loop` is 1 or 2 on every request and record.
 - BLOCKER_CONSULT is single-stage: three seats (`improvement-path`, `red-team`, `security-ops`),
   each judging only whether the proposed resolution is contract-safe, with no debate round. Outcomes
-  are CONTRACT_SAFE, AMENDMENT_REQUIRED, or INSUFFICIENT_EVIDENCE.
+  are CONTRACT_SAFE, AMENDMENT_REQUIRED, or INSUFFICIENT_EVIDENCE, each judged against the packet's
+  contract text and the proposed resolution:
+  - `CONTRACT_SAFE`: the resolution keeps every stated contract term and acceptance criterion, and the
+    packet shows that it does.
+  - `AMENDMENT_REQUIRED`: the resolution is sound only if a named contract term is amended; the packet
+    names the term.
+  - `INSUFFICIENT_EVIDENCE`: the packet lacks the contract text, the resolution, or the proof needed to
+    judge either. A seat without the real artifact returns this.
 
 ## Seats
 
@@ -199,7 +207,8 @@ this is the only cross-file card.
 
 ## Degradation
 
-If the `legion:council-seat` agent is unavailable, record DEGRADED and stop. Never simulate seats
+If the `legion:council-seat` agent is unavailable, report DEGRADED to the user and write no record (the
+record schema has no degraded outcome, and a record needs at least three seats). Never simulate seats
 inline, and never claim independence for a single-agent run. A Council seat that failed leaves its
 stance uncovered and is recorded as such; it is not replaced by the convener. A Jury seat failure
 makes the outcome UNRESOLVED. A seat that fails its debate re-launch keeps its blind position and

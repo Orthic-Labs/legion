@@ -30,7 +30,7 @@ commentary: Parse ## Image Generation Briefs precisely; the **Prompt:** and **Di
 <example>
 Context: Banana MCP is unavailable.
 user: Generate images.
-assistant: Banana MCP is not available. I'll check for the fallback script.
+assistant: Banana MCP is not available. I'll report the missing `banana-image` capability and stop.
 [Checks banana MCP availability; not connected]
 [Reports to user: "Banana MCP is unavailable. Image generation requires the `banana-image` host capability; there is no in-package fallback. Connect banana, or supply the images directly."]
 commentary: Never silently fail. Check banana MCP first; if it is unavailable, stop and report — do not invent a fallback.
@@ -93,7 +93,7 @@ Build each prompt using banana's formula. Never pass raw brief text to the API.
 
 | Platform        | Append to prompt                                                          |
 |-----------------|---------------------------------------------------------------------------|
-| TikTok (9:16)   | `", active visual centered in middle 70%, top 15% and bottom 20% minimal"` |
+| TikTok (9:16)   | `", active visual centered in middle 70%, top 15% and bottom 25% minimal"` |
 | Meta Feed (4:5) | `", primary visual in upper 65%, bottom 30% minimal for copy overlay"`     |
 | LinkedIn (1:1)  | `", centered composition with generous 20% margin all sides"`              |
 | Google PMax     | `", focal point left-center, right third lighter for text overlay"`        |

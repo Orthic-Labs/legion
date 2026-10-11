@@ -495,7 +495,7 @@ pub fn run<C: IndexingClient, F: BatchFileReader>(
             }
         }
         return CliOutcome {
-            exit_code: 0,
+            exit_code: if result.error.is_some() { 1 } else { 0 },
             stdout,
             stderr,
         };
@@ -596,9 +596,10 @@ pub fn run<C: IndexingClient, F: BatchFileReader>(
     // `parser.print_help(); sys.exit(1)` when none of url/batch/status given.
     CliOutcome {
         exit_code: 1,
-        stdout: "usage: indexing_notify.py [-h] [--action {URL_UPDATED,URL_DELETED}] \
+        stdout:
+            "usage: legion script seo/indexing_notify [-h] [--action {URL_UPDATED,URL_DELETED}] \
 [--batch BATCH] [--status STATUS] [--delay DELAY] [--json] [url]\n"
-            .to_string(),
+                .to_string(),
         stderr: String::new(),
     }
 }

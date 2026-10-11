@@ -930,23 +930,58 @@ fn is_source_path(path: &Path) -> bool {
             .map(str::to_ascii_lowercase)
             .as_deref(),
         Some(
-            "c" | "cc"
+            "astro"
+                | "bash"
+                | "c"
+                | "cc"
+                | "cjs"
                 | "cpp"
+                | "cs"
+                | "cts"
+                | "cxx"
+                | "dart"
+                | "erb"
+                | "erl"
+                | "ex"
+                | "exs"
+                | "fs"
+                | "fsx"
                 | "go"
                 | "h"
+                | "hh"
                 | "hpp"
+                | "hs"
                 | "java"
+                | "jl"
                 | "js"
                 | "jsx"
+                | "kt"
+                | "kts"
+                | "lua"
+                | "m"
                 | "mjs"
+                | "mm"
+                | "mts"
+                | "php"
+                | "phtml"
+                | "pl"
+                | "pm"
+                | "ps1"
+                | "psm1"
                 | "py"
+                | "r"
                 | "rb"
                 | "rs"
+                | "scala"
                 | "sh"
+                | "sql"
+                | "svelte"
                 | "swift"
                 | "ts"
                 | "tsx"
+                | "vb"
                 | "vue"
+                | "zsh"
         )
     )
 }
@@ -954,6 +989,25 @@ fn is_source_path(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_classification_covers_common_source_languages() {
+        for path in [
+            "app/index.php",
+            "src/Program.cs",
+            "ui/Main.kt",
+            "App/View.swift",
+            "web/App.vue",
+        ] {
+            assert!(is_source_path(Path::new(path)), "{path} should be source");
+        }
+        for path in ["docs/README.md", "assets/logo.png", "Cargo.lock"] {
+            assert!(
+                !is_source_path(Path::new(path)),
+                "{path} should not be source"
+            );
+        }
+    }
 
     #[test]
     fn filesystem_source_is_deterministic_and_detects_content_drift() {

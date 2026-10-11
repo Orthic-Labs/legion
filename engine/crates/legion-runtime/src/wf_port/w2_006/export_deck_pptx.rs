@@ -29,7 +29,7 @@ impl std::fmt::Display for ArgError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingSlidesOrOut => f.write_str(
-                "用法: node export_deck_pptx.mjs --slides <dir> --out <file.pptx>\n\n\u{26a0}\u{fe0f} HTML 必须符合 4 条硬约束（见 references/editable-pptx.md）。\n   视觉自由度优先的场景请改用 export_deck_pdf.mjs 导出 PDF。",
+                "用法: legion script designer/export-deck-pptx --slides <dir> --out <file.pptx>\n\n\u{26a0}\u{fe0f} HTML 必须符合 4 条硬约束（见 references/editable-pptx.md）。\n   视觉自由度优先的场景请改用 legion script designer/export-deck-pdf 导出 PDF。",
             ),
         }
     }

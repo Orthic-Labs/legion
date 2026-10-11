@@ -26,7 +26,13 @@ This skill transforms technical git commits into polished, user-friendly changel
 5. **Filters Noise**: Excludes internal commits (refactoring, tests, etc.)
 6. **Follows Best Practices**: Applies changelog guidelines and your brand voice
 
-## How to Use
+## Procedure
+
+1. **Set the range.** Use the dates or the two refs the user gives (for example `v2.4.0..HEAD`). Run from the repository root. If no range is given, ask for one.
+2. **Read the commits.** Run `git log <range> --no-merges --pretty=format:'%h %s'`, or `git log --since="<date>" --until="<date>" --no-merges --pretty=format:'%h %s'` for a date window.
+3. **Group by type.** Use the commit prefix or subject: `feat` → New features; `fix` → Fixes; `perf` or user-visible `refactor` → Improvements; `security` → Security; a `!` marker or `BREAKING CHANGE` → Breaking changes. Drop `chore`, `test`, `ci`, `docs`-only and internal-only commits.
+4. **Rewrite each kept commit** as one customer-facing line: what the user can now do, or what stopped going wrong. Never publish hashes or raw commit subjects.
+5. **Check the result.** Every bullet traces to at least one commit in the range. If the range is empty, say so and stop; do not invent entries.
 
 ### Basic Usage
 
@@ -54,7 +60,7 @@ Create a changelog for all commits between March 1 and March 15
 
 ```
 Create a changelog for commits since v2.4.0, using my changelog 
-guidelines from CHANGELOG_STYLE.md
+guidelines from the project's style file (if it has one)
 ```
 
 ## Example
@@ -85,15 +91,13 @@ guidelines from CHANGELOG_STYLE.md
 - Corrected notification badge count
 ```
 
-**Inspired by:** Manik Aggarwal's use case from Lenny's Newsletter
-
 ## Tips
 
 - Run from your git repository root
 - Specify date ranges for focused changelogs
-- Use your CHANGELOG_STYLE.md for consistent formatting
+- If the project has a changelog style file, follow it for consistent formatting
 - Review and adjust the generated changelog before publishing
-- Save output directly to CHANGELOG.md
+- Save output to the project's changelog file, after review
 
 ## Related Use Cases
 

@@ -222,7 +222,7 @@ Three further questions were asked after the main audit. Evidence: `reports/08-s
 
 ### A. SEO: nothing is lost everywhere, but Legion holds a lagging copy
 
-The standalone repository is **github.com/bogusyogi/SEO** (public, branch `master`, head `9f313f2` on 2026-10-06). It was extracted from Legion commit `a4eaaa2` on 2026-09-16, and that tree is identical to the Legion peak. It is a standalone Python plugin with 242 files, 70 scripts, 28 test files, and CI on Windows, macOS, and Linux. It has no `legion script`, Membrane, or Rust dependency.
+The standalone repository is an external public SEO repository (branch `master`, head `9f313f2` on 2026-10-06). It was extracted from Legion commit `a4eaaa2` on 2026-09-16, and that tree is identical to the Legion peak. It is a standalone Python plugin with 242 files, 70 scripts, 28 test files, and CI on Windows, macOS, and Linux. It has no `legion script`, Membrane, or Rust dependency.
 
 | | Peak in Legion (`f1d1847b`, 09-11) | Legion today | SEO repo |
 |---|---|---|---|
@@ -234,7 +234,7 @@ Lost from Legion but alive in the SEO repo: the six test suites (governance, ker
 
 The workspace ops folder `SEO/` in the private workspace is a per-site deployment layer for the SEO repo, not a Legion route: its PowerShell runners call a Windows-local standalone SEO checkout, `agent-routes.json` cites three report files that do not exist, and its recorded rightsites head is 286 commits behind. `tools/skills/seo` is an older subset and should be deleted.
 
-**Decision for Adrian.** Make `bogusyogi/SEO` canonical and reduce Legion's `seo` skill to a thin router that declares the external repo as a `HOST_CAPABILITY`, or keep Legion canonical and re-import the 96 new files plus the tests. The first option is recommended; it conflicts with the Package Rule "Legion is the canonical source for every skill it ships", so that rule needs one amendment allowing a declared external canonical repository.
+**Decision for the operator.** Make the external SEO repository canonical and reduce Legion's `seo` skill to a thin router that declares the external repo as a `HOST_CAPABILITY`, or keep Legion canonical and re-import the 96 new files plus the tests. The first option is recommended; it conflicts with the Package Rule "Legion is the canonical source for every skill it ships", so that rule needs one amendment allowing a declared external canonical repository.
 
 ### B. The audit skill: the numbers did not shrink, the run is hollow
 
@@ -288,7 +288,7 @@ Additional findings:
 | 23 | B | Audit cancels 73 of 78 providers without a signing key and runs zero reasoning lenses; clean verdict unreachable | 09 §2–3 |
 | 24 | H | `doctor` and `languages` hard-code languages and empty provider sets for every repo | 09 §6 |
 | 25 | H | Audit lenses routed to the lowest model tier since 09-19 | 09 §3 |
-| 26 | H | SEO has two canons (Legion skill and `bogusyogi/SEO`) and a third stale fork; Legion's copy has no tests | 08 |
+| 26 | H | SEO has two canons (Legion skill and the external SEO repository) and a third stale fork; Legion's copy has no tests | 08 |
 | 27 | M | `bench_recall` passes on SKIP; drift class never runs; corpus frozen since 07-26 | 09 §4 |
 
 Plan deltas:

@@ -5,7 +5,7 @@ SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: brand (branded output), designer (layout handoff), social (distribution handoff), marketing (strategy handoff), seo (search intent, indexing, publish SEO), research (sourcing), ads (paid-media handoff), qa and audit-visual (rendered-page evidence), oracle and council (optional independent review)
 TERMINAL: Return one bounded text artifact; do not widen scope.
 
 Classify by the job the words must do, not by length. Load one primary guide; add a second only when

@@ -3,7 +3,7 @@
 
 This checklist scores a Google Business Profile using data retrieved from
 the DataForSEO My Business Info API. It measures profile completeness on
-the maps PLATFORM, not on-page signals (seo-local handles on-page).
+the maps PLATFORM, not on-page signals (the local reference handles on-page).
 
 ## Sources
 

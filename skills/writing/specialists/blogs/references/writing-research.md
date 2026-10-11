@@ -4,25 +4,11 @@ Use this reference when planning, writing, auditing, or upgrading blog posts tha
 
 Local sources:
 
-- Consult your project's storytelling/quote-audit reference if one exists.
 - `skills/writing/specialists/copywriting/references/craft-research.md`
 - `skills/writing/specialists/copywriting/references/hook.md`
 - `skills/seo/references/blog-post-contract.md`
 
-Extracted writing sources:
-
-- Harry Dry `[TUMjnmfsPeM]`: specificity, Three Questions, Zoom-In Worksheet, One-Mississippi test, every word works.
-- Callaway `[2byPP_9F0-Q]`: topic clarity, on-target curiosity, speed-to-value, four hook mistakes.
-- Romm `[Bt3AACk6dbo]`: But/Therefore editing, conflict, every word chosen for a reason.
-
-Source trace:
-
-- `STORYTELLING_GUIDE.md` section 1.4: hook clarity, pointable proof, speed-to-value, every-word-works.
-- `STORYTELLING_GUIDE.md` section 2: why people keep reading.
-- `STORYTELLING_GUIDE.md` section 3.2: Callaway hook mistakes - delay, confusion, irrelevance, disinterest.
-- `STORYTELLING_GUIDE.md` sections 3.3, 3.5, 3.8: Harry Dry line gate, Zoom-In, One-Mississippi.
-- `STORYTELLING_GUIDE.md` section 4.2: Romm But/Therefore edit for long-form structure.
-- `SOURCE_MATRIX.md`: identifies the Harry Dry, Callaway, and Romm videos as well-captured/extracted sources.
+The craft methods used here (three-question gate, zoom-in, hook failure modes, But/Therefore sweep) are defined in full in the files above and in this guide. No external video or transcript is required.
 
 ## Copywriting Corpus Import
 

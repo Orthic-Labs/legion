@@ -32,7 +32,7 @@
 
 - **Owned capabilities this plan touches:** CAPABILITY_OWNERS:{{CAPABILITY=OWNER_PACKAGE_PAIRS_OR_NONE}}
 - **Owner dependency rule:** every touched capability consumes its listed owner package; no app-local copy of an owned capability.
-- **New capability or uncovered need:** {{NONE_OR_ESCALATION_TO_ADRIAN_OR_SAGE}}
+- **New capability or uncovered need:** {{NONE_OR_ESCALATION_TO_OPERATOR_OR_SAGE}}
 
 ## 2. GoalRoute Binding
 

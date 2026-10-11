@@ -5,6 +5,15 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "banana-image"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "web-search"
+    },
+    {
+      "class": "PROJECT_OVERLAY",
+      "path": "storytelling-guide.md",
+      "optional": true
     }
   ]
 }

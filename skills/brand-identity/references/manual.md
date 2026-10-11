@@ -1,12 +1,12 @@
 # Brand Identity
 
-PRIMARY_DELIVERABLE: Requested identity-system output for exact granted assets or paths.
-SPECIALIST_REFS_MAX: 0
+PRIMARY_DELIVERABLE: Identity decisions, assets, restrictions, & QA evidence.
+SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
-EXTERNAL_REQUESTS_MAX: 0
+EXTERNAL_REQUESTS_MAX: 1
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
-TERMINAL: Requested identity deliverable meets frozen output criteria.
+MAY_CALL_SKILLS: brand, audit-visual, research
+TERMINAL: Identity decisions, assets, restrictions, & QA evidence exist.
 
 The job is not "make a nice logo/palette." The job is to create an identity system that feels product-true, ownable, differentiated, repeatable, and hard to mistake for any sibling brand or generic AI output.
 
@@ -69,7 +69,7 @@ Linear with two human touchpoints and three automated hard gates. Never skip a g
 | 1 | **Signature Identity Mechanism** | auto-generate + self-check, loop until tests pass | the signature one-liner |
 | 2 | **Divergent renderings (3)** | present directions, then **PARK** | options differ in register/base/accent, **not just type**; human picks one. Three is the standard; fewer only when you can honestly justify fewer distinct directions (see the N-options honesty rule below) |
 | 2.5 | **Option Divergence Gate** | auto **HARD GATE** | each option differs from the OTHER options on ≥4/7 axes incl. distinct base AND accent; fail -> rework the colliding option(s) and re-run |
-| 3 | **Differentiation guard** | auto **HARD GATE** | compare vs `references/brand-registry.md`; fail -> adjust and re-run |
+| 3 | **Differentiation guard** | auto **HARD GATE** | compare vs the project's brand registry (template: `references/brand-registry.md`); fail -> adjust and re-run |
 | 4 | **Build the identity system** | auto | strategy, visual, voice, assets, applications |
 | 5 | **Impeccable / anti-slop QA** | auto **HARD GATE** | fail -> fix and re-run |
 | 6 | **Human eyes** | render or present proof, then **PARK** | user approves or gives taste feedback |
@@ -148,15 +148,15 @@ The strategic tests above decide *which* colors. This subsection grounds *how* t
 5. **Color-blind safety.** ~8% of men have red-green color vision deficiency. Never encode meaning (state, success/error, data series, active/inactive) in hue alone — pair hue with lightness, shape, icon, or label. Check status dots, diff colors, and chart palettes specifically.
 6. **Generate theme tokens as perceptual ramps.** For multi-theme or light/dark token systems, derive each theme as a tonal ramp in a perceptual space (e.g. an OKLCH lightness ladder, or Material 3's HCT tonal palettes) rather than hand-picking each stop. This keeps surfaces, lines, and text steps consistent across themes and makes a shared theme pool coherent.
 
-**Verify with the script, never from memory (HARD).** Do NOT report an OKLCH value or a WCAG ratio you computed in your head — a hallucinated "4.6:1" that is really 4.2:1 ships an inaccessible palette under a false compliance claim. Run the zero-dependency checker for every pair before recording it:
+**Verify with the script, never from memory (HARD).** Do NOT report an OKLCH value or a WCAG ratio you computed in your head — a hallucinated "4.6:1" that is really 4.2:1 ships an inaccessible palette under a false compliance claim. Run the color checker (`legion script brand-identity/color-check`) for every pair before recording it. If the `legion` CLI is unavailable, record the pair as UNVERIFIED, never as compliant:
 
 ```bash
-color-check contrast "#FF5630" "#211D1A"   # ratio + AA/AAA
-color-check oklch "#B87333"                 # sRGB -> L/C/H
-color-check audit '[{"name":"body/bg","fg":"#211C18","bg":"#F7F3EC","min":4.5}]'   # whole-palette table, exits 1 on ANY fail
+legion script brand-identity/color-check contrast "#FF5630" "#211D1A"   # ratio + AA/AAA
+legion script brand-identity/color-check oklch "#B87333"                 # sRGB -> L/C/H
+legion script brand-identity/color-check audit '[{"name":"body/bg","fg":"#211C18","bg":"#F7F3EC","min":4.5}]'   # whole-palette table, exits 1 on ANY fail
 ```
 
-If a text/accent pair fails its `min`, loop back and adjust lightness (use `oklch-to-hex` to find the highest-L value that still clears the bar), then re-run — do not record a failing pair as compliant. Record the final palette's per-color OKLCH (L/C/H) and the **script-measured** WCAG ratios against its real backgrounds in the guidelines, so the system is auditable later, not re-eyeballed.
+If a text/accent pair fails its `min`, loop back and adjust lightness (use `legion script brand-identity/color-check oklch-to-hex <L> <C> <H>` to find the highest-L value that still clears the bar), then re-run — do not record a failing pair as compliant. Record the final palette's per-color OKLCH (L/C/H) and the **script-measured** WCAG ratios against its real backgrounds in the guidelines, so the system is auditable later, not re-eyeballed.
 
 ## Type Strategy Gate
 
@@ -248,7 +248,7 @@ This closes the gap where "divergent renderings" silently collapse to same-color
 
 ## Phase 3: Differentiation Guard
 
-Read `references/brand-registry.md` before building. Compare the chosen direction against every sibling brand in the registry. **The registry only sees your own siblings — the market is the other half of differentiation.** When the brand competes in an external category, first invoke `/research competitors <category>` and consume its brief (rival positioning, visual identity, naming, voice, category norms) so the seven-axis check below runs against the *real market*, not just internal siblings. A mechanism that's distinct from your other brands but identical to the category leader is still a clone.
+Read the project's brand registry (template: `references/brand-registry.md`) before building. Compare the chosen direction against every sibling brand in the registry. **The registry only sees your own siblings — the market is the other half of differentiation.** When the brand competes in an external category, first invoke `/research competitors <category>` and consume its brief (rival positioning, visual identity, naming, voice, category norms) so the seven-axis check below runs against the *real market*, not just internal siblings. A mechanism that's distinct from your other brands but identical to the category leader is still a clone.
 
 The chosen direction must differ on at least four of these seven axes from every sibling:
 
@@ -260,7 +260,7 @@ The chosen direction must differ on at least four of these seven axes from every
 6. **Asset language:** photography, illustration, iconography, pattern, texture, motion, UI-native.
 7. **Voice signature:** plainspoken, editorial, precise, warm, provocative, ceremonial, technical, playful.
 
-If it fails the threshold, it is a sibling clone. Redesign the weakest overlapping axes and re-run the guard. On Phase 7 approval, write the chosen row back to the registry.
+If it fails the threshold, it is a sibling clone. Redesign the weakest overlapping axes and re-run the guard. On Phase 7 approval, write the chosen row back to the project's brand registry.
 
 ## Phase 4: Build The Identity System
 
@@ -305,7 +305,7 @@ Manual detector:
 
 If a visible artifact is produced:
 
-- Run `designer-detect --json <dir>` when available; otherwise run the 9-item manual checklist above and label the result "Manual QA — detector not run."
+- Run `legion script designer/detect --json <dir>` when the `legion` CLI is available; otherwise run the 9-item manual checklist above and label the result "Manual QA — detector not run."
 - Use `audit-visual` for UI/site/app visual QA only when the requested deliverable is a UI/site/app artifact. For a brand identity artifact, QA the board as identity proof: small mark legibility, one-color behavior, palette contrast, type fit, sibling separation, and absence of full website mockups.
 - Inspect screenshots/artifacts for hallucinated text, bad hierarchy, weak spacing, inaccessible contrast, cramped line length, generic gradients, and stock-like imagery.
 
@@ -372,7 +372,7 @@ Produce a usable `BRAND.md`, brand book outline, or guidelines document:
 }
 ```
 
-The `contrast[]` ratios MUST be the script-measured values from the Color Science gate, never re-typed from memory. Then update `references/brand-registry.md` with the approved axes so future work differentiates against it.
+The `contrast[]` ratios MUST be the script-measured values from the Color Science gate, never re-typed from memory. Then update the project's brand registry (template: `references/brand-registry.md`) with the approved axes so future work differentiates against it.
 
 ## Audit Mode
 

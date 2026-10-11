@@ -70,9 +70,9 @@ campaign goal + platform + audience temperature:
 
 Include the selected framework name in campaign-brief.md for the copy-writer agent.
 
-### Step 5: Spawn Creative Agents in Sequence
+### Step 5: Run Creative Briefs Inline, in Sequence
 
-Agents must run **sequentially**; `copy-writer` reads the file that `creative-strategist`
+The four creative briefs run inline in the main agent, one after another; none is spawned. They must run **sequentially**; `copy-writer` reads the file that `creative-strategist`
 writes, so running them in parallel creates a race condition on `campaign-brief.md`.
 
 **Step 5a; Run the `creative-strategist` brief** (inline, from `agents/creative-strategist.md`):

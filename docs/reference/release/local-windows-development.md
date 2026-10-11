@@ -9,15 +9,15 @@ also select CI. Never poll, wait for local capacity, or queue another local buil
 installer entry points.
 
 CI route: push exact owned source to `codex/legion-windows-*`; this triggers
-`.github/workflows/windows-development.yml` on Windows only. It checks whole
+`.github/workflows/ci.yml` on Windows only. It checks whole
 native workspace/all targets, tests native Codex Stop transport, builds unsigned
-installer & runs isolated installed qualification. Download artifact bound to
+installer & runs isolated installed qualification. Download the `dev-windows-<sha>` artifact bound to
 exact run/SHA, verify installer digest against qualification, then install exact
 qualified artifact at stable `current` & verify requested installed behavior.
 This route requires no signing, publication or Mac work. A CI artifact is not
-proof of installation on Adrian's machine.
+proof of installation on the maintainer's machine.
 
-Adrian authorized local unsigned Legion installer development. Tracked
+The operator authorized local unsigned Legion installer development. Tracked
 `.rightkit-local-development.json` limits this exception to
 `Orthic-Labs/legion`, native Windows, & unsigned installer work.
 
@@ -74,7 +74,7 @@ installer work.
 - Before any Windows installer build, check whole native workspace/all targets on the selected
   build host. The GitHub development workflow includes this gate; the local path uses
   `pnpm run native:check:local` only after idle admission.
-- For Windows installer development, use `.github/workflows/windows-development.yml` when local
+- For Windows installer development, use `.github/workflows/ci.yml` when local
   admission is refused or CI is requested. Otherwise use `pnpm run release:local:win:unsigned`
   from the primary checkout after the native check passes. Both routes require unsigned
   installer, isolated installed qualification, then exact stable-`current` install.

@@ -2,15 +2,13 @@
 
 PRIMARY_DELIVERABLE: Bounded commercial strategy or routed specialist brief
 SPECIALIST_REFS_MAX: 1
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 1 (at most one /oracle or /council review, only when the user requests it)
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
-MAY_CALL_SKILLS: NONE
+MAY_CALL_SKILLS: brand (brand code known or customer-facing output), research (evidence), ads, seo, social, writing (prose), designer (visual), qa (live-URL browser evidence), oracle (independent review of a deliverable), council (contested decision)
 TERMINAL: Return one bounded decision or specialist brief; do not widen scope.
 
-This router owns commercial decisions before or across execution channels. Legion skills do not call
-other skills directly; execution intents below are handed to the host (the orchestrating agent or
-user) to route to the named capability, not invoked by this skill itself. Select one primary branch
+This router owns commercial decisions before or across execution channels. Only the skills listed in `MAY_CALL_SKILLS` (SKILL.md) may be called; the execution intents below name the skill that owns each follow-on step. Select one primary branch
 from the user's requested outcome.
 
 ## Route
@@ -52,7 +50,7 @@ from the user's requested outcome.
    conversion/retention baseline is theoretical; if the data is unavailable, label the output
    "Hypothetical — requires baseline data," don't present it as optimisation.
 8. **Feature verification before promoting a capability.** Do not write copy claiming a feature is live
-   until it's confirmed shipped — check `docs/product.md`, or `Membrane Blueprint context for <feature>` where the host provides the `blueprint-graph` capability (without it, rely on `docs/product.md` alone and say the graph was unavailable). A feature
+   until it's confirmed shipped — check `docs/product.md`, or `Blueprint context for <feature>` where the host provides the `blueprint-graph` capability (without it, rely on `docs/product.md` alone and say the graph was unavailable). A feature
    that is `planned`/unverified gets "coming soon" framing (route to `writing`), never a live claim.
 
 ## Parametrization + Anti-Slop (mandatory)

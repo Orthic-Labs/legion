@@ -132,28 +132,34 @@ fn git(root: &Path, args: &[&str]) -> Option<String> {
     }
 }
 
+/// A check that cannot enumerate its input is a failure in CI, where the
+/// workflow must provide full history, and a labelled skip for local runs.
+fn cannot_verify(reason: &str) -> bool {
+    if std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true") {
+        eprintln!(
+            "check-retirements: cannot verify in CI ({reason}); CI checkout must provide full history reaching {BASELINE}"
+        );
+        return false;
+    }
+    println!("check-retirements: SKIPPED ({reason}). Not verified.");
+    true
+}
+
 pub fn run(root: &Path) -> bool {
     match git(root, &["rev-parse", "--is-shallow-repository"]) {
         Some(out) if out.trim() == "false" => {}
         Some(_) => {
-            println!(
-                "check-retirements: SKIPPED (shallow clone; deleted paths cannot be enumerated). Not verified."
-            );
-            return true;
+            return cannot_verify("shallow clone; deleted paths cannot be enumerated");
         }
         None => {
-            println!("check-retirements: SKIPPED (not a git checkout). Not verified.");
-            return true;
+            return cannot_verify("not a git checkout");
         }
     }
     let baseline = format!("{BASELINE}^{{commit}}");
     if git(root, &["cat-file", "-e", baseline.as_str()]).is_none()
         || git(root, &["merge-base", "--is-ancestor", BASELINE, "HEAD"]).is_none()
     {
-        println!(
-            "check-retirements: SKIPPED (baseline {BASELINE} is not an ancestor of HEAD). Not verified."
-        );
-        return true;
+        return cannot_verify(&format!("baseline {BASELINE} is not an ancestor of HEAD"));
     }
     let range = format!("{BASELINE}..HEAD");
     let Some(log) = git(

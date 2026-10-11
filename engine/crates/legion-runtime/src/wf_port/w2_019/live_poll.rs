@@ -64,7 +64,7 @@ impl std::fmt::Display for ReplyArgsError {
 impl std::error::Error for ReplyArgsError {}
 
 const USAGE: &str =
-    "Usage: node \"live-poll.mjs\" --reply <id> <status> [--file path] [--data '<json>'] [message]";
+    "Usage: legion script designer/live-poll --reply <id> <status> [--file path] [--data '<json>'] [message]";
 
 /// Port of `validateReplyArgs({ id, status })`.
 fn validate_reply_args(id: Option<&str>, status: Option<&str>) -> Result<(), ReplyArgsError> {
@@ -158,9 +158,9 @@ pub fn parse_reply_args(args: &[String]) -> Result<Option<PollReply>, ReplyArgsE
 pub fn manual_apply_poll_banner(event_id: Option<&str>) -> String {
     let id = event_id.unwrap_or("EVENT_ID");
     format!(
-        "Manual Apply action required: edit source, then reply with `live-poll.mjs --reply {id} done --data '<json>'`.\n\
+        "Manual Apply action required: edit source, then reply with `legion script designer/live-poll --reply {id} done --data '<json>'`.\n\
          The JSON data must include status, appliedEntryIds, failed, files, and notes; summary counters are only a recovery fallback.\n\
-         Do not run live-commit-manual-edits.mjs for this leased event.\n\
+         Do not run legion script designer/live-commit-manual-edits for this leased event.\n\
          Do not poll again before replying.\n"
     )
 }

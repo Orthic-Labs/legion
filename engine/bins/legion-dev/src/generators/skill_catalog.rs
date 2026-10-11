@@ -4,6 +4,7 @@ use serde_json::{Map, Value};
 use std::fs;
 use std::path::Path;
 
+use crate::shared::read_dir_entries;
 use crate::shared::route_resources::scoped_requirement_details;
 use crate::shared::skill_frontmatter::parse_skill_frontmatter_map as parse_skill_frontmatter;
 
@@ -206,10 +207,9 @@ fn validate_aliases(
 pub fn build_skill_catalog(root: &Path) -> Result<(Value, Value), String> {
     let skills_dir = root.join("skills");
     let registry = read_json(&root.join("src/registry/capabilities.json"))?;
-    let mut ids: Vec<String> = fs::read_dir(&skills_dir)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .filter_map(|e| e.file_name().into_string().ok())
+    let mut ids: Vec<String> = read_dir_entries(&skills_dir)?
+        .into_iter()
+        .map(|(name, _)| name)
         .filter(|id| skills_dir.join(id).join("SKILL.md").is_file())
         .collect();
     ids.sort();

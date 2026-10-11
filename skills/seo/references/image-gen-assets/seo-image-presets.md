@@ -124,6 +124,7 @@ preset format (see `presets.md` for schema details).
 Users can create their own presets:
 ```bash
 legion script seo/banana-presets create my-brand
+# native Rust port (preferred): legion script seo/banana-presets create my-brand
 ```
 
 This creates `~/.banana/presets/my-brand.json` with the full schema.

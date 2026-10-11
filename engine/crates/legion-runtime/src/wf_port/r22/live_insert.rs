@@ -185,7 +185,7 @@ fn rel_forward_slash(path: &Path, cwd: &Path) -> String {
         .replace('\\', "/")
 }
 
-const HELP_TEXT: &str = "Usage: node live-insert.mjs [options]\n\n\
+const HELP_TEXT: &str = "Usage: legion script designer/live-insert [options]\n\n\
 Find an anchor element in source and splice an insert-variant wrapper.\n\n\
 Required:\n  \
 --id ID            Session ID for the variant wrapper\n  \

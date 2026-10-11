@@ -1,7 +1,7 @@
 # Native motion — SwiftUI / AppKit / UIKit / Slint
 
 Load this file INSTEAD OF the web assumptions in `stack.md` and the web-scoped hard rules in
-`SKILL.md` whenever the surface is a native toolkit. `principles.md` (motion language, hierarchy,
+`../../references/website.md` whenever the surface is a native toolkit. `principles.md` (motion language, hierarchy,
 choreography) still applies — it is toolkit-agnostic. The *mechanics* below are not.
 
 **Routing gate — answer before writing a single line of animation code:**
@@ -344,7 +344,7 @@ cannot drift apart (§2's rule, enforced by the language).
 **Slint-specific constraints:**
 
 - **Animating `width`/`height`/`x`/`y` is correct and idiomatic here.** The web prohibition in
-  `SKILL.md` is about browser layout/paint invalidation and does not transfer. Do not carry it over.
+  `../../references/website.md` is about browser layout/paint invalidation and does not transfer. Do not carry it over.
 - **No spring/physics primitive.** There is no velocity-carrying spring and no gesture-velocity
   handoff. Everything is duration + easing.
 - **Retargeting semantics are not documented.** Before relying on mid-flight interruption behaving

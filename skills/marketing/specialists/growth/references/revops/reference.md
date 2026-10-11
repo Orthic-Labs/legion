@@ -1,6 +1,6 @@
 ---
 name: growth revops
-description: "When the user wants help with revenue operations, lead lifecycle management, or marketing-to-sales handoff processes. Also use when the user mentions 'RevOps,' 'revenue operations,' 'lead scoring,' 'lead routing,' 'MQL,' 'SQL,' 'pipeline stages,' 'deal desk,' 'CRM automation,' 'marketing-to-sales handoff,' 'data hygiene,' 'leads aren't getting to sales,' 'pipeline management,' 'lead qualification,' or 'when should marketing hand off to sales.' Use this for anything involving the systems and processes that connect marketing to revenue. For cold outreach emails, see cold-email. For email drip campaigns, see email-pro sequence. For pricing decisions, see growth pricing."
+description: "When the user wants help with revenue operations, lead lifecycle management, or marketing-to-sales handoff processes. Also use when the user mentions 'RevOps,' 'revenue operations,' 'lead scoring,' 'lead routing,' 'MQL,' 'SQL,' 'pipeline stages,' 'deal desk,' 'CRM automation,' 'marketing-to-sales handoff,' 'data hygiene,' 'leads aren't getting to sales,' 'pipeline management,' 'lead qualification,' or 'when should marketing hand off to sales.' Use this for anything involving the systems and processes that connect marketing to revenue. For cold outreach emails and email drip campaigns, route to `/writing`. For pricing decisions, see growth pricing."
 metadata:
   version: 1.1.0
 ---
@@ -318,28 +318,27 @@ Format each as a standalone document the user can implement directly. Include pl
 
 ## Tool Integrations
 
-For implementation, see the tools registry. Key RevOps tools:
+Key RevOps tools (use whichever the project already runs):
 
-| Tool | What It Does | Guide |
-|------|-------------|-------|
-| **HubSpot** | CRM, marketing automation, lead scoring, workflows | hubspot.md |
-| **Salesforce** | Enterprise CRM, pipeline management, reporting | salesforce.md |
-| **Calendly** | Meeting scheduling, round-robin routing | calendly.md |
-| **SavvyCal** | Scheduling with priority-based availability | savvycal.md |
-| **Clearbit** | Real-time lead enrichment and scoring | clearbit.md |
-| **Apollo** | Contact data, enrichment, and outbound sequences | apollo.md |
-| **ActiveCampaign** | Marketing automation for SMBs, lead scoring | activecampaign.md |
-| **Zapier** | Cross-tool automation and workflow glue | zapier.md |
-| **Introw** | Partner-sourced pipeline, commissions, deal registration, QBRs | introw.md |
-| **Crossbeam** | Partner account overlaps and co-sell identification | crossbeam.md |
+| Tool | What It Does |
+|------|-------------|
+| **HubSpot** | CRM, marketing automation, lead scoring, workflows |
+| **Salesforce** | Enterprise CRM, pipeline management, reporting |
+| **Calendly** | Meeting scheduling, round-robin routing |
+| **SavvyCal** | Scheduling with priority-based availability |
+| **Clearbit** | Real-time lead enrichment and scoring |
+| **Apollo** | Contact data, enrichment, and outbound sequences |
+| **ActiveCampaign** | Marketing automation for SMBs, lead scoring |
+| **Zapier** | Cross-tool automation and workflow glue |
+| **Introw** | Partner-sourced pipeline, commissions, deal registration, QBRs |
+| **Crossbeam** | Partner account overlaps and co-sell identification |
 
 ---
 
 ## Related Skills
 
-- **cold-email**: For outbound prospecting emails
-- **email-pro sequence**: For lifecycle and nurture email flows
-- **growth pricing**: For pricing decisions and packaging
-- **analytics-tracking**: For tracking pipeline metrics and attribution
-- **launch-strategy**: For go-to-market launch planning
-- **growth sales-enablement**: For sales collateral, decks, and objection handling
+- **Writing** (`/writing`): For outbound prospecting emails and lifecycle/nurture email flows
+- **Growth pricing** (`/marketing growth`): For pricing decisions and packaging
+- **Growth analytics** (`/marketing growth`): For tracking pipeline metrics and attribution
+- **Launch** (`/marketing strategy`, launch reference): For go-to-market launch planning
+- **Growth sales-enablement** (`/marketing growth`): For sales collateral, decks, and objection handling

@@ -18,8 +18,8 @@
     "description": "Owned report contains all passing handoff independence evidence.",
     "proof": [
       {
-        "command": "python skills/handoff/scripts/test_validate_handoff.py",
-        "expected": "Exit 0 and report contains every named passing check.",
+        "command": "legion script handoff/validate-handoff skills/handoff/assets/handoff-template.md --template-self-check",
+        "expected": "Exit 0 and prints PASS: handoff is cold-start complete. The adversarial test script named by earlier revisions is not in this package.",
         "evidence_path": ".audit/dispatch-handoff-final/forward/handoff-independence-report.md"
       }
     ]

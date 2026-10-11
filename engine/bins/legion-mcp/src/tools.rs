@@ -207,17 +207,33 @@ fn operation_result(operation: &str, result: NativeOperationResult) -> Result<Va
             inventory_digest,
             catalog_entries,
             provider_count,
-        } => Ok(
-            json!({"operation": operation, "repositoryId": repository_id, "status": "complete", "inventoryDigest": inventory_digest, "catalogEntries": catalog_entries, "providerCount": provider_count}),
-        ),
+        } => Ok(json!({
+            "operation": operation,
+            "repositoryId": repository_id,
+            // The native doctor operation inventories the repository and counts
+            // catalog entries and providers. It produces no health verdict.
+            "status": "partial",
+            "inventoryDigest": inventory_digest,
+            "catalogEntries": catalog_entries,
+            "providerCount": provider_count,
+            "gaps": ["doctor health verdict is not computed by the native operation"],
+        })),
         NativeOperationResult::Plan {
             repository_id,
             plan_digest,
             plan_signature,
             providers,
-        } => Ok(
-            json!({"operation": operation, "repositoryId": repository_id, "status": "complete", "planDigest": plan_digest, "planSignature": plan_signature, "providers": providers}),
-        ),
+        } => {
+            // A sealed, signed plan is complete; an unsigned plan is not.
+            let status = if plan_signature.is_some() {
+                "complete"
+            } else {
+                "partial"
+            };
+            Ok(
+                json!({"operation": operation, "repositoryId": repository_id, "status": status, "planDigest": plan_digest, "planSignature": plan_signature, "providers": providers}),
+            )
+        }
         NativeOperationResult::Audit(report) => Ok(json!({
             "operation": operation,
             "status": if report.gaps.is_empty() { "complete" } else { "partial" },
@@ -233,7 +249,10 @@ fn operation_result(operation: &str, result: NativeOperationResult) -> Result<Va
             plan_digest,
             inventory_digest,
         } => Ok(
-            json!({"operation": operation, "repositoryId": repository_id, "status": "complete", "planDigest": plan_digest, "inventoryDigest": inventory_digest}),
+            // Reaching this arm means the plan re-froze under the key and bound
+            // to the same inventory. That is a plan-binding check only; run
+            // facts and provider results are not verified here.
+            json!({"operation": operation, "repositoryId": repository_id, "status": "complete", "scope": "plan-binding", "planDigest": plan_digest, "inventoryDigest": inventory_digest}),
         ),
         NativeOperationResult::Invocation(outcome) => Ok(json!({
             "operation": operation,

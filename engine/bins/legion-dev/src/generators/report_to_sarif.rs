@@ -341,15 +341,8 @@ fn value_to_string(v: &Value) -> String {
     }
 }
 
-/// `legion-dev report-to-sarif --report PATH [--out PATH]`
-pub fn run(report_path: &Path, out_path: Option<&Path>) -> bool {
-    let out_path = match out_path {
-        Some(p) => p,
-        None => {
-            eprintln!("usage: report-to-sarif.mjs --report report.json --out report.sarif");
-            return false;
-        }
-    };
+/// `legion-dev report-to-sarif --report PATH --out PATH` (both required).
+pub fn run(report_path: &Path, out_path: &Path) -> bool {
     let text = match fs::read_to_string(report_path) {
         Ok(t) => t,
         Err(e) => {

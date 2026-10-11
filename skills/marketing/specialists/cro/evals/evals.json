@@ -17,9 +17,9 @@
       "expected_skill": "cro",
       "forbidden_skills": [
         "growth",
-        "copywriting"
+        "writing"
       ],
-      "expected_behavior": "CRO request for an existing form routes to optimize/form, not growth or copywriting.",
+      "expected_behavior": "CRO request for an existing form routes to optimize/form, not growth or writing.",
       "severity": "error",
       "mode": "discovery"
     },
@@ -54,7 +54,7 @@
     {
       "id": "optimize-not-email-lifecycle",
       "prompt": "Set up a 6-email welcome sequence for new subscribers — onboarding, product introduction, and first-purchase nudge.",
-      "expected_skill": "email",
+      "expected_skill": "writing",
       "forbidden_skills": [
         "cro"
       ],
@@ -62,7 +62,7 @@
       "assertions": [
         {
           "type": "expected_skill",
-          "value": "email"
+          "value": "writing"
         }
       ],
       "severity": "error",

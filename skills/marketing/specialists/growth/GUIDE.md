@@ -38,7 +38,7 @@ Single entry for measurable growth work. Load only the matching reference.
 
 ## Internal Growth Council
 
-Run this internally after the growth lever is identified and before producing the hypothesis or plan. This is not `/review`; it is a role pass to avoid single-lens growth advice.
+Run this internally after the growth lever is identified and before producing the hypothesis or plan. It is a role pass to avoid single-lens growth advice.
 
 | Reference | Role pass |
 |---|---|

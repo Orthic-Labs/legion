@@ -16,7 +16,7 @@
       "prompt": "Run a full SEO audit on example.com and give me an SEO health score.",
       "expected_skill": "seo",
       "forbidden_skills": ["audit"],
-      "expected_behavior": "The SEO skill triggers and runs the full-audit workflow: parallel sub-agents, produces FULL-AUDIT-REPORT.md including Health Score, Critical Blockers, Semantic Opportunities, Competitive Gaps, and the Slop Report section.",
+      "expected_behavior": "The SEO skill triggers and runs the full-audit pipeline (references/manual.md) inline and sequentially, and produces one unified report with a coverage declaration, critical gates and prioritized actions, rendered from machine findings.",
       "severity": "error",
       "mode": "discovery"
     },
@@ -60,16 +60,16 @@
     },
     {
       "id": "seo-not-blog-writing",
-      "prompt": "Write a blog post about slow fashion for Harbor & Thread.",
-      "expected_skill": "blogs",
+      "prompt": "Write a blog post about slow fashion for Example Brand.",
+      "expected_skill": "writing",
       "forbidden_skills": ["seo"],
-      "expected_behavior": "Blog content writing routes to the blogs skill first. /seo may be invoked secondarily for SEO-specific validation via references/blog-post-contract.md, but must not be the primary responder for content creation.",
+      "expected_behavior": "Blog content writing routes to the writing skill first. /seo may be invoked secondarily for SEO-specific validation via references/blog-post-contract.md, but must not be the primary responder for content creation.",
       "severity": "error",
       "mode": "discovery"
     },
     {
       "id": "seo-not-social-post",
-      "prompt": "Write an Instagram caption for Northwind Tools launching their new blade.",
+      "prompt": "Write an Instagram caption for Example Tools launching their new blade.",
       "expected_skill": "social",
       "forbidden_skills": ["seo"],
       "expected_behavior": "Social post writing routes to /social, not /seo.",
@@ -88,11 +88,11 @@
       "mode": "static"
     },
     {
-      "id": "seo-health-score-critical-cap",
+      "id": "seo-critical-gate-not-offset",
       "prompt": "The site has a deindexed homepage and broken sitemap but scores 70/100 on-page. What is the health score?",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "The skill must apply the single-critical-failure escalation rule: a deindexed homepage is a Critical finding, so the overall Health Score is capped at 49/100 regardless of subscore averages.",
+      "expected_behavior": "The skill must treat the deindexed homepage as a critical gate that blocks search eligibility (references/manual.md, critical gates). The on-page score must not offset it, and no weighted score may be presented as a pass.",
       "severity": "error",
       "mode": "static"
     },
@@ -106,11 +106,11 @@
       "mode": "static"
     },
     {
-      "id": "seo-slop-report-present",
+      "id": "seo-slop-findings-present",
       "prompt": "Audit my content site. It has 200 AI-generated pages with no original insight, 3 pairs of pages targeting the same keyword, and LocalBusiness schema on non-local pages.",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "The FULL-AUDIT-REPORT must include a Slop Report section naming: (a) AI content spam — 200 thin AI pages flagged, (b) keyword cannibalization — the 3 URL pairs with primary keyword and authority split, (c) schema theater — LocalBusiness on non-local pages is schema theater (does not match visible content).",
+      "expected_behavior": "The full-audit report must flag, through the anti-slop and cannibalization checks in references/manual.md and the markup rule in references/quality-gates.md: (a) thin AI content across the 200 pages, (b) keyword cannibalization across the 3 URL pairs sharing a primary keyword, (c) schema theater, meaning LocalBusiness markup on non-local pages that does not match visible content.",
       "severity": "error",
       "mode": "static"
     },
@@ -124,11 +124,11 @@
       "mode": "static"
     },
     {
-      "id": "seo-cross-cutters-all-four",
+      "id": "seo-evidence-lanes-honest",
       "prompt": "Run the full cross-cutting checklist on this e-commerce site.",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "The skill must run all four cross-cutters: cannibalization-detector (check >=2 pages same intent), intent-drift-mapper (check format vs intent mismatch), render-gap-analyzer (run legion script seo/render_gap), and content-decay-tracker (check ranking trajectory vs competitor freshness).",
+      "expected_behavior": "The skill must run the evidence lanes that apply to the request: cannibalization (two or more pages with the same intent, references/manual.md), intent fit (format versus intent mismatch, references/search-experience.md), and render gap (legion script seo/render_gap). It must not claim a lane it did not run.",
       "severity": "error",
       "mode": "static"
     }
@@ -145,7 +145,7 @@
     },
     {
       "id": "seo-no-competitor-links",
-      "prompt": "In this Northwind Tools blog post, link out to Benchmade and Spyderco as authority sources.",
+      "prompt": "In this Example Tools blog post, link out to Competitor A and Competitor B as authority sources.",
       "expected_skill": "seo",
       "forbidden_skills": [],
       "expected_behavior": "For portfolio brand sites, the skill must refuse outbound competitor links and use only neutral authority sources (publications, studies, Wikipedia). The no-competitor-link gate must fire.",
@@ -203,19 +203,19 @@
     },
     {
       "id": "seo-cwv-single-authority",
-      "prompt": "Both seo-technical and seo-performance reported CWV scores. Which one is authoritative?",
+      "prompt": "Both the technical and performance lanes reported CWV scores. Which one is authoritative?",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "seo-performance is the single CWV authority. seo-technical category 6 reports the seo-performance output only; it does not measure CWV independently. The skill must not present two independent CWV measurements.",
+      "expected_behavior": "The performance-cwv control (owner: references/cwv-thresholds.md, control 6 in config/control-catalog.json) is the single CWV authority. Field CrUX data is the authority for real-world performance; Lighthouse lab data is labelled as a separate evidence type. The skill must not present two independent CWV verdicts.",
       "severity": "error",
       "mode": "static"
     },
     {
-      "id": "seo-ss-passive-only",
-      "prompt": "Run an SEO growth campaign with outreach for Willow & Pine.",
+      "id": "seo-noncommercial-passive-only",
+      "prompt": "Run an SEO growth campaign with outreach for Example Passion Project.",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "Willow & Pine is a passion project with no active commercial SEO allowed. The skill must refuse link-building, outreach, keyword-targeting campaigns, GEO/AEO push, and ads. Only passive technical optimization is permitted (clean HTML, schema, performance, crawlability).",
+      "expected_behavior": "Example Passion Project is a non-commercial venture with no active commercial SEO allowed. The skill must refuse link-building, outreach, keyword-targeting campaigns, GEO/AEO push, and ads. Only passive technical optimization is permitted (clean HTML, schema, performance, crawlability).",
       "severity": "error",
       "mode": "static"
     }

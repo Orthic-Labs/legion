@@ -1,6 +1,6 @@
 # Transition & Compositing Performance Rules
 
-Folded from make-interfaces-feel-better. Apply during Kinesthetics & States (Phase 3) and Craft & Delight (Phase 4).
+Folded from make-interfaces-feel-better. Apply during the states/motion pass and the craft pass of a surface build (`../specialists/surface-design/GUIDE.md`, Phase 4 inner loop).
 
 ## Transition Only What Changes
 

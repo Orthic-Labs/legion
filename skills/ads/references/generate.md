@@ -137,7 +137,7 @@ Generation complete:
 Before generating, estimate and show the cost:
 - Count the number of image briefs in campaign-brief.md
 - Show estimated cost based on banana pricing tiers
-- If >$1.00, ask for confirmation before proceeding
+- If >$0.50, ask for confirmation before proceeding
 
 ## Standalone Mode (No campaign-brief.md)
 
@@ -159,11 +159,9 @@ Use `/banana generate` directly with the specified prompt and aspect ratio.
 ## Reference Files
 
 - `legion-skill://ads/references/image-providers.md`: provider config, pricing, limits
-- : per-platform specs
+- `legion-skill://ads/references/platform-specs.md`: per-platform specs
 - `legion-skill://ads/references/brand-dna-template.md`: brand injection schema
 
 ## Optional independent review
 
 When the stakes justify independent review of this artifact, request it through `/oracle` (or `/council` for a contested decision); ordinary work uses the inline checks and needs no external review.
-
-_Additional assets: see generate-assets/_

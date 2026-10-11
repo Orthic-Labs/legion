@@ -9,10 +9,9 @@ mod shared;
 use clap::{Parser, Subcommand};
 use std::process::ExitCode;
 
-/// `legion-dev` — repository-contract checks, ported from `scripts/*.mjs`.
+/// `legion-dev` — repository-contract checks and generators for Legion.
 ///
-/// Each subcommand mirrors one `pnpm legion:check` step: same stdout/stderr
-/// wording, same exit-code semantics (0 = pass, non-zero = fail).
+/// Each check exits 0 on pass and non-zero on fail.
 #[derive(Parser)]
 #[command(name = "legion-dev")]
 struct Cli {
@@ -22,26 +21,25 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Port of `scripts/check-portability.mjs`.
+    /// Fail when a tracked file contains a developer-local path or username that is not allowlisted.
     CheckPortability {
         #[arg(long)]
         json: bool,
     },
-    /// Port of `scripts/check-version-parity.mjs`.
+    /// Check that every version-bearing file matches `release/version.json`; `--stable` rejects development versions.
     CheckVersionParity {
         #[arg(long)]
         json: bool,
         #[arg(long)]
         stable: bool,
     },
-    /// Port of `scripts/check-publication-surface.mjs`.
+    /// Check that `package.json#files` and `MANIFEST.package.json#allowlistedTopLevel` are identical and every entry exists.
     CheckPublicationSurface,
     /// Dead-reference gate: skill markdown links, `legion script` names,
     /// deleted-script mentions, and `hostRequirements` ids.
     CheckSkillReferences,
     /// Structural gate for `skills/**/evals/*.json`; model-graded cases are
-    /// reported as `requires-model`, never as passed. Deterministic half of
-    /// the deleted `scripts/run-skill-evals.mjs`.
+    /// reported as `requires-model`, never as passed.
     CheckSkillEvals,
     /// Execute skill-eval routing cases deterministically. The only native
     /// router is explicit slash-alias resolution; natural-language cases are
@@ -56,7 +54,7 @@ enum Command {
     /// docs/agent-rules*, or engine/bins/*/src/commands/ since the baseline
     /// commit needs a row in `docs/provenance/retirements.md`.
     CheckRetirements,
-    /// Port of `scripts/check-authority-parity.mjs`.
+    /// Check that `agents/<role>.md` matches `src/roster/<role>.md` and that `doctrine/<role>.md` declares no description.
     CheckAuthorityParity,
     /// Grade recorded role decisions against independently labelled replay cases.
     EvaluateAuthorityReplay {
@@ -68,36 +66,36 @@ enum Command {
         #[arg(long)]
         observations: std::path::PathBuf,
     },
-    /// Port of `scripts/generate-catalogs.mjs`.
+    /// Rebuild `qualification/generated-catalogs.json`; `--check` fails on drift.
     GenerateCatalogs {
         #[arg(long)]
         check: bool,
     },
-    /// Port of `scripts/check-canonical-names.mjs`.
+    /// Scan tracked files for retired role names and verify canonical naming invariants.
     CheckCanonicalNames {
         #[arg(long)]
         json: bool,
     },
-    /// Port of `scripts/check-blueprint-config.mjs`.
+    /// Check that `.agent/config.json` is a regular JSON file declaring every required `ignoredPrefixes` entry.
     CheckBlueprintConfig {
         #[arg(long)]
         json: bool,
     },
-    /// Port of `scripts/check-publication-policy.mjs`.
+    /// Check that public channels have an explicit grant bound to the current shipped surface.
     CheckPublicationPolicy {
         #[arg(long)]
         channel: Option<String>,
     },
-    /// Port of `scripts/check-distribution-contract.mjs`.
+    /// Cross-validate distribution, publication, channel, package, and release config against the frozen invariants.
     CheckDistributionContract,
-    /// Port of `scripts/check-release-obligations.mjs`.
+    /// Validate `release/obligations.json`: each obligation names a real evidence producer or an explicit gap.
     CheckReleaseObligations,
-    /// Port of `scripts/generate-schemas.mjs`.
+    /// Generate the committed JSON schemas from the code-owned contract enums; `--check` fails on drift.
     GenerateSchemas {
         #[arg(long)]
         check: bool,
     },
-    /// Port of `scripts/generate-manifest.mjs`.
+    /// Generate the package manifest from the provider registry; `--check` fails on drift.
     GenerateManifest {
         #[arg(long)]
         check: bool,
@@ -106,7 +104,7 @@ enum Command {
         #[arg(long)]
         out: Option<std::path::PathBuf>,
     },
-    /// Port of `scripts/normalize-provider-result.mjs`.
+    /// Normalize raw provider output against a plan-contract fragment.
     NormalizeProviderResult {
         /// Path to a JSON plan-contract fragment (`{id, denominator, benchmark}`).
         #[arg(long)]
@@ -114,68 +112,70 @@ enum Command {
         /// Path to the raw provider output JSON to normalize.
         #[arg(long)]
         raw: Option<std::path::PathBuf>,
-        /// Run the JS file's embedded self-test instead of normalizing files.
+        /// Run the built-in self-test instead of normalizing files.
         #[arg(long)]
         self_test: bool,
     },
-    /// Port of `scripts/native-cli/inventory.mjs`.
+    /// Freeze the Node/Rust CLI command and nested-route inventory.
     NativeCliInventory,
-    /// Port of `scripts/check-native-cli-surface.mjs`.
+    /// Fail on retained Node Legion CLI entrypoints and product tests that invoke them.
+    /// `--phase` accepts exactly `enforce` (fails on any issue) or `record` (reports only); any other value is a usage error.
     CheckNativeCliSurface {
         #[arg(long, default_value = "record")]
         phase: String,
     },
-    /// Port of `scripts/generate-host-projection.mjs`.
+    /// Generate host projections from roster and skill sources; `--check` fails on drift.
     GenerateHostProjection {
         #[arg(long)]
         check: bool,
     },
-    /// Port of `scripts/generate-skill-catalog.mjs`.
+    /// Generate the skill catalog; `--check` fails on drift.
     GenerateSkillCatalog {
         #[arg(long)]
         check: bool,
     },
-    /// Port of `scripts/generate-codex-skill-sidecars.mjs`.
+    /// Generate the Codex skill sidecar files; `--check` fails on drift.
     GenerateCodexSkillSidecars {
         #[arg(long)]
         check: bool,
     },
-    /// Port of `scripts/refresh-local-skill-manifests.mjs`.
+    /// Refresh the `skills/manifests` digests for the named bundles.
     RefreshLocalSkillManifests {
         #[arg(long)]
         check: bool,
         #[arg(value_name = "BUNDLE")]
         bundles: Vec<String>,
     },
-    /// Port of `scripts/verify-plugin-parity.mjs`.
+    /// Verify the plugin tree matches its packaged sources; `--structural-only` skips installed-binary checks.
     VerifyPluginParity {
         #[arg(long)]
         check: bool,
         #[arg(long)]
         structural_only: bool,
     },
-    /// Port of `scripts/report-to-sarif.mjs`.
+    /// Convert a Legion report JSON into SARIF; `--report` and `--out` are both required.
     ReportToSarif {
         #[arg(long)]
         report: std::path::PathBuf,
         #[arg(long)]
-        out: Option<std::path::PathBuf>,
+        out: std::path::PathBuf,
     },
-    /// Port of `scripts/plugin-dev.mjs`.
+    /// Verify the live plugin surface, then print the steps to load it for development.
     PluginDev,
-    /// Port of `scripts/check-dependency-closure.mjs`.
+    /// Verify each bundle's dependency declaration and resource closure.
     CheckDependencyClosure {
         /// Assembled portable plugin tree; also require `skills/_shared/*` dependencies there.
         #[arg(long)]
         plugin_root: Option<std::path::PathBuf>,
     },
-    /// Port of `scripts/check-packed-import-closure.mjs`.
+    /// Verify static relative ESM imports resolve inside the packed npm tarball.
     CheckPackedImportClosure,
-    /// Port of `scripts/native-cli/run-installed-parity.mjs`. Windows-only
+    /// Check installed native CLI parity. Windows-only
     /// (qualifies the installer-owned stable `legion.exe`); fails immediately
     /// off Windows.
     NativeCliParityInstalled,
-    /// Port of `scripts/native-cli/run-rust-characterization.mjs`.
+    /// Capture native CLI characterization from the Rust build. `--diagnostic` never fails on
+    /// fixture mismatches (setup and capture errors still fail) and its output does not qualify.
     NativeCliCaptureRust {
         #[arg(long)]
         diagnostic: bool,
@@ -183,7 +183,7 @@ enum Command {
 }
 
 fn main() -> ExitCode {
-    // `pnpm <script> -- --flag` forwards the separator; the JS tools skipped it.
+    // `pnpm <script> -- --flag` forwards a literal `--` separator; drop it so clap sees the flags.
     let mut argv: Vec<std::ffi::OsString> = std::env::args_os().collect();
     if argv.len() > 2 && argv[2] == "--" {
         argv.remove(2);
@@ -247,9 +247,7 @@ fn main() -> ExitCode {
             check,
             structural_only,
         } => generators::verify_plugin_parity::run_opts(&root, check, structural_only),
-        Command::ReportToSarif { report, out } => {
-            generators::report_to_sarif::run(&report, out.as_deref())
-        }
+        Command::ReportToSarif { report, out } => generators::report_to_sarif::run(&report, &out),
         Command::PluginDev => generators::plugin_dev::run(&root),
         Command::CheckDependencyClosure { plugin_root } => {
             checks::dependency_closure::run(&root, plugin_root.as_deref())

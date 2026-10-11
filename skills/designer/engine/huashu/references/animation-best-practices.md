@@ -418,8 +418,6 @@ stage.style.transform = `
 **适合**：大版本发布、hero 动画、视觉惊艳优先
 **节奏**：Slow-Fast-Boom-Stop 强弧线
 **Easing**：全程 `expoOut` + 少量 `overshoot`
-**SFX 密度**：高（~0.4/s），SFX 音高调到 BGM 音阶
-**BGM**：IDM / 极简科技电子，冷静+精密
 **收束**：镜头急拉远 → drop → Logo 形变 → 空灵单音 → 戛然而止
 
 ### 配方 B · 一镜到底工具式（Claude Code 类）
@@ -427,17 +425,12 @@ stage.style.transform = `
 **适合**：开发者工具、生产力 App、心流场景
 **节奏**：持续稳定 flow，没有明显峰值
 **Easing**：`spring` 物理 + `expoOut`
-**SFX 密度**：**0**（纯靠 BGM 驱动剪辑节奏）
-**BGM**：Lo-fi Hip-hop / Boom-bap，85-90 BPM
-**核心技巧**：关键 UI 动作踩在 BGM kick/snare 瞬态上——「**音乐律动即交互音效**」
 
 ### 配方 C · 办公效率叙事式（Claude for Word 类）
 
 **适合**：企业软件、文档/表格/日历类、专业感优先
 **节奏**：多 scene 硬切 + Dolly In/Out
 **Easing**：`overshoot`（toggle）+ `expoOut`（面板）
-**SFX 密度**：中（~0.3/s），UI click 为主
-**BGM**：Jazzy Instrumental，小调，BPM 90-95
 **核心亮点**：某一幕必有「全片高光」—— 3D pop-out / 脱离平面浮起
 
 ---
@@ -473,8 +466,6 @@ stage.style.transform = `
 - [ ] 文字有衬线 + 无衬线层次？
 - [ ] 收尾是戛然而止，不是渐弱？
 - [ ] （有鼠标的话）鼠标轨迹是弧线，不是直线？
-- [ ] SFX 密度符合产品性格（见配方 A/B/C）？
-- [ ] BGM 和 SFX 有 6-8dB 响度差？（见 `audio-design-rules.md`）
 
 ---
 
@@ -484,23 +475,19 @@ stage.style.transform = `
 |---|---|---|
 | `animation-pitfalls.md` | 技术避坑（16 条） | 「**不要这样做**」· 本文件的反面 |
 | `animations.md` | Stage/Sprite 引擎用法 | 动画**怎么写**的基础 |
-| `audio-design-rules.md` | 双轨制音频规则 | 动画**配音频**的规则 |
-| `sfx-library.md` | 37 个 SFX 清单 | 音效**素材库** |
 | `apple-gallery-showcase.md` | Apple 画廊展示风格 | 一种特定运动风格的专题 |
 | **本文件** | 正向运动设计语法 | 「**应该这样做**」 |
 
 **调用顺序**：
-1. 先看 SKILL.md 工作流程 Step 3 的位置四问（决定叙事角色和视觉温度）
+1. 先看 `engine/huashu/GUIDE.md` 工作流程 Step 3 的位置四问（决定叙事角色和视觉温度）
 2. 选定方向后读本文件确定**运动语言**（配方 A/B/C）
 3. 写代码时参考 `animations.md` 和 `animation-pitfalls.md`
-4. 导出视频时走 `audio-design-rules.md` + `sfx-library.md`
 
 ---
 
 ## 附录 · 本文件素材来源
 
 - Anthropic 官方动画拆解：花叔项目目录的 `参考动画/BEST-PRACTICES.md`
-- Anthropic 音频拆解：同目录 `AUDIO-BEST-PRACTICES.md`
-- 3 支参考视频：`ref-{1,2,3}.mp4` + 对应 `gemini-ref-*.md` / `audio-ref-*.md`
+- 3 支参考视频：`ref-{1,2,3}.mp4` + 对应 `gemini-ref-*.md`
 - **严格过滤**：本 reference 不收录任何具体品牌色值、字体名、产品名。
   色彩/字体决策走 §1.a 核心资产协议或 20 种设计哲学。

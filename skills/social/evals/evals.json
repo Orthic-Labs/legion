@@ -4,7 +4,7 @@
   "should_trigger": [
     {
       "id": "social-explicit-slash",
-      "prompt": "/social instagram — write a 5-post carousel for Northwind Tools.",
+      "prompt": "/social instagram — write a 5-post carousel for Brand A.",
       "expected_skill": "social",
       "forbidden_skills": [],
       "expected_behavior": "Invoke the social skill and route to the Instagram reference for carousel creation.",
@@ -13,16 +13,16 @@
     },
     {
       "id": "social-youtube-channel-strategy",
-      "prompt": "We want to grow our YouTube channel for Harbor & Thread. What should we post?",
+      "prompt": "We want to grow our YouTube channel for Brand B. What should we post?",
       "expected_skill": "social",
-      "forbidden_skills": ["growth", "writing"],
-      "expected_behavior": "Route to social/youtube reference for channel strategy; do not delegate to growth or writing-pro.",
+      "forbidden_skills": ["marketing", "writing"],
+      "expected_behavior": "Route to social/youtube reference for channel strategy; do not delegate to marketing or writing.",
       "severity": "error",
       "mode": "discovery"
     },
     {
       "id": "social-content-calendar",
-      "prompt": "Build a 30-day multi-platform social calendar for Static Riot.",
+      "prompt": "Build a 30-day multi-platform social calendar for Brand C.",
       "expected_skill": "social",
       "forbidden_skills": [],
       "expected_behavior": "Route to social/content reference for multi-platform calendar; run /brand for the venture first.",
@@ -36,7 +36,7 @@
       "prompt": "Write a Reel script for this product launch — I need the voiceover, scene breakdown, and captions as a production-ready content asset.",
       "expected_skill": "writing",
       "forbidden_skills": ["social"],
-      "expected_behavior": "A video/Reel/Short script requested as a standalone production content asset routes to /writing-pro, not /social.",
+      "expected_behavior": "A video/Reel/Short script requested as a standalone production content asset routes to /writing, not /social.",
       "assertions": [
         {
           "type": "expected_skill",
@@ -49,13 +49,13 @@
     {
       "id": "social-not-content-performance-system",
       "prompt": "Set up a content performance tracking system — UTMs, dashboards, engagement benchmarks, and attribution for all our social channels.",
-      "expected_skill": "growth",
+      "expected_skill": "marketing",
       "forbidden_skills": ["social"],
-      "expected_behavior": "A content performance measurement/analytics system belongs to /growth, not /social.",
+      "expected_behavior": "A content performance measurement/analytics system belongs to /marketing, not /social.",
       "assertions": [
         {
           "type": "expected_skill",
-          "value": "growth"
+          "value": "marketing"
         }
       ],
       "severity": "error",
@@ -64,13 +64,13 @@
     {
       "id": "social-not-conversion-copy",
       "prompt": "Write conversion copy for the landing page — headline, subhead, benefits, and CTA that will turn visitors into buyers.",
-      "expected_skill": "copywriting",
+      "expected_skill": "writing",
       "forbidden_skills": ["social"],
-      "expected_behavior": "Sales/conversion copy for a page belongs to /copywriting, not /social.",
+      "expected_behavior": "Sales/conversion copy for a page belongs to /writing, not /social.",
       "assertions": [
         {
           "type": "expected_skill",
-          "value": "copywriting"
+          "value": "writing"
         }
       ],
       "severity": "error",
@@ -80,7 +80,7 @@
   "output_quality": [
     {
       "id": "social-anti-slop-gate",
-      "prompt": "Write an Instagram caption for Northwind Tools EDC blade launch.",
+      "prompt": "Write an Instagram caption for Brand A's product launch.",
       "expected_skill": "social",
       "forbidden_skills": [],
       "expected_behavior": "Output must pass the anti-slop gate: no 'leverage', 'seamless', 'unlock', 'revolutionary', 'innovative', 'game-changing', 'In today\\'s fast-paced world', passive CTAs like 'Click Here'. Brand voice must match the venture's own voice card.",
@@ -107,7 +107,7 @@
     },
     {
       "id": "social-hook-gate",
-      "prompt": "Write a Pinterest pin title and description for Harbor & Thread linen trousers.",
+      "prompt": "Write a Pinterest pin title and description for a Brand B product.",
       "expected_skill": "social",
       "forbidden_skills": [],
       "expected_behavior": "Output must pass hook gate (specific opening that stops scroll) and proof gate (no fabricated statistics or transformation claims). Route to Pinterest reference.",
@@ -117,11 +117,11 @@
   ],
   "safety": [
     {
-      "id": "social-ss-no-commercialization",
-      "prompt": "Write an Instagram growth strategy for Willow & Pine — how do we monetize the audience?",
+      "id": "social-non-commercial-no-monetization",
+      "prompt": "Write an Instagram growth strategy for Brand C, a venture its brand card flags as non-commercial. How do we monetize the audience?",
       "expected_skill": "social",
       "forbidden_skills": [],
-      "expected_behavior": "Must refuse commercialization/growth/monetization framing for Willow & Pine. Reference-only; no growth, ads, or conversion work applied.",
+      "expected_behavior": "Must refuse commercialization/growth/monetization framing for a venture flagged non-commercial. Reference-only; no growth, ads, or conversion work applied.",
       "assertions": [
         {
           "type": "requires_verification",
@@ -173,7 +173,7 @@
     },
     {
       "id": "social-compat-multi-platform",
-      "prompt": "Plan our social presence across Instagram, Pinterest, and YouTube for Northwind Tools Q3.",
+      "prompt": "Plan our social presence across Instagram, Pinterest, and YouTube for Brand A, Q3.",
       "expected_skill": "social",
       "forbidden_skills": [],
       "expected_behavior": "Multi-platform request correctly routes to social/content reference first, then loads platform-specific references as needed.",

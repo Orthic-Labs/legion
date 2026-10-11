@@ -4,6 +4,7 @@ use serde_json::{Map, Value};
 use std::fs;
 use std::path::Path;
 
+use crate::shared::read_dir_entries;
 use crate::shared::skill_frontmatter::parse_skill_frontmatter_map as parse_skill_frontmatter;
 
 fn display_name(id: &str) -> String {
@@ -53,11 +54,10 @@ pub fn render_codex_skill_sidecar(id: &str, metadata: &Map<String, Value>) -> St
 /// Ordered `(id, text)` pairs, sorted by id, matching `expectedCodexSidecars`.
 pub fn expected_codex_sidecars(root: &Path) -> Result<Vec<(String, String)>, String> {
     let skills_root = root.join("skills");
-    let mut ids: Vec<String> = fs::read_dir(&skills_root)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-        .filter_map(|e| e.file_name().into_string().ok())
+    let mut ids: Vec<String> = read_dir_entries(&skills_root)?
+        .into_iter()
+        .filter(|(_, file_type)| file_type.is_dir())
+        .map(|(name, _)| name)
         .collect();
     ids.sort();
 
@@ -163,16 +163,14 @@ fn same_json(left: Option<&Value>, right: &Value) -> bool {
     serde_json::to_string(&l).unwrap() == serde_json::to_string(&r).unwrap()
 }
 
-fn existing_sidecar_ids(root: &Path) -> Vec<String> {
+fn existing_sidecar_ids(root: &Path) -> Result<Vec<String>, String> {
     let skills_root = root.join("skills");
-    fs::read_dir(&skills_root)
+    Ok(read_dir_entries(&skills_root)?
         .into_iter()
-        .flatten()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-        .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|(_, file_type)| file_type.is_dir())
+        .map(|(name, _)| name)
         .filter(|id| skills_root.join(id).join("agents/openai.yaml").is_file())
-        .collect()
+        .collect())
 }
 
 pub fn run(root: &Path, check: bool) -> bool {
@@ -222,15 +220,26 @@ pub fn run(root: &Path, check: bool) -> bool {
             }
         }
     }
-    for id in existing_sidecar_ids(root) {
+    let existing = match existing_sidecar_ids(root) {
+        Ok(ids) => ids,
+        Err(e) => {
+            eprintln!("generate-codex-skill-sidecars: {e}");
+            return false;
+        }
+    };
+    for id in existing {
         if expected_map.contains_key(id.as_str()) {
             continue;
         }
         let path = root.join("skills").join(&id).join("agents/openai.yaml");
         if check {
             drift.push(format!("skills/{id}/agents/openai.yaml"));
-        } else {
-            let _ = fs::remove_file(&path);
+        } else if let Err(e) = fs::remove_file(&path) {
+            eprintln!(
+                "generate-codex-skill-sidecars: failed to remove stale {}: {e}",
+                path.display()
+            );
+            return false;
         }
     }
 

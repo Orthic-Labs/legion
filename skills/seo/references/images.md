@@ -1,19 +1,3 @@
----
-name: seo-images
-description: >
-  Image optimization analysis for SEO and performance. Checks alt text, file
-  sizes, formats, responsive images, lazy loading, and CLS prevention. Use when
-  user says "image optimization", "alt text", "image SEO", "image size",
-  or "image audit".
-user-invokable: true
-argument-hint: "[url]"
-license: MIT
-metadata:
-  author: AgriciDaniel
-  version: "1.7.0"
-  category: seo
----
-
 # Image Optimization Analysis
 
 ## Checks

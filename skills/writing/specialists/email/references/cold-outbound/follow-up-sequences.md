@@ -1,11 +1,13 @@
 # Follow-Up Sequences
 
+> Source note: figures below are third-party aggregates, not verified in this package. Cite a dated source before quoting.
+
 55% of replies come from follow-ups, not the initial email. Yet 48% of salespeople never follow up even once.
 
 ## How Many: 3–5 Total Emails
 
-- Highest single-email reply rate: **8.4%** (Belkins).
-- 4–7 email campaigns achieve **27% reply rates** vs 9% for 1–3 emails (Woodpecker, 20M emails).
+- Highest single-email reply rate: **8.4%** (aggregate industry data).
+- 4–7 email campaigns achieve **27% reply rates** vs 9% for 1–3 emails (aggregate campaign data).
 - By 4th follow-up, response rates drop **55%** and spam complaints **triple**.
 - Resolution: longer sequences catch different timing windows. Cap at 4 follow-ups (5 total emails). Each must add genuinely new value.
 
@@ -37,11 +39,11 @@ Each follow-up must stand alone while building toward the goal. Never just "bump
 | Follow-up 3 | New insight, industry trend, or relevant resource          | Demonstrate expertise      |
 | Follow-up 4 | Breakup — acknowledge silence, leave door open             | Trigger loss aversion      |
 
-Add only **one new value proposition per email** (SalesBread). This naturally forces different angles.
+Add only **one new value proposition per email**. This naturally forces different angles.
 
 ## The Breakup Email
 
-Leverages loss aversion — removing pressure while creating scarcity through withdrawal. Close.com reports **10–15% response rates** from breakup emails with cold prospects.
+Leverages loss aversion — removing pressure while creating scarcity through withdrawal. Aggregate reports cite **10–15% response rates** from breakup emails with cold prospects.
 
 **Structure:**
 
@@ -66,7 +68,7 @@ Leverages loss aversion — removing pressure while creating scarcity through wi
 
 ## Phrases That Kill Response Rates
 
-- "I never heard back" → **12% drop** in meeting booking rate (Gong)
+- "I never heard back" → **12% drop** in meeting booking rate 
 - "Just checking in" → Zero value, signals laziness
 - "Bumping this to the top of your inbox" → Presumptuous
 - "Did you see my last email?" → Guilt-tripping

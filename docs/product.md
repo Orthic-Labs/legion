@@ -11,7 +11,6 @@ audience and positioning statements come **only** from existing repository docs,
 
 Plain-language features derived from the verified claim inventory. Each row points back to its source.
 
-- **.commandcode/taste/taste/taste.md** — Prefers structured, exhaustive validation output: per-item coverage matrices (PASS/PARTIAL/FAIL with evidence paths) and severity-classified findings (blocker/major/minor/note). Confidence: 0.6 _(source: .commandcode/taste/taste/taste.md:8)_
 - **AGENTS.md** — 3. **Route semantically over the compact catalog.** Routing is not the edge of Legion — routing *is* Legion working. Natural language classifies against the compact canonical capability catalog; explicit slash aliases stay deterministic. _(source: AGENTS.md:9)_
 - **agents/alchemist.md** — are ambient. You never convert ambiguity into a new decision, never self-certify completion, and _(source: agents/alchemist.md:17)_
 - **agents/oracle.md** — Your identity, authority boundary, trigger boundary, and model tier are canonical in _(source: agents/oracle.md:19)_
@@ -19,10 +18,10 @@ Plain-language features derived from the verified claim inventory. Each row poin
 - **CLAUDE.md** — <!-- Compatibility adapter. Canonical package rules: docs/agent-rules.md. --> _(source: CLAUDE.md:1)_
 - **docs/agent-rules.md** — Preserve one canonical owner for each role and routing concept. _(source: docs/agent-rules.md:20)_
 - **docs/CHANGELOG.md** — INTERNAL_ONLY decision. (Note, added later: this script was subsequently _(source: docs/CHANGELOG.md:9)_
-- **docs/host-integration-plan.md** — **Scope:** how canonical Legion semantics reach Claude Code, Codex, Gemini CLI, and _(source: docs/host-integration-plan.md:5)_
+- **docs/architecture/host-integration-plan.md** — **Scope:** how canonical Legion semantics reach Claude Code, Codex, Gemini CLI, and _(source: docs/architecture/host-integration-plan.md:5)_
 - **docs/LEGION-CANONICAL-SSOT.md** — **Status:** CANONICAL — permanent root system-architecture source of truth _(source: docs/LEGION-CANONICAL-SSOT.md:3)_
 - **docs/provenance/architecture-archived.md** — Follow-on implementation must add explicit source-backed controls & fixtures for unnecessary process spawning, build efficiency, & native-platform leverage; dispatch supplies underlying provider/runtime machinery but does not complete these controls by itself. _(source: docs/provenance/architecture-archived.md:83)_
-- **docs/provenance/canon-map-archived.md** — | ownership-disposition | ACTIVE | architecture-method | `$LEGION/doctrine/architecture/controls/ownership-disposition.md; $LEGION/doctrine/architecture/schemas/ownership-disposition.schema.json; $LEGION/doctrine/architecture/templates/ownership-disposition.md` | `$LEGION/packages/arcane/lib/architecture-state.mjs` | Legion integration owner + Arcane... _(source: docs/provenance/canon-map-archived.md:46)_
+- **docs/provenance/canon-map-archived.md** — | ownership-disposition | ACTIVE | architecture-method | `$LEGION/doctrine/architecture/controls/ownership-disposition.md; $LEGION/doctrine/architecture/schemas/ownership-disposition.schema.json; $LEGION/doctrine/architecture/templates/ownership-disposition.md` | (no current runtime path; the retired Node module is not shipped) | Legion integration owner + Arcane... _(source: docs/provenance/canon-map-archived.md:46)_
 
 ## Entry points
 

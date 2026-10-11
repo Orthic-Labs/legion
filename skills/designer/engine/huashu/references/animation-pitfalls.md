@@ -222,7 +222,7 @@ Playwright `recordVideo` 从 `newContext()` 那一刻就开始写 WebM，此时 
 // ━━━━━━ state ━━━━━━
 let time = 0;
 let playing = false;   // ❗ 默认不播，等字体 ready 再启动
-let lastTick = null;   // ❗ forge——tick 首帧时 dt 强制为 0（别用 performance.now()）
+let lastTick = null;   // ❗ 注意——tick 首帧时 dt 强制为 0（别用 performance.now()）
 const fired = new Set();
 
 // ━━━━━━ tick ━━━━━━
@@ -397,7 +397,7 @@ ffmpeg -i video.mp4 -ss $DURATION-0.1 -vframes 1 frame-end.png
 - [ ] 结尾 Sprite 的 `fadeOut` 设为 0（视频末尾停清晰帧）？
 - [ ] 60fps MP4 默认用帧复制模式（兼容性），高质量插帧才加 `--minterpolate`？
 - [ ] 导出后抽第 0 帧 + 末帧验证是动画初始/最终状态？
-- [ ] 涉及具体品牌（Stripe/Anthropic/Lovart/...）：走完了「品牌资产协议」（SKILL.md §1.a 五步）？有没有写 `brand-spec.md`？
+- [ ] 涉及具体品牌（Stripe/Anthropic/Lovart/...）：走完了「品牌资产协议」（`engine/huashu/GUIDE.md` §1.a 五步）？有没有写 `brand-spec.md`？
 - [ ] 单文件交付的 HTML：`animations.jsx` 是内联的，不是 `src="..."`？（file:// 下 external .jsx 会 CORS 黑屏）
 - [ ] 跨 scene 出现的元素（chapter 标签/水印/scene 编号）没有硬编码颜色？在每个 scene 底色下都可见？
 - [ ] 要离线/真自包含：React+ReactDOM 本地内联、**app 和 `animations.jsx` 引擎都过 Babel transpile**、字体用系统字体？（见坑 #17；引擎含 JSX，漏 transpile 必报 `Unexpected token '<'`）

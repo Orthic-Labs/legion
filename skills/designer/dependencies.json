@@ -7,6 +7,10 @@
       "capability": "banana-image"
     },
     {
+      "class": "HOST_CAPABILITY",
+      "capability": "web-search"
+    },
+    {
       "class": "PACKAGE_INTERNAL",
       "path": "../_shared/anti-slop.md"
     },
@@ -21,6 +25,10 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "specialists/static-creative/GUIDE.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "specialists/static-creative/references/marketing.md"
     },
     {
       "class": "PACKAGE_INTERNAL",
@@ -57,6 +65,22 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "references/manual.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "engine/scripts/live-browser-session.js"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "engine/scripts/live-browser-dom.js"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "engine/scripts/live-browser.js"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "engine/scripts/detector/detect-antipatterns-browser.js"
     }
   ]
 }

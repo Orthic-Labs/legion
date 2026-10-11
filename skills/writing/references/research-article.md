@@ -1,8 +1,3 @@
----
-name: build-research-article
-description: Assists in writing high-quality content by conducting research, adding citations, improving hooks, iterating on outlines, and providing real-time feedback on each section. Transforms your writing process from solo effort to collaborative partnership.
----
-
 # Content Research Writer
 
 This skill acts as your writing partner, helping you research, outline, draft, and refine content while maintaining your unique voice and style.
@@ -21,7 +16,7 @@ This skill acts as your writing partner, helping you research, outline, draft, a
 ## What This Skill Does
 
 1. **Collaborative Outlining**: Helps you structure ideas into coherent outlines
-2. **Research Assistance**: Finds relevant information and adds citations
+2. **Source Handling**: Routes sourcing to the `research` skill and adds citations for facts the user or research supplies
 3. **Hook Improvement**: Strengthens your opening to capture attention
 4. **Section Feedback**: Reviews each section as you write
 5. **Voice Preservation**: Maintains your writing style and tone
@@ -139,34 +134,29 @@ When a user requests writing assistance:
 
 3. **Conduct Research**
    
-   When user requests research on a topic:
-   
-   - Search for relevant information
-   - Find credible sources
-   - Extract key facts, quotes, and data
-   - Add citations in requested format
-   
-   Example output:
+   When the user needs sourced material on a topic:
+
+   - Hand the sourcing task to the `research` skill; do not search or invent sources here
+   - Keep only facts that come back with a source; mark anything unsourced as `[needs source]`
+   - Add citations in the requested format
+
+   Example output (placeholders show the shape; every bracketed item must be filled from a real source):
    ```markdown
-   ## Research: AI Impact on Productivity
-   
+   ## Research: [topic]
+
    Key Findings:
-   
-   1. **Productivity Gains**: Studies show 40% time savings for 
-      content creation tasks [1]
-   
-   2. **Adoption Rates**: 67% of knowledge workers use AI tools 
-      weekly [2]
-   
-   3. **Expert Quote**: "AI augments rather than replaces human 
-      creativity" - Dr. Jane Smith, MIT [3]
-   
+
+   1. **[Finding]**: [measured figure, scope and date] [1]
+
+   2. **[Finding]**: [measured figure, scope and date] [2]
+
+   3. **[Expert quote]**: "[verbatim quote from the source]" — [named expert, source, date] [3]
+
    Citations:
-   [1] McKinsey Global Institute. (2024). "The Economic Potential 
-       of Generative AI"
-   [2] Stack Overflow Developer Survey (2024)
-   [3] Smith, J. (2024). MIT Technology Review interview
-   
+   [1] [publisher]. ([year]). "[title]"
+   [2] [publisher]. ([year]). "[title]"
+   [3] [expert], [outlet] ([date]), [URL]
+
    Added to outline under Section 2.
    ```
 
@@ -267,21 +257,21 @@ When a user requests writing assistance:
    
    **Inline Citations**:
    ```markdown
-   Studies show 40% productivity improvement (McKinsey, 2024).
+   [Measured figure] ([Publisher], [year]).
    ```
    
    **Numbered References**:
    ```markdown
    Studies show 40% productivity improvement [1].
    
-   [1] McKinsey Global Institute. (2024)...
+   [1] [Publisher]. ([year])...
    ```
    
    **Footnote Style**:
    ```markdown
    Studies show 40% productivity improvement^1
    
-   ^1: McKinsey Global Institute. (2024)...
+   ^1: [Publisher]. ([year])...
    ```
    
    Maintain a running citations list:
@@ -349,7 +339,7 @@ When a user requests writing assistance:
 
 ## Examples
 
-### Example 1: Teresa Torres's Workflow
+### Example 1: Long-form article workflow
 
 **User**: "I'm writing an article about continuous discovery. Help me create an outline."
 
@@ -364,7 +354,7 @@ When a user requests writing assistance:
 8. Final review of complete draft
 9. Polish and prep for publishing
 
-**Result**: Well-researched, properly cited article written in Teresa's voice with strong structure and flow.
+**Result**: Well-researched, properly cited article written in the author's voice, with strong structure and flow.
 
 ### Example 2: Research-Heavy Article
 
@@ -375,21 +365,21 @@ When a user requests writing assistance:
 ## Research Compiled
 
 ### Recent Data
-- Gartner: 80% of PMs will use AI tools by 2025 [1]
-- Survey: 45% report faster feature shipping [2]
-- Case study: Airbnb's AI-assisted prioritization [3]
+- [Sourced statistic, scope and year] [1]
+- [Sourced survey result, sample and year] [2]
+- [Sourced case study, company and outcome] [3]
 
 ### Expert Quotes
-- "AI amplifies PM judgment, not replaces it" - Marty Cagan
+- "[Verbatim quote]" - [named expert, source, date]
 - [Additional quotes with citations]
 
 ### Real Examples
-1. **Company A**: Used AI for user research synthesis
-   - Result: 60% time savings
+1. **[Company A]**: [what they did]
+   - Result: [measured outcome]
    - Source: [citation]
 
-2. **Company B**: AI-powered roadmap analysis
-   - Result: Better stakeholder alignment
+2. **[Company B]**: [what they did]
+   - Result: [measured outcome]
    - Source: [citation]
 
 All added to your outline with proper citations.
@@ -403,13 +393,13 @@ All added to your outline with proper citations.
 **Improved Options**:
 
 **Option 1 (Data-driven)**:
-> "Last month, I asked AI to analyze 500 customer interviews. It took 30 minutes instead of 3 weeks. Product management will never be the same."
+> "[First-hand moment with a real number, e.g., the task, the time before and after]." (Only use an experience the writer actually had.)
 
 **Option 2 (Question)**:
 > "What if you could talk to every customer, read every review, and analyze every support ticket—all before your morning coffee?"
 
 **Option 3 (Story)**:
-> "Sarah spent two weeks building the wrong feature. Not because she didn't understand her users, but because she couldn't process the hundreds of interviews fast enough to spot the pattern."
+> "[Named person, real or clearly marked as illustrative] spent [time] on [outcome]. [The specific cause, from a source or first-hand account]."
 
 ### Example 4: Section Feedback
 
@@ -420,7 +410,7 @@ All added to your outline with proper citations.
 # Feedback: Common Mistakes Section
 
 ## What Works Well ✓
-- Strong examples (the Slack notification story)
+- Strong examples (the concrete story in the second section)
 - Clear structure (3 mistakes, clean layout)
 - Practical advice for each mistake
 
@@ -433,7 +423,7 @@ Current:
 > "Many teams prioritize badly by focusing on features instead of outcomes."
 
 Suggested:
-> "I've watched teams ship 14 features in a quarter yet move none of their key metrics. They prioritized activity over progress."
+> "[Number] teams shipped [number] features in a quarter and [metric] did not move. They prioritized activity over progress."
 
 ### Add Data
 The third mistake would benefit from evidence:

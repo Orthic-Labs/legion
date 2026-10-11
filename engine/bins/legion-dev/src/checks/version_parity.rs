@@ -26,7 +26,7 @@ struct Report {
 }
 
 pub fn is_development_version(version: &str) -> bool {
-    Regex::new(r"-dev\.").unwrap().is_match(version)
+    Regex::new(r"-dev(\.|$)").unwrap().is_match(version)
 }
 
 fn cargo_manifests(root: &Path) -> Vec<PathBuf> {

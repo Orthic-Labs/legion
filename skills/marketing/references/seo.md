@@ -1,5 +1,5 @@
 ---
-name: plan-seo
+name: strategy-seo
 description: >
   Strategic SEO planning for new or existing websites. Industry-specific
   templates, competitive analysis, content strategy, and implementation
@@ -33,7 +33,7 @@ metadata:
 - Estimate their domain authority
 
 ### 3. Architecture Design
-- Load industry template from `assets/` directory
+- Derive the industry architecture from the brief (no industry template ships with this skill)
 - Design URL hierarchy and content pillars
 - Plan internal linking strategy
 - Sitemap structure with quality gates applied
@@ -100,15 +100,9 @@ For AI search/GEO, schema, and programmatic SEO execution, route to `/seo` rathe
 - Advanced schema implementation
 - Continuous optimization
 
-## Industry Templates
+## Industry Context
 
-Load from `assets/` directory:
-- `saas.md`: SaaS/software companies
-- `local-service.md`: Local service businesses
-- `ecommerce.md`: E-commerce stores
-- `publisher.md`: Content publishers/media
-- `agency.md`: Agencies and consultancies
-- `generic.md`: General business template
+Derive the business type, page types, and schema needs from the brief. No industry template ships with this skill.
 
 ## Output
 
@@ -142,9 +136,9 @@ If DataForSEO MCP tools are available, use `dataforseo_labs_google_competitors_d
 
 | Scenario | Action |
 |----------|--------|
-| Unrecognized business type | Fall back to `generic.md` template. Inform user that no industry-specific template was found and proceed with the general business template. |
+| Unrecognized business type | Derive the architecture from the brief and state that no industry-specific model applied. |
 | No website URL provided | Proceed with new-site planning mode. Skip current site assessment and competitive gap analysis that require a live URL. |
-| Industry template not found | Check `assets/` directory for available templates. If the requested template file is missing, use `generic.md` and note the missing template in output. |
+| Industry template not found | No template is available; derive from the brief and note that no template was used in the output. |
 
 ## Optional independent review
 

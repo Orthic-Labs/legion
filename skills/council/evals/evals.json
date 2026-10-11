@@ -44,12 +44,12 @@
       "expected": "review agreement grants no authority"
     },
     {
-      "id": "COU-SEER-01",
+      "id": "COU-ORACLE-01",
       "proof": "unwired",
-      "expected": "routine Seer flow stays independent"
+      "expected": "routine Oracle flow stays independent"
     },
     {
-      "id": "COU-SEER-02",
+      "id": "COU-ORACLE-02",
       "proof": "unwired",
       "expected": "explicit dispute stays advisory"
     },
@@ -248,7 +248,7 @@
       "forbidden_skills": [
         "council"
       ],
-      "expected_behavior": "The Oracle agent already IS independent assurance; no panel is stacked behind it by default (G14, COU-SEER-01).",
+      "expected_behavior": "The Oracle agent already IS independent assurance; no panel is stacked behind it by default (G14, COU-ORACLE-01).",
       "severity": "error",
       "mode": "discovery"
     },
@@ -440,7 +440,7 @@
       "prompt": "/council challenge this decision (the council-seat agent is not available on this host).",
       "expected_skill": "council",
       "forbidden_skills": [],
-      "expected_behavior": "Records DEGRADED and stops. The convener never simulates seats inline and never presents a single-agent run as independent (C14).",
+      "expected_behavior": "Reports DEGRADED to the user, writes no record, and stops. The convener never simulates seats inline and never presents a single-agent run as independent (C14).",
       "severity": "error",
       "mode": "runtime"
     },

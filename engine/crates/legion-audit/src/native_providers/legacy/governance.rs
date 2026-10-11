@@ -144,6 +144,9 @@ pub fn analyze(input: &ProviderInput<'_>) -> Result<serde_json::Value, AuditErro
     Ok(json!({
         "status": if gaps.is_empty() { "pass" } else { "unproven" },
         "complete": gaps.is_empty(),
+        // Narrow scope: shape, expiry and evidence-reference presence of the
+        // supplied policy records. Not a certification of policy compliance.
+        "scope": "policy-record-shape-expiry-and-evidence-refs",
         "denominator": {"kind":"governance-policies", "expected": policies.len(), "examined": normalized.len()},
         "findings": normalized.iter().filter(|row| row.get("status").and_then(Value::as_str) != Some("verified")).cloned().collect::<Vec<_>>(),
         "coverageGaps": gaps,

@@ -231,7 +231,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
             "runtime roster differs from naming registry",
         ));
     }
-    if let Ok(readme) = std::fs::read_to_string(root.join("README.md")) {
+    if let Some(readme) = required_text(root, "README.md", &mut issues) {
         for display in ["Legion", "Sage", "Alchemist", "Oracle", "Arcane", "Council"] {
             if !readme.contains(&format!("| **{display}** |")) {
                 issues.push(mk(
@@ -241,7 +241,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
             }
         }
     }
-    if let Ok(pkg) = read_json(&root.join("package.json")) {
+    if let Some(pkg) = required_json(root, "package.json", &mut issues) {
         let keywords: Vec<&str> = pkg
             .get("keywords")
             .and_then(|v| v.as_array())
@@ -267,7 +267,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
             ));
         }
     }
-    if let Ok(manifest) = read_json(&root.join("MANIFEST.package.json")) {
+    if let Some(manifest) = required_json(root, "MANIFEST.package.json", &mut issues) {
         let allowlisted: Vec<&str> = manifest
             .get("allowlistedTopLevel")
             .and_then(|v| v.as_array())
@@ -281,7 +281,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
         }
     }
     for path in [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"] {
-        if let Ok(manifest) = read_json(&root.join(path)) {
+        if let Some(manifest) = required_json(root, path, &mut issues) {
             let description = manifest
                 .get("description")
                 .and_then(|v| v.as_str())
@@ -308,7 +308,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
     // Runtime authority registry literal check (Rust port of the retired
     // authority-binding-store.mjs).
     let abs_path = "engine/crates/legion-policy/src/wf_port/wf067/binding_store.rs";
-    if let Ok(source) = std::fs::read_to_string(root.join(abs_path)) {
+    if let Some(source) = required_text(root, abs_path, &mut issues) {
         let fn_re = RegexBuilder::new(r"fn authority_for_agent_type[^{]*\{([\s\S]*?)\n\}")
             .build()
             .unwrap();
@@ -337,6 +337,28 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
     issues
 }
 
+/// Reads a file the naming scan must inspect; an unreadable file is an issue,
+/// never a silent skip.
+fn required_text(root: &Path, rel: &str, issues: &mut Vec<Issue>) -> Option<String> {
+    match std::fs::read_to_string(root.join(rel)) {
+        Ok(text) => Some(text),
+        Err(_) => {
+            issues.push(mk(rel, &format!("{rel} is missing or unreadable")));
+            None
+        }
+    }
+}
+
+fn required_json(root: &Path, rel: &str, issues: &mut Vec<Issue>) -> Option<Value> {
+    match read_json(&root.join(rel)) {
+        Ok(value) => Some(value),
+        Err(_) => {
+            issues.push(mk(rel, &format!("{rel} is missing or unreadable")));
+            None
+        }
+    }
+}
+
 fn mk(path: &str, reason: &str) -> Issue {
     Issue {
         path: path.to_string(),
@@ -355,7 +377,7 @@ pub fn check_canonical_names(root: &Path) -> Result<Report, String> {
         .and_then(|v| v.as_array())
         .map(|v| v.as_slice())
         .unwrap_or(&empty_rules);
-    let files = tracked_files_naming(root);
+    let files = tracked_files_naming(root)?;
 
     let mut issues = semantic_issues(root, &registry);
     issues.extend(allowlist_issues(root, rules, &files));
@@ -459,15 +481,15 @@ pub fn check_canonical_names(root: &Path) -> Result<Report, String> {
 
 /// Repository files, skipping the naming scan's own extra prefixes on top
 /// of the shared `SKIP_DIRS`.
-fn tracked_files_naming(root: &Path) -> Vec<String> {
-    tracked_files(root)
+fn tracked_files_naming(root: &Path) -> Result<Vec<String>, String> {
+    Ok(tracked_files(root)?
         .into_iter()
         .filter(|p| {
             !SKIP_PREFIXES
                 .iter()
                 .any(|prefix| format!("{p}/").starts_with(prefix))
         })
-        .collect()
+        .collect())
 }
 
 pub fn run(root: &Path, json: bool) -> bool {

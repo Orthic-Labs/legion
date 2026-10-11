@@ -80,10 +80,10 @@
     },
     {
       "id": "brand-identity-manual-qa-label",
-      "prompt": "Run the impeccable QA gate on this identity. The impeccable CLI is not installed.",
+      "prompt": "Run the impeccable QA gate on this identity. The designer detector is not available.",
       "expected_skill": "brand-identity",
       "forbidden_skills": [],
-      "expected_behavior": "The skill should fall back to the 9-item manual anti-slop checklist and label the result 'Manual QA — impeccable CLI not run.' It must not skip the gate or silently pass it.",
+      "expected_behavior": "The skill should fall back to the 9-item manual anti-slop checklist and label the result 'Manual QA — detector not run.' It must not skip the gate or silently pass it.",
       "severity": "error",
       "mode": "static"
     }
@@ -143,7 +143,7 @@
       "prompt": "We approved the Harbor Coffee identity. Update the brand registry so future brands differentiate against it.",
       "expected_skill": "brand-identity",
       "forbidden_skills": [],
-      "expected_behavior": "On Phase 7 completion, the skill must write the approved axes row back to references/brand-registry.md so subsequent brand-identity runs use it in the differentiation guard.",
+      "expected_behavior": "On Phase 7 completion, the skill must write the approved axes row back to the project's brand registry (created from the references/brand-registry.md template if none exists) so subsequent brand-identity runs use it in the differentiation guard.",
       "severity": "error",
       "mode": "static"
     }

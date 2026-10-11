@@ -43,10 +43,16 @@ pub fn run(args: CommonArgs) -> CommandResult {
             if command == "list" {
                 return Ok(json!({"skills": selected, "__compact": true}));
             }
-            let _ = error;
-            return Ok(
-                json!({"status":"pass","count":selected.len(),"findings":[],"__compact":true}),
-            );
+            // Nothing was inspected: no installed release means no bundle files
+            // exist to verify. Report that instead of a pass over zero files.
+            return Ok(json!({
+                "status":"unavailable",
+                "count":0,
+                "declared":selected.len(),
+                "findings":[],
+                "reason":error.message,
+                "__compact":true
+            }));
         }
     };
     let catalog =

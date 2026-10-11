@@ -6,7 +6,7 @@ of actions they'll perform interactively.
 
 Native Legion `profile` operation plans `xcrun xctrace record` with:
 
-- The **SwiftUI** template by default (override with `--template`).
+- The **SwiftUI** template by default (override by passing a JSON `template` field in the `profile` operation's input).
 - Manual stop via host transport or `--time-limit`.
 - JSON discovery for devices and templates.
 - Typed argv, host policy gating, bounded output, and explicit execution.
@@ -64,23 +64,26 @@ xctrace stops itself at the limit.
 ## Discovery helpers
 
 ```bash
-# List devices through mobile catalog/operation before choosing device_id.
-legion apple device.list --input '{}'
+# List simulators and connected physical devices before choosing a target.
+legion apple simulator.list --input '{}' --execute
+legion apple device.list --input '{}' --execute
 
 # Choose a template supported by host Xcode; profile plan keeps template typed.
 legion apple profile --input '{"template":"Time Profiler","output":"artifacts/profile.trace","bundle_id":"com.example.App"}'
 ```
 
-Device entries have `kind` (`devices`, `devices offline`, `simulators`),
-`name`, `os`, `udid`. Offline devices are known but unplugged / unpaired —
-plug them in before recording.
+`--input` may be omitted; it defaults to `{}`. Without `--execute` each list operation only
+returns its plan. With it, the result carries the tool's raw output in `stdout`; read the target's
+entry from there as reported by the tool. A target found by `simulator.list` is a simulator; one
+found by `device.list` is a physical device. If the tool reports a device as unavailable or
+offline, plug it in or unlock it before recording.
 
 ## Picking a template
 
 > **Hard rule: the `SwiftUI` template only populates the SwiftUI lane on a
 > real device — a physical iOS/iPadOS device or the host Mac. On the iOS
 > Simulator it records but the SwiftUI lane comes back empty.** If the
-> chosen UDID falls under the `simulators` kind from `--list-devices`,
+> target is listed by `simulator.list` (a simulator),
 > switch to `Time Profiler`. It still gives you Time Profiler + Hangs +
 > Animation Hitches, which native `swiftui-trace` analysis can correlate
 > normally; only the `swiftui` lane will report `available: false`.
@@ -93,10 +96,10 @@ Decision flow:
 | Host Mac (macOS app, target-scoped)         | `SwiftUI` (default)  |
 | iOS / iPadOS / watchOS / tvOS Simulator      | `Time Profiler`      |
 
-Confirm target kind with `--list-devices` before starting a recording: entries under
-`simulators` use Time Profiler; entries under `devices` (connected devices and host Mac)
-support the SwiftUI template. For `devices offline`, report the unavailable target and retry
-after it becomes available.
+Confirm the target kind before starting a recording: a target from `simulator.list` is a
+simulator and uses Time Profiler; a target from `device.list` is a physical device and supports
+the SwiftUI template. If the target is in neither list, or the tool reports it unavailable,
+report the unavailable target and retry after it becomes available.
 
 For ad-hoc hang hunting on any target, `Time Profiler` or
 `Animation Hitches` alone may be enough.

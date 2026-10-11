@@ -18,9 +18,9 @@
     "description": "Validated survivor funnel emits one production-path winner.",
     "proof": [
       {
-        "command": "Run /workspace/tools/verify-final.ps1",
+        "command": "Run the project's final verification script (a project overlay file)",
         "expected": "Exit 0 and final-pass.json reports one winner.",
-        "evidence_path": "/workspace/evidence/final-pass.json"
+        "evidence_path": "<project overlay dir>/evidence/final-pass.json"
       }
     ]
   },

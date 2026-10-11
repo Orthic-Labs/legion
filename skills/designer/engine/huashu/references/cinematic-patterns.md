@@ -98,42 +98,15 @@ POINT ▶ 触发 (overlay 浮上来)：22 秒 cinematic
 
 **问题**：3D orbit / gallery 里需要素材碎片漂浮，emoji（📚🎤）丑且无品牌、SVG 手画书脊永远不像真书。
 
-**解决**：用 `huashu-gpt-image` 跑一张 4×2 grid 大图（8 件主题相关物品 · 白底 · 60px breathing space · unified style），用 `huashu-gpt-image` 自带的网格抠图步骤抠成 8 张独立透明 PNG（本包不含该脚本）。
+**解决**：用宿主的 `banana-image` 生图能力（可选）跑一张 4×2 grid 大图（8 件主题相关物品 · 白底 · 60px breathing space · unified style），再切成 8 张独立透明 PNG（抠图需宿主工具，本包不含抠图脚本；无生图能力则用诚实 placeholder，不用 emoji 或 SVG 手画）。
 
-**Prompt 要点**（详细 prompt patterns 见 `huashu-gpt-image` skill）：
+**Prompt 要点**（生图方法论见 `design-styles.md` 尾部「AI 生图专用风格」）：
 - IP 锚定（"1960s Caltech archive aesthetic" / "Hearthstone-style consistent treatment"）
 - 白底（便于抠图，灰底氛围好但抠透明背景困难）
 - 4×2 不要 5×5（避免末行压缩 bug）
 - Persona finishing（"You are a Wired magazine curator preparing an exhibition photo"）
 
 **反 pattern**：用 emoji 当 icon、用 CSS 剪影代替产品图。
-
----
-
-### Pattern E · BGM + SFX 双轨制
-
-**问题**：只有动画没有声音，观众潜意识感觉「这玩意像个穷酸 demo」。
-
-**解决**：BGM 长音 + 11 个 SFX cues。
-
-**通用 SFX cue 配方**（适用于工作流 demo）：
-
-| 时点 | SFX | 触发场景 |
-|---|---|---|
-| 0.10s | whoosh | 终端从下方升起 |
-| 3.0s | enter | typewriter 完成、按 enter |
-| 4.0s | slide-in | scene 2 元素入场 |
-| 5-9s × 5 次 | sparkle | 关键过程节点（每代 / 每个 token / 每个数据点）|
-| 14s | click | 切换到 output scene |
-| 17.8s | logo-reveal | hero reveal 时刻 |
-| typewriter | type | 每 2 字符触发一次（密度别太高）|
-
-**频段隔离**：BGM volume 0.32（低频底噪），SFX volume 0.55（中高频 punch），sparkle 0.7（要醒目），logo-reveal 0.85（最强 hero moment）。
-
-**用户控制**：
-- 必须有 ▶ 启动覆盖（浏览器 autoplay 限制）
-- 右上角小 mute 按钮（用户随时切静音）
-- 不要做成「翻到这页就强制响」
 
 ---
 
@@ -224,11 +197,9 @@ iframe.addEventListener('load', () => {
 
 本地 file:// 测好的 cinematic 部署后可能崩，因为：
 - file:// 下 iframe contentDocument 同源
-- https:// 下也同源（如果同 host），但 audio autoplay 限制更严格
 
 **修复**：
 - 部署前用任意本地静态服务器（如 `npx serve`）起本地 HTTP 测试一遍
-- BGM 必须等用户点击 ▶ 后再 `bgm.play()`，不要 page-load 立刻播
 
 ---
 
@@ -239,8 +210,7 @@ iframe.addEventListener('load', () => {
 | 默认 = 黑屏 ▶ overlay | 默认 = 静态 dashboard，▶ 是辅助 |
 | 4 个 step 横排同屏 fade in | 5 个 scene 全屏切换，每场只 focus 一件事 |
 | 复用模板换文案做不同 demo | 每个 demo 独立视觉语言（盖文案能区分） |
-| emoji / SVG 手画当素材 | gpt-image-2 大图 + extract_grid 抠图 |
-| 无 BGM 无 SFX | BGM + 11 SFX cues 双轨制 |
+| emoji / SVG 手画当素材 | 宿主 `banana-image` 生成的大图 + 抠图（可选；无则 placeholder） |
 | 用 setTimeout 链 schedule | requestAnimationFrame + 全局时间轴 T 对象 |
 | linear 动画 | Expo / cubic-bezier easing |
 | 没有 dev 工具 | `?seek=N` + `?autoplay=1` + REPLAY 按钮 |
@@ -257,7 +227,6 @@ iframe.addEventListener('load', () => {
 | 设计 5-scene narrative + 视觉语言 | 30 分钟（要慎重，决定独立性）|
 | Dashboard 静态布局 + 内容 | 1 小时 |
 | Cinematic 5 scenes 实现 | 1.5 小时 |
-| Audio cues 调时序 + replay 按钮 | 30 分钟 |
 | Playwright 截图验证 5 个关键时刻 | 15 分钟 |
 | **单个 demo 总计** | **3-4 小时** |
 

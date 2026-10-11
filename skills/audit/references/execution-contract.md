@@ -178,6 +178,5 @@ audit incomplete. An unadjudicated security candidate stays `UNPROVEN` whatever 
 - Treat size as review trigger, never decomposition proof.
 - A security pattern is a candidate until threat model, attacker control, reachability, impact,
   proof, and false-positive challenge are complete.
-- Never install audit tools, fetch mutable rulesets, use external model APIs, or call the network
-  during Audit. Offline environment variables are defense in depth, not proof. Project-executing
+- Never install audit tools, fetch mutable rulesets, use external model APIs, or call the network during Audit, except dependency advisory checks in a host-explicit online run (see `provider-architecture.md` §Offline execution). Offline environment variables are defense in depth, not proof. Project-executing
   providers require the trusted host network-sandbox receipt; otherwise they stay `UNPROVEN`.

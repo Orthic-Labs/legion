@@ -205,7 +205,7 @@ Stage 5: Deal Closed-Won
 | Server-side tracking active | Critical | CAPI/Server GTM/Events API configured |
 | Event deduplication | Critical | event_id matching (Meta), no double-counting |
 | Consent Mode v2 (EU) | Critical | Implemented if serving EU/EEA |
-| Enhanced Conversions / EMQ | High | Google: enabled; Meta: EMQ ≥6.0 |
+| Enhanced Conversions / EMQ | High | Google: enabled; Meta: EMQ ≥8.0 for Purchase (see meta-audit.md M04) |
 | Micro vs macro separation | High | Only macro conversions set as Primary |
 | Attribution model appropriate | Medium | DDA (Google), 7d/1d (Meta) |
 | Conversion window matches cycle | Medium | 7d (ecom), 30-90d (B2B), 30d (lead gen) |

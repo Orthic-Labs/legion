@@ -22,7 +22,7 @@ All notable changes to Legion are recorded here.
 ## [0.1.0-dev.0] — PR05
 
 - Added canonical `@orthic-labs/legion` package manifest with `legion` binary.
-- Added `bin/legion.mjs` CLI entrypoint with subcommands `init`, `doctor`,
+- Added `bin/legion.mjs` CLI entrypoint with subcommands `init`, `doctor`, (removed in the native Rust cutover)
   `languages`, `providers`, `plan`, `audit`, `verify`, `explain`, `report`,
   `hooks`, `mcp`.
 - Added stable exit taxonomy (0 pass, 1 policy fail, 2 incomplete, 3 internal,

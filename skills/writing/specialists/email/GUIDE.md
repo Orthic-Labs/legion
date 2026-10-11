@@ -2,7 +2,7 @@
 name: writing-email
 description: >
   Email branch for lifecycle flows, newsletters, cold outreach, transactional, post-purchase, win-back.
-  Consolidates cold-email, email-pro sequence, churn-prevention. Use when user says "/email", "newsletter",
+  Use when user says "/writing email", "newsletter",
   "drip", "sequence", "abandoned cart", "welcome series", "post-purchase", "win-back", "broadcast". Always
   /brand first.
 ---

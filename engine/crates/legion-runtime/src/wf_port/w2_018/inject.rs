@@ -753,7 +753,7 @@ fn gitignore_result_json(r: &GitIgnoreResult) -> serde_json::Value {
     })
 }
 
-const USAGE: &str = "Usage: node live-inject.mjs [options]\n\nInsert or remove the live mode script tag in the project's HTML entry point.\nReads configuration from .impeccable/live/config.json.\n\nModes:\n  --port PORT   Insert script tag pointing at http://localhost:PORT/live.js\n  --remove      Remove the script tag (if present)\n  --check       Print whether .impeccable/live/config.json exists and its content\n\nOutput (JSON):\n  { ok, file, inserted|removed, config? }";
+const USAGE: &str = "Usage: legion script designer/live-inject [options]\n\nInsert or remove the live mode script tag in the project's HTML entry point.\nReads configuration from .impeccable/live/config.json.\n\nModes:\n  --port PORT   Insert script tag pointing at http://localhost:PORT/live.js\n  --remove      Remove the script tag (if present)\n  --check       Print whether .impeccable/live/config.json exists and its content\n\nOutput (JSON):\n  { ok, file, inserted|removed, config? }";
 
 /// Mirrors `injectCli()`: the full CLI entrypoint, argv handling, and
 /// process orchestration of `live-inject.mjs`. `cwd` mirrors
