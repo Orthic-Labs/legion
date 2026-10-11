@@ -31,7 +31,7 @@
       ],
       "occurrences": {
         "nemesis": 11,
-        "forge": 66,
+        "forge": 64,
         "seer": 33,
         "sentinel": 29,
         "sorcerer": 12
@@ -149,10 +149,10 @@
       ],
       "occurrences": {
         "nemesis": 1,
-        "forge": 3,
-        "seer": 3,
-        "sentinel": 3,
-        "sorcerer": 3
+        "forge": 4,
+        "seer": 4,
+        "sentinel": 4,
+        "sorcerer": 4
       },
       "class": "R3",
       "reason": "native doctor reports legacy bindings without rewriting unowned configuration"
@@ -200,17 +200,6 @@
       },
       "class": "R0",
       "reason": "ordinary security verb"
-    },
-    {
-      "path": "skills/designer/engine/huashu/references/animation-pitfalls.md",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 1
-      },
-      "class": "R0",
-      "reason": "ordinary creative verb"
     },
     {
       "path": "skills/designer/engine/reference/interaction-design.md",

@@ -437,7 +437,7 @@ pub fn check_canonical_names(root: &Path) -> Result<Report, String> {
                 if lines.len() as i64 != expected {
                     issues.push(Issue {
                         path: path.clone(),
-                        line: Some(lines[0]),
+                        line: lines.first().copied(),
                         token: Some(token.to_string()),
                         reason: format!(
                             "legacy token occurrence count differs: expected {expected}, found {}",
