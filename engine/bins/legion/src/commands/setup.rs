@@ -3455,7 +3455,10 @@ async fn inspect_native_marketplace(
         let configured_enabled =
             legion_host::marketplace::codex_enabled(&codex_home(&home).join("config.toml"))
                 .map_err(CommandError::incomplete)?;
-        native_plugin.enabled = Some(native_plugin.enabled == Some(false) || !configured_enabled);
+        native_plugin.enabled = Some(codex_effective_enabled(
+            native_plugin.enabled,
+            configured_enabled,
+        ));
     }
     let cached_result = if native_plugin.installed {
         binding_valid.and_then(|()| {
@@ -4159,6 +4162,10 @@ fn marketplace_expected_state(
 fn marketplace_removal_proven(readback: &Value) -> bool {
     readback["nativePlugin"]["installed"] == false
         && readback["nativeMarketplaceRegistered"] == false
+}
+
+fn codex_effective_enabled(native_enabled: Option<bool>, configured_enabled: bool) -> bool {
+    native_enabled != Some(false) && configured_enabled
 }
 
 fn marketplace_cleanup_proven(state: &str) -> bool {
@@ -6062,6 +6069,24 @@ mod tests {
         assert!(!marketplace_removal_proven(
             &json!({"state":"client_unavailable"})
         ));
+    }
+
+    #[test]
+    fn codex_effective_enablement_preserves_native_and_config_disabled_state() {
+        for (native_enabled, configured_enabled, expected) in [
+            (Some(true), true, true),
+            (Some(true), false, false),
+            (Some(false), true, false),
+            (Some(false), false, false),
+            (None, true, true),
+            (None, false, false),
+        ] {
+            assert_eq!(
+                codex_effective_enabled(native_enabled, configured_enabled),
+                expected,
+                "native={native_enabled:?}, config={configured_enabled}"
+            );
+        }
     }
 
     #[test]

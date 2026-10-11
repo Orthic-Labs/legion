@@ -575,6 +575,10 @@ fn validate_portable_plugin_root(
         .map_err(|error| {
         plugin_root_error(format!("rightax-portable-core.json is invalid: {error}"))
     })?;
+    // Native host catalogs add a small, exact compatibility projection beside
+    // the canonical portable core. Older portable roots keep the original
+    // manifest and MCP contract without these host-specific files.
+    let native_release = manifest.native_marketplaces.is_some();
     if portable_contract.schema_version != 1
         || portable_contract.kind != "rightax-portable-core"
         || portable_contract.plugin != "legion"
@@ -634,6 +638,15 @@ fn validate_portable_plugin_root(
         // Hooks are surface, not decoration: a core that declares none
         // leaves every guard event unregistered in the host.
         || !expected_files.contains("hooks/hooks.json")
+        || (native_release
+            && [
+                ".codex-plugin/plugin.json",
+                "hooks/codex-hooks.json",
+                "release-binding.json",
+                "share/legion/src/registry/host-projection.json",
+            ]
+            .iter()
+            .any(|path| !expected_files.contains(*path)))
         || expected_skills
             .iter()
             .any(|skill| !expected_files.contains(&format!("skills/{skill}/SKILL.md")))
@@ -651,7 +664,12 @@ fn validate_portable_plugin_root(
         ));
     }
     if portable_contract.public_files.iter().any(|relative| {
-        !is_allowed_portable_public_file(relative, &expected_skills, &expected_agents)
+        !is_allowed_portable_public_file(
+            relative,
+            &expected_skills,
+            &expected_agents,
+            native_release,
+        )
     }) {
         return Err(plugin_root_error(
             "RightAX public file declaration contains an extra or private path",
@@ -741,7 +759,7 @@ fn validate_portable_plugin_root(
         )
         .map_err(|error| plugin_root_error(format!("{relative} is not valid JSON: {error}")))?;
     }
-    validate_portable_plugin_manifests(&root)?;
+    validate_portable_plugin_manifests(&root, manifest, native_release)?;
 
     Ok(())
 }
@@ -780,6 +798,7 @@ fn is_allowed_portable_public_file(
     relative: &str,
     expected_skills: &BTreeSet<String>,
     expected_agents: &BTreeSet<String>,
+    native_release: bool,
 ) -> bool {
     // Client descriptor aliases now ship in the core so every client's plugin
     // root is byte-identical to one installed tree.
@@ -792,6 +811,14 @@ fn is_allowed_portable_public_file(
             | "mcp_config.json"
             | ".claude-plugin/plugin.json"
     ) {
+        return true;
+    }
+    if native_release
+        && matches!(
+            relative,
+            ".codex-plugin/plugin.json" | "hooks/codex-hooks.json" | "release-binding.json"
+        )
+    {
         return true;
     }
     // The assembled plugin root carries the generated host projection under
@@ -843,7 +870,11 @@ fn is_allowed_portable_public_file(
     .any(|extension| lower.ends_with(extension))
 }
 
-fn validate_portable_plugin_manifests(root: &Path) -> Result<(), commands::CommandError> {
+fn validate_portable_plugin_manifests(
+    root: &Path,
+    release: &legion_runtime::ReleaseManifest,
+    native_release: bool,
+) -> Result<(), commands::CommandError> {
     let plugin: Value = serde_json::from_slice(
         &std::fs::read(root.join("plugin.json")).map_err(commands::io_error)?,
     )
@@ -895,14 +926,108 @@ fn validate_portable_plugin_manifests(root: &Path) -> Result<(), commands::Comma
         .get("args")
         .and_then(Value::as_array)
         .ok_or_else(|| plugin_root_error("mcp.json.mcpServers.legion.args must be an array"))?;
-    let expected = ["serve", "--stdio", "--plugin-root", "${PLUGIN_ROOT}"];
+    let expected: &[&str] = if native_release {
+        &["serve", "--stdio"]
+    } else {
+        &["serve", "--stdio", "--plugin-root", "${PLUGIN_ROOT}"]
+    };
+    let expected_args = expected
+        .iter()
+        .map(|argument| Value::String((*argument).to_owned()))
+        .collect::<Vec<_>>();
     if server.get("type").and_then(Value::as_str) != Some("stdio")
         || server.get("command").and_then(Value::as_str) != Some("legion")
-        || args.iter().filter_map(Value::as_str).collect::<Vec<_>>() != expected.to_vec()
+        || args != &expected_args
     {
         return Err(plugin_root_error(
             "mcp.json must use the exact bare legion stdio contract",
         ));
+    }
+    if native_release {
+        let codex_manifest: Value = serde_json::from_slice(
+            &std::fs::read(root.join(".codex-plugin/plugin.json")).map_err(commands::io_error)?,
+        )
+        .map_err(|error| plugin_root_error(format!("Codex plugin manifest is invalid: {error}")))?;
+        if codex_manifest.get("name").and_then(Value::as_str) != Some("legion")
+            || codex_manifest.get("version").and_then(Value::as_str)
+                != Some(release.release_version.as_str())
+            || codex_manifest.get("hooks").and_then(Value::as_str)
+                != Some("./hooks/codex-hooks.json")
+            || codex_manifest.get("skills").and_then(Value::as_str) != Some("./skills/")
+            || codex_manifest.get("mcpServers").and_then(Value::as_str) != Some("./.mcp.json")
+            || plugin
+                .pointer("/extensions/com.openai/hooks")
+                .and_then(Value::as_str)
+                != Some("./hooks/codex-hooks.json")
+        {
+            return Err(plugin_root_error(
+                "native plugin manifests do not select the sealed Codex projections",
+            ));
+        }
+
+        let expected_hooks = json!({
+            "hooks": {
+                "UserPromptSubmit": [{ "hooks": [{
+                    "type": "command",
+                    "command": "legion-hook --host codex --event UserPromptSubmit",
+                    "timeout": 10
+                }]}],
+                "Stop": [{ "hooks": [{
+                    "type": "command",
+                    "command": "legion-hook --host codex --event Stop",
+                    "timeout": 10
+                }]}]
+            }
+        });
+        let hooks: Value = serde_json::from_slice(
+            &std::fs::read(root.join("hooks/codex-hooks.json")).map_err(commands::io_error)?,
+        )
+        .map_err(|error| plugin_root_error(format!("Codex hook projection is invalid: {error}")))?;
+        if hooks != expected_hooks {
+            return Err(plugin_root_error(
+                "Codex hooks must match the supported Legion hook projection",
+            ));
+        }
+
+        let binding: Value = serde_json::from_slice(
+            &std::fs::read(root.join("release-binding.json")).map_err(commands::io_error)?,
+        )
+        .map_err(|error| {
+            plugin_root_error(format!("plugin release binding is invalid: {error}"))
+        })?;
+        let binding_keys = binding
+            .as_object()
+            .map(|object| object.keys().map(String::as_str).collect::<BTreeSet<_>>())
+            .unwrap_or_default();
+        let expected_binding_keys = [
+            "schemaVersion",
+            "kind",
+            "plugin",
+            "releaseVersion",
+            "runtimeSha256",
+            "runtimeProvenance",
+            "releaseManifestPath",
+        ]
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+        if binding_keys != expected_binding_keys
+            || binding.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+            || binding.get("kind").and_then(Value::as_str)
+                != Some("legion-installed-plugin-release-binding")
+            || binding.get("plugin").and_then(Value::as_str) != Some("legion")
+            || binding.get("releaseVersion").and_then(Value::as_str)
+                != Some(release.release_version.as_str())
+            || binding.get("runtimeSha256").and_then(Value::as_str)
+                != Some(release.runtime.sha256.as_str())
+            || binding.get("runtimeProvenance").and_then(Value::as_str)
+                != Some(release.runtime.provenance.as_str())
+            || binding.get("releaseManifestPath").and_then(Value::as_str)
+                != Some("../share/legion/release.json")
+        {
+            return Err(plugin_root_error(
+                "plugin release binding does not match the active release manifest",
+            ));
+        }
     }
     Ok(())
 }

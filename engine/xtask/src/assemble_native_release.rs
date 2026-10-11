@@ -829,6 +829,7 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     // Claude Code reads `.mcp.json`; Codex reads portable `mcp.json`. Both
     // host views launch the native stable executable with identical arguments.
     write_json(&plugin_root.join(".mcp.json"), &installed_mcp)?;
+    write_json(&plugin_root.join("mcp_config.json"), &installed_mcp)?;
 
     let installed_host_projection =
         plugin_root.join("share/legion/src/registry/host-projection.json");
@@ -861,6 +862,12 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     root_plugin["extensions"]["com.openai"]["hooks"] =
         Value::String("./hooks/codex-hooks.json".to_string());
     write_json(&root_plugin_path, &root_plugin)?;
+    // Keep Agent Plugins' Claude compatibility aliases byte-identical to the
+    // final portable root descriptors after native host projections are set.
+    write_json(
+        &plugin_root.join(".claude-plugin/plugin.json"),
+        &root_plugin,
+    )?;
 
     let plugin_release_binding = json!({
         "schemaVersion": 1,
