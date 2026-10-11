@@ -353,6 +353,23 @@ fn canonical_counts(
     })
 }
 
+/// Read a provider status by its registered ID, preferring it over an older
+/// unprefixed alias when both occur in historical facts.
+fn provider_status(facts: &Value, provider_id: &str, compatibility_alias: &str) -> Value {
+    as_array(facts, "/provider_reconciliation/providerResults")
+        .iter()
+        .find(|provider| provider.get("provider").and_then(|v| v.as_str()) == Some(provider_id))
+        .or_else(|| {
+            as_array(facts, "/provider_reconciliation/providerResults")
+                .iter()
+                .find(|provider| {
+                    provider.get("provider").and_then(|v| v.as_str()) == Some(compatibility_alias)
+                })
+        })
+        .and_then(|provider| provider.get("status").cloned())
+        .unwrap_or_else(|| json!("not_applicable"))
+}
+
 /// Faithful port of `finalizeAudit`. The `rerun` command block (which shells
 /// out to `audit-run.mjs`/`audit-verify.mjs` with `process.execPath`) is not
 /// ported — it names process-launch commands, not analysis output.
@@ -484,16 +501,15 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -
     } else {
         "pass"
     };
-    let visual_status = as_array(facts, "/provider_reconciliation/providerResults")
-        .iter()
-        .find(|p| p.get("provider").and_then(|v| v.as_str()) == Some("visual.core"))
-        .and_then(|p| p.get("status").cloned())
-        .unwrap_or_else(|| json!("not_applicable"));
-    let runtime_status = as_array(facts, "/provider_reconciliation/providerResults")
-        .iter()
-        .find(|p| p.get("provider").and_then(|v| v.as_str()) == Some("runtime.app"))
-        .and_then(|p| p.get("status").cloned())
-        .unwrap_or_else(|| json!("not_applicable"));
+    let visual_status = provider_status(
+        facts,
+        crate::native_providers::legacy::visual::VISUAL_PROVIDER_ID,
+        "visual.core",
+    );
+    let runtime_provider_id = crate::native_providers::legacy_checks::spec("legacy.runtime.app")
+        .expect("runtime provider is declared in the legacy-check registry")
+        .provider_id;
+    let runtime_status = provider_status(facts, runtime_provider_id, "runtime.app");
 
     json!({
         "schemaVersion": 4,
@@ -530,6 +546,26 @@ pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -
 mod tests {
     use super::*;
 
+    fn base_facts(provider_results: Value) -> Value {
+        json!({
+            "workspace": "/repo", "incomplete": false, "checks": [],
+            "plan_binding_verification": {"valid": true, "drift": []},
+            "plan": {"coverageGaps": [], "reasoningProviders": [], "selectedProviderIds": []},
+            "network_policy": {"mode": "deny"},
+            "provider_reconciliation": {
+                "missingChecks": [], "unplannedChecks": [], "denominatorMismatches": [],
+                "providerResults": provider_results, "unresolvedCoverage": [],
+                "missingRuntimeProviders": [],
+            },
+        })
+    }
+
+    fn runtime_provider_id() -> &'static str {
+        crate::native_providers::legacy_checks::spec("legacy.runtime.app")
+            .expect("runtime provider is declared in the legacy-check registry")
+            .provider_id
+    }
+
     #[test]
     fn clean_run_is_pass() {
         let facts = json!({
@@ -549,6 +585,81 @@ mod tests {
         assert_eq!(report["quality_gate"], json!("pass"));
         assert_eq!(report["incomplete"], json!(false));
         assert!(report["coverage_gaps"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn registered_visual_and_runtime_ids_report_ready_statuses() {
+        let facts = base_facts(json!([
+            {"provider": crate::native_providers::legacy::visual::VISUAL_PROVIDER_ID, "status": "complete", "complete": true},
+            {"provider": runtime_provider_id(), "status": "complete", "complete": true},
+        ]));
+        let report = finalize_audit(
+            &facts,
+            &json!({"candidates": []}),
+            &json!({"complete": true}),
+        );
+
+        assert_eq!(report["gates"]["visual"], json!("complete"));
+        assert_eq!(report["gates"]["runtime"], json!("complete"));
+        assert_eq!(report["audit_status"], json!("pass"));
+    }
+
+    #[test]
+    fn registered_incomplete_provider_ids_remain_visible_and_block_pass() {
+        let facts = base_facts(json!([
+            {"provider": crate::native_providers::legacy::visual::VISUAL_PROVIDER_ID, "status": "partial", "complete": false},
+            {"provider": runtime_provider_id(), "status": "partial", "complete": false},
+        ]));
+        let report = finalize_audit(
+            &facts,
+            &json!({"candidates": []}),
+            &json!({"complete": true}),
+        );
+
+        assert_eq!(report["gates"]["visual"], json!("partial"));
+        assert_eq!(report["gates"]["runtime"], json!("partial"));
+        assert_eq!(report["audit_status"], json!("incomplete"));
+        assert!(report["coverage_gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|gap| {
+                gap["kind"] == json!("provider-incomplete")
+                    && gap["provider"]
+                        == json!(crate::native_providers::legacy::visual::VISUAL_PROVIDER_ID)
+            }));
+    }
+
+    #[test]
+    fn absent_visual_and_runtime_providers_are_not_applicable() {
+        let facts = base_facts(json!([]));
+        let report = finalize_audit(
+            &facts,
+            &json!({"candidates": []}),
+            &json!({"complete": true}),
+        );
+
+        assert_eq!(report["gates"]["visual"], json!("not_applicable"));
+        assert_eq!(report["gates"]["runtime"], json!("not_applicable"));
+        assert_eq!(report["audit_status"], json!("pass"));
+    }
+
+    #[test]
+    fn registered_ids_take_precedence_over_compatibility_aliases() {
+        let facts = base_facts(json!([
+            {"provider": "visual.core", "status": "legacy"},
+            {"provider": crate::native_providers::legacy::visual::VISUAL_PROVIDER_ID, "status": "current"},
+            {"provider": "runtime.app", "status": "legacy"},
+            {"provider": runtime_provider_id(), "status": "current"},
+        ]));
+        let report = finalize_audit(
+            &facts,
+            &json!({"candidates": []}),
+            &json!({"complete": true}),
+        );
+
+        assert_eq!(report["gates"]["visual"], json!("current"));
+        assert_eq!(report["gates"]["runtime"], json!("current"));
     }
 
     #[test]

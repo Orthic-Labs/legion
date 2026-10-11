@@ -11,6 +11,14 @@ use crate::{
     plan::{AuditProvider, FrozenPlan},
 };
 
+/// Immutable outputs available to a provider from earlier steps in this
+/// frozen plan execution. Consumers must still validate provider-specific
+/// evidence before using it.
+pub struct ExecutionContext<'a> {
+    pub plan_digest: &'a str,
+    pub prior_results: &'a [ProviderExecution],
+}
+
 #[async_trait::async_trait]
 pub trait ProviderExecutor: Send + Sync {
     fn execute(
@@ -52,6 +60,33 @@ pub trait ProviderExecutor: Send + Sync {
             ));
         }
         self.execute(provider, inventory)
+    }
+
+    /// Execute with immutable same-run context. Existing providers retain
+    /// their established plan-bound seam unless they explicitly consume prior
+    /// results.
+    fn execute_with_context(
+        &self,
+        plan: &FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        _context: &ExecutionContext<'_>,
+    ) -> Result<ProviderResult, AuditError> {
+        self.execute_bound(plan, provider, inventory)
+    }
+
+    /// Async counterpart to `execute_with_context`; existing async providers
+    /// keep their established cancellation-aware seam by default.
+    async fn execute_async_with_context(
+        &self,
+        plan: &FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        cancellation: CancellationToken,
+        _context: &ExecutionContext<'_>,
+    ) -> Result<ProviderResult, AuditError> {
+        self.execute_async(plan, provider, inventory, cancellation)
+            .await
     }
 }
 
@@ -314,7 +349,11 @@ pub fn execute(
             failed.insert(provider.id.clone());
             failed_execution(provider, gap, "skipped-after-dependency-failure", true)?
         } else {
-            match executor.execute_bound(plan, provider, inventory) {
+            let context = ExecutionContext {
+                plan_digest: plan.digest(),
+                prior_results: &results,
+            };
+            match executor.execute_with_context(plan, provider, inventory, &context) {
                 // A provider that finds nothing of its kind in the frozen
                 // inventory declares itself not applicable; that settles it
                 // like a plan-level not-applicable, with no gap.
@@ -489,8 +528,18 @@ pub async fn execute_with_cancellation(
             failed.insert(provider.id.clone());
             failed_execution(provider, gap, "skipped-after-dependency-failure", true)?
         } else {
+            let context = ExecutionContext {
+                plan_digest: plan.digest(),
+                prior_results: &results,
+            };
             match executor
-                .execute_async(plan, provider, inventory, cancellation.clone())
+                .execute_async_with_context(
+                    plan,
+                    provider,
+                    inventory,
+                    cancellation.clone(),
+                    &context,
+                )
                 .await
             {
                 // A provider that finds nothing of its kind in the frozen
@@ -686,8 +735,22 @@ fn validate_result(
             .and_then(Value::as_object)
             .and_then(|items| items.get(finding.id.as_str()))
             .and_then(Value::as_array)
-            .filter(|items| !items.is_empty())
-            .ok_or_else(|| format!("finding {} is missing source location", finding.id))?;
+            .ok_or_else(|| format!("finding {} is missing location map", finding.id))?;
+        let visual_artifact_only = provider.id == "legacy.visual.core"
+            && locations.is_empty()
+            && valid_visual_artifact_evidence(provider, evidence);
+        if provider.id == "legacy.visual.core" {
+            if !visual_artifact_only {
+                return Err(format!(
+                    "visual finding {} lacks bound artifact evidence or carries a source anchor",
+                    finding.id
+                ));
+            }
+            continue;
+        }
+        if locations.is_empty() && !visual_artifact_only {
+            return Err(format!("finding {} is missing source location", finding.id));
+        }
         if locations
             .iter()
             .any(|location| location.as_str().is_none_or(str::is_empty))
@@ -718,6 +781,96 @@ fn validate_result(
         validate_external_receipt(provider, result)?;
     }
     Ok(())
+}
+
+fn valid_visual_artifact_evidence(provider: &AuditProvider, evidence: &Value) -> bool {
+    let Some(visual) = provider
+        .configuration
+        .get("runner")
+        .and_then(|runner| runner.get("visual"))
+    else {
+        return false;
+    };
+    let Some(spec) = visual.get("spec") else {
+        return false;
+    };
+    let Some(spec_digest) = visual.get("specDigest").and_then(Value::as_str) else {
+        return false;
+    };
+    if evidence.get("kind").and_then(Value::as_str) != Some("visual-artifact-difference")
+        || evidence.get("specDigest").and_then(Value::as_str) != Some(spec_digest)
+        || !is_sha256_digest(spec_digest)
+    {
+        return false;
+    }
+    let Some(capture_id) = evidence.get("captureId").and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(captures) = spec.get("captures").and_then(Value::as_array) else {
+        return false;
+    };
+    let mut matching = captures
+        .iter()
+        .filter(|capture| capture.get("id").and_then(Value::as_str) == Some(capture_id));
+    let Some(capture) = matching.next() else {
+        return false;
+    };
+    if matching.next().is_some() {
+        return false;
+    }
+    let Some(actual_path) = capture.get("path").and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(baseline_path) = capture.get("baseline").and_then(Value::as_str) else {
+        return false;
+    };
+    let artifact_matches = |role: &str, expected_path: &str| {
+        let Some(artifact) = evidence.get(role) else {
+            return false;
+        };
+        artifact.get("path").and_then(Value::as_str) == Some(expected_path)
+            && artifact
+                .get("digest")
+                .and_then(Value::as_str)
+                .is_some_and(is_sha256_digest)
+            && artifact
+                .get("bytes")
+                .and_then(Value::as_u64)
+                .is_some_and(|n| n > 0)
+    };
+    if !artifact_matches("actual", actual_path)
+        || !artifact_matches("baseline", baseline_path)
+        || !evidence.get("diff").is_some_and(Value::is_object)
+    {
+        return false;
+    }
+    if let Some(frozen_baselines) = visual.get("baselines") {
+        let expected_digest = frozen_baselines
+            .get("files")
+            .and_then(Value::as_array)
+            .and_then(|files| {
+                files
+                    .iter()
+                    .find(|file| file.get("path").and_then(Value::as_str) == Some(baseline_path))
+            })
+            .and_then(|file| file.get("sha256"))
+            .and_then(Value::as_str);
+        if evidence
+            .get("baseline")
+            .and_then(|item| item.get("digest"))
+            .and_then(Value::as_str)
+            != expected_digest
+        {
+            return false;
+        }
+    }
+    true
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
 fn provider_denominator(
@@ -1133,6 +1286,254 @@ fn string_array(value: Option<&Value>) -> bool {
 mod tests {
     use super::*;
     use crate::plan::ProviderKind;
+    use crate::{inventory::InventoryEntry, plan::AuditPlan};
+    use legion_contracts::{Coverage, FindingId, FindingRef, ProviderSpec};
+    use std::sync::Mutex;
+
+    fn handoff_fixture() -> (FrozenPlan, InventoryEnvelope) {
+        let inventory = InventoryEnvelope::new(
+            "runtime-visual-order",
+            "generation",
+            vec![InventoryEntry {
+                path: "src/app.ts".into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: true,
+                digest: None,
+            }],
+        )
+        .unwrap();
+        let runtime: ProviderSpec = serde_json::from_value(serde_json::json!({
+            "schemaVersion":2,"id":"legacy.runtime.app","providerVersion":"2.0.0",
+            "family":"performance","lensIds":["runtime"],"role":"deterministic","phase":"runtime",
+            "dependsOn":[],"consumes":[],"produces":["provider-result"],"selector":{"op":"always"},
+            "denominatorKind":"repository-inventory","runner":{"kind":"legacy-check","check":"runtime","runtime":{"url":"https://example.test/","width":16,"height":12}},
+            "hostCapabilities":[],"execution":{},"reasoning":{},"benchmark":{"status":"unproven","requiredForCleanClaim":false},
+            "cleanClaim":"evidence-only","controlIds":[],"scopes":[],"selectable":true
+        })).unwrap();
+        let visual: ProviderSpec = serde_json::from_value(serde_json::json!({
+            "schemaVersion":2,"id":"legacy.visual.core","providerVersion":"2.0.0",
+            "family":"visual","lensIds":["visual"],"role":"deterministic","phase":"runtime",
+            "dependsOn":[],"consumes":[],"produces":["provider-result"],"selector":{"op":"always"},
+            "denominatorKind":"repository-inventory","runner":{"kind":"runtime-script","module":"legacy.visual.core","visual":{"captureSource":{"kind":"runtime-provider","providerId":"legacy.runtime.app"}}},
+            "hostCapabilities":[],"execution":{},"reasoning":{},"benchmark":{"status":"unproven","requiredForCleanClaim":false},
+            "cleanClaim":"evidence-only","controlIds":[],"scopes":[],"selectable":true
+        })).unwrap();
+        let plan = AuditPlan::compile(&inventory, &[visual, runtime])
+            .unwrap()
+            .freeze_source_diagnostic()
+            .unwrap();
+        (plan, inventory)
+    }
+
+    #[test]
+    fn visual_artifact_only_evidence_is_bound_and_source_anchors_are_rejected() {
+        let spec_digest = format!("sha256:{}", "a".repeat(64));
+        let actual_digest = format!("sha256:{}", "b".repeat(64));
+        let baseline_digest = format!("sha256:{}", "c".repeat(64));
+        let provider = AuditProvider {
+            id: "legacy.visual.core".into(),
+            version: "1".into(),
+            role: "deterministic".into(),
+            phase: "runtime".into(),
+            lens_ids: Vec::new(),
+            dependencies: Vec::new(),
+            kind: ProviderKind::RustAlgorithm,
+            configuration: BTreeMap::from([
+                ("selector".into(), json!({"op":"always"})),
+                (
+                    "denominatorDigest".into(),
+                    json!(format!("sha256:{}", "d".repeat(64))),
+                ),
+                ("denominatorCount".into(), json!(0)),
+                (
+                    "runner".into(),
+                    json!({"visual":{
+                        "specDigest":spec_digest,
+                        "spec":{"captures":[{"id":"home","path":"shots/home.png","baseline":"home.png"}]},
+                        "baselines":{"files":[{"path":"home.png","sha256":baseline_digest}]}
+                    }}),
+                ),
+            ]),
+            bounds: BTreeMap::new(),
+            clean_claim: "evidence-only".into(),
+            benchmark_status: "unproven".into(),
+            benchmark_required_for_clean_claim: false,
+            qualification_digest: None,
+            required: false,
+        };
+        let finding = FindingRef {
+            id: FindingId::new("visual-fixture").unwrap(),
+            severity: "medium".into(),
+        };
+        let finding_id = finding.id.to_string();
+        let evidence = json!({
+            "kind":"visual-artifact-difference",
+            "captureId":"home",
+            "specDigest":spec_digest,
+            "actual":{"path":"shots/home.png","digest":actual_digest,"bytes":24},
+            "baseline":{"path":"home.png","digest":baseline_digest,"bytes":24},
+            "diff":{"changedPixels":1}
+        });
+        let mut result = ProviderResult {
+            schema_version: 1,
+            provider: ProviderId::new("legacy.visual.core").unwrap(),
+            applicable: true,
+            required: false,
+            status: ProviderStatus::Partial,
+            complete: false,
+            coverage: None,
+            findings: vec![finding.clone()],
+            coverage_gaps: Vec::new(),
+            degradation: Vec::new(),
+            details: BTreeMap::from([
+                (
+                    "findingEvidence".into(),
+                    Value::Object(serde_json::Map::from_iter([(finding_id.clone(), evidence)])),
+                ),
+                (
+                    "findingLocations".into(),
+                    Value::Object(serde_json::Map::from_iter([(
+                        finding_id.clone(),
+                        json!([]),
+                    )])),
+                ),
+            ]),
+        };
+        let denominator = ProviderDenominator {
+            count: 0,
+            digest: format!("sha256:{}", "d".repeat(64)),
+            paths: BTreeSet::new(),
+        };
+        assert!(validate_result(&provider, &result, &denominator).is_ok());
+
+        result.details["findingLocations"][finding.id.as_str()] = json!(["src/app.ts"]);
+        assert!(validate_result(&provider, &result, &denominator)
+            .unwrap_err()
+            .contains("source anchor"));
+
+        result.details["findingLocations"][finding.id.as_str()] = json!([]);
+        result.details["findingEvidence"][finding.id.as_str()]["actual"]["path"] =
+            json!("src/app.ts");
+        assert!(validate_result(&provider, &result, &denominator)
+            .unwrap_err()
+            .contains("artifact evidence"));
+        let mut other = provider.clone();
+        other.id = "other.provider".into();
+        result.provider = ProviderId::new("other.provider").unwrap();
+        assert!(validate_result(&other, &result, &denominator)
+            .unwrap_err()
+            .contains("missing source location"));
+    }
+
+    #[derive(Default)]
+    struct ContextOrder(Mutex<Vec<(String, usize, String)>>);
+
+    impl ContextOrder {
+        fn result(
+            &self,
+            provider: &AuditProvider,
+            inventory: &InventoryEnvelope,
+            context: &ExecutionContext<'_>,
+        ) -> Result<ProviderResult, AuditError> {
+            self.0.lock().unwrap().push((
+                provider.id.clone(),
+                context.prior_results.len(),
+                context.plan_digest.to_owned(),
+            ));
+            let denominator =
+                inventory.denominator_entries(provider.configuration.get("selector").unwrap())?;
+            let gap = format!("{}-partial", provider.id);
+            Ok(ProviderResult {
+                schema_version: 1,
+                provider: ProviderId::new(&provider.id).unwrap(),
+                applicable: true,
+                required: provider.required,
+                status: ProviderStatus::Partial,
+                complete: false,
+                coverage: Some(Coverage {
+                    denominator_digest: denominator.digest,
+                    expected: denominator.entries.len() as u64,
+                    examined: 0,
+                    gaps: vec![gap.clone()],
+                }),
+                findings: Vec::<FindingRef>::new(),
+                coverage_gaps: vec![gap],
+                degradation: Vec::new(),
+                details: BTreeMap::new(),
+            })
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl ProviderExecutor for ContextOrder {
+        fn execute(
+            &self,
+            _provider: &AuditProvider,
+            _inventory: &InventoryEnvelope,
+        ) -> Result<ProviderResult, AuditError> {
+            unreachable!("execution loop invokes context seam")
+        }
+
+        fn execute_with_context(
+            &self,
+            _plan: &FrozenPlan,
+            provider: &AuditProvider,
+            inventory: &InventoryEnvelope,
+            context: &ExecutionContext<'_>,
+        ) -> Result<ProviderResult, AuditError> {
+            self.result(provider, inventory, context)
+        }
+
+        async fn execute_async_with_context(
+            &self,
+            _plan: &FrozenPlan,
+            provider: &AuditProvider,
+            inventory: &InventoryEnvelope,
+            _cancellation: CancellationToken,
+            context: &ExecutionContext<'_>,
+        ) -> Result<ProviderResult, AuditError> {
+            self.result(provider, inventory, context)
+        }
+    }
+
+    #[test]
+    fn sync_context_orders_visual_after_partial_runtime_without_success_dependency() {
+        let (plan, inventory) = handoff_fixture();
+        assert!(plan.providers()[1].dependencies.is_empty());
+        let executor = ContextOrder::default();
+        execute(&plan, &inventory, &executor).unwrap();
+        let seen = executor.0.lock().unwrap();
+        assert_eq!(seen[0].0, "legacy.runtime.app");
+        assert_eq!(seen[1].0, "legacy.visual.core");
+        assert_eq!(seen[1].1, 1, "partial runtime result remains available");
+        assert_eq!(seen[1].2, plan.digest());
+    }
+
+    #[test]
+    fn async_context_orders_visual_after_partial_runtime_without_success_dependency() {
+        let (plan, inventory) = handoff_fixture();
+        assert!(plan.providers()[1].dependencies.is_empty());
+        let executor = ContextOrder::default();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime
+            .block_on(execute_with_cancellation(
+                &plan,
+                &inventory,
+                &executor,
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        let seen = executor.0.lock().unwrap();
+        assert_eq!(seen[0].0, "legacy.runtime.app");
+        assert_eq!(seen[1].0, "legacy.visual.core");
+        assert_eq!(seen[1].1, 1, "partial runtime result remains available");
+        assert_eq!(seen[1].2, plan.digest());
+    }
 
     fn provider() -> AuditProvider {
         AuditProvider {

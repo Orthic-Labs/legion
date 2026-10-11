@@ -1,14 +1,14 @@
 # Tasklist Durable Workflow Compatibility
 
-The legacy Markdown tasklist validator is not part of this package and has no native route.
-`legion script tasklist/validate-tasklist` accepts only typed JSON packets: `--packet-type authority|worker`,
-`--receipt-mode write|verify`, and an optional `--receipt-dir`. It writes or verifies
-`<packet-stem>.receipt.json`. Passing a `.md` file, `--write-receipt`, `--verify-receipt`, or
-`--template-self-check` is not supported.
+`legion script tasklist/validate-tasklist` defaults to typed JSON packets for governed work:
+`--packet-type authority|worker`, `--receipt-mode write|verify`, and optional `--receipt-dir`.
+It writes or verifies `<packet-stem>.receipt.json` only through the corresponding validator.
 
-`examples/validated-tasklist.md` is a format example only. Its Markdown structure and receipt
-are not checked by any native route. Its route binding is checked with
-`legion script dispatch/validate-route`.
+For historical tasklist Markdown, explicitly select `--packet-type legacy`. This rejects
+unrecognized task format, clock gaps, incorrect durations, and invalid lane overlaps before
+forwarding to existing dispatch validation. Passing timing checks alone is not a valid packet
+or an authority receipt. Ordinary inline tasklists do not need this compatibility mode.
 
-Use [durable workflow](durable-workflow.md) for the typed-packet path. An existing Markdown
-record can be read as a record, but it has no native verifier.
+`examples/validated-tasklist.md` remains a historical format example, not proof that its old
+receipt is valid today. Use [durable workflow](durable-workflow.md) for current typed packets;
+route bindings have their own `legion script dispatch/validate-route` check.

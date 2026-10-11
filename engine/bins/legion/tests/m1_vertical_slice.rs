@@ -159,7 +159,11 @@ fn fixture(with_body: bool) -> Fixture {
         write_body(&root, "deterministic body");
     }
     fs::write(root.join("mcp-schema.json"), "mcp schema").expect("schema");
-    fs::write(root.join("assets.json"), "assets").expect("assets");
+    fs::write(
+        root.join("assets.json"),
+        r#"{"schemaVersion":1,"aliases":{"/demo-mode":"/demo inspect"}}"#,
+    )
+    .expect("assets");
     let digest =
         |name: &str| legion_catalog::hex_digest(&fs::read(root.join(name)).expect("digest source"));
     let manifest = legion_runtime::ReleaseManifest {
@@ -203,6 +207,7 @@ fn fixture(with_body: bool) -> Fixture {
             "releaseBinding": {
                 "runtimeProvenance": "rightkit-release://m1-cli-fixture",
                 "catalogPath": "registry/index.json",
+                "aliasCatalogPath": "assets.json",
                 "mcpToolSchemaPath": "mcp-schema.json",
                 "declarativeAssetsPath": "assets.json",
                 "declarativeAssetsKind": "file",
@@ -295,7 +300,11 @@ fn installed_composition_is_resolved_from_the_executable() {
     .expect("installed catalog");
     fs::write(assets.join("skills/demo/SKILL.md"), "installed body").expect("installed skill");
     fs::write(assets.join("mcp-schema.json"), "installed schema").expect("installed schema");
-    fs::write(assets.join("assets.json"), "installed assets").expect("installed assets");
+    fs::write(
+        assets.join("registry/capability-aliases.json"),
+        r#"{"schemaVersion":1,"aliases":{"/demo-mode":"/demo inspect"}}"#,
+    )
+    .expect("installed assets");
     let digest = |path: &std::path::Path| {
         legion_catalog::hex_digest(&fs::read(path).expect("installed digest source"))
     };
@@ -309,7 +318,7 @@ fn installed_composition_is_resolved_from_the_executable() {
         },
         capability_catalog_sha256: digest(&assets.join("registry/index.json")),
         mcp_tool_schema_sha256: digest(&assets.join("mcp-schema.json")),
-        declarative_assets_sha256: digest(&assets.join("assets.json")),
+        declarative_assets_sha256: digest(&assets.join("registry/capability-aliases.json")),
         state_schema_version: 1,
         rightkit_ax: legion_runtime::RightkitAxIdentity {
             version: "0.2.1".into(),
@@ -337,8 +346,9 @@ fn installed_composition_is_resolved_from_the_executable() {
             "releaseBinding": {
                 "runtimeProvenance": "rightkit-release://installed-test",
                 "catalogPath": "assets/registry/index.json",
+                "aliasCatalogPath": "assets/registry/capability-aliases.json",
                 "mcpToolSchemaPath": "assets/mcp-schema.json",
-                "declarativeAssetsPath": "assets/assets.json",
+                "declarativeAssetsPath": "assets/registry/capability-aliases.json",
                 "declarativeAssetsKind": "file",
             }
         }))
@@ -364,6 +374,38 @@ fn installed_composition_is_resolved_from_the_executable() {
     assert_eq!(value["fidelity"], "unknown");
     assert_eq!(value["scope"], "legion-product");
     assert_eq!(value["origin"], "installed");
+    let resolved_command = Command::new(&executable)
+        .args([
+            "--json",
+            "skills",
+            "resolve",
+            "/demo-mode",
+            "--literal",
+            "tail value",
+            "--help",
+        ])
+        .env_remove("LEGION_M1_CONFIG")
+        .env(stable_env.0, &stable_env.1)
+        .output()
+        .expect("installed explicit command resolution");
+    assert_eq!(
+        resolved_command.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&resolved_command.stderr)
+    );
+    let resolved_value: Value =
+        serde_json::from_slice(&resolved_command.stdout).expect("resolved command JSON");
+    assert_eq!(resolved_value["resolvedCommand"]["capabilityId"], "demo");
+    assert_eq!(
+        resolved_value["resolvedCommand"]["modeTokens"],
+        json!(["inspect"])
+    );
+    assert_eq!(
+        resolved_value["resolvedCommand"]["arguments"],
+        json!(["--literal", "tail value", "--help"])
+    );
+    assert_eq!(resolved_value["skillPath"], "skills/demo/SKILL.md");
     let reported_executable =
         PathBuf::from(value["executable"].as_str().expect("top-level executable"));
     let expected_executable = product_root
@@ -513,6 +555,25 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
     );
     assert!(denied["result"]["structuredContent"]["data"].is_null());
 
+    let ambiguous_invoke = request(
+        &mut stdin,
+        &mut stdout,
+        json!({
+            "jsonrpc":"2.0",
+            "id":22,
+            "method":"tools/call",
+            "params": {
+                "name":"legion_m1_invoke",
+                "arguments":{"capabilityId":"demo", "command":"/demo-mode", "arguments":[], "policyContext":fixture.policy_context}
+            }
+        }),
+    );
+    assert_eq!(ambiguous_invoke["result"]["isError"], true);
+    assert_eq!(
+        ambiguous_invoke["result"]["structuredContent"]["error"]["code"],
+        "INVALID_PARAMS"
+    );
+
     let invoked = request(
         &mut stdin,
         &mut stdout,
@@ -539,6 +600,24 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
         "m1-native-capability"
     );
     assert_eq!(result["invocationReceipt"]["complete"], true);
+
+    let resolved = request(
+        &mut stdin,
+        &mut stdout,
+        json!({
+            "jsonrpc":"2.0",
+            "id":4,
+            "method":"tools/call",
+            "params": {
+                "name":"legion_m1_invoke",
+                "arguments":{"command":"/demo-mode", "arguments":["--literal", "tail value"], "policyContext":fixture.policy_context}
+            }
+        }),
+    );
+    let resolved = &resolved["result"]["structuredContent"]["data"]["resolvedCommand"];
+    assert_eq!(resolved["capabilityId"], "demo");
+    assert_eq!(resolved["modeTokens"], json!(["inspect"]));
+    assert_eq!(resolved["arguments"], json!(["--literal", "tail value"]));
 
     drop(stdin);
     assert!(child.wait().expect("server exit").success());

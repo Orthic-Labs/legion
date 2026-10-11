@@ -85,6 +85,12 @@ the claim, not the whole answer.
 13. The default route resolves deterministically, in single-digit milliseconds, with zero model
     calls.
 
+The explicit `/session` compatibility entrypoint delegates response shaping and context
+discipline here without adding another policy owner. Its `brief` mode shapes the current response;
+`context-hygiene` uses targeted context and reconciles stale summaries against current instructions;
+`init` applies current defaults and relevant host-reported context measurement without persistent
+configuration writes. These modes do not create mandatory notes or handoff artifacts.
+
 ## Bounded Falsification (Challenge Pass)
 
 > **Bounded Falsification: before committing to a materially assumption-dependent conclusion,

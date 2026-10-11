@@ -1,16 +1,18 @@
 ### Purpose
 
-Resolve one stable target, run two independent assessments, synthesize a design critique, persist a snapshot, and ask the user what to improve next. The chat response is the primary deliverable; the snapshot is an archive/backlog for future commands.
+Resolve one stable target, run a design assessment plus independent deterministic/rendered evidence, synthesize a design critique, and persist a snapshot when available. The chat response is the primary deliverable; the snapshot is an archive/backlog for future commands.
+
+**Required reads:** this reference for qualitative critique; [`visual-qa-capture.md`](legion-skill://designer/references/visual-qa-capture.md) when rendered pixels are needed; [`animations.md`](legion-skill://designer/references/animations.md) when motion is in scope. For an animation design task, also load the motion specialist guide and applicable platform reference.
 
 ### Hard Invariants
 
-- Assessment A (design review) and Assessment B (detector/browser evidence) are both required.
+- Assessment A (design review) is required. Run deterministic scans only when an explicitly resolved target is a supported markup/text source, scannable directory, or HTTP(S) URL; gather rendered evidence when a visual verdict is requested and pixels can be captured.
 - Assessment A must finish before detector findings enter the parent synthesis context. Detector output is deterministic, but it still anchors judgment.
 - Run Assessment A, then Assessment B, one after the other inline (no sub-agents): finish and record A first, then B, then synthesize.
-- A skipped detector is a failed critique run unless `legion script designer/detect` is missing or crashes after a real attempt.
-- Viewable targets require browser inspection when available.
+- A missing, unavailable, skipped, or unsupported detector run is not a failed critique or a clean scan. Give its concrete reason and coverage limit. Never omit the target or substitute an unrelated current-working-directory scan.
+- A visual verdict requires actual rendered pixels. If rendering/capture is unavailable, provide source/spec observations only and label visual assessment `UNPROVEN`.
 - Any local server started only for critique visualization must run in the background, have a recorded stop method, and be stopped before final reporting unless the user asks to keep it.
-- Do not claim a user-visible overlay exists unless script injection succeeded and the detector ran in the page.
+- Do not claim an overlay, screenshot, or browser state exists unless a captured artifact proves it.
 
 ### Setup
 
@@ -29,45 +31,48 @@ Resolve one stable target, run two independent assessments, synthesize a design 
 
 Run Assessment A and Assessment B inline, one after the other; B must not see A's output. Do not show findings to the user until synthesis.
 
-If browser automation is available, each assessment creates its own new tab. Never reuse an existing tab, even if it is already at the right URL.
+Follow the capture reference for host-native browser/capture behavior and artifact handling.
 
 ### Assessment A: Design Review
 
-Read relevant source files and visually inspect the live page when browser automation is available. Think like a design director.
+Read relevant source and inspect captured pixels as specified by [`visual-qa-capture.md`](legion-skill://designer/references/visual-qa-capture.md); a source
+or text description alone cannot support a visual verdict. Think like a design director.
 
 Evaluate:
-- **AI slop**: Would someone believe "AI made this" immediately? Check all DON'T guidance from the parent Impeccable skill.
+- **AI slop**: Would someone believe "AI made this" immediately? Apply the canonical [`design-slop.md`](legion-skill://designer/references/design-slop.md) checks.
 - **Holistic design**: hierarchy, IA, emotional fit, discoverability, composition, typography, color, accessibility, states, copy, and edge cases.
+- **Full review lens**: assess cognition and flow, visual structure, interaction/state behavior, and craft within the granted target, even when the request names only one visible symptom.
+- **Paired findings**: every UX finding names its visible/UI manifestation; every UI finding names its user/task consequence. Label a one-sided observation as partial when evidence cannot establish the other side.
+- **Controls and states**: inventory interactive control groups in scope. Track the core states—default, hover, active/pressed, focus, disabled, loading, error, and empty—plus selected, expanded, modal, or success when the control supports them. Record each as observed, missing, not observed, or not applicable with a reason. Do not infer complete coverage from a default screenshot; primary and high-frequency controls need evidence for each applicable state or remain unproven.
+- **Motion**: when present, load [`animations.md`](legion-skill://designer/references/animations.md); pair each motion finding with its user purpose or consequence, and apply the matching web, WebView, or native guidance.
+- **Craft**: use [`craft-tests.md`](legion-skill://designer/references/craft-tests.md) where relevant; report concrete failures and fixes, not a score for taste alone.
 - **Cognitive load**: consult the [Cognitive Load Assessment](#cognitive-load-assessment) section below; report checklist failures and decision points with >4 visible options.
 - **Emotional journey**: peak-end rule, emotional valleys, reassurance at high-stakes moments.
 - **Nielsen heuristics**: consult the [Heuristics Scoring Guide](#heuristics-scoring-guide) section below; score all 10 heuristics 0-4.
 
 Return: AI slop verdict, heuristic scores, cognitive load, emotional journey, 2-3 strengths, 3-5 priority issues, persona red flags, minor observations, and provocative questions.
 
-### Assessment B: Detector + Browser Evidence
+### Assessment B: Deterministic Scan + Rendered Evidence
 
-Run the bundled detector and browser visualization evidence. Assessment B is mandatory and must remain isolated from Assessment A until both are complete.
+Run any supported deterministic scan and gather rendered evidence separately from Assessment A; do not let deterministic findings anchor Assessment A before it is recorded. Follow [`visual-qa-capture.md`](legion-skill://designer/references/visual-qa-capture.md) for pixels. Scan only an explicitly resolved matching target. A screenshot, native app, CSS-only file, or other unsupported target is not a detector target; report the scan as not applicable with its coverage limit. If a companion markup source is scanned, keep its source findings distinct from claims about rendered behavior. Missing tools, unavailable capabilities, skipped scans, and unreadable evidence need concrete reasons and do not fail the critique by themselves.
 
-CLI scan:
+CLI scans (always pass an explicit target):
 ```bash
-legion script designer/detect --json [target]
+legion script designer/detect --json <markup-file-or-scannable-directory>
+legion script designer/detect --json <http(s)-url>
 ```
 
-- Pass markup files/directories as `[target]`; do not pass CSS-only files.
-- For URLs, skip CLI scan and use browser visualization.
+- Use the source route for supported markup/text files or scannable directories; do not pass CSS-only files, screenshots, or native app targets.
+- Use the URL route for an HTTP(S) page. It requires the shipped browser-injection detector and browser executable/driver; a URL scan may return typed `unavailable` (exit 3), for example when the detector script or browser capability is missing. Record that reason and its coverage limit; do not call it a clean scan or a critique failure. Source/file scans are unaffected by URL browser requirements.
+- For viewable targets, use rendered pixels as required by the capture reference; a CLI scan is not a substitute for pixels.
 - For very large trees (500+ scannable files), narrow scope or ask.
-- Exit code 0 = clean; 2 = findings.
-- If the detector entrypoint is missing or fails to load, report deterministic scan unavailable and continue with browser/manual review.
+- Exit code 0 = no findings; 2 = findings; 3 = typed unavailable. For other non-zero exits, report the observed error and whether scan coverage was obtained; do not infer a pass or failure from the exit code alone.
+- If the detector entrypoint is missing or fails to load, report deterministic scan unavailable with the observed reason and continue the other applicable review steps.
 
-Browser visualization is required for a viewable target when browser automation is available. Use a localhost dev/static URL for local files; avoid `file://` unless the available browser explicitly supports this workflow. Overlay flow:
-
-1. Create a fresh tab and navigate.
-2. Preflight mutable injection by setting `document.title` and appending a `<script>` tag. Read-only evaluate APIs do not count.
-3. If mutation is unavailable, skip live server, browser presentation, and injection; report fallback signal.
-4. If mutation is available, start `legion script designer/live-server --background`, present the browser if supported, label `[Human]`, scroll top, inject `http://localhost:PORT/detect.js`, wait 2-3 seconds, read `impeccable` console messages, then stop the live server.
-5. For multi-view targets, inject on 3-5 representative pages.
-
-Return: CLI findings JSON/counts, browser console findings if applicable, false positives, and skipped/failed browser steps with concrete reasons.
+Return: eligible scan findings with rule names and locations; rendered artifacts and the exact
+states they show; false positives; and not-applicable, unavailable, skipped, or unreadable steps
+with concrete reasons and coverage limits. Do not claim an overlay or browser state unless an
+actual artifact or capture proves it.
 
 After Assessment B returns usable CLI findings, reuse them. Do not rerun `legion script designer/detect` in the parent unless Assessment B failed, was truncated, or omitted count, rule names, or file locations.
 
@@ -98,7 +103,29 @@ Present the Nielsen's 10 heuristics scores as a table:
 | 10 | Help and Documentation | ? | |
 | **Total** | | **??/40** | **[Rating band]** |
 
-Be honest with scores. A 4 means genuinely excellent. Most real interfaces score 20-32.
+Be honest with scores; use the scale consistently and support low or high scores with evidence.
+
+#### Critical-Failure Verdict Floor
+
+Report an overall critique verdict (`Pass`, `Pass with fixes`, or `Fail`) beside the score. A
+confirmed critical failure floors the verdict at `Fail`; strong heuristic scores cannot average it
+away. A critical failure is evidenced inability to complete or recover from the core task, failure
+of an explicit must-have acceptance criterion, or a verified accessibility failure that blocks an
+essential interaction. Name the affected user/task, visible manifestation, evidence, and applicable
+acceptance or accessibility criterion. Use the target platform's applicable standard; do not invent
+a universal numeric threshold. If evidence is insufficient to confirm or dismiss a possible
+critical failure, report it as `UNPROVEN`, not as a pass or a confirmed failure.
+
+#### Interaction-State Coverage
+
+Include a compact inventory in the report for interactive control groups in scope:
+
+| Control group | Applicable states | Observed | Missing / unobserved | Evidence |
+|---|---|---|---|---|
+
+Use the states from Assessment A and mark a state not applicable only with a short reason. A default
+image alone proves no hidden or interactive state. Any missing or unobserved state needed by the
+primary or a high-frequency action remains a finding or `UNPROVEN`; do not claim complete coverage.
 
 #### Anti-Patterns Verdict
 
@@ -108,7 +135,7 @@ Be honest with scores. A 4 means genuinely excellent. Most real interfaces score
 
 **Deterministic scan**: Summarize what the automated detector found, with counts and file locations. Note any additional issues the detector caught that you missed, and flag any false positives.
 
-**Visual overlays** (if injection succeeded): Tell the user that overlays are now visible in the **[Human]** tab in their browser, highlighting the detected issues. Summarize what the console output reported. If browser visualization was attempted but injection failed, say that no reliable user-visible overlay is available and report the fallback signal instead.
+**Rendered evidence**: cite the artifact and state for each visual finding. If pixels are unavailable, label visual judgment `UNPROVEN` and keep any source/spec review distinct.
 
 #### Overall Impression
 A brief gut reaction: what works, what doesn't, and the single biggest opportunity.

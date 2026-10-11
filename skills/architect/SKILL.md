@@ -45,6 +45,11 @@ Method lives in `doctrine/architecture/**` (workflow, controls, methods, reviews
 schemas) and `references/manual.md`. Progressive loading: load the current workflow phase plus
 the triggered method only. Reopen only on a material delta with cause, scope, and affected IDs.
 
+When intent or constraints leave materially different architecture directions open, load
+`doctrine/architecture/methods/brainstorming.md` across the frame/context/candidate/selection
+phases. Skip it for clear, routine work; it resolves meaningful uncertainty, not a universal
+design gate or a requirement to obtain approval before ordinary execution.
+
 ## Shared platform first
 
 Before proposing new components or dependencies, read the host-declared shared-capability index

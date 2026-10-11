@@ -19,6 +19,8 @@ Before drafting, route sharper work to the more specific skill:
 | Landing-page copy, sales copy, offer, bio, DM/email script, CTA, conversion copy | `copywriting` |
 | Brand identity, voice system, guidelines, naming direction | `brand-identity` |
 | Website/page design or app UI | `designer` |
+| Documentation, proposal, technical spec, decision doc, or RFC with section-by-section collaboration | `../../references/document-coauthoring.md` |
+| Internal 3P update, company newsletter, employee FAQ, or team/company communication | `../../references/internal-comms.md` |
 
 Use this editorial guide only when the primary deliverable is prose rather than SEO/publish gates or conversion copy.
 
@@ -34,10 +36,10 @@ This skill owns **video/carousel/long-form scripts**, **long-form research artic
 
 | Intent / phrasing | Read reference |
 |---|---|
-| YouTube / Shorts / Reels / IG-LinkedIn carousel script, "write a script", "make a reel/carousel" | `references/script.md` |
-| Long-form research article with citations + iterative section-by-section writing | `references/research-article.md` |
-| Focused 3-platform repurposing / "3 versions" / "repurpose" / atomize into 3 native variants | `references/repurpose-content/reference.md` |
-| Full content bank from one source / 10–15 platform-native outputs / "turn this into a content week" | `references/content-repurposer/reference.md` |
+| YouTube / Shorts / Reels / IG-LinkedIn carousel script, "write a script", "make a reel/carousel" | `../../references/script.md` |
+| Long-form research article with citations + iterative section-by-section writing | `../../references/research-article.md` |
+| Focused 3-platform repurposing / "3 versions" / "repurpose" / atomize into 3 native variants | `../../references/repurpose-content/reference.md` |
+| Full content bank from one source / 10–15 platform-native outputs / "turn this into a content week" | `../../references/content-repurposer/reference.md` |
 
 For social-platform calendars/optimization, route to `social`. For conversion ad copy + hooks, route to `copywriting`. For blog SEO posts, route to `blogs`.
 
@@ -85,7 +87,7 @@ Pick ONE level per piece. Mixing collapses depth.
 - Hashtags as bottom comment (cleaner feed)
 
 ### Video script
-- Owned here — see `references/script.md` for the full Shorts/Reels, YouTube long-form, and carousel structures
+- Owned here — see `../../references/script.md` for the full Shorts/Reels, YouTube long-form, and carousel structures
 - Opening 3 seconds = retention test. Earn it.
 - Pattern: hook → tension → payoff → CTA
 - Read aloud before approving — does it sound like a human said it?

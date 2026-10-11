@@ -24,7 +24,7 @@
 //! argv-parsing surface is portable independent of whether the delegate
 //! script itself has a Rust port, so this closes the file's remaining gap
 //! in full: the same `argparse` surface (`packets` positional list,
-//! `--packet-type {authority,worker}`, `--receipt-mode {write,verify}`,
+//! `--packet-type {authority,worker,legacy}`, `--receipt-mode {write,verify}`,
 //! `--receipt-dir`), the same per-packet `is_file()` pre-check with a
 //! `FAIL: packet file not found: <path>` stderr line and exit code 2, the
 //! same `<receipt-dir-or-packet-parent>/<stem>.receipt.json` receipt path,
@@ -64,7 +64,7 @@ pub fn validate_and_write_receipt(
         Err(_) => {
             return Ok(TasklistResult::Fail {
                 errors: unreadable_packet_errors(&bytes),
-            })
+            });
         }
     };
     let (errors, _) = authority_packet_errors(&packet, packet_path);
@@ -88,26 +88,10 @@ pub fn validate_and_write_receipt(
     Ok(TasklistResult::Pass { receipt_path })
 }
 
-/// Gate appended to every legacy-format result. The GoalRoute and Minimize
-/// authority checks that the Python legacy validator runs around the timing
-/// checks are not ported, so a legacy tasklist can never yield a receipt here.
-pub const LEGACY_AUTHORITY_GATE: &str =
-    "legacy tasklist: GoalRoute and Minimize authority checks are not ported to Rust; no receipt written";
-
-/// Errors for input that is not a JSON authority packet. A legacy Markdown
-/// tasklist gets its timing checks plus the authority gate; anything else
-/// keeps the original `packet unreadable` error.
-fn unreadable_packet_errors(bytes: &[u8]) -> Vec<String> {
-    let timing = std::str::from_utf8(bytes)
-        .ok()
-        .and_then(legacy_tasklist_timing_errors);
-    match timing {
-        Some(mut errors) => {
-            errors.push(LEGACY_AUTHORITY_GATE.to_string());
-            errors
-        }
-        None => vec!["packet unreadable".to_string()],
-    }
+/// Errors for input that is not a JSON authority packet. Legacy Markdown is
+/// only accepted by the explicit `--packet-type legacy` CLI path below.
+fn unreadable_packet_errors(_bytes: &[u8]) -> Vec<String> {
+    vec!["packet unreadable".to_string()]
 }
 
 // ---------------------------------------------------------------------------
@@ -244,11 +228,9 @@ fn py_repr(value: &str) -> String {
 /// minutes, clock gaps and parallel-lane overlap).
 ///
 /// Difference from the Python source: spans and parallel flags are keyed by
-/// task number, not by GoalRoute step id, because the GoalRoute is not ported.
-/// The Python checks that compare against GoalRoute (step count, mirrors,
-/// dependencies) are therefore not run here. [`LEGACY_AUTHORITY_GATE`] reports
-/// that gap whenever this function is reached through
-/// [`validate_and_write_receipt`].
+/// task number, not by GoalRoute step id. This helper validates timing only;
+/// the explicit legacy CLI path also delegates to the existing legacy
+/// dispatch validator for its other checks.
 pub fn legacy_tasklist_timing_errors(text: &str) -> Option<Vec<String>> {
     if !is_legacy_tasklist(text) {
         return None;
@@ -562,9 +544,9 @@ fn parse_args(args: &[String]) -> Result<CliArgs, String> {
                 let v = args
                     .get(i)
                     .ok_or("argument --packet-type: expected one argument")?;
-                if v != "authority" && v != "worker" {
+                if v != "authority" && v != "worker" && v != "legacy" {
                     return Err(format!(
-                        "argument --packet-type: invalid choice: '{v}' (choose from 'authority', 'worker')"
+                        "argument --packet-type: invalid choice: '{v}' (choose from 'authority', 'worker', 'legacy')"
                     ));
                 }
                 packet_type = v.clone();
@@ -626,7 +608,7 @@ pub fn run_cli(
                 code: 2,
                 stdout: String::new(),
                 stderr: format!("{message}\n"),
-            }
+            };
         }
     };
 
@@ -645,6 +627,42 @@ pub fn run_cli(
                 stdout,
                 stderr,
             };
+        }
+        if parsed.packet_type == "legacy" {
+            let text = match std::fs::read_to_string(&packet) {
+                Ok(text) => text,
+                Err(err) => {
+                    return CliOutcome {
+                        code: 1,
+                        stdout: format!("FAIL: legacy tasklist is not readable UTF-8: {err}\n"),
+                        stderr,
+                    };
+                }
+            };
+            let errors = match legacy_tasklist_timing_errors(&text) {
+                Some(errors) => errors,
+                None => {
+                    return CliOutcome {
+                        code: 1,
+                        stdout: "FAIL: legacy tasklist format was not detected\n".to_string(),
+                        stderr,
+                    };
+                }
+            };
+            if !errors.is_empty() {
+                let mut output = format!(
+                    "FAIL: legacy tasklist timing validation found {} defect(s)\n",
+                    errors.len()
+                );
+                for error in errors {
+                    output.push_str(&format!("- {error}\n"));
+                }
+                return CliOutcome {
+                    code: 1,
+                    stdout: output,
+                    stderr,
+                };
+            }
         }
         let receipt_dir = match &parsed.receipt_dir {
             Some(d) => resolve_path(d),
@@ -783,6 +801,108 @@ mod cli_tests {
         assert!(child_args.contains(&"--packet-type".to_string()));
         assert!(child_args.contains(&"authority".to_string()));
         assert!(child_args.contains(&"--write-receipt".to_string()));
+    }
+
+    fn legacy_fixture(tasks: &[(&str, &str, &str)], total: &str) -> String {
+        let mut text = String::from(
+            "# Tasklist\n- **Files touched:** FILES_TOUCHED:2\n- **Lines changed:** LINES_CHANGED:120\n- **Rate:** LINES_PER_MINUTE:12\n",
+        );
+        text.push_str(&format!("- **Total minutes:** TOTAL_MINUTES:{total}\n\n"));
+        for (index, (span, basis, parallel)) in tasks.iter().enumerate() {
+            text.push_str(&format!(
+                "### Task {} — step {}\n- **Time span:** {span}\n- **Basis:** {basis}\n- **Parallelizable:** {parallel}\n\n",
+                index + 1,
+                index + 1
+            ));
+        }
+        text.push_str("## 4. Recovery & TRUE_BLOCKER\n");
+        text
+    }
+
+    fn run_legacy_cli(text: &str, tag: &str, runner: &FakeRunner) -> CliOutcome {
+        let dir = tmp_dir(tag);
+        let packet = dir.join("legacy.md");
+        std::fs::write(&packet, text).unwrap();
+        run_cli(
+            &[
+                packet.to_string_lossy().into_owned(),
+                "--packet-type".to_string(),
+                "legacy".to_string(),
+            ],
+            "python3",
+            Path::new("/opt/legion/validate-dispatch.py"),
+            runner,
+        )
+    }
+
+    #[test]
+    fn explicit_legacy_rejects_clock_gap_before_dispatch() {
+        let text = legacy_fixture(
+            &[
+                ("minute 0-5", "compile=5", "no"),
+                ("minute 7-10", "test=3", "no"),
+            ],
+            "10",
+        );
+        let runner = FakeRunner::new(vec![]);
+        let outcome = run_legacy_cli(&text, "legacy-gap", &runner);
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("Clock gap: nothing runs between minute 5 and 7"));
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn explicit_legacy_rejects_unrecognized_format_before_dispatch() {
+        let runner = FakeRunner::new(vec![]);
+        let outcome = run_legacy_cli("# no task headings\n", "legacy-unrecognized", &runner);
+        assert_eq!(outcome.code, 1);
+        assert_eq!(
+            outcome.stdout,
+            "FAIL: legacy tasklist format was not detected\n"
+        );
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn explicit_legacy_rejects_serial_lane_overlap_before_dispatch() {
+        let text = legacy_fixture(
+            &[
+                ("minute 0-10", "compile=10", "no"),
+                ("minute 5-10", "test=5", "no"),
+            ],
+            "10",
+        );
+        let runner = FakeRunner::new(vec![]);
+        let outcome = run_legacy_cli(&text, "legacy-overlap", &runner);
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("flagged serial but its span overlaps"));
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn explicit_legacy_accepts_parallel_lanes_then_delegates_legacy_checks() {
+        let text = legacy_fixture(
+            &[
+                ("minute 0-10", "compile=10", "yes"),
+                ("minute 5-10", "test=5", "yes"),
+            ],
+            "10",
+        );
+        let runner = FakeRunner::new(vec![ProcessOutput {
+            stdout: "legacy dispatch checked\n".to_string(),
+            stderr: String::new(),
+            code: 0,
+        }]);
+        let outcome = run_legacy_cli(&text, "legacy-parallel", &runner);
+        assert_eq!(outcome.code, 0);
+        assert_eq!(outcome.stdout, "legacy dispatch checked\n");
+        let calls = runner.calls.borrow();
+        assert_eq!(calls.len(), 1);
+        assert!(calls[0].1.contains(&"legacy".to_string()));
     }
 
     #[test]
@@ -1121,14 +1241,10 @@ mod legacy_timing_tests {
     }
 
     #[test]
-    fn unreadable_legacy_packet_reports_defects_and_gate() {
+    fn unreadable_legacy_packet_is_not_authority_json() {
         let text = legacy_doc(&[("minute 0-5", "compile=3", "no")], "2", "120", "12", "5");
         let errors = unreadable_packet_errors(text.as_bytes());
-        assert!(has(&errors, "named minutes sum to 3"));
-        assert_eq!(
-            errors.last().map(String::as_str),
-            Some(LEGACY_AUTHORITY_GATE)
-        );
+        assert_eq!(errors, vec!["packet unreadable"]);
     }
 
     #[test]
@@ -1140,7 +1256,7 @@ mod legacy_timing_tests {
     }
 
     #[test]
-    fn valid_legacy_file_never_yields_a_receipt() {
+    fn legacy_markdown_is_rejected_by_authority_receipt_helper() {
         let dir = std::env::temp_dir().join(format!("w2-044-legacy-timing-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("legacy.tasklist.md");
@@ -1157,12 +1273,8 @@ mod legacy_timing_tests {
         std::fs::write(&path, text.as_bytes()).unwrap();
         let result = validate_and_write_receipt(&path, None).unwrap();
         match result {
-            TasklistResult::Fail { errors } => {
-                assert_eq!(errors, vec![LEGACY_AUTHORITY_GATE.to_string()]);
-            }
-            TasklistResult::Pass { .. } => {
-                panic!("legacy tasklist must not pass without GoalRoute")
-            }
+            TasklistResult::Fail { errors } => assert_eq!(errors, vec!["packet unreadable"]),
+            TasklistResult::Pass { .. } => panic!("Markdown must not pass as authority JSON"),
         }
         assert!(!dir.join("legacy.tasklist.receipt.json").exists());
         std::fs::remove_dir_all(&dir).ok();

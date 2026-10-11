@@ -1,6 +1,6 @@
 ---
 name: qa
-description: "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, and runtime checks."
+description: "Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks."
 kind: capability
 capabilityClass: domain
 discoverability: public
@@ -20,15 +20,23 @@ hostRequirements:
 
 # QA
 
-PRIMARY_DELIVERABLE: Bounded functional, behavioral, browser, & runtime evidence.
+PRIMARY_DELIVERABLE: Bounded functional, behavioral, browser, & runtime evidence; or a contract-matching test for an explicitly test-only request.
 SPECIALIST_REFS_MAX: 1
 CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
-TERMINAL: Frozen criteria have exact passing evidence or failing artifact.
+TERMINAL: Runtime QA has exact evidence against frozen criteria; test-only authoring has a contract-matching test and truthful red/green status.
 
-1. Read project QA contract; reuse it rather than inventing another harness.
+For a test-authoring-only request, follow `Test-only authoring` in `references/manual.md`.
+That branch writes tests only and applies to native, backend, & web targets; ordinary QA
+execution/reporting below remains unchanged. Skill-creation and skill-editing workflow belongs to
+the host's skill-creator capability; see `references/skill-evaluation.md` only for QA-specific
+evaluation coverage.
+
+1. For runtime QA, read and reuse the project QA contract. For test-only authoring, discover the
+   repository's test runner and conventions as described in the manual; do not require a browser
+   QA harness.
    EXECUTOR:
      semantic: required
      capabilities:
@@ -49,7 +57,8 @@ TERMINAL: Frozen criteria have exact passing evidence or failing artifact.
      capabilities:
        - process-exec
        - source-read
-4. Record commands, artifact paths, failures, skipped coverage, & cleanup.
+4. For runtime QA, record commands, artifact paths, failures, skipped coverage, & cleanup. For
+   test-only authoring, use the manual's test report format.
    EXECUTOR:
      semantic: forbidden
      capabilities:

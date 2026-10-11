@@ -44,7 +44,10 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
    instruct a reader to run any `src/lib/research-core/**` script — it does not ship.
 4. A hit is a lead; evidence needs an opened source and located passage; preserve atomic
    claims, contradictions, dates, scope, uncertainty.
-5. `verified` adds domain verification, citation-support, DOI retraction checks; corrections
-   use a Read+Edit-only patch receipt with hunk caps.
+5. `verified` adds domain verification, citation-support, DOI retraction checks. Corrections
+   use native `issue-patch` and `apply-patch` steps; run ID, canonical draft path and source
+   hash are HMAC-bound to an existing key file, with an exact Read+Edit grant and bounded
+   hunks. Create the key file from OS cryptographic randomness before invoking the CLI.
+   This receipt is CLI integrity evidence, not hook attestation.
 
 Routing: `references/router.md`; runtime contract: `legion research --help`.

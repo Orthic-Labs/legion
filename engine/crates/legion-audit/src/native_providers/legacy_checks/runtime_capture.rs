@@ -874,6 +874,41 @@ fn unavailable_result(
     Ok(result)
 }
 
+/// Attach runtime observation metadata to a finding without promoting the
+/// captured artifact into a repository source location or anchor.
+fn push_runtime_finding(
+    output: &mut super::LegacyCheckOutput,
+    rule: &str,
+    severity: &str,
+    path: &str,
+    line: usize,
+    message: &str,
+    outcome: &SurfaceOutcome,
+) {
+    push_finding(output, rule, severity, path, line, message);
+    let Some(finding) = output.findings.last() else {
+        return;
+    };
+    let finding_id = finding.id.to_string();
+    let Some(evidence) = output
+        .details
+        .get_mut("findingEvidence")
+        .and_then(Value::as_object_mut)
+        .and_then(|findings| findings.get_mut(&finding_id))
+        .and_then(Value::as_object_mut)
+    else {
+        return;
+    };
+    evidence.insert(
+        "runtimeCapture".into(),
+        json!({
+            "surface": outcome.label.as_str(),
+            "url": outcome.url.as_str(),
+            "screenshot": outcome.screenshot.as_ref(),
+        }),
+    );
+}
+
 pub(super) async fn execute(
     executor: &NativeLegacyCheckExecutor,
     plan: &crate::FrozenPlan,
@@ -991,7 +1026,15 @@ fn assemble(
             }
             let rule = format!("runtime.console-error:{}:{}", outcome.index, &digest[..12]);
             let message = format!("{} ({}): {}", outcome.label, outcome.url, entry);
-            push_finding(&mut output, &rule, "warning", &location, 1, &message);
+            push_runtime_finding(
+                &mut output,
+                &rule,
+                "warning",
+                &location,
+                1,
+                &message,
+                outcome,
+            );
         }
         if let Some(violations) = outcome
             .accessibility
@@ -1036,7 +1079,15 @@ fn assemble(
                 } else {
                     "warning"
                 };
-                push_finding(&mut output, &rule, severity, &location, 1, &message);
+                push_runtime_finding(
+                    &mut output,
+                    &rule,
+                    severity,
+                    &location,
+                    1,
+                    &message,
+                    outcome,
+                );
             }
         }
     }

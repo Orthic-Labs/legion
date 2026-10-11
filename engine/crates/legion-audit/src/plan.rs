@@ -535,6 +535,52 @@ impl AuditPlan {
             }
         }
         topological(&self.providers)?;
+        let provider_positions = self
+            .providers
+            .iter()
+            .enumerate()
+            .map(|(index, provider)| (provider.id.as_str(), index))
+            .collect::<BTreeMap<_, _>>();
+        for provider in &self.providers {
+            let Some(source_id) = crate::dag::capture_source_provider(provider)? else {
+                continue;
+            };
+            let source = self
+                .providers
+                .iter()
+                .find(|candidate| candidate.id == source_id)
+                .ok_or_else(|| {
+                    AuditError::Invalid(format!(
+                        "visual capture source provider {source_id} is missing"
+                    ))
+                })?;
+            let runtime = source
+                .configuration
+                .get("runner")
+                .and_then(|runner| runner.get("runtime"))
+                .ok_or_else(|| {
+                    AuditError::Invalid(format!(
+                        "visual capture source {source_id} has no frozen runtime inputs"
+                    ))
+                })?;
+            if !runtime
+                .get("url")
+                .and_then(Value::as_str)
+                .is_some_and(|url| !url.trim().is_empty())
+            {
+                return Err(AuditError::Invalid(format!(
+                    "visual capture source {source_id} has no frozen runtime URL"
+                )));
+            }
+            if provider_positions.get(source_id).copied()
+                >= provider_positions.get(provider.id.as_str()).copied()
+            {
+                return Err(AuditError::Invalid(format!(
+                    "visual provider {} precedes its capture source {source_id}",
+                    provider.id
+                )));
+            }
+        }
         if self
             .providers
             .iter()

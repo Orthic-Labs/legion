@@ -463,4 +463,38 @@ mod tests {
                 "ownership-scan-unavailable:AUDIT_OWNERSHIP_SCAN_CMD unset"
             )));
     }
+
+    #[test]
+    fn visual_finding_keeps_artifact_evidence_without_source_anchor() {
+        let id = "sha256:visual-fixture";
+        let evidence = json!({
+            "kind":"visual-artifact-difference",
+            "captureId":"home",
+            "specDigest":format!("sha256:{}", "a".repeat(64)),
+            "actual":{"path":"shots/home.png","digest":format!("sha256:{}", "b".repeat(64)),"bytes":128},
+            "baseline":{"path":"home.png","digest":format!("sha256:{}", "c".repeat(64)),"bytes":128},
+            "diff":{"changedPixels":1}
+        });
+        let mut row = provider(
+            "legacy.visual.core",
+            json!({
+                "findingEvidence": {id:evidence},
+                "findingLocations": {id:[]},
+                "findingTitles": {id:"Visual regression in home"},
+                "findingMessages": {id:"Rendered pixels differ from the baseline."}
+            }),
+        );
+        row.result.findings.push(FindingRef {
+            id: FindingId::new(id).unwrap(),
+            severity: "medium".into(),
+        });
+        let report = canonical_report("fixture", &execution(vec![row])).unwrap();
+        assert_eq!(report.findings.len(), 1);
+        assert!(report.findings[0].locations.is_empty());
+        assert_eq!(
+            serde_json::to_value(&report.findings[0].evidence).unwrap(),
+            evidence
+        );
+        assert_eq!(report.findings[0].title, "Visual regression in home");
+    }
 }

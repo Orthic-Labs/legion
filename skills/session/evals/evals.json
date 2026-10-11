@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "skill": "session",
+  "should_trigger": [
+    {
+      "id": "session-explicit-status",
+      "prompt": "/session status",
+      "expected_skill": "session",
+      "forbidden_skills": [],
+      "expected_behavior": "Returns current task, proven completions, pending work, blockers, changed paths, and one next action from conversation and observed evidence.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "session-explicit-init",
+      "prompt": "/session init",
+      "expected_skill": "session",
+      "forbidden_skills": [],
+      "expected_behavior": "Applies current workspace defaults and relevant context measurement without writing configuration or invoking project scaffolding.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "session-explicit-brief",
+      "prompt": "/session brief",
+      "expected_skill": "session",
+      "forbidden_skills": [],
+      "expected_behavior": "Shapes the current response concisely while preserving accuracy, grammar, and newest user instructions.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "session-explicit-context-hygiene",
+      "prompt": "/session context-hygiene",
+      "expected_skill": "session",
+      "forbidden_skills": [],
+      "expected_behavior": "Uses targeted reads, bounded outputs, and reconciles stale summaries without requiring a handoff file.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "session-explicit-file-search",
+      "prompt": "/session file-search find LoginService usages in src/services",
+      "expected_skill": "session",
+      "forbidden_skills": [],
+      "expected_behavior": "Uses a scoped rg search with bounded output and refines only as needed; no Blueprint query.",
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "session-explicit-only",
+      "prompt": "Where are we on the task, and what's next?",
+      "expected_skill": null,
+      "forbidden_skills": ["session"],
+      "expected_behavior": "Ordinary status language remains with Legion's normal routing; Session is explicit-only.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "session-not-installed-health",
+      "prompt": "Check installed Legion client health with its native setup status.",
+      "expected_skill": null,
+      "forbidden_skills": ["session"],
+      "expected_behavior": "Installed-client health uses the native Legion setup-status operation, not a conversation task snapshot.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "session-not-natural-file-search",
+      "prompt": "Find where LoginService is used in this repository.",
+      "expected_skill": null,
+      "forbidden_skills": ["session"],
+      "expected_behavior": "Natural-language capability selection remains Legion's responsibility; the explicit compatibility entrypoint does not create a routing hierarchy.",
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "session-status-shape",
+      "prompt": "/session status",
+      "expected_skill": "session",
+      "forbidden_skills": [],
+      "expected_behavior": "Uses all six compact status fields and marks unknown state honestly.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "CURRENT TASK" },
+        { "type": "required_text", "value": "PROVEN COMPLETE" },
+        { "type": "required_text", "value": "PENDING" },
+        { "type": "required_text", "value": "BLOCKERS" },
+        { "type": "required_text", "value": "CHANGED PATHS" },
+        { "type": "required_text", "value": "NEXT ACTION" }
+      ]
+    },
+    {
+      "id": "session-no-automatic-handoff-artifact",
+      "prompt": "/session context-hygiene; preserve context for later",
+      "expected_skill": "session",
+      "forbidden_skills": [],
+      "expected_behavior": "Preserves useful continuity in current context and does not create a mandatory handoff file or new chat.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "forbidden_text", "value": "must create HANDOFF.md" },
+        { "type": "forbidden_text", "value": "start a new chat automatically" }
+      ]
+    }
+  ]
+}

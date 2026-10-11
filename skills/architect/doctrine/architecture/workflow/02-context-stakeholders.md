@@ -5,3 +5,6 @@
 ```
 
 Record stakeholders, constraints, unknowns, and rights.
+
+If unresolved intent or constraints could lead to materially different architecture directions,
+load `../methods/brainstorming.md`; otherwise continue without a brainstorming pass.

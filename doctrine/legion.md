@@ -85,6 +85,14 @@ criteria without turning ordinary work into governed execution.
 
 ## Routing shape
 
+`/session` is an explicit compatibility entrypoint for status, init, brief, context-hygiene, and
+file-search methods. It is not a semantic router or a new state owner: Legion reports task status
+from current conversation/evidence and routes substantive work normally; Arcane owns context and
+response shaping. Installed-client health belongs to the native Legion setup-status operation,
+while project scaffolding belongs to native `legion init`. File search uses scoped `rg` and optional
+`sg`; it does not invoke Blueprint by default. `/handoff` alone owns explicit new-chat transfer, and
+Session does not require durable handoff notes.
+
 Legion owns semantic capability selection, operation/effect derivation, authority attachment, &
 orchestration. Arcane shapes cognitive processing & response policy only; Guard gates declared
 typed effects, reports enforcement health, & owns effect-decision receipts.
@@ -110,7 +118,9 @@ delivery
 Natural-language routing is performed by the always-on Legion orchestration model from the
 compact catalog in context. The deterministic runtime validates selected IDs and resolves
 explicit aliases only; it does not interpret prose. Domains are grouping metadata only and never
-decide routing. Slash aliases remain deterministic.
+decide routing. Resolve explicit legacy slash commands with `legion skills resolve <slash-command>
+[args...]`; M1 CLI and MCP invocation share this release-bound exact resolver before body loading.
+Slash aliases remain deterministic, and native host commands are not emulated.
 
 Capability work may take this conditional path:
 

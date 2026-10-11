@@ -1752,7 +1752,11 @@ mod tests {
     #[test]
     fn design_system_routes_serve_design_md_and_sidecar_when_present() {
         let root = scratch_dir("ds-present");
-        std::fs::write(root.join("DESIGN.md"), "# Design\n").unwrap();
+        std::fs::write(
+            root.join("DESIGN.md"),
+            "# Design\n\n## Overview\nA calm system.\n",
+        )
+        .unwrap();
         std::fs::create_dir_all(root.join(".impeccable")).unwrap();
         std::fs::write(
             root.join(".impeccable/design.json"),
@@ -1781,6 +1785,10 @@ mod tests {
         assert!(json_out.contains("\"schemaVersion\":2"), "{json_out}");
         // `parsed` is the real DESIGN.md model, not null.
         assert!(json_out.contains("\"title\":\"Design\""), "{json_out}");
+        assert!(
+            json_out.contains("\"philosophy\":[\"A calm system.\"]"),
+            "{json_out}"
+        );
         assert!(!json_out.contains("\"parsed\":null"), "{json_out}");
         let _ = std::fs::remove_dir_all(&root);
     }

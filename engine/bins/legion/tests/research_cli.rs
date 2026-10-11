@@ -347,3 +347,137 @@ fn research_unknown_step_is_a_usage_error() {
         .expect("native Legion research must execute");
     assert_eq!(output.status.code(), Some(4));
 }
+
+#[test]
+fn research_issue_patch_and_apply_patch_are_reachable_from_cli() {
+    let dir = step_dir("patch-round-trip");
+    let draft = dir.join("draft.md");
+    let key = dir.join("key.bin");
+    let receipt = dir.join("patch-receipt.json");
+    let diff = dir.join("patch.diff");
+    let unrelated = dir.join("keep.txt");
+    std::fs::write(&draft, "alpha\nbeta\ngamma\n").unwrap();
+    std::fs::write(&key, [0x42u8; 32]).unwrap();
+    std::fs::write(&unrelated, "untouched\n").unwrap();
+
+    let issue = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["research", "--step", "issue-patch", "--draft"])
+        .arg(&draft)
+        .args(["--run-id", "run-2026-10-12", "--key-file"])
+        .arg(&key)
+        .arg("--out")
+        .arg(&receipt)
+        .output()
+        .expect("native Research patch issuer must execute");
+    assert!(
+        issue.status.success(),
+        "{}",
+        String::from_utf8_lossy(&issue.stderr)
+    );
+    let issued: serde_json::Value = serde_json::from_slice(&issue.stdout).unwrap();
+    assert_eq!(issued["step"], "issue-patch");
+    assert_eq!(issued["status"], "ok");
+    let receipt_value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&receipt).unwrap()).unwrap();
+    assert_eq!(receipt_value["assurance"], "ambient-cli");
+    assert_eq!(
+        receipt_value["allowed_tools"],
+        serde_json::json!(["Read", "Edit"])
+    );
+    let receipt_text = std::fs::read_to_string(&receipt).unwrap();
+    assert!(!receipt_text.contains(&hex::encode([0x42u8; 32])));
+    assert!(!String::from_utf8_lossy(&issue.stdout).contains(&hex::encode([0x42u8; 32])));
+
+    std::fs::write(
+        &diff,
+        "--- a/draft.md\n+++ b/draft.md\n@@ -2,1 +2,1 @@\n-beta\n+BETA\n",
+    )
+    .unwrap();
+    let applied = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["research", "--step", "apply-patch", "--draft"])
+        .arg(&draft)
+        .args(["--run-id", "run-2026-10-12", "--key-file"])
+        .arg(&key)
+        .arg("--receipt")
+        .arg(&receipt)
+        .arg("--diff")
+        .arg(&diff)
+        .output()
+        .expect("native Research patch applier must execute");
+    assert!(
+        applied.status.success(),
+        "{}",
+        String::from_utf8_lossy(&applied.stderr)
+    );
+    let result: serde_json::Value = serde_json::from_slice(&applied.stdout).unwrap();
+    assert_eq!(result["step"], "apply-patch");
+    assert_eq!(result["status"], "ok");
+    assert_eq!(result["result"]["applied_hunks"], 1);
+    assert_eq!(
+        std::fs::read_to_string(&draft).unwrap(),
+        "alpha\nBETA\ngamma\n"
+    );
+    assert_eq!(std::fs::read_to_string(unrelated).unwrap(), "untouched\n");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn research_apply_patch_rejects_wrong_run_and_multifile_diff_without_writes() {
+    let dir = step_dir("patch-reject");
+    let draft = dir.join("draft.md");
+    let key = dir.join("key.bin");
+    let receipt = dir.join("patch-receipt.json");
+    let diff = dir.join("patch.diff");
+    let original = "alpha\nbeta\ngamma\n";
+    std::fs::write(&draft, original).unwrap();
+    std::fs::write(&key, [0x23u8; 32]).unwrap();
+    let issue = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["research", "--step", "issue-patch", "--draft"])
+        .arg(&draft)
+        .args(["--run-id", "right-run", "--key-file"])
+        .arg(&key)
+        .arg("--out")
+        .arg(&receipt)
+        .output()
+        .expect("native Research patch issuer must execute");
+    assert!(issue.status.success());
+
+    std::fs::write(
+        &diff,
+        "--- a/draft.md\n+++ b/draft.md\n@@ -2,1 +2,1 @@\n-beta\n+BETA\n",
+    )
+    .unwrap();
+    let wrong_run = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["research", "--step", "apply-patch", "--draft"])
+        .arg(&draft)
+        .args(["--run-id", "wrong-run", "--key-file"])
+        .arg(&key)
+        .arg("--receipt")
+        .arg(&receipt)
+        .arg("--diff")
+        .arg(&diff)
+        .output()
+        .unwrap();
+    assert_eq!(wrong_run.status.code(), Some(4));
+    assert_eq!(std::fs::read_to_string(&draft).unwrap(), original);
+
+    std::fs::write(
+        &diff,
+        "diff --git a/draft.md b/draft.md\n--- a/draft.md\n+++ b/draft.md\n@@ -2,1 +2,1 @@\n-beta\n+BETA\ndiff --git a/other.md b/other.md\n",
+    )
+    .unwrap();
+    let multifile = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["research", "--step", "apply-patch", "--draft"])
+        .arg(&draft)
+        .args(["--run-id", "right-run", "--key-file"])
+        .arg(&key)
+        .arg("--receipt")
+        .arg(&receipt)
+        .arg("--diff")
+        .arg(&diff)
+        .output()
+        .unwrap();
+    assert_eq!(multifile.status.code(), Some(4));
+    assert_eq!(std::fs::read_to_string(&draft).unwrap(), original);
+    let _ = std::fs::remove_dir_all(dir);
+}

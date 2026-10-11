@@ -105,7 +105,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     if args.root.to_string_lossy().starts_with('-') {
         return Err(CommandError::usage(format!(
             "Unknown option '{}'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"{}\"",
-            args.root.display(), args.root.display()
+            args.root.display(),
+            args.root.display()
         )));
     }
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
@@ -209,6 +210,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // `--visual-spec`/`--visual-baselines` freeze into the visual provider the
     // same way; both binders' declared gaps are reported with the run.
     let (visual_gaps, visual_injected) = apply_visual_inputs(&args, &mut selected_specs, direct)?;
+    if !direct {
+        bind_runtime_visual_capture_source(&mut selected_specs);
+    }
     let declared_input_gaps = [runtime_gaps, visual_gaps].concat();
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
@@ -412,6 +416,12 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             let report_json = legion_report::render_json(&report).map_err(super::io_error)?;
             let report_sarif = legion_report::render_sarif(&report).map_err(super::io_error)?;
             if let Some(out) = &args.out {
+                let native_plan = native_plan_document(
+                    &lens_basis,
+                    execution.plan_digest.as_str(),
+                    execution.plan_signature.as_deref(),
+                )
+                .map_err(CommandError::integrity)?;
                 let plan = json!({
                     "schemaVersion": 1,
                     "kind": "audit-provider-plan",
@@ -428,6 +438,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                         "signature": execution.plan_signature,
                     },
                     "providers": execution.planned_providers,
+                    "providerSpecs": selected_specs,
+                    "nativePlan": native_plan,
                     "epoch": epoch_digest.as_ref().map(|digest| json!({"digest": digest, "keyFile": "epoch.key"})),
                 });
                 let facts = native_facts_document(&root, &plan, &execution, &report, &scope);
@@ -529,7 +541,7 @@ fn findings_command(args: &AuditArgs) -> CommandResult {
             _ => {
                 return Err(CommandError::usage(
                     "findings list takes at most one repository root",
-                ))
+                ));
             }
         }
     } else {
@@ -539,7 +551,7 @@ fn findings_command(args: &AuditArgs) -> CommandResult {
             _ => {
                 return Err(CommandError::usage(
                     "findings takes an action and at most one finding id",
-                ))
+                ));
             }
         }
     };
@@ -587,10 +599,10 @@ fn findings_command(args: &AuditArgs) -> CommandResult {
             let by = args.findings_by.as_ref().ok_or_else(|| {
                 CommandError::usage("findings supersede requires --by <successor-record.json>")
             })?;
-            let successor: Value =
-                serde_json::from_slice(&std::fs::read(by).map_err(super::io_error)?).map_err(
-                    |error| CommandError::usage(format!("invalid successor record: {error}")),
-                )?;
+            let successor: Value = serde_json::from_slice(
+                &std::fs::read(by).map_err(super::io_error)?,
+            )
+            .map_err(|error| CommandError::usage(format!("invalid successor record: {error}")))?;
             store
                 .supersede(old_id, &successor, None)
                 .map_err(store_error)?
@@ -598,7 +610,7 @@ fn findings_command(args: &AuditArgs) -> CommandResult {
         other => {
             return Err(CommandError::usage(format!(
                 "unknown findings action: {other} (expected list, resolve, dismiss, reopen or supersede)"
-            )))
+            )));
         }
     };
     Ok(json!({
@@ -805,6 +817,30 @@ fn registry_provider_spec(id: &str) -> Result<legion_contracts::ProviderSpec, Co
 
 /// Frozen plan and the inventory it was compiled over, captured before execution.
 type LensBasis = Result<(legion_audit::FrozenPlan, legion_audit::InventoryEnvelope), String>;
+
+/// Adds the exact plan compiled before execution to the persisted normal-run
+/// plan document. This is a projection of the plan already bound by execution,
+/// never a reconstruction from the current provider registry.
+fn native_plan_document(
+    basis: &LensBasis,
+    executed_plan_digest: &str,
+    executed_plan_signature: Option<&str>,
+) -> Result<Value, String> {
+    let (plan, _) = basis.as_ref().map_err(Clone::clone)?;
+    if plan.digest() != executed_plan_digest {
+        return Err("frozen native plan digest differs from executed plan".into());
+    }
+    if plan.signature() != executed_plan_signature {
+        return Err("frozen native plan signature differs from executed plan".into());
+    }
+    let plan_value = serde_json::to_value(plan.plan()).map_err(|error| error.to_string())?;
+    Ok(json!({
+        "schemaVersion": 1,
+        "plan": plan_value,
+        "digest": plan.digest(),
+        "signature": plan.signature(),
+    }))
+}
 
 fn freeze_lens_basis(
     root: &std::path::Path,
@@ -1100,6 +1136,43 @@ fn apply_visual_inputs(
         }
     }
     Ok((Vec::new(), true))
+}
+
+/// Freeze the runtime-to-visual handoff as an ordering-only source. Explicit
+/// visual specifications remain authoritative and never receive inferred
+/// runtime captures.
+fn bind_runtime_visual_capture_source(specs: &mut [legion_contracts::ProviderSpec]) {
+    let runtime_url = specs
+        .iter()
+        .find(|provider| provider.id.as_str() == RUNTIME_PROVIDER_ID)
+        .and_then(|provider| provider.runner.get("runtime"))
+        .and_then(|runtime| runtime.get("url"))
+        .and_then(serde_json::Value::as_str)
+        .filter(|url| !url.trim().is_empty());
+    if runtime_url.is_none()
+        || !specs
+            .iter()
+            .any(|provider| provider.id.as_str() == VISUAL_PROVIDER_ID)
+    {
+        return;
+    }
+    let Some(visual_provider) = specs
+        .iter_mut()
+        .find(|provider| provider.id.as_str() == VISUAL_PROVIDER_ID)
+    else {
+        return;
+    };
+    let Some(runner) = visual_provider.runner.as_object_mut() else {
+        return;
+    };
+    let visual = runner.entry("visual").or_insert_with(|| json!({}));
+    if !visual.is_object() || visual.get("spec").is_some() {
+        return;
+    }
+    visual["captureSource"] = json!({
+        "kind": "runtime-provider",
+        "providerId": RUNTIME_PROVIDER_ID,
+    });
 }
 
 /// Bind `--url`, `--surfaces`, `--width` and `--height` to the runtime
@@ -2229,6 +2302,28 @@ mod closure_tests {
     }
 
     #[test]
+    fn runtime_visual_capture_source_is_frozen_only_without_explicit_spec() {
+        let mut args = minimal_audit_args();
+        args.url = Some("https://example.test/".into());
+        let mut specs = vec![runtime_spec(), visual_spec_provider()];
+        apply_runtime_inputs(&args, &mut specs, false).unwrap();
+        apply_visual_inputs(&args, &mut specs, false).unwrap();
+        bind_runtime_visual_capture_source(&mut specs);
+        assert_eq!(
+            specs[1].runner["visual"]["captureSource"],
+            json!({"kind":"runtime-provider","providerId":RUNTIME_PROVIDER_ID})
+        );
+
+        let (spec_path, _) = visual_fixture("capture-source-explicit");
+        args.visual_spec = Some(spec_path);
+        let mut explicit = vec![runtime_spec(), visual_spec_provider()];
+        apply_runtime_inputs(&args, &mut explicit, false).unwrap();
+        apply_visual_inputs(&args, &mut explicit, false).unwrap();
+        bind_runtime_visual_capture_source(&mut explicit);
+        assert!(explicit[1].runner["visual"].get("captureSource").is_none());
+    }
+
+    #[test]
     fn runtime_inputs_without_a_consumer_or_a_url_are_named_gaps() {
         // No URL: nothing is injected; stray surfaces/viewport are named.
         let mut args = minimal_audit_args();
@@ -2578,6 +2673,45 @@ mod sealed_plan_tests {
             "providers": ["fixture-provider"],
             "providerSpecs": specs,
         })
+    }
+
+    fn frozen_basis(root: &std::path::Path) -> LensBasis {
+        let source = crate::commands::audit_inventory_source(root).unwrap();
+        let inventory = source.inventory(&root.to_string_lossy()).unwrap();
+        let frozen = legion_audit::AuditPlan::compile_with_root(Some(root), &inventory, &[spec()])
+            .unwrap()
+            .freeze(Some(KEY))
+            .unwrap();
+        Ok((frozen, inventory))
+    }
+
+    #[test]
+    fn normal_native_plan_projects_exact_frozen_plan_and_binding() {
+        let root = fixture_root("native-plan-projection");
+        let basis = frozen_basis(&root);
+        let (frozen, _) = basis.as_ref().unwrap();
+        let digest = frozen.digest().to_owned();
+        let signature = frozen.signature().map(ToOwned::to_owned);
+        let expected_plan = serde_json::to_value(frozen.plan()).unwrap();
+
+        let native = native_plan_document(&basis, &digest, signature.as_deref()).unwrap();
+
+        assert_eq!(native["schemaVersion"], 1);
+        assert_eq!(native["plan"], expected_plan);
+        assert_eq!(native["digest"], digest);
+        assert_eq!(native["signature"], signature.unwrap());
+    }
+
+    #[test]
+    fn normal_native_plan_rejects_digest_or_signature_drift() {
+        let root = fixture_root("native-plan-mismatch");
+        let basis = frozen_basis(&root);
+        let (frozen, _) = basis.as_ref().unwrap();
+        let digest = frozen.digest().to_owned();
+        let signature = frozen.signature().map(ToOwned::to_owned).unwrap();
+
+        assert!(native_plan_document(&basis, "sha256:wrong", Some(&signature)).is_err());
+        assert!(native_plan_document(&basis, &digest, Some("wrong-signature")).is_err());
     }
 
     fn verify(

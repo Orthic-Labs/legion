@@ -35,8 +35,15 @@ approval receipt; the resolver never silently drops a gate.
 - citation-to-sentence support checker passes;
 - cited DOI retraction status is freshly verified; unknown status blocks unless explicitly
   degraded by the operator;
-- corrections require a hook-issued receipt binding the sourced draft and allowing exactly
-  `Read` + `Edit` with hunk caps.
+- corrections issue a receipt with `legion research --step issue-patch --draft <draft>
+  --run-id <id> --key-file <existing-key> --out <receipt>`, then apply one diff with
+  `legion research --step apply-patch --draft <draft> --run-id <id> --key-file <existing-key>
+  --receipt <receipt> --diff <single-file.diff>`. The native CLI receipt binds run ID,
+  canonical draft path and source hash, grants exactly `Read` + `Edit`, and caps patches at
+  eight hunks and 4096 UTF-8 bytes per hunk. The key file must already contain at least 32
+  raw bytes created from OS cryptographic randomness outside this CLI. This is ambient CLI
+  integrity evidence; it does not attest hook execution or
+  provide a general single-use authorization.
 
 ## Discovery provenance
 

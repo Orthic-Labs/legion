@@ -55,6 +55,33 @@
       "expected_behavior": "Routes to changelog specialist and verifies the git range.",
       "severity": "error",
       "mode": "discovery"
+    },
+    {
+      "id": "writing-doc-coauthoring",
+      "prompt": "Help me co-write a technical decision doc section by section, then test whether a new teammate can understand it without our conversation.",
+      "expected_skill": "writing",
+      "forbidden_skills": ["architect"],
+      "expected_behavior": "Loads document-coauthoring guidance, gathers audience/context, drafts and refines sections iteratively, then checks comprehension using only the final document and reader questions.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "writing-internal-3p",
+      "prompt": "Write this week's 3P update for the platform team from these notes.",
+      "expected_skill": "writing",
+      "forbidden_skills": ["social", "marketing"],
+      "expected_behavior": "Loads internal-comms guidance and produces a concise Progress/Plans/Problems update with supported facts, team, and dates.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "writing-company-newsletter-faq",
+      "prompt": "Turn these approved company announcements and recurring employee questions into a linked newsletter and FAQ.",
+      "expected_skill": "writing",
+      "forbidden_skills": ["social", "blogs"],
+      "expected_behavior": "Loads internal-comms guidance, prioritizes company-wide items, groups newsletter bullets, answers recurring questions from authoritative sources, and flags unknowns without inventing policy.",
+      "severity": "error",
+      "mode": "discovery"
     }
   ],
   "should_not_trigger": [

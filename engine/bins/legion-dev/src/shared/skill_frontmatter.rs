@@ -13,6 +13,7 @@ const SCALAR_FIELDS: &[&str] = &[
     "capabilityClass",
     "discoverability",
     "domain",
+    "target",
 ];
 const LIST_FIELDS: &[&str] = &["operations", "effects", "hostRequirements"];
 const KINDS: &[&str] = &["capability", "entrypoint"];
@@ -45,6 +46,7 @@ pub struct Frontmatter {
     pub capability_class: Option<String>,
     pub discoverability: String,
     pub domain: Option<String>,
+    pub target: Option<String>,
     pub operations: Vec<String>,
     pub effects: Vec<String>,
     pub host_requirements: Vec<String>,
@@ -68,6 +70,9 @@ impl Frontmatter {
         );
         if let Some(d) = &self.domain {
             out.insert("domain".into(), Value::from(d.clone()));
+        }
+        if let Some(target) = &self.target {
+            out.insert("target".into(), Value::from(target.clone()));
         }
         out.insert(
             "operations".into(),
@@ -231,6 +236,7 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
     let capability_class_raw = out
         .get("capabilityClass")
         .map(|_| get_scalar(&out, "capabilityClass"));
+    let target_raw = out.get("target").map(|_| get_scalar(&out, "target"));
     if kind == "capability" && capability_class_raw.as_deref().unwrap_or("").is_empty() {
         return Err(format!("{path}: capability requires capabilityClass"));
     }
@@ -254,6 +260,22 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
             .unwrap_or(false)
     {
         return Err(format!("{path}: entrypoint cannot declare capabilityClass"));
+    }
+    if kind == "entrypoint" {
+        let target = target_raw.as_deref().unwrap_or("");
+        let Some((namespace, id)) = target.split_once(':') else {
+            return Err(format!("{path}: entrypoint requires a valid target"));
+        };
+        let valid_id = !id.is_empty()
+            && id.as_bytes()[0].is_ascii_lowercase()
+            && id.bytes().all(|b| {
+                (b as char).is_ascii_lowercase() || (b as char).is_ascii_digit() || b == b'-'
+            });
+        if !["authority", "workflow", "challenge"].contains(&namespace) || !valid_id {
+            return Err(format!("{path}: invalid entrypoint target {target}"));
+        }
+    } else if target_raw.is_some() {
+        return Err(format!("{path}: capability cannot declare target"));
     }
     let domain = out.get("domain").map(|_| get_scalar(&out, "domain"));
     if let Some(d) = &domain {
@@ -290,6 +312,7 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
         capability_class: capability_class_raw.filter(|s| !s.is_empty()),
         discoverability,
         domain: domain.filter(|s| !s.is_empty()),
+        target: target_raw.filter(|s| !s.is_empty()),
         operations,
         effects,
         host_requirements,
@@ -303,13 +326,14 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
 pub fn parse_skill_frontmatter_map(text: &str, path: &str) -> Result<Map<String, Value>, String> {
     parse_skill_frontmatter(text, path)?;
     const LISTS: [&str; 3] = ["operations", "effects", "hostRequirements"];
-    const SCALARS: [&str; 6] = [
+    const SCALARS: [&str; 7] = [
         "name",
         "description",
         "kind",
         "capabilityClass",
         "discoverability",
         "domain",
+        "target",
     ];
     let end = text[4..].find("\n---").map(|i| i + 4).unwrap_or(text.len());
     let top = Regex::new(r"^([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]*(.*))$").unwrap();
@@ -362,4 +386,47 @@ pub fn parse_skill_frontmatter_map(text: &str, path: &str) -> Result<Map<String,
     }
     finish(&mut block, &mut out);
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_skill_frontmatter, parse_skill_frontmatter_map};
+
+    const REQUIRED: &str = "name: example\ndescription: Example\nkind: entrypoint\ndiscoverability: explicit\noperations: []\neffects: []\nhostRequirements: []\ntarget: workflow:example";
+
+    #[test]
+    fn entrypoint_target_round_trips_through_catalog_map() {
+        let source = format!("---\n{REQUIRED}\n---\n");
+        let parsed = parse_skill_frontmatter_map(&source, "skills/example/SKILL.md").unwrap();
+        assert_eq!(
+            parsed.get("target").and_then(|v| v.as_str()),
+            Some("workflow:example")
+        );
+    }
+
+    #[test]
+    fn capability_cannot_carry_entrypoint_target() {
+        let source = format!(
+            "---\n{}\n---\n",
+            REQUIRED.replace(
+                "kind: entrypoint",
+                "kind: capability\ncapabilityClass: domain"
+            )
+        );
+        assert!(parse_skill_frontmatter(&source, "skills/example/SKILL.md")
+            .err()
+            .unwrap()
+            .contains("capability cannot declare target"));
+    }
+
+    #[test]
+    fn entrypoint_target_requires_supported_namespace_and_identifier() {
+        for target in ["tool:example", "workflow:Bad_Name", "workflow:"] {
+            let source = format!(
+                "---\n{}\n---\n",
+                REQUIRED.replace("workflow:example", target)
+            );
+            assert!(parse_skill_frontmatter(&source, "skills/example/SKILL.md").is_err());
+        }
+    }
 }

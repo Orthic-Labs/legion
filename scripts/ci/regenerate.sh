@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Regenerates every derived artifact that the gate checks with --check,
 # formats the Rust workspace and repairs a stale Cargo.lock. Runs only in the
-# right-git managed `regenerate` lane, which opens a pull request with the
-# result; nothing here commits or pushes.
+# right-git managed CI or `regenerate` lane. CI emits drift as a patch;
+# the regenerate lane opens a pull request. Nothing here commits or pushes.
 set -euo pipefail
 
 if [[ "${GITHUB_ACTIONS:-}" != "true" ]]; then

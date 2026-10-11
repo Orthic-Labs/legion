@@ -285,6 +285,7 @@ struct M1ProviderConfig {
 struct M1BindingConfig {
     runtime_provenance: String,
     catalog_path: PathBuf,
+    alias_catalog_path: Option<PathBuf>,
     mcp_tool_schema_path: PathBuf,
     declarative_assets_path: PathBuf,
     declarative_assets_kind: M1AssetsKind,
@@ -363,6 +364,7 @@ impl M1CompositionConfig {
             },
             catalog_root: resolve(self.catalog_root),
             catalog_index_path: self.catalog_index_path,
+            alias_catalog_path: self.release_binding.alias_catalog_path.map(resolve),
             policy_pack: self.policy_pack,
             development: None,
         })
@@ -427,6 +429,33 @@ fn load_m1_application(
     legion_application::M1Application::from_inputs_with_origin(inputs, origin)
         .map(Arc::new)
         .map_err(|error| commands::CommandError::incomplete(error.to_string()))
+}
+
+pub(crate) fn resolve_installed_m1_command(
+    command: &str,
+    arguments: Vec<String>,
+) -> Result<
+    (
+        legion_catalog::ResolvedExplicitCommand,
+        legion_application::DeterministicCapabilityResult,
+    ),
+    commands::CommandError,
+> {
+    let application = load_m1_application(&M1ConfigArgs { config: None })?;
+    application
+        .resolve_command(command, arguments)
+        .map_err(|error| {
+            if matches!(
+                &error,
+                legion_application::M1ApplicationError::Catalog(
+                    legion_catalog::CatalogError::InvalidCatalog { .. }
+                )
+            ) {
+                commands::CommandError::usage(error.to_string())
+            } else {
+                commands::CommandError::incomplete(error.to_string())
+            }
+        })
 }
 
 /// True when `legion serve` (without `--config`) can bind a release: the
@@ -514,7 +543,7 @@ fn validate_portable_plugin_root(
                 return Err(plugin_root_error(format!(
                     "cannot inspect {}: {error}",
                     ancestor.display()
-                )))
+                )));
             }
         };
         if is_reparse_point(&metadata) {
@@ -562,13 +591,13 @@ fn validate_portable_plugin_root(
         None => {
             return Err(plugin_root_error(
                 "this release predates the portable-core anchor (manifest has no portableCoreSha256)",
-            ))
+            ));
         }
         Some(expected) if expected.eq_ignore_ascii_case(&actual_core_digest) => {}
         Some(expected) => {
             return Err(plugin_root_error(format!(
                 "portable core digest mismatch: manifest declares {expected} but package hashes to {actual_core_digest}"
-            )))
+            )));
         }
     }
     let portable_contract: RightAxPortableCore = serde_json::from_slice(&portable_contract_bytes)
@@ -1145,10 +1174,15 @@ impl legion_mcp::NativeApi for M1McpApi {
                 "description": "Resolve one deterministic M1 capability and emit policy and invocation receipts.",
                 "inputSchema": {
                     "type": "object",
-                    "required": ["capabilityId", "policyContext"],
                     "additionalProperties": false,
+                    "oneOf": [
+                        {"required": ["capabilityId", "policyContext"]},
+                        {"required": ["command", "arguments", "policyContext"]}
+                    ],
                     "properties": {
                         "capabilityId": {"type": "string", "minLength": 1},
+                        "command": {"type": "string", "minLength": 2},
+                        "arguments": {"type": "array", "items": {"type": "string"}},
                         "policyContext": {}
                     }
                 }
@@ -1169,6 +1203,9 @@ impl legion_mcp::NativeApi for M1McpApi {
         }
         if operation != "legion_m1_invoke" {
             return Ok(());
+        }
+        if !valid_m1_invocation_shape(arguments) {
+            return Err(legion_mcp::McpError::InvalidParams);
         }
         let Some(context) = arguments.get("policyContext") else {
             return Err(legion_mcp::McpError::InvalidParams);
@@ -1196,14 +1233,12 @@ impl legion_mcp::NativeApi for M1McpApi {
                 Ok(m1_product_status_value(&application.status()))
             }
             "legion_m1_invoke" => {
-                let capability_id = arguments
-                    .get("capabilityId")
-                    .and_then(Value::as_str)
-                    .filter(|id| !id.is_empty())
-                    .ok_or_else(|| {
-                        legion_runtime::RuntimeError::InvalidTask("capabilityId is required".into())
-                    })?
-                    .to_owned();
+                if !valid_m1_invocation_shape(arguments) {
+                    return Err(legion_runtime::RuntimeError::InvalidTask(
+                        "provide exactly one of capabilityId or command; arguments require command"
+                            .into(),
+                    ));
+                }
                 let policy_context = serde_json::from_value(
                     arguments.get("policyContext").cloned().ok_or_else(|| {
                         legion_runtime::RuntimeError::InvalidTask(
@@ -1214,11 +1249,47 @@ impl legion_mcp::NativeApi for M1McpApi {
                 .map_err(|_| {
                     legion_runtime::RuntimeError::InvalidTask("policyContext is invalid".into())
                 })?;
-                application
-                    .invoke(legion_application::M1InvocationRequest {
+                let result = if let Some(command) = arguments.get("command").and_then(Value::as_str)
+                {
+                    let args = arguments
+                        .get("arguments")
+                        .and_then(Value::as_array)
+                        .ok_or_else(|| {
+                            legion_runtime::RuntimeError::InvalidTask(
+                                "arguments must be an array".into(),
+                            )
+                        })?
+                        .iter()
+                        .map(|value| {
+                            value.as_str().map(str::to_owned).ok_or_else(|| {
+                                legion_runtime::RuntimeError::InvalidTask(
+                                    "arguments must contain strings".into(),
+                                )
+                            })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    application.invoke_command(legion_application::M1CommandRequest {
+                        command: command.to_owned(),
+                        arguments: args,
+                        policy_context,
+                    })
+                } else {
+                    let capability_id = arguments
+                        .get("capabilityId")
+                        .and_then(Value::as_str)
+                        .filter(|id| !id.is_empty())
+                        .ok_or_else(|| {
+                            legion_runtime::RuntimeError::InvalidTask(
+                                "capabilityId or command is required".into(),
+                            )
+                        })?
+                        .to_owned();
+                    application.invoke(legion_application::M1InvocationRequest {
                         capability_id,
                         policy_context,
                     })
+                };
+                result
                     .map(m1_invocation_value)
                     .map_err(|error| legion_runtime::RuntimeError::Policy(error.to_string()))
             }
@@ -1238,6 +1309,44 @@ impl legion_mcp::NativeApi for M1McpApi {
         }
         Box::pin(async move { self.invoke(operation, arguments) })
     }
+}
+
+fn valid_m1_invocation_shape(arguments: &Value) -> bool {
+    let Some(object) = arguments.as_object() else {
+        return false;
+    };
+    if object.keys().any(|key| {
+        !matches!(
+            key.as_str(),
+            "capabilityId" | "command" | "arguments" | "policyContext"
+        )
+    }) {
+        return false;
+    }
+    let capability_present = arguments.get("capabilityId").is_some();
+    let command_present = arguments.get("command").is_some();
+    let has_capability = arguments
+        .get("capabilityId")
+        .and_then(Value::as_str)
+        .is_some_and(|value| !value.is_empty());
+    let has_command = arguments
+        .get("command")
+        .and_then(Value::as_str)
+        .is_some_and(|value| !value.is_empty());
+    if (capability_present && !has_capability)
+        || (command_present && !has_command)
+        || has_capability == has_command
+    {
+        return false;
+    }
+    if arguments.get("arguments").is_some() && !has_command {
+        return false;
+    }
+    !has_command
+        || arguments
+            .get("arguments")
+            .and_then(Value::as_array)
+            .is_some_and(|values| values.iter().all(Value::is_string))
 }
 
 /// The product-level gaps M1 does not close. One owner, because the CLI and the
@@ -1279,13 +1388,17 @@ fn m1_status_value(status: &legion_application::M1Status) -> Value {
 }
 
 fn m1_invocation_value(result: legion_application::M1InvocationResult) -> Value {
-    json!({
+    let mut value = json!({
         "status": m1_status_value(&result.status),
         "capability": result.capability,
         "policyEvaluation": {"decision": result.policy_evaluation.decision},
         "policyReceipt": {"decision": result.policy_receipt.decision},
         "invocationReceipt": result.invocation_receipt,
-    })
+    });
+    if let Some(resolved) = result.resolved_command {
+        value["resolvedCommand"] = json!(resolved);
+    }
+    value
 }
 
 struct M1BindingGate {

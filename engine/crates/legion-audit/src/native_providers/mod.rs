@@ -8,7 +8,9 @@ pub mod p11d_quality;
 pub mod reasoning;
 pub mod security;
 
-use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
+use crate::{
+    execution::ExecutionContext, AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor,
+};
 use legion_contracts::ProviderResult;
 use legion_provider_sdk::ExternalProjectTool;
 use std::sync::Arc;
@@ -30,6 +32,52 @@ pub struct NativeProviderRegistry {
 }
 
 impl NativeProviderRegistry {
+    fn runtime_visual_capture<'a>(
+        &'a self,
+        plan: &crate::FrozenPlan,
+        provider: &AuditProvider,
+        context: &'a ExecutionContext<'_>,
+    ) -> Option<legacy::visual::RuntimeVisualCapture> {
+        let source = provider
+            .configuration
+            .get("runner")?
+            .get("visual")?
+            .get("captureSource")?;
+        if source.get("kind")?.as_str()? != "runtime-provider"
+            || source.get("providerId")?.as_str()? != "legacy.runtime.app"
+        {
+            return None;
+        }
+        let source_provider_id = source.get("providerId")?.as_str()?.to_owned();
+        let runtime = plan
+            .providers()
+            .iter()
+            .find(|candidate| candidate.id == source_provider_id)?;
+        let runtime_inputs = runtime.configuration.get("runner")?.get("runtime")?.clone();
+        let artifact_dir = runtime_inputs
+            .get("artifactDir")
+            .and_then(serde_json::Value::as_str)
+            .map(std::path::PathBuf::from);
+        let prior_execution = context
+            .prior_results
+            .iter()
+            .find(|execution| execution.provider == source_provider_id)
+            .cloned();
+        Some(legacy::visual::RuntimeVisualCapture {
+            plan_digest: context.plan_digest.to_owned(),
+            inventory_digest: plan.plan().inventory_digest.clone(),
+            source_provider_id,
+            runtime_inputs,
+            prior_execution,
+            artifact_dir,
+            scratch_tmp_dir: self
+                .legacy_checks
+                .scratch()
+                .ok()
+                .map(|scratch| scratch.tmp_dir()),
+        })
+    }
+
     pub fn new(root: impl Into<std::path::PathBuf>) -> Self {
         let root = root.into();
         Self {
@@ -134,6 +182,24 @@ impl ProviderExecutor for NativeProviderRegistry {
         self.execute(provider, inventory)
     }
 
+    fn execute_with_context(
+        &self,
+        plan: &crate::FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        context: &ExecutionContext<'_>,
+    ) -> Result<ProviderResult, AuditError> {
+        if provider.id == legacy::visual::VISUAL_PROVIDER_ID {
+            let capture = self.runtime_visual_capture(plan, provider, context);
+            return self.legacy.execute_with_runtime_visual_capture(
+                provider,
+                inventory,
+                capture.as_ref(),
+            );
+        }
+        self.execute_bound(plan, provider, inventory)
+    }
+
     async fn execute_async(
         &self,
         plan: &crate::FrozenPlan,
@@ -168,5 +234,25 @@ impl ProviderExecutor for NativeProviderRegistry {
             }
         }
         self.execute_bound(plan, provider, inventory)
+    }
+
+    async fn execute_async_with_context(
+        &self,
+        plan: &crate::FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        cancellation: CancellationToken,
+        context: &ExecutionContext<'_>,
+    ) -> Result<ProviderResult, AuditError> {
+        if provider.id == legacy::visual::VISUAL_PROVIDER_ID {
+            let capture = self.runtime_visual_capture(plan, provider, context);
+            return self.legacy.execute_with_runtime_visual_capture(
+                provider,
+                inventory,
+                capture.as_ref(),
+            );
+        }
+        self.execute_async(plan, provider, inventory, cancellation)
+            .await
     }
 }

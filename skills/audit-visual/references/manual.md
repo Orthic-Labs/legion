@@ -8,8 +8,9 @@ MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: qa (capture and interaction procedure only)
 TERMINAL: `visual.core` reconciles its frozen matrix or reports typed `UNPROVEN` coverage.
 
-Audit Visual owns deterministic enumeration, capture, & coverage of rendered UI. Baseline comparison
-is not implemented in the native runner (section 5). It
+Audit Visual owns deterministic enumeration, capture, & coverage of rendered UI. Native capture and
+pixel comparison are bounded; an automatic runtime screenshot has no baseline binding and remains
+review-required. It
 does not own qualitative design taste, design-law critique, motion craft, typography direction,
 composition, brand expression, or remediation; those belong to Designer. QA owns functional,
 behavioral, browser, & runtime checks. Oracle may consume this evidence for independent assurance
@@ -78,12 +79,19 @@ Do not convert subjective judgments such as “generic,” “weak hierarchy,”
 
 ## 5. Regression comparison
 
-**Not implemented in the native runner.** `legion audit` accepts `--visual-baselines`, `--url`,
-`--surfaces`, `--visual-spec`, `--width`, and `--height`, but never reads them. No baseline comparison
-runs. Any case that needs baseline comparison is `UNPROVEN` until the owner builds it; do not report a
-pixel or structural difference from these options.
+With `--visual-spec`, native visual compares declared capture PNGs with their declared baselines.
+`--visual-baselines` freezes a digest-bound listing; a baseline name must resolve within that listing
+and its bytes must still match. PNGs are fully decoded within fixed bounds & compared in RGBA space;
+encoding metadata alone does not create a regression. Global `diff` options may set `channelThreshold`,
+`maxChangedRatio`, & pixel `masks`; per-capture `diff` overrides global options. Invalid options,
+dimensions, paths, or image decoding produce typed `UNPROVEN` results.
 
-The rules below apply only if and when a comparison is built.
+When runtime & visual are selected with `--url` and no explicit spec, runtime screenshots flow to visual
+through the frozen plan's ordering-only capture source. Each screenshot is checked against its frozen
+surface, viewport, plan-bound receipt, path, digest, byte length, & decoded dimensions. These screenshots
+are supplemental captures without an inferred baseline; they always require review and cannot make the
+visual result complete. The runtime provider remains incomplete. An explicit spec takes precedence and
+runtime captures are never merged into its expected matrix or baseline map.
 
 Baseline comparison requires matching revision identity, case parameters, rendering environment,
 mask set, & tolerance policy. If any binding differs, classify comparison `UNPROVEN` unless frozen
@@ -116,15 +124,13 @@ incomplete. A full-page image does not prove hidden overlays or interaction stat
 
 `/audit-visual` uses client-native capture tools plus Legion's shared frozen Audit plan.
 
-1. Write visual specification.
-2. Capture specified states, then run `legion audit <root> --out <run-dir>`. The native runner does not
-   bind captured evidence into its results.
-3. Do not rely on `--url`, `--surfaces`, `--visual-spec`, or `--visual-baselines`: the native runner
-   accepts them and ignores them (section 5).
-4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution. The
-   native runner's frozen provider registry has no `visual.core` provider, so this step cannot pass
-   natively and coverage stays `UNPROVEN` unless that provider exists.
-5. Finalize through shared report & SARIF pipeline; do not emit an incompatible report shape.
+1. For baseline comparison or a rich coverage matrix, freeze an explicit visual specification and run
+   `legion audit <root> --visual-spec <file> [--visual-baselines <dir>] --out <run-dir>`.
+2. For supplemental runtime captures without a baseline, select runtime & visual, provide `--url`, and
+   omit `--visual-spec`; `--surfaces`, `--width`, & `--height` are frozen as runtime inputs.
+3. Read `plan.json` before `visual.json`. Runtime-to-visual order is frozen without a success dependency,
+   so partial runtime results can still contribute validated screenshots.
+4. Finalize through shared report & SARIF pipeline; do not emit an incompatible report shape.
 
 External vision review runs only when user explicitly requests it. Its output is advisory evidence,
 must be checked against actual pixels, & never replaces matrix reconciliation.

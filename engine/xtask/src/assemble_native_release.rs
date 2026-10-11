@@ -509,6 +509,7 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     let share = output.join("share").join("legion");
     let assets = share.join("assets");
     let catalog_path = assets.join("registry").join("index.json");
+    let alias_catalog_path = assets.join("registry").join("capability-aliases.json");
     let provider_registry_path = assets.join("registry").join("providers.json");
     let schema_path = assets.join("schemas").join("mcp-tools.schema.json");
     let policy_path = assets.join("policy").join("arcane-m1-policy.json");
@@ -517,6 +518,11 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     fs::copy(
         repository_root.join("src/registry/skills/index.json"),
         &catalog_path,
+    )
+    .map_err(|e| e.to_string())?;
+    fs::copy(
+        repository_root.join("src/config/capability-aliases.json"),
+        &alias_catalog_path,
     )
     .map_err(|e| e.to_string())?;
     fs::copy(
@@ -658,6 +664,7 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
             "releaseBinding": {
                 "runtimeProvenance": provenance,
                 "catalogPath": "assets/registry/index.json",
+                "aliasCatalogPath": "assets/registry/capability-aliases.json",
                 "mcpToolSchemaPath": "assets/schemas/mcp-tools.schema.json",
                 "declarativeAssetsPath": "assets",
                 "declarativeAssetsKind": "directory",

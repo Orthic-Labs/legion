@@ -45,13 +45,14 @@ TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN cov
 1. Freeze repository, Blueprint generation, routes/screens, viewports, states, themes, locales,
    platforms (each shipped OS is its own dimension per `references/platform-fidelity.md`),
    interactions, references, & acceptance criteria.
-2. Create an explicit visual specification with expected matrix & capture artifacts; never invent evidence.
-3. Capture specified runtime states through the host's client-native browser tools, following
-   `references/visual-qa-capture.md`. If the host provides no browser capability, record the states as
-   `UNPROVEN`. Then run `legion audit <root> --out <run-dir>` for the repository provider run. The native
-   runner does not read captured evidence; its visual options are inert (see `references/manual.md` section 5).
-4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution. The native
-   runner's frozen provider registry has no `visual.core` provider, so this step cannot pass natively.
+2. Use an explicit visual specification when comparing against baselines or asserting richer matrix
+   dimensions; never invent evidence.
+3. Capture specified states through host browser tools, following `references/visual-qa-capture.md`.
+   When runtime & visual providers are both selected with `--url` and no explicit spec, the frozen plan
+   orders runtime before visual & binds resulting PNGs as supplemental captures. They have no inferred
+   baselines and remain review-required. Otherwise record unavailable captures as `UNPROVEN`.
+4. Read frozen `plan.json` before `visual.json`; `visual.core` must be selected before execution. Explicit
+   specs remain authoritative and runtime screenshots are never merged into their matrix.
 5. Missing captures, baselines, matrix cases, readable PNGs, runtime states, or required evidence are
    `UNPROVEN`; zero pixel findings is not a pass without complete coverage.
 6. Finalize through shared report pipeline. Do not emit an incompatible report shape. `legion audit

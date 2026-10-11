@@ -95,6 +95,40 @@ fn minimize_carries_all_five_ponytail_tags_and_raw_excerpts() {
         .collect();
     assert_eq!(tags, vec!["delete", "stdlib", "native", "yagni", "shrink"]);
     assert_eq!(value["excerptMode"], "raw");
+    let guidance = value["ponytailGuidance"]
+        .as_str()
+        .expect("full ponytail guidance");
+    for requirement in [
+        "False-positive discipline (STRICT",
+        "testing/DI seam",
+        "planned extension",
+        "Mechanical file splitting counts here",
+        "Package/script sprawl is in scope",
+    ] {
+        assert!(guidance.contains(requirement), "missing {requirement:?}");
+    }
+}
+
+#[test]
+fn lens_packets_carry_applicable_lens_cues() {
+    for (id, cue) in [
+        ("reasoning.doc-drift", "plan-implementation drift"),
+        ("reasoning.correctness", "SPEC fidelity"),
+        ("reasoning.ai-slop", "test quality"),
+        ("reasoning.minimize", "testing/DI seams"),
+        ("reasoning.security", "invariant falsification"),
+        ("reasoning.performance", "N+1 / missing indexes"),
+        ("reasoning.data-safety", "PII/secrets leaking"),
+        ("reasoning.resilience", "silent catch blocks"),
+    ] {
+        let value = lens_plan_packet_value(id).expect("lens plan present");
+        let cues = value["cues"].as_array().expect("cue array");
+        assert!(
+            cues.iter()
+                .any(|entry| entry.as_str().is_some_and(|text| text.contains(cue))),
+            "{id} missing applicable cue {cue:?}"
+        );
+    }
 }
 
 #[test]
@@ -115,7 +149,17 @@ fn variant_analysis_is_planned_here_not_by_adjudication() {
 }
 
 #[test]
-fn model_tier_never_exceeds_what_the_lens_requires() {
+fn model_tiers_match_lens_routing_without_changing_model_tier_enum() {
+    // Preserve strict modelTier values while adding the strongest dispatch floor.
+    for id in [
+        "reasoning.security",
+        "reasoning.architecture",
+        "reasoning.correctness",
+    ] {
+        let value = lens_plan_packet_value(id).expect("lens plan present");
+        assert_eq!(value["modelTier"], "judgment", "{id}");
+        assert_eq!(value["minimumModelTier"], "strongest", "{id}");
+    }
     // Mechanical-tier lenses per lens-routing.md: dead-file, a11y,
     // platform-parity.
     for id in [
@@ -125,6 +169,7 @@ fn model_tier_never_exceeds_what_the_lens_requires() {
     ] {
         let value = lens_plan_packet_value(id).expect("lens plan present");
         assert_eq!(value["modelTier"], "mechanical", "{id}");
+        assert!(value.get("minimumModelTier").is_none(), "{id}");
     }
     // Judgment-tier lenses (at least the mid tier): architecture, security,
     // schema, correctness, minimize, doc-drift, data-safety, resilience,
@@ -133,10 +178,7 @@ fn model_tier_never_exceeds_what_the_lens_requires() {
         "reasoning.ai-slop",
         "reasoning.naming",
         "reasoning.performance",
-        "reasoning.architecture",
-        "reasoning.security",
         "reasoning.schema",
-        "reasoning.correctness",
         "reasoning.minimize",
         "reasoning.doc-drift",
         "reasoning.data-safety",
@@ -145,5 +187,19 @@ fn model_tier_never_exceeds_what_the_lens_requires() {
     ] {
         let value = lens_plan_packet_value(id).expect("lens plan present");
         assert_eq!(value["modelTier"], "judgment", "{id}");
+        assert!(value.get("minimumModelTier").is_none(), "{id}");
+    }
+}
+
+#[test]
+fn correctness_cues_keep_negative_space_checks_reachable() {
+    let value = lens_plan_packet_value("reasoning.correctness").expect("lens plan present");
+    let cues = value["cues"].as_array().expect("cue array");
+    for cue in ["meta.test_skew", "meta.unsafe_sites"] {
+        assert!(
+            cues.iter()
+                .any(|entry| entry.as_str().is_some_and(|text| text.contains(cue))),
+            "correctness missing negative-space cue {cue:?}"
+        );
     }
 }

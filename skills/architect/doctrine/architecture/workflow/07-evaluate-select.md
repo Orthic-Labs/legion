@@ -5,3 +5,6 @@
 ```
 
 Evaluate gates, then scenarios, economics, evidence, dominance, sensitivity, and typed outcome.
+
+For an active `../methods/brainstorming.md`, close with its decision checkpoint: select, defer, or ask
+only for a material unresolved user-owned choice. The checkpoint does not add an approval gate.

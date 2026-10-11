@@ -373,6 +373,42 @@ mod tests {
     }
 
     #[test]
+    fn mode_alias_selects_parent_skill_only() {
+        let (dir, files) = setup(
+            "mode-parent",
+            r#"{"id":"a","prompt":"/legacy do it","expected_skill":"alpha"}"#,
+        );
+        std::fs::create_dir_all(dir.join("src/config")).unwrap();
+        std::fs::write(
+            dir.join("src/config/capability-aliases.json"),
+            r#"{"aliases":{"/legacy":"/alpha implementation-plan"}}"#,
+        )
+        .unwrap();
+        let s = evaluate(&dir, &files, &[]);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(s.ok(), "{:?}", s.mismatches);
+        assert_eq!(s.bundles["alpha"].passed, 1);
+    }
+
+    #[test]
+    fn non_skill_alias_target_is_not_reported_as_skill_behavior() {
+        let (dir, files) = setup(
+            "tool-target",
+            r#"{"id":"a","prompt":"/legacy do it","expected_skill":null}"#,
+        );
+        std::fs::create_dir_all(dir.join("src/config")).unwrap();
+        std::fs::write(
+            dir.join("src/config/capability-aliases.json"),
+            r#"{"aliases":{"/legacy":"tool:execution-preflight"}}"#,
+        )
+        .unwrap();
+        let s = evaluate(&dir, &files, &[]);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(s.ok(), "{:?}", s.mismatches);
+        assert_eq!(s.bundles["alpha"].passed, 1);
+    }
+
+    #[test]
     fn expected_skill_without_prompt_is_a_mismatch() {
         let (dir, files) = setup("noprompt", r#"{"id":"a","expected_skill":"alpha"}"#);
         let s = evaluate(&dir, &files, &[]);

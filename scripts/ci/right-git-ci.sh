@@ -6,35 +6,49 @@ if [[ "${GITHUB_ACTIONS:-}" != "true" ]]; then
   exit 1
 fi
 
-pnpm install --frozen-lockfile
-# Hosted runners own Cargo directly; local package scripts use the RightKit
-# broker client, which is intentionally absent from hosted CI.
+regenerate_workflow=false
+if [[ "${GITHUB_WORKFLOW:-}" == "legion-regenerate" ]]; then
+  regenerate_workflow=true
+fi
 
-# Diagnose lockfile drift before any --locked command obscures which input
-# changed. Only regenerate after Cargo itself reports that --locked prevented
-# a lockfile update; unrelated metadata failures remain ordinary CI failures.
-generated_drift=false
-cargo_metadata_log="$(mktemp)"
-if cargo metadata --locked --format-version 1 --manifest-path engine/Cargo.toml > /dev/null 2> "$cargo_metadata_log"; then
-  rm -f "$cargo_metadata_log"
-else
-  cat "$cargo_metadata_log" >&2
-  if grep -Eiq '(lock file|lockfile).*(needs to be updated|cannot be updated|cannot update).*--locked|cannot update.*(the )?lock file.*--locked' "$cargo_metadata_log"; then
-    if (cd engine && cargo update --workspace --offline); then
-      echo "Cargo.lock drift: canonical generated diff follows"
-      git diff -- engine/Cargo.lock
-      generated_drift=true
-    else
-      echo "Unable to regenerate Cargo.lock from the offline cache" >&2
-      rm -f "$cargo_metadata_log"
-      exit 1
-    fi
-  else
-    rm -f "$cargo_metadata_log"
+if [[ "$regenerate_workflow" != "true" ]]; then
+  if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+    echo "Refusing canonical regeneration: CI checkout is not clean before the gate." >&2
     exit 1
   fi
-  rm -f "$cargo_metadata_log"
 fi
+
+pnpm install --frozen-lockfile
+
+if [[ "$regenerate_workflow" != "true" ]]; then
+  regen_log="$(mktemp)"
+  regen_patch="$(mktemp)"
+  trap 'rm -f "$regen_log" "$regen_patch"' EXIT
+  if ! bash scripts/ci/regenerate.sh > "$regen_log" 2>&1; then
+    cat "$regen_log" >&2
+    echo "Canonical regeneration failed; stopping CI." >&2
+    exit 1
+  fi
+  cat "$regen_log"
+
+  if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+    if [[ -n "$(git status --porcelain -- engine/Cargo.lock)" ]]; then
+      echo "Cargo.lock drift: canonical lock update is included in the patch below."
+    fi
+    git diff --binary --no-ext-diff HEAD -- > "$regen_patch"
+    while IFS= read -r -d '' path; do
+      git diff --no-index --binary --no-ext-diff -- /dev/null "$path" >> "$regen_patch" || [[ "$?" -eq 1 ]]
+    done < <(git ls-files --others --exclude-standard -z)
+    echo "BEGIN_RIGHT_GIT_CANONICAL_REGEN_PATCH"
+    cat "$regen_patch"
+    echo "END_RIGHT_GIT_CANONICAL_REGEN_PATCH"
+    echo "Canonical regeneration produced tracked or untracked changes; apply the patch and rerun CI." >&2
+    exit 1
+  fi
+fi
+
+# Hosted runners own Cargo directly; local package scripts use the RightKit
+# broker client, which is intentionally absent from hosted CI.
 
 checks=(
   "check-canonical-names"
@@ -67,19 +81,8 @@ for check in "${checks[@]}"; do
   if cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- "${check_args[@]}"; then
     continue
   fi
-  if [[ "$check" == "generate-host-projection --check" ]]; then
-    echo "Host projection drift: canonical generated diff follows"
-    cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection
-    git diff -- src/registry/host-projection.json references/generated/support.md
-    generated_drift=true
-    continue
-  fi
   exit 1
 done
-
-if [[ "$generated_drift" == "true" ]]; then
-  exit 1
-fi
 
 # The managed regenerate lane runs this gate on Linux to prove its pull
 # request is consistent: derived-artifact checks above plus formatting. Full

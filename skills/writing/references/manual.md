@@ -2,7 +2,7 @@
 
 PRIMARY_DELIVERABLE: Bounded prose or copy deliverable
 SPECIALIST_REFS_MAX: 1
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 0 normally; 1 fresh-context Oracle for the document-coauthoring reader check
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: brand (branded output), designer (layout handoff), social (distribution handoff), marketing (strategy handoff), seo (search intent, indexing, publish SEO), research (sourcing), ads (paid-media handoff), qa and audit-visual (rendered-page evidence), oracle and council (optional independent review)
@@ -16,6 +16,8 @@ the requested deliverable truly combines purposes.
 | Writing job | Read next |
 |---|---|
 | Essay, newsletter, explainer, caption, thread, editorial/long-form prose | `specialists/editorial/GUIDE.md` |
+| Documentation, proposal, technical spec, decision doc, or RFC with collaborative section drafting | `references/document-coauthoring.md` |
+| Internal 3P update, company newsletter, employee FAQ, or other internal communication | `references/internal-comms.md` |
 | Research-heavy long-form article that is not a publish-gated SEO blog | `references/research-article.md` |
 | Video, carousel, podcast, or narrative script | `references/script.md` |
 | Content repurposing/atomization | `references/content-repurposer/reference.md` |

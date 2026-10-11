@@ -105,3 +105,41 @@ pub fn render(report: &ReportV1) -> Result<String, ReportError> {
 pub fn to_sarif(report: &ReportV1) -> Result<String, ReportError> {
     render(report)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn artifact_only_visual_finding_preserves_evidence_without_location() {
+        let evidence = json!({
+            "kind":"visual-artifact-difference",
+            "captureId":"home",
+            "actual":{"path":"shots/home.png","digest":format!("sha256:{}", "a".repeat(64)),"bytes":256},
+            "baseline":{"path":"home.png","digest":format!("sha256:{}", "b".repeat(64)),"bytes":256}
+        });
+        let report = ReportV1 {
+            schema_version: 1,
+            report_id: legion_contracts::ReportId::new("report:visual-fixture").unwrap(),
+            status: legion_contracts::ReportStatus::Findings,
+            findings: vec![legion_contracts::Finding {
+                id: legion_contracts::FindingId::new("sha256:visual-fixture").unwrap(),
+                severity: "medium".into(),
+                title: "Visual regression in home".into(),
+                message: "Rendered pixels differ from the baseline.".into(),
+                provider: Some("legacy.visual.core".into()),
+                locations: Vec::new(),
+                evidence: evidence.as_object().unwrap().clone().into_iter().collect(),
+            }],
+            gaps: Vec::new(),
+            claims: BTreeMap::new(),
+            targets: vec!["fixture".into()],
+            extensions: BTreeMap::new(),
+        };
+        let rendered: Value = serde_json::from_str(&render(&report).unwrap()).unwrap();
+        let result = &rendered["runs"][0]["results"][0];
+        assert_eq!(result["locations"], json!([]));
+        assert_eq!(result["properties"]["evidence"], evidence);
+    }
+}

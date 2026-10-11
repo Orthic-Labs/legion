@@ -2,11 +2,69 @@
 
 ## Scope
 
-QA owns functional/behavioral QA, deterministic browser/runtime checks, mocks, and viewport capture
-as supporting QA artifacts. This manual carries the recovered QA method (project QA contract,
+QA owns functional/behavioral QA, deterministic browser/runtime checks, tests-only authoring, mocks,
+and viewport capture as supporting QA artifacts. This manual carries the recovered QA method (project QA contract,
 shared runners, hidden-browser defaults, functional and rendered browser checks, report format, machine-state
 boundary). It is **not** Oracle assurance, not Audit Visual's rendered-state audit, and not
 Designer's qualitative craft.
+
+## Test-only authoring
+
+Use this branch when the requested result is a test for one named behavior, including a
+regression test, edge-case test, property/fuzz test, invariant, trace assertion, performance
+budget, or race check. It applies to native, backend, and web code; a browser is needed only when
+the contract is observable only through browser behavior. Write tests only. Do not diagnose or
+repair the implementation under test.
+
+Before authoring, discover the target repository's actual test shape:
+
+- Read the runner manifest/configuration and relevant CI invocation; report the command actually
+  used rather than guessing from language or framework.
+- Inspect a few nearby tests to match location, naming, fixtures/factories, mocks, and assertion
+  style. Reuse existing fixtures and boundary seams.
+- If no test infrastructure exists, state that fact and propose the smallest suitable addition;
+  do not silently choose or install a framework.
+
+Author against one named target at a time. If a test needs a product-code seam or refactor, report
+the testability defect and route design to Architect. If evidence shows the behavior is wrong,
+Debugger owns diagnosis and repair; this branch may provide the reproducing test as its starting
+artifact.
+
+Name the behavioral contract before writing assertions: observable failure modes, relevant
+boundaries, and the input or state a careless implementation would mishandle. Reject a test that
+only proves the target runs, and do not snapshot unreviewed current output. Keep each test focused
+on one behavior. Coverage is a byproduct, not the contract.
+
+Choose test shape from the failure mode; a unit test is a useful default, not a requirement. Use a
+property test for a large input space, a fuzz seed/corpus for parser or input-driven crashes, an
+invariant check for persistent or relational state, a trace assertion for a multi-step flow, a
+performance budget only against a named repeatable baseline, and a race detector for concurrency
+failures. Wire memory-safety checks to the repository's sanitizer or leak-check CI when applicable.
+Use integration or browser assertions when the contract crosses those boundaries. Do not add every
+shape or force a nondeterministic test where a reliable contract cannot be observed.
+
+Where practical, run the test against broken or absent behavior first, retain the actual failing
+assertion/output, then run it against the corrected or already-fixed behavior and retain actual
+passing output. If red is impractical because the fix already shipped or needed infrastructure is
+unavailable, say why and what would make the red run possible. Never claim red/green without both
+observed results. A failed test may expose a testability seam or a product defect; leave product
+repair to the user or `/debugger`.
+
+For test-only authoring, report:
+
+```text
+TARGET:    <one named behavior>
+RUNNER:    <discovered command>
+LOCATION:  <test path, following repository convention>
+CONTRACT:  <failure mode and relevant boundaries>
+SHAPE:     <unit | integration | property | fuzz | invariant | trace | perf-budget | race | other>
+RED:       <actual failure, or why it was not practical>
+GREEN:     <actual pass, or not run with reason>
+BOUNDARY:  <test only; product repair is outside this authoring task>
+```
+
+This report is for test-authoring tasks. Runtime QA keeps its existing acceptance, evidence,
+reporting, and cleanup method below.
 
 ## The Split
 

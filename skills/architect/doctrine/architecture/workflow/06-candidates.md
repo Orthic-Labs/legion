@@ -5,3 +5,6 @@
 ```
 
 Build/buy/reuse candidates with baselines, caps, and failure stories.
+
+When `../methods/brainstorming.md` is active, make candidate differences consequential and explicit;
+do not manufacture options when current evidence leaves one materially adequate route.

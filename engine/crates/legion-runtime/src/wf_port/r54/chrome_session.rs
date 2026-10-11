@@ -12,10 +12,6 @@
 //!   (press_key) and `Input.insertText` (insert_text). This is real input, not synthetic DOM
 //!   events. A CDP error is returned to the caller and never replaced with a fallback.
 //!
-//! Not sent: qa.mjs called `Network.enable` before the network calls. Its
-//! `Network::Enable` field list is not confirmed for headless_chrome 1.0.22, so it is omitted.
-//! Whether Chrome needs it for these two calls is unverified in this environment.
-//!
 //! Gaps: none originate here. `run.rs` reports `cookies-skipped:<n>` when a loaded session file
 //! holds cookies that cannot be applied.
 //!
@@ -37,7 +33,19 @@ pub struct ChromeSession {
 }
 
 impl ChromeSession {
-    pub fn new(tab: Arc<Tab>) -> Self {
+    pub fn new(tab: Arc<Tab>) -> Result<Self, String> {
+        // qa.mjs `cdpConnect` enables Network before any session or network controls.
+        // Keep this fail-closed: a tab that cannot enable the domain must not continue
+        // with cookies/throttling and later report a successful QA run.
+        tab.call_method(Network::Enable {
+            max_total_buffer_size: None,
+            max_resource_buffer_size: None,
+            max_post_data_size: None,
+            report_direct_socket_traffic: None,
+            enable_durable_messages: None,
+        })
+        .map_err(|e| format!("Network.enable failed: {e}"))?;
+
         // `client.on("Runtime.consoleAPICalled"/"Runtime.exceptionThrown", ...)` (qa.mjs
         // `runActions`, lines 692-701). Field shape confirmed against this crate's other CDP
         // event-subscription use (`wf_port::r03::verify::ChromeBrowserDriver::open`), which is
@@ -69,10 +77,10 @@ impl ChromeSession {
                 _ => {}
             },
         ));
-        ChromeSession {
+        Ok(ChromeSession {
             tab,
             console_errors,
-        }
+        })
     }
 
     fn eval_raw(&self, expression: &str) -> Result<Value, String> {

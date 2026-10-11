@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
-const USAGE: &str = "Usage: legion skills [list|verify] [--bundle <id>] [--publication]\n";
+const USAGE: &str = "Usage: legion skills [list|verify|resolve] [--bundle <id>] [--publication]\n";
 
 pub fn run(args: CommonArgs) -> CommandResult {
     let argv = args
@@ -13,11 +13,14 @@ pub fn run(args: CommonArgs) -> CommandResult {
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect::<Vec<_>>();
-    if argv.iter().any(|arg| arg == "--help") {
+    let command = argv.first().map(String::as_str).unwrap_or("list");
+    if command != "resolve"
+        && (argv.first().is_some_and(|arg| arg == "--help")
+            || argv.get(1).is_some_and(|arg| arg == "--help"))
+    {
         return Ok(json!({"__raw":USAGE}));
     }
-    let command = argv.first().map(String::as_str).unwrap_or("list");
-    if !matches!(command, "list" | "verify") {
+    if !matches!(command, "list" | "verify" | "resolve") {
         return Err(CommandError::usage(format!(
             "unknown skills command: {command}"
         )));
@@ -25,7 +28,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let mut bundles = Vec::new();
     let mut publication = false;
     let mut i = 1;
-    while i < argv.len() {
+    while command != "resolve" && i < argv.len() {
         match argv[i].as_str() {
             "--bundle" if i + 1 < argv.len() => {
                 i += 1;
@@ -35,6 +38,21 @@ pub fn run(args: CommonArgs) -> CommandResult {
             other => return Err(CommandError::usage(format!("unknown option: {other}"))),
         }
         i += 1;
+    }
+    if command == "resolve" {
+        if argv.len() < 2 {
+            return Err(CommandError::usage(
+                "Usage: legion skills resolve <slash-command> [args...]",
+            ));
+        }
+        let (resolved, capability) =
+            crate::cli::resolve_installed_m1_command(&argv[1], argv[2..].to_vec())?;
+        return Ok(json!({
+            "resolvedCommand": resolved,
+            "skillPath": capability.source_path,
+            "skillSha256": capability.body_sha256,
+            "__compact": true
+        }));
     }
     let assets = match installed_assets() {
         Ok(assets) => assets,

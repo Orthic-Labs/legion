@@ -32,10 +32,7 @@ pub enum ExcerptMode {
 
 use serde::Serialize;
 
-/// Model tier routing, per `lens-routing.md`'s "Model routing" section:
-/// lenses that need raw logic/exact contracts/failure-mode evidence get the
-/// judgment tier; scoped-evidence lenses get the mechanical tier. Lens
-/// category never upgrades the tier beyond what the lens itself requires.
+/// Model tier routing, per `lens-routing.md`'s "Model routing" section.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ModelTier {
@@ -101,7 +98,7 @@ pub struct LensPlan {
 
 impl LensPlan {
     pub fn to_packet_value(&self) -> Value {
-        json!({
+        let mut packet = json!({
             "lens": self.lens,
             "question": self.question,
             "applicability": self.applicability.to_json(),
@@ -111,7 +108,18 @@ impl LensPlan {
             "requiresVerifyPass": self.requires_verify_pass,
             "ponytailTags": self.ponytail_tags,
             "cues": self.cues,
-        })
+        });
+        if matches!(self.lens, "security" | "architecture" | "correctness") {
+            // Keep modelTier inside the established strict enum. This additive
+            // floor lets dispatch honor lens-routing's strongest-tier rule.
+            packet["minimumModelTier"] = json!("strongest");
+        }
+        if self.lens == "minimize" {
+            packet["ponytailGuidance"] = json!(include_str!(
+                "../../../../../../skills/audit/references/ponytail-lens.md"
+            ));
+        }
+        packet
     }
 }
 
@@ -133,11 +141,16 @@ const AI_SLOP_CUES: &[&str] = &[
     "meta-commentary left in source (\"let me...\", \"this will...\")",
     "standards axis: distinguish documented repo conventions from contextual design heuristics",
     "logic-specific standards/design findings require raw excerpt quote + file:line source",
+    "test quality: prefer behavior-level assertions, independent expected values, and real DI/framework seams; flag internal-mock excess, source-substring tests, snapshots alone, and refactor-fragile assertions",
+    "apply the interface-complexity and deletion test; inspect callers, implementations, contracts, extension points, and wrapper behavior before suggesting removal",
 ];
 
 const MINIMIZE_CUES: &[&str] = &[
     "tool sprawl: two deps doing the same job, or conflicting versions of a core lib",
     "debt_markers.meta: ponytail: shortcuts with no upgrade trigger and TODO/FIXME density",
+    "package/script sprawl: dead, guarded-against, or one-off shipped scripts; move research harnesses to shared tooling",
+    "preserve traits/interfaces that provide valid testing/DI seams or documented extension points; inspect the real implementation before flagging wrappers",
+    "mechanical partNN/include splits count as shrink; distinguish named modules with real responsibilities",
 ];
 
 const ARCHITECTURE_CUES: &[&str] = &[
@@ -161,6 +174,11 @@ const CORRECTNESS_CUES: &[&str] = &[
     "business-constant consistency: propagated values diverge across code/tests/docs/config",
     "spec axis: public behavior, independent expected values, excessive internal mocks, refactor-fragile assertions",
     "desktop/Tauri: Mutex::lock().unwrap() in async, locks held across .await/transactions, sync #[tauri::command] doing I/O, missing spawn_blocking, sequential await invoke() chains, event->full-refetch storms",
+    "test quality: prefer behavior-level assertions, independent expected values, and real DI/framework seams; flag internal-mock excess, source-substring tests, snapshots alone, and refactor-fragile assertions",
+    "SPEC fidelity: compare explicit requirements to public behavior; preserve missing, partial, wrong, and unrequested as separate dispositions",
+    "tests asserting source-code substrings or snapshot-only are FALSE coverage",
+    "meta.test_skew: heavy code-vs-test skew on a critical subtree",
+    "meta.unsafe_sites clusters with no error-path test",
 ];
 
 const PERFORMANCE_CUES: &[&str] = &[
@@ -176,6 +194,7 @@ const SECURITY_CUES: &[&str] = &[
     "invariant falsification: test the app's own stated security invariants against the command/IPC/network surface",
     "app-level taxonomy: authn, authz/IDOR, injection classes, XSS/CSP, CSRF/CORS, SSRF, crypto, uploads, API hardening",
     "debt_markers.meta: ponytail: shortcuts with no upgrade trigger",
+    "scanner/config absence is NOT-SCANNED, never a clean security answer",
 ];
 
 const DATA_SAFETY_CUES: &[&str] = &[
@@ -187,12 +206,6 @@ const DATA_SAFETY_CUES: &[&str] = &[
 const RESILIENCE_CUES: &[&str] = &[
     "desktop/Tauri concurrency + IPC-waterfall cues (desktop-tauri-checklist.md 1-2)",
     "observability: silent catch blocks with no log AND no telemetry, no crash reporter on production entry points",
-];
-
-const NEGATIVE_SPACE_CUES: &[&str] = &[
-    "tests asserting source-code substrings or snapshot-only are FALSE coverage",
-    "meta.test_skew: heavy code-vs-test skew on a critical subtree",
-    "meta.unsafe_sites clusters with no error-path test",
 ];
 
 fn lens_plan_for(lens: &str) -> Option<LensPlan> {
@@ -310,7 +323,9 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
         "a11y" => LensPlan {
             lens: "a11y",
             question: "Does the UI surface fail semantic accessibility: missing labels/alt, ARIA misuse, focus order/keyboard traps, non-semantic interactive elements, or contrast-as-policy violations?",
-            applicability: Applicability::Conditional("UI target present (JSX/HTML/templates in scope)"),
+            applicability: Applicability::Conditional(
+                "UI target present (JSX/HTML/templates in scope)",
+            ),
             excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.a11y.v1",
             model_tier: ModelTier::Mechanical,
@@ -321,7 +336,9 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
         "data-safety" => LensPlan {
             lens: "data-safety",
             question: "Do migrations/SQL/ORM ops risk irreversible data loss or unsafe locking, and does client storage or telemetry leak PII or persist secrets unencrypted at rest?",
-            applicability: Applicability::Conditional("migration, SQL, payment/state-machine seam, client-side storage, or telemetry in scope"),
+            applicability: Applicability::Conditional(
+                "migration, SQL, payment/state-machine seam, client-side storage, or telemetry in scope",
+            ),
             excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.data-safety.v1",
             model_tier: ModelTier::Judgment,
@@ -332,7 +349,9 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
         "resilience" => LensPlan {
             lens: "resilience",
             question: "Can this app/daemon target recover from sidecar/child death or hang, corrupt-file or offline states, and is a field failure diagnosable post-hoc from persisted structured logs?",
-            applicability: Applicability::Conditional("sidecar/child-process/server/queue code present"),
+            applicability: Applicability::Conditional(
+                "sidecar/child-process/server/queue code present",
+            ),
             excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.resilience.v1",
             model_tier: ModelTier::Judgment,
@@ -354,7 +373,9 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
         "release-readiness" => LensPlan {
             lens: "release-readiness",
             question: "Is the release surface (signing, updater, bundle config, third-party attribution, pinned binaries) complete and symmetric across shipped platforms?",
-            applicability: Applicability::Conditional("publish/signing/updater scripts or tauri.conf.json bundle config present"),
+            applicability: Applicability::Conditional(
+                "publish/signing/updater scripts or tauri.conf.json bundle config present",
+            ),
             excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.release-readiness.v1",
             model_tier: ModelTier::Judgment,
@@ -365,13 +386,15 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
         "variant-analysis" => LensPlan {
             lens: "variant-analysis",
             question: "Given a confirmed security finding's root cause, are there sibling call sites or patterns in this codebase that share the same vulnerable shape?",
-            applicability: Applicability::Conditional("a surviving security-adjudication verdict exists for this run"),
+            applicability: Applicability::Conditional(
+                "a surviving security-adjudication verdict exists for this run",
+            ),
             excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.variant-analysis.v1",
             model_tier: ModelTier::Judgment,
             requires_verify_pass: false,
             ponytail_tags: &[],
-            cues: NEGATIVE_SPACE_CUES,
+            cues: &[],
         },
         _ => return None,
     })

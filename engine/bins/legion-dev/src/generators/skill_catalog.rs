@@ -95,9 +95,15 @@ fn canonical_record(
             .cloned()
             .unwrap_or_else(|| Value::from("")),
     );
-    out.insert("kind".into(), Value::from(kind));
+    out.insert("kind".into(), Value::from(kind.clone()));
     out.insert("capabilityClass".into(), capability_class);
     out.insert("discoverability".into(), discoverability);
+    if kind == "entrypoint" {
+        let target = fm
+            .get("target")
+            .ok_or_else(|| format!("skills/{id}/SKILL.md entrypoint is missing target"))?;
+        out.insert("target".into(), target.clone());
+    }
     // JS left `domain` undefined when the frontmatter omits it, and
     // JSON.stringify drops undefined keys.
     if fm.contains_key("domain") {
@@ -184,21 +190,7 @@ fn validate_aliases(
             return Err(format!("alias {alias} targets missing package {target}"));
         }
         if !target.starts_with('/') {
-            let valid_hook_tool = {
-                let parts: Vec<&str> = target.splitn(2, ':').collect();
-                parts.len() == 2
-                    && (parts[0] == "hook" || parts[0] == "tool")
-                    && !parts[1].is_empty()
-                    && parts[1].as_bytes()[0].is_ascii_lowercase()
-                    && parts[1].bytes().all(|b| {
-                        (b as char).is_ascii_lowercase()
-                            || (b as char).is_ascii_digit()
-                            || b == b'-'
-                    })
-            };
-            if !valid_hook_tool {
-                return Err(format!("alias {alias} has unsupported target {target}"));
-            }
+            return Err(format!("alias {alias} has unsupported target {target}"));
         }
     }
     Ok(())
@@ -366,4 +358,82 @@ pub fn run(root: &Path, check: bool) -> bool {
     }
     println!("wrote {OUT_INDEX} ({bundles_len} bundles) and {OUT_DOMAINS} ({groups_len} groups)");
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_aliases;
+    use serde_json::{json, Value};
+    use std::collections::HashSet;
+
+    fn packaged(ids: &[&str]) -> HashSet<String> {
+        ids.iter().map(|id| (*id).to_string()).collect()
+    }
+
+    #[test]
+    fn mode_alias_targets_are_valid_and_resolve_to_skill_parent() {
+        let document = json!({
+            "aliases": {
+                "/session-mode": "/session matchingmode",
+                "/tasklist-mode": "/tasklist implementation-plan"
+            }
+        });
+        assert!(validate_aliases(&document, &packaged(&["session", "tasklist"])).is_ok());
+    }
+
+    #[test]
+    fn canonical_session_aliases_preserve_their_exact_modes() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../src/config/capability-aliases.json");
+        let document = super::read_json(&path).expect("canonical alias JSON should parse");
+        let aliases = document["aliases"].as_object().unwrap();
+        for (alias, mode) in [
+            ("/status", "status"),
+            ("/init", "init"),
+            ("/brief", "brief"),
+            ("/context-hygiene", "context-hygiene"),
+            ("/file-search", "file-search"),
+        ] {
+            let expected = format!("/session {mode}");
+            assert_eq!(
+                aliases.get(alias).and_then(Value::as_str),
+                Some(expected.as_str()),
+                "{alias} must retain its corresponding explicit Session mode"
+            );
+        }
+    }
+
+    #[test]
+    fn tool_and_hook_alias_targets_are_rejected() {
+        for target in ["tool:execution-preflight", "hook:brief"] {
+            let document = json!({"aliases": {"/legacy": target}});
+            assert!(
+                validate_aliases(&document, &HashSet::new()).is_err(),
+                "{target}"
+            );
+        }
+    }
+
+    #[test]
+    fn alias_cycles_and_missing_packages_are_rejected() {
+        let cycle = json!({"aliases": {"/first": "/second", "/second": "/first"}});
+        assert!(validate_aliases(&cycle, &HashSet::new())
+            .unwrap_err()
+            .contains("cycle"));
+
+        let missing = json!({"aliases": {"/legacy": "/missing mode"}});
+        assert!(validate_aliases(&missing, &HashSet::new())
+            .unwrap_err()
+            .contains("missing package"));
+    }
+
+    #[test]
+    fn malformed_alias_documents_and_targets_are_rejected() {
+        let no_alias_object = json!({"aliases": []});
+        assert!(validate_aliases(&no_alias_object, &HashSet::new()).is_err());
+        let invalid_target = json!({"aliases": {"/legacy": 7}});
+        assert!(validate_aliases(&invalid_target, &HashSet::new()).is_err());
+        let malformed_target = json!({"aliases": {"/legacy": "tool:"}});
+        assert!(validate_aliases(&malformed_target, &HashSet::new()).is_err());
+    }
 }

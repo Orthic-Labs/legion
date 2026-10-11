@@ -67,8 +67,9 @@ overrides it.
 5. Read `plan.json` before `facts.json`; every contract-enumerated failure is `UNPROVEN` & keeps
    audit incomplete.
 6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.
-7. Read [lens routing](references/lens-routing.md); fan every applicable reasoning contract to one
-   native subagent in one parallel wave, tiered by lens kind (strongest for `security`, `architecture`,
+7. Read [lens routing](references/lens-routing.md) & [lens cues](references/lens-cues.md) before
+   dispatch. Include each applicable lens cue in its packet. Fan every applicable reasoning contract
+   to one native subagent in one parallel wave, tiered by lens kind (strongest for `security`, `architecture`,
    `correctness`; mid for other judgment lenses; lowest for mechanical lenses). Inline execution is
    fallback only when no native seat is available. Reason only inside frozen-plan providers.
    The engine has no in-process lens host: `legion audit --out <run-dir>` freezes a per-run epoch key
@@ -92,7 +93,9 @@ overrides it.
    retain the typed derived-context coverage gap. `scannerCandidates: null` means unavailable; `[]`
    means scanner completed with no candidates. Every packet carries
    `excerptCoverage`, and omitted/truncated excerpts leave a `reasoning-excerpt-coverage` gap (partial
-   receipt). Confirmed security verdicts additionally require the variant-analysis follow-up
+   receipt). The `minimize` packet carries full `ponytail-lens.md`, including DI, test, &
+   extension-point false-positive exceptions. Confirmed security verdicts additionally require the
+   variant-analysis follow-up
    (`legion audit ingest --run <run-dir> --followup`, see the execution contract); until that
    follow-up is ingested and verifies, `security-variant-analysis-pending` keeps the audit incomplete.
 8. Apply [semantic review](references/semantic-review.md) when a repository supplies explicit

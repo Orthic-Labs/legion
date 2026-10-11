@@ -17,7 +17,8 @@ mod worktree;
 pub use dag::topological;
 pub use error::AuditError;
 pub use execution::{
-    execute, execute_with_cancellation, ExecutionReport, ProviderExecution, ProviderExecutor,
+    execute, execute_with_cancellation, ExecutionContext, ExecutionReport, ProviderExecution,
+    ProviderExecutor,
 };
 pub use integrity::{canonical_bytes, digest, plan_digest, sign, verify};
 pub use inventory::{

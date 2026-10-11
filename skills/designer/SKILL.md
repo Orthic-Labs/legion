@@ -32,6 +32,8 @@ REQUIRED_READS:
 - The platform reference (`references/website.md`, `app.md`, or `native-app.md`) when a platform is named
 - `../_shared/anti-slop.md` for any prose output (microcopy, copy)
 - `references/manual.md` for mixed, production, or unfamiliar work
+- `engine/reference/critique.md` for qualitative critique; load `references/visual-qa-capture.md` when rendered evidence is needed
+- `references/animations.md` when a critique assesses motion; platform-specific motion guidance remains canonical for design/implementation
 PRECEDENCE: The selected specialist's REQUIRED_READS override this router's budget; draft mode may skip the edit pass only when the user says draft.
 TERMINAL: Rendered acceptance proven.
 

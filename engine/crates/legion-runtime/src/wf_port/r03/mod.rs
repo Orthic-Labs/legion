@@ -23,12 +23,8 @@
 //! navigation/screenshot, filesystem) is exercised through a fake
 //! implementation of the relevant trait.
 //!
-//! NOTE for the integrator: this module is not yet wired into
-//! `wf_port::mod` (`pub mod r03;`) per the porting-packet rule against
-//! editing `wf_port/mod.rs` in this pass — add that one line (and the
-//! matching `wf_port::r03` imports in `tests/r03_*.rs` will then compile)
-//! to register it. This mirrors the same not-yet-wired state already left
-//! by the `r00`/`r07`/`r09`/`r15`/`r18` packets in this crate.
+//! This module is registered from `wf_port::mod`; its packet tests live beside
+//! the corresponding workflow-port code.
 
 pub mod render_video;
 pub mod verify;

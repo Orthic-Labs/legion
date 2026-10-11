@@ -13,8 +13,10 @@ use std::{
 
 use async_trait::async_trait;
 use legion_audit::{
+    canonical_report,
     native_providers::legacy_checks::{resolve_request, runtime_inputs},
-    AuditPlan, InventoryEntry, InventoryEnvelope, NativeProviderRegistry,
+    AuditPlan, ExecutionReport, InventoryEntry, InventoryEnvelope, NativeProviderRegistry,
+    ProviderExecution,
 };
 use legion_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
@@ -413,6 +415,51 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
 
     // Console errors become findings, one per surface; warnings stay evidence.
     assert_eq!(result.findings.len(), 2);
+    for (finding, surface) in result.findings.iter().zip(surfaces) {
+        let raw_evidence = &result.details["findingEvidence"][finding.id.as_str()];
+        let runtime_capture = &raw_evidence["runtimeCapture"];
+        assert_eq!(runtime_capture["surface"], surface["label"]);
+        assert_eq!(runtime_capture["url"], surface["url"]);
+        assert_eq!(runtime_capture["screenshot"], surface["screenshot"]);
+        let shot_path = surface["screenshot"]["path"].as_str().unwrap();
+        assert!(!result.details["findingLocations"][finding.id.as_str()]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|location| location.as_str() == Some(shot_path)));
+    }
+
+    // Finding evidence, including runtime artifact metadata, survives report
+    // projection without making the PNG a source location.
+    let report = canonical_report(
+        "repo",
+        &ExecutionReport {
+            plan_digest: format!("sha256:{}", "a".repeat(64)),
+            plan_signature: Some("test-signature".into()),
+            generation: "generation".into(),
+            inventory_digest: format!("sha256:{}", "b".repeat(64)),
+            planned_providers: vec![PROVIDER.into()],
+            results: vec![ProviderExecution {
+                provider: PROVIDER.into(),
+                result: result.clone(),
+                skipped: false,
+            }],
+            ..ExecutionReport::default()
+        },
+    )
+    .unwrap();
+    for finding in &result.findings {
+        let reported = report
+            .findings
+            .iter()
+            .find(|reported| reported.id == finding.id)
+            .expect("finding projected into report");
+        assert_eq!(
+            reported.evidence["runtimeCapture"],
+            result.details["findingEvidence"][finding.id.as_str()]["runtimeCapture"]
+        );
+        assert_eq!(reported.locations, vec!["package.json:1"]);
+    }
     assert_eq!(result.coverage.as_ref().unwrap().examined, 1);
     assert_eq!(
         result.details["executionReceipt"]["processTree"]["started"],

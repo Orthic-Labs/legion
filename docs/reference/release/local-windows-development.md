@@ -8,8 +8,9 @@ also select CI. Never poll, wait for local capacity, or queue another local buil
 `scripts/release/local-build-route.mjs` enforces this at local native-check &
 installer entry points.
 
-CI route: push exact owned source to `codex/legion-windows-*`; this triggers
-`.github/workflows/ci.yml` on Windows only. It checks whole
+CI route: push exact owned source to the existing `main` branch, or use an
+explicitly authorized branch through manual dispatch. Do not create a branch
+solely for this route. `.github/workflows/ci.yml` checks Windows & macOS. It checks whole
 native workspace/all targets, tests native Codex Stop transport, builds unsigned
 installer & runs isolated installed qualification. Download the `dev-windows-<sha>` artifact bound to
 exact run/SHA, verify installer digest against qualification, then install exact

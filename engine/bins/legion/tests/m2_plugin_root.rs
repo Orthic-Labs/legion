@@ -142,7 +142,11 @@ fn fixture() -> Fixture {
         br#"{"type":"object","properties":{}}"#,
     )
     .expect("schema");
-    fs::write(root.join("assets.json"), "assets").expect("assets");
+    fs::write(
+        root.join("assets.json"),
+        r#"{"schemaVersion":1,"aliases":{}}"#,
+    )
+    .expect("assets");
     let digest =
         |name: &str| legion_catalog::hex_digest(&fs::read(root.join(name)).expect("digest source"));
     let manifest = legion_runtime::ReleaseManifest {
@@ -187,6 +191,7 @@ fn fixture() -> Fixture {
             "releaseBinding": {
                 "runtimeProvenance": "rightkit-release://m2-plugin-root-fixture",
                 "catalogPath": "registry/index.json",
+                "aliasCatalogPath": "assets.json",
                 "mcpToolSchemaPath": "mcp-schema.json",
                 "declarativeAssetsPath": "assets.json",
                 "declarativeAssetsKind": "file",

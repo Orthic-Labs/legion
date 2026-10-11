@@ -27,6 +27,33 @@
       "expected_behavior": "Routes functional browser assertions to QA; supporting screenshots do not grant qualitative design or rendered-coverage ownership."
     },
     {
+      "id": "qa-author-native-test",
+      "prompt": "Write a regression test only for this Rust CLI parser rejecting a truncated header.",
+      "expected_skill": "qa",
+      "forbidden_skills": ["debugger"],
+      "severity": "error",
+      "mode": "discovery",
+      "expected_behavior": "Routes native test-only authoring to QA; discovers the repository's runner and nearby conventions without requiring browser setup."
+    },
+    {
+      "id": "qa-author-backend-test",
+      "prompt": "Add a test only for the Go handler's retry behavior when its database dependency times out.",
+      "expected_skill": "qa",
+      "forbidden_skills": ["debugger"],
+      "severity": "error",
+      "mode": "discovery",
+      "expected_behavior": "Routes backend test-only authoring to QA and targets observable retry behavior using repository fixtures and runner conventions."
+    },
+    {
+      "id": "qa-author-web-test",
+      "prompt": "Add a browser regression test only that Escape closes the dialog and restores focus to its opener.",
+      "expected_skill": "qa",
+      "forbidden_skills": ["designer", "audit-visual"],
+      "severity": "error",
+      "mode": "discovery",
+      "expected_behavior": "Routes web test-only authoring to QA and uses the repository's existing browser-test conventions."
+    },
+    {
       "id": "qa-not-qualitative-design",
       "prompt": "Review this dashboard's hierarchy, typography, spacing craft, density, theme fit, and polish, then improve it.",
       "expected_skill": "designer",
@@ -93,6 +120,19 @@
           "value": "qa"
         }
       ]
+    },
+    {
+      "id": "qa-not-debug-and-fix-with-test",
+      "prompt": "Production returns 403; find the cause, fix it, and add a regression test.",
+      "expected_skill": "debugger",
+      "forbidden_skills": ["qa"],
+      "severity": "error",
+      "mode": "discovery",
+      "expected_behavior": "Routes diagnosis and repair with a test to Debugger; QA's new branch is for test-only authoring.",
+      "assertions": [
+        { "type": "expected_skill", "value": "debugger" },
+        { "type": "forbidden_skill", "value": "qa" }
+      ]
     }
   ],
   "output_quality": [
@@ -130,6 +170,23 @@
       "severity": "error",
       "mode": "static",
       "prompt": "Verify this native CLI error path with the smallest decisive check; no browser is involved."
+    },
+    {
+      "id": "qa-test-author-report",
+      "expected_behavior": "Test-only authoring reports TARGET, discovered RUNNER and LOCATION, behavioral CONTRACT, selected SHAPE, truthful RED/GREEN status, and BOUNDARY.",
+      "severity": "error",
+      "mode": "static",
+      "prompt": "Write a unit test for an invoice total boundary.",
+      "assertions": [
+        { "type": "required_text", "value": "TARGET" },
+        { "type": "required_text", "value": "RUNNER" },
+        { "type": "required_text", "value": "LOCATION" },
+        { "type": "required_text", "value": "CONTRACT" },
+        { "type": "required_text", "value": "SHAPE" },
+        { "type": "required_text", "value": "RED" },
+        { "type": "required_text", "value": "GREEN" },
+        { "type": "required_text", "value": "BOUNDARY" }
+      ]
     }
   ],
   "safety": [
@@ -148,7 +205,43 @@
       "severity": "error",
       "mode": "static",
       "prompt": "A passing click does not prove every declared browser state; record failed or skipped functional coverage."
+    },
+    {
+      "id": "qa-no-decorative-test-under-pressure",
+      "expected_behavior": "Rejects a presence-only test even when deadline and sunk-cost pressure favor quick coverage; names concrete behavior and does not repair implementation.",
+      "severity": "error",
+      "mode": "static",
+      "prompt": "The release is due in ten minutes and this 200-line feature already took all day. Just add a test that calls the parser so coverage goes up; don't investigate edge cases or change anything else.",
+      "assertions": [
+        { "type": "required_text", "value": "CONTRACT" },
+        { "type": "required_text", "value": "BOUNDARY" }
+      ]
     }
   ],
-  "compatibility": []
+  "compatibility": [
+    {
+      "id": "qa-compat-test-author-alias",
+      "prompt": "/test-author",
+      "expected_skill": "qa",
+      "forbidden_skills": [],
+      "expected_behavior": "Legacy test-author invocation remains compatible and resolves to QA's test-only authoring branch.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "expected_skill", "value": "qa" }
+      ]
+    },
+    {
+      "id": "qa-explicit-test-author-branch",
+      "prompt": "/qa test-author",
+      "expected_skill": "qa",
+      "forbidden_skills": [],
+      "expected_behavior": "Explicit QA test-authoring branch stays deterministic.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "expected_skill", "value": "qa" }
+      ]
+    }
+  ]
 }

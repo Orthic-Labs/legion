@@ -40,6 +40,10 @@ use super::{
     ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
     REASONING_RECEIPT_SCHEMA_VERSION,
 };
+use crate::plan::AuditPlan;
+
+const VISUAL_PROVIDER_ID: &str = "legacy.visual.core";
+const VISUAL_PLAN_BINDING_UNAVAILABLE: &str = "visual-plan-binding-unavailable";
 use crate::{
     error::AuditError,
     execution::ExecutionReport,
@@ -2054,12 +2058,14 @@ pub fn write_lens_packets(
 /// receipt verifies (MAC, epoch, plan binding, result digest); everything else
 /// stays exactly as the original execution reported it.
 pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
-    let execution: ExecutionReport =
+    let mut execution: ExecutionReport =
         serde_json::from_value(read_json(&run_dir.join("execution.json"))?)
             .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
     let stored: ReportV1 = serde_json::from_value(read_json(&run_dir.join("report.json"))?)
         .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
     let plan = read_json(&run_dir.join("plan.json"))?;
+    let native_plan = verify_persisted_native_plan(&plan, &execution, run_dir)?;
+    verify_or_degrade_visual(&mut execution, native_plan.as_ref(), &plan, &stored)?;
     let loaded = load_receipts(run_dir, &plan, &execution, None)?;
     let lens_parts: BTreeMap<String, PartsProgress> = loaded
         .iter()
@@ -2277,4 +2283,245 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         ingested: ingested.into_iter().collect(),
         lens_parts,
     })
+}
+
+fn verify_persisted_native_plan(
+    outer: &Value,
+    execution: &ExecutionReport,
+    run_dir: &Path,
+) -> Result<Option<AuditPlan>, AuditError> {
+    let Some(native) = outer.get("nativePlan") else {
+        return Ok(None);
+    };
+    if native.get("schemaVersion").and_then(Value::as_u64) != Some(1) {
+        return Err(invalid("nativePlan schema version is unsupported"));
+    }
+    let digest = native
+        .get("digest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("nativePlan digest is missing"))?;
+    let signature = native
+        .get("signature")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("nativePlan signature is missing"))?;
+    if digest != execution.plan_digest || Some(signature) != execution.plan_signature.as_deref() {
+        return Err(invalid("nativePlan does not match execution seal"));
+    }
+    let plan: AuditPlan = serde_json::from_value(
+        native
+            .get("plan")
+            .cloned()
+            .ok_or_else(|| invalid("nativePlan body is missing"))?,
+    )
+    .map_err(|error| invalid(format!("nativePlan body is invalid: {error}")))?;
+    let provider_ids = plan
+        .providers
+        .iter()
+        .map(|provider| provider.id.clone())
+        .collect::<Vec<_>>();
+    let outer_ids = outer
+        .get("providers")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("outer plan provider list is missing"))?
+        .iter()
+        .map(|item| {
+            item.as_str()
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| invalid("outer plan provider list is invalid"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if plan.inventory_generation != execution.generation
+        || plan.inventory_digest != execution.inventory_digest
+        || outer.get("repository").and_then(Value::as_str) != Some(plan.repository_id.as_str())
+        || provider_ids != execution.planned_providers
+        || provider_ids != outer_ids
+        || outer.pointer("/seal/digest").and_then(Value::as_str) != Some(digest)
+        || outer.pointer("/seal/signature").and_then(Value::as_str) != Some(signature)
+        || outer
+            .pointer("/binding/inventoryDigest")
+            .and_then(Value::as_str)
+            != Some(execution.inventory_digest.as_str())
+    {
+        return Err(invalid("nativePlan identity differs from frozen execution"));
+    }
+    let key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY") {
+        Some(value) if !value.is_empty() => value.to_string_lossy().as_bytes().to_vec(),
+        _ => load_epoch(run_dir)?.0,
+    };
+    crate::integrity::verify(&plan, digest, Some(signature), Some(&key))?;
+    Ok(Some(plan))
+}
+
+fn verify_or_degrade_visual(
+    execution: &mut ExecutionReport,
+    native_plan: Option<&AuditPlan>,
+    outer_plan: &Value,
+    stored_report: &ReportV1,
+) -> Result<(), AuditError> {
+    let generation = execution.generation.clone();
+    let Some(plan) = native_plan else {
+        let index = visual_result_index_for_unbound_plan(execution, outer_plan)?;
+        let Some(index) = index else {
+            return Ok(());
+        };
+        return mark_visual_unproven(&mut execution.results[index]);
+    };
+    let Some(provider) = plan
+        .providers
+        .iter()
+        .find(|provider| provider.id == VISUAL_PROVIDER_ID)
+    else {
+        return Ok(());
+    };
+    let Some(index) = unique_visual_result_index(&execution.results)? else {
+        return Err(invalid(
+            "nativePlan selected visual provider but execution result is missing",
+        ));
+    };
+    let slot = &mut execution.results[index];
+    if provider.not_applicable() {
+        if slot.skipped || slot.result.applicable {
+            return Err(invalid(
+                "visual execution applicability differs from sealed nativePlan",
+            ));
+        }
+        return Ok(());
+    }
+    if slot.skipped || !slot.result.applicable {
+        return Err(invalid(
+            "applicable visual provider was marked skipped or inapplicable",
+        ));
+    }
+    let explicit_spec = provider
+        .configuration
+        .get("runner")
+        .and_then(|runner| runner.get("visual"))
+        .and_then(|visual| visual.get("spec"))
+        .is_some_and(Value::is_object);
+    if explicit_spec {
+        if stored_report.targets.first().map(String::as_str) != Some(plan.repository_id.as_str()) {
+            return Err(invalid(
+                "visual report repository differs from sealed nativePlan",
+            ));
+        }
+        let root = PathBuf::from(&plan.repository_id);
+        crate::native_providers::legacy::visual::verify_explicit_visual_execution(
+            &root,
+            provider,
+            &generation,
+            &slot.result,
+        )
+        .map_err(|error| {
+            invalid(format!(
+                "visual result failed sealed-spec recomputation: {error}"
+            ))
+        })?;
+    }
+    Ok(())
+}
+
+fn unique_visual_result_index(
+    results: &[crate::execution::ProviderExecution],
+) -> Result<Option<usize>, AuditError> {
+    let mut matches = results
+        .iter()
+        .enumerate()
+        .filter(|(_, result)| result.provider == VISUAL_PROVIDER_ID)
+        .map(|(index, _)| index);
+    let first = matches.next();
+    if matches.next().is_some() {
+        return Err(invalid(
+            "execution contains duplicate visual provider results",
+        ));
+    }
+    Ok(first)
+}
+
+fn visual_result_index_for_unbound_plan(
+    execution: &ExecutionReport,
+    outer_plan: &Value,
+) -> Result<Option<usize>, AuditError> {
+    let selected_in_execution = execution
+        .planned_providers
+        .iter()
+        .any(|provider| provider == VISUAL_PROVIDER_ID);
+    let selected_in_outer = outer_plan
+        .get("providers")
+        .and_then(Value::as_array)
+        .is_some_and(|providers| {
+            providers
+                .iter()
+                .any(|provider| provider.as_str() == Some(VISUAL_PROVIDER_ID))
+        });
+    let index = unique_visual_result_index(&execution.results)?;
+    if (selected_in_execution || selected_in_outer) && index.is_none() {
+        return Err(invalid(
+            "plan selected visual provider but execution result is missing",
+        ));
+    }
+    Ok(index)
+}
+
+fn mark_visual_unproven(slot: &mut crate::execution::ProviderExecution) -> Result<(), AuditError> {
+    slot.result.complete = false;
+    slot.result.status = ProviderStatus::Partial;
+    slot.result
+        .coverage_gaps
+        .push(VISUAL_PLAN_BINDING_UNAVAILABLE.into());
+    slot.result.coverage_gaps.sort();
+    slot.result.coverage_gaps.dedup();
+    slot.result.details.insert(
+        "visualVerification".into(),
+        json!({"status":"unproven","reason":VISUAL_PLAN_BINDING_UNAVAILABLE}),
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod visual_execution_shape_tests {
+    use super::*;
+    use crate::execution::ProviderExecution;
+
+    fn visual_result() -> ProviderExecution {
+        ProviderExecution {
+            provider: VISUAL_PROVIDER_ID.into(),
+            skipped: false,
+            result: ProviderResult {
+                schema_version: 1,
+                provider: ProviderId::new(VISUAL_PROVIDER_ID).unwrap(),
+                applicable: true,
+                required: true,
+                status: ProviderStatus::Partial,
+                complete: false,
+                coverage: None,
+                findings: Vec::new(),
+                coverage_gaps: Vec::new(),
+                degradation: Vec::new(),
+                details: BTreeMap::new(),
+            },
+        }
+    }
+
+    #[test]
+    fn selected_visual_requires_a_unique_execution_row() {
+        assert_eq!(unique_visual_result_index(&[]).unwrap(), None);
+        assert_eq!(
+            unique_visual_result_index(&[visual_result()]).unwrap(),
+            Some(0)
+        );
+        assert!(unique_visual_result_index(&[visual_result(), visual_result()]).is_err());
+    }
+
+    #[test]
+    fn unbound_plan_selection_survives_deleted_execution_selection() {
+        let execution = ExecutionReport::default();
+        let outer = json!({"providers":[VISUAL_PROVIDER_ID]});
+        assert!(visual_result_index_for_unbound_plan(&execution, &outer).is_err());
+
+        let outer = json!({"providers":["legacy.other"]});
+        assert_eq!(
+            visual_result_index_for_unbound_plan(&execution, &outer).unwrap(),
+            None
+        );
+    }
 }

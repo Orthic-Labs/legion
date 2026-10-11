@@ -1,6 +1,6 @@
 use super::CommandResult;
 use clap::Args;
-use legion_research::research_port::{citecheck, ledger, meter, retraction};
+use legion_research::research_port::{citecheck, ledger, meter, patch_guard, patcher, retraction};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -12,8 +12,8 @@ pub struct ResearchArgs {
     /// Route query for the host-injected search. Not required with `--step`.
     #[arg(long, required_unless_present = "step")]
     pub query: Option<String>,
-    /// Run one pure Research step instead of a search: `ledger-check`,
-    /// `ledger-render`, `citecheck`, `meter`, or `retraction`.
+    /// Run one Research step instead of a search: `ledger-check`,
+    /// `ledger-render`, `citecheck`, `meter`, `retraction`, `issue-patch`, or `apply-patch`.
     #[arg(long)]
     pub step: Option<String>,
     /// Evidence ledger rows (JSONL) for `ledger-check` and `ledger-render`,
@@ -26,6 +26,18 @@ pub struct ResearchArgs {
     /// Markdown draft to bind citations for `citecheck`.
     #[arg(long)]
     pub draft: Option<PathBuf>,
+    /// Run identifier bound into an issue-patch/apply-patch receipt.
+    #[arg(long)]
+    pub run_id: Option<String>,
+    /// Existing raw HMAC key file (at least 32 bytes) for patch receipts.
+    #[arg(long)]
+    pub key_file: Option<PathBuf>,
+    /// Authenticated patch receipt JSON for `apply-patch`.
+    #[arg(long)]
+    pub receipt: Option<PathBuf>,
+    /// Single-file unified diff for `apply-patch`.
+    #[arg(long)]
+    pub diff: Option<PathBuf>,
     /// Output path for `ledger-render`.
     #[arg(long)]
     pub out: Option<PathBuf>,
@@ -469,8 +481,10 @@ fn run_step(step: &str, args: &ResearchArgs) -> CommandResult {
         "citecheck" => step_citecheck(args),
         "meter" => step_meter(args),
         "retraction" => step_retraction(args),
+        "issue-patch" => step_issue_patch(args),
+        "apply-patch" => step_apply_patch(args),
         other => Err(super::CommandError::usage(format!(
-            "unknown --step {other}; expected ledger-check, ledger-render, citecheck, meter, or retraction"
+            "unknown --step {other}; expected ledger-check, ledger-render, citecheck, meter, retraction, issue-patch, or apply-patch"
         ))),
     }
 }
@@ -648,4 +662,67 @@ fn step_retraction(args: &ResearchArgs) -> CommandResult {
         }
     }
     Ok(envelope)
+}
+
+fn step_issue_patch(args: &ResearchArgs) -> CommandResult {
+    let draft = required_path(&args.draft, "--draft")?;
+    let run_id = args
+        .run_id
+        .as_deref()
+        .ok_or_else(|| super::CommandError::usage("--run-id is required for --step issue-patch"))?;
+    let key_file = required_path(&args.key_file, "--key-file")?;
+    let out = required_path(&args.out, "--out")?;
+    let receipt = patch_guard::issue_receipt(draft, run_id, key_file)
+        .map_err(|error| super::CommandError::usage(error.to_string()))?;
+    let draft_path = receipt["sourced_draft_path"]
+        .as_str()
+        .ok_or_else(|| super::CommandError::internal("issued patch receipt lacks draft path"))?;
+    let out_target = patch_guard::canonical_output_path(out)
+        .map_err(|error| super::CommandError::usage(error.to_string()))?;
+    let key_target = std::fs::canonicalize(key_file).map_err(super::io_error)?;
+    if out_target == std::path::PathBuf::from(draft_path) || out_target == key_target {
+        return Err(super::CommandError::usage(
+            "--out must be distinct from --draft and --key-file",
+        ));
+    }
+    let receipt_text = serde_json::to_string_pretty(&receipt).map_err(super::io_error)? + "\n";
+    legion_research::research_port::atomic_write_text(out, &receipt_text)
+        .map_err(super::io_error)?;
+    Ok(step_envelope(
+        "issue-patch",
+        "ok",
+        json!({
+            "receipt": out.display().to_string(),
+            "receipt_sha256": patch_guard::sha256(receipt_text.as_bytes()),
+            "draft_path": draft_path,
+            "draft_sha256": receipt["sourced_draft_sha256"],
+            "run_id": run_id,
+            "assurance": patch_guard::ASSURANCE,
+        }),
+    ))
+}
+
+fn step_apply_patch(args: &ResearchArgs) -> CommandResult {
+    let draft = required_path(&args.draft, "--draft")?;
+    let run_id = args
+        .run_id
+        .as_deref()
+        .ok_or_else(|| super::CommandError::usage("--run-id is required for --step apply-patch"))?;
+    let key_file = required_path(&args.key_file, "--key-file")?;
+    let receipt = required_path(&args.receipt, "--receipt")?;
+    let diff = required_path(&args.diff, "--diff")?;
+    let result = patcher::apply_file(draft, run_id, key_file, receipt, diff)
+        .map_err(|error| super::CommandError::usage(error.to_string()))?;
+    Ok(step_envelope(
+        "apply-patch",
+        "ok",
+        json!({
+            "draft_path": result.draft_path,
+            "before_sha256": result.before_sha256,
+            "after_sha256": result.after_sha256,
+            "diff_sha256": result.diff_sha256,
+            "applied_hunks": result.applied_hunks,
+            "assurance": patch_guard::ASSURANCE,
+        }),
+    ))
 }

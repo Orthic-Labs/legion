@@ -9,6 +9,7 @@ pub mod governance_ownership;
 pub mod governance_policy;
 pub mod visual;
 pub mod visual_core;
+pub(crate) mod visual_png;
 
 pub use adapter::ProviderExecutorAdapter;
 mod adapter;

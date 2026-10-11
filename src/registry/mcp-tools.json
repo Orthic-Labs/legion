@@ -15,10 +15,15 @@
       "name": "legion_m1_invoke",
       "inputSchema": {
         "type": "object",
-        "required": ["capabilityId", "policyContext"],
         "additionalProperties": false,
+        "oneOf": [
+          { "required": ["capabilityId", "policyContext"] },
+          { "required": ["command", "arguments", "policyContext"] }
+        ],
         "properties": {
           "capabilityId": { "type": "string", "minLength": 1 },
+          "command": { "type": "string", "minLength": 2 },
+          "arguments": { "type": "array", "items": { "type": "string" } },
           "policyContext": {}
         }
       }

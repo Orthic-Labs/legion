@@ -564,35 +564,120 @@ pub fn verify_capability_aliases(package_root: &Path) -> Vec<Finding> {
     let mut findings = Vec::new();
     let path = package_root.join("src/config/capability-aliases.json");
     if !path.is_file() {
+        findings.push(finding(
+            None,
+            Some("src/config/capability-aliases.json"),
+            "invalid-alias-document",
+            "capability alias document is missing".to_string(),
+        ));
         return findings;
     }
-    let Ok(document) = read_json(&path) else {
+    let document = match read_json(&path) {
+        Ok(document) => document,
+        Err(error) => {
+            findings.push(finding(
+                None,
+                Some("src/config/capability-aliases.json"),
+                "invalid-alias-document",
+                format!("capability alias document is invalid: {error}"),
+            ));
+            return findings;
+        }
+    };
+    let Some(aliases) = document.get("aliases").and_then(Value::as_object) else {
+        findings.push(finding(
+            None,
+            Some("src/config/capability-aliases.json"),
+            "invalid-alias-document",
+            "capability aliases must be an object".to_string(),
+        ));
         return findings;
     };
-    let empty = serde_json::Map::new();
-    let aliases = document
-        .get("aliases")
-        .and_then(|v| v.as_object())
-        .unwrap_or(&empty);
+    let packages: HashSet<String> = semantic_bundle_ids(package_root).into_iter().collect();
+
     for (alias, target) in aliases {
-        let Some(target) = target.as_str() else {
-            continue;
-        };
-        if !target.starts_with('/') {
+        let valid_alias = alias.starts_with('/')
+            && alias.len() > 1
+            && alias.as_bytes()[1].is_ascii_lowercase()
+            && alias[1..].bytes().all(|b| {
+                (b as char).is_ascii_lowercase() || (b as char).is_ascii_digit() || b == b'-'
+            });
+        if !valid_alias {
+            findings.push(finding(
+                None,
+                Some("src/config/capability-aliases.json"),
+                "invalid-alias",
+                format!("invalid capability alias {alias}"),
+            ));
             continue;
         }
-        let skill = target[1..].split_whitespace().next().unwrap_or("");
-        if !package_root
-            .join("skills")
-            .join(skill)
-            .join("SKILL.md")
-            .exists()
-        {
+        let Some(target) = target.as_str() else {
+            findings.push(finding(
+                None,
+                Some("src/config/capability-aliases.json"),
+                "invalid-alias-target",
+                format!("alias {alias} target must be a string"),
+            ));
+            continue;
+        };
+        let mut resolved = target.split_whitespace().next().unwrap_or("").to_string();
+        let mut seen = HashSet::from([alias.clone()]);
+        let mut malformed_chain = false;
+        while resolved.starts_with('/') {
+            if let Some(next) = aliases.get(&resolved) {
+                if !seen.insert(resolved.clone()) {
+                    findings.push(finding(
+                        None,
+                        Some("src/config/capability-aliases.json"),
+                        "alias-cycle",
+                        format!("capability alias cycle at {resolved}"),
+                    ));
+                    malformed_chain = true;
+                    break;
+                }
+                let Some(next) = next.as_str() else {
+                    findings.push(finding(
+                        None,
+                        Some("src/config/capability-aliases.json"),
+                        "invalid-alias-target",
+                        format!("alias {resolved} target must be a string"),
+                    ));
+                    malformed_chain = true;
+                    break;
+                };
+                resolved = next.split_whitespace().next().unwrap_or("").to_string();
+            } else {
+                break;
+            }
+        }
+        if malformed_chain {
+            continue;
+        }
+        if let Some(_prefix) = resolved.split_once(':') {
+            findings.push(finding(
+                None,
+                Some("src/config/capability-aliases.json"),
+                "unsupported-alias-target",
+                format!("alias {alias} has unsupported target {resolved}"),
+            ));
+            continue;
+        }
+        if !resolved.starts_with('/') {
+            findings.push(finding(
+                None,
+                Some("src/config/capability-aliases.json"),
+                "unsupported-alias-target",
+                format!("alias {alias} has unsupported target {resolved}"),
+            ));
+            continue;
+        }
+        let skill = resolved[1..].split_whitespace().next().unwrap_or("");
+        if skill.is_empty() || !packages.contains(skill) {
             findings.push(finding(
                 None,
                 Some("src/config/capability-aliases.json"),
                 "dangling-alias",
-                format!("alias {alias} routes to a skill this package does not ship: {target}"),
+                format!("alias {alias} routes to a skill this package does not ship: {resolved}"),
             ));
         }
     }
@@ -952,4 +1037,79 @@ pub fn run(root: &Path, plugin_root: Option<&Path>) -> bool {
     // JS exits 6 specifically on findings (vs. 1 for other failures); exit
     // directly here so the caller sees the same code.
     std::process::exit(6);
+}
+
+#[cfg(test)]
+mod alias_tests {
+    use super::verify_capability_aliases;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn setup(label: &str, aliases: &str, skills: &[&str]) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "legion-alias-closure-{label}-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src/config")).unwrap();
+        fs::write(
+            root.join("src/config/capability-aliases.json"),
+            format!(r#"{{"aliases":{aliases}}}"#),
+        )
+        .unwrap();
+        for skill in skills {
+            fs::create_dir_all(root.join("skills").join(skill)).unwrap();
+            fs::write(root.join("skills").join(skill).join("SKILL.md"), "").unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn rejects_tool_and_hook_targets() {
+        for (name, target) in [("tool", "tool:execution-preflight"), ("hook", "hook:brief")] {
+            let root = setup(name, &format!(r#"{{"/legacy":"{target}"}}"#), &[]);
+            let findings = verify_capability_aliases(&root);
+            let _ = fs::remove_dir_all(&root);
+            assert!(findings
+                .iter()
+                .any(|f| f.code == "unsupported-alias-target"));
+        }
+    }
+
+    #[test]
+    fn accepts_skill_aliases_with_modes_and_reports_bad_chains() {
+        let root = setup(
+            "mode-cycle-missing",
+            r#"{
+                "/session-mode":"/session matchingmode",
+                "/first":"/second",
+                "/second":"/first",
+                "/missing":"/absent mode"
+            }"#,
+            &["session"],
+        );
+        let findings = verify_capability_aliases(&root);
+        let _ = fs::remove_dir_all(&root);
+        assert!(findings.iter().any(|f| f.code == "alias-cycle"));
+        assert!(findings.iter().any(|f| f.code == "dangling-alias"));
+        assert!(!findings.iter().any(|f| f.detail.contains("session-mode")));
+    }
+
+    #[test]
+    fn malformed_alias_document_is_a_finding() {
+        let root = setup("bad-json", "{", &[]);
+        let findings = verify_capability_aliases(&root);
+        let _ = fs::remove_dir_all(&root);
+        assert!(findings.iter().any(|f| f.code == "invalid-alias-document"));
+
+        let root = setup("bad-shape", "[]", &[]);
+        let findings = verify_capability_aliases(&root);
+        let _ = fs::remove_dir_all(&root);
+        assert!(findings.iter().any(|f| f.code == "invalid-alias-document"));
+
+        let root = setup("bad-target-type", r#"{"/legacy":null}"#, &[]);
+        let findings = verify_capability_aliases(&root);
+        let _ = fs::remove_dir_all(&root);
+        assert!(findings.iter().any(|f| f.code == "invalid-alias-target"));
+    }
 }

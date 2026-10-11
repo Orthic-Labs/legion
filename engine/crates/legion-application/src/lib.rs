@@ -162,6 +162,7 @@ pub struct M1ApplicationInputs {
     pub release_binding_inputs: legion_runtime::ReleaseBindingInputs,
     pub catalog_root: std::path::PathBuf,
     pub catalog_index_path: std::path::PathBuf,
+    pub alias_catalog_path: Option<std::path::PathBuf>,
     pub policy_pack: ArcanePolicyPack,
     pub development: Option<legion_runtime::DevelopmentExecutionContext>,
 }
@@ -238,6 +239,14 @@ pub struct M1InvocationRequest {
     pub policy_context: PolicyContext,
 }
 
+/// Explicit slash-command invocation resolved through the immutable release alias map.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct M1CommandRequest {
+    pub command: String,
+    pub arguments: Vec<String>,
+    pub policy_context: PolicyContext,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct M1InvocationResult {
     pub status: M1Status,
@@ -245,6 +254,7 @@ pub struct M1InvocationResult {
     pub policy_evaluation: PolicyEvaluation,
     pub policy_receipt: PolicyReceipt,
     pub invocation_receipt: legion_contracts::InvocationReceipt,
+    pub resolved_command: Option<legion_catalog::ResolvedExplicitCommand>,
 }
 
 #[derive(Debug, Error)]
@@ -267,6 +277,7 @@ pub enum M1ApplicationError {
 pub struct M1Application {
     binding: legion_runtime::VerifiedReleaseBinding,
     catalog: legion_catalog::CompactCatalog,
+    command_resolver: legion_catalog::ExplicitCommandResolver,
     evaluator: PolicyEvaluator,
     origin: legion_runtime::release_binding::RuntimeOriginEvidence,
 }
@@ -314,16 +325,34 @@ impl M1Application {
                 &inputs.catalog_root,
                 "stable current catalog root",
             )?;
+            if let Some(alias_path) = &inputs.alias_catalog_path {
+                legion_runtime::release_binding::verify_stable_current_path(
+                    &origin,
+                    alias_path,
+                    "stable current alias catalog",
+                )?;
+            }
+        }
+        if let Some(alias_path) = &inputs.alias_catalog_path {
+            verify_alias_asset_membership(
+                &inputs.release_binding_inputs.declarative_assets,
+                alias_path,
+            )?;
         }
         let manifest = legion_runtime::load_release_manifest(&inputs.release_manifest_path)?;
         let binding =
             legion_runtime::verify_release_binding(&manifest, &inputs.release_binding_inputs)?;
         let catalog =
             legion_catalog::CompactCatalog::load(&inputs.catalog_root, &inputs.catalog_index_path)?;
+        let command_resolver = match &inputs.alias_catalog_path {
+            Some(path) => legion_catalog::ExplicitCommandResolver::load(path, &catalog)?,
+            None => legion_catalog::ExplicitCommandResolver::empty(),
+        };
         let evaluator = PolicyEvaluator::new(inputs.policy_pack)?;
         Ok(Self {
             binding,
             catalog,
+            command_resolver,
             evaluator,
             origin,
         })
@@ -400,27 +429,79 @@ impl M1Application {
         &self,
         request: M1InvocationRequest,
     ) -> Result<M1InvocationResult, M1ApplicationError> {
-        let entry = self.catalog.get(&request.capability_id).ok_or_else(|| {
+        self.invoke_resolved(&request.capability_id, request.policy_context, None)
+    }
+
+    /// Resolve one explicit slash alias or canonical id before loading its body.
+    /// Caller arguments remain distinct from fixed alias mode tokens.
+    pub fn invoke_command(
+        &self,
+        request: M1CommandRequest,
+    ) -> Result<M1InvocationResult, M1ApplicationError> {
+        let (resolved, _) = self.resolve_command(&request.command, request.arguments)?;
+        let capability_id = resolved.capability_id.clone();
+        self.invoke_resolved(&capability_id, request.policy_context, Some(resolved))
+    }
+
+    /// Resolve one explicit command and read its selected body without policy evaluation.
+    pub fn resolve_command(
+        &self,
+        command: &str,
+        arguments: Vec<String>,
+    ) -> Result<
+        (
+            legion_catalog::ResolvedExplicitCommand,
+            DeterministicCapabilityResult,
+        ),
+        M1ApplicationError,
+    > {
+        let resolved = self
+            .command_resolver
+            .resolve(&self.catalog, command, arguments)?;
+        let entry = self.catalog.get(&resolved.capability_id).ok_or_else(|| {
             legion_catalog::CatalogError::InvalidCatalog {
-                path: request.capability_id.clone(),
+                path: resolved.capability_id.clone(),
                 reason: "unknown compact catalog id".into(),
             }
         })?;
-        let body = self.catalog.resolve_body(&request.capability_id)?;
+        let body = self.catalog.resolve_body(&resolved.capability_id)?;
         let capability = DeterministicCapabilityResult {
             capability_id: entry.canonical_id.clone(),
             source_path: entry.source_path.clone(),
             body_sha256: legion_catalog::hex_digest(&body),
         };
-        let policy_evaluation = self.evaluator.evaluate(&request.policy_context);
+        Ok((resolved, capability))
+    }
+
+    fn invoke_resolved(
+        &self,
+        capability_id: &str,
+        policy_context: PolicyContext,
+        resolved_command: Option<legion_catalog::ResolvedExplicitCommand>,
+    ) -> Result<M1InvocationResult, M1ApplicationError> {
+        let entry = self.catalog.get(capability_id).ok_or_else(|| {
+            legion_catalog::CatalogError::InvalidCatalog {
+                path: capability_id.to_owned(),
+                reason: "unknown compact catalog id".into(),
+            }
+        })?;
+        let body = self.catalog.resolve_body(capability_id)?;
+        let capability = DeterministicCapabilityResult {
+            capability_id: entry.canonical_id.clone(),
+            source_path: entry.source_path.clone(),
+            body_sha256: legion_catalog::hex_digest(&body),
+        };
+        let policy_evaluation = self.evaluator.evaluate(&policy_context);
         let policy_receipt = policy_evaluation.receipt.clone();
-        let invocation_receipt = self.invocation_receipt(&capability, &policy_evaluation)?;
+        let invocation_receipt =
+            self.invocation_receipt(&capability, &policy_evaluation, resolved_command.as_ref())?;
         Ok(M1InvocationResult {
             status: self.status(),
             capability,
             policy_evaluation,
             policy_receipt,
             invocation_receipt,
+            resolved_command,
         })
     }
 
@@ -428,6 +509,7 @@ impl M1Application {
         &self,
         capability: &DeterministicCapabilityResult,
         evaluation: &PolicyEvaluation,
+        resolved_command: Option<&legion_catalog::ResolvedExplicitCommand>,
     ) -> Result<legion_contracts::InvocationReceipt, M1ApplicationError> {
         #[derive(serde::Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -435,11 +517,18 @@ impl M1Application {
             release_version: &'a str,
             capability: &'a DeterministicCapabilityResult,
             policy: &'a legion_policy_model::PolicyDecision,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            resolved_command: Option<&'a legion_catalog::ResolvedExplicitCommand>,
         }
         let identity = Identity {
             release_version: self.binding.release_version(),
             capability,
             policy: &evaluation.decision,
+            resolved_command: resolved_command.filter(|command| {
+                command.alias.is_some()
+                    || !command.mode_tokens.is_empty()
+                    || !command.arguments.is_empty()
+            }),
         };
         let bytes = legion_contracts::canonical_json_bytes(&identity)?;
         let status = if evaluation.decision.outcome == DecisionOutcome::Allow {
@@ -482,6 +571,29 @@ impl M1Application {
         receipt.validate()?;
         Ok(receipt)
     }
+}
+
+fn verify_alias_asset_membership(
+    assets: &legion_runtime::DeclarativeAssets,
+    alias_path: &Path,
+) -> Result<(), M1ApplicationError> {
+    let canonical_alias = std::fs::canonicalize(alias_path).map_err(|error| {
+        M1ApplicationError::Configuration(format!("alias catalog path is unavailable: {error}"))
+    })?;
+    let contained = match assets {
+        legion_runtime::DeclarativeAssets::File(path) => {
+            std::fs::canonicalize(path).ok().as_ref() == Some(&canonical_alias)
+        }
+        legion_runtime::DeclarativeAssets::Directory(path) => std::fs::canonicalize(path)
+            .ok()
+            .is_some_and(|root| canonical_alias.starts_with(root)),
+    };
+    if !contained {
+        return Err(M1ApplicationError::Configuration(
+            "alias catalog must be inside release-bound declarative assets".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn host_requirement_status(
@@ -2299,7 +2411,11 @@ mod m1_tests {
         }
         fs::write(root.join("runtime"), "native runtime").expect("runtime");
         fs::write(root.join("mcp-schema.json"), "mcp schema").expect("schema");
-        fs::write(root.join("assets.json"), "assets").expect("assets");
+        fs::write(
+            root.join("assets.json"),
+            r#"{"schemaVersion":1,"aliases":{"/demo-mode":"/demo inspect","/demo-plan":"/demo plan"}}"#,
+        )
+        .expect("assets");
         let digest = |name: &str| {
             legion_catalog::hex_digest(&fs::read(root.join(name)).expect("digest source"))
         };
@@ -2350,6 +2466,7 @@ mod m1_tests {
             },
             catalog_root: root.into(),
             catalog_index_path: PathBuf::from("registry/index.json"),
+            alias_catalog_path: Some(root.join("assets.json")),
             policy_pack: policy_pack(),
             development: None,
         }
@@ -2377,6 +2494,43 @@ mod m1_tests {
             .artifacts
             .contains_key("policyReceiptSha256"));
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn explicit_alias_modes_and_arguments_bind_to_invocation_identity() {
+        let root = temp_root();
+        let app = M1Application::from_inputs(inputs(&root, true)).expect("application");
+        let invoke = |arguments: Vec<String>| {
+            app.invoke_command(M1CommandRequest {
+                command: "/demo-mode".into(),
+                arguments,
+                policy_context: request().policy_context,
+            })
+            .expect("resolved command")
+        };
+        let first = invoke(vec!["--literal".into(), "tail value".into()]);
+        let second = invoke(vec!["--literal".into(), "tail value".into()]);
+        let changed_args = invoke(vec!["--literal".into(), "other".into()]);
+        assert_eq!(first, second);
+        let resolved = first.resolved_command.as_ref().expect("alias resolution");
+        assert_eq!(resolved.capability_id, "demo");
+        assert_eq!(resolved.mode_tokens, ["inspect"]);
+        assert_eq!(resolved.arguments, ["--literal", "tail value"]);
+        assert_ne!(
+            first.invocation_receipt.receipt_id,
+            changed_args.invocation_receipt.receipt_id
+        );
+        let changed_mode = app
+            .invoke_command(M1CommandRequest {
+                command: "/demo-plan".into(),
+                arguments: vec!["--literal".into(), "tail value".into()],
+                policy_context: request().policy_context,
+            })
+            .expect("mode-specific invocation");
+        assert_ne!(
+            first.invocation_receipt.receipt_id,
+            changed_mode.invocation_receipt.receipt_id
+        );
     }
 
     #[test]

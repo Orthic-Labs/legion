@@ -270,12 +270,26 @@ fn lens_verdict(run: &std::path::Path, errors: &mut Vec<String>) -> Value {
         .get("lensesRan")
         .cloned()
         .unwrap_or(Value::Null);
+    let recomputed_visual_findings = serde_json::to_value(
+        recomputed
+            .report
+            .findings
+            .iter()
+            .filter(|finding| finding.provider.as_deref() == Some("legacy.visual.core"))
+            .collect::<Vec<_>>(),
+    )
+    .ok()
+    .and_then(|value| value.as_array().cloned());
+    let visual_findings_match = recomputed_visual_findings
+        .as_deref()
+        .is_some_and(|expected| matches_visual_findings(&stored, expected));
     if stored.get("status") != Some(&status)
         || stored.get("gaps") != Some(&json!(recomputed.report.gaps))
         || stored.pointer("/claims/lensesRan") != Some(&lenses_ran)
+        || !visual_findings_match
     {
         errors.push(
-            "report.json does not match the verdict recomputed from the ingested lens receipts; rerun `legion audit ingest` (reasoning lenses count as ran only via ingested receipts)"
+            "report.json does not match the verdict or visual findings recomputed from the ingested receipts; rerun `legion audit ingest` (reasoning lenses count as ran only via ingested receipts)"
                 .into(),
         );
     }
@@ -309,4 +323,86 @@ fn lens_verdict(run: &std::path::Path, errors: &mut Vec<String>) -> Value {
         "coverageNotes": recomputed.execution.coverage_notes,
         "clean": recomputed.report.status == legion_contracts::ReportStatus::Clean,
     })
+}
+
+/// Select the full visual finding rows so verification binds IDs, locations,
+/// evidence, and display fields together. Other providers remain governed by
+/// the existing verifier checks.
+fn stored_visual_findings(stored: &Value) -> Option<Vec<Value>> {
+    Some(
+        stored
+            .get("findings")?
+            .as_array()?
+            .iter()
+            .filter(|finding| {
+                finding.get("provider").and_then(Value::as_str) == Some("legacy.visual.core")
+            })
+            .cloned()
+            .collect(),
+    )
+}
+
+fn matches_visual_findings(stored: &Value, expected: &[Value]) -> bool {
+    stored_visual_findings(stored).as_deref() == Some(expected)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn finding(provider: &str) -> Value {
+        json!({
+            "id": "finding-visual-1",
+            "severity": "medium",
+            "title": "Screenshot differs",
+            "message": "Rendered pixels differ from baseline",
+            "provider": provider,
+            "locations": [],
+            "evidence": {
+                "kind": "visual-artifact-difference",
+                "actual": {"path": "actual.png", "sha256": "a1", "size": 12},
+                "baseline": {"path": "baseline.png", "sha256": "b2", "size": 11}
+            }
+        })
+    }
+
+    #[test]
+    fn visual_finding_subset_requires_exact_rows_and_catches_deletion() {
+        let expected = finding("legacy.visual.core");
+        let stored = json!({"findings": [expected.clone(), finding("legacy.code.core")]});
+        assert!(matches_visual_findings(
+            &stored,
+            std::slice::from_ref(&expected)
+        ));
+
+        let deleted = json!({"findings": [finding("legacy.code.core")]});
+        assert!(!matches_visual_findings(
+            &deleted,
+            std::slice::from_ref(&expected)
+        ));
+
+        for field in [
+            "id",
+            "severity",
+            "title",
+            "message",
+            "locations",
+            "evidence",
+        ] {
+            let mut tampered = expected.clone();
+            tampered[field] = json!("tampered");
+            let report = json!({"findings": [tampered]});
+            assert!(!matches_visual_findings(
+                &report,
+                std::slice::from_ref(&expected)
+            ));
+        }
+    }
+
+    #[test]
+    fn visual_subset_handles_zero_findings_without_validating_other_providers() {
+        let no_visual = json!({"findings": [finding("legacy.code.core")]});
+        assert!(matches_visual_findings(&no_visual, &[]));
+        assert!(!matches_visual_findings(&json!({}), &[]));
+    }
 }

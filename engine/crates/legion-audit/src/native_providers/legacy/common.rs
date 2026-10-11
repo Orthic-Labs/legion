@@ -31,6 +31,9 @@ pub struct ProviderInput<'a> {
     pub inventory: &'a InventoryEnvelope,
     pub root: &'a Path,
     pub artifacts: &'a Value,
+    /// Same-plan runtime output supplied by the native execution context.
+    /// Only `visual` consumes this typed artifact; it is not a source anchor.
+    pub runtime_visual_capture: Option<&'a super::visual::RuntimeVisualCapture>,
     pub now: Option<&'a str>,
 }
 
@@ -256,8 +259,22 @@ impl ProviderExecutorAdapter {
             inventory,
             root: &self.root,
             artifacts: &self.artifacts,
+            runtime_visual_capture: None,
             now: self.now.as_deref(),
         }
+    }
+
+    pub(crate) fn execute_with_runtime_visual_capture(
+        &self,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        runtime_visual_capture: Option<&super::visual::RuntimeVisualCapture>,
+    ) -> Result<ProviderResult, AuditError> {
+        let input = ProviderInput {
+            runtime_visual_capture,
+            ..self.input(provider, inventory)
+        };
+        self.execute_input(&input)
     }
 }
 
@@ -268,6 +285,13 @@ impl ProviderExecutor for ProviderExecutorAdapter {
         inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError> {
         let input = self.input(provider, inventory);
+        self.execute_input(&input)
+    }
+}
+
+impl ProviderExecutorAdapter {
+    fn execute_input(&self, input: &ProviderInput<'_>) -> Result<ProviderResult, AuditError> {
+        let provider = input.provider;
         // Providers whose analysis needs a host-supplied artifact that nothing
         // in the ordinary composition produces. The visual provider reports its
         // own typed unavailability (`visual::SPEC_NOT_SUPPLIED`) instead.
@@ -276,13 +300,13 @@ impl ProviderExecutor for ProviderExecutorAdapter {
             _ => false,
         };
         let mut result = match provider.id.as_str() {
-            "governance.policy" => super::governance::execute(&input),
-            "governance.capability-ownership" => super::governance_ownership::execute(&input),
-            "legacy.accessibility.internal-suite" => super::accessibility::execute(&input),
-            "legacy.framework.major-suite" => super::framework::execute(&input),
-            "legacy.data.internal-suite" => super::candidate_suites::execute_data(&input),
+            "governance.policy" => super::governance::execute(input),
+            "governance.capability-ownership" => super::governance_ownership::execute(input),
+            "legacy.accessibility.internal-suite" => super::accessibility::execute(input),
+            "legacy.framework.major-suite" => super::framework::execute(input),
+            "legacy.data.internal-suite" => super::candidate_suites::execute_data(input),
             "legacy.infrastructure.internal-suite" => {
-                super::candidate_suites::execute_infrastructure(&input)
+                super::candidate_suites::execute_infrastructure(input)
             }
             "legacy.visual.core" => {
                 // Frozen `runner.visual` inputs overlay the host artifacts so the

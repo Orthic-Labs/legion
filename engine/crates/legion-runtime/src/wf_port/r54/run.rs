@@ -452,7 +452,7 @@ fn run_cdp_session(
         .map_err(|e| e.to_string())?;
     let browser = Browser::new(launch_options).map_err(|e| e.to_string())?;
     let tab = browser.new_tab().map_err(|e| e.to_string())?;
-    let mut session = super::chrome_session::ChromeSession::new(tab);
+    let mut session = super::chrome_session::ChromeSession::new(tab)?;
 
     let conditions = super::session_client::Conditions {
         width: args.width,

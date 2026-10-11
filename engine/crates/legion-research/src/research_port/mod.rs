@@ -12,6 +12,8 @@ pub mod failure_taxonomy;
 pub mod independence;
 pub mod ledger;
 pub mod meter;
+pub mod patch_guard;
+pub mod patcher;
 pub mod pyval;
 pub mod query;
 pub mod retraction;
