@@ -64,12 +64,14 @@ pub struct AuditArgs {
     /// into that follow-up instead (see `ingest_command`).
     #[arg(long = "followup", hide = true)]
     pub followup: bool,
-    /// `legion audit findings <list|resolve|dismiss|reopen|supersede> [<finding-id>]`:
-    /// finding-store lifecycle (see `findings_command`).
+    /// `legion audit findings <list|resolve|dismiss|reopen|supersede> [<finding-id>|<repo-root>]`:
+    /// finding-store lifecycle (see `findings_command`). The trailing root is
+    /// accepted by `list` only.
     #[arg(hide = true)]
     pub findings_args: Vec<String>,
     /// Repository whose `.audit/audit/findings.jsonl` the `findings` actions use
-    /// (default: the current directory).
+    /// (default: the current directory). Mutually exclusive with a positional
+    /// root given to `list`.
     #[arg(long = "repo", hide = true)]
     pub findings_repo: Option<PathBuf>,
     /// `findings supersede`: JSON file holding the successor finding record.
@@ -500,10 +502,15 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
 /// `legion audit findings <list|resolve|dismiss|reopen|supersede> ...`: the
 /// finding-store lifecycle over `<repo>/.audit/audit/findings.jsonl`.
 ///
-/// * `findings list [--active] [--repo <dir>]`
-/// * `findings resolve <id> [--generation <g>]`, `findings dismiss <id> [--generation <g>]`
-/// * `findings reopen <id>`
-/// * `findings supersede <old-id> --by <successor-record.json>`
+/// * `findings list [<repo-root>] [--active] [--repo <dir>]`
+/// * `findings resolve <id> [--generation <g>] [--repo <dir>]`, `findings dismiss <id> [--generation <g>] [--repo <dir>]`
+/// * `findings reopen <id> [--repo <dir>]`
+/// * `findings supersede <old-id> --by <successor-record.json> [--repo <dir>]`
+///
+/// The repository defaults to the current directory. `list` also accepts the
+/// repository root as a trailing positional; every other action takes the
+/// finding id positionally, so its root can only be given with `--repo`. The
+/// two forms together are refused rather than guessed.
 ///
 /// Invalid transitions (unknown id, superseding via a status change, a
 /// successor equal to the retired finding) are refused with exit code 4.
@@ -513,20 +520,39 @@ fn findings_command(args: &AuditArgs) -> CommandResult {
         StoreError::Io(message) => CommandError::internal(message),
         other => CommandError::usage(other.to_string()),
     };
-    let repo = std::fs::canonicalize(
-        args.findings_repo
-            .clone()
-            .unwrap_or_else(|| PathBuf::from(".")),
-    )
-    .map_err(super::io_error)?;
-    let store = FindingStore::new(&repo);
     let action = args.findings_args[0].as_str();
-    let id = args.findings_args.get(1).map(String::as_str);
-    if args.findings_args.len() > 2 {
+    let trailing = &args.findings_args[1..];
+    let (id, positional_root): (Option<&str>, Option<PathBuf>) = if action == "list" {
+        match trailing {
+            [] => (None, None),
+            [root] => (None, Some(PathBuf::from(root.as_str()))),
+            _ => {
+                return Err(CommandError::usage(
+                    "findings list takes at most one repository root",
+                ))
+            }
+        }
+    } else {
+        match trailing {
+            [] => (None, None),
+            [id] => (Some(id.as_str()), None),
+            _ => {
+                return Err(CommandError::usage(
+                    "findings takes an action and at most one finding id",
+                ))
+            }
+        }
+    };
+    if positional_root.is_some() && args.findings_repo.is_some() {
         return Err(CommandError::usage(
-            "findings takes an action and at most one finding id",
+            "findings takes the repository root either positionally (list only) or with --repo, not both",
         ));
     }
+    let repo_arg = positional_root
+        .or_else(|| args.findings_repo.clone())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let repo = std::fs::canonicalize(repo_arg).map_err(super::io_error)?;
+    let store = FindingStore::new(&repo);
     let require_id = || {
         id.ok_or_else(|| CommandError::usage(format!("findings {action} requires a finding id")))
     };

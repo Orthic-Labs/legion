@@ -741,17 +741,21 @@ fn handle_request<'a>(
                 );
                 return true;
             }
-            // Faithful for `pendingEvents`; the other JS `/status` fields
-            // (`connectedClients`, `agentPolling`, `activeSessions`,
-            // `manualEdits`) depend on SSE-client tracking and
-            // `live/session-store.mjs`, both unported — see `queue.rs`'s
-            // `status_summary` doc comment.
+            // Same key names as the historical `live-server.mjs` `/status`
+            // response: `status`, `port`, `connectedClients`, `agentPolling`,
+            // `pendingEvents`. `activeSessions` and `manualEdits` are not
+            // emitted: they depend on `live/session-store.mjs` and
+            // `getManualEditStatus`, which are unported. `live-status` falls
+            // back to its own session-store view when `activeSessions` is absent.
             write_json(
                 &mut stream,
                 200,
                 "OK",
                 &json!({
                     "status": "ok",
+                    "port": port,
+                    "connectedClients": queue.sse_client_count(),
+                    "agentPolling": queue.agent_polling_connected(),
                     "pendingEvents": queue.status_summary(),
                 }),
             );
@@ -1574,6 +1578,93 @@ mod tests {
     fn poll_reply_broadcast_defaults_type_to_done_and_omits_absent_fields() {
         let msg = poll_reply_broadcast(&json!({"id": "x"}), "x");
         assert_eq!(msg, json!({"type": "done", "id": "x"}));
+    }
+
+    fn status_response_body(text: &str) -> Value {
+        let body = text.split("\r\n\r\n").nth(1).expect("response body");
+        serde_json::from_str(body).expect("json body")
+    }
+
+    #[test]
+    fn status_route_returns_historical_fields() {
+        let queue = QueueState::new();
+        queue.enqueue_event(json!({"id": "e1", "type": "generate"}));
+        queue.sse_client_connected();
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
+        let session_dir = std::env::temp_dir();
+        let mut out = Vec::new();
+        handle_request(
+            mk_req("GET", "/status", &[("token", "tok")], b""),
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            5170,
+            &controller,
+            &session_dir,
+        );
+        let text = String::from_utf8(out).unwrap();
+        assert!(text.contains("200 OK"), "{text}");
+        let body = status_response_body(&text);
+        assert_eq!(body["status"], "ok");
+        assert_eq!(body["port"], 5170);
+        assert_eq!(body["connectedClients"], 1);
+        assert_eq!(body["agentPolling"], false);
+        assert_eq!(body["pendingEvents"][0]["id"], "e1");
+        assert_eq!(body["pendingEvents"][0]["type"], "generate");
+    }
+
+    #[test]
+    fn status_route_reports_agent_polling_while_a_poll_is_parked() {
+        let queue = QueueState::new();
+        queue.poll_started();
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
+        let session_dir = std::env::temp_dir();
+        let mut out = Vec::new();
+        handle_request(
+            mk_req("GET", "/status", &[("token", "tok")], b""),
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            5170,
+            &controller,
+            &session_dir,
+        );
+        let text = String::from_utf8(out).unwrap();
+        let body = status_response_body(&text);
+        assert_eq!(body["agentPolling"], true);
+        assert_eq!(body["connectedClients"], 0);
+    }
+
+    #[test]
+    fn status_route_rejects_wrong_token_without_fields() {
+        let queue = QueueState::new();
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
+        let session_dir = std::env::temp_dir();
+        let mut out = Vec::new();
+        handle_request(
+            mk_req("GET", "/status", &[("token", "nope")], b""),
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            5170,
+            &controller,
+            &session_dir,
+        );
+        let text = String::from_utf8(out).unwrap();
+        assert!(text.contains("401"), "{text}");
+        assert!(!text.contains("\"port\""), "{text}");
     }
 
     #[test]

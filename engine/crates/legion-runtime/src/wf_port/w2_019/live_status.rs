@@ -320,4 +320,59 @@ mod tests {
         let payload = run(&env);
         assert_eq!(payload["liveServer"]["connectedClients"], 2);
     }
+
+    #[test]
+    fn payload_maps_port_clients_and_polling_from_server_fields() {
+        let server = json!({
+            "status": "ok",
+            "port": 5170,
+            "connectedClients": 3,
+            "agentPolling": true,
+            "pendingEvents": [],
+        });
+        let payload = build_status_payload(Some(&server), &[]);
+        assert_eq!(payload["liveServer"]["status"], "ok");
+        assert_eq!(payload["liveServer"]["port"], 5170);
+        assert_eq!(payload["liveServer"]["connectedClients"], 3);
+        assert_eq!(payload["liveServer"]["agentPolling"], true);
+        assert_eq!(payload["liveServer"]["pendingEvents"], json!([]));
+    }
+
+    #[test]
+    fn missing_server_field_maps_to_null_for_that_field_only() {
+        // A server that answers without `port` (the defect observed on an
+        // installed build) yields an explicit null for `port` and keeps every
+        // other field it did send.
+        let server = json!({
+            "status": "ok",
+            "connectedClients": 2,
+            "agentPolling": false,
+            "pendingEvents": [],
+        });
+        let payload = build_status_payload(Some(&server), &[]);
+        assert!(payload["liveServer"]["port"].is_null());
+        assert_eq!(payload["liveServer"]["status"], "ok");
+        assert_eq!(payload["liveServer"]["connectedClients"], 2);
+        assert_eq!(payload["liveServer"]["agentPolling"], false);
+        assert!(payload["liveServer"]
+            .as_object()
+            .unwrap()
+            .contains_key("port"));
+    }
+
+    #[test]
+    fn run_maps_fetched_status_fields_under_historical_names() {
+        let env = FakeEnv {
+            info: Some((5170, "tok".to_string())),
+            status: Some(json!({
+                "status": "ok", "port": 5170, "connectedClients": 1,
+                "agentPolling": true, "pendingEvents": []
+            })),
+            sessions: vec![],
+        };
+        let payload = run(&env);
+        assert_eq!(payload["liveServer"]["port"], 5170);
+        assert_eq!(payload["liveServer"]["connectedClients"], 1);
+        assert_eq!(payload["liveServer"]["agentPolling"], true);
+    }
 }

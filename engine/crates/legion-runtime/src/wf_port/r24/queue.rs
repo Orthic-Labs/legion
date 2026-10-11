@@ -260,6 +260,11 @@ impl QueueState {
         (inner.sse_clients == 0).then_some(inner.sse_generation)
     }
 
+    /// Number of browser clients currently holding the event stream open.
+    pub fn sse_client_count(&self) -> usize {
+        self.inner.lock().unwrap().sse_clients
+    }
+
     /// Body of the exit grace timer. Sleeps in short steps so shutdown is seen
     /// promptly, then enqueues the anonymous `exit` event only if
     /// [`exit_grace_should_fire`] still holds. Intended to run on a thread the

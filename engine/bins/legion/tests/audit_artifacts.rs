@@ -344,8 +344,12 @@ fn provider_result_naming_a_different_plan_digest_is_refused() {
     std::fs::remove_dir_all(root).unwrap();
 }
 
+/// Runs `legion audit findings <args> --repo <repo>` from the system temp
+/// directory, which is never the repository, so the store must resolve from
+/// the given root and not from the working directory.
 fn findings_cli(repo: &std::path::Path, args: &[&str]) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_legion"))
+        .current_dir(std::env::temp_dir())
         .arg("audit")
         .arg("findings")
         .args(args)
@@ -383,6 +387,10 @@ fn findings_lifecycle_is_exposed_and_refuses_invalid_transitions() {
     assert_eq!(listed.status.code(), Some(0));
     let listed: serde_json::Value = serde_json::from_slice(&listed.stdout).unwrap();
     assert_eq!(listed["count"], 1);
+    assert_eq!(
+        std::path::Path::new(listed["store"].as_str().unwrap()),
+        repo.join(".audit/audit/findings.jsonl").as_path()
+    );
 
     let resolved = findings_cli(&repo, &["resolve", id, "--generation", "g2"]);
     assert_eq!(resolved.status.code(), Some(0));
@@ -406,5 +414,88 @@ fn findings_lifecycle_is_exposed_and_refuses_invalid_transitions() {
         Some(4)
     );
     assert_eq!(findings_cli(&repo, &["bogus", id]).status.code(), Some(4));
+    std::fs::remove_dir_all(repo).unwrap();
+}
+
+#[test]
+fn findings_positional_root_and_repo_flag_resolve_the_store_under_the_root() {
+    let repo = std::env::temp_dir().join(format!("legion-findings-root-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&repo);
+    std::fs::create_dir_all(repo.join(".audit/audit")).unwrap();
+    let repo = std::fs::canonicalize(repo).unwrap();
+    let id = "audit:rule:abc1234-R1:src/b.rs:fed9876";
+    let record = serde_json::json!({
+        "schemaVersion": 1, "id": id, "repositoryId": "repo-2", "scopeId": "scope-2",
+        "auditGeneration": "g1", "linkedGraphGeneration": "", "severity": "low",
+        "category": "security", "title": "b finding",
+        "evidenceLoci": [{"path": "src/b.rs", "startLine": 1, "endLine": 2}],
+        "confidence": 1.0, "status": "open", "supersedes": [], "supersededBy": null,
+        "firstSeenGeneration": "g1", "lastSeenGeneration": "g1",
+        "firstSeenAt": "2026-01-01T00:00:00Z", "lastSeenAt": "2026-01-01T00:00:00Z",
+        "resolvedGeneration": null, "resolvedAt": null,
+        "provenance": {"kind": "manual", "name": "R1", "version": "1", "ruleId": "R1"}
+    });
+    std::fs::write(
+        repo.join(".audit/audit/findings.jsonl"),
+        format!("{}\n", serde_json::to_string(&record).unwrap()),
+    )
+    .unwrap();
+    let elsewhere = std::env::temp_dir();
+    let store = repo.join(".audit/audit/findings.jsonl");
+
+    // `list <root>` takes the root positionally, from a different working directory.
+    let listed = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .current_dir(&elsewhere)
+        .args(["audit", "findings", "list"])
+        .arg(&repo)
+        .output()
+        .unwrap();
+    assert_eq!(
+        listed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&listed.stderr)
+    );
+    let listed: serde_json::Value = serde_json::from_slice(&listed.stdout).unwrap();
+    assert_eq!(listed["count"], 1);
+    assert_eq!(
+        std::path::Path::new(listed["store"].as_str().unwrap()),
+        store.as_path()
+    );
+
+    // Id-taking actions take the root only through --repo.
+    let resolved = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .current_dir(&elsewhere)
+        .args(["audit", "findings", "resolve", id, "--generation", "g2"])
+        .arg("--repo")
+        .arg(&repo)
+        .output()
+        .unwrap();
+    assert_eq!(resolved.status.code(), Some(0));
+    let resolved: serde_json::Value = serde_json::from_slice(&resolved.stdout).unwrap();
+    assert_eq!(resolved["finding"]["status"], "resolved");
+    assert_eq!(
+        std::path::Path::new(resolved["store"].as_str().unwrap()),
+        store.as_path()
+    );
+
+    // Giving the root both positionally and with --repo is refused, not guessed.
+    let both = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .current_dir(&elsewhere)
+        .args(["audit", "findings", "list"])
+        .arg(&repo)
+        .arg("--repo")
+        .arg(&repo)
+        .output()
+        .unwrap();
+    assert_eq!(both.status.code(), Some(4));
+
+    // An id-taking action given a second positional (a root) is refused.
+    let extra = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .current_dir(&elsewhere)
+        .args(["audit", "findings", "resolve", id, "extra-root"])
+        .output()
+        .unwrap();
+    assert_eq!(extra.status.code(), Some(4));
     std::fs::remove_dir_all(repo).unwrap();
 }
