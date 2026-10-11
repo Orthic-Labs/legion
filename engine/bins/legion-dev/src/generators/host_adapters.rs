@@ -77,18 +77,18 @@ pub fn host_adapters() -> Vec<Adapter> {
         },
         Adapter {
             id: "codex",
-            install_owner: "adapter",
+            install_owner: "plugin",
             surfaces: surfaces!(
                 "strong",
                 "agents-md",
                 "strong",
-                "skills-dir",
+                "plugin",
                 "strong",
                 "agent-config",
                 "strong",
-                "toml",
-                "unsupported",
-                "none"
+                "plugin",
+                "degraded",
+                "plugin-hook"
             ),
         },
         Adapter {

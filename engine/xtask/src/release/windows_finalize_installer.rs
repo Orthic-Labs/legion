@@ -14,7 +14,13 @@ use super::paths::{
 };
 use crate::process_boundary::command_diagnostic;
 
-const REQUIRED_DIRECTORIES: &[&str] = &["bin", "plugin", "share"];
+const REQUIRED_DIRECTORIES: &[&str] = &[
+    "bin",
+    "plugin",
+    "share",
+    ".claude-plugin",
+    ".agents/plugins",
+];
 const REQUIRED_BINARIES: &[&str] = &["legion.exe", "legion-hook.exe", "legion-mcp.exe"];
 
 fn fail(message: impl Into<String>) -> String {
@@ -87,6 +93,104 @@ fn release_metadata(root: &Path, version: &str, architecture: &str) -> ReleaseRe
         return Err(fail("release runtime digest mismatch"));
     }
     Ok(value)
+}
+
+pub(super) fn validate_native_marketplace_assets(
+    root: &Path,
+    metadata: &Value,
+) -> ReleaseResult<Value> {
+    const EXPECTED: [(&str, &str); 2] = [
+        (".claude-plugin/marketplace.json", "claude"),
+        (".agents/plugins/marketplace.json", "codex"),
+    ];
+    let native = metadata
+        .get("nativeMarketplaces")
+        .ok_or_else(|| fail("release metadata lacks native marketplaces"))?;
+    if native.get("name").and_then(Value::as_str) != Some("legion-installed")
+        || native.get("plugin").and_then(Value::as_str) != Some("legion")
+        || native.get("sourcePath").and_then(Value::as_str) != Some("./plugin")
+    {
+        return Err(fail("native marketplace release identity is invalid"));
+    }
+    let files = native
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or_else(|| fail("release metadata lacks native marketplace file digests"))?;
+    if files.len() != EXPECTED.len() {
+        return Err(fail(
+            "release metadata must seal both native marketplace catalogs",
+        ));
+    }
+    let mut verified = Vec::new();
+    for (expected_path, client) in EXPECTED {
+        let record = files
+            .iter()
+            .find(|item| item.get("path").and_then(Value::as_str) == Some(expected_path))
+            .ok_or_else(|| fail(format!("release metadata does not seal {expected_path}")))?;
+        let expected_sha = record
+            .get("sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| fail(format!("release digest is missing for {expected_path}")))?;
+        let path = root.join(expected_path);
+        assert_regular(
+            &path,
+            &format!("native marketplace catalog {expected_path}"),
+        )?;
+        let actual_sha = sha256_file(&path)?;
+        if actual_sha != expected_sha {
+            return Err(fail(format!(
+                "native marketplace digest mismatch for {expected_path}"
+            )));
+        }
+        let text = fs::read_to_string(&path)
+            .map_err(|error| fail(format!("native marketplace catalog unavailable: {error}")))?;
+        let catalog: Value = serde_json::from_str(&text).map_err(|_| {
+            fail(format!(
+                "native marketplace catalog is invalid JSON: {expected_path}"
+            ))
+        })?;
+        if catalog.get("name").and_then(Value::as_str) != Some("legion-installed") {
+            return Err(fail(format!(
+                "native marketplace identity mismatch for {expected_path}"
+            )));
+        }
+        let plugin = catalog
+            .get("plugins")
+            .and_then(Value::as_array)
+            .and_then(|plugins| {
+                plugins
+                    .iter()
+                    .find(|plugin| plugin.get("name").and_then(Value::as_str) == Some("legion"))
+            })
+            .ok_or_else(|| fail(format!("Legion plugin is missing from {expected_path}")))?;
+        let source = plugin.get("source");
+        let source_is_sealed_local = match client {
+            "claude" => source.and_then(Value::as_str) == Some("./plugin"),
+            "codex" => {
+                source
+                    .and_then(|source| source.get("source"))
+                    .and_then(Value::as_str)
+                    == Some("local")
+                    && source
+                        .and_then(|source| source.get("path"))
+                        .and_then(Value::as_str)
+                        == Some("./plugin")
+            }
+            _ => false,
+        };
+        if !source_is_sealed_local {
+            return Err(fail(format!(
+                "native marketplace source is invalid for {expected_path}"
+            )));
+        }
+        verified.push(serde_json::json!({"path": expected_path, "sha256": actual_sha}));
+    }
+    if !root.join("plugin").is_dir() {
+        return Err(fail(
+            "sealed native marketplace plugin directory is missing",
+        ));
+    }
+    Ok(serde_json::json!({"status":"verified", "files": verified}))
 }
 
 fn assert_safe_tree(root: &Path, dir: &Path) -> ReleaseResult<()> {
@@ -313,6 +417,7 @@ pub fn finalize_windows_installer(
     }
     assert_safe_tree(&source, &source)?;
     let metadata = release_metadata(&source, &input.version, &input.architecture)?;
+    validate_native_marketplace_assets(&source, &metadata)?;
     let identity = installer_identity(&input.version, &input.architecture)?;
     fs::create_dir_all(&output).map_err(|e| fail(e.to_string()))?;
     let script_path = input
@@ -403,5 +508,63 @@ mod tests {
             args,
             vec!["/Qp".to_string(), script.to_string_lossy().to_string()]
         );
+    }
+
+    #[test]
+    fn native_marketplace_catalogs_must_match_release_digests() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-marketplace-fixture-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(root.join(".claude-plugin")).unwrap();
+        fs::create_dir_all(root.join(".agents/plugins")).unwrap();
+        fs::create_dir_all(root.join("plugin")).unwrap();
+        let claude_body = r#"{"name":"legion-installed","owner":{"name":"Orthic Labs"},"plugins":[{"name":"legion","source":"./plugin"}]}"#;
+        let codex_body = r#"{"name":"legion-installed","plugins":[{"name":"legion","source":{"source":"local","path":"./plugin"}}]}"#;
+        let paths = [
+            ".claude-plugin/marketplace.json",
+            ".agents/plugins/marketplace.json",
+        ];
+        let mut files = Vec::new();
+        for (path, body) in paths.into_iter().zip([claude_body, codex_body]) {
+            let full_path = root.join(path);
+            fs::write(&full_path, body).unwrap();
+            files.push(
+                serde_json::json!({"path": path, "sha256": sha256_file(&full_path).unwrap()}),
+            );
+        }
+        let metadata = serde_json::json!({
+            "nativeMarketplaces": {
+                "name": "legion-installed",
+                "plugin": "legion",
+                "sourcePath": "./plugin",
+                "files": files,
+            }
+        });
+        assert_eq!(
+            validate_native_marketplace_assets(&root, &metadata).unwrap()["status"],
+            "verified"
+        );
+
+        fs::write(
+            root.join(paths[0]),
+            claude_body.replace("./plugin", "./other"),
+        )
+        .unwrap();
+        assert!(validate_native_marketplace_assets(&root, &metadata).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn windows_installer_template_stages_both_native_marketplace_roots() {
+        let template = include_str!("../../../../scripts/release/windows/legion.iss");
+        assert!(template.contains(r#"{#SourceRoot}\.claude-plugin\*"#));
+        assert!(template.contains(r#"{#SourceRoot}\.agents\plugins\*"#));
+        assert!(template.contains(r#"{app}\.next-version-{#ProductVersion}\.claude-plugin"#));
+        assert!(template.contains(r#"{app}\.next-version-{#ProductVersion}\.agents\plugins"#));
     }
 }

@@ -9,6 +9,33 @@ fi
 pnpm install --frozen-lockfile
 # Hosted runners own Cargo directly; local package scripts use the RightKit
 # broker client, which is intentionally absent from hosted CI.
+
+# Diagnose lockfile drift before any --locked command obscures which input
+# changed. Only regenerate after Cargo itself reports that --locked prevented
+# a lockfile update; unrelated metadata failures remain ordinary CI failures.
+generated_drift=false
+cargo_metadata_log="$(mktemp)"
+if cargo metadata --locked --format-version 1 --manifest-path engine/Cargo.toml > /dev/null 2> "$cargo_metadata_log"; then
+  rm -f "$cargo_metadata_log"
+else
+  cat "$cargo_metadata_log" >&2
+  if grep -Eiq 'lock file.*(needs to be updated|cannot be updated|cannot update).*(--locked|locked)' "$cargo_metadata_log"; then
+    if (cd engine && cargo update --workspace --offline); then
+      echo "Cargo.lock drift: canonical generated diff follows"
+      git diff -- engine/Cargo.lock
+      generated_drift=true
+    else
+      echo "Unable to regenerate Cargo.lock from the offline cache" >&2
+      rm -f "$cargo_metadata_log"
+      exit 1
+    fi
+  else
+    rm -f "$cargo_metadata_log"
+    exit 1
+  fi
+  rm -f "$cargo_metadata_log"
+fi
+
 checks=(
   "check-canonical-names"
   "check-authority-parity"
@@ -37,8 +64,22 @@ checks=(
 )
 for check in "${checks[@]}"; do
   read -r -a check_args <<< "$check"
-  cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- "${check_args[@]}"
+  if cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- "${check_args[@]}"; then
+    continue
+  fi
+  if [[ "$check" == "generate-host-projection --check" ]]; then
+    echo "Host projection drift: canonical generated diff follows"
+    cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection
+    git diff -- src/registry/host-projection.json references/generated/support.md
+    generated_drift=true
+    continue
+  fi
+  exit 1
 done
+
+if [[ "$generated_drift" == "true" ]]; then
+  exit 1
+fi
 
 # The managed regenerate lane runs this gate on Linux to prove its pull
 # request is consistent: derived-artifact checks above plus formatting. Full

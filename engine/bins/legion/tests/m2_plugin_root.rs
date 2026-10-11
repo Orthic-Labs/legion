@@ -165,6 +165,8 @@ fn fixture() -> Fixture {
         },
         // Populated once the portable core exists (see `anchor_release`).
         portable_core_sha256: None,
+        plugin_sha256: None,
+        native_marketplaces: None,
     };
     fs::write(
         root.join("release.json"),

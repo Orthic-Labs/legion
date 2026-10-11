@@ -38,6 +38,10 @@ Source: "@@ACTIVATION_SCRIPT@@"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "{#SourceRoot}\bin\*"; DestDir: "{app}\.next-version-{#ProductVersion}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\plugin\*"; DestDir: "{app}\.next-version-{#ProductVersion}\plugin"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\share\*"; DestDir: "{app}\.next-version-{#ProductVersion}\share"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Marketplace catalogs are sealed at payload root and must retain their exact
+; release.json digests so native clients can bind their cache to stable current.
+Source: "{#SourceRoot}\.claude-plugin\*"; DestDir: "{app}\.next-version-{#ProductVersion}\.claude-plugin"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\.agents\plugins\*"; DestDir: "{app}\.next-version-{#ProductVersion}\.agents\plugins"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\Legion"; Filename: "{app}\current\bin\legion.exe"

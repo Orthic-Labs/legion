@@ -2,13 +2,14 @@
 //! finalized Windows installer through its qualification stages
 //! (install, version, same-version-upgrade, plugin-root transport,
 //! staged-validation-failure, mirror-sync-failure, forced-refresh-failure,
-//! stalled-child, repair, status, codex-plugin-opt-in, doctor, uninstall) in an isolated
+//! stalled-child, repair, status, doctor, uninstall) in an isolated
 //! `LOCALAPPDATA`/`USERPROFILE`, and writes either `qualification.json` or,
 //! on failure, `qualification-failure.json` with captured evidence — Phase A
 //! item 9: a failed run must leave a readable receipt instead of silently
 //! deleting its workspace. Ported 1:1, including the full per-stage
 //! `commandEvidence` trail and the `setupPayload` structural validation of
-//! repair/status/codex-plugin-repair JSON responses.
+//! repair/status JSON responses. Native Claude/Codex CLI installation is
+//! reported separately because the isolated profile does not provision them.
 
 use std::collections::HashMap;
 use std::fs;
@@ -471,6 +472,10 @@ fn setup_payload(
             )
         })
         .unwrap_or(json!({}));
+    let native_marketplaces = json!({
+        "claude": projections.get("claudeMarketplace").and_then(|p| p.get("state")),
+        "codex": projections.get("codexMarketplace").and_then(|p| p.get("state")),
+    });
     Ok(json!({
         "kind": value.get("kind"),
         "status": value.get("status"),
@@ -479,8 +484,56 @@ fn setup_payload(
         "stableCurrent": value.get("stableCurrent"),
         "clients": clients_out,
         "projections": projections_out,
+        "nativeMarketplaces": native_marketplaces,
         "authenticatedLiveQualification": value.get("authenticatedLiveQualification").and_then(|a| a.get("status")).cloned().unwrap_or(Value::Null),
     }))
+}
+
+fn validate_installed_native_marketplaces(install_root: &Path) -> ReleaseResult<Value> {
+    let release_path = install_root.join("share/legion/release.json");
+    let text = fs::read_to_string(&release_path)
+        .map_err(|error| fail(format!("installed release metadata unavailable: {error}")))?;
+    let metadata: Value = serde_json::from_str(&text).map_err(|error| {
+        fail(format!(
+            "installed release metadata is invalid JSON: {error}"
+        ))
+    })?;
+    super::windows_finalize_installer::validate_native_marketplace_assets(install_root, &metadata)
+        .map_err(fail)
+}
+
+fn native_clients_unobserved(
+    profile: &Path,
+    repair: &Value,
+    status: &Value,
+) -> ReleaseResult<Value> {
+    let claude_profile = profile.join(".claude").is_dir();
+    let codex_profile = profile.join(".codex").is_dir();
+    if claude_profile || codex_profile {
+        return Err(fail(
+            "isolated qualification unexpectedly contains a native client profile",
+        ));
+    }
+    let empty_states = json!({});
+    let repair_states = repair.get("nativeMarketplaces").unwrap_or(&empty_states);
+    let status_states = status.get("nativeMarketplaces").unwrap_or(&empty_states);
+    let mut clients = serde_json::Map::new();
+    for client in ["claude", "codex"] {
+        let repair_state = repair_states.get(client).and_then(Value::as_str);
+        let status_state = status_states.get(client).and_then(Value::as_str);
+        for (operation, state) in [("repair", repair_state), ("status", status_state)] {
+            if !matches!(state, Some("not_selected" | "client_unavailable")) {
+                return Err(fail(format!(
+                    "isolated {client} marketplace {operation} did not report an unobserved client state"
+                )));
+            }
+        }
+        clients.insert(
+            client.into(),
+            json!({ "repair": repair_state, "status": status_state }),
+        );
+    }
+    Ok(json!({ "status": "not-provisioned", "clients": clients }))
 }
 
 /// Mirrors `disappears`: polls until `path` no longer exists or `timeout` elapses.
@@ -530,6 +583,62 @@ fn inventory(root: &Path, depth: u32) -> Value {
     Value::Array(out)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::native_clients_unobserved;
+    use serde_json::json;
+    use std::fs;
+
+    fn isolated_profile() -> std::path::PathBuf {
+        let profile = std::env::temp_dir().join(format!(
+            "legion-native-client-qualification-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&profile).unwrap();
+        profile
+    }
+
+    #[test]
+    fn native_clients_are_separate_from_product_qualification() {
+        let profile = isolated_profile();
+        let repair = json!({
+            "nativeMarketplaces": {
+                "claude": "not_selected",
+                "codex": "client_unavailable"
+            }
+        });
+        let status = json!({
+            "nativeMarketplaces": {
+                "claude": "not_selected",
+                "codex": "client_unavailable"
+            }
+        });
+        let observed = native_clients_unobserved(&profile, &repair, &status).unwrap();
+        assert_eq!(observed["status"], "not-provisioned");
+        assert_eq!(observed["clients"]["claude"]["repair"], "not_selected");
+        assert_eq!(observed["clients"]["codex"]["repair"], "client_unavailable");
+        fs::remove_dir_all(profile).unwrap();
+    }
+
+    #[test]
+    fn native_client_state_cannot_claim_absence_when_marketplace_is_current() {
+        let profile = isolated_profile();
+        let marketplaces = json!({
+            "claude": "current",
+            "codex": "not_selected"
+        });
+        let repair = json!({"nativeMarketplaces": marketplaces});
+        let status = repair.clone();
+        let result = native_clients_unobserved(&profile, &repair, &status);
+        assert!(result.is_err());
+        fs::remove_dir_all(profile).unwrap();
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn qualify_inner(
     runner: CommandRunner,
@@ -556,9 +665,9 @@ fn qualify_inner(
         ))
     })?;
     let profile = workspace.join("profile");
-    for client_root in [".claude", ".codex"] {
-        fs::create_dir_all(profile.join(client_root)).map_err(|e| fail(e.to_string()))?;
-    }
+    // Do not create client profile directories here: that would make setup
+    // treat a missing native CLI as an installed host and turn product
+    // qualification into a fake marketplace-install pass.
     let executable = install_root.join("current").join("bin").join("legion.exe");
     let install_log = output.join("setup-install.log");
     let activation_events = output.join("activation-events.jsonl");
@@ -584,6 +693,18 @@ fn qualify_inner(
     overrides.insert(
         "USERPROFILE".to_string(),
         profile.to_string_lossy().to_string(),
+    );
+    // Native clients inherit these locations from the host process. Keep their
+    // config/cache roots in the qualification profile so installed setup cannot
+    // touch the operator's real marketplaces when CLIs happen to be on PATH.
+    overrides.insert("HOME".to_string(), profile.to_string_lossy().to_string());
+    overrides.insert(
+        "CLAUDE_CONFIG_DIR".to_string(),
+        profile.join(".claude").to_string_lossy().to_string(),
+    );
+    overrides.insert(
+        "CODEX_HOME".to_string(),
+        profile.join(".codex").to_string_lossy().to_string(),
     );
     overrides.insert(
         "LEGION_STATE_ROOT".to_string(),
@@ -808,6 +929,8 @@ fn qualify_inner(
                 &install_root_opts,
             )
         })?;
+        let native_marketplace_payload =
+            validate_installed_native_marketplaces(&install_root.join("current"))?;
         let activated_sha256 = sha256_file(&executable)?;
 
         let mut forced_env = environment.clone();
@@ -893,8 +1016,8 @@ fn qualify_inner(
             "legion-setup-execution",
             &executable,
             "installed legion setup repair",
-            &["claude-code", "codex"],
-            &["claudePlugin"],
+            &[],
+            &[],
         )?;
 
         let status_run = step("status", &mut || {
@@ -911,35 +1034,8 @@ fn qualify_inner(
             "legion-setup-status",
             &executable,
             "installed legion setup status",
-            &["claude-code", "codex"],
-            &["claudePlugin"],
-        )?;
-
-        fs::create_dir_all(profile.join(".codex").join("plugins").join("legion"))
-            .map_err(|e| fail(e.to_string()))?;
-        let codex_plugin_repair_run = step("codex-plugin-opt-in", &mut || {
-            execute(
-                runner,
-                &executable,
-                &[
-                    "--json".into(),
-                    "setup".into(),
-                    "repair".into(),
-                    "--confirm".into(),
-                    "--client".into(),
-                    "codex".into(),
-                ],
-                &install_root_opts,
-                "installed legion setup repair for codex plugin",
-            )
-        })?;
-        let codex_plugin_repair = setup_payload(
-            &codex_plugin_repair_run,
-            "legion-setup-execution",
-            &executable,
-            "installed legion setup repair for codex plugin",
-            &["codex"],
-            &["codexPlugin"],
+            &[],
+            &[],
         )?;
 
         step("doctor", &mut || {
@@ -985,6 +1081,11 @@ fn qualify_inner(
                 .cloned()
                 .unwrap_or(Value::Null)
         };
+        let native_marketplace_states = json!({
+            "repair": repair.get("nativeMarketplaces"),
+            "status": status.get("nativeMarketplaces"),
+        });
+        let native_clients = native_clients_unobserved(&profile, &repair, &status)?;
         let evidence = json!({
             "schemaVersion": 1, "kind": "legion-windows-installed-installer-qualification", "status": "qualified",
             "product": "legion", "version": version, "sourceRevision": revision,
@@ -1005,11 +1106,22 @@ fn qualify_inner(
                 "stalledChild": commands_stage("stalled-child"),
                 "repair": commands_stage("repair"),
                 "status": commands_stage("status"),
-                "codexPluginOptIn": commands_stage("codex-plugin-opt-in"),
                 "doctor": commands_stage("doctor"),
                 "uninstall": commands_stage("uninstall"),
             },
-            "activation": { "repair": repair, "status": status, "codexPluginRepair": codex_plugin_repair, "stagedValidationRollbackVerified": true, "mirrorSyncRollbackVerified": true, "sameVersionUpgradeClean": true, "pluginRootTransport": plugin_root_transport.stdout, "rollbackVerified": true, "stalledChildBounded": true },
+            "activation": {
+                "repair": repair,
+                "status": status,
+                "nativeClients": native_clients,
+                "marketplaceStates": native_marketplace_states,
+                "stagedValidationRollbackVerified": true,
+                "mirrorSyncRollbackVerified": true,
+                "sameVersionUpgradeClean": true,
+                "nativeMarketplacePayload": native_marketplace_payload,
+                "pluginRootTransport": plugin_root_transport.stdout,
+                "rollbackVerified": true,
+                "stalledChildBounded": true,
+            },
         });
         fs::write(
             &evidence_path,

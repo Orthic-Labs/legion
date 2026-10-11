@@ -8,6 +8,7 @@ pub mod detect;
 pub mod error;
 pub mod install;
 pub mod legacy_claude;
+pub mod marketplace;
 pub mod ownership;
 pub mod p4_port;
 pub mod projection;
@@ -42,6 +43,10 @@ pub use legacy_claude::{
     ClaudeLegacyInput, ClaudeLegacyInspection, ClaudeLegacyRepair, ClaudePluginCacheGeneration,
     ClaudeProjectionOwnership, ClaudeSkillsRootKind, ClaudeStandaloneProjection,
     LegacyQuarantineReport, QuarantinedLegacyCopy, RETIRED_SKILL_IDS,
+};
+pub use marketplace::{
+    find_codex_plugin_cache, native_plugin_entry, native_plugin_entry_scoped, plugin_tree_sha256,
+    CodexCacheLookup, MarketplaceBinding, MarketplaceClient, NativePluginEntry,
 };
 pub use ownership::{
     digest_bytes, marker_for, owned_block, parse_marker, validate_relative_path,

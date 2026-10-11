@@ -16,6 +16,8 @@ const QUALIFICATION_MECHANISM: &str = "agent-plugins-bare-command";
 const QUALIFICATION_TOOL: &str = "legion_m1_status";
 const QUALIFICATION_SERVER: &str = "legion";
 const QUALIFICATION_TIMEOUT: Duration = Duration::from_secs(180);
+const MARKETPLACE_TIMEOUT: Duration = Duration::from_secs(30);
+const MARKETPLACE_REFRESH_SCHEMA_VERSION: u32 = 1;
 const QUALIFICATION_MCP_ARGS: [&str; 2] = ["serve", "--stdio"];
 const EXPECTED_RELEASE_VERSION: &str = env!("CARGO_PKG_VERSION");
 const PLUGIN_MANIFEST_PATHS: [&str; 2] = ["plugin.json", ".claude-plugin/plugin.json"];
@@ -278,14 +280,15 @@ pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandRes
                 client: args.client,
             },
             context,
-        );
+        )
+        .await;
     }
     match args.command {
         Some(SetupCommand::Preview(args)) => preview(args, context, cancellation).await,
         Some(SetupCommand::Apply(args)) => {
             execute(args, legion_host::SetupAction::Apply, cancellation).await
         }
-        Some(SetupCommand::Status(args)) => status(args, context),
+        Some(SetupCommand::Status(args)) => status(args, context).await,
         Some(SetupCommand::Qualify(args)) => qualify(args, context, cancellation).await,
         Some(SetupCommand::Repair(args)) => {
             lifecycle(
@@ -351,19 +354,22 @@ async fn lifecycle(
         client: args.client,
         dry_run: args.dry_run,
     };
-    let request = request_from_release(request, action, release, context, cancellation).await?;
+    let request =
+        request_from_release(request, action, release, context, cancellation.clone()).await?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
-    let host_integrations = preview_host_integrations(&request)?;
+    let host_integrations = preview_host_integrations(&request, cancellation.clone()).await?;
     let identity_context = request.development.clone();
+    let health_action = request.action.clone();
     let preview = registry.preview(request).map_err(setup_error)?;
     let preview_value = serde_json::to_value(&preview)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let live_identity = inspect_live_identity(&host_integrations, identity_context.as_ref())?;
-    let (status, remediation) = setup_health(
+    let (status, remediation) = setup_health_for_action(
         &preview_value["clients"],
         &host_integrations,
         &live_identity,
+        &health_action,
     );
     if !args.confirm || args.dry_run {
         return Ok(json!({
@@ -395,9 +401,10 @@ async fn lifecycle(
     let integration_request = confirmed.preview.request.clone();
     // Reconcile production client bindings before durable registry mutation.
     // This keeps an escaped projection from leaving a partially applied plan.
-    preview_host_integrations(&integration_request)?;
+    preview_host_integrations(&integration_request, cancellation.clone()).await?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
-    let host_integrations = apply_host_integrations(&integration_request)?;
+    let host_integrations =
+        apply_host_integrations(&integration_request, cancellation.clone()).await?;
     let authenticated_live_qualification = inspect_stored_live_qualification(
         &execution.clients,
         &integration_request.release,
@@ -408,10 +415,11 @@ async fn lifecycle(
     let live_identity =
         inspect_live_identity(&host_integrations, integration_request.development.as_ref())?;
     let execution_value = enrich_client_statuses(execution_value, &live_identity);
-    let (status, remediation) = setup_health(
+    let (status, remediation) = setup_health_for_action(
         &execution_value["clients"],
         &host_integrations,
         &live_identity,
+        &integration_request.action,
     );
     Ok(json!({
         "schemaVersion": 1,
@@ -444,21 +452,23 @@ async fn preview(
         args.action.into(),
         context,
         false,
-        cancellation,
+        cancellation.clone(),
     )
     .await?;
     let mut registry = open_registry(&request)?;
     let recovery = registry.recover().map_err(setup_error)?;
-    let host_integrations = preview_host_integrations(&request)?;
+    let host_integrations = preview_host_integrations(&request, cancellation.clone()).await?;
     let identity_context = request.development.clone();
+    let health_action = request.action.clone();
     let preview = registry.preview(request).map_err(setup_error)?;
     let preview_value = serde_json::to_value(&preview)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let live_identity = inspect_live_identity(&host_integrations, identity_context.as_ref())?;
-    let (status, remediation) = setup_health(
+    let (status, remediation) = setup_health_for_action(
         &preview_value["clients"],
         &host_integrations,
         &live_identity,
+        &health_action,
     );
     if let Some(path) = args.out {
         write_json(&path, &preview)?;
@@ -483,7 +493,7 @@ async fn preview(
     }))
 }
 
-fn status(
+async fn status(
     args: SetupClientArgs,
     context: Option<legion_host::DevelopmentSetupContext>,
 ) -> CommandResult {
@@ -542,7 +552,8 @@ fn status(
         legion_host::SetupRegistry::open_platform(release.clone()).map_err(setup_error)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
-    let host_integrations = inspect_host_integrations(&selector, &release)?;
+    let host_integrations =
+        inspect_host_integrations(&selector, &release, CancellationToken::new()).await?;
     let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
     let authenticated_live_qualification =
         inspect_stored_live_qualification(&clients, &release, &platform_state_root);
@@ -550,7 +561,12 @@ fn status(
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let live_identity = inspect_live_identity(&host_integrations, None)?;
     let clients_value = enrich_client_statuses(clients_value, &live_identity);
-    let (status, remediation) = setup_health(&clients_value, &host_integrations, &live_identity);
+    let (status, remediation) = setup_health_for_action(
+        &clients_value,
+        &host_integrations,
+        &live_identity,
+        &legion_host::SetupAction::Status,
+    );
     Ok(json!({
         "schemaVersion": 1,
         "kind": "legion-setup-status",
@@ -598,7 +614,7 @@ async fn qualify(
         &release,
         &platform_state_root,
         false,
-        cancellation,
+        cancellation.clone(),
     )
     .await?;
     let applicable = clients
@@ -666,9 +682,10 @@ async fn execute(
         .map_err(setup_error)?;
     // Reconcile production client bindings before durable registry mutation.
     // This keeps an escaped projection from leaving a partially applied plan.
-    preview_host_integrations(&integration_request)?;
+    preview_host_integrations(&integration_request, cancellation.clone()).await?;
     let execution = registry.execute(confirmed).map_err(setup_error)?;
-    let host_integrations = apply_host_integrations(&integration_request)?;
+    let host_integrations =
+        apply_host_integrations(&integration_request, cancellation.clone()).await?;
     let authenticated_live_qualification = inspect_stored_live_qualification(
         &execution.clients,
         &integration_request.release,
@@ -679,10 +696,11 @@ async fn execute(
     let live_identity =
         inspect_live_identity(&host_integrations, integration_request.development.as_ref())?;
     let execution_value = enrich_client_statuses(execution_value, &live_identity);
-    let (status, remediation) = setup_health(
+    let (status, remediation) = setup_health_for_action(
         &execution_value["clients"],
         &host_integrations,
         &live_identity,
+        &integration_request.action,
     );
     Ok(json!({
         "schemaVersion": 1,
@@ -1283,10 +1301,24 @@ fn resolve_launcher(client_id: &str) -> Result<PathBuf, CommandError> {
 }
 
 fn resolve_command(command: &str) -> Result<PathBuf, CommandError> {
-    let path = std::env::var_os("PATH").ok_or_else(|| {
-        CommandError::incomplete(format!("PATH is unavailable while resolving {command}"))
-    })?;
-    let directories = std::env::split_paths(&path).collect::<Vec<_>>();
+    let mut directories = std::env::var_os("PATH")
+        .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+        .unwrap_or_default();
+    if let Some(home) =
+        std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from)
+    {
+        directories.push(home.join(".local/bin"));
+        if cfg!(windows) {
+            directories.push(home.join("AppData/Roaming/npm"));
+        }
+    }
+    #[cfg(target_os = "macos")]
+    directories.extend([
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/local/bin"),
+    ]);
+    let mut seen = BTreeSet::new();
+    directories.retain(|directory| seen.insert(directory.clone()));
     let suffixes: Vec<OsString> = if cfg!(windows) {
         vec![
             OsString::from(".exe"),
@@ -1624,6 +1656,19 @@ fn inspect_live_plugin(
     installed: &legion_runtime::release_binding::InstalledRelease,
     host_integrations: &Value,
 ) -> Value {
+    if let Some(marketplace) = host_integrations.get("claudeMarketplace") {
+        return json!({
+            "state": marketplace.get("state"),
+            "expectedReleaseVersion": marketplace.get("expectedReleaseVersion"),
+            "activeReleaseVersion": marketplace.get("cachedRelease").and_then(|value| value.get("releaseVersion")),
+            "nativeMarketplaceRegistered": marketplace.get("nativeMarketplaceRegistered"),
+            "nativePlugin": marketplace.get("nativePlugin"),
+            "cachedRelease": marketplace.get("cachedRelease"),
+            "trust": marketplace.get("trust"),
+            "marketplaceRoot": marketplace.get("marketplaceRoot"),
+            "detail": marketplace.get("detail"),
+        });
+    }
     let Some(claude) = integration_inspection(host_integrations, "claudeCodeLegacy") else {
         return json!({
             "state": "not_selected",
@@ -2100,6 +2145,37 @@ fn inspect_live_projections(
             }),
         );
     }
+    for (client_id, key) in [
+        (
+            legion_host::setup_registry::CLIENT_CLAUDE,
+            "claudeMarketplace",
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CODEX,
+            "codexMarketplace",
+        ),
+    ] {
+        let Some(marketplace) = host_integrations.get(key) else {
+            continue;
+        };
+        projections.insert(
+            key.into(),
+            json!({
+                "clientId": client_id,
+                "state": marketplace.get("state"),
+                "marketplaceName": marketplace.get("marketplaceName"),
+                "pluginName": marketplace.get("pluginName"),
+                "nativeMarketplaceRegistered": marketplace.get("nativeMarketplaceRegistered"),
+                "nativePlugin": marketplace.get("nativePlugin"),
+                "cachedRelease": marketplace.get("cachedRelease"),
+                "trust": marketplace.get("trust"),
+                "expectedReleaseVersion": marketplace.get("expectedReleaseVersion"),
+                "expectedRuntimeSha256": marketplace.get("expectedRuntimeSha256"),
+                "marketplaceRoot": marketplace.get("marketplaceRoot"),
+                "detail": marketplace.get("detail"),
+            }),
+        );
+    }
     Value::Object(projections)
 }
 
@@ -2124,7 +2200,27 @@ fn setup_health(
     host_integrations: &Value,
     live_identity: &Value,
 ) -> (&'static str, Vec<String>) {
+    setup_health_for_action(
+        clients,
+        host_integrations,
+        live_identity,
+        &legion_host::SetupAction::Repair,
+    )
+}
+
+fn setup_health_for_action(
+    clients: &Value,
+    host_integrations: &Value,
+    live_identity: &Value,
+    action: &legion_host::SetupAction,
+) -> (&'static str, Vec<String>) {
     let mut remediation = Vec::new();
+    let destructive_lifecycle = matches!(
+        action,
+        legion_host::SetupAction::Disable
+            | legion_host::SetupAction::Remove
+            | legion_host::SetupAction::Purge
+    );
     // Advisory notes about projections Legion deliberately declines to create.
     // They are reported, but an operator's opt-out is not an incomplete setup.
     let mut opt_in_notes: Vec<String> = Vec::new();
@@ -2228,13 +2324,42 @@ fn setup_health(
             EXPECTED_RELEASE_VERSION
         ));
     }
-    if !optional_baseline_clients.is_empty() && !has_full_supported_client {
+    if !destructive_lifecycle && !optional_baseline_clients.is_empty() && !has_full_supported_client
+    {
         remediation
             .push("optional Pi Baseline is present but no Full supported client is active".into());
     }
     match clients.as_array() {
-        Some(values) if values.is_empty() => remediation
-            .push("no supported client is registered with complete setup evidence".into()),
+        Some(values) if values.is_empty() && !destructive_lifecycle => {
+            let unobserved = ["claudeMarketplace", "codexMarketplace"].iter().all(|key| {
+                matches!(
+                    live_identity["projections"][key]["state"].as_str(),
+                    Some("client_unavailable" | "not_selected")
+                )
+            });
+            if unobserved {
+                opt_in_notes.push(
+                    "native client integrations are unobserved because no supported client is installed".into(),
+                );
+            } else {
+                remediation
+                    .push("no supported client is registered with complete setup evidence".into());
+            }
+        }
+        Some(values) if destructive_lifecycle => {
+            for client in values {
+                let client_id = client
+                    .get("clientId")
+                    .or_else(|| client.get("client_id"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown");
+                if !active_clients.contains(client_id) {
+                    opt_in_notes.push(format!(
+                        "client {client_id} was already absent during requested lifecycle action"
+                    ));
+                }
+            }
+        }
         Some(values) => {
             for client in values {
                 let installed = client
@@ -2284,12 +2409,67 @@ fn setup_health(
                 }
             }
         }
+        None if destructive_lifecycle => opt_in_notes
+            .push("no registered clients were observed during requested lifecycle action".into()),
         None => remediation.push("setup client status is unavailable".into()),
     }
     if let Some(plugin_state) = live_identity["plugin"]["state"].as_str() {
-        if !matches!(plugin_state, "current" | "not_selected") {
+        let action_state_ok = match action {
+            legion_host::SetupAction::Disable => {
+                matches!(
+                    plugin_state,
+                    "disabled" | "absent" | "not_selected" | "client_unavailable"
+                )
+            }
+            legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+                matches!(
+                    plugin_state,
+                    "absent" | "not_selected" | "client_unavailable"
+                )
+            }
+            _ => matches!(
+                plugin_state,
+                "current" | "disabled" | "not_selected" | "client_unavailable"
+            ),
+        };
+        if !action_state_ok {
             remediation.push(format!(
                 "Claude plugin identity is {plugin_state}; repair observes cache and preserves its files"
+            ));
+        }
+    }
+    for (client_id, key) in [
+        (
+            legion_host::setup_registry::CLIENT_CLAUDE,
+            "claudeMarketplace",
+        ),
+        (
+            legion_host::setup_registry::CLIENT_CODEX,
+            "codexMarketplace",
+        ),
+    ] {
+        let Some(marketplace) = live_identity["projections"].get(key) else {
+            continue;
+        };
+        let state = marketplace
+            .get("state")
+            .and_then(Value::as_str)
+            .unwrap_or("unavailable");
+        if matches!(state, "client_unavailable" | "not_selected") {
+            opt_in_notes.push(format!(
+                "{client_id} native marketplace is {state}; client integration was not claimed"
+            ));
+        } else if active_clients.contains(client_id)
+            && !match action {
+                legion_host::SetupAction::Disable => matches!(state, "disabled" | "absent"),
+                legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+                    state == "absent"
+                }
+                _ => matches!(state, "current" | "disabled"),
+            }
+        {
+            remediation.push(format!(
+                "{client_id} native marketplace is {state}; {repair_command}"
             ));
         }
     }
@@ -2339,6 +2519,19 @@ fn setup_health(
                         "pi projection is {state}; client is optional Baseline with missing {missing}; default setup leaves it unselected"
                     ));
                 }
+                continue;
+            }
+            let retired_native_projection = match client.as_str() {
+                "claudeCodeLegacy" | "claudePlugin" => Some("claudeMarketplace"),
+                "codexSkills" | "codexPlugin" => Some("codexMarketplace"),
+                _ => None,
+            }
+            .is_some_and(|key| {
+                let state = live_identity["projections"][key]["state"].as_str();
+                matches!(state, Some("current" | "disabled"))
+                    || (destructive_lifecycle && state == Some("absent"))
+            });
+            if retired_native_projection {
                 continue;
             }
             if projection_client.is_some_and(|id| optional_baseline_clients.contains(id)) {
@@ -2936,12 +3129,223 @@ fn inspect_stored_live_qualification(
 struct HostIntegrationInputs {
     claude: Option<legion_host::ClaudeLegacyInput>,
     codex: Option<legion_host::CodexSkillsInput>,
+    marketplaces: Vec<legion_host::MarketplaceBinding>,
     client_projections: Vec<legion_host::setup_registry::ClientProjectionInput>,
 }
 
-fn inspect_host_integrations(
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct MarketplaceRefreshTransaction {
+    kind: String,
+    schema_version: u32,
+    client_id: String,
+    was_installed: bool,
+    was_enabled: Option<bool>,
+    prior_version: Option<String>,
+    prior_cache_path: Option<String>,
+    prior_cached_release: Value,
+    original_marketplace_root: String,
+    prior_plugin_sha256: String,
+    snapshot_root: String,
+    stage: String,
+}
+
+const MARKETPLACE_REFRESH_KIND: &str = "legion-native-marketplace-refresh-v1";
+
+fn marketplace_refresh_root(request: &legion_host::SetupRequest) -> PathBuf {
+    request
+        .platform_state_root
+        .join("integrations/native-refresh/claude")
+}
+
+fn load_marketplace_refresh(
+    request: &legion_host::SetupRequest,
+) -> Result<Option<MarketplaceRefreshTransaction>, CommandError> {
+    let root = marketplace_refresh_root(request);
+    let marker = root.join("pending.json");
+    let bytes = match std::fs::read(&marker) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(io_error(error)),
+    };
+    let record: MarketplaceRefreshTransaction =
+        serde_json::from_slice(&bytes).map_err(|error| {
+            CommandError::incomplete(format!(
+                "native marketplace recovery marker is invalid at {}: {error}",
+                marker.display()
+            ))
+        })?;
+    let snapshot_root = PathBuf::from(&record.snapshot_root);
+    if record.kind != MARKETPLACE_REFRESH_KIND
+        || record.schema_version != MARKETPLACE_REFRESH_SCHEMA_VERSION
+        || record.client_id != legion_host::setup_registry::CLIENT_CLAUDE
+        || snapshot_root.parent() != Some(root.as_path())
+        || !snapshot_root.is_dir()
+    {
+        return Err(CommandError::incomplete(
+            "native marketplace recovery marker identity does not match its owned path",
+        ));
+    }
+    Ok(Some(record))
+}
+
+fn persist_marketplace_refresh(record: &MarketplaceRefreshTransaction) -> Result<(), CommandError> {
+    let snapshot_root = PathBuf::from(&record.snapshot_root);
+    let root = snapshot_root
+        .parent()
+        .ok_or_else(|| CommandError::incomplete("native marketplace snapshot has no parent"))?;
+    std::fs::create_dir_all(root).map_err(io_error)?;
+    let marker = root.join("pending.json");
+    let bytes = serde_json::to_vec_pretty(record).map_err(io_error)?;
+    let temporary = root.join(format!(".pending-{}.tmp", std::process::id()));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&temporary)
+        .map_err(io_error)?;
+    use std::io::Write;
+    if let Err(error) = file.write_all(&bytes).and_then(|()| file.sync_all()) {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(io_error(error));
+    }
+    std::fs::rename(&temporary, marker).map_err(io_error)
+}
+
+fn snapshot_claude_cache(
+    request: &legion_host::SetupRequest,
+    binding: &legion_host::MarketplaceBinding,
+    before: &Value,
+) -> Result<MarketplaceRefreshTransaction, CommandError> {
+    let native = &before["nativePlugin"];
+    let was_enabled = native["enabled"].as_bool().ok_or_else(|| {
+        CommandError::incomplete(
+            "Claude native plugin omitted enabled state; preserving existing cache",
+        )
+    })?;
+    let cache_path = native["path"].as_str().ok_or_else(|| {
+        CommandError::incomplete(
+            "Claude native plugin list omitted cache path; cannot snapshot safely",
+        )
+    })?;
+    let source = PathBuf::from(cache_path);
+    if !source.is_absolute() {
+        return Err(CommandError::incomplete(
+            "Claude native cache path is not absolute; cannot snapshot safely",
+        ));
+    }
+    let prior_plugin_sha256 =
+        legion_host::plugin_tree_sha256(&source).map_err(CommandError::incomplete)?;
+    let transaction_id = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(io_error)?
+            .as_nanos()
+    );
+    let snapshot_root = marketplace_refresh_root(request).join(transaction_id);
+    if let Err(error) = copy_plugin_tree(&source, &snapshot_root.join("plugin")) {
+        let _ = std::fs::remove_dir_all(&snapshot_root);
+        return Err(error);
+    }
+    let catalog_bytes = serde_json::to_vec_pretty(&json!({
+        "name": legion_host::marketplace::MARKETPLACE_NAME,
+        "owner": {"name": "Orthic Labs"},
+        "plugins": [{"name": legion_host::marketplace::PLUGIN_NAME, "source": "./plugin"}]
+    }))
+    .map_err(io_error)?;
+    let catalog_path = snapshot_root.join(".claude-plugin/marketplace.json");
+    std::fs::create_dir_all(catalog_path.parent().expect("marketplace parent"))
+        .map_err(io_error)?;
+    std::fs::write(catalog_path, catalog_bytes).map_err(io_error)?;
+    if legion_host::plugin_tree_sha256(&snapshot_root.join("plugin"))
+        .map_err(CommandError::incomplete)?
+        != prior_plugin_sha256
+    {
+        let _ = std::fs::remove_dir_all(&snapshot_root);
+        return Err(CommandError::incomplete(
+            "Claude plugin cache changed while its rollback snapshot was created",
+        ));
+    }
+    let transaction = MarketplaceRefreshTransaction {
+        kind: MARKETPLACE_REFRESH_KIND.into(),
+        schema_version: MARKETPLACE_REFRESH_SCHEMA_VERSION,
+        client_id: legion_host::setup_registry::CLIENT_CLAUDE.into(),
+        was_installed: native["installed"] == true,
+        was_enabled: Some(was_enabled),
+        prior_version: native["version"].as_str().map(str::to_owned),
+        prior_cache_path: Some(cache_path.into()),
+        prior_cached_release: before["cachedRelease"].clone(),
+        original_marketplace_root: binding.current_root.to_string_lossy().into_owned(),
+        prior_plugin_sha256,
+        snapshot_root: snapshot_root.to_string_lossy().into_owned(),
+        stage: "snapshot-ready".into(),
+    };
+    if let Err(error) = persist_marketplace_refresh(&transaction) {
+        let _ = std::fs::remove_dir_all(&snapshot_root);
+        return Err(error);
+    }
+    Ok(transaction)
+}
+
+fn copy_plugin_tree(source: &Path, destination: &Path) -> Result<(), CommandError> {
+    let metadata = std::fs::symlink_metadata(source).map_err(io_error)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(CommandError::incomplete(
+            "Claude native cache is not a regular plugin directory",
+        ));
+    }
+    std::fs::create_dir_all(destination).map_err(io_error)?;
+    for entry in std::fs::read_dir(source).map_err(io_error)? {
+        let entry = entry.map_err(io_error)?;
+        let from = entry.path();
+        let to = destination.join(entry.file_name());
+        let metadata = std::fs::symlink_metadata(&from).map_err(io_error)?;
+        if metadata.file_type().is_symlink() {
+            return Err(CommandError::incomplete(
+                "Claude native cache contains a symlink; rollback snapshot refused",
+            ));
+        }
+        if metadata.is_dir() {
+            copy_plugin_tree(&from, &to)?;
+            std::fs::set_permissions(&to, metadata.permissions()).map_err(io_error)?;
+        } else if metadata.is_file() {
+            std::fs::copy(&from, &to).map_err(io_error)?;
+        } else {
+            return Err(CommandError::incomplete(
+                "Claude native cache contains a non-regular entry; rollback snapshot refused",
+            ));
+        }
+    }
+    std::fs::set_permissions(destination, metadata.permissions()).map_err(io_error)?;
+    Ok(())
+}
+
+fn clear_marketplace_refresh(
+    request: &legion_host::SetupRequest,
+    record: &MarketplaceRefreshTransaction,
+) -> Result<(), CommandError> {
+    let snapshot_root = PathBuf::from(&record.snapshot_root);
+    if snapshot_root.parent() != Some(marketplace_refresh_root(request).as_path()) {
+        return Err(CommandError::incomplete(
+            "native marketplace snapshot path escaped product state",
+        ));
+    }
+    match std::fs::remove_file(marketplace_refresh_root(request).join("pending.json")) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(io_error(error)),
+    };
+    // Remove marker first: interruption can leave an orphan snapshot, but can
+    // never leave recovery pointing at an already-deleted snapshot.
+    std::fs::remove_dir_all(&snapshot_root).map_err(io_error)
+}
+
+async fn inspect_host_integrations(
     selector: &legion_host::ClientSelector,
     release: &legion_host::BoundRelease,
+    cancellation: CancellationToken,
 ) -> Result<Value, CommandError> {
     let inputs = host_integration_inputs_installed(selector, release)?;
     let mut integrations = serde_json::Map::new();
@@ -2959,6 +3363,12 @@ fn inspect_host_integrations(
                 .map_err(|error| CommandError::incomplete(error.to_string()))?,
         );
     }
+    for input in &inputs.marketplaces {
+        integrations.insert(
+            marketplace_key(input.client).into(),
+            inspect_native_marketplace(input, release, cancellation.clone()).await?,
+        );
+    }
     for input in &inputs.client_projections {
         let key = projection_key(&input.client_id);
         integrations.insert(
@@ -2973,7 +3383,985 @@ fn inspect_host_integrations(
     Ok(Value::Object(integrations))
 }
 
-fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
+fn marketplace_client_id(client: legion_host::MarketplaceClient) -> &'static str {
+    match client {
+        legion_host::MarketplaceClient::ClaudeCode => legion_host::setup_registry::CLIENT_CLAUDE,
+        legion_host::MarketplaceClient::Codex => legion_host::setup_registry::CLIENT_CODEX,
+    }
+}
+
+fn marketplace_key(client: legion_host::MarketplaceClient) -> &'static str {
+    match client {
+        legion_host::MarketplaceClient::ClaudeCode => "claudeMarketplace",
+        legion_host::MarketplaceClient::Codex => "codexMarketplace",
+    }
+}
+
+async fn inspect_native_marketplace(
+    binding: &legion_host::MarketplaceBinding,
+    release: &legion_host::BoundRelease,
+    cancellation: CancellationToken,
+) -> Result<Value, CommandError> {
+    let executable = match resolve_command(binding.client.executable()) {
+        Ok(path) => path,
+        Err(error) => {
+            return Ok(json!({
+                "clientId": marketplace_client_id(binding.client),
+                "state": "client_unavailable",
+                "marketplaceName": legion_host::marketplace::MARKETPLACE_NAME,
+                "pluginName": legion_host::marketplace::PLUGIN_NAME,
+                "nativeMarketplaceRegistered": false,
+                "marketplaceSourceCurrent": false,
+                "nativePlugin": {"installed": false, "enabled": null, "version": null, "path": null, "marketplace": null},
+                "cachedRelease": null,
+                "trust": "host-managed",
+                "expectedReleaseVersion": release.release_version,
+                "expectedRuntimeSha256": release.runtime_digest,
+                "detail": error.message,
+            }));
+        }
+    };
+    let binding_valid = binding.validate_payload();
+    let market_output = run_marketplace_cli(
+        &executable,
+        binding.client.marketplace_list_args(),
+        binding.client,
+        "marketplace list",
+        cancellation.clone(),
+    )
+    .await?;
+    let marketplace_value = parse_marketplace_json(&market_output.stdout, binding.client)?;
+    let source_current = marketplace_root_registered(
+        &marketplace_value,
+        &binding.current_root,
+        legion_host::marketplace::MARKETPLACE_NAME,
+    );
+    let registered = marketplace_named_registered(
+        &marketplace_value,
+        legion_host::marketplace::MARKETPLACE_NAME,
+    );
+    let mut native_plugin = read_native_plugin_entry(binding.client, cancellation.clone())
+        .await
+        .map_err(CommandError::incomplete)?;
+    let home = installed_host_home()?;
+    if binding.client == legion_host::MarketplaceClient::Codex {
+        let configured_enabled =
+            legion_host::marketplace::codex_enabled(&codex_home(&home).join("config.toml"))
+                .map_err(CommandError::incomplete)?;
+        native_plugin.enabled = Some(native_plugin.enabled == Some(false) || !configured_enabled);
+    }
+    let cached_result = if native_plugin.installed {
+        binding_valid.and_then(|()| {
+            legion_host::marketplace::verify_cached_release(
+                &native_plugin,
+                &binding.plugin_root,
+                &release.release_version,
+                &release.runtime_digest,
+            )
+        })
+    } else {
+        Err("native plugin is not installed".into())
+    };
+    let cached = cached_result.as_ref().ok();
+    let cached_value = serde_json::to_value(cached)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let state = if !native_plugin.installed {
+        "absent"
+    } else if !source_current || cached.is_none() {
+        "stale"
+    } else if native_plugin.enabled == Some(false) {
+        "disabled"
+    } else {
+        "current"
+    };
+    Ok(json!({
+        "clientId": marketplace_client_id(binding.client),
+        "state": state,
+        "marketplaceName": legion_host::marketplace::MARKETPLACE_NAME,
+        "pluginName": legion_host::marketplace::PLUGIN_NAME,
+        "nativeMarketplaceRegistered": registered,
+        "marketplaceSourceCurrent": source_current,
+        "nativePlugin": native_plugin,
+        "cachedRelease": cached_value,
+        "trust": "host-managed",
+        "expectedReleaseVersion": release.release_version,
+        "expectedRuntimeSha256": release.runtime_digest,
+        "marketplaceRoot": binding.current_root,
+        "detail": cached_result.err(),
+    }))
+}
+
+/// Read one native installed-plugin record using the host's list command and
+/// documented deterministic cache root when JSON omits an installed path.
+/// This is shared with doctor/hooks so they never inspect native DB files.
+pub async fn read_native_plugin_entry(
+    client: legion_host::MarketplaceClient,
+    cancellation: CancellationToken,
+) -> Result<legion_host::NativePluginEntry, String> {
+    let executable = resolve_command(client.executable()).map_err(|error| error.message)?;
+    let output = run_marketplace_cli(
+        &executable,
+        client.plugin_list_args(),
+        client,
+        "plugin list",
+        cancellation,
+    )
+    .await
+    .map_err(|error| error.message)?;
+    let value = parse_marketplace_json(&output.stdout, client).map_err(|error| error.message)?;
+    let mut entry = legion_host::native_plugin_entry_scoped(
+        &value,
+        (client == legion_host::MarketplaceClient::ClaudeCode).then_some("user"),
+    );
+    if entry.installed && entry.path.is_none() {
+        let home = installed_host_home().map_err(|error| error.message)?;
+        match client {
+            legion_host::MarketplaceClient::Codex => {
+                let codex_home = codex_home(&home);
+                match legion_host::marketplace::find_codex_plugin_cache_version(
+                    &codex_home.join("config.toml"),
+                    &codex_home,
+                    entry.version.as_deref(),
+                )
+                .map_err(|error| format!("cannot resolve Codex native cache: {error}"))?
+                {
+                    legion_host::marketplace::CodexCacheLookup::Found(path) => {
+                        entry.path = Some(path.to_string_lossy().into_owned());
+                    }
+                    legion_host::marketplace::CodexCacheLookup::Ambiguous(_) => {
+                        return Err("Codex native plugin cache is ambiguous".into());
+                    }
+                    legion_host::marketplace::CodexCacheLookup::NotConfigured
+                    | legion_host::marketplace::CodexCacheLookup::Missing => {}
+                }
+            }
+            legion_host::MarketplaceClient::ClaudeCode => {
+                let cache_root =
+                    client.installed_cache_root(&claude_home(&home), entry.version.as_deref());
+                if cache_root.is_dir() {
+                    entry.path = Some(cache_root.to_string_lossy().into_owned());
+                }
+            }
+        }
+    }
+    Ok(entry)
+}
+
+async fn read_owned_legacy_claude_disabled(
+    request: &legion_host::SetupRequest,
+    cli: &Path,
+    cancellation: CancellationToken,
+) -> Result<bool, CommandError> {
+    let inputs = host_integration_inputs(request)?;
+    let Some(projection) = inputs
+        .client_projections
+        .iter()
+        .find(|input| input.client_id == legion_host::setup_registry::CLIENT_CLAUDE)
+    else {
+        return Ok(false);
+    };
+    let inspection =
+        legion_host::setup_registry::inspect_client_projection(projection).map_err(setup_error)?;
+    if inspection.ownership != "legion" {
+        return Ok(false);
+    }
+    let client = legion_host::MarketplaceClient::ClaudeCode;
+    let output = run_marketplace_cli(
+        cli,
+        client.plugin_list_args(),
+        client,
+        "legacy plugin list",
+        cancellation,
+    )
+    .await?;
+    let listed = parse_marketplace_json(&output.stdout, client)?;
+    let legacy = legion_host::marketplace::claude_legacy_plugin_entry(&listed);
+    if !legacy.installed {
+        return Ok(false);
+    }
+    let Some(path) = legacy.path else {
+        return Err(CommandError::incomplete(
+            "owned legacy Claude plugin has no native path readback; preserving legacy files",
+        ));
+    };
+    let actual = std::fs::canonicalize(&path).unwrap_or_else(|_| PathBuf::from(path));
+    let expected = std::fs::canonicalize(&projection.target_root)
+        .unwrap_or_else(|_| projection.target_root.clone());
+    if actual != expected {
+        return Ok(false);
+    }
+    match legacy.enabled {
+        Some(enabled) => Ok(!enabled),
+        None => Err(CommandError::incomplete(
+            "owned legacy Claude plugin omitted enabled state; preserving legacy files",
+        )),
+    }
+}
+
+async fn reconcile_native_marketplace(
+    binding: &legion_host::MarketplaceBinding,
+    request: &legion_host::SetupRequest,
+    cancellation: CancellationToken,
+) -> Result<Value, CommandError> {
+    let cli = match resolve_command(binding.client.executable()) {
+        Ok(path) => path,
+        Err(error) => {
+            if matches!(request.selector, legion_host::ClientSelector::ClientId(_)) {
+                return Err(CommandError::incomplete(format!(
+                    "{} was selected but its native CLI is unavailable: {}",
+                    marketplace_client_id(binding.client),
+                    error.message
+                )));
+            }
+            return Ok(client_unavailable_value(
+                binding.client,
+                &request.release,
+                error.message,
+            ));
+        }
+    };
+    if let Err(error) = binding.validate_payload() {
+        return Err(CommandError::incomplete(error));
+    }
+
+    let before =
+        inspect_native_marketplace(binding, &request.release, cancellation.clone()).await?;
+    let was_installed = before["nativePlugin"]["installed"] == true;
+    let pending_refresh = if binding.client == legion_host::MarketplaceClient::ClaudeCode {
+        load_marketplace_refresh(request)?
+    } else {
+        None
+    };
+    let mut refresh_cleared = false;
+    let legacy_claude_disabled = if binding.client == legion_host::MarketplaceClient::ClaudeCode {
+        read_owned_legacy_claude_disabled(request, &cli, cancellation.clone()).await?
+    } else {
+        false
+    };
+    let codex_config_disabled = if binding.client == legion_host::MarketplaceClient::Codex {
+        let home = installed_host_home()?;
+        !legion_host::marketplace::codex_enabled(&codex_home(&home).join("config.toml"))
+            .map_err(CommandError::incomplete)?
+    } else {
+        false
+    };
+    let was_disabled = before["nativePlugin"]["enabled"] == false
+        || legacy_claude_disabled
+        || codex_config_disabled
+        || pending_refresh
+            .as_ref()
+            .is_some_and(|record| record.was_enabled == Some(false));
+    if binding.client == legion_host::MarketplaceClient::ClaudeCode
+        && !was_installed
+        && pending_refresh.is_some()
+        && matches!(
+            request.action,
+            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
+        )
+    {
+        return resume_interrupted_claude_refresh(
+            &cli,
+            binding,
+            request,
+            pending_refresh.as_ref().expect("checked pending refresh"),
+            cancellation,
+        )
+        .await;
+    }
+    let registered = before["nativeMarketplaceRegistered"] == true;
+    let source_current = before["marketplaceSourceCurrent"] == true;
+    let legacy_owned = binding.client == legion_host::MarketplaceClient::Codex
+        && !was_installed
+        && codex_legacy_projection_owned(request)?;
+    if binding.client == legion_host::MarketplaceClient::Codex
+        && matches!(
+            &request.action,
+            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
+        )
+        && matches!(request.selector, legion_host::ClientSelector::AllSupported)
+        && !was_installed
+        && !legacy_owned
+    {
+        return Ok(json!({
+            "clientId": marketplace_client_id(binding.client),
+            "state": "not_selected",
+            "marketplaceName": legion_host::marketplace::MARKETPLACE_NAME,
+            "pluginName": legion_host::marketplace::PLUGIN_NAME,
+            "nativeMarketplaceRegistered": registered,
+            "marketplaceSourceCurrent": source_current,
+            "nativePlugin": before["nativePlugin"],
+            "cachedRelease": before["cachedRelease"],
+            "trust": "host-managed",
+            "expectedReleaseVersion": request.release.release_version,
+            "expectedRuntimeSha256": request.release.runtime_digest,
+        }));
+    }
+    let disabled_absent = request.action == legion_host::SetupAction::Disable && !was_installed;
+    if marketplace_should_register(
+        &request.action,
+        binding.client,
+        matches!(request.selector, legion_host::ClientSelector::AllSupported),
+        source_current,
+        was_installed,
+        legacy_owned,
+    ) {
+        run_marketplace_cli(
+            &cli,
+            binding.client.marketplace_add_args(&binding.current_root),
+            binding.client,
+            "marketplace add",
+            cancellation.clone(),
+        )
+        .await?;
+    }
+    let current = before["state"] == "current" || before["state"] == "disabled";
+    if marketplace_should_install_or_refresh(&request.action, current) && !disabled_absent {
+        if was_installed {
+            match binding.client {
+                legion_host::MarketplaceClient::ClaudeCode => {
+                    run_marketplace_cli(
+                        &cli,
+                        vec![
+                            "plugin".into(),
+                            "marketplace".into(),
+                            "update".into(),
+                            legion_host::marketplace::MARKETPLACE_NAME.into(),
+                            "--json".into(),
+                        ],
+                        binding.client,
+                        "marketplace update",
+                        cancellation.clone(),
+                    )
+                    .await?;
+                    run_marketplace_cli(
+                        &cli,
+                        vec![
+                            "plugin".into(),
+                            "update".into(),
+                            format!(
+                                "{}@{}",
+                                legion_host::marketplace::PLUGIN_NAME,
+                                legion_host::marketplace::MARKETPLACE_NAME
+                            ),
+                            "--scope".into(),
+                            "user".into(),
+                            "--json".into(),
+                        ],
+                        binding.client,
+                        "plugin update",
+                        cancellation.clone(),
+                    )
+                    .await?;
+                    let refreshed =
+                        inspect_native_marketplace(binding, &request.release, cancellation.clone())
+                            .await?;
+                    let expected = if was_disabled { "disabled" } else { "current" };
+                    if refreshed["state"] != expected {
+                        let transaction = match pending_refresh.clone() {
+                            Some(record) => record,
+                            None => snapshot_claude_cache(request, binding, &refreshed)?,
+                        };
+                        refresh_claude_plugin(
+                            &cli,
+                            binding,
+                            request,
+                            was_disabled,
+                            &refreshed,
+                            &transaction,
+                            cancellation.clone(),
+                        )
+                        .await?;
+                        clear_marketplace_refresh(request, &transaction)?;
+                        refresh_cleared = true;
+                    }
+                }
+                legion_host::MarketplaceClient::Codex => {
+                    // Local Codex marketplaces are refreshed by plugin add;
+                    // marketplace upgrade only updates configured Git sources.
+                    run_marketplace_cli(
+                        &cli,
+                        binding.client.plugin_add_args(),
+                        binding.client,
+                        "plugin refresh",
+                        cancellation.clone(),
+                    )
+                    .await?;
+                }
+            }
+        } else {
+            run_marketplace_cli(
+                &cli,
+                binding.client.plugin_add_args(),
+                binding.client,
+                "plugin add",
+                cancellation.clone(),
+            )
+            .await?;
+        }
+    }
+
+    match request.action {
+        legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
+            if was_disabled {
+                set_marketplace_enabled(binding.client, false, &cli, cancellation.clone()).await?;
+            }
+        }
+        legion_host::SetupAction::Disable => {
+            if was_installed {
+                set_marketplace_enabled(binding.client, false, &cli, cancellation.clone()).await?;
+            }
+        }
+        legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
+            if was_installed {
+                run_marketplace_cli(
+                    &cli,
+                    binding.client.plugin_remove_args(),
+                    binding.client,
+                    "plugin remove",
+                    cancellation.clone(),
+                )
+                .await?;
+            }
+            if registered {
+                run_marketplace_cli(
+                    &cli,
+                    binding.client.marketplace_remove_args(),
+                    binding.client,
+                    "marketplace remove",
+                    cancellation.clone(),
+                )
+                .await?;
+            }
+        }
+        _ => {}
+    }
+    let mut after = inspect_native_marketplace(binding, &request.release, cancellation).await?;
+    let expected_state = marketplace_expected_state(&request.action, was_disabled, was_installed);
+    if request.action == legion_host::SetupAction::Remove
+        || request.action == legion_host::SetupAction::Purge
+    {
+        if !marketplace_removal_proven(&after) {
+            return Err(CommandError::incomplete(format!(
+                "{} native plugin removal readback did not prove plugin and marketplace absence",
+                marketplace_client_id(binding.client)
+            )));
+        }
+        after["state"] = Value::String("absent".into());
+        if !refresh_cleared {
+            if let Some(record) = pending_refresh.as_ref() {
+                clear_marketplace_refresh(request, record)?;
+            }
+        }
+    } else if after["state"] != expected_state {
+        return Err(CommandError::incomplete(format!(
+            "{} native marketplace readback did not prove {expected_state}",
+            marketplace_client_id(binding.client)
+        )));
+    } else if !refresh_cleared {
+        if let Some(record) = pending_refresh.as_ref() {
+            clear_marketplace_refresh(request, record)?;
+        }
+    }
+    Ok(after)
+}
+
+async fn refresh_claude_plugin(
+    cli: &Path,
+    binding: &legion_host::MarketplaceBinding,
+    request: &legion_host::SetupRequest,
+    was_disabled: bool,
+    stale_readback: &Value,
+    transaction: &MarketplaceRefreshTransaction,
+    cancellation: CancellationToken,
+) -> Result<(), CommandError> {
+    let attempt = async {
+        run_marketplace_cli(
+            cli,
+            binding.client.plugin_remove_args(),
+            binding.client,
+            "plugin refresh uninstall",
+            cancellation.clone(),
+        )
+        .await?;
+        run_marketplace_cli(
+            cli,
+            binding.client.plugin_add_args(),
+            binding.client,
+            "plugin refresh install",
+            cancellation.clone(),
+        )
+        .await?;
+        if was_disabled {
+            set_marketplace_enabled(binding.client, false, cli, cancellation.clone()).await?;
+        }
+        let readback =
+            inspect_native_marketplace(binding, &request.release, cancellation.clone()).await?;
+        let expected = if was_disabled { "disabled" } else { "current" };
+        if readback["state"] != expected {
+            return Err(CommandError::incomplete(format!(
+                "Claude native refresh did not prove {expected}; cache remains {}",
+                readback["state"].as_str().unwrap_or("unknown")
+            )));
+        }
+        Ok(())
+    }
+    .await;
+    match attempt {
+        Ok(()) => Ok(()),
+        Err(original) => {
+            let rollback = rollback_claude_snapshot(cli, binding, request, transaction).await;
+            match rollback {
+                Ok(()) => Err(CommandError::incomplete(format!(
+                    "Claude native refresh failed ({}); rollback restored prior cached payload and stable marketplace source",
+                    original.message
+                ))),
+                Err(rollback_error) => Err(CommandError::incomplete(format!(
+                    "Claude native refresh failed ({}); rollback incomplete, snapshot retained: {}; previous cache: {}",
+                    original.message,
+                    rollback_error.message,
+                    stale_readback["nativePlugin"]["path"].as_str().unwrap_or("unknown")
+                ))),
+            }
+        }
+    }
+}
+
+async fn resume_interrupted_claude_refresh(
+    cli: &Path,
+    binding: &legion_host::MarketplaceBinding,
+    request: &legion_host::SetupRequest,
+    transaction: &MarketplaceRefreshTransaction,
+    cancellation: CancellationToken,
+) -> Result<Value, CommandError> {
+    let attempt = async {
+        run_marketplace_cli(
+            cli,
+            binding.client.marketplace_add_args(&binding.current_root),
+            binding.client,
+            "recover stable marketplace source",
+            cancellation.clone(),
+        )
+        .await?;
+        run_marketplace_cli(
+            cli,
+            binding.client.plugin_add_args(),
+            binding.client,
+            "recover plugin install",
+            cancellation.clone(),
+        )
+        .await?;
+        if let Some(enabled) = transaction.was_enabled {
+            set_marketplace_enabled(binding.client, enabled, cli, cancellation.clone()).await?;
+        }
+        let readback =
+            inspect_native_marketplace(binding, &request.release, cancellation.clone()).await?;
+        let expected = if transaction.was_enabled == Some(false) {
+            "disabled"
+        } else {
+            "current"
+        };
+        if readback["state"] != expected {
+            return Err(CommandError::incomplete(format!(
+                "interrupted Claude refresh recovery did not prove {expected}; state is {}",
+                readback["state"].as_str().unwrap_or("unknown")
+            )));
+        }
+        clear_marketplace_refresh(request, transaction)?;
+        Ok(readback)
+    }
+    .await;
+
+    match attempt {
+        Ok(readback) => Ok(readback),
+        Err(original) => match rollback_claude_snapshot(cli, binding, request, transaction).await {
+            Ok(()) => Err(CommandError::incomplete(format!(
+                "interrupted Claude refresh recovery failed ({}); rollback restored prior cached payload and stable marketplace source",
+                original.message
+            ))),
+            Err(rollback_error) => Err(CommandError::incomplete(format!(
+                "interrupted Claude refresh recovery failed ({}); rollback incomplete, snapshot retained: {}",
+                original.message, rollback_error.message
+            ))),
+        },
+    }
+}
+
+async fn rollback_claude_snapshot(
+    cli: &Path,
+    binding: &legion_host::MarketplaceBinding,
+    request: &legion_host::SetupRequest,
+    transaction: &MarketplaceRefreshTransaction,
+) -> Result<(), CommandError> {
+    let cancellation = CancellationToken::new();
+    let snapshot_root = PathBuf::from(&transaction.snapshot_root);
+    let snapshot_plugin = snapshot_root.join("plugin");
+    if legion_host::plugin_tree_sha256(&snapshot_plugin).map_err(CommandError::incomplete)?
+        != transaction.prior_plugin_sha256
+    {
+        return Err(CommandError::incomplete("rollback snapshot digest changed"));
+    }
+    let root_result = run_marketplace_cli(
+        cli,
+        binding.client.marketplace_add_args(&snapshot_root),
+        binding.client,
+        "rollback marketplace add",
+        cancellation.clone(),
+    )
+    .await;
+    if let Err(error) = root_result {
+        return Err(CommandError::incomplete(error.message));
+    }
+    let entries = read_native_plugin_entry(binding.client, cancellation.clone())
+        .await
+        .map_err(CommandError::incomplete)?;
+    if entries.installed {
+        run_marketplace_cli(
+            cli,
+            binding.client.plugin_remove_args(),
+            binding.client,
+            "rollback plugin remove",
+            cancellation.clone(),
+        )
+        .await?;
+    }
+    run_marketplace_cli(
+        cli,
+        binding.client.plugin_add_args(),
+        binding.client,
+        "rollback plugin install",
+        cancellation.clone(),
+    )
+    .await?;
+    if let Some(enabled) = transaction.was_enabled {
+        set_marketplace_enabled(binding.client, enabled, cli, cancellation.clone()).await?;
+    }
+    let installed = read_native_plugin_entry(binding.client, cancellation.clone())
+        .await
+        .map_err(CommandError::incomplete)?;
+    let installed_path = installed
+        .path
+        .as_deref()
+        .ok_or_else(|| CommandError::incomplete("rollback plugin list omitted cache path"))?;
+    let installed_path = PathBuf::from(installed_path);
+    if installed_path.starts_with(&snapshot_root)
+        || legion_host::plugin_tree_sha256(&installed_path).map_err(CommandError::incomplete)?
+            != transaction.prior_plugin_sha256
+        || installed.enabled != transaction.was_enabled
+    {
+        return Err(CommandError::incomplete(
+            "native rollback cache digest, enabled state, or cache location did not match snapshot",
+        ));
+    }
+    let original_root = PathBuf::from(&transaction.original_marketplace_root);
+    let recorded_root = std::fs::canonicalize(&original_root).unwrap_or(original_root.clone());
+    let active_root = std::fs::canonicalize(&binding.current_root)
+        .unwrap_or_else(|_| binding.current_root.clone());
+    if recorded_root != active_root {
+        return Err(CommandError::incomplete(
+            "native marketplace recovery source is not active stable current",
+        ));
+    }
+    run_marketplace_cli(
+        cli,
+        binding.client.marketplace_add_args(&original_root),
+        binding.client,
+        "restore stable marketplace source",
+        cancellation.clone(),
+    )
+    .await?;
+    let output = run_marketplace_cli(
+        cli,
+        binding.client.marketplace_list_args(),
+        binding.client,
+        "verify stable marketplace source",
+        cancellation,
+    )
+    .await?;
+    let listed = parse_marketplace_json(&output.stdout, binding.client)?;
+    if !marketplace_root_registered(
+        &listed,
+        &original_root,
+        legion_host::marketplace::MARKETPLACE_NAME,
+    ) {
+        return Err(CommandError::incomplete(
+            "native marketplace source did not return to stable current",
+        ));
+    }
+    let verified = read_native_plugin_entry(binding.client, CancellationToken::new())
+        .await
+        .map_err(CommandError::incomplete)?;
+    let verified_path = verified
+        .path
+        .as_deref()
+        .ok_or_else(|| CommandError::incomplete("restored plugin list omitted cache path"))?;
+    if Path::new(verified_path).starts_with(&snapshot_root)
+        || legion_host::plugin_tree_sha256(Path::new(verified_path))
+            .map_err(CommandError::incomplete)?
+            != transaction.prior_plugin_sha256
+        || verified.enabled != transaction.was_enabled
+    {
+        return Err(CommandError::incomplete(
+            "stable-source rebind changed prior cache digest or enabled state",
+        ));
+    }
+    clear_marketplace_refresh(request, transaction)
+}
+
+fn marketplace_should_register(
+    action: &legion_host::SetupAction,
+    client: legion_host::MarketplaceClient,
+    all_supported: bool,
+    registered: bool,
+    installed: bool,
+    legacy_owned: bool,
+) -> bool {
+    let needs_plugin = matches!(
+        action,
+        legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
+    );
+    needs_plugin
+        && !registered
+        && !(client == legion_host::MarketplaceClient::Codex
+            && all_supported
+            && !installed
+            && !legacy_owned)
+}
+
+fn marketplace_should_install_or_refresh(action: &legion_host::SetupAction, current: bool) -> bool {
+    matches!(
+        action,
+        legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
+    ) && !current
+}
+
+fn marketplace_expected_state(
+    action: &legion_host::SetupAction,
+    was_disabled: bool,
+    was_installed: bool,
+) -> &'static str {
+    match action {
+        legion_host::SetupAction::Disable if was_installed => "disabled",
+        legion_host::SetupAction::Disable
+        | legion_host::SetupAction::Remove
+        | legion_host::SetupAction::Purge => "absent",
+        _ if was_disabled => "disabled",
+        _ => "current",
+    }
+}
+
+fn marketplace_removal_proven(readback: &Value) -> bool {
+    readback["nativePlugin"]["installed"] == false
+        && readback["nativeMarketplaceRegistered"] == false
+}
+
+fn marketplace_cleanup_proven(state: &str) -> bool {
+    matches!(state, "current" | "disabled" | "absent")
+}
+
+fn client_unavailable_value(
+    client: legion_host::MarketplaceClient,
+    release: &legion_host::BoundRelease,
+    detail: String,
+) -> Value {
+    json!({
+        "clientId": marketplace_client_id(client),
+        "state": "client_unavailable",
+        "marketplaceName": legion_host::marketplace::MARKETPLACE_NAME,
+        "pluginName": legion_host::marketplace::PLUGIN_NAME,
+        "nativeMarketplaceRegistered": false,
+        "nativePlugin": {"installed": false, "enabled": null, "version": null, "path": null, "marketplace": null},
+        "cachedRelease": null,
+        "trust": "host-managed",
+        "expectedReleaseVersion": release.release_version,
+        "expectedRuntimeSha256": release.runtime_digest,
+        "detail": detail,
+    })
+}
+
+fn codex_home(home: &Path) -> PathBuf {
+    std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .unwrap_or_else(|| home.join(".codex"))
+}
+
+fn claude_home(home: &Path) -> PathBuf {
+    std::env::var_os("CLAUDE_CONFIG_DIR")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .unwrap_or_else(|| home.join(".claude"))
+}
+
+async fn set_marketplace_enabled(
+    client: legion_host::MarketplaceClient,
+    enabled: bool,
+    cli: &Path,
+    cancellation: CancellationToken,
+) -> Result<(), CommandError> {
+    match client {
+        legion_host::MarketplaceClient::ClaudeCode => {
+            let args = client
+                .plugin_toggle_args(enabled)
+                .expect("Claude has native enable and disable commands");
+            run_marketplace_cli(cli, args, client, "plugin state change", cancellation)
+                .await
+                .map(|_| ())
+        }
+        legion_host::MarketplaceClient::Codex => {
+            let home = installed_host_home()?;
+            legion_host::marketplace::set_codex_enabled(
+                &codex_home(&home).join("config.toml"),
+                enabled,
+            )
+            .map_err(CommandError::incomplete)
+        }
+    }
+}
+
+async fn run_marketplace_cli(
+    executable: &Path,
+    args: Vec<String>,
+    client: legion_host::MarketplaceClient,
+    operation: &str,
+    cancellation: CancellationToken,
+) -> Result<ProcessOutput, CommandError> {
+    let launch = ProcessLaunch {
+        executable: executable.to_string_lossy().into_owned(),
+        args,
+        cwd: std::env::current_dir()
+            .map_err(io_error)?
+            .to_string_lossy()
+            .into_owned(),
+        environment: std::env::vars().collect::<BTreeMap<_, _>>(),
+        stdout_limit: 1024 * 1024,
+        stderr_limit: 1024 * 1024,
+        timeout_ms: MARKETPLACE_TIMEOUT.as_millis() as u64,
+        termination_grace_ms: 2_000,
+        cancellation,
+    };
+    #[cfg(unix)]
+    let output = legion_effects::platform::unix::UnixProcess
+        .run(launch)
+        .await;
+    #[cfg(windows)]
+    let output = legion_effects::platform::windows::WindowsProcess
+        .run(launch)
+        .await;
+    let output = output.map_err(|error| {
+        CommandError::incomplete(format!(
+            "{} {operation} failed to start: {error}",
+            client.executable()
+        ))
+    })?;
+    if output.cancelled {
+        return Err(CommandError::cancelled());
+    }
+    if output.timed_out {
+        return Err(CommandError::incomplete(format!(
+            "{} {operation} exceeded {} seconds",
+            client.executable(),
+            MARKETPLACE_TIMEOUT.as_secs()
+        )));
+    }
+    if output.output_limited
+        || !output.kill_succeeded
+        || !output.process_tree.started
+        || !output.process_tree.terminated
+        || !output.process_tree.reaped
+    {
+        return Err(CommandError::incomplete(format!(
+            "{} {operation} did not prove bounded process completion",
+            client.executable()
+        )));
+    }
+    if output.exit_code != Some(0) {
+        return Err(CommandError::incomplete(format!(
+            "{} {operation} exited with {}; {}",
+            client.executable(),
+            output.exit_code.unwrap_or(-1),
+            process_output_detail(&output).unwrap_or_else(|| "native CLI reported failure".into())
+        )));
+    }
+    Ok(output)
+}
+
+fn parse_marketplace_json(
+    bytes: &[u8],
+    client: legion_host::MarketplaceClient,
+) -> Result<Value, CommandError> {
+    let text = std::str::from_utf8(bytes).map_err(|error| {
+        CommandError::incomplete(format!(
+            "{} returned non-UTF8 JSON: {error}",
+            client.executable()
+        ))
+    })?;
+    if let Ok(value) = serde_json::from_str(text.trim()) {
+        return Ok(value);
+    }
+    for line in text.lines().rev() {
+        if let Ok(value) = serde_json::from_str(line.trim()) {
+            return Ok(value);
+        }
+    }
+    Err(CommandError::incomplete(format!(
+        "{} did not return valid JSON for native plugin readback",
+        client.executable()
+    )))
+}
+
+fn marketplace_root_registered(value: &Value, expected_root: &Path, expected_name: &str) -> bool {
+    fn normalized(path: &str) -> PathBuf {
+        std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path))
+    }
+    fn visit(value: &Value, expected_root: &Path, expected_name: &str) -> bool {
+        match value {
+            Value::Array(items) => items
+                .iter()
+                .any(|item| visit(item, expected_root, expected_name)),
+            Value::Object(object) => {
+                let name = ["name", "id", "marketplace"]
+                    .iter()
+                    .filter_map(|key| object.get(*key).and_then(Value::as_str))
+                    .any(|name| name == expected_name);
+                let root = object.values().any(|value| {
+                    value
+                        .as_str()
+                        .is_some_and(|path| normalized(path) == expected_root)
+                });
+                (name && root)
+                    || object
+                        .values()
+                        .any(|item| visit(item, expected_root, expected_name))
+            }
+            _ => false,
+        }
+    }
+    let root = normalized(&expected_root.to_string_lossy());
+    visit(value, &root, expected_name)
+}
+
+fn marketplace_named_registered(value: &Value, expected_name: &str) -> bool {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .any(|item| marketplace_named_registered(item, expected_name)),
+        Value::Object(object) => {
+            ["name", "id", "marketplace"]
+                .iter()
+                .filter_map(|key| object.get(*key).and_then(Value::as_str))
+                .any(|name| name == expected_name)
+                || object
+                    .values()
+                    .any(|item| marketplace_named_registered(item, expected_name))
+        }
+        _ => false,
+    }
+}
+
+async fn preview_host_integrations(
+    request: &legion_host::SetupRequest,
+    cancellation: CancellationToken,
+) -> Result<Value, CommandError> {
     let inputs = host_integration_inputs(request)?;
     let mut integrations = serde_json::Map::new();
     if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE) {
@@ -3019,6 +4407,30 @@ fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Valu
             }
         }
     }
+    for input in &inputs.marketplaces {
+        if !should_process_client(request, marketplace_client_id(input.client)) {
+            integrations.insert(
+                marketplace_key(input.client).into(),
+                json!({
+                    "clientId": marketplace_client_id(input.client),
+                    "state": "not_selected",
+                    "marketplaceName": legion_host::marketplace::MARKETPLACE_NAME,
+                    "pluginName": legion_host::marketplace::PLUGIN_NAME,
+                    "nativeMarketplaceRegistered": false,
+                    "nativePlugin": {"installed": false, "enabled": null, "version": null, "path": null, "marketplace": null},
+                    "cachedRelease": null,
+                    "trust": "host-managed",
+                    "expectedReleaseVersion": request.release.release_version,
+                    "expectedRuntimeSha256": request.release.runtime_digest,
+                }),
+            );
+            continue;
+        }
+        integrations.insert(
+            marketplace_key(input.client).into(),
+            inspect_native_marketplace(input, &request.release, cancellation.clone()).await?,
+        );
+    }
     for input in &inputs.client_projections {
         if !should_process_client(request, &input.client_id) {
             continue;
@@ -3036,10 +4448,30 @@ fn preview_host_integrations(request: &legion_host::SetupRequest) -> Result<Valu
     Ok(Value::Object(integrations))
 }
 
-fn apply_host_integrations(request: &legion_host::SetupRequest) -> Result<Value, CommandError> {
+async fn apply_host_integrations(
+    request: &legion_host::SetupRequest,
+    cancellation: CancellationToken,
+) -> Result<Value, CommandError> {
     let inputs = host_integration_inputs(request)?;
     let mut integrations = serde_json::Map::new();
-    if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE) {
+    let mut marketplace_states = BTreeMap::new();
+    for input in &inputs.marketplaces {
+        if !should_process_client(request, marketplace_client_id(input.client)) {
+            continue;
+        }
+        let value = reconcile_native_marketplace(input, request, cancellation.clone()).await?;
+        marketplace_states.insert(marketplace_client_id(input.client), value["state"].clone());
+        integrations.insert(marketplace_key(input.client).into(), value);
+    }
+    let verified_cutover = |client_id: &str| {
+        marketplace_states
+            .get(client_id)
+            .and_then(Value::as_str)
+            .is_some_and(marketplace_cleanup_proven)
+    };
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CLAUDE)
+        && verified_cutover(legion_host::setup_registry::CLIENT_CLAUDE)
+    {
         if let Some(input) = &inputs.claude {
             let value = match request.action {
                 legion_host::SetupAction::Apply
@@ -3056,20 +4488,17 @@ fn apply_host_integrations(request: &legion_host::SetupRequest) -> Result<Value,
             integrations.insert("claudeCodeLegacy".into(), value);
         }
     }
-    if should_process_client(request, legion_host::setup_registry::CLIENT_CODEX) {
+    if should_process_client(request, legion_host::setup_registry::CLIENT_CODEX)
+        && verified_cutover(legion_host::setup_registry::CLIENT_CODEX)
+    {
         if let Some(input) = &inputs.codex {
             let value = match request.action {
-                legion_host::SetupAction::Apply => serde_json::to_value(
-                    legion_host::apply_codex_skills(input).map_err(host_error)?,
+                legion_host::SetupAction::Apply
+                | legion_host::SetupAction::Repair
+                | legion_host::SetupAction::Remove
+                | legion_host::SetupAction::Purge => serde_json::to_value(
+                    legion_host::remove_codex_skills(input).map_err(host_error)?,
                 ),
-                legion_host::SetupAction::Repair => serde_json::to_value(
-                    legion_host::repair_codex_skills(input).map_err(host_error)?,
-                ),
-                legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
-                    serde_json::to_value(
-                        legion_host::remove_codex_skills(input).map_err(host_error)?,
-                    )
-                }
                 _ => serde_json::to_value(
                     legion_host::inspect_codex_skills(input).map_err(host_error)?,
                 ),
@@ -3082,8 +4511,27 @@ fn apply_host_integrations(request: &legion_host::SetupRequest) -> Result<Value,
         if !should_process_client(request, &input.client_id) {
             continue;
         }
+        if matches!(
+            input.client_id.as_str(),
+            legion_host::setup_registry::CLIENT_CLAUDE | legion_host::setup_registry::CLIENT_CODEX
+        ) && !verified_cutover(&input.client_id)
+        {
+            continue;
+        }
         let key = projection_key(&input.client_id);
         let value = match request.action {
+            legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
+                if matches!(
+                    input.client_id.as_str(),
+                    legion_host::setup_registry::CLIENT_CLAUDE
+                        | legion_host::setup_registry::CLIENT_CODEX
+                ) =>
+            {
+                serde_json::to_value(
+                    legion_host::setup_registry::remove_client_projection(input)
+                        .map_err(setup_error)?,
+                )
+            }
             legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
                 if should_mutate_client(request, &input.client_id) {
                     serde_json::to_value(
@@ -3122,6 +4570,34 @@ fn should_process_client(request: &legion_host::SetupRequest, client_id: &str) -
             .iter()
             .any(|evidence| evidence.client_id == client_id && evidence.detected),
     }
+}
+
+fn codex_legacy_projection_owned(
+    request: &legion_host::SetupRequest,
+) -> Result<bool, CommandError> {
+    let inputs = host_integration_inputs(request)?;
+    let projection_owned = inputs
+        .client_projections
+        .iter()
+        .find(|input| input.client_id == legion_host::setup_registry::CLIENT_CODEX)
+        .map(|input| {
+            legion_host::setup_registry::inspect_client_projection(input)
+                .map(|inspection| inspection.ownership == "legion")
+                .map_err(setup_error)
+        })
+        .transpose()?
+        .unwrap_or(false);
+    let skill_ledger_owned = inputs
+        .codex
+        .as_ref()
+        .map(|input| {
+            legion_host::inspect_codex_skills(input)
+                .map(|inspection| inspection.ledger_present && inspection.ledger_error.is_none())
+                .map_err(host_error)
+        })
+        .transpose()?
+        .unwrap_or(false);
+    Ok(projection_owned || skill_ledger_owned)
 }
 
 fn should_mutate_client(request: &legion_host::SetupRequest, client_id: &str) -> bool {
@@ -3209,6 +4685,17 @@ fn host_integration_inputs_installed(
         "{}:{}",
         release.release_version, release.declarative_asset_schema_hash
     );
+    let current_root = executable.parent().and_then(Path::parent).ok_or_else(|| {
+        CommandError::incomplete("installed executable has no stable current root")
+    })?;
+    let marketplaces = [
+        ("claude-code", legion_host::MarketplaceClient::ClaudeCode),
+        ("codex", legion_host::MarketplaceClient::Codex),
+    ]
+    .into_iter()
+    .filter(|(client_id, _)| selector_includes(selector, client_id))
+    .map(|(_, client)| legion_host::MarketplaceBinding::new(client, current_root))
+    .collect::<Vec<_>>();
     let client_projections = [
         (
             legion_host::setup_registry::CLIENT_CLAUDE,
@@ -3299,6 +4786,7 @@ fn host_integration_inputs_installed(
     Ok(HostIntegrationInputs {
         claude,
         codex,
+        marketplaces,
         client_projections,
     })
 }
@@ -3484,6 +4972,7 @@ fn development_host_integration_inputs(
     Ok(HostIntegrationInputs {
         claude,
         codex,
+        marketplaces: Vec::new(),
         client_projections,
     })
 }
@@ -3693,7 +5182,7 @@ fn development_status(
         legion_host::SetupRegistry::open_development(release, &context).map_err(setup_error)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
-    let integrations = preview_host_integrations(&request)?;
+    let integrations = preview_host_integrations(&request, CancellationToken::new()).await?;
     let clients_value = serde_json::to_value(&clients)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let identity = inspect_live_identity(&integrations, request.development.as_ref())?;
@@ -3786,6 +5275,8 @@ mod tests {
                 source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
             portable_core_sha256: None,
+            plugin_sha256: None,
+            native_marketplaces: None,
         }
     }
 
@@ -4471,5 +5962,204 @@ mod tests {
             ),
             &install_root,
         ));
+    }
+
+    #[test]
+    fn marketplace_plan_refreshes_stale_but_preserves_disabled_state() {
+        let action = legion_host::SetupAction::Repair;
+        assert!(marketplace_should_register(
+            &action,
+            legion_host::MarketplaceClient::ClaudeCode,
+            false,
+            false,
+            true,
+            false,
+        ));
+        assert!(marketplace_should_install_or_refresh(&action, false));
+        assert!(!marketplace_should_install_or_refresh(&action, true));
+        assert_eq!(marketplace_expected_state(&action, true, true), "disabled");
+    }
+
+    #[test]
+    fn native_marketplace_list_variants_prove_name_and_current_root() {
+        let temp = TempRoot::new("marketplace-list-json");
+        let root = temp.0.to_string_lossy().into_owned();
+        let claude = json!([{
+            "name":"legion-installed",
+            "source":"directory",
+            "path":root,
+            "installLocation":"user"
+        }]);
+        assert!(marketplace_named_registered(&claude, "legion-installed"));
+        assert!(marketplace_root_registered(
+            &claude,
+            &temp.0,
+            "legion-installed"
+        ));
+
+        let codex = json!({"marketplaces":[{
+            "name":"legion-installed",
+            "root":root,
+            "marketplaceSource":{"sourceType":"local", "source":root}
+        }]});
+        assert!(marketplace_named_registered(&codex, "legion-installed"));
+        assert!(marketplace_root_registered(
+            &codex,
+            &temp.0,
+            "legion-installed"
+        ));
+    }
+
+    #[test]
+    fn marketplace_remove_and_disable_never_install_or_register() {
+        for action in [
+            legion_host::SetupAction::Remove,
+            legion_host::SetupAction::Purge,
+            legion_host::SetupAction::Disable,
+        ] {
+            assert!(!marketplace_should_register(
+                &action,
+                legion_host::MarketplaceClient::ClaudeCode,
+                false,
+                false,
+                false,
+                false,
+            ));
+            assert!(!marketplace_should_install_or_refresh(&action, false));
+        }
+        assert_eq!(
+            marketplace_expected_state(&legion_host::SetupAction::Disable, false, false),
+            "absent"
+        );
+        assert_eq!(
+            marketplace_expected_state(&legion_host::SetupAction::Remove, false, false),
+            "absent"
+        );
+    }
+
+    #[test]
+    fn marketplace_remove_requires_plugin_and_registration_absence() {
+        assert!(marketplace_removal_proven(&json!({
+            "nativePlugin": {"installed": false},
+            "nativeMarketplaceRegistered": false
+        })));
+        assert!(!marketplace_removal_proven(&json!({
+            "nativePlugin": {"installed": true},
+            "nativeMarketplaceRegistered": false
+        })));
+        assert!(!marketplace_removal_proven(&json!({
+            "nativePlugin": {"installed": false},
+            "nativeMarketplaceRegistered": true
+        })));
+        assert!(!marketplace_removal_proven(
+            &json!({"state":"client_unavailable"})
+        ));
+    }
+
+    #[test]
+    fn native_cutover_health_ignores_retired_copies_and_accepts_disabled_plugins() {
+        let temp = TempRoot::new("native-marketplace-health");
+        let clients = json!([
+            {"clientId":"claude-code", "installed":true, "fidelity":"Full"},
+            {"clientId":"codex", "installed":true, "fidelity":"Full"}
+        ]);
+        let mut identity = installed_health_identity(&temp.0);
+        identity["projections"] = json!({
+            "claudeMarketplace": {"clientId":"claude-code", "state":"disabled"},
+            "codexMarketplace": {"clientId":"codex", "state":"current"},
+            "claudePlugin": {"clientId":"claude-code", "state":"stale", "explicitOnly":false},
+            "codexPlugin": {"clientId":"codex", "state":"missing", "explicitOnly":true},
+            "claudeCodeLegacy": {"state":"stale"},
+            "codexSkills": {"state":"stale", "statuses":[]}
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &identity);
+
+        assert_eq!(status, "complete");
+        assert!(remediation.is_empty());
+    }
+
+    #[test]
+    fn native_client_absence_is_reported_as_unobserved_degradation() {
+        let temp = TempRoot::new("native-client-absent-health");
+        let clients = json!([]);
+        let mut identity = installed_health_identity(&temp.0);
+        identity["projections"] = json!({
+            "claudeMarketplace": {"clientId":"claude-code", "state":"client_unavailable"},
+            "codexMarketplace": {"clientId":"codex", "state":"not_selected"}
+        });
+
+        let (status, notes) = setup_health(&clients, &json!({}), &identity);
+
+        assert_eq!(status, "complete");
+        assert!(notes.iter().any(|note| note.contains("unobserved")));
+    }
+
+    #[test]
+    fn disable_and_remove_health_accept_action_specific_native_states() {
+        let temp = TempRoot::new("native-lifecycle-health");
+        let clients = json!([
+            {"clientId":"claude-code", "installed":true, "fidelity":"Full"},
+            {"clientId":"codex", "installed":true, "fidelity":"Full"}
+        ]);
+        let mut identity = installed_health_identity(&temp.0);
+        identity["plugin"]["state"] = Value::String("absent".into());
+        identity["projections"] = json!({
+            "claudeMarketplace": {"clientId":"claude-code", "state":"absent"},
+            "codexMarketplace": {"clientId":"codex", "state":"absent"},
+            "claudePlugin": {"clientId":"claude-code", "state":"absent"},
+            "codexPlugin": {"clientId":"codex", "state":"absent"}
+        });
+        let (remove_status, remove_notes) = setup_health_for_action(
+            &clients,
+            &json!({}),
+            &identity,
+            &legion_host::SetupAction::Remove,
+        );
+        assert_eq!(remove_status, "complete");
+        assert!(remove_notes.is_empty());
+
+        identity["plugin"]["state"] = Value::String("disabled".into());
+        identity["projections"]["claudeMarketplace"]["state"] = Value::String("disabled".into());
+        identity["projections"]["codexMarketplace"]["state"] = Value::String("disabled".into());
+        let (disable_status, disable_notes) = setup_health_for_action(
+            &clients,
+            &json!({}),
+            &identity,
+            &legion_host::SetupAction::Disable,
+        );
+        assert_eq!(disable_status, "complete");
+        assert!(disable_notes.is_empty());
+    }
+
+    #[test]
+    fn all_supported_codex_skips_new_install_but_migrates_owned_copy() {
+        let action = legion_host::SetupAction::Repair;
+        assert!(!marketplace_should_register(
+            &action,
+            legion_host::MarketplaceClient::Codex,
+            true,
+            false,
+            false,
+            false,
+        ));
+        assert!(marketplace_should_register(
+            &action,
+            legion_host::MarketplaceClient::Codex,
+            true,
+            false,
+            false,
+            true,
+        ));
+    }
+
+    #[test]
+    fn failed_or_unavailable_marketplace_readback_never_authorizes_legacy_cleanup() {
+        for state in ["stale", "client_unavailable", "incomplete", "not_selected"] {
+            assert!(!marketplace_cleanup_proven(state));
+        }
+        for state in ["current", "disabled", "absent"] {
+            assert!(marketplace_cleanup_proven(state));
+        }
     }
 }

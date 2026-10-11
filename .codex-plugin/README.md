@@ -1,19 +1,16 @@
-# Codex client boundary
+# Codex plugin boundary
 
-This projection deliberately omits `mcpServers` and `hooks`. Under Codex, Legion ships as Agent
-Plugins core (skills only) plus this metadata/policy sidecar — there is no Codex-native equivalent
-of Claude Code's plugin hook lifecycle or MCP server wiring, so neither is projected here.
+Codex installs Legion through native Agent Plugin marketplace `legion@legion-installed`. The
+plugin owns bundled skills, MCP, and lifecycle hooks. Codex copies the selected release into its
+native plugin cache; setup verifies installed identity and release digests before retiring legacy
+copies.
 
-Concretely, under Codex:
+Codex skips bundled hooks until the user trusts the current hook definition. Legion projects only
+`UserPromptSubmit` and `Stop`; Codex does not receive Legion pre-tool effect-enforcement hooks.
+Doctor reports cache, disabled state, hook-file presence, and recorded host trust independently.
+Host-agnostic Legion receipt traces do not prove Codex execution or current-definition trust.
 
-- **Arcane's hook enforcement does not run.** `hooks/hooks.json` (SessionStart, SubagentStart,
-  UserPromptSubmit, PostCompact, PreToolUse, PostToolUse, PostToolUseFailure, Stop) has no Codex
-  counterpart. No lifecycle gate observes or blocks effects.
-- **The `legion` MCP server is not wired.** `legion_m1_invoke` / `legion_m1_status` are unavailable;
-  nothing in `.codex-plugin/plugin.json` declares an `mcpServers` entry.
-- **There is therefore no runtime effect gating under Codex.** Skills route and read/write files
-  the same way, but no Arcane receipt, deny, or degradation signal exists in this client.
-
-This is intentional, not drift from `.claude-plugin/plugin.json` — see
-`docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md` section 4 ("Agent Plugins & client
-boundaries") for the full client-boundary table and ownership split.
+`legion bind --write` separately creates Codex role files and explicit-only invocation policy.
+Plugin disablement controls bundled plugin skills, MCP, and hooks; it does not deactivate or remove
+those bind-owned role files. See `docs/architecture/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md`
+section 4 for installation and ownership details.

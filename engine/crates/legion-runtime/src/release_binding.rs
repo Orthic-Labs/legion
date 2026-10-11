@@ -165,6 +165,31 @@ pub struct ReleaseManifest {
     /// assembled before the anchor existed.
     #[serde(default)]
     pub portable_core_sha256: Option<String>,
+    /// Digest of the installed plugin tree, when native marketplace catalogs
+    /// are included in the release. Absent on older release manifests.
+    #[serde(default)]
+    pub plugin_sha256: Option<String>,
+    /// Host-native marketplace catalogs emitted by the native release packer.
+    /// Optional to preserve compatibility with releases assembled before
+    /// marketplace packaging was introduced.
+    #[serde(default)]
+    pub native_marketplaces: Option<NativeMarketplaceManifest>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NativeMarketplaceManifest {
+    pub name: String,
+    pub plugin: String,
+    pub source_path: String,
+    pub files: Vec<NativeMarketplaceFile>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NativeMarketplaceFile {
+    pub path: String,
+    pub sha256: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -359,6 +384,46 @@ impl ReleaseManifest {
         )?;
         if let Some(digest) = &self.portable_core_sha256 {
             digest_field(path, "portableCoreSha256", digest)?;
+        }
+        if let Some(digest) = &self.plugin_sha256 {
+            digest_field(path, "pluginSha256", digest)?;
+        }
+        match (&self.plugin_sha256, &self.native_marketplaces) {
+            (Some(_), Some(marketplaces)) => {
+                require(path, "nativeMarketplaces.name", &marketplaces.name)?;
+                require(path, "nativeMarketplaces.plugin", &marketplaces.plugin)?;
+                require(
+                    path,
+                    "nativeMarketplaces.sourcePath",
+                    &marketplaces.source_path,
+                )?;
+                if marketplaces.name != "legion-installed"
+                    || marketplaces.plugin != "legion"
+                    || marketplaces.source_path != "./plugin"
+                    || marketplaces.files.is_empty()
+                {
+                    return invalid(path, "nativeMarketplaces identity or files are invalid");
+                }
+                for file in &marketplaces.files {
+                    require(path, "nativeMarketplaces.files.path", &file.path)?;
+                    if file.path.starts_with('/')
+                        || file
+                            .path
+                            .split('/')
+                            .any(|part| part == ".." || part.is_empty())
+                    {
+                        return invalid(path, "native marketplace file path must be relative");
+                    }
+                    digest_field(path, "nativeMarketplaces.files.sha256", &file.sha256)?;
+                }
+            }
+            (None, None) => {}
+            _ => {
+                return invalid(
+                    path,
+                    "pluginSha256 and nativeMarketplaces must appear together",
+                )
+            }
         }
         require(path, "rightkitAx.version", &self.rightkit_ax.version)?;
         if self.rightkit_ax.source_commit.len() != 40
@@ -1320,6 +1385,8 @@ mod tests {
                 source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
             portable_core_sha256: None,
+            plugin_sha256: None,
+            native_marketplaces: None,
         }
     }
 
@@ -1339,6 +1406,54 @@ mod tests {
                 source_commit: "4c1a414269d8ffdb95b4b1e685440bd34784b41b".into(),
             },
         }
+    }
+
+    #[test]
+    fn release_manifest_accepts_marketplace_binding_and_legacy_shape() {
+        let root = root();
+        let legacy = manifest(&root);
+        let mut legacy_value = serde_json::to_value(&legacy).expect("serialize legacy manifest");
+        legacy_value
+            .as_object_mut()
+            .expect("manifest object")
+            .remove("pluginSha256");
+        legacy_value
+            .as_object_mut()
+            .expect("manifest object")
+            .remove("nativeMarketplaces");
+        let parsed_legacy: ReleaseManifest =
+            json::from_slice(&serde_json::to_vec(&legacy_value).expect("encode legacy manifest"))
+                .expect("legacy manifest remains readable");
+        parsed_legacy
+            .validate(Path::new("release.json"))
+            .expect("legacy shape validates");
+        assert!(parsed_legacy.native_marketplaces.is_none());
+
+        let mut packaged = legacy_value;
+        packaged["pluginSha256"] = serde_json::Value::String("a".repeat(64));
+        packaged["nativeMarketplaces"] = serde_json::json!({
+            "name": "legion-installed",
+            "plugin": "legion",
+            "sourcePath": "./plugin",
+            "files": [
+                { "path": ".claude-plugin/marketplace.json", "sha256": "b".repeat(64) },
+                { "path": ".agents/plugins/marketplace.json", "sha256": "c".repeat(64) }
+            ]
+        });
+        let parsed_packaged: ReleaseManifest =
+            json::from_slice(&serde_json::to_vec(&packaged).expect("encode packaged manifest"))
+                .expect("marketplace manifest is readable");
+        parsed_packaged
+            .validate(Path::new("release.json"))
+            .expect("marketplace manifest validates");
+        let marketplaces = parsed_packaged
+            .native_marketplaces
+            .expect("typed marketplace manifest");
+        assert_eq!(marketplaces.name, "legion-installed");
+        assert_eq!(marketplaces.plugin, "legion");
+        assert_eq!(marketplaces.source_path, "./plugin");
+        assert_eq!(marketplaces.files.len(), 2);
+        fs::remove_dir_all(root).expect("cleanup");
     }
 
     #[test]

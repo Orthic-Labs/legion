@@ -36,14 +36,14 @@ pub fn cline_descriptor() -> Value {
 
 pub fn codex_descriptor() -> Value {
     json!({
-        "id": "codex", "displayName": "Codex", "installOwner": "adapter",
+        "id": "codex", "displayName": "Codex", "installOwner": "plugin",
         "detect": {"anyOf": [".codex", ".codex/config.toml"], "env": ["CODEX_HOME", "CODEX_THREAD_ID", "CODEX_SESSION_ID"]},
         "surfaces": {
             "instructions": {"fidelity": "strong", "mechanism": {"kind": "agents-md", "path": "AGENTS.md"}},
-            "skills": {"fidelity": "strong", "mechanism": {"kind": "skills-dir", "path": ".agents/skills"}, "note": "native Agent Skills discovery with generated implicit/explicit invocation policy"},
+            "skills": {"fidelity": "strong", "mechanism": {"kind": "plugin"}, "note": "native Agent Plugin skills; plugin enablement controls bundled skills"},
             "agents": {"fidelity": "strong", "mechanism": {"kind": "agent-config", "path": ".codex/agents", "registration": ".codex/config.toml"}, "note": "bind projects roster roles and native registrations; verify effective config and runtime launch separately"},
-            "mcp": {"fidelity": "strong", "mechanism": {"kind": "toml", "path": ".codex/config.toml", "table": "mcp_servers"}},
-            "hooks": {"fidelity": "unsupported", "mechanism": {"kind": "none"}, "note": "no effect-enforcement hook surface; Guard enforcement is absent, not degraded"},
+            "mcp": {"fidelity": "strong", "mechanism": {"kind": "plugin"}, "note": "native Agent Plugin MCP configuration; plugin enablement controls bundled servers"},
+            "hooks": {"fidelity": "degraded", "mechanism": {"kind": "plugin-hook"}, "note": "native Agent Plugin lifecycle hooks include UserPromptSubmit and Stop; Codex skips bundled hooks until the user trusts the current definition; no pre-tool effect-enforcement hook is projected"},
         },
     })
 }

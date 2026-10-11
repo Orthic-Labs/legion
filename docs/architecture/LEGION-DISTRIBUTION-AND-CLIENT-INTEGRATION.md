@@ -109,14 +109,15 @@ integrations only; durable state remains unless explicit verified purge is reque
 
 ## 4. Agent Plugins & client boundaries
 
-Agent Plugins 1.0 owns portable public skills + MCP declaration. It does not own installation,
-updates, activation, UI, hooks, agents, rules, or unsupported client projections. Legion portable
-core includes every public canonical skill with plain IDs & no private/personal workspace content.
+Agent Plugin manifests declare portable public skills and MCP; supported host extensions may also
+declare native hooks. The format does not own installation, updates, activation, host UI, or
+Legion's bind policy. Legion portable core includes every public canonical skill with plain IDs &
+no private/personal workspace content.
 
 | Client | Canonical integration |
 |---|---|
-| Claude Code | Native `.claude-plugin` for MCP, hooks, & agents; separate Legion-owned standalone skill projection preserves plain `/name` commands because plugin skills are namespaced. |
-| Codex | Agent Plugins core plus Codex metadata/policy sidecar, including explicit-only invocation policy. |
+| Claude Code | Native marketplace plugin for MCP, hooks, agents, & namespaced skills; Legion-managed bind policy remains a separate project surface. |
+| Codex | Native Agent Plugin for skills, MCP, & trust-gated lifecycle hooks; `legion bind --write` separately creates Codex role configuration & explicit-only invocation policy. |
 | Cursor | Agent Plugins portable core: bundled skills plus MCP declaration. No Cursor sidecar ships in current release. |
 | Pi | Native `.agents/skills` projection; Pi is not claimed as full Agent Plugins support or executable registration. |
 | Antigravity | Agent Plugins portable core. Setup derives `mcp_config.json` from portable MCP declaration; no native hooks, agents, rules, or Antigravity schema are claimed. |
@@ -127,6 +128,29 @@ core includes every public canonical skill with plain IDs & no private/personal 
 stored authenticated MCP qualification, skill fidelity, & typed degradation. Authenticated live
 qualification runs only through `legion setup qualify` & never gates activation. Client adapters remain mechanical; Legion
 semantics stay canonical.
+
+### 4.1 Native marketplace installation
+
+The sealed payload's `current` directory is the local marketplace root for both native clients.
+Claude Code reads `.claude-plugin/marketplace.json`; Codex reads `.agents/plugins/marketplace.json`.
+Each catalog identifies marketplace `legion-installed` and resolves plugin `legion` from `./plugin`.
+Setup registers each marketplace and installs through its host's native plugin lifecycle. Codex's
+native cache is a copy, so setup reads back the installed identity, release binding, runtime digest,
+and portable-core digest before retiring any legacy copied plugin or standalone skill projection.
+`legion setup status` reports registration, installation, disablement, stale binding, missing client,
+and incomplete CLI readback as separate states.
+
+The plugin owns bundled skills, MCP, and hooks. Codex role definitions in `.codex/agents/` and their
+registration in `.codex/config.toml` remain separate `legion bind --write` policy. Disabling the
+plugin through Codex controls plugin-owned skills, MCP, and hooks; role files remain under bind's
+ownership. Codex also skips plugin hooks until the user trusts the current hook definition. Legion
+projects only `UserPromptSubmit` and `Stop` lifecycle hooks there; it does not claim pre-tool Guard
+enforcement from Codex hooks. Doctor reports the native cache path, explicit plugin disablement,
+hook definition presence, and recorded host trust separately; generic receipt traces do not prove
+Codex hook execution or current-definition trust.
+
+The native behavior follows [Claude Code's marketplace lifecycle](https://code.claude.com/docs/en/plugin-marketplaces)
+and [OpenAI's Codex plugin packaging and hooks guidance](https://developers.openai.com/plugins/build/plugins).
 
 ## 5. Ownership
 

@@ -438,15 +438,99 @@ fn binding_section(root: &Path) -> Value {
     json!({"receiptPresent":true,"harnesses":harnesses})
 }
 
-/// Codex hook state, reported as four separately observed facts rather than
-/// one verdict: (1) Legion's hooks file is present on disk, (2) Codex's own
-/// config registers hook state for Legion, (3) a hook event was observed
-/// executing (last event in Legion's receipt traces), (4) enforcement is
-/// qualified (declared strong by the host adapter AND registered AND executed).
-/// A later state never implies an earlier one is skipped; each is reported
-/// from its own evidence.
-fn codex_hook_trust(home: &Path, legion_hooks_file: Option<&Path>) -> Value {
-    codex_hook_state(home, legion_hooks_file, &hook_receipt_dirs(home))
+/// Codex hook state keeps native cache, enablement, hook-file presence, recorded
+/// trust, and execution evidence separate. Existing Legion receipt traces do
+/// not identify their host or prove current-definition trust.
+fn codex_home_dir(home: &Path) -> PathBuf {
+    std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home.join(".codex"))
+}
+
+fn claude_config_dir(home: &Path) -> PathBuf {
+    std::env::var_os("CLAUDE_CONFIG_DIR")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .unwrap_or_else(|| home.join(".claude"))
+}
+
+fn codex_plugin_cache_lookup(home: &Path) -> Result<legion_host::CodexCacheLookup, String> {
+    let codex_home = codex_home_dir(home);
+    codex_plugin_cache_lookup_at(&codex_home)
+}
+
+fn codex_plugin_cache_lookup_at(
+    codex_home: &Path,
+) -> Result<legion_host::CodexCacheLookup, String> {
+    legion_host::find_codex_plugin_cache(&codex_home.join("config.toml"), codex_home)
+}
+
+fn codex_plugin_cache_lookup_state(
+    lookup: &Result<legion_host::CodexCacheLookup, String>,
+) -> &'static str {
+    match lookup {
+        Ok(legion_host::CodexCacheLookup::NotConfigured) => "not-configured",
+        Ok(legion_host::CodexCacheLookup::Missing) => "missing",
+        Ok(legion_host::CodexCacheLookup::Found(_)) => "found",
+        Ok(legion_host::CodexCacheLookup::Ambiguous(_)) => "ambiguous",
+        Err(_) => "incomplete",
+    }
+}
+
+fn codex_plugin_cache_path(
+    lookup: &Result<legion_host::CodexCacheLookup, String>,
+) -> Option<&Path> {
+    match lookup {
+        Ok(legion_host::CodexCacheLookup::Found(path)) => Some(path),
+        _ => None,
+    }
+}
+
+fn codex_plugin_cache_lookup_json(lookup: &Result<legion_host::CodexCacheLookup, String>) -> Value {
+    match lookup {
+        Ok(legion_host::CodexCacheLookup::NotConfigured) => {
+            json!({"state":"not-configured","path":null})
+        }
+        Ok(legion_host::CodexCacheLookup::Missing) => {
+            json!({"state":"missing","path":null})
+        }
+        Ok(legion_host::CodexCacheLookup::Found(path)) => {
+            json!({"state":"found","path":path})
+        }
+        Ok(legion_host::CodexCacheLookup::Ambiguous(paths)) => {
+            json!({"state":"ambiguous","paths":paths})
+        }
+        Err(error) => json!({"state":"incomplete","error":error}),
+    }
+}
+
+fn codex_plugin_hooks_path(plugin: &Path) -> Option<PathBuf> {
+    let manifest = read_json(&plugin.join("plugin.json"))?;
+    let declared = manifest.pointer("/extensions/com.openai/hooks")?.as_str()?;
+    let relative = Path::new(declared.strip_prefix("./").unwrap_or(declared));
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| !matches!(component, std::path::Component::Normal(_)))
+    {
+        return None;
+    }
+    Some(plugin.join(relative))
+}
+
+fn codex_hook_trust(
+    home: &Path,
+    cache_state: &str,
+    plugin_path: Option<&Path>,
+    legion_hooks_file: Option<&Path>,
+) -> Value {
+    codex_hook_state(
+        home,
+        cache_state,
+        plugin_path,
+        legion_hooks_file,
+        &hook_receipt_dirs(home),
+    )
 }
 
 fn hook_receipt_dirs(home: &Path) -> Vec<PathBuf> {
@@ -499,36 +583,92 @@ fn last_observed_hook_event(dirs: &[PathBuf]) -> Option<(PathBuf, SystemTime)> {
 
 fn codex_hook_state(
     home: &Path,
+    cache_state: &str,
+    plugin_path: Option<&Path>,
     legion_hooks_file: Option<&Path>,
     receipt_dirs: &[PathBuf],
 ) -> Value {
-    let config_path = home.join(".codex").join("config.toml");
+    let codex_home = codex_home_dir(home);
+    codex_hook_state_at(
+        home,
+        &codex_home,
+        cache_state,
+        plugin_path,
+        legion_hooks_file,
+        receipt_dirs,
+    )
+}
+
+fn codex_hook_state_at(
+    home: &Path,
+    codex_home: &Path,
+    cache_state: &str,
+    plugin_path: Option<&Path>,
+    legion_hooks_file: Option<&Path>,
+    receipt_dirs: &[PathBuf],
+) -> Value {
+    let config_path = codex_home.join("config.toml");
     let text = std::fs::read_to_string(&config_path).unwrap_or_default();
+    let hook_state_prefix = legion_hooks_file
+        .and_then(|path| plugin_path.and_then(|root| path.strip_prefix(root).ok()))
+        .map(|path| {
+            format!(
+                "legion@legion-installed:{}:",
+                path.to_string_lossy().replace('\\', "/")
+            )
+        });
     let mut trusted = BTreeSet::new();
     let mut legion_registered = BTreeSet::new();
+    let mut legion_trust_recorded = BTreeSet::new();
     let mut current = None::<String>;
     let mut current_enabled = true;
-    let flush = |event: &Option<String>, enabled: bool, registered: &mut BTreeSet<String>| {
+    let flush = |event: &Option<String>,
+                 enabled: bool,
+                 has_trust: bool,
+                 registered: &mut BTreeSet<String>,
+                 trust_recorded: &mut BTreeSet<String>| {
         if let Some(event) = event {
             let lowered = event.to_ascii_lowercase();
-            if enabled && (lowered.starts_with("legion@") || lowered.contains("/legion/")) {
+            if enabled
+                && hook_state_prefix
+                    .as_ref()
+                    .is_some_and(|prefix| lowered.starts_with(&prefix.to_ascii_lowercase()))
+            {
                 registered.insert(event.clone());
+                if has_trust {
+                    trust_recorded.insert(event.clone());
+                }
             }
         }
     };
+    let mut current_has_trust = false;
     for line in text.lines().map(str::trim) {
         if let Some(value) = line
             .strip_prefix("[hooks.state.\"")
             .and_then(|v| v.strip_suffix("\"]"))
         {
-            flush(&current, current_enabled, &mut legion_registered);
+            flush(
+                &current,
+                current_enabled,
+                current_has_trust,
+                &mut legion_registered,
+                &mut legion_trust_recorded,
+            );
             current = Some(value.to_owned());
             current_enabled = true;
+            current_has_trust = false;
             continue;
         }
         if line.starts_with('[') {
-            flush(&current, current_enabled, &mut legion_registered);
+            flush(
+                &current,
+                current_enabled,
+                current_has_trust,
+                &mut legion_registered,
+                &mut legion_trust_recorded,
+            );
             current = None;
+            current_has_trust = false;
             continue;
         }
         if line.replace(' ', "") == "enabled=false" {
@@ -539,68 +679,113 @@ fn codex_hook_state(
             .and_then(|v| v.strip_suffix('"'))
         {
             if let Some(event) = current.as_deref() {
-                if value.strip_prefix("sha256:").is_some_and(|hash| {
-                    hash.len() == 64
-                        && hash
-                            .bytes()
-                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-                }) {
+                let belongs_to_plugin = hook_state_prefix.as_ref().is_some_and(|prefix| {
+                    event
+                        .to_ascii_lowercase()
+                        .starts_with(&prefix.to_ascii_lowercase())
+                });
+                if current_enabled
+                    && belongs_to_plugin
+                    && value.strip_prefix("sha256:").is_some_and(|hash| {
+                        hash.len() == 64
+                            && hash
+                                .bytes()
+                                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                    })
+                {
                     trusted.insert(event.to_owned());
+                    current_has_trust = true;
                 }
             }
         }
     }
-    flush(&current, current_enabled, &mut legion_registered);
+    flush(
+        &current,
+        current_enabled,
+        current_has_trust,
+        &mut legion_registered,
+        &mut legion_trust_recorded,
+    );
 
     let file_present = legion_hooks_file.is_some_and(Path::is_file);
     let registered = !legion_registered.is_empty();
+    let plugin_installed = plugin_path.is_some();
+    let config_value = toml::from_str::<toml::Value>(&text).ok();
+    let plugin_id = "legion@legion-installed";
+    let plugin_enabled = config_value
+        .as_ref()
+        .and_then(|value| value.get("plugins"))
+        .and_then(|value| value.get(plugin_id))
+        .and_then(|value| value.get("enabled"))
+        .and_then(toml::Value::as_bool);
     let last_event = last_observed_hook_event(receipt_dirs);
-    let executed = last_event.is_some();
-    let declared_strong = legion_runtime::p7_host::host_adapters::codex_descriptor()["surfaces"]
+    let trust_recorded = !legion_trust_recorded.is_empty();
+    let declared_fidelity = legion_runtime::p7_host::host_adapters::codex_descriptor()["surfaces"]
         ["hooks"]["fidelity"]
-        == "strong";
-    let qualified = declared_strong && registered && executed;
-    let state = if qualified {
-        "enforcement-qualified"
-    } else if executed {
-        "executed"
-    } else if registered {
-        "registered"
+        .clone();
+    let state = if cache_state == "ambiguous" {
+        "cache-ambiguous"
+    } else if cache_state == "incomplete" {
+        "cache-lookup-incomplete"
+    } else if cache_state == "not-configured" {
+        "plugin-not-configured"
+    } else if !plugin_installed {
+        "plugin-missing"
+    } else if plugin_enabled == Some(false) {
+        "plugin-disabled"
+    } else if !file_present {
+        "hooks-missing"
+    } else if trust_recorded {
+        "trust-recorded"
     } else if file_present {
-        "file-present"
+        "awaiting-host-trust"
     } else {
-        "absent"
+        "unknown"
     };
     let detail = format!(
-        "hooks file {}; Codex {} Legion hook state; {}; enforcement {}. Trusted entries below are recorded by Codex and are not all Legion's.",
-        if file_present { "present on disk" } else { "not found" },
-        if registered { "registers" } else { "does not register" },
-        if executed {
-            "a hook event was observed executing (receipt traces are host-agnostic)"
+        "Codex plugin {}; plugin enablement {}; hook file {}; recorded trust entries {}; {}. Hook receipt traces are host-agnostic and do not prove Codex execution or current-definition trust.",
+        if plugin_installed {
+            "is cached"
         } else {
-            "no hook event has been observed executing"
+            "is not cached"
         },
-        if qualified {
-            "qualified"
-        } else if !declared_strong {
-            "not qualified (host adapter declares Codex hook enforcement unsupported)"
+        match plugin_enabled {
+            Some(true) => "enabled",
+            Some(false) => "disabled",
+            None => "not explicitly configured",
+        },
+        if file_present {
+            "is present"
         } else {
-            "not qualified (requires registered and executed)"
+            "is missing"
+        },
+        legion_trust_recorded.len(),
+        if last_event.is_some() {
+            "a Legion hook receipt trace exists"
+        } else {
+            "no Legion hook receipt trace exists"
         },
     );
     json!({
         "configPath": config_path,
+        "pluginId": plugin_id,
+        "pluginPath": plugin_path.map(Path::to_path_buf),
+        "cacheLookup": cache_state,
+        "pluginInstalled": plugin_installed,
+        "pluginEnabled": plugin_enabled,
         "configPresent": !text.is_empty(),
         "state": state,
         "states": {
             "filePresent": {"observed": file_present, "path": legion_hooks_file},
             "hostRegistered": {"observed": registered, "entries": legion_registered.iter().collect::<Vec<_>>()},
+            "hostTrustRecorded": {"observed": trust_recorded, "entries": legion_trust_recorded.iter().collect::<Vec<_>>()},
             "hostExecuted": {
-                "observed": executed,
+                "observed": false,
                 "lastObservedEvent": last_event.as_ref().map(|(_, t)| format_time(*t)),
                 "source": last_event.as_ref().map(|(path, _)| path),
+                "reason": "available receipt traces do not identify Codex as their host",
             },
-            "enforcementQualified": {"observed": qualified, "declaredFidelity": if declared_strong {"strong"} else {"unsupported"}},
+            "enforcementQualified": {"observed": false, "declaredFidelity": declared_fidelity, "reason": "no Codex-specific execution receipt proves current hook trust and execution"},
         },
         "detail": detail,
         "trusted": trusted.into_iter().collect::<Vec<_>>(),
@@ -608,10 +793,34 @@ fn codex_hook_state(
     })
 }
 
-/// The Claude Code skills-dir projection: `~/.claude/skills/legion` carrying a
-/// `plugin.json`, with skills, agents, hooks and an MCP descriptor beside it.
+/// Legacy Claude skills-dir projection retained for migration diagnostics.
 fn skills_dir_install_path(home: &Path) -> PathBuf {
-    home.join(".claude").join("skills").join("legion")
+    claude_config_dir(home).join("skills").join("legion")
+}
+
+fn claude_marketplace_install_path(home: &Path) -> Option<PathBuf> {
+    let installed = read_json(&claude_config_dir(home).join("plugins/installed_plugins.json"))?;
+    let records = installed
+        .get("plugins")
+        .and_then(Value::as_object)?
+        .get("legion@legion-installed")?;
+    let records = records
+        .as_array()
+        .cloned()
+        .unwrap_or_else(|| vec![records.clone()]);
+    let matches = records
+        .into_iter()
+        .filter_map(|record| {
+            let path = PathBuf::from(record.get("installPath")?.as_str()?);
+            read_json(&path.join(".claude-plugin/plugin.json"))
+                .or_else(|| read_json(&path.join("plugin.json")))
+                .filter(|manifest| manifest.get("name").and_then(Value::as_str) == Some("legion"))
+                .map(|_| path)
+        })
+        .collect::<Vec<_>>();
+    (matches.len() == 1)
+        .then(|| matches.into_iter().next())
+        .flatten()
 }
 
 fn skills_dir_manifest(install: &Path) -> Option<Value> {
@@ -660,6 +869,41 @@ fn skills_dir_installation(home: &Path, source_version: Option<&Value>) -> Optio
         "agentCount": agents,
         "hooksRegistered": install.join("hooks").join("hooks.json").is_file(),
         "mcpDescriptor": install.join(".mcp.json").is_file() || install.join("mcp.json").is_file(),
+    }))
+}
+
+fn codex_marketplace_installation(home: &Path, install: Option<&Path>) -> Option<Value> {
+    codex_marketplace_installation_at(&codex_home_dir(home), install)
+}
+
+fn codex_marketplace_installation_at(codex_home: &Path, install: Option<&Path>) -> Option<Value> {
+    let install = install?;
+    let manifest = read_json(&install.join(".codex-plugin/plugin.json"))
+        .or_else(|| read_json(&install.join("plugin.json")))?;
+    if manifest.get("name").and_then(Value::as_str) != Some("legion") {
+        return None;
+    }
+    let config_path = codex_home.join("config.toml");
+    let config = std::fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|text| toml::from_str::<toml::Value>(&text).ok());
+    let enabled = config
+        .as_ref()
+        .and_then(|value| value.get("plugins"))
+        .and_then(|value| value.get("legion@legion-installed"))
+        .and_then(|value| value.get("enabled"))
+        .and_then(toml::Value::as_bool);
+    Some(json!({
+        "pluginId": "legion@legion-installed",
+        "kind": "native-marketplace-plugin",
+        "enabled": enabled,
+        "scope": "user",
+        "installPath": install,
+        "installedVersion": manifest.get("version").cloned().unwrap_or(Value::Null),
+        "copyExists": true,
+        "skillCount": count_entries_with(&install.join("skills"), "SKILL.md"),
+        "hooksPresent": codex_plugin_hooks_path(install).is_some_and(|path| path.is_file()),
+        "mcpDescriptor": install.join("mcp.json").is_file(),
     }))
 }
 
@@ -826,13 +1070,19 @@ fn host_requirements(index: &Path) -> Value {
 fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> Value {
     let home = home_dir();
     let skills_install = skills_dir_install_path(&home);
-    // Claude Code discovery reads the repository's plugin package when run from
-    // a source checkout, and otherwise the installed skills-dir projection.
+    // Prefer the registered marketplace install for hook and MCP discovery;
+    // retain source-checkout and legacy skills-dir paths for development/migration.
     let in_repository = root.join(".claude-plugin/plugin.json").is_file();
-    let claude_base = if in_repository || skills_dir_manifest(&skills_install).is_none() {
+    let native_claude_install = claude_marketplace_install_path(&home);
+    let native_claude_install_present = native_claude_install.is_some();
+    let claude_base = if in_repository {
         root.to_path_buf()
-    } else {
+    } else if let Some(path) = native_claude_install {
+        path
+    } else if skills_dir_manifest(&skills_install).is_some() {
         skills_install.clone()
+    } else {
+        root.to_path_buf()
     };
     let manifest = read_json(&claude_base.join(".claude-plugin/plugin.json"))
         .or_else(|| read_json(&claude_base.join("plugin.json")));
@@ -876,15 +1126,11 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
             (capabilities, entrypoints)
         })
         .unwrap_or_default();
-    let installed_file = read_json(
-        &home
-            .join(".claude")
-            .join("plugins")
-            .join("installed_plugins.json"),
-    )
-    .unwrap_or_else(|| json!({}));
+    let claude_config = claude_config_dir(&home);
+    let installed_file = read_json(&claude_config.join("plugins/installed_plugins.json"))
+        .unwrap_or_else(|| json!({}));
     let claude_settings =
-        read_json(&home.join(".claude").join("settings.json")).unwrap_or_else(|| json!({}));
+        read_json(&claude_config.join("settings.json")).unwrap_or_else(|| json!({}));
     let enabled_plugins = claude_settings
         .get("enabledPlugins")
         .and_then(Value::as_object);
@@ -904,7 +1150,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
                     .get("installPath")
                     .and_then(Value::as_str)
                     .map(PathBuf::from);
-                installations.push(json!({"pluginId":id,"enabled":enabled_plugins.and_then(|plugins| plugins.get(id)).and_then(Value::as_bool).unwrap_or(false),"scope":record.get("scope").cloned().unwrap_or(Value::Null),"installPath":install_path,"installedVersion":record.get("version").cloned().unwrap_or(Value::Null),"sourceVersion":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"versionMatches":record.get("version") == manifest.as_ref().and_then(|v| v.get("version")),"gitCommitSha":record.get("gitCommitSha").cloned().unwrap_or(Value::Null),"installedAt":record.get("installedAt").cloned().unwrap_or(Value::Null),"copyExists":install_path.as_ref().is_some_and(|p| p.exists()),"layoutMatchesSource":install_path.as_ref().map(|p| p.join("src/packages").is_dir() == root.join("src/packages").is_dir())}));
+                installations.push(json!({"pluginId":id,"enabled":enabled_plugins.and_then(|plugins| plugins.get(id)).and_then(Value::as_bool),"scope":record.get("scope").cloned().unwrap_or(Value::Null),"installPath":install_path,"installedVersion":record.get("version").cloned().unwrap_or(Value::Null),"sourceVersion":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"versionMatches":record.get("version") == manifest.as_ref().and_then(|v| v.get("version")),"gitCommitSha":record.get("gitCommitSha").cloned().unwrap_or(Value::Null),"installedAt":record.get("installedAt").cloned().unwrap_or(Value::Null),"copyExists":install_path.as_ref().is_some_and(|p| p.exists()),"layoutMatchesSource":install_path.as_ref().map(|p| p.join("src/packages").is_dir() == root.join("src/packages").is_dir())}));
             }
         }
     }
@@ -919,6 +1165,13 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
     if let Some(installation) = skills_dir_installation(&home, source_version.as_ref()) {
         installations.push(installation);
     }
+    let codex_cache_lookup = codex_plugin_cache_lookup(&home);
+    let codex_cache_state = codex_plugin_cache_lookup_state(&codex_cache_lookup);
+    let codex_install = codex_plugin_cache_path(&codex_cache_lookup);
+    let codex_hooks_file = codex_install.and_then(codex_plugin_hooks_path);
+    let codex_installations = codex_marketplace_installation(&home, codex_install)
+        .into_iter()
+        .collect::<Vec<_>>();
     let mut conflicts = Vec::new();
     if root.join(".claude/agents").is_dir() && root.join("agents").is_dir() {
         conflicts.push(json!({"harness":"claude-code","kind":"duplicate-installation-path","detail":"both the plugin package (agents/) and a legion bind projection (.claude/agents/) are present; one installation path must own each harness"}));
@@ -952,6 +1205,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
     }
     let mut detected = Vec::new();
     if root.join(".claude").exists()
+        || native_claude_install_present
         || skills_dir_manifest(&skills_install).is_some()
         || root.join(".claude-plugin/plugin.json").exists()
         || root.join("CLAUDE.md").exists()
@@ -960,6 +1214,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
     }
     let env = std::env::vars().collect::<HashMap<_, _>>();
     if root.join(".codex").exists()
+        || codex_install.is_some_and(Path::is_dir)
         || env.get("CODEX_HOME").is_some_and(|value| !value.is_empty())
         || env
             .get("CODEX_THREAD_ID")
@@ -971,13 +1226,13 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
         detected.push("codex");
     }
     let key_dirs = [
-        home.join(".claude").join("arcane-keys"),
-        home.join(".codex").join("arcane-keys"),
+        claude_config.join("arcane-keys"),
+        codex_home_dir(&home).join("arcane-keys"),
     ]
     .iter()
     .map(|dir| json!({"dir":dir,"present":dir.is_dir()}))
     .collect::<Vec<_>>();
-    let canonical_key_dir = home.join(".codex").join("arcane-keys");
+    let canonical_key_dir = codex_home_dir(&home).join("arcane-keys");
     let key_ids = std::fs::read_dir(&canonical_key_dir)
         .ok()
         .into_iter()
@@ -1009,7 +1264,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
             .join("outbox.json"),
     )
     .unwrap_or_else(|| json!({"pending":[],"delivered":[],"deadLetter":[]}));
-    json!({"projection":{"path":projection_path,"source":projection_source,"present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check"},"installations":{"claude-code":installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(&projection_path),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":command_path("legion-hook").is_some(),"adapter":{"kind":"legion-hook","onPath":command_path("legion-hook")},"codexHookTrust":codex_hook_trust(&home,Some(&claude_base.join("hooks/hooks.json")))}})
+    json!({"projection":{"path":projection_path,"source":projection_source,"present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check"},"installations":{"claude-code":installations,"codex":codex_installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(&projection_path),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":command_path("legion-hook").is_some(),"adapter":{"kind":"legion-hook","onPath":command_path("legion-hook")},"codexCache":codex_plugin_cache_lookup_json(&codex_cache_lookup),"codexHookTrust":codex_hook_trust(&home,codex_cache_state,codex_install,codex_hooks_file.as_deref())}})
 }
 
 pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
@@ -1146,26 +1401,60 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
-    fn codex_hook_state_distinguishes_file_registration_execution_and_qualification() {
+    fn codex_hook_state_reports_cache_disablement_and_recorded_trust_without_claiming_execution() {
         let root = std::env::temp_dir().join(format!("legion-doctor-codex-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(root.join(".codex")).unwrap();
-        let hooks = root.join("hooks.json");
+        let codex_home = root.join("profile");
+        std::fs::create_dir_all(&codex_home).unwrap();
+        let plugin = codex_home.join("plugins/cache/legion-installed/legion/1.0.0");
+        let hooks = plugin.join("hooks/codex-hooks.json");
         let receipts = root.join("receipts");
 
         // Nothing at all.
-        let v = codex_hook_state(&root, Some(&hooks), &[receipts.clone()]);
-        assert_eq!(v["state"], "absent");
+        let v = codex_hook_state_at(
+            &root,
+            &codex_home,
+            "not-configured",
+            None,
+            None,
+            &[receipts.clone()],
+        );
+        assert_eq!(v["state"], "plugin-not-configured");
+
+        std::fs::create_dir_all(plugin.join("hooks")).unwrap();
+        std::fs::create_dir_all(plugin.join(".codex-plugin")).unwrap();
+        std::fs::write(
+            plugin.join(".codex-plugin/plugin.json"),
+            r#"{"name":"legion","version":"1.0.0"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            plugin.join("plugin.json"),
+            r#"{"name":"legion","version":"local","extensions":{"com.openai":{"hooks":"./hooks/codex-hooks.json"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(codex_plugin_hooks_path(&plugin), Some(hooks.clone()));
 
         // File present only: not registered, not executed.
         std::fs::write(&hooks, "{}").unwrap();
         std::fs::write(
-            root.join(".codex/config.toml"),
-            "[plugins.\"arcane@local-brief\"]\nenabled = true\n",
+            codex_home.join("config.toml"),
+            "[plugins.\"legion@legion-installed\"]\nenabled = true\n",
         )
         .unwrap();
-        let v = codex_hook_state(&root, Some(&hooks), &[receipts.clone()]);
-        assert_eq!(v["state"], "file-present");
+        assert_eq!(
+            codex_plugin_cache_lookup_at(&codex_home).unwrap(),
+            legion_host::CodexCacheLookup::Found(plugin.clone())
+        );
+        let v = codex_hook_state_at(
+            &root,
+            &codex_home,
+            "found",
+            Some(&plugin),
+            Some(&hooks),
+            &[receipts.clone()],
+        );
+        assert_eq!(v["state"], "awaiting-host-trust");
         assert_eq!(v["states"]["filePresent"]["observed"], true);
         assert_eq!(v["states"]["hostRegistered"]["observed"], false);
         assert!(!v["detail"].as_str().unwrap().contains("ships no"));
@@ -1174,43 +1463,68 @@ mod tests {
         // entry and a non-Legion entry do not count.
         let hash = format!("sha256:{}", "a".repeat(64));
         std::fs::write(
-            root.join(".codex/config.toml"),
+            codex_home.join("config.toml"),
             format!(
-                "[hooks.state.\"legion@orthic:hooks/hooks.json:session_start:0:0\"]\ntrusted_hash = \"{hash}\"\n\n[hooks.state.\"legion@orthic:hooks/hooks.json:stop:0:0\"]\ntrusted_hash = \"{hash}\"\nenabled = false\n\n[hooks.state.\"other@x:hooks/hooks.json:stop:0:0\"]\ntrusted_hash = \"{hash}\"\n"
+                "[plugins.\"legion@legion-installed\"]\nenabled = true\n\n[hooks.state.\"legion@legion-installed:hooks/codex-hooks.json:UserPromptSubmit:0:0\"]\ntrusted_hash = \"{hash}\"\n\n[hooks.state.\"legion@legion-installed:hooks/codex-hooks.json:Stop:0:0\"]\ntrusted_hash = \"{hash}\"\n\n[hooks.state.\"other@x:hooks/codex-hooks.json:Stop:0:0\"]\ntrusted_hash = \"{hash}\"\n"
             ),
         )
         .unwrap();
-        let v = codex_hook_state(&root, Some(&hooks), &[receipts.clone()]);
-        assert_eq!(v["state"], "registered");
+        let v = codex_hook_state_at(
+            &root,
+            &codex_home,
+            "found",
+            Some(&plugin),
+            Some(&hooks),
+            &[receipts.clone()],
+        );
+        assert_eq!(v["state"], "trust-recorded");
         assert_eq!(
             v["states"]["hostRegistered"]["entries"],
-            json!(["legion@orthic:hooks/hooks.json:session_start:0:0"])
+            json!([
+                "legion@legion-installed:hooks/codex-hooks.json:Stop:0:0",
+                "legion@legion-installed:hooks/codex-hooks.json:UserPromptSubmit:0:0"
+            ])
         );
         assert_eq!(v["states"]["hostExecuted"]["observed"], false);
-        assert_eq!(v["trusted"].as_array().unwrap().len(), 3);
+        assert_eq!(v["states"]["hostTrustRecorded"]["observed"], true);
+        assert_eq!(v["trusted"].as_array().unwrap().len(), 2);
 
-        // Executed: a hook trace exists. Host adapter declares codex hooks
-        // unsupported, so enforcement is not qualified.
+        // A host-agnostic trace is not proof that Codex executed the hook.
         std::fs::create_dir_all(&receipts).unwrap();
         std::fs::write(receipts.join("child-lifecycle-trace.v1.jsonl"), "{}\n").unwrap();
-        let v = codex_hook_state(&root, Some(&hooks), &[receipts.clone()]);
-        assert_eq!(v["states"]["hostExecuted"]["observed"], true);
+        let v = codex_hook_state_at(
+            &root,
+            &codex_home,
+            "found",
+            Some(&plugin),
+            Some(&hooks),
+            &[receipts.clone()],
+        );
+        assert_eq!(v["states"]["hostExecuted"]["observed"], false);
         assert!(v["states"]["hostExecuted"]["lastObservedEvent"].is_string());
-        let declared_strong = legion_runtime::p7_host::host_adapters::codex_descriptor()
-            ["surfaces"]["hooks"]["fidelity"]
-            == "strong";
-        assert_eq!(
-            v["states"]["enforcementQualified"]["observed"],
-            declared_strong
+        assert_eq!(v["states"]["enforcementQualified"]["observed"], false);
+        assert_eq!(v["state"], "trust-recorded");
+
+        std::fs::write(
+            codex_home.join("config.toml"),
+            "[plugins.\"legion@legion-installed\"]\nenabled = false\n",
+        )
+        .unwrap();
+        let v = codex_hook_state_at(
+            &root,
+            &codex_home,
+            "found",
+            Some(&plugin),
+            Some(&hooks),
+            &[receipts],
         );
-        assert_eq!(
-            v["state"],
-            if declared_strong {
-                "enforcement-qualified"
-            } else {
-                "executed"
-            }
-        );
+        assert_eq!(v["state"], "plugin-disabled");
+        assert_eq!(v["pluginEnabled"], false);
+        let installation = codex_marketplace_installation_at(&codex_home, Some(&plugin))
+            .expect("native installation");
+        assert_eq!(installation["pluginId"], "legion@legion-installed");
+        assert_eq!(installation["enabled"], false);
+        assert_eq!(installation["hooksPresent"], true);
         let _ = std::fs::remove_dir_all(root);
     }
     #[test]
@@ -1241,6 +1555,37 @@ mod tests {
         assert_eq!(installation["hooksRegistered"], true);
         std::fs::write(install.join("plugin.json"), r#"{"name":"other"}"#).unwrap();
         assert!(skills_dir_installation(&home, None).is_none());
+        let _ = std::fs::remove_dir_all(home);
+    }
+
+    #[test]
+    fn claude_marketplace_install_path_uses_native_install_record() {
+        let home = std::env::temp_dir().join(format!(
+            "legion-doctor-claude-marketplace-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&home);
+        let install = home.join(".claude/plugins/cache/legion-installed/legion/1.2.3");
+        std::fs::create_dir_all(install.join(".claude-plugin")).unwrap();
+        std::fs::write(
+            install.join(".claude-plugin/plugin.json"),
+            r#"{"name":"legion","version":"1.2.3"}"#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(home.join(".claude/plugins")).unwrap();
+        std::fs::write(
+            home.join(".claude/plugins/installed_plugins.json"),
+            serde_json::to_vec(&json!({
+                "plugins": {
+                    "legion@legion-installed": [{
+                        "installPath": install.to_string_lossy()
+                    }]
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(claude_marketplace_install_path(&home), Some(install));
         let _ = std::fs::remove_dir_all(home);
     }
 }

@@ -29,6 +29,8 @@ const MCP_TOOL_SCHEMA_REL: &str = "src/registry/mcp-tools.json";
 const DEFAULT_PROFILE: &str = "release";
 const LOCAL_PROVENANCE_SCHEME: &str = "local-build";
 const SIGNED_PROVENANCE_SCHEME: &str = "rightkit-release";
+const INSTALLED_MARKETPLACE_NAME: &str = "legion-installed";
+const INSTALLED_PLUGIN_NAME: &str = "legion";
 
 #[derive(Debug, Clone)]
 pub struct WindowsTarget {
@@ -169,6 +171,74 @@ fn write_json(path: &Path, value: &Value) -> Result<(), String> {
         format!("{}\n", serde_json::to_string_pretty(value).unwrap()),
     )
     .map_err(|e| e.to_string())
+}
+
+fn claude_marketplace() -> Value {
+    json!({
+        "name": INSTALLED_MARKETPLACE_NAME,
+        "description": "Native Legion plugin for Claude Code.",
+        "owner": { "name": "Orthic Labs" },
+        "plugins": [{
+            "name": INSTALLED_PLUGIN_NAME,
+            "source": "./plugin",
+            "description": "Legion skills, MCP server, agents, and hooks."
+        }]
+    })
+}
+
+fn codex_marketplace() -> Value {
+    json!({
+        "name": INSTALLED_MARKETPLACE_NAME,
+        "interface": { "displayName": "Legion Installed" },
+        "plugins": [{
+            "name": INSTALLED_PLUGIN_NAME,
+            "source": { "source": "local", "path": "./plugin" },
+            "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+            "category": "Productivity"
+        }]
+    })
+}
+
+/// Codex still reads its legacy sidecar manifest from packaged plugin roots.
+/// Keep it on the same installed release, hook projection, and MCP descriptor
+/// as the portable Agent Plugins manifest.
+fn codex_installed_plugin(mut manifest: Value, release_version: &str) -> Value {
+    manifest["version"] = json!(release_version);
+    manifest["hooks"] = json!("./hooks/codex-hooks.json");
+    manifest["skills"] = json!("./skills/");
+    manifest["mcpServers"] = json!("./.mcp.json");
+    manifest
+}
+
+/// Codex has a distinct hook wire protocol and only the two lifecycle events
+/// below have a matching `legion-hook --host codex` adapter today.
+fn codex_hook_projection() -> Value {
+    json!({
+        "hooks": {
+            "UserPromptSubmit": [{ "hooks": [{
+                "type": "command",
+                "command": "legion-hook --host codex --event UserPromptSubmit",
+                "timeout": 10
+            }]}],
+            "Stop": [{ "hooks": [{
+                "type": "command",
+                "command": "legion-hook --host codex --event Stop",
+                "timeout": 10
+            }]}]
+        }
+    })
+}
+
+fn add_public_file(contract: &mut Value, path: &str) -> Result<(), String> {
+    let files = contract
+        .get_mut("publicFiles")
+        .and_then(Value::as_array_mut)
+        .ok_or("portable core publicFiles must be an array")?;
+    let path = Value::String(path.to_string());
+    if !files.contains(&path) {
+        files.push(path);
+    }
+    Ok(())
 }
 
 /// Validate one canonical MCP schema before it is bound into a release.
@@ -744,18 +814,21 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     let _ = fs::remove_dir_all(&portable_skill_source_root);
     assemble_result?;
 
-    // Claude Code reads `.mcp.json` but does not expand the Agent Plugins
-    // `${PLUGIN_ROOT}` placeholder. Its installed `legion` command already
-    // resolves the stable release, so the native descriptor needs no root arg.
-    let mut claude_mcp: Value =
+    // The native executable resolves the sealed stable release itself. Keep
+    // both host descriptors on the same command and avoid a second plugin-root
+    // argument that could bind the server to a copied Codex cache.
+    let mut installed_mcp: Value =
         serde_json::from_slice(&fs::read(plugin_root.join("mcp.json")).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
-    let args = claude_mcp
+    let args = installed_mcp
         .pointer_mut("/mcpServers/legion/args")
         .and_then(Value::as_array_mut)
         .ok_or("portable MCP manifest lacks Legion arguments")?;
     *args = vec![json!("serve"), json!("--stdio")];
-    write_json(&plugin_root.join(".mcp.json"), &claude_mcp)?;
+    write_json(&plugin_root.join("mcp.json"), &installed_mcp)?;
+    // Claude Code reads `.mcp.json`; Codex reads portable `mcp.json`. Both
+    // host views launch the native stable executable with identical arguments.
+    write_json(&plugin_root.join(".mcp.json"), &installed_mcp)?;
 
     let installed_host_projection =
         plugin_root.join("share/legion/src/registry/host-projection.json");
@@ -766,17 +839,69 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     )
     .map_err(|e| e.to_string())?;
 
+    // OpenAI plugins can explicitly select their host-specific hook file.
+    // This leaves Claude's canonical hooks/hooks.json untouched while Codex
+    // receives only events supported by Legion's Codex transport.
+    let codex_hooks_path = plugin_root.join("hooks/codex-hooks.json");
+    write_json(&codex_hooks_path, &codex_hook_projection())?;
+    let codex_manifest_path = plugin_root.join(".codex-plugin/plugin.json");
+    fs::create_dir_all(codex_manifest_path.parent().unwrap()).map_err(|e| e.to_string())?;
+    let canonical_codex_manifest: Value = serde_json::from_slice(
+        &fs::read(repository_root.join(".codex-plugin/plugin.json")).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    write_json(
+        &codex_manifest_path,
+        &codex_installed_plugin(canonical_codex_manifest, &release_version),
+    )?;
+    let root_plugin_path = plugin_root.join("plugin.json");
+    let mut root_plugin: Value =
+        serde_json::from_slice(&fs::read(&root_plugin_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    root_plugin["extensions"]["com.openai"]["hooks"] =
+        Value::String("./hooks/codex-hooks.json".to_string());
+    write_json(&root_plugin_path, &root_plugin)?;
+
+    let plugin_release_binding = json!({
+        "schemaVersion": 1,
+        "kind": "legion-installed-plugin-release-binding",
+        "plugin": INSTALLED_PLUGIN_NAME,
+        "releaseVersion": release_version,
+        "runtimeSha256": runtime_digest,
+        "runtimeProvenance": provenance,
+        "releaseManifestPath": "../share/legion/release.json"
+    });
+    write_json(
+        &plugin_root.join("release-binding.json"),
+        &plugin_release_binding,
+    )?;
+
     let portable_core_path = plugin_root.join("rightax-portable-core.json");
     let mut portable_core: Value =
         serde_json::from_str(&fs::read_to_string(&portable_core_path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
-    portable_core["publicFiles"]
-        .as_array_mut()
-        .ok_or("portable core publicFiles must be an array")?
-        .push(Value::String(
-            "share/legion/src/registry/host-projection.json".to_string(),
-        ));
+    add_public_file(
+        &mut portable_core,
+        "share/legion/src/registry/host-projection.json",
+    )?;
+    add_public_file(&mut portable_core, "hooks/codex-hooks.json")?;
+    add_public_file(&mut portable_core, ".codex-plugin/plugin.json")?;
+    add_public_file(&mut portable_core, "release-binding.json")?;
     write_json(&portable_core_path, &portable_core)?;
+
+    let marketplace_documents = [
+        (
+            output.join(".claude-plugin/marketplace.json"),
+            claude_marketplace(),
+        ),
+        (
+            output.join(".agents/plugins/marketplace.json"),
+            codex_marketplace(),
+        ),
+    ];
+    for (path, marketplace) in &marketplace_documents {
+        write_json(path, marketplace)?;
+    }
 
     let validation = validate_portable_core(&plugin_root);
     if !validation.valid {
@@ -787,6 +912,21 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     }
 
     manifest["portableCoreSha256"] = Value::String(file_sha256(&portable_core_path)?);
+    manifest["pluginSha256"] = Value::String(directory_sha256(&plugin_root)?);
+    let mut marketplace_files = Vec::new();
+    for (path, _) in &marketplace_documents {
+        marketplace_files.push(json!({
+            "path": path.strip_prefix(&output).map_err(|e| e.to_string())?
+                .to_string_lossy().replace('\\', "/"),
+            "sha256": file_sha256(path)?,
+        }));
+    }
+    manifest["nativeMarketplaces"] = json!({
+        "name": INSTALLED_MARKETPLACE_NAME,
+        "plugin": INSTALLED_PLUGIN_NAME,
+        "sourcePath": "./plugin",
+        "files": marketplace_files,
+    });
     write_json(&share.join("release.json"), &manifest)?;
 
     Ok(json!({
@@ -814,7 +954,11 @@ fn skill_id_re() -> Regex {
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_mcp_tool_schema, MCP_TOOL_SCHEMA_REL};
+    use super::{
+        claude_marketplace, codex_hook_projection, codex_installed_plugin, codex_marketplace,
+        validate_mcp_tool_schema, INSTALLED_MARKETPLACE_NAME, INSTALLED_PLUGIN_NAME,
+        MCP_TOOL_SCHEMA_REL,
+    };
     use serde_json::json;
 
     #[test]
@@ -846,5 +990,62 @@ mod tests {
         let error = validate_mcp_tool_schema(&duplicate).unwrap_err();
         assert!(error.contains("duplicates tool same"), "{error}");
         assert!(MCP_TOOL_SCHEMA_REL.ends_with("mcp-tools.json"));
+    }
+
+    #[test]
+    fn claude_marketplace_uses_owner_and_string_local_source() {
+        let marketplace = claude_marketplace();
+        assert_eq!(marketplace["name"], INSTALLED_MARKETPLACE_NAME);
+        assert!(!marketplace["owner"]["name"].as_str().unwrap().is_empty());
+        let plugin = &marketplace["plugins"][0];
+        assert_eq!(plugin["name"], INSTALLED_PLUGIN_NAME);
+        assert_eq!(plugin["source"], "./plugin");
+        assert!(plugin["source"].is_string());
+    }
+
+    #[test]
+    fn codex_marketplace_uses_local_source_object_and_stable_root_path() {
+        let marketplace = codex_marketplace();
+        assert_eq!(marketplace["name"], INSTALLED_MARKETPLACE_NAME);
+        let plugin = &marketplace["plugins"][0];
+        assert_eq!(plugin["name"], INSTALLED_PLUGIN_NAME);
+        assert_eq!(plugin["source"]["source"], "local");
+        assert_eq!(plugin["source"]["path"], "./plugin");
+        assert_eq!(plugin["policy"]["installation"], "AVAILABLE");
+        assert_eq!(plugin["policy"]["authentication"], "ON_INSTALL");
+    }
+
+    #[test]
+    fn codex_hook_projection_selects_only_supported_host_transport_events() {
+        let hooks = codex_hook_projection();
+        assert_eq!(hooks.as_object().unwrap().len(), 1);
+        let events = hooks["hooks"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(events.len(), 2);
+        assert!(events.contains(&"Stop".to_string()));
+        assert!(events.contains(&"UserPromptSubmit".to_string()));
+        for event in events {
+            assert_eq!(
+                hooks["hooks"][&event][0]["hooks"][0]["command"],
+                format!("legion-hook --host codex --event {event}")
+            );
+        }
+    }
+
+    #[test]
+    fn codex_installed_manifest_selects_native_hooks_skills_and_mcp() {
+        let manifest = codex_installed_plugin(
+            json!({ "name": "legion", "version": "0.1.0", "interface": { "displayName": "Legion" } }),
+            "1.2.3",
+        );
+        assert_eq!(manifest["name"], INSTALLED_PLUGIN_NAME);
+        assert_eq!(manifest["version"], "1.2.3");
+        assert_eq!(manifest["hooks"], "./hooks/codex-hooks.json");
+        assert_eq!(manifest["skills"], "./skills/");
+        assert_eq!(manifest["mcpServers"], "./.mcp.json");
     }
 }
