@@ -47,6 +47,39 @@ fn spawn_reader<R: Read + Send + 'static>(mut pipe: R) -> Receiver<std::io::Resu
     rx
 }
 
+fn redact_tokens(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(values) => {
+            for (key, value) in values {
+                if key == "token" {
+                    *value = serde_json::Value::String("[redacted]".to_string());
+                } else {
+                    redact_tokens(value);
+                }
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for value in values {
+                redact_tokens(value);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn diagnostic_output(bytes: Option<&[u8]>) -> String {
+    let Some(bytes) = bytes else {
+        return "<unavailable>".to_string();
+    };
+    match serde_json::from_slice::<serde_json::Value>(bytes) {
+        Ok(mut value) => {
+            redact_tokens(&mut value);
+            serde_json::to_string(&value).unwrap_or_else(|_| "<unprintable JSON>".to_string())
+        }
+        Err(_) => String::from_utf8_lossy(bytes).into_owned(),
+    }
+}
+
 fn wait_for_exit(child: &mut Child, timeout: Duration) -> Result<Option<ExitStatus>, String> {
     let start = Instant::now();
     loop {
@@ -147,12 +180,7 @@ fn background_launcher_closes_pipes_before_server_stops() {
 
     let mut failures = Vec::new();
     let launcher_status = match wait_for_exit(&mut launcher, LAUNCH_TIMEOUT) {
-        Ok(Some(status)) => {
-            if !status.success() {
-                failures.push(format!("background launcher exited {status}"));
-            }
-            Some(status)
-        }
+        Ok(Some(status)) => Some(status),
         Ok(None) => {
             failures.push("background launcher did not exit before timeout".to_string());
             None
@@ -170,7 +198,7 @@ fn background_launcher_closes_pipes_before_server_stops() {
 
     let mut stdout = None;
     let mut stderr = None;
-    if launcher_status.is_some_and(|status| status.success()) {
+    if launcher_status.is_some() {
         match stdout_rx.recv_timeout(PIPE_TIMEOUT) {
             Ok(Ok(bytes)) => stdout = Some(bytes),
             Ok(Err(error)) => failures.push(format!("stdout reader failed: {error}")),
@@ -181,6 +209,13 @@ fn background_launcher_closes_pipes_before_server_stops() {
             Ok(Err(error)) => failures.push(format!("stderr reader failed: {error}")),
             Err(error) => failures.push(format!("stderr did not reach EOF: {error}")),
         }
+    }
+    if let Some(status) = launcher_status.filter(|status| !status.success()) {
+        failures.push(format!(
+            "background launcher exited {status}; stdout: {}; stderr: {}",
+            diagnostic_output(stdout.as_deref()),
+            diagnostic_output(stderr.as_deref()),
+        ));
     }
 
     if let (Some(stdout), Some(_stderr)) = (&stdout, &stderr) {
@@ -194,9 +229,7 @@ fn background_launcher_closes_pipes_before_server_stops() {
                         || value.get("token").and_then(serde_json::Value::as_str)
                             != Some(record.token.as_str())
                     {
-                        failures.push(format!(
-                            "background JSON does not match server record: {value} vs {record:?}"
-                        ));
+                        failures.push("background JSON does not match server record".to_string());
                     }
                     match health(record.port) {
                         Ok(response) if response.contains("200 OK") => {}
