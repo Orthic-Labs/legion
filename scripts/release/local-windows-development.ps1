@@ -47,7 +47,31 @@ try {
     $taskArguments = @('release-local-windows-development')
     if ($BuildOnly) { $taskArguments += '--build-only' }
     & $installerTask @taskArguments
-    exit $LASTEXITCODE
+    $buildExitCode = $LASTEXITCODE
+    if ($buildExitCode -ne 0) { exit $buildExitCode }
+
+    if ($BuildOnly -and $env:GITHUB_ACTIONS -eq 'true') {
+        $installerRoot = Join-Path $repositoryRoot 'dist/local-windows/installer'
+        $qualificationRoot = Join-Path $repositoryRoot 'dist/local-windows/qualification'
+        if (Test-Path -LiteralPath $qualificationRoot) {
+            Remove-Item -LiteralPath $qualificationRoot -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $qualificationRoot -Force | Out-Null
+
+        $env:RIGHT_GIT_FINALIZED_WINDOWS_ROOT = $installerRoot
+        $env:RIGHT_GIT_QUALIFICATION_EVIDENCE_ROOT = $qualificationRoot
+        & $installerTask 'release-qualify-installed'
+        $qualificationExitCode = $LASTEXITCODE
+        if ($qualificationExitCode -ne 0) { exit $qualificationExitCode }
+
+        $qualificationFile = Join-Path $qualificationRoot 'qualification.json'
+        if (-not (Test-Path -LiteralPath $qualificationFile -PathType Leaf)) {
+            throw 'Installed qualification succeeded without qualification.json.'
+        }
+        Copy-Item -LiteralPath $qualificationFile -Destination (Join-Path $installerRoot 'qualification.json') -Force
+    }
+
+    exit 0
 } finally {
     Pop-Location
 }
