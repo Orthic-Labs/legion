@@ -63,7 +63,7 @@ pub fn validate_and_write_receipt(
         Ok(v) => v,
         Err(_) => {
             return Ok(TasklistResult::Fail {
-                errors: vec!["packet unreadable".to_string()],
+                errors: unreadable_packet_errors(&bytes),
             })
         }
     };
@@ -86,6 +86,356 @@ pub fn validate_and_write_receipt(
     });
     std::fs::write(&receipt_path, serde_json::to_vec_pretty(&receipt)?)?;
     Ok(TasklistResult::Pass { receipt_path })
+}
+
+/// Gate appended to every legacy-format result. The GoalRoute and Minimize
+/// authority checks that the Python legacy validator runs around the timing
+/// checks are not ported, so a legacy tasklist can never yield a receipt here.
+pub const LEGACY_AUTHORITY_GATE: &str =
+    "legacy tasklist: GoalRoute and Minimize authority checks are not ported to Rust; no receipt written";
+
+/// Errors for input that is not a JSON authority packet. A legacy Markdown
+/// tasklist gets its timing checks plus the authority gate; anything else
+/// keeps the original `packet unreadable` error.
+fn unreadable_packet_errors(bytes: &[u8]) -> Vec<String> {
+    let timing = std::str::from_utf8(bytes)
+        .ok()
+        .and_then(legacy_tasklist_timing_errors);
+    match timing {
+        Some(mut errors) => {
+            errors.push(LEGACY_AUTHORITY_GATE.to_string());
+            errors
+        }
+        None => vec!["packet unreadable".to_string()],
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy Markdown tasklist timing checks.
+//
+// Port of the timing checks in `skills/tasklist/engine/validate-tasklist-legacy.py`
+// (`validate()`): per-task time span and basis checks, the clock-gap and
+// total-minutes timeline checks, the lines-per-minute plausibility checks, and
+// the parallelizable-flag checks against span overlap. Thresholds, labels and
+// messages are the Python source's own.
+// ---------------------------------------------------------------------------
+
+/// Python `TASK_RE` base pattern: `### Task N — name` heading.
+const LEGACY_TASK_PATTERN: &str = r"(?m)^### Task (\d+) — (.+)$";
+/// Python `TIME_SPAN_RE`: elapsed-clock span from minute 0.
+const LEGACY_TIME_SPAN_PATTERN: &str = r"^minute\s+(\d+)-(\d+)\s*(?:\(.*\))?$";
+/// Python `BASIS_PART_RE`: one `label=minutes` activity.
+const LEGACY_BASIS_PART_PATTERN: &str = r"^([A-Za-z][A-Za-z _-]*)=(\d+(?:\.\d+)?)$";
+/// Python `BANNED_BASIS_LABELS`: labels that hide work rather than describe it.
+const LEGACY_BANNED_BASIS_LABELS: [&str; 8] = [
+    "overhead",
+    "buffer",
+    "contingency",
+    "misc",
+    "miscellaneous",
+    "padding",
+    "slack",
+    "other",
+];
+/// Python `CODE_BASIS_LABELS`: labels counted as code generation.
+const LEGACY_CODE_BASIS_LABELS: [&str; 6] = [
+    "code",
+    "coding",
+    "codegen",
+    "write",
+    "implement",
+    "implementation",
+];
+
+fn compile_pattern(pattern: &str) -> Option<regex::Regex> {
+    regex::Regex::new(pattern).ok()
+}
+
+/// True when `text` uses the legacy Markdown tasklist format, detected by at
+/// least one `### Task N — name` heading. The current format is a JSON
+/// authority packet and never matches.
+pub fn is_legacy_tasklist(text: &str) -> bool {
+    compile_pattern(LEGACY_TASK_PATTERN).is_some_and(|re| re.is_match(text))
+}
+
+/// One legacy task block, holding only the fields the timing checks read.
+struct LegacyTask {
+    time_span: String,
+    basis: String,
+    parallelizable: String,
+}
+
+/// Port of Python `field(text, label)`: the trimmed value of a
+/// `- **Label:** value` line, or empty when absent.
+fn legacy_field(text: &str, label: &str) -> String {
+    let pattern = format!(r"(?m)^- \*\*{}:\*\* (.+)$", regex::escape(label));
+    compile_pattern(&pattern)
+        .and_then(|re| re.captures(text))
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().trim().to_string())
+        .unwrap_or_default()
+}
+
+/// Port of Python `marker(value, prefix)`.
+fn legacy_marker(value: &str, prefix: &str) -> String {
+    value
+        .strip_prefix(prefix)
+        .map(|rest| rest.trim().to_string())
+        .unwrap_or_default()
+}
+
+/// Port of Python `parse_tasks`: each block runs from its heading to the next
+/// task heading, or to `\n## 4.` (or end of text) for the last task.
+fn parse_legacy_tasks(text: &str) -> Vec<LegacyTask> {
+    let Some(re) = compile_pattern(LEGACY_TASK_PATTERN) else {
+        return Vec::new();
+    };
+    let heads: Vec<regex::Captures<'_>> = re.captures_iter(text).collect();
+    let mut tasks = Vec::with_capacity(heads.len());
+    for (index, head) in heads.iter().enumerate() {
+        let Some(whole) = head.get(0) else {
+            continue;
+        };
+        let end = match heads.get(index + 1).and_then(|next| next.get(0)) {
+            Some(next) => next.start(),
+            None => text[whole.end()..]
+                .find("\n## 4.")
+                .map(|offset| whole.end() + offset)
+                .unwrap_or(text.len()),
+        };
+        let block = &text[whole.start()..end];
+        tasks.push(LegacyTask {
+            time_span: legacy_field(block, "Time span"),
+            basis: legacy_field(block, "Basis"),
+            parallelizable: legacy_field(block, "Parallelizable"),
+        });
+    }
+    tasks
+}
+
+/// Python `str.isdigit()` followed by `int(...)`: plain ASCII digits that fit
+/// in an `i64`. Returns `None` for anything else.
+fn parse_digits(raw: &str) -> Option<i64> {
+    if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    raw.parse::<i64>().ok()
+}
+
+/// Python `repr(float)` for the values these messages print (`12.0`, `7.5`).
+fn py_float(value: f64) -> String {
+    if value.is_finite() && value.fract() == 0.0 {
+        format!("{value:.1}")
+    } else {
+        format!("{value}")
+    }
+}
+
+/// Python `repr(str)` for the short ASCII labels these messages print.
+fn py_repr(value: &str) -> String {
+    format!("'{value}'")
+}
+
+/// Port of the Markdown timing checks in `validate-tasklist-legacy.py`.
+///
+/// Returns `None` when `text` is not the legacy format, so the current JSON
+/// format is never affected. For legacy input it returns the defects in the
+/// Python source's order (per-task checks, then lines and rate, then total
+/// minutes, clock gaps and parallel-lane overlap).
+///
+/// Difference from the Python source: spans and parallel flags are keyed by
+/// task number, not by GoalRoute step id, because the GoalRoute is not ported.
+/// The Python checks that compare against GoalRoute (step count, mirrors,
+/// dependencies) are therefore not run here. [`LEGACY_AUTHORITY_GATE`] reports
+/// that gap whenever this function is reached through
+/// [`validate_and_write_receipt`].
+pub fn legacy_tasklist_timing_errors(text: &str) -> Option<Vec<String>> {
+    if !is_legacy_tasklist(text) {
+        return None;
+    }
+    let tasks = parse_legacy_tasks(text);
+    let mut errors: Vec<String> = Vec::new();
+    // (task label, start, end) in task order, for spans that match the format.
+    let mut spans: Vec<(String, i64, i64)> = Vec::new();
+    // (task label, parallel flag) for flags that are exactly yes or no.
+    let mut parallel: Vec<(String, bool)> = Vec::new();
+    let mut code_basis_minutes = 0.0_f64;
+    let time_span_re = compile_pattern(LEGACY_TIME_SPAN_PATTERN);
+    let basis_part_re = compile_pattern(LEGACY_BASIS_PART_PATTERN);
+
+    for (index, task) in tasks.iter().enumerate() {
+        let n = index + 1;
+        let span: Option<(i64, i64)> = time_span_re
+            .as_ref()
+            .and_then(|re| re.captures(task.time_span.trim()))
+            .and_then(|caps| {
+                let start = caps.get(1)?.as_str().parse::<i64>().ok()?;
+                let end = caps.get(2)?.as_str().parse::<i64>().ok()?;
+                Some((start, end))
+            });
+        match span {
+            None => errors.push(format!(
+                "Task {n} time span must be an elapsed-clock span from minute 0, formatted as \"minute START-END\" (not a duration, not a low/high range)"
+            )),
+            Some((start, end)) => {
+                if end <= start {
+                    errors.push(format!("Task {n} time span must end after it starts"));
+                }
+                spans.push((n.to_string(), start, end));
+            }
+        }
+
+        let parts: Vec<&str> = task
+            .basis
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .collect();
+        if parts.is_empty() {
+            errors.push(format!("Task {n} must name what its minutes are spent on"));
+        }
+        let mut basis_total = 0.0_f64;
+        for part in &parts {
+            let Some(caps) = basis_part_re.as_ref().and_then(|re| re.captures(part)) else {
+                errors.push(format!(
+                    "Task {n} basis part {} must be formatted as label=minutes",
+                    py_repr(part)
+                ));
+                continue;
+            };
+            let label = caps
+                .get(1)
+                .map(|m| m.as_str().trim().to_lowercase())
+                .unwrap_or_default();
+            let minutes: f64 = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse::<f64>().ok())
+                .unwrap_or(0.0);
+            if LEGACY_BANNED_BASIS_LABELS.contains(&label.as_str()) {
+                errors.push(format!(
+                    "Task {n} basis label {} is a generic bucket; name the actual activity (inspect, compile, test, deploy, smoke, report)",
+                    py_repr(&label)
+                ));
+            }
+            basis_total += minutes;
+            if LEGACY_CODE_BASIS_LABELS.contains(&label.as_str()) {
+                code_basis_minutes += minutes;
+            }
+        }
+        if let Some((start, end)) = span {
+            if !parts.is_empty() {
+                let span_length = end - start;
+                if (basis_total - span_length as f64).abs() > 0.5 {
+                    errors.push(format!(
+                        "Task {n} named minutes sum to {basis_total} but its span is {span_length} minutes long"
+                    ));
+                }
+            }
+        }
+
+        match task.parallelizable.trim().to_lowercase().as_str() {
+            "yes" => parallel.push((n.to_string(), true)),
+            "no" => parallel.push((n.to_string(), false)),
+            _ => errors.push(format!("Task {n} parallelizable must be yes or no")),
+        }
+    }
+
+    // Document-level lines-per-minute and code-minute plausibility.
+    let files_raw = legacy_marker(&legacy_field(text, "Files touched"), "FILES_TOUCHED:");
+    let lines_raw = legacy_marker(&legacy_field(text, "Lines changed"), "LINES_CHANGED:");
+    let rate_raw = legacy_marker(&legacy_field(text, "Rate"), "LINES_PER_MINUTE:");
+    match parse_digits(&files_raw) {
+        Some(files) if files >= 1 => {}
+        _ => errors.push("Files touched must be a positive integer".to_string()),
+    }
+    match parse_digits(&lines_raw) {
+        Some(lines) if lines >= 1 => {}
+        _ => errors.push("Lines changed must be a positive integer".to_string()),
+    }
+    let rate = rate_raw.parse::<f64>().unwrap_or(0.0);
+    if rate <= 0.0 {
+        errors.push("Lines per minute must be a positive number".to_string());
+    } else if rate < 10.0 {
+        // Measured reality: an agent emits tens of lines per minute. A low rate is how a plan
+        // smuggles inspection and verification time into "typing" and inflates the total.
+        errors.push(format!(
+            "Lines per minute ({}) is implausibly slow for code generation; bill inspection, compile, and test time as named parts instead",
+            py_float(rate)
+        ));
+    }
+    // Declared code-generation minutes must follow from lines and rate.
+    if let Some(lines) = parse_digits(&lines_raw) {
+        if rate > 0.0 {
+            let expected_code_minutes = lines as f64 / rate;
+            if code_basis_minutes != 0.0
+                && (code_basis_minutes - expected_code_minutes).abs()
+                    > f64::max(2.0, 0.5 * expected_code_minutes)
+            {
+                errors.push(format!(
+                    "Declared code minutes ({code_basis_minutes}) do not follow from {lines_raw} lines / {} per minute (~{:.0})",
+                    py_float(rate),
+                    expected_code_minutes
+                ));
+            }
+        }
+    }
+
+    // Timeline: total minutes, first start, clock gaps, and parallel-lane overlap.
+    let total_raw = legacy_marker(&legacy_field(text, "Total minutes"), "TOTAL_MINUTES:");
+    match parse_digits(&total_raw) {
+        Some(total) if total >= 1 => {
+            if !spans.is_empty() {
+                let mut sorted: Vec<(i64, i64)> =
+                    spans.iter().map(|(_, start, end)| (*start, *end)).collect();
+                sorted.sort();
+                if let Some(&(first_start, _)) = sorted.first() {
+                    if first_start != 0 {
+                        errors.push(format!(
+                            "First step must start at minute 0, found {first_start}"
+                        ));
+                    }
+                }
+                let finish = spans.iter().map(|(_, _, end)| *end).max().unwrap_or(0);
+                if total != finish {
+                    errors.push(format!(
+                        "Total minutes ({total}) must equal the last minute any step is still running ({finish})"
+                    ));
+                }
+                let mut covered_to = 0_i64;
+                for (start, end) in &sorted {
+                    if *start > covered_to {
+                        errors.push(format!(
+                            "Clock gap: nothing runs between minute {covered_to} and {start}"
+                        ));
+                        break;
+                    }
+                    covered_to = covered_to.max(*end);
+                }
+                for (label, start, end) in &spans {
+                    let overlaps = spans.iter().any(|(other, other_start, other_end)| {
+                        other != label && *start < *other_end && *other_start < *end
+                    });
+                    let flag = parallel
+                        .iter()
+                        .find(|(name, _)| name == label)
+                        .map(|(_, flag)| *flag);
+                    if flag == Some(true) && !overlaps {
+                        errors.push(format!(
+                            "Step {label} is flagged parallelizable but its span overlaps no other step"
+                        ));
+                    }
+                    if flag == Some(false) && overlaps {
+                        errors.push(format!(
+                            "Step {label} is flagged serial but its span overlaps another step"
+                        ));
+                    }
+                }
+            }
+        }
+        _ => errors.push("Total minutes must be a positive integer".to_string()),
+    }
+
+    Some(errors)
 }
 
 /// Abstraction over spawning `validate-dispatch.py`, so [`run_cli`] can be
@@ -509,5 +859,312 @@ mod cli_tests {
         assert_eq!(outcome.code, 2);
         assert!(outcome.stderr.contains("invalid choice"));
         assert!(runner.calls.borrow().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod legacy_timing_tests {
+    use super::*;
+
+    /// Builds a legacy Markdown tasklist: `tasks` is (time span, basis,
+    /// parallelizable) per task, and the document-level fields are passed in
+    /// raw so each test can break exactly one of them.
+    fn legacy_doc(
+        tasks: &[(&str, &str, &str)],
+        files: &str,
+        lines: &str,
+        rate: &str,
+        total: &str,
+    ) -> String {
+        let mut text = String::from("# Tasklist\n");
+        text.push_str(&format!("- **Files touched:** FILES_TOUCHED:{files}\n"));
+        text.push_str(&format!("- **Lines changed:** LINES_CHANGED:{lines}\n"));
+        text.push_str(&format!("- **Rate:** LINES_PER_MINUTE:{rate}\n"));
+        text.push_str(&format!("- **Total minutes:** TOTAL_MINUTES:{total}\n\n"));
+        for (index, (span, basis, parallel)) in tasks.iter().enumerate() {
+            let n = index + 1;
+            text.push_str(&format!(
+                "### Task {n} — step {n}\n- **Time span:** {span}\n- **Basis:** {basis}\n- **Parallelizable:** {parallel}\n\n"
+            ));
+        }
+        text.push_str("## 4. Recovery & TRUE_BLOCKER\n");
+        text
+    }
+
+    /// Runs the timing checks, failing the test if the text is not detected as legacy.
+    fn errors_of(text: &str) -> Vec<String> {
+        legacy_tasklist_timing_errors(text)
+            .unwrap_or_else(|| panic!("text was not detected as the legacy format"))
+    }
+
+    fn has(errors: &[String], needle: &str) -> bool {
+        errors.iter().any(|e| e.contains(needle))
+    }
+
+    #[test]
+    fn valid_legacy_document_has_no_timing_errors() {
+        let text = legacy_doc(
+            &[
+                ("minute 0-5", "compile=5", "no"),
+                ("minute 5-15", "code=10", "no"),
+            ],
+            "2",
+            "120",
+            "12",
+            "15",
+        );
+        assert_eq!(errors_of(&text), Vec::<String>::new());
+    }
+
+    #[test]
+    fn current_json_format_is_not_legacy() {
+        assert!(!is_legacy_tasklist("{\"schema\":1}"));
+        assert!(legacy_tasklist_timing_errors("{\"schema\":1}").is_none());
+    }
+
+    #[test]
+    fn time_span_must_use_elapsed_clock_format() {
+        let text = legacy_doc(
+            &[("minute 0 to 5", "compile=5", "no")],
+            "2",
+            "120",
+            "12",
+            "5",
+        );
+        let errors = errors_of(&text);
+        assert!(has(
+            &errors,
+            "Task 1 time span must be an elapsed-clock span from minute 0"
+        ));
+    }
+
+    #[test]
+    fn time_span_must_end_after_it_starts() {
+        let text = legacy_doc(&[("minute 5-5", "compile=0", "no")], "2", "120", "12", "5");
+        assert!(has(
+            &errors_of(&text),
+            "Task 1 time span must end after it starts"
+        ));
+    }
+
+    #[test]
+    fn clock_gap_between_steps_is_reported() {
+        let text = legacy_doc(
+            &[
+                ("minute 0-5", "compile=5", "no"),
+                ("minute 7-10", "test=3", "no"),
+            ],
+            "2",
+            "120",
+            "12",
+            "10",
+        );
+        assert!(has(
+            &errors_of(&text),
+            "Clock gap: nothing runs between minute 5 and 7"
+        ));
+    }
+
+    #[test]
+    fn first_step_must_start_at_minute_zero() {
+        let text = legacy_doc(&[("minute 2-10", "test=8", "no")], "2", "120", "12", "10");
+        assert!(has(
+            &errors_of(&text),
+            "First step must start at minute 0, found 2"
+        ));
+    }
+
+    #[test]
+    fn total_minutes_must_equal_last_running_minute() {
+        let text = legacy_doc(&[("minute 0-10", "test=10", "no")], "2", "120", "12", "12");
+        assert!(has(
+            &errors_of(&text),
+            "Total minutes (12) must equal the last minute any step is still running (10)"
+        ));
+    }
+
+    #[test]
+    fn named_minutes_must_sum_to_span_length() {
+        let text = legacy_doc(&[("minute 0-5", "compile=3", "no")], "2", "120", "12", "5");
+        assert!(has(
+            &errors_of(&text),
+            "Task 1 named minutes sum to 3 but its span is 5 minutes long"
+        ));
+    }
+
+    #[test]
+    fn generic_basis_label_is_rejected() {
+        let text = legacy_doc(&[("minute 0-5", "overhead=5", "no")], "2", "120", "12", "5");
+        assert!(has(
+            &errors_of(&text),
+            "Task 1 basis label 'overhead' is a generic bucket"
+        ));
+    }
+
+    #[test]
+    fn basis_part_must_be_label_equals_minutes() {
+        let text = legacy_doc(&[("minute 0-5", "compile", "no")], "2", "120", "12", "5");
+        assert!(has(
+            &errors_of(&text),
+            "Task 1 basis part 'compile' must be formatted as label=minutes"
+        ));
+    }
+
+    #[test]
+    fn implausibly_slow_rate_is_reported() {
+        let text = legacy_doc(&[("minute 0-24", "code=24", "no")], "2", "120", "5", "24");
+        assert!(has(
+            &errors_of(&text),
+            "Lines per minute (5.0) is implausibly slow for code generation"
+        ));
+    }
+
+    #[test]
+    fn non_positive_rate_is_reported() {
+        let text = legacy_doc(&[("minute 0-5", "compile=5", "no")], "2", "120", "0", "5");
+        assert!(has(
+            &errors_of(&text),
+            "Lines per minute must be a positive number"
+        ));
+    }
+
+    #[test]
+    fn declared_code_minutes_must_follow_from_lines_and_rate() {
+        // 120 lines at 12 per minute is about 10 minutes; 20 declared is outside tolerance.
+        let text = legacy_doc(&[("minute 0-20", "code=20", "no")], "2", "120", "12", "20");
+        assert!(has(
+            &errors_of(&text),
+            "Declared code minutes (20) do not follow from 120 lines / 12.0 per minute (~10)"
+        ));
+    }
+
+    #[test]
+    fn zero_lines_changed_is_reported() {
+        let text = legacy_doc(&[("minute 0-5", "compile=5", "no")], "2", "0", "12", "5");
+        assert!(has(
+            &errors_of(&text),
+            "Lines changed must be a positive integer"
+        ));
+    }
+
+    #[test]
+    fn parallel_flag_without_overlap_is_reported() {
+        let text = legacy_doc(
+            &[
+                ("minute 0-5", "compile=5", "yes"),
+                ("minute 5-10", "test=5", "no"),
+            ],
+            "2",
+            "120",
+            "12",
+            "10",
+        );
+        assert!(has(
+            &errors_of(&text),
+            "Step 1 is flagged parallelizable but its span overlaps no other step"
+        ));
+    }
+
+    #[test]
+    fn serial_flag_with_overlap_is_reported() {
+        let text = legacy_doc(
+            &[
+                ("minute 0-10", "compile=10", "no"),
+                ("minute 5-10", "test=5", "no"),
+            ],
+            "2",
+            "120",
+            "12",
+            "10",
+        );
+        let errors = errors_of(&text);
+        assert!(has(
+            &errors,
+            "Step 1 is flagged serial but its span overlaps another step"
+        ));
+        assert!(has(
+            &errors,
+            "Step 2 is flagged serial but its span overlaps another step"
+        ));
+    }
+
+    #[test]
+    fn parallel_flags_that_overlap_are_accepted() {
+        let text = legacy_doc(
+            &[
+                ("minute 0-10", "compile=10", "yes"),
+                ("minute 5-10", "test=5", "yes"),
+            ],
+            "2",
+            "120",
+            "12",
+            "10",
+        );
+        let errors = errors_of(&text);
+        assert!(!has(&errors, "parallelizable but"));
+        assert!(!has(&errors, "flagged serial"));
+    }
+
+    #[test]
+    fn parallelizable_must_be_yes_or_no() {
+        let text = legacy_doc(
+            &[("minute 0-5", "compile=5", "maybe")],
+            "2",
+            "120",
+            "12",
+            "5",
+        );
+        assert!(has(
+            &errors_of(&text),
+            "Task 1 parallelizable must be yes or no"
+        ));
+    }
+
+    #[test]
+    fn unreadable_legacy_packet_reports_defects_and_gate() {
+        let text = legacy_doc(&[("minute 0-5", "compile=3", "no")], "2", "120", "12", "5");
+        let errors = unreadable_packet_errors(text.as_bytes());
+        assert!(has(&errors, "named minutes sum to 3"));
+        assert_eq!(
+            errors.last().map(String::as_str),
+            Some(LEGACY_AUTHORITY_GATE)
+        );
+    }
+
+    #[test]
+    fn non_legacy_unreadable_input_keeps_original_error() {
+        assert_eq!(
+            unreadable_packet_errors(b"not a packet at all"),
+            vec!["packet unreadable".to_string()]
+        );
+    }
+
+    #[test]
+    fn valid_legacy_file_never_yields_a_receipt() {
+        let dir = std::env::temp_dir().join(format!("w2-044-legacy-timing-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("legacy.tasklist.md");
+        let text = legacy_doc(
+            &[
+                ("minute 0-5", "compile=5", "no"),
+                ("minute 5-15", "code=10", "no"),
+            ],
+            "2",
+            "120",
+            "12",
+            "15",
+        );
+        std::fs::write(&path, text.as_bytes()).unwrap();
+        let result = validate_and_write_receipt(&path, None).unwrap();
+        match result {
+            TasklistResult::Fail { errors } => {
+                assert_eq!(errors, vec![LEGACY_AUTHORITY_GATE.to_string()]);
+            }
+            TasklistResult::Pass { .. } => {
+                panic!("legacy tasklist must not pass without GoalRoute")
+            }
+        }
+        assert!(!dir.join("legacy.tasklist.receipt.json").exists());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

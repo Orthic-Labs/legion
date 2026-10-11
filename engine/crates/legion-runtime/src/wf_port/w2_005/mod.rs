@@ -31,6 +31,10 @@ use regex::Regex;
 /// forbids editing `wf_port/mod.rs`.
 pub mod validate_atom_report;
 
+/// Port of `skills/foundation/scripts/export_foundation_analytics.py`: coverage and sole-provider
+/// CSV analytics over a validated canon table and mechanism-card tables.
+pub mod export_analytics;
+
 /// The canonical `**Mode:**` value a packet must declare. Mirrors
 /// `validate-external-review-packet.py`'s `CANONICAL`.
 pub const CANONICAL_EXTERNAL_MODE: &str = "PACKET_ONLY — DO_NOT_RUN_COUNCIL";

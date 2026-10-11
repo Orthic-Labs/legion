@@ -104,6 +104,7 @@ pub const TABLE: &[(&str, Entry)] = &[
         "foundation/validate-atom-report",
         foundation_validate_atom_report,
     ),
+    ("foundation/export-analytics", foundation_export_analytics),
     ("handoff/transcript-handoff", handoff_transcript_handoff),
     ("handoff/validate-handoff", handoff_validate_handoff),
     ("ios-development/tool_preflight", apple_tool_preflight),
@@ -167,7 +168,7 @@ pub fn run(args: ScriptArgs) -> CommandResult {
         .find(|(candidate, _)| *candidate == name.as_str())
     {
         Some((_, entry)) => {
-            let code = entry(rest);
+            let code = run_entry_off_runtime(*entry, rest);
             Ok(json!({ "__exit_code": code }))
         }
         None => Err(CommandError::usage(format!(
@@ -178,6 +179,28 @@ pub fn run(args: ScriptArgs) -> CommandResult {
 
 fn cwd() -> std::path::PathBuf {
     std::env::current_dir().unwrap_or_default()
+}
+
+/// Runs a route handler on its own OS thread. The CLI dispatches from inside
+/// the Tokio runtime, and many routes use blocking HTTP clients, which create
+/// and drop their own runtime; doing that on a runtime thread panics. The
+/// runtime handle stays entered so routes that bridge to async code still
+/// find it. A handler that panics yields exit 101.
+fn run_entry_off_runtime(entry: fn(&[String]) -> i32, rest: &[String]) -> i32 {
+    const ROUTE_STACK_BYTES: usize = 16 * 1024 * 1024;
+    let handle = tokio::runtime::Handle::try_current().ok();
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .name("legion-script-route".into())
+            .stack_size(ROUTE_STACK_BYTES)
+            .spawn_scoped(scope, move || {
+                let _guard = handle.as_ref().map(tokio::runtime::Handle::enter);
+                entry(rest)
+            })
+            .ok()
+            .and_then(|route| route.join().ok())
+            .unwrap_or(101)
+    })
 }
 
 fn apple_tool_preflight(args: &[String]) -> i32 {
@@ -2287,6 +2310,9 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
     let mut max_repeat: usize = 8;
     let mut manifest_path: Option<String> = None;
     let mut write_receipt: Option<String> = None;
+    let mut repository: Option<String> = None;
+    let mut canon_path: Option<String> = None;
+    let mut ledgers: Option<Vec<String>> = None;
 
     let mut i = 0;
     while i < args.len() {
@@ -2309,6 +2335,23 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
                 manifest_path = args.get(i + 1).cloned();
                 i += 2;
             }
+            "--repository" => {
+                repository = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--canon" => {
+                canon_path = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--ledgers" => {
+                let mut paths = Vec::new();
+                i += 1;
+                while i < args.len() && !args[i].starts_with("--") {
+                    paths.push(args[i].clone());
+                    i += 1;
+                }
+                ledgers = if paths.is_empty() { None } else { Some(paths) };
+            }
             "--write-receipt" => {
                 write_receipt = args.get(i + 1).cloned();
                 i += 2;
@@ -2323,7 +2366,7 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
     }
 
     let (Some(report), Some(mode)) = (report, mode) else {
-        eprintln!("usage: legion script foundation/validate-atom-report <report> --mode <inventory|stage2|stage3|final|repo-ledger|canon|mechanism-cards|handoff> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--write-receipt <path>]");
+        eprintln!("usage: legion script foundation/validate-atom-report <report> --mode <inventory|stage2|stage3|final|repo-ledger|canon|mechanism-cards|handoff> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--repository <name>] [--canon <canon.md>] [--ledgers <ledger.md> ...] [--write-receipt <path>]");
         return 1;
     };
 
@@ -2378,16 +2421,77 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
                     .collect()
             })
             .unwrap_or_default();
-        manifest = Some(w2_005::validate_atom_report::Manifest {
+        for key in ["repo_roots", "scope_repos", "repo_targets"] {
+            if value.get(key).is_none() {
+                println!("FAIL: invalid manifest: '{key}'");
+                return 1;
+            }
+        }
+        let Some(targets) = value.get("repo_targets").and_then(|v| v.as_object()) else {
+            println!("FAIL: invalid manifest: repo_targets must be an object");
+            return 1;
+        };
+        // A non-string platform becomes "", which the non-empty platform check then rejects.
+        let repo_targets: std::collections::BTreeMap<
+            String,
+            std::collections::BTreeMap<String, Vec<String>>,
+        > = targets
+            .iter()
+            .map(|(repo, scopes)| {
+                let per_scope: std::collections::BTreeMap<String, Vec<String>> = scopes
+                    .as_object()
+                    .map(|m| {
+                        m.iter()
+                            .map(|(scope, platforms)| {
+                                let list: Vec<String> = platforms
+                                    .as_array()
+                                    .map(|arr| {
+                                        arr.iter()
+                                            .map(|p| p.as_str().unwrap_or("").to_string())
+                                            .collect::<Vec<String>>()
+                                    })
+                                    .unwrap_or_default();
+                                (scope.clone(), list)
+                            })
+                            .collect::<std::collections::BTreeMap<String, Vec<String>>>()
+                    })
+                    .unwrap_or_default();
+                (repo.clone(), per_scope)
+            })
+            .collect();
+        let product = value
+            .get("product")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Current product")
+            .trim()
+            .to_string();
+        let product_root = value
+            .get("current_product_root")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        let built = w2_005::validate_atom_report::Manifest {
+            product,
             repo_roots,
             scope_repos,
-        });
+            repo_targets,
+        };
+        match w2_005::validate_atom_report::finish_manifest(built, product_root) {
+            Ok(checked) => manifest = Some(checked),
+            Err(e) => {
+                println!("FAIL: invalid manifest: {e}");
+                return 1;
+            }
+        }
     }
 
     let opts = w2_005::validate_atom_report::ValidateOptions {
         expected_rows,
         max_repeat,
         manifest,
+        repository,
+        canon: canon_path,
+        ledgers,
     };
     let fs = RealReportFs;
     let outcome = w2_005::validate_atom_report::run(&report_text, &mode, &opts, &fs, &report);
@@ -2422,7 +2526,8 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
                 "expected_rows": expected_rows,
                 "actual_rows": w2_005::validate_atom_report::parse_table(
                     &report_text,
-                    w2_005::validate_atom_report::headers(&mode).unwrap_or(&[]),
+                    w2_005::validate_atom_report::effective_header(&report_text, &mode)
+                        .unwrap_or(&[]),
                 )
                 .map(|r| r.len())
                 .unwrap_or(0),
@@ -2444,6 +2549,56 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
         }
     }
     outcome.code
+}
+
+/// `legion script foundation/export-analytics --canon <canon.md> --cards <card.md> [<card.md> ...]
+/// --out-dir <dir>`, port of `export_foundation_analytics.py`. Writes
+/// `foundation-mechanism-cards.csv`, `foundation-atom-summary.csv`, and
+/// `foundation-coverage-matrix.csv` into `--out-dir`.
+fn foundation_export_analytics(args: &[String]) -> i32 {
+    const USAGE: &str = "usage: legion script foundation/export-analytics --canon <canon.md> --cards <card.md> [<card.md> ...] --out-dir <dir>";
+    let mut canon: Option<String> = None;
+    let mut out_dir: Option<String> = None;
+    let mut cards: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--canon" => {
+                canon = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--out-dir" => {
+                out_dir = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--cards" => {
+                i += 1;
+                while i < args.len() && !args[i].starts_with("--") {
+                    cards.push(args[i].clone());
+                    i += 1;
+                }
+            }
+            other => {
+                eprintln!("error: unrecognized argument: {other}");
+                eprintln!("{USAGE}");
+                return 2;
+            }
+        }
+    }
+    let (Some(canon), Some(out_dir)) = (canon, out_dir) else {
+        eprintln!("{USAGE}");
+        return 2;
+    };
+    if cards.is_empty() {
+        eprintln!("{USAGE}");
+        return 2;
+    }
+    let card_paths: Vec<std::path::PathBuf> = cards.iter().map(std::path::PathBuf::from).collect();
+    w2_005::export_analytics::run_paths(
+        std::path::Path::new(&canon),
+        &card_paths,
+        std::path::Path::new(&out_dir),
+    )
 }
 
 // ---- seo/banana extension -------------------------------------------------

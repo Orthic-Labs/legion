@@ -64,6 +64,23 @@ pub struct AuditArgs {
     /// into that follow-up instead (see `ingest_command`).
     #[arg(long = "followup", hide = true)]
     pub followup: bool,
+    /// `legion audit findings <list|resolve|dismiss|reopen|supersede> [<finding-id>]`:
+    /// finding-store lifecycle (see `findings_command`).
+    #[arg(hide = true)]
+    pub findings_args: Vec<String>,
+    /// Repository whose `.audit/audit/findings.jsonl` the `findings` actions use
+    /// (default: the current directory).
+    #[arg(long = "repo", hide = true)]
+    pub findings_repo: Option<PathBuf>,
+    /// `findings supersede`: JSON file holding the successor finding record.
+    #[arg(long = "by", hide = true)]
+    pub findings_by: Option<PathBuf>,
+    /// `findings resolve|dismiss`: generation that closed the finding.
+    #[arg(long = "generation", hide = true)]
+    pub findings_generation: Option<String>,
+    /// `findings list`: only `open` findings.
+    #[arg(long = "active", hide = true)]
+    pub findings_active: bool,
 }
 pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
     if args.root.as_os_str() == "ingest"
@@ -73,6 +90,15 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             || args.followup)
     {
         return ingest_command(&args);
+    }
+    if args.root.as_os_str() == "findings" && !args.findings_args.is_empty() {
+        return findings_command(&args);
+    }
+    if !args.findings_args.is_empty() {
+        return Err(CommandError::usage(format!(
+            "unexpected arguments: {}",
+            args.findings_args.join(" ")
+        )));
     }
     if args.root.to_string_lossy().starts_with('-') {
         return Err(CommandError::usage(format!(
@@ -90,8 +116,12 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // mirroring Node's crashed facts collection without a CLI-level error.
     let scope = audit_scope(&root, &args);
     let direct = args.provider_plan.is_some() || !args.provider_results.is_empty();
+    // Gaps the direct route adds when its provider plan could not be bound
+    // (for example `unsealed-plan`); empty for every other route.
+    let mut direct_gaps: Vec<String> = Vec::new();
     let (application, context_notices) = if direct {
-        let (application, notices) = direct_application(&args, &root)?;
+        let (application, notices, gaps) = direct_application(&args, &root)?;
+        direct_gaps = gaps;
         (Arc::new(application), notices)
     } else if let Some(manifest) = &args.native_rule_manifest {
         let (application, notices) = native_rule_diagnostic_application(&args, &root, manifest)?;
@@ -170,6 +200,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             });
         }
     }
+    // Runtime capture inputs are frozen into the provider's runner so the plan
+    // seal covers them; inputs that cannot reach a provider are named gaps.
+    let (runtime_gaps, runtime_injected) =
+        apply_runtime_inputs(&args, &mut selected_specs, direct)?;
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
@@ -206,8 +240,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 args.out.as_deref(),
                 None,
             );
-            let mut input_gaps = native_audit_input_gaps(&args);
+            let mut input_gaps = native_audit_input_gaps(&args, &runtime_gaps);
             input_gaps.extend(lens_work_gaps);
+            let mut plan_gaps = vec!["plan-only".to_owned()];
+            plan_gaps.extend(direct_gaps.iter().cloned());
             let output = json!({
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
@@ -226,7 +262,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "processExecution": "not-run",
                 "processState": "not-run",
                 "completionValidation": "not-run",
-                "gaps": ["plan-only"],
+                "gaps": plan_gaps,
                 "lensWork": lens_work,
                 "inputGaps": input_gaps
             });
@@ -249,7 +285,23 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 execution.plan_signature.as_deref(),
             );
             report.gaps.extend(parity_gaps);
-            report.gaps.extend(native_audit_input_gaps(&args));
+            report
+                .gaps
+                .extend(native_audit_input_gaps(&args, &runtime_gaps));
+            if runtime_injected
+                && !execution
+                    .results
+                    .iter()
+                    .any(|item| item.provider == RUNTIME_PROVIDER_ID)
+            {
+                // The provider was selected but is not applicable to this
+                // repository (no dev/start/preview/qa:browser script), so it
+                // never ran and the supplied URL was not consumed.
+                report
+                    .gaps
+                    .push("runtime-inputs-not-consumed:provider-not-applicable".into());
+            }
+            report.gaps.extend(direct_gaps.iter().cloned());
             // Reasoning lenses no in-process host executed are `pending-host`
             // work: emit their packets for the invoking session to run.
             let (lens_work, lens_work_gaps) = if execution.pending_host.is_empty() {
@@ -427,6 +479,93 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "native audit application returned an incompatible result",
         )),
     }
+}
+
+/// `legion audit findings <list|resolve|dismiss|reopen|supersede> ...`: the
+/// finding-store lifecycle over `<repo>/.audit/audit/findings.jsonl`.
+///
+/// * `findings list [--active] [--repo <dir>]`
+/// * `findings resolve <id> [--generation <g>]`, `findings dismiss <id> [--generation <g>]`
+/// * `findings reopen <id>`
+/// * `findings supersede <old-id> --by <successor-record.json>`
+///
+/// Invalid transitions (unknown id, superseding via a status change, a
+/// successor equal to the retired finding) are refused with exit code 4.
+fn findings_command(args: &AuditArgs) -> CommandResult {
+    use legion_audit::p12_pipeline::store::{FindingStore, StoreError};
+    let store_error = |error: StoreError| match error {
+        StoreError::Io(message) => CommandError::internal(message),
+        other => CommandError::usage(other.to_string()),
+    };
+    let repo = std::fs::canonicalize(
+        args.findings_repo
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(".")),
+    )
+    .map_err(super::io_error)?;
+    let store = FindingStore::new(&repo);
+    let action = args.findings_args[0].as_str();
+    let id = args.findings_args.get(1).map(String::as_str);
+    if args.findings_args.len() > 2 {
+        return Err(CommandError::usage(
+            "findings takes an action and at most one finding id",
+        ));
+    }
+    let require_id = || {
+        id.ok_or_else(|| CommandError::usage(format!("findings {action} requires a finding id")))
+    };
+    let generation = args.findings_generation.as_deref();
+    let updated = match action {
+        "list" => {
+            let loaded = if args.findings_active {
+                store.active(None)
+            } else {
+                store.load()
+            };
+            let findings = loaded.map_err(store_error)?;
+            return Ok(json!({
+                "schemaVersion": 1,
+                "kind": "audit-findings",
+                "store": store.path(),
+                "count": findings.len(),
+                "findings": findings,
+            }));
+        }
+        "resolve" => store
+            .set_status(require_id()?, "resolved", generation, None)
+            .map_err(store_error)?,
+        "dismiss" => store
+            .set_status(require_id()?, "dismissed", generation, None)
+            .map_err(store_error)?,
+        "reopen" => store
+            .set_status(require_id()?, "open", None, None)
+            .map_err(store_error)?,
+        "supersede" => {
+            let old_id = require_id()?;
+            let by = args.findings_by.as_ref().ok_or_else(|| {
+                CommandError::usage("findings supersede requires --by <successor-record.json>")
+            })?;
+            let successor: Value =
+                serde_json::from_slice(&std::fs::read(by).map_err(super::io_error)?).map_err(
+                    |error| CommandError::usage(format!("invalid successor record: {error}")),
+                )?;
+            store
+                .supersede(old_id, &successor, None)
+                .map_err(store_error)?
+        }
+        other => {
+            return Err(CommandError::usage(format!(
+                "unknown findings action: {other} (expected list, resolve, dismiss, reopen or supersede)"
+            )))
+        }
+    };
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "audit-finding-update",
+        "action": action,
+        "store": store.path(),
+        "finding": updated,
+    }))
 }
 
 /// `legion audit ingest --run <dir> --provider <id> --result <file>`.
@@ -847,17 +986,165 @@ fn native_audit_parity_gaps(
     gaps
 }
 
-fn native_audit_input_gaps(args: &AuditArgs) -> Vec<String> {
+const RUNTIME_PROVIDER_ID: &str = "legacy.runtime.app";
+
+fn native_audit_input_gaps(args: &AuditArgs, runtime_gaps: &[String]) -> Vec<String> {
     let mut gaps = Vec::new();
     if args.native_rule_manifest.is_some() {
         gaps.push("native-provider-composition-partial".into());
     }
-    // Visual options (--url/--surfaces/--visual-spec/--visual-baselines/--width/
-    // --height) stay accepted-and-inert without a gap record: Node's bare CLI
-    // behaves the same way (the frozen registry has no visual.core provider),
-    // so recording a gap here would diverge from Node by forcing Incomplete
-    // where Node completes.
+    // `--url`/`--surfaces`/`--width`/`--height` feed the runtime provider
+    // (`apply_runtime_inputs`); what could not reach it is named there.
+    gaps.extend(runtime_gaps.iter().cloned());
+    // No provider consumes the visual spec or baselines on this route, so
+    // supplying them must not read as if rendered state was compared.
+    if args.visual_spec.is_some() || args.visual_baselines.is_some() {
+        gaps.push("visual-inputs-not-consumed".into());
+    }
+    gaps.sort();
+    gaps.dedup();
     gaps
+}
+
+/// Bind `--url`, `--surfaces`, `--width` and `--height` to the runtime
+/// provider by freezing them into its `runner.runtime` object. Returns the
+/// input gaps for anything that cannot reach the provider and whether the
+/// inputs were injected.
+fn apply_runtime_inputs(
+    args: &AuditArgs,
+    specs: &mut [legion_contracts::ProviderSpec],
+    direct: bool,
+) -> Result<(Vec<String>, bool), CommandError> {
+    let mut gaps = Vec::new();
+    let Some(url) = args.url.as_deref().map(str::trim).filter(|v| !v.is_empty()) else {
+        if args
+            .surfaces
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty())
+        {
+            gaps.push("runtime-surfaces-ignored:runtime-url-not-supplied".into());
+        }
+        if args.width != 1280 || args.height != 800 {
+            gaps.push("runtime-viewport-ignored:runtime-url-not-supplied".into());
+        }
+        return Ok((gaps, false));
+    };
+    if direct {
+        gaps.push("runtime-inputs-not-consumed:provider-plan-supplied".into());
+        return Ok((gaps, false));
+    }
+    if !specs
+        .iter()
+        .any(|provider| provider.id.as_str() == RUNTIME_PROVIDER_ID)
+    {
+        gaps.push("runtime-inputs-not-consumed:provider-not-selected".into());
+        return Ok((gaps, false));
+    }
+    let (surfaces, unsupported) = runtime_surface_inputs(args, url)?;
+    let artifact_dir = match &args.out {
+        Some(out) => {
+            let absolute = if out.is_absolute() {
+                out.clone()
+            } else {
+                std::env::current_dir().map_err(super::io_error)?.join(out)
+            };
+            Some(absolute.join("runtime").to_string_lossy().into_owned())
+        }
+        None => None,
+    };
+    let inputs = legion_audit::native_providers::legacy_checks::runtime_inputs(
+        url,
+        &surfaces,
+        &unsupported,
+        args.width,
+        args.height,
+        artifact_dir.as_deref(),
+    )
+    .map_err(|reason| CommandError::usage(format!("invalid runtime inputs: {reason}")))?;
+    for provider in specs.iter_mut() {
+        if provider.id.as_str() == RUNTIME_PROVIDER_ID {
+            if let Some(runner) = provider.runner.as_object_mut() {
+                runner.insert("runtime".into(), inputs.clone());
+            }
+        }
+    }
+    Ok((gaps, true))
+}
+
+/// `--surfaces` is either a comma-separated list of origin-relative paths
+/// (`/settings`) or absolute http(s) URLs, or a JSON array file whose entries
+/// carry `url` or `route`/`path` (with an optional `label`). Entries that name
+/// only a click target (`selector`/`text`) cannot be captured by navigation
+/// and are returned by label as unsupported.
+fn runtime_surface_inputs(
+    args: &AuditArgs,
+    base_url: &str,
+) -> Result<(Vec<(String, String)>, Vec<String>), CommandError> {
+    let Some(raw) = args
+        .surfaces
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok((Vec::new(), Vec::new()));
+    };
+    let mut surfaces: Vec<(String, String)> = Vec::new();
+    let mut unsupported: Vec<String> = Vec::new();
+    let path = std::path::Path::new(raw);
+    if path.is_file() {
+        let bytes = std::fs::read(path).map_err(super::io_error)?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)
+            .map_err(|error| CommandError::usage(format!("invalid --surfaces file: {error}")))?;
+        let items = value
+            .as_array()
+            .ok_or_else(|| CommandError::usage("--surfaces file must contain a JSON array"))?;
+        for (index, item) in items.iter().enumerate() {
+            let text = |key: &str| item.get(key).and_then(serde_json::Value::as_str);
+            let label = text("label")
+                .or_else(|| text("text"))
+                .or_else(|| text("selector"))
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("surface-{index}"));
+            match text("url")
+                .or_else(|| text("route"))
+                .or_else(|| text("path"))
+            {
+                Some(target) => {
+                    surfaces.push((label, resolve_surface_url(base_url, target.trim())?))
+                }
+                None => unsupported.push(label),
+            }
+        }
+    } else {
+        for target in raw.split(',').map(str::trim).filter(|v| !v.is_empty()) {
+            surfaces.push((target.to_owned(), resolve_surface_url(base_url, target)?));
+        }
+    }
+    Ok((surfaces, unsupported))
+}
+
+fn resolve_surface_url(base_url: &str, target: &str) -> Result<String, CommandError> {
+    let lower = target.to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") {
+        return Ok(target.to_owned());
+    }
+    if target.starts_with('/') && !target.starts_with("//") {
+        if let Some(scheme_end) = base_url.find("://").map(|at| at + 3) {
+            let rest = &base_url[scheme_end..];
+            let origin_len = rest
+                .find(|c| c == '/' || c == '?' || c == '#')
+                .unwrap_or(rest.len());
+            return Ok(format!(
+                "{}{}{}",
+                &base_url[..scheme_end],
+                &rest[..origin_len],
+                target
+            ));
+        }
+    }
+    Err(CommandError::usage(format!(
+        "unsupported --surfaces target '{target}': use an origin-relative path (/settings), an http(s) URL, or a JSON file"
+    )))
 }
 
 fn filter_provider_specs(
@@ -1314,7 +1601,14 @@ fn sha256_hex(bytes: &[u8]) -> String {
 fn direct_application(
     args: &AuditArgs,
     root: &std::path::Path,
-) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
+) -> Result<
+    (
+        legion_application::NativeApplication,
+        Vec<String>,
+        Vec<String>,
+    ),
+    CommandError,
+> {
     let plan = args
         .provider_plan
         .as_ref()
@@ -1325,12 +1619,48 @@ fn direct_application(
         ));
     }
     let source = super::audit_inventory_source(root)?;
-    let specifications = read_provider_plan(plan)?;
-    let results = args
-        .provider_results
-        .iter()
-        .map(|path| read_provider_result(path))
-        .collect::<Result<Vec<_>, _>>()?;
+    let plan_value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(plan).map_err(super::io_error)?)
+            .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))?;
+    let specifications = parse_provider_plan_value(&plan_value)?;
+    let mut read_results = Vec::new();
+    for path in &args.provider_results {
+        read_results.push(read_provider_result(path)?);
+    }
+    // A plan that carries a seal, signature or binding claims to be the frozen
+    // plan of an earlier run: prove it against the current repository before
+    // any provider result is trusted. A bare spec list makes no such claim and
+    // stays accepted, but the run is marked so it cannot read as bound.
+    let mut gaps = Vec::new();
+    if plan_is_sealed(&plan_value) {
+        let claimed_signature = plan_claimed_signature(&plan_value);
+        let key = if claimed_signature.is_some() {
+            Some(plan_verification_key(plan)?)
+        } else {
+            None
+        };
+        let sealed_digest =
+            verify_sealed_plan(&plan_value, root, &*source, &specifications, key.as_deref())?;
+        for (index, (_, named)) in read_results.iter().enumerate() {
+            if let Some(named) = named {
+                if *named != sealed_digest {
+                    return Err(CommandError::integrity(format!(
+                        "provider result {} names plan digest {named}, which differs from the plan digest {sealed_digest}",
+                        args.provider_results[index].display()
+                    )));
+                }
+            }
+        }
+        if claimed_signature.is_none() {
+            gaps.push("unsigned-plan-seal".to_owned());
+        }
+    } else {
+        gaps.push("unsealed-plan".to_owned());
+    }
+    let results = read_results
+        .into_iter()
+        .map(|(result, _)| result)
+        .collect::<Vec<_>>();
     let application = legion_application::NativeApplicationConfig::for_audit_artifacts(
         root.to_string_lossy().into_owned(),
         source,
@@ -1339,16 +1669,126 @@ fn direct_application(
         Some(root.to_path_buf()),
     )
     .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    Ok((application, Vec::new()))
+    Ok((application, Vec::new(), gaps))
 }
 
-fn read_provider_plan(
-    path: &std::path::Path,
-) -> Result<Vec<legion_contracts::ProviderSpec>, CommandError> {
-    let value: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(path).map_err(super::io_error)?)
-            .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))?;
-    parse_provider_plan_value(&value)
+/// True when the plan document carries any seal material (`planDigest`,
+/// `planSignature`, `seal` or `binding`). A bare array or a bare spec list does
+/// not.
+fn plan_is_sealed(value: &serde_json::Value) -> bool {
+    ["planDigest", "planSignature", "seal", "binding"]
+        .iter()
+        .any(|key| value.get(*key).is_some_and(|field| !field.is_null()))
+}
+
+fn plan_claimed_digest(value: &serde_json::Value) -> Option<&str> {
+    value
+        .get("planDigest")
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| {
+            value
+                .get("seal")
+                .and_then(|seal| seal.get("digest"))
+                .and_then(serde_json::Value::as_str)
+        })
+}
+
+fn plan_claimed_signature(value: &serde_json::Value) -> Option<&str> {
+    value
+        .get("planSignature")
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| {
+            value
+                .get("seal")
+                .and_then(|seal| seal.get("signature"))
+                .and_then(serde_json::Value::as_str)
+        })
+}
+
+/// Key that verifies a sealed plan, resolved like `legion verify` does: an
+/// explicit `AUDIT_PLAN_SIGNING_KEY` wins, else the `epoch.key` stored next to
+/// the plan file.
+fn plan_verification_key(plan_path: &std::path::Path) -> Result<Vec<u8>, CommandError> {
+    if let Some(value) = std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|v| !v.is_empty()) {
+        return Ok(value.to_string_lossy().as_bytes().to_vec());
+    }
+    let directory = plan_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| std::path::Path::new("."));
+    let key_file =
+        directory.join(legion_audit::native_providers::reasoning::ingest::EPOCH_KEY_FILE);
+    if !key_file.is_file() {
+        return Err(CommandError::usage(format!(
+            "the provider plan is signed but its key is unavailable: {} is missing and AUDIT_PLAN_SIGNING_KEY is not set",
+            key_file.display()
+        )));
+    }
+    legion_audit::native_providers::reasoning::ingest::load_epoch(directory)
+        .map(|(key, _)| key)
+        .map_err(|error| {
+            CommandError::usage(format!(
+                "cannot load plan signing key {}: {error}",
+                key_file.display()
+            ))
+        })
+}
+
+/// Re-freezes the plan from its provider specifications over the current
+/// inventory and compares it with the seal the plan file claims, using the same
+/// routine (`legion_audit::verify`) that checks a plan at run time. Returns the
+/// verified plan digest.
+fn verify_sealed_plan(
+    value: &serde_json::Value,
+    root: &std::path::Path,
+    source: &dyn legion_audit::InventorySource,
+    specifications: &[legion_contracts::ProviderSpec],
+    key: Option<&[u8]>,
+) -> Result<String, CommandError> {
+    let claimed_digest = plan_claimed_digest(value).ok_or_else(|| {
+        CommandError::integrity("sealed provider plan carries no plan digest; refusing it")
+    })?;
+    if let (Some(top), Some(seal)) = (
+        value.get("planDigest").and_then(serde_json::Value::as_str),
+        value
+            .get("seal")
+            .and_then(|seal| seal.get("digest"))
+            .and_then(serde_json::Value::as_str),
+    ) {
+        if top != seal {
+            return Err(CommandError::integrity(
+                "provider plan planDigest differs from its seal digest",
+            ));
+        }
+    }
+    let inventory = source
+        .inventory(&root.to_string_lossy())
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    if let Some(binding) = value.get("binding").filter(|binding| !binding.is_null()) {
+        let bound_digest = binding
+            .get("inventoryDigest")
+            .and_then(serde_json::Value::as_str);
+        if bound_digest != Some(inventory.digest.as_str()) {
+            return Err(CommandError::integrity(
+                "provider plan binding does not match the current repository inventory",
+            ));
+        }
+        let bound_revision = binding
+            .get("repositoryRevision")
+            .and_then(serde_json::Value::as_str);
+        if bound_revision != Some(inventory.generation.as_str()) {
+            return Err(CommandError::integrity(
+                "provider plan binding repositoryRevision does not match the current inventory",
+            ));
+        }
+    }
+    let pending =
+        legion_audit::AuditPlan::compile_with_root(Some(root), &inventory, specifications)
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
+    legion_audit::verify(&pending, claimed_digest, plan_claimed_signature(value), key).map_err(
+        |error| CommandError::integrity(format!("provider plan seal verification failed: {error}")),
+    )?;
+    Ok(claimed_digest.to_owned())
 }
 
 /// Accepts the shapes a provider plan can take: a bare array of provider
@@ -1388,15 +1828,39 @@ fn parse_provider_plan_value(
         .collect()
 }
 
+/// Reads a provider result file and the plan digest it names, if any. The
+/// digest may sit beside a `providerResult` wrapper, inside the result, or in
+/// `details.planDigest`.
 fn read_provider_result(
     path: &std::path::Path,
-) -> Result<legion_contracts::ProviderResult, CommandError> {
+) -> Result<(legion_contracts::ProviderResult, Option<String>), CommandError> {
     let value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(path).map_err(super::io_error)?)
             .map_err(|error| CommandError::usage(format!("invalid provider result: {error}")))?;
-    let result = value.get("providerResult").cloned().unwrap_or(value);
-    serde_json::from_value(result)
-        .map_err(|error| CommandError::usage(format!("invalid provider result contract: {error}")))
+    let named = named_plan_digest(&value);
+    let mut result = value.get("providerResult").cloned().unwrap_or(value);
+    if let Some(object) = result.as_object_mut() {
+        object.remove("planDigest");
+    }
+    let result = serde_json::from_value(result).map_err(|error| {
+        CommandError::usage(format!("invalid provider result contract: {error}"))
+    })?;
+    Ok((result, named))
+}
+
+fn named_plan_digest(value: &serde_json::Value) -> Option<String> {
+    let inner = value.get("providerResult").unwrap_or(value);
+    value
+        .get("planDigest")
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| inner.get("planDigest").and_then(serde_json::Value::as_str))
+        .or_else(|| {
+            inner
+                .get("details")
+                .and_then(|details| details.get("planDigest"))
+                .and_then(serde_json::Value::as_str)
+        })
+        .map(ToOwned::to_owned)
 }
 
 fn write_artifact(root: &std::path::Path, name: &str, bytes: &[u8]) -> Result<(), CommandError> {
@@ -1492,6 +1956,11 @@ mod closure_tests {
             ingest_provider: None,
             ingest_result: None,
             followup: false,
+            findings_args: Vec::new(),
+            findings_repo: None,
+            findings_by: None,
+            findings_generation: None,
+            findings_active: false,
         };
         let scope = audit_scope(std::path::Path::new("."), &args);
         assert_eq!(scope.mode, "whole-repo");
@@ -1612,6 +2081,160 @@ mod closure_tests {
         }
     }
 
+    fn runtime_spec() -> legion_contracts::ProviderSpec {
+        serde_json::from_value(json!({
+            "schemaVersion": 2,
+            "id": "legacy.runtime.app",
+            "providerVersion": "2.0.0",
+            "family": "performance",
+            "lensIds": ["runtime"],
+            "role": "deterministic",
+            "phase": "runtime",
+            "dependsOn": [],
+            "consumes": [],
+            "produces": ["provider-result"],
+            "selector": {"op": "always"},
+            "denominatorKind": "runnable app",
+            "runner": {"kind": "legacy-check", "check": "runtime"},
+            "hostCapabilities": [],
+            "execution": {},
+            "reasoning": {},
+            "benchmark": {"status": "unproven", "requiredForCleanClaim": false},
+            "cleanClaim": "evidence-only",
+            "controlIds": [],
+            "scopes": [],
+            "selectable": true
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn runtime_inputs_reach_the_runtime_provider_runner() {
+        let mut args = minimal_audit_args();
+        args.url = Some("http://127.0.0.1:1422/?qa=1".into());
+        args.surfaces = Some("/settings, https://example.test/other".into());
+        args.width = 390;
+        args.height = 844;
+        let mut specs = vec![runtime_spec()];
+        let (gaps, injected) = apply_runtime_inputs(&args, &mut specs, false).unwrap();
+        assert!(injected);
+        assert!(gaps.is_empty(), "{gaps:?}");
+        let runtime = &specs[0].runner["runtime"];
+        assert_eq!(runtime["url"], "http://127.0.0.1:1422/?qa=1");
+        assert_eq!(runtime["width"], 390);
+        assert_eq!(runtime["height"], 844);
+        assert_eq!(
+            runtime["surfaces"],
+            json!([
+                {"label": "/settings", "url": "http://127.0.0.1:1422/settings"},
+                {"label": "https://example.test/other", "url": "https://example.test/other"},
+            ])
+        );
+    }
+
+    #[test]
+    fn runtime_inputs_without_a_consumer_or_a_url_are_named_gaps() {
+        // No URL: nothing is injected; stray surfaces/viewport are named.
+        let mut args = minimal_audit_args();
+        args.surfaces = Some("/a".into());
+        args.width = 800;
+        let mut specs = vec![runtime_spec()];
+        let (gaps, injected) = apply_runtime_inputs(&args, &mut specs, false).unwrap();
+        assert!(!injected);
+        assert_eq!(
+            gaps,
+            vec![
+                "runtime-surfaces-ignored:runtime-url-not-supplied".to_owned(),
+                "runtime-viewport-ignored:runtime-url-not-supplied".to_owned(),
+            ]
+        );
+        assert!(specs[0].runner.get("runtime").is_none());
+
+        // URL but the provider was not selected, or the plan is pre-frozen.
+        let mut args = minimal_audit_args();
+        args.url = Some("http://127.0.0.1:1/".into());
+        let (gaps, injected) = apply_runtime_inputs(
+            &args,
+            &mut Vec::<legion_contracts::ProviderSpec>::new(),
+            false,
+        )
+        .unwrap();
+        assert!(!injected);
+        assert_eq!(
+            gaps,
+            vec!["runtime-inputs-not-consumed:provider-not-selected".to_owned()]
+        );
+        let (gaps, injected) =
+            apply_runtime_inputs(&args, &mut vec![runtime_spec()], true).unwrap();
+        assert!(!injected);
+        assert_eq!(
+            gaps,
+            vec!["runtime-inputs-not-consumed:provider-plan-supplied".to_owned()]
+        );
+    }
+
+    #[test]
+    fn invalid_runtime_url_is_a_usage_error() {
+        let mut args = minimal_audit_args();
+        args.url = Some("file:///etc/hosts".into());
+        let error = apply_runtime_inputs(&args, &mut vec![runtime_spec()], false).unwrap_err();
+        assert!(
+            error.message.contains("invalid runtime inputs"),
+            "{}",
+            error.message
+        );
+    }
+
+    #[test]
+    fn visual_inputs_are_recorded_as_not_consumed() {
+        let mut args = minimal_audit_args();
+        assert!(native_audit_input_gaps(&args, &[]).is_empty());
+        args.visual_spec = Some(std::path::PathBuf::from("spec.json"));
+        assert_eq!(
+            native_audit_input_gaps(&args, &["runtime-x".to_owned()]),
+            vec![
+                "runtime-x".to_owned(),
+                "visual-inputs-not-consumed".to_owned()
+            ]
+        );
+    }
+
+    #[test]
+    fn surface_targets_resolve_against_the_entry_origin() {
+        assert_eq!(
+            resolve_surface_url("http://127.0.0.1:1422/app?qa=1#top", "/x?y=1").unwrap(),
+            "http://127.0.0.1:1422/x?y=1"
+        );
+        assert_eq!(resolve_surface_url("http://h", "/x").unwrap(), "http://h/x");
+        assert_eq!(
+            resolve_surface_url("http://h/", "HTTPS://o/p").unwrap(),
+            "HTTPS://o/p"
+        );
+        assert!(resolve_surface_url("http://h/", "relative").is_err());
+        assert!(resolve_surface_url("http://h/", "//evil/x").is_err());
+    }
+
+    #[test]
+    fn surfaces_file_separates_navigable_and_click_only_targets() {
+        let dir = std::env::temp_dir().join(format!("legion-surfaces-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("targets.json");
+        std::fs::write(
+            &file,
+            br##"[{"label":"prefs","route":"/prefs"},{"label":"editor","text":"New text"},{"selector":"#go"}]"##,
+        )
+        .unwrap();
+        let mut args = minimal_audit_args();
+        args.surfaces = Some(file.to_string_lossy().into_owned());
+        let (surfaces, unsupported) = runtime_surface_inputs(&args, "http://127.0.0.1:9/").unwrap();
+        assert_eq!(
+            surfaces,
+            vec![("prefs".to_owned(), "http://127.0.0.1:9/prefs".to_owned())]
+        );
+        assert_eq!(unsupported, vec!["editor".to_owned(), "#go".to_owned()]);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     fn minimal_audit_args() -> AuditArgs {
         AuditArgs {
             root: std::path::PathBuf::from("."),
@@ -1639,6 +2262,174 @@ mod closure_tests {
             ingest_provider: None,
             ingest_result: None,
             followup: false,
+            findings_args: Vec::new(),
+            findings_repo: None,
+            findings_by: None,
+            findings_generation: None,
+            findings_active: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod sealed_plan_tests {
+    use super::*;
+    use legion_audit::InventorySource as _;
+
+    const KEY: &[u8] = b"sealed-plan-test-key";
+
+    fn spec() -> legion_contracts::ProviderSpec {
+        serde_json::from_value(json!({
+            "schemaVersion": 2,
+            "id": "fixture-provider",
+            "providerVersion": "1",
+            "family": "fixture",
+            "lensIds": [],
+            "role": "deterministic",
+            "phase": "source",
+            "dependsOn": [],
+            "consumes": ["repository-inventory"],
+            "produces": ["provider-result"],
+            "selector": {"op": "always"},
+            "denominatorKind": "selected-scope",
+            "runner": {"kind": "built-in"},
+            "hostCapabilities": [],
+            "execution": {},
+            "reasoning": {},
+            "benchmark": {
+                "status": "qualified",
+                "requiredForCleanClaim": true,
+                "qualificationDigest": "sha256:fixture"
+            },
+            "cleanClaim": "finding-producing",
+            "controlIds": [],
+            "scopes": [],
+            "selectable": true
+        }))
+        .expect("fixture provider spec")
+    }
+
+    fn fixture_root(name: &str) -> std::path::PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("legion-sealed-plan-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/lib.rs"), "pub fn fixture() {}\n").unwrap();
+        std::fs::canonicalize(root).unwrap()
+    }
+
+    /// A sealed plan document exactly as `--plan-only` shapes it.
+    fn sealed_plan(root: &std::path::Path) -> serde_json::Value {
+        let source = crate::commands::audit_inventory_source(root).unwrap();
+        let inventory = source.inventory(&root.to_string_lossy()).unwrap();
+        let specs = vec![spec()];
+        let frozen = legion_audit::AuditPlan::compile_with_root(Some(root), &inventory, &specs)
+            .unwrap()
+            .freeze(Some(KEY))
+            .unwrap();
+        json!({
+            "schemaVersion": 1,
+            "kind": "audit-provider-plan",
+            "planDigest": frozen.digest(),
+            "planSignature": frozen.signature(),
+            "seal": {
+                "digest": frozen.digest(),
+                "authenticity": "hmac-sha256",
+                "signature": frozen.signature(),
+            },
+            "binding": {
+                "repositoryRevision": inventory.generation,
+                "inventoryDigest": inventory.digest,
+            },
+            "providers": ["fixture-provider"],
+            "providerSpecs": specs,
+        })
+    }
+
+    fn verify(
+        plan: &serde_json::Value,
+        root: &std::path::Path,
+        key: Option<&[u8]>,
+    ) -> Result<String, CommandError> {
+        let source = crate::commands::audit_inventory_source(root).unwrap();
+        let specs = parse_provider_plan_value(plan).unwrap();
+        verify_sealed_plan(plan, root, &*source, &specs, key)
+    }
+
+    #[test]
+    fn sealed_plan_is_accepted_and_returns_its_digest() {
+        let root = fixture_root("accepted");
+        let plan = sealed_plan(&root);
+        assert!(plan_is_sealed(&plan));
+        let digest = verify(&plan, &root, Some(KEY)).expect("sealed plan verifies");
+        assert_eq!(Some(digest.as_str()), plan["planDigest"].as_str());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn tampered_sealed_plan_is_refused() {
+        let root = fixture_root("tampered");
+        let mut plan = sealed_plan(&root);
+        // Specs edited after sealing: the recompiled digest no longer matches.
+        plan["providerSpecs"][0]["providerVersion"] = json!("2");
+        let error = verify(&plan, &root, Some(KEY)).expect_err("tampered specs refused");
+        assert_eq!(error.code, 5, "{}", error.message);
+
+        // Digest and signature edited: the claimed digest no longer matches.
+        let mut plan = sealed_plan(&root);
+        let forged = format!("sha256:{}", "0".repeat(64));
+        plan["planDigest"] = json!(forged);
+        plan["seal"]["digest"] = json!(forged);
+        assert_eq!(verify(&plan, &root, Some(KEY)).unwrap_err().code, 5);
+
+        // Wrong key: the HMAC no longer verifies.
+        let plan = sealed_plan(&root);
+        assert_eq!(
+            verify(&plan, &root, Some(b"another-key")).unwrap_err().code,
+            5
+        );
+
+        // Binding to a different inventory is refused with a clear message.
+        let mut plan = sealed_plan(&root);
+        plan["binding"]["inventoryDigest"] = json!(format!("sha256:{}", "1".repeat(64)));
+        let error = verify(&plan, &root, Some(KEY)).unwrap_err();
+        assert!(error.message.contains("binding"), "{}", error.message);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn repository_drift_after_sealing_is_refused() {
+        let root = fixture_root("drift");
+        let plan = sealed_plan(&root);
+        std::fs::write(root.join("src/extra.rs"), "pub fn extra() {}\n").unwrap();
+        assert_eq!(verify(&plan, &root, Some(KEY)).unwrap_err().code, 5);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn bare_spec_lists_are_unsealed() {
+        assert!(!plan_is_sealed(&json!([])));
+        assert!(!plan_is_sealed(&json!({"providers": [{"id": "x"}]})));
+        assert!(!plan_is_sealed(
+            &json!({"providers": [], "planDigest": null, "seal": null})
+        ));
+        assert!(plan_is_sealed(&json!({"providers": [], "binding": {}})));
+    }
+
+    #[test]
+    fn result_plan_digest_is_read_from_every_supported_place() {
+        assert_eq!(
+            named_plan_digest(&json!({"providerResult": {}, "planDigest": "sha256:a"})),
+            Some("sha256:a".to_owned())
+        );
+        assert_eq!(
+            named_plan_digest(&json!({"providerResult": {"planDigest": "sha256:b"}})),
+            Some("sha256:b".to_owned())
+        );
+        assert_eq!(
+            named_plan_digest(&json!({"details": {"planDigest": "sha256:c"}})),
+            Some("sha256:c".to_owned())
+        );
+        assert_eq!(named_plan_digest(&json!({"details": {}})), None);
     }
 }

@@ -12,11 +12,9 @@
 //! `wf_port::w2_014::antipatterns`, with `wf_port::r07::RegistryLookup` as
 //! the production [`AntipatternLookup`]; [`RealDetectors`] carries a
 //! `providers` field so `detect_text`/`detect_html`'s `filterByProviders`
-//! step and `detect_url`'s equivalent both run against it. The one
-//! capability genuinely not ported anywhere in this tree is `detectHtml`'s
-//! ~2700-line per-element rule engine (`rules/checks.mjs`): [`detect_html`]
-//! produces broken-image, static typography, design-system, and
-//! text-content findings but not that rule engine's. [`detect_text`] is the
+//! step and `detect_url`'s equivalent both run against it. [`detect_html`]
+//! runs `detectHtml`'s per-element rule engine (`rules/checks.mjs`) through
+//! `w2_013::detect_html`'s static passes over the static DOM. [`detect_text`] is the
 //! full composition: `r08` regex matchers + style/CSS-in-JS block
 //! extraction, `w2_011` design-system source checks, and `w2_012`'s eight
 //! page-level content analyzers.
@@ -24,23 +22,24 @@
 use std::path::Path;
 
 use super::super::r07::browser::ChromeDriver;
-use super::super::r07::detect_url::{
-    detect_url as port_detect_url, visual_contrast_unavailable, DetectUrlOptions, Viewport,
-};
+use super::super::r07::detect_url::{detect_url as port_detect_url, DetectUrlOptions, Viewport};
 use super::super::r07::findings::AntipatternLookup;
+use super::super::r07::visual_lane::visual_contrast_lane;
 use super::super::r08::detect_text_matchers::{
     extract_css_in_js, extract_style_blocks, run_regex_matchers,
 };
 use super::super::r08::sweep_live::{sweep_site, PageFetcher};
+use super::super::r09::{build_static_style_map, collect_static_css_text};
 use super::super::w2_011::design_system::{check_source_design_system, DesignSystem};
 use super::super::w2_012::detect_text::{
     run_page_level_analyzers, run_text_content_analyzers, should_run_page_analyzers,
 };
 use super::super::w2_013::detect_html::{
-    classify_img_src, find_broken_images, is_full_page, StaticStylesheet,
+    classify_img_src, find_broken_images, is_full_page, page_findings, static_element_findings,
+    StaticStylesheet,
 };
 use super::output::CliFinding;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 const CSS_LIKE_EXTS: [&str; 4] = [".css", ".scss", ".sass", ".less"];
 
@@ -157,15 +156,18 @@ pub fn detect_text(
     deduped
 }
 
-/// Port of `detectHtml(filePath, options)`'s ported subset: broken-image
-/// detection over the parsed document plus, on a full page, the static
-/// typography check and the design-system source check (source text, not
-/// the DOM-walking `collectStaticDesignSystemFindings`, which needs the
-/// full cascade engine — see [`super`]'s module doc). The ~2700-line
-/// per-element rule engine (`checkElementBorders`/`Colors`/`Glow`/`Motion`/
-/// etc., `rules/checks.mjs`) is not ported anywhere in this tree, so its
-/// findings are absent here; this is the packet's one open gap, not
-/// something fabricated to look complete.
+/// Port of `detectHtml(filePath, options)`. Runs the reduced passes (regex
+/// broken-image and typography over the parsed document, design-system source
+/// check, text-content analyzers on full pages), then the full static pass:
+/// [`static_element_findings`] over every element, and on a full page
+/// [`page_findings`], built over the same static DOM and cascade the JS
+/// builds with `collectStaticCssText` + `buildStaticStyleMap`. Static findings
+/// already emitted by a reduced pass are not repeated.
+///
+/// Still absent: `collectStaticDesignSystemFindings`, the DOM-walking
+/// design-system pass. It needs the design-system token maps passed to the
+/// rule engine, which this port does not supply here; the source-text design
+/// check above is the only design-system coverage.
 pub fn detect_html(
     file_path: &str,
     design_system: Option<&DesignSystem>,
@@ -264,15 +266,59 @@ pub fn detect_html(
         }
     }
 
+    // Full static pass: the element rules `detectHtml` runs over every element
+    // (`STATIC_ELEMENT_RULES`), and on a full page the five `checks.mjs` page
+    // checks. Both run over the same static DOM + cascade the JS builds with
+    // `collectStaticCssText` + `buildStaticStyleMap`.
+    let file_dir = Path::new(file_path)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let css_text = collect_static_css_text(&document, file_dir);
+    let static_doc = build_static_style_map(&document, &css_text);
+    let mut static_findings = static_element_findings(&static_doc);
+    if is_full_page(&html) {
+        static_findings.extend(page_findings(&static_doc, &html));
+    }
+    append_static_findings_deduped(&mut findings, static_findings, file_path);
+
     Ok(findings)
 }
 
+/// Appends static-pass findings to `findings` without repeating a finding the
+/// reduced passes already emitted. The static passes carry no line numbers,
+/// so the location key is the file (every finding here sits at line 0) and
+/// the identity key is `(rule id, snippet)`. Matching is by multiset count:
+/// each already-emitted `(rule id, snippet)` absorbs one identical static
+/// finding, so two distinct elements with the same snippet still both
+/// report when the reduced pass saw only one of them.
+fn append_static_findings_deduped(
+    findings: &mut Vec<CliFinding>,
+    static_findings: Vec<crate::l6_designer_checks::pure_checks::Finding>,
+    file_path: &str,
+) {
+    let mut already: HashMap<(String, String), usize> = HashMap::new();
+    for f in findings.iter() {
+        *already
+            .entry((f.antipattern.clone(), f.snippet.clone()))
+            .or_insert(0) += 1;
+    }
+    for sf in static_findings {
+        let key = (sf.id.to_string(), sf.snippet.clone());
+        if let Some(count) = already.get_mut(&key) {
+            if *count > 0 {
+                *count -= 1;
+                continue;
+            }
+        }
+        findings.push(CliFinding::new(sf.id, file_path, 0, sf.snippet));
+    }
+}
+
 /// Thin wrapper over `wf_port::r07::detect_url::detect_url`, unifying its
-/// `Finding` shape into [`CliFinding`]. The visual-contrast hook
-/// (`visual_contrast_findings`) has no implementation, so it reports `unavailable:visual-contrast-not-implemented`
-/// (never zero findings) if the visual-contrast option is ever enabled; see
-/// `wf_port::r07`'s module doc for why the visual-contrast fallback lane
-/// itself isn't ported.
+/// `Finding` shape into [`CliFinding`]. The visual-contrast fallback lane is
+/// [`visual_contrast_lane`], enabled by default as in the JS; a driver without
+/// screenshot support fails the scan with a typed `unavailable:` error.
 pub fn detect_url(
     driver: &mut impl ChromeDriver,
     registry: &impl AntipatternLookup,
@@ -286,7 +332,7 @@ pub fn detect_url(
         url,
         browser_script,
         options,
-        visual_contrast_unavailable,
+        |driver, url, groups, options| visual_contrast_lane(driver, url, groups, options),
     )?;
     Ok(findings
         .into_iter()
@@ -454,5 +500,71 @@ mod tests {
         let findings = detect_html(path.to_str().unwrap(), None).unwrap();
         assert!(findings.iter().any(|f| f.antipattern == "broken-image"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn write_temp_html(name: &str, html: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("r05-static-{}-{}", std::process::id(), name));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("index.html");
+        std::fs::write(&path, html).unwrap();
+        path
+    }
+
+    #[test]
+    fn detect_html_runs_the_static_element_pass() {
+        // A bounce cubic-bezier (y1 = 1.8) is only reported by the static
+        // element rule `motion-rules` (`check_element_motion`); the reduced
+        // broken-image/typography/text passes cannot produce it.
+        let path = write_temp_html(
+            "element-pass",
+            "<html><body><style>.spring { transition-timing-function: cubic-bezier(0.5, 1.8, 0.5, 1); }</style><div class=\"spring\">x</div></body></html>",
+        );
+        let findings = detect_html(path.to_str().unwrap(), None).unwrap();
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.antipattern == "bounce-easing" && f.snippet.starts_with("cubic-bezier(")),
+            "static element pass did not run: {findings:?}"
+        );
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn detect_html_reports_a_broken_image_once() {
+        // The reduced broken-image pass and the static element pass both see
+        // this element; the static copy must be absorbed, not doubled.
+        let path = write_temp_html("broken-once", "<html><body><img src=\"\"></body></html>");
+        let findings = detect_html(path.to_str().unwrap(), None).unwrap();
+        let broken = findings
+            .iter()
+            .filter(|f| f.antipattern == "broken-image")
+            .count();
+        assert_eq!(broken, 1, "{findings:?}");
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn static_dedupe_absorbs_only_as_many_as_were_already_emitted() {
+        use crate::l6_designer_checks::pure_checks::Finding as StaticFinding;
+        let mut findings = vec![CliFinding::new(
+            "broken-image",
+            "a.html",
+            0,
+            "<img src=\"\">",
+        )];
+        let static_findings = vec![
+            StaticFinding {
+                id: "broken-image",
+                snippet: "<img src=\"\">".to_string(),
+            },
+            StaticFinding {
+                id: "broken-image",
+                snippet: "<img src=\"\">".to_string(),
+            },
+        ];
+        append_static_findings_deduped(&mut findings, static_findings, "a.html");
+        // One already emitted absorbs one static copy; the second is new.
+        assert_eq!(findings.len(), 2);
+        assert!(findings.iter().all(|f| f.antipattern == "broken-image"));
     }
 }

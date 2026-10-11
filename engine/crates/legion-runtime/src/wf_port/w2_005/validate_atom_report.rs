@@ -12,7 +12,7 @@
 //! [`ReportFs`] so [`validate`] itself stays pure and unit-testable; only
 //! [`run`] touches the trait.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use regex::Regex;
 
@@ -357,17 +357,199 @@ pub trait ReportFs {
 
 #[derive(Debug, Clone)]
 pub struct Manifest {
+    /// Product name (`product`, default `Current product`).
+    pub product: String,
     pub repo_roots: BTreeMap<String, String>,
     pub scope_repos: BTreeMap<String, Vec<String>>,
+    /// `repo -> scope -> platforms` (`repo_targets`).
+    pub repo_targets: BTreeMap<String, BTreeMap<String, Vec<String>>>,
 }
 
 /// Options mirroring the CLI flags (`--expected-rows`, `--max-repeat`,
-/// manifest content already parsed).
+/// `--repository`, `--canon`, `--ledgers`, manifest content already parsed).
 #[derive(Debug, Clone, Default)]
 pub struct ValidateOptions {
     pub expected_rows: Option<usize>,
     pub max_repeat: usize,
     pub manifest: Option<Manifest>,
+    /// `--repository`: the repository every ledger row / mechanism card must name.
+    pub repository: Option<String>,
+    /// `--canon`: canon table path, read for the mechanism-card and final coverage checks.
+    pub canon: Option<String>,
+    /// `--ledgers`: repo-ledger table paths, read for the canon provenance checks.
+    pub ledgers: Option<Vec<String>>,
+}
+
+/// Historical 11-column `final` header (`267bae38`). The current 8-column form stays accepted.
+const FINAL_HISTORICAL_HEADER: &[&str] = &[
+    "Scope",
+    "Domain",
+    "Atom ID",
+    "Atom",
+    "Current product",
+    "Best observed",
+    "Recommended implementation",
+    "Material gap",
+    "Why / tradeoffs",
+    "Source evidence",
+    "Confidence",
+];
+
+/// Header a report is parsed against: the historical 11-column `final` shape when the report
+/// carries it, otherwise [`headers`].
+pub fn effective_header(report_text: &str, mode: &str) -> Option<&'static [&'static str]> {
+    if mode == "final" && has_table_header(report_text, FINAL_HISTORICAL_HEADER) {
+        return Some(FINAL_HISTORICAL_HEADER);
+    }
+    headers(mode)
+}
+
+fn has_table_header(text: &str, header: &[&str]) -> bool {
+    text.lines().any(|raw| {
+        if !raw.starts_with('|') {
+            return false;
+        }
+        let cells: Vec<&str> = raw
+            .trim()
+            .trim_matches('|')
+            .split('|')
+            .map(str::trim)
+            .collect();
+        cells.as_slice() == header
+    })
+}
+
+/// Historical `repr` of a tuple of strings for error text: `('a', 'b')`.
+pub fn py_tuple(items: &[&str]) -> String {
+    let body: Vec<String> = items.iter().map(|item| format!("'{item}'")).collect();
+    format!("({})", body.join(", "))
+}
+
+/// Port of `load_manifest`'s cross-field checks. A declared `current_product_root` becomes the
+/// product's repo root, and then every scope repository (and the product, when a root is declared)
+/// needs a non-empty platform list under `repo_targets`.
+pub fn finish_manifest(
+    mut manifest: Manifest,
+    current_product_root: Option<String>,
+) -> Result<Manifest, String> {
+    let product_root_declared = current_product_root.is_some();
+    if let Some(root) = current_product_root {
+        manifest.repo_roots.insert(manifest.product.clone(), root);
+    }
+    for (scope, repos) in &manifest.scope_repos {
+        for repo in repos {
+            if !manifest.repo_roots.contains_key(repo) {
+                return Err(format!(
+                    "scope `{scope}` references unknown repository `{repo}`"
+                ));
+            }
+            if !platforms_nonempty(&manifest, repo, scope) {
+                return Err(format!(
+                    "repo_targets lacks non-empty `{repo}` / `{scope}` platform list"
+                ));
+            }
+        }
+        if product_root_declared && !platforms_nonempty(&manifest, &manifest.product, scope) {
+            return Err(format!(
+                "repo_targets lacks non-empty `{}` / `{scope}` platform list",
+                manifest.product
+            ));
+        }
+    }
+    Ok(manifest)
+}
+
+fn platforms_nonempty(manifest: &Manifest, repo: &str, scope: &str) -> bool {
+    manifest
+        .repo_targets
+        .get(repo)
+        .and_then(|per_scope| per_scope.get(scope))
+        .is_some_and(|platforms| {
+            !platforms.is_empty() && platforms.iter().all(|p| !p.trim().is_empty())
+        })
+}
+
+/// Product name used by the applicability and evidence checks.
+fn manifest_product(opts: &ValidateOptions) -> &str {
+    opts.manifest
+        .as_ref()
+        .map(|m| m.product.as_str())
+        .unwrap_or("Current product")
+}
+
+fn pos(header: &[&str], name: &str) -> usize {
+    header
+        .iter()
+        .position(|h| *h == name)
+        .expect("static header column")
+}
+
+/// Reads and parses a companion table (`--canon`, `--ledgers`) through the injected filesystem.
+fn read_table_file(fs: &dyn ReportFs, path: &str, header: &[&str]) -> Result<Vec<Row>, String> {
+    let text = fs.read_to_string(path).map_err(|e| e.to_string())?;
+    parse_table(&text, header).map_err(|e| e.to_string())
+}
+
+/// Port of `evidence_pairs`: `repo: \`path#symbol\`` citations, split on `;` boundaries.
+fn evidence_pairs(cell: &str) -> Vec<(String, String)> {
+    let pattern = Regex::new(r"(?:^|;\s*)([^:;]+):\s*`([^`]+)`").expect("static pattern is valid");
+    pattern
+        .captures_iter(cell)
+        .map(|caps| (caps[1].trim().to_string(), caps[2].to_string()))
+        .collect()
+}
+
+/// `(scope, domain, atom, repo)` expected or actual mechanism-card key.
+type CardBase = (String, String, String, String);
+/// `(scope, domain, atom, repo, platform)` expected or actual mechanism-card key.
+type CardExact = (String, String, String, String, String);
+
+/// Port of `expected_card_keys`: every canon atom needs a card for the product and for each
+/// scope repository, plus one per configured platform. `repository` narrows the set when given.
+fn expected_card_keys(
+    canon_rows: &[Row],
+    manifest: &Manifest,
+    repository: Option<&str>,
+) -> (BTreeSet<CardBase>, BTreeSet<CardExact>) {
+    let header = headers("canon").unwrap_or(&[]);
+    let (scope_at, domain_at, atom_at) = (
+        pos(header, "Scope"),
+        pos(header, "Domain"),
+        pos(header, "Atom ID"),
+    );
+    let mut base: BTreeSet<CardBase> = BTreeSet::new();
+    let mut exact: BTreeSet<CardExact> = BTreeSet::new();
+    for (_, cells) in canon_rows {
+        let scope = cells[scope_at].clone();
+        let domain = cells[domain_at].clone();
+        let atom = cells[atom_at].clone();
+        let mut candidates: Vec<String> = vec![manifest.product.clone()];
+        if let Some(repos) = manifest.scope_repos.get(&scope) {
+            candidates.extend(repos.iter().cloned());
+        }
+        if let Some(filter) = repository {
+            candidates.retain(|name| name.as_str() == filter);
+        }
+        for repo in candidates {
+            base.insert((scope.clone(), domain.clone(), atom.clone(), repo.clone()));
+            if let Some(platforms) = manifest
+                .repo_targets
+                .get(&repo)
+                .and_then(|per_scope| per_scope.get(&scope))
+            {
+                for platform in platforms {
+                    exact.insert((
+                        scope.clone(),
+                        domain.clone(),
+                        atom.clone(),
+                        repo.clone(),
+                        platform.clone(),
+                    ));
+                }
+            }
+        }
+    }
+    (base, exact)
 }
 
 fn contains_evidence_repo(evidence: &str, repo: &str) -> bool {
@@ -545,7 +727,7 @@ pub fn validate(
     .into_iter()
     .filter(|name| index.contains_key(name))
     .collect();
-    let sentinels = ["not found", "unclear", "n/a", "no proven winner"];
+    let placeholders = ["not found", "unclear", "n/a", "no proven winner"];
     for name in repeat_columns {
         let mut counter: HashMap<String, usize> = HashMap::new();
         for (_, cells) in rows {
@@ -554,7 +736,7 @@ pub fn validate(
                 .or_insert(0) += 1;
         }
         for (value, count) in counter {
-            if value.is_empty() || sentinels.contains(&value.to_lowercase().as_str()) {
+            if value.is_empty() || placeholders.contains(&value.to_lowercase().as_str()) {
                 continue;
             }
             if count > opts.max_repeat {
@@ -627,10 +809,9 @@ fn split_on_semicolon_boundaries(cell: &str) -> Vec<&str> {
     out
 }
 
-/// Modes ported from the historical validator that need only the table, the manifest repo
-/// roots, and evidence files. The historical cross-file checks (`--canon`, `--ledgers`,
-/// `--repository`, manifest `product` / `repo_targets`) have no input on the current route and
-/// are not applied; see [`validate_table_mode`].
+/// Modes ported from the historical validator (`267bae38`) that run through
+/// [`validate_table_mode`]. `final` takes that path only for the historical 11-column shape
+/// (see [`effective_header`]); the current 8-column form keeps the [`validate`] path.
 pub fn is_table_mode(mode: &str) -> bool {
     matches!(
         mode,
@@ -783,12 +964,10 @@ fn require_citations(
     }
 }
 
-/// Row checks for the `repo-ledger`, `canon`, `mechanism-cards`, and `handoff` modes, ported
-/// from the historical `main()` (`267bae38`). Applies the per-row rules that need only the
-/// table, `opts.manifest` repo roots and scope map, and evidence files on disk. Not applied
-/// (their inputs are not on this route): the ledger/canon cross-checks (`--ledgers`,
-/// `--canon`), the `--repository` match, the mechanism-card expected-set check, and the
-/// product-applicability check (manifest `product` is not parsed).
+/// Row checks for the `repo-ledger`, `canon`, `mechanism-cards`, `handoff`, and historical
+/// 11-column `final` modes, ported from the historical `main()` (`267bae38`). Covers the per-row
+/// rules, the `--repository` match, the canon/ledger cross-checks (`--canon`, `--ledgers`), the
+/// mechanism-card expected-set check, the product-applicability check, and final canon coverage.
 pub fn validate_table_mode(
     mode: &str,
     rows: &[Row],
@@ -805,7 +984,9 @@ pub fn validate_table_mode(
     let winner_prose = Regex::new(r"\b(best observed|winner|outperform(?:s|ed|ing)?)\b|★").unwrap();
     let committed_promotion = Regex::new(r"promotion=(?:promote|yes|committed)").unwrap();
 
-    if matches!(mode, "repo-ledger" | "canon" | "mechanism-cards") && opts.manifest.is_none() {
+    if matches!(mode, "repo-ledger" | "canon" | "mechanism-cards" | "final")
+        && opts.manifest.is_none()
+    {
         errors.push(format!("mode `{mode}` requires --manifest"));
     }
     if rows.is_empty() {
@@ -814,6 +995,52 @@ pub fn validate_table_mode(
     if let Some(expected) = opts.expected_rows {
         if rows.len() != expected {
             errors.push(format!("expected {expected} rows, found {}", rows.len()));
+        }
+    }
+
+    let repository = opts.repository.as_deref().filter(|r| !r.is_empty());
+    if mode == "repo-ledger" && repository.is_none() {
+        errors.push("repo-ledger mode requires --repository".to_string());
+    }
+    if let Some(repo) = repository {
+        if manifest_root(opts, repo).is_none() {
+            errors.push(format!("repository `{repo}` missing from manifest roots"));
+        }
+    }
+    let product = manifest_product(opts).to_string();
+    let mut ledger_behaviors: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut used_behaviors: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut actual_card_base: BTreeSet<CardBase> = BTreeSet::new();
+    let mut actual_card_exact: BTreeSet<CardExact> = BTreeSet::new();
+    let mut actual_final_keys: BTreeSet<(String, String, String)> = BTreeSet::new();
+    if mode == "canon" {
+        match opts.ledgers.as_ref() {
+            None => errors.push("canon mode requires --ledgers".to_string()),
+            Some(ledgers) => {
+                for ledger in ledgers {
+                    match read_table_file(fs, ledger, headers("repo-ledger").unwrap_or(&[])) {
+                        Ok(ledger_rows) => {
+                            let header = headers("repo-ledger").unwrap_or(&[]);
+                            let (repo_at, behavior_at) =
+                                (pos(header, "Repository"), pos(header, "Behavior ID"));
+                            for (_, cells) in &ledger_rows {
+                                let key = (cells[repo_at].clone(), cells[behavior_at].clone());
+                                if ledger_behaviors.contains(&key) {
+                                    errors.push(format!(
+                                        "duplicate repo-ledger behavior: {}",
+                                        py_tuple(&[key.0.as_str(), key.1.as_str()])
+                                    ));
+                                }
+                                ledger_behaviors.insert(key);
+                            }
+                        }
+                        Err(e) => {
+                            errors.push(format!("invalid repo ledger: {e}"));
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -852,6 +1079,12 @@ pub fn validate_table_mode(
         match mode {
             "repo-ledger" => {
                 let repo = c("Repository");
+                if opts.repository.as_deref() != Some(repo.as_str()) {
+                    errors.push(format!(
+                        "line {line}: ledger repository `{repo}` does not match `{}`",
+                        opts.repository.as_deref().unwrap_or("None")
+                    ));
+                }
                 let behavior_id = c("Behavior ID");
                 if !is_stable_id(&behavior_id) {
                     errors.push(format!("line {line}: invalid behavior ID `{behavior_id}`"));
@@ -929,6 +1162,8 @@ pub fn validate_table_mode(
                 for entry in entries {
                     let (repo, behavior_id) = entry.split_once(':').unwrap_or((entry, ""));
                     let (repo, behavior_id) = (repo.trim(), behavior_id.trim());
+                    let provenance_key = (repo.to_string(), behavior_id.to_string());
+                    used_behaviors.insert(provenance_key.clone());
                     if manifest_root(opts, repo).is_none() {
                         errors.push(format!(
                             "line {line}: provenance repository `{repo}` is unknown"
@@ -939,15 +1174,48 @@ pub fn validate_table_mode(
                             "line {line}: invalid provenance behavior ID `{behavior_id}`"
                         ));
                     }
+                    if !ledger_behaviors.is_empty() && !ledger_behaviors.contains(&provenance_key) {
+                        errors.push(format!(
+                            "line {line}: provenance behavior not found in ledgers: {}",
+                            py_tuple(&[repo, behavior_id])
+                        ));
+                    }
                 }
             }
             "mechanism-cards" => {
                 let repo = c("Repository");
+                let scope = c("Scope");
+                if let Some(expected_repo) = repository {
+                    if repo != expected_repo {
+                        errors.push(format!(
+                            "line {line}: card repository `{repo}` does not match `{expected_repo}`"
+                        ));
+                    }
+                }
                 let status_raw = c("Status");
                 let status = status_raw.to_uppercase();
+                actual_card_base.insert((scope.clone(), c("Domain"), c("Atom ID"), repo.clone()));
+                actual_card_exact.insert((
+                    scope.clone(),
+                    c("Domain"),
+                    c("Atom ID"),
+                    repo.clone(),
+                    c("Platform"),
+                ));
                 if !STATUS_VALUES.contains(&status.as_str()) {
                     errors.push(format!(
                         "line {line}: invalid mechanism status `{status_raw}`"
+                    ));
+                }
+                let applicable = repo == product
+                    || opts
+                        .manifest
+                        .as_ref()
+                        .and_then(|m| m.scope_repos.get(&scope))
+                        .is_some_and(|repos| repos.contains(&repo));
+                if !applicable {
+                    errors.push(format!(
+                        "line {line}: `{repo}` is not applicable to scope `{scope}`"
                     ));
                 }
                 match manifest_root(opts, &repo) {
@@ -1036,7 +1304,183 @@ pub fn validate_table_mode(
                     ));
                 }
             }
+            "final" => {
+                let scope = c("Scope");
+                actual_final_keys.insert((scope, c("Domain"), c("Atom ID")));
+                let baseline = c("Current product").to_lowercase();
+                for token in [
+                    "implementation=",
+                    "verification=",
+                    "qualification=",
+                    "delivery=",
+                ] {
+                    if !baseline.contains(token) {
+                        errors.push(format!(
+                            "line {line}: current-product baseline lacks `{token}`"
+                        ));
+                    }
+                }
+                let pairs = evidence_pairs(&c("Source evidence"));
+                let evidence_repos: BTreeSet<String> =
+                    pairs.iter().map(|(repo, _)| repo.clone()).collect();
+                if !evidence_repos.contains(&product) {
+                    errors.push(format!(
+                        "line {line}: current-product evidence lacks `{product}:` entry"
+                    ));
+                }
+                for (repo, cited) in &pairs {
+                    match manifest_root(opts, repo) {
+                        None => errors.push(format!(
+                            "line {line}: evidence repository `{repo}` is unknown"
+                        )),
+                        Some(root) => validate_citation(&mut errors, line, repo, cited, root, fs),
+                    }
+                }
+                let gap = c("Material gap").to_uppercase();
+                if !matches!(gap.as_str(), "YES" | "NO" | "UNRESOLVED") {
+                    errors.push(format!(
+                        "line {line}: material gap must be YES, NO, or UNRESOLVED"
+                    ));
+                }
+                if gap == "YES" {
+                    let best = c("Best observed").to_lowercase();
+                    if best.is_empty() || PLACEHOLDER_VALUES.contains(&best.as_str()) {
+                        errors.push(format!(
+                            "line {line}: material gap YES requires a proven winner"
+                        ));
+                    }
+                    if !evidence_repos.iter().any(|repo| *repo != product) {
+                        errors.push(format!(
+                            "line {line}: material gap YES lacks donor evidence"
+                        ));
+                    }
+                }
+            }
             _ => {}
+        }
+    }
+
+    if mode == "mechanism-cards" {
+        match (opts.manifest.as_ref(), opts.canon.as_deref()) {
+            (_, None) => errors.push("mechanism-cards mode requires --canon".to_string()),
+            (None, Some(_)) => {}
+            (Some(manifest), Some(canon_path)) => {
+                match read_table_file(fs, canon_path, headers("canon").unwrap_or(&[])) {
+                    Ok(canon_rows) => {
+                        let (expected_base, expected_exact) =
+                            expected_card_keys(&canon_rows, manifest, opts.repository.as_deref());
+                        for item in expected_base.difference(&actual_card_base) {
+                            errors.push(format!(
+                                "missing mechanism card: {}",
+                                py_tuple(&[
+                                    item.0.as_str(),
+                                    item.1.as_str(),
+                                    item.2.as_str(),
+                                    item.3.as_str()
+                                ])
+                            ));
+                        }
+                        for item in expected_exact.difference(&actual_card_exact) {
+                            errors.push(format!(
+                                "missing mechanism card: {}",
+                                py_tuple(&[
+                                    item.0.as_str(),
+                                    item.1.as_str(),
+                                    item.2.as_str(),
+                                    item.3.as_str(),
+                                    item.4.as_str(),
+                                ])
+                            ));
+                        }
+                        for item in actual_card_base.difference(&expected_base) {
+                            errors.push(format!(
+                                "unexpected mechanism card: {}",
+                                py_tuple(&[
+                                    item.0.as_str(),
+                                    item.1.as_str(),
+                                    item.2.as_str(),
+                                    item.3.as_str()
+                                ])
+                            ));
+                        }
+                        let configured: BTreeSet<CardBase> = expected_exact
+                            .iter()
+                            .map(|e| (e.0.clone(), e.1.clone(), e.2.clone(), e.3.clone()))
+                            .collect();
+                        for item in actual_card_exact.iter() {
+                            let base_key = (
+                                item.0.clone(),
+                                item.1.clone(),
+                                item.2.clone(),
+                                item.3.clone(),
+                            );
+                            if configured.contains(&base_key) && !expected_exact.contains(item) {
+                                errors.push(format!(
+                                    "unexpected mechanism card: {}",
+                                    py_tuple(&[
+                                        item.0.as_str(),
+                                        item.1.as_str(),
+                                        item.2.as_str(),
+                                        item.3.as_str(),
+                                        item.4.as_str(),
+                                    ])
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => errors.push(format!("invalid canon: {e}")),
+                }
+            }
+        }
+    }
+
+    if mode == "final" {
+        match opts.canon.as_deref() {
+            None => errors.push("final mode requires --canon".to_string()),
+            Some(canon_path) => {
+                let header = headers("canon").unwrap_or(&[]);
+                match read_table_file(fs, canon_path, header) {
+                    Ok(canon_rows) => {
+                        let (scope_at, domain_at, atom_at) = (
+                            pos(header, "Scope"),
+                            pos(header, "Domain"),
+                            pos(header, "Atom ID"),
+                        );
+                        let expected: BTreeSet<(String, String, String)> = canon_rows
+                            .iter()
+                            .map(|(_, cells)| {
+                                (
+                                    cells[scope_at].clone(),
+                                    cells[domain_at].clone(),
+                                    cells[atom_at].clone(),
+                                )
+                            })
+                            .collect();
+                        for item in expected.difference(&actual_final_keys) {
+                            errors.push(format!(
+                                "final report missing canon atom: {}",
+                                py_tuple(&[item.0.as_str(), item.1.as_str(), item.2.as_str()])
+                            ));
+                        }
+                        for item in actual_final_keys.difference(&expected) {
+                            errors.push(format!(
+                                "final report contains unexpected atom: {}",
+                                py_tuple(&[item.0.as_str(), item.1.as_str(), item.2.as_str()])
+                            ));
+                        }
+                    }
+                    Err(e) => errors.push(format!("invalid canon: {e}")),
+                }
+            }
+        }
+    }
+
+    if mode == "canon" {
+        for item in ledger_behaviors.difference(&used_behaviors) {
+            errors.push(format!(
+                "repo-ledger behavior missing from canon provenance: {}",
+                py_tuple(&[item.0.as_str(), item.1.as_str()])
+            ));
         }
     }
 
@@ -1085,7 +1529,7 @@ pub fn run(
     fs: &dyn ReportFs,
     report_path: &str,
 ) -> RunOutcome {
-    let Some(header) = headers(mode) else {
+    let Some(header) = effective_header(report_text, mode) else {
         return RunOutcome {
             stdout: format!("FAIL: unknown mode `{mode}`"),
             code: 1,
@@ -1100,7 +1544,8 @@ pub fn run(
             }
         }
     };
-    let errors = if is_table_mode(mode) {
+    let historical_final = mode == "final" && header == FINAL_HISTORICAL_HEADER;
+    let errors = if is_table_mode(mode) || historical_final {
         validate_table_mode(mode, &rows, header, opts, fs)
     } else {
         validate(&rows, header, opts, fs)
@@ -1235,6 +1680,12 @@ mod tests {
                     "/repo/a/src/ui.rs".to_string(),
                     "fn paste_button() {}".to_string(),
                 ),
+                (
+                    "/repo/product/src/paste.rs".to_string(),
+                    "fn paste() {}".to_string(),
+                ),
+                ("/ledger/a.md".to_string(), LEDGER.to_string()),
+                ("/canon/c.md".to_string(), CANON.to_string()),
             ]),
         }
     }
@@ -1243,10 +1694,33 @@ mod tests {
         ValidateOptions {
             max_repeat: 8,
             manifest: Some(Manifest {
-                repo_roots: BTreeMap::from([("repoA".to_string(), "/repo/a".to_string())]),
+                product: "Current product".to_string(),
+                repo_roots: BTreeMap::from([
+                    ("repoA".to_string(), "/repo/a".to_string()),
+                    ("Current product".to_string(), "/repo/product".to_string()),
+                ]),
                 scope_repos: BTreeMap::from([("S1".to_string(), vec!["repoA".to_string()])]),
+                repo_targets: BTreeMap::from([
+                    (
+                        "repoA".to_string(),
+                        BTreeMap::from([("S1".to_string(), vec!["macOS".to_string()])]),
+                    ),
+                    (
+                        "Current product".to_string(),
+                        BTreeMap::from([("S1".to_string(), vec!["macOS".to_string()])]),
+                    ),
+                ]),
             }),
+            canon: Some("/canon/c.md".to_string()),
+            ledgers: Some(vec!["/ledger/a.md".to_string()]),
             ..Default::default()
+        }
+    }
+
+    fn repo_opts() -> ValidateOptions {
+        ValidateOptions {
+            repository: Some("repoA".to_string()),
+            ..table_opts()
         }
     }
 
@@ -1265,7 +1739,7 @@ mod tests {
     const CANON: &str = "\
 | Scope | Domain | Atom ID | Atom | Boundary | Repository provenance |
 | --- | --- | --- | --- | --- | --- |
-| S1 | Paste | A-1 | Clipboard transaction | snapshot and restore | repoA:B-1<br>repoA:B-2 |
+| S1 | Paste | A-1 | Clipboard transaction | snapshot and restore | repoA:B-1 |
 ";
 
     const CANON_MISSING_COLUMN: &str = "\
@@ -1278,6 +1752,7 @@ mod tests {
 | Scope | Domain | Atom ID | Repository | Platform | Status | Production evidence | Live consumer | Mechanism | State / fallback / safeguards | Criteria assessment |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | S1 | Paste | A-1 | repoA | macOS | OBSERVED | repoA: `src/paste.rs#fn paste` | repoA: `src/ui.rs#paste_button` | copies through the buffer | restores the clipboard | meets the criteria |
+| S1 | Paste | A-1 | Current product | macOS | NOT FOUND | n/a | n/a | n/a | n/a | no product match |
 ";
 
     const CARDS_MISSING_COLUMN: &str = "\
@@ -1303,7 +1778,7 @@ mod tests {
         let outcome = run(
             LEDGER,
             "repo-ledger",
-            &table_opts(),
+            &repo_opts(),
             &table_fs(),
             "ledger.md",
         );
@@ -1329,13 +1804,7 @@ mod tests {
         let text = LEDGER
             .replace("repoA | B-1", "repoZ | B-1")
             .replace("repoA: `", "repoZ: `");
-        let outcome = run(
-            &text,
-            "repo-ledger",
-            &table_opts(),
-            &table_fs(),
-            "ledger.md",
-        );
+        let outcome = run(&text, "repo-ledger", &repo_opts(), &table_fs(), "ledger.md");
         assert_eq!(outcome.code, 1);
         assert!(outcome
             .stdout
@@ -1384,7 +1853,7 @@ mod tests {
         assert_eq!(outcome.code, 0, "{}", outcome.stdout);
         assert_eq!(
             outcome.stdout,
-            "PASS: cards.md (1 rows, mode=mechanism-cards)"
+            "PASS: cards.md (2 rows, mode=mechanism-cards)"
         );
     }
 
@@ -1456,6 +1925,226 @@ mod tests {
         let outcome = run(CANON, "canon", &opts, &table_fs(), "canon.md");
         assert_eq!(outcome.code, 1);
         assert!(outcome.stdout.contains("mode `canon` requires --manifest"));
+    }
+
+    const FINAL11: &str = "\
+| Scope | Domain | Atom ID | Atom | Current product | Best observed | Recommended implementation | Material gap | Why / tradeoffs | Source evidence | Confidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| S1 | Paste | A-1 | Clipboard transaction | implementation=partial; verification=none; qualification=open; delivery=blocked | not found | add the restore step | NO | keeps the current flow | Current product: `src/paste.rs#fn paste` | high |
+";
+
+    const FINAL8: &str = "\
+| Scope | Domain | Atom | Best observed | Recommended implementation | Why / tradeoffs | Source evidence | Confidence |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| S1 | Paste | Widget | repoA | Use repoA | Simple | repoA: `src/paste.rs#fn paste` | High |
+";
+
+    #[test]
+    fn final_historical_shape_passes_with_canon_coverage() {
+        let outcome = run(FINAL11, "final", &table_opts(), &table_fs(), "final.md");
+        assert_eq!(outcome.code, 0, "{}", outcome.stdout);
+        assert_eq!(outcome.stdout, "PASS: final.md (1 rows, mode=final)");
+    }
+
+    #[test]
+    fn final_historical_requires_canon() {
+        let opts = ValidateOptions {
+            canon: None,
+            ..table_opts()
+        };
+        let outcome = run(FINAL11, "final", &opts, &table_fs(), "final.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome.stdout.contains("final mode requires --canon"));
+    }
+
+    #[test]
+    fn final_historical_reports_canon_coverage_drift() {
+        let text = FINAL11.replace("| S1 | Paste | A-1 |", "| S1 | Paste | A-9 |");
+        let outcome = run(&text, "final", &table_opts(), &table_fs(), "final.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("final report missing canon atom: ('S1', 'Paste', 'A-1')"));
+        assert!(outcome
+            .stdout
+            .contains("final report contains unexpected atom: ('S1', 'Paste', 'A-9')"));
+    }
+
+    #[test]
+    fn final_historical_material_gap_yes_needs_winner_and_donor() {
+        let text = FINAL11.replace("| NO |", "| YES |");
+        let outcome = run(&text, "final", &table_opts(), &table_fs(), "final.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("material gap YES requires a proven winner"));
+        assert!(outcome
+            .stdout
+            .contains("material gap YES lacks donor evidence"));
+    }
+
+    #[test]
+    fn final_eight_column_form_is_still_accepted() {
+        let opts = ValidateOptions {
+            max_repeat: 8,
+            ..Default::default()
+        };
+        let outcome = run(FINAL8, "final", &opts, &table_fs(), "f8.md");
+        assert_eq!(outcome.code, 0, "{}", outcome.stdout);
+        assert_eq!(outcome.stdout, "PASS: f8.md (1 rows, mode=final)");
+    }
+
+    #[test]
+    fn effective_header_selects_historical_final_shape() {
+        assert_eq!(
+            effective_header(FINAL11, "final"),
+            Some(FINAL_HISTORICAL_HEADER)
+        );
+        assert_eq!(effective_header(FINAL8, "final"), headers("final"));
+    }
+
+    #[test]
+    fn repo_ledger_rejects_other_repository() {
+        let opts = ValidateOptions {
+            repository: Some("repoB".to_string()),
+            ..table_opts()
+        };
+        let outcome = run(LEDGER, "repo-ledger", &opts, &table_fs(), "ledger.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("ledger repository `repoA` does not match `repoB`"));
+    }
+
+    #[test]
+    fn repo_ledger_requires_repository() {
+        let outcome = run(
+            LEDGER,
+            "repo-ledger",
+            &table_opts(),
+            &table_fs(),
+            "ledger.md",
+        );
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("repo-ledger mode requires --repository"));
+    }
+
+    #[test]
+    fn canon_requires_ledgers() {
+        let opts = ValidateOptions {
+            ledgers: None,
+            ..table_opts()
+        };
+        let outcome = run(CANON, "canon", &opts, &table_fs(), "canon.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome.stdout.contains("canon mode requires --ledgers"));
+    }
+
+    #[test]
+    fn canon_provenance_must_exist_in_ledgers_and_cover_them() {
+        let text = CANON.replace("repoA:B-1", "repoA:B-7");
+        let outcome = run(&text, "canon", &table_opts(), &table_fs(), "canon.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("provenance behavior not found in ledgers: ('repoA', 'B-7')"));
+        assert!(outcome
+            .stdout
+            .contains("repo-ledger behavior missing from canon provenance: ('repoA', 'B-1')"));
+    }
+
+    #[test]
+    fn mechanism_cards_missing_product_card_fails() {
+        let text: String = CARDS
+            .lines()
+            .filter(|line| !line.contains("Current product"))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        let outcome = run(
+            &text,
+            "mechanism-cards",
+            &table_opts(),
+            &table_fs(),
+            "cards.md",
+        );
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("missing mechanism card: ('S1', 'Paste', 'A-1', 'Current product')"));
+    }
+
+    #[test]
+    fn mechanism_cards_repository_must_match_filter() {
+        let opts = ValidateOptions {
+            repository: Some("repoA".to_string()),
+            ..table_opts()
+        };
+        let outcome = run(CARDS, "mechanism-cards", &opts, &table_fs(), "cards.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("card repository `Current product` does not match `repoA`"));
+    }
+
+    #[test]
+    fn mechanism_cards_reject_repository_outside_scope() {
+        let text = CARDS.replace(
+            "| S1 | Paste | A-1 | repoA | macOS | OBSERVED",
+            "| S1 | Paste | A-1 | repoB | macOS | OBSERVED",
+        );
+        let outcome = run(
+            &text,
+            "mechanism-cards",
+            &table_opts(),
+            &table_fs(),
+            "cards.md",
+        );
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("`repoB` is not applicable to scope `S1`"));
+    }
+
+    #[test]
+    fn evidence_pairs_split_repo_and_citation() {
+        assert_eq!(
+            evidence_pairs("Current product: `a.rs#x`; repoA: `b.rs#y`"),
+            vec![
+                ("Current product".to_string(), "a.rs#x".to_string()),
+                ("repoA".to_string(), "b.rs#y".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn finish_manifest_rejects_unknown_scope_repository() {
+        let manifest = Manifest {
+            product: "Current product".to_string(),
+            repo_roots: BTreeMap::new(),
+            scope_repos: BTreeMap::from([("S1".to_string(), vec!["x".to_string()])]),
+            repo_targets: BTreeMap::new(),
+        };
+        let err = finish_manifest(manifest, None).unwrap_err();
+        assert_eq!(err, "scope `S1` references unknown repository `x`");
+    }
+
+    #[test]
+    fn finish_manifest_requires_product_platforms_when_root_declared() {
+        let manifest = Manifest {
+            product: "P".to_string(),
+            repo_roots: BTreeMap::new(),
+            scope_repos: BTreeMap::from([("S1".to_string(), Vec::new())]),
+            repo_targets: BTreeMap::new(),
+        };
+        let err = finish_manifest(manifest, Some("/p".to_string())).unwrap_err();
+        assert_eq!(err, "repo_targets lacks non-empty `P` / `S1` platform list");
+    }
+
+    #[test]
+    fn py_tuple_formats_like_python_repr() {
+        assert_eq!(py_tuple(&["S1", "Paste"]), "('S1', 'Paste')");
     }
 
     #[test]

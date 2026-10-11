@@ -516,7 +516,8 @@ fn close(a: &[String]) -> CommandResult {
     } else {
         ("unchecked", "ARC_COMPLETION_UNCHECKED")
     };
-    let terminal = json!({"schemaVersion":1,"kind":"legion-run-close-receipt","runId":b["runId"],"taskId":b["taskId"],"contractId":b["contractId"],"contractVersion":b["contractVersion"],"contractDigest":b["contractDigest"],"sessionId":s,"finalClaimState":final_claim_state,"completionCode":completion_code,"enforcementHealth":if disp=="archive"{"not-applicable"}else{"strong"},"deliveryDisposition":disp,"deliveryEvidence":ev,"closedAt":now()});
+    let enforcement_health = enforcement_health_for(&disp, acceptance_evaluated);
+    let terminal = json!({"schemaVersion":1,"kind":"legion-run-close-receipt","runId":b["runId"],"taskId":b["taskId"],"contractId":b["contractId"],"contractVersion":b["contractVersion"],"contractDigest":b["contractDigest"],"sessionId":s,"finalClaimState":final_claim_state,"completionCode":completion_code,"enforcementHealth":enforcement_health,"deliveryDisposition":disp,"deliveryEvidence":ev,"closedAt":now()});
     let stamp = rs.append(&terminal);
     release_delivery(d);
     let mut clear = b.as_object().cloned().unwrap_or_default();
@@ -537,6 +538,21 @@ fn close(a: &[String]) -> CommandResult {
         json!({"kind":"legion-run-binding","sessionId":s,"runId":b["runId"],"taskId":Value::Null,"contractId":Value::Null,"contractVersion":Value::Null,"contractDigest":Value::Null,"closeReceipt":Value::Object(close_receipt)}),
     )
 }
+/// The close receipt's `enforcementHealth`. "strong" only when a complete close
+/// evaluated at least one acceptance criterion (the evidence loop in `close`
+/// returns early on any missing evidence, so every evaluated criterion passed).
+/// A close that checked nothing is unverified: "degraded", the defined weaker
+/// value (`strong | degraded | unsupported`). An archive is "not-applicable".
+fn enforcement_health_for(disposition: &str, acceptance_evaluated: usize) -> &'static str {
+    if disposition == "archive" {
+        "not-applicable"
+    } else if acceptance_evaluated > 0 {
+        "strong"
+    } else {
+        "degraded"
+    }
+}
+
 fn lifecycle(action: &str, a: &[String]) -> CommandResult {
     let s = session(a)?;
     // Node loads host authentication before validating action-specific inputs.
@@ -594,4 +610,25 @@ fn now() -> String {
         .unwrap_or_default()
         .as_secs()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::enforcement_health_for;
+
+    #[test]
+    fn a_complete_close_with_evaluated_criteria_is_strong() {
+        assert_eq!(enforcement_health_for("complete", 2), "strong");
+    }
+
+    #[test]
+    fn a_complete_close_that_evaluated_no_criteria_is_degraded_not_strong() {
+        assert_eq!(enforcement_health_for("complete", 0), "degraded");
+    }
+
+    #[test]
+    fn archive_is_not_applicable_and_an_unchecked_partial_close_is_degraded() {
+        assert_eq!(enforcement_health_for("archive", 3), "not-applicable");
+        assert_eq!(enforcement_health_for("partial", 0), "degraded");
+    }
 }

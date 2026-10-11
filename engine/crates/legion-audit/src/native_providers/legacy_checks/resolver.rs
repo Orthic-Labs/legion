@@ -73,7 +73,7 @@ pub fn resolve_request(
         "project-types" => project_types_dynamic(root, args)?,
         "package-audit" => package_manager_operation_dynamic(root, "audit", args)?,
         "package-outdated" => package_manager_operation_dynamic(root, "outdated", args)?,
-        "audit-runtime" => (resolve_named_path(root, "audit-runtime")?, args.to_vec()),
+        RUNTIME_CAPTURE_TOOL => (current_legion_executable()?, args.to_vec()),
         // A cargo subcommand binary run directly (not through `cargo`) takes
         // its own name as the first argument.
         "cargo-outdated" => (resolve_named_path(root, executable)?, {
@@ -112,7 +112,10 @@ fn resolve_named_command(
         "project-types" => project_types(root, args),
         "package-audit" => package_manager_operation(root, "audit", args),
         "package-outdated" => package_manager_operation(root, "outdated", args),
-        "audit-runtime" => audit_runtime(root, args),
+        RUNTIME_CAPTURE_TOOL => Ok((
+            current_legion_executable()?,
+            args.iter().map(|item| (*item).to_owned()).collect(),
+        )),
         _ => Ok((
             resolve_named_path(root, tool)?,
             args.iter().map(|item| (*item).to_owned()).collect(),
@@ -342,11 +345,18 @@ fn package_manager_script_dynamic(
     Ok((path, values))
 }
 
-fn audit_runtime(root: &Path, extra: &[&str]) -> Result<(PathBuf, Vec<String>), ResolveError> {
-    // Runtime execution is host-owned. Never invoke Node or a checked-out
-    // script as an implicit fallback from native Audit.
-    let path = resolve_named_path(root, "audit-runtime")?;
-    Ok((path, extra.iter().map(|item| (*item).to_owned()).collect()))
+/// Symbolic tool name for the runtime capture check. It is never looked up on
+/// PATH: it resolves to the running Legion executable, whose own browser route
+/// (`script qa/qa-functional`) performs the capture.
+pub(super) const RUNTIME_CAPTURE_TOOL: &str = "legion-qa-shot";
+
+/// The executable currently running this Audit, canonicalized. Runtime capture
+/// is host-owned: never invoke Node or a checked-out script as a fallback.
+fn current_legion_executable() -> Result<PathBuf, ResolveError> {
+    let path = env::current_exe().map_err(|error| {
+        ResolveError::Unavailable(format!("current-executable-unavailable: {error}"))
+    })?;
+    Ok(fs::canonicalize(&path).unwrap_or(path))
 }
 
 fn package_json(root: &Path) -> Option<Value> {

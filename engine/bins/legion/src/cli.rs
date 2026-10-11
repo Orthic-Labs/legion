@@ -142,7 +142,9 @@ enum Command {
     Catalog(commands::catalog::CatalogArgs),
     /// Inspect the native policy pack.
     Policy(commands::policy::PolicyArgs),
-    /// Draft a decision record (not persisted).
+    /// Draft, persist, list, show and transition architect decision records.
+    ///
+    /// Usage: legion decision propose [--write] --task <id> --rationale <text> | legion decision list [--repository <id>] [--status <s>] | legion decision show <id> | legion decision set-status <id> <status>; all accept --store <path>
     Decision(commands::decision::DecisionArgs),
     /// Parse a handoff packet (structure only).
     ///

@@ -761,7 +761,10 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
     let mut checked = 0;
     for record in records {
         let id = record["id"].as_str().unwrap();
-        if NATIVE_IDS.contains(&id) {
+        // `legacy.runtime.app` runs one browser invocation per surface and
+        // builds its own evidence; it is covered by
+        // `native_legacy_runtime_capture.rs`.
+        if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" {
             continue;
         }
         checked += 1;
@@ -796,7 +799,7 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             "{id} receipt process authority"
         );
     }
-    assert_eq!(checked, 22);
+    assert_eq!(checked, 21);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -840,7 +843,10 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
     let mut checked = 0;
     for record in records {
         let id = record["id"].as_str().unwrap();
-        if NATIVE_IDS.contains(&id) {
+        // `legacy.runtime.app` runs one browser invocation per surface and
+        // builds its own evidence; it is covered by
+        // `native_legacy_runtime_capture.rs`.
+        if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" {
             continue;
         }
         checked += 1;
@@ -883,6 +889,6 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
             "{id} failed denominator"
         );
     }
-    assert_eq!(checked, 22);
+    assert_eq!(checked, 21);
     fs::remove_dir_all(root).unwrap();
 }

@@ -241,35 +241,44 @@ pub trait PageCapture {
 
 /// Port of `captureVisualContrastCandidate(page, candidate, viewport)`.
 /// `viewport_width` mirrors `viewport?.width`.
+///
+/// Returns `Ok(None)` for "no finding" (unusable clip, hide target not found,
+/// too few glyph pixels, ratio at or above threshold). Browser and capture
+/// failures return `Err` rather than collapsing into "no finding", so a scan
+/// that could not measure a candidate never reports a clean result.
 pub fn capture_visual_contrast_candidate(
     capture: &mut impl PageCapture,
     candidate: &ContrastCandidate,
     viewport_width: Option<i64>,
-) -> Option<ContrastFinding> {
-    let clip = sanitize_screenshot_clip(candidate.clip, viewport_width)?;
+) -> Result<Option<ContrastFinding>, String> {
+    let Some(clip) = sanitize_screenshot_clip(candidate.clip, viewport_width) else {
+        return Ok(None);
+    };
 
-    let before_base64 = capture.screenshot_png(clip).ok()?;
+    let before_png = capture.screenshot_png(clip)?;
 
-    let applied = capture
-        .apply_hide(&candidate.selector, candidate.background_clip_text)
-        .unwrap_or(false);
+    let applied = capture.apply_hide(&candidate.selector, candidate.background_clip_text)?;
     if !applied {
-        return None;
+        return Ok(None);
     }
 
     let after_result = capture.screenshot_png(clip);
     // Mirror the JS `finally` block: cleanup always runs, even on error.
     capture.remove_hide(&candidate.selector);
-    let after_base64 = after_result.ok()?;
+    let after_png = after_result?;
 
-    let metrics = compare_screenshot_contrast(&before_base64, &after_base64, candidate)?;
-    let p10 = metrics.p10_ratio?;
+    // JS: a decode failure rejects the evaluate, so it surfaces as an error.
+    let metrics = compare_screenshot_contrast(&before_png, &after_png, candidate)
+        .ok_or_else(|| "unable to decode visual-contrast screenshots".to_string())?;
+    let Some(p10) = metrics.p10_ratio else {
+        return Ok(None);
+    };
     if !p10.is_finite() || metrics.glyph_pixels < 8 {
-        return None;
+        return Ok(None);
     }
     let measured_ratio = p10;
     if measured_ratio >= candidate.threshold {
-        return None;
+        return Ok(None);
     }
     let text_label = candidate
         .text
@@ -288,13 +297,13 @@ pub fn capture_visual_contrast_candidate(
             .join(", ")
     };
     let median = metrics.median_ratio.unwrap_or(0.0);
-    Some(ContrastFinding {
+    Ok(Some(ContrastFinding {
         id: "low-contrast",
         snippet: format!(
             "pixel contrast {measured_ratio:.1}:1 median {median:.1}:1 (need {}:1) on {reason_label}{text_label}",
             candidate.threshold
         ),
-    })
+    }))
 }
 
 /// Production `headless_chrome`-backed [`PageCapture`]. Same compile-review
@@ -326,40 +335,61 @@ impl ChromeContrastCapture {
 
 impl PageCapture for ChromeContrastCapture {
     fn screenshot_png(&mut self, clip: Clip) -> Result<Vec<u8>, String> {
-        let cdp_clip = headless_chrome::protocol::cdp::Page::Viewport {
-            x: clip.x as f64,
-            y: clip.y as f64,
-            width: clip.width as f64,
-            height: clip.height as f64,
-            scale: 1.0,
-        };
-        self.tab
-            .capture_screenshot(
-                headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png,
-                None,
-                Some(cdp_clip),
-                true,
-            )
-            .map_err(|e| e.to_string())
+        tab_screenshot_png(&self.tab, clip)
     }
 
     fn apply_hide(&mut self, selector: &str, background_clip_text: bool) -> Result<bool, String> {
-        let token = format!(
-            "impeccable-contrast-{}-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_millis())
-                .unwrap_or(0),
-            std::process::id()
-        );
-        let selector_json = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_string());
-        let bgclip = if background_clip_text {
-            "true"
-        } else {
-            "false"
-        };
-        let expression = format!(
-            r#"(() => {{
+        tab_apply_hide(&self.tab, selector, background_clip_text)
+    }
+
+    fn remove_hide(&mut self, selector: &str) {
+        tab_remove_hide(&self.tab, selector)
+    }
+}
+
+/// Tab-level `Page.captureScreenshot` of `clip`, returning raw PNG bytes.
+/// Shared by [`ChromeContrastCapture`] and `wf_port::r07::RealChromeDriver`.
+pub fn tab_screenshot_png(tab: &headless_chrome::Tab, clip: Clip) -> Result<Vec<u8>, String> {
+    let cdp_clip = headless_chrome::protocol::cdp::Page::Viewport {
+        x: clip.x as f64,
+        y: clip.y as f64,
+        width: clip.width as f64,
+        height: clip.height as f64,
+        scale: 1.0,
+    };
+    tab.capture_screenshot(
+        headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png,
+        None,
+        Some(cdp_clip),
+        true,
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Tab-level hide-style toggle (`apply_hide`): marks `selector` with the
+/// `data-impeccable-visual-contrast-target` attribute and installs the shared
+/// hide stylesheet. `Ok(false)` when the selector is invalid or matches nothing.
+pub fn tab_apply_hide(
+    tab: &headless_chrome::Tab,
+    selector: &str,
+    background_clip_text: bool,
+) -> Result<bool, String> {
+    let token = format!(
+        "impeccable-contrast-{}-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0),
+        std::process::id()
+    );
+    let selector_json = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_string());
+    let bgclip = if background_clip_text {
+        "true"
+    } else {
+        "false"
+    };
+    let expression = format!(
+        r#"(() => {{
   let el;
   try {{ el = document.querySelector({selector_json}); }} catch (e) {{ return false; }}
   if (!el) return false;
@@ -383,21 +413,23 @@ impl PageCapture for ChromeContrastCapture {
   if ({bgclip}) el.setAttribute('data-impeccable-bgclip-text', 'true');
   return true;
 }})()"#
-        );
-        let remote_object = self
-            .tab
-            .evaluate(&expression, false)
-            .map_err(|e| e.to_string())?;
-        Ok(matches!(
-            remote_object.value,
-            Some(serde_json::Value::Bool(true))
-        ))
-    }
+    );
+    let remote_object = tab
+        .evaluate(&expression, false)
+        .map_err(|e| e.to_string())?;
+    Ok(matches!(
+        remote_object.value,
+        Some(serde_json::Value::Bool(true))
+    ))
+}
 
-    fn remove_hide(&mut self, selector: &str) {
-        let selector_json = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_string());
-        let expression = format!(
-            r#"(() => {{
+/// Tab-level cleanup (`remove_hide`): removes the two `data-impeccable-*`
+/// attributes from `selector`, swallowing selector errors like the JS
+/// `.catch(() => {})`.
+pub fn tab_remove_hide(tab: &headless_chrome::Tab, selector: &str) {
+    let selector_json = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_string());
+    let expression = format!(
+        r#"(() => {{
   try {{
     const el = document.querySelector({selector_json});
     if (el) {{
@@ -406,9 +438,8 @@ impl PageCapture for ChromeContrastCapture {
     }}
   }} catch (e) {{ /* Ignore invalid or stale selectors during cleanup. */ }}
 }})()"#
-        );
-        let _ = self.tab.evaluate(&expression, false);
-    }
+    );
+    let _ = tab.evaluate(&expression, false);
 }
 
 #[cfg(test)]
@@ -651,7 +682,7 @@ mod tests {
         };
         assert_eq!(
             capture_visual_contrast_candidate(&mut capture, &candidate, None),
-            None
+            Ok(None)
         );
         assert!(!capture.hide_applied);
     }
@@ -670,7 +701,7 @@ mod tests {
         };
         assert_eq!(
             capture_visual_contrast_candidate(&mut capture, &candidate, None),
-            None
+            Ok(None)
         );
         assert!(capture.hide_applied);
         // Cleanup only runs after a successful apply_hide (mirrors the JS:
@@ -705,7 +736,7 @@ mod tests {
         // short circuit.
         assert_eq!(
             capture_visual_contrast_candidate(&mut capture, &candidate, None),
-            None
+            Ok(None)
         );
         assert!(capture.hide_removed);
     }
@@ -731,7 +762,9 @@ mod tests {
             hide_removed: false,
             apply_hide_result: true,
         };
-        let finding = capture_visual_contrast_candidate(&mut capture, &candidate, None).unwrap();
+        let finding = capture_visual_contrast_candidate(&mut capture, &candidate, None)
+            .unwrap()
+            .unwrap();
         assert_eq!(finding.id, "low-contrast");
         assert!(finding.snippet.contains("21.0:1"));
         assert!(finding.snippet.contains("need 25:1"));

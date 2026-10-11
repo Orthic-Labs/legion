@@ -1,6 +1,7 @@
 use super::CommandResult;
 use clap::Args;
-use serde_json::json;
+use legion_research::research_port::{citecheck, ledger, meter, retraction};
+use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -8,8 +9,54 @@ use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 #[derive(Debug, Args)]
 pub struct ResearchArgs {
+    /// Route query for the host-injected search. Not required with `--step`.
+    #[arg(long, required_unless_present = "step")]
+    pub query: Option<String>,
+    /// Run one pure Research step instead of a search: `ledger-check`,
+    /// `ledger-render`, `citecheck`, `meter`, or `retraction`.
     #[arg(long)]
-    pub query: String,
+    pub step: Option<String>,
+    /// Evidence ledger rows (JSONL) for `ledger-check` and `ledger-render`,
+    /// and for `citecheck`.
+    #[arg(long)]
+    pub evidence: Option<PathBuf>,
+    /// Claim ledger rows (JSONL) for `ledger-check` and `ledger-render`.
+    #[arg(long)]
+    pub claims: Option<PathBuf>,
+    /// Markdown draft to bind citations for `citecheck`.
+    #[arg(long)]
+    pub draft: Option<PathBuf>,
+    /// Output path for `ledger-render`.
+    #[arg(long)]
+    pub out: Option<PathBuf>,
+    /// Brief title for `ledger-render`.
+    #[arg(long, default_value = "Research brief")]
+    pub title: String,
+    /// DOI list (one per line) for `retraction`.
+    #[arg(long)]
+    pub dois: Option<PathBuf>,
+    /// DOIs already disclosed as retracted in the draft, one per line.
+    #[arg(long)]
+    pub disclosed: Option<PathBuf>,
+    /// Let unknown retraction status pass instead of blocking.
+    #[arg(long = "allow-unknown")]
+    pub allow_unknown: bool,
+    /// JSON map of DOI to pre-fetched retraction metadata. A DOI the map does
+    /// not resolve needs a network fetch, which this command does not perform.
+    #[arg(long = "retraction-fixture")]
+    pub retraction_fixture: Option<PathBuf>,
+    /// JSON budget/usage state for `meter`. The updated state is reported, not written.
+    #[arg(long = "meter-state")]
+    pub meter_state: Option<PathBuf>,
+    /// Metered effect for `meter`: `external_request` or `worker`.
+    #[arg(long)]
+    pub effect: Option<String>,
+    /// Units consumed by one `meter` step.
+    #[arg(long, default_value_t = 1)]
+    pub units: u64,
+    /// Worker lifecycle for `meter --effect worker`: `start` or `finish`.
+    #[arg(long = "worker-event")]
+    pub worker_event: Option<String>,
     #[arg(long, value_delimiter = ',')]
     pub provider: Vec<String>,
     #[arg(long, default_value_t = 5)]
@@ -151,11 +198,15 @@ fn terminal_cancelled(
 }
 
 pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult {
-    let route = legion_research::ResearchRoute::host_injected_with(
-        &args.query,
-        &args.domain,
-        &args.sensitivity,
-    );
+    if let Some(step) = args.step.clone() {
+        return run_step(&step, &args);
+    }
+    let query = args
+        .query
+        .clone()
+        .ok_or_else(|| super::CommandError::usage("--query is required unless --step is given"))?;
+    let route =
+        legion_research::ResearchRoute::host_injected_with(&query, &args.domain, &args.sensitivity);
     route
         .validate()
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
@@ -169,7 +220,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         .max(1);
     if cancellation.is_cancelled() {
         return terminal_cancelled(
-            args.query,
+            query,
             &route,
             &authorization,
             requested_provider_denominator,
@@ -185,7 +236,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
                 requested_provider_denominator
             };
             return terminal_cancelled(
-                args.query.clone(),
+                query.clone(),
                 &route,
                 &authorization,
                 selected_provider_denominator,
@@ -228,7 +279,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
             reason: "required host-injected source records are unavailable".into(),
         });
         return terminal_unproven(
-            args.query,
+            query,
             failures,
             0,
             0,
@@ -265,7 +316,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
             reason: "independent source-provider requirement is unmet".into(),
         });
         return terminal_unproven(
-            args.query,
+            query,
             failures,
             records.values().flatten().count(),
             independent_provider_count,
@@ -283,7 +334,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
     let providers = providers.into_iter().collect::<Vec<_>>();
     let request = legion_research::WorkflowRequest {
         schema_version: 1,
-        query: args.query,
+        query,
         source_providers: providers,
         max_hits_per_provider: args.max_hits,
         max_source_bytes: 1_000_000,
@@ -407,4 +458,194 @@ impl legion_research::SourceClient for RecordSource {
                 legion_research::ResearchError::InvalidSource("source hit is unavailable".into())
             })
     }
+}
+
+/// Dispatches one pure Research step. Every step returns JSON; a status outside
+/// `ok` maps to a non-zero exit in the CLI (`failed` 2, `unavailable` 2).
+fn run_step(step: &str, args: &ResearchArgs) -> CommandResult {
+    match step {
+        "ledger-check" => step_ledger_check(args),
+        "ledger-render" => step_ledger_render(args),
+        "citecheck" => step_citecheck(args),
+        "meter" => step_meter(args),
+        "retraction" => step_retraction(args),
+        other => Err(super::CommandError::usage(format!(
+            "unknown --step {other}; expected ledger-check, ledger-render, citecheck, meter, or retraction"
+        ))),
+    }
+}
+
+fn required_path<'a>(
+    value: &'a Option<PathBuf>,
+    flag: &str,
+) -> Result<&'a PathBuf, super::CommandError> {
+    value
+        .as_ref()
+        .ok_or_else(|| super::CommandError::usage(format!("{flag} is required for this --step")))
+}
+
+fn read_text(path: &PathBuf) -> Result<String, super::CommandError> {
+    std::fs::read_to_string(path).map_err(|error| {
+        super::CommandError::usage(format!("cannot read {}: {error}", path.display()))
+    })
+}
+
+fn read_jsonl(path: &PathBuf) -> Result<Vec<Value>, super::CommandError> {
+    let text = read_text(path)?;
+    ledger::parse_jsonl(&path.display().to_string(), &text).map_err(super::CommandError::usage)
+}
+
+fn read_lines(path: &PathBuf) -> Result<Vec<String>, super::CommandError> {
+    Ok(read_text(path)?
+        .lines()
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty())
+        .collect())
+}
+
+fn step_envelope(step: &str, status: &str, result: Value) -> Value {
+    json!({
+        "schemaVersion": 1,
+        "kind": "legion-research-step",
+        "step": step,
+        "status": status,
+        "incomplete": status != "ok",
+        "result": result,
+    })
+}
+
+fn step_ledger_check(args: &ResearchArgs) -> CommandResult {
+    let evidence = read_jsonl(required_path(&args.evidence, "--evidence")?)?;
+    let claims = read_jsonl(required_path(&args.claims, "--claims")?)?;
+    let checked = ledger::check(&evidence, &claims).map_err(super::CommandError::usage)?;
+    let status = if checked.overall_ok { "ok" } else { "failed" };
+    Ok(step_envelope("ledger-check", status, checked.to_json()))
+}
+
+fn step_ledger_render(args: &ResearchArgs) -> CommandResult {
+    let evidence = read_jsonl(required_path(&args.evidence, "--evidence")?)?;
+    let claims = read_jsonl(required_path(&args.claims, "--claims")?)?;
+    let out = required_path(&args.out, "--out")?;
+    let as_of = legion_research::research_port::today();
+    match ledger::render(&evidence, &claims, &args.title, &as_of) {
+        Ok(text) => {
+            legion_research::research_port::atomic_write_text(out, &text)
+                .map_err(super::io_error)?;
+            Ok(step_envelope(
+                "ledger-render",
+                "ok",
+                json!({"out": out.display().to_string(), "bytes": text.len()}),
+            ))
+        }
+        Err(reason) => Ok(step_envelope(
+            "ledger-render",
+            "failed",
+            json!({"reason": reason}),
+        )),
+    }
+}
+
+fn step_citecheck(args: &ResearchArgs) -> CommandResult {
+    let draft = read_text(required_path(&args.draft, "--draft")?)?;
+    let evidence = read_jsonl(required_path(&args.evidence, "--evidence")?)?;
+    let report = citecheck::check(&draft, &evidence).map_err(super::CommandError::usage)?;
+    let status = if report["ok"].as_bool() == Some(true) {
+        "ok"
+    } else {
+        "failed"
+    };
+    Ok(step_envelope("citecheck", status, report))
+}
+
+fn state_u64(section: &Value, key: &str) -> Result<u64, super::CommandError> {
+    section.get(key).and_then(Value::as_u64).ok_or_else(|| {
+        super::CommandError::usage(format!(
+            "meter state field {key} must be an unsigned integer"
+        ))
+    })
+}
+
+fn step_meter(args: &ResearchArgs) -> CommandResult {
+    let state_path = required_path(&args.meter_state, "--meter-state")?;
+    let state: Value = serde_json::from_str(&read_text(state_path)?)
+        .map_err(|error| super::CommandError::usage(format!("invalid meter state: {error}")))?;
+    let budget_section = state
+        .get("budget")
+        .ok_or_else(|| super::CommandError::usage("meter state requires a budget object"))?;
+    let usage_section = state
+        .get("usage")
+        .ok_or_else(|| super::CommandError::usage("meter state requires a usage object"))?;
+    let budget = meter::MeterBudget {
+        external_requests: state_u64(budget_section, "external_requests")?,
+        workers: state_u64(budget_section, "workers")?,
+    };
+    let current = meter::MeterUsage {
+        external_requests: state_u64(usage_section, "external_requests")?,
+        workers_active: state_u64(usage_section, "workers_active")?,
+        workers_started: state_u64(usage_section, "workers_started")?,
+    };
+    let effect = args
+        .effect
+        .as_deref()
+        .ok_or_else(|| super::CommandError::usage("--effect is required for --step meter"))?;
+    let worker_event = args.worker_event.as_deref();
+    let outcome = meter::consume(&budget, &current, effect, args.units, worker_event)
+        .map_err(super::CommandError::usage)?;
+    let refused = matches!(outcome, meter::MeterOutcome::Refused { .. });
+    let mut result = meter::outcome_json(&budget, &outcome, effect, args.units, worker_event);
+    if let Value::Object(map) = &mut result {
+        map.insert("persisted".to_string(), Value::Bool(false));
+    }
+    let status = if refused { "failed" } else { "ok" };
+    Ok(step_envelope("meter", status, result))
+}
+
+fn step_retraction(args: &ResearchArgs) -> CommandResult {
+    let dois = read_lines(required_path(&args.dois, "--dois")?)?;
+    let disclosed = match &args.disclosed {
+        Some(path) => read_lines(path)?,
+        None => Vec::new(),
+    };
+    let fixture: Option<serde_json::Map<String, Value>> = match &args.retraction_fixture {
+        Some(path) => {
+            let value: Value = serde_json::from_str(&read_text(path)?).map_err(|error| {
+                super::CommandError::usage(format!("invalid retraction fixture: {error}"))
+            })?;
+            match value {
+                Value::Object(map) => Some(map),
+                _ => {
+                    return Err(super::CommandError::usage(
+                        "retraction fixture must be a JSON object",
+                    ))
+                }
+            }
+        }
+        None => None,
+    };
+    let result = retraction::sweep(
+        &dois,
+        &disclosed,
+        !args.allow_unknown,
+        fixture.as_ref(),
+        &retraction::network_unavailable,
+    );
+    let gap = retraction::has_unavailable_gap(&result);
+    let blocked = result["block_brief"].as_bool().unwrap_or(true);
+    let status = if gap {
+        "unavailable"
+    } else if blocked {
+        "failed"
+    } else {
+        "ok"
+    };
+    let mut envelope = step_envelope("retraction", status, result);
+    if gap {
+        if let Value::Object(map) = &mut envelope {
+            map.insert(
+                "reason".to_string(),
+                Value::String(retraction::UNAVAILABLE_NETWORK.to_string()),
+            );
+        }
+    }
+    Ok(envelope)
 }

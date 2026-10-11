@@ -41,6 +41,10 @@
 //! `validate-dispatch.py` subprocess runs also covers Markdown dispatch
 //! documents (`storage_errors`, heading/table/goal-route/topology checks);
 //! that decision logic is **not ported** — see the follow-up list below.
+//! The legacy Markdown tasklist timing checks (per-task time spans and
+//! basis, clock gaps, total minutes, lines per minute, parallel-lane overlap)
+//! are ported as [`tasklist::legacy_tasklist_timing_errors`]; their GoalRoute
+//! and Minimize authority checks are not, so that path never writes a receipt.
 //!
 //! `test_enforce_cheap_review_routing.py` is ported in full as
 //! `tests/wf_w2_044.rs::enforce_cheap_review_routing_tests` (all three

@@ -11,6 +11,8 @@
 //! `serde_json::Value` so it can be wired in later via a `lib.rs` patch
 //! (see the packet report).
 
+pub mod store;
+
 use hmac::{Hmac, KeyInit, Mac};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};

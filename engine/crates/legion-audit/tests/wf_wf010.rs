@@ -395,6 +395,50 @@ fn registry_resolve_follows_aliases_then_requires_a_known_provider() {
 }
 
 #[test]
+fn shipped_provider_aliases_resolve_to_shipped_providers() {
+    // Every alias in the shipped `provider-aliases.json` must name a provider in
+    // the shipped `providers.json`, and the internal-suite providers are reachable
+    // by their short ids.
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/");
+    let providers: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(format!("{root}providers.json")).unwrap())
+            .unwrap();
+    let alias_doc: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(format!("{root}provider-aliases.json")).unwrap(),
+    )
+    .unwrap();
+    let by_id: BTreeMap<String, String> = providers["providers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|provider| {
+            let id = provider["id"].as_str().unwrap().to_string();
+            (id.clone(), id)
+        })
+        .collect();
+    let aliases: BTreeMap<String, String> = alias_doc["aliases"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(short, target)| (short.clone(), target.as_str().unwrap().to_string()))
+        .collect();
+    for (short, target) in &aliases {
+        assert_eq!(
+            resolve(&by_id, &aliases, short).unwrap(),
+            target,
+            "alias {short}"
+        );
+    }
+    for short in ["data.internal-suite", "infrastructure.internal-suite"] {
+        assert!(aliases.contains_key(short), "{short} has no alias");
+        assert_eq!(
+            resolve(&by_id, &aliases, short).unwrap(),
+            &format!("legacy.{short}")
+        );
+    }
+}
+
+#[test]
 fn registry_select_filters_out_non_selectable_providers() {
     let mut by_id = BTreeMap::new();
     by_id.insert("a".to_string(), (1, true));

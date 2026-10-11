@@ -104,6 +104,44 @@ impl DecisionStore {
         self.insert(record)
     }
 
+    /// Make `record` the newest retained row for its stable id.
+    ///
+    /// `insert` deduplicates on `(id, source_hash)`, so returning to a status
+    /// that was recorded earlier would leave an older row as the newest one.
+    /// After insertion the matching row is therefore moved to the end of the
+    /// retention order, which is what `get` reports as the current state.
+    pub fn set_current(
+        &mut self,
+        record: &DecisionRecord,
+    ) -> Result<InsertDisposition, DecisionError> {
+        let disposition = self.insert(record)?;
+        let mut record = record.clone();
+        record.ensure_source_hash()?;
+        self.connection.execute(
+            "UPDATE decision_records
+             SET row_id = (SELECT COALESCE(MAX(row_id), 0) + 1 FROM decision_records)
+             WHERE id = ?1 AND source_hash = ?2",
+            params![record.id, record.source_hash],
+        )?;
+        Ok(disposition)
+    }
+
+    /// Set the current status of stable id `id` by appending a new state row.
+    /// Returns the newly current record, or `None` when the id is unknown.
+    pub fn set_status(
+        &mut self,
+        id: &str,
+        status: DecisionStatus,
+    ) -> Result<Option<DecisionRecord>, DecisionError> {
+        let Some(mut record) = self.get(id)? else {
+            return Ok(None);
+        };
+        record.current_status = status;
+        record.source_hash = record.compute_source_hash()?;
+        self.set_current(&record)?;
+        self.get(id)
+    }
+
     pub fn all(&self) -> Result<Vec<DecisionRecord>, DecisionError> {
         let mut statement = self.connection.prepare("SELECT id,source_hash,repository_id,scope_id,task_id,linked_graph_generation,rationale,alternatives_json,evidence_json,implementation_refs_json,supersedes_json,superseded_by,current_status,created_at,source_path,provenance_json FROM decision_records ORDER BY row_id")?;
         let rows = statement.query_map([], row_to_record)?;
@@ -219,4 +257,61 @@ pub(crate) fn value_to_record(
     record.validate()?;
     record.ensure_source_hash()?;
     Ok(record)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DecisionStore;
+    use crate::model::{DecisionRecord, DecisionStatus};
+
+    fn draft() -> DecisionRecord {
+        DecisionRecord::new(
+            "repo-a",
+            "workspace",
+            "T-1",
+            "use sqlite",
+            DecisionStatus::Proposed,
+        )
+    }
+
+    #[test]
+    fn set_status_moves_current_state_forward_and_back() {
+        let mut store = DecisionStore::in_memory().unwrap();
+        let proposed = draft();
+        let id = proposed.id.clone();
+        store.set_current(&proposed).unwrap();
+
+        let accepted = store
+            .set_status(&id, DecisionStatus::Accepted)
+            .unwrap()
+            .expect("record exists");
+        assert_eq!(accepted.current_status, DecisionStatus::Accepted);
+
+        let back = store
+            .set_status(&id, DecisionStatus::Proposed)
+            .unwrap()
+            .expect("record exists");
+        assert_eq!(back.current_status, DecisionStatus::Proposed);
+
+        let again = store
+            .set_status(&id, DecisionStatus::Accepted)
+            .unwrap()
+            .expect("record exists");
+        assert_eq!(again.current_status, DecisionStatus::Accepted);
+        assert_eq!(
+            store.get(&id).unwrap().unwrap().current_status,
+            DecisionStatus::Accepted
+        );
+        assert_eq!(store.by_id(&id).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn set_status_on_unknown_id_is_none_and_writes_nothing() {
+        let mut store = DecisionStore::in_memory().unwrap();
+        let result = store
+            .set_status("architect:decision:missing", DecisionStatus::Accepted)
+            .unwrap();
+        assert!(result.is_none());
+        assert!(store.all().unwrap().is_empty());
+    }
 }

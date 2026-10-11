@@ -158,9 +158,11 @@ impl InventorySource for FilesystemInventorySource {
 }
 
 /// Dependency names declared by a recognised manifest (`Cargo.toml`,
-/// `package.json`, `pyproject.toml`, `go.mod`, `Package.swift`); empty for any
-/// other file. Sorted and unique, as inventory validation requires. Parsing is
-/// deliberately shallow: names only, no resolution.
+/// `package.json`, `pyproject.toml`, `go.mod`, `Package.swift`, `pom.xml`,
+/// `build.gradle`, `build.gradle.kts`, `Gemfile`, `mix.exs`, `pubspec.yaml`,
+/// `requirements.txt`); empty for any other file. Sorted and unique, as
+/// inventory validation requires. Parsing is deliberately shallow: names only,
+/// no resolution. Malformed input yields fewer names, never an error.
 fn manifest_dependencies(file_name: &str, bytes: &[u8]) -> Vec<String> {
     let Ok(text) = std::str::from_utf8(bytes) else {
         return Vec::new();
@@ -171,9 +173,130 @@ fn manifest_dependencies(file_name: &str, bytes: &[u8]) -> Vec<String> {
         "pyproject.toml" => pyproject_dependencies(text),
         "go.mod" => go_mod_dependencies(text),
         "Package.swift" => swift_package_dependencies(text),
+        "pom.xml" => maven_dependencies(text),
+        "build.gradle" | "build.gradle.kts" => gradle_dependencies(text),
+        "Gemfile" => gemfile_dependencies(text),
+        "mix.exs" => mix_dependencies(text),
+        "pubspec.yaml" => pubspec_dependencies(text),
+        "requirements.txt" => requirements_dependencies(text),
         _ => BTreeSet::new(),
     };
     names.into_iter().collect()
+}
+
+/// `group:artifact` for a Maven or Gradle coordinate, when both halves are
+/// plain names (a `${property}` or an empty half is rejected).
+fn coordinate_key(group: &str, artifact: &str) -> Option<String> {
+    Some(format!(
+        "{}:{}",
+        dependency_key(group)?,
+        dependency_key(artifact)?
+    ))
+}
+
+/// Maven: `groupId:artifactId` of every `<dependency>` and of the `<parent>`
+/// (for example `org.springframework.boot:spring-boot-starter-parent`).
+fn maven_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let (Ok(block), Ok(group), Ok(artifact)) = (
+        regex::Regex::new(r"(?s)<(dependency|parent)>(.*?)</(?:dependency|parent)>"),
+        regex::Regex::new(r"<groupId>\s*([^<\s]+)\s*</groupId>"),
+        regex::Regex::new(r"<artifactId>\s*([^<\s]+)\s*</artifactId>"),
+    ) else {
+        return names;
+    };
+    for capture in block.captures_iter(text) {
+        let body = &capture[2];
+        let (Some(group), Some(artifact)) = (group.captures(body), artifact.captures(body)) else {
+            continue;
+        };
+        names.extend(coordinate_key(&group[1], &artifact[1]));
+    }
+    names
+}
+
+/// Gradle (Groovy and Kotlin DSL): `group:artifact` from implementation, api,
+/// compile-style lines, plus plugin ids (`id("io.ktor.plugin")`,
+/// `id 'org.springframework.boot'`, `apply plugin: '...'`).
+fn gradle_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let (Ok(coordinate), Ok(plugin)) = (
+        regex::Regex::new(
+            r#"(?m)^\s*(?:implementation|api|compile|compileOnly|runtimeOnly|testImplementation)\s*\(?\s*["']([^"':\s]+):([^"':\s]+)"#,
+        ),
+        regex::Regex::new(r#"(?m)(?:\bid\s*\(?\s*|apply\s+plugin:\s*)["']([^"'\s]+)["']"#),
+    ) else {
+        return names;
+    };
+    for capture in coordinate.captures_iter(text) {
+        names.extend(coordinate_key(&capture[1], &capture[2]));
+    }
+    for capture in plugin.captures_iter(text) {
+        names.extend(dependency_key(&capture[1]));
+    }
+    names
+}
+
+/// Bundler: the gem name of each `gem 'name', ...` line.
+fn gemfile_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let Ok(gem) = regex::Regex::new(r#"(?m)^\s*gem\s*\(?\s*["']([^"']+)["']"#) else {
+        return names;
+    };
+    for capture in gem.captures_iter(text) {
+        names.extend(dependency_key(&capture[1]));
+    }
+    names
+}
+
+/// Mix: the atom of each dependency tuple, such as `{:phoenix, "~> 1.7"}`.
+fn mix_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let Ok(dep) = regex::Regex::new(r"\{\s*:([A-Za-z][A-Za-z0-9_]*)\s*,") else {
+        return names;
+    };
+    for capture in dep.captures_iter(text) {
+        names.insert(capture[1].to_owned());
+    }
+    names
+}
+
+/// Pub: the keys directly under the top-level `dependencies:` mapping. The
+/// Flutter SDK dependency appears as the key `flutter` (with `sdk: flutter`).
+fn pubspec_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let mut in_dependencies = false;
+    for line in text.lines() {
+        if line.trim_start().starts_with('#') {
+            continue;
+        }
+        if !line.starts_with(' ') && !line.trim().is_empty() {
+            in_dependencies = line.trim_end() == "dependencies:";
+            continue;
+        }
+        if !in_dependencies {
+            continue;
+        }
+        // Direct children sit at exactly two spaces of indentation.
+        if let Some(rest) = line.strip_prefix("  ") {
+            if !rest.starts_with(' ') && !rest.starts_with('#') {
+                if let Some((key, _)) = rest.split_once(':') {
+                    names.extend(dependency_key(key));
+                }
+            }
+        }
+    }
+    names
+}
+
+/// pip requirements: the name of each requirement line. Options (`-r`, `-e`),
+/// comments and URL requirements are skipped.
+fn requirements_dependencies(text: &str) -> BTreeSet<String> {
+    text.lines()
+        .map(|line| line.split('#').next().unwrap_or_default().trim())
+        .filter(|line| !line.is_empty() && !line.starts_with('-') && !line.contains("://"))
+        .filter_map(pep508_name)
+        .collect()
 }
 
 fn package_json_dependencies(text: &str) -> BTreeSet<String> {
@@ -1116,6 +1239,85 @@ mod tests {
         );
 
         assert!(manifest_dependencies("README.md", b"react").is_empty());
+    }
+
+    #[test]
+    fn jvm_ruby_elixir_dart_and_python_manifests_yield_dependencies() {
+        let pom = br#"<project>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+  </parent>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>internal</artifactId>
+    </dependency>
+  </dependencies>
+</project>"#;
+        assert_eq!(
+            manifest_dependencies("pom.xml", pom),
+            [
+                "org.springframework.boot:spring-boot-starter-parent",
+                "org.springframework.boot:spring-boot-starter-web"
+            ]
+        );
+
+        let gradle = b"plugins {\n  id 'org.springframework.boot' version '3.2.0'\n}\ndependencies {\n  implementation 'org.springframework.boot:spring-boot-starter-web'\n  testImplementation(\"junit:junit:4.13\")\n}\n";
+        assert_eq!(
+            manifest_dependencies("build.gradle", gradle),
+            [
+                "junit:junit",
+                "org.springframework.boot",
+                "org.springframework.boot:spring-boot-starter-web"
+            ]
+        );
+
+        let kts = b"plugins {\n    id(\"io.ktor.plugin\") version \"2.3.0\"\n}\ndependencies {\n    implementation(\"io.ktor:ktor-server-core:2.3.0\")\n}\n";
+        assert_eq!(
+            manifest_dependencies("build.gradle.kts", kts),
+            ["io.ktor.plugin", "io.ktor:ktor-server-core"]
+        );
+
+        let gemfile = b"source 'https://rubygems.org'\ngem 'rails', '~> 7.1'\n  gem \"pg\"\n# gem 'commented'\n";
+        assert_eq!(manifest_dependencies("Gemfile", gemfile), ["pg", "rails"]);
+
+        let mix = b"defp deps do\n  [{:phoenix, \"~> 1.7.0\"}, {:jason, \"~> 1.4\"}]\nend\n";
+        assert_eq!(manifest_dependencies("mix.exs", mix), ["jason", "phoenix"]);
+
+        let pubspec = b"name: app\ndependencies:\n  flutter:\n    sdk: flutter\n  http: ^1.2.0\ndev_dependencies:\n  test: any\n";
+        assert_eq!(
+            manifest_dependencies("pubspec.yaml", pubspec),
+            ["flutter", "http"]
+        );
+
+        let requirements = b"# pins\nDjango==4.2\n-r base.txt\nflask[async]>=2 ; python_version>\"3\"\ngit+https://github.com/x/y.git\n";
+        assert_eq!(
+            manifest_dependencies("requirements.txt", requirements),
+            ["Django", "flask"]
+        );
+    }
+
+    #[test]
+    fn malformed_new_manifests_yield_no_dependencies_and_no_panic() {
+        for (name, body) in [
+            (
+                "pom.xml",
+                &b"<dependency><groupId>org.x</groupId><artifactId>y"[..],
+            ),
+            ("build.gradle.kts", &b"implementation(\"io.ktor:"[..]),
+            ("build.gradle", &b"id '"[..]),
+            ("Gemfile", &b"gem '"[..]),
+            ("mix.exs", &b"{:"[..]),
+            ("pubspec.yaml", &b"dependencies:\n\t:::\n"[..]),
+            ("requirements.txt", &b"\xff\xfe"[..]),
+        ] {
+            assert!(manifest_dependencies(name, body).is_empty(), "{name}");
+        }
     }
 
     #[test]

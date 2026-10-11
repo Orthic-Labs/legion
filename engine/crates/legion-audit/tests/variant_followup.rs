@@ -13,7 +13,7 @@ use std::{
 
 use legion_audit::native_providers::reasoning::{
     followup::{compile_followup, FOLLOWUP_DIR, FROZEN_PLAN_FILE, VARIANT_PROVIDER_ID},
-    ingest::{create_epoch, ingest_lens_result, recompute_run, EPOCH_KEY_FILE},
+    ingest::{create_epoch, ingest_lens_result, recompute_run, EPOCH_KEY_FILE, LENS_PACKET_DIR},
     pending_lens_work_with_candidates, scanner_candidates_from_execution, PendingLensWork,
     ReasoningProviderExecutor, ADJUDICATOR_PROVIDER_ID,
 };
@@ -197,9 +197,15 @@ fn read_json(path: &Path) -> Value {
 /// lens is pending, with two scanner candidates (one in `src/db.rs`, one in
 /// `src/other.rs`).
 fn setup(name: &str) -> Run {
+    setup_with_source(name, DB_SOURCE)
+}
+
+/// As `setup`, with `src/db.rs` holding `db_source` (its candidate anchor stays
+/// on line 2).
+fn setup_with_source(name: &str, db_source: &str) -> Run {
     let root = temp_dir(name);
     fs::create_dir_all(root.join("src")).unwrap();
-    fs::write(root.join("src/db.rs"), DB_SOURCE).unwrap();
+    fs::write(root.join("src/db.rs"), db_source).unwrap();
     fs::write(root.join("src/other.rs"), "pub fn other() {}\n").unwrap();
     let repository = root.to_string_lossy().into_owned();
     let inventory = FilesystemInventorySource::new(&root)
@@ -324,7 +330,11 @@ fn variant_packet(run: &Run) -> PendingLensWork {
 }
 
 fn variant_result(run: &Run, findings: Value) -> Value {
-    let work = variant_packet(run);
+    variant_part_result(&variant_packet(run), findings)
+}
+
+/// The variant result for one packet (or one numbered part of it).
+fn variant_part_result(work: &PendingLensWork, findings: Value) -> Value {
     json!({
         "schemaVersion": 1,
         "kind": "legion-lens-result",
@@ -335,6 +345,40 @@ fn variant_result(run: &Run, findings: Value) -> Value {
         "findings": findings,
         "withdrawn": [],
     })
+}
+
+/// The variant lens parts on disk of the follow-up, in part order.
+fn variant_parts(run: &Run) -> Vec<PendingLensWork> {
+    let lens_dir = run.run.join(FOLLOWUP_DIR).join(LENS_PACKET_DIR);
+    let prefix = format!("{VARIANT_PROVIDER_ID}.part-");
+    let mut files: Vec<PathBuf> = fs::read_dir(&lens_dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(prefix.as_str()))
+        })
+        .collect();
+    files.sort();
+    files
+        .iter()
+        .map(|path| serde_json::from_value(read_json(path)).unwrap())
+        .collect()
+}
+
+/// `DB_SOURCE` padded to about 1.2 MB, so the one confirmed path is excerpted
+/// into several chunks and the variant denominator needs several packet parts.
+fn padded_db_source() -> String {
+    let mut source = String::from(DB_SOURCE);
+    let mut line = 0usize;
+    while source.len() < 1_200_000 {
+        line += 1;
+        source.push_str(&format!(
+            "// padding line {line:06} keeps the file past one excerpt part\n"
+        ));
+    }
+    source
 }
 
 fn variant_finding() -> Value {
@@ -359,7 +403,11 @@ fn has_pending_gap(gaps: &[String]) -> bool {
 
 /// A run whose adjudication lens is ingested with `src/db.rs` confirmed.
 fn confirmed_run(name: &str) -> Run {
-    let run = setup(name);
+    confirmed_run_with_source(name, DB_SOURCE)
+}
+
+fn confirmed_run_with_source(name: &str, db_source: &str) -> Run {
+    let run = setup_with_source(name, db_source);
     ingest_lens_result(
         &run.run,
         ADJUDICATOR_PROVIDER_ID,
@@ -621,4 +669,98 @@ fn no_confirmed_findings_means_no_followup_and_no_gap() {
         .unwrap()
         .is_none());
     assert!(!run.run.join(FOLLOWUP_DIR).exists());
+}
+
+#[test]
+fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
+    let run = confirmed_run_with_source("multipart", &padded_db_source());
+    let planned = compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .expect("a confirmed finding needs a follow-up");
+    assert!(planned.packets.len() > 1, "{:?}", planned.packets);
+    assert_eq!(planned.packets.len(), planned.packet_digests.len());
+    let lens_dir = run.run.join(FOLLOWUP_DIR).join(LENS_PACKET_DIR);
+    assert!(!lens_dir
+        .join(format!("{VARIANT_PROVIDER_ID}.json"))
+        .exists());
+
+    // Every part is a numbered packet of the same denominator, and every part
+    // carries the confirmed seeds and the parent binding.
+    let parts = variant_parts(&run);
+    let total = parts.len();
+    assert_eq!(parts.len(), planned.packets.len());
+    let parent_digest = read_json(&run.run.join("plan.json"))["seal"]["digest"].clone();
+    for (index, part) in parts.iter().enumerate() {
+        let meta = part.part().expect("numbered part");
+        assert_eq!(
+            (meta.number as usize, meta.total as usize),
+            (index + 1, total)
+        );
+        assert_eq!(
+            part.request.packet["variantSeeds"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            part.request.packet["followup"]["confirmedPaths"],
+            json!(["src/db.rs"])
+        );
+        assert_eq!(
+            part.request.packet["followup"]["parentPlanDigest"],
+            parent_digest
+        );
+    }
+    let index = read_json(&lens_dir.join(format!("{VARIANT_PROVIDER_ID}.index.json")));
+    assert_eq!(index["parts"].as_array().unwrap().len(), total);
+
+    // A second compile keeps the same multi-part follow-up.
+    let again = compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
+    assert!(again.reused);
+    assert_eq!(again.packets.len(), total);
+
+    // One part missing: pending, and the gap names the missing part.
+    let dir = run.run.join(FOLLOWUP_DIR);
+    for part in &parts[..total - 1] {
+        ingest_lens_result(
+            &dir,
+            VARIANT_PROVIDER_ID,
+            &variant_part_result(part, json!([])),
+        )
+        .unwrap();
+    }
+    let partial = recompute_run(&run.run).unwrap();
+    assert!(
+        has_pending_gap(&partial.report.gaps),
+        "{:?}",
+        partial.report.gaps
+    );
+    let claim = &partial.report.claims["securityVariantFollowup"];
+    assert_eq!(claim["status"], "pending");
+    let reason = claim["reason"].as_str().unwrap();
+    assert!(
+        reason.contains(&format!("part(s) {total} of {total} not yet ingested")),
+        "{reason}"
+    );
+
+    // Every part ingested: the variant denominator is covered and the gap clears.
+    ingest_lens_result(
+        &dir,
+        VARIANT_PROVIDER_ID,
+        &variant_part_result(&parts[total - 1], json!([])),
+    )
+    .unwrap();
+    let after = recompute_run(&run.run).unwrap();
+    assert!(
+        !has_pending_gap(&after.report.gaps),
+        "{:?}",
+        after.report.gaps
+    );
+    assert_eq!(
+        after.report.claims["securityVariantFollowup"]["status"],
+        "complete"
+    );
 }

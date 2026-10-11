@@ -14,6 +14,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use super::browser::ChromeDriver;
+use crate::wf_port::w2_013::screenshot_contrast::{
+    tab_apply_hide, tab_remove_hide, tab_screenshot_png, Clip,
+};
 
 /// Owns a headless browser + single tab, navigated fresh for each
 /// [`RealChromeDriver::new`] call — mirrors `detectUrlCdp` launching one
@@ -73,5 +76,17 @@ impl ChromeDriver for RealChromeDriver {
             .evaluate(expression, true)
             .map_err(|e| e.to_string())?;
         Ok(remote_object.value.unwrap_or(serde_json::Value::Null))
+    }
+
+    fn screenshot_png(&mut self, clip: Clip) -> Result<Vec<u8>, String> {
+        tab_screenshot_png(&self.tab, clip)
+    }
+
+    fn apply_hide(&mut self, selector: &str, background_clip_text: bool) -> Result<bool, String> {
+        tab_apply_hide(&self.tab, selector, background_clip_text)
+    }
+
+    fn remove_hide(&mut self, selector: &str) {
+        tab_remove_hide(&self.tab, selector)
     }
 }

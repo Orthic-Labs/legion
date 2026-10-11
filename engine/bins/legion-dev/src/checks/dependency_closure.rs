@@ -3,7 +3,7 @@
 // classifies package resources, host capabilities, project overlays, and
 // historical evidence before a host projects or invokes that bundle.
 
-use super::{read_json, read_text};
+use super::{read_json, read_text_checked};
 use crate::shared::capabilities::{command_capability_map, load_capability_registry};
 use crate::shared::route_resources::scoped_host_capabilities;
 use crate::shared::skill_frontmatter::parse_skill_frontmatter;
@@ -485,8 +485,8 @@ fn verify_bundle_dependencies(
     }
 
     let skill_path = skill_root.join("SKILL.md");
-    match read_text(&skill_path) {
-        Some(text) => {
+    match read_text_checked(&skill_path) {
+        Ok(Some(text)) => {
             match parse_skill_frontmatter(&text, &format!("skills/{manifest_id}/SKILL.md")) {
                 Ok(frontmatter) => {
                     let required: HashSet<String> =
@@ -539,11 +539,17 @@ fn verify_bundle_dependencies(
                 )),
             }
         }
-        None => findings.push(finding(
+        Ok(None) => findings.push(finding(
             Some(manifest_id),
             Some("SKILL.md"),
             "invalid-skill-frontmatter",
             format!("{}: missing YAML frontmatter opener", skill_path.display()),
+        )),
+        Err(e) => findings.push(finding(
+            Some(manifest_id),
+            Some("SKILL.md"),
+            "unreadable-skill-file",
+            e,
         )),
     }
 

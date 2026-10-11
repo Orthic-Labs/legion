@@ -657,6 +657,7 @@ fn native_script_list_includes_sc5_entries() {
         "qa/qa-shot",
         "qa/qa-functional",
         "foundation/validate-atom-report",
+        "foundation/export-analytics",
         "seo/banana-presets",
         "seo/banana-cost-tracker",
         "seo/banana-generate",

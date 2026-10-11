@@ -105,3 +105,173 @@ as the `/covenant` alias, the `covenant` entry under `seats.council.aliases` in
 | `skills/writing/specialists/copywriting/references/ad-assets/generative-tools.md` | 2026-10-11 skill sweep | none — vendor tool catalogue with no backing capability in the package | intentionally dropped |
 | `skills/seo/extensions/banana/references/seo-image-presets.md` | 2026-10-11 skill sweep | `skills/seo/references/image-gen-assets/seo-image-presets.md` (identical duplicate kept) | successor |
 | `skills/tasklist/examples/sage-adjudication.json`, `skills/tasklist/examples/tasklist-authority.packet.json`, `skills/tasklist/examples/tasklist-authority.packet.receipt.json`, `skills/tasklist/examples/tasklist-authority.prompt.txt` | 2026-10-11 skill sweep | none — examples encoded the retired contract-per-dispatch policy | intentionally dropped |
+
+## Designer scripts verified against history (2026-10-11 review)
+
+Each row was checked against the deletion commit and the successor files at HEAD. PARTIAL means the successor ports only part of the behaviour; the successor cell names what is missing.
+
+| Path or rule | Retired in commit | Successor | Reason |
+|---|---|---|---|
+| `skills/designer/engine/huashu/scripts/html2pptx.js` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_007/html2pptx.rs`, `engine/crates/legion-runtime/src/wf_port/w2_007/html2pptx_extract.js` | successor |
+| `skills/designer/engine/scripts/detector/browser/injected/index.mjs` | ebb349ae | `skills/designer/engine/scripts/detector/detect-antipatterns-browser.js` (kept in place; its header names it as the successor) | successor |
+| `skills/designer/engine/scripts/detector/cli/main.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/r05/cli.rs`, `engine/crates/legion-runtime/src/wf_port/w2_011/cli_output.rs` | successor |
+| `skills/designer/engine/scripts/detector/design-system.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_011/design_system.rs`, `engine/crates/legion-runtime/src/wf_port/w2_011/design_system_fs.rs`, `engine/crates/legion-runtime/src/wf_port/w2_011/design_system_dom.rs` | successor |
+| `skills/designer/engine/scripts/detector/detect-antipatterns.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_011/mod.rs` (facade; each re-exported module has its own Rust successor) | successor |
+| `skills/designer/engine/scripts/detector/engines/browser/detect-url-cdp.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/r07/detect_url.rs`, `engine/crates/legion-runtime/src/wf_port/r07/browser.rs`, `engine/crates/legion-runtime/src/wf_port/r07/real.rs` | successor |
+| `skills/designer/engine/scripts/detector/engines/browser/detect-url.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/r07/detect_url.rs` (PARTIAL: scan path ported; the visual-contrast fallback is not, and returns unavailable) | successor |
+| `skills/designer/engine/scripts/detector/engines/regex/detect-text.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_012/detect_text.rs`, `engine/crates/legion-runtime/src/wf_port/r08/detect_text_matchers.rs` | successor |
+| `skills/designer/engine/scripts/detector/engines/site/sweep.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_012/sweep.rs`, `engine/crates/legion-runtime/src/wf_port/r08/sweep_live.rs` | successor |
+| `skills/designer/engine/scripts/detector/engines/static-html/css-cascade.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_012/css_cascade.rs`, `engine/crates/legion-runtime/src/wf_port/r09/mod.rs` | successor |
+| `skills/designer/engine/scripts/detector/engines/static-html/detect-html.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_013/detect_html.rs` | successor |
+| `skills/designer/engine/scripts/detector/engines/visual/screenshot-contrast.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_013/screenshot_contrast.rs` (PARTIAL: no production caller; tests only) | successor |
+| `skills/designer/engine/scripts/detector/findings.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_013/findings.rs`, `engine/crates/legion-runtime/src/wf_port/w2_014/antipatterns.rs` | successor |
+| `skills/designer/engine/scripts/detector/node/file-system.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_013/file_system.rs` | successor |
+| `skills/designer/engine/scripts/detector/profile/profiler.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_013/profiler.rs` (PARTIAL: async profiling wrappers profileStepAsync and profileFindingsAsync not ported) | successor |
+| `skills/designer/engine/scripts/detector/registry/antipatterns.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_014/antipatterns.rs` | successor |
+| `skills/designer/engine/scripts/detector/rules/checks.mjs` | ebb349ae | `engine/crates/legion-runtime/src/l6_designer_checks/css_color.rs`, `engine/crates/legion-runtime/src/l6_designer_checks/pure_checks.rs`, `engine/crates/legion-runtime/src/wf_port/r11/`, `engine/crates/legion-runtime/src/wf_port/w2_013/detect_html.rs`, `engine/crates/legion-runtime/src/wf_port/r09/mod.rs` (PARTIAL: live-DOM adapter variants not ported; they remain in the JS injected for URL scans) | successor |
+| `skills/designer/engine/scripts/detector/shared/color.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_014/color.rs` | successor |
+| `skills/designer/engine/scripts/detector/shared/constants.mjs` | ebb349ae | `engine/crates/legion-runtime/src/p8_designer/constants.rs` | successor |
+| `skills/designer/engine/scripts/detector/shared/page.mjs` | ebb349ae | `engine/crates/legion-runtime/src/p8_designer/page.rs` | successor |
+| `skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs` | ebb349ae | none; no Designer route or skill depends on it. A stale comment in the detector JS still points at it. Its fixtures under `skills/designer/engine/scripts/detector/tests/structure/` are orphaned | intentionally dropped |
+| `skills/designer/engine/scripts/hook-lib.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_015/mod.rs`, `engine/crates/legion-runtime/src/wf_port/r12/mod.rs`, `engine/crates/legion-runtime/src/wf_port/r13/mod.rs`, `engine/crates/legion-runtime/src/wf_port/r14/mod.rs` | successor |
+| `skills/designer/engine/scripts/lib/design-parser.mjs` | ebb349ae | no successor yet; `skills/designer/engine/scripts/live-browser.js` (line 10439) fetches /design-system.json, which no route serves, so the Design System panel shows its load-failure state | dropped, restoration pending |
+| `skills/designer/engine/scripts/lib/impeccable-config.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_016/impeccable_config.rs` | successor |
+| `skills/designer/engine/scripts/lib/impeccable-paths.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_016/impeccable_paths.rs`, `engine/crates/legion-runtime/src/wf_port/q_q1/paths.rs` | successor |
+| `skills/designer/engine/scripts/lib/is-generated.mjs` | ebb349ae | `engine/crates/legion-runtime/src/p8_designer/is_generated.rs` | successor |
+| `skills/designer/engine/scripts/lib/target-args.mjs` | ebb349ae | `engine/crates/legion-runtime/src/p8_designer/target_args.rs` | successor |
+| `skills/designer/engine/scripts/live-copy-edit-agent.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_018/copy_edit_agent.rs` | successor |
+| `skills/designer/engine/scripts/live-discard-manual-edits.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_018/discard.rs` | successor |
+| `skills/designer/engine/scripts/live-manual-edit-evidence.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_018/evidence.rs` | successor |
+| `skills/designer/engine/scripts/live/browser-script-parts.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_020/browser_script_parts.rs` | successor |
+| `skills/designer/engine/scripts/live/completion.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_020/completion.rs` | successor |
+| `skills/designer/engine/scripts/live/event-validation.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_020/event_validation.rs` | successor |
+| `skills/designer/engine/scripts/live/insert-ui.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_021/insert_ui.rs` | successor |
+| `skills/designer/engine/scripts/live/manual-apply.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_021/manual_apply.rs` | successor |
+| `skills/designer/engine/scripts/live/manual-edit-routes.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_021/manual_edit_routes.rs`, `engine/crates/legion-runtime/src/wf_port/r24/http_server.rs` | successor |
+| `skills/designer/engine/scripts/live/manual-edits-buffer.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_021/manual_edits_buffer.rs` | successor |
+| `skills/designer/engine/scripts/live/session-store.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_021/session_store.rs` | successor |
+| `skills/designer/engine/scripts/live/svelte-component.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_022/svelte_component.rs` (the r31 filesystem layer its header cites has no file at HEAD; exports matched by name) | successor |
+| `skills/designer/engine/scripts/live/sveltekit-adapter.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_022/sveltekit_adapter.rs` | successor |
+| `skills/designer/engine/scripts/live/vocabulary.mjs` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_022/vocabulary.rs` | successor |
+| `skills/designer/engine/scripts/modern-screenshot.umd.js` | ebb349ae | no successor yet; `skills/designer/engine/scripts/live-browser.js` (lines 6749-6755) lazy-loads /modern-screenshot.js, which no route serves | dropped, restoration pending |
+| `skills/designer/scripts/design-gate.mjs` | cae05d40 | none; no Designer route or skill reference expects it, and the Phase 5d gate it wrapped has no Rust port | intentionally dropped |
+| `skills/designer/scripts/open-for-review.mjs` | cae05d40 | `engine/crates/legion-runtime/src/p7_host/open_for_review.rs` (PARTIAL: decision logic ported; argv entry point, caller and OS viewer launch not ported) | successor |
+
+## Other script dispositions verified against history (2026-10-11 review)
+
+| Path or rule | Retired in commit | Successor | Reason |
+|---|---|---|---|
+| `skills/ads/references/generate-assets/compose-helper.mjs` | 55cab369 | none; no reference at HEAD expects the channel composition helper | intentionally dropped |
+| `skills/alchemist/tests/test_posix_runner.py` | ebb349ae | none; it tested the retired run-worker stack, which host-native agents replace | intentionally dropped |
+| `skills/alchemist/tests/test_windows_runner.py` | ebb349ae | none; it tested the retired run-worker stack, which host-native agents replace | intentionally dropped |
+| `skills/audit-fix/scripts/audit-run.mjs` | cae05d40 | `engine/crates/legion-audit/src/wf_port/wf064/run.rs` (PARTIAL: pure helpers ported; runAuditProviders, executeUnexecutedProviders and main not ported) | successor |
+| `skills/audit-visual/scripts/visual-core.mjs` | cae05d40 | `engine/crates/legion-audit/src/native_providers/p11c_experience/visual_core.rs` | successor |
+| `skills/audit/scripts/audit-finalize.mjs` | cae05d40 | `engine/crates/legion-audit/src/wf_port/wf064/finalize.rs`, `engine/bins/legion-dev/src/generators/report_to_sarif.rs` | successor |
+| `skills/audit/scripts/audit-sandbox.mjs` | cae05d40 | `engine/crates/legion-effects/src/sandbox.rs` (PARTIAL: total network-deny profile only; localhost-allowing profile and nonce receipt not ported) | successor |
+| `skills/dispatch/legacy-source/dispatch/scripts/test_validate_dispatch.py` | 03d1928d | `engine/crates/legion-runtime/src/wf_port/r46/cli.rs`, `engine/crates/legion-runtime/tests/r46c1_goal_route.rs` | successor |
+| `skills/dispatch/minimize/minimize_gate.py` | ebb349ae | `engine/crates/legion-minimize/src/review.rs`, `engine/crates/legion-minimize/src/decision.rs`, `engine/bins/legion/src/commands/minimize.rs` | successor |
+| `skills/dispatch/scripts/test_validate_dispatch.py` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/r46/cli.rs`, `engine/crates/legion-runtime/tests/r46c1_goal_route.rs` | successor |
+| `skills/handoff/legacy-source/handoff/scripts/test_transcript_handoff.py` | 03d1928d | `engine/crates/legion-handoff/tests/l1_port_pointer.rs` | successor |
+| `skills/handoff/legacy-source/handoff/scripts/test_validate_handoff.py` | 03d1928d | `engine/crates/legion-handoff/tests/l1b_validate.rs` | successor |
+| `skills/handoff/scripts/test_transcript_handoff.py` | baf6ee5f | `engine/crates/legion-handoff/tests/l1_port_pointer.rs` | successor |
+| `skills/handoff/scripts/test_validate_handoff.py` | ebb349ae | `engine/crates/legion-handoff/tests/l1b_validate.rs` | successor |
+| `skills/qa/legacy-source/qa/scripts/qa.mjs` | 03d1928d | `engine/crates/legion-runtime/src/wf_port/r54/` | successor |
+| `skills/qa/scripts/qa.mjs` | ebb349ae | `engine/crates/legion-runtime/src/p9_skills/qa.rs` | successor |
+| `skills/research/scripts/research-core.py` | cae05d40 | `engine/crates/legion-research/src/research_port/stopping.rs`, `engine/crates/legion-research/src/research_port/query.rs`, `engine/crates/legion-research/src/research_port/failure_taxonomy.rs`, `engine/crates/legion-research/src/research_port/effects.rs`, `engine/crates/legion-research/src/research_port/common.rs` (PARTIAL: 5 of 9 modules ported) | successor |
+| `skills/seo/extensions/banana/scripts/batch.py` | ebb349ae | standalone SEO repository: extensions/banana/scripts/batch.py | successor |
+| `skills/seo/extensions/banana/scripts/cost_tracker.py` | ebb349ae | standalone SEO repository: extensions/banana/scripts/cost_tracker.py | successor |
+| `skills/seo/extensions/banana/scripts/generate.py` | ebb349ae | standalone SEO repository: extensions/banana/scripts/generate.py (content differs from the deleted copy) | successor |
+| `skills/seo/extensions/banana/scripts/presets.py` | ebb349ae | standalone SEO repository: extensions/banana/scripts/presets.py | successor |
+| `skills/seo/extensions/banana/scripts/setup_mcp.py` | ebb349ae | standalone SEO repository: extensions/banana/scripts/setup_mcp.py | successor |
+| `skills/seo/extensions/banana/scripts/validate_setup.py` | ebb349ae | standalone SEO repository: extensions/banana/scripts/validate_setup.py | successor |
+| `skills/seo/hooks/pre-commit-seo-check.sh` | ebb349ae | standalone SEO repository: hooks/pre-commit-seo-check.sh (content differs from the deleted copy) | successor |
+| `skills/tasklist/engine/validate-dispatch.py` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/r46/cli.rs`, `engine/crates/legion-runtime/src/wf_port/w2_044/` | successor |
+| `skills/tasklist/engine/validate-tasklist-legacy.py` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/w2_044/tasklist.rs` (PARTIAL: dispatch-packet and receipt path only; timeline and clock-gap checks, LINES_PER_MINUTE, PARALLEL_LANES_JSON, DEFERRED/DELETED_WORK_JSON, COMPLETE-requires-DONE, goal-route and minimize sibling checks not ported) | successor |
+| `skills/tasklist/goalroute/scripts/validate-route.py` | ebb349ae | `engine/crates/legion-runtime/src/wf_port/r46/goal_route_validator.rs` | successor |
+| `skills/tasklist/legacy-source/tasklist/scripts/test_validate_tasklist.py` | 03d1928d | `engine/crates/legion-runtime/tests/wf_w2_044.rs` (PARTIAL: timeline cases target checks not ported) | successor |
+| `skills/tasklist/minimize/minimize_gate.py` | ebb349ae | `engine/crates/legion-minimize/src/review.rs`, `engine/crates/legion-minimize/src/decision.rs`, `engine/bins/legion/src/commands/minimize.rs` | successor |
+| `skills/tasklist/scripts/test_validate_tasklist.py` | ebb349ae | `engine/crates/legion-runtime/tests/wf_w2_044.rs` (PARTIAL: timeline cases target checks not ported) | successor |
+| `skills/tasklist/tests/tasklist-entrypoint.test.py` | ebb349ae | none; it validated the retired example packet listed in the 2026-10-11 skill sweep row | intentionally dropped |
+| `tools/audit/audit_provider.py` | f2cc5a77 | none; the Membrane context transport it fed is retired (row for Membrane context) | intentionally dropped |
+| `tools/audit/audit_store.py` | f2cc5a77 | `engine/crates/legion-audit/src/p12_pipeline/mod.rs` (PARTIAL: finding-ID derivation only; findings store, lifecycle and show CLI not ported) | successor |
+| `scripts/ci/native-installed-smoke.mjs` | 1908f4f6 | `engine/xtask/src/native_installed_smoke.rs` | successor |
+| `scripts/ci/prepare-unsigned-candidate.mjs` | 1908f4f6 | `engine/xtask/src/prepare_unsigned_candidate.rs` | successor |
+| `scripts/lib/skill-frontmatter.mjs` | 1908f4f6 | `engine/bins/legion-dev/src/shared/skill_frontmatter.rs` | successor |
+| `scripts/native-cli/capture-node-characterization.mjs` | fc366b5b | none; it served the retired Node CLI. Its frozen outputs stay as data under `tests/native-cli-characterization/` | intentionally dropped |
+| `scripts/native-cli/gate.mjs` | 1908f4f6 | `engine/bins/legion-dev/src/native_cli_gate.rs` | successor |
+| `scripts/native-cli/inventory.mjs` | 1908f4f6 | `engine/bins/legion-dev/src/generators/native_cli_inventory.rs` | successor |
+| `scripts/native-cli/run-installed-parity.mjs` | 1908f4f6 | `engine/bins/legion-dev/src/generators/native_cli_installed_parity.rs` | successor |
+| `scripts/native-cli/run-rust-characterization.mjs` | 1908f4f6 | `engine/bins/legion-dev/src/generators/native_cli_rust_characterization.rs` | successor |
+| `scripts/native-cli/test-helper.mjs` | 1908f4f6 | none; it served the retired Node product test suite. The successor env contract LEGION_TEST_NATIVE_CLI_PATH is set by `engine/xtask/src/prepare_unsigned_candidate.rs` | intentionally dropped |
+| `scripts/release/admission.mjs` | 1908f4f6 | `engine/xtask/src/release/admission.rs` | successor |
+| `scripts/release/admission.test.mjs` | 1908f4f6 | `engine/xtask/src/release/admission.rs` (8 Rust test functions replace the six Node cases) | successor |
+| `scripts/release/installer-release-chain.mjs` | 1908f4f6 | `engine/xtask/src/release/installer_release_chain.rs` | successor |
+| `scripts/release/local-windows-development.mjs` | 1908f4f6 | `engine/xtask/src/release/local_windows_development.rs` | successor |
+| `scripts/release/macos/build-installer.mjs` | 1908f4f6 | `engine/xtask/src/release/macos_build_installer.rs` | successor |
+| `scripts/release/macos/finalize.mjs` | 1908f4f6 | `engine/xtask/src/release/macos_finalize.rs` | successor |
+| `scripts/release/process-boundary.mjs` | 1908f4f6 | `engine/xtask/src/process_boundary.rs` | successor |
+| `scripts/release/windows/finalize-installer.mjs` | 1908f4f6 | `engine/xtask/src/release/windows_finalize_installer.rs` | successor |
+| `scripts/release/windows/finalize.mjs` | 1908f4f6 | `engine/xtask/src/release/windows_finalize.rs` | successor |
+| `scripts/release/windows/qualify-installed.mjs` | 1908f4f6 | `engine/xtask/src/release/windows_qualify_installed.rs` | successor |
+| `scripts/release/windows/qualify-installed.test.mjs` | 1908f4f6 | `engine/xtask/src/release/windows_qualify_installed.rs` (PARTIAL: the success-path no-failure-receipt case has no named Rust test) | successor |
+
+## Workspace-era skills (pre-package)
+
+These skills lived at `tools/skills/<name>/` in the parent workspace, not in this repository. Their paths are relative to that workspace root.
+
+| Path or rule | Retired in commit | Successor | Reason |
+|---|---|---|---|
+| `tools/skills/architecture/` | pre-package (workspace) | `skills/architect` (merged) | successor |
+| `tools/skills/architecture-design/` | pre-package (workspace) | `skills/architect` (merged) | successor |
+| `tools/skills/review/` | pre-package (workspace) | `skills/council` (merged) | successor |
+| `tools/skills/review-self/` | pre-package (workspace) | `skills/council` (merged) | successor |
+| `tools/skills/hormozi/` | pre-package (workspace) | `skills/council/references/rubrics/offer.md` (rubric only) | successor |
+| `tools/skills/plan/` | pre-package (workspace) | `skills/marketing` (strategy) | successor |
+| `tools/skills/competitor/` | pre-package (workspace) | `skills/foundation` (compare) | successor |
+| `tools/skills/route/` | pre-package (workspace) | `skills/dispatch` (merged) | successor |
+| `tools/skills/swarm/` | pre-package (workspace) | `skills/dispatch` (merged) | successor |
+| `tools/skills/jfdi/` | pre-package (workspace) | `skills/alchemist` (merged) | successor |
+| `tools/skills/justdoit/` | pre-package (workspace) | `skills/alchemist` (merged) | successor |
+| `tools/skills/verification-before-completion/` | pre-package (workspace) | AGENTS.md evidence rule and `skills/oracle` (merged) | successor |
+| `tools/skills/morph/` | pre-package (workspace) | none; served the retired preference mining | intentionally dropped |
+| `tools/skills/adapt/` | pre-package (workspace) | none; served the retired preference mining | intentionally dropped |
+| `tools/skills/claude-api/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/connect/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/contentcreation/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/context-metrics/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/demo-recorder/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/dictate/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/doctor/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/fable/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/file-organizer/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/hatch-pet/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/illustrate/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/image-enhancer/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/invoice-organizer/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/kdp/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/meeting-insights-analyzer/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/mem-recency/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/raffle-winner-picker/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/remotion-best-practices/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/scrapegraph/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/seedance/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/skillopt-sleep/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/token-audit/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/transcribe/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/video-downloader/` | pre-package (workspace) | none; workspace-only, never part of this package | intentionally dropped |
+| `tools/skills/test-author/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/file-search/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/script/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/status/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/init/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/brief/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/context-hygiene/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/hooks-automation/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/workflow-automation/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/writing-skills/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/doc-coauthoring/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/internal-comms/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/brainstorming/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/writing-plans/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/hardeningscan/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `tools/skills/review-frontend/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |

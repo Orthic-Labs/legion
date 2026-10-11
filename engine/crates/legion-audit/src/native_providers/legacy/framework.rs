@@ -66,17 +66,25 @@ fn is_go_web_module(lower: &str) -> bool {
     })
 }
 
-/// Maps a manifest dependency name (package.json, Cargo.toml, pyproject.toml,
-/// go.mod, Package.swift -- the only manifests inventory discovery reads) to a
-/// framework family. Spring, Ktor, Rails, Phoenix and Flutter have rules but
-/// their manifests (pom.xml/build.gradle, Gemfile, mix.exs, pubspec.yaml) are
-/// not discovered, so no dependency name can reach them here.
+/// Maps a manifest dependency name (as inventory discovery records it: package
+/// names, Cargo/PyPI/Go/SwiftPM names, Maven and Gradle `group:artifact` and
+/// plugin ids, gem names, mix atoms, pub package names) to a framework family.
+/// Prefix families (`org.springframework.boot*`, `io.ktor*`) match by prefix.
 fn family_name(dependency: &str) -> Option<&'static str> {
     let lower = dependency.to_ascii_lowercase();
     if is_go_web_module(&lower) {
         return Some("go-web");
     }
+    if lower.starts_with("org.springframework.boot") || lower.starts_with("spring-boot-starter") {
+        return Some("spring");
+    }
+    if lower.starts_with("io.ktor") {
+        return Some("ktor");
+    }
     match lower.as_str() {
+        "rails" => Some("rails"),
+        "phoenix" => Some("phoenix"),
+        "flutter" => Some("flutter"),
         "next" => Some("next"),
         "react" => Some("react"),
         "vue" => Some("vue"),

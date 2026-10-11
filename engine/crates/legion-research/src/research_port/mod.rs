@@ -4,10 +4,16 @@
 //! `/private/tmp/.../scratchpad/loss/full-P2-research.md` for the per-file
 //! port status table.
 
+pub mod citecheck;
 pub mod common;
 pub mod effects;
 pub mod failure_taxonomy;
+pub mod independence;
+pub mod ledger;
+pub mod meter;
+pub mod pyval;
 pub mod query;
+pub mod retraction;
 pub mod stopping;
 
 pub use common::{append_jsonl, atomic_write_json, atomic_write_text, sha256_text, today, utc_now};

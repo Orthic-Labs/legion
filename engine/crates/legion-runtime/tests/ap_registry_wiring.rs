@@ -100,8 +100,16 @@ fn real_detectors_detect_text_passes_through_when_no_providers_gated_off() {
 
 #[test]
 fn real_detectors_url_scan_uses_the_same_registry() {
+    // Responses: config patch, script, detector groups, then the visual-contrast
+    // lane's analysis and candidate-collect probes (both absent -> no results).
     let mut driver = FakeDriver {
-        responses: vec![Value::Null, Value::Null, json!([])],
+        responses: vec![
+            Value::Null,
+            Value::Null,
+            json!([]),
+            Value::Null,
+            Value::Null,
+        ],
     };
     let registry = RegistryLookup;
     let fetcher = FakeFetcher;

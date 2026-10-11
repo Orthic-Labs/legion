@@ -11,6 +11,7 @@ mod contracts;
 pub(crate) mod parsers;
 mod registry;
 mod resolver;
+mod runtime_capture;
 
 pub use contracts::{
     CommandShape, LegacyCheckError, LegacyCheckExecution, LegacyCheckInput, LegacyCheckOutput,
@@ -19,6 +20,7 @@ pub use contracts::{
 };
 pub use registry::{spec, specs, LEGACY_CHECK_SPECS};
 pub use resolver::{resolve_command, resolve_request, ResolveError, ResolvedCommand};
+pub use runtime_capture::runtime_inputs;
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -537,13 +539,9 @@ impl LegacyCheckDispatcher {
         }
         // A tool or project configuration that is simply absent is a typed
         // `unavailable:<reason>` gap, never a failed provider: nothing ran and
-        // nothing broke. (`legacy.runtime.app` has no shipped `audit-runtime`
-        // executable, so it always lands here.)
+        // nothing broke.
         let unavailable_reason = (execution.state == LegacyCheckProcessState::MissingExecutable)
             .then(|| {
-                if provider.id == "legacy.runtime.app" {
-                    return "executable-not-shipped:audit-runtime".to_owned();
-                }
                 let gap_text = output
                     .coverage_gaps
                     .iter()
@@ -776,6 +774,12 @@ impl NativeLegacyCheckExecutor {
         let contract = spec(&provider.id).expect("validated above");
         if matches!(contract.command, CommandShape::Native { .. }) {
             return self.execute(provider, inventory);
+        }
+        // Runtime capture runs one browser invocation per requested surface
+        // and builds its own evidence; it never goes through the single-run
+        // parser path below.
+        if contract.check == "runtime" {
+            return runtime_capture::execute(self, plan, provider, &input, cancellation).await;
         }
         let Some(tool) = &self.external_project_tool else {
             return dispatcher
@@ -1033,7 +1037,6 @@ fn sandbox_required_check(check: &str) -> bool {
             | "js_licenses"
             | "cargo_unsafe"
             | "cargo_unused_deps"
-            | "runtime"
             | "deps_cve"
             | "py_deps_cve"
             | "cargo_audit"

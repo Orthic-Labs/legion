@@ -178,9 +178,13 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         role: "deterministic",
         tool: "audit-runtime.mjs",
         selector: r#"{"op":"anyPackageScript","names":["dev","start","preview","qa:browser"]}"#,
+        // Host-owned capture: the running Legion executable's own browser
+        // route, resolved by `resolver::RUNTIME_CAPTURE_TOOL`. The per-surface
+        // `--url`/viewport/`--actions` arguments are appended at run time by
+        // `runtime_capture` from the plan-sealed `runner.runtime` inputs.
         command: CommandShape::Named {
-            tool: "audit-runtime",
-            args: &["--json"],
+            tool: "legion-qa-shot",
+            args: &["script", "qa/qa-functional"],
         },
     },
     LegacyCheckSpec {

@@ -115,7 +115,13 @@ fn native_rules_evaluate_local_inventory_bound_source() {
         String::from_utf8_lossy(&audit.stderr)
     );
     let audit_summary: serde_json::Value = serde_json::from_slice(&audit.stdout).unwrap();
-    assert_eq!(audit_summary["auditStatus"], "findings");
+    // The plan is a bare provider list, so the run cannot read as bound.
+    assert_eq!(audit_summary["auditStatus"], "incomplete");
+    assert!(audit_summary["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap == "unsealed-plan"));
     assert_eq!(audit_summary["findingCount"], 1);
     assert!(audit_out.join("report.json").is_file());
     assert!(audit_out.join("report.sarif").is_file());
@@ -218,7 +224,13 @@ fn native_audit_runs_on_local_filesystem_inventory_only() {
         String::from_utf8_lossy(&audit.stderr)
     );
     let summary: serde_json::Value = serde_json::from_slice(&audit.stdout).unwrap();
-    assert_eq!(summary["auditStatus"], "pass");
+    // The plan is a bare provider list, so the run cannot read as bound.
+    assert_eq!(summary["auditStatus"], "incomplete");
+    assert!(summary["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap == "unsealed-plan"));
     assert_eq!(summary["contextNotices"], serde_json::json!([]));
     let report: serde_json::Value =
         serde_json::from_slice(&std::fs::read(audit_out.join("report.json")).unwrap()).unwrap();

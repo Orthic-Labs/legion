@@ -158,3 +158,192 @@ fn research_route_extensions_round_trip_and_bind_digest() {
     assert!(encoded.contains("subject_extension"));
     assert!(encoded.contains("patient_extension"));
 }
+
+fn step_dir(name: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "legion-research-step-{}-{name}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).expect("step fixture directory");
+    dir
+}
+
+const GOOD_EVIDENCE: &str = r#"{"id":"e1","url":"https://a.test/1","publisher":"Vendor","retrieved_at":"2026-08-01","locator":"section 2","suggested_by":"search","seed_chain":["seed"],"instructionPolicy":"data_only","body_plain":"The vendor price is 10 dollars per seat per month.","source_type":"web"}"#;
+const GOOD_CLAIM: &str = r#"{"id":"c1","claim_type":"observation","text":"The vendor price is 10 dollars per seat","confidence":"low","as_of":"2026-08-01","source_ids":["e1"]}"#;
+
+#[test]
+fn research_step_ledger_check_reports_ok_for_a_sound_ledger() {
+    let dir = step_dir("ledger-check");
+    let evidence = dir.join("evidence.jsonl");
+    let claims = dir.join("claims.jsonl");
+    std::fs::write(&evidence, format!("{GOOD_EVIDENCE}\n")).unwrap();
+    std::fs::write(&claims, format!("{GOOD_CLAIM}\n")).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "research",
+            "--step",
+            "ledger-check",
+            "--evidence",
+            evidence.to_str().unwrap(),
+            "--claims",
+            claims.to_str().unwrap(),
+        ])
+        .output()
+        .expect("native Legion research must execute");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "ok");
+    assert_eq!(value["step"], "ledger-check");
+    assert_eq!(value["result"]["overall_ok"], true);
+    assert_eq!(value["result"]["clusters"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn research_step_ledger_render_writes_the_brief_when_clean() {
+    let dir = step_dir("ledger-render");
+    let evidence = dir.join("evidence.jsonl");
+    let claims = dir.join("claims.jsonl");
+    let out = dir.join("draft.md");
+    std::fs::write(&evidence, format!("{GOOD_EVIDENCE}\n")).unwrap();
+    std::fs::write(&claims, format!("{GOOD_CLAIM}\n")).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "research",
+            "--step",
+            "ledger-render",
+            "--evidence",
+            evidence.to_str().unwrap(),
+            "--claims",
+            claims.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+            "--title",
+            "Brief",
+        ])
+        .output()
+        .expect("native Legion research must execute");
+    let draft = std::fs::read_to_string(&out).unwrap_or_default();
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "ok");
+    assert!(draft.starts_with("# Brief\n"));
+    assert!(draft.contains("[+e1]"));
+}
+
+#[test]
+fn research_step_citecheck_fails_an_unsupported_number() {
+    let dir = step_dir("citecheck");
+    let evidence = dir.join("evidence.jsonl");
+    let draft = dir.join("draft.md");
+    std::fs::write(&evidence, format!("{GOOD_EVIDENCE}\n")).unwrap();
+    std::fs::write(&draft, "The vendor price is 99 dollars per seat [+e1].\n").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "research",
+            "--step",
+            "citecheck",
+            "--draft",
+            draft.to_str().unwrap(),
+            "--evidence",
+            evidence.to_str().unwrap(),
+        ])
+        .output()
+        .expect("native Legion research must execute");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "failed");
+    assert_eq!(value["result"]["ok"], false);
+    assert_eq!(value["result"]["summary"]["unsupported_or_partial"], 1);
+}
+
+#[test]
+fn research_step_retraction_without_network_is_a_typed_gap() {
+    let dir = step_dir("retraction");
+    let dois = dir.join("dois.txt");
+    std::fs::write(&dois, "10.1/example\n").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "research",
+            "--step",
+            "retraction",
+            "--dois",
+            dois.to_str().unwrap(),
+        ])
+        .output()
+        .expect("native Legion research must execute");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "unavailable");
+    assert_eq!(value["reason"], "unavailable:network-step-not-run");
+    assert_eq!(value["result"]["unknown_count"], 1);
+}
+
+#[test]
+fn research_step_meter_refusal_exits_non_zero_and_is_not_persisted() {
+    let dir = step_dir("meter");
+    let state = dir.join("state.json");
+    std::fs::write(
+        &state,
+        r#"{"budget":{"external_requests":1,"workers":1},"usage":{"external_requests":1,"workers_active":0,"workers_started":0}}"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "research",
+            "--step",
+            "meter",
+            "--meter-state",
+            state.to_str().unwrap(),
+            "--effect",
+            "external_request",
+        ])
+        .output()
+        .expect("native Legion research must execute");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "failed");
+    assert_eq!(value["result"]["ok"], false);
+    assert_eq!(value["result"]["events"][0]["type"], "budget.refused");
+    assert_eq!(value["result"]["persisted"], false);
+}
+
+#[test]
+fn research_without_query_or_step_is_refused_before_running() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["research"])
+        .output()
+        .expect("native Legion research must execute");
+    assert!(!output.status.success());
+}
+
+#[test]
+fn research_unknown_step_is_a_usage_error() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["research", "--step", "not-a-step"])
+        .output()
+        .expect("native Legion research must execute");
+    assert_eq!(output.status.code(), Some(4));
+}

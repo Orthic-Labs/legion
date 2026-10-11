@@ -14,6 +14,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use serde_json::{json, Value};
 
+use super::design_parser::parse_design_md;
 use super::manual_edit_deps::{LiveServerManualEditDeps, QueueCallbacks};
 use super::queue::QueueState;
 use super::remove_all_svelte_component_sessions;
@@ -396,11 +397,11 @@ fn locate_design_files(project_root: &Path) -> (Option<PathBuf>, Option<PathBuf>
     (md, sidecar)
 }
 
-/// `/design-system.json`. The `parsed` half of the JS response needs
-/// `parseDesignMd`, which has no Rust port; the sidecar half and the
-/// presence/staleness flags are produced faithfully. When nothing exists the
-/// answer is 404 with `present: false`, which the panel renders as its empty
-/// state.
+/// `/design-system.json`. `parsed` is the `parseDesignMd` model of DESIGN.md
+/// (see `design_parser`) and stays `null` only when DESIGN.md is absent. The
+/// sidecar half and the presence/staleness flags are produced faithfully.
+/// When nothing exists the answer is 404 with `present: false`, which the
+/// panel renders as its empty state.
 fn design_system_json(project_root: &Path) -> (u16, &'static str, Value) {
     let (md, sidecar) = locate_design_files(project_root);
     if md.is_none() && sidecar.is_none() {
@@ -427,6 +428,17 @@ fn design_system_json(project_root: &Path) -> (u16, &'static str, Value) {
         "mdNewerThanJson": md_newer,
         "parsed": Value::Null,
     });
+    if let Some(path) = md.as_deref() {
+        match std::fs::read(path) {
+            // Node reads DESIGN.md as UTF-8 with replacement, so decode lossily to match.
+            Ok(bytes) => {
+                response["parsed"] = parse_design_md(&String::from_utf8_lossy(&bytes));
+            }
+            Err(err) => {
+                response["parseError"] = Value::String(err.to_string());
+            }
+        }
+    }
     if let Some(path) = sidecar {
         match std::fs::read_to_string(&path)
             .map_err(|e| e.to_string())
@@ -1643,6 +1655,9 @@ mod tests {
         assert!(json_out.contains("\"present\":true"), "{json_out}");
         assert!(json_out.contains("\"hasSidecar\":true"), "{json_out}");
         assert!(json_out.contains("\"schemaVersion\":2"), "{json_out}");
+        // `parsed` is the real DESIGN.md model, not null.
+        assert!(json_out.contains("\"title\":\"Design\""), "{json_out}");
+        assert!(!json_out.contains("\"parsed\":null"), "{json_out}");
         let _ = std::fs::remove_dir_all(&root);
     }
 

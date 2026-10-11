@@ -115,10 +115,19 @@ pub struct DetectUrlOptions {
     pub providers: Vec<String>,
     pub design_system: Option<DesignSystemInput>,
     /// JS: `options?.visualContrast === false` skips the fallback lane
-    /// entirely. Default `false` here since the fallback lane itself isn't
-    /// ported (see module doc) — set `true` only once a real
-    /// `visual_contrast_findings` hook is supplied.
+    /// entirely. Default `true`, matching the JS default; the lane is driven
+    /// by [`super::visual_lane::visual_contrast_lane`] in production.
     pub visual_contrast: bool,
+    /// JS `visualContrastBrowser === false` skips the browser-side analysis
+    /// (`impeccableAnalyzeVisualContrast`) and goes straight to candidates.
+    pub visual_contrast_browser: bool,
+    /// JS `visualContrastPixel === false` stops after the browser-side lane,
+    /// with no screenshot pixel comparison.
+    pub visual_contrast_pixel: bool,
+    /// JS `visualContrastMaxCandidates`, default 12.
+    pub visual_contrast_max_candidates: u32,
+    /// JS `visualContrastScrollOffscreen !== false`, default `true`.
+    pub visual_contrast_scroll_offscreen: bool,
     pub quiet: bool,
 }
 
@@ -129,7 +138,11 @@ impl Default for DetectUrlOptions {
             settle_ms: 0,
             providers: Vec::new(),
             design_system: None,
-            visual_contrast: false,
+            visual_contrast: true,
+            visual_contrast_browser: true,
+            visual_contrast_pixel: true,
+            visual_contrast_max_candidates: 12,
+            visual_contrast_scroll_offscreen: true,
             quiet: false,
         }
     }
@@ -235,6 +248,21 @@ pub fn detect_url_cdp(
     browser_script: &str,
     options: &DetectUrlOptions,
 ) -> Result<Vec<Finding>, String> {
+    let serialized = run_browser_detector(driver, url, browser_script, options)?;
+    let raw = flatten_serialized_groups(&serialized);
+    Ok(to_findings(registry, url, raw, &options.providers))
+}
+
+/// The navigate + configure + inject + collect steps of `detectUrlCdp`,
+/// returning the serialized detector groups (a JSON array) so later lanes
+/// (the visual-contrast fallback) can read the same groups the JS passes to
+/// `runVisualContrastFallback`.
+pub fn run_browser_detector(
+    driver: &mut impl ChromeDriver,
+    url: &str,
+    browser_script: &str,
+    options: &DetectUrlOptions,
+) -> Result<Value, String> {
     if browser_script.trim().is_empty() {
         return Err(unavailable_error(REASON_DETECTOR_SCRIPT_MISSING));
     }
@@ -258,15 +286,17 @@ pub fn detect_url_cdp(
     if !serialized.is_array() {
         return Err(unavailable_error(REASON_DETECTOR_SCRIPT_MISSING));
     }
-
-    let raw = flatten_serialized_groups(&serialized);
-    Ok(to_findings(registry, url, raw, &options.providers))
+    Ok(serialized)
 }
 
-/// Visual-contrast fallback for callers that have no implementation. Always
-/// unavailable, never zero findings. The production wrapper in
-/// `wf_port::r05::real_detectors` should pass this instead of `|_| Ok(Vec::new())`.
-pub fn visual_contrast_unavailable(_url: &str) -> Result<Vec<Finding>, String> {
+/// Visual-contrast hook that reports itself unavailable: never zero findings.
+/// Kept for callers and tests that must exercise the typed-unavailable path.
+pub fn visual_contrast_unavailable<D: ChromeDriver>(
+    _driver: &mut D,
+    _url: &str,
+    _groups: &Value,
+    _options: &DetectUrlOptions,
+) -> Result<Vec<RawFinding>, String> {
     Err(unavailable_error(REASON_VISUAL_CONTRAST_NOT_IMPLEMENTED))
 }
 
@@ -277,22 +307,35 @@ pub fn visual_contrast_unavailable(_url: &str) -> Result<Vec<Finding>, String> {
 /// [`detect_url_cdp`] plus the visual-contrast fallback hook.
 ///
 /// `visual_contrast_findings`, when `options.visual_contrast` is true, is
-/// called with the URL and should return the same shape
-/// `runVisualContrastFallback` would append; passing `|_| Ok(Vec::new())`
-/// matches upstream's `visualContrast: false` short circuit.
-pub fn detect_url(
-    driver: &mut impl ChromeDriver,
+/// called with the same driver, the URL, the serialized detector groups, and
+/// the options, and returns raw findings in the same shape
+/// `runVisualContrastFallback` appends to `results`. Production passes
+/// [`super::visual_lane::visual_contrast_lane`]; `visual_contrast_unavailable`
+/// is the typed-unavailable stand-in.
+pub fn detect_url<D: ChromeDriver>(
+    driver: &mut D,
     registry: &impl AntipatternLookup,
     url: &str,
     browser_script: &str,
     options: &DetectUrlOptions,
-    visual_contrast_findings: impl FnOnce(&str) -> Result<Vec<Finding>, String>,
+    visual_contrast_findings: impl FnOnce(
+        &mut D,
+        &str,
+        &Value,
+        &DetectUrlOptions,
+    ) -> Result<Vec<RawFinding>, String>,
 ) -> Result<Vec<Finding>, String> {
-    let mut findings = detect_url_cdp(driver, registry, url, browser_script, options)?;
+    let groups = run_browser_detector(&mut *driver, url, browser_script, options)?;
+    let mut raw = flatten_serialized_groups(&groups);
     if options.visual_contrast {
-        findings.extend(visual_contrast_findings(url)?);
+        raw.extend(visual_contrast_findings(
+            &mut *driver,
+            url,
+            &groups,
+            options,
+        )?);
     }
-    Ok(findings)
+    Ok(to_findings(registry, url, raw, &options.providers))
 }
 
 #[cfg(test)]
@@ -425,17 +468,28 @@ mod tests {
             responses: vec![Value::Null, Value::Null, json!([])],
         };
         let reg = registry();
-        let opts = DetectUrlOptions::default(); // visual_contrast: false
+        let mut opts = DetectUrlOptions::default();
+        opts.visual_contrast = false;
         let out = detect_url(
             &mut driver,
             &reg,
             "https://x.test",
             "/* s */",
             &opts,
-            |_| panic!("must not be called when visual_contrast is false"),
+            |_, _, _, _| panic!("must not be called when visual_contrast is false"),
         )
         .unwrap();
         assert!(out.is_empty());
+    }
+
+    #[test]
+    fn visual_contrast_is_enabled_by_default_like_the_js() {
+        let opts = DetectUrlOptions::default();
+        assert!(opts.visual_contrast);
+        assert!(opts.visual_contrast_browser);
+        assert!(opts.visual_contrast_pixel);
+        assert_eq!(opts.visual_contrast_max_candidates, 12);
+        assert!(opts.visual_contrast_scroll_offscreen);
     }
 
     #[test]
@@ -448,26 +502,23 @@ mod tests {
         let reg = registry();
         let mut opts = DetectUrlOptions::default();
         opts.visual_contrast = true;
-        let extra = super::to_findings(
-            &reg,
-            "https://x.test",
-            vec![RawFinding {
-                id: "low-contrast".to_string(),
-                snippet: "s".to_string(),
-                ignore_value: String::new(),
-            }],
-            &[],
-        );
         let out = detect_url(
             &mut driver,
             &reg,
             "https://x.test",
             "/* s */",
             &opts,
-            |_| Ok(extra.clone()),
+            |_, _, _, _| {
+                Ok(vec![RawFinding {
+                    id: "low-contrast".to_string(),
+                    snippet: "s".to_string(),
+                    ignore_value: String::new(),
+                }])
+            },
         )
         .unwrap();
         assert_eq!(out.len(), 1);
+        assert_eq!(out[0].antipattern, "low-contrast");
     }
 
     #[test]

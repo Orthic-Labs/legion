@@ -52,6 +52,7 @@
 //! (`../live-commit-manual-edits.mjs`), which the manual-edit routes call
 //! into — both shell an LLM copy-edit agent.
 
+pub mod design_parser;
 pub mod http_server;
 pub mod manual_edit_deps;
 pub mod queue;

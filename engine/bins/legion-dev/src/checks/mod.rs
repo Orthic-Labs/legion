@@ -121,7 +121,48 @@ pub fn read_text(path: &Path) -> Option<String> {
     String::from_utf8(bytes).ok()
 }
 
+/// Like `read_text`, but keeps the two failure modes apart. `Ok(None)` means
+/// the file was read and is binary (a NUL byte, or invalid UTF-8). `Err`
+/// means the file could not be read at all; a caller must report that as a
+/// problem rather than treat the file as clean or skip it.
+pub fn read_text_checked(path: &Path) -> Result<Option<String>, String> {
+    let bytes = fs::read(path).map_err(|e| format!("{}: cannot read: {e}", path.display()))?;
+    if bytes.contains(&0) {
+        return Ok(None);
+    }
+    Ok(String::from_utf8(bytes).ok())
+}
+
 pub fn read_json(path: &Path) -> Result<serde_json::Value, String> {
     let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+#[cfg(test)]
+mod read_text_tests {
+    use super::*;
+
+    #[test]
+    fn read_text_checked_separates_binary_from_unreadable() {
+        let dir = std::env::temp_dir().join(format!(
+            "legion-dev-read-text-checked-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+
+        let text = dir.join("text.md");
+        fs::write(&text, "hello\n").unwrap();
+        assert_eq!(read_text_checked(&text), Ok(Some("hello\n".to_string())));
+
+        let binary = dir.join("binary.bin");
+        fs::write(&binary, [0u8, 159, 146]).unwrap();
+        assert_eq!(read_text_checked(&binary), Ok(None));
+
+        let missing = dir.join("missing.md");
+        let err = read_text_checked(&missing).unwrap_err();
+        assert!(err.contains("missing.md"), "{err}");
+        assert!(read_text(&missing).is_none());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

@@ -42,16 +42,12 @@
 //! - The hand-rolled WebSocket frame encode/decode (`makeFrame`/`readFrames`)
 //!   and raw `cdpConnect` handshake in `detect-url-cdp.mjs`: superseded by
 //!   `headless_chrome`, which performs the equivalent job.
-//! - The visual-contrast screenshot fallback lane in `detect-url.mjs`
-//!   (`runVisualContrastFallback`, `captureVisualContrastCandidate`): it
-//!   depends on browser-side globals (`impeccableAnalyzeVisualContrast`,
-//!   `impeccableCollectVisualContrastCandidates`) injected by
-//!   `detect-antipatterns-browser.js` and on `screenshot-contrast.mjs`,
-//!   neither of which is ported in this packet. [`detect_url::detect_url`]
-//!   takes a `visual_contrast_findings` hook that defaults to returning no
-//!   findings, matching upstream's `options.visualContrast === false` short
-//!   circuit exactly; a future packet porting the browser script and
-//!   screenshot capture can supply a real hook.
+//! - The visual-contrast screenshot fallback lane (`runVisualContrastFallback`)
+//!   is ported in [`visual_lane`]. It reads the browser-side globals that
+//!   `detect-antipatterns-browser.js` defines and captures screenshots through
+//!   [`ChromeDriver::screenshot_png`]; drivers without screenshot support
+//!   (the trait default) fail it with `unavailable:screenshot-not-supported`.
+//!   [`detect_url::detect_url`] takes that lane as its hook.
 //! - `serializeDesignSystemForBrowser`'s input type, `designSystem`, comes
 //!   from `design-system.mjs`, which is itself unported (see the Q0 report).
 //!   [`detect_url::DesignSystemInput`] mirrors its JS shape directly so this
@@ -62,6 +58,7 @@ pub mod detect_url;
 pub mod findings;
 pub mod real;
 pub mod registry;
+pub mod visual_lane;
 
 pub use browser::{find_browser_executable, ChromeDriver, EnvLookup, FsLookup, Platform};
 pub use detect_url::{

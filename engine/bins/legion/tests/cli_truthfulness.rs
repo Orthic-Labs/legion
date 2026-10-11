@@ -484,13 +484,198 @@ fn mcp_print_config_is_not_implemented_without_a_binding() {
     let _ = std::fs::remove_dir_all(&home);
 }
 
+fn decision_store(label: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("legion-decision-{label}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir.join("decisions.sqlite")
+}
+
+fn remove_decision_store(store: &std::path::Path) {
+    if let Some(dir) = store.parent() {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
 #[test]
-fn decision_draft_reports_not_persisted() {
-    let output = legion(&["decision", "--task", "T-1", "--rationale", "test"]);
+fn decision_propose_without_write_is_a_draft_and_leaves_store_empty() {
+    let store = decision_store("draft");
+    let path = store.to_str().unwrap();
+    let output = legion(&[
+        "decision",
+        "propose",
+        "--task",
+        "T-1",
+        "--rationale",
+        "test",
+        "--store",
+        path,
+    ]);
     assert_eq!(output.status.code(), Some(0));
     let value = output_json(&output);
     assert_eq!(value["kind"], "legion-decision");
     assert_eq!(value["persisted"], false);
+    assert!(!store.exists(), "a draft must not create the store");
+    let listed = output_json(&legion(&["decision", "list", "--store", path]));
+    assert_eq!(listed["count"], 0);
+    remove_decision_store(&store);
+}
+
+#[test]
+fn decision_propose_write_then_list_shows_the_record() {
+    let store = decision_store("write-list");
+    let path = store.to_str().unwrap();
+    let written = legion(&[
+        "decision",
+        "propose",
+        "--task",
+        "T-2",
+        "--rationale",
+        "adopt sqlite store",
+        "--write",
+        "--store",
+        path,
+    ]);
+    assert_eq!(written.status.code(), Some(0));
+    let value = output_json(&written);
+    assert_eq!(value["persisted"], true);
+    assert_eq!(value["disposition"], "inserted");
+    let id = value["record"]["id"]
+        .as_str()
+        .expect("record id")
+        .to_string();
+
+    let listed = output_json(&legion(&["decision", "list", "--store", path]));
+    assert_eq!(listed["count"], 1);
+    assert_eq!(listed["decisions"][0]["id"], id.as_str());
+
+    let again = output_json(&legion(&[
+        "decision",
+        "propose",
+        "--task",
+        "T-2",
+        "--rationale",
+        "adopt sqlite store",
+        "--write",
+        "--store",
+        path,
+    ]));
+    assert_eq!(again["disposition"], "alreadyPresent");
+    let relisted = output_json(&legion(&["decision", "list", "--store", path]));
+    assert_eq!(relisted["count"], 1);
+
+    let scoped = output_json(&legion(&[
+        "decision",
+        "list",
+        "--repository",
+        "repository",
+        "--store",
+        path,
+    ]));
+    assert_eq!(scoped["projection"]["provider"], "architect");
+    remove_decision_store(&store);
+}
+
+#[test]
+fn decision_set_status_is_reflected_by_show_and_list() {
+    let store = decision_store("status");
+    let path = store.to_str().unwrap();
+    let proposed = output_json(&legion(&[
+        "decision",
+        "propose",
+        "--task",
+        "T-3",
+        "--rationale",
+        "pin the lifecycle",
+        "--write",
+        "--store",
+        path,
+    ]));
+    let id = proposed["record"]["id"]
+        .as_str()
+        .expect("record id")
+        .to_string();
+
+    let set = legion(&[
+        "decision",
+        "set-status",
+        id.as_str(),
+        "accepted",
+        "--store",
+        path,
+    ]);
+    assert_eq!(set.status.code(), Some(0));
+    let set_value = output_json(&set);
+    assert_eq!(set_value["persisted"], true);
+    assert_eq!(set_value["previousStatus"], "proposed");
+    assert_eq!(set_value["decision"]["currentStatus"], "accepted");
+
+    let shown = output_json(&legion(&["decision", "show", id.as_str(), "--store", path]));
+    assert_eq!(shown["decision"]["currentStatus"], "accepted");
+
+    let accepted = output_json(&legion(&[
+        "decision", "list", "--status", "accepted", "--store", path,
+    ]));
+    assert_eq!(accepted["count"], 1);
+    let not_proposed = output_json(&legion(&[
+        "decision", "list", "--status", "proposed", "--store", path,
+    ]));
+    assert_eq!(not_proposed["count"], 0);
+
+    // Returning to a status recorded earlier must be the reported current state.
+    let back = output_json(&legion(&[
+        "decision",
+        "set-status",
+        id.as_str(),
+        "proposed",
+        "--store",
+        path,
+    ]));
+    assert_eq!(back["decision"]["currentStatus"], "proposed");
+    let reshown = output_json(&legion(&["decision", "show", id.as_str(), "--store", path]));
+    assert_eq!(reshown["decision"]["currentStatus"], "proposed");
+    remove_decision_store(&store);
+}
+
+#[test]
+fn decision_set_status_and_show_refuse_unknown_ids_and_statuses() {
+    let store = decision_store("errors");
+    let path = store.to_str().unwrap();
+    let _ = legion(&[
+        "decision",
+        "propose",
+        "--task",
+        "T-4",
+        "--rationale",
+        "refuse bad input",
+        "--write",
+        "--store",
+        path,
+    ]);
+    let missing = "architect:decision:missing";
+    let unknown_id = legion(&[
+        "decision",
+        "set-status",
+        missing,
+        "accepted",
+        "--store",
+        path,
+    ]);
+    assert_eq!(unknown_id.status.code(), Some(4));
+    let unknown_show = legion(&["decision", "show", missing, "--store", path]);
+    assert_eq!(unknown_show.status.code(), Some(4));
+    let never_written = decision_store("never-written");
+    let bad_status = legion(&[
+        "decision",
+        "set-status",
+        missing,
+        "shipped",
+        "--store",
+        never_written.to_str().unwrap(),
+    ]);
+    assert_eq!(bad_status.status.code(), Some(4));
+    remove_decision_store(&never_written);
+    remove_decision_store(&store);
 }
 
 #[test]

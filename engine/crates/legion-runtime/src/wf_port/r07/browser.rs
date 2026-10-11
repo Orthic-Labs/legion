@@ -6,6 +6,9 @@
 
 use std::path::PathBuf;
 
+use super::detect_url::unavailable_error;
+use crate::wf_port::w2_013::screenshot_contrast::Clip;
+
 /// Mirrors the `process.platform === 'win32'` branch in
 /// `findBrowserExecutable`. JS reads this from the live process; the port
 /// takes it as a parameter so both branches are unit-testable on any host.
@@ -159,4 +162,27 @@ pub trait ChromeDriver {
     /// result (mirrors `runtimeEval`'s `Runtime.evaluate` call with
     /// `returnByValue: true`, surfacing `exceptionDetails` as an `Err`).
     fn evaluate(&mut self, expression: &str) -> Result<serde_json::Value, String>;
+
+    /// Port of `page.screenshot({ encoding: 'base64', clip, captureBeyondViewport: true })`
+    /// for the visual-contrast lane: raw PNG bytes of `clip` in page
+    /// coordinates. Drivers without screenshot support return a typed
+    /// `unavailable:` error (never an empty image, which would read as clean).
+    fn screenshot_png(&mut self, _clip: Clip) -> Result<Vec<u8>, String> {
+        Err(unavailable_error(REASON_SCREENSHOT_NOT_SUPPORTED))
+    }
+
+    /// Port of the `page.evaluate` that tags `selector` with the hide attribute
+    /// and installs the shared hide stylesheet. `Ok(false)` when the selector is
+    /// invalid or matches nothing. Unsupported drivers return a typed
+    /// `unavailable:` error.
+    fn apply_hide(&mut self, _selector: &str, _background_clip_text: bool) -> Result<bool, String> {
+        Err(unavailable_error(REASON_SCREENSHOT_NOT_SUPPORTED))
+    }
+
+    /// Port of the `finally` cleanup that removes the hide attributes. Errors are
+    /// swallowed like the JS `.catch(() => {})`.
+    fn remove_hide(&mut self, _selector: &str) {}
 }
+
+/// The driver cannot capture screenshots or toggle hide attributes.
+pub const REASON_SCREENSHOT_NOT_SUPPORTED: &str = "screenshot-not-supported";

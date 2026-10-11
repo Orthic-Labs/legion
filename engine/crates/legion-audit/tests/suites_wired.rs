@@ -3,8 +3,8 @@
 
 use legion_audit::native_providers::reasoning::lens_plan::lens_plan_packet_value;
 use legion_audit::{
-    AuditProvider, InventoryEntry, InventoryEnvelope, NativeProviderRegistry, ProviderExecutor,
-    ProviderKind,
+    AuditProvider, FilesystemInventorySource, InventoryEntry, InventoryEnvelope, InventorySource,
+    NativeProviderRegistry, ProviderExecutor, ProviderKind,
 };
 use legion_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
 use serde_json::Value;
@@ -342,6 +342,149 @@ fn source_files_without_a_detected_family_are_not_a_silent_clean() {
         &root,
         vec![entry("src/a.js", &[], true)],
     );
+    assert!(is_partial(&result), "{:?}", result.status);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "framework-denominator-zero"));
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Runs the framework suite on a real directory: the inventory is walked from
+/// disk, so manifest dependencies are parsed by the production inventory code.
+fn run_framework_from_disk(root: &Path) -> ProviderResult {
+    let inventory = FilesystemInventorySource::new(root)
+        .unwrap()
+        .inventory("suites-wired")
+        .unwrap();
+    NativeProviderRegistry::new(root)
+        .execute(&provider("legacy.framework.major-suite"), &inventory)
+        .unwrap_or_else(|error| panic!("framework suite: {error}"))
+}
+
+fn assert_framework_rule_fires(label: &str, files: &[(&str, &str)], rule: &str) {
+    let root = fixture_root(label, files);
+    let result = run_framework_from_disk(&root);
+    let rules = candidate_rules(&result);
+    assert!(
+        rules.contains(&rule.to_owned()),
+        "{label}: {rules:?} gaps {:?}",
+        result.coverage_gaps
+    );
+    assert!(result.findings.is_empty(), "{label}");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn spring_family_is_detected_from_maven_and_its_rule_fires() {
+    assert_framework_rule_fires(
+        "framework-spring",
+        &[
+            (
+                "pom.xml",
+                "<project><dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency></dependencies></project>\n",
+            ),
+            (
+                "src/main/java/app/Api.java",
+                "http.authorizeHttpRequests(a -> a.requestMatchers(\"/admin/**\").permitAll());\n",
+            ),
+        ],
+        "spring-sensitive-permit-all",
+    );
+}
+
+#[test]
+fn ktor_family_is_detected_from_gradle_kotlin_and_its_rule_fires() {
+    assert_framework_rule_fires(
+        "framework-ktor",
+        &[
+            (
+                "build.gradle.kts",
+                "plugins {\n    id(\"io.ktor.plugin\") version \"2.3.0\"\n}\ndependencies {\n    implementation(\"io.ktor:ktor-server-core:2.3.0\")\n}\n",
+            ),
+            (
+                "src/main/kotlin/Main.kt",
+                "fun Application.module() { install(CORS) { anyHost() } }\n",
+            ),
+        ],
+        "ktor-any-host",
+    );
+}
+
+#[test]
+fn rails_family_is_detected_from_gemfile_and_its_rule_fires() {
+    assert_framework_rule_fires(
+        "framework-rails",
+        &[
+            (
+                "Gemfile",
+                "source 'https://rubygems.org'\ngem 'rails', '~> 7.1'\n",
+            ),
+            (
+                "app/controllers/users_controller.rb",
+                "class UsersController < ApplicationController\n  skip_forgery_protection\nend\n",
+            ),
+        ],
+        "rails-forgery-skip",
+    );
+}
+
+#[test]
+fn phoenix_family_is_detected_from_mix_and_its_rule_fires() {
+    assert_framework_rule_fires(
+        "framework-phoenix",
+        &[
+            (
+                "mix.exs",
+                "defp deps do\n  [{:phoenix, \"~> 1.7.0\"}]\nend\n",
+            ),
+            (
+                "lib/app_web/endpoint.ex",
+                "socket \"/live\", Phoenix.LiveView.Socket, websocket: [check_origin: false]\n",
+            ),
+        ],
+        "phoenix-check-origin-disabled",
+    );
+}
+
+#[test]
+fn flutter_family_is_detected_from_pubspec_and_its_rule_fires() {
+    assert_framework_rule_fires(
+        "framework-flutter",
+        &[
+            (
+                "pubspec.yaml",
+                "name: app\ndependencies:\n  flutter:\n    sdk: flutter\n",
+            ),
+            (
+                "lib/net.dart",
+                "final client = HttpClient()..badCertificateCallback = (cert, host, port) => true;\n",
+            ),
+        ],
+        "flutter-bad-cert-callback",
+    );
+}
+
+#[test]
+fn malformed_new_manifests_detect_no_family_and_never_panic() {
+    let root = fixture_root(
+        "framework-malformed",
+        &[
+            (
+                "pom.xml",
+                "<dependencies><dependency><groupId>org.springframework.boot</groupId>\n",
+            ),
+            ("build.gradle.kts", "implementation(\"io.ktor:\n"),
+            ("Gemfile", "gem '\n"),
+            ("mix.exs", "{:\n"),
+            ("pubspec.yaml", "dependencies:\n\t:::\n"),
+            ("src/Main.java", "x.permitAll();\n"),
+            ("lib/net.dart", "badCertificateCallback\n"),
+        ],
+    );
+    let result = run_framework_from_disk(&root);
+    let rules = candidate_rules(&result);
+    assert!(rules.is_empty(), "{rules:?}");
     assert!(is_partial(&result), "{:?}", result.status);
     assert!(result
         .coverage_gaps

@@ -16,7 +16,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-const SCRIPT_COUNT: usize = 85;
+const SCRIPT_COUNT: usize = 86;
 const ROOT_COUNT: usize = 42;
 const DEV_COUNT: usize = 27;
 const XTASK_COUNT: usize = 16;
@@ -273,6 +273,12 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
     },
     ScriptProbe {
         key: "foundation/validate-atom-report",
+        mode: ProbeMode::Precondition,
+        args: EMPTY,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "foundation/export-analytics",
         mode: ProbeMode::Precondition,
         args: EMPTY,
         reason: None,

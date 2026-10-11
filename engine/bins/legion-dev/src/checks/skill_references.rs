@@ -9,7 +9,7 @@
 //      `src/registry/capabilities.json`.
 // Failures print as `file:line: message`.
 
-use super::{read_json, read_text, tracked_files};
+use super::{read_json, read_text_checked, tracked_files};
 use crate::shared::skill_frontmatter::parse_skill_frontmatter;
 use regex::Regex;
 use sha2::{Digest, Sha256};
@@ -270,8 +270,10 @@ pub fn check_files(root: &Path, files: &[String], script_table: &BTreeSet<String
         if sealed_by_receipt(root, rel) {
             continue;
         }
-        if let Some(text) = read_text(&root.join(rel)) {
-            failures.extend(scan_file(root, rel, &text, script_table));
+        match read_text_checked(&root.join(rel)) {
+            Ok(Some(text)) => failures.extend(scan_file(root, rel, &text, script_table)),
+            Ok(None) => {}
+            Err(e) => failures.push(fail(rel, 0, e)),
         }
     }
     failures

@@ -30,8 +30,8 @@ use serde_json::{json, Value};
 
 use super::{
     ingest::{
-        create_epoch, expected_request_id, invalid, io, load_epoch, read_json, recompute_run,
-        write_atomic, LENS_PACKET_DIR,
+        create_epoch, expected_request_id, invalid, io, lens_packet_items, load_epoch, read_json,
+        recompute_run, write_atomic, write_lens_packets, LENS_PACKET_DIR,
     },
     pending_lens_work,
     security_adjudication::{confirmed_paths, ConfirmedSecurityFinding, ADJUDICATOR_PROVIDER_ID},
@@ -63,8 +63,11 @@ pub struct FollowupPlanned {
     pub confirmed_paths: Vec<String>,
     pub seeds: usize,
     pub provider: String,
-    pub packet: PathBuf,
-    pub packet_digest: String,
+    /// The variant lens packet files: one unnumbered packet, or every
+    /// `<provider>.part-NNNN.json` of a partitioned denominator, in part order.
+    pub packets: Vec<PathBuf>,
+    /// Digest of each packet in `packets` (same order).
+    pub packet_digests: Vec<String>,
     /// The existing follow-up already matched the parent and was left untouched.
     pub reused: bool,
 }
@@ -198,9 +201,61 @@ fn seeds(run_dir: &Path, confirmed: &[ConfirmedSecurityFinding]) -> Result<Vec<V
         .collect())
 }
 
-fn packet_path(dir: &Path) -> PathBuf {
-    dir.join(LENS_PACKET_DIR)
-        .join(format!("{VARIANT_PROVIDER_ID}.json"))
+/// Every variant lens packet of the follow-up on disk, with its file path: the
+/// single unnumbered packet, or all `<provider>.part-NNNN.json` parts in part
+/// order. Errors when neither exists.
+fn variant_packets(dir: &Path) -> Result<Vec<(PathBuf, PendingLensWork)>, AuditError> {
+    let lens_dir = dir.join(LENS_PACKET_DIR);
+    let single = lens_dir.join(format!("{VARIANT_PROVIDER_ID}.json"));
+    let files: Vec<PathBuf> = if single.is_file() {
+        vec![single]
+    } else {
+        let prefix = format!("{VARIANT_PROVIDER_ID}.part-");
+        let mut parts: Vec<PathBuf> = fs::read_dir(&lens_dir)
+            .map_err(|error| io(error, "could not list the variant lens packets"))?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.starts_with(&prefix) && name.ends_with(".json"))
+            })
+            .collect();
+        parts.sort();
+        parts
+    };
+    if files.is_empty() {
+        return Err(io(
+            std::io::Error::from(std::io::ErrorKind::NotFound),
+            "follow-up has no variant lens packet",
+        ));
+    }
+    files
+        .into_iter()
+        .map(|path| -> Result<(PathBuf, PendingLensWork), AuditError> {
+            let work: PendingLensWork =
+                serde_json::from_value(read_json(&path)?).map_err(|error| {
+                    invalid(format!("{} is not a lens packet: {error}", path.display()))
+                })?;
+            Ok((path, work))
+        })
+        .collect()
+}
+
+/// The pending reason while some variant packet parts are not yet ingested.
+/// A single packet keeps the plain wording.
+fn parts_pending_reason(missing: &[u32], total: usize) -> String {
+    if total <= 1 {
+        return "the variant-analysis lens result has not been ingested".into();
+    }
+    let named = missing
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "variant-analysis packet part(s) {named} of {total} not yet ingested; the follow-up covers the variant denominator only once every part is ingested"
+    )
 }
 
 /// Compiles, freezes and writes the follow-up plan for `parent_run`, plus the
@@ -288,44 +343,49 @@ pub fn compile_followup(
             "the follow-up plan did not leave the variant lens pending-host",
         ));
     }
-    let mut work = pending_lens_work(&root, &plan, &inventory)?
+    // Every part of a partitioned variant denominator is bound to the follow-up:
+    // each carries the seeds and the parent binding, and gets its own request id.
+    let mut works: Vec<PendingLensWork> = pending_lens_work(&root, &plan, &inventory)?
         .into_iter()
-        .find(|item| item.provider_id == VARIANT_PROVIDER_ID)
-        .ok_or_else(|| invalid("the follow-up plan produced no variant lens packet"))?;
-    if work.part().is_some() {
-        // The follow-up chain binds exactly one variant packet; a partitioned
-        // variant denominator would be silently under-covered.
+        .filter(|item| item.provider_id == VARIANT_PROVIDER_ID)
+        .collect();
+    if works.is_empty() {
         return Err(invalid(
-            "the variant-analysis denominator needs more than one packet part, which the follow-up does not support",
+            "the follow-up plan produced no variant lens packet",
         ));
     }
     let seeds = seeds(parent_run, &confirmed)?;
     let seed_count = seeds.len();
-    let packet = work
-        .request
-        .packet
-        .as_object_mut()
-        .ok_or_else(|| invalid("variant lens packet is not an object"))?;
-    packet.insert("variantSeeds".into(), Value::Array(seeds));
-    packet.insert(
-        "followup".into(),
-        json!({
-            "parentPlanDigest": parent_digest,
-            "confirmedDigest": digest_of_confirmed,
-            "confirmedPaths": paths,
-        }),
-    );
-    work.request.request_id = expected_request_id(&work)?;
-    let packet_digest =
-        canonical_digest(&work.request.packet).map_err(|error| invalid(error.to_string()))?;
-    let lens_work = json!([{
-        "provider": work.provider_id,
-        "lensIds": work.lens_ids,
-        "status": "pending-host",
-        "packet": packet_path(&dir),
-        "packetDigest": packet_digest,
-        "planDigest": work.request.plan_digest,
-    }]);
+    for work in works.iter_mut() {
+        let packet = work
+            .request
+            .packet
+            .as_object_mut()
+            .ok_or_else(|| invalid("variant lens packet is not an object"))?;
+        packet.insert("variantSeeds".into(), Value::Array(seeds.clone()));
+        packet.insert(
+            "followup".into(),
+            json!({
+                "parentPlanDigest": parent_digest,
+                "confirmedDigest": digest_of_confirmed,
+                "confirmedPaths": paths,
+            }),
+        );
+        let request_id = expected_request_id(&*work)?;
+        work.request.request_id = request_id;
+    }
+    let packet_dir = dir.join(LENS_PACKET_DIR);
+    let lens_work = Value::Array(lens_packet_items(&works, Some(packet_dir.as_path()))?);
+    let packet_digests = works
+        .iter()
+        .map(|work| {
+            canonical_digest(&work.request.packet).map_err(|error| invalid(error.to_string()))
+        })
+        .collect::<Result<Vec<String>, AuditError>>()?;
+    let packets: Vec<PathBuf> = works
+        .iter()
+        .map(|work| packet_dir.join(work.packet_file_name()))
+        .collect();
 
     let repository = root.to_string_lossy().into_owned();
     let mut report = canonical_report(&repository, &execution)?;
@@ -364,11 +424,9 @@ pub fn compile_followup(
         FROZEN_PLAN_FILE,
         &to_bytes(&serde_json::to_value(plan.plan()).map_err(|error| invalid(error.to_string()))?)?,
     )?;
-    write_atomic(
-        &dir.join(LENS_PACKET_DIR),
-        &format!("{VARIANT_PROVIDER_ID}.json"),
-        &to_bytes(&serde_json::to_value(&work).map_err(|error| invalid(error.to_string()))?)?,
-    )?;
+    // Writes the single packet or every numbered part plus the part index, and
+    // removes stale packet files of an earlier partitioning.
+    write_lens_packets(&packet_dir, &works)?;
     write_atomic(
         &dir,
         "execution.json",
@@ -388,8 +446,8 @@ pub fn compile_followup(
         confirmed_paths: paths,
         seeds: seed_count,
         provider: VARIANT_PROVIDER_ID.into(),
-        packet: packet_path(&dir),
-        packet_digest,
+        packets,
+        packet_digests,
         reused: false,
     }))
 }
@@ -410,25 +468,31 @@ fn reuse(
         && binding.get("confirmedPaths") == Some(&json!(paths))
         && crate::integrity::plan_digest(&frozen).ok().as_deref()
             == plan_json.pointer("/seal/digest").and_then(Value::as_str);
-    if !matches || !packet_path(dir).is_file() {
+    if !matches {
         return None;
     }
-    let work: PendingLensWork = serde_json::from_value(read_json(&packet_path(dir)).ok()?).ok()?;
+    let packets = variant_packets(dir).ok()?;
+    let seeds = packets[0]
+        .1
+        .request
+        .packet
+        .get("variantSeeds")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
+    let packet_digests = packets
+        .iter()
+        .map(|(_, work)| canonical_digest(&work.request.packet).ok())
+        .collect::<Option<Vec<String>>>()?;
     Some(FollowupPlanned {
         dir: dir.to_path_buf(),
         plan_path: dir.join("plan.json"),
         plan_digest: seal_digest(&plan_json, "plan.json").ok()?,
         parent_plan_digest: parent_digest.to_owned(),
         confirmed_paths: paths.to_vec(),
-        seeds: work
-            .request
-            .packet
-            .get("variantSeeds")
-            .and_then(Value::as_array)
-            .map_or(0, Vec::len),
+        seeds,
         provider: VARIANT_PROVIDER_ID.into(),
-        packet: packet_path(dir),
-        packet_digest: canonical_digest(&work.request.packet).ok()?,
+        packets: packets.into_iter().map(|(path, _)| path).collect(),
+        packet_digests,
         reused: true,
     })
 }
@@ -537,25 +601,35 @@ fn check(
     if execution.plan_digest != digest || execution.planned_providers != [VARIANT_PROVIDER_ID] {
         return Err(invalid("follow-up execution is not bound to its plan"));
     }
-    let lens_packet = packet_path(dir);
-    if !lens_packet.is_file() {
-        return Err(io(
-            std::io::Error::from(std::io::ErrorKind::NotFound),
-            "follow-up has no variant lens packet",
-        ));
-    }
+    let packets = variant_packets(dir)?;
 
     // The ordinary verdict recomputation over the follow-up run: receipts must
     // verify (MAC, epoch, plan binding, result digest).
     let recomputed = recompute_run(dir)?;
-    if !recomputed
+    // Every part of the variant denominator must be ingested: a part that is
+    // not ingested leaves its paths uncovered, so the follow-up stays pending
+    // and names the missing parts.
+    let all_parts: Vec<u32> = packets
+        .iter()
+        .map(|(_, work)| work.part().map_or(1, |part| part.number))
+        .collect();
+    let ingested = recomputed
         .ingested
         .iter()
-        .any(|id| id == VARIANT_PROVIDER_ID)
-    {
-        return Ok(FollowupState::Pending(
-            "the variant-analysis lens result has not been ingested".into(),
-        ));
+        .any(|id| id == VARIANT_PROVIDER_ID);
+    let missing: Vec<u32> = if ingested {
+        recomputed
+            .lens_parts
+            .get(VARIANT_PROVIDER_ID)
+            .map_or_else(Vec::new, |progress| progress.pending.clone())
+    } else {
+        all_parts.clone()
+    };
+    if !missing.is_empty() {
+        return Ok(FollowupState::Pending(parts_pending_reason(
+            &missing,
+            all_parts.len(),
+        )));
     }
     if !recomputed.pending.is_empty() || !recomputed.report.gaps.is_empty() {
         return Ok(FollowupState::Pending(format!(

@@ -26,7 +26,7 @@
 // (parse) and 5 only; `model_free` entries with `proof: "unwired"` are
 // counted as unwired, never as passed.
 
-use super::{read_text, tracked_files};
+use super::{read_text_checked, tracked_files};
 use regex::Regex;
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -400,14 +400,29 @@ fn keyword_set(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-fn skill_text(root: &Path, owner: &str, label: &str, stem: &str) -> String {
+fn skill_text(
+    root: &Path,
+    owner: &str,
+    label: &str,
+    stem: &str,
+    issues: &mut Vec<String>,
+) -> String {
     let stem = if stem == "evals" { "" } else { stem };
     let mut text = format!("{owner} {label} {stem}").replace('/', " ");
     let mut dir = owner.to_string();
     while dir.starts_with("skills/") {
-        if let Some(body) = read_text(&root.join(&dir).join("SKILL.md")) {
-            text.push(' ');
-            text.push_str(&body);
+        // A candidate directory without a SKILL.md is normal; a SKILL.md that
+        // exists but cannot be read is reported, not skipped.
+        let skill_md = root.join(&dir).join("SKILL.md");
+        if skill_md.is_file() {
+            match read_text_checked(&skill_md) {
+                Ok(Some(body)) => {
+                    text.push(' ');
+                    text.push_str(&body);
+                }
+                Ok(None) => {}
+                Err(e) => issues.push(e),
+            }
         }
         dir = match dir.rsplit_once('/') {
             Some((parent, _)) => parent.to_string(),
@@ -524,7 +539,7 @@ fn check_document(rel: &str, doc: &Value, ctx: &Ctx, report: &mut Report) {
         ));
     }
     if triggers > 0 {
-        let keywords = keyword_set(&skill_text(ctx.root, &ctx.owner, label, stem));
+        let keywords = keyword_set(&skill_text(ctx.root, &ctx.owner, label, stem, issues));
         let hit = doc["should_trigger"]
             .as_array()
             .into_iter()

@@ -181,11 +181,17 @@ fn detect_url_without_visual_contrast_matches_cdp_only_path() {
         responses: vec![Value::Null, Value::Null, json!([])],
     };
     let reg = registry();
-    let opts = DetectUrlOptions::default();
+    let mut opts = DetectUrlOptions::default();
+    opts.visual_contrast = false;
     let a = detect_url_cdp(&mut driver_a, &reg, "https://x", "/*s*/", &opts).unwrap();
-    let b = detect_url(&mut driver_b, &reg, "https://x", "/*s*/", &opts, |_| {
-        Ok(vec![])
-    })
+    let b = detect_url(
+        &mut driver_b,
+        &reg,
+        "https://x",
+        "/*s*/",
+        &opts,
+        |_, _, _, _| Ok(vec![]),
+    )
     .unwrap();
     assert_eq!(a, b);
 }
