@@ -5,7 +5,7 @@
 //!   - src/providers/runtime/worker/index.mjs (`SERVICE_RUNTIME_SCENARIOS`)
 //!
 //! Both are already ported natively:
-//!   - `verifyThirdPartyExercise` -> `legion_audit::native_providers::p10_runtime::external::verify_third_party_exercise`
+//!   - `verifyThirdPartyExercise` -> `legion_audit::native_providers::the removed external-runtime port::verify_third_party_exercise`
 //!     (engine/crates/legion-audit/src/native_providers/p10_runtime/external.rs), with an explicit
 //!     "Port of `web/third-party/index.mjs`" doc comment and a documented, intentional divergence:
 //!     `signed_not_applicable` always fails closed (`valid` forced to `false`) because real signature

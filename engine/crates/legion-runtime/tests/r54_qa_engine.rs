@@ -1,18 +1,20 @@
 //! Integration test for packet r54's port of `src/lib/qa-engine/qa.mjs`.
 //!
-//! This file depends on `legion_runtime::wf_port::r54`, which is not yet wired into
-//! `legion-runtime`'s public module tree (the integrator adds `pub mod r54;` to
-//! `src/wf_port/mod.rs` per the port brief's "do not edit wf_port/mod.rs" rule — same situation
-//! as packet wf018's integration test). Until that wiring lands, this file will not compile as
-//! part of the crate's test target.
+//! Exercises the orchestration through `BrowserSession` fakes. The real CDP calls live only in
+//! `wf_port::r54::chrome_session::ChromeSession`, which needs a browser and is not run here.
 
+use headless_chrome::protocol::cdp::Network::CookieParam;
 use legion_runtime::wf_port::r54::actions::{parse_actions, run_action, Action};
-use legion_runtime::wf_port::r54::args::{parse_args, split_qa_env};
+use legion_runtime::wf_port::r54::args::{parse_args, parse_cdp_port, split_qa_env};
 use legion_runtime::wf_port::r54::ports::{
     free_port, wait_for_http, HttpAttempt, HttpProbe, PortProbe,
 };
-use legion_runtime::wf_port::r54::run::{needs_cdp_shot, open_page, plan, resolve_url, Plan};
-use legion_runtime::wf_port::r54::session::{read_session_file, write_session_file, SessionFile};
+use legion_runtime::wf_port::r54::run::{
+    needs_cdp_shot, open_page, plan, report_gaps, resolve_url, session_gaps, Plan,
+};
+use legion_runtime::wf_port::r54::session::{
+    cookie_params, read_session_file, save_session_to_file, write_session_file, SessionFile,
+};
 use legion_runtime::wf_port::r54::session_client::{
     BrowserSession, Conditions, ElementPoint, Rect, SessionData,
 };
@@ -49,6 +51,15 @@ fn qa_env_default_matches_js_when_no_value() {
         split_qa_env("VITE_APP_BROWSER_QA"),
         Some(("VITE_APP_BROWSER_QA".to_string(), "1".to_string()))
     );
+}
+
+#[test]
+fn cdp_port_flag_is_validated_as_a_usage_error() {
+    assert_eq!(parse_cdp_port("9222"), Ok(9222));
+    assert!(parse_cdp_port("65536").is_err());
+    let args = parse_args(&["--cdp-port".to_string(), "9222".to_string()]).unwrap();
+    assert_eq!(args.cdp_port, 9222);
+    assert!(parse_args(&["--cdp-port".to_string(), "65536".to_string()]).is_err());
 }
 
 struct SequencedPorts(Vec<bool>);
@@ -98,6 +109,7 @@ fn server_startup_uses_free_port_then_waits_for_http() {
     assert_eq!(http.calls, 2);
 }
 
+/// Records every orchestration call in order. Cookie calls log their count.
 #[derive(Default)]
 struct FakeBrowserSession {
     log: Vec<String>,
@@ -153,14 +165,18 @@ impl BrowserSession for FakeBrowserSession {
         self.log.push(format!("navigate {url}"));
         Ok(())
     }
+    fn set_cookies(&mut self, cookies: &[CookieParam]) -> Result<(), String> {
+        self.log.push(format!("cookies {}", cookies.len()));
+        Ok(())
+    }
     fn load_session(&mut self, _data: &SessionData) -> Result<(), String> {
         self.log.push("load".to_string());
         Ok(())
     }
     fn save_session(&mut self) -> Result<SessionData, String> {
         Ok(SessionData {
-            cookies: json!([]),
-            local_storage: json!({}),
+            cookies: json!([{"name": "sid", "value": "abc"}]),
+            local_storage: json!({"theme": "dark"}),
         })
     }
 }
@@ -183,18 +199,122 @@ fn restored_storage_is_written_after_first_navigation_then_page_reloads() {
         cookies: json!([]),
         local_storage: json!({"theme": "dark"}),
     };
-    open_page(&mut session, &plain_conditions(), "http://x/", Some(&data)).unwrap();
+    let mut gaps = Vec::new();
+    open_page(
+        &mut session,
+        &plain_conditions(),
+        "http://x/",
+        Some(&data),
+        &mut gaps,
+    )
+    .unwrap();
     assert_eq!(
         session.log,
         vec!["apply", "navigate http://x/", "load", "navigate http://x/"]
     );
+    assert!(gaps.is_empty());
 }
 
 #[test]
-fn page_without_session_navigates_once() {
+fn restored_cookies_are_set_before_the_first_navigation() {
     let mut session = FakeBrowserSession::default();
-    open_page(&mut session, &plain_conditions(), "http://x/", None).unwrap();
+    let data = SessionData {
+        cookies: json!([{"name": "sid", "value": "abc", "domain": "x.test", "path": "/"}]),
+        local_storage: json!({"theme": "dark"}),
+    };
+    let mut gaps = Vec::new();
+    let skipped = open_page(
+        &mut session,
+        &plain_conditions(),
+        "http://x/",
+        Some(&data),
+        &mut gaps,
+    )
+    .unwrap();
+    assert_eq!(
+        session.log,
+        vec![
+            "apply",
+            "cookies 1",
+            "navigate http://x/",
+            "load",
+            "navigate http://x/"
+        ]
+    );
+    assert_eq!(skipped, 0);
+    assert!(gaps.is_empty(), "{gaps:?}");
+}
+
+#[test]
+fn cookies_that_cannot_be_applied_are_counted_and_reported_as_a_gap() {
+    let mut session = FakeBrowserSession::default();
+    let data = SessionData {
+        cookies: json!([
+            {"name": "sid", "value": "abc"},
+            {"value": "no-name"},
+            {"name": "no-value"}
+        ]),
+        local_storage: json!({}),
+    };
+    let mut gaps = Vec::new();
+    let skipped = open_page(
+        &mut session,
+        &plain_conditions(),
+        "http://x/",
+        Some(&data),
+        &mut gaps,
+    )
+    .unwrap();
+    assert_eq!(skipped, 2);
+    assert_eq!(session.log[1], "cookies 1");
+    assert_eq!(gaps, vec!["cookies-skipped:2".to_string()]);
+}
+
+#[test]
+fn when_every_cookie_is_skipped_no_set_call_is_made() {
+    let mut session = FakeBrowserSession::default();
+    let data = SessionData {
+        cookies: json!([{"value": "no-name"}]),
+        local_storage: json!({}),
+    };
+    let mut gaps = Vec::new();
+    let skipped = open_page(
+        &mut session,
+        &plain_conditions(),
+        "http://x/",
+        Some(&data),
+        &mut gaps,
+    )
+    .unwrap();
+    assert_eq!(skipped, 1);
+    assert_eq!(
+        session.log,
+        vec!["apply", "navigate http://x/", "load", "navigate http://x/"]
+    );
+    assert_eq!(gaps, vec!["cookies-skipped:1".to_string()]);
+}
+
+#[test]
+fn page_without_session_navigates_once_and_reports_no_gaps() {
+    let mut session = FakeBrowserSession::default();
+    let mut gaps = Vec::new();
+    open_page(
+        &mut session,
+        &plain_conditions(),
+        "http://x/",
+        None,
+        &mut gaps,
+    )
+    .unwrap();
     assert_eq!(session.log, vec!["apply", "navigate http://x/"]);
+    assert!(gaps.is_empty());
+}
+
+#[test]
+fn no_gap_is_printed_when_every_cookie_applied() {
+    assert!(session_gaps(0).is_empty());
+    report_gaps(&session_gaps(0));
+    assert_eq!(session_gaps(3), vec!["cookies-skipped:3".to_string()]);
 }
 
 #[test]
@@ -249,4 +369,25 @@ fn save_then_load_session_file_round_trips() {
     write_session_file(&mut fs, "session.json", &data).unwrap();
     let back = read_session_file(&fs, "session.json").unwrap();
     assert_eq!(back, data);
+}
+
+#[test]
+fn saved_session_file_records_captured_cookies_and_loads_back_into_cookie_params() {
+    let mut session = FakeBrowserSession::default();
+    let mut fs = FakeSessionFs {
+        files: HashMap::new(),
+    };
+    save_session_to_file(&mut session, &mut fs, "session.json").unwrap();
+
+    let raw: Value = serde_json::from_str(fs.files.get("session.json").unwrap()).unwrap();
+    assert_eq!(raw["cookiesCaptured"], json!(true));
+    assert_eq!(raw["cookies"], json!([{"name": "sid", "value": "abc"}]));
+    assert_eq!(raw["localStorage"], json!({"theme": "dark"}));
+
+    let back = read_session_file(&fs, "session.json").unwrap();
+    let (params, skipped) = cookie_params(&back.cookies);
+    assert_eq!(skipped, 0);
+    assert_eq!(params.len(), 1);
+    assert_eq!(params[0].name, "sid");
+    assert_eq!(params[0].value, "abc");
 }

@@ -6,7 +6,6 @@ pub mod legacy;
 pub mod legacy_checks;
 pub mod p10_runtime;
 pub mod p11_frameworks;
-pub mod p11b_frameworks;
 pub mod p11c_experience;
 pub mod p11d_quality;
 pub mod reasoning;

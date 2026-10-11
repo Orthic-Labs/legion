@@ -10,7 +10,7 @@ permissions:
   contents: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !(github.event_name == 'push' && github.ref_name == github.event.repository.default_branch) }}
 jobs:
   private-repo-guard:
     runs-on: ubuntu-24.04
@@ -75,7 +75,7 @@ jobs:
           fi
           printf 'changed=%s\n' "$changed" >> "$GITHUB_OUTPUT"
           required="$changed"
-          if [[ "false" == "true" ]]; then
+          if [[ "true" == "true" ]]; then
             required=true
           fi
           printf 'required=%s\n' "$required" >> "$GITHUB_OUTPUT"

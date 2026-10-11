@@ -275,3 +275,12 @@ These skills lived at `tools/skills/<name>/` in the parent workspace, not in thi
 | `tools/skills/writing-plans/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
 | `tools/skills/hardeningscan/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
 | `tools/skills/review-frontend/` | pre-package (workspace) | none yet; no decision recorded | dropped, restoration pending |
+| `engine/crates/legion-audit/src/native_providers/p10_runtime/external.rs` | 2026-10-11 unused audit port removal | none — port had no production caller; no wired successor identified | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p10_runtime/mobile.rs` | 2026-10-11 unused audit port removal | none — port had no production caller; no wired successor identified | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p11b_frameworks/mod.rs` | 2026-10-11 unused audit port removal | none — port had no production caller; no wired successor identified | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p11c_experience/performance.rs` | 2026-10-11 unused audit port removal | none — port had no production caller; no wired successor identified | intentionally dropped |
+| `engine/crates/legion-audit/tests/p10_browser_service.rs` | 2026-10-11 unused audit port removal | none — test exercised only the removed port | intentionally dropped |
+| `engine/crates/legion-audit/tests/p10_external.rs` | 2026-10-11 unused audit port removal | none — test exercised only the removed port | intentionally dropped |
+| `engine/crates/legion-audit/tests/p10_mobile.rs` | 2026-10-11 unused audit port removal | none — test exercised only the removed port | intentionally dropped |
+| `engine/crates/legion-audit/tests/p11b_frameworks.rs` | 2026-10-11 unused audit port removal | none — test exercised only the removed port | intentionally dropped |
+| `engine/crates/legion-audit/tests/p11c_experience.rs` | 2026-10-11 unused audit port removal | none — test exercised only the removed port | intentionally dropped |

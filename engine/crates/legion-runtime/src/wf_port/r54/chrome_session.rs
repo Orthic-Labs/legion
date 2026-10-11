@@ -1,33 +1,30 @@
 //! `headless_chrome`-backed production implementation of `session_client::BrowserSession`
 //! (packet r54). Not covered by this packet's tests: cargo cannot launch a real browser in this
-//! environment, and (per the port brief) browser/DOM work is exercised only through fakes.
+//! environment, so the CDP calls below are exercised only through fakes at the orchestration level
+//! (`run::open_page`, `session::save_session_to_file`).
 //!
-//! API choices below are matched against this crate's other `headless_chrome` usages
-//! (`wf_port::r07::real`, `wf_port::w2_028::web_page_probe`), which confirm `Browser::new`,
-//! `browser.new_tab()`, `tab.navigate_to`/`wait_until_navigated`, `tab.evaluate(expr, bool)` ->
-//! `RemoteObject.value`, `tab.capture_screenshot(format, quality, clip, full_page)` -> `Vec<u8>`,
-//! `tab.find_element(selector)`, and the exact field list of
-//! `protocol::cdp::Emulation::SetDeviceMetricsOverride` (no `Default` impl — every field must be
-//! named, per `w2_028::web_page_probe::ChromePageBrowser::set_viewport`).
+//! Each CDP call here is the raw call qa.mjs sent:
+//! - `Emulation.setDeviceMetricsOverride` and `Emulation.setCPUThrottlingRate` (`apply_conditions`).
+//! - `Network.emulateNetworkConditions` (`apply_conditions`, throttled runs only).
+//! - `Network.setCookies` (`set_cookies`) and `Network.getCookies` with no URL filter
+//!   (`save_session`).
+//! - `Input.dispatchMouseEvent` (click, mouse_move, mouse_wheel), `Input.dispatchKeyEvent`
+//!   (press_key) and `Input.insertText` (insert_text). This is real input, not synthetic DOM
+//!   events. A CDP error is returned to the caller and never replaced with a fallback.
 //!
-//! Gaps: the synthetic-input path below is reported as `synthetic-input`, network throttling as
-//! `network-throttle-not-applied`, cookie restore as `cookies-not-restored`, cookie capture as
-//! `cookies-not-captured`, and `--cdp-port` as `unavailable:cdp-port-not-supported` (all in
-//! `run.rs`, which owns the report).
+//! Not sent: qa.mjs called `Network.enable` before the network calls. Its
+//! `Network::Enable` field list is not confirmed for headless_chrome 1.0.22, so it is omitted.
+//! Whether Chrome needs it for these two calls is unverified in this environment.
 //!
-//! `qa.mjs`'s raw `Input.dispatchMouseEvent`/`dispatchKeyEvent`/`Network.emulateNetworkConditions`
-//! CDP calls (click, hover, press, wheel, network throttling) have no confirmed-field precedent
-//! anywhere else in this crate, and this environment cannot compile-check a guess at their exact
-//! struct shape. Rather than risk a build break on an unverifiable field list, those five
-//! operations are ported as JS-dispatched synthetic DOM events via the same `evaluate()` path
-//! already confirmed above (`MouseEvent`/`WheelEvent`/`KeyboardEvent` construction, dispatched
-//! with `bubbles: true`). This is a **PORTED-PARTIAL** gap versus qa.mjs's real OS-level CDP
-//! input: synthetic events pass listeners bound with `addEventListener` (what the QA actions this
-//! file exists for actually assert against) but do not move the OS cursor or satisfy
-//! `:hover`/native drag/scroll-snap the way genuine CDP input does. CPU throttling
-//! (`Emulation.setCPUThrottlingRate`) has one `rate: f64` field and is low-risk, so it is kept as
-//! a direct `call_method`.
+//! Gaps: none originate here. `run.rs` reports `cookies-skipped:<n>` when a loaded session file
+//! holds cookies that cannot be applied.
+//!
+//! The field lists below come from the confirmed `headless_chrome` 1.0.22 CDP types recorded in
+//! the packet notes. The struct literals name every field because none of these types has a
+//! `Default` impl.
 
+use headless_chrome::protocol::cdp::Network::CookieParam;
+use headless_chrome::protocol::cdp::{Emulation, Input, Network};
 use headless_chrome::Tab;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
@@ -86,10 +83,82 @@ impl ChromeSession {
             .map_err(|e| e.to_string())?;
         Ok(remote.value.unwrap_or(Value::Null))
     }
+
+    /// One `Input.dispatchMouseEvent` call. `delta` is `(deltaX, deltaY)` for wheel events only.
+    fn dispatch_mouse(
+        &self,
+        event_type: Input::DispatchMouseEventTypeOption,
+        x: f64,
+        y: f64,
+        button: Option<Input::MouseButton>,
+        click_count: Option<u32>,
+        delta: Option<(f64, f64)>,
+    ) -> Result<(), String> {
+        self.tab
+            .call_method(Input::DispatchMouseEvent {
+                Type: event_type,
+                x,
+                y,
+                modifiers: None,
+                timestamp: None,
+                button,
+                buttons: None,
+                click_count,
+                force: None,
+                tangential_pressure: None,
+                tilt_x: None,
+                tilt_y: None,
+                twist: None,
+                delta_x: delta.map(|(dx, _)| dx),
+                delta_y: delta.map(|(_, dy)| dy),
+                pointer_Type: None,
+            })
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    /// One `Input.dispatchKeyEvent` call carrying the key name, plus `text` when given.
+    fn dispatch_key(
+        &self,
+        event_type: Input::DispatchKeyEventTypeOption,
+        key: &str,
+        text: Option<String>,
+    ) -> Result<(), String> {
+        self.tab
+            .call_method(Input::DispatchKeyEvent {
+                Type: event_type,
+                modifiers: None,
+                timestamp: None,
+                text,
+                unmodified_text: None,
+                key_identifier: None,
+                code: None,
+                key: Some(key.to_string()),
+                windows_virtual_key_code: None,
+                native_virtual_key_code: None,
+                auto_repeat: None,
+                is_keypad: None,
+                is_system_key: None,
+                location: None,
+                commands: None,
+            })
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
 }
 
 fn js_string(value: &str) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_string())
+}
+
+/// Text a keyDown carries for a printable single character, so the key inserts that character.
+/// Multi-character key names such as `Enter`, and control characters, carry no text.
+fn printable_text(key: &str) -> Option<String> {
+    let mut chars = key.chars();
+    match (chars.next(), chars.next()) {
+        (Some(c), None) if !c.is_control() => Some(key.to_string()),
+        _ => None,
+    }
 }
 
 impl BrowserSession for ChromeSession {
@@ -138,42 +207,68 @@ impl BrowserSession for ChromeSession {
     }
 
     fn click(&mut self, x: f64, y: f64) -> Result<(), String> {
-        // See module doc: synthetic `mousedown`/`mouseup`/`click` dispatch at the viewport point,
-        // in place of qa.mjs's `Input.dispatchMouseEvent` (unverifiable field shape here).
-        let expr = format!(
-            "(() => {{ const el = document.elementFromPoint({x}, {y}); if (!el) return {{ ok: false }}; for (const type of ['mousedown','mouseup','click']) el.dispatchEvent(new MouseEvent(type, {{ bubbles: true, cancelable: true, clientX: {x}, clientY: {y} }})); return {{ ok: true }}; }})()"
-        );
-        self.eval_raw(&expr).map(|_| ())
+        // qa.mjs `click`: mousePressed then mouseReleased, left button, clickCount 1.
+        self.dispatch_mouse(
+            Input::DispatchMouseEventTypeOption::MousePressed,
+            x,
+            y,
+            Some(Input::MouseButton::Left),
+            Some(1),
+            None,
+        )?;
+        self.dispatch_mouse(
+            Input::DispatchMouseEventTypeOption::MouseReleased,
+            x,
+            y,
+            Some(Input::MouseButton::Left),
+            Some(1),
+            None,
+        )
     }
 
     fn mouse_move(&mut self, x: f64, y: f64) -> Result<(), String> {
-        let expr = format!(
-            "(() => {{ const el = document.elementFromPoint({x}, {y}); if (!el) return {{ ok: false }}; el.dispatchEvent(new MouseEvent('mouseover', {{ bubbles: true, clientX: {x}, clientY: {y} }})); el.dispatchEvent(new MouseEvent('mousemove', {{ bubbles: true, clientX: {x}, clientY: {y} }})); return {{ ok: true }}; }})()"
-        );
-        self.eval_raw(&expr).map(|_| ())
+        // qa.mjs `hover`: mouseMoved at the element's center.
+        self.dispatch_mouse(
+            Input::DispatchMouseEventTypeOption::MouseMoved,
+            x,
+            y,
+            None,
+            None,
+            None,
+        )
     }
 
     fn insert_text(&mut self, text: &str) -> Result<(), String> {
-        let expr = format!(
-            "(() => {{ const el = document.activeElement; if (!el) return {{ ok: false }}; if ('value' in el) {{ el.value += {t}; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }} else if (el.isContentEditable) {{ el.textContent += {t}; }} return {{ ok: true }}; }})()",
-            t = js_string(text)
-        );
-        self.eval_raw(&expr).map(|_| ())
+        // qa.mjs `type`: Input.insertText.
+        self.tab
+            .call_method(Input::InsertText {
+                text: text.to_string(),
+            })
+            .map(|_| ())
+            .map_err(|e| e.to_string())
     }
 
     fn press_key(&mut self, key: &str) -> Result<(), String> {
-        let expr = format!(
-            "(() => {{ const el = document.activeElement || document.body; for (const type of ['keydown','keyup']) el.dispatchEvent(new KeyboardEvent(type, {{ bubbles: true, cancelable: true, key: {k} }})); return {{ ok: true }}; }})()",
-            k = js_string(key)
-        );
-        self.eval_raw(&expr).map(|_| ())
+        // qa.mjs `press`: keyDown then keyUp with the key name. The keyDown also carries `text`
+        // for a printable single character (see `printable_text`).
+        self.dispatch_key(
+            Input::DispatchKeyEventTypeOption::KeyDown,
+            key,
+            printable_text(key),
+        )?;
+        self.dispatch_key(Input::DispatchKeyEventTypeOption::KeyUp, key, None)
     }
 
     fn mouse_wheel(&mut self, x: f64, y: f64, delta_x: f64, delta_y: f64) -> Result<(), String> {
-        let expr = format!(
-            "(() => {{ const el = document.elementFromPoint({x}, {y}); if (!el) return {{ ok: false }}; el.dispatchEvent(new WheelEvent('wheel', {{ bubbles: true, cancelable: true, clientX: {x}, clientY: {y}, deltaX: {delta_x}, deltaY: {delta_y} }})); return {{ ok: true }}; }})()"
-        );
-        self.eval_raw(&expr).map(|_| ())
+        // qa.mjs `wheel`: mouseWheel with deltaX/deltaY at the given point.
+        self.dispatch_mouse(
+            Input::DispatchMouseEventTypeOption::MouseWheel,
+            x,
+            y,
+            None,
+            None,
+            Some((delta_x, delta_y)),
+        )
     }
 
     fn capture(&mut self, out: &str) -> Result<String, String> {
@@ -197,38 +292,43 @@ impl BrowserSession for ChromeSession {
     }
 
     fn apply_conditions(&mut self, conditions: &Conditions) -> Result<(), String> {
-        // `applyConditions` (qa.mjs lines 107-121). Device metrics: confirmed field list (module
-        // doc). Network throttling uses the JS-side `navigator.connection`-independent approach
-        // is unavailable without the real CDP call, so — like click/hover/wheel/press above —
-        // network/CPU conditions beyond viewport are PORTED-PARTIAL here: CPU throttling has a
-        // single, low-risk `rate` field and is wired directly; network throttling's exact
-        // `Network::EmulateNetworkConditions` field list is not confirmed in this environment, so
-        // it is not applied. `run.rs` reports `network-throttle-not-applied` whenever it is requested.
+        // `applyConditions` (qa.mjs lines 107-121), same call order: viewport, network, CPU.
         self.tab
-            .call_method(
-                headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                    width: conditions.width as u32,
-                    height: conditions.height as u32,
-                    device_scale_factor: conditions.dpr,
-                    mobile: conditions.mobile,
-                    scale: None,
-                    screen_width: None,
-                    screen_height: None,
-                    position_x: None,
-                    position_y: None,
-                    dont_set_visible_size: None,
-                    screen_orientation: None,
-                    viewport: None,
-                    display_feature: None,
-                    device_posture: None,
-                },
-            )
+            .call_method(Emulation::SetDeviceMetricsOverride {
+                width: conditions.width as u32,
+                height: conditions.height as u32,
+                device_scale_factor: conditions.dpr,
+                mobile: conditions.mobile,
+                scale: None,
+                screen_width: None,
+                screen_height: None,
+                position_x: None,
+                position_y: None,
+                dont_set_visible_size: None,
+                screen_orientation: None,
+                viewport: None,
+                display_feature: None,
+                device_posture: None,
+            })
             .map_err(|e| e.to_string())?;
+        if let Some(profile) = conditions.throttle {
+            // qa.mjs: `{ offline: false, ...THROTTLE[name] }`. Every other field is left unset.
+            self.tab
+                .call_method(Network::EmulateNetworkConditions {
+                    offline: false,
+                    latency: profile.latency,
+                    download_throughput: profile.download_throughput,
+                    upload_throughput: profile.upload_throughput,
+                    connection_Type: None,
+                    packet_loss: None,
+                    packet_queue_length: None,
+                    packet_reordering: None,
+                })
+                .map_err(|e| e.to_string())?;
+        }
         if let Some(rate) = conditions.cpu {
             self.tab
-                .call_method(
-                    headless_chrome::protocol::cdp::Emulation::SetCPUThrottlingRate { rate },
-                )
+                .call_method(Emulation::SetCPUThrottlingRate { rate })
                 .map_err(|e| e.to_string())?;
         }
         Ok(())
@@ -248,13 +348,20 @@ impl BrowserSession for ChromeSession {
         Ok(())
     }
 
+    fn set_cookies(&mut self, cookies: &[CookieParam]) -> Result<(), String> {
+        // qa.mjs `loadSession`: `Network.setCookies` with the saved cookie objects.
+        self.tab
+            .call_method(Network::SetCookies {
+                cookies: cookies.to_vec(),
+            })
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
     fn load_session(&mut self, data: &SessionData) -> Result<(), String> {
         // `loadSession`'s localStorage half (qa.mjs lines 133-136) via the confirmed `evaluate`
-        // path. The cookie half (`Network.setCookies`) shares the same unverifiable-CDP-struct
-        // gap as network throttling above and is PORTED-PARTIAL: cookies are not restored by
-        // this production impl (localStorage restore, the more commonly used half for skipping
-        // re-login per the qa.mjs module doc at line 124, is fully wired). `run.rs` reports
-        // `cookies-not-restored` when the file carries cookies.
+        // path. The caller has already restored cookies before the first navigation (see
+        // `set_cookies`) and calls this after it, so the page origin exists.
         if let Some(obj) = data.local_storage.as_object() {
             if !obj.is_empty() {
                 let expr = format!(
@@ -268,21 +375,46 @@ impl BrowserSession for ChromeSession {
     }
 
     fn save_session(&mut self) -> Result<SessionData, String> {
-        // `saveSession` (qa.mjs lines 138-147): localStorage via `evaluate` (confirmed path).
-        // Cookies are not read (the empty array is a placeholder). `run.rs` writes the file with
-        // `"cookiesCaptured": false` and reports `cookies-not-captured`.
+        // `saveSession` (qa.mjs lines 138-147). Cookies: `Network.getCookies` with no URL filter,
+        // which returns the cookies for the current page. A browser error is returned, not
+        // replaced by an empty list. localStorage: `evaluate`, with failures tolerated as qa.mjs's
+        // try/catch tolerated them.
+        let captured = self
+            .tab
+            .call_method(Network::GetCookies { urls: None })
+            .map_err(|e| e.to_string())?;
+        let cookies = serde_json::to_value(&captured.cookies).map_err(|e| e.to_string())?;
         let local_storage = self
             .eval_raw("JSON.stringify(Object.assign({}, window.localStorage))")
             .ok()
             .and_then(|v| v.as_str().and_then(|s| serde_json::from_str(s).ok()))
             .unwrap_or(Value::Object(Default::default()));
         Ok(SessionData {
-            cookies: Value::Array(vec![]),
+            cookies,
             local_storage,
         })
     }
 
     fn take_console_errors(&mut self) -> Vec<String> {
         std::mem::take(&mut *self.console_errors.lock().unwrap())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::printable_text;
+
+    #[test]
+    fn printable_single_character_carries_text() {
+        assert_eq!(printable_text("a"), Some("a".to_string()));
+        assert_eq!(printable_text("7"), Some("7".to_string()));
+    }
+
+    #[test]
+    fn named_keys_and_control_characters_carry_no_text() {
+        assert_eq!(printable_text("Enter"), None);
+        assert_eq!(printable_text("ArrowDown"), None);
+        assert_eq!(printable_text("\n"), None);
+        assert_eq!(printable_text(""), None);
     }
 }

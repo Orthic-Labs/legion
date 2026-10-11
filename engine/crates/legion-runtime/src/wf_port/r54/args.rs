@@ -171,15 +171,15 @@ Options:
   --width <px>           Viewport width. Default: 1365
   --height <px>          Viewport height. Default: 900
   --port <port>          Server port. Default: first free port from 1422.
-  --cdp-port <port>      NOT APPLIED. Reported as gap unavailable:cdp-port-not-supported.
+  --cdp-port <port>      DevTools port for action mode. Default: first free port from 9222.
   --qa-env <NAME=VALUE>  Env var for server process. Default: VITE_APP_BROWSER_QA=1
   --viewport <spec>      Preset (desktop|tablet|mobile) or WxH (e.g. 390x844). Sets width/height/DPR/mobile.
-  --slow-3g              Network throttle ~400 kbps / 400ms RTT. NOT APPLIED; reported as gap network-throttle-not-applied.
-  --slow-4g              Network throttle ~1.6 Mbps / 150ms RTT. NOT APPLIED; reported as gap network-throttle-not-applied.
+  --slow-3g              Throttle network ~400 kbps / 400ms RTT (CDP). Reveals spinners/jank hidden on localhost.
+  --slow-4g              Throttle network ~1.6 Mbps / 150ms RTT (CDP).
   --cpu-4x               Throttle CPU 4x (CDP). Shorthand for --cpu-throttle 4.
   --cpu-throttle <n>     Throttle CPU by factor n (CDP).
-  --save-session <file>  After the run, save localStorage to <file>. Cookies are NOT captured (cookiesCaptured: false; gap cookies-not-captured).
-  --load-session <file>  Restore localStorage (navigate, restore, reload). Cookies are NOT restored (gap cookies-not-restored).
+  --save-session <file>  After the run, save cookies + localStorage to <file> (cookiesCaptured: true).
+  --load-session <file>  Restore cookies before the first navigation, then localStorage, then reload.
   --keep-open            Leave server running after the run.
   --sweep                Delete abandoned browser profiles under .cache and exit.
   --help                 Show help.
@@ -238,9 +238,9 @@ pub fn parse_args(argv: &[String]) -> Result<Args, String> {
                 }
             }
             "--cdp-port" => {
-                if let Some(v) = next(&mut i, argv) {
-                    args.cdp_port = v.parse().unwrap_or(0);
-                }
+                let v = next(&mut i, argv)
+                    .ok_or_else(|| "--cdp-port needs a value (1-65535)".to_string())?;
+                args.cdp_port = parse_cdp_port(&v)?;
             }
             "--qa-env" => {
                 if let Some(v) = next(&mut i, argv) {
@@ -270,6 +270,24 @@ pub fn parse_args(argv: &[String]) -> Result<Args, String> {
         i += 1;
     }
     Ok(args)
+}
+
+/// Largest TCP port number, the upper bound for `--cdp-port`.
+pub const MAX_TCP_PORT: u32 = 65535;
+
+/// Parses `--cdp-port`: ASCII digits only, at most `MAX_TCP_PORT`. `0` is accepted and, like an
+/// omitted flag, means "first free port from 9222" (qa.mjs `args.cdpPort || freePort(9222)`).
+/// Anything else is a usage error, never a silent fallback to the default.
+pub fn parse_cdp_port(raw: &str) -> Result<u32, String> {
+    let bad = || format!("bad --cdp-port: {raw} (use a port from 1 to 65535, or omit the flag)");
+    if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(bad());
+    }
+    let port: u32 = raw.parse().map_err(|_| bad())?;
+    if port > MAX_TCP_PORT {
+        return Err(bad());
+    }
+    Ok(port)
 }
 
 /// `--qa-env NAME=VALUE` split used by `startServer` (qa.mjs line 303): first `=` splits name
@@ -406,5 +424,43 @@ mod tests {
             split_qa_env("FOO=bar=baz"),
             Some(("FOO".to_string(), "bar=baz".to_string()))
         );
+    }
+
+    #[test]
+    fn cdp_port_accepts_digits_within_tcp_range() {
+        assert_eq!(parse_cdp_port("9222"), Ok(9222));
+        assert_eq!(parse_cdp_port("0"), Ok(0));
+        assert_eq!(parse_cdp_port("65535"), Ok(65535));
+    }
+
+    #[test]
+    fn cdp_port_rejects_values_above_65535_as_usage_error() {
+        let e = parse_cdp_port("65536").unwrap_err();
+        assert!(e.starts_with("bad --cdp-port: 65536"), "{e}");
+        assert!(parse_cdp_port("99999999999").is_err());
+    }
+
+    #[test]
+    fn cdp_port_rejects_non_numeric_and_signed_values() {
+        assert!(parse_cdp_port("abc").is_err());
+        assert!(parse_cdp_port("").is_err());
+        assert!(parse_cdp_port("-1").is_err());
+        assert!(parse_cdp_port("92 22").is_err());
+    }
+
+    #[test]
+    fn cdp_port_flag_is_parsed_into_args() {
+        let a = parse_args(&["--cdp-port".into(), "9333".into()]).unwrap();
+        assert_eq!(a.cdp_port, 9333);
+        let none = parse_args(&[]).unwrap();
+        assert_eq!(none.cdp_port, 0);
+    }
+
+    #[test]
+    fn cdp_port_flag_out_of_range_or_missing_is_an_error() {
+        let e = parse_args(&["--cdp-port".into(), "70000".into()]).unwrap_err();
+        assert!(e.starts_with("bad --cdp-port: 70000"), "{e}");
+        let missing = parse_args(&["--cdp-port".into()]).unwrap_err();
+        assert!(missing.contains("--cdp-port needs a value"), "{missing}");
     }
 }

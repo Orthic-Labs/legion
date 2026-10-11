@@ -349,6 +349,12 @@ mod tests {
         fn navigate(&mut self, _url: &str) -> Result<(), String> {
             Ok(())
         }
+        fn set_cookies(
+            &mut self,
+            _cookies: &[headless_chrome::protocol::cdp::Network::CookieParam],
+        ) -> Result<(), String> {
+            Ok(())
+        }
         fn load_session(
             &mut self,
             _data: &crate::wf_port::r54::session_client::SessionData,

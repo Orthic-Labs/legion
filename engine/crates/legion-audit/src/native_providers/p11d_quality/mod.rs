@@ -1105,7 +1105,7 @@ pub mod accessibility_suite {
 
     // Only lookahead-free rules stay data-driven; the four rules whose JS
     // source uses `(?!...)` (unsupported by the `regex` crate — see the
-    // module doc and `native_providers::p11b_frameworks` for precedent) are
+    // module doc and the removed p11b framework port for precedent) are
     // reimplemented below as explicit scans with identical semantics.
     const RULES: &[Rule] = &[
         Rule {

@@ -10,6 +10,7 @@
 //! orchestration logic as the original, and are tested against a fake implementing this trait
 //! without a real browser.
 
+use headless_chrome::protocol::cdp::Network::CookieParam;
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -72,8 +73,14 @@ pub trait BrowserSession {
     /// throttling, applied before navigation.
     fn apply_conditions(&mut self, conditions: &Conditions) -> Result<(), String>;
     fn navigate(&mut self, url: &str) -> Result<(), String>;
-    /// `loadSession`/`saveSession` (lines 125-147).
+    /// `loadSession`'s cookie half (qa.mjs lines 128-131): `Network.setCookies`. Called before the
+    /// first navigation, because qa.mjs restored cookies there. Errors from the browser propagate.
+    fn set_cookies(&mut self, cookies: &[CookieParam]) -> Result<(), String>;
+    /// `loadSession`'s localStorage half (qa.mjs lines 133-136). Called after navigation so the
+    /// origin exists; the caller navigates again afterwards.
     fn load_session(&mut self, data: &SessionData) -> Result<(), String>;
+    /// `saveSession` (qa.mjs lines 138-147). Cookies come from `Network.getCookies` and a failed
+    /// browser call is an error, so a returned `cookies` array is a real capture.
     fn save_session(&mut self) -> Result<SessionData, String>;
     /// Drains and returns the console `error`/`warning` and uncaught-exception lines observed
     /// since the last call (qa.mjs's `runActions` `consoleErrors` accumulator, lines 685,

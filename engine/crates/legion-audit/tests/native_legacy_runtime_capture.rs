@@ -564,8 +564,11 @@ fn runtime_inputs_validate_what_the_plan_will_freeze() {
     assert!(runtime_inputs("ftp://x/", &[], &[], 800, 600, None).is_err());
     assert!(runtime_inputs("http://x/", &[], &[], 0, 600, None).is_err());
     assert!(runtime_inputs("http://x/", &[], &[], 800, 600, Some("relative")).is_err());
-    let value = runtime_inputs("http://x/", &[], &[], 800, 600, Some("/tmp/out/runtime")).unwrap();
-    assert_eq!(value["artifactDir"], "/tmp/out/runtime");
+    // An absolute path in the host's own form: `/tmp/...` is not absolute on Windows.
+    let absolute = std::env::temp_dir().join("out").join("runtime");
+    let absolute = absolute.to_string_lossy().into_owned();
+    let value = runtime_inputs("http://x/", &[], &[], 800, 600, Some(&absolute)).unwrap();
+    assert_eq!(value["artifactDir"], absolute.as_str());
 }
 
 #[test]

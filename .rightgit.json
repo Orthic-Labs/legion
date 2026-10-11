@@ -24,7 +24,8 @@
   "rustCache": {
     "workspaces": [
       "engine"
-    ]
+    ],
+    "requiredForGate": true
   },
   "candidate": {
     "buildScript": "ci:unsigned-candidate",
@@ -71,5 +72,8 @@
   "regenerate": {
     "script": "ci:regenerate"
   },
-  "ciIncremental": true
+  "ciIncremental": true,
+  "concurrency": {
+    "mainPushes": "queue"
+  }
 }
