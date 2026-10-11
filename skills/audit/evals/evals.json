@@ -6,7 +6,7 @@
       "id": "audit-repository-state",
       "prompt": "Run /audit on this repo and find doc drift, dead files, AI slop, contract drift, and security smells.",
       "expected_skill": "audit",
-      "forbidden_skills": ["code-review"],
+      "forbidden_skills": ["oracle"],
       "expected_behavior": "The skill should perform a whole-codebase read-only state audit, not a diff review or skill-library discovery audit, and should produce RepositoryAuditReport-shaped findings with file evidence.",
       "severity": "error",
       "mode": "discovery"
