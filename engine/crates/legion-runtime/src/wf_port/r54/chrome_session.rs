@@ -24,7 +24,7 @@
 //! `Default` impl.
 
 use headless_chrome::protocol::cdp::Network::CookieParam;
-use headless_chrome::protocol::cdp::{Emulation, Input, Network};
+use headless_chrome::protocol::cdp::{Emulation, Input, Network, Runtime};
 use headless_chrome::Tab;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
@@ -76,12 +76,33 @@ impl ChromeSession {
     }
 
     fn eval_raw(&self, expression: &str) -> Result<Value, String> {
-        // `runtimeEval` (qa.mjs lines 454-465): confirmed shape, see module doc.
-        let remote = self
+        // `Tab::evaluate` hard-codes `return_by_value: false`, which leaves object results
+        // without `RemoteObject::value`. `runtimeEval` needs the JSON result by value.
+        let evaluated = self
             .tab
-            .evaluate(expression, true)
+            .call_method(Runtime::Evaluate {
+                expression: expression.to_string(),
+                return_by_value: Some(true),
+                generate_preview: Some(false),
+                silent: Some(false),
+                await_promise: Some(true),
+                include_command_line_api: Some(false),
+                user_gesture: Some(false),
+                object_group: None,
+                context_id: None,
+                throw_on_side_effect: None,
+                timeout: None,
+                disable_breaks: None,
+                repl_mode: None,
+                allow_unsafe_eval_blocked_by_csp: None,
+                unique_context_id: None,
+                serialization_options: None,
+            })
             .map_err(|e| e.to_string())?;
-        Ok(remote.value.unwrap_or(Value::Null))
+        if let Some(exception) = evaluated.exception_details {
+            return Err(exception.text);
+        }
+        Ok(evaluated.result.value.unwrap_or(Value::Null))
     }
 
     /// One `Input.dispatchMouseEvent` call. `delta` is `(deltaX, deltaY)` for wheel events only.
