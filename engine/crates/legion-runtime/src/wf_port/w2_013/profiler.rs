@@ -180,6 +180,12 @@ impl<T> FindingsCount for Vec<T> {
     }
 }
 
+impl<T, E> FindingsCount for Result<Vec<T>, E> {
+    fn findings_count(&self) -> u32 {
+        self.as_ref().map_or(0, |findings| findings.len() as u32)
+    }
+}
+
 /// Port of `percentile(sortedValues, pct)`. `sorted_values` must already be
 /// sorted ascending, matching the JS contract.
 pub fn percentile(sorted_values: &[f64], pct: f64) -> f64 {
@@ -194,7 +200,8 @@ pub fn percentile(sorted_values: &[f64], pct: f64) -> f64 {
 
 /// One summarized group, mirroring `summarizeDetectorProfile`'s output
 /// objects.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfileSummary {
     pub engine: String,
     pub phase: String,

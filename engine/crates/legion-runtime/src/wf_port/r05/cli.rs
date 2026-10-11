@@ -17,6 +17,9 @@ use super::super::w2_013::file_system::{
     build_import_graph, detect_framework_config, html_extensions, is_port_listening_http,
     is_port_listening_tcp, walk_dir,
 };
+use super::super::w2_013::profiler::{
+    profile_findings, summarize_detector_profile, DetectorProfile, ProfileMeta,
+};
 use super::super::w2_016::impeccable_config::{
     filter_detection_findings, read_detection_config, should_ignore_detection_file,
     DetectionConfig, Finding as ConfigFinding,
@@ -107,6 +110,7 @@ Options:
   --site              Also sweep same-origin links from the scanned page:
                       broken internal links + required-page presence
   --site-type=T       Required-page profile for --site: app | ecommerce | content
+  --profile           Write detector timing summary as JSON to stderr
   --help              Show this help message
 
 Project config:
@@ -181,6 +185,7 @@ fn findings_match(a: &ConfigFinding, b: &ConfigFinding) -> bool {
 struct ParsedArgs {
     json_mode: bool,
     quiet_mode: bool,
+    profile: bool,
     help_mode: bool,
     fast_deprecated: bool,
     no_config: bool,
@@ -212,6 +217,7 @@ fn parse_args(argv: &[String]) -> ParsedArgs {
 
     let json_mode = args.iter().any(|a| a == "--json");
     let quiet_mode = args.iter().any(|a| a == "--quiet");
+    let profile = args.iter().any(|a| a == "--profile");
     let help_mode = args.iter().any(|a| a == "--help");
     let fast_deprecated = args.iter().any(|a| a == "--fast");
     let no_config = args.iter().any(|a| a == "--no-config");
@@ -258,6 +264,7 @@ fn parse_args(argv: &[String]) -> ParsedArgs {
     ParsedArgs {
         json_mode,
         quiet_mode,
+        profile,
         help_mode,
         fast_deprecated,
         no_config,
@@ -338,12 +345,18 @@ pub fn run<I: Io, D: Detectors>(
     };
 
     let site_type = parsed.site_type.clone();
+    let mut profile = parsed.profile.then(DetectorProfile::new);
 
     let mut all_findings: Vec<CliFinding> = Vec::new();
 
     if !io.stdin_is_tty() && parsed.targets.is_empty() {
         let input = io.read_stdin();
-        all_findings.extend(handle_stdin(&input, detectors, effective_design_system));
+        all_findings.extend(handle_stdin(
+            &input,
+            detectors,
+            effective_design_system,
+            &mut profile,
+        ));
     } else {
         let paths: Vec<String> = if parsed.targets.is_empty() {
             vec![cwd.to_string_lossy().into_owned()]
@@ -353,11 +366,19 @@ pub fn run<I: Io, D: Detectors>(
 
         for target in &paths {
             if is_url(target) {
-                match detectors.detect_url(target, &url_options) {
+                match profiled_result(&mut profile, "browser", "detect-url", target, || {
+                    detectors.detect_url(target, &url_options)
+                }) {
                     Ok(findings) => {
                         all_findings.extend(findings);
                         if parsed.site_sweep {
-                            all_findings.extend(detectors.sweep_site(target, site_type.as_deref()));
+                            all_findings.extend(profiled_findings(
+                                &mut profile,
+                                "site",
+                                "sweep-site",
+                                target,
+                                || detectors.sweep_site(target, site_type.as_deref()),
+                            ));
                         }
                     }
                     Err(e) => io.stderr(&format!("Error: {e}\n")),
@@ -445,9 +466,16 @@ pub fn run<I: Io, D: Detectors>(
                         .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
                         .unwrap_or_default();
                     let mut file_findings = if html_exts.contains(ext.as_str()) {
-                        match detectors
-                            .detect_html(&file.to_string_lossy(), effective_design_system)
-                        {
+                        match profiled_result(
+                            &mut profile,
+                            "static-html",
+                            "detect-html",
+                            &file.to_string_lossy(),
+                            || {
+                                detectors
+                                    .detect_html(&file.to_string_lossy(), effective_design_system)
+                            },
+                        ) {
                             Ok(f) => f,
                             Err(e) => {
                                 io.stderr(&format!("Error: {e}\n"));
@@ -456,10 +484,18 @@ pub fn run<I: Io, D: Detectors>(
                         }
                     } else {
                         match std::fs::read_to_string(file) {
-                            Ok(content) => detectors.detect_text(
-                                &content,
+                            Ok(content) => profiled_findings(
+                                &mut profile,
+                                "regex",
+                                "detect-text",
                                 &file.to_string_lossy(),
-                                effective_design_system,
+                                || {
+                                    detectors.detect_text(
+                                        &content,
+                                        &file.to_string_lossy(),
+                                        effective_design_system,
+                                    )
+                                },
                             ),
                             Err(_) => Vec::new(),
                         }
@@ -483,17 +519,32 @@ pub fn run<I: Io, D: Detectors>(
                     .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
                     .unwrap_or_default();
                 if html_extensions().contains(ext.as_str()) {
-                    match detectors
-                        .detect_html(&resolved.to_string_lossy(), effective_design_system)
-                    {
+                    match profiled_result(
+                        &mut profile,
+                        "static-html",
+                        "detect-html",
+                        &resolved.to_string_lossy(),
+                        || {
+                            detectors
+                                .detect_html(&resolved.to_string_lossy(), effective_design_system)
+                        },
+                    ) {
                         Ok(f) => all_findings.extend(f),
                         Err(e) => io.stderr(&format!("Error: {e}\n")),
                     }
                 } else if let Ok(content) = std::fs::read_to_string(&resolved) {
-                    all_findings.extend(detectors.detect_text(
-                        &content,
+                    all_findings.extend(profiled_findings(
+                        &mut profile,
+                        "regex",
+                        "detect-text",
                         &resolved.to_string_lossy(),
-                        effective_design_system,
+                        || {
+                            detectors.detect_text(
+                                &content,
+                                &resolved.to_string_lossy(),
+                                effective_design_system,
+                            )
+                        },
                     ));
                 }
             }
@@ -502,7 +553,7 @@ pub fn run<I: Io, D: Detectors>(
 
     all_findings = filter_findings(all_findings, &detection_config);
 
-    if !all_findings.is_empty() {
+    let exit_code = if !all_findings.is_empty() {
         if parsed.json_mode {
             io.stdout(&format_findings(&all_findings, true));
             io.stdout("\n");
@@ -513,12 +564,20 @@ pub fn run<I: Io, D: Detectors>(
             io.stderr(&format_findings(&all_findings, false));
             io.stderr("\n");
         }
-        return 2;
+        2
+    } else {
+        if parsed.json_mode {
+            io.stdout("[]\n");
+        }
+        0
+    };
+    if let Some(profile) = profile {
+        let summary = summarize_detector_profile(&profile);
+        if let Ok(json) = serde_json::to_string_pretty(&summary) {
+            io.stderr(&format!("Detector profile:\n{json}\n"));
+        }
     }
-    if parsed.json_mode {
-        io.stdout("[]\n");
-    }
-    0
+    exit_code
 }
 
 /// Port of `handleStdin(options)`: tries to parse stdin as the
@@ -529,6 +588,7 @@ fn handle_stdin<D: Detectors>(
     input: &str,
     detectors: &mut D,
     design_system: Option<&DesignSystem>,
+    profile: &mut Option<DetectorProfile>,
 ) -> Vec<CliFinding> {
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(input) {
         if let Some(fp) = parsed
@@ -542,18 +602,83 @@ fn handle_stdin<D: Detectors>(
                     .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
                     .unwrap_or_default();
                 if html_extensions().contains(ext.as_str()) {
-                    return match detectors.detect_html(fp, design_system) {
+                    return match profiled_result(profile, "static-html", "detect-html", fp, || {
+                        detectors.detect_html(fp, design_system)
+                    }) {
                         Ok(f) => f,
                         Err(_) => Vec::new(),
                     };
                 }
                 if let Ok(content) = std::fs::read_to_string(fp) {
-                    return detectors.detect_text(&content, fp, design_system);
+                    return profiled_findings(profile, "regex", "detect-text", fp, || {
+                        detectors.detect_text(&content, fp, design_system)
+                    });
                 }
             }
         }
     }
-    detectors.detect_text(input, "<stdin>", design_system)
+    profiled_findings(profile, "regex", "detect-text", "<stdin>", || {
+        detectors.detect_text(input, "<stdin>", design_system)
+    })
+}
+
+fn profiled_findings<F>(
+    profile: &mut Option<DetectorProfile>,
+    engine: &str,
+    rule_id: &str,
+    target: &str,
+    callback: F,
+) -> Vec<CliFinding>
+where
+    F: FnOnce() -> Vec<CliFinding>,
+{
+    let Some(profile) = profile.as_mut() else {
+        return callback();
+    };
+    let meta = ProfileMeta::new(engine, "detect", rule_id, target);
+    profile_findings(
+        Some(profile),
+        &meta,
+        |findings: &Vec<CliFinding>| {
+            findings
+                .iter()
+                .map(|finding| finding.antipattern.clone())
+                .collect()
+        },
+        callback,
+    )
+}
+
+fn profiled_result<F>(
+    profile: &mut Option<DetectorProfile>,
+    engine: &str,
+    rule_id: &str,
+    target: &str,
+    callback: F,
+) -> Result<Vec<CliFinding>, String>
+where
+    F: FnOnce() -> Result<Vec<CliFinding>, String>,
+{
+    let Some(profile) = profile.as_mut() else {
+        return callback();
+    };
+    let meta = ProfileMeta::new(engine, "detect", rule_id, target);
+    profile_findings(
+        Some(profile),
+        &meta,
+        |result: &Result<Vec<CliFinding>, String>| {
+            result
+                .as_ref()
+                .map(|findings| {
+                    findings
+                        .iter()
+                        .map(|finding| finding.antipattern.clone())
+                        .collect()
+                })
+                .unwrap_or_default()
+        },
+        callback,
+    )
 }
 
 /// Port of `detectCli`'s framework-dev-server hint block for a directory
@@ -728,6 +853,33 @@ mod tests {
         );
         assert_eq!(code, 0);
         assert!(io.out.contains("Usage: impeccable detect"));
+    }
+
+    #[test]
+    fn profile_flag_emits_timing_summary_to_stderr_without_polluting_json_stdout() {
+        let mut io = FakeIo {
+            out: String::new(),
+            err: String::new(),
+            tty: false,
+            stdin: "input".to_string(),
+            confirm_answer: true,
+        };
+        let mut d = FakeDetectors {
+            text_findings: RefCell::new(vec![CliFinding::new("rule-a", "", 1, "hit")]),
+        };
+        let code = run(
+            &["--json".to_string(), "--profile".to_string()],
+            Path::new("."),
+            &mut io,
+            &mut d,
+            None,
+        );
+        assert_eq!(code, 2);
+        assert!(io.out.starts_with("[\n"));
+        assert!(!io.out.contains("Detector profile"));
+        assert!(io.err.contains("Detector profile:"));
+        assert!(io.err.contains("\"ruleId\": \"detect-text\""));
+        assert!(io.err.contains("\"findings\": 1"));
     }
 
     #[test]

@@ -98,6 +98,10 @@ enum Mode {
     LoadFailed,
     /// No browser on the host.
     BrowserMissing,
+    /// Navigation, screenshot, and performance succeed before axe times out.
+    AxeFailedAfterPerformance,
+    /// A complete route reports one actionable axe violation.
+    AxeFinding,
 }
 
 /// What the route prints for the performance action (`[qa] 3:eval value ...`).
@@ -167,8 +171,10 @@ impl ExternalProjectTool for RuntimeFake {
         let actions: Value = serde_json::from_slice(&fs::read(&actions_path).unwrap()).unwrap();
         let shot = actions[1]["out"].as_str().unwrap().to_owned();
         let items = actions.as_array().unwrap();
-        assert_eq!(items.len(), 3, "load check, screenshot, performance");
-        assert_eq!(items[2]["type"], "eval", "performance is the last action");
+        assert_eq!(items.len(), 4, "load check, screenshot, performance, axe");
+        assert_eq!(items[2]["type"], "eval", "performance action");
+        assert_eq!(items[3]["type"], "eval", "axe runs after performance");
+        assert!(items[3]["expression"].as_str().unwrap().contains("wcag2aa"));
         let perf = perf_stdout(&self.perf);
         let mut receipt = ExecutionReceipt::failure(&request, ExecutionState::Failed, "exit 1");
         receipt.process_tree.started = true;
@@ -178,7 +184,7 @@ impl ExternalProjectTool for RuntimeFake {
             Mode::Good { entries, total } => {
                 fs::write(&shot, PNG).unwrap();
                 let mut out = format!(
-                    "[qa] 1:eval ok\n[qa] screenshot {shot}\n[qa] 2:screenshot ok\n{perf}[qa] actions complete {actions_path}\n"
+                    "[qa] 1:eval value {{\"ok\":true,\"href\":\"http://127.0.0.1:1422/\",\"status\":200}}\n[qa] screenshot {shot}\n[qa] 2:screenshot ok\n{perf}[qa] 4:eval value {{\"status\":\"ran\",\"totalViolations\":0,\"truncated\":false,\"violations\":[]}}\n[qa] actions complete {actions_path}\n"
                 );
                 if entries.is_empty() {
                     out.push_str("[qa] no console errors or warnings\n");
@@ -199,7 +205,7 @@ impl ExternalProjectTool for RuntimeFake {
             }
             Mode::NoScreenshot => {
                 let out = format!(
-                    "[qa] 1:eval ok\n[qa] screenshot {shot}\n[qa] actions complete x\n[qa] no console errors or warnings\n"
+                    "[qa] 1:eval value {{\"ok\":true,\"href\":\"http://127.0.0.1:1422/\",\"status\":200}}\n[qa] screenshot {shot}\n[qa] actions complete x\n[qa] no console errors or warnings\n"
                 );
                 receipt.state = ExecutionState::Completed;
                 receipt.complete = true;
@@ -220,6 +226,29 @@ impl ExternalProjectTool for RuntimeFake {
                     &cwd.join("stderr.txt"),
                     b"[qa] No Chrome/Edge executable found.\n",
                 ));
+            }
+            Mode::AxeFailedAfterPerformance => {
+                fs::write(&shot, PNG).unwrap();
+                let out = format!(
+                    "[qa] 1:eval value {{\"ok\":true,\"href\":\"http://127.0.0.1:1422/\",\"status\":200}}\n[qa] screenshot {shot}\n[qa] 2:screenshot ok\n{perf}[qa] 4:eval value {{\"status\":\"error\",\"reason\":\"axe-timeout\"}}\n"
+                );
+                receipt.exit_code = Some(1);
+                receipt.stdout = Some(artifact(&cwd.join("stdout.txt"), out.as_bytes()));
+                receipt.stderr = Some(artifact(
+                    &cwd.join("stderr.txt"),
+                    b"axe evaluation timed out\n",
+                ));
+            }
+            Mode::AxeFinding => {
+                fs::write(&shot, PNG).unwrap();
+                let out = format!(
+                    "[qa] 1:eval value {{\"ok\":true,\"href\":\"http://127.0.0.1:1422/\",\"status\":200}}\n[qa] screenshot {shot}\n[qa] 2:screenshot ok\n{perf}[qa] 4:eval value {{\"status\":\"ran\",\"totalViolations\":1,\"truncated\":false,\"violations\":[{{\"id\":\"color-contrast\",\"impact\":\"serious\",\"help\":\"Elements must have sufficient color contrast\",\"count\":2,\"target\":\"#submit\",\"helpUrl\":\"https://dequeuniversity.com/rules/axe/4.14/color-contrast\"}}]}}\n[qa] actions complete {actions_path}\n[qa] no console errors or warnings\n"
+                );
+                receipt.state = ExecutionState::Completed;
+                receipt.complete = true;
+                receipt.gaps.clear();
+                receipt.exit_code = Some(0);
+                receipt.stdout = Some(artifact(&cwd.join("stdout.txt"), out.as_bytes()));
             }
         }
         receipt
@@ -317,21 +346,22 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
     );
     let result = &run.result;
     assert_valid_not_rejected(result);
-    assert!(!result.complete, "a11y is not captured");
+    assert!(
+        !result.complete,
+        "runtime provider remains incomplete under its coverage contract"
+    );
     assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
-    assert!(result
-        .coverage_gaps
-        .contains(&"runtime-lens-not-captured:a11y:axe-core-not-shipped".to_owned()));
-    // Performance is captured, so its standing lens gap is gone.
-    assert!(!result.coverage_gaps.iter().any(|gap| gap
-        .starts_with("runtime-lens-not-captured:performance")
-        || gap.starts_with("runtime-performance-not-captured")));
-    // The bare, reasonless gap names are gone: every lens gap names its
-    // missing dependency.
     assert!(!result
         .coverage_gaps
         .iter()
-        .any(|gap| gap == "runtime-lens-not-captured:a11y"));
+        .any(|gap| gap.starts_with("runtime-a11y-")));
+    assert_eq!(result.details["runtime"]["a11y_axe"], "ran");
+    assert_eq!(result.details["runtime"]["a11y_violations_total"], 0);
+    // Performance is captured, so its standing lens gap is gone.
+    assert!(!result.coverage_gaps.iter().any(|gap| {
+        gap.starts_with("runtime-lens-not-captured:performance")
+            || gap.starts_with("runtime-performance-not-captured")
+    }));
     assert_eq!(run.calls.len(), 2, "one invocation per surface");
 
     // The request is the running executable's own browser route, argv-only,
@@ -422,6 +452,45 @@ fn clean_console_makes_no_findings() {
         "captured"
     );
     assert!(!run.result.complete);
+}
+
+#[test]
+fn axe_failure_retains_completed_screenshot_and_performance_evidence() {
+    let run = run(
+        Some(url_inputs(&[], &[])),
+        Mode::AxeFailedAfterPerformance,
+        true,
+    );
+    let result = &run.result;
+    assert_valid_not_rejected(result);
+    let surface = &result.details["runtime"]["surfaces"][0];
+    assert_eq!(surface["status"], "captured");
+    assert!(!surface["screenshot"].is_null());
+    assert_eq!(surface["performance"], valid_metrics());
+    assert_eq!(surface["accessibility"]["status"], "error");
+    assert!(result
+        .coverage_gaps
+        .contains(&"runtime-a11y-error:entry:axe-timeout".to_owned()));
+    assert!(result.details["runtime"]["a11y_violations_total"].is_null());
+}
+
+#[test]
+fn axe_violation_is_exposed_as_a_finding_with_bounded_evidence() {
+    let run = run(Some(url_inputs(&[], &[])), Mode::AxeFinding, true);
+    let result = &run.result;
+    assert_valid_not_rejected(result);
+    let surface = &result.details["runtime"]["surfaces"][0];
+    assert_eq!(surface["accessibility"]["status"], "ran");
+    assert_eq!(
+        surface["accessibility"]["violations"][0]["target"],
+        "#submit"
+    );
+    assert_eq!(result.details["runtime"]["a11y_violations_total"], 1);
+    assert!(result.details["findingEvidence"]
+        .as_object()
+        .unwrap()
+        .values()
+        .any(|evidence| evidence["ruleId"] == "runtime.a11y:color-contrast:0"));
 }
 
 #[test]
@@ -603,7 +672,10 @@ fn metrics_line_is_recorded_per_surface_without_a_performance_gap() {
     );
     let result = &run.result;
     assert_valid_not_rejected(result);
-    assert!(!result.complete, "a11y is still not captured");
+    assert!(
+        !result.complete,
+        "runtime result remains incomplete under provider contract"
+    );
     assert!(!result
         .coverage_gaps
         .iter()
@@ -612,9 +684,11 @@ fn metrics_line_is_recorded_per_surface_without_a_performance_gap() {
     for surface in surfaces {
         assert_eq!(surface["performance"], valid_metrics(), "{surface}");
     }
+    assert_eq!(result.details["runtime"]["a11y_axe"], "ran");
+    assert_eq!(result.details["runtime"]["a11y_violations_total"], 0);
     assert_eq!(
-        result.details["runtime"]["lensesNotCaptured"],
-        json!(["a11y"])
+        result.details["runtime"]["axeCoreSource"],
+        "Legion bundled axe-core@4.14.0"
     );
 }
 
@@ -647,10 +721,10 @@ fn absent_metrics_line_is_a_gap_for_each_surface() {
         // The screenshot and console evidence of the same surface still stand.
         assert_eq!(surface["status"], "captured", "{surface}");
     }
-    // The a11y lens gap is unchanged.
-    assert!(result
+    assert!(!result
         .coverage_gaps
-        .contains(&"runtime-lens-not-captured:a11y:axe-core-not-shipped".to_owned()));
+        .iter()
+        .any(|gap| gap.starts_with("runtime-a11y-")));
 }
 
 #[test]

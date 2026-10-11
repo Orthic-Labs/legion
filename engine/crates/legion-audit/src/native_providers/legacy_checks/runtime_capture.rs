@@ -9,24 +9,21 @@
 //! the run's scratch (or `--out`) directory and reports console errors and
 //! exceptions seen during the load.
 //!
-//! What is captured is a strict subset of the historical tool: load, viewport
-//! screenshot, console output and navigation/paint performance metrics. Each
-//! surface runs a final `eval` action that reads the page's Performance API;
-//! the route prints its value as one `[qa] N:eval value <json>` line, which is
-//! parsed only when it appears before the route's `actions complete` line (console
-//! text is printed after it, so page text cannot fake a metric line). A surface
-//! without a valid metric line carries `runtime-performance-not-captured:<label>`.
-//! The accessibility lens is not captured, for a named, checkable reason (see
-//! `LENSES_NOT_CAPTURED`), so every result carries the standing
-//! `runtime-lens-not-captured:<lens>:<reason>` gap and is never complete.
+//! Each surface captures navigation, viewport screenshot, console output,
+//! navigation/paint metrics, and axe WCAG 2 A/AA findings. Metrics and axe
+//! output come from `[qa] N:eval value <json>` lines before `actions complete`,
+//! so console text cannot fake evidence. Missing or invalid results become
+//! typed gaps; a failed axe action does not discard completed screenshot or
+//! performance evidence. Findings are bounded, with excess axe output marked
+//! as truncated rather than clean.
 //!
 //! `wf_port::wf064::runtime::ChromeRuntimeDriver` is deliberately not used:
 //! it holds an in-process browser outside the process-receipt path, types
 //! and clicks into the audited app, and injects its instrumentation before
 //! navigation, where it does not survive.
 //!
-//! - a11y: axe-core is not vendored anywhere in this repository (the historical
-//!   tool only ran axe when the target project had it installed).
+//! - a11y: axe-core 4.14.0 is bundled as the default; a project-installed copy
+//!   overrides it. Both run the historical WCAG 2 A/AA tag set.
 //!
 //! Inputs (`--url`, `--surfaces`, `--width`, `--height`) arrive through the
 //! provider's frozen `runner.runtime` object, so they are covered by the plan
@@ -56,15 +53,12 @@ use crate::{error::AuditError, native_providers::availability, plan::AuditProvid
 /// Reason reported when the operator supplied no `--url`.
 pub(super) const UNAVAILABLE_URL: &str = "runtime-url-not-supplied";
 
-/// Lenses the historical tool covered that this capture does not, each with
-/// the exact missing dependency. A reason is removed only together with the
-/// capture it stands for.
-const LENSES_NOT_CAPTURED: [(&str, &str); 1] = [("a11y", "axe-core-not-shipped")];
-
 const MAX_EXTRA_SURFACES: usize = 32;
 const MAX_DIMENSION: u64 = 16_384;
 const DEFAULT_WIDTH: u32 = 1280;
 const DEFAULT_HEIGHT: u32 = 800;
+const BUNDLED_AXE_VERSION: &str = "4.14.0";
+const BUNDLED_AXE_SOURCE: &str = include_str!("../../../assets/axe-core-4.14.0.min.js");
 
 const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
 
@@ -73,11 +67,14 @@ const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
 /// or the navigation response carried an HTTP error status.
 const LOAD_CHECK: &str = "(() => { const nav = performance.getEntriesByType('navigation')[0]; const status = nav && nav.responseStatus ? nav.responseStatus : 0; return { ok: !location.href.startsWith('chrome-error:') && !(status >= 400), href: location.href, status: status }; })()";
 
-/// The route's 1-based label for the performance action: the third and last action
+/// The route's 1-based label for the performance action: the third action
 /// of every surface (see `capture_surface`), printed as `[qa] 3:eval value`.
 const PERFORMANCE_ACTION_LABEL: usize = 3;
+/// The fourth action runs axe after screenshot capture, preserving legacy
+/// action indices for load, screenshot, and performance.
+const A11Y_ACTION_LABEL: usize = 4;
 
-/// Evaluated after the screenshot, as the last action of every surface. It returns
+/// Evaluated after the screenshot. It returns
 /// one object of numbers, with `null` for entries the browser did not expose. It
 /// never throws (a throw would fail the whole surface, screenshot included), and
 /// it carries no `ok` key, so the route never treats it as a failed assertion.
@@ -439,6 +436,8 @@ struct SurfaceOutcome {
     screenshot: Option<Value>,
     /// Page performance metrics, when the surface's metric line was valid.
     performance: Option<Value>,
+    /// `ran` with compact axe violations, or typed `unavailable`/`error`.
+    accessibility: Value,
     console_errors: Vec<String>,
     console_warnings: Vec<String>,
     gaps: Vec<String>,
@@ -459,6 +458,7 @@ impl SurfaceOutcome {
             status: "failed",
             screenshot: None,
             performance: None,
+            accessibility: json!({"status": "unavailable", "reason": "surface-not-captured"}),
             console_errors: Vec::new(),
             console_warnings: Vec::new(),
             gaps: Vec::new(),
@@ -478,6 +478,7 @@ struct Ctx<'a> {
     input: &'a LegacyCheckInput,
     plan_digest: &'a str,
     params: &'a RuntimeParams,
+    axe_expression: String,
     base_args: &'a [String],
     environment: &'a BTreeMap<String, String>,
     allowlist: &'a BTreeSet<String>,
@@ -485,6 +486,127 @@ struct Ctx<'a> {
     shot_dir: &'a Path,
     roots: &'a [&'a Path],
     cancellation: &'a CancellationToken,
+}
+
+/// Prefer axe-core from the audited project's Node dependency tree, then use
+/// Legion's pinned bundled copy so runtime a11y remains available by default.
+fn load_axe_source(root: &Path) -> (String, String) {
+    let mut current = Some(root);
+    while let Some(dir) = current {
+        let candidate = dir.join("node_modules/axe-core/axe.min.js");
+        if candidate.exists() {
+            if let Ok(source) = std::fs::read_to_string(&candidate) {
+                return (source, "project node_modules/axe-core".into());
+            }
+        }
+        current = dir.parent();
+    }
+    (
+        BUNDLED_AXE_SOURCE.to_owned(),
+        format!("Legion bundled axe-core@{BUNDLED_AXE_VERSION}"),
+    )
+}
+
+/// Evaluate axe WCAG 2 A/AA and return compact, actionable evidence.
+fn axe_expression(source: Option<&str>, unavailable_reason: &str) -> String {
+    let Some(source) = source else {
+        let reason = serde_json::to_string(unavailable_reason)
+            .unwrap_or_else(|_| "\"axe-core-not-installed\"".into());
+        return format!("({{status:'unavailable',reason:{reason}}})");
+    };
+    format!(
+        "(async()=>{{try{{{source}\n;const r=await window.axe.run(document,{{resultTypes:['violations'],runOnly:{{type:'tag',values:['wcag2a','wcag2aa']}}}});const total=r.violations.length;const violations=r.violations.slice(0,32).map(v=>({{id:String(v.id||'unknown').slice(0,80),impact:String(v.impact||'unknown').slice(0,20),help:String(v.help||'axe violation').slice(0,240),count:v.nodes.length,target:String(((v.nodes[0]||{{}}).target||[])[0]||'document').slice(0,320),helpUrl:String(v.helpUrl||'').slice(0,320)}}));const truncated=total>violations.length;return {{status:truncated?'error':'ran',reason:truncated?'axe-results-truncated':undefined,totalViolations:total,truncated,violations}}}}catch(e){{return {{status:'error',reason:String((e&&e.message)||e).slice(0,160)}}}}}})()"
+    )
+}
+
+/// Validate bounded QA eval output before treating any accessibility count as
+/// evidence. The QA engine's oversize marker and malformed payloads are typed
+/// failures; truncated results retain their bounded violations for findings.
+fn parse_accessibility_result(text: &str) -> Value {
+    let value: Value = match serde_json::from_str(text) {
+        Ok(value) => value,
+        Err(_) => return json!({"status": "error", "reason": "axe-result-malformed"}),
+    };
+    if value.get("truncated").and_then(Value::as_bool) == Some(true)
+        && value.get("status").is_none()
+    {
+        return json!({
+            "status": "error",
+            "reason": "axe-result-truncated",
+            "reportedBytes": value.get("bytes").and_then(Value::as_u64),
+        });
+    }
+    let Some(status) = value.get("status").and_then(Value::as_str) else {
+        return json!({"status": "error", "reason": "axe-result-status-missing"});
+    };
+    if matches!(status, "error" | "unavailable") {
+        let Some(reason) = value.get("reason").and_then(Value::as_str) else {
+            return json!({"status": "error", "reason": "axe-result-reason-missing"});
+        };
+        if status == "unavailable" {
+            return json!({"status": "unavailable", "reason": reason});
+        }
+        if value.get("violations").is_none() {
+            return json!({"status": "error", "reason": reason});
+        }
+        if reason != "axe-results-truncated" {
+            return json!({"status": "error", "reason": "axe-result-error-with-violations"});
+        }
+    }
+    let is_truncated_error = status == "error"
+        && value.get("reason").and_then(Value::as_str) == Some("axe-results-truncated");
+    if (status != "ran" && !is_truncated_error)
+        || (status == "ran" && value.get("reason").is_some())
+    {
+        return json!({"status": "error", "reason": "axe-result-status-invalid"});
+    }
+    let Some(violations) = value.get("violations").and_then(Value::as_array) else {
+        return json!({"status": "error", "reason": "axe-violations-not-an-array"});
+    };
+    let Some(total) = value.get("totalViolations").and_then(Value::as_u64) else {
+        return json!({"status": "error", "reason": "axe-total-invalid"});
+    };
+    let Some(truncated) = value.get("truncated").and_then(Value::as_bool) else {
+        return json!({"status": "error", "reason": "axe-truncated-flag-invalid"});
+    };
+    if total < violations.len() as u64
+        || truncated != (total > violations.len() as u64)
+        || truncated != is_truncated_error
+    {
+        return json!({"status": "error", "reason": "axe-total-inconsistent"});
+    }
+    for violation in violations {
+        let valid = violation.is_object()
+            && violation
+                .get("id")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.is_empty())
+            && violation
+                .get("impact")
+                .and_then(Value::as_str)
+                .is_some_and(|s| !s.is_empty())
+            && violation.get("help").and_then(Value::as_str).is_some()
+            && violation.get("target").and_then(Value::as_str).is_some()
+            && violation.get("helpUrl").and_then(Value::as_str).is_some()
+            && violation
+                .get("count")
+                .and_then(Value::as_u64)
+                .is_some_and(|count| count > 0);
+        if !valid {
+            return json!({"status": "error", "reason": "axe-violation-invalid"});
+        }
+    }
+    if truncated {
+        json!({
+            "status": "error",
+            "reason": "axe-results-truncated",
+            "totalViolations": total,
+            "truncated": true,
+            "violations": violations,
+        })
+    } else {
+        value
+    }
 }
 
 async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) -> SurfaceOutcome {
@@ -522,6 +644,7 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
             {"type": "eval", "expression": LOAD_CHECK},
             {"type": "screenshot", "out": shot_path.to_string_lossy().into_owned()},
             {"type": "eval", "expression": PERFORMANCE_METRICS},
+            {"type": "eval", "expression": ctx.axe_expression},
         ]);
         let bytes = serde_json::to_vec(&actions).map_err(|error| error.to_string())?;
         std::fs::write(&actions_path, bytes).map_err(|error| format!("actions-file: {error}"))
@@ -568,6 +691,72 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
         outcome.gaps.push(format!("runtime-qa-gap:{label}:{gap}"));
     }
 
+    outcome.performance = qa
+        .eval_values
+        .iter()
+        .find(|(index, _)| *index == PERFORMANCE_ACTION_LABEL)
+        .and_then(|(_, json)| parse_performance(json));
+    outcome.accessibility = qa
+        .eval_values
+        .iter()
+        .find(|(index, _)| *index == A11Y_ACTION_LABEL)
+        .map(|(_, text)| parse_accessibility_result(text))
+        .unwrap_or_else(|| json!({"status": "error", "reason": "axe-result-not-reported"}));
+    let a11y_status = outcome.accessibility.get("status").and_then(Value::as_str);
+    if matches!(a11y_status, Some("unavailable" | "error")) {
+        let reason = outcome
+            .accessibility
+            .get("reason")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        outcome.gaps.push(format!(
+            "runtime-a11y-{}:{}:{}",
+            a11y_status.unwrap(),
+            label,
+            reason
+        ));
+    }
+
+    let expected_shot = shot_path.to_string_lossy().into_owned();
+    let load_succeeded = qa
+        .eval_values
+        .iter()
+        .find(|(index, _)| *index == 1)
+        .and_then(|(_, text)| serde_json::from_str::<Value>(text).ok())
+        .and_then(|value| value.get("ok").and_then(Value::as_bool))
+        == Some(true);
+    let screenshot_valid = if qa.screenshot.as_deref() != Some(expected_shot.as_str()) {
+        outcome
+            .gaps
+            .push(format!("runtime-screenshot-not-reported:{label}"));
+        false
+    } else {
+        match std::fs::read(&shot_path) {
+            Ok(bytes) if !bytes.is_empty() && bytes.starts_with(PNG_MAGIC) => {
+                outcome.screenshot = Some(json!({
+                    "path": expected_shot,
+                    "sha256": sha256_label(&bytes),
+                    "bytes": bytes.len(),
+                }));
+                true
+            }
+            Ok(_) => {
+                outcome
+                    .gaps
+                    .push(format!("runtime-screenshot-invalid:{label}"));
+                false
+            }
+            Err(error) => {
+                outcome
+                    .gaps
+                    .push(format!("runtime-screenshot-missing:{label}"));
+                outcome.failure = Some(error.to_string());
+                false
+            }
+        }
+    };
+    let core_capture_succeeded = load_succeeded && screenshot_valid;
+
     let ran_clean = receipt.state == ExecutionState::Completed
         && receipt.complete
         && receipt.exit_code == Some(0);
@@ -591,48 +780,17 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
             outcome.unavailable = Some(reason);
             outcome.status = "unavailable";
         }
-        return outcome;
-    }
-
-    if !qa.actions_complete {
+        if !core_capture_succeeded {
+            return outcome;
+        }
+        // An axe timeout or protocol failure must not erase the already
+        // completed navigation, screenshot, and performance evidence.
+        outcome.status = "captured";
+    } else if !qa.actions_complete {
         outcome.gaps.push(format!(
             "runtime-surface-capture-failed:{label}:actions-incomplete"
         ));
         return outcome;
-    }
-    outcome.performance = qa
-        .eval_values
-        .iter()
-        .find(|(index, _)| *index == PERFORMANCE_ACTION_LABEL)
-        .and_then(|(_, json)| parse_performance(json));
-    let expected_shot = shot_path.to_string_lossy().into_owned();
-    if qa.screenshot.as_deref() != Some(expected_shot.as_str()) {
-        outcome
-            .gaps
-            .push(format!("runtime-screenshot-not-reported:{label}"));
-        return outcome;
-    }
-    match std::fs::read(&shot_path) {
-        Ok(bytes) if !bytes.is_empty() && bytes.starts_with(PNG_MAGIC) => {
-            outcome.screenshot = Some(json!({
-                "path": expected_shot,
-                "sha256": sha256_label(&bytes),
-                "bytes": bytes.len(),
-            }));
-        }
-        Ok(_) => {
-            outcome
-                .gaps
-                .push(format!("runtime-screenshot-invalid:{label}"));
-            return outcome;
-        }
-        Err(error) => {
-            outcome
-                .gaps
-                .push(format!("runtime-screenshot-missing:{label}"));
-            outcome.failure = Some(error.to_string());
-            return outcome;
-        }
     }
     // The route prints at most 20 entries; a larger total is a truncated view.
     if let Some(total) = qa.console_total {
@@ -646,7 +804,9 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
             .gaps
             .push(format!("runtime-console-report-missing:{label}"));
     }
-    outcome.status = "captured";
+    if core_capture_succeeded {
+        outcome.status = "captured";
+    }
     outcome
 }
 
@@ -725,7 +885,7 @@ pub(super) async fn execute(
     let params = match RuntimeParams::from_provider(provider) {
         Ok(Some(params)) => params,
         Ok(None) => {
-            return unavailable_result(executor, provider, input, &plan_digest, UNAVAILABLE_URL)
+            return unavailable_result(executor, provider, input, &plan_digest, UNAVAILABLE_URL);
         }
         Err(reason) => {
             return unavailable_result(
@@ -734,7 +894,7 @@ pub(super) async fn execute(
                 input,
                 &plan_digest,
                 &format!("runtime-inputs-invalid:{reason}"),
-            )
+            );
         }
     };
     let Some(tool) = executor.external_project_tool.clone() else {
@@ -765,12 +925,15 @@ pub(super) async fn execute(
     let roots = [artifacts_dir.as_path(), executor.root.as_path()];
     let base_args = command_parts(spec(&provider.id).expect("validated above").command).1;
 
+    let (axe_source, axe_source_label) = load_axe_source(&executor.root);
+    let axe_expression = axe_expression(Some(&axe_source), "");
     let ctx = Ctx {
         tool: &*tool,
         provider,
         input,
         plan_digest: &plan_digest,
         params: &params,
+        axe_expression,
         base_args: &base_args,
         environment: &environment,
         allowlist: &allowlist,
@@ -783,7 +946,7 @@ pub(super) async fn execute(
     for (index, (label, url)) in params.all_surfaces().iter().enumerate() {
         outcomes.push(capture_surface(&ctx, index, label, url).await);
     }
-    assemble(provider, input, &params, outcomes)
+    assemble(provider, input, &params, outcomes, &axe_source_label)
 }
 
 fn assemble(
@@ -791,6 +954,7 @@ fn assemble(
     input: &LegacyCheckInput,
     params: &RuntimeParams,
     mut outcomes: Vec<SurfaceOutcome>,
+    axe_source: &str,
 ) -> Result<ProviderResult, AuditError> {
     let provider_id =
         ProviderId::new(&provider.id).map_err(|error| AuditError::Provider(error.to_string()))?;
@@ -807,6 +971,16 @@ fn assemble(
     let location = safe_location(input, "");
     let mut seen = BTreeSet::new();
     let mut console_total = 0_usize;
+    let a11y_observed_total: u64 = outcomes
+        .iter()
+        .map(|outcome| {
+            outcome
+                .accessibility
+                .get("totalViolations")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        })
+        .sum();
     for outcome in outcomes.iter().filter(|o| o.status == "captured") {
         console_total += outcome.console_errors.len() + outcome.console_warnings.len();
         for entry in &outcome.console_errors {
@@ -818,6 +992,52 @@ fn assemble(
             let rule = format!("runtime.console-error:{}:{}", outcome.index, &digest[..12]);
             let message = format!("{} ({}): {}", outcome.label, outcome.url, entry);
             push_finding(&mut output, &rule, "warning", &location, 1, &message);
+        }
+        if let Some(violations) = outcome
+            .accessibility
+            .get("violations")
+            .and_then(Value::as_array)
+        {
+            for violation in violations {
+                let id = violation
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown");
+                let impact = violation
+                    .get("impact")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown");
+                let help = violation
+                    .get("help")
+                    .and_then(Value::as_str)
+                    .unwrap_or("axe violation");
+                let target = violation
+                    .get("target")
+                    .and_then(Value::as_str)
+                    .unwrap_or("document");
+                let count = violation.get("count").and_then(Value::as_u64).unwrap_or(1);
+                let help_url = violation
+                    .get("helpUrl")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                let rule = format!("runtime.a11y:{id}:{}", outcome.index);
+                let message = format!(
+                    "{} ({}): {id} [{impact}] {help}; target {target}; {count} node(s){}",
+                    outcome.label,
+                    outcome.url,
+                    if help_url.is_empty() {
+                        String::new()
+                    } else {
+                        format!("; {help_url}")
+                    }
+                );
+                let severity = if matches!(impact, "critical" | "serious") {
+                    "error"
+                } else {
+                    "warning"
+                };
+                push_finding(&mut output, &rule, severity, &location, 1, &message);
+            }
         }
     }
     let findings = std::mem::take(&mut output.findings);
@@ -840,15 +1060,12 @@ fn assemble(
     }
     let mut degradation: Vec<String> = Vec::new();
     for outcome in &outcomes {
-        if outcome.status != "captured" {
+        if outcome.status != "captured" || !outcome.receipt_complete {
             degradation.push(format!(
                 "external-process:{}:{}",
                 outcome.label, outcome.process_state
             ));
         }
-    }
-    for (lens, reason) in LENSES_NOT_CAPTURED {
-        gaps.push(format!("runtime-lens-not-captured:{lens}:{reason}"));
     }
     let unavailable_reason = if captured == 0 {
         outcomes
@@ -863,6 +1080,25 @@ fn assemble(
     degradation.dedup();
 
     let all_captured = captured == expected_surfaces && expected_surfaces > 0;
+    let all_a11y_ran = outcomes
+        .iter()
+        .all(|o| o.accessibility.get("status").and_then(Value::as_str) == Some("ran"));
+    let a11y_total = all_a11y_ran.then_some(a11y_observed_total);
+    let any_a11y_ran = outcomes
+        .iter()
+        .any(|o| o.accessibility.get("status").and_then(Value::as_str) == Some("ran"));
+    let any_a11y_error = outcomes
+        .iter()
+        .any(|o| o.accessibility.get("status").and_then(Value::as_str) == Some("error"));
+    let a11y_status = if all_a11y_ran {
+        "ran"
+    } else if any_a11y_ran {
+        "partial"
+    } else if any_a11y_error {
+        "error"
+    } else {
+        "unavailable"
+    };
     let expected = input.denominator.entries.len() as u64;
     let status = if captured > 0 || unavailable_reason.is_some() {
         ProviderStatus::Partial
@@ -881,6 +1117,7 @@ fn assemble(
                 "status": outcome.status,
                 "screenshot": outcome.screenshot,
                 "performance": outcome.performance.clone().unwrap_or(Value::Null),
+                "accessibility": outcome.accessibility,
                 "consoleErrors": outcome.console_errors,
                 "consoleWarnings": outcome.console_warnings,
                 "gaps": outcome.gaps,
@@ -904,14 +1141,16 @@ fn assemble(
             "incomplete": true,
             "surfaces": surfaces_json,
             "unsupportedSurfaces": params.unsupported,
-            "lensesNotCaptured": LENSES_NOT_CAPTURED.iter().map(|(lens, _)| *lens).collect::<Vec<_>>(),
-            "lensGaps": LENSES_NOT_CAPTURED.iter().map(|(lens, reason)| format!("runtime-lens-not-captured:{lens}:{reason}")).collect::<Vec<_>>(),
             "denominator": {
                 "kind": "runtime-surfaces",
                 "expected": expected_surfaces + params.unsupported.len(),
                 "examined": captured,
             },
             "console_total": console_total,
+            "a11y_axe": a11y_status,
+            "axeCoreSource": axe_source,
+            "a11y_violations_total": a11y_total,
+            "a11y_violations_observed_total": a11y_observed_total,
             "coverageGaps": gaps,
             "degradation": degradation,
         }),
@@ -1158,5 +1397,31 @@ mod tests {
             "{\"ttfb\":12.5,\"resourceCount\":3,\"firstContentfulPaint\":null}"
         )
         .is_some());
+    }
+
+    #[test]
+    fn axe_expression_separates_project_source_from_wrapper_after_line_comment() {
+        let expression = axe_expression(Some("window.axe = {}; // project override"), "");
+        assert!(expression.contains("// project override\n;const r="));
+    }
+
+    #[test]
+    fn malformed_and_oversized_axe_results_never_become_clean() {
+        for (raw, reason) in [
+            ("{not json", "axe-result-malformed"),
+            ("{\"status\":\"ran\"}", "axe-violations-not-an-array"),
+            (
+                "{\"status\":\"ran\",\"violations\":[],\"totalViolations\":1,\"truncated\":false}",
+                "axe-total-inconsistent",
+            ),
+        ] {
+            let parsed = parse_accessibility_result(raw);
+            assert_eq!(parsed["status"], "error", "{raw}");
+            assert_eq!(parsed["reason"], reason, "{raw}");
+        }
+        let oversized = parse_accessibility_result("{\"truncated\":true,\"bytes\":70002}");
+        assert_eq!(oversized["status"], "error");
+        assert_eq!(oversized["reason"], "axe-result-truncated");
+        assert_eq!(oversized["reportedBytes"], 70002);
     }
 }

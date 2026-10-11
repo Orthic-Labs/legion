@@ -760,6 +760,48 @@ fn full_run_carries_every_pack_candidate_into_the_adjudication_packet() {
             .unwrap();
     let packet_candidates = work.request.packet["scannerCandidates"].as_array().unwrap();
     assert_eq!(packet_candidates.len(), candidates.len());
+    let child_binding = &work.request.packet["candidateWorkItems"];
+    assert_eq!(
+        child_binding["parentPacketDigest"],
+        json!(legion_audit::native_providers::reasoning::security_adjudication::adjudication_parent_packet_digest(
+            &work.request.packet
+        )
+        .unwrap())
+    );
+    let child_items = child_binding["items"].as_array().unwrap();
+    assert_eq!(child_items.len(), candidates.len());
+    for (item, candidate) in child_items.iter().zip(&candidates) {
+        assert_eq!(item["packet"]["candidate"]["id"], candidate.finding_id);
+        let child_evidence = item["packet"]["candidate"]["evidence"].as_array().unwrap();
+        assert_eq!(child_evidence.len(), 1);
+        assert_eq!(child_evidence[0]["findingId"], candidate.finding_id);
+        assert_eq!(child_evidence[0]["path"], json!(candidate.path.as_deref()));
+        for sibling in &candidates {
+            if sibling.finding_id != candidate.finding_id {
+                assert!(!child_evidence
+                    .iter()
+                    .any(|evidence| evidence["findingId"] == sibling.finding_id));
+            }
+        }
+    }
+    let unavailable = pending_lens_work_with_candidates(&run.root, &run.plan, &run.inventory, None)
+        .unwrap()
+        .into_iter()
+        .find(|work| work.provider_id == ADJUDICATOR_PROVIDER_ID)
+        .unwrap();
+    assert!(unavailable.request.packet["scannerCandidates"].is_null());
+    assert!(unavailable.request.packet["candidateWorkItems"].is_null());
+    let known_empty =
+        pending_lens_work_with_candidates(&run.root, &run.plan, &run.inventory, Some(&[]))
+            .unwrap()
+            .into_iter()
+            .find(|work| work.provider_id == ADJUDICATOR_PROVIDER_ID)
+            .unwrap();
+    assert_eq!(known_empty.request.packet["scannerCandidates"], json!([]));
+    assert_eq!(
+        known_empty.request.packet["candidateWorkItems"]["items"],
+        json!([])
+    );
 }
 
 #[test]

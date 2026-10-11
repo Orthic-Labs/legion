@@ -13,7 +13,8 @@
 //! * an empty inventory was never scanned and keeps the existing accounting;
 //! * any file of the family, selectable or not, keeps every gap that family
 //!   produces today;
-//! * `code.long-tail` keeps its own rule (files no family claims).
+//! * `code.long-tail` applies only when the frozen inventory has a source file
+//!   that no language family claims.
 //!
 //! The not-applicable result uses the engine's inapplicable shape
 //! (`applicable: false`, `ProviderStatus::Ok`, no coverage), the same shape the
@@ -40,10 +41,15 @@ pub const SUMMARY_DETAIL: &str = "summary";
 /// `entries`, or `None` when the family applies (or the rule does not).
 pub fn family_absence(provider_id: &str, entries: &[InventoryEntry]) -> Option<String> {
     let family = provider_id.strip_prefix("code.")?;
-    if family == "long-tail" || entries.is_empty() {
+    if entries.is_empty() {
         return None;
     }
     let config = evidence::config_for(provider_id)?;
+    if family == "long-tail" {
+        return evidence::select_entries(config, entries)
+            .is_empty()
+            .then(|| "no-long-tail-files-in-inventory".to_owned());
+    }
     let present = entries.iter().any(|entry| {
         let name = file_name(&entry.path);
         config
@@ -144,12 +150,16 @@ mod tests {
     use super::*;
 
     fn entry(path: &str) -> InventoryEntry {
+        entry_with_source(path, true)
+    }
+
+    fn entry_with_source(path: &str, source_file: bool) -> InventoryEntry {
         InventoryEntry {
             path: path.into(),
             symbols: Vec::new(),
             dependencies: Vec::new(),
             package_scripts: Vec::new(),
-            source_file: true,
+            source_file,
             digest: None,
         }
     }
@@ -186,7 +196,18 @@ mod tests {
     fn empty_inventory_and_long_tail_keep_their_own_rules() {
         assert_eq!(family_absence("code.go", &[]), None);
         assert_eq!(
-            family_absence("code.long-tail", &[entry("README.md")]),
+            family_absence("code.long-tail", &[entry_with_source("README.md", false)]),
+            Some("no-long-tail-files-in-inventory".to_owned())
+        );
+        assert_eq!(
+            family_absence(
+                "code.long-tail",
+                &[entry("src/main.js"), entry("src/main.rs")]
+            ),
+            Some("no-long-tail-files-in-inventory".to_owned())
+        );
+        assert_eq!(
+            family_absence("code.long-tail", &[entry("src/main.lua")]),
             None
         );
     }

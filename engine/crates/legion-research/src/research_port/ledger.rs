@@ -15,6 +15,7 @@
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::contradictions;
 use super::independence::{self, NEAR_DUPLICATE_THRESHOLD};
 use super::pyval::{
     is_none_or_empty_str, is_null_or_empty, py_list_repr, py_repr_str, py_str, py_str_or, truthy,
@@ -83,6 +84,7 @@ pub struct Checked {
     pub clusters: Vec<Value>,
     pub evidence_verdicts: Vec<Value>,
     pub verdicts: Vec<Value>,
+    pub views: Value,
 }
 
 impl Checked {
@@ -94,6 +96,7 @@ impl Checked {
             "clusters": self.clusters,
             "evidence_verdicts": self.evidence_verdicts,
             "verdicts": self.verdicts,
+            "views": self.views,
         })
     }
 }
@@ -543,6 +546,7 @@ pub fn check(evidence: &[Value], claims_in: &[Value]) -> Result<Checked, String>
         }
     }
 
+    let views = contradictions::derive(&claims, &evidence_rows);
     Ok(Checked {
         overall_ok,
         evidence: evidence_rows,
@@ -550,6 +554,7 @@ pub fn check(evidence: &[Value], claims_in: &[Value]) -> Result<Checked, String>
         clusters: clustered.clusters,
         evidence_verdicts,
         verdicts,
+        views,
     })
 }
 
@@ -748,6 +753,15 @@ mod tests {
         assert_eq!(
             verdicts[1]["reasons"],
             json!(["lead-only source_type cannot enter the evidence ledger: search-hit"])
+        );
+    }
+
+    #[test]
+    fn ledger_check_serializes_derived_contradiction_and_consensus_views() {
+        let checked = check(&[], &[]).unwrap();
+        assert_eq!(
+            checked.to_json()["views"],
+            json!({"contradictions": [], "consensus": []})
         );
     }
 
