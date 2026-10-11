@@ -816,6 +816,36 @@
       "may_close_own_candidates": false
     },
     {
+      "id": "data.internal-suite",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "legacy.data.internal-suite"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "infrastructure.internal-suite",
+      "role": "candidate-generator",
+      "phase": "runtime",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "legacy.infrastructure.internal-suite"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
       "id": "quality.build",
       "role": "deterministic",
       "phase": "facts",
