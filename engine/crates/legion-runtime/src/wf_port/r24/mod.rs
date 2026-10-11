@@ -247,6 +247,9 @@ pub enum RunOutcome {
         pid: u32,
     },
     ServerExited,
+    /// `--background`: resolving the executable or spawning its detached
+    /// child failed, so no connection record can be reported.
+    BackgroundFailed,
     /// `--background`: the detached child was spawned and (if
     /// `server.json` appeared within the readiness timeout) its connection
     /// info was printed. `ready` is `false` if the timeout elapsed first
@@ -299,17 +302,11 @@ pub fn stop_running_server(project_root: &Path) -> RunOutcome {
 /// (meaning the detached child, not the parent, is now the running server),
 /// printing its connection JSON on stdout, for up to 10s.
 ///
-/// This is the `std::process::Command` re-exec named as a gap in
-/// `finish-r24.md`: the previous pass deferred it because no concrete CLI
-/// binary entry point existed yet to re-exec against. That gap is closed
-/// here by re-execing `std::env::current_exe()` (this same running binary)
-/// with the child argv — no separate binary path guess needed. One
-/// difference from the JS: without `unsafe_code` (forbidden crate-wide)
-/// there is no portable way to call `setsid`/detach the child's process
-/// group from Rust's `std::process::Command`, so the child is spawned as an
-/// ordinary (non-session-leader) child process with its stdio inherited as
-/// null handles; it is not killed by this process exiting, which is the
-/// behavior `--background` callers actually depend on.
+/// This re-execs `std::env::current_exe()` (this same running binary) with
+/// the child argv — no separate binary path guess needed. Windows uses
+/// `rightkit-process` for a detached native spawn with an explicit empty
+/// inherited-handle allowlist and null stdio. Other platforms retain the
+/// existing ordinary `std::process::Command` path.
 /// Argv prefix that routes the re-executed binary back to this server:
 /// `<exe> script designer/live-server ...` (the `script` subcommand
 /// dispatches `designer/live-server` to [`run`]).
@@ -336,12 +333,30 @@ fn run_background(args: &[String], project_root: &Path) -> RunOutcome {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Failed to resolve current executable: {e}");
-            return RunOutcome::ServerExited;
+            return RunOutcome::BackgroundFailed;
         }
     };
     let cwd = std::env::current_dir().unwrap_or_else(|_| project_root.to_path_buf());
     let parent_pid = process::id();
 
+    #[cfg(windows)]
+    let spawn_result = {
+        use rightkit_process::{OwnedCommand, WindowsSpawnConfig, WindowsStdio};
+
+        let mut command = OwnedCommand::new(&exe);
+        command.command_mut().args(&child_args).current_dir(&cwd);
+        command
+            .inherit_handles_only([])
+            .windows_spawn_config(WindowsSpawnConfig {
+                stdin: WindowsStdio::Null,
+                stdout: WindowsStdio::Null,
+                stderr: WindowsStdio::Null,
+                ..Default::default()
+            })
+            .partial_spawn_cleanup_timeout(std::time::Duration::from_secs(2));
+        command.spawn_uncontained_detached()
+    };
+    #[cfg(not(windows))]
     let spawn_result = process::Command::new(&exe)
         .args(&child_args)
         .current_dir(&cwd)
@@ -353,7 +368,7 @@ fn run_background(args: &[String], project_root: &Path) -> RunOutcome {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Failed to spawn background live server: {e}");
-            return RunOutcome::ServerExited;
+            return RunOutcome::BackgroundFailed;
         }
     };
     let child_pid = child.id();
@@ -503,6 +518,7 @@ pub fn main_cli() -> i32 {
     let cwd = env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
     match run(&args, &cwd) {
         RunOutcome::HelpPrinted | RunOutcome::Stopped | RunOutcome::ServerExited => 0,
+        RunOutcome::BackgroundFailed => 1,
         RunOutcome::StopFailedNoServer => 0,
         RunOutcome::AlreadyRunning { .. } => 1,
         RunOutcome::BackgroundStarted { ready, .. } => {

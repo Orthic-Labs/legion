@@ -792,6 +792,7 @@ fn designer_live_server(args: &[String]) -> i32 {
         r24::RunOutcome::HelpPrinted | r24::RunOutcome::Stopped | r24::RunOutcome::ServerExited => {
             0
         }
+        r24::RunOutcome::BackgroundFailed => 1,
         r24::RunOutcome::StopFailedNoServer => 1,
         r24::RunOutcome::AlreadyRunning { port, pid } => {
             println!("already running: pid={pid} port={port}");
