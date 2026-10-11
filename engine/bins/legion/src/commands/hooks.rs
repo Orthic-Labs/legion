@@ -466,10 +466,8 @@ mod tests {
         assert_eq!(source["pluginEnabled"], true);
         assert_eq!(source["cacheLookup"], "found");
         assert_eq!(source["hooksPresent"], true);
-        assert_eq!(
-            source["hooksPath"],
-            json!(plugin.join("hooks/codex-hooks.json"))
-        );
+        let selected_hooks = PathBuf::from(source["hooksPath"].as_str().unwrap());
+        assert_eq!(selected_hooks, plugin.join("hooks/codex-hooks.json"));
         assert_eq!(source["trustState"], "not-recorded");
 
         let hash = format!("sha256:{}", "a".repeat(64));
