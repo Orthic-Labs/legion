@@ -74,7 +74,10 @@ fn qualification_failure_diagnostics(install_log: &Path, activation_events: &Pat
     ] {
         if let Some(contents) = text_tail(path, 12 * 1024) {
             if !contents.trim().is_empty() {
-                sections.push(format!("--- {label} (last 12 KiB) ---\n{}", contents.trim()));
+                sections.push(format!(
+                    "--- {label} (last 12 KiB) ---\n{}",
+                    contents.trim()
+                ));
             }
         }
     }
