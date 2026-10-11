@@ -1605,16 +1605,27 @@ impl<S: SetupStore> SetupRegistry<S> {
             ));
         }
         let clients = self.detect(&request.selector, &request.client_evidence)?;
-        if matches!(
-            request.action,
-            SetupAction::Apply | SetupAction::Repair | SetupAction::Disable | SetupAction::Remove
-        ) && clients.is_empty()
+        let empty_all_supported =
+            clients.is_empty() && matches!(request.selector, ClientSelector::AllSupported);
+        if empty_all_supported
+            && self.clients.values().any(|client| client.installed)
+            && matches!(
+                request.action,
+                SetupAction::Apply
+                    | SetupAction::Repair
+                    | SetupAction::Disable
+                    | SetupAction::Remove
+                    | SetupAction::Purge
+            )
         {
             return Err(err(
                 SetupErrorCode::ClientNotDetected,
-                "no selected supported client was detected",
+                "previously registered client integrations remain while no supported client is detected",
             ));
         }
+        // AllSupported with no detected host is a valid core-only lifecycle
+        // plan. Explicit ClientId selectors retain the ClientNotDetected
+        // behavior in detect() above.
         let state = self.store.load_state()?;
         let generation = state
             .as_ref()
@@ -5000,6 +5011,87 @@ mod tests {
         let status = registry.status(&ClientSelector::AllSupported).unwrap();
         assert!(status[0].installed);
         assert_eq!(status[0].fidelity, "Full");
+    }
+
+    #[test]
+    fn empty_all_supported_lifecycle_is_a_zero_client_plan() {
+        for action in [
+            SetupAction::Apply,
+            SetupAction::Repair,
+            SetupAction::Disable,
+            SetupAction::Remove,
+        ] {
+            let root = TestRoot::new(&format!("empty-all-supported-{action:?}"));
+            let mut registry = SetupRegistry::open_on_disk(release(), root.0.clone()).unwrap();
+            let mut request = request(root.0.clone(), action);
+            request.selector = ClientSelector::AllSupported;
+            request.client_evidence.clear();
+
+            let preview = registry.preview(request).expect("empty default plan");
+            assert!(preview.clients.is_empty());
+            assert!(preview.mutations.is_empty());
+            let confirmation = PlanConfirmation {
+                plan_id: preview.plan_id.clone(),
+                plan_digest: preview.plan_digest.clone(),
+            };
+            let execution = registry
+                .execute(registry.confirm(preview, confirmation).unwrap())
+                .expect("empty default lifecycle");
+            assert!(execution.clients.is_empty());
+        }
+    }
+
+    #[test]
+    fn empty_explicit_client_selection_stays_not_detected() {
+        for action in [
+            SetupAction::Apply,
+            SetupAction::Repair,
+            SetupAction::Disable,
+            SetupAction::Remove,
+        ] {
+            let root = TestRoot::new(&format!("empty-explicit-{action:?}"));
+            let mut registry = SetupRegistry::open_on_disk(release(), root.0.clone()).unwrap();
+            let mut request = request(root.0.clone(), action);
+            request.selector = ClientSelector::ClientId(CLIENT_CODEX.into());
+            request.client_evidence.clear();
+
+            assert_eq!(
+                registry.preview(request).unwrap_err().code,
+                SetupErrorCode::ClientNotDetected
+            );
+        }
+    }
+
+    #[test]
+    fn empty_all_supported_plan_cannot_skip_registered_clients_for_any_action() {
+        for action in [
+            SetupAction::Apply,
+            SetupAction::Repair,
+            SetupAction::Disable,
+            SetupAction::Remove,
+            SetupAction::Purge,
+        ] {
+            let root = TestRoot::new(&format!("empty-known-{action:?}"));
+            let mut registry = SetupRegistry::open_on_disk(release(), root.0.clone()).unwrap();
+            let apply = registry
+                .preview(request(root.0.clone(), SetupAction::Apply))
+                .unwrap();
+            let confirmation = PlanConfirmation {
+                plan_id: apply.plan_id.clone(),
+                plan_digest: apply.plan_digest.clone(),
+            };
+            registry
+                .execute(registry.confirm(apply, confirmation).unwrap())
+                .unwrap();
+
+            let mut empty = request(root.0.clone(), action);
+            empty.selector = ClientSelector::AllSupported;
+            empty.client_evidence.clear();
+            assert_eq!(
+                registry.preview(empty).unwrap_err().code,
+                SetupErrorCode::ClientNotDetected
+            );
+        }
     }
 
     #[test]
