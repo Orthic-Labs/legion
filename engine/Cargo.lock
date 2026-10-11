@@ -2183,11 +2183,13 @@ name = "legion-host"
 version = "0.3.23"
 dependencies = [
  "directories-next",
+ "hex",
  "legion-catalog",
  "legion-contracts",
  "legion-policy-model",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "toml",
 ]
 

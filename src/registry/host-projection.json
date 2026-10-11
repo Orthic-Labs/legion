@@ -1455,20 +1455,20 @@
     },
     {
       "id": "codex",
-      "installOwner": "adapter",
+      "installOwner": "plugin",
       "fidelity": {
         "instructions": "strong",
         "skillDiscovery": "strong",
         "authorityAgents": "strong",
         "mcp": "strong",
-        "guardEnforcement": "unsupported"
+        "guardEnforcement": "degraded"
       },
       "mechanisms": {
         "instructions": "agents-md",
-        "skills": "skills-dir",
+        "skills": "plugin",
         "agents": "agent-config",
-        "mcp": "toml",
-        "hooks": "none"
+        "mcp": "plugin",
+        "hooks": "plugin-hook"
       }
     },
     {
