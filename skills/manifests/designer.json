@@ -469,6 +469,16 @@
       "digest": "sha256:69bac6cd24098ef29a771dc200744f90289c352bae4f902112b9b556593a9c63"
     },
     {
+      "path": "engine/scripts/modern-screenshot.LICENSE.txt",
+      "uri": "legion-skill://designer/engine/scripts/modern-screenshot.LICENSE.txt",
+      "digest": "sha256:63e3728b39bbb427faddb159dacea6b4c98bc8e2be6c92a7bb25bfffcc83e622"
+    },
+    {
+      "path": "engine/scripts/modern-screenshot.umd.js",
+      "uri": "legion-skill://designer/engine/scripts/modern-screenshot.umd.js",
+      "digest": "sha256:bb36665889124a0b6e15f16045265737449c3bdcf2712cdb08af3cfa01563e2b"
+    },
+    {
       "path": "evals/evals.json",
       "uri": "legion-skill://designer/evals/evals.json",
       "digest": "sha256:c5590861c5339b8cc80455a8a4bb09110e360e4cdc12cdb0bff11fc95863efea"
