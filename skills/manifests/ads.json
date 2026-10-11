@@ -87,7 +87,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://ads/SKILL.md",
-      "digest": "sha256:8380ceb1360d6ac6738417227a72f9e7caac21c5b5cd440f40686667614d43dd"
+      "digest": "sha256:4d31249f1252ceada669736b04d6447750e652999f660ef3d9364c8abdd9232b"
     },
     {
       "path": "agents/audit-budget.md",
@@ -127,12 +127,12 @@
     {
       "path": "agents/creative-strategist.md",
       "uri": "legion-skill://ads/agents/creative-strategist.md",
-      "digest": "sha256:0c2ea77ded4ee82d8529875fe20457835d2d8fef53d1f5a33e90f7fa8de4c5b0"
+      "digest": "sha256:5ef01e9171c116876290e10663cc988063421b93f5c18cf9cdc79fb9561b61c0"
     },
     {
       "path": "agents/format-adapter.md",
       "uri": "legion-skill://ads/agents/format-adapter.md",
-      "digest": "sha256:79004c089a2379e5061c515294922c19190be4f21a08e6b82f7c418f06f7af82"
+      "digest": "sha256:bea6e616593bc4183843d7df166ca5164d2ec6fc47e7a08e1b854dce51076696"
     },
     {
       "path": "agents/openai.yaml",
@@ -142,17 +142,17 @@
     {
       "path": "agents/visual-designer.md",
       "uri": "legion-skill://ads/agents/visual-designer.md",
-      "digest": "sha256:acf8f72245a02a5d9db17f00c5a20b9be60c276fdaca3ee993f0d31ab7be4126"
+      "digest": "sha256:5b92d31d03bdac4541d4fd6066f6a6ec405a6980f782b9d1022a1b19121533ee"
     },
     {
       "path": "dependencies.json",
       "uri": "legion-skill://ads/dependencies.json",
-      "digest": "sha256:f683a0db766b7146b096d60898b0ac645b3274c67739bde32e180c472f50c9ad"
+      "digest": "sha256:497882a1840d0e07787e8ba44ddc40f8e502f032e79d5eb0262ad775ab88691a"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://ads/evals/evals.json",
-      "digest": "sha256:43b53a994ba15b6dd373284f22a6be840a13654e0aad1f921e8c701e64ef549f"
+      "digest": "sha256:1818935338d5b882598f982933c8aa3e4fcc92b025a1eb724d1b43e5e41b604e"
     },
     {
       "path": "references/ad-copy-templates.md",
@@ -172,12 +172,12 @@
     {
       "path": "references/audit-ad-budget.md",
       "uri": "legion-skill://ads/references/audit-ad-budget.md",
-      "digest": "sha256:d4b551a7e19dd09e80357eeb0345c048b2392f57ffd28ac06d68da2cb1ca9db5"
+      "digest": "sha256:11688525471c550050e8f9d22149e76d624c7b822405495aa6027e8bc3f76d2c"
     },
     {
       "path": "references/benchmarks.md",
       "uri": "legion-skill://ads/references/benchmarks.md",
-      "digest": "sha256:c32cc21ce784d599f9ab201c72cc1f4198cc2f9eeb768eb8e52fc42e135a72cc"
+      "digest": "sha256:32b8ae077e8aa46adbf26dd35e57b286470e2c60795fb995488a9e7d7d67d532"
     },
     {
       "path": "references/bidding-strategies.md",
@@ -207,7 +207,7 @@
     {
       "path": "references/conversion-tracking.md",
       "uri": "legion-skill://ads/references/conversion-tracking.md",
-      "digest": "sha256:2a0c515ce9d1db3823560ec44e71961ab1187cd2a067b3aab2d204a90495c817"
+      "digest": "sha256:1d9032d28f815d71e6c4b1dbd1284555048e7fb164418e1d8afe64b6aef793be"
     },
     {
       "path": "references/copy-frameworks.md",
@@ -217,22 +217,22 @@
     {
       "path": "references/create.md",
       "uri": "legion-skill://ads/references/create.md",
-      "digest": "sha256:05cd2e1c7a64598a076b23a2b8e4850d07cc6ecd697b7e85e627f03be8432237"
+      "digest": "sha256:f506ae5e9cf738b3819bdcb561b1213bd9b2f8ff46c016944120be96ae34b8bb"
     },
     {
       "path": "references/dna.md",
       "uri": "legion-skill://ads/references/dna.md",
-      "digest": "sha256:c195c870e3fdc86f3381f1241b9390e4368f249fe7fdc6afd68c26e694d2279a"
+      "digest": "sha256:e41102b505e8c27330e17b349dc273b6852ef8aef0b50d0fb15f5721a3987236"
     },
     {
       "path": "references/gaql-notes.md",
       "uri": "legion-skill://ads/references/gaql-notes.md",
-      "digest": "sha256:66c733f8a5181b05eea53f231ac965de57c8cd0c6a2867baae4dd23f9882e7d0"
+      "digest": "sha256:a82d7e0158dc4eee4210e4cfeb7c887c0239e535787f28db36f9e91e9406a226"
     },
     {
       "path": "references/generate.md",
       "uri": "legion-skill://ads/references/generate.md",
-      "digest": "sha256:bb822b3c87581f832e3063ec658ea64c09572c3c194fbfda80cc616fb82ac35a"
+      "digest": "sha256:e1b7061c3ae812c80014e7ed1d04d922190f22b1cb4fa2760b9453794bed750e"
     },
     {
       "path": "references/google-audit.md",
@@ -247,12 +247,12 @@
     {
       "path": "references/google.md",
       "uri": "legion-skill://ads/references/google.md",
-      "digest": "sha256:5ad8f49cdfbc6034f1eb3c52398968b65348c5224618cc18a2335810634557b7"
+      "digest": "sha256:236fccff7f640ee31451b4f44be7ad5e1f1ec44374d390ac2d8144a540064513"
     },
     {
       "path": "references/image-providers.md",
       "uri": "legion-skill://ads/references/image-providers.md",
-      "digest": "sha256:ed6c507b4a6e24dd7652e653e99712863b7d1662fa860e803f96e786b9f2711f"
+      "digest": "sha256:073ac3eab4e2ae1f14bc8e653f5255ebe9124eeb23fd3ab9e4aad66546794156"
     },
     {
       "path": "references/landing.md",
@@ -277,7 +277,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://ads/references/manual.md",
-      "digest": "sha256:bb21493f31e888234a554cf0038e9182b6c4069c0b1b74e4c1110e1d7d87f79a"
+      "digest": "sha256:0768c531050b0c6783605db71ced479b22e4e280a2ee6b0baa680c2f86cf6131"
     },
     {
       "path": "references/meta-audit.md",
@@ -322,7 +322,7 @@
     {
       "path": "references/platform-specs.md",
       "uri": "legion-skill://ads/references/platform-specs.md",
-      "digest": "sha256:4a066a04082db80bfa0dbc7b7439003cb9187c862b3234b291faa8da22e420f2"
+      "digest": "sha256:129998da91a297ad09a741d9fc5fbbe79b3153379b11940eb158c0e2ddcaf1dd"
     },
     {
       "path": "references/scoring-system.md",
@@ -347,12 +347,12 @@
     {
       "path": "references/voice-to-style.md",
       "uri": "legion-skill://ads/references/voice-to-style.md",
-      "digest": "sha256:5b5d5ceafb045e49305bcdb762c8ece9110af7e32de8094827524586ef516ce2"
+      "digest": "sha256:94433d9d740a62e328d7929226901c917f4891710bc8ab773103db0c145f6a8b"
     },
     {
       "path": "references/youtube-creative-specs.md",
       "uri": "legion-skill://ads/references/youtube-creative-specs.md",
-      "digest": "sha256:10be68cba863139a36e3e2fc13f1a048d26b4d999a8cf0f7d84b1095de4d3ed3"
+      "digest": "sha256:c1dbbf953d60c7f83a29bd8f89a626fa655d87f90d368962a9b2f9269dee7953"
     },
     {
       "path": "references/youtube.md",
@@ -367,12 +367,12 @@
     {
       "path": "research-sources/claude-research.md",
       "uri": "legion-skill://ads/research-sources/claude-research.md",
-      "digest": "sha256:5bbe7dca89f4a8c06bfa280649f5e69a887b03da588bb7711a81e9f7aecbbb01"
+      "digest": "sha256:42c9878e50c0529842001f5f6e2b4e6e7e51db0fd82b03feb2d2f120dac51cdd"
     },
     {
       "path": "research-sources/gemini-research.md",
       "uri": "legion-skill://ads/research-sources/gemini-research.md",
-      "digest": "sha256:3f45107428fadaeb1969f2c400a51cbc615638b637a905f9eac583ad1685bb80"
+      "digest": "sha256:a467a8af265eeacd6f0a421753511d57204754420d902eae572e8b13679a312b"
     },
     {
       "path": "research-sources/google-audit-checklists.md",

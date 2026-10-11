@@ -93,7 +93,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://council/SKILL.md",
-      "digest": "sha256:79294ceddcd8fd81223de9f57be123e0baae402b644a4c1e91544d05e70cadc6"
+      "digest": "sha256:ba995fb273c15ee68329f9ac5bf18f8f330f00a539fac6672f2100a0e37120de"
     },
     {
       "path": "agents/openai.yaml",
@@ -108,17 +108,17 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://council/dependencies.json",
-      "digest": "sha256:840c134bb39b3f91a0715a5207bbc6df93e293a80c7fb988517bfeb0f986b134"
+      "digest": "sha256:21c2a1ea64049c8ee474283e523bb6b31ec95aa8f48c25b1aa2a7688d2682110"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://council/evals/evals.json",
-      "digest": "sha256:7b785dad3b024982967eeda76eb4fe247383289fc63b0794ca18f076c66b23a5"
+      "digest": "sha256:89253518856ee5535e2ee825a77d991ac2b058fb273a4b368cc1adcd39e378ab"
     },
     {
       "path": "lib/schemas/council-record-v1.schema.json",
       "uri": "legion-skill://council/lib/schemas/council-record-v1.schema.json",
-      "digest": "sha256:03e75a88cdbe1034688afb50a98b725152897e1ba3247108b18ca743914d211b"
+      "digest": "sha256:1e679a180862aa887d3abb6a7355f2b487652b5a7539e7b160bc37f58231207f"
     },
     {
       "path": "lib/schemas/council-request-v1.schema.json",
@@ -158,7 +158,7 @@
     {
       "path": "references/lenses/compliance-risk.md",
       "uri": "legion-skill://council/references/lenses/compliance-risk.md",
-      "digest": "sha256:308dc8e765d5fbdc382b36570a3510f5c961af512fa51b7c121b987af6d148ec"
+      "digest": "sha256:8b4fd53a95b3b90cb7b70db907982850dba62705fba302f89f7dada85c69978f"
     },
     {
       "path": "references/lenses/content-strategy.md",
@@ -308,7 +308,7 @@
     {
       "path": "references/stances/improvement-path.md",
       "uri": "legion-skill://council/references/stances/improvement-path.md",
-      "digest": "sha256:caa70260e5609e1469d97786af2791a47fb633d5a252fe7327e67b2c96b0f0a0"
+      "digest": "sha256:cd81a5fdc4b84b317f4c19bed681339e4acbb544c6d05b94c507c6cff30c4290"
     },
     {
       "path": "references/stances/minimize.md",
@@ -323,7 +323,7 @@
     {
       "path": "references/stances/scope-alternatives.md",
       "uri": "legion-skill://council/references/stances/scope-alternatives.md",
-      "digest": "sha256:c637c04850e488de1389f112182bb62fc8fca02f6d044726509e803ee430e688"
+      "digest": "sha256:ef5601ca37c486e4fc99b3bebd110166e254726793d24c4c5c075be64a325f73"
     },
     {
       "path": "references/stances/security-ops.md",
@@ -333,7 +333,7 @@
     {
       "path": "references/stances/user-outcome.md",
       "uri": "legion-skill://council/references/stances/user-outcome.md",
-      "digest": "sha256:650ab108be431b00b38c53d66956dd9de2769981cdec2bd8e9c4f2ba0675e3ba"
+      "digest": "sha256:2dfc3817ef3cb16ae05f10fd349c32b2d763c03ee05951999fe1b7981e6c26b1"
     }
   ]
 }

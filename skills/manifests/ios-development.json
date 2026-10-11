@@ -220,7 +220,7 @@
     {
       "path": "config/tool-catalog.json",
       "uri": "legion-skill://ios-development/config/tool-catalog.json",
-      "digest": "sha256:e473377c3c3f407c250c244b5fe07989c2b284b74acfff5b16cad6e737406cae"
+      "digest": "sha256:d990c5794ed801fdae2f5ec3273740955ee376e13f3e86f504042f428fa7e5fb"
     },
     {
       "path": "dependencies.json",
@@ -230,7 +230,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://ios-development/evals/evals.json",
-      "digest": "sha256:fead43f29134ab52f6970fa74d4b3d511dabf14aa79401b266ff627c3d42b944"
+      "digest": "sha256:40a9e697f1725bb1df06b62b1f4472b1f490fce3bddce3334b96f3ffdcd437dd"
     },
     {
       "path": "references/architecture/_index.md",
@@ -250,7 +250,7 @@
     {
       "path": "references/architecture/docs-loading.md",
       "uri": "legion-skill://ios-development/references/architecture/docs-loading.md",
-      "digest": "sha256:bd27b958f48e9c3398ccfe08161228adc0651fa182f71820bafcfcc0f4e6d236"
+      "digest": "sha256:cc68b3a7b48ff47fb1e4638e8406f257d9e59cceedb64991c565873b936bd049"
     },
     {
       "path": "references/architecture/errors.md",
@@ -455,12 +455,12 @@
     {
       "path": "references/ios-workflows/performance-evidence.md",
       "uri": "legion-skill://ios-development/references/ios-workflows/performance-evidence.md",
-      "digest": "sha256:c0030912928ff62f72c7c839128efe4a57c91b652052af5cf05654046688c517"
+      "digest": "sha256:a95a22e173a62cb660de8ebb7217bba0d1cd246a5bc1bf1c594e32f71e4cfedb"
     },
     {
       "path": "references/ios-workflows/preview-browser.md",
       "uri": "legion-skill://ios-development/references/ios-workflows/preview-browser.md",
-      "digest": "sha256:6078e7c9e64093ad61a3adb5e6010b3dfb5dc507124860b64a82474fb4d5a281"
+      "digest": "sha256:6c0317eabe9d2ab44d34907d9d47eaa9332593c9ef8567ee2c10edb3d3dd7dc9"
     },
     {
       "path": "references/ios-workflows/simulator-debugging.md",
@@ -640,7 +640,7 @@
     {
       "path": "references/release/submission-repairs.md",
       "uri": "legion-skill://ios-development/references/release/submission-repairs.md",
-      "digest": "sha256:cece07bf211eebef6962b4193a5e014f8d0ecdcb019aa457a3ee0b963046af70"
+      "digest": "sha256:daa70487c8b24a6add1c0c4be3eb3ea34365e873047f6bfda5062eba00d8df26"
     },
     {
       "path": "references/release/submission.md",
@@ -885,7 +885,7 @@
     {
       "path": "references/swiftui/donor-lee-trace-recording.md",
       "uri": "legion-skill://ios-development/references/swiftui/donor-lee-trace-recording.md",
-      "digest": "sha256:53d6cebd8e08ed60f07792e4e5c15d0a38e4054008f32e9c199afbc168c2d090"
+      "digest": "sha256:557476a9db9fae47c2bc03a0845622ae52b38069dc64b9c98d735407aec9f328"
     },
     {
       "path": "references/swiftui/donor-lee-view-structure.md",
@@ -1005,12 +1005,12 @@
     {
       "path": "references/tool-setup.md",
       "uri": "legion-skill://ios-development/references/tool-setup.md",
-      "digest": "sha256:1862a3a7b28456fd4769e2d97b444b4839dca3394b196ebcdc9a2f09a414eb3c"
+      "digest": "sha256:9ebfa873ca9eb64f35524ae3e2243f4a7b27c4f463cfbf9c1996f4b5d87bb242"
     },
     {
       "path": "references/toolchain.md",
       "uri": "legion-skill://ios-development/references/toolchain.md",
-      "digest": "sha256:c22f28a79d7b740410db4c3eb3f5b09013e77aff6058b8cff65eaeb22cafc1ad"
+      "digest": "sha256:ae9acb1d5551ee03444d6106ae5b5608ba153d14d822fc5efe74f8324cb585e4"
     }
   ]
 }

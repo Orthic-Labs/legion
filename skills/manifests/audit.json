@@ -73,7 +73,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:481c6cf0c1d0159d5ebf2288a52a21e505e339cf2e575984fd66ebfecb21ec2b"
+      "digest": "sha256:4d4b93ffb2fee91b0c24834d46fc47471f8a6813be60691d2b851bf7e185af3d"
     },
     {
       "path": "agents/openai.yaml",
@@ -83,12 +83,12 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://audit/dependencies.json",
-      "digest": "sha256:8100d1ab59f9956ce1bf293f0b43deeae45b12f4f51cd91dd00114e215630875"
+      "digest": "sha256:f107d07a0c5a0ee27ab3ac449b0ac82cfa45ed87edcb4e444b1e252f3d1112db"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit/evals/evals.json",
-      "digest": "sha256:f65784406e314e0ca76a6b2bbfc547b781abc30269be4e502fa5d960c70781be"
+      "digest": "sha256:ddcb5d2cf45dc2e1d36723aa9087dde35bef7a989d4277d7970d6603e345e153"
     },
     {
       "path": "references/a11y-checklist.md",
@@ -103,37 +103,37 @@
     {
       "path": "references/coverage-and-trajectory.md",
       "uri": "legion-skill://audit/references/coverage-and-trajectory.md",
-      "digest": "sha256:4a2de3b6897373c5f5f046868353703831b1e63d6cf46d90a32d40144278a9b2"
+      "digest": "sha256:1c65c5d30f71aaa4ec49f37102cd910e3d594e14fc921a1d0fcc0e2bec3f027f"
     },
     {
       "path": "references/desktop-tauri-checklist.md",
       "uri": "legion-skill://audit/references/desktop-tauri-checklist.md",
-      "digest": "sha256:4e4c475c2bc448aafbb436022c69503d795231358d976f8c7a1d17efdd89368e"
+      "digest": "sha256:79c3cf120bc426ff020dc60de370b309f61db8e1cf1d6a266161ce127f4e5467"
     },
     {
       "path": "references/engine-interface.md",
       "uri": "legion-skill://audit/references/engine-interface.md",
-      "digest": "sha256:cd09304ceee222b4fee011ae5390234b0c79f5f07af7bba7f16417a1a43860d5"
+      "digest": "sha256:e631645435a81399db07298ea0e4b8e8746a14f482eb2ba124705a938f5865df"
     },
     {
       "path": "references/execution-contract.md",
       "uri": "legion-skill://audit/references/execution-contract.md",
-      "digest": "sha256:994be5dd41946530b88db0c1df9544e470344d7c06a9ac04dad813c77021b0ee"
+      "digest": "sha256:5c9d802e75ae54ae3540d61f6a80b42f2c212ba80f1952d64f20344d7eff8056"
     },
     {
       "path": "references/lens-cues.md",
       "uri": "legion-skill://audit/references/lens-cues.md",
-      "digest": "sha256:fe0c2f73db1be471d55c9e6edcef900ea3212d1b45aae0409fbaaa2244df919f"
+      "digest": "sha256:f57dd7466d1651198a1def37682a17e8958d2d7ee33f62817044e2383d874ddd"
     },
     {
       "path": "references/lens-routing.md",
       "uri": "legion-skill://audit/references/lens-routing.md",
-      "digest": "sha256:d19d110df8209c56d38d1ca4dc1ef8cc119f9b1b9c5aaeef7024d4b66caa3a12"
+      "digest": "sha256:6b4db981a32fb5f5399f52af23e28fd4f6677f129f1abfbd729dead59ec871e9"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
-      "digest": "sha256:5ff695ad5b21bc72dbe379d17bfd4f840126f5f03c12fede2aab4b5b93cd65f2"
+      "digest": "sha256:393491e791e417584030d6b1c224d9a0aa2b6f52da06044c2012520597698aa6"
     },
     {
       "path": "references/migration-safety.md",
@@ -143,7 +143,7 @@
     {
       "path": "references/okf-output.md",
       "uri": "legion-skill://audit/references/okf-output.md",
-      "digest": "sha256:591160d6530ddf52a4e91cfc2a02c0573e8970b05a9737092c2710d735b016f6"
+      "digest": "sha256:36e3abd093c4a0cd99448ba522113a39205c31917b50a5f387948425528a630d"
     },
     {
       "path": "references/performance-checklist.md",
@@ -158,7 +158,7 @@
     {
       "path": "references/provider-architecture.md",
       "uri": "legion-skill://audit/references/provider-architecture.md",
-      "digest": "sha256:a75a7e653dca4c06e55b8ebed8ff39eb6e04a47f6db449cd9572dc1d2a217530"
+      "digest": "sha256:fcbe97fef7513a272dc65f984ea028286286411022be892d67120fe579245343"
     },
     {
       "path": "references/rubrics/cargo-toml.md",
@@ -188,7 +188,7 @@
     {
       "path": "references/security-lens-catalog.md",
       "uri": "legion-skill://audit/references/security-lens-catalog.md",
-      "digest": "sha256:38240acd1141ef4ee40e8a46f13391b534acd29470e59d5656f0cdbea7118792"
+      "digest": "sha256:44fd82dbc6ad4c324ce5b15bb58bb12f13f6814dd76c2da3ad69e0e3686ed86f"
     },
     {
       "path": "references/semantic-review.md",

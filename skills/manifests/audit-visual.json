@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/audit-visual",
-      "Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage."
+      "Enumerate, capture, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual or rendered-state coverage."
     ],
     "outputs": [
       "references/manual.md",
@@ -54,37 +54,37 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit-visual/SKILL.md",
-      "digest": "sha256:ac8d4255e62d6873b699159e28d25d8cfbffae0715e8ec7e642316423d08bd9d"
+      "digest": "sha256:a1a6a5292031711b2ae5200a1c0cf2b02b31f152f2d51f7211096b9d8600d798"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://audit-visual/agents/openai.yaml",
-      "digest": "sha256:93da4dc5ee7154d6edfc6152ef98f56906b179eeef2cb26534ce898cb9f79935"
+      "digest": "sha256:6941badddd3808a692d5fafd903d33aafcf88c129ae0587602589b388c88333a"
     },
     {
       "path": "dependencies.json",
       "uri": "legion-skill://audit-visual/dependencies.json",
-      "digest": "sha256:8100d1ab59f9956ce1bf293f0b43deeae45b12f4f51cd91dd00114e215630875"
+      "digest": "sha256:4616002d216af6fffda81793a8b896f13d26836f284b647fdc968889c5ccb7ae"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit-visual/evals/evals.json",
-      "digest": "sha256:71d13a16ff9d6fde9cbe4921e87154467b06455cc5297e6540d65365d57df062"
+      "digest": "sha256:f1ccd9531c9a52e01b3c3c0a37b08aa062723b92f36e6273d461df32d815d841"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit-visual/references/manual.md",
-      "digest": "sha256:f157519ae9a7f2bb82375fe848f34596ed4aadb73ffa51a3b04be7d656325d71"
+      "digest": "sha256:006b3c02ae92ff3a531adcacc9267f86b6a09a88a80db86eb40ceb9221e9b685"
     },
     {
       "path": "references/platform-fidelity.md",
       "uri": "legion-skill://audit-visual/references/platform-fidelity.md",
-      "digest": "sha256:7698694db06bbbb0dbe179ca419d649e0256ac505d1ef9055276a6653874d98f"
+      "digest": "sha256:362de6e56ad746ee3c5c0a4277175ed9a17d50ba63646f1a91aad6bbca194d02"
     },
     {
       "path": "references/visual-qa-capture.md",
       "uri": "legion-skill://audit-visual/references/visual-qa-capture.md",
-      "digest": "sha256:106ace574670643b671c0cc0f862edb648107b9ae61c0692d62c2afdbf806771"
+      "digest": "sha256:7d24bdfc203ab64206b1d554a2053e95a94d3596c01ec324114d66ba500eceaa"
     }
   ]
 }

@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/blueprint",
-      "Build, query, or reconcile a repository graph or current-state map when that map is requested or required. Use for /blueprint, repository onboarding, architecture/flow maps, impact analysis, docs reconciliation, or grounding Audit/Architect. Excludes chat transcripts and ordinary bounded file inspection."
+      "Query or reconcile a repository graph or current-state map through the optional Blueprint host capability (blueprint-graph) when that map is requested or required. Use for /blueprint, repository onboarding, architecture/flow maps, impact analysis, docs reconciliation, or grounding Audit/Architect. Excludes chat transcripts and ordinary bounded file inspection. Without the host capability it returns a NO_CAPABILITY result."
     ],
     "outputs": [],
     "scripts": [],
@@ -45,12 +45,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://blueprint/SKILL.md",
-      "digest": "sha256:65ed6da26b1f284846e41ff01fc936720bd4e04222368010f075237c209e494a"
+      "digest": "sha256:25554c2482c6425ec85a69bf307e1d685e770833a51337ffaf00980debefc202"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://blueprint/agents/openai.yaml",
-      "digest": "sha256:6467754edb290115303a80b1505f361357c4b41a2f5dc17d5a351622ca0aac31"
+      "digest": "sha256:463ad722eb2b2bf29042c55e67fcb64767eb15178172c09775a797ec49714ea6"
     },
     {
       "path": "dependencies.json",
@@ -60,7 +60,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://blueprint/evals/evals.json",
-      "digest": "sha256:2cc9a9974d5210e6732cc11de8df74394a8f66431f1e948cff41d9faa86a2224"
+      "digest": "sha256:80f5098cc0c877f51a660b76fca0a09b5eea6ffcdf2ee68f622f9c964a42db81"
     }
   ]
 }

@@ -74,7 +74,8 @@
       },
       "domain": "commercial",
       "hostRequirements": [
-        "banana-image"
+        "banana-image",
+        "web-search"
       ],
       "hostRequirementDetails": [
         {
@@ -83,6 +84,14 @@
           "summary": "Image generation and editing through the nano-banana MCP tools (mcp__nano-banana__*), used by Ads, Designer, Marketing, and SEO image steps.",
           "degradation": "The skill reports the image-generation step unavailable and continues without it. This package ships no fallback generator.",
           "remedy": "Wire a nano-banana image-generation MCP server into the host. This package ships no generator and no fallback.",
+          "probe": null
+        },
+        {
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
           "probe": null
         }
       ],
@@ -124,7 +133,7 @@
     {
       "id": "architect",
       "name": "architect",
-      "description": "Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning.",
+      "description": "Software and system architecture capability for architecture decisions, ADRs, quality attributes, invariants, migrations, and architecture-significant planning.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -166,15 +175,17 @@
       "domain": "engineering",
       "hostRequirements": [
         "blueprint-graph",
-        "legion"
+        "legion",
+        "skill-emit",
+        "okf"
       ],
       "hostRequirementDetails": [
         {
           "id": "blueprint-graph",
           "kind": "graph-engine",
-          "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -190,6 +201,22 @@
             "kind": "command",
             "command": "legion"
           }
+        },
+        {
+          "id": "skill-emit",
+          "kind": "tool",
+          "summary": "Host-side emission of generated skill artifacts.",
+          "degradation": "Write artifacts to the working directory and state that they were not emitted to the host.",
+          "remedy": "Provide the host's skill-emission channel; without it, emitted skills are returned inline only.",
+          "probe": null
+        },
+        {
+          "id": "okf",
+          "kind": "tool",
+          "summary": "OKF concept-bundle emission and compression.",
+          "degradation": "Emit the uncompressed human deliverable only and state that no OKF bundle was produced.",
+          "remedy": "Provide the host's OKF sink; without it, OKF output is returned inline instead of persisted.",
+          "probe": null
         }
       ],
       "scopedRequirements": [],
@@ -214,9 +241,9 @@
         {
           "id": "blueprint-graph",
           "kind": "graph-engine",
-          "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -240,7 +267,7 @@
     {
       "id": "audit-visual",
       "name": "audit-visual",
-      "description": "Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.",
+      "description": "Enumerate, capture, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual or rendered-state coverage.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -256,9 +283,9 @@
         {
           "id": "blueprint-graph",
           "kind": "graph-engine",
-          "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -282,7 +309,7 @@
     {
       "id": "blueprint",
       "name": "blueprint",
-      "description": "Build, query, or reconcile a repository graph or current-state map when that map is requested or required. Use for /blueprint, repository onboarding, architecture/flow maps, impact analysis, docs reconciliation, or grounding Audit/Architect. Excludes chat transcripts and ordinary bounded file inspection.",
+      "description": "Query or reconcile a repository graph or current-state map through the optional Blueprint host capability (blueprint-graph) when that map is requested or required. Use for /blueprint, repository onboarding, architecture/flow maps, impact analysis, docs reconciliation, or grounding Audit/Architect. Excludes chat transcripts and ordinary bounded file inspection. Without the host capability it returns a NO_CAPABILITY result.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -297,9 +324,9 @@
         {
           "id": "blueprint-graph",
           "kind": "graph-engine",
-          "summary": "Membrane Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -328,7 +355,7 @@
     {
       "id": "brand-identity",
       "name": "brand-identity",
-      "description": "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits.",
+      "description": "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, logo direction, brand books, rebrands, and the identity system behind a website or app (usage proofs only).",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -336,8 +363,22 @@
         "model": true
       },
       "domain": "design",
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
       "scopedRequirements": [],
       "source": "skills/brand-identity/SKILL.md"
     },
@@ -352,8 +393,34 @@
         "model": false
       },
       "domain": null,
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "blueprint-graph",
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "kind": "graph-engine",
+          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        },
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
       "scopedRequirements": [],
       "source": "skills/commit/SKILL.md"
     },
@@ -369,7 +436,8 @@
       },
       "domain": null,
       "hostRequirements": [
-        "legion"
+        "legion",
+        "web-search"
       ],
       "hostRequirementDetails": [
         {
@@ -382,6 +450,14 @@
             "kind": "command",
             "command": "legion"
           }
+        },
+        {
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
         }
       ],
       "scopedRequirements": [],
@@ -415,7 +491,8 @@
       },
       "domain": "design",
       "hostRequirements": [
-        "banana-image"
+        "banana-image",
+        "web-search"
       ],
       "hostRequirementDetails": [
         {
@@ -424,6 +501,14 @@
           "summary": "Image generation and editing through the nano-banana MCP tools (mcp__nano-banana__*), used by Ads, Designer, Marketing, and SEO image steps.",
           "degradation": "The skill reports the image-generation step unavailable and continues without it. This package ships no fallback generator.",
           "remedy": "Wire a nano-banana image-generation MCP server into the host. This package ships no generator and no fallback.",
+          "probe": null
+        },
+        {
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
           "probe": null
         }
       ],
@@ -781,7 +866,10 @@
       "domain": "commercial",
       "hostRequirements": [
         "dataforseo",
-        "ahrefs"
+        "ahrefs",
+        "media-production",
+        "blueprint-graph",
+        "morph"
       ],
       "hostRequirementDetails": [
         {
@@ -801,6 +889,33 @@
           "summary": "Ahrefs backlink, keyword, and site-explorer data through the host's Ahrefs MCP connector.",
           "degradation": "The skill reports the Ahrefs step unavailable and continues without it; findings that needed Ahrefs data are marked UNPROVEN and never estimated.",
           "remedy": "Connect an Ahrefs MCP server in the host.",
+          "probe": null
+        },
+        {
+          "id": "media-production",
+          "kind": "tool",
+          "summary": "Video and rich-media generation. Formerly the private Content skill; not part of Legion.",
+          "degradation": "Skip the media step and state that it was skipped.",
+          "remedy": "Wire a video/rich-media generation tool into the host. This package ships no media generator.",
+          "probe": null
+        },
+        {
+          "id": "blueprint-graph",
+          "kind": "graph-engine",
+          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        },
+        {
+          "id": "morph",
+          "kind": "tool",
+          "summary": "Durable capture of results into the host's persistent store.",
+          "degradation": "Return results inline and state that they were not durably captured.",
+          "remedy": "Provide a durable-capture tool in the host, or accept inline results.",
           "probe": null
         }
       ],
@@ -826,7 +941,7 @@
     {
       "id": "qa",
       "name": "qa",
-      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring.",
+      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, and runtime checks.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -865,7 +980,8 @@
       },
       "domain": "research",
       "hostRequirements": [
-        "legion"
+        "legion",
+        "web-search"
       ],
       "hostRequirementDetails": [
         {
@@ -878,6 +994,14 @@
             "kind": "command",
             "command": "legion"
           }
+        },
+        {
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
         }
       ],
       "scopedRequirements": [
@@ -950,7 +1074,9 @@
         "banana-image",
         "dataforseo",
         "firecrawl",
-        "ahrefs"
+        "ahrefs",
+        "web-search",
+        "okf"
       ],
       "hostRequirementDetails": [
         {
@@ -1001,6 +1127,22 @@
           "degradation": "The skill reports the Ahrefs step unavailable and continues without it; findings that needed Ahrefs data are marked UNPROVEN and never estimated.",
           "remedy": "Connect an Ahrefs MCP server in the host.",
           "probe": null
+        },
+        {
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
+        },
+        {
+          "id": "okf",
+          "kind": "tool",
+          "summary": "OKF concept-bundle emission and compression.",
+          "degradation": "Emit the uncompressed human deliverable only and state that no OKF bundle was produced.",
+          "remedy": "Provide the host's OKF sink; without it, OKF output is returned inline instead of persisted.",
+          "probe": null
         }
       ],
       "scopedRequirements": [],
@@ -1017,8 +1159,28 @@
         "model": true
       },
       "domain": "commercial",
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "web-search",
+        "media-production"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
+        },
+        {
+          "id": "media-production",
+          "kind": "tool",
+          "summary": "Video and rich-media generation. Formerly the private Content skill; not part of Legion.",
+          "degradation": "Skip the media step and state that it was skipped.",
+          "remedy": "Wire a video/rich-media generation tool into the host. This package ships no media generator.",
+          "probe": null
+        }
+      ],
       "scopedRequirements": [],
       "source": "skills/social/SKILL.md"
     },
@@ -1069,7 +1231,7 @@
     {
       "id": "wake",
       "name": "wake",
-      "description": "Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state.",
+      "description": "Request one bounded wakeup for an active job, external review, or goal-alignment check, only where the host exposes a scheduler or event wait; inspect once per wake, stop polling, & continue only from observed state.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -1093,8 +1255,19 @@
         "model": true
       },
       "domain": "editorial",
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "media-production"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "media-production",
+          "kind": "tool",
+          "summary": "Video and rich-media generation. Formerly the private Content skill; not part of Legion.",
+          "degradation": "Skip the media step and state that it was skipped.",
+          "remedy": "Wire a video/rich-media generation tool into the host. This package ships no media generator.",
+          "probe": null
+        }
+      ],
       "scopedRequirements": [],
       "source": "skills/writing/SKILL.md"
     }
@@ -1184,7 +1357,7 @@
     },
     {
       "id": "blueprint-graph",
-      "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results."
+      "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results."
     },
     {
       "id": "crypt",

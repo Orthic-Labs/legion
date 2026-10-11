@@ -1206,6 +1206,66 @@
       "selectable": true
     },
     {
+      "id": "security.credentials",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.insecure-defaults",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.misuse-resistance",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.agentic-ci",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.agent-skill-mcp",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
       "id": "structural.ast-grep",
       "providerVersion": "1.0.0",
       "role": "deterministic",

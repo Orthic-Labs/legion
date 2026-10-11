@@ -74,7 +74,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "digest": "sha256:6a3ace02c49b8957278f1813fcc32608bc47da686e44f2da542246ec8327b3cb"
+      "digest": "sha256:94102a71b97e8b54eced09e0276f2ad73e75647fe559ae3194b22f6e124476de"
     },
     {
       "path": "agents/openai.yaml",
@@ -84,7 +84,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://research/dependencies.json",
-      "digest": "sha256:0a2f7a8f00abe530e18bbea52f8bd10c33a1536e2f91bb2d72138b911c7cca80"
+      "digest": "sha256:0e3748ea285fae127435b39f6a7a62fafa9003a060b4a2644a40f4d658f4cdda"
     },
     {
       "path": "evals/evals.json",
@@ -124,7 +124,7 @@
     {
       "path": "references/domains/legal/india/consumer/GUIDE.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/GUIDE.md",
-      "digest": "sha256:e54afe493cb7f03d3a0720951fb0bf2b135f99543bea5b6e576445837214b035"
+      "digest": "sha256:0eeadd8b512aadf7ec9577dfa6235f2adefdda0f483d1433cf891c72cc1e8fba"
     },
     {
       "path": "references/domains/legal/india/consumer/cp-act-2019.md",
@@ -149,7 +149,7 @@
     {
       "path": "references/domains/legal/india/consumer/manual.md",
       "uri": "legion-skill://research/references/domains/legal/india/consumer/manual.md",
-      "digest": "sha256:00eedfb1db1ca1f1f0fa9af504904bd37b80f4f9949fbf8d1db0806f5c15e4bf"
+      "digest": "sha256:d9e73acb31225378b09316fe6f8dae17ef76231678de3a88078c970f2f866475"
     },
     {
       "path": "references/domains/medical/GUIDE.md",
@@ -204,7 +204,7 @@
     {
       "path": "references/providers/notebooklm.md",
       "uri": "legion-skill://research/references/providers/notebooklm.md",
-      "digest": "sha256:6bfe7708520c24f37047fa8142a5281e1320aa46924dc45286c5f22e0d4f5694"
+      "digest": "sha256:c6faca5c20b603a88d65a01cd7d3d6b66dd6b3e415131256174be961b623e6bb"
     },
     {
       "path": "references/route-gates.md",
@@ -214,7 +214,7 @@
     {
       "path": "references/route-resources.json",
       "uri": "legion-skill://research/references/route-resources.json",
-      "digest": "sha256:c16c1099e45735d213c1410a49f176f4e3320d10d1f3ec07bcf92a6d359860ec"
+      "digest": "sha256:24c53b042590aa4c3203afe08bd9783ab3120dc365d857241d942782c01c2056"
     },
     {
       "path": "references/route-schema.json",
@@ -224,12 +224,12 @@
     {
       "path": "references/router.md",
       "uri": "legion-skill://research/references/router.md",
-      "digest": "sha256:1a6c50641f840601e54149e1a242cf7a39873fb756ca983e81bf10d2611beabf"
+      "digest": "sha256:07d0a812387f49e261d6b007341d36b0db6bd78bfa3d23fcdac121814bb26cb3"
     },
     {
       "path": "references/scale/README.md",
       "uri": "legion-skill://research/references/scale/README.md",
-      "digest": "sha256:a98c6f92dae95d059ff42e4a762e1339a8f0e4f641686f7e63372dae12ff79dc"
+      "digest": "sha256:d761a9e3179fb1a4636067783dca3609f032b01f82e439991c38f3195388bf94"
     }
   ]
 }

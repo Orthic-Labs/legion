@@ -63,12 +63,12 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://foundation/dependencies.json",
-      "digest": "sha256:8a34d459970a98a73a95601f078181a474bd698c07290b1d1ca2b8c506230384"
+      "digest": "sha256:c705a5e21098526b970d5c31c2374704cefea4cbae0195f0c94158d5fd1b536f"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://foundation/evals/evals.json",
-      "digest": "sha256:5868c661936c77b8a4a19a2cd76481ecfa8abc55479b8c49f5b5a7d4697b11bb"
+      "digest": "sha256:f35caee46a4a0858dea7a7f09622ba4e963e9f1a2eefea3a9dbf0273187c7042"
     },
     {
       "path": "references/model.md",
