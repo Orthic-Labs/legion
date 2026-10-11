@@ -534,12 +534,20 @@ fn handle_request<'a>(
             true
         }
         ("GET", "/modern-screenshot.js") => {
-            write_json(
-                &mut stream,
-                404,
-                "Not Found",
-                &json!({ "error": "unavailable", "reason": "modern-screenshot-not-shipped" }),
-            );
+            let asset = find_scripts_dir(project_root)
+                .map(|scripts| scripts.join("modern-screenshot.umd.js"));
+            match asset.and_then(|path| std::fs::read(path).ok()) {
+                Some(content) => {
+                    write_response(&mut stream, 200, "OK", "application/javascript", &content)
+                }
+                None => write_response(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    "text/plain",
+                    b"Not available",
+                ),
+            }
             true
         }
         ("GET", "/design-system.json") => {
@@ -1668,19 +1676,44 @@ mod tests {
     }
 
     #[test]
-    fn modern_screenshot_route_reports_not_shipped() {
+    fn modern_screenshot_route_serves_packaged_asset() {
+        let root = scratch_dir("modern-screenshot");
+        let scripts = root.join("skills/designer/engine/scripts");
+        std::fs::create_dir_all(&scripts).unwrap();
+        std::fs::write(
+            scripts.join("modern-screenshot.umd.js"),
+            b"window.modernScreenshot = {};",
+        )
+        .unwrap();
         let queue = QueueState::new();
         let out = run_req(
             mk_req("GET", "/modern-screenshot.js", &[], b""),
             "tok",
             &queue,
-            Path::new("."),
+            &root,
         );
-        assert!(out.contains("404"), "{out}");
+        assert!(out.contains("200 OK"), "{out}");
         assert!(
-            out.contains("\"reason\":\"modern-screenshot-not-shipped\""),
+            out.contains("Content-Type: application/javascript"),
             "{out}"
         );
+        assert!(out.ends_with("window.modernScreenshot = {};"), "{out}");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn modern_screenshot_route_returns_not_found_when_asset_is_absent() {
+        let root = scratch_dir("modern-screenshot-absent");
+        let queue = QueueState::new();
+        let out = run_req(
+            mk_req("GET", "/modern-screenshot.js", &[], b""),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(out.contains("404 Not Found"), "{out}");
+        assert!(out.ends_with("Not available"), "{out}");
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

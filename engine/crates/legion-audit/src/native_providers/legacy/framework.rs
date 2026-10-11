@@ -69,17 +69,25 @@ fn is_go_web_module(lower: &str) -> bool {
 /// Maps a manifest dependency name (as inventory discovery records it: package
 /// names, Cargo/PyPI/Go/SwiftPM names, Maven and Gradle `group:artifact` and
 /// plugin ids, gem names, mix atoms, pub package names) to a framework family.
-/// Prefix families (`org.springframework.boot*`, `io.ktor*`) match by prefix.
+/// JVM framework markers follow Maven/Gradle coordinate semantics: a
+/// `group:artifact` is classified from its group, while Gradle plugin ids are
+/// matched as exact ids. This avoids both missing framework modules and
+/// accepting similarly-prefixed unrelated coordinates.
 fn family_name(dependency: &str) -> Option<&'static str> {
     let lower = dependency.to_ascii_lowercase();
     if is_go_web_module(&lower) {
         return Some("go-web");
     }
-    if lower.starts_with("org.springframework.boot") || lower.starts_with("spring-boot-starter") {
-        return Some("spring");
+    if let Some((group, _artifact)) = lower.split_once(':') {
+        if group == "org.springframework" || group.starts_with("org.springframework.") {
+            return Some("spring");
+        }
+        return (group == "io.ktor").then_some("ktor");
     }
-    if lower.starts_with("io.ktor") {
-        return Some("ktor");
+    match lower.as_str() {
+        "org.springframework.boot" => return Some("spring"),
+        "io.ktor.plugin" => return Some("ktor"),
+        _ => {}
     }
     match lower.as_str() {
         "rails" => Some("rails"),
@@ -290,4 +298,24 @@ pub fn execute(
         gaps,
         details,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::family_name;
+
+    #[test]
+    fn jvm_framework_markers_follow_coordinate_groups_and_exact_plugin_ids() {
+        assert_eq!(
+            family_name("org.springframework.security:spring-security-config"),
+            Some("spring")
+        );
+        assert_eq!(
+            family_name("org.springframeworkevil:spring-security-config"),
+            None
+        );
+        assert_eq!(family_name("io.ktor:ktor-server-core"), Some("ktor"));
+        assert_eq!(family_name("io.ktor.plugin"), Some("ktor"));
+        assert_eq!(family_name("io.ktorevil:ktor-server-core"), None);
+    }
 }

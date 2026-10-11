@@ -84,7 +84,13 @@ overrides it.
    revision, MACs the receipt, and rewrites `report.json` with the recomputed verdict. Finish with
    `legion verify <run-dir>`; it recomputes the verdict from the ingested receipts. A lens that is not
    ingested stays `pending-host` and keeps the audit non-clean. The adjudication packet carries
-   `scannerCandidates` and its result a `verdicts` array (one per candidate); every packet carries
+   `scannerCandidates` plus isolated `candidateWorkItems`, each holding one candidate's evidence and
+   bound to the batch packet digest. Dispatch each child packet in its own fresh Oracle context, then
+   aggregate exactly one verdict per item in the batch result; the batch packet is only an aggregation
+   boundary. Each verdict carries `workItemId` and `workPacketDigest`. Those echoed identifiers bind
+   the result to its child packet but do not attest which context produced it, so CLI/model results
+   retain the typed derived-context coverage gap. `scannerCandidates: null` means unavailable; `[]`
+   means scanner completed with no candidates. Every packet carries
    `excerptCoverage`, and omitted/truncated excerpts leave a `reasoning-excerpt-coverage` gap (partial
    receipt). Confirmed security verdicts additionally require the variant-analysis follow-up
    (`legion audit ingest --run <run-dir> --followup`, see the execution contract); until that

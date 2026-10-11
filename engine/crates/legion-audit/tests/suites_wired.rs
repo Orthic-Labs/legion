@@ -394,6 +394,24 @@ fn spring_family_is_detected_from_maven_and_its_rule_fires() {
 }
 
 #[test]
+fn spring_framework_artifacts_are_detected_from_their_maven_group() {
+    assert_framework_rule_fires(
+        "framework-spring-core-artifact",
+        &[
+            (
+                "pom.xml",
+                "<project><dependencies><dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-config</artifactId></dependency></dependencies></project>\n",
+            ),
+            (
+                "src/main/java/app/Security.java",
+                "http.authorizeHttpRequests(a -> a.requestMatchers(\"/admin/**\").permitAll());\n",
+            ),
+        ],
+        "spring-sensitive-permit-all",
+    );
+}
+
+#[test]
 fn ktor_family_is_detected_from_gradle_kotlin_and_its_rule_fires() {
     assert_framework_rule_fires(
         "framework-ktor",
@@ -401,6 +419,24 @@ fn ktor_family_is_detected_from_gradle_kotlin_and_its_rule_fires() {
             (
                 "build.gradle.kts",
                 "plugins {\n    id(\"io.ktor.plugin\") version \"2.3.0\"\n}\ndependencies {\n    implementation(\"io.ktor:ktor-server-core:2.3.0\")\n}\n",
+            ),
+            (
+                "src/main/kotlin/Main.kt",
+                "fun Application.module() { install(CORS) { anyHost() } }\n",
+            ),
+        ],
+        "ktor-any-host",
+    );
+}
+
+#[test]
+fn ktor_family_is_detected_from_gradle_artifact_without_plugin_marker() {
+    assert_framework_rule_fires(
+        "framework-ktor-artifact-only",
+        &[
+            (
+                "build.gradle.kts",
+                "dependencies {\n    implementation(\"io.ktor:ktor-server-core:2.3.0\")\n}\n",
             ),
             (
                 "src/main/kotlin/Main.kt",

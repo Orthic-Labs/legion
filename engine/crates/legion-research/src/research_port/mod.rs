@@ -6,6 +6,7 @@
 
 pub mod citecheck;
 pub mod common;
+pub mod contradictions;
 pub mod effects;
 pub mod failure_taxonomy;
 pub mod independence;

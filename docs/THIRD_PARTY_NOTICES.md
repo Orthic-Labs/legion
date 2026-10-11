@@ -17,6 +17,16 @@ agent topologies, hosted services, and provider credentials are not vendored.
 Every future runtime dependency must be listed here with license and provenance
 before release.
 
+- `axe-core` 4.14.0 — Mozilla Public License 2.0, with bundled third-party
+  notices for included dependencies. Legion ships its minified browser runtime
+  at `engine/crates/legion-audit/assets/axe-core-4.14.0.min.js`; source is the
+  official [`dequelabs/axe-core` npm package](https://www.npmjs.com/package/axe-core)
+  tarball, with corresponding source code form at upstream tag
+  [`v4.14.0`](https://github.com/dequelabs/axe-core/tree/v4.14.0). Exact
+  license texts, including bundled dependency notices, are adjacent to asset.
+  SHA-256:
+  `20c09fe157a8a34a30e241aaa1fcdade657734f08ab379ecfbeb7d45cc46e878`.
+
 ## Integrated engines and rule material
 
 No external SEO engine binary is shipped. Legion's SEO implementation and prose

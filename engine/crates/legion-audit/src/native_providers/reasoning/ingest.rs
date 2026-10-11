@@ -32,8 +32,9 @@ use sha2::{Digest, Sha256};
 use super::{
     authenticate_receipt, followup, lens_plan, lens_schemas,
     security_adjudication::{
-        adjudicate_scanner_candidates, confirmed_findings, confirmed_paths,
-        ConfirmedSecurityFinding, ScannerCandidate, ADJUDICATOR_PROVIDER_ID,
+        adjudicate_scanner_candidates, adjudication_parent_packet_digest, adjudication_work_items,
+        confirmed_findings, confirmed_paths, ConfirmedSecurityFinding, ScannerCandidate,
+        ADJUDICATOR_PROVIDER_ID,
     },
     verify_authenticated_receipt, verify_response, LensPartRef, PendingLensWork,
     ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
@@ -868,9 +869,63 @@ pub fn ingest_lens_result(
                 let candidates: Vec<ScannerCandidate> =
                     serde_json::from_value(Value::Array(items.clone()))
                         .map_err(|error| invalid(format!("{who}: packet candidates: {error}")))?;
-                let verdicts =
-                    adjudicate_scanner_candidates(&candidates, &submitted_verdicts, &packet_digest)
+                let parent_packet_digest = if request.packet.get("candidateWorkItems").is_some() {
+                    let parent_packet_digest =
+                        adjudication_parent_packet_digest(&request.packet)
+                            .map_err(|error| invalid(format!("{who}: {error}")))?;
+                    let child_work = adjudication_work_items(&candidates, &parent_packet_digest)
                         .map_err(|error| invalid(format!("{who}: {error}")))?;
+                    let expected_child_binding = json!({
+                        "parentPacketDigest": parent_packet_digest,
+                        "items": child_work,
+                    });
+                    if request.packet.get("candidateWorkItems") != Some(&expected_child_binding) {
+                        return Err(invalid(format!(
+                                "{who}: isolated candidate work items do not match the batch candidates and parent packet digest"
+                            )));
+                    }
+                    for (index, verdict) in submitted_verdicts.iter().enumerate() {
+                        let candidate_id = verdict
+                                .get("candidateId")
+                                .and_then(Value::as_str)
+                                .ok_or_else(|| {
+                                    invalid(format!(
+                                        "{who}: verdict {index} is missing candidateId for its isolated work item"
+                                    ))
+                                })?;
+                        let item = child_work
+                                .iter()
+                                .find(|item| item.packet.candidate.id == candidate_id)
+                                .ok_or_else(|| {
+                                    invalid(format!(
+                                        "{who}: verdict {index} names candidate {candidate_id} without isolated work"
+                                    ))
+                                })?;
+                        let expected_packet_digest = canonical_digest(&item.packet)
+                            .map_err(|error| invalid(error.to_string()))?;
+                        if verdict.get("workItemId").and_then(Value::as_str)
+                            != Some(item.item_id.as_str())
+                            || verdict.get("workPacketDigest").and_then(Value::as_str)
+                                != Some(expected_packet_digest.as_str())
+                        {
+                            return Err(invalid(format!(
+                                    "{who}: verdict for {candidate_id} is not bound to its isolated work item"
+                                )));
+                        }
+                    }
+                    parent_packet_digest
+                } else {
+                    // Historical packets contain only the batch candidate
+                    // list. Keep their Derived behavior readable; the gap
+                    // below still prevents a freshness claim.
+                    packet_digest.clone()
+                };
+                let verdicts = adjudicate_scanner_candidates(
+                    &candidates,
+                    &submitted_verdicts,
+                    &parent_packet_digest,
+                )
+                .map_err(|error| invalid(format!("{who}: {error}")))?;
                 for verdict in verdicts
                     .iter()
                     .filter(|verdict| verdict.verdict.is_surviving())
@@ -890,7 +945,33 @@ pub fn ingest_lens_result(
                 ));
                 candidates_supplied = true;
             }
-            _ if submitted_verdicts.is_empty() => {}
+            Some(Value::Null) if submitted_verdicts.is_empty() => {
+                if request
+                    .packet
+                    .get("candidateWorkItems")
+                    .is_some_and(|value| !value.is_null())
+                {
+                    return Err(invalid(format!(
+                        "{who}: unavailable scanner candidates require candidateWorkItems: null"
+                    )));
+                }
+            }
+            Some(_) => {
+                return Err(invalid(format!(
+                    "{who}: scannerCandidates must be an array or null"
+                )))
+            }
+            None if submitted_verdicts.is_empty() => {
+                if request
+                    .packet
+                    .get("candidateWorkItems")
+                    .is_some_and(|value| !value.is_null())
+                {
+                    return Err(invalid(format!(
+                        "{who}: unavailable scanner candidates require candidateWorkItems: null"
+                    )));
+                }
+            }
             _ => {
                 return Err(invalid(format!(
                     "{who}: verdicts submitted but the packet carries no scanner candidates"

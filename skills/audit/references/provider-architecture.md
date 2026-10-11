@@ -116,8 +116,11 @@ candidates only.
 
 A different provider adjudicates each candidate in its own fresh context through threat model,
 attacker control, source-to-sink trace, reachability, primary controls, environmental mitigations,
-real impact, proof, and false-positive challenge. Evidence strength, verdict, and severity remain
-independent. Confirmed findings require a separate variant analysis before closure.
+real impact, proof, and false-positive challenge. The batch packet exposes one child work packet per
+candidate, bound to its parent digest; Audit dispatches those packets in fresh Oracle contexts and
+aggregates one bound verdict per child. The batch is an aggregation boundary only. Evidence strength,
+verdict, and severity remain independent. Confirmed findings require a separate variant analysis
+before closure.
 
 Provider/context separation and verdict invariants are enforced by the `legion-audit` security pipeline
 (`engine/crates/legion-audit/src/p12_pipeline`), which rejects context reuse across candidates.

@@ -307,6 +307,21 @@ fn adjudication_result(run: &Run, confirm_sql: bool) -> Value {
     } else {
         json!([])
     };
+    let verdicts = [verdict("cand-sql", confirm_sql), verdict("cand-doc", false)]
+        .into_iter()
+        .map(|mut verdict| {
+            let candidate_id = verdict["candidateId"].as_str().unwrap();
+            let item = run.adjudication.request.packet["candidateWorkItems"]["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|item| item["packet"]["candidate"]["id"] == candidate_id)
+                .unwrap();
+            verdict["workItemId"] = item["itemId"].clone();
+            verdict["workPacketDigest"] = json!(canonical_digest(&item["packet"]).unwrap());
+            verdict
+        })
+        .collect::<Vec<_>>();
     json!({
         "schemaVersion": 1,
         "kind": "legion-lens-result",
@@ -316,8 +331,32 @@ fn adjudication_result(run: &Run, confirm_sql: bool) -> Value {
         "complete": true,
         "findings": findings,
         "withdrawn": [],
-        "verdicts": [verdict("cand-sql", confirm_sql), verdict("cand-doc", false)],
+        "verdicts": verdicts,
     })
+}
+
+fn rewrite_request_id(work: &mut PendingLensWork) {
+    let request = &mut work.request;
+    let signature = if request.plan_signature.is_empty() {
+        Value::Null
+    } else {
+        Value::String(request.plan_signature.clone())
+    };
+    request.request_id = canonical_digest(&json!({
+        "invocationEpoch": "pending-host",
+        "packetDigest": canonical_digest(&request.packet).unwrap(),
+        "providerId": request.provider_id,
+        "contract": request.contract,
+        "planDigest": request.plan_digest,
+        "planSignature": signature,
+        "repositoryId": request.repository_id,
+        "inventoryGeneration": request.inventory_generation,
+        "inventoryDigest": request.inventory_digest,
+        "denominatorDigest": request.denominator_digest,
+        "denominatorCount": request.denominator_count,
+        "denominatorPaths": request.denominator_paths,
+    }))
+    .unwrap();
 }
 
 fn variant_packet(run: &Run) -> PendingLensWork {
@@ -419,17 +458,70 @@ fn confirmed_run_with_source(name: &str, db_source: &str) -> Run {
 
 #[test]
 fn adjudication_under_derived_context_policy_records_a_gap_not_an_attestation() {
-    let run = confirmed_run("derived-context");
+    let run = setup("derived-context");
+    let mut result = adjudication_result(&run, true);
+    for verdict in result["verdicts"].as_array_mut().unwrap() {
+        let item = run.adjudication.request.packet["candidateWorkItems"]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["packet"]["candidate"]["id"] == verdict["candidateId"])
+            .unwrap();
+        verdict["contextId"] = item["contextId"].clone();
+    }
+    ingest_lens_result(&run.run, ADJUDICATOR_PROVIDER_ID, &result).unwrap();
     let recomputed = recompute_run(&run.run).unwrap();
     assert!(
         recomputed
             .report
             .gaps
             .iter()
-            .any(|gap| gap.starts_with("adjudication-context-derived:")),
+            .any(|gap| gap.starts_with("adjudication-context-derived:")
+                && gap.contains("0 naming no context")
+                && gap.contains("not a fresh-context attestation")),
         "{:?}",
         recomputed.report.gaps
     );
+}
+
+#[test]
+fn adjudication_result_must_bind_each_verdict_to_its_isolated_child_packet() {
+    let run = setup("child-binding");
+    let mut result = adjudication_result(&run, true);
+    result["verdicts"][0]["workItemId"] = json!("sha256:forged");
+    let error = ingest_lens_result(&run.run, ADJUDICATOR_PROVIDER_ID, &result).unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("not bound to its isolated work item"));
+}
+
+#[test]
+fn historical_batch_packet_without_child_items_remains_ingestable_as_derived() {
+    let mut run = setup("legacy-batch-packet");
+    let mut result = adjudication_result(&run, true);
+    for verdict in result["verdicts"].as_array_mut().unwrap() {
+        verdict.as_object_mut().unwrap().remove("workItemId");
+        verdict.as_object_mut().unwrap().remove("workPacketDigest");
+    }
+    run.adjudication
+        .request
+        .packet
+        .as_object_mut()
+        .unwrap()
+        .remove("candidateWorkItems");
+    rewrite_request_id(&mut run.adjudication);
+    result["packetDigest"] = json!(canonical_digest(&run.adjudication.request.packet).unwrap());
+    write_json(
+        &run.run.join(format!("{LENS_PACKET_DIR}/{ADJUDICATOR_PROVIDER_ID}.json")),
+        &serde_json::to_value(&run.adjudication).unwrap(),
+    );
+
+    ingest_lens_result(&run.run, ADJUDICATOR_PROVIDER_ID, &result).unwrap();
+    let recomputed = recompute_run(&run.run).unwrap();
+    assert!(recomputed.report.gaps.iter().any(|gap| {
+        gap.starts_with("adjudication-context-derived:")
+            && gap.contains("not a fresh-context attestation")
+    }));
 }
 
 #[test]

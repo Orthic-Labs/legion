@@ -294,6 +294,31 @@ fn framework_providers_without_their_files_are_not_applicable() {
     fs::remove_dir_all(root).unwrap();
 }
 
+/// JavaScript backends can use packages that the producer does not recognize;
+/// their backend gap must remain visible until detection can distinguish them.
+#[test]
+fn unlisted_javascript_backend_keeps_backend_gap() {
+    let root = fixture_root("javascript-unlisted-backend");
+    write(
+        &root,
+        "package.json",
+        "{\"name\":\"server\",\"dependencies\":{\"koa\":\"2.15.0\"}}\n",
+    );
+    write(&root, "src/server.js", "const Koa = require('koa');\n");
+    let result = run(&root, "framework.backend");
+    assert!(result.applicable);
+    assert_eq!(
+        unavailable_reason(&result),
+        Some("no-backend-framework-detected")
+    );
+    assert!(!result.complete);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "backend-framework-denominator-zero"));
+    fs::remove_dir_all(root).unwrap();
+}
+
 /// A declared frontend framework with no components is a framework that
 /// exists but cannot be analysed: it keeps its gap, it is not not-applicable.
 #[test]

@@ -77,10 +77,22 @@ older receipts.
 - `scannerCandidates` (only `legacy.security.adjudication`): the scanner candidates to close, each
   `{findingId, provider, rule, severity, path, line, message, evidenceExcerpt}`. `null` means scanner
   results were unavailable (gap `scanner-candidates-unavailable:<provider>`; the lens stays uncovered).
-- `verdicts` (result array, adjudication only): exactly one entry per `scannerCandidates` item,
+- `candidateWorkItems` (only `legacy.security.adjudication`): `null` when `scannerCandidates` is
+  `null`; otherwise `{parentPacketDigest, items}` with one isolated work item per candidate. Each
+  child packet contains only its candidate's evidence. `parentPacketDigest` is the canonical digest
+  of the batch packet with `candidateWorkItems` removed, avoiding a circular digest while binding
+  each child to the complete frozen batch evidence and invocation. An empty `scannerCandidates` array
+  therefore has an empty `items` array and remains distinct from unavailable candidates.
+- `verdicts` (result array, adjudication only): exactly one aggregated entry per `scannerCandidates` item,
   `{candidateId, verdict, ...}`. `verdict` is `TRUE_POSITIVE`, `LIKELY_TRUE_POSITIVE`,
   `LIKELY_FALSE_POSITIVE`, `FALSE_POSITIVE`, `OUT_OF_SCOPE`, `HARDENING_GAP`, or `MISUSE_HAZARD`; every
-  verdict needs `threatModel`, `reachability`, `impact`. A surviving verdict (`TRUE_POSITIVE` /
+  verdict also carries the matching `workItemId` and canonical `workPacketDigest` for its child packet.
+  Dispatch each child packet in its own fresh Oracle context, then aggregate the returned verdicts;
+  the batch packet is only an aggregation boundary. These result fields and an echoed `contextId` are
+  not trusted-host evidence of actual context isolation. The current CLI/model path uses `Derived`,
+  so every nonempty adjudication remains incomplete with the typed
+  `adjudication-context-derived:<provider>:...` gap. A verdict needs `threatModel`, `reachability`,
+  `impact`. A surviving verdict (`TRUE_POSITIVE` /
   `LIKELY_TRUE_POSITIVE`) also needs `severity`, `attackerControl` above `unproven`, `proof`,
   `evidenceStrength` above `possible`, and `devilsAdvocate`, plus an anchored finding with id
   `adjudicated:<candidateId>`. Missing, duplicate, or unknown candidate ids reject the ingest.

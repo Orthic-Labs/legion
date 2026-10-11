@@ -631,6 +631,28 @@ fn build_invocations(
             "projection": if number == 1 { projection.clone() } else { Value::Null },
             "artifactIds": [],
         });
+        if provider.id == ADJUDICATOR_PROVIDER_ID {
+            let child_work = match scanner_candidates {
+                Some(candidates) => {
+                    let parent_packet_digest =
+                        security_adjudication::adjudication_parent_packet_digest(&packet)
+                            .map_err(|error| AuditError::Invalid(error.to_string()))?;
+                    let items = security_adjudication::adjudication_work_items(
+                        candidates,
+                        &parent_packet_digest,
+                    )
+                    .map_err(|error| AuditError::Invalid(error.to_string()))?;
+                    json!({
+                        "parentPacketDigest": parent_packet_digest,
+                        "items": items,
+                    })
+                }
+                // Keep unavailable scanner output distinct from a known empty
+                // candidate set. In particular, null must never mean no work.
+                None => Value::Null,
+            };
+            packet["candidateWorkItems"] = child_work;
+        }
         if multi_part {
             if let Some(object) = packet.as_object_mut() {
                 object.insert("part".into(), part_meta);

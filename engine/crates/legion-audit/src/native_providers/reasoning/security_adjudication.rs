@@ -14,13 +14,13 @@
 //! ## Isolation and content integrity
 //!
 //! Presence of a field is not an assessment. A batch of scanner candidates is
-//! adjudicated as one work item per candidate ([`adjudication_work_items`]):
-//! each item is its own packet, identified by a digest of the batch packet
-//! digest and the candidate id, carrying only that candidate's evidence, and
-//! bound to its own adjudicator context (`adjudicator:{itemId}`). A verdict
-//! records the context it was reached in; one that shares a context with
-//! another candidate, or equals the generator's context, is rejected. The
-//! batch entry point only fans out to those per-candidate items.
+//! exposed as one work item per candidate ([`adjudication_work_items`]): each
+//! child packet carries only that candidate's evidence and is bound to a
+//! deterministic batch/candidate digest. Its `contextId` is a requested label,
+//! not evidence that a host actually created a fresh context. Verdicts that
+//! name a context are checked against the issued label; that check does not
+//! attest context isolation. The batch entry point only fans out to those
+//! per-candidate items.
 //!
 //! Verdict text must be meaningful ([`SecurityAdjudicationError`] variants
 //! `EmptyField`, `PlaceholderContent`, `ThinContent`, `DuplicateContent`), and a
@@ -735,15 +735,30 @@ pub fn adjudication_context_id(
 }
 
 /// One candidate's isolated adjudication work item: its own packet, holding
-/// only that candidate's evidence, bound to its own adjudicator context.
+/// only that candidate's evidence, bound to its requested context label.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CandidateAdjudicationItem {
     /// `sha256` of (batch packet digest, candidate id).
     pub item_id: String,
-    /// The fresh context the verdict for this candidate must be reached in.
+    /// Requested context label. It does not prove a fresh host context exists.
     pub context_id: String,
     pub packet: SecurityAdjudicationPacket,
+}
+
+/// Digest the parent adjudication packet before its derived child work items
+/// are attached. The child work is itself carried by the parent packet, so
+/// excluding that field avoids a circular digest while still binding every
+/// child to the complete batch evidence and frozen invocation context.
+pub fn adjudication_parent_packet_digest(
+    packet: &Value,
+) -> Result<String, SecurityAdjudicationError> {
+    let mut parent = packet.clone();
+    let object = parent
+        .as_object_mut()
+        .ok_or(SecurityAdjudicationError::InvalidPacket)?;
+    object.remove("candidateWorkItems");
+    canonical_digest(&parent).map_err(|error| SecurityAdjudicationError::Digest(error.to_string()))
 }
 
 fn build_item(
@@ -794,8 +809,9 @@ fn build_item(
     })
 }
 
-/// Fans a batch out into one isolated work item per candidate, in candidate
-/// order. A host runs each item in its own fresh adjudicator context.
+/// Fans a batch out into one isolated evidence packet per candidate, in
+/// candidate order. A host should dispatch each packet in a fresh context;
+/// this helper cannot observe or attest that host behavior.
 pub fn adjudication_work_items(
     candidates: &[ScannerCandidate],
     packet_digest: &str,
@@ -818,8 +834,9 @@ pub enum ContextPolicy {
     /// accepted, which proves nothing about how it was reached: use only where
     /// the host cannot yet attest.
     Derived,
-    /// Every verdict must name the context it was reached in, and it must be
-    /// the one issued for its candidate.
+    /// Every verdict must name the context it claims to have used, and it must
+    /// be the one issued for its candidate. This checks labels only; a trusted
+    /// host must separately attest actual context identity and freshness.
     Attested,
 }
 
@@ -1079,8 +1096,8 @@ fn wrap(id: &str, error: SecurityAdjudicationError) -> SecurityAdjudicationError
     }
 }
 
-/// Closes every scanner candidate with exactly one verdict, each reached in
-/// the candidate's own isolated context.
+/// Closes every scanner candidate with exactly one verdict, each assigned its
+/// own isolated work packet and requested context label.
 ///
 /// * Unknown, duplicate and missing candidate ids are rejected.
 /// * Each candidate is finalized against its own packet
@@ -1088,7 +1105,8 @@ fn wrap(id: &str, error: SecurityAdjudicationError) -> SecurityAdjudicationError
 /// * A verdict that names a context (`contextId`) must name the one issued
 ///   for its candidate; one shared with another candidate, or equal to the
 ///   generator's, is rejected. With [`ContextPolicy::Attested`] naming it is
-///   mandatory.
+///   mandatory, but that policy validates only the label and is not trusted
+///   host evidence that the context was actually fresh.
 /// * Verdict text must be meaningful and not copied between candidates; a
 ///   surviving verdict must reference the candidate's path or sink and cite
 ///   an evidence location in the candidate's file (`evidence`: `[{file,line}]`).
