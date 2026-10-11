@@ -19,7 +19,7 @@ if cargo metadata --locked --format-version 1 --manifest-path engine/Cargo.toml 
   rm -f "$cargo_metadata_log"
 else
   cat "$cargo_metadata_log" >&2
-  if grep -Eiq 'lock file.*(needs to be updated|cannot be updated|cannot update).*(--locked|locked)' "$cargo_metadata_log"; then
+  if grep -Eiq '(lock file|lockfile).*(needs to be updated|cannot be updated|cannot update).*--locked|cannot update.*(the )?lock file.*--locked' "$cargo_metadata_log"; then
     if (cd engine && cargo update --workspace --offline); then
       echo "Cargo.lock drift: canonical generated diff follows"
       git diff -- engine/Cargo.lock
