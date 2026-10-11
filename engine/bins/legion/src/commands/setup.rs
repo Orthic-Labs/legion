@@ -554,7 +554,9 @@ async fn status(
         legion_host::SetupRegistry::open_platform(release.clone()).map_err(setup_error)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
-    let host_integrations = inspect_host_integrations(&selector, &release, cancellation).await?;
+    let mut host_integrations =
+        inspect_host_integrations(&selector, &release, cancellation).await?;
+    supersede_legacy_marketplace_observations(&mut host_integrations);
     let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
     let authenticated_live_qualification =
         inspect_stored_live_qualification(&clients, &release, &platform_state_root);
@@ -1986,7 +1988,7 @@ fn inspect_live_projections(
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        let state = if cache_error.is_some() || !canonical_trusted {
+        let observed_state = if cache_error.is_some() || !canonical_trusted {
             "incomplete"
         } else if missing > 0
             || manifest.release_version != EXPECTED_RELEASE_VERSION
@@ -1999,10 +2001,17 @@ fn inspect_live_projections(
         } else {
             "current"
         };
+        let superseded = native_marketplace_owns_components(host_integrations, "claudeMarketplace");
+        let state = if superseded {
+            "superseded"
+        } else {
+            observed_state
+        };
         projections.insert(
             "claudeCodeLegacy".into(),
             json!({
                 "state": state,
+                "supersededBy": superseded.then_some("claudeMarketplace"),
                 "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
                 "executable": executable.clone(),
                 "installRoot": install_root.clone(),
@@ -2045,7 +2054,7 @@ fn inspect_live_projections(
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        let state = if ledger_error.is_some()
+        let observed_state = if ledger_error.is_some()
             || statuses.iter().any(|item| {
                 matches!(
                     item["state"].as_str(),
@@ -2065,10 +2074,17 @@ fn inspect_live_projections(
         } else {
             "current"
         };
+        let superseded = native_marketplace_owns_components(host_integrations, "codexMarketplace");
+        let state = if superseded {
+            "superseded"
+        } else {
+            observed_state
+        };
         projections.insert(
             "codexSkills".into(),
             json!({
                 "state": state,
+                "supersededBy": superseded.then_some("codexMarketplace"),
                 "explicitOnly": codex
                     .get("explicitOnly")
                     .and_then(Value::as_bool)
@@ -2194,6 +2210,109 @@ fn integration_inspection<'a>(integrations: &'a Value, key: &str) -> Option<&'a 
             .get("preview")
             .and_then(|preview| preview.get("inspection"))
     })
+}
+
+fn native_marketplace_owns_components(integrations: &Value, key: &str) -> bool {
+    let Some(marketplace) = integrations.get(key) else {
+        return false;
+    };
+    matches!(
+        marketplace.get("state").and_then(Value::as_str),
+        Some("current" | "disabled")
+    ) && marketplace
+        .get("marketplaceSourceCurrent")
+        .and_then(Value::as_bool)
+        == Some(true)
+        && marketplace
+            .get("nativeMarketplaceRegistered")
+            .and_then(Value::as_bool)
+            == Some(true)
+        && marketplace
+            .get("nativePlugin")
+            .and_then(|plugin| plugin.get("installed"))
+            .and_then(Value::as_bool)
+            == Some(true)
+        && marketplace
+            .get("cachedRelease")
+            .is_some_and(|release| release.is_object())
+}
+
+fn supersede_legacy_marketplace_observations(integrations: &mut Value) {
+    for (legacy_key, native_key) in [
+        ("claudeCodeLegacy", "claudeMarketplace"),
+        ("codexSkills", "codexMarketplace"),
+        ("claudePlugin", "claudeMarketplace"),
+        ("codexPlugin", "codexMarketplace"),
+    ] {
+        if !native_marketplace_owns_components(integrations, native_key) {
+            continue;
+        }
+        let Some(legacy) = integrations
+            .get_mut(legacy_key)
+            .and_then(Value::as_object_mut)
+        else {
+            continue;
+        };
+        let old_state = legacy
+            .get("state")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        if let Some(old_state) = old_state {
+            legacy.insert("legacyState".into(), Value::String(old_state));
+        }
+        legacy.insert("state".into(), Value::String("superseded".into()));
+        legacy.insert("supersededBy".into(), Value::String(native_key.into()));
+
+        if let Some(remediation) = legacy.get_mut("remediation").and_then(Value::as_array_mut) {
+            remediation.retain(|message| {
+                let Some(message) = message.as_str() else {
+                    return true;
+                };
+                match legacy_key {
+                    "claudeCodeLegacy" => {
+                        !message.contains("non-canonical Legion plugin cache generation")
+                    }
+                    "codexSkills" => {
+                        let stale_plain_skill = message.contains("Codex plain skill")
+                            && (message.contains("is missing")
+                                || message.contains(
+                                    "is an unchanged Legion projection from an older generation",
+                                ));
+                        let retired_owned_skill = message
+                            .starts_with("Retired Legion Codex skill ")
+                            && message.contains("is intact and can be removed safely");
+                        !stale_plain_skill && !retired_owned_skill
+                    }
+                    "claudePlugin" | "codexPlugin" => {
+                        !message.contains("legion setup repair --confirm")
+                    }
+                    _ => true,
+                }
+            });
+        }
+    }
+
+    if native_marketplace_owns_components(integrations, "codexMarketplace") {
+        if let Some(statuses) = integrations
+            .get_mut("codexSkills")
+            .and_then(|value| value.get_mut("statuses"))
+            .and_then(Value::as_array_mut)
+        {
+            for status in statuses {
+                let Some(object) = status.as_object_mut() else {
+                    continue;
+                };
+                let old_state = object.get("state").and_then(Value::as_str);
+                if matches!(old_state, Some("missing" | "stale" | "retired_owned")) {
+                    object.insert(
+                        "legacyState".into(),
+                        Value::String(old_state.unwrap().to_owned()),
+                    );
+                    object.insert("state".into(), Value::String("superseded".into()));
+                }
+            }
+        }
+    }
 }
 
 fn setup_health(

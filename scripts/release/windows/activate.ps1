@@ -27,6 +27,10 @@ function Write-InstallEvent([string]$Stage, [string]$Status, [string]$Detail = '
   [ordered]@{schema='legion.install.event.v1';timestamp=[DateTime]::UtcNow.ToString('o');stage=$Stage;status=$Status;detail=$Detail} |
     ConvertTo-Json -Compress | Add-Content -LiteralPath $eventLog -Encoding UTF8
 }
+trap {
+  try { Write-InstallEvent 'activation' 'unhandled' ([string]$_.Exception.Message) } catch { }
+  throw
+}
 function Stop-ProcessTree([int]$ProcessId) {
   try { & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null } catch { }
 }

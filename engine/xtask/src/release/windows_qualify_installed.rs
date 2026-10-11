@@ -58,7 +58,30 @@ fn text_tail(path: &Path, max_bytes: usize) -> Option<String> {
     if value.len() <= max_bytes {
         Some(value)
     } else {
-        Some(value[value.len() - max_bytes..].to_string())
+        let mut start = value.len() - max_bytes;
+        while !value.is_char_boundary(start) {
+            start += 1;
+        }
+        Some(value[start..].to_string())
+    }
+}
+
+fn qualification_failure_diagnostics(install_log: &Path, activation_events: &Path) -> String {
+    let mut sections = Vec::new();
+    for (label, path) in [
+        ("Inno setup log", install_log),
+        ("Legion activation events", activation_events),
+    ] {
+        if let Some(contents) = text_tail(path, 12 * 1024) {
+            if !contents.trim().is_empty() {
+                sections.push(format!("--- {label} (last 12 KiB) ---\n{}", contents.trim()));
+            }
+        }
+    }
+    if sections.is_empty() {
+        String::new()
+    } else {
+        format!("\nProduct installer diagnostics:\n{}", sections.join("\n"))
     }
 }
 
@@ -1169,7 +1192,16 @@ fn qualify_inner(
                 &failure_path,
                 format!("{}\n", serde_json::to_string_pretty(&failure).unwrap()),
             );
-            Err(err)
+            // CI surfaces the xtask error before operators can inspect the
+            // qualification receipt. Include only bounded logs emitted by
+            // this product installer so activation failures retain their
+            // PowerShell cause instead of collapsing to Inno's exit code.
+            let diagnostics = qualification_failure_diagnostics(&install_log, &activation_events);
+            if diagnostics.is_empty() {
+                Err(err)
+            } else {
+                Err(format!("{err}{diagnostics}"))
+            }
         }
     }
 }
