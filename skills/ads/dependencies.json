@@ -13,7 +13,8 @@
     {
       "class": "PROJECT_OVERLAY",
       "path": "storytelling-guide.md",
-      "optional": true
+      "optional": true,
+      "absent": "Use the copy frameworks in this skill alone; do not cite a project storytelling guide."
     }
   ]
 }
