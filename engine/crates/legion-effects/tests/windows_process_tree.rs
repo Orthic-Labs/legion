@@ -95,33 +95,43 @@ async fn normal_exit_reports_natural_completion_and_cleanup_truth() {
 #[tokio::test]
 async fn command_shim_runs_through_cmd_with_arguments_preserved() {
     let root = std::env::temp_dir().join(format!(
-        "legion-command-shim-{}-{}",
+        "legion command shim {} {}",
         std::process::id(),
         std::thread::current().name().unwrap_or("test")
     ));
     fs::create_dir_all(&root).unwrap();
-    let shim = root.join("client.cmd");
-    fs::write(&shim, "@echo off\r\necho %~1^|%~2\r\n").unwrap();
-    let output = WindowsProcess
-        .run(ProcessLaunch {
-            executable: shim.to_string_lossy().into_owned(),
-            args: vec!["first value".into(), "second value".into()],
-            cwd: root.to_string_lossy().into_owned(),
-            environment: std::env::vars().collect(),
-            stdout_limit: 4096,
-            stderr_limit: 4096,
-            timeout_ms: 5_000,
-            termination_grace_ms: 250,
-            cancellation: CancellationToken::new(),
-        })
-        .await
-        .unwrap();
+    for extension in ["CMD", "BAT"] {
+        let shim = root.join(format!("client shim.{extension}"));
+        fs::write(&shim, "@echo off\r\necho %~1^|%~2\r\n").unwrap();
+        let canonical = fs::canonicalize(&shim).unwrap();
+        let canonical = canonical.to_string_lossy();
+        let executable = if canonical.starts_with(r"\\?\") {
+            canonical.into_owned()
+        } else {
+            format!(r"\\?\{canonical}")
+        };
+        let output = WindowsProcess
+            .run(ProcessLaunch {
+                executable,
+                args: vec!["first value".into(), "second value".into()],
+                cwd: root.to_string_lossy().into_owned(),
+                environment: std::env::vars().collect(),
+                stdout_limit: 4096,
+                stderr_limit: 4096,
+                timeout_ms: 5_000,
+                termination_grace_ms: 250,
+                cancellation: CancellationToken::new(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(output.exit_code, Some(0), "{extension} shim failed");
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout).trim(),
+            "first value|second value"
+        );
+    }
     fs::remove_dir_all(&root).unwrap();
-    assert_eq!(output.exit_code, Some(0));
-    assert_eq!(
-        String::from_utf8_lossy(&output.stdout).trim(),
-        "first value|second value"
-    );
+    assert!(!root.exists(), "temporary command shim directory remains");
 }
 
 #[tokio::test]

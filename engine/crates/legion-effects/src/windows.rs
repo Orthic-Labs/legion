@@ -11,7 +11,7 @@ use std::{
     ffi::c_void,
     mem::{size_of, zeroed},
     os::windows::io::{FromRawHandle, RawHandle},
-    path::Path,
+    path::{Component, Path, Prefix},
     ptr::{null, null_mut},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -122,6 +122,35 @@ fn quote_arg(value: &str) -> String {
     result
 }
 
+fn cmd_compatible_script_path(path: &str) -> String {
+    const VERBATIM_PREFIX: &str = r"\\?\";
+    const VERBATIM_UNC_PREFIX: &str = r"\\?\UNC\";
+
+    match Path::new(path).components().next() {
+        Some(Component::Prefix(prefix)) => match prefix.kind() {
+            Prefix::VerbatimDisk(_) => path
+                .strip_prefix(VERBATIM_PREFIX)
+                .map(str::to_owned)
+                .unwrap_or_else(|| path.to_owned()),
+            Prefix::VerbatimUNC(_, _) => {
+                let unc_path = &path[VERBATIM_UNC_PREFIX.len()..];
+                if unc_path
+                    .split(['\\', '/'])
+                    .filter(|component| !component.is_empty())
+                    .count()
+                    >= 2
+                {
+                    format!(r"\\{unc_path}")
+                } else {
+                    path.to_owned()
+                }
+            }
+            _ => path.to_owned(),
+        },
+        _ => path.to_owned(),
+    }
+}
+
 fn command_application_and_line(launch: &ProcessLaunch) -> (String, String) {
     let is_command_script = Path::new(&launch.executable)
         .extension()
@@ -152,7 +181,8 @@ fn command_application_and_line(launch: &ProcessLaunch) -> (String, String) {
         })
         .unwrap_or_else(|| String::from("cmd.exe"));
     let mut command = quote_arg(&interpreter);
-    for arg in ["/d", "/s", "/c", "call", launch.executable.as_str()]
+    let script_path = cmd_compatible_script_path(&launch.executable);
+    for arg in ["/d", "/s", "/c", "call", script_path.as_str()]
         .into_iter()
         .chain(launch.args.iter().map(String::as_str))
     {
