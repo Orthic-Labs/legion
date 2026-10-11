@@ -32,7 +32,7 @@
       "occurrences": {
         "nemesis": 11,
         "forge": 64,
-        "seer": 33,
+        "seer": 32,
         "sentinel": 29,
         "sorcerer": 12
       },
@@ -104,14 +104,6 @@
       },
       "class": "R3",
       "reason": "GoalRoute schema preserves predecessor wire alias"
-    },
-    {
-      "pathPrefix": "skills/council/evals/",
-      "tokens": [
-        "seer"
-      ],
-      "class": "R5",
-      "reason": "recovered retired eval corpus"
     },
     {
       "pathPrefix": "src/lib/host/arcane-compatibility/forge/",
