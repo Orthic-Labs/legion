@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/tasklist",
-      "Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat."
+      "Create executable same-agent task lists, implementation plans, execution preflights, or automation plans. Use `/tasklist`; keep ordinary work inline. Use Dispatch for another agent & Handoff for a new chat."
     ],
     "outputs": [
       "references/durable-workflow.md",
@@ -54,12 +54,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://tasklist/SKILL.md",
-      "digest": "sha256:43079824bcf91c0476901e8467a2dc750fb4f1c4be0caab0f8f1347b4f624bf4"
+      "digest": "sha256:739b1169822de8e2db775df72735deea5491570374dc357beb0b7433ea381d3d"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://tasklist/agents/openai.yaml",
-      "digest": "sha256:b4878475c4894c9ebff763320c54b9cb131a2d6e0e994f63fa0abe63f742fe48"
+      "digest": "sha256:16ebc8f372673d9ffb15a7f5200bae3acf3a661d07ac2088777407df5cc14c5f"
     },
     {
       "path": "assets/tasklist-template.md",
@@ -74,7 +74,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://tasklist/evals/evals.json",
-      "digest": "sha256:304a664c25ea167f432c2ecdb80b93db52d136fdbc6010fee7696bceb35346df"
+      "digest": "sha256:95d548f544a12c3eba6ce52859734202173328fd81660acbc963ce3fae0e1777"
     },
     {
       "path": "examples/validated-tasklist.md",
@@ -119,7 +119,7 @@
     {
       "path": "references/legacy-durable-workflow.md",
       "uri": "legion-skill://tasklist/references/legacy-durable-workflow.md",
-      "digest": "sha256:b34be106ac27f8c1b44a9dd4200517d56d3bd33d31c8da9a2b2e1a61c9d76b07"
+      "digest": "sha256:647dc46513cbdd6f4d3a84977c9b2c2a173636ea66403c67d19d9d320025dae1"
     }
   ]
 }

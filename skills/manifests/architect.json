@@ -93,7 +93,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://architect/SKILL.md",
-      "digest": "sha256:4c1b0ce5a20a0bb67ff4de5a2f15e214c9efd08ca221b072eb379408839473a6"
+      "digest": "sha256:34bc8b2362d4e78fffd28b0d070d7edfbaa436371cd7f33f8d602cfe511acbb2"
     },
     {
       "path": "agents/openai.yaml",
@@ -239,6 +239,11 @@
       "path": "doctrine/architecture/methods/atam.md",
       "uri": "legion-skill://architect/doctrine/architecture/methods/atam.md",
       "digest": "sha256:79986e78b5737c19d555c57eac441a1b569a3c4af611110c423323d164076acd"
+    },
+    {
+      "path": "doctrine/architecture/methods/brainstorming.md",
+      "uri": "legion-skill://architect/doctrine/architecture/methods/brainstorming.md",
+      "digest": "sha256:39dba732f81f222a3862536ee44c6afa9ca027b82792fce0f4bcef2fc36b024e"
     },
     {
       "path": "doctrine/architecture/methods/cbam.md",
@@ -513,7 +518,7 @@
     {
       "path": "doctrine/architecture/workflow/02-context-stakeholders.md",
       "uri": "legion-skill://architect/doctrine/architecture/workflow/02-context-stakeholders.md",
-      "digest": "sha256:ffe7d47b086940cc716b4e1c116500fb3cfb1c4deb2960298573595c647e48a9"
+      "digest": "sha256:34793f168d4ad685b45fde149ffc1f33f8c4b62cd0946b5b4d439d25693afda2"
     },
     {
       "path": "doctrine/architecture/workflow/03-drivers-quality-scenarios.md",
@@ -533,12 +538,12 @@
     {
       "path": "doctrine/architecture/workflow/06-candidates.md",
       "uri": "legion-skill://architect/doctrine/architecture/workflow/06-candidates.md",
-      "digest": "sha256:0e03eead4721e45336901db4bd726d4d36eb3ddc5e1345038f62c5cd94768c88"
+      "digest": "sha256:8930cd335455926d3041c2dd93b5ef4ce793dd3e4834447262299c52fa225335"
     },
     {
       "path": "doctrine/architecture/workflow/07-evaluate-select.md",
       "uri": "legion-skill://architect/doctrine/architecture/workflow/07-evaluate-select.md",
-      "digest": "sha256:c6b798cb2bcb44a543cda0600fdb1b93b8b7f2fdf1e8090283c85f1578384a19"
+      "digest": "sha256:72eb2297c38045f259cd7cc9c9f73a24f04fd224b85ef3b0d05ae520fa526ef1"
     },
     {
       "path": "doctrine/architecture/workflow/08-minimize.md",
@@ -563,7 +568,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://architect/evals/evals.json",
-      "digest": "sha256:295f34555ab6ab07c8f18a2b1dc52d60c2672ad7c135cccc3d01eb0c4ca5d516"
+      "digest": "sha256:5dfed3ee5ada961152e23756eefa3573eeb89585ee308afa02c72f68aa415a52"
     },
     {
       "path": "references/manual.md",

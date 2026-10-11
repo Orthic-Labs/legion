@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.23",
-  "digest": "sha256:55d58e444be1f5a62f32c658966592ae00bd674b1cf7eeb1b3d6a76d61047c93",
+  "digest": "sha256:d483d1fcb3ce604e0d9345a768ca69fb655e93c689a5c5f99a4f18a8c8f358b4",
   "counts": {
-    "skills": 28,
+    "skills": 29,
     "agents": 4,
     "mcpServers": 1,
     "hookEvents": 9
@@ -35,6 +35,7 @@
       "qa",
       "research",
       "seo",
+      "session",
       "social",
       "tasklist",
       "wake",

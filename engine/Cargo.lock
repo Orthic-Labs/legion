@@ -2054,6 +2054,7 @@ dependencies = [
  "headless_chrome",
  "hex",
  "hmac 0.13.0",
+ "image",
  "legion-contracts",
  "legion-effects",
  "legion-provider-sdk",

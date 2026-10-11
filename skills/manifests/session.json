@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "session",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://session/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/session",
+      "Use only for explicit `/session` compatibility modes: status, init, brief, context-hygiene, or file-search."
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://session/SKILL.md",
+      "digest": "sha256:73016a9259afc852e525782308e4fb7a3e1c54035b5872aa2f5c61a7239ac754"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://session/agents/openai.yaml",
+      "digest": "sha256:9e2493aed727fcc8844af7c79515331428298def5da1ae17ceb1e103f6620614"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://session/evals/evals.json",
+      "digest": "sha256:8139d5c9423a479a070ff7b6fa9a3092384f98c0b308e0027ad2388e90cfb0ce"
+    }
+  ]
+}

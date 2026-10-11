@@ -30,6 +30,7 @@
     ],
     "outputs": [
       "references/above-the-fold-patterns.md",
+      "references/animations.md",
       "references/app.md",
       "references/banned-words.md",
       "references/components/_index.md",
@@ -55,6 +56,7 @@
       "references/surfaces.md",
       "references/typography.md",
       "references/ui-ux-checklist.md",
+      "references/visual-qa-capture.md",
       "references/website-conversion-standards.md",
       "references/website-regression-gotchas.md",
       "references/website.md"
@@ -76,7 +78,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://designer/SKILL.md",
-      "digest": "sha256:c22ebf490de9288d52694b3c5d6fc16f7d5fc078d5419209f7ced0310d38b3d4"
+      "digest": "sha256:e9e118a2047a17578dac9d9cda67fd671f1350fc59b00b8b3417c77d9e14b9f3"
     },
     {
       "path": "agents/openai.yaml",
@@ -311,7 +313,7 @@
     {
       "path": "engine/reference/critique.md",
       "uri": "legion-skill://designer/engine/reference/critique.md",
-      "digest": "sha256:9b4ebe33cf5e149f563b7d01c4b7708835a4c71d4905ba1d40a09d61016497ea"
+      "digest": "sha256:e285a28e91d84dcdb1b516d3250151a045c227d89b64b2c2923eab7733e0509d"
     },
     {
       "path": "engine/reference/delight.md",
@@ -481,12 +483,17 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://designer/evals/evals.json",
-      "digest": "sha256:c5590861c5339b8cc80455a8a4bb09110e360e4cdc12cdb0bff11fc95863efea"
+      "digest": "sha256:6e147f3b8eef80d426d51d3e4fe618113972df5afc4320bb0384976be1826d43"
     },
     {
       "path": "references/above-the-fold-patterns.md",
       "uri": "legion-skill://designer/references/above-the-fold-patterns.md",
       "digest": "sha256:3456764079959df874427ab83246481b52995e8a3a607def61cfb482bfac0697"
+    },
+    {
+      "path": "references/animations.md",
+      "uri": "legion-skill://designer/references/animations.md",
+      "digest": "sha256:1a91c7e165891d892db4a3a49951dbcfaabbfc5e3ef270c9616c21e5fc3ef040"
     },
     {
       "path": "references/app.md",
@@ -612,6 +619,11 @@
       "path": "references/ui-ux-checklist.md",
       "uri": "legion-skill://designer/references/ui-ux-checklist.md",
       "digest": "sha256:fff8e77280351854124548ee3593772f3be5c1026f814ba53ddfb57bfc6ad12d"
+    },
+    {
+      "path": "references/visual-qa-capture.md",
+      "uri": "legion-skill://designer/references/visual-qa-capture.md",
+      "digest": "sha256:0893555d52407e78c3beb6c55fb8b1637af74f44d592ba17c0620a094d406848"
     },
     {
       "path": "references/website-conversion-standards.md",

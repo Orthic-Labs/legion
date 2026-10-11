@@ -53,6 +53,7 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
+      "target": "authority:alchemist",
       "operations": [
         "execute"
       ],
@@ -370,6 +371,7 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
+      "target": "workflow:commit",
       "operations": [
         "analyze",
         "evaluate",
@@ -416,6 +418,7 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
+      "target": "challenge:council",
       "operations": [
         "analyze",
         "evaluate",
@@ -974,6 +977,7 @@
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
+      "target": "authority:oracle",
       "operations": [
         "evaluate"
       ],
@@ -989,7 +993,7 @@
     {
       "id": "qa",
       "name": "qa",
-      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, and runtime checks.",
+      "description": "Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks.",
       "kind": "capability",
       "capabilityClass": "domain",
       "discoverability": "public",
@@ -1204,6 +1208,27 @@
       "manifest": "skills/manifests/seo.json"
     },
     {
+      "id": "session",
+      "name": "session",
+      "description": "Use only for explicit `/session` compatibility modes: status, init, brief, context-hygiene, or file-search.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "target": "workflow:session",
+      "operations": [
+        "analyze"
+      ],
+      "effects": [
+        "source-read",
+        "process-exec"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/session/SKILL.md",
+      "manifest": "skills/manifests/session.json"
+    },
+    {
       "id": "social",
       "name": "social",
       "description": "Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable.",
@@ -1246,7 +1271,7 @@
     {
       "id": "tasklist",
       "name": "tasklist",
-      "description": "Create an executable same-agent task list. Use `/tasklist`; keep it inline unless persistence, audit receipts, or a reusable record is requested. Use Dispatch for another agent & Handoff for a new chat.",
+      "description": "Create executable same-agent task lists, implementation plans, execution preflights, or automation plans. Use `/tasklist`; keep ordinary work inline. Use Dispatch for another agent & Handoff for a new chat.",
       "kind": "capability",
       "capabilityClass": "workflow",
       "discoverability": "public",
@@ -1317,7 +1342,7 @@
     {
       "id": "writing",
       "name": "writing",
-      "description": "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
+      "description": "Route prose deliverables: essays, newsletters, scripts, captions, threads, research articles, documentation, proposals, specs, internal updates, FAQs, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
       "kind": "capability",
       "capabilityClass": "domain",
       "discoverability": "public",

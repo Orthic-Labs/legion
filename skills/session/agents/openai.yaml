@@ -1,0 +1,6 @@
+interface:
+  display_name: "Session"
+  short_description: "Use only for explicit `/session` compatibility modes: status, init, brief, context-hygiene, or file-search."
+  default_prompt: "Use $session when this request matches: Use only for explicit `/session` compatibility modes: status, init, brief, context-hygiene, or file-search."
+policy:
+  allow_implicit_invocation: false

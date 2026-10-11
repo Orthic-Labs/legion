@@ -26,10 +26,12 @@
   "parity": {
     "triggers": [
       "/writing",
-      "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
+      "Route prose deliverables: essays, newsletters, scripts, captions, threads, research articles, documentation, proposals, specs, internal updates, FAQs, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
     ],
     "outputs": [
       "references/content-repurposer/reference.md",
+      "references/document-coauthoring.md",
+      "references/internal-comms.md",
       "references/manual.md",
       "references/repurpose-content/reference.md",
       "references/research-article.md",
@@ -57,12 +59,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://writing/SKILL.md",
-      "digest": "sha256:38137d72d27fddd64a93344e874ef6da2acb6281c50aea1dc889a9dd1f7a8216"
+      "digest": "sha256:533066d4da1965473f7eba272f3178fd3bc3155b45f867aef24745dbdce82ab5"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://writing/agents/openai.yaml",
-      "digest": "sha256:0209ca61bd14bc683621bda131f61e0870bb855702766a5dcf914583bb94892a"
+      "digest": "sha256:f59e327010bbe230f5a4bfbdf5facc09758234542efb75eb34074c98414e9dce"
     },
     {
       "path": "dependencies.json",
@@ -72,7 +74,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://writing/evals/evals.json",
-      "digest": "sha256:49057ef73bc44689c6d3867204b960b961a00bbfd01471a5d4cc4bbcca2b9902"
+      "digest": "sha256:061c4dec24b2b5a93579715e3863ed61558a3198807ad3bf194eeb57ca85b891"
     },
     {
       "path": "references/content-repurposer/reference.md",
@@ -80,9 +82,19 @@
       "digest": "sha256:3750955542d8d2df31b66485c60db7ee80815e51bcd5ad352e3d38c9cf6b5817"
     },
     {
+      "path": "references/document-coauthoring.md",
+      "uri": "legion-skill://writing/references/document-coauthoring.md",
+      "digest": "sha256:17dccfdc2ac5344583de9ed004b7d9bbe0669c13a5eb3fa6abcc76489f63bc4f"
+    },
+    {
+      "path": "references/internal-comms.md",
+      "uri": "legion-skill://writing/references/internal-comms.md",
+      "digest": "sha256:1ea09c7e0d474c6facb385bbd408c33de8c9805261fe46822d144267fd67ff99"
+    },
+    {
       "path": "references/manual.md",
       "uri": "legion-skill://writing/references/manual.md",
-      "digest": "sha256:5a9162179ffa22f564791995ddbb0c30bab9c82e81830d5256ef2f7f4aaeeab0"
+      "digest": "sha256:5ef9491d6c2d28a2ff71944bb41e6a1352dee77998d2bb311f3bbf9434ea2557"
     },
     {
       "path": "references/repurpose-content/reference.md",
@@ -157,7 +169,7 @@
     {
       "path": "specialists/editorial/GUIDE.md",
       "uri": "legion-skill://writing/specialists/editorial/GUIDE.md",
-      "digest": "sha256:32da67d126c73c4200e1caa5513a59fbea4330d01ead7000f49cdc641dc47e8d"
+      "digest": "sha256:eb080fb4b260c2946d52e75eedb84cf1bdadfb5541edc331ae99dc2b1129ba01"
     },
     {
       "path": "specialists/email/GUIDE.md",
