@@ -599,8 +599,18 @@ pub fn set_codex_enabled(config_path: &Path, enabled: bool) -> Result<(), String
                 .take_while(|character| character.is_whitespace())
                 .collect::<String>();
             let comment = lines[index]
-                .split_once('#')
-                .map(|(_, comment)| format!(" #{}", comment.trim()))
+                .find('#')
+                .map(|position| {
+                    let spacing = lines[index][..position]
+                        .chars()
+                        .rev()
+                        .take_while(|character| character.is_whitespace())
+                        .collect::<String>()
+                        .chars()
+                        .rev()
+                        .collect::<String>();
+                    format!("{spacing}{}", &lines[index][position..])
+                })
                 .unwrap_or_default();
             lines[index] = format!("{indent}enabled = {enabled}{comment}");
         } else {
@@ -899,13 +909,11 @@ mod tests {
             find_codex_plugin_cache(&config, &home).expect("lookup"),
             CodexCacheLookup::Found(plugin.clone())
         );
-        std::fs::create_dir_all(plugin.parent().expect("plugin parent").join("1.2.4"))
-            .expect("second version");
+        let second_version = plugin.parent().expect("plugin parent").join("1.2.4");
+        std::fs::create_dir_all(second_version.join(".codex-plugin"))
+            .expect("second version directory");
         std::fs::write(
-            plugin
-                .parent()
-                .expect("plugin parent")
-                .join("1.2.4/.codex-plugin/plugin.json"),
+            second_version.join(".codex-plugin/plugin.json"),
             r#"{"name":"legion","version":"1.2.4"}"#,
         )
         .expect("second manifest");

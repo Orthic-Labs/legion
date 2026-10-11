@@ -179,9 +179,15 @@ mod tests {
     }
 
     #[test]
-    fn codex_declares_strong_mcp_via_toml() {
+    fn codex_declares_native_plugin_mcp_and_degraded_hooks() {
         let d = codex_descriptor();
-        assert_eq!(d["surfaces"]["mcp"]["mechanism"]["kind"], "toml");
+        assert_eq!(d["surfaces"]["mcp"]["mechanism"]["kind"], "plugin");
+        assert_eq!(d["surfaces"]["hooks"]["fidelity"], "degraded");
+        assert_eq!(d["surfaces"]["hooks"]["mechanism"]["kind"], "plugin-hook");
+        assert!(d["surfaces"]["hooks"]["note"]
+            .as_str()
+            .unwrap()
+            .contains("no pre-tool effect-enforcement hook is projected"));
     }
 
     #[test]

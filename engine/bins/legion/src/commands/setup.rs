@@ -2476,6 +2476,12 @@ fn setup_health_for_action(
     }
     if let Some(projections) = live_identity["projections"].as_object() {
         for (client, projection) in projections {
+            // Native marketplace state is evaluated below with action-aware
+            // rules. It is not a legacy file projection and disabled/removed
+            // states must not be reclassified as stale copy projections here.
+            if matches!(client.as_str(), "claudeMarketplace" | "codexMarketplace") {
+                continue;
+            }
             let projection_client =
                 projection
                     .get("clientId")
