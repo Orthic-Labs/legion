@@ -833,6 +833,52 @@ impl InventoryEnvelope {
                     }
                 }
             }
+            "anyDependencyGroup" => {
+                let patterns = selector
+                    .get("patterns")
+                    .and_then(Value::as_array)
+                    .ok_or_else(|| {
+                        AuditError::Invalid("selector.patterns must be an array".into())
+                    })?;
+                let patterns = patterns
+                    .iter()
+                    .map(|pattern| {
+                        pattern.as_str().ok_or_else(|| {
+                            AuditError::Invalid("selector.patterns must contain strings".into())
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let matched = self
+                    .entries
+                    .iter()
+                    .filter(|entry| {
+                        entry.dependencies.iter().any(|dependency| {
+                            let Some((group, artifact)) = dependency.split_once(':') else {
+                                return false;
+                            };
+                            !group.is_empty()
+                                && !artifact.is_empty()
+                                && patterns.iter().any(|pattern| glob_match(pattern, group))
+                        })
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if matched.is_empty() {
+                    matched
+                } else {
+                    let source = self
+                        .entries
+                        .iter()
+                        .filter(|entry| entry.source_file)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if source.is_empty() {
+                        matched
+                    } else {
+                        source
+                    }
+                }
+            }
             "anyPackageScript" => {
                 let names = selector
                     .get("names")
@@ -1348,6 +1394,85 @@ mod tests {
         assert_eq!(selected.entries.len(), 1);
         assert_eq!(selected.entries[0].path, "src/app.tsx");
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn dependency_group_selector_expands_source_denominator_and_rejects_prefix_or_malformed_groups()
+    {
+        let inventory = InventoryEnvelope::new(
+            "repo",
+            "generation",
+            vec![
+                InventoryEntry {
+                    path: "pom.xml".into(),
+                    symbols: vec![],
+                    dependencies: vec![
+                        "org.springframework:framework-core".into(),
+                        "org.springframework.data:spring-data-jpa".into(),
+                        "org.springframework.security:spring-security-config".into(),
+                        "org.springframeworkevil:lookalike".into(),
+                        "io.ktor:ktor-unlisted-artifact".into(),
+                        "io.ktorx:lookalike".into(),
+                        "org.springframework:".into(),
+                        ":org.springframework".into(),
+                        "org.springframework".into(),
+                        ":missing-group".into(),
+                        "missing-artifact:".into(),
+                        "malformed-coordinate".into(),
+                    ],
+                    package_scripts: vec![],
+                    source_file: false,
+                    digest: None,
+                },
+                InventoryEntry {
+                    path: "src/main.java".into(),
+                    symbols: vec![],
+                    dependencies: vec![],
+                    package_scripts: vec![],
+                    source_file: true,
+                    digest: None,
+                },
+            ],
+        )
+        .unwrap();
+        let selector = serde_json::json!({
+            "op": "anyDependencyGroup",
+            "patterns": ["org.springframework", "org.springframework.*", "io.ktor"]
+        });
+        let selected = inventory.denominator_entries(&selector).unwrap();
+        assert_eq!(selected.entries.len(), 1);
+        assert_eq!(selected.entries[0].path, "src/main.java");
+
+        let lookalikes_only = InventoryEnvelope::new(
+            "repo",
+            "lookalikes",
+            vec![InventoryEntry {
+                path: "pom.xml".into(),
+                symbols: vec![],
+                dependencies: vec![
+                    "org.springframeworkevil:lookalike".into(),
+                    "org.springframeworkx.security:lookalike".into(),
+                    "io.ktorx:lookalike".into(),
+                    "org.springframework:".into(),
+                    ":org.springframework".into(),
+                    "org.springframework".into(),
+                    ":missing-group".into(),
+                    "missing-artifact:".into(),
+                    "malformed-coordinate".into(),
+                ],
+                package_scripts: vec![],
+                source_file: false,
+                digest: None,
+            }],
+        )
+        .unwrap();
+        let unmatched = lookalikes_only
+            .denominator_entries(&serde_json::json!({
+                "op": "anyDependencyGroup",
+                "patterns": ["org.springframework", "org.springframework.*", "io.ktor"]
+            }))
+            .unwrap();
+        assert!(unmatched.entries.is_empty());
     }
 
     #[test]

@@ -368,6 +368,59 @@ pub fn evaluate_selector(
                 reason,
             }
         }
+        "anyDependencyGroup" => {
+            let patterns: Vec<String> = arr_of(get(selector, "patterns").unwrap_or(&Value::Null))
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+            let matched_dependencies: Vec<&String> = context
+                .dependencies
+                .iter()
+                .filter(|dependency| {
+                    let Some((group, artifact)) = dependency.split_once(':') else {
+                        return false;
+                    };
+                    !group.is_empty()
+                        && !artifact.is_empty()
+                        && patterns.iter().any(|pattern| glob_match(pattern, group))
+                })
+                .collect();
+            let evidence_parts: Vec<Vec<String>> = matched_dependencies
+                .iter()
+                .map(|dependency| {
+                    context
+                        .dependency_evidence
+                        .get(*dependency)
+                        .cloned()
+                        .unwrap_or_default()
+                })
+                .collect();
+            let evidence_paths = union_paths(&evidence_parts);
+            let matched = !matched_dependencies.is_empty();
+            let paths = if matched {
+                source_denominator(context, &evidence_paths)
+            } else {
+                vec![]
+            };
+            let reason = if matched {
+                format!(
+                    "dependency-groups:{};manifest-evidence:{}",
+                    matched_dependencies
+                        .iter()
+                        .map(|dependency| dependency.as_str())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    evidence_paths.join(",")
+                )
+            } else {
+                "no-dependency-group-match".into()
+            };
+            SelectorVerdict {
+                matched,
+                paths,
+                reason,
+            }
+        }
         "anyPackageScript" => {
             let names: Vec<String> = arr_of(get(selector, "names").unwrap_or(&Value::Null))
                 .iter()
@@ -1218,6 +1271,84 @@ mod tests {
             .filter_map(|p| p["id"].as_str())
             .collect();
         assert!(selected_ids.contains(&"security.scan"));
+    }
+
+    #[test]
+    fn dependency_group_selector_uses_manifest_evidence_and_source_denominator() {
+        let projection = json!({
+            "state": "ready",
+            "files": ["pom.xml", "src/main.java", "src/test.java"],
+            "parsedExtensions": ["java"],
+            "auditFacts": {"packageManifests": [{
+                "path": "pom.xml",
+                "dependencies": [
+                    "org.springframework:framework-core",
+                    "org.springframework.data:spring-data-jpa",
+                    "org.springframework.security:spring-security-config",
+                    "org.springframeworkevil:lookalike",
+                    "io.ktor:ktor-unlisted-artifact",
+                    "io.ktorx:lookalike",
+                    "org.springframework:",
+                    ":org.springframework",
+                    "org.springframework",
+                    ":missing-group",
+                    "missing-artifact:",
+                    "malformed-coordinate"
+                ],
+                "scripts": []
+            }]}
+        });
+        let context = build_selection_context(&projection);
+        let selector = json!({
+            "op": "anyDependencyGroup",
+            "patterns": ["org.springframework", "org.springframework.*", "io.ktor"]
+        });
+        let verdict = evaluate_selector(&selector, &context, &[]);
+        assert!(verdict.matched);
+        assert_eq!(verdict.paths, ["src/main.java", "src/test.java"]);
+        assert!(verdict
+            .reason
+            .contains("org.springframework.security:spring-security-config"));
+        assert!(verdict
+            .reason
+            .contains("org.springframework:framework-core"));
+        assert!(verdict
+            .reason
+            .contains("org.springframework.data:spring-data-jpa"));
+        assert!(verdict.reason.contains("io.ktor:ktor-unlisted-artifact"));
+        assert!(!verdict.reason.contains("lookalike"));
+
+        let lookalikes_context = build_selection_context(&json!({
+            "state": "ready",
+            "files": ["pom.xml", "src/main.java"],
+            "parsedExtensions": ["java"],
+            "auditFacts": {"packageManifests": [{
+                "path": "pom.xml",
+                "dependencies": [
+                    "org.springframeworkevil:lookalike",
+                    "org.springframeworkx.security:lookalike",
+                    "io.ktorx:lookalike",
+                    "org.springframework:",
+                    ":org.springframework",
+                    "org.springframework",
+                    ":missing-group",
+                    "missing-artifact:",
+                    "malformed-coordinate"
+                ],
+                "scripts": []
+            }]}
+        }));
+        let unmatched = evaluate_selector(&selector, &lookalikes_context, &[]);
+        assert!(!unmatched.matched);
+        assert!(unmatched.paths.is_empty());
+
+        let exact = evaluate_selector(
+            &json!({"op": "anyDependency", "names": ["org.springframework.security:spring-security-config"]}),
+            &context,
+            &[],
+        );
+        assert!(exact.matched);
+        assert_eq!(exact.paths, verdict.paths);
     }
 
     #[test]
