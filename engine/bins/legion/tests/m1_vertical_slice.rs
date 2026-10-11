@@ -403,7 +403,9 @@ fn installed_composition_is_resolved_from_the_executable() {
     assert!(value["unverifiedChecks"]
         .as_array()
         .is_some_and(|gaps| !gaps.is_empty()));
-    fs::remove_dir_all(root).expect("installed fixture cleanup");
+    // Windows can hold the just-exited copied executable open briefly; the
+    // fixture lives in the temp directory, so cleanup is best effort.
+    let _ = fs::remove_dir_all(root);
 }
 
 fn normalized_path_for_assertion(path: &std::path::Path) -> String {
