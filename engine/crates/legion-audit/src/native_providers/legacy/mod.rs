@@ -1,5 +1,6 @@
 pub mod accessibility;
 pub mod accessibility_internal_suite;
+pub mod candidate_suites;
 pub mod common;
 pub mod framework;
 pub mod framework_major_suite;

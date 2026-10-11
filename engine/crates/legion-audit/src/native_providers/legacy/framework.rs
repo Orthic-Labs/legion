@@ -3,7 +3,7 @@
 //! Framework output remains candidate-only: candidates are retained in details
 //! and never promoted to ProviderResult findings.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use legion_contracts::ProviderStatus;
 use serde_json::{json, Value};
@@ -47,22 +47,88 @@ fn rules(family: &str) -> &'static [Rule] {
     }
 }
 
+/// Go web-framework module paths. `go.mod` records versioned module paths
+/// (`github.com/labstack/echo/v4`), so a family match is by path prefix.
+const GO_WEB_MODULES: &[&str] = &[
+    "github.com/gin-gonic/gin",
+    "github.com/labstack/echo",
+    "github.com/gofiber/fiber",
+    "github.com/go-chi/chi",
+    "github.com/gorilla/mux",
+];
+
+fn is_go_web_module(lower: &str) -> bool {
+    GO_WEB_MODULES.iter().any(|module| {
+        lower == *module
+            || lower
+                .strip_prefix(*module)
+                .is_some_and(|rest| rest.starts_with('/'))
+    })
+}
+
+/// Maps a manifest dependency name (package.json, Cargo.toml, pyproject.toml,
+/// go.mod, Package.swift -- the only manifests inventory discovery reads) to a
+/// framework family. Spring, Ktor, Rails, Phoenix and Flutter have rules but
+/// their manifests (pom.xml/build.gradle, Gemfile, mix.exs, pubspec.yaml) are
+/// not discovered, so no dependency name can reach them here.
 fn family_name(dependency: &str) -> Option<&'static str> {
-    match dependency.to_ascii_lowercase().as_str() {
+    let lower = dependency.to_ascii_lowercase();
+    if is_go_web_module(&lower) {
+        return Some("go-web");
+    }
+    match lower.as_str() {
         "next" => Some("next"),
         "react" => Some("react"),
         "vue" => Some("vue"),
         "nuxt" => Some("nuxt"),
-        "angular" => Some("angular"),
+        "angular" | "@angular/core" => Some("angular"),
         "svelte" => Some("svelte"),
+        "@sveltejs/kit" => Some("sveltekit"),
         "astro" => Some("astro"),
-        "remix" => Some("remix"),
+        "remix" | "@remix-run/react" | "@remix-run/node" => Some("remix"),
         "express" => Some("express"),
         "fastify" => Some("fastify"),
+        "@nestjs/core" | "@nestjs/common" => Some("nest"),
+        "electron" => Some("electron"),
         "django" => Some("django"),
         "flask" => Some("flask"),
+        "fastapi" => Some("fastapi"),
+        "axum" | "actix-web" | "rocket" | "warp" => Some("rust-web"),
         _ => None,
     }
+}
+
+/// A manifest declares a dependency for its own directory subtree; the source
+/// files (which carry no dependencies themselves) are attributed through it.
+fn manifest_dir(path: &str) -> &str {
+    path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("")
+}
+
+fn in_scope(dir: &str, path: &str) -> bool {
+    dir.is_empty() || path.starts_with(&format!("{dir}/"))
+}
+
+/// Source languages a family's rules are written for. Applied only to files
+/// attributed through a manifest, so a Python file under a Next.js root is not
+/// scanned with Next rules.
+fn family_applies_to(family: &str, path: &str) -> bool {
+    let ext = path
+        .rsplit_once('.')
+        .map(|(_, ext)| ext.to_ascii_lowercase())
+        .unwrap_or_default();
+    let allowed: &[&str] = match family {
+        "django" | "flask" | "fastapi" => &["py"],
+        "rust-web" => &["rs"],
+        "go-web" => &["go"],
+        "spring" | "ktor" => &["java", "kt", "kts"],
+        "rails" => &["rb", "erb"],
+        "phoenix" => &["ex", "exs", "heex", "eex"],
+        "flutter" => &["dart"],
+        _ => &[
+            "js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts", "vue", "svelte", "astro", "html",
+        ],
+    };
+    allowed.contains(&ext.as_str())
 }
 
 fn matches_rule(rule: Rule, text: &str) -> bool {
@@ -84,20 +150,46 @@ fn matches_rule(rule: Rule, text: &str) -> bool {
 pub fn run_framework_suite(input: &ProviderInput<'_>) -> Result<Value, crate::error::AuditError> {
     let selected = denominator(input)?;
     let (files, unreadable) = source_files(input, &selected);
-    let mut grouped: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
-    for (entry, text) in &files {
+    // Dependencies are recorded on manifests, not on the source files the
+    // selector returns; derive (family, manifest directory) scopes from the
+    // whole inventory so source files can be attributed to a family.
+    let mut scopes: BTreeSet<(&'static str, String)> = BTreeSet::new();
+    for entry in &input.inventory.entries {
+        let dir = manifest_dir(&entry.path).to_owned();
         for dependency in &entry.dependencies {
             if let Some(family) = family_name(dependency) {
-                grouped
-                    .entry(family.into())
-                    .or_default()
-                    .push((entry.path.clone(), text.clone()));
+                scopes.insert((family, dir.clone()));
             }
         }
     }
+    let mut grouped: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    for (entry, text) in &files {
+        let mut matched: BTreeSet<&'static str> = BTreeSet::new();
+        for dependency in &entry.dependencies {
+            if let Some(family) = family_name(dependency) {
+                matched.insert(family);
+            }
+        }
+        for (family, dir) in &scopes {
+            if in_scope(dir, &entry.path) && family_applies_to(family, &entry.path) {
+                matched.insert(*family);
+            }
+        }
+        for family in matched {
+            grouped
+                .entry(family.to_owned())
+                .or_default()
+                .push((entry.path.clone(), text.clone()));
+        }
+    }
+    let mut gap_items: Vec<Value> = unreadable
+        .iter()
+        .map(|path| json!({"kind":"denominator-file-unreadable","path":path}))
+        .collect();
     let mut families = Vec::new();
     let mut candidates = Vec::new();
     for (family, family_files) in grouped {
+        let no_rules = rules(&family).is_empty();
         let mut rows = Vec::new();
         for (file, text) in family_files {
             for rule in rules(&family) {
@@ -114,14 +206,33 @@ pub fn run_framework_suite(input: &ProviderInput<'_>) -> Result<Value, crate::er
             }
         }
         candidates.extend(rows.clone());
-        families.push(json!({"family":format!("framework.{family}"),"status":if rows.is_empty(){"pass"}else{"candidates"},"complete":unreadable.is_empty(),"candidates":rows,"findings":[]}));
+        // A selected family without rules is unproven, never a silent clean.
+        let status = if no_rules {
+            "unproven"
+        } else if rows.is_empty() {
+            "pass"
+        } else {
+            "candidates"
+        };
+        let family_gaps = if no_rules {
+            let kind = format!("no-rules-for-family:{family}");
+            gap_items.push(json!({"kind": kind.clone()}));
+            vec![json!({"kind": kind})]
+        } else {
+            Vec::new()
+        };
+        families.push(json!({"family":format!("framework.{family}"),"status":status,"complete":unreadable.is_empty() && !no_rules,"candidates":rows,"findings":[],"coverageGaps":family_gaps}));
     }
     if families.is_empty() {
-        families.push(json!({"status":"unproven","complete":false,"coverageGaps":[{"kind":"framework-denominator-zero"}]}));
+        let kind = if selected.entries.is_empty() {
+            "framework-denominator-zero"
+        } else {
+            "framework-no-family-detected"
+        };
+        gap_items.push(json!({"kind": kind}));
+        families.push(json!({"status":"unproven","complete":false,"coverageGaps":[{"kind":kind}]}));
     }
-    Ok(
-        json!({"results":families,"candidates":candidates,"coverageGaps":unreadable.iter().map(|path|json!({"kind":"denominator-file-unreadable","path":path})).collect::<Vec<_>>() }),
-    )
+    Ok(json!({"results":families,"candidates":candidates,"coverageGaps":gap_items}))
 }
 
 pub fn execute(

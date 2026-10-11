@@ -19,8 +19,10 @@
 //!   between) or one viewport screenshot + one full-page screenshot
 //!   (`{stem}{suffix}.png` / `{stem}{suffix}-full.png`, suffix only present
 //!   when there's more than one viewport)
-//! - same final report text and exit code (`0` unless there were page
-//!   errors, in which case `1`)
+//! - same final report text; exit code is `0` unless there were page errors
+//!   or any open, screenshot, or screenshot-write step failed (then `1`).
+//!   Failed steps are recorded in [`VerifyReport::failures`] and never print
+//!   a success tick.
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -219,12 +221,59 @@ pub enum VerifyError {
     FileNotFound(String),
 }
 
+/// One capture step that did not succeed. The legacy script ignored these; the port
+/// records them so a run cannot report success for a screenshot that was never written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CaptureFailure {
+    /// `WxH`, plus ` slide N` or ` full-page` when the step belongs to one of those.
+    pub target: String,
+    /// `open`, `screenshot`, or `write`.
+    pub step: &'static str,
+    pub reason: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifyReport {
     pub console_errors: Vec<String>,
     pub page_errors: Vec<String>,
+    /// Open, screenshot, and file-write failures across all viewports, in run order.
+    pub failures: Vec<CaptureFailure>,
     pub output_dir: PathBuf,
     pub exit_code: i32,
+}
+
+/// Takes one screenshot and writes it to `path`. Returns `true` only when both steps
+/// succeed; otherwise records the failing step in `failures` and returns `false`.
+fn capture_to_file(
+    driver: &mut dyn BrowserDriver,
+    fs: &dyn FileSystem,
+    path: &Path,
+    full_page: bool,
+    target: &str,
+    failures: &mut Vec<CaptureFailure>,
+) -> bool {
+    let png = match driver.screenshot(full_page) {
+        Ok(png) => png,
+        Err(reason) => {
+            failures.push(CaptureFailure {
+                target: target.to_string(),
+                step: "screenshot",
+                reason,
+            });
+            return false;
+        }
+    };
+    match fs.write(path, &png) {
+        Ok(()) => true,
+        Err(e) => {
+            failures.push(CaptureFailure {
+                target: target.to_string(),
+                step: "write",
+                reason: format!("{}: {e}", path.to_string_lossy()),
+            });
+            false
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -256,42 +305,68 @@ pub fn verify_html(
 
     let mut console_errors = Vec::new();
     let mut page_errors = Vec::new();
+    let mut failures: Vec<CaptureFailure> = Vec::new();
 
     for viewport in viewports {
-        // The legacy script has no navigation-failure branch of its own;
-        // Playwright would raise, which is out of scope for a pure
-        // report-shape port. A failed open just yields no screenshots/
-        // errors for this viewport rather than aborting the whole run.
-        let _ = driver.open(&file_url, *viewport);
-        let _ = writeln!(
-            stdout,
-            "\n→ 打开 {file_url} @ {}x{}",
-            viewport.width, viewport.height
-        );
-        driver.wait_ms(wait_ms);
+        let viewport_label = format!("{}x{}", viewport.width, viewport.height);
+        let _ = writeln!(stdout, "\n→ 打开 {file_url} @ {viewport_label}");
+        // The legacy script has no navigation-failure branch of its own. A failed
+        // open is recorded and this viewport's captures are skipped, so no
+        // screenshot of a stale page from a previous viewport is written.
+        match driver.open(&file_url, *viewport) {
+            Ok(()) => {
+                driver.wait_ms(wait_ms);
 
-        if slides > 0 {
-            for i in 0..slides {
-                let filename = slide_filename(&stem, (i + 1) as u32);
-                if let Ok(png) = driver.screenshot(false) {
-                    let _ = fs.write(&output_dir.join(&filename), &png);
+                if slides > 0 {
+                    for i in 0..slides {
+                        let filename = slide_filename(&stem, (i + 1) as u32);
+                        let target = format!("{viewport_label} slide {}", i + 1);
+                        if capture_to_file(
+                            driver,
+                            fs,
+                            &output_dir.join(&filename),
+                            false,
+                            &target,
+                            &mut failures,
+                        ) {
+                            let _ = writeln!(stdout, "  ✓ slide {} → {filename}", i + 1);
+                        }
+                        if i < slides - 1 {
+                            driver.press_arrow_right();
+                            driver.wait_ms(500);
+                        }
+                    }
+                } else {
+                    let (shot_name, full_name) =
+                        single_shot_filenames(&stem, *viewport, viewports.len());
+                    if capture_to_file(
+                        driver,
+                        fs,
+                        &output_dir.join(&shot_name),
+                        false,
+                        &viewport_label,
+                        &mut failures,
+                    ) {
+                        let _ = writeln!(stdout, "  ✓ 截图 → {shot_name}");
+                    }
+                    let full_target = format!("{viewport_label} full-page");
+                    if capture_to_file(
+                        driver,
+                        fs,
+                        &output_dir.join(&full_name),
+                        true,
+                        &full_target,
+                        &mut failures,
+                    ) {
+                        let _ = writeln!(stdout, "  ✓ 完整页 → {full_name}");
+                    }
                 }
-                let _ = writeln!(stdout, "  ✓ slide {} → {filename}", i + 1);
-                if i < slides - 1 {
-                    driver.press_arrow_right();
-                    driver.wait_ms(500);
-                }
             }
-        } else {
-            let (shot_name, full_name) = single_shot_filenames(&stem, *viewport, viewports.len());
-            if let Ok(png) = driver.screenshot(false) {
-                let _ = fs.write(&output_dir.join(&shot_name), &png);
-            }
-            let _ = writeln!(stdout, "  ✓ 截图 → {shot_name}");
-            if let Ok(png) = driver.screenshot(true) {
-                let _ = fs.write(&output_dir.join(&full_name), &png);
-            }
-            let _ = writeln!(stdout, "  ✓ 完整页 → {full_name}");
+            Err(reason) => failures.push(CaptureFailure {
+                target: viewport_label.clone(),
+                step: "open",
+                reason,
+            }),
         }
 
         console_errors.extend(driver.take_console_messages());
@@ -312,6 +387,13 @@ pub fn verify_html(
         let _ = writeln!(stdout, "\n✅ 无JavaScript错误");
     }
 
+    if !failures.is_empty() {
+        let _ = writeln!(stdout, "\n❌ Capture Failures ({}):", failures.len());
+        for f in &failures {
+            let _ = writeln!(stdout, "  - {} [{}]: {}", f.target, f.step, f.reason);
+        }
+    }
+
     if !console_errors.is_empty() {
         let _ = writeln!(
             stdout,
@@ -330,10 +412,15 @@ pub fn verify_html(
 
     let _ = writeln!(stdout, "\n📸 截图保存至: {}", output_dir.to_string_lossy());
 
-    let exit_code = if page_errors.is_empty() { 0 } else { 1 };
+    let exit_code = if page_errors.is_empty() && failures.is_empty() {
+        0
+    } else {
+        1
+    };
     Ok(VerifyReport {
         console_errors,
         page_errors,
+        failures,
         output_dir,
         exit_code,
     })

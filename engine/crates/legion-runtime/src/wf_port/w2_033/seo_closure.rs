@@ -745,8 +745,24 @@ pub fn run_against(seo_root: &Path, args: &[String]) -> i32 {
 /// CLI entry point equivalent to `python seo_closure.py`, resolving `SEO_ROOT` as
 /// `<current_dir>/skills/seo` (the layout every caller in this repository runs from).
 pub fn run(args: &[String]) -> i32 {
+    run_with_fallback_roots(args, &[])
+}
+
+/// Like [`run`], but when `<current_dir>/skills/seo` is absent, uses the first
+/// `<root>/skills/seo` among `fallback_roots` (for example an installed package root).
+/// The current-directory location is always preferred when it exists.
+pub fn run_with_fallback_roots(args: &[String], fallback_roots: &[std::path::PathBuf]) -> i32 {
     let cwd = std::env::current_dir().unwrap_or_default();
-    run_against(&cwd.join("skills").join("seo"), args)
+    let primary = cwd.join("skills").join("seo");
+    if primary.is_dir() {
+        return run_against(&primary, args);
+    }
+    let seo_root = fallback_roots
+        .iter()
+        .map(|root| root.join("skills").join("seo"))
+        .find(|candidate| candidate.is_dir())
+        .unwrap_or(primary);
+    run_against(&seo_root, args)
 }
 
 #[cfg(test)]

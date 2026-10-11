@@ -11,10 +11,10 @@ use legion_runtime::wf_port::r54::args::{parse_args, split_qa_env};
 use legion_runtime::wf_port::r54::ports::{
     free_port, wait_for_http, HttpAttempt, HttpProbe, PortProbe,
 };
-use legion_runtime::wf_port::r54::run::{needs_cdp_shot, plan, resolve_url, Plan};
+use legion_runtime::wf_port::r54::run::{needs_cdp_shot, open_page, plan, resolve_url, Plan};
 use legion_runtime::wf_port::r54::session::{read_session_file, write_session_file, SessionFile};
 use legion_runtime::wf_port::r54::session_client::{
-    BrowserSession, ElementPoint, Rect, SessionData,
+    BrowserSession, Conditions, ElementPoint, Rect, SessionData,
 };
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -146,12 +146,15 @@ impl BrowserSession for FakeBrowserSession {
         &mut self,
         _conditions: &legion_runtime::wf_port::r54::session_client::Conditions,
     ) -> Result<(), String> {
+        self.log.push("apply".to_string());
         Ok(())
     }
-    fn navigate(&mut self, _url: &str) -> Result<(), String> {
+    fn navigate(&mut self, url: &str) -> Result<(), String> {
+        self.log.push(format!("navigate {url}"));
         Ok(())
     }
     fn load_session(&mut self, _data: &SessionData) -> Result<(), String> {
+        self.log.push("load".to_string());
         Ok(())
     }
     fn save_session(&mut self) -> Result<SessionData, String> {
@@ -160,6 +163,38 @@ impl BrowserSession for FakeBrowserSession {
             local_storage: json!({}),
         })
     }
+}
+
+fn plain_conditions() -> Conditions {
+    Conditions {
+        width: 1365.0,
+        height: 900.0,
+        dpr: 1.0,
+        mobile: false,
+        throttle: None,
+        cpu: None,
+    }
+}
+
+#[test]
+fn restored_storage_is_written_after_first_navigation_then_page_reloads() {
+    let mut session = FakeBrowserSession::default();
+    let data = SessionData {
+        cookies: json!([]),
+        local_storage: json!({"theme": "dark"}),
+    };
+    open_page(&mut session, &plain_conditions(), "http://x/", Some(&data)).unwrap();
+    assert_eq!(
+        session.log,
+        vec!["apply", "navigate http://x/", "load", "navigate http://x/"]
+    );
+}
+
+#[test]
+fn page_without_session_navigates_once() {
+    let mut session = FakeBrowserSession::default();
+    open_page(&mut session, &plain_conditions(), "http://x/", None).unwrap();
+    assert_eq!(session.log, vec!["apply", "navigate http://x/"]);
 }
 
 #[test]

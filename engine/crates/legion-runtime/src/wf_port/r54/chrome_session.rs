@@ -10,6 +10,11 @@
 //! `protocol::cdp::Emulation::SetDeviceMetricsOverride` (no `Default` impl — every field must be
 //! named, per `w2_028::web_page_probe::ChromePageBrowser::set_viewport`).
 //!
+//! Gaps: the synthetic-input path below is reported as `synthetic-input`, network throttling as
+//! `network-throttle-not-applied`, cookie restore as `cookies-not-restored`, cookie capture as
+//! `cookies-not-captured`, and `--cdp-port` as `unavailable:cdp-port-not-supported` (all in
+//! `run.rs`, which owns the report).
+//!
 //! `qa.mjs`'s raw `Input.dispatchMouseEvent`/`dispatchKeyEvent`/`Network.emulateNetworkConditions`
 //! CDP calls (click, hover, press, wheel, network throttling) have no confirmed-field precedent
 //! anywhere else in this crate, and this environment cannot compile-check a guess at their exact
@@ -197,8 +202,8 @@ impl BrowserSession for ChromeSession {
         // is unavailable without the real CDP call, so — like click/hover/wheel/press above —
         // network/CPU conditions beyond viewport are PORTED-PARTIAL here: CPU throttling has a
         // single, low-risk `rate` field and is wired directly; network throttling's exact
-        // `Network::EmulateNetworkConditions` field list is unverifiable in this environment and
-        // is left as a no-op with the gap documented, rather than guessed.
+        // `Network::EmulateNetworkConditions` field list is not confirmed in this environment, so
+        // it is not applied. `run.rs` reports `network-throttle-not-applied` whenever it is requested.
         self.tab
             .call_method(
                 headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
@@ -248,7 +253,8 @@ impl BrowserSession for ChromeSession {
         // path. The cookie half (`Network.setCookies`) shares the same unverifiable-CDP-struct
         // gap as network throttling above and is PORTED-PARTIAL: cookies are not restored by
         // this production impl (localStorage restore, the more commonly used half for skipping
-        // re-login per the qa.mjs module doc at line 124, is fully wired).
+        // re-login per the qa.mjs module doc at line 124, is fully wired). `run.rs` reports
+        // `cookies-not-restored` when the file carries cookies.
         if let Some(obj) = data.local_storage.as_object() {
             if !obj.is_empty() {
                 let expr = format!(
@@ -263,7 +269,8 @@ impl BrowserSession for ChromeSession {
 
     fn save_session(&mut self) -> Result<SessionData, String> {
         // `saveSession` (qa.mjs lines 138-147): localStorage via `evaluate` (confirmed path).
-        // Cookies share the gap noted in `load_session` above.
+        // Cookies are not read (the empty array is a placeholder). `run.rs` writes the file with
+        // `"cookiesCaptured": false` and reports `cookies-not-captured`.
         let local_storage = self
             .eval_raw("JSON.stringify(Object.assign({}, window.localStorage))")
             .ok()

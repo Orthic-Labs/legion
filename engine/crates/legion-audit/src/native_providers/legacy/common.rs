@@ -280,6 +280,10 @@ impl ProviderExecutor for ProviderExecutorAdapter {
             "governance.capability-ownership" => super::governance_ownership::execute(&input),
             "legacy.accessibility.internal-suite" => super::accessibility::execute(&input),
             "legacy.framework.major-suite" => super::framework::execute(&input),
+            "legacy.data.internal-suite" => super::candidate_suites::execute_data(&input),
+            "legacy.infrastructure.internal-suite" => {
+                super::candidate_suites::execute_infrastructure(&input)
+            }
             "legacy.visual.core" => super::visual::execute(&input),
             _ => Err(AuditError::Provider(format!(
                 "unsupported native legacy provider {}",

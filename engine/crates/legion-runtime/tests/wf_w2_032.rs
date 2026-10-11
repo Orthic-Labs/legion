@@ -117,7 +117,7 @@ fn parse_html_word_count_and_link_resolution() {
     assert_eq!(word_count("The quick brown fox jumps."), 5);
     assert_eq!(
         resolve_href("https://example.com/blog/post", "../about"),
-        "https://example.com/blog/../about"
+        "https://example.com/about"
     );
     let (url, class) = classify_link("https://example.com/blog/", "/pricing").unwrap();
     assert_eq!(url, "https://example.com/pricing");

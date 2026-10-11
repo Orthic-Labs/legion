@@ -16,8 +16,8 @@ importers:
         specifier: 0.2.4
         version: 0.2.4
       '@rightkit/git':
-        specifier: 0.2.37
-        version: 0.2.37
+        specifier: 0.2.40
+        version: 0.2.40
       '@rightkit/release':
         specifier: 0.2.151
         version: 0.2.151
@@ -28,8 +28,8 @@ packages:
     resolution: {integrity: sha512-bI1eU4+lYKl7q+RCHWyYXi3QOSFX32t3pArnoOnQDNBtYuU3VV/HS/3wDQEHi8QzIgxrhql+eggfDmWzVbAbCQ==}
     hasBin: true
 
-  '@rightkit/git@0.2.37':
-    resolution: {integrity: sha512-l8LDvBw/okgrOr5xn7a6k8HsbOMJ+h2g9Q9na6bE3Jc3OwD3+pgGxRywBWgGKEk6QQNkn+HABACXgCIV6lXPgQ==}
+  '@rightkit/git@0.2.40':
+    resolution: {integrity: sha512-LyZd3IMnB1/z/w3o4ls02/28KslcCdSw5YHRRRrEecGSTDinVeSayO2xSj7moiA2YjxWW2eGi96vM3oKQrovLg==}
     hasBin: true
 
   '@rightkit/hooks@0.1.2':
@@ -48,7 +48,7 @@ snapshots:
 
   '@rightkit/ax@0.2.4': {}
 
-  '@rightkit/git@0.2.37': {}
+  '@rightkit/git@0.2.40': {}
 
   '@rightkit/hooks@0.1.2': {}
 

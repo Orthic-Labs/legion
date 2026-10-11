@@ -214,33 +214,85 @@ fn apple_tool_preflight(args: &[String]) -> i32 {
     }
 }
 
-/// Walks up from `cwd()` looking for a `skills/` directory (repo root), so ports of scripts
-/// that load a fixed path relative to their own script location (e.g.
-/// `skills/seo/config/provider-registry.json`) can find it regardless of the caller's cwd.
-/// Falls back to `cwd()` itself if none is found.
-fn find_skills_root() -> std::path::PathBuf {
-    let mut dir = cwd();
-    loop {
-        if dir.join("skills").is_dir() {
-            return dir;
-        }
-        if !dir.pop() {
-            return cwd();
-        }
-    }
+/// Package roots that may hold a Legion `skills/` tree when the process is not started from a
+/// Legion checkout: `<exe_dir>/../plugin` and `<exe_dir>/..`, derived from the canonical path
+/// of the running executable. Empty when that path cannot be read.
+fn installed_package_roots() -> Vec<std::path::PathBuf> {
+    let Some(exe) = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.canonicalize().ok())
+    else {
+        return Vec::new();
+    };
+    let Some(exe_dir) = exe.parent() else {
+        return Vec::new();
+    };
+    vec![exe_dir.join("../plugin"), exe_dir.join("..")]
+}
+
+/// Pure root selection: the first candidate under which `relative` is an existing file.
+/// `fallback` is returned when no candidate holds it.
+fn select_skills_root(
+    candidates: &[std::path::PathBuf],
+    relative: &str,
+    fallback: &std::path::Path,
+) -> std::path::PathBuf {
+    candidates
+        .iter()
+        .find(|root| root.join(relative).is_file())
+        .cloned()
+        .unwrap_or_else(|| fallback.to_path_buf())
+}
+
+/// Resolves `relative` (for example `skills/seo/config/provider-registry.json`) against the
+/// first root that holds it. Candidates are `cwd()` and its ancestors, then the installed
+/// package roots. When none holds the file, falls back to the first cwd ancestor containing a
+/// `skills/` directory, else `cwd()`, so a missing file still fails in the caller as before.
+fn find_skills_file(relative: &str) -> std::path::PathBuf {
+    let cwd_dir = cwd();
+    let ancestors: Vec<std::path::PathBuf> = cwd_dir
+        .ancestors()
+        .map(std::path::Path::to_path_buf)
+        .collect();
+    let fallback = ancestors
+        .iter()
+        .find(|dir| dir.join("skills").is_dir())
+        .cloned()
+        .unwrap_or_else(|| cwd_dir.clone());
+    let mut candidates = ancestors;
+    candidates.extend(installed_package_roots());
+    select_skills_root(&candidates, relative, &fallback).join(relative)
 }
 
 // ---- alchemist ---------------------------------------------------------
 
 fn alchemist_parse_events(args: &[String]) -> i32 {
-    let mut stdin_text = String::new();
-    let _ = std::io::Read::read_to_string(&mut std::io::stdin(), &mut stdin_text);
     let read_file = |path: &str| -> Result<String, String> {
         std::fs::read_to_string(path).map_err(|e| e.to_string())
     };
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
-    p9_skills::alchemist::run(args, &stdin_text, &read_file, &mut stdout, &mut stderr)
+    // Same mode selection as `alchemist::run`. A `--summary <file>` run reads that file and
+    // never touches stdin, and the invalid flag combinations are rejected by `run` before any
+    // stdin read.
+    let stream = args.iter().any(|a| a == "--stream");
+    let has_summary_path = args
+        .iter()
+        .position(|a| a == "--summary")
+        .and_then(|i| args.get(i + 1))
+        .is_some();
+    if !stream || has_summary_path {
+        return p9_skills::alchemist::run(args, "", &read_file, &mut stdout, &mut stderr);
+    }
+    // `--stream`: classify each stdin line as it arrives instead of waiting for EOF.
+    let stdin = std::io::stdin();
+    for line in std::io::BufRead::lines(stdin.lock()) {
+        let Ok(line) = line else { break };
+        p9_skills::alchemist::run_stream(&line, &mut stdout, &mut stderr);
+        let _ = stdout.flush();
+        let _ = stderr.flush();
+    }
+    0
 }
 
 fn alchemist_viewer(args: &[String]) -> i32 {
@@ -348,8 +400,7 @@ fn council_validate_record(args: &[String]) -> i32 {
         },
         None => None,
     };
-    let schema_path =
-        find_skills_root().join("skills/council/lib/schemas/council-record-v1.schema.json");
+    let schema_path = find_skills_file("skills/council/lib/schemas/council-record-v1.schema.json");
     let schema = match council_read_json(&schema_path.to_string_lossy()) {
         Ok(v) => v,
         Err(e) => {
@@ -377,7 +428,7 @@ fn council_validate_record(args: &[String]) -> i32 {
 // ---- seo -------------------------------------------------------------
 
 fn seo_seo_closure(args: &[String]) -> i32 {
-    w2_033::seo_closure::run(args)
+    w2_033::seo_closure::run_with_fallback_roots(args, &installed_package_roots())
 }
 
 fn seo_seo_project(args: &[String]) -> i32 {
@@ -420,7 +471,7 @@ fn seo_pagespeed_check(args: &[String]) -> i32 {
 }
 
 fn seo_provider_registry(args: &[String]) -> i32 {
-    let registry_path = find_skills_root().join("skills/seo/config/provider-registry.json");
+    let registry_path = find_skills_file("skills/seo/config/provider-registry.json");
     let registry_json = match std::fs::read_to_string(&registry_path) {
         Ok(t) => t,
         Err(e) => {
@@ -1163,7 +1214,8 @@ fn designer_palette(args: &[String]) -> i32 {
 /// `detector-script-missing` and exits 3. It never reports an empty pass.
 /// File/dir text and HTML scanning are unaffected.
 fn designer_detect(args: &[String]) -> i32 {
-    let browser_script = load_detector_browser_script_from(&find_skills_root());
+    let browser_script =
+        load_detector_browser_script_from(&find_skills_file(DETECTOR_BROWSER_SCRIPT));
     if let Some(reason) = url_scan_unavailable_reason(&browser_script, args) {
         return designer_detect_unavailable(reason);
     }
@@ -1234,11 +1286,11 @@ fn looks_like_url(target: &str) -> bool {
 const DETECTOR_BROWSER_SCRIPT: &str =
     "skills/designer/engine/scripts/detector/detect-antipatterns-browser.js";
 
-/// Reads the shipped browser detector from `skills_root`, the same root the
-/// neighbouring designer routes resolve assets from. Empty when absent or
-/// unreadable, which the route reports as unavailable.
-fn load_detector_browser_script_from(skills_root: &std::path::Path) -> String {
-    std::fs::read_to_string(skills_root.join(DETECTOR_BROWSER_SCRIPT)).unwrap_or_default()
+/// Reads the shipped browser detector at `script_path` (resolved by the caller with
+/// `find_skills_file`, the same lookup the neighbouring designer routes use). Empty when
+/// absent or unreadable, which the route reports as unavailable.
+fn load_detector_browser_script_from(script_path: &std::path::Path) -> String {
+    std::fs::read_to_string(script_path).unwrap_or_default()
 }
 
 /// Unavailable reason when URL targets are requested but the browser script is
@@ -2271,7 +2323,7 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
     }
 
     let (Some(report), Some(mode)) = (report, mode) else {
-        eprintln!("usage: legion script foundation/validate-atom-report <report> --mode <mode> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--write-receipt <path>]");
+        eprintln!("usage: legion script foundation/validate-atom-report <report> --mode <inventory|stage2|stage3|final|repo-ledger|canon|mechanism-cards|handoff> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--write-receipt <path>]");
         return 1;
     };
 
@@ -2983,7 +3035,7 @@ fn seo_page_engine(args: &[String]) -> i32 {
         eprintln!("Usage: legion script seo/page_engine <bundle.json> [--out FILE]");
         return 2;
     };
-    let cfg_path = find_skills_root().join("skills/seo/config/page-engine.json");
+    let cfg_path = find_skills_file("skills/seo/config/page-engine.json");
     let cfg: w2_031::page_engine::PageEngineConfig =
         match read_text_file(&cfg_path.to_string_lossy())
             .and_then(|t| serde_json::from_str(&t).map_err(|e| e.to_string()))
@@ -3037,7 +3089,7 @@ fn seo_source_freshness(args: &[String]) -> i32 {
         }
         i += 1;
     }
-    let register_path = find_skills_root().join("skills/seo/config/official-sources.json");
+    let register_path = find_skills_file("skills/seo/config/official-sources.json");
     let register = match read_json_file(&register_path.to_string_lossy()) {
         Ok(v) => v,
         Err(e) => {
@@ -3683,7 +3735,8 @@ mod designer_detect_tests {
 
     #[test]
     fn shipped_detector_script_is_loaded_and_passes_the_url_gate() {
-        let script = load_detector_browser_script_from(&repo_skills_root());
+        let script =
+            load_detector_browser_script_from(&repo_skills_root().join(DETECTOR_BROWSER_SCRIPT));
         assert!(
             !script.trim().is_empty(),
             "shipped detector script must load"
@@ -3697,7 +3750,7 @@ mod designer_detect_tests {
     fn absent_detector_script_reports_unavailable_for_url_targets() {
         let missing_root =
             std::env::temp_dir().join(format!("legion-no-skills-root-{}", std::process::id()));
-        let script = load_detector_browser_script_from(&missing_root);
+        let script = load_detector_browser_script_from(&missing_root.join(DETECTOR_BROWSER_SCRIPT));
         assert!(script.is_empty());
         let args = vec!["https://example.test".to_string()];
         let reason = url_scan_unavailable_reason(&script, &args);
@@ -3760,5 +3813,76 @@ mod designer_detect_tests {
         let args = vec!["https://example.test".to_string()];
         let mut detectors = UnavailableUrlDetectors;
         assert_eq!(run_designer_detect(&cwd, &args, &mut detectors), 3);
+    }
+}
+
+#[cfg(test)]
+mod skills_root_selection_tests {
+    use super::*;
+    use std::path::{Path, PathBuf};
+
+    const REL: &str = "skills/seo/config/provider-registry.json";
+
+    fn temp_base(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("legion-skills-root-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_file(root: &Path, relative: &str) {
+        let path = root.join(relative);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "{}").unwrap();
+    }
+
+    #[test]
+    fn first_candidate_holding_the_file_wins() {
+        let base = temp_base("first-wins");
+        let a = base.join("a");
+        let b = base.join("b");
+        write_file(&a, REL);
+        write_file(&b, REL);
+        let got = select_skills_root(&[b.clone(), a], REL, &base.join("fallback"));
+        assert_eq!(got, b);
+    }
+
+    #[test]
+    fn installed_root_is_used_when_cwd_side_lacks_the_file() {
+        let base = temp_base("installed");
+        let project = base.join("project");
+        let installed = base.join("plugin");
+        // The project has a skills/ directory but not the needed file.
+        std::fs::create_dir_all(project.join("skills")).unwrap();
+        write_file(&installed, REL);
+        let got = select_skills_root(&[project.clone(), installed.clone()], REL, &project);
+        assert_eq!(got, installed);
+    }
+
+    #[test]
+    fn falls_back_when_no_candidate_holds_the_file() {
+        let base = temp_base("fallback");
+        let fallback = base.join("project");
+        std::fs::create_dir_all(&fallback).unwrap();
+        let got = select_skills_root(&[base.join("missing")], REL, &fallback);
+        assert_eq!(got, fallback);
+    }
+
+    #[test]
+    fn empty_candidate_list_returns_fallback() {
+        let fallback = PathBuf::from("/legion-nonexistent-fallback");
+        assert_eq!(select_skills_root(&[], REL, &fallback), fallback);
+    }
+
+    #[test]
+    fn a_directory_named_like_the_file_is_not_a_match() {
+        let base = temp_base("dir-not-file");
+        std::fs::create_dir_all(base.join("a").join(REL)).unwrap();
+        let fallback = base.join("fallback");
+        assert_eq!(
+            select_skills_root(&[base.join("a")], REL, &fallback),
+            fallback
+        );
     }
 }

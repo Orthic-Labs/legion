@@ -902,13 +902,38 @@ pub fn ingest_lens_result(
             "{who}: only {ADJUDICATOR_PROVIDER_ID} accepts verdicts"
         )));
     }
-    let coverage = packet_coverage(
+    let mut coverage = packet_coverage(
         provider_id,
         &request.packet,
         &request.denominator_paths,
         candidates_supplied,
         part,
     );
+    // The batch entry point adjudicates under `ContextPolicy::Derived`: the
+    // per-candidate context id is derived from the packet digest and the
+    // candidate id, so naming it proves nothing about the context the verdict
+    // was reached in. Record that as a coverage gap so the result can never be
+    // read as a fresh-context attestation.
+    let mut adjudication_context: Option<Value> = None;
+    if provider_id == ADJUDICATOR_PROVIDER_ID
+        && candidates_supplied
+        && !submitted_verdicts.is_empty()
+    {
+        let unnamed = submitted_verdicts
+            .iter()
+            .filter(|verdict| verdict.get("contextId").and_then(Value::as_str).is_none())
+            .count();
+        coverage.gaps.push(format!(
+            "adjudication-context-derived:{provider_id}:{} verdicts under derived context policy, {unnamed} naming no context; not a fresh-context attestation",
+            submitted_verdicts.len()
+        ));
+        adjudication_context = Some(json!({
+            "policy": "derived",
+            "attested": false,
+            "verdicts": submitted_verdicts.len(),
+            "verdictsNamingNoContext": unnamed,
+        }));
+    }
     let complete = coverage.gaps.is_empty();
     let status = if complete {
         ProviderStatus::Complete
@@ -940,6 +965,9 @@ pub fn ingest_lens_result(
     if let Some((verdicts, confirmed)) = verdict_details {
         details.insert("securityVerdicts".into(), verdicts);
         details.insert("securityConfirmed".into(), confirmed);
+    }
+    if let Some(context) = adjudication_context {
+        details.insert("adjudicationContext".into(), context);
     }
     for (field, value) in extra_details {
         details.insert(field, value);

@@ -370,6 +370,21 @@ fn confirmed_run(name: &str) -> Run {
 }
 
 #[test]
+fn adjudication_under_derived_context_policy_records_a_gap_not_an_attestation() {
+    let run = confirmed_run("derived-context");
+    let recomputed = recompute_run(&run.run).unwrap();
+    assert!(
+        recomputed
+            .report
+            .gaps
+            .iter()
+            .any(|gap| gap.starts_with("adjudication-context-derived:")),
+        "{:?}",
+        recomputed.report.gaps
+    );
+}
+
+#[test]
 fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
     let run = confirmed_run("scope");
     let before = recompute_run(&run.run).unwrap();

@@ -31,15 +31,35 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Restore last green commit marker
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.right-git-last-green
+          key: legion-last-green-${{ matrix.os }}-${{ matrix.node }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            legion-last-green-${{ matrix.os }}-${{ matrix.node }}-${{ github.ref_name }}-
       - name: Detect Rust-affecting changes
         id: rust-changes
         shell: bash
         env:
-          RIGHT_GIT_DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          RIGHT_GIT_DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
         run: |
           set -euo pipefail
           changed=true
           base="$RIGHT_GIT_DIFF_BASE"
+          if [[ "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+            # A push is compared with the last commit this job passed on, never with the previous
+            # push: a failed run followed by a non-Rust commit must still run the Rust checks.
+            # No marker, or a marker that is not an ancestor, means changed=true.
+            base=""
+            if [[ -f "$HOME/.right-git-last-green/sha" ]]; then
+              base="$(tr -d '[:space:]' < "$HOME/.right-git-last-green/sha")"
+            fi
+            if [[ "$base" =~ ^[0-9a-fA-F]{40}$ ]] && ! git merge-base --is-ancestor "$base" "$GITHUB_SHA" 2>/dev/null; then
+              base=""
+            fi
+          fi
           if [[ "$base" =~ ^[0-9a-fA-F]{40}$ ]] && [[ ! "$base" =~ ^0{40}$ ]] && git cat-file -e "$base^{commit}" 2>/dev/null; then
             if changed_paths="$(git diff --name-only --diff-filter=ACDMRTUXB "$base" "$GITHUB_SHA")"; then
               changed=false
@@ -67,6 +87,22 @@ jobs:
         with:
           version: 11.24.0
       - run: pnpm install --frozen-lockfile
+      - name: Print pnpm-lock.yaml patch when the lockfile is stale
+        if: failure()
+        shell: bash
+        run: |
+          if pnpm install --lockfile-only; then
+            if git diff --quiet -- pnpm-lock.yaml; then
+              echo "::notice::pnpm-lock.yaml already matches package.json; the frozen install failed for another reason."
+            else
+              echo "::group::pnpm-lock.yaml patch (apply and commit)"
+              git diff -- pnpm-lock.yaml
+              echo "::endgroup::"
+              echo "::error file=pnpm-lock.yaml::pnpm-lock.yaml is stale; commit the patch above."
+            fi
+          else
+            echo "::error::pnpm install --lockfile-only failed; no lockfile patch was produced."
+          fi
 
       - name: RightKit ownership (protected registry roots)
         shell: bash
@@ -106,6 +142,19 @@ jobs:
           CARGO_INCREMENTAL: "1"
           CARGO_PROFILE_DEV_DEBUG: "0"
           CARGO_PROFILE_TEST_DEBUG: "0"
+      - name: Record last green commit marker
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.right-git-last-green"
+          printf '%s\n' "$GITHUB_SHA" > "$HOME/.right-git-last-green/sha"
+      - name: Save last green commit marker
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.right-git-last-green
+          key: legion-last-green-${{ matrix.os }}-${{ matrix.node }}-${{ github.ref_name }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Upload unsigned dev build (Windows)
         if: ${{ (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch') && runner.os == 'Windows' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

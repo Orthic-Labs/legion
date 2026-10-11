@@ -13,7 +13,87 @@ use super::args::{self, Args};
 use super::browser::{self, FsProbe};
 use super::ports::{self, HttpAttempt, HttpProbe, PortProbe};
 use super::profiles::{self, DirEntry, ProfileDir};
-use super::session_client::BrowserSession;
+use super::session_client::{BrowserSession, Conditions, SessionData};
+
+/// Named gaps: requested capabilities this runtime cannot apply or capture truthfully. Each is
+/// reported on its own line and listed in a summary at the end of the run; none is reported as
+/// success. See `chrome_session`'s module doc for why each one is not implemented.
+///
+/// `--cdp-port`: the `headless_chrome` `LaunchOptions` port field and its use are not confirmed
+/// from crate source in this environment, so the requested DevTools port is not applied.
+pub const GAP_CDP_PORT: &str = "unavailable:cdp-port-not-supported";
+/// `--slow-3g` / `--slow-4g`: `Network.emulateNetworkConditions` field shape not confirmed.
+pub const GAP_NETWORK_THROTTLE: &str = "network-throttle-not-applied";
+/// `--load-session` with cookies: `Network.setCookies` field shape not confirmed.
+pub const GAP_COOKIES_NOT_RESTORED: &str = "cookies-not-restored";
+/// `--save-session`: `Network.getCookies` not used, so the saved file has no real cookies.
+pub const GAP_COOKIES_NOT_CAPTURED: &str = "cookies-not-captured";
+/// Any action run: click/hover/wheel/press dispatch synthetic DOM events, not CDP input.
+pub const GAP_SYNTHETIC_INPUT: &str = "synthetic-input";
+
+/// Gaps implied by the flags alone, before any browser work.
+pub fn requested_gaps(args: &Args) -> Vec<&'static str> {
+    let mut gaps = Vec::new();
+    if args.cdp_port != 0 {
+        gaps.push(GAP_CDP_PORT);
+    }
+    if args.throttle.is_some() {
+        gaps.push(GAP_NETWORK_THROTTLE);
+    }
+    if args.save_session.is_some() {
+        gaps.push(GAP_COOKIES_NOT_CAPTURED);
+    }
+    gaps
+}
+
+/// Adds `gap` unless it is already recorded.
+pub fn push_gap(gaps: &mut Vec<&'static str>, gap: &'static str) {
+    if !gaps.contains(&gap) {
+        gaps.push(gap);
+    }
+}
+
+/// Records `GAP_COOKIES_NOT_RESTORED` when the loaded session file carries any cookies, since
+/// `ChromeSession::load_session` restores only localStorage.
+pub fn push_restore_gaps(gaps: &mut Vec<&'static str>, data: &SessionData) {
+    if data
+        .cookies
+        .as_array()
+        .is_some_and(|cookies| !cookies.is_empty())
+    {
+        push_gap(gaps, GAP_COOKIES_NOT_RESTORED);
+    }
+}
+
+/// Prints each gap and one summary line, or nothing when there are no gaps.
+pub fn report_gaps(gaps: &[&str]) {
+    if gaps.is_empty() {
+        return;
+    }
+    for gap in gaps {
+        println!("[qa] gap {gap}");
+    }
+    println!("[qa] gaps: {}", gaps.join(", "));
+}
+
+/// Page setup in the order that makes restored localStorage stick. The page is navigated first
+/// so it has its origin, localStorage is written next, and the page is then navigated again so
+/// the app boots with it. Writing localStorage while the tab is still on about:blank would
+/// store it under the wrong origin and lose it.
+pub fn open_page(
+    session: &mut dyn BrowserSession,
+    conditions: &Conditions,
+    url: &str,
+    restore: Option<&SessionData>,
+) -> Result<(), String> {
+    session.apply_conditions(conditions)?;
+    session.navigate(url)?;
+    if let Some(data) = restore {
+        session.load_session(data)?;
+        session.navigate(url)?;
+    }
+    Ok(())
+}
 
 /// `abs(path)` (qa.mjs lines 206-208): resolve relative to `root` unless already absolute.
 pub fn abs(root: &str, path: &str) -> PathBuf {
@@ -253,6 +333,7 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
             } else {
                 None
             };
+            let mut gaps = requested_gaps(&args);
             let mut exit_code = 0;
             if needs_server {
                 let mut probe = ReqwestHttpProbe {
@@ -286,6 +367,7 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
                         repo_root,
                         do_shot,
                         do_actions,
+                        &mut gaps,
                     ) {
                         Ok(()) => {}
                         Err(e) => {
@@ -295,6 +377,7 @@ pub fn run(argv: &[String], repo_root: &str) -> i32 {
                     }
                 }
             }
+            report_gaps(&gaps);
             if let Some(mut child) = server {
                 if !args.keep_open {
                     let _ = child.kill();
@@ -368,6 +451,7 @@ fn run_cdp_session(
     repo_root: &str,
     do_shot: bool,
     do_actions: bool,
+    gaps: &mut Vec<&'static str>,
 ) -> Result<(), String> {
     use headless_chrome::{Browser, LaunchOptions};
     use std::ffi::OsStr;
@@ -394,16 +478,19 @@ fn run_cdp_session(
         throttle: args.throttle.as_deref().and_then(args::throttle_profile),
         cpu: args.cpu,
     };
-    session.apply_conditions(&conditions)?;
-    if let Some(load_path) = &args.load_session {
-        let mut fs = FsSessionFile {
-            repo_root: repo_root.to_string(),
-        };
-        let data = super::session::read_session_file(&fs, load_path)?;
-        session.load_session(&data)?;
-        let _ = &mut fs;
-    }
-    session.navigate(url)?;
+    // Read the session file before touching the page, so a bad path fails before navigation.
+    let restore = match &args.load_session {
+        Some(load_path) => {
+            let fs = FsSessionFile {
+                repo_root: repo_root.to_string(),
+            };
+            let data = super::session::read_session_file(&fs, load_path)?;
+            push_restore_gaps(gaps, &data);
+            Some(data)
+        }
+        None => None,
+    };
+    open_page(&mut session, &conditions, url, restore.as_ref())?;
 
     if do_shot {
         let out = abs(repo_root, &args.out);
@@ -426,6 +513,9 @@ fn run_cdp_session(
             let abs_path = abs(repo_root, actions_path);
             let raw = std::fs::read_to_string(&abs_path).map_err(|e| e.to_string())?;
             let parsed = super::actions::parse_actions(&raw)?;
+            if !parsed.is_empty() {
+                push_gap(gaps, GAP_SYNTHETIC_INPUT);
+            }
             for (i, action) in parsed.iter().enumerate() {
                 let line = super::actions::run_action(&mut session, action, i)?;
                 println!("{line}");
@@ -462,7 +552,8 @@ fn run_cdp_session(
         let mut fs = FsSessionFile {
             repo_root: repo_root.to_string(),
         };
-        super::session::write_session_file(&mut fs, save_path, &data)?;
+        // Cookies are never read by `ChromeSession::save_session`, so the file says so.
+        super::session::write_session_file_with_capture(&mut fs, save_path, &data, false)?;
         println!("[qa] session saved {}", abs(repo_root, save_path).display());
     }
     Ok(())
@@ -603,6 +694,57 @@ mod tests {
         a.help = true;
         a.shot = true;
         assert_eq!(plan(&a), Plan::Usage);
+    }
+
+    #[test]
+    fn requested_gaps_empty_for_plain_run() {
+        assert!(requested_gaps(&Args::default()).is_empty());
+    }
+
+    #[test]
+    fn requested_gaps_name_each_flag_the_runtime_does_not_apply() {
+        let mut a = Args::default();
+        a.cdp_port = 9222;
+        a.throttle = Some("slow-3g".into());
+        a.save_session = Some("s.json".into());
+        assert_eq!(
+            requested_gaps(&a),
+            vec![GAP_CDP_PORT, GAP_NETWORK_THROTTLE, GAP_COOKIES_NOT_CAPTURED]
+        );
+    }
+
+    #[test]
+    fn cpu_throttle_is_applied_so_it_is_not_a_gap() {
+        let mut a = Args::default();
+        a.cpu = Some(4.0);
+        assert!(requested_gaps(&a).is_empty());
+    }
+
+    #[test]
+    fn restore_gap_only_when_session_file_has_cookies() {
+        let with_cookies = SessionData {
+            cookies: serde_json::json!([{"name": "sid"}]),
+            local_storage: serde_json::json!({}),
+        };
+        let mut gaps = Vec::new();
+        push_restore_gaps(&mut gaps, &with_cookies);
+        assert_eq!(gaps, vec![GAP_COOKIES_NOT_RESTORED]);
+
+        let no_cookies = SessionData {
+            cookies: serde_json::json!([]),
+            local_storage: serde_json::json!({"k": "v"}),
+        };
+        let mut gaps = Vec::new();
+        push_restore_gaps(&mut gaps, &no_cookies);
+        assert!(gaps.is_empty());
+    }
+
+    #[test]
+    fn push_gap_does_not_duplicate() {
+        let mut gaps = Vec::new();
+        push_gap(&mut gaps, GAP_SYNTHETIC_INPUT);
+        push_gap(&mut gaps, GAP_SYNTHETIC_INPUT);
+        assert_eq!(gaps, vec![GAP_SYNTHETIC_INPUT]);
     }
 
     #[test]

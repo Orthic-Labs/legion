@@ -28,6 +28,16 @@ fn digest_id(parts: &[&str]) -> String {
     format!("sha256:{}", sha256_hex(parts.join("\0").as_bytes()))
 }
 
+/// Largest char boundary at or below `index` (clamped to the text length), so
+/// byte-window slices never split a multi-byte character.
+fn char_floor(text: &str, index: usize) -> usize {
+    let mut index = index.min(text.len());
+    while index > 0 && !text.is_char_boundary(index) {
+        index -= 1;
+    }
+    index
+}
+
 fn line_at(text: &str, index: usize) -> usize {
     text.get(..index.min(text.len()))
         .unwrap_or("")
@@ -1487,6 +1497,16 @@ pub mod data_suite {
         "sql", "ts", "tsx", "js", "mjs", "cjs", "py", "php", "rb", "go", "rs", "java", "kt", "cs",
     ];
 
+    /// Whether the data suite inspects this path (by extension).
+    pub fn inspects(file: &str) -> bool {
+        let ext = std::path::Path::new(file)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_lowercase())
+            .unwrap_or_default();
+        DATA_EXTENSIONS.contains(&ext.as_str())
+    }
+
     fn severity_hint(level: &str) -> &'static str {
         match level {
             "error" => "high",
@@ -1553,7 +1573,7 @@ pub mod data_suite {
             Regex::new(r"(?is)sqlite(?:3)?[\s\S]{0,200}(?:connect|open)\s*\(").unwrap()
         });
         for m in re.find_iter(text) {
-            let end = (m.end() + 300).min(text.len());
+            let end = char_floor(text, m.end() + 300);
             let window = &text[m.end()..end];
             if !Regex::new(r"(?i)busy_timeout|timeout")
                 .unwrap()
@@ -1600,14 +1620,14 @@ pub mod data_suite {
         let txn_re =
             TXN.get_or_init(|| Regex::new(r"(?i)transaction|beginTransaction|BEGIN\b").unwrap());
         for m in first_re.find_iter(text) {
-            let window_end = (m.end() + 500).min(text.len());
+            let window_end = char_floor(text, m.end() + 500);
             let window = &text[m.end()..window_end];
             let second = match first_re.find(window) {
                 Some(s) => s,
                 None => continue,
             };
             let second_abs_end = m.end() + second.end();
-            let tail_end = (second_abs_end + 700).min(text.len());
+            let tail_end = char_floor(text, second_abs_end + 700);
             let tail = &text[second_abs_end..tail_end];
             if !txn_re.is_match(tail) {
                 candidates.push(candidate(
@@ -1776,7 +1796,7 @@ pub mod infrastructure_suite {
         let integrity_re =
             INTEGRITY.get_or_init(|| Regex::new(r"(?i)sha256|checksum|digest|integrity").unwrap());
         for m in prefix_re.find_iter(text) {
-            let end = (m.end() + 500).min(text.len());
+            let end = char_floor(text, m.end() + 500);
             if !integrity_re.is_match(&text[m.end()..end]) {
                 candidates.push(candidate(
                     "release-download-no-hash",
@@ -1966,7 +1986,7 @@ pub mod framework_suite {
         static PREFIX: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
         let prefix_re = PREFIX.get_or_init(|| Regex::new(r"http\.Server\s*\{").unwrap());
         for m in prefix_re.find_iter(text) {
-            let end = (m.end() + 500).min(text.len());
+            let end = char_floor(text, m.end() + 500);
             if !Regex::new(r"ReadHeaderTimeout|ReadTimeout|WriteTimeout|IdleTimeout")
                 .unwrap()
                 .is_match(&text[m.end()..end])

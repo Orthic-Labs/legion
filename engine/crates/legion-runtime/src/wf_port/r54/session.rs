@@ -31,11 +31,52 @@ pub fn write_session_file(
     fs.write(file, &json)
 }
 
+/// Like [`write_session_file`], but also records whether the cookies in `data` were really
+/// captured from the browser, as a top-level `"cookiesCaptured"` flag beside `cookies`. The
+/// production run passes `false` because `ChromeSession::save_session` cannot read cookies (see
+/// the `cookies-not-captured` gap), so an empty `cookies` array is never presented as the truth.
+pub fn write_session_file_with_capture(
+    fs: &mut dyn SessionFile,
+    file: &str,
+    data: &SessionData,
+    cookies_captured: bool,
+) -> Result<(), String> {
+    let mut value = serde_json::to_value(data).map_err(|e| e.to_string())?;
+    if let Some(object) = value.as_object_mut() {
+        object.insert(
+            "cookiesCaptured".to_string(),
+            serde_json::Value::Bool(cookies_captured),
+        );
+    }
+    let json = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    fs.write(file, &json)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
     use std::collections::HashMap;
+
+    #[test]
+    fn write_session_file_with_capture_marks_cookies_not_captured() {
+        let mut fs = FakeFs {
+            files: HashMap::new(),
+            fail_read: false,
+        };
+        let data = SessionData {
+            cookies: json!([]),
+            local_storage: json!({"theme": "dark"}),
+        };
+        write_session_file_with_capture(&mut fs, "out.json", &data, false).unwrap();
+        let raw = fs.files.get("out.json").unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(raw).unwrap();
+        assert_eq!(parsed["cookiesCaptured"], json!(false));
+        assert_eq!(parsed["cookies"], json!([]));
+        // The extra flag does not break reading the file back.
+        let back = read_session_file(&fs, "out.json").unwrap();
+        assert_eq!(back, data);
+    }
 
     struct FakeFs {
         files: HashMap<String, String>,

@@ -116,22 +116,23 @@ fn variant_analysis_is_planned_here_not_by_adjudication() {
 
 #[test]
 fn model_tier_never_exceeds_what_the_lens_requires() {
-    // Mechanical-tier lenses per lens-routing.md: ai-slop, naming, dead-file,
-    // performance, a11y, platform-parity.
+    // Mechanical-tier lenses per lens-routing.md: dead-file, a11y,
+    // platform-parity.
     for id in [
-        "reasoning.ai-slop",
-        "reasoning.naming",
         "reasoning.dead-file",
-        "reasoning.performance",
         "reasoning.a11y",
         "reasoning.platform-parity",
     ] {
         let value = lens_plan_packet_value(id).expect("lens plan present");
         assert_eq!(value["modelTier"], "mechanical", "{id}");
     }
-    // Judgment-tier lenses: architecture, security, schema, correctness,
-    // minimize, doc-drift, data-safety, resilience, release-readiness.
+    // Judgment-tier lenses (at least the mid tier): architecture, security,
+    // schema, correctness, minimize, doc-drift, data-safety, resilience,
+    // release-readiness, ai-slop, naming, performance.
     for id in [
+        "reasoning.ai-slop",
+        "reasoning.naming",
+        "reasoning.performance",
         "reasoning.architecture",
         "reasoning.security",
         "reasoning.schema",

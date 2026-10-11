@@ -213,7 +213,8 @@ Options:
 Endpoints:
   /live.js             Browser script (element picker + variant cycling)
   /detect.js           Detection overlay (backwards compatible)
-  /modern-screenshot.js Vendored modern-screenshot UMD build (lazy-loaded by live.js)
+  /design-system.json  Parsed design system for the panel (token-protected)
+  /design-system/raw   DESIGN.md verbatim (token-protected)
   /annotation          POST raw image/png to stage a variant screenshot
   /events              SSE stream (server→browser) + POST (browser→server)
   /poll                Long-poll for agent CLI
@@ -308,12 +309,28 @@ pub fn stop_running_server(project_root: &Path) -> RunOutcome {
 /// ordinary (non-session-leader) child process with its stdio inherited as
 /// null handles; it is not killed by this process exiting, which is the
 /// behavior `--background` callers actually depend on.
-fn run_background(args: &[String], project_root: &Path) -> RunOutcome {
-    let child_args: Vec<String> = args
+/// Argv prefix that routes the re-executed binary back to this server:
+/// `<exe> script designer/live-server ...` (the `script` subcommand
+/// dispatches `designer/live-server` to [`run`]).
+const BACKGROUND_CHILD_ARGV_PREFIX: [&str; 2] = ["script", "designer/live-server"];
+
+/// Full child argv for `--background`: the dispatch prefix followed by the
+/// caller's args minus `--background`.
+fn background_child_argv(args: &[String]) -> Vec<String> {
+    let mut argv: Vec<String> = BACKGROUND_CHILD_ARGV_PREFIX
         .iter()
-        .filter(|a| a.as_str() != "--background")
-        .cloned()
+        .map(|s| (*s).to_string())
         .collect();
+    argv.extend(
+        args.iter()
+            .filter(|a| a.as_str() != "--background")
+            .cloned(),
+    );
+    argv
+}
+
+fn run_background(args: &[String], project_root: &Path) -> RunOutcome {
+    let child_args = background_child_argv(args);
     let exe = match env::current_exe() {
         Ok(p) => p,
         Err(e) => {
@@ -500,6 +517,33 @@ pub fn main_cli() -> i32 {
 #[cfg(test)]
 mod session_cleanup_tests {
     use super::*;
+
+    #[test]
+    fn background_child_argv_routes_back_to_live_server_without_background_flag() {
+        let args = vec![
+            "--background".to_string(),
+            "--port=9123".to_string(),
+            "--keep-inject".to_string(),
+        ];
+        assert_eq!(
+            background_child_argv(&args),
+            vec![
+                "script".to_string(),
+                "designer/live-server".to_string(),
+                "--port=9123".to_string(),
+                "--keep-inject".to_string(),
+            ]
+        );
+        assert_eq!(
+            background_child_argv(&[]),
+            vec!["script".to_string(), "designer/live-server".to_string()]
+        );
+    }
+
+    #[test]
+    fn help_text_does_not_advertise_unshipped_modern_screenshot() {
+        assert!(!HELP_TEXT.contains("modern-screenshot"));
+    }
 
     fn scratch_root(name: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!(

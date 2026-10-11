@@ -39,10 +39,13 @@ pub enum LinkClass {
     External,
 }
 
-/// Minimal RFC-3986-ish URL join, sufficient for `urljoin(base_url, href)` on the
-/// href shapes `parse_html.py` actually resolves (scheme-relative, absolute-path,
-/// relative-path, and already-absolute hrefs). Query strings and fragments on `href`
-/// are preserved; full dot-segment (`../`) resolution is not attempted.
+/// RFC 3986 section 5.2 reference resolution (`urljoin(base_url, href)`) for the href
+/// shapes `parse_html.py` resolves: scheme-relative (`//host/...`), absolute-path (`/...`),
+/// relative-path (`a`, `../a`, `./a`, `a/../b`), query-only and fragment-only references,
+/// and already-absolute hrefs. Dot segments are removed per RFC 3986 section 5.2.4, so a
+/// `..` that climbs past the root clamps at the root. The query and fragment of `href` are
+/// preserved verbatim, and a `?` or `/` inside the base's own query never affects the base
+/// directory.
 pub fn resolve_href(base_url: &str, href: &str) -> String {
     if href.contains("://") {
         return href.to_string();
@@ -53,21 +56,112 @@ pub fn resolve_href(base_url: &str, href: &str) -> String {
     };
     let base_authority_end = base_rest.find(['/', '?', '#']).unwrap_or(base_rest.len());
     let base_authority = &base_rest[..base_authority_end];
+    let (base_path, base_suffix) = split_suffix(&base_rest[base_authority_end..]);
 
     if let Some(rest) = href.strip_prefix("//") {
-        return format!("{base_scheme}://{rest}");
+        let (host, tail) = match rest.find(['/', '?', '#']) {
+            Some(idx) => rest.split_at(idx),
+            None => (rest, ""),
+        };
+        return format!("{base_scheme}://{host}{}", normalize_tail(tail));
     }
     if href.starts_with('/') {
-        return format!("{base_scheme}://{base_authority}{href}");
+        return format!("{base_scheme}://{base_authority}{}", normalize_tail(href));
     }
-    // Relative path: join against the base's directory (everything up to the last '/'
-    // in its path, or the authority root if the base has no path).
-    let base_path = &base_rest[base_authority_end..];
+
+    let (href_path, href_suffix) = split_suffix(href);
+    if href_path.is_empty() {
+        // Query-only keeps the base path and takes the href query; fragment-only keeps the
+        // base path and base query, then appends the href fragment.
+        let path = if base_path.is_empty() { "/" } else { base_path };
+        let suffix = if href_suffix.starts_with('?') {
+            href_suffix.to_string()
+        } else {
+            format!("{}{href_suffix}", query_part(base_suffix))
+        };
+        return format!("{base_scheme}://{base_authority}{path}{suffix}");
+    }
+
+    // Relative path: merge with the base directory (everything up to and including the
+    // last '/' of the base path, or the root when there is none), then remove dot segments.
     let base_dir = match base_path.rfind('/') {
         Some(idx) => &base_path[..=idx],
         None => "/",
     };
-    format!("{base_scheme}://{base_authority}{base_dir}{href}")
+    let merged = remove_dot_segments(&format!("{base_dir}{href_path}"));
+    format!("{base_scheme}://{base_authority}{merged}{href_suffix}")
+}
+
+/// Splits `s` at its first `?` or `#`, returning `(path, "?query#fragment")`.
+fn split_suffix(s: &str) -> (&str, &str) {
+    match s.find(['?', '#']) {
+        Some(idx) => s.split_at(idx),
+        None => (s, ""),
+    }
+}
+
+/// The `?query` part of a suffix (up to any `#`), or `""` when there is none.
+fn query_part(suffix: &str) -> &str {
+    let end = suffix.find('#').unwrap_or(suffix.len());
+    let query = &suffix[..end];
+    if query.starts_with('?') {
+        query
+    } else {
+        ""
+    }
+}
+
+/// Normalises an absolute path plus its suffix (`/a/../b?q#f` -> `/b?q#f`). A tail with no
+/// path (`?q`) is returned unchanged.
+fn normalize_tail(tail: &str) -> String {
+    let (path, suffix) = split_suffix(tail);
+    let path = if path.starts_with('/') {
+        remove_dot_segments(path)
+    } else {
+        path.to_string()
+    };
+    format!("{path}{suffix}")
+}
+
+/// RFC 3986 section 5.2.4 `remove_dot_segments`, applied to a path without query or
+/// fragment.
+fn remove_dot_segments(path: &str) -> String {
+    let mut input = path.to_string();
+    let mut output = String::new();
+    while !input.is_empty() {
+        if let Some(rest) = input.strip_prefix("../") {
+            input = rest.to_string();
+        } else if let Some(rest) = input.strip_prefix("./") {
+            input = rest.to_string();
+        } else if input.starts_with("/./") {
+            input = input[2..].to_string();
+        } else if input == "/." {
+            input = "/".to_string();
+        } else if input.starts_with("/../") {
+            input = input[3..].to_string();
+            pop_last_segment(&mut output);
+        } else if input == "/.." {
+            input = "/".to_string();
+            pop_last_segment(&mut output);
+        } else if input == "." || input == ".." {
+            input.clear();
+        } else {
+            // Move the first segment (with its leading '/', if any) to the output.
+            let start = usize::from(input.starts_with('/'));
+            let end = input[start..].find('/').map_or(input.len(), |i| i + start);
+            output.push_str(&input[..end]);
+            input = input[end..].to_string();
+        }
+    }
+    output
+}
+
+/// Removes the last segment (and its preceding '/') from the output buffer.
+fn pop_last_segment(output: &mut String) {
+    match output.rfind('/') {
+        Some(idx) => output.truncate(idx),
+        None => output.clear(),
+    }
 }
 
 fn hostname_of(url: &str) -> Option<String> {
@@ -462,6 +556,97 @@ mod tests {
         assert_eq!(
             resolve_href("https://example.com/", "//cdn.example.com/a.js"),
             "https://cdn.example.com/a.js"
+        );
+    }
+
+    #[test]
+    fn resolve_href_parent_segment_removes_directory() {
+        assert_eq!(
+            resolve_href("https://example.com/blog/post", "../about"),
+            "https://example.com/about"
+        );
+    }
+
+    #[test]
+    fn resolve_href_parent_past_root_clamps_at_root() {
+        assert_eq!(
+            resolve_href("https://example.com/blog/post", "../../a"),
+            "https://example.com/a"
+        );
+        assert_eq!(
+            resolve_href("https://example.com/a/b", "../../../x"),
+            "https://example.com/x"
+        );
+    }
+
+    #[test]
+    fn resolve_href_current_directory_segment_is_dropped() {
+        assert_eq!(
+            resolve_href("https://example.com/blog/post", "./a"),
+            "https://example.com/blog/a"
+        );
+    }
+
+    #[test]
+    fn resolve_href_inner_parent_segment_collapses() {
+        assert_eq!(
+            resolve_href("https://example.com/x/y", "a/../b"),
+            "https://example.com/x/b"
+        );
+    }
+
+    #[test]
+    fn resolve_href_keeps_query_and_fragment() {
+        assert_eq!(
+            resolve_href("https://example.com/blog/post", "../a?q=1#f"),
+            "https://example.com/a?q=1#f"
+        );
+        assert_eq!(
+            resolve_href("https://example.com/blog/post", "?q#f"),
+            "https://example.com/blog/post?q#f"
+        );
+    }
+
+    #[test]
+    fn resolve_href_base_with_and_without_trailing_file() {
+        // Base with a trailing slash: the directory is the base itself.
+        assert_eq!(
+            resolve_href("https://example.com/blog/", "next"),
+            "https://example.com/blog/next"
+        );
+        // Base ending in a file name: the file is replaced.
+        assert_eq!(
+            resolve_href("https://example.com/blog/post", "next"),
+            "https://example.com/blog/next"
+        );
+        // Base with no path at all, and with no trailing slash on a single segment.
+        assert_eq!(
+            resolve_href("https://example.com", "next"),
+            "https://example.com/next"
+        );
+        assert_eq!(
+            resolve_href("https://example.com/blog", "next"),
+            "https://example.com/next"
+        );
+    }
+
+    #[test]
+    fn resolve_href_base_query_with_slash_does_not_change_directory() {
+        assert_eq!(
+            resolve_href("https://example.com/a/b?x=/y", "c"),
+            "https://example.com/a/c"
+        );
+    }
+
+    #[test]
+    fn resolve_href_absolute_path_and_scheme_relative_normalise_dots() {
+        assert_eq!(
+            resolve_href("https://example.com/x/y", "/p/../q?z#w"),
+            "https://example.com/q?z#w"
+        );
+        assert_eq!(
+            resolve_href("https://example.com/", "//cdn.example.com/a/../b.js"),
+            "https://cdn.example.com/b.js"
         );
     }
 

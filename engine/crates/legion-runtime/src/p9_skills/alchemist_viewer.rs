@@ -251,6 +251,42 @@ pub fn parse_args(argv: &[String]) -> ViewerArgs {
     ViewerArgs { port, runs_dir }
 }
 
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+/// Decodes one query component: `+` becomes a space and `%XX` becomes the byte it names.
+/// A malformed or truncated `%` escape is kept verbatim. Bytes that are not valid UTF-8 are
+/// replaced lossily.
+fn percent_decode(raw: &str) -> String {
+    let bytes = raw.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        if byte == b'+' {
+            out.push(b' ');
+            i += 1;
+            continue;
+        }
+        if byte == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (hex_value(bytes[i + 1]), hex_value(bytes[i + 2])) {
+                out.push((hi << 4) | lo);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(byte);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 fn parse_query(raw: &str) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
     for pair in raw.split('&') {
@@ -258,8 +294,8 @@ fn parse_query(raw: &str) -> std::collections::HashMap<String, String> {
             continue;
         }
         let mut it = pair.splitn(2, '=');
-        let k = it.next().unwrap_or("").to_string();
-        let v = it.next().unwrap_or("").to_string();
+        let k = percent_decode(it.next().unwrap_or(""));
+        let v = percent_decode(it.next().unwrap_or(""));
         map.insert(k, v);
     }
     map
@@ -433,6 +469,27 @@ mod tests {
         let args = parse_args(&[]);
         assert_eq!(args.port, 8790);
         assert_eq!(args.runs_dir, None);
+    }
+
+    #[test]
+    fn percent_decode_handles_plus_escapes_and_invalid_sequences() {
+        assert_eq!(percent_decode("my%20file.jsonl"), "my file.jsonl");
+        assert_eq!(percent_decode("a+b"), "a b");
+        assert_eq!(
+            percent_decode("%2Fruns%2F2026%2Fa%25b.jsonl"),
+            "/runs/2026/a%b.jsonl"
+        );
+        assert_eq!(percent_decode("100%"), "100%");
+        assert_eq!(percent_decode("%zz%4"), "%zz%4");
+        assert_eq!(percent_decode("%ff"), "\u{fffd}");
+    }
+
+    #[test]
+    fn parse_query_decodes_keys_and_values() {
+        let q = parse_query("run=my+run%20one.jsonl&na%6De=v%26w&empty");
+        assert_eq!(q.get("run").map(String::as_str), Some("my run one.jsonl"));
+        assert_eq!(q.get("name").map(String::as_str), Some("v&w"));
+        assert_eq!(q.get("empty").map(String::as_str), Some(""));
     }
 
     #[test]

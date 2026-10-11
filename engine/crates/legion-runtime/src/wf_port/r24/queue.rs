@@ -11,7 +11,7 @@
 //! bodies, since the wire format (`/events` POST body forwarded verbatim to
 //! `/poll` responses) is caller-defined JSON, not a fixed Rust struct.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -53,6 +53,26 @@ impl PendingEventEntry {
 pub struct QueueState {
     inner: Mutex<Inner>,
     next_event_seq: AtomicU64,
+    /// Server-to-browser broadcast log (JS `broadcast(msg)` over
+    /// `state.sseClients`). Each SSE connection keeps its own cursor into
+    /// this bounded log instead of holding a registered writer.
+    sse_log: Mutex<SseLog>,
+    /// Set once by the `/stop` route; long-lived handlers (SSE, long poll)
+    /// observe it and return so the server can join its connection threads.
+    shutdown: AtomicBool,
+    /// Number of agent long-polls currently parked (JS `state.pendingPolls`).
+    active_polls: AtomicUsize,
+    /// JS `state.lastAgentPollingBroadcast`.
+    last_polling_broadcast: AtomicBool,
+}
+
+/// Maximum number of broadcast messages retained for lagging SSE readers.
+const SSE_LOG_CAP: usize = 256;
+
+struct SseLog {
+    /// Sequence number of the most recently published message (0 = none).
+    last_seq: u64,
+    entries: Vec<(u64, Value)>,
 }
 
 struct Inner {
@@ -66,7 +86,90 @@ impl QueueState {
                 pending_events: Vec::new(),
             }),
             next_event_seq: AtomicU64::new(1),
+            sse_log: Mutex::new(SseLog {
+                last_seq: 0,
+                entries: Vec::new(),
+            }),
+            shutdown: AtomicBool::new(false),
+            active_polls: AtomicUsize::new(0),
+            last_polling_broadcast: AtomicBool::new(false),
         }
+    }
+
+    /// JS `broadcast(msg)`: append a message for every connected SSE client.
+    pub fn publish_sse(&self, msg: Value) {
+        let mut log = self.sse_log.lock().unwrap();
+        log.last_seq += 1;
+        let seq = log.last_seq;
+        log.entries.push((seq, msg));
+        if log.entries.len() > SSE_LOG_CAP {
+            let excess = log.entries.len() - SSE_LOG_CAP;
+            log.entries.drain(0..excess);
+        }
+    }
+
+    /// Cursor value meaning "everything published so far has been seen".
+    pub fn sse_cursor(&self) -> u64 {
+        self.sse_log.lock().unwrap().last_seq
+    }
+
+    /// Broadcast messages published after `after`, oldest first.
+    pub fn sse_messages_after(&self, after: u64) -> Vec<(u64, Value)> {
+        let log = self.sse_log.lock().unwrap();
+        log.entries
+            .iter()
+            .filter(|(seq, _)| *seq > after)
+            .cloned()
+            .collect()
+    }
+
+    pub fn request_shutdown(&self) {
+        self.shutdown.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_shutdown(&self) -> bool {
+        self.shutdown.load(Ordering::SeqCst)
+    }
+
+    /// JS `agentPollingConnected()`: a parked poll, or an event whose lease
+    /// is still live.
+    pub fn agent_polling_connected(&self) -> bool {
+        if self.active_polls.load(Ordering::SeqCst) > 0 {
+            return true;
+        }
+        let now = now_ms();
+        let inner = self.inner.lock().unwrap();
+        inner
+            .pending_events
+            .iter()
+            .any(|e| e.lease_until_ms > 0 && e.lease_until_ms > now)
+    }
+
+    /// JS `broadcastAgentPollingIfChanged()`.
+    pub fn broadcast_agent_polling_if_changed(&self) {
+        let connected = self.agent_polling_connected();
+        let previous = self
+            .last_polling_broadcast
+            .swap(connected, Ordering::SeqCst);
+        if previous != connected {
+            self.publish_sse(
+                serde_json::json!({ "type": "agent_polling", "connected": connected }),
+            );
+        }
+    }
+
+    /// Call when an agent long-poll starts waiting.
+    pub fn poll_started(&self) {
+        self.active_polls.fetch_add(1, Ordering::SeqCst);
+        self.broadcast_agent_polling_if_changed();
+    }
+
+    /// Call when an agent long-poll stops waiting (answered or timed out).
+    pub fn poll_finished(&self) {
+        let _ = self
+            .active_polls
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
+        self.broadcast_agent_polling_if_changed();
     }
 
     /// `enqueueEvent(event)`: dedupe on `(event.id, event.type)` already
@@ -295,5 +398,33 @@ mod tests {
         let found = q.find_pending_event_by_id("e1").unwrap();
         assert_eq!(found["payload"], 42);
         assert!(q.find_pending_event_by_id("nope").is_none());
+    }
+
+    #[test]
+    fn sse_log_delivers_messages_after_cursor_in_order() {
+        let q = QueueState::new();
+        q.publish_sse(json!({"type": "a"}));
+        let cursor = q.sse_cursor();
+        q.publish_sse(json!({"type": "b"}));
+        q.publish_sse(json!({"type": "c"}));
+        let msgs = q.sse_messages_after(cursor);
+        assert_eq!(msgs.len(), 2);
+        assert_eq!(msgs[0].1["type"], "b");
+        assert_eq!(msgs[1].1["type"], "c");
+        assert!(q.sse_messages_after(q.sse_cursor()).is_empty());
+    }
+
+    #[test]
+    fn agent_polling_broadcast_fires_only_on_change() {
+        let q = QueueState::new();
+        let start = q.sse_cursor();
+        q.poll_started();
+        q.poll_started();
+        q.poll_finished();
+        q.poll_finished();
+        let msgs = q.sse_messages_after(start);
+        assert_eq!(msgs.len(), 2, "one true edge and one false edge");
+        assert_eq!(msgs[0].1["connected"], true);
+        assert_eq!(msgs[1].1["connected"], false);
     }
 }

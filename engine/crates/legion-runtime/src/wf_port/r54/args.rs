@@ -169,15 +169,15 @@ Options:
   --width <px>           Viewport width. Default: 1365
   --height <px>          Viewport height. Default: 900
   --port <port>          Server port. Default: first free port from 1422.
-  --cdp-port <port>      DevTools port for action mode. Default: first free port from 9222.
+  --cdp-port <port>      NOT APPLIED. Reported as gap unavailable:cdp-port-not-supported.
   --qa-env <NAME=VALUE>  Env var for server process. Default: VITE_APP_BROWSER_QA=1
   --viewport <spec>      Preset (desktop|tablet|mobile) or WxH (e.g. 390x844). Sets width/height/DPR/mobile.
-  --slow-3g              Throttle network ~400 kbps / 400ms RTT (CDP). Reveals spinners/jank hidden on localhost.
-  --slow-4g              Throttle network ~1.6 Mbps / 150ms RTT (CDP).
+  --slow-3g              Network throttle ~400 kbps / 400ms RTT. NOT APPLIED; reported as gap network-throttle-not-applied.
+  --slow-4g              Network throttle ~1.6 Mbps / 150ms RTT. NOT APPLIED; reported as gap network-throttle-not-applied.
   --cpu-4x               Throttle CPU 4x (CDP). Shorthand for --cpu-throttle 4.
   --cpu-throttle <n>     Throttle CPU by factor n (CDP).
-  --save-session <file>  After the run, save cookies + localStorage to <file>.
-  --load-session <file>  Restore cookies + localStorage before first paint (skip re-login).
+  --save-session <file>  After the run, save localStorage to <file>. Cookies are NOT captured (cookiesCaptured: false; gap cookies-not-captured).
+  --load-session <file>  Restore localStorage (navigate, restore, reload). Cookies are NOT restored (gap cookies-not-restored).
   --keep-open            Leave server running after the run.
   --sweep                Delete abandoned browser profiles under .cache and exit.
   --help                 Show help.
