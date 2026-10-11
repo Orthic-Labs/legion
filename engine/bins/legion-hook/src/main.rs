@@ -1231,9 +1231,8 @@ fn mcp_external_side_effect(
     operation: Option<&str>,
 ) -> Option<EffectClass> {
     let tool_name = tool_name.filter(|name| is_mcp_tool(name))?;
-    if mcp_verb_is_write(tool_name) == Some(false) {
-        return None;
-    }
+    // An explicit operation in the tool input outranks the name's leading
+    // verb: `mcp__docs__query` asked to delete is still an external effect.
     operation
         .is_some_and(is_mcp_external_operation)
         .then_some(EffectClass::EXTERNAL_SIDE_EFFECT)
@@ -5227,7 +5226,7 @@ mod tests {
             assert!(!is_mcp_external_tool(tool), "{tool}");
             assert_eq!(
                 mcp_external_side_effect(Some(tool), Some("send")),
-                None,
+                Some(EffectClass::EXTERNAL_SIDE_EFFECT),
                 "{tool}"
             );
         }

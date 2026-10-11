@@ -283,9 +283,9 @@ fn verdict(id: &str, confirmed: bool) -> Value {
         json!({
             "candidateId": id,
             "verdict": "FALSE_POSITIVE",
-            "threatModel": "marker comment in a helper, not attacker reachable",
-            "reachability": "documentation only; no runtime sink is reachable",
-            "impact": "no security impact because nothing executes"
+            "threatModel": format!("{id}: marker comment in a helper, not attacker reachable"),
+            "reachability": format!("{id}: documentation only; no runtime sink is reachable"),
+            "impact": format!("{id}: no security impact because nothing executes")
         })
     }
 }
