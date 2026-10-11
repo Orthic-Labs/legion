@@ -1,7 +1,7 @@
 //! Faithful Rust port of `src/lib/research-core/*.py` (packet P2-research).
 //!
 //! Owned entirely by this packet. See
-//! `/private/tmp/.../scratchpad/loss/full-P2-research.md` for the per-file
+//! `full-P2-research.md` in a session scratch directory for the per-file
 //! port status table.
 
 pub mod citecheck;

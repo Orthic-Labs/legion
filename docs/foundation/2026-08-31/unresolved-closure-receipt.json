@@ -207,10 +207,10 @@
   },
   "cleanup": {
     "removedFiles": [
-      "D:\\Claude\\bin\\legion.exe",
-      "D:\\Claude\\bin\\legion-hook.exe",
-      "D:\\Claude\\bin\\legion-mcp.exe",
-      "D:\\Claude\\bin\\legion-hook.exe.bak-20260830"
+      "<workspace>\\bin\\legion.exe",
+      "<workspace>\\bin\\legion-hook.exe",
+      "<workspace>\\bin\\legion-mcp.exe",
+      "<workspace>\\bin\\legion-hook.exe.bak-20260830"
     ],
     "removedDirectories": [
       "%USERPROFILE%\\.claude\\plugins\\cache\\orthic-labs\\legion",

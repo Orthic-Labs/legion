@@ -99,4 +99,4 @@ are complete; all 1,036 files match each host, both actual MCP transports & nati
 full gate plus 49 focused tests & installer rollback/upgrade cases.
 [Mac qualification](https://github.com/Orthic-Labs/legion/actions/runs/37333624477) passes 141
 focused tests & mixed-client installation. [Current installed evidence](plans/legion-installed-readback-2026-10-05.json)
-records exact platform identities. iOS chat resumed HeardRight device/app work.
+records exact platform identities. iOS chat resumed device/app work for an internal app.

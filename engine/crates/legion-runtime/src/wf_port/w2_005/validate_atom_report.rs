@@ -114,7 +114,7 @@ const FORBIDDEN_EVIDENCE: &[&str] = &[
     "target/debug/",
     "target/release/",
     "deriveddata/",
-    "heardright-recording-lifecycle-review/",
+    "example-app-recording-lifecycle-review/",
 ];
 
 const BOILERPLATE: &[&str] = &[

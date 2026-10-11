@@ -1499,7 +1499,7 @@ fn chrono_ish_now_iso8601() -> String {
 
 /// Stands in for the dynamically `import()`-ed `detect-antipatterns.mjs`
 /// module. Real wiring supplies a production impl backed by
-/// `heardright`-style detector logic; tests supply a fake, per the packet
+/// `example-app`-style detector logic; tests supply a fake, per the packet
 /// brief's "I/O behind a trait, tested with fakes" rule.
 pub trait Detector {
     fn detect_text(

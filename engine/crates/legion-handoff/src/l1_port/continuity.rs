@@ -5,7 +5,7 @@
 //! asks a model to interpret it, or treats system/tool/runtime material as a
 //! user obligation.  The source prefix is verified before rows are adapted.
 
-// Adapted from CodeRight Membrane Transcript at commit
+// Adapted from an internal membrane transcript module at commit
 // 543859ccba421e88e144d961a20bb3c21aad3e0a: adapters, classifier, redaction,
 // evidence, and event contracts under context/engine/crates/membrane-transcript/src.
 use regex::Regex;

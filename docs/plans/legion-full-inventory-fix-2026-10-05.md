@@ -34,7 +34,7 @@ install needed no manual uninstall, timeout override or installed-file edits.
 
 Windows Legion checkout HEAD & dirty status are unchanged. Parent workspace HEAD is unchanged;
 its dirty count changed from 3 to 7 during concurrent work. Installer performed no Git mutations.
-iOS chat received installed identity & resumed HeardRight device/app work under its existing scope.
+iOS chat received installed identity & resumed device/app work for an internal app under its existing scope.
 Remaining inventory defects below stay open, including seven async dispatch panics, standalone
 MCP binary & narrower release hardening findings.
 

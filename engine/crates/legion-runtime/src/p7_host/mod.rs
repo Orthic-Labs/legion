@@ -2,9 +2,8 @@
 //! pr,goalroute,metrics,minimize,lenses,coverage,content,design}/**, and
 //! src/lib/{host-projection,open-for-review,auto-jury,design-gate}.mjs.
 //!
-//! See /private/tmp/claude-501/-Volumes-D-claude-heardright/
-//! 27c99660-46fe-472a-bd29-43596bb3bc77/scratchpad/loss/full-P7.md for the
-//! per-file port status table. `goalroute/` and `minimize/` under src/lib
+//! See the per-file port status table in a session scratch directory
+//! (`full-P7.md`). `goalroute/` and `minimize/` under src/lib
 //! contain no .mjs files (nothing to port). This module currently covers:
 //! capabilities/, content/, design/, policy/, pr/, metrics/, lenses/ (routing
 //! lens-record validation only), coverage/ (evidence + registry validation),

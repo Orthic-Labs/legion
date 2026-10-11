@@ -105,7 +105,7 @@
       "required": ["repairCount", "recheckCount"],
       "properties": {
         "repairCount": { "type": "integer", "minimum": 0, "maximum": 1, "description": "Doctrine caps Completion Validation at one repair attempt." },
-        "recheckCount": { "type": "integer", "minimum": 0, "maximum": 1, "description": "Doctrine caps Completion Validation at one recheck. A second BLOCK escalates to Adrian rather than issuing a further recheck." },
+        "recheckCount": { "type": "integer", "minimum": 0, "maximum": 1, "description": "Doctrine caps Completion Validation at one recheck. A second BLOCK escalates to the operator rather than issuing a further recheck." },
         "escalated": { "type": "boolean", "description": "True once the one-repair-one-recheck cap is exhausted and the second BLOCK has been escalated." }
       }
     },

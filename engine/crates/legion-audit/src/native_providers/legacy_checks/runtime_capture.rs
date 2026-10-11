@@ -10,9 +10,20 @@
 //! exceptions seen during the load.
 //!
 //! What is captured is a strict subset of the historical tool: load, viewport
-//! screenshot and console output. Per-keystroke performance and accessibility
-//! sweeps are not captured, so every result carries the standing
-//! `runtime-lens-not-captured:*` gaps and is never complete.
+//! screenshot and console output. The performance and accessibility lenses are
+//! not captured, each for a named, checkable reason (see `LENSES_NOT_CAPTURED`),
+//! so every result carries the standing
+//! `runtime-lens-not-captured:<lens>:<reason>` gaps and is never complete:
+//!
+//! - performance: the route's `eval` action checks only `ok` and discards the
+//!   value, so no page-side metric can leave the page. Wiring it needs the
+//!   route to report eval values (`legion-runtime`, `wf_port/r54/actions.rs`).
+//!   `wf_port::wf064::runtime::ChromeRuntimeDriver` is deliberately not used:
+//!   it holds an in-process browser outside the process-receipt path, types
+//!   and clicks into the audited app, and injects its instrumentation before
+//!   navigation, where it does not survive.
+//! - a11y: axe-core is not vendored anywhere in this repository (the historical
+//!   tool only ran axe when the target project had it installed).
 //!
 //! Inputs (`--url`, `--surfaces`, `--width`, `--height`) arrive through the
 //! provider's frozen `runner.runtime` object, so they are covered by the plan
@@ -42,8 +53,13 @@ use crate::{error::AuditError, native_providers::availability, plan::AuditProvid
 /// Reason reported when the operator supplied no `--url`.
 pub(super) const UNAVAILABLE_URL: &str = "runtime-url-not-supplied";
 
-/// Lenses the historical tool covered that this capture does not.
-const LENSES_NOT_CAPTURED: [&str; 2] = ["performance", "a11y"];
+/// Lenses the historical tool covered that this capture does not, each with
+/// the exact missing dependency. A reason is removed only together with the
+/// capture it stands for.
+const LENSES_NOT_CAPTURED: [(&str, &str); 2] = [
+    ("performance", "qa-eval-result-not-reported"),
+    ("a11y", "axe-core-not-shipped"),
+];
 
 const MAX_EXTRA_SURFACES: usize = 32;
 const MAX_DIMENSION: u64 = 16_384;
@@ -768,8 +784,8 @@ fn assemble(
             ));
         }
     }
-    for lens in LENSES_NOT_CAPTURED {
-        gaps.push(format!("runtime-lens-not-captured:{lens}"));
+    for (lens, reason) in LENSES_NOT_CAPTURED {
+        gaps.push(format!("runtime-lens-not-captured:{lens}:{reason}"));
     }
     let unavailable_reason = if captured == 0 {
         outcomes
@@ -824,7 +840,8 @@ fn assemble(
             "incomplete": true,
             "surfaces": surfaces_json,
             "unsupportedSurfaces": params.unsupported,
-            "lensesNotCaptured": LENSES_NOT_CAPTURED,
+            "lensesNotCaptured": LENSES_NOT_CAPTURED.iter().map(|(lens, _)| *lens).collect::<Vec<_>>(),
+            "lensGaps": LENSES_NOT_CAPTURED.iter().map(|(lens, reason)| format!("runtime-lens-not-captured:{lens}:{reason}")).collect::<Vec<_>>(),
             "denominator": {
                 "kind": "runtime-surfaces",
                 "expected": expected_surfaces + params.unsupported.len(),

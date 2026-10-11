@@ -3,8 +3,7 @@
 //!
 //! Additive only: the JS remains the source of truth until CI parity is
 //! proven and a later packet deletes it. See the wf067 report at
-//! `/private/tmp/claude-501/-Volumes-D-claude-heardright/27c99660-46fe-472a-bd29-43596bb3bc77/scratchpad/loss/wf/wf067.md`
-//! for per-file status and the dependency patch this module would like once
+//! `wf/wf067.md` in a session scratch directory for per-file status and the dependency patch this module would like once
 //! wired in.
 //!
 //! NOTE for the integration owner: not yet wired into the crate root. Add

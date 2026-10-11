@@ -695,8 +695,10 @@ fn plan_followup(run: &std::path::Path) -> Value {
             "confirmedPaths": planned.confirmed_paths,
             "seeds": planned.seeds,
             "provider": planned.provider,
-            "packet": planned.packet,
-            "packetDigest": planned.packet_digest,
+            "packet": planned.packets.first(),
+            "packets": planned.packets,
+            "packetDigest": planned.packet_digests.first(),
+            "packetDigests": planned.packet_digests,
             "next": format!(
                 "run the variant-analysis lens packet, then: legion audit ingest --run {} --followup --provider {} --result <file>",
                 run.display(),

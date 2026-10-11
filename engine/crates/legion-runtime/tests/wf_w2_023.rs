@@ -39,7 +39,7 @@ fn hash_unit_matches_node_reference_values() {
         ("abc", 0.728394910460338),
         ("hello-world", 0.6860730210319161),
         ("seed-test-key", 0.8347157356329262),
-        ("damnedventures@gmail.com", 0.8793692302424461),
+        ("user@example.com", 0.7062017044518143),
     ];
     for (key, expected) in cases {
         let got = hash_unit(key);

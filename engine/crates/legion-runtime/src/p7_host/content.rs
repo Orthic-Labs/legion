@@ -485,7 +485,7 @@ mod tests {
         let lock = create_text_lock(
             "c1",
             "hello",
-            "adrian",
+            "operator",
             "approved",
             "2026-01-01",
             None,

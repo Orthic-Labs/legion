@@ -276,11 +276,22 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
     assert_valid_not_rejected(result);
     assert!(!result.complete, "performance and a11y are not captured");
     assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
-    for lens in ["performance", "a11y"] {
-        assert!(result
-            .coverage_gaps
-            .contains(&format!("runtime-lens-not-captured:{lens}")));
+    for gap in [
+        "runtime-lens-not-captured:performance:qa-eval-result-not-reported",
+        "runtime-lens-not-captured:a11y:axe-core-not-shipped",
+    ] {
+        assert!(
+            result.coverage_gaps.contains(&gap.to_owned()),
+            "missing named lens gap {gap}"
+        );
     }
+    // The bare, reasonless gap names are gone: every lens gap names its
+    // missing dependency.
+    assert!(!result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "runtime-lens-not-captured:performance"
+            || gap == "runtime-lens-not-captured:a11y"));
     assert_eq!(run.calls.len(), 2, "one invocation per surface");
 
     // The request is the running executable's own browser route, argv-only,

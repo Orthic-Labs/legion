@@ -6,9 +6,8 @@
 //! security-chain-adjudication,untrusted-evidence-envelope}.mjs,
 //! src/packages/kernel, src/packages/context (Membrane/Blueprint dropped).
 //!
-//! See /private/tmp/claude-501/-Volumes-D-claude-heardright/
-//! 27c99660-46fe-472a-bd29-43596bb3bc77/scratchpad/loss/full-P5-runtime-core.md
-//! for the per-file port status table; this module currently covers only the
+//! See the per-file port status table in a session scratch directory
+//! (`full-P5-runtime-core.md`); this module currently covers only the
 //! files ported so far (denominators, exit taxonomy). The remainder of the
 //! packet is unstarted — see the report for the exact remaining file list.
 

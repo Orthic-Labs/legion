@@ -101,7 +101,7 @@ Before validation or transfer, create permanent packet under:
 
 - existing project handoff directory, when declared by project rules; else
 - `<project>/tasks/handoffs/<YYYY-MM-DD>/<handoff-id>.md`; or
-- `<studio-workspace-root>/tasks/handoffs/<YYYY-MM-DD>/<handoff-id>.md` for cross-project studio work.
+- the workspace-level handoff directory, for cross-project work.
 
 Receipt lives beside packet as `<handoff-id>.receipt.json`. Never use OS Temp, `.cache`, `.council-runs`, scratch, or disposable validation path as canonical artifact. Include packet + receipt in scoped commit when task operates in tracked repo & packet has no sensitive content. Inline transfer is exact copy of canonical packet, never source.
 

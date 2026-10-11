@@ -1,7 +1,7 @@
 //! Integration tests for packet P5-runtime-core's first ported slice.
 //! Requires the lib.rs patch in the packet report (`pub mod p5_core;`) to be
 //! applied before this compiles — see
-//! scratchpad/loss/full-P5-runtime-core.md.
+//! `full-P5-runtime-core.md` in a session scratch directory.
 
 use legion_runtime::p5_core::{exit_code_for_report, reconcile_denominator, Exit, ExitReport};
 
