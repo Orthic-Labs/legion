@@ -269,10 +269,10 @@ impl ProviderExecutor for ProviderExecutorAdapter {
     ) -> Result<ProviderResult, AuditError> {
         let input = self.input(provider, inventory);
         // Providers whose analysis needs a host-supplied artifact that nothing
-        // in the ordinary composition produces.
+        // in the ordinary composition produces. The visual provider reports its
+        // own typed unavailability (`visual::SPEC_NOT_SUPPLIED`) instead.
         let missing_artifact = match provider.id.as_str() {
             "governance.policy" => self.artifacts.get("policies").is_none(),
-            "legacy.visual.core" => self.artifacts.get("visualSpec").is_none(),
             _ => false,
         };
         let mut result = match provider.id.as_str() {
@@ -284,7 +284,16 @@ impl ProviderExecutor for ProviderExecutorAdapter {
             "legacy.infrastructure.internal-suite" => {
                 super::candidate_suites::execute_infrastructure(&input)
             }
-            "legacy.visual.core" => super::visual::execute(&input),
+            "legacy.visual.core" => {
+                // Frozen `runner.visual` inputs overlay the host artifacts so the
+                // sealed plan, not ambient state, decides what is compared.
+                let artifacts = super::visual::frozen_artifacts(&self.artifacts, provider);
+                let visual_input = ProviderInput {
+                    artifacts: &artifacts,
+                    ..input.clone()
+                };
+                super::visual::execute(&visual_input)
+            }
             _ => Err(AuditError::Provider(format!(
                 "unsupported native legacy provider {}",
                 provider.id

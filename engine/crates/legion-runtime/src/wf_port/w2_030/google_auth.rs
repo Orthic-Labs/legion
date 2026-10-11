@@ -11,14 +11,20 @@
 //! through [`BrowserOpener`], both fakeable in tests), and the CLI dispatch in `main()` (see
 //! [`run`]).
 //!
+//! Service-account credentials: the python `service_account.Credentials` object is ported as the
+//! RFC 7523 JWT-bearer flow Google documents for service accounts. [`service_account_assertion`]
+//! signs an RS256 JWT (`iss`/`scope`/`aud`/`iat`/`exp`, `kid` from `private_key_id`) with the
+//! key from the service-account JSON, [`exchange_assertion`] POSTs it to the token endpoint
+//! through the same [`TokenHttpClient`] used by the OAuth code exchange, and
+//! [`verify_service_accounts`] runs that exchange per `oauth_or_sa` service with the scopes the
+//! python script requested for that API. A service-account file is reported `available` only
+//! after a successful exchange; `present-unverified` means no exchange was attempted (a
+//! status/dry run with no transport), and `rejected:<reason>` is a failed exchange. Errors are
+//! redacted so neither the private key nor the assertion nor an access token is ever printed.
+//!
 //! Documented frontier: `build_service()` / `get_oauth_credentials()`'s construction of a live
-//! `googleapiclient` service object, and `get_service_account_credentials()`'s JWT-signing
-//! `service_account.Credentials` object. Both are owned entirely by the python `google-auth` /
-//! `google-api-python-client` libraries — the shipped script itself performs no JWT signing or
-//! HTTP call at that point, only the file-existence/field checks ported in
-//! [`resolve_service_account`]. There is no Rust equivalent to port since nothing here signs a
-//! JWT; if a future packet needs to actually call a Google API with service-account credentials,
-//! that would need `jsonwebtoken` (not yet a dependency) for the RS256 JWT-bearer assertion.
+//! `googleapiclient` service object is still owned by the python libraries; the Rust side stops
+//! at a verified token and the per-API request code in the sibling modules.
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -57,6 +63,8 @@ pub const OAUTH_SCOPES: &str = "https://www.googleapis.com/auth/indexing \
 https://www.googleapis.com/auth/webmasters \
 https://www.googleapis.com/auth/analytics.readonly";
 pub const OAUTH_REDIRECT_URI: &str = "http://localhost:8085";
+/// The `oauth_or_sa` services; tier and default reports verify the service account for each.
+pub const OAUTH_BACKED_SERVICES: &[&str] = &["gsc", "indexing", "ga4"];
 
 pub const CONFIG_PATH_SUFFIX: &str = ".config/claude-seo/google-api.json";
 pub const TOKEN_PATH_SUFFIX: &str = ".config/claude-seo/oauth-token.json";
@@ -207,6 +215,19 @@ pub struct CredentialState {
     pub oauth_token_expired_refreshable: bool,
     pub service_account: Option<ServiceAccountState>,
     pub ga4_property_id: Option<String>,
+    /// Outcome of the service-account JWT-bearer exchange, keyed by service name, for each
+    /// service whose exchange was attempted. A missing entry means no exchange was attempted, so
+    /// the service-account file is only `present-unverified`.
+    pub service_account_verification: BTreeMap<String, ServiceAccountVerification>,
+}
+
+/// Result of one service-account token exchange (see [`verify_service_accounts`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ServiceAccountVerification {
+    /// The token endpoint issued an access token for the service's scopes.
+    Verified,
+    /// The exchange failed; the reason is already redacted.
+    Rejected(String),
 }
 
 #[derive(Debug, Clone)]
@@ -283,14 +304,26 @@ pub fn check_credentials(
                                     .to_string(),
                             );
                         } else {
-                            // The file exists with the required fields, but no token is minted
-                            // here, so the key is not verified against Google. Report it as
-                            // present-unverified rather than available.
                             result.method = "service_account".to_string();
                             result.client_email = sa.client_email.clone();
-                            result.note = Some(
-                                "present-unverified: service account file found with required fields; key not verified against Google".to_string(),
-                            );
+                            match state.service_account_verification.get(service) {
+                                // No exchange attempted (status/dry mode): not verified.
+                                None => {
+                                    result.note = Some(
+                                        "present-unverified: service account file found with required fields; no token exchange was attempted".to_string(),
+                                    );
+                                }
+                                Some(ServiceAccountVerification::Verified) => {
+                                    result.available = true;
+                                    result.note = Some(
+                                        "verified: service account token exchange succeeded"
+                                            .to_string(),
+                                    );
+                                }
+                                Some(ServiceAccountVerification::Rejected(reason)) => {
+                                    result.error = Some(format!("rejected:{reason}"));
+                                }
+                            }
                         }
                     }
                 }
@@ -338,17 +371,13 @@ pub struct TierInfo {
 pub fn detect_tier(cfg: &GoogleApiConfig, state: &CredentialState) -> TierInfo {
     let has_api_key = cfg.api_key.as_deref().is_some_and(|s| !s.is_empty());
 
-    let mut has_authenticated = false;
-    if state.oauth_token_usable.is_some() {
-        has_authenticated = true;
-    }
-    if !has_authenticated {
-        if let Some(sa) = &state.service_account {
-            if sa.exists && sa.has_required_fields {
-                has_authenticated = true;
-            }
-        }
-    }
+    // A service account only counts as authentication once a token exchange verified it;
+    // a file that is merely present with its fields is not enough.
+    let service_account_verified = state
+        .service_account_verification
+        .values()
+        .any(|v| *v == ServiceAccountVerification::Verified);
+    let has_authenticated = state.oauth_token_usable.is_some() || service_account_verified;
 
     let has_ga4 = has_authenticated
         && cfg
@@ -549,7 +578,251 @@ pub fn resolve_credential_state(cfg: &GoogleApiConfig) -> CredentialState {
         oauth_token_expired_refreshable,
         service_account,
         ga4_property_id: cfg.ga4_property_id.clone(),
+        service_account_verification: BTreeMap::new(),
     }
+}
+
+/// Same as [`resolve_credential_state`], followed by the service-account token exchange for
+/// `services` when a transport is supplied. With `None` (status/dry mode) nothing is sent and the
+/// service-account file stays `present-unverified`.
+pub fn resolve_verified_credential_state(
+    cfg: &GoogleApiConfig,
+    http: Option<&dyn TokenHttpClient>,
+    services: &[&str],
+    now_unix: u64,
+) -> CredentialState {
+    let mut state = resolve_credential_state(cfg);
+    if let Some(http) = http {
+        verify_service_accounts(&mut state, http, services, now_unix);
+    }
+    state
+}
+
+/// The OAuth scopes the python script requested for each service-account-backed API.
+pub fn service_account_scopes(service: &str) -> Option<&'static [&'static str]> {
+    match service {
+        "gsc" => Some(&["https://www.googleapis.com/auth/webmasters.readonly"][..]),
+        "indexing" => Some(&["https://www.googleapis.com/auth/indexing"][..]),
+        "ga4" => Some(&["https://www.googleapis.com/auth/analytics.readonly"][..]),
+        _ => None,
+    }
+}
+
+/// Runs the JWT-bearer exchange for each named `oauth_or_sa` service that would actually use the
+/// service-account file (no usable OAuth token on disk, file present with its required fields),
+/// recording one [`ServiceAccountVerification`] per service. Each service exchanges with only its
+/// own scopes.
+pub fn verify_service_accounts(
+    state: &mut CredentialState,
+    http: &dyn TokenHttpClient,
+    services: &[&str],
+    now_unix: u64,
+) {
+    let path = match &state.service_account {
+        Some(sa) if sa.exists && sa.has_required_fields && state.oauth_token_usable.is_none() => {
+            sa.path.clone()
+        }
+        _ => return,
+    };
+    verify_with_key_source(state, http, services, now_unix, &|| {
+        load_service_account_key(&path)
+    });
+}
+
+/// Core of [`verify_service_accounts`], with the key source injected so tests need no file.
+fn verify_with_key_source(
+    state: &mut CredentialState,
+    http: &dyn TokenHttpClient,
+    services: &[&str],
+    now_unix: u64,
+    load_key: &dyn Fn() -> Result<ServiceAccountKey, String>,
+) {
+    for service in services {
+        if service_auth(service) != Some("oauth_or_sa") {
+            continue;
+        }
+        let Some(scopes) = service_account_scopes(service) else {
+            continue;
+        };
+        let outcome =
+            match load_key().and_then(|key| exchange_assertion(http, &key, scopes, now_unix)) {
+                Ok(_) => ServiceAccountVerification::Verified,
+                Err(reason) => ServiceAccountVerification::Rejected(reason),
+            };
+        state
+            .service_account_verification
+            .insert((*service).to_string(), outcome);
+    }
+}
+
+/// `token_uri` default used when the service-account JSON omits it.
+pub const SERVICE_ACCOUNT_TOKEN_URI: &str = "https://oauth2.googleapis.com/token";
+/// RFC 7523 grant type Google's service-account flow uses.
+pub const JWT_BEARER_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:jwt-bearer";
+
+/// The fields of a service-account key file that the JWT-bearer flow needs. Deliberately not
+/// `Debug`, so the private key cannot leak through a debug print.
+pub struct ServiceAccountKey {
+    pub client_email: String,
+    pub private_key: String,
+    pub private_key_id: Option<String>,
+    pub token_uri: String,
+}
+
+/// A token issued by the token endpoint. Deliberately not `Debug`: it must never be printed.
+pub struct ServiceAccountToken {
+    pub access_token: String,
+    pub expires_in: u64,
+    pub token_type: String,
+}
+
+/// Parses the service-account JSON object (`client_email`, `private_key` required).
+pub fn parse_service_account_key(doc: &Value) -> Result<ServiceAccountKey, String> {
+    let obj = doc
+        .as_object()
+        .ok_or_else(|| "service account JSON is not an object".to_string())?;
+    let non_empty = |key: &str| -> Option<String> {
+        obj.get(key)
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    };
+    let client_email = non_empty("client_email")
+        .ok_or_else(|| "service account JSON missing client_email".to_string())?;
+    let private_key = non_empty("private_key")
+        .ok_or_else(|| "service account JSON missing private_key".to_string())?;
+    Ok(ServiceAccountKey {
+        client_email,
+        private_key,
+        private_key_id: non_empty("private_key_id"),
+        token_uri: non_empty("token_uri").unwrap_or_else(|| SERVICE_ACCOUNT_TOKEN_URI.to_string()),
+    })
+}
+
+/// Reads and parses the service-account key file at `path` (`~/` expanded). Errors name the
+/// file but never its contents.
+pub fn load_service_account_key(path: &str) -> Result<ServiceAccountKey, String> {
+    let expanded = expand_home(path);
+    let text = std::fs::read_to_string(&expanded)
+        .map_err(|_| format!("service account file unreadable: {expanded}"))?;
+    let doc: Value = serde_json::from_str(&text)
+        .map_err(|_| "service account file is not valid JSON".to_string())?;
+    parse_service_account_key(&doc)
+}
+
+/// Signs the RS256 JWT-bearer assertion Google documents for service accounts: header
+/// `{alg: RS256, typ: JWT, kid}` and claims `{iss, scope, aud, iat, exp: iat + 3600}`. The clock
+/// is injected through `now_unix`, so the output is deterministic for a given key and time.
+pub fn service_account_assertion(
+    sa: &ServiceAccountKey,
+    scopes: &[&str],
+    now_unix: u64,
+) -> Result<String, String> {
+    let key = jsonwebtoken::EncodingKey::from_rsa_pem(sa.private_key.as_bytes())
+        .map_err(|_| "service account private_key is not a valid RSA PEM".to_string())?;
+    let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+    header.typ = Some("JWT".to_string());
+    header.kid = sa.private_key_id.clone();
+    let claims = serde_json::json!({
+        "iss": sa.client_email,
+        "scope": scopes.join(" "),
+        "aud": sa.token_uri,
+        "iat": now_unix,
+        "exp": now_unix + 3600,
+    });
+    jsonwebtoken::encode(&header, &claims, &key)
+        .map_err(|_| "could not sign service account assertion".to_string())
+}
+
+/// Replaces every occurrence of a secret in `message` with `[redacted]`.
+fn redact(message: &str, secrets: &[&str]) -> String {
+    let mut out = message.to_string();
+    for secret in secrets {
+        if !secret.is_empty() {
+            out = out.replace(*secret, "[redacted]");
+        }
+    }
+    out
+}
+
+/// Exchanges a signed assertion for an access token at the key's `token_uri` (RFC 7523 POST
+/// `grant_type` + `assertion`) through the shared [`TokenHttpClient`]. Any non-2xx response, or
+/// a 2xx without `access_token`, is an error carrying Google's `error` / `error_description`.
+/// All error text is redacted of the key, its lines, and the assertion.
+pub fn exchange_assertion(
+    http: &dyn TokenHttpClient,
+    sa: &ServiceAccountKey,
+    scopes: &[&str],
+    now_unix: u64,
+) -> Result<ServiceAccountToken, String> {
+    let assertion = service_account_assertion(sa, scopes, now_unix)?;
+    let mut secrets: Vec<&str> = vec![assertion.as_str(), sa.private_key.as_str()];
+    for line in sa.private_key.lines() {
+        let trimmed = line.trim();
+        if trimmed.len() >= 16 && !trimmed.starts_with("-----") {
+            secrets.push(trimmed);
+        }
+    }
+    let fail = |message: String| redact(&message, &secrets);
+
+    if !validate_url(&sa.token_uri) {
+        return Err(fail(
+            "service account token_uri is not a permitted public URL".to_string(),
+        ));
+    }
+    let (status, body) = http
+        .post_form_status(
+            &sa.token_uri,
+            &[
+                ("grant_type", JWT_BEARER_GRANT_TYPE),
+                ("assertion", assertion.as_str()),
+            ],
+        )
+        .map_err(|e| fail(format!("token request failed: {e}")))?;
+
+    let google_error = body.get("error").and_then(Value::as_str).unwrap_or("");
+    let description = body
+        .get("error_description")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if !(200..300).contains(&status) {
+        let detail = if google_error.is_empty() && description.is_empty() {
+            "no error details".to_string()
+        } else {
+            format!("error: {google_error}; error_description: {description}")
+        };
+        return Err(fail(format!(
+            "token endpoint returned HTTP {status} ({detail})"
+        )));
+    }
+    let access_token = match body.get("access_token").and_then(Value::as_str) {
+        Some(token) if !token.is_empty() => token.to_string(),
+        _ => {
+            return Err(fail(format!(
+                "token endpoint response has no access_token (error: {google_error}; error_description: {description})"
+            )))
+        }
+    };
+    Ok(ServiceAccountToken {
+        access_token,
+        expires_in: body
+            .get("expires_in")
+            .and_then(Value::as_u64)
+            .unwrap_or(3600),
+        token_type: body
+            .get("token_type")
+            .and_then(Value::as_str)
+            .unwrap_or("Bearer")
+            .to_string(),
+    })
+}
+
+/// Whole seconds since the Unix epoch, for the JWT clock.
+pub fn now_unix_whole_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 /// An OAuth client, loaded from a `client_secret.json` file (`web` or `installed` section).
@@ -663,6 +936,14 @@ pub fn extract_auth_code(request_path: &str) -> Option<String> {
 /// the Google token endpoint, so tests never touch the network.
 pub trait TokenHttpClient {
     fn post_form(&self, url: &str, params: &[(&str, &str)]) -> Result<Value, String>;
+
+    /// Like [`TokenHttpClient::post_form`], but also returns the HTTP status code. The service-
+    /// account exchange needs it to reject non-2xx responses. The default reports 200 for
+    /// transports that cannot observe a status; [`ReqwestTokenClient`] overrides it with the real
+    /// status.
+    fn post_form_status(&self, url: &str, params: &[(&str, &str)]) -> Result<(u16, Value), String> {
+        self.post_form(url, params).map(|body| (200, body))
+    }
 }
 
 /// Real `reqwest`-backed [`TokenHttpClient`].
@@ -670,13 +951,19 @@ pub struct ReqwestTokenClient;
 
 impl TokenHttpClient for ReqwestTokenClient {
     fn post_form(&self, url: &str, params: &[(&str, &str)]) -> Result<Value, String> {
+        self.post_form_status(url, params).map(|(_, body)| body)
+    }
+
+    fn post_form_status(&self, url: &str, params: &[(&str, &str)]) -> Result<(u16, Value), String> {
         let client = reqwest::blocking::Client::new();
         let resp = client
             .post(url)
             .form(params)
             .send()
             .map_err(|e| e.to_string())?;
-        resp.json::<Value>().map_err(|e| e.to_string())
+        let status = resp.status().as_u16();
+        let body = resp.json::<Value>().map_err(|e| e.to_string())?;
+        Ok((status, body))
     }
 }
 
@@ -1103,7 +1390,12 @@ pub fn run_with_io(
 
     if tier {
         let cfg = load_config();
-        let state = resolve_credential_state(&cfg);
+        let state = resolve_verified_credential_state(
+            &cfg,
+            Some(http),
+            OAUTH_BACKED_SERVICES,
+            now_unix_whole_secs(),
+        );
         let info = detect_tier(&cfg, &state);
         if json {
             let _ = writeln!(
@@ -1119,7 +1411,6 @@ pub fn run_with_io(
 
     if let Some(svc) = check {
         let cfg = load_config();
-        let state = resolve_credential_state(&cfg);
         let services: Vec<String> = if svc == "all" {
             ["psi", "crux", "crux_history", "gsc", "indexing", "ga4"]
                 .iter()
@@ -1128,6 +1419,13 @@ pub fn run_with_io(
         } else {
             vec![svc]
         };
+        let service_refs: Vec<&str> = services.iter().map(String::as_str).collect();
+        let state = resolve_verified_credential_state(
+            &cfg,
+            Some(http),
+            &service_refs,
+            now_unix_whole_secs(),
+        );
         let results: Vec<(String, CredentialCheck)> = services
             .iter()
             .map(|s| (s.clone(), check_credentials(s, &cfg, &state)))
@@ -1153,7 +1451,12 @@ pub fn run_with_io(
 
     // Default: show tier (no --check/--setup/--tier/--auth/--exchange given).
     let cfg = load_config();
-    let state = resolve_credential_state(&cfg);
+    let state = resolve_verified_credential_state(
+        &cfg,
+        Some(http),
+        OAUTH_BACKED_SERVICES,
+        now_unix_whole_secs(),
+    );
     let info = detect_tier(&cfg, &state);
     if json {
         let _ = writeln!(
@@ -1345,5 +1648,418 @@ mod tests {
         let state = CredentialState::default();
         let result = check_credentials("bogus", &cfg, &state);
         assert_eq!(result.error.as_deref(), Some("Unknown service: bogus"));
+    }
+
+    // TEST FIXTURE ONLY. A 2048-bit RSA key pair generated for these unit tests with
+    // `openssl genrsa` / `openssl rsa -pubout`. It is not a credential and guards nothing.
+    const TEST_FIXTURE_PRIVATE_KEY_PEM: &str = r#"-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCo9DnVFU/vo5Io
+J6UrsGmP2w3Jxll29O+nUIFa9pN5quPHdjr/AaSamKCsBpy7YfVYnjuWtTf0ln8j
+j3fufY+Iw/s/6hSwDddcXKPFdCHi+J7r0QcCsAI4VyxbvHCYXwTIPg0Iuvg+usPy
+gCu5VWf7wD/UTjF2WHjFmeIOwz1iML6Knw4sqGP7/pU3f8AkbtMbpxCEVAgtw0o/
+M2JND+g7naLrOhHEh43chXVMzKja/HG/h5DMg8TNSSWUPBENu8px2YjvQP2tw320
+SsEdi2BBjtCLMLXiF3wRf4Lv75PimVilWysZ28CmXtmrU7iTzakR4aRDMoM069+K
+OR2SasqtAgMBAAECggEAUSHOb7unQi1rLysyjtNNLc6ERYOhTJV8S/1F0NedpAxj
+C1KELBau46otZc5bD0SQG7kIZmupbiOi9AGeFwFmnsd17JBM1Oogo/K8lkIZT7QS
+JK2gzzKULlf2LitEancehcX+XlXihcUL+XSBCqOvpl4AiMPvzqPXgxRNUMeCv5Ze
+l6ULLNjhPywYWuMIVJWR/YMPP5kiaSWsYy0zXcoFTPKmQJ/ltkwjSIhPLJsKCJ0H
+Z5M7d4clB/BMbjGTeC/eF11GCTukjInPDFaftjnjpQIoFpf+492ERYnSJZl9IX4z
+fgaN9ak5jdbWtncVxwEe6iAfPu01MxLXhVV497GuRQKBgQDdbWsSAbXLAO7iYgbu
+E4RzupCR6xDU3Z6qr7/qDUqDlIl57w6BbQYMQ4rv1u9vG+VOzWonJhoFmWL22D+y
+CDYmXBPLlvW0jUagEl1pmYK8qU0/g7mYK5kkKEbCm7Ym8bByvKTJj3vLzRzPqcuC
+K83OVvjY2Nulto8/5UjcZ+QeKwKBgQDDVWpM5Slbq7cDIzXABM/uTSAem0bYOI9/
+bi81fVRhVYPJr/1XTSK6DbIBQGLrJ2wwvrt9VEx5eS2CwFRfZc6a29HIlSaTmLZd
+Evl8eM2kCOuRbgYoJojRyhUJDk+9mDFHW7FctwxAPx9uOGBX75HDW5bcdOsn1yQf
+9tQKsC2mhwKBgQC+CUhZPep9/aEH3cXA0jNc94NYGHxrlIC2UPvOrfWDlBmg8pBq
+d9027Ujyqm731uMojJdMXiD7KTeMTu/rpayDo4bBth/OA2nXu6s8FCnmLQ9FMZI5
+jUFzjLWeE/Fy3v7mmgx7iI9gy/qsJzen0lxheLc9tHBeep3a4rdzoh5f3QKBgQC6
+mQgZOPlPVzRXTPV136L61LaQRmlg+HcsloeGo5lN+jERJIvxMACyl46qX2WfmmNi
+FXJqAXOkvzvYof53u3uot8EpykG10ba0JwIqBAT+ZH8UyHQdOuKM9m0t33wRdCfv
+MQq3tS2A2kweMMDogDVQ2Fe/dfmGb6FU36gkJbUWVQKBgHu+lAyBLFMVmas1L24N
+QsGx3zekVyIBwBfpFNN9n7mrClGSSuogM5NZv162EecdssgnRNlv8Mrg0g4Hblhl
+/1frgfdruHFKi9u9xYf0qCDZHuZv1PNckOOEbSni7J/5MW02LVHwHotyXjk2vVCj
+5fkAD6MjtsxMbA+bGWXjpOYC
+-----END PRIVATE KEY-----
+"#;
+
+    // TEST FIXTURE ONLY: public half of TEST_FIXTURE_PRIVATE_KEY_PEM.
+    const TEST_FIXTURE_PUBLIC_KEY_PEM: &str = r#"-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqPQ51RVP76OSKCelK7Bp
+j9sNycZZdvTvp1CBWvaTearjx3Y6/wGkmpigrAacu2H1WJ47lrU39JZ/I4937n2P
+iMP7P+oUsA3XXFyjxXQh4vie69EHArACOFcsW7xwmF8EyD4NCLr4PrrD8oAruVVn
++8A/1E4xdlh4xZniDsM9YjC+ip8OLKhj+/6VN3/AJG7TG6cQhFQILcNKPzNiTQ/o
+O52i6zoRxIeN3IV1TMyo2vxxv4eQzIPEzUkllDwRDbvKcdmI70D9rcN9tErBHYtg
+QY7QizC14hd8EX+C7++T4plYpVsrGdvApl7Zq1O4k82pEeGkQzKDNOvfijkdkmrK
+rQIDAQAB
+-----END PUBLIC KEY-----
+"#;
+
+    /// A line of the test fixture's private key body, used to prove redaction works line-wise.
+    const TEST_FIXTURE_KEY_BODY_LINE: &str =
+        "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCo9DnVFU/vo5Io";
+
+    /// Records every token request and answers with a canned status and body.
+    struct FakeTokenTransport {
+        status: u16,
+        body: Value,
+        echo_assertion_in_error: bool,
+        /// (grant_type, assertion) per request.
+        seen: std::cell::RefCell<Vec<(String, String)>>,
+    }
+
+    impl FakeTokenTransport {
+        fn new(status: u16, body: Value) -> Self {
+            Self {
+                status,
+                body,
+                echo_assertion_in_error: false,
+                seen: std::cell::RefCell::new(Vec::new()),
+            }
+        }
+
+        fn assertions(&self) -> Vec<String> {
+            self.seen.borrow().iter().map(|(_, a)| a.clone()).collect()
+        }
+    }
+
+    impl TokenHttpClient for FakeTokenTransport {
+        fn post_form(&self, url: &str, params: &[(&str, &str)]) -> Result<Value, String> {
+            self.post_form_status(url, params).map(|(_, body)| body)
+        }
+
+        fn post_form_status(
+            &self,
+            _url: &str,
+            params: &[(&str, &str)],
+        ) -> Result<(u16, Value), String> {
+            let grant = params
+                .iter()
+                .find(|(k, _)| *k == "grant_type")
+                .map(|(_, v)| v.to_string())
+                .unwrap_or_default();
+            let assertion = params
+                .iter()
+                .find(|(k, _)| *k == "assertion")
+                .map(|(_, v)| v.to_string())
+                .unwrap_or_default();
+            self.seen.borrow_mut().push((grant, assertion.clone()));
+            let body = if self.echo_assertion_in_error {
+                serde_json::json!({
+                    "error": "invalid_grant",
+                    "error_description": format!(
+                        "bad assertion {assertion} for key {TEST_FIXTURE_KEY_BODY_LINE}"
+                    ),
+                })
+            } else {
+                self.body.clone()
+            };
+            Ok((self.status, body))
+        }
+    }
+
+    fn fixture_key(private_key_id: Option<&str>) -> ServiceAccountKey {
+        ServiceAccountKey {
+            client_email: "svc@project.iam.gserviceaccount.com".to_string(),
+            private_key: TEST_FIXTURE_PRIVATE_KEY_PEM.to_string(),
+            private_key_id: private_key_id.map(str::to_string),
+            token_uri: SERVICE_ACCOUNT_TOKEN_URI.to_string(),
+        }
+    }
+
+    /// Decodes a signed assertion with the fixture public key and returns its claims.
+    fn decode_fixture_claims(jwt: &str) -> Value {
+        let key = jsonwebtoken::DecodingKey::from_rsa_pem(TEST_FIXTURE_PUBLIC_KEY_PEM.as_bytes())
+            .expect("fixture public key parses");
+        let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
+        // The test clock is fixed in the past, so only the signature and audience are checked.
+        validation.validate_exp = false;
+        validation.set_audience(&[SERVICE_ACCOUNT_TOKEN_URI]);
+        jsonwebtoken::decode::<Value>(jwt, &key, &validation)
+            .expect("assertion verifies with the public key")
+            .claims
+    }
+
+    fn sa_state() -> ServiceAccountState {
+        ServiceAccountState {
+            exists: true,
+            has_required_fields: true,
+            client_email: Some("svc@project.iam.gserviceaccount.com".to_string()),
+            path: "/tmp/fixture-sa.json".to_string(),
+        }
+    }
+
+    #[test]
+    fn service_account_assertion_verifies_and_claims_match() {
+        let key = fixture_key(Some("test-kid-1"));
+        let scopes = [
+            "https://www.googleapis.com/auth/webmasters.readonly",
+            "https://www.googleapis.com/auth/indexing",
+        ];
+        let jwt = service_account_assertion(&key, &scopes, 1_700_000_000).expect("assertion");
+
+        let header = jsonwebtoken::decode_header(&jwt).expect("header decodes");
+        assert_eq!(header.alg, jsonwebtoken::Algorithm::RS256);
+        assert_eq!(header.kid.as_deref(), Some("test-kid-1"));
+        assert_eq!(header.typ.as_deref(), Some("JWT"));
+
+        let claims = decode_fixture_claims(&jwt);
+        assert_eq!(
+            claims["iss"].as_str(),
+            Some("svc@project.iam.gserviceaccount.com")
+        );
+        assert_eq!(
+            claims["scope"].as_str(),
+            Some("https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/indexing")
+        );
+        assert_eq!(claims["aud"].as_str(), Some(SERVICE_ACCOUNT_TOKEN_URI));
+        assert_eq!(claims["iat"].as_u64(), Some(1_700_000_000));
+        assert_eq!(claims["exp"].as_u64(), Some(1_700_003_600));
+    }
+
+    #[test]
+    fn service_account_assertion_omits_kid_when_absent() {
+        let key = fixture_key(None);
+        let jwt = service_account_assertion(
+            &key,
+            &["https://www.googleapis.com/auth/analytics.readonly"],
+            1_700_000_000,
+        )
+        .expect("assertion");
+        let header = jsonwebtoken::decode_header(&jwt).expect("header decodes");
+        assert_eq!(header.kid, None);
+    }
+
+    #[test]
+    fn service_account_assertion_rejects_non_pem_key() {
+        let mut key = fixture_key(None);
+        key.private_key = "not a key".to_string();
+        let err = service_account_assertion(&key, &["s"], 1).err();
+        assert!(err.is_some_and(|e| e.contains("not a valid RSA PEM")));
+    }
+
+    #[test]
+    fn parse_service_account_key_defaults_token_uri_and_requires_fields() {
+        let doc = serde_json::json!({
+            "client_email": "svc@x.iam.gserviceaccount.com",
+            "private_key": TEST_FIXTURE_PRIVATE_KEY_PEM,
+        });
+        let key = parse_service_account_key(&doc).expect("parses");
+        assert_eq!(key.token_uri, SERVICE_ACCOUNT_TOKEN_URI);
+        assert_eq!(key.private_key_id, None);
+
+        let missing = serde_json::json!({"client_email": "svc@x.iam.gserviceaccount.com"});
+        let err = parse_service_account_key(&missing).err();
+        assert_eq!(
+            err.as_deref(),
+            Some("service account JSON missing private_key")
+        );
+    }
+
+    #[test]
+    fn service_account_scopes_match_python_per_api_scopes() {
+        assert_eq!(
+            service_account_scopes("gsc"),
+            Some(&["https://www.googleapis.com/auth/webmasters.readonly"][..])
+        );
+        assert_eq!(
+            service_account_scopes("indexing"),
+            Some(&["https://www.googleapis.com/auth/indexing"][..])
+        );
+        assert_eq!(
+            service_account_scopes("ga4"),
+            Some(&["https://www.googleapis.com/auth/analytics.readonly"][..])
+        );
+        assert_eq!(service_account_scopes("psi"), None);
+    }
+
+    #[test]
+    fn exchange_success_posts_jwt_bearer_grant_and_parses_token() {
+        let fake = FakeTokenTransport::new(
+            200,
+            serde_json::json!({
+                "access_token": "ya29.fixture-token",
+                "expires_in": 3599,
+                "token_type": "Bearer",
+            }),
+        );
+        let token = exchange_assertion(
+            &fake,
+            &fixture_key(None),
+            &["https://www.googleapis.com/auth/indexing"],
+            1_700_000_000,
+        )
+        .expect("exchange succeeds");
+        assert_eq!(token.access_token, "ya29.fixture-token");
+        assert_eq!(token.expires_in, 3599);
+        assert_eq!(token.token_type, "Bearer");
+
+        let seen = fake.seen.borrow();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].0, JWT_BEARER_GRANT_TYPE);
+        assert_eq!(seen[0].1.split('.').count(), 3);
+    }
+
+    #[test]
+    fn exchange_non_2xx_is_rejected_with_google_error() {
+        let fake = FakeTokenTransport::new(
+            400,
+            serde_json::json!({
+                "error": "invalid_grant",
+                "error_description": "Invalid JWT Signature.",
+            }),
+        );
+        let err = exchange_assertion(&fake, &fixture_key(None), &["s"], 1_700_000_000)
+            .err()
+            .expect("non-2xx is an error");
+        assert!(err.contains("HTTP 400"), "{err}");
+        assert!(err.contains("invalid_grant"), "{err}");
+        assert!(err.contains("Invalid JWT Signature."), "{err}");
+    }
+
+    #[test]
+    fn exchange_2xx_without_access_token_is_error() {
+        let fake =
+            FakeTokenTransport::new(200, serde_json::json!({"error": "unauthorized_client"}));
+        let err = exchange_assertion(&fake, &fixture_key(None), &["s"], 1_700_000_000)
+            .err()
+            .expect("missing access_token is an error");
+        assert!(err.contains("no access_token"), "{err}");
+        assert!(err.contains("unauthorized_client"), "{err}");
+    }
+
+    #[test]
+    fn exchange_error_text_is_redacted_of_key_and_assertion() {
+        let mut fake = FakeTokenTransport::new(401, Value::Null);
+        fake.echo_assertion_in_error = true;
+        let err = exchange_assertion(&fake, &fixture_key(None), &["s"], 1_700_000_000)
+            .err()
+            .expect("rejected exchange is an error");
+        let assertion = fake.assertions().remove(0);
+        assert!(!err.contains(&assertion), "assertion leaked: {err}");
+        assert!(
+            !err.contains(TEST_FIXTURE_KEY_BODY_LINE),
+            "key leaked: {err}"
+        );
+        assert!(!err.contains("BEGIN PRIVATE KEY"), "key leaked: {err}");
+        assert!(err.contains("[redacted]"), "{err}");
+        assert!(err.contains("invalid_grant"), "{err}");
+    }
+
+    #[test]
+    fn verify_records_verified_per_service_with_that_services_scopes() {
+        let fake = FakeTokenTransport::new(
+            200,
+            serde_json::json!({"access_token": "ya29.ok", "expires_in": 3600}),
+        );
+        let mut state = CredentialState {
+            service_account: Some(sa_state()),
+            ..Default::default()
+        };
+        verify_with_key_source(
+            &mut state,
+            &fake,
+            &["gsc", "indexing", "ga4", "psi"],
+            1_700_000_000,
+            &|| Ok(fixture_key(None)),
+        );
+
+        // psi is api_key-backed, so only the three oauth_or_sa services are exchanged.
+        let assertions = fake.assertions();
+        assert_eq!(assertions.len(), 3);
+        let expected_scopes = [
+            "https://www.googleapis.com/auth/webmasters.readonly",
+            "https://www.googleapis.com/auth/indexing",
+            "https://www.googleapis.com/auth/analytics.readonly",
+        ];
+        for (jwt, scope) in assertions.iter().zip(expected_scopes) {
+            assert_eq!(decode_fixture_claims(jwt)["scope"].as_str(), Some(scope));
+        }
+        assert_eq!(
+            state.service_account_verification.get("gsc"),
+            Some(&ServiceAccountVerification::Verified)
+        );
+        assert!(!state.service_account_verification.contains_key("psi"));
+
+        let cfg = GoogleApiConfig::default();
+        let gsc = check_credentials("gsc", &cfg, &state);
+        assert!(gsc.available);
+        assert!(gsc
+            .note
+            .as_deref()
+            .is_some_and(|n| n.starts_with("verified")));
+        assert_eq!(gsc.error, None);
+    }
+
+    #[test]
+    fn verify_rejected_exchange_is_never_available() {
+        let fake = FakeTokenTransport::new(
+            401,
+            serde_json::json!({"error": "invalid_client", "error_description": "Unauthorized"}),
+        );
+        let mut state = CredentialState {
+            service_account: Some(sa_state()),
+            ..Default::default()
+        };
+        verify_with_key_source(&mut state, &fake, &["gsc"], 1_700_000_000, &|| {
+            Ok(fixture_key(None))
+        });
+        let cfg = GoogleApiConfig::default();
+        let gsc = check_credentials("gsc", &cfg, &state);
+        assert!(!gsc.available);
+        let error = gsc.error.expect("rejected reason reported");
+        assert!(error.starts_with("rejected:"), "{error}");
+        assert!(error.contains("invalid_client"), "{error}");
+    }
+
+    #[test]
+    fn verify_key_load_failure_is_rejected_not_available() {
+        let fake = FakeTokenTransport::new(200, serde_json::json!({"access_token": "x"}));
+        let mut state = CredentialState {
+            service_account: Some(sa_state()),
+            ..Default::default()
+        };
+        verify_with_key_source(&mut state, &fake, &["gsc"], 1, &|| {
+            Err("service account file is not valid JSON".to_string())
+        });
+        assert!(fake.assertions().is_empty());
+        let cfg = GoogleApiConfig::default();
+        let gsc = check_credentials("gsc", &cfg, &state);
+        assert!(!gsc.available);
+        assert_eq!(
+            gsc.error.as_deref(),
+            Some("rejected:service account file is not valid JSON")
+        );
+    }
+
+    #[test]
+    fn verify_is_skipped_when_an_oauth_token_is_usable() {
+        let fake = FakeTokenTransport::new(200, serde_json::json!({"access_token": "x"}));
+        let mut state = CredentialState {
+            oauth_token_usable: Some(true),
+            service_account: Some(sa_state()),
+            ..Default::default()
+        };
+        verify_service_accounts(&mut state, &fake, &["gsc"], 1);
+        assert!(fake.assertions().is_empty());
+        assert!(state.service_account_verification.is_empty());
+    }
+
+    #[test]
+    fn unverified_service_account_is_present_unverified_and_not_authenticated() {
+        let cfg = GoogleApiConfig {
+            api_key: Some("k".into()),
+            ..Default::default()
+        };
+        let state = CredentialState {
+            service_account: Some(sa_state()),
+            ..Default::default()
+        };
+        assert_eq!(detect_tier(&cfg, &state).tier, 0);
+        let gsc = check_credentials("gsc", &cfg, &state);
+        assert!(!gsc.available);
+        assert!(gsc
+            .note
+            .as_deref()
+            .is_some_and(|n| n.starts_with("present-unverified")));
     }
 }

@@ -204,6 +204,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // seal covers them; inputs that cannot reach a provider are named gaps.
     let (runtime_gaps, runtime_injected) =
         apply_runtime_inputs(&args, &mut selected_specs, direct)?;
+    // `--visual-spec`/`--visual-baselines` freeze into the visual provider the
+    // same way; both binders' declared gaps are reported with the run.
+    let (visual_gaps, visual_injected) = apply_visual_inputs(&args, &mut selected_specs, direct)?;
+    let declared_input_gaps = [runtime_gaps, visual_gaps].concat();
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
@@ -240,7 +244,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 args.out.as_deref(),
                 None,
             );
-            let mut input_gaps = native_audit_input_gaps(&args, &runtime_gaps);
+            let mut input_gaps = native_audit_input_gaps(&args, &declared_input_gaps);
             input_gaps.extend(lens_work_gaps);
             let mut plan_gaps = vec!["plan-only".to_owned()];
             plan_gaps.extend(direct_gaps.iter().cloned());
@@ -287,7 +291,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             report.gaps.extend(parity_gaps);
             report
                 .gaps
-                .extend(native_audit_input_gaps(&args, &runtime_gaps));
+                .extend(native_audit_input_gaps(&args, &declared_input_gaps));
             if runtime_injected
                 && !execution
                     .results
@@ -300,6 +304,18 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 report
                     .gaps
                     .push("runtime-inputs-not-consumed:provider-not-applicable".into());
+            }
+            if visual_injected
+                && !execution
+                    .results
+                    .iter()
+                    .any(|item| item.provider == VISUAL_PROVIDER_ID)
+            {
+                // The visual provider was selected but never ran (not applicable
+                // to this repository), so the supplied spec was not consumed.
+                report
+                    .gaps
+                    .push("visual-inputs-not-consumed:provider-not-applicable".into());
             }
             report.gaps.extend(direct_gaps.iter().cloned());
             // Reasoning lenses no in-process host executed are `pending-host`
@@ -989,23 +1005,75 @@ fn native_audit_parity_gaps(
 }
 
 const RUNTIME_PROVIDER_ID: &str = "legacy.runtime.app";
+const VISUAL_PROVIDER_ID: &str = "legacy.visual.core";
 
-fn native_audit_input_gaps(args: &AuditArgs, runtime_gaps: &[String]) -> Vec<String> {
+fn native_audit_input_gaps(args: &AuditArgs, declared_gaps: &[String]) -> Vec<String> {
     let mut gaps = Vec::new();
     if args.native_rule_manifest.is_some() {
         gaps.push("native-provider-composition-partial".into());
     }
-    // `--url`/`--surfaces`/`--width`/`--height` feed the runtime provider
-    // (`apply_runtime_inputs`); what could not reach it is named there.
-    gaps.extend(runtime_gaps.iter().cloned());
-    // No provider consumes the visual spec or baselines on this route, so
-    // supplying them must not read as if rendered state was compared.
-    if args.visual_spec.is_some() || args.visual_baselines.is_some() {
-        gaps.push("visual-inputs-not-consumed".into());
-    }
+    // Frozen-input binders (`apply_runtime_inputs`, `apply_visual_inputs`) name
+    // whatever could not reach its provider; consumed inputs add no gap.
+    gaps.extend(declared_gaps.iter().cloned());
     gaps.sort();
     gaps.dedup();
     gaps
+}
+
+/// Freeze `--visual-spec` and `--visual-baselines` into the visual provider's
+/// `runner.visual` object, so the plan seal covers them. The spec is read and
+/// shape-checked here (a malformed spec is a usage error, never a silent
+/// skip); the baselines path must be an existing directory and is frozen as a
+/// canonical path with a sorted per-file sha256 listing. Returns the input gaps
+/// for anything that cannot reach the provider and whether they were injected.
+fn apply_visual_inputs(
+    args: &AuditArgs,
+    specs: &mut [legion_contracts::ProviderSpec],
+    direct: bool,
+) -> Result<(Vec<String>, bool), CommandError> {
+    if args.visual_spec.is_none() && args.visual_baselines.is_none() {
+        return Ok((Vec::new(), false));
+    }
+    let mut visual = json!({});
+    if let Some(path) = &args.visual_spec {
+        let bytes = std::fs::read(path).map_err(|error| {
+            CommandError::usage(format!(
+                "cannot read --visual-spec {}: {error}",
+                path.display()
+            ))
+        })?;
+        visual = legion_audit::native_providers::legacy::visual::freeze_spec(&bytes)
+            .map_err(|reason| CommandError::usage(format!("invalid --visual-spec: {reason}")))?;
+    }
+    if let Some(dir) = &args.visual_baselines {
+        visual["baselines"] = legion_audit::native_providers::legacy::visual::freeze_baselines(dir)
+            .map_err(|reason| {
+                CommandError::usage(format!("invalid --visual-baselines: {reason}"))
+            })?;
+    }
+    if direct {
+        return Ok((
+            vec!["visual-inputs-not-consumed:provider-plan-supplied".to_owned()],
+            false,
+        ));
+    }
+    if !specs
+        .iter()
+        .any(|provider| provider.id.as_str() == VISUAL_PROVIDER_ID)
+    {
+        return Ok((
+            vec!["visual-inputs-not-consumed:provider-not-selected".to_owned()],
+            false,
+        ));
+    }
+    for provider in specs.iter_mut() {
+        if provider.id.as_str() == VISUAL_PROVIDER_ID {
+            if let Some(runner) = provider.runner.as_object_mut() {
+                runner.insert("visual".into(), visual.clone());
+            }
+        }
+    }
+    Ok((Vec::new(), true))
 }
 
 /// Bind `--url`, `--surfaces`, `--width` and `--height` to the runtime
@@ -2187,17 +2255,155 @@ mod closure_tests {
         );
     }
 
+    fn visual_spec_provider() -> legion_contracts::ProviderSpec {
+        serde_json::from_value(json!({
+            "schemaVersion": 2,
+            "id": "legacy.visual.core",
+            "providerVersion": "2.0.0",
+            "family": "visual",
+            "lensIds": ["visual"],
+            "role": "deterministic",
+            "phase": "runtime",
+            "dependsOn": [],
+            "consumes": [],
+            "produces": ["provider-result"],
+            "selector": {"op": "always"},
+            "denominatorKind": "selected-scope",
+            "runner": {"kind": "runtime-script", "module": "legacy.visual.core"},
+            "hostCapabilities": [],
+            "execution": {},
+            "reasoning": {},
+            "benchmark": {"status": "unproven", "requiredForCleanClaim": false},
+            "cleanClaim": "evidence-only",
+            "controlIds": [],
+            "scopes": [],
+            "selectable": true
+        }))
+        .unwrap()
+    }
+
+    /// A visual spec file and a baselines directory with one baseline.
+    fn visual_fixture(name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let dir =
+            std::env::temp_dir().join(format!("legion-bins-visual-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let baselines = dir.join("baselines");
+        std::fs::create_dir_all(&baselines).unwrap();
+        std::fs::write(baselines.join("home.png"), b"baseline-home").unwrap();
+        let spec = dir.join("visual-spec.json");
+        std::fs::write(
+            &spec,
+            br#"{"expected":{"routes":["/"]},"captures":[{"id":"home","path":"shots/home.png","baseline":"home.png"}]}"#,
+        )
+        .unwrap();
+        (spec, baselines)
+    }
+
     #[test]
-    fn visual_inputs_are_recorded_as_not_consumed() {
+    fn visual_inputs_freeze_into_the_visual_runner_without_gaps() {
+        let (spec_path, baselines) = visual_fixture("freeze");
         let mut args = minimal_audit_args();
-        assert!(native_audit_input_gaps(&args, &[]).is_empty());
-        args.visual_spec = Some(std::path::PathBuf::from("spec.json"));
+        args.visual_spec = Some(spec_path.clone());
+        args.visual_baselines = Some(baselines);
+        let mut specs = vec![visual_spec_provider()];
+
+        let (gaps, injected) = apply_visual_inputs(&args, &mut specs, false).unwrap();
+
+        assert!(gaps.is_empty(), "consumed inputs add no gap: {gaps:?}");
+        assert!(injected);
+        let visual = &specs[0].runner["visual"];
+        let spec_bytes = std::fs::read(&spec_path).unwrap();
         assert_eq!(
-            native_audit_input_gaps(&args, &["runtime-x".to_owned()]),
-            vec![
-                "runtime-x".to_owned(),
-                "visual-inputs-not-consumed".to_owned()
-            ]
+            visual["specDigest"],
+            legion_audit::native_providers::legacy::common::digest_bytes(&spec_bytes)
+        );
+        assert_eq!(visual["spec"]["captures"][0]["id"], "home");
+        assert_eq!(visual["baselines"]["files"][0]["path"], "home.png");
+        assert!(visual["baselines"]["digest"]
+            .as_str()
+            .is_some_and(|digest| digest.starts_with("sha256:")));
+    }
+
+    #[test]
+    fn visual_inputs_without_a_consumer_are_named_gaps() {
+        let (spec_path, _) = visual_fixture("gaps");
+        let mut args = minimal_audit_args();
+        args.visual_spec = Some(spec_path);
+
+        let (gaps, injected) =
+            apply_visual_inputs(&args, &mut vec![runtime_spec()], false).unwrap();
+        assert_eq!(
+            gaps,
+            vec!["visual-inputs-not-consumed:provider-not-selected".to_owned()]
+        );
+        assert!(!injected);
+
+        let (gaps, injected) =
+            apply_visual_inputs(&args, &mut vec![visual_spec_provider()], true).unwrap();
+        assert_eq!(
+            gaps,
+            vec!["visual-inputs-not-consumed:provider-plan-supplied".to_owned()]
+        );
+        assert!(!injected);
+    }
+
+    #[test]
+    fn no_visual_inputs_add_no_gap_or_injection() {
+        let args = minimal_audit_args();
+        let mut specs = vec![visual_spec_provider()];
+        let (gaps, injected) = apply_visual_inputs(&args, &mut specs, false).unwrap();
+        assert!(gaps.is_empty());
+        assert!(!injected);
+        assert!(specs[0].runner.get("visual").is_none());
+        assert!(native_audit_input_gaps(&args, &[]).is_empty());
+    }
+
+    #[test]
+    fn malformed_visual_spec_is_a_usage_error_naming_the_problem() {
+        let (spec_path, _) = visual_fixture("malformed");
+        let mut args = minimal_audit_args();
+        args.visual_spec = Some(spec_path.clone());
+
+        std::fs::write(&spec_path, b"[1,2]").unwrap();
+        let error =
+            apply_visual_inputs(&args, &mut vec![visual_spec_provider()], false).unwrap_err();
+        assert!(
+            error.message.contains("invalid --visual-spec"),
+            "{}",
+            error.message
+        );
+        assert!(error.message.contains("JSON object"), "{}", error.message);
+
+        std::fs::write(
+            &spec_path,
+            br#"{"captures":[{"id":"a","path":"../escape.png"}]}"#,
+        )
+        .unwrap();
+        let error =
+            apply_visual_inputs(&args, &mut vec![visual_spec_provider()], false).unwrap_err();
+        assert!(error.message.contains("relative path"), "{}", error.message);
+    }
+
+    #[test]
+    fn visual_baselines_must_be_an_existing_directory() {
+        let (_, baselines) = visual_fixture("not-a-dir");
+        let mut args = minimal_audit_args();
+        args.visual_baselines = Some(baselines.join("home.png"));
+        let error =
+            apply_visual_inputs(&args, &mut vec![visual_spec_provider()], false).unwrap_err();
+        assert!(
+            error.message.contains("invalid --visual-baselines"),
+            "{}",
+            error.message
+        );
+
+        args.visual_baselines = Some(baselines.join("missing"));
+        let error =
+            apply_visual_inputs(&args, &mut vec![visual_spec_provider()], false).unwrap_err();
+        assert!(
+            error.message.contains("invalid --visual-baselines"),
+            "{}",
+            error.message
         );
     }
 
@@ -2433,5 +2639,38 @@ mod sealed_plan_tests {
             Some("sha256:c".to_owned())
         );
         assert_eq!(named_plan_digest(&json!({"details": {}})), None);
+    }
+
+    /// The frozen `runner.visual` object is part of the compiled plan, so the
+    /// sealed digest changes when the frozen visual spec digest changes.
+    #[test]
+    fn sealed_plan_covers_the_frozen_visual_inputs() {
+        let root = fixture_root("visual-seal");
+        let source = crate::commands::audit_inventory_source(&root).unwrap();
+        let inventory = source.inventory(&root.to_string_lossy()).unwrap();
+        let sealed_digest = |spec_digest: &str| {
+            let mut provider = spec();
+            provider
+                .runner
+                .as_object_mut()
+                .expect("fixture runner is an object")
+                .insert(
+                    "visual".into(),
+                    json!({"spec": {"expected": {"routes": ["/"]}}, "specDigest": spec_digest}),
+                );
+            legion_audit::AuditPlan::compile_with_root(
+                Some(root.as_path()),
+                &inventory,
+                &[provider],
+            )
+            .unwrap()
+            .freeze(Some(KEY))
+            .unwrap()
+            .digest()
+            .to_owned()
+        };
+        let first = sealed_digest("sha256:first");
+        assert_eq!(first, sealed_digest("sha256:first"));
+        assert_ne!(first, sealed_digest("sha256:second"));
     }
 }

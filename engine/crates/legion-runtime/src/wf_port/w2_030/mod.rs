@@ -52,13 +52,10 @@
 //!   and real-filesystem resolution of service-account/OAuth-token state are all now ported in
 //!   [`google_auth`] (network calls behind [`google_auth::TokenHttpClient`], browser launch
 //!   behind [`google_auth::BrowserOpener`], both fakeable in tests), along with the full CLI
-//!   dispatch (`google_auth::run`). What remains unported in `google_auth.py` is
-//!   `get_service_account_credentials`/`get_oauth_credentials`/`build_service`'s construction of
-//!   a live `googleapiclient` service object — those are owned entirely by the python
-//!   `google-auth`/`google-api-python-client` libraries and the shipped script performs no JWT
-//!   signing itself at that point, so there is nothing script-side left to port; a future caller
-//!   that wants to actually call a Google API with service-account credentials would need to add
-//!   `jsonwebtoken` for RS256 JWT-bearer signing.
+//!   dispatch (`google_auth::run`). The service-account path is ported too: an RS256 JWT-bearer
+//!   assertion (`google_auth::service_account_assertion`) exchanged for an access token
+//!   (`google_auth::exchange_assertion`). Only the construction of a live `googleapiclient`
+//!   service object has no equivalent, because the Rust ports call the REST endpoints directly.
 //! - Packet r38 closed the `gsc_inspect.py`/`gsc_query.py`/`gsc_query_v2.py` half of this gap:
 //!   the live GSC URL Inspection call ([`gsc_inspect::inspect_url_with`]/
 //!   [`gsc_inspect::batch_inspect_with`], over [`gsc_inspect::InspectionTransport`]), the live
@@ -69,18 +66,19 @@
 //!   `reqwest`-based transport and fakeable in tests. Bearer-token resolution
 //!   ([`gsc_query_v2::resolve_bearer_token`]) wires the OAuth-token-file/refresh path through
 //!   `google_auth`'s already-ported [`google_auth::TokenHttpClient`]/[`google_auth::OauthClient`]
-//!   machinery. Each of the three scripts' `main()` is ported as a `run(args, out, err) -> i32`
+//!   machinery, then falls back to the service account (see the next item). Each of the three scripts' `main()` is ported as a `run(args, out, err) -> i32`
 //!   entry point ([`gsc_inspect::run`], [`gsc_query::run`], [`gsc_query_v2::run`]), with
 //!   `gsc_query::run`'s `query` command delegating to `gsc_query_v2::query_with` exactly as the
 //!   python original delegates to `gsc_query_v2.query()`.
-//! - What remains unported, in all three: the service-account credential fallback
-//!   (`get_service_account_credentials`/`build_service`'s live path in `google_auth.py`, which
-//!   these scripts reach via `get_oauth_credentials()`'s "no OAuth token -> fall back to service
-//!   account" branch). That needs an RSA-SHA256 JWT signed with the service account's private
-//!   key, and no crate providing RSA signing is in this port's allowed dependency list (`reqwest`,
-//!   `scraper`, `headless_chrome`, `image`) — the one genuinely-impossible piece; see the module
-//!   header of [`gsc_query_v2`] for the full note. The OAuth-token path (the common case once
-//!   `google_auth --auth` has been run once) is fully live.
+//! - Service-account fallback, in all three: when no usable OAuth token exists and a
+//!   service-account file is configured the way `google_auth` resolves it (the config file's
+//!   `service_account_path` or `GOOGLE_APPLICATION_CREDENTIALS`), the route mints a token for its
+//!   own API scope (`webmasters.readonly` for these routes) through
+//!   [`gsc_query_v2::bearer_with_service_account_fallback`] and uses it as the Bearer token. A usable
+//!   OAuth token always wins and no service-account call is made. Nothing is cached. With neither
+//!   credential the route keeps its existing OAuth-only message; a configured service account that
+//!   is rejected is reported as `unavailable:` with the redacted reason. The OAuth-token path (the
+//!   common case once `google_auth --auth` has been run once) is fully live.
 //! - `google_report.py` (2461 lines): NOT started under this chunk's budget. It is a large report
 //!   generator that formats/aggregates the same live GSC/PSI/CrUX/GA4/Indexing API responses this
 //!   chunk's other four files fetch; a faithful port belongs in its own follow-up chunk. Flagged

@@ -2327,6 +2327,7 @@ dependencies = [
  "hex",
  "hmac 0.13.0",
  "image",
+ "jsonwebtoken",
  "legion-catalog",
  "legion-contracts",
  "legion-policy",

@@ -284,3 +284,16 @@ These skills lived at `tools/skills/<name>/` in the parent workspace, not in thi
 | `engine/crates/legion-audit/tests/p10_mobile.rs` | 2026-10-11 unused audit port removal | none — test exercised only the removed port | intentionally dropped |
 | `engine/crates/legion-audit/tests/p11b_frameworks.rs` | 2026-10-11 unused audit port removal | none — test exercised only the removed port | intentionally dropped |
 | `engine/crates/legion-audit/tests/p11c_experience.rs` | 2026-10-11 unused audit port removal | none — test exercised only the removed port | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p10_runtime/browser_service.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p10_runtime/build_and_runner.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p10_runtime/desktop.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p10_runtime/mod.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p11_frameworks/mod.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p11c_experience/mod.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p11c_experience/safety.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p11c_experience/ux.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p11c_experience/visual.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/src/native_providers/p11c_experience/visual_core.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/tests/p10_desktop.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/tests/p10_build_and_runner.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |
+| `engine/crates/legion-audit/tests/wf_wf051.rs` | 2026-10-11 unused audit port removal | none — port had no production caller | intentionally dropped |

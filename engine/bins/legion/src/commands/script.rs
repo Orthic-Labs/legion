@@ -592,7 +592,7 @@ fn seo_ga4_report(args: &[String]) -> i32 {
     let bearer_token = if wants_help(args) {
         String::new()
     } else {
-        match required_credential("GA4_BEARER_TOKEN") {
+        match google_api_bearer("GA4_BEARER_TOKEN", "ga4") {
             Ok(token) => token,
             Err(code) => return code,
         }
@@ -623,13 +623,32 @@ fn seo_indexnow(args: &[String]) -> i32 {
     }
 }
 
-/// Reads a required credential from the environment. A missing or blank value
-/// is reported as `unavailable` (exit 3) so no request is sent with an empty token.
-fn required_credential(name: &str) -> Result<String, i32> {
-    match std::env::var(name) {
+/// Resolves the bearer token for a Google API route: the non-blank environment variable `name`
+/// when set, otherwise a service-account token minted for `service`'s scope when a service-account
+/// file is configured. With neither, a missing credential is reported as `unavailable` (exit 3)
+/// so no request is sent with an empty token; a configured service account that fails is also
+/// `unavailable`, with the redacted reason.
+fn google_api_bearer(name: &str, service: &str) -> Result<String, i32> {
+    let oauth = match std::env::var(name) {
         Ok(value) if !value.trim().is_empty() => Ok(value),
-        _ => {
-            eprintln!("unavailable: missing credential {name}");
+        _ => Err(format!("missing credential {name}")),
+    };
+    let cfg = w2_030::google_auth::load_config();
+    match w2_030::gsc_query_v2::bearer_with_service_account_fallback(
+        service,
+        oauth,
+        cfg.service_account_path.as_deref(),
+        &w2_030::google_auth::ReqwestTokenClient,
+        &|path: &str| w2_030::google_auth::load_service_account_key(path),
+        w2_030::google_auth::now_unix_whole_secs(),
+    ) {
+        Ok(token) => Ok(token),
+        Err(w2_030::gsc_query_v2::BearerError::NoCredential(message)) => {
+            eprintln!("unavailable: {message}");
+            Err(3)
+        }
+        Err(err @ w2_030::gsc_query_v2::BearerError::ServiceAccount(_)) => {
+            eprintln!("{err}");
             Err(3)
         }
     }
@@ -639,7 +658,7 @@ fn seo_indexing_notify(args: &[String]) -> i32 {
     let bearer_token = if wants_help(args) {
         String::new()
     } else {
-        match required_credential("GOOGLE_INDEXING_BEARER_TOKEN") {
+        match google_api_bearer("GOOGLE_INDEXING_BEARER_TOKEN", "indexing") {
             Ok(token) => token,
             Err(code) => return code,
         }

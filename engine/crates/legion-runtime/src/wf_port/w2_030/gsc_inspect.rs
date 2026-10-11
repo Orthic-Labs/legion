@@ -5,8 +5,8 @@
 //! remaining gap: the live GSC URL Inspection API call ([`inspect_url_with`]/
 //! [`batch_inspect_with`], generalized over [`InspectionTransport`] and backed for real by
 //! [`ReqwestInspectionTransport`]) and `main()`'s CLI dispatch ([`run`]). Bearer-token resolution
-//! reuses [`super::gsc_query_v2::resolve_bearer_token`] (see that module's header for the
-//! documented service-account-JWT-signing gap it shares).
+//! reuses [`super::gsc_query_v2::resolve_bearer_token`]: the saved OAuth token when usable,
+//! otherwise a service-account token minted for the `gsc` scope.
 
 use std::io::Write;
 
@@ -373,7 +373,7 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
         }
     };
 
-    let bearer = match resolve_bearer_token() {
+    let bearer = match resolve_bearer_token("gsc") {
         Ok(b) => b,
         Err(e) => {
             let _ = writeln!(err, "Error: {e}");
@@ -718,6 +718,55 @@ mod tests {
         );
         assert!(out["error"].as_str().unwrap().contains("Permission denied"));
         assert_eq!(out["verdict"], Value::Null);
+    }
+
+    struct BearerRecordingInspection {
+        bearers: std::cell::RefCell<Vec<String>>,
+    }
+
+    impl InspectionTransport for BearerRecordingInspection {
+        fn post_json(
+            &self,
+            _url: &str,
+            bearer: &str,
+            _body: &Value,
+        ) -> Result<(u16, String), String> {
+            self.bearers.borrow_mut().push(bearer.to_string());
+            Ok((
+                200,
+                json!({"inspectionResult": {"indexStatusResult": {"verdict": "PASS"}}}).to_string(),
+            ))
+        }
+    }
+
+    #[test]
+    fn minted_service_account_token_is_the_bearer_sent_for_inspection() {
+        use crate::wf_port::w2_030::gsc_query_v2::{
+            bearer_with_service_account_fallback, test_support,
+        };
+        let http =
+            test_support::FakeTokenEndpoint::new(200, json!({"access_token": "ya29.minted"}));
+        let bearer = bearer_with_service_account_fallback(
+            "gsc",
+            Err("No OAuth token found.".to_string()),
+            Some("/sa.json"),
+            &http,
+            &|path: &str| test_support::load_fixture_key(path),
+            1_700_000_000,
+        )
+        .expect("service account mints a token");
+        let transport = BearerRecordingInspection {
+            bearers: std::cell::RefCell::new(Vec::new()),
+        };
+        let out = inspect_url_with(
+            &transport,
+            &bearer,
+            "https://example.com/",
+            "sc-domain:example.com",
+            "en",
+        );
+        assert_eq!(out["verdict"], "PASS");
+        assert_eq!(*transport.bearers.borrow(), vec!["ya29.minted".to_string()]);
     }
 
     #[test]

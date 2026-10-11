@@ -22,8 +22,9 @@
 //! GETting `https://indexing.googleapis.com/v3/urlNotifications/metadata`
 //! with an already-minted OAuth bearer token — minting that token is
 //! `google_auth.py`'s job (ported separately in
-//! `wf_port::w2_030::google_auth`, which does not yet expose a token-minting
-//! call of its own; this module, like `wf_port::w2_029::ga4_report`, takes
+//! `wf_port::w2_030::google_auth`, which the route handler calls to mint a
+//! service-account token when no OAuth token is set); this module, like
+//! `wf_port::w2_029::ga4_report`, takes
 //! an already-resolved bearer token as input, matching how
 //! `_build_indexing_service()` hands a ready, already-authenticated
 //! service object to each Python function). Tests use a fake

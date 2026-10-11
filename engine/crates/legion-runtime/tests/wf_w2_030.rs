@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use legion_runtime::wf_port::w2_030::date_util::default_date_range;
 use legion_runtime::wf_port::w2_030::google_auth::{
     check_credentials, detect_tier, merge_config, validate_url, CredentialState, GoogleApiConfig,
-    ServiceAccountState,
+    ServiceAccountState, ServiceAccountVerification,
 };
 use legion_runtime::wf_port::w2_030::gsc_inspect::{
     apply_daily_limit, parse_inspection_result, tally_batch_summary,
@@ -45,21 +45,21 @@ fn google_auth_full_credential_lifecycle() {
     let gsc_check = check_credentials("gsc", &cfg, &no_auth);
     assert!(!gsc_check.available);
 
-    // A service account appears: tier climbs to 2 because ga4_property_id is already configured.
-    let authenticated = CredentialState {
-        service_account: Some(ServiceAccountState {
-            exists: true,
-            has_required_fields: true,
-            client_email: Some("svc@project.iam.gserviceaccount.com".to_string()),
-            path: "/home/user/.config/claude-seo/sa.json".to_string(),
-        }),
+    // A service-account file appears but no token exchange has run: it is present, not verified,
+    // so the tier does not count it and the credential is not available.
+    let sa = || ServiceAccountState {
+        exists: true,
+        has_required_fields: true,
+        client_email: Some("svc@project.iam.gserviceaccount.com".to_string()),
+        path: "/home/user/.config/claude-seo/sa.json".to_string(),
+    };
+    let unverified = CredentialState {
+        service_account: Some(sa()),
         ..Default::default()
     };
-    let tier2 = detect_tier(&cfg, &authenticated);
-    assert_eq!(tier2.tier, 2);
-    assert!(tier2.missing.is_none());
+    assert_eq!(detect_tier(&cfg, &unverified).tier, 0);
 
-    let gsc_check2 = check_credentials("gsc", &cfg, &authenticated);
+    let gsc_check2 = check_credentials("gsc", &cfg, &unverified);
     assert!(!gsc_check2.available);
     assert!(gsc_check2
         .note
@@ -70,8 +70,29 @@ fn google_auth_full_credential_lifecycle() {
         Some("svc@project.iam.gserviceaccount.com")
     );
 
+    // After a verified JWT-bearer exchange the tier climbs to 2, since ga4_property_id is set.
+    let verification = ["gsc", "indexing", "ga4"]
+        .into_iter()
+        .map(|svc| (svc.to_string(), ServiceAccountVerification::Verified))
+        .collect::<BTreeMap<_, _>>();
+    let authenticated = CredentialState {
+        service_account: Some(sa()),
+        service_account_verification: verification,
+        ..Default::default()
+    };
+    let tier2 = detect_tier(&cfg, &authenticated);
+    assert_eq!(tier2.tier, 2);
+    assert!(tier2.missing.is_none());
+
+    let gsc_check3 = check_credentials("gsc", &cfg, &authenticated);
+    assert!(gsc_check3.available);
+    assert!(gsc_check3
+        .note
+        .as_deref()
+        .is_some_and(|n| n.starts_with("verified")));
+
     let ga4_check = check_credentials("ga4", &cfg, &authenticated);
-    assert!(!ga4_check.available);
+    assert!(ga4_check.available);
 }
 
 #[test]

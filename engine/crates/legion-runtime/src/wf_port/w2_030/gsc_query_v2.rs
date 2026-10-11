@@ -9,10 +9,11 @@
 //!
 //! Bearer-token resolution ([`resolve_bearer_token`]) reuses `google_auth`'s already-ported OAuth
 //! token-file/refresh machinery (`TOKEN_PATH_SUFFIX`, `OauthClient`, `TokenHttpClient`,
-//! `refresh_oauth_token`). It does NOT fall back to a service account: that needs an RSA-SHA256
-//! JWT signed with the service account's private key, and no crate providing RSA signing is in
-//! this port's allowed dependency list (`reqwest`, `scraper`, `headless_chrome`, `image`) — the
-//! one genuinely-impossible piece of `google_auth.py`'s live credential resolution left unported.
+//! `refresh_oauth_token`). When no usable OAuth token exists and a service-account file is
+//! configured, it falls back to the service account: `google_auth` signs the RS256 JWT-bearer
+//! assertion and exchanges it for a token scoped to the one API the route calls
+//! ([`bearer_with_service_account_fallback`]). No token is cached; each call that needs the
+//! fallback performs one exchange.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -56,17 +57,15 @@ fn oauth_client_path_from_config() -> Option<String> {
         .map(str::to_string)
 }
 
-/// Resolves a live bearer access token for the GSC API calls in this chunk, reusing
+/// Resolves the saved OAuth access token (the OAuth half of [`resolve_bearer_token`]), reusing
 /// `google_auth`'s OAuth token-file/refresh machinery. Mirrors the OAuth-token branch of
 /// `get_oauth_credentials()`: loads the saved token, and if it is within 60s of `expires_at`,
 /// refreshes it via a real HTTP POST (persisting the refreshed token back to disk, same as
 /// `_refresh_oauth_token()`'s `_save_oauth_token()` call).
-pub fn resolve_bearer_token() -> Result<String, String> {
+pub fn resolve_oauth_bearer() -> Result<String, String> {
     let path = oauth_token_path().ok_or_else(|| "HOME not set".to_string())?;
     let token = google_auth::load_oauth_token_file(&path).ok_or_else(|| {
-        "No OAuth token found. Run `google_auth --auth --creds /path/to/client_secret.json` \
-         first. (Service-account auth is not supported by this native port: it requires \
-         RSA-SHA256 JWT signing, which is outside this port's allowed dependency list.)"
+        "No OAuth token found. Run `google_auth --auth --creds /path/to/client_secret.json` first."
             .to_string()
     })?;
 
@@ -104,6 +103,84 @@ pub fn resolve_bearer_token() -> Result<String, String> {
         .and_then(Value::as_str)
         .map(str::to_string)
         .ok_or_else(|| "token refresh response missing access_token".to_string())
+}
+
+/// Why a route has no bearer token. Display is the text the route prints: a missing credential
+/// keeps the route's existing OAuth-only message, and a configured service account that fails is
+/// typed `unavailable:` with its reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BearerError {
+    /// No usable OAuth token and no service account configured.
+    NoCredential(String),
+    /// A service account is configured but produced no token. `google_auth` redacts its exchange
+    /// errors (the key and the assertion never appear), and its load errors name only the file.
+    ServiceAccount(String),
+}
+
+impl std::fmt::Display for BearerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BearerError::NoCredential(message) => f.write_str(message),
+            BearerError::ServiceAccount(reason) => write!(f, "unavailable: {reason}"),
+        }
+    }
+}
+
+/// Resolves the bearer token for `service` (`gsc`, `indexing` or `ga4`): the saved OAuth token when
+/// it is usable, otherwise a service-account token minted for that API's scope.
+pub fn resolve_bearer_token(service: &str) -> Result<String, BearerError> {
+    let oauth = resolve_oauth_bearer();
+    let cfg = google_auth::load_config();
+    bearer_with_service_account_fallback(
+        service,
+        oauth,
+        cfg.service_account_path.as_deref(),
+        &google_auth::ReqwestTokenClient,
+        &|path: &str| google_auth::load_service_account_key(path),
+        google_auth::now_unix_whole_secs(),
+    )
+}
+
+/// The fallback decision, with its dependencies injected so tests need no files, network or clock.
+/// A usable OAuth token wins and no service-account call is made. Without a configured service
+/// account the OAuth failure is returned unchanged. With one configured, its key is loaded and
+/// exchanged for an access token scoped to `service` alone.
+pub fn bearer_with_service_account_fallback(
+    service: &str,
+    oauth: Result<String, String>,
+    service_account_path: Option<&str>,
+    http: &dyn google_auth::TokenHttpClient,
+    load_key: &dyn Fn(&str) -> Result<google_auth::ServiceAccountKey, String>,
+    now_unix: u64,
+) -> Result<String, BearerError> {
+    let oauth_reason = match oauth {
+        Ok(token) => return Ok(token),
+        Err(reason) => reason,
+    };
+    let path = match service_account_path {
+        Some(path) if !path.is_empty() => path,
+        _ => return Err(BearerError::NoCredential(oauth_reason)),
+    };
+    let api = google_auth::service_name(service);
+    let Some(scopes) = google_auth::service_account_scopes(service) else {
+        return Err(BearerError::ServiceAccount(format!(
+            "no service-account scope is defined for {api}"
+        )));
+    };
+    let key = match load_key(path) {
+        Ok(key) => key,
+        Err(reason) => {
+            return Err(BearerError::ServiceAccount(format!(
+                "service account for {api} is not usable: {reason}"
+            )))
+        }
+    };
+    match google_auth::exchange_assertion(http, &key, scopes, now_unix) {
+        Ok(token) => Ok(token.access_token),
+        Err(reason) => Err(BearerError::ServiceAccount(format!(
+            "service account token exchange failed for {api}: {reason}"
+        ))),
+    }
 }
 
 /// Boundary a caller plugs a real Search Analytics HTTP transport behind, so
@@ -445,10 +522,10 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
         .map(str::to_string)
         .collect();
 
-    let bearer = match resolve_bearer_token() {
+    let bearer = match resolve_bearer_token("gsc") {
         Ok(b) => b,
         Err(e) => {
-            let result = json!({"error": e});
+            let result = json!({"error": e.to_string()});
             let text = serde_json::to_string_pretty(&result).unwrap_or_default();
             let _ = writeln!(out, "{text}");
             return 1;
@@ -685,5 +762,300 @@ mod tests {
     #[test]
     fn build_filters_empty_when_none() {
         assert!(build_filters(None, None).is_empty());
+    }
+
+    #[test]
+    fn oauth_token_is_used_without_any_service_account_call() {
+        let http =
+            test_support::FakeTokenEndpoint::new(200, json!({"access_token": "ya29.unused"}));
+        let result = bearer_with_service_account_fallback(
+            "gsc",
+            Ok("oauth-token".to_string()),
+            Some("/sa.json"),
+            &http,
+            &|path: &str| test_support::load_fixture_key(path),
+            1_700_000_000,
+        );
+        assert_eq!(result, Ok("oauth-token".to_string()));
+        assert!(http.assertions.borrow().is_empty());
+    }
+
+    #[test]
+    fn without_oauth_each_api_mints_a_token_for_its_own_scope() {
+        let cases = [
+            ("gsc", "https://www.googleapis.com/auth/webmasters.readonly"),
+            ("indexing", "https://www.googleapis.com/auth/indexing"),
+            ("ga4", "https://www.googleapis.com/auth/analytics.readonly"),
+        ];
+        for (service, scope) in cases {
+            let http = test_support::FakeTokenEndpoint::new(
+                200,
+                json!({"access_token": "ya29.minted", "expires_in": 3599}),
+            );
+            let result = bearer_with_service_account_fallback(
+                service,
+                Err("No OAuth token found.".to_string()),
+                Some("/sa.json"),
+                &http,
+                &|path: &str| test_support::load_fixture_key(path),
+                1_700_000_000,
+            );
+            assert_eq!(result, Ok("ya29.minted".to_string()), "{service}");
+            let assertions = http.assertions.borrow();
+            assert_eq!(assertions.len(), 1, "{service}");
+            assert_eq!(
+                test_support::assertion_scope(&assertions[0]),
+                scope,
+                "{service}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejected_service_account_is_typed_unavailable_and_redacted() {
+        let http = test_support::FakeTokenEndpoint::new(
+            401,
+            json!({"error": "invalid_client", "error_description": "Unauthorized"}),
+        );
+        let result = bearer_with_service_account_fallback(
+            "gsc",
+            Err("No OAuth token found.".to_string()),
+            Some("/sa.json"),
+            &http,
+            &|path: &str| test_support::load_fixture_key(path),
+            1_700_000_000,
+        );
+        let err = match result {
+            Err(err) => err,
+            Ok(token) => panic!("a rejected key must not yield a token: {token}"),
+        };
+        let text = err.to_string();
+        assert!(
+            text.starts_with(
+                "unavailable: service account token exchange failed for Google Search Console API: "
+            ),
+            "{text}"
+        );
+        assert!(text.contains("invalid_client"), "{text}");
+        let assertion = http.assertions.borrow()[0].clone();
+        assert!(!text.contains(&assertion), "assertion leaked: {text}");
+        assert!(!text.contains("BEGIN PRIVATE KEY"), "key leaked: {text}");
+    }
+
+    #[test]
+    fn no_service_account_keeps_the_oauth_message_unchanged() {
+        let http = test_support::FakeTokenEndpoint::new(200, json!({"access_token": "unused"}));
+        let message = "No OAuth token found. Run `google_auth --auth`.".to_string();
+        let result = bearer_with_service_account_fallback(
+            "gsc",
+            Err(message.clone()),
+            None,
+            &http,
+            &|path: &str| test_support::load_fixture_key(path),
+            1,
+        );
+        assert_eq!(result, Err(BearerError::NoCredential(message.clone())));
+        let empty = bearer_with_service_account_fallback(
+            "gsc",
+            Err(message.clone()),
+            Some(""),
+            &http,
+            &|path: &str| test_support::load_fixture_key(path),
+            1,
+        );
+        assert_eq!(empty, Err(BearerError::NoCredential(message)));
+        assert!(http.assertions.borrow().is_empty());
+    }
+
+    #[test]
+    fn unreadable_service_account_file_is_unavailable_without_any_exchange() {
+        let http = test_support::FakeTokenEndpoint::new(200, json!({"access_token": "unused"}));
+        let result = bearer_with_service_account_fallback(
+            "ga4",
+            Err("No OAuth token found.".to_string()),
+            Some("/sa.json"),
+            &http,
+            &|_path: &str| -> Result<google_auth::ServiceAccountKey, String> {
+                Err("service account file unreadable: /sa.json".to_string())
+            },
+            1,
+        );
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "unavailable: service account for GA4 Data API v1beta is not usable: service account file unreadable: /sa.json"
+        );
+        assert!(http.assertions.borrow().is_empty());
+    }
+
+    struct BearerRecordingSearchAnalytics {
+        bearers: std::cell::RefCell<Vec<String>>,
+    }
+
+    impl SearchAnalyticsTransport for BearerRecordingSearchAnalytics {
+        fn post_json(
+            &self,
+            _url: &str,
+            bearer: &str,
+            _body: &Value,
+        ) -> Result<(u16, String), String> {
+            self.bearers.borrow_mut().push(bearer.to_string());
+            Ok((200, json!({"rows": []}).to_string()))
+        }
+    }
+
+    #[test]
+    fn minted_service_account_token_is_the_bearer_sent_to_search_analytics() {
+        let http =
+            test_support::FakeTokenEndpoint::new(200, json!({"access_token": "ya29.minted"}));
+        let bearer = bearer_with_service_account_fallback(
+            "gsc",
+            Err("No OAuth token found.".to_string()),
+            Some("/sa.json"),
+            &http,
+            &|path: &str| test_support::load_fixture_key(path),
+            1_700_000_000,
+        )
+        .expect("service account mints a token");
+        let transport = BearerRecordingSearchAnalytics {
+            bearers: std::cell::RefCell::new(Vec::new()),
+        };
+        let dims = vec!["query".to_string()];
+        let result = query_with(
+            &transport,
+            &bearer,
+            "sc-domain:example.com",
+            "2026-08-01",
+            "2026-08-28",
+            &dims,
+            "web",
+            25_000,
+            100_000,
+            None,
+            "final",
+        );
+        assert_eq!(result["error"], Value::Null);
+        assert_eq!(
+            *transport.bearers.borrow(),
+            vec!["ya29.minted".to_string(), "ya29.minted".to_string()]
+        );
+    }
+}
+
+/// Test seams shared by the three GSC routes' fallback tests: a fake token endpoint, a fixed
+/// service-account key, and a verifier that reads the `scope` claim of a signed assertion.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::cell::RefCell;
+
+    use serde_json::Value;
+
+    use super::google_auth;
+
+    // TEST FIXTURE ONLY: a 2048-bit RSA key pair generated for these unit tests with
+    // `openssl genrsa` / `openssl rsa -pubout`. It is not a credential and guards nothing.
+    pub const FIXTURE_PRIVATE_KEY_PEM: &str = r#"-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCo9DnVFU/vo5Io
+J6UrsGmP2w3Jxll29O+nUIFa9pN5quPHdjr/AaSamKCsBpy7YfVYnjuWtTf0ln8j
+j3fufY+Iw/s/6hSwDddcXKPFdCHi+J7r0QcCsAI4VyxbvHCYXwTIPg0Iuvg+usPy
+gCu5VWf7wD/UTjF2WHjFmeIOwz1iML6Knw4sqGP7/pU3f8AkbtMbpxCEVAgtw0o/
+M2JND+g7naLrOhHEh43chXVMzKja/HG/h5DMg8TNSSWUPBENu8px2YjvQP2tw320
+SsEdi2BBjtCLMLXiF3wRf4Lv75PimVilWysZ28CmXtmrU7iTzakR4aRDMoM069+K
+OR2SasqtAgMBAAECggEAUSHOb7unQi1rLysyjtNNLc6ERYOhTJV8S/1F0NedpAxj
+C1KELBau46otZc5bD0SQG7kIZmupbiOi9AGeFwFmnsd17JBM1Oogo/K8lkIZT7QS
+JK2gzzKULlf2LitEancehcX+XlXihcUL+XSBCqOvpl4AiMPvzqPXgxRNUMeCv5Ze
+l6ULLNjhPywYWuMIVJWR/YMPP5kiaSWsYy0zXcoFTPKmQJ/ltkwjSIhPLJsKCJ0H
+Z5M7d4clB/BMbjGTeC/eF11GCTukjInPDFaftjnjpQIoFpf+492ERYnSJZl9IX4z
+fgaN9ak5jdbWtncVxwEe6iAfPu01MxLXhVV497GuRQKBgQDdbWsSAbXLAO7iYgbu
+E4RzupCR6xDU3Z6qr7/qDUqDlIl57w6BbQYMQ4rv1u9vG+VOzWonJhoFmWL22D+y
+CDYmXBPLlvW0jUagEl1pmYK8qU0/g7mYK5kkKEbCm7Ym8bByvKTJj3vLzRzPqcuC
+K83OVvjY2Nulto8/5UjcZ+QeKwKBgQDDVWpM5Slbq7cDIzXABM/uTSAem0bYOI9/
+bi81fVRhVYPJr/1XTSK6DbIBQGLrJ2wwvrt9VEx5eS2CwFRfZc6a29HIlSaTmLZd
+Evl8eM2kCOuRbgYoJojRyhUJDk+9mDFHW7FctwxAPx9uOGBX75HDW5bcdOsn1yQf
+9tQKsC2mhwKBgQC+CUhZPep9/aEH3cXA0jNc94NYGHxrlIC2UPvOrfWDlBmg8pBq
+d9027Ujyqm731uMojJdMXiD7KTeMTu/rpayDo4bBth/OA2nXu6s8FCnmLQ9FMZI5
+jUFzjLWeE/Fy3v7mmgx7iI9gy/qsJzen0lxheLc9tHBeep3a4rdzoh5f3QKBgQC6
+mQgZOPlPVzRXTPV136L61LaQRmlg+HcsloeGo5lN+jERJIvxMACyl46qX2WfmmNi
+FXJqAXOkvzvYof53u3uot8EpykG10ba0JwIqBAT+ZH8UyHQdOuKM9m0t33wRdCfv
+MQq3tS2A2kweMMDogDVQ2Fe/dfmGb6FU36gkJbUWVQKBgHu+lAyBLFMVmas1L24N
+QsGx3zekVyIBwBfpFNN9n7mrClGSSuogM5NZv162EecdssgnRNlv8Mrg0g4Hblhl
+/1frgfdruHFKi9u9xYf0qCDZHuZv1PNckOOEbSni7J/5MW02LVHwHotyXjk2vVCj
+5fkAD6MjtsxMbA+bGWXjpOYC
+-----END PRIVATE KEY-----
+"#;
+
+    // TEST FIXTURE ONLY: public half of FIXTURE_PRIVATE_KEY_PEM.
+    pub const FIXTURE_PUBLIC_KEY_PEM: &str = r#"-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqPQ51RVP76OSKCelK7Bp
+j9sNycZZdvTvp1CBWvaTearjx3Y6/wGkmpigrAacu2H1WJ47lrU39JZ/I4937n2P
+iMP7P+oUsA3XXFyjxXQh4vie69EHArACOFcsW7xwmF8EyD4NCLr4PrrD8oAruVVn
++8A/1E4xdlh4xZniDsM9YjC+ip8OLKhj+/6VN3/AJG7TG6cQhFQILcNKPzNiTQ/o
+O52i6zoRxIeN3IV1TMyo2vxxv4eQzIPEzUkllDwRDbvKcdmI70D9rcN9tErBHYtg
+QY7QizC14hd8EX+C7++T4plYpVsrGdvApl7Zq1O4k82pEeGkQzKDNOvfijkdkmrK
+rQIDAQAB
+-----END PUBLIC KEY-----
+"#;
+
+    /// Records each assertion posted to the token endpoint and answers with a canned status/body.
+    pub struct FakeTokenEndpoint {
+        pub status: u16,
+        pub body: Value,
+        pub assertions: RefCell<Vec<String>>,
+    }
+
+    impl FakeTokenEndpoint {
+        pub fn new(status: u16, body: Value) -> Self {
+            Self {
+                status,
+                body,
+                assertions: RefCell::new(Vec::new()),
+            }
+        }
+    }
+
+    impl google_auth::TokenHttpClient for FakeTokenEndpoint {
+        fn post_form(&self, url: &str, params: &[(&str, &str)]) -> Result<Value, String> {
+            self.post_form_status(url, params).map(|(_, body)| body)
+        }
+
+        fn post_form_status(
+            &self,
+            _url: &str,
+            params: &[(&str, &str)],
+        ) -> Result<(u16, Value), String> {
+            let assertion = params
+                .iter()
+                .find(|(k, _)| *k == "assertion")
+                .map(|(_, v)| v.to_string())
+                .unwrap_or_default();
+            self.assertions.borrow_mut().push(assertion);
+            Ok((self.status, self.body.clone()))
+        }
+    }
+
+    pub fn fixture_key() -> google_auth::ServiceAccountKey {
+        google_auth::ServiceAccountKey {
+            client_email: "svc@project.iam.gserviceaccount.com".to_string(),
+            private_key: FIXTURE_PRIVATE_KEY_PEM.to_string(),
+            private_key_id: Some("test-kid".to_string()),
+            token_uri: google_auth::SERVICE_ACCOUNT_TOKEN_URI.to_string(),
+        }
+    }
+
+    pub fn load_fixture_key(_path: &str) -> Result<google_auth::ServiceAccountKey, String> {
+        Ok(fixture_key())
+    }
+
+    /// Verifies a signed assertion with the fixture public key and returns its `scope` claim.
+    pub fn assertion_scope(jwt: &str) -> String {
+        let key = jsonwebtoken::DecodingKey::from_rsa_pem(FIXTURE_PUBLIC_KEY_PEM.as_bytes())
+            .expect("fixture public key parses");
+        let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
+        // The test clock is fixed in the past, so only the signature and audience are checked.
+        validation.validate_exp = false;
+        validation.set_audience(&[google_auth::SERVICE_ACCOUNT_TOKEN_URI]);
+        let claims = jsonwebtoken::decode::<Value>(jwt, &key, &validation)
+            .expect("assertion verifies with the fixture public key")
+            .claims;
+        claims["scope"].as_str().unwrap_or_default().to_string()
     }
 }
