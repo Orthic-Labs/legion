@@ -280,6 +280,7 @@ pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandRes
                 client: args.client,
             },
             context,
+            cancellation,
         )
         .await;
     }
@@ -288,7 +289,7 @@ pub async fn run(args: SetupArgs, cancellation: CancellationToken) -> CommandRes
         Some(SetupCommand::Apply(args)) => {
             execute(args, legion_host::SetupAction::Apply, cancellation).await
         }
-        Some(SetupCommand::Status(args)) => status(args, context).await,
+        Some(SetupCommand::Status(args)) => status(args, context, cancellation).await,
         Some(SetupCommand::Qualify(args)) => qualify(args, context, cancellation).await,
         Some(SetupCommand::Repair(args)) => {
             lifecycle(
@@ -496,9 +497,10 @@ async fn preview(
 async fn status(
     args: SetupClientArgs,
     context: Option<legion_host::DevelopmentSetupContext>,
+    cancellation: CancellationToken,
 ) -> CommandResult {
     if let Some(context) = context {
-        return development_status(args, context);
+        return development_status(args, context, cancellation).await;
     }
     let installed = match installed_release() {
         Ok(installed) => installed,
@@ -552,8 +554,7 @@ async fn status(
         legion_host::SetupRegistry::open_platform(release.clone()).map_err(setup_error)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
-    let host_integrations =
-        inspect_host_integrations(&selector, &release, CancellationToken::new()).await?;
+    let host_integrations = inspect_host_integrations(&selector, &release, cancellation).await?;
     let platform_state_root = legion_host::platform_state_root().map_err(setup_error)?;
     let authenticated_live_qualification =
         inspect_stored_live_qualification(&clients, &release, &platform_state_root);
@@ -667,7 +668,7 @@ async fn execute(
         &preview.request.release,
         &preview.request.platform_state_root,
         false,
-        cancellation,
+        cancellation.clone(),
     )
     .await?;
     let mut registry = open_registry(&preview.request)?;
@@ -5160,9 +5161,10 @@ fn bound_release_for_context(
     })
 }
 
-fn development_status(
+async fn development_status(
     args: SetupClientArgs,
     context: legion_host::DevelopmentSetupContext,
+    cancellation: CancellationToken,
 ) -> CommandResult {
     let release = bound_release_for_context(Some(&context))?;
     let selector = selector(args.client);
@@ -5182,7 +5184,7 @@ fn development_status(
         legion_host::SetupRegistry::open_development(release, &context).map_err(setup_error)?;
     let recovery = registry.recover().map_err(setup_error)?;
     let clients = registry.status(&selector).map_err(setup_error)?;
-    let integrations = preview_host_integrations(&request, CancellationToken::new()).await?;
+    let integrations = preview_host_integrations(&request, cancellation).await?;
     let clients_value = serde_json::to_value(&clients)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let identity = inspect_live_identity(&integrations, request.development.as_ref())?;

@@ -584,7 +584,7 @@ fn inventory(root: &Path, depth: u32) -> Value {
 }
 
 #[cfg(test)]
-mod tests {
+mod native_client_qualification_tests {
     use super::native_clients_unobserved;
     use serde_json::json;
     use std::fs;
@@ -1183,7 +1183,7 @@ fn now_iso8601() -> String {
 }
 
 #[cfg(test)]
-mod tests {
+mod windows_qualification_tests {
     use super::*;
 
     #[test]
