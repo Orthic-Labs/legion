@@ -660,9 +660,9 @@ const HISTORICAL_FORBIDDEN_PATH_TOKENS: &[&str] = &[
 ];
 const HISTORICAL_FORBIDDEN_SUFFIXES: &[&str] = &[".md", ".markdown", ".rst", ".txt"];
 
-/// Historical `STATUS_VALUES` (mechanism-cards) and `SENTINELS`.
+/// Historical `STATUS_VALUES` (mechanism-cards) and its placeholder values.
 const STATUS_VALUES: &[&str] = &["OBSERVED", "UNCLEAR", "NOT FOUND", "N/A"];
-const SENTINEL_VALUES: &[&str] = &["not found", "unclear", "n/a", "no proven winner"];
+const PLACEHOLDER_VALUES: &[&str] = &["not found", "unclear", "n/a", "no proven winner"];
 
 /// Historical repeat-checked columns (`repeat_columns` in `main()`).
 const HISTORICAL_REPEAT_COLUMNS: &[&str] = &[
@@ -981,7 +981,7 @@ pub fn validate_table_mode(
                             ] {
                                 let value = c(name);
                                 if value.is_empty()
-                                    || SENTINEL_VALUES.contains(&value.to_lowercase().as_str())
+                                    || PLACEHOLDER_VALUES.contains(&value.to_lowercase().as_str())
                                 {
                                     errors
                                         .push(format!("line {line}: Observed card lacks `{name}`"));
@@ -1052,7 +1052,7 @@ pub fn validate_table_mode(
                 .or_insert(0) += 1;
         }
         for (value, count) in counts {
-            if value.is_empty() || SENTINEL_VALUES.contains(&value.to_lowercase().as_str()) {
+            if value.is_empty() || PLACEHOLDER_VALUES.contains(&value.to_lowercase().as_str()) {
                 continue;
             }
             if count > opts.max_repeat {

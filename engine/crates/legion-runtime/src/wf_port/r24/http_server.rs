@@ -2,11 +2,9 @@
 //! brief's guidance to use `TcpListener` (no `tiny_http` pinned in
 //! `engine/Cargo.lock`, checked). Ports `createRequestHandler`'s routing
 //! table and `httpServer.listen(...)` from `live-server.mjs`, plus the
-//! `shutdown()` cleanup path, for the routes whose behavior is
-//! self-contained in this packet (queue state machine + CORS + `/health` +
-//! `/stop`). Routes whose response body is assembled by unported sibling
-//! `.mjs` modules answer `501 Not Implemented` naming the missing module —
-//! see the `mod.rs` doc comment for the exact list.
+//! `shutdown()` cleanup path. Every route in the help text in `mod.rs` has a
+//! match arm here; the unported-sibling gaps are listed in `mod.rs`'s doc
+//! comment.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -219,11 +217,66 @@ fn request_token_matches(req: &Request, token: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// `GET /events` with the matching query token: the request that opens an SSE
+/// stream and so holds a client slot for the exit grace accounting.
+fn is_authorized_sse_request(req: &Request, token: &str) -> bool {
+    req.method == "GET"
+        && req.path == "/events"
+        && req.query.get("token").map(String::as_str) == Some(token)
+}
+
+/// Result of resolving the `GET /source` `path` parameter.
+enum SourceRead {
+    /// Missing or empty `path`, or one containing `..` (JS 400 `Bad path`).
+    BadPath,
+    /// Resolves outside the project root (JS 403 `Forbidden`).
+    Forbidden,
+    /// Absent, unreadable, or a directory (JS 404 `File not found`).
+    NotFound,
+    Found(String),
+}
+
+/// Port of the `/source` handler in `live-server.mjs`, the browser's no-HMR
+/// fallback. The JS restriction is kept: the request may not contain `..`,
+/// and the file must lie under the project root (JS `startsWith(cwd)`, here
+/// component-wise so `/proj-evil` does not pass for `/proj`). This port also
+/// resolves symlinks before the containment check, so a link inside the root
+/// cannot point the read outside it.
+fn read_source_file(project_root: &Path, requested: Option<&str>) -> SourceRead {
+    let requested = match requested {
+        Some(p) if !p.is_empty() => p,
+        _ => return SourceRead::BadPath,
+    };
+    if requested.contains("..") {
+        return SourceRead::BadPath;
+    }
+    let root = match project_root.canonicalize() {
+        Ok(r) => r,
+        Err(_) => return SourceRead::NotFound,
+    };
+    // `path.resolve(cwd, filePath)`: an absolute request replaces the base.
+    let lexical = root.join(requested);
+    if !lexical.starts_with(&root) {
+        return SourceRead::Forbidden;
+    }
+    let resolved = match lexical.canonicalize() {
+        Ok(p) => p,
+        Err(_) => return SourceRead::NotFound,
+    };
+    if !resolved.starts_with(&root) {
+        return SourceRead::Forbidden;
+    }
+    match std::fs::read(&resolved) {
+        Ok(bytes) => SourceRead::Found(String::from_utf8_lossy(&bytes).into_owned()),
+        Err(_) => SourceRead::NotFound,
+    }
+}
+
 /// How long an SSE connection may live before the server ends it (the
 /// browser's `EventSource` reconnects on its own).
 const SSE_MAX_DURATION: Duration = Duration::from_secs(24 * 60 * 60);
 /// JS `SSE_HEARTBEAT_INTERVAL`.
-const SSE_KEEPALIVE_INTERVAL: Duration = Duration::from_secs(30);
+const SSE_KEEPALIVE_INTERVAL: Duration = Duration::from_secs(5);
 const SSE_STEP: Duration = Duration::from_millis(100);
 /// Per-connection read timeout so a silent client cannot pin a thread.
 const CONNECTION_READ_TIMEOUT: Duration = Duration::from_secs(30);
@@ -503,6 +556,36 @@ fn handle_request<'a>(
                     text.as_bytes(),
                 ),
                 None => write_response(&mut stream, 404, "Not Found", "text/plain", b"Not found"),
+            }
+            true
+        }
+        ("GET", "/source") => {
+            let provided = req.query.get("token").map(String::as_str).unwrap_or("");
+            if provided != token {
+                write_unauthorized(&mut stream);
+                return true;
+            }
+            match read_source_file(project_root, req.query.get("path").map(String::as_str)) {
+                SourceRead::BadPath => {
+                    write_response(&mut stream, 400, "Bad Request", "text/plain", b"Bad path")
+                }
+                SourceRead::Forbidden => {
+                    write_response(&mut stream, 403, "Forbidden", "text/plain", b"Forbidden")
+                }
+                SourceRead::NotFound => write_response(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    "text/plain",
+                    b"File not found",
+                ),
+                SourceRead::Found(text) => write_response(
+                    &mut stream,
+                    200,
+                    "OK",
+                    "text/html; charset=utf-8",
+                    text.as_bytes(),
+                ),
             }
             true
         }
@@ -874,6 +957,8 @@ fn handle_request<'a>(
 /// never blocks other requests. `/stop` sets the queue's shutdown flag
 /// (which long-lived handlers observe) and opens one throwaway connection to
 /// wake the accept loop; the scope then joins all connection threads.
+/// An authorized SSE stream is counted; when the last one ends, the exit grace
+/// timer runs on a scoped thread (see [`QueueState::run_exit_grace`]).
 pub fn serve<'a>(
     listener: TcpListener,
     token: &str,
@@ -898,6 +983,11 @@ pub fn serve<'a>(
                     Some(r) => r,
                     None => return,
                 };
+                // Only an authorized stream holds an SSE client slot.
+                let sse_stream = is_authorized_sse_request(&req, token);
+                if sse_stream {
+                    queue.sse_client_connected();
+                }
                 let keep_running = handle_request(
                     req,
                     &stream,
@@ -909,6 +999,13 @@ pub fn serve<'a>(
                     session_dir,
                 );
                 let _ = stream.flush();
+                if sse_stream {
+                    if let Some(generation) = queue.sse_client_disconnected() {
+                        // The last browser left. The grace thread lives in this
+                        // scope, so `serve` joins it before returning.
+                        scope.spawn(move || queue.run_exit_grace(generation));
+                    }
+                }
                 if !keep_running {
                     queue.request_shutdown();
                     // Wake the accept loop so it observes the flag.
@@ -1546,6 +1643,155 @@ mod tests {
         assert!(json_out.contains("\"present\":true"), "{json_out}");
         assert!(json_out.contains("\"hasSidecar\":true"), "{json_out}");
         assert!(json_out.contains("\"schemaVersion\":2"), "{json_out}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn source_route_requires_token() {
+        let root = scratch_dir("source-token");
+        std::fs::write(root.join("a.svelte"), "<p>hi</p>").unwrap();
+        let queue = QueueState::new();
+        let wrong = run_req(
+            mk_req(
+                "GET",
+                "/source",
+                &[("token", "bad"), ("path", "a.svelte")],
+                b"",
+            ),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(wrong.contains("401"), "{wrong}");
+        let missing = run_req(
+            mk_req("GET", "/source", &[("path", "a.svelte")], b""),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(missing.contains("401"), "{missing}");
+        assert!(!wrong.contains("<p>hi</p>") && !missing.contains("<p>hi</p>"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn source_route_serves_project_file_as_html_text() {
+        let root = scratch_dir("source-ok");
+        std::fs::create_dir_all(root.join("dir")).unwrap();
+        std::fs::write(root.join("dir/v1.svelte"), "<p>variant</p>").unwrap();
+        let queue = QueueState::new();
+        let out = run_req(
+            mk_req(
+                "GET",
+                "/source",
+                &[("token", "tok"), ("path", "dir/v1.svelte")],
+                b"",
+            ),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(out.starts_with("HTTP/1.1 200 OK"), "{out}");
+        assert!(
+            out.contains("Content-Type: text/html; charset=utf-8"),
+            "{out}"
+        );
+        assert!(out.ends_with("<p>variant</p>"), "{out}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn source_route_refuses_paths_outside_project_root() {
+        let base = scratch_dir("source-escape");
+        let root = base.join("proj");
+        std::fs::create_dir_all(&root).unwrap();
+        // A sibling whose name shares the root as a string prefix must not pass.
+        let sibling = base.join("proj-evil");
+        std::fs::create_dir_all(&sibling).unwrap();
+        std::fs::write(sibling.join("secret.txt"), "SECRET").unwrap();
+        let queue = QueueState::new();
+
+        let dotdot = run_req(
+            mk_req(
+                "GET",
+                "/source",
+                &[("token", "tok"), ("path", "../proj-evil/secret.txt")],
+                b"",
+            ),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(dotdot.contains("400 Bad Request"), "{dotdot}");
+        assert!(dotdot.contains("Bad path"), "{dotdot}");
+        assert!(!dotdot.contains("SECRET"), "{dotdot}");
+
+        let absolute = sibling.join("secret.txt").to_string_lossy().into_owned();
+        let abs = run_req(
+            mk_req(
+                "GET",
+                "/source",
+                &[("token", "tok"), ("path", absolute.as_str())],
+                b"",
+            ),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(abs.contains("403 Forbidden"), "{abs}");
+        assert!(!abs.contains("SECRET"), "{abs}");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn source_route_refuses_symlink_that_escapes_project_root() {
+        let base = scratch_dir("source-symlink");
+        let root = base.join("proj");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(base.join("outside.txt"), "SECRET").unwrap();
+        std::os::unix::fs::symlink(base.join("outside.txt"), root.join("link.txt")).unwrap();
+        let queue = QueueState::new();
+        let out = run_req(
+            mk_req(
+                "GET",
+                "/source",
+                &[("token", "tok"), ("path", "link.txt")],
+                b"",
+            ),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(out.contains("403 Forbidden"), "{out}");
+        assert!(!out.contains("SECRET"), "{out}");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn source_route_reports_missing_file_404_and_missing_path_400() {
+        let root = scratch_dir("source-missing");
+        let queue = QueueState::new();
+        let missing = run_req(
+            mk_req(
+                "GET",
+                "/source",
+                &[("token", "tok"), ("path", "nope.svelte")],
+                b"",
+            ),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(missing.contains("404 Not Found"), "{missing}");
+        assert!(missing.contains("File not found"), "{missing}");
+        let no_path = run_req(
+            mk_req("GET", "/source", &[("token", "tok")], b""),
+            "tok",
+            &queue,
+            &root,
+        );
+        assert!(no_path.contains("400 Bad Request"), "{no_path}");
         let _ = std::fs::remove_dir_all(&root);
     }
 

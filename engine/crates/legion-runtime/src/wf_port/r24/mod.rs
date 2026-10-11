@@ -221,7 +221,7 @@ Endpoints:
   /manual-edit-stash   Stage browser copy edits
   /manual-edit-commit  Apply staged browser copy edits
   /manual-edit-discard Discard staged browser copy edits
-  /source              Raw source file reader (no-HMR fallback)
+  /source              Project file reader, project-relative paths (no-HMR fallback)
   /status              Durable recovery status (token-protected)
   /health              Health check";
 

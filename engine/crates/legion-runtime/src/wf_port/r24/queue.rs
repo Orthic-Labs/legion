@@ -13,7 +13,8 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
@@ -64,6 +65,10 @@ pub struct QueueState {
     active_polls: AtomicUsize,
     /// JS `state.lastAgentPollingBroadcast`.
     last_polling_broadcast: AtomicBool,
+    /// Delay between the last SSE client leaving and the synthetic `exit`
+    /// event (JS `setTimeout(..., 8000)` on `state.exitTimer`). Injectable so
+    /// tests do not sleep for eight seconds.
+    exit_grace: Duration,
 }
 
 /// Maximum number of broadcast messages retained for lagging SSE readers.
@@ -75,15 +80,50 @@ struct SseLog {
     entries: Vec<(u64, Value)>,
 }
 
+/// Queue plus SSE-client bookkeeping under one lock, so the exit grace timer's
+/// "no clients remain, enqueue exit" check is atomic with respect to a
+/// reconnect.
 struct Inner {
     pending_events: Vec<PendingEventEntry>,
+    /// JS `state.sseClients.size`: authorized `GET /events` streams open now.
+    sse_clients: usize,
+    /// Bumped on every connect and disconnect. A grace timer captures the value
+    /// it started with and stands down if it has changed (JS `clearTimeout`
+    /// on reconnect).
+    sse_generation: u64,
+}
+
+/// JS `state.exitTimer` delay: 8000 ms after the last SSE client disconnects
+/// (`live-server.mjs`, the `/events` close handler).
+pub const EXIT_GRACE_DEFAULT: Duration = Duration::from_millis(8000);
+/// Sleep granularity while the grace window runs, so shutdown is seen promptly.
+const EXIT_GRACE_STEP: Duration = Duration::from_millis(100);
+
+/// Decision half of the exit grace timer, pure so it can be tested without
+/// sleeping. JS: `if (state.sseClients.size === 0) enqueueEvent({ type: 'exit' })`.
+/// Fires only when no SSE client remains, no connect or disconnect happened
+/// since the timer started, and the server is not shutting down.
+pub fn exit_grace_should_fire(
+    sse_clients: usize,
+    started_generation: u64,
+    current_generation: u64,
+    shutdown: bool,
+) -> bool {
+    sse_clients == 0 && !shutdown && started_generation == current_generation
 }
 
 impl QueueState {
     pub fn new() -> Self {
+        Self::with_exit_grace(EXIT_GRACE_DEFAULT)
+    }
+
+    /// [`QueueState::new`] with an explicit exit grace delay.
+    pub fn with_exit_grace(exit_grace: Duration) -> Self {
         Self {
             inner: Mutex::new(Inner {
                 pending_events: Vec::new(),
+                sse_clients: 0,
+                sse_generation: 0,
             }),
             next_event_seq: AtomicU64::new(1),
             sse_log: Mutex::new(SseLog {
@@ -93,6 +133,7 @@ impl QueueState {
             shutdown: AtomicBool::new(false),
             active_polls: AtomicUsize::new(0),
             last_polling_broadcast: AtomicBool::new(false),
+            exit_grace,
         }
     }
 
@@ -177,9 +218,15 @@ impl QueueState {
     /// of lease state — `state.pendingEvents.some(...)` scans everything),
     /// then push with `leaseUntil: 0`.
     pub fn enqueue_event(&self, event: Value) {
+        let mut inner = self.inner.lock().unwrap();
+        self.enqueue_locked(&mut inner, event);
+    }
+
+    /// Body of [`QueueState::enqueue_event`] for callers already holding the
+    /// `inner` lock.
+    fn enqueue_locked(&self, inner: &mut Inner, event: Value) {
         let id = event.get("id").and_then(Value::as_str).map(str::to_owned);
         let ty = event.get("type").and_then(Value::as_str).map(str::to_owned);
-        let mut inner = self.inner.lock().unwrap();
         if let Some(id) = &id {
             let dup = inner.pending_events.iter().any(|entry| {
                 entry.id() == Some(id.as_str()) && entry.event_type().as_deref() == ty.as_deref()
@@ -194,6 +241,49 @@ impl QueueState {
             lease_until_ms: 0,
             seq,
         });
+    }
+
+    /// An authorized `GET /events` stream opened (JS `state.sseClients.add`).
+    /// Bumps the generation so any pending exit grace timer stands down.
+    pub fn sse_client_connected(&self) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.sse_clients += 1;
+        inner.sse_generation += 1;
+    }
+
+    /// An SSE stream ended (JS `req.on('close')`). Returns the generation to
+    /// start the exit grace timer with when this left no clients, else `None`.
+    pub fn sse_client_disconnected(&self) -> Option<u64> {
+        let mut inner = self.inner.lock().unwrap();
+        inner.sse_clients = inner.sse_clients.saturating_sub(1);
+        inner.sse_generation += 1;
+        (inner.sse_clients == 0).then_some(inner.sse_generation)
+    }
+
+    /// Body of the exit grace timer. Sleeps in short steps so shutdown is seen
+    /// promptly, then enqueues the anonymous `exit` event only if
+    /// [`exit_grace_should_fire`] still holds. Intended to run on a thread the
+    /// caller owns; returns when the window elapses or shutdown begins.
+    pub fn run_exit_grace(&self, started_generation: u64) {
+        let deadline = Instant::now() + self.exit_grace;
+        while !self.is_shutdown() {
+            let now = Instant::now();
+            if now >= deadline {
+                break;
+            }
+            thread::sleep((deadline - now).min(EXIT_GRACE_STEP));
+        }
+        let mut inner = self.inner.lock().unwrap();
+        let fire = exit_grace_should_fire(
+            inner.sse_clients,
+            started_generation,
+            inner.sse_generation,
+            self.is_shutdown(),
+        );
+        if fire {
+            // Anonymous, so no dedupe; same shape as JS `enqueueEvent({ type: 'exit' })`.
+            self.enqueue_locked(&mut inner, serde_json::json!({ "type": "exit" }));
+        }
     }
 
     /// `findAvailablePendingEvent(now)`: first entry whose lease has expired
@@ -426,5 +516,73 @@ mod tests {
         assert_eq!(msgs.len(), 2, "one true edge and one false edge");
         assert_eq!(msgs[0].1["connected"], true);
         assert_eq!(msgs[1].1["connected"], false);
+    }
+
+    #[test]
+    fn exit_grace_decision_requires_no_clients_same_generation_and_no_shutdown() {
+        assert!(exit_grace_should_fire(0, 4, 4, false));
+        assert!(
+            !exit_grace_should_fire(1, 4, 4, false),
+            "a client is connected"
+        );
+        assert!(
+            !exit_grace_should_fire(0, 4, 5, false),
+            "a connect or disconnect happened after the timer started"
+        );
+        assert!(
+            !exit_grace_should_fire(0, 4, 4, true),
+            "shutdown suppresses the synthetic exit"
+        );
+    }
+
+    #[test]
+    fn last_disconnect_enqueues_anonymous_exit_when_grace_elapses() {
+        let q = QueueState::with_exit_grace(Duration::from_millis(5));
+        q.sse_client_connected();
+        let generation = q.sse_client_disconnected().expect("last client left");
+        q.run_exit_grace(generation);
+        assert_eq!(q.len(), 1);
+        let entry = q.find_available_pending_event().unwrap();
+        assert_eq!(entry.event_type(), Some("exit"));
+        assert_eq!(
+            entry.id(),
+            None,
+            "shape matches JS enqueueEvent({{ type: 'exit' }})"
+        );
+    }
+
+    #[test]
+    fn disconnect_with_another_client_still_connected_starts_no_grace() {
+        let q = QueueState::with_exit_grace(Duration::from_millis(5));
+        q.sse_client_connected();
+        q.sse_client_connected();
+        assert_eq!(q.sse_client_disconnected(), None);
+        assert_eq!(q.inner.lock().unwrap().sse_clients, 1);
+    }
+
+    #[test]
+    fn reconnect_within_grace_cancels_the_pending_exit() {
+        let q = QueueState::with_exit_grace(Duration::from_millis(5));
+        q.sse_client_connected();
+        let generation = q.sse_client_disconnected().unwrap();
+        q.sse_client_connected();
+        q.run_exit_grace(generation);
+        assert_eq!(q.len(), 0);
+        assert_eq!(q.inner.lock().unwrap().sse_clients, 1);
+    }
+
+    #[test]
+    fn shutdown_during_grace_returns_promptly_without_exit() {
+        let q = QueueState::with_exit_grace(Duration::from_secs(60));
+        q.sse_client_connected();
+        let generation = q.sse_client_disconnected().unwrap();
+        q.request_shutdown();
+        q.run_exit_grace(generation);
+        assert_eq!(q.len(), 0);
+    }
+
+    #[test]
+    fn default_exit_grace_matches_js_eight_seconds() {
+        assert_eq!(EXIT_GRACE_DEFAULT, Duration::from_millis(8000));
     }
 }
