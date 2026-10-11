@@ -556,6 +556,30 @@
       "selectable": true
     },
     {
+      "id": "legacy.data.internal-suite",
+      "providerVersion": "2.0.0",
+      "role": "candidate-generator",
+      "family": "data",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "legacy.infrastructure.internal-suite",
+      "providerVersion": "2.0.0",
+      "role": "candidate-generator",
+      "family": "infrastructure",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
       "id": "legacy.quality.build",
       "providerVersion": "2.0.0",
       "role": "deterministic",
