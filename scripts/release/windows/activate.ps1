@@ -36,8 +36,14 @@ function Get-BinaryHash([string]$Path) {
   try { return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '') }
   finally { $hasher.Dispose(); $stream.Dispose() }
 }
-function Get-LegacyCodexProjection([string]$StateRoot, [string]$Home, [string]$InstallRoot) {
-  $target = [IO.Path]::GetFullPath((Join-Path $Home '.codex\plugins\legion'))
+function Get-CanonicalByteArrayDigest([byte[]]$Bytes) {
+  $canonicalBytes = ConvertTo-Json -InputObject ([int[]]$Bytes) -Compress
+  $hasher = [Security.Cryptography.SHA256]::Create()
+  try { return [BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($canonicalBytes))).Replace('-', '').ToLowerInvariant() }
+  finally { $hasher.Dispose() }
+}
+function Get-LegacyCodexProjection([string]$StateRoot, [string]$ClientHome, [string]$InstallRoot) {
+  $target = [IO.Path]::GetFullPath((Join-Path $ClientHome '.codex\plugins\legion'))
   $ledgerPath = Join-Path $StateRoot 'integrations\projections\codex.json'
   if (-not (Test-Path -LiteralPath $ledgerPath -PathType Leaf) -or -not (Test-Path -LiteralPath $target -PathType Container)) { return $null }
   try {
@@ -60,7 +66,7 @@ function Get-LegacyCodexProjection([string]$StateRoot, [string]$Home, [string]$I
       if (-not $full.StartsWith($target.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { return $null }
       $item = Get-Item -LiteralPath $full -Force -ErrorAction Stop
       if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $null }
-      $digest = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant()
+      $digest = Get-CanonicalByteArrayDigest ([IO.File]::ReadAllBytes($full))
       $expectedDigest = ([string]$property.Value).ToLowerInvariant()
       if (-not $expectedDigest.StartsWith('sha256:')) { return $null }
       $expectedDigest = $expectedDigest.Substring('sha256:'.Length)
@@ -75,7 +81,7 @@ function Get-LegacyCodexProjection([string]$StateRoot, [string]$Home, [string]$I
         if (-not $digests.ContainsKey($relative)) { return $null }
       }
     }
-    return [pscustomobject]@{ target=$target; ledger=$ledgerPath; ledgerBytes=$ledgerBytes; digests=$digests; stateRoot=$StateRoot; home=$Home; config=(Get-CodexDisabledIntent $Home) }
+    return [pscustomobject]@{ target=$target; ledger=$ledgerPath; ledgerBytes=$ledgerBytes; digests=$digests; stateRoot=$StateRoot; home=$ClientHome; config=(Get-CodexDisabledIntent $ClientHome) }
   } catch { return $null }
 }
 function Save-LegacyCodexProjection($Projection, [string]$BackupRoot) {
@@ -110,8 +116,8 @@ function Get-CodexPluginConfig([string]$Text) {
   for ($i = 0; $i -lt $lines.Count; $i++) { if ($i -lt $start -or $i -ge $end) { $outsideLines.Add($lines[$i]) } }
   return [pscustomobject]@{ valid=$true; state=$(if ($enabled.Count) { $enabled[0] } else { 'absent' }); outside=($outsideLines -join "`n"); block=@($lines[$start..($end - 1)]) }
 }
-function Get-CodexDisabledIntent([string]$Home) {
-  $codexHome = if ($env:CODEX_HOME -and [IO.Path]::IsPathRooted($env:CODEX_HOME)) { [IO.Path]::GetFullPath($env:CODEX_HOME) } else { Join-Path $Home '.codex' }
+function Get-CodexDisabledIntent([string]$ClientHome) {
+  $codexHome = if ($env:CODEX_HOME -and [IO.Path]::IsPathRooted($env:CODEX_HOME)) { [IO.Path]::GetFullPath($env:CODEX_HOME) } else { Join-Path $ClientHome '.codex' }
   $config = Join-Path $codexHome 'config.toml'
   if (-not (Test-Path -LiteralPath $config -PathType Leaf)) { return $null }
   try {
@@ -153,7 +159,7 @@ function Restore-LegacyCodexProjection($Snapshot) {
     }
     foreach ($path in $Snapshot.digests.Keys) {
       $full = Join-Path $Snapshot.target $path
-      if (-not (Test-Path -LiteralPath $full -PathType Leaf) -or (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Snapshot.digests[$path]) {
+      if (-not (Test-Path -LiteralPath $full -PathType Leaf) -or (Get-CanonicalByteArrayDigest ([IO.File]::ReadAllBytes($full))) -ne $Snapshot.digests[$path]) {
         throw "Codex plugin content changed during candidate activation: $path"
       }
     }

@@ -339,7 +339,9 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
             !relative.contains("\\"),
             !relative.split(separator: "/", omittingEmptySubsequences: false).contains(where: { $0 == "." || $0 == ".." }),
             let expected = digests[relative], seen.insert(relative).inserted else { return false }
-      let actual = SHA256.hash(data: try Data(contentsOf: path)).map { String(format: "%02x", $0) }.joined()
+      let bytes = try Data(contentsOf: path)
+      let canonicalBytes = "[" + bytes.map { String($0) }.joined(separator: ",") + "]"
+      let actual = SHA256.hash(data: Data(canonicalBytes.utf8)).map { String(format: "%02x", $0) }.joined()
       return actual == expected.lowercased()
     }
     guard try visit(root, relative: "") else { return nil }
