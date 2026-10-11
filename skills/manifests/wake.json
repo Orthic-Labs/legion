@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/wake",
-      "Schedule one bounded wakeup for an active job, external review, or goal-alignment check; inspect once per wake, stop polling, & continue only from observed state."
+      "Request one bounded wakeup for an active job, external review, or goal-alignment check, only where the host exposes a scheduler or event wait; inspect once per wake, stop polling, & continue only from observed state."
     ],
     "outputs": [],
     "scripts": [],
@@ -45,12 +45,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://wake/SKILL.md",
-      "digest": "sha256:cdaec33aeb6b8f85adb2f9c71ba36b80a57934a2fc5049a69c8bd67d3053363d"
+      "digest": "sha256:cc5f9ace03a9e641dc8883289f3a22370d87c2f02089b5c8a36dda79d2d51f8f"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://wake/agents/openai.yaml",
-      "digest": "sha256:df1855d23177924e89795b76020636e62f43fd61e883a70935e68fbcdd295e39"
+      "digest": "sha256:aefce87f0023e8880169ecf355fc68c991a9a9c57b0be676b8026355d54a4c0a"
     },
     {
       "path": "dependencies.json",
@@ -60,7 +60,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://wake/evals/evals.json",
-      "digest": "sha256:2583c4c47b71fd11dd2c698c0b9c85bfae1c23425b895b6cca46baffab682687"
+      "digest": "sha256:52c1e939aabaafb8bafb2ef3f2441de0e84eb7f5f45965a379f427d35dce2277"
     }
   ]
 }

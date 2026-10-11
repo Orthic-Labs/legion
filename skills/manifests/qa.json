@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/qa",
-      "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring."
+      "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, and runtime checks."
     ],
     "outputs": [
       "references/browser-automation.md",
@@ -48,12 +48,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://qa/SKILL.md",
-      "digest": "sha256:178708e642f6d7420aa50f6ed04c0f11a0990fc4d3c958011efe421e45461291"
+      "digest": "sha256:1c9d2d56c6203ff7fb4b03d5eef826d4725136f4ed379b749d31c64ec4d79582"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://qa/agents/openai.yaml",
-      "digest": "sha256:647a78787dd6c8c64fc6e4fabd3170315fbf24cba8639feaf151f1987211b3c4"
+      "digest": "sha256:031e84c88dd26e038b0c78d0e28e8ff1672c58dd3c0dd38cbc9ee5bced8f169e"
     },
     {
       "path": "dependencies.json",
@@ -73,7 +73,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://qa/references/manual.md",
-      "digest": "sha256:2076d88a00f24b14a378124a4b6b77eeb227d1cf6fc9c110a7436de5b08ce0b6"
+      "digest": "sha256:62db9a99c9e7805532877c0f9a23fbde370c820fa55a15546f816739e5e82b7b"
     }
   ]
 }

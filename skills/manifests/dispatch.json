@@ -92,7 +92,7 @@
     {
       "path": "examples/dispatch-route-fixture.json",
       "uri": "legion-skill://dispatch/examples/dispatch-route-fixture.json",
-      "digest": "sha256:ab74755bac07a39a7ed95f7d4bf9d7603f9eba773347c5c5043a2bae49036eda"
+      "digest": "sha256:3f307f9d9fe2c9a6caeb4192c20c6eba6849b25c4e3386952d3be0175b784077"
     },
     {
       "path": "examples/dispatch-route-fixture.receipt.json",
@@ -122,7 +122,7 @@
     {
       "path": "examples/validated-forward-test.md",
       "uri": "legion-skill://dispatch/examples/validated-forward-test.md",
-      "digest": "sha256:7f75ed3e8fb7fcbf58a0bdd05602c190242eb0e59c9de324f9761ed3ec0201bb"
+      "digest": "sha256:0ee912b7d8c48f6bd5928388bd9abb3857ee0d9b5219acfc88162b3eaa3ddaa3"
     },
     {
       "path": "examples/validated-forward-test.minimize.json",
@@ -142,7 +142,7 @@
     {
       "path": "examples/validated-forward-test.route.json",
       "uri": "legion-skill://dispatch/examples/validated-forward-test.route.json",
-      "digest": "sha256:3afa426479612661a4a36dbb4a6d5bd8d610ab13b9f1a60ade61c30456d1d96a"
+      "digest": "sha256:5946478632b4a559eaf37acb6c2da02f2c3508911f4bf661f1c82ee6dedf6aa1"
     },
     {
       "path": "examples/validated-forward-test.route.receipt.json",
@@ -162,7 +162,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
-      "digest": "sha256:e7f2fbd8995a907f649ad834c3cafe43f5e2c97ebd4c874b27c78004304ca756"
+      "digest": "sha256:e5e8abb86d023820020b862717312d6c49bb4b0118d15ff066b7b2c8cee7f7b3"
     }
   ]
 }

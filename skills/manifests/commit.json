@@ -53,7 +53,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://commit/SKILL.md",
-      "digest": "sha256:7dbe9a0fe7bb957f139ba3b7dc053f9f54d86a8b3d605f8350be6962b8adf878"
+      "digest": "sha256:358e9b0c888b8a86aa924408b70161e5fcc09edaa3930d5c9f537189675c1c75"
     },
     {
       "path": "agents/openai.yaml",
@@ -63,7 +63,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://commit/dependencies.json",
-      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+      "digest": "sha256:09457ee4c0c5cf8bf712afaba92a8dab241178d80ce605959e6925624c7490cb"
     },
     {
       "path": "evals/evals.json",
@@ -73,12 +73,12 @@
     {
       "path": "evals/evidence-gauntlet.json",
       "uri": "legion-skill://commit/evals/evidence-gauntlet.json",
-      "digest": "sha256:7d61eb40916aa4fa89eff22253aa4256b06744cf8deeff882d152c311a740d68"
+      "digest": "sha256:67e1deea9e816db7e74f3006a84e4a29879820e20eccc84ca83e1dec52764f79"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://commit/references/manual.md",
-      "digest": "sha256:c37e7828377d928866ddfea13819d18e04207e9deb2e692452e77ee1cdcbb357"
+      "digest": "sha256:884feb5665e13b836c96b8ca228ef3b664c3f4463aa7c7714b488a7b8b2984d7"
     }
   ]
 }

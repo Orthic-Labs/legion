@@ -57,7 +57,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://social/SKILL.md",
-      "digest": "sha256:f56671e518435d2ccc895947489b5605e94666dc4ce99fe9071e2ddb4c9baa47"
+      "digest": "sha256:f6a51790c3dfb2f531dbc091f6ec0f3d145705df416df120a95053ccfa3c2cd6"
     },
     {
       "path": "agents/openai.yaml",
@@ -67,12 +67,12 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://social/dependencies.json",
-      "digest": "sha256:6bd1aa7e87daffa0b93017f8d996bba7c4ccb4e9279eb0f568e80e2abbd4961d"
+      "digest": "sha256:0aea7d912ed40638ac5e176b2f5b570e97f42dc76dda0289f904751ae1e9ed21"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://social/evals/evals.json",
-      "digest": "sha256:0df338f8898658c462ae8cfa30ed7f54b8abced350d316e10ecb6639108cbee5"
+      "digest": "sha256:3a775dbdd6eb9066c65a5fb27c5f279ddf5a7ed54b857301f9c1f643d68e8d95"
     },
     {
       "path": "references/content/evals/evals.json",
@@ -82,37 +82,37 @@
     {
       "path": "references/content/reference.md",
       "uri": "legion-skill://social/references/content/reference.md",
-      "digest": "sha256:2cf5a0ccec68bec587b3d1edd5dfa5ab0099a5ebe466a9fb746fcc8414c3467c"
+      "digest": "sha256:cf2acd141f6ccef751748675fc8b0bc8c3435d4b740f021cb17f0209bfb9f0f9"
     },
     {
       "path": "references/content/references/platforms.md",
       "uri": "legion-skill://social/references/content/references/platforms.md",
-      "digest": "sha256:3c4e1b15717a3bcd4ed0cf29dc167dac28aa88bbf01723fde53815122396090f"
+      "digest": "sha256:d69cffb0f2928a9faa3ec5d1361686e59c5e7c242b8627d8807ffe4647025505"
     },
     {
       "path": "references/content/references/post-templates.md",
       "uri": "legion-skill://social/references/content/references/post-templates.md",
-      "digest": "sha256:db6525e51a690b61faf97a0acf51a2a57526de90da01c6bb37679d056c18c7f4"
+      "digest": "sha256:b5f2dc47d10054c136e04ceae5a910873d77e58fb9fde0bebe5c3cce08c22ab1"
     },
     {
       "path": "references/content/references/reverse-engineering.md",
       "uri": "legion-skill://social/references/content/references/reverse-engineering.md",
-      "digest": "sha256:70f114f636e0e2b1dae8168cef3bf350a1201c475ce694410b364fa621c4a0f1"
+      "digest": "sha256:a407222f54676601eab913af53b130c931c9c041b20b56147d016a000a453913"
     },
     {
       "path": "references/instagram/reference.md",
       "uri": "legion-skill://social/references/instagram/reference.md",
-      "digest": "sha256:61a16b71240fd42f442c5fa4e98fd22851d3521cc3ac2c3b5593ad907d34864a"
+      "digest": "sha256:113ba3c01a55eae160d95fd6d99ea9623fa9e7e48fdb542032948de1802fb5e0"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://social/references/manual.md",
-      "digest": "sha256:4b35692db141676a326a1890ff7bb2d730f7959c59f5e1fcf1bfc2b6ffa2efb6"
+      "digest": "sha256:66b5b8e1e4a8a663d9958b3fc320b8716314115e23bbfbec59a0e2f99cd5b9e5"
     },
     {
       "path": "references/pinterest/reference.md",
       "uri": "legion-skill://social/references/pinterest/reference.md",
-      "digest": "sha256:1494efb0d1377ec94cfdce01d94d2b78cef8be017bfd111e8508d9c0cae1e2b7"
+      "digest": "sha256:35d196e3f4b816dc9a2139423bd387ec9d8aabc489234fab2f9ad7f766602e3a"
     },
     {
       "path": "references/twitter/reference.md",
@@ -122,7 +122,7 @@
     {
       "path": "references/youtube/reference.md",
       "uri": "legion-skill://social/references/youtube/reference.md",
-      "digest": "sha256:c3fa22fe1f122f9fec11b49e1efec1afa2319ef9d20ac6356300c8b6e668cdb6"
+      "digest": "sha256:ec4907dd73a63b90e7d9253b89abaf3650f10a26083594679d5453280b66aba8"
     }
   ]
 }

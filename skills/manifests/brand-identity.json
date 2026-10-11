@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/brand-identity",
-      "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits."
+      "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, logo direction, brand books, rebrands, and the identity system behind a website or app (usage proofs only)."
     ],
     "outputs": [
       "references/brand-registry.md",
@@ -49,22 +49,22 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://brand-identity/SKILL.md",
-      "digest": "sha256:eea7eb86667655f3541a5fa135647d87fc69e4c83c6d9156361ae46963cf28e0"
+      "digest": "sha256:a9059703c99988f1020112d33109270c9a08769ed0ab01c8ed2241cbd407f004"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://brand-identity/agents/openai.yaml",
-      "digest": "sha256:5417a605e4347093a10d49a2ee4209fbc3267765fcdc1ff05d0bee645955800b"
+      "digest": "sha256:ddf4c2e6054bd768fc642b5f6330e6170190091b5d2e29bec719c3806abb8c04"
     },
     {
       "path": "dependencies.json",
       "uri": "legion-skill://brand-identity/dependencies.json",
-      "digest": "sha256:09a77eb08fca24af91f9dd37225bb8d75cc5441e3e116765a5b84adf1a5cc051"
+      "digest": "sha256:00d7028b8bc1e8bc58f97a753b282a14dda1dad96566b2d9929e4f76d630f53d"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://brand-identity/evals/evals.json",
-      "digest": "sha256:fb2fc35bfb1ad1b29eeeabb7e02c9bd3eda8d3ae4098995bf2fe014bfd7dc0df"
+      "digest": "sha256:31444d16b8c530b09db3097a1f33ec4e64e1f0e15d1c855cf653ecb5e7837cf5"
     },
     {
       "path": "references/brand-registry.md",
@@ -74,7 +74,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://brand-identity/references/manual.md",
-      "digest": "sha256:b1337853ae3712d39ddf70574a268ac64d8baa68d766c8d3da0a62c568a60478"
+      "digest": "sha256:f0c4da103db7946dbf88ac34f8501def5bc9c58eb3dd326c0fd639510bb8311c"
     },
     {
       "path": "references/visual-reference-libraries.md",

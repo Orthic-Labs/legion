@@ -111,7 +111,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://seo/SKILL.md",
-      "digest": "sha256:9e0eadaa96986bd8c8c56274db1c4c30000785a9d49b48671a2247788b5999c1"
+      "digest": "sha256:ea3b8f036f483b84565a35d298932b23964c2a8e5eacd1e124e84fc650804ab7"
     },
     {
       "path": "agents/openai.yaml",
@@ -156,17 +156,17 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://seo/dependencies.json",
-      "digest": "sha256:c0601231727064bd02d27e454114ad40ad0161f1602cab6a2ce385dedc1dcf87"
+      "digest": "sha256:2b89e79b5df9d373fe1bac32b6921a8cee0849283e60af9b543b170e775026e2"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://seo/evals/evals.json",
-      "digest": "sha256:9cc9f17bb8189c456235eb4d5401c0d4bc49aac74245e2cbed165658e918e7d9"
+      "digest": "sha256:2ac9ff570d80d5e989a3cb440cbdc14afb85ec87b3805220afb45ade4062dc2c"
     },
     {
       "path": "evals/llms-txt.evals.json",
       "uri": "legion-skill://seo/evals/llms-txt.evals.json",
-      "digest": "sha256:b133e5458080de52dc3bd864af52df29a374ea7ea939d720caa4f088dbffee16"
+      "digest": "sha256:e447c3e8bda7cf3bb3e32b5b99a879ee5c38a1435631dc138f74d058025efc92"
     },
     {
       "path": "extensions/banana/references/cost-tracking.md",
@@ -199,11 +199,6 @@
       "digest": "sha256:22945143b89ed97443f619a04792a423af36c43c1e1a0265c928682c6364cedc"
     },
     {
-      "path": "extensions/banana/references/seo-image-presets.md",
-      "uri": "legion-skill://seo/extensions/banana/references/seo-image-presets.md",
-      "digest": "sha256:3ded8a10cbe90549ca8ef1717aea35a42ac9870610e46b1d3f084bf654620121"
-    },
-    {
       "path": "hooks/hooks.json",
       "uri": "legion-skill://seo/hooks/hooks.json",
       "digest": "sha256:4f0e0df659a6b47922a86f6fdd6bcd24839b08b6ab0fff42d11c800beae59000"
@@ -216,7 +211,7 @@
     {
       "path": "references/ahrefs.md",
       "uri": "legion-skill://seo/references/ahrefs.md",
-      "digest": "sha256:252f38735297d1124b0178fe33c85ec6f29d846ee53d14eab72fda5eaadb6289"
+      "digest": "sha256:ac811a31d2ed3bf0139a9ed19b0ed12321bdfe495b0f0cad411bf880b04977c3"
     },
     {
       "path": "references/ai-search-2026.md",
@@ -231,27 +226,27 @@
     {
       "path": "references/backlinks.md",
       "uri": "legion-skill://seo/references/backlinks.md",
-      "digest": "sha256:b7fbeb5a0c46d02bd42589f0a899a2003478a58bf2ab3193adac7cb9699a2a71"
+      "digest": "sha256:246d9ee10fc09e287bb1f9f8721b80b23b32e8f2af74f60e46bb6d58f08b68ed"
     },
     {
       "path": "references/blog-post-contract.md",
       "uri": "legion-skill://seo/references/blog-post-contract.md",
-      "digest": "sha256:0d39684fec5b7655c086badfc6fe52a7711fdb0325f472406136337621b17aa1"
+      "digest": "sha256:e395761e2b4d0f54f258d966673bb696dd6b3a982700a6d4add04724819621ed"
     },
     {
       "path": "references/competitor-pages.md",
       "uri": "legion-skill://seo/references/competitor-pages.md",
-      "digest": "sha256:ab3b8db0b91d62ca2a776c4d7af9a116c660efd767312e52f88e0bb40f9f5f32"
+      "digest": "sha256:53d6b14913a49232f6a2da76c9f98a8841d280192b58fac90e2ae90f780a008a"
     },
     {
       "path": "references/cwv-thresholds.md",
       "uri": "legion-skill://seo/references/cwv-thresholds.md",
-      "digest": "sha256:92a89d5c90a05433fef7661289e87a7bc45f5a8b7f24cc5764c79797c02d0afb"
+      "digest": "sha256:fda752661a0b1cadcee24845d49c23e7dea3805c262ad07855b5624d7d5bebd9"
     },
     {
       "path": "references/dataforseo.md",
       "uri": "legion-skill://seo/references/dataforseo.md",
-      "digest": "sha256:950642ae9fd8bd9c021736a79b6ac841b3caf430288b1f12c03194916643b9ac"
+      "digest": "sha256:aad4457790048949b468842cb658ebf7bccf743da3d4043de04f6a69a5b8751b"
     },
     {
       "path": "references/ecommerce-2026.md",
@@ -266,12 +261,12 @@
     {
       "path": "references/firecrawl.md",
       "uri": "legion-skill://seo/references/firecrawl.md",
-      "digest": "sha256:86129934cace25b7dcdfe2799c6ac05ae499170380635462fdcce3e727dfc9d5"
+      "digest": "sha256:356429b7e4a8a3052ee19b17904ccb6e5cc7063e40ff69c81d5986854086d350"
     },
     {
       "path": "references/free-data-sources.md",
       "uri": "legion-skill://seo/references/free-data-sources.md",
-      "digest": "sha256:112449650fcf7e7e60df5886f481350b044c641ee6d8382ac91ac40653065240"
+      "digest": "sha256:66dad59d7810030cd577553053312ae5fc2016fcd57255c51fd41b9990eec2d1"
     },
     {
       "path": "references/geo.md",
@@ -281,7 +276,7 @@
     {
       "path": "references/google-assets/auth-setup.md",
       "uri": "legion-skill://seo/references/google-assets/auth-setup.md",
-      "digest": "sha256:277d1671c1ce0bd53a54f0217ada8a7ec66d1fdc741054e55b2d1981d1f12ea0"
+      "digest": "sha256:48e2b623678eac3f9e9482bb2cbb3367b6dea06d4cc111de7bb716ca80f694b7"
     },
     {
       "path": "references/google-assets/ga4-data-api.md",
@@ -296,7 +291,7 @@
     {
       "path": "references/google-assets/keyword-planner-api.md",
       "uri": "legion-skill://seo/references/google-assets/keyword-planner-api.md",
-      "digest": "sha256:c8f74f75adcad37c4c1a1f1929b4ea4ade70acbf0250525fb2a98d6a59d9f59f"
+      "digest": "sha256:8cb3b7c0a5a67e0afb5171ac0f1c68ee99189595aa44b908bd68fda2afd9d6de"
     },
     {
       "path": "references/google-assets/nlp-api.md",
@@ -311,7 +306,7 @@
     {
       "path": "references/google-assets/rate-limits-quotas.md",
       "uri": "legion-skill://seo/references/google-assets/rate-limits-quotas.md",
-      "digest": "sha256:ad1f7d096e229526c8fe9026a98124a05221f53636eb6023f362dfd5fd3c2f96"
+      "digest": "sha256:94a117562139b4945bbfc1b4275abcac7af4ae5554c2a8048f52654f77d4002c"
     },
     {
       "path": "references/google-assets/search-console-api.md",
@@ -326,17 +321,17 @@
     {
       "path": "references/google-assets/youtube-api.md",
       "uri": "legion-skill://seo/references/google-assets/youtube-api.md",
-      "digest": "sha256:d6c7c0ea2205ce533bfe63f277d5497bf25239c119bfea1cf093eef30a186a6a"
+      "digest": "sha256:91b297ddec7e3b0075c2da4b8406f243d93bfe925e22afd102f155d966d2ce96"
     },
     {
       "path": "references/google.md",
       "uri": "legion-skill://seo/references/google.md",
-      "digest": "sha256:238ca2af39dcacabee1dd26a9a769de47f28eb35d250a362b5c4dbdfabf5a9a7"
+      "digest": "sha256:a9e653cc8ca5823f5054a703295f7e7ccf177110d1c44e7c26f467e96e609ef9"
     },
     {
       "path": "references/hreflang.md",
       "uri": "legion-skill://seo/references/hreflang.md",
-      "digest": "sha256:eab248b9c50651507e0ae9090cfe7593b8c99fd2878346150e45da261aaf04cd"
+      "digest": "sha256:adb475bbc9c46b6f1e6234e310110df4898c9362c4279308d7d37e38bed2df3c"
     },
     {
       "path": "references/image-gen-assets/cost-tracking.md",
@@ -371,22 +366,22 @@
     {
       "path": "references/image-gen-assets/seo-image-presets.md",
       "uri": "legion-skill://seo/references/image-gen-assets/seo-image-presets.md",
-      "digest": "sha256:3b10c6891a96622f1c1b985bd5977f4fce350a5eb3dcc70fb0e7ad4a63570c42"
+      "digest": "sha256:3ded8a10cbe90549ca8ef1717aea35a42ac9870610e46b1d3f084bf654620121"
     },
     {
       "path": "references/image-gen.md",
       "uri": "legion-skill://seo/references/image-gen.md",
-      "digest": "sha256:b0315ed2740df5f0364f22c42802bf52991a0e69da87eab239c6261e8c1f943e"
+      "digest": "sha256:9c4c8f19496ce4d4af8eaad9d0bc8c17365f2f2324e3d6db1978ff6cd091fa64"
     },
     {
       "path": "references/images.md",
       "uri": "legion-skill://seo/references/images.md",
-      "digest": "sha256:36bd4697abf90bc3ac8a3cf809d9d57529051b6af9b6b7fda8a1ad6afc0190dc"
+      "digest": "sha256:567cd7ae8497c06cb1daae657e7561ca83aa3ecc2ed7ec00f70782f852d56706"
     },
     {
       "path": "references/llms-txt.md",
       "uri": "legion-skill://seo/references/llms-txt.md",
-      "digest": "sha256:84dd1002d7a745c250e136aa030323ba2d8bed45493546b010f09d4260bdb134"
+      "digest": "sha256:ae70f128337098b819ad56098bcedb6beb89851132db2d9cf724ecbfb03386ce"
     },
     {
       "path": "references/local-schema-types.md",
@@ -401,12 +396,12 @@
     {
       "path": "references/local.md",
       "uri": "legion-skill://seo/references/local.md",
-      "digest": "sha256:cb56536adadacdd7688145487fe920e6b75f24b0d1f22210afd8d69881f00cba"
+      "digest": "sha256:7b98e08913ac636d9df9fda651f1526c79965ef36f8ad47c8a4a343254213ef5"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://seo/references/manual.md",
-      "digest": "sha256:b76b0b064236ce117d052f4dd7ea97d37dbf98072ba61ce838d1b12387a13d0b"
+      "digest": "sha256:e1197e163a3a9d7feb0a255838c336d83dcc1ddda2c588ed22f60438b8c3bf93"
     },
     {
       "path": "references/maps-api-endpoints.md",
@@ -421,22 +416,22 @@
     {
       "path": "references/maps-gbp-checklist.md",
       "uri": "legion-skill://seo/references/maps-gbp-checklist.md",
-      "digest": "sha256:d8373d98de8a36a6e8e375e68305e4e3df5134d3a1e40b2bdbe0cdf1338e7d8f"
+      "digest": "sha256:8d4bc9cc9ca5f5a59b3aa060e218f0985ce315dea36f34fba1b8b3ee863eff21"
     },
     {
       "path": "references/maps-geo-grid.md",
       "uri": "legion-skill://seo/references/maps-geo-grid.md",
-      "digest": "sha256:76e08cd3fefb4d0367e0647895c482e1914a932dc86de4a82dc2d03b987855e4"
+      "digest": "sha256:d4795d7a7711fc1f5cd21bc94acba1e6b24fd0004daea6d1ae6d4fce96252662"
     },
     {
       "path": "references/off-page.md",
       "uri": "legion-skill://seo/references/off-page.md",
-      "digest": "sha256:13271b772faa9e4017654e373fc20c49606504dd89870cfe8f1e40f489f0daed"
+      "digest": "sha256:81be68f18a0b445fdb30640d8d947afad9b5e1789aa22fa66b30f92d74fc4893"
     },
     {
       "path": "references/okf-output.md",
       "uri": "legion-skill://seo/references/okf-output.md",
-      "digest": "sha256:7888f3f16fdcaa33fca0b78feacd88a85a0e722099d22878209bbafa73b87054"
+      "digest": "sha256:7d2fafd42a13aa39686bad00b50d1b33a2280acbf1d9e8d1b7f01fd397cfa4cd"
     },
     {
       "path": "references/openseo-absorption.md",
@@ -446,7 +441,7 @@
     {
       "path": "references/operations.md",
       "uri": "legion-skill://seo/references/operations.md",
-      "digest": "sha256:6e1efd51d2a8f7b9e811e73d01d92947824ade0dcb3423173fe6e951479a4be7"
+      "digest": "sha256:15e05068bd6c867188ca0b8ee285f87f3b0ed458079fd0ff0e66b0035f1230d1"
     },
     {
       "path": "references/page.md",
@@ -471,32 +466,32 @@
     {
       "path": "references/schema-markup.md",
       "uri": "legion-skill://seo/references/schema-markup.md",
-      "digest": "sha256:caa305513eadc165d31d40f10cd1640622e9abbf88af290182bd357dff965ad7"
+      "digest": "sha256:79dd58f41c28ce3fe51269e3818790b378fa6d0366e0d6c7dadc315dc797c9b7"
     },
     {
       "path": "references/schema-types.md",
       "uri": "legion-skill://seo/references/schema-types.md",
-      "digest": "sha256:72d056256cbb7272a40cf8b75281210fb5cb303a4d812abf32d17c039c30da22"
+      "digest": "sha256:124233268d85716f617799fba1ad74b63896617fa2acffb79843f0e202cd996f"
     },
     {
       "path": "references/schema.md",
       "uri": "legion-skill://seo/references/schema.md",
-      "digest": "sha256:c90938a2d8b996b7222092f58aa2a61994ad097a73db6e94e07ee0975b0bc270"
+      "digest": "sha256:794f09a20aaec3af8d0aa77ea6e8a7f46fbcddfb515aa289f4942b9616de9f93"
     },
     {
       "path": "references/search-experience.md",
       "uri": "legion-skill://seo/references/search-experience.md",
-      "digest": "sha256:4bbf35fae05ff1d0acebec082dc06316d6f802073d1e76268dd4ab3f9f407464"
+      "digest": "sha256:59b060f164a1b4564348b6ad1822edb054e5020a03f568437a9c6c54bb00327e"
     },
     {
       "path": "references/site-audit-checks.md",
       "uri": "legion-skill://seo/references/site-audit-checks.md",
-      "digest": "sha256:c8ec531b8d0eb61cd9ff1226463e2fc43755c143d09351bf83ef1898a5a53758"
+      "digest": "sha256:b0962c09548dbdc79f81ef3966cfc5b34f07c706391e35faf72b831cac962d8a"
     },
     {
       "path": "references/sitemap.md",
       "uri": "legion-skill://seo/references/sitemap.md",
-      "digest": "sha256:c700d72fa58180f6c85a2c41ab3ea4bdddb2d9efc08b380c4aa42a2653db5827"
+      "digest": "sha256:57b9904c6557375950cad5f5f1d6ed3cafe183c268c046df89019305a2be0556"
     },
     {
       "path": "references/technical.md",
@@ -506,7 +501,7 @@
     {
       "path": "references/topic-clusters.md",
       "uri": "legion-skill://seo/references/topic-clusters.md",
-      "digest": "sha256:0d609dd40c73ef1e538a049fddc65664f6d8b5fd213e228042d408da211dc7c4"
+      "digest": "sha256:5c4a006d8d63d37683c42bfdf87ad2fbe763a63842082ab1eb0c0565f12778b3"
     },
     {
       "path": "references/workflow-packs.md",

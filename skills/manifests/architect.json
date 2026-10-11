@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/architect",
-      "Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning."
+      "Software and system architecture capability for architecture decisions, ADRs, quality attributes, invariants, migrations, and architecture-significant planning."
     ],
     "outputs": [
       "references/manual.md"
@@ -93,12 +93,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://architect/SKILL.md",
-      "digest": "sha256:a2005db729c04915417f856a8ecc38586e573ef04457a47da46b3aa3d8238814"
+      "digest": "sha256:4c1b0ce5a20a0bb67ff4de5a2f15e214c9efd08ca221b072eb379408839473a6"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://architect/agents/openai.yaml",
-      "digest": "sha256:2d2271e2a14e1784ffc767aecebe8139bd743e2e7307cd80add011a3737e989d"
+      "digest": "sha256:843bfd3515af0e0fb713f467226755c14f79007ebfd02fdd94894805f369a4a7"
     },
     {
       "path": "dependencies.json",
@@ -113,7 +113,7 @@
     {
       "path": "doctrine/architecture/README.md",
       "uri": "legion-skill://architect/doctrine/architecture/README.md",
-      "digest": "sha256:5fb0d15a62c81d0b1e52488586d9e6563d1146ecb78ef78fa9e9f5c487e8b31f"
+      "digest": "sha256:c76d7450c60e4cca5b5108c351ae36f0ef351056727d3bfddae68b26b2741fa4"
     },
     {
       "path": "doctrine/architecture/controls/acceptance-ledger.md",
@@ -543,7 +543,7 @@
     {
       "path": "doctrine/architecture/workflow/08-minimize.md",
       "uri": "legion-skill://architect/doctrine/architecture/workflow/08-minimize.md",
-      "digest": "sha256:bfc606fbd32a2fb9c088b36c4a1da88dac9548fb3f11a4b6b8d29d6db9d334cc"
+      "digest": "sha256:ca88c6529fff9e3948fec5b40e310961f4d69bccbffc0233e0f958cb4879f315"
     },
     {
       "path": "doctrine/architecture/workflow/09-describe-views.md",

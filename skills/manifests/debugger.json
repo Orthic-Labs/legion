@@ -62,12 +62,12 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://debugger/evals/evals.json",
-      "digest": "sha256:2fe24fde5a851792da0e3f44c17ec6521c15c1b2dc8e62793f51bc211d3bc36f"
+      "digest": "sha256:f1948bfc442a5d272e96a515d515070df1a279c7b4eb5860984ead2db4a6274a"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://debugger/references/manual.md",
-      "digest": "sha256:26bf4ad5233761fababa90eebf9485f152ddf5f3f3dcabf9e275e3d71a3e850e"
+      "digest": "sha256:d69a5a07e9303c3a6b931fdc7aee536d79308df780351019e12dac1024879c81"
     }
   ]
 }
