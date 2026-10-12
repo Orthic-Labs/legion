@@ -55,6 +55,8 @@ pub enum SandboxGap {
     ToolMissing,
     /// The profile could not be written to disk.
     ProfileWriteFailed(String),
+    /// A project-write-denied profile could not resolve a usable project root.
+    ProjectRootUnavailable(String),
 }
 
 impl SandboxGap {
@@ -65,6 +67,9 @@ impl SandboxGap {
             }
             Self::ToolMissing => "sandbox_tool_missing: /usr/bin/sandbox-exec not found".into(),
             Self::ProfileWriteFailed(detail) => format!("sandbox_profile_write_failed: {detail}"),
+            Self::ProjectRootUnavailable(detail) => {
+                format!("sandbox_project_root_unavailable: {detail}")
+            }
         }
     }
 }
@@ -85,7 +90,29 @@ pub fn authenticate(
         return Err(SandboxGap::ToolMissing);
     }
 
-    let profile = render_profile(mode, cwd);
+    let filesystem_scope = match mode {
+        SandboxMode::DenyNetworkDenyProjectWrite | SandboxMode::AllowNetworkDenyProjectWrite => {
+            let root = Path::new(cwd).canonicalize().map_err(|error| {
+                SandboxGap::ProjectRootUnavailable(format!(
+                    "could not resolve project root {cwd:?}: {error}"
+                ))
+            })?;
+            if !root.is_dir() {
+                return Err(SandboxGap::ProjectRootUnavailable(format!(
+                    "project root is not a directory: {}",
+                    root.display()
+                )));
+            }
+            root.to_str().map(str::to_owned).ok_or_else(|| {
+                SandboxGap::ProjectRootUnavailable(format!(
+                    "resolved project root is not UTF-8: {}",
+                    root.display()
+                ))
+            })?
+        }
+        SandboxMode::DenyNetwork => cwd.to_owned(),
+    };
+    let profile = render_profile(mode, &filesystem_scope);
     let digest = {
         let mut hasher = Sha256::new();
         hasher.update(profile.as_bytes());
@@ -109,7 +136,7 @@ pub fn authenticate(
     Ok(SandboxAuthentication {
         id: format!("sandbox:macos:{digest}"),
         network: true,
-        filesystem_scope: Some(cwd.to_string()),
+        filesystem_scope: Some(filesystem_scope),
         wrapped_executable: sandbox_exec.to_string_lossy().into_owned(),
         wrapped_args,
     })
@@ -169,6 +196,10 @@ mod tests {
             std::process::id()
         ));
         let scratch = root.with_extension("scratch");
+        let symlink_root = root.with_extension("alias");
+        let _ = std::fs::remove_file(&symlink_root);
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&scratch);
         std::fs::create_dir_all(&root).unwrap();
         std::fs::create_dir_all(&scratch).unwrap();
         std::fs::write(root.join("relative-overwrite"), b"original").unwrap();
@@ -176,11 +207,25 @@ mod tests {
         std::fs::write(root.join("relative-delete"), b"preserve").unwrap();
         std::fs::write(root.join("absolute-delete"), b"preserve").unwrap();
         let profile_dir = root.join("profiles");
-        let run = |program: &str, args: &[String], cwd: &Path| {
+        let canonical_root = root.canonicalize().unwrap();
+        let non_directory = root.join("relative-overwrite");
+        let rejected_root = authenticate(
+            "/usr/bin/touch",
+            &[],
+            &non_directory.to_string_lossy(),
+            SandboxMode::DenyNetworkDenyProjectWrite,
+            &profile_dir,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            rejected_root,
+            SandboxGap::ProjectRootUnavailable(_)
+        ));
+        let run = |program: &str, args: &[String], cwd: &Path, scope_root: &Path| {
             let auth = authenticate(
                 program,
                 args,
-                &root.to_string_lossy(),
+                &scope_root.to_string_lossy(),
                 SandboxMode::DenyNetworkDenyProjectWrite,
                 &profile_dir,
             )
@@ -196,18 +241,25 @@ mod tests {
             root.join("absolute-create").to_string_lossy().into_owned(),
         ] {
             let relative = !Path::new(&path).is_absolute();
-            let output = run(
-                "/usr/bin/touch",
-                &[path.clone()],
-                if relative { &root } else { Path::new("/") },
+            let command_cwd = if relative { &root } else { Path::new("/") };
+            let output = run("/usr/bin/touch", &[path.clone()], command_cwd, &root);
+            assert!(
+                !output.status.success(),
+                "write unexpectedly succeeded: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} status={} stderr={}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
             );
-            assert!(!output.status.success());
             let target = if relative {
-                root.join(path)
+                root.join(&path)
             } else {
-                PathBuf::from(path)
+                PathBuf::from(&path)
             };
-            assert!(!target.exists());
+            assert!(
+                !target.exists(),
+                "write created a project file: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} target={target:?} status={} stderr={}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
         for path in [
             "relative-overwrite".to_owned(),
@@ -216,45 +268,111 @@ mod tests {
                 .into_owned(),
         ] {
             let relative = !Path::new(&path).is_absolute();
-            let output = run(
-                "/usr/bin/tee",
-                &[path.clone()],
-                if relative { &root } else { Path::new("/") },
+            let command_cwd = if relative { &root } else { Path::new("/") };
+            let output = run("/usr/bin/tee", &[path.clone()], command_cwd, &root);
+            assert!(
+                !output.status.success(),
+                "overwrite unexpectedly succeeded: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} status={} stderr={}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
             );
-            assert!(!output.status.success());
             let target = if relative {
-                root.join(path)
+                root.join(&path)
             } else {
-                PathBuf::from(path)
+                PathBuf::from(&path)
             };
-            assert_eq!(std::fs::read(target).unwrap(), b"original");
+            assert_eq!(
+                std::fs::read(&target).unwrap(),
+                b"original",
+                "overwrite changed project file: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} target={target:?} status={} stderr={}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
         for path in [
             "relative-delete".to_owned(),
             root.join("absolute-delete").to_string_lossy().into_owned(),
         ] {
             let relative = !Path::new(&path).is_absolute();
-            let output = run(
-                "/bin/rm",
-                &[path.clone()],
-                if relative { &root } else { Path::new("/") },
+            let command_cwd = if relative { &root } else { Path::new("/") };
+            let output = run("/bin/rm", &[path.clone()], command_cwd, &root);
+            assert!(
+                !output.status.success(),
+                "delete unexpectedly succeeded: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} status={} stderr={}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
             );
-            assert!(!output.status.success());
             let target = if relative {
-                root.join(path)
+                root.join(&path)
             } else {
-                PathBuf::from(path)
+                PathBuf::from(&path)
             };
-            assert_eq!(std::fs::read(target).unwrap(), b"preserve");
+            assert_eq!(
+                std::fs::read(&target).unwrap(),
+                b"preserve",
+                "delete changed project file: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} target={target:?} status={} stderr={}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
         let scratch_file = scratch.join("allowed-write");
         let output = run(
             "/usr/bin/touch",
             &[scratch_file.to_string_lossy().into_owned()],
             Path::new("/"),
+            &root,
         );
-        assert!(output.status.success());
-        assert!(scratch_file.is_file());
+        assert!(
+            output.status.success(),
+            "outside scratch write failed: scope_root={root:?} canonical_root={canonical_root:?} cwd=/ argv={scratch_file:?} status={} stderr={}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            scratch_file.is_file(),
+            "outside scratch target was not created: scope_root={root:?} canonical_root={canonical_root:?} cwd=/ argv={scratch_file:?} status={} stderr={}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        std::os::unix::fs::symlink(&canonical_root, &symlink_root).unwrap();
+        let aliased_relative = run(
+            "/usr/bin/touch",
+            &["symlink-relative-create".into()],
+            &symlink_root,
+            &symlink_root,
+        );
+        assert!(
+            !aliased_relative.status.success(),
+            "symlink-relative write unexpectedly succeeded: scope_root={symlink_root:?} canonical_root={canonical_root:?} cwd={symlink_root:?} argv=symlink-relative-create status={} stderr={}",
+            aliased_relative.status,
+            String::from_utf8_lossy(&aliased_relative.stderr)
+        );
+        assert!(
+            !canonical_root.join("symlink-relative-create").exists(),
+            "symlink-relative target was created: scope_root={symlink_root:?} canonical_root={canonical_root:?} cwd={symlink_root:?} argv=symlink-relative-create status={} stderr={}",
+            aliased_relative.status,
+            String::from_utf8_lossy(&aliased_relative.stderr)
+        );
+        let canonical_absolute_target = canonical_root.join("canonical-absolute-create");
+        let canonical_absolute = run(
+            "/usr/bin/touch",
+            &[canonical_absolute_target.to_string_lossy().into_owned()],
+            Path::new("/"),
+            &symlink_root,
+        );
+        assert!(
+            !canonical_absolute.status.success(),
+            "canonical absolute write unexpectedly succeeded: scope_root={symlink_root:?} canonical_root={canonical_root:?} cwd=/ argv={canonical_absolute_target:?} status={} stderr={}",
+            canonical_absolute.status,
+            String::from_utf8_lossy(&canonical_absolute.stderr)
+        );
+        assert!(
+            !canonical_absolute_target.exists(),
+            "canonical absolute target was created: scope_root={symlink_root:?} canonical_root={canonical_root:?} cwd=/ argv={canonical_absolute_target:?} status={} stderr={}",
+            canonical_absolute.status,
+            String::from_utf8_lossy(&canonical_absolute.stderr)
+        );
+        let _ = std::fs::remove_file(symlink_root);
         let _ = std::fs::remove_dir_all(root);
         let _ = std::fs::remove_dir_all(scratch);
     }

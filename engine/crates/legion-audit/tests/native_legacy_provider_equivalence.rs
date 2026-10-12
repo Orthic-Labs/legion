@@ -37,6 +37,9 @@ const NODE_REGISTRY: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../src/registry/providers.json"
 );
+const TEST_FIXTURE_PACKAGE_JSON: &str =
+    "{\"scripts\":{\"build\":\"build\",\"dev\":\"dev\",\"test\":\"test\"}}\n";
+const TEST_FIXTURE_PACKAGE_LOCK: &str = "{}\n";
 
 /// Tool labels and readiness gates are copied from
 /// `tools/audit/collect-facts.mjs::buildChecks` and its `doctor` function.
@@ -337,8 +340,8 @@ fn fixture_root() -> PathBuf {
             "src-tauri/capabilities/default.json",
             "{\"permissions\":[]}",
         ),
-        ("package.json", "{}\n"),
-        ("package-lock.json", "{}\n"),
+        ("package.json", TEST_FIXTURE_PACKAGE_JSON),
+        ("package-lock.json", TEST_FIXTURE_PACKAGE_LOCK),
         (
             "Cargo.toml",
             "[package]\nname=\"fixture\"\nversion=\"0.1.0\"\nedition=\"2021\"\n",
@@ -379,7 +382,12 @@ fn inventory() -> InventoryEnvelope {
             Vec::new(),
             Vec::new(),
         ),
-        ("package.json", false, Vec::new(), vec!["build", "dev"]),
+        (
+            "package.json",
+            false,
+            Vec::new(),
+            vec!["build", "dev", "test"],
+        ),
         ("package-lock.json", false, Vec::new(), Vec::new()),
         ("Cargo.toml", false, Vec::new(), Vec::new()),
         ("Cargo.lock", false, Vec::new(), Vec::new()),
@@ -397,7 +405,17 @@ fn inventory() -> InventoryEnvelope {
             dependencies: dependencies.into_iter().map(str::to_owned).collect(),
             package_scripts: package_scripts.into_iter().map(str::to_owned).collect(),
             source_file,
-            digest: None,
+            digest: match path {
+                "package.json" => Some(format!(
+                    "sha256:{}",
+                    hex::encode(sha2::Sha256::digest(TEST_FIXTURE_PACKAGE_JSON.as_bytes()))
+                )),
+                "package-lock.json" => Some(format!(
+                    "sha256:{}",
+                    hex::encode(sha2::Sha256::digest(TEST_FIXTURE_PACKAGE_LOCK.as_bytes()))
+                )),
+                _ => None,
+            },
         },
     )
     .collect();
@@ -449,6 +467,7 @@ impl ExternalProjectTool for FakeTool {
         if self.state == ExecutionState::Completed {
             receipt.gaps.clear();
             receipt.complete = true;
+            receipt.exit_code = Some(0);
             if let Some(body) = &body_for_tool {
                 let path = PathBuf::from(&request.cwd).join("provider-result.json");
                 fs::write(&path, body).unwrap();
@@ -497,11 +516,11 @@ impl ExternalProjectTool for FakeTool {
 }
 
 #[test]
-fn all_32_records_match_node_identity_and_explicit_readiness_table() {
+fn all_33_records_match_node_identity_and_explicit_readiness_table() {
     let node = node_registry();
-    assert_eq!(node.len(), 32);
-    assert_eq!(NODE_BEHAVIOR.len(), 32);
-    assert_eq!(specs().len(), 32);
+    assert_eq!(node.len(), 33);
+    assert_eq!(NODE_BEHAVIOR.len(), 33);
+    assert_eq!(specs().len(), 33);
     let node_ids = node
         .iter()
         .map(|record| record["id"].as_str().unwrap())
@@ -805,7 +824,7 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             "{id} receipt process authority"
         );
     }
-    assert_eq!(checked, 21);
+    assert_eq!(checked, 22);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -857,7 +876,9 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
         }
         checked += 1;
         let provider = plan.provider(id).unwrap();
-        if !TEXT_PERMISSIVE_IDS.contains(&id) {
+        // Test runners are judged from frozen command selection and process
+        // exit status; their ordinary text logs are not a JSON report.
+        if !TEXT_PERMISSIVE_IDS.contains(&id) && id != "legacy.quality.test" {
             let invalid = runtime
                 .block_on(invalid_registry.execute_async(
                     &plan,
@@ -895,6 +916,6 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
             "{id} failed denominator"
         );
     }
-    assert_eq!(checked, 21);
+    assert_eq!(checked, 22);
     fs::remove_dir_all(root).unwrap();
 }

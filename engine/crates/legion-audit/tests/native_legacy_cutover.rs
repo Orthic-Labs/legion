@@ -236,7 +236,7 @@ fn all_frozen_contracts_have_an_exact_dispatch_entry() {
     }
     assert_eq!(
         legion_audit::native_providers::legacy_checks::specs().len(),
-        32
+        33
     );
 }
 

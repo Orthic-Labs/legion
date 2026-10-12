@@ -98,14 +98,18 @@ fn minimize_carries_all_five_ponytail_tags_and_raw_excerpts() {
     let guidance = value["ponytailGuidance"]
         .as_str()
         .expect("full ponytail guidance");
+    let normalized_guidance = guidance.split_whitespace().collect::<Vec<_>>().join(" ");
     for requirement in [
         "False-positive discipline (STRICT",
         "testing/DI seam",
-        "planned extension",
+        "clearly plans to extend",
         "Mechanical file splitting counts here",
         "Package/script sprawl is in scope",
     ] {
-        assert!(guidance.contains(requirement), "missing {requirement:?}");
+        assert!(
+            normalized_guidance.contains(requirement),
+            "missing {requirement:?}"
+        );
     }
 }
 

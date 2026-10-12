@@ -1,6 +1,7 @@
 use std::{
     fs,
     path::PathBuf,
+    process::Command,
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -524,15 +525,41 @@ fn missing_declared_test_runner_stays_incomplete_and_typed() {
         r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
     )
     .unwrap();
+
+    const CHILD: &str = "LEGION_AUDIT_MISSING_TEST_RUNNER_CHILD";
+    if std::env::var_os(CHILD).as_deref() != Some(std::ffi::OsStr::new("1")) {
+        // Isolate PATH in a child test process so parallel tests and the CI
+        // host's installed pnpm cannot affect the resolver's missing-tool case.
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "missing_declared_test_runner_stays_incomplete_and_typed",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env("PATH", &root)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "isolated missing-runner child failed: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        fs::remove_dir_all(root).unwrap();
+        return;
+    }
+
     let inventory = FilesystemInventorySource::new(&root)
         .unwrap()
         .inventory("fixture")
         .unwrap();
     let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+    let request = Arc::new(Mutex::new(None));
     let registry =
         NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(TestRunTool {
             exit_code: 0,
-            request: Arc::new(Mutex::new(None)),
+            request: Arc::clone(&request),
             version_output: None,
         }));
     let report = tokio::runtime::Runtime::new()
@@ -553,6 +580,10 @@ fn missing_declared_test_runner_stays_incomplete_and_typed() {
     assert_eq!(
         result.details["testCommandResolution"]["status"],
         "unavailable"
+    );
+    assert!(
+        request.lock().unwrap().is_none(),
+        "missing runner launched tool"
     );
     fs::remove_dir_all(root).unwrap();
 }

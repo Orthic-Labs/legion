@@ -709,7 +709,7 @@ impl LegacyCheckDispatcher {
     }
 }
 
-/// Native Rust owner for all 32 frozen legacy provider IDs.
+/// Native Rust owner for all 33 frozen legacy provider IDs.
 #[derive(Clone)]
 pub struct NativeLegacyCheckExecutor {
     root: PathBuf,
@@ -1354,7 +1354,9 @@ fn execution_from_receipt(
             .as_ref()
             .map(|report| report.bytes.as_slice()),
     };
-    let exact_test_version_unproven = if input.check == "test" {
+    let exact_test_version_unproven = if input.check == "test"
+        && (receipt.executable.is_some() || state == LegacyCheckProcessState::Completed)
+    {
         test_command_source
             .as_ref()
             .and_then(|source| source.get("versionRequirement"))
@@ -3233,7 +3235,7 @@ mod tests {
     #[test]
     fn every_frozen_legacy_id_is_dispatchable() {
         let dispatcher = LegacyCheckDispatcher::new();
-        assert_eq!(specs().len(), 32);
+        assert_eq!(specs().len(), 33);
         for contract in specs() {
             assert!(dispatcher.contains(contract.provider_id));
         }
